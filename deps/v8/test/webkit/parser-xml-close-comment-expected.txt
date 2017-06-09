@@ -30,7 +30,7 @@ PASS 'should be a syntax error' --> threw exception ReferenceError: Invalid left
 PASS /**/ 1 --> threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
 PASS 1 /**/ --> threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
 PASS 1/*
-*/--> threw exception SyntaxError: Unexpected token >.
+*/--> is 1
 PASS --> is undefined.
 PASS /**/--> is undefined.
 PASS /*

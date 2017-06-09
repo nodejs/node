@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<project name="DotZLib" default="build" basedir="./DotZLib">
+	<description>A .Net wrapper library around ZLib1.dll</description>
+
+	<property name="nunit.location" value="c:/program files/NUnit V2.1/bin" />
+	<property name="build.root" value="bin" />
+
+	<property name="debug" value="true" />
+	<property name="nunit" value="true" />
+
+	<property name="build.folder" value="${build.root}/debug/" if="${debug}" />
+	<property name="build.folder" value="${build.root}/release/" unless="${debug}" />
+
+	<target name="clean" description="Remove all generated files">
+		<delete dir="${build.root}" failonerror="false" />
+	</target>
+
+	<target name="build" description="compiles the source code">
+
+		<mkdir dir="${build.folder}" />
+		<csc target="library" output="${build.folder}DotZLib.dll" debug="${debug}">
+			<references basedir="${nunit.location}">
+				<includes if="${nunit}" name="nunit.framework.dll" />
+			</references>
+			<sources>
+				<includes name="*.cs" />
+				<excludes name="UnitTests.cs" unless="${nunit}" />
+			</sources>
+			<arg value="/d:nunit" if="${nunit}" />
+		</csc>
+	</target>
+
+</project>

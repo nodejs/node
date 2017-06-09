@@ -27,7 +27,13 @@
 
 [
 [ALWAYS, {
-  # All tests in the bug directory are expected to fail.
-  'bugs/*': [FAIL],
+  # We don't parse RegExps at scanning time, so we can't fail on octal
+  # escapes (we need to parse to distinguish octal escapes from valid
+  # back-references).
+  'strict-octal-regexp': [SKIP],
+
+  # Modules which are only meant to be imported from by other tests, not to be
+  # tested standalone.
+  'modules-skip*': [SKIP],
 }],  # ALWAYS
 ]

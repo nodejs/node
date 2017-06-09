@@ -31,7 +31,7 @@
  * should work on other objects too, so we test that too.
  */
 
-var LARGE = 4000000;
+var LARGE = 400000;
 var VERYLARGE = 4000000000;
 
 // Nicer for firefox 1.5.  Unless you uncomment the following two lines,
@@ -312,3 +312,75 @@ Array.prototype[1] = undefined;
 
 // Test http://code.google.com/p/chromium/issues/detail?id=21860
 Array.prototype.push.apply([], [1].splice(0, -(-1 % 5)));
+
+
+// Check that the Array functions work also properly on non-Arrays
+var receiver;
+
+receiver = 'a string';
+assertThrows(function(){
+  Array.prototype.push.call(receiver);
+});
+
+receiver = 0;
+assertEquals(undefined, receiver.length);
+assertEquals(0, Array.prototype.push.call(receiver));
+assertEquals(1, Array.prototype.push.call(receiver, 'first'));
+assertEquals(undefined, receiver.length);
+
+receiver = {};
+assertEquals(undefined, receiver.length);
+assertEquals(0, Array.prototype.push.call(receiver));
+assertEquals(0, Array.prototype.push.call(receiver));
+assertEquals(0, receiver.length);
+assertEquals(1, Array.prototype.push.call(receiver, 'first'));
+assertEquals(1, receiver.length);
+assertEquals('first', receiver[0]);
+assertEquals(2, Array.prototype.push.call(receiver, 'second'));
+assertEquals(2, receiver.length);
+assertEquals('first', receiver[0]);
+assertEquals('second', receiver[1]);
+
+receiver = {'length': 10};
+assertEquals(10, Array.prototype.push.call(receiver));
+assertEquals(10, receiver.length);
+assertEquals(11, Array.prototype.push.call(receiver, 'first'));
+assertEquals(11, receiver.length);
+assertEquals('first', receiver[10]);
+assertEquals(13, Array.prototype.push.call(receiver, 'second', 'third'));
+assertEquals(13, receiver.length);
+assertEquals('first', receiver[10]);
+assertEquals('second', receiver[11]);
+assertEquals('third', receiver[12]);
+
+receiver = {
+  get length() { return 10; },
+  set length(l) {}
+};
+assertEquals(10, Array.prototype.push.call(receiver));
+assertEquals(10, receiver.length);
+assertEquals(11, Array.prototype.push.call(receiver, 'first'));
+assertEquals(10, receiver.length);
+assertEquals('first', receiver[10]);
+assertEquals(12, Array.prototype.push.call(receiver, 'second', 'third'));
+assertEquals(10, receiver.length);
+assertEquals('second', receiver[10]);
+assertEquals('third', receiver[11]);
+
+// readonly length
+receiver = {
+  get length() { return 10; },
+};
+assertThrows(function(){
+  Array.prototype.push.call(receiver);
+});
+
+receiver = {
+  set length(l) {}
+};
+assertEquals(0, Array.prototype.push.call(receiver));
+assertEquals(undefined, receiver.length);
+assertEquals(1, Array.prototype.push.call(receiver, 'first'));
+assertEquals(undefined, receiver.length);
+assertEquals(2, Array.prototype.push.call(receiver, 'third', 'second'));
+assertEquals(undefined, receiver.length);

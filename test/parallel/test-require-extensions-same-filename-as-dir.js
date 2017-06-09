@@ -19,11 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var content = require(common.fixturesDir +
+const content = require(common.fixturesDir +
   '/json-with-directory-name-module/module-stub/one/two/three.js');
 
-assert.notEqual(content.rocko, 'artischocko');
-assert.equal(content, 'hello from module-stub!');
+assert.notStrictEqual(content.rocko, 'artischocko');
+assert.strictEqual(content, 'hello from module-stub!');

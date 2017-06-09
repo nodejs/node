@@ -67,11 +67,6 @@ inline void NoBarrier_Store(volatile AtomicWord *ptr, AtomicWord value) {
       reinterpret_cast<volatile Atomic32*>(ptr), value);
 }
 
-inline void Acquire_Store(volatile AtomicWord* ptr, AtomicWord value) {
-  return v8::base::Acquire_Store(
-      reinterpret_cast<volatile Atomic32*>(ptr), value);
-}
-
 inline void Release_Store(volatile AtomicWord* ptr, AtomicWord value) {
   return v8::base::Release_Store(
       reinterpret_cast<volatile Atomic32*>(ptr), value);
@@ -87,12 +82,8 @@ inline AtomicWord Acquire_Load(volatile const AtomicWord* ptr) {
       reinterpret_cast<volatile const Atomic32*>(ptr));
 }
 
-inline AtomicWord Release_Load(volatile const AtomicWord* ptr) {
-  return v8::base::Release_Load(
-      reinterpret_cast<volatile const Atomic32*>(ptr));
-}
-
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // !defined(V8_HOST_ARCH_64_BIT)
 

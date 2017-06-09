@@ -1,0 +1,129 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "gauge@~2.7.1",
+        "scope": null,
+        "escapedName": "gauge",
+        "name": "gauge",
+        "rawSpec": "~2.7.1",
+        "spec": ">=2.7.1 <2.8.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/npmlog"
+    ]
+  ],
+  "_from": "gauge@>=2.7.1 <2.8.0",
+  "_id": "gauge@2.7.2",
+  "_inCache": true,
+  "_location": "/npmlog/gauge",
+  "_nodeVersion": "6.9.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/gauge-2.7.2.tgz_1480851024801_0.17901206784881651"
+  },
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "_npmVersion": "4.0.5",
+  "_phantomChildren": {
+    "strip-ansi": "3.0.1"
+  },
+  "_requested": {
+    "raw": "gauge@~2.7.1",
+    "scope": null,
+    "escapedName": "gauge",
+    "name": "gauge",
+    "rawSpec": "~2.7.1",
+    "spec": ">=2.7.1 <2.8.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/npmlog"
+  ],
+  "_resolved": "https://registry.npmjs.org/gauge/-/gauge-2.7.2.tgz",
+  "_shasum": "15cecc31b02d05345a5d6b0e171cdb3ad2307774",
+  "_shrinkwrap": null,
+  "_spec": "gauge@~2.7.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/npmlog",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org"
+  },
+  "bugs": {
+    "url": "https://github.com/iarna/gauge/issues"
+  },
+  "dependencies": {
+    "aproba": "^1.0.3",
+    "console-control-strings": "^1.0.0",
+    "has-unicode": "^2.0.0",
+    "object-assign": "^4.1.0",
+    "signal-exit": "^3.0.0",
+    "string-width": "^1.0.1",
+    "strip-ansi": "^3.0.1",
+    "supports-color": "^0.2.0",
+    "wide-align": "^1.1.0"
+  },
+  "description": "A terminal based horizontal guage",
+  "devDependencies": {
+    "readable-stream": "^2.0.6",
+    "require-inject": "^1.4.0",
+    "standard": "^7.1.2",
+    "tap": "^5.7.2",
+    "through2": "^2.0.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "15cecc31b02d05345a5d6b0e171cdb3ad2307774",
+    "tarball": "https://registry.npmjs.org/gauge/-/gauge-2.7.2.tgz"
+  },
+  "files": [
+    "base-theme.js",
+    "CHANGELOG.md",
+    "error.js",
+    "has-color.js",
+    "index.js",
+    "LICENSE",
+    "package.json",
+    "plumbing.js",
+    "process.js",
+    "progress-bar.js",
+    "README.md",
+    "render-template.js",
+    "set-immediate.js",
+    "set-interval.js",
+    "spin.js",
+    "template-item.js",
+    "theme-set.js",
+    "themes.js",
+    "wide-truncate.js"
+  ],
+  "gitHead": "6971e27a577d165cde360ebed86a59dfc18ac55b",
+  "homepage": "https://github.com/iarna/gauge",
+  "keywords": [
+    "progressbar",
+    "progress",
+    "gauge"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "name": "gauge",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/gauge.git"
+  },
+  "scripts": {
+    "prepublish": "rm -f *~",
+    "test": "standard && tap test/*.js --coverage"
+  },
+  "version": "2.7.2"
+}

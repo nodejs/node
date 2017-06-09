@@ -25,10 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
-
+#include "src/date.h"
 #include "src/global-handles.h"
-#include "src/snapshot.h"
+#include "src/isolate.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -168,24 +168,51 @@ TEST(DaylightSavingsTime) {
   CheckDST(august_20);
 }
 
+namespace {
+int legacy_parse_count = 0;
+void DateParseLegacyCounterCallback(v8::Isolate* isolate,
+                                    v8::Isolate::UseCounterFeature feature) {
+  if (feature == v8::Isolate::kLegacyDateParser) legacy_parse_count++;
+}
+}  // anonymous namespace
 
+TEST(DateParseLegacyUseCounter) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext context;
+  CcTest::isolate()->SetUseCounterCallback(DateParseLegacyCounterCallback);
+  CHECK_EQ(0, legacy_parse_count);
+  CompileRun("Date.parse('2015-02-31')");
+  CHECK_EQ(0, legacy_parse_count);
+  CompileRun("Date.parse('2015-02-31T11:22:33.444Z01:23')");
+  CHECK_EQ(0, legacy_parse_count);
+  CompileRun("Date.parse('2015-02-31T11:22:33.444')");
+  CHECK_EQ(0, legacy_parse_count);
+  CompileRun("Date.parse('2000 01 01')");
+  CHECK_EQ(1, legacy_parse_count);
+  CompileRun("Date.parse('2015-02-31T11:22:33.444     ')");
+  CHECK_EQ(1, legacy_parse_count);
+}
+
+#ifdef V8_INTL_SUPPORT
 TEST(DateCacheVersion) {
   FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::Context> context = v8::Context::New(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
-  v8::Handle<v8::Array> date_cache_version =
-      v8::Handle<v8::Array>::Cast(CompileRun("%DateCacheVersion()"));
+  v8::Local<v8::Number> date_cache_version =
+      v8::Local<v8::Number>::Cast(CompileRun("%DateCacheVersion()"));
 
-  CHECK_EQ(1, static_cast<int32_t>(date_cache_version->Length()));
-  CHECK(date_cache_version->Get(0)->IsNumber());
-  CHECK_EQ(0.0, date_cache_version->Get(0)->NumberValue());
+  CHECK(date_cache_version->IsNumber());
+  CHECK_EQ(0.0, date_cache_version->NumberValue(context).FromMaybe(-1.0));
 
   v8::Date::DateTimeConfigurationChangeNotification(isolate);
 
-  CHECK_EQ(1, static_cast<int32_t>(date_cache_version->Length()));
-  CHECK(date_cache_version->Get(0)->IsNumber());
-  CHECK_EQ(1.0, date_cache_version->Get(0)->NumberValue());
+  date_cache_version =
+      v8::Local<v8::Number>::Cast(CompileRun("%DateCacheVersion()"));
+  CHECK(date_cache_version->IsNumber());
+  CHECK_EQ(1.0, date_cache_version->NumberValue(context).FromMaybe(-1.0));
 }
+#endif  // V8_INTL_SUPPORT

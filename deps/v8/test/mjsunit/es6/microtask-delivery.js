@@ -70,22 +70,6 @@ function newPromise(id, fn) {
   };
 }
 
-function newObserver(id, fn, obj) {
-  var observer = {
-    value: 1,
-    recordCounts: []
-  };
-
-  Object.observe(observer, function(records) {
-    ordering.push('o' + id);
-    observer.recordCounts.push(records.length);
-    if (fn) fn();
-  });
-
-  return observer;
-}
-
-
 (function PromiseThens() {
   reset();
 
@@ -96,73 +80,4 @@ function newObserver(id, fn, obj) {
   p2.resolve();
 
   assertOrdering(['p1', 'p2', 'p1:1', 'p2:1']);
-})();
-
-
-(function ObserversBatch() {
-  reset();
-
-  var p1 = newPromise(1);
-  var p2 = newPromise(2);
-  var p3 = newPromise(3);
-
-  var ob1 = newObserver(1);
-  var ob2 = newObserver(2, function() {
-    ob3.value++;
-    p3.resolve();
-    ob1.value++;
-  });
-  var ob3 = newObserver(3);
-
-  p1.resolve();
-  ob1.value++;
-  p2.resolve();
-  ob2.value++;
-
-  assertOrdering(['p1', 'o1', 'o2', 'p2', 'o1', 'o3', 'p3']);
-  assertArrayValues([1, 1], ob1.recordCounts);
-  assertArrayValues([1], ob2.recordCounts);
-  assertArrayValues([1], ob3.recordCounts);
-})();
-
-
-(function ObserversGetAllRecords() {
-  reset();
-
-  var p1 = newPromise(1);
-  var p2 = newPromise(2);
-  var ob1 = newObserver(1, function() {
-    ob2.value++;
-  });
-  var ob2 = newObserver(2);
-
-  p1.resolve();
-  ob1.value++;
-  p2.resolve();
-  ob2.value++;
-
-  assertOrdering(['p1', 'o1', 'o2', 'p2']);
-  assertArrayValues([1], ob1.recordCounts);
-  assertArrayValues([2], ob2.recordCounts);
-})();
-
-
-(function NewObserverDeliveryGetsNewMicrotask() {
-  reset();
-
-  var p1 = newPromise(1);
-  var p2 = newPromise(2);
-  var ob1 = newObserver(1);
-  var ob2 = newObserver(2, function() {
-    ob1.value++;
-  });
-
-  p1.resolve();
-  ob1.value++;
-  p2.resolve();
-  ob2.value++;
-
-  assertOrdering(['p1', 'o1', 'o2', 'p2', 'o1']);
-  assertArrayValues([1, 1], ob1.recordCounts);
-  assertArrayValues([1], ob2.recordCounts);
 })();

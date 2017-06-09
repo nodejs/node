@@ -2,30 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/basic-block-profiler.h"
-#include "src/compiler/generic-node-inl.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 
-#if V8_TURBOFAN_TARGET
-
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-
-typedef RawMachineAssembler::Label MLabel;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 class BasicBlockProfilerTest : public RawMachineAssemblerTester<int32_t> {
  public:
-  BasicBlockProfilerTest() : RawMachineAssemblerTester<int32_t>(kMachInt32) {
+  BasicBlockProfilerTest()
+      : RawMachineAssemblerTester<int32_t>(MachineType::Int32()) {
     FLAG_turbo_profiling = true;
   }
 
   void ResetCounts() { isolate()->basic_block_profiler()->ResetCounts(); }
 
   void Expect(size_t size, uint32_t* expected) {
-    CHECK_NE(NULL, isolate()->basic_block_profiler());
+    CHECK(isolate()->basic_block_profiler());
     const BasicBlockProfiler::DataList* l =
         isolate()->basic_block_profiler()->data_list();
     CHECK_NE(0, static_cast<int>(l->size()));
@@ -42,7 +38,7 @@ class BasicBlockProfilerTest : public RawMachineAssemblerTester<int32_t> {
 TEST(ProfileDiamond) {
   BasicBlockProfilerTest m;
 
-  MLabel blocka, blockb, end;
+  RawMachineLabel blocka, blockb, end;
   m.Branch(m.Parameter(0), &blocka, &blockb);
   m.Bind(&blocka);
   m.Goto(&end);
@@ -82,12 +78,12 @@ TEST(ProfileDiamond) {
 TEST(ProfileLoop) {
   BasicBlockProfilerTest m;
 
-  MLabel header, body, end;
+  RawMachineLabel header, body, end;
   Node* one = m.Int32Constant(1);
   m.Goto(&header);
 
   m.Bind(&header);
-  Node* count = m.Phi(kMachInt32, m.Parameter(0), one);
+  Node* count = m.Phi(MachineRepresentation::kWord32, m.Parameter(0), one);
   m.Branch(count, &body, &end);
 
   m.Bind(&body);
@@ -112,4 +108,6 @@ TEST(ProfileLoop) {
   }
 }
 
-#endif  // V8_TURBOFAN_TARGET
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

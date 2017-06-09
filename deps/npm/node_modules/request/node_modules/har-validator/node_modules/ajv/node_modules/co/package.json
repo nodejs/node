@@ -1,0 +1,106 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "co@^4.6.0",
+        "scope": null,
+        "escapedName": "co",
+        "name": "co",
+        "rawSpec": "^4.6.0",
+        "spec": ">=4.6.0 <5.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/request/node_modules/har-validator/node_modules/ajv"
+    ]
+  ],
+  "_from": "co@>=4.6.0 <5.0.0",
+  "_id": "co@4.6.0",
+  "_inCache": true,
+  "_location": "/request/har-validator/ajv/co",
+  "_nodeVersion": "2.3.3",
+  "_npmUser": {
+    "name": "jongleberry",
+    "email": "jonathanrichardong@gmail.com"
+  },
+  "_npmVersion": "2.11.3",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "co@^4.6.0",
+    "scope": null,
+    "escapedName": "co",
+    "name": "co",
+    "rawSpec": "^4.6.0",
+    "spec": ">=4.6.0 <5.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/har-validator/ajv"
+  ],
+  "_resolved": "https://registry.npmjs.org/co/-/co-4.6.0.tgz",
+  "_shasum": "6ea6bdf3d853ae54ccb8e47bfa0bf3f9031fb184",
+  "_shrinkwrap": null,
+  "_spec": "co@^4.6.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/request/node_modules/har-validator/node_modules/ajv",
+  "bugs": {
+    "url": "https://github.com/tj/co/issues"
+  },
+  "dependencies": {},
+  "description": "generator async control flow goodness",
+  "devDependencies": {
+    "browserify": "^10.0.0",
+    "istanbul-harmony": "0",
+    "mocha": "^2.0.0",
+    "mz": "^1.0.2"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "6ea6bdf3d853ae54ccb8e47bfa0bf3f9031fb184",
+    "tarball": "https://registry.npmjs.org/co/-/co-4.6.0.tgz"
+  },
+  "engines": {
+    "iojs": ">= 1.0.0",
+    "node": ">= 0.12.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "b54d18f8f472ad1314800e786993c4169a5ff9f8",
+  "homepage": "https://github.com/tj/co#readme",
+  "keywords": [
+    "async",
+    "flow",
+    "generator",
+    "coro",
+    "coroutine"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "tjholowaychuk",
+      "email": "tj@vision-media.ca"
+    },
+    {
+      "name": "jonathanong",
+      "email": "jonathanrichardong@gmail.com"
+    },
+    {
+      "name": "jongleberry",
+      "email": "jonathanrichardong@gmail.com"
+    }
+  ],
+  "name": "co",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tj/co.git"
+  },
+  "scripts": {
+    "browserify": "browserify index.js -o ./co-browser.js -s co",
+    "prepublish": "npm run browserify",
+    "test": "mocha --harmony",
+    "test-cov": "node --harmony node_modules/.bin/istanbul cover ./node_modules/.bin/_mocha -- --reporter dot",
+    "test-travis": "node --harmony node_modules/.bin/istanbul cover ./node_modules/.bin/_mocha --report lcovonly -- --reporter dot"
+  },
+  "version": "4.6.0"
+}

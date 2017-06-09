@@ -19,14 +19,15 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var util = require('util');
+'use strict';
+require('../common');
+const assert = require('assert');
+const http = require('http');
+const util = require('util');
 
 assert(Array.isArray(http.METHODS));
 assert(http.METHODS.length > 0);
-assert(http.METHODS.indexOf('GET') !== -1);
-assert(http.METHODS.indexOf('HEAD') !== -1);
-assert(http.METHODS.indexOf('POST') !== -1);
-assert.deepEqual(util._extend([], http.METHODS), http.METHODS.sort());
+assert.notStrictEqual(http.METHODS.indexOf('GET'), -1);
+assert.notStrictEqual(http.METHODS.indexOf('HEAD'), -1);
+assert.notStrictEqual(http.METHODS.indexOf('POST'), -1);
+assert.deepStrictEqual(util._extend([], http.METHODS), http.METHODS.sort());

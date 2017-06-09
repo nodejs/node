@@ -109,10 +109,9 @@ this B<ssl>, the last item added into B<ctx> will be checked.
 
 =head1 NOTES
   
-The internal certificate store of OpenSSL can hold two private key/certificate
-pairs at a time: one key/certificate of type RSA and one key/certificate
-of type DSA. The certificate used depends on the cipher select, see
-also L<SSL_CTX_set_cipher_list(3)|SSL_CTX_set_cipher_list(3)>.
+The internal certificate store of OpenSSL can hold several private
+key/certificate pairs at a time. The certificate used depends on the
+cipher selected, see also L<SSL_CTX_set_cipher_list(3)|SSL_CTX_set_cipher_list(3)>.
 
 When reading certificates and private keys from file, files of type
 SSL_FILETYPE_ASN1 (also known as B<DER>, binary encoding) can only contain
@@ -122,16 +121,13 @@ Files of type SSL_FILETYPE_PEM can contain more than one item.
 
 SSL_CTX_use_certificate_chain_file() adds the first certificate found
 in the file to the certificate store. The other certificates are added
-to the store of chain certificates using
-L<SSL_CTX_add_extra_chain_cert(3)|SSL_CTX_add_extra_chain_cert(3)>.
-There exists only one extra chain store, so that the same chain is appended
-to both types of certificates, RSA and DSA! If it is not intended to use
-both type of certificate at the same time, it is recommended to use the
-SSL_CTX_use_certificate_chain_file() instead of the
-SSL_CTX_use_certificate_file() function in order to allow the use of
-complete certificate chains even when no trusted CA storage is used or
-when the CA issuing the certificate shall not be added to the trusted
-CA storage.
+to the store of chain certificates using L<SSL_CTX_add1_chain_cert(3)|SSL_CTX_add1_chain_cert(3)>. Note: versions of OpenSSL before 1.0.2 only had a single
+certificate chain store for all certificate types, OpenSSL 1.0.2 and later
+have a separate chain store for each type. SSL_CTX_use_certificate_chain_file() 
+should be used instead of the SSL_CTX_use_certificate_file() function in order
+to allow the use of complete certificate chains even when no trusted CA
+storage is used or when the CA issuing the certificate shall not be added to
+the trusted CA storage.
 
 If additional certificates are needed to complete the chain during the
 TLS negotiation, CA certificates are additionally looked up in the

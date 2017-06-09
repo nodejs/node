@@ -56,9 +56,9 @@ PASS arrayApplyChangeLength4() is 0
 PASS var a = []; a.length = 0xFFFE; [].constructor.apply('', a).length is 0xFFFE
 PASS var a = []; a.length = 0xFFFF; [].constructor.apply('', a).length is 0xFFFF
 PASS var a = []; a.length = 0x10000; [].constructor.apply('', a).length is 0x10000
-FAIL var a = []; a.length = 0x10001; [].constructor.apply('', a).length should throw an exception. Was 65537.
-PASS var a = []; a.length = 0xFFFFFFFE; [].constructor.apply('', a).length threw exception RangeError: Maximum call stack size exceeded.
-PASS var a = []; a.length = 0xFFFFFFFF; [].constructor.apply('', a).length threw exception RangeError: Maximum call stack size exceeded.
+PASS var a = []; a.length = 0x10001; [].constructor.apply('', a).length is 0x10001
+PASS var a = []; a.length = 0xFFFFFFFE; [].constructor.apply('', a).length threw exception RangeError: Invalid array length.
+PASS var a = []; a.length = 0xFFFFFFFF; [].constructor.apply('', a).length threw exception RangeError: Invalid array length.
 PASS (function(a,b,c,d){ return d ? -1 : (a+b+c); }).apply(undefined, {length:3, 0:100, 1:20, 2:3}) is 123
 PASS successfullyParsed is true
 

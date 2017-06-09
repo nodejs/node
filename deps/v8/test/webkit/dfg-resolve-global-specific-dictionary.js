@@ -29,7 +29,7 @@ function foo() {
     return x;
 }
 
-x = function() { };
+x = function () { };
 
 var expected = "\"function () { }\"";
 

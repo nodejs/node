@@ -25,7 +25,7 @@ encrypted using this key.
 
 EVP_SealInit() initializes a cipher context B<ctx> for encryption
 with cipher B<type> using a random secret key and IV. B<type> is normally
-supplied by a function such as EVP_des_cbc(). The secret key is encrypted
+supplied by a function such as EVP_aes_256_cbc(). The secret key is encrypted
 using one or more public keys, this allows the same encrypted data to be
 decrypted using any of the corresponding private keys. B<ek> is an array of
 buffers where the public key encrypted secret key will be written, each buffer

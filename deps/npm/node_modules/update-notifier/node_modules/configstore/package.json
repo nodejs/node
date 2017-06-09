@@ -1,0 +1,134 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "configstore@^3.0.0",
+        "scope": null,
+        "escapedName": "configstore",
+        "name": "configstore",
+        "rawSpec": "^3.0.0",
+        "spec": ">=3.0.0 <4.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier"
+    ]
+  ],
+  "_from": "configstore@>=3.0.0 <4.0.0",
+  "_id": "configstore@3.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/configstore",
+  "_nodeVersion": "4.6.2",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/configstore-3.0.0.tgz_1486992079317_0.31415490387007594"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.11",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "configstore@^3.0.0",
+    "scope": null,
+    "escapedName": "configstore",
+    "name": "configstore",
+    "rawSpec": "^3.0.0",
+    "spec": ">=3.0.0 <4.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier"
+  ],
+  "_resolved": "https://registry.npmjs.org/configstore/-/configstore-3.0.0.tgz",
+  "_shasum": "e1b8669c1803ccc50b545e92f8e6e79aa80e0196",
+  "_shrinkwrap": null,
+  "_spec": "configstore@^3.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/yeoman/configstore/issues"
+  },
+  "dependencies": {
+    "dot-prop": "^4.1.0",
+    "graceful-fs": "^4.1.2",
+    "mkdirp": "^0.5.0",
+    "unique-string": "^1.0.0",
+    "write-file-atomic": "^1.1.2",
+    "xdg-basedir": "^3.0.0"
+  },
+  "description": "Easily load and save config without having to think about where and how",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "e1b8669c1803ccc50b545e92f8e6e79aa80e0196",
+    "tarball": "https://registry.npmjs.org/configstore/-/configstore-3.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "7ce00b4ce61ed2099388e1d476967a8cd8ff572a",
+  "homepage": "https://github.com/yeoman/configstore#readme",
+  "keywords": [
+    "config",
+    "store",
+    "storage",
+    "conf",
+    "configuration",
+    "settings",
+    "preferences",
+    "json",
+    "data",
+    "persist",
+    "persistent",
+    "save"
+  ],
+  "license": "BSD-2-Clause",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    },
+    {
+      "name": "addyosmani",
+      "email": "addyosmani@gmail.com"
+    },
+    {
+      "name": "passy",
+      "email": "phartig@rdrei.net"
+    },
+    {
+      "name": "sboudrias",
+      "email": "admin@simonboudrias.com"
+    },
+    {
+      "name": "eddiemonge",
+      "email": "eddie+npm@eddiemonge.com"
+    },
+    {
+      "name": "arthurvr",
+      "email": "contact@arthurverschaeve.be"
+    }
+  ],
+  "name": "configstore",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yeoman/configstore.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "3.0.0"
+}

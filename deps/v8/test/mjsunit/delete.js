@@ -178,3 +178,17 @@ function load_a(x) {
 }
 
 load_deleted_property_using_IC();
+
+
+(function deleteLargeDoubleArrayAtEnd() {
+  var o = {};
+  var max = 100000;
+  for (var i = 0; i <= max; i++) {
+    o[i] = 1.1;
+  }
+  delete o[max];
+  for (var i = 0; i < max; i++) {
+    assertEquals(1.1, o[i]);
+  }
+  assertEquals(undefined, o[max]);
+})();

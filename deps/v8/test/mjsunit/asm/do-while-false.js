@@ -41,11 +41,11 @@ function Module() {
   function d6(a) {
     a = a | 0;
     do {
-      if (a == 0) return 120;
-      if (a == 1) break;
-      if (a == 2) return 122;
-      if (a == 3) continue;
-      if (a == 4) return 124;
+      if ((a | 0) == 0) return 120;
+      if ((a | 0) == 1) break;
+      if ((a | 0) == 2) return 122;
+      if ((a | 0) == 3) continue;
+      if ((a | 0) == 4) return 124;
     } while(false);
     return 125;
   }

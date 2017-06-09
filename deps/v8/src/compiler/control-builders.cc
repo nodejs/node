@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "control-builders.h"
+#include "src/compiler/control-builders.h"
+
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -32,11 +34,11 @@ void IfBuilder::End() {
 }
 
 
-void LoopBuilder::BeginLoop(BitVector* assigned) {
-  builder_->NewLoop();
-  loop_environment_ = environment()->CopyForLoop(assigned);
+void LoopBuilder::BeginLoop(BitVector* assigned, bool is_osr) {
+  loop_environment_ = environment()->CopyForLoop(assigned, is_osr);
   continue_environment_ = environment()->CopyAsUnreachable();
   break_environment_ = environment()->CopyAsUnreachable();
+  assigned_ = assigned;
 }
 
 
@@ -61,6 +63,7 @@ void LoopBuilder::EndBody() {
 void LoopBuilder::EndLoop() {
   loop_environment_->Merge(environment());
   set_environment(break_environment_);
+  ExitLoop();
 }
 
 
@@ -74,11 +77,30 @@ void LoopBuilder::BreakUnless(Node* condition) {
 }
 
 
+void LoopBuilder::BreakWhen(Node* condition) {
+  IfBuilder control_if(builder_);
+  control_if.If(condition);
+  control_if.Then();
+  Break();
+  control_if.Else();
+  control_if.End();
+}
+
+void LoopBuilder::ExitLoop(Node** extra_value_to_rename) {
+  if (extra_value_to_rename) {
+    environment()->Push(*extra_value_to_rename);
+  }
+  environment()->PrepareForLoopExit(loop_environment_->GetControlDependency(),
+                                    assigned_);
+  if (extra_value_to_rename) {
+    *extra_value_to_rename = environment()->Pop();
+  }
+}
+
 void SwitchBuilder::BeginSwitch() {
   body_environment_ = environment()->CopyAsUnreachable();
   label_environment_ = environment()->CopyAsUnreachable();
   break_environment_ = environment()->CopyAsUnreachable();
-  body_environments_.AddBlock(NULL, case_count(), zone());
 }
 
 
@@ -135,10 +157,31 @@ void BlockBuilder::Break() {
 }
 
 
+void BlockBuilder::BreakWhen(Node* condition, BranchHint hint) {
+  IfBuilder control_if(builder_);
+  control_if.If(condition, hint);
+  control_if.Then();
+  Break();
+  control_if.Else();
+  control_if.End();
+}
+
+
+void BlockBuilder::BreakUnless(Node* condition, BranchHint hint) {
+  IfBuilder control_if(builder_);
+  control_if.If(condition, hint);
+  control_if.Then();
+  control_if.Else();
+  Break();
+  control_if.End();
+}
+
+
 void BlockBuilder::EndBlock() {
   break_environment_->Merge(environment());
   set_environment(break_environment_);
 }
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

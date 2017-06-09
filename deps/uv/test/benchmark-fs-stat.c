@@ -31,7 +31,7 @@
 
 #define sync_stat(req, path)                                                  \
   do {                                                                        \
-    uv_fs_stat(uv_default_loop(), (req), (path), NULL);                       \
+    uv_fs_stat(NULL, (req), (path), NULL);                                    \
     uv_fs_req_cleanup((req));                                                 \
   }                                                                           \
   while (0)

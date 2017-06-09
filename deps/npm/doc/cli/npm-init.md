@@ -21,8 +21,18 @@ without a really good reason to do so.
 If you invoke it with `-f`, `--force`, `-y`, or `--yes`, it will use only
 defaults and not prompt you for any options.
 
+## CONFIGURATION
+
+### scope
+
+* Default: none
+* Type: String
+
+The scope under which the new module should be created.
+
 ## SEE ALSO
 
 * <https://github.com/isaacs/init-package-json>
 * package.json(5)
 * npm-version(1)
+* npm-scope(7)

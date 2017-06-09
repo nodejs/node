@@ -9,16 +9,17 @@
 }
 
 .sh_sourceCode .sh_keyword {
-  color: #c96;
+  color: #338;
 }
 
 .sh_sourceCode .sh_string,
 .sh_sourceCode .sh_regexp,
 .sh_sourceCode .sh_number,
 .sh_sourceCode .sh_specialchar {
-  color: #690;
+  color: #E54305;
 }
 
 .sh_sourceCode .sh_comment {
   color: #666;
+  font-weight: lighter;
 }

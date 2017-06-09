@@ -19,38 +19,37 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
 }
+const https = require('https');
 
-var common = require('../common');
-var assert = require('assert');
-var https = require('https');
-var Buffer = require('buffer').Buffer;
-var fs = require('fs');
-var path = require('path');
+const Buffer = require('buffer').Buffer;
+const fs = require('fs');
+const path = require('path');
 
-var options = {
+const options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };
 
-var buf = new Buffer(1024 * 1024);
-var sent = 0;
-var received = 0;
+const buf = Buffer.allocUnsafe(1024 * 1024);
 
-var server = https.createServer(options, function(req, res) {
+const server = https.createServer(options, function(req, res) {
   res.writeHead(200);
-  for (var i = 0; i < 50; i++) {
+  for (let i = 0; i < 50; i++) {
     res.write(buf);
   }
   res.end();
 });
 
 server.listen(common.PORT, function() {
-  var resumed = false;
-  var req = https.request({
+  const req = https.request({
     method: 'POST',
     port: common.PORT,
     rejectUnauthorized: false

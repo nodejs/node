@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS
 
 #include "src/mips/constants-mips.h"
@@ -124,218 +122,46 @@ int FPURegisters::Number(const char* name) {
   return kInvalidFPURegister;
 }
 
+const char* MSARegisters::names_[kNumMSARegisters] = {
+    "w0",  "w1",  "w2",  "w3",  "w4",  "w5",  "w6",  "w7",  "w8",  "w9",  "w10",
+    "w11", "w12", "w13", "w14", "w15", "w16", "w17", "w18", "w19", "w20", "w21",
+    "w22", "w23", "w24", "w25", "w26", "w27", "w28", "w29", "w30", "w31"};
 
-// -----------------------------------------------------------------------------
-// Instructions.
+const MSARegisters::RegisterAlias MSARegisters::aliases_[] = {
+    {kInvalidRegister, NULL}};
 
-bool Instruction::IsForbiddenInBranchDelay() const {
-  const int op = OpcodeFieldRaw();
-  switch (op) {
-    case J:
-    case JAL:
-    case BEQ:
-    case BNE:
-    case BLEZ:
-    case BGTZ:
-    case BEQL:
-    case BNEL:
-    case BLEZL:
-    case BGTZL:
-      return true;
-    case REGIMM:
-      switch (RtFieldRaw()) {
-        case BLTZ:
-        case BGEZ:
-        case BLTZAL:
-        case BGEZAL:
-          return true;
-        default:
-          return false;
-      }
-      break;
-    case SPECIAL:
-      switch (FunctionFieldRaw()) {
-        case JR:
-        case JALR:
-          return true;
-        default:
-          return false;
-      }
-      break;
-    default:
-      return false;
-  }
-}
-
-
-bool Instruction::IsLinkingInstruction() const {
-  const int op = OpcodeFieldRaw();
-  switch (op) {
-    case JAL:
-      return true;
-    case REGIMM:
-      switch (RtFieldRaw()) {
-        case BGEZAL:
-        case BLTZAL:
-          return true;
-      default:
-        return false;
-      }
-    case SPECIAL:
-      switch (FunctionFieldRaw()) {
-        case JALR:
-          return true;
-        default:
-          return false;
-      }
-    default:
-      return false;
-  }
-}
-
-
-bool Instruction::IsTrap() const {
-  if (OpcodeFieldRaw() != SPECIAL) {
-    return false;
+const char* MSARegisters::Name(int creg) {
+  const char* result;
+  if ((0 <= creg) && (creg < kNumMSARegisters)) {
+    result = names_[creg];
   } else {
-    switch (FunctionFieldRaw()) {
-      case BREAK:
-      case TGE:
-      case TGEU:
-      case TLT:
-      case TLTU:
-      case TEQ:
-      case TNE:
-        return true;
-      default:
-        return false;
+    result = "nocreg";
+  }
+  return result;
+}
+
+int MSARegisters::Number(const char* name) {
+  // Look through the canonical names.
+  for (int i = 0; i < kNumMSARegisters; i++) {
+    if (strcmp(names_[i], name) == 0) {
+      return i;
     }
   }
-}
 
-
-Instruction::Type Instruction::InstructionType() const {
-  switch (OpcodeFieldRaw()) {
-    case SPECIAL:
-      switch (FunctionFieldRaw()) {
-        case JR:
-        case JALR:
-        case BREAK:
-        case SLL:
-        case SRL:
-        case SRA:
-        case SLLV:
-        case SRLV:
-        case SRAV:
-        case MFHI:
-        case MFLO:
-        case MULT:
-        case MULTU:
-        case DIV:
-        case DIVU:
-        case ADD:
-        case ADDU:
-        case SUB:
-        case SUBU:
-        case AND:
-        case OR:
-        case XOR:
-        case NOR:
-        case SLT:
-        case SLTU:
-        case TGE:
-        case TGEU:
-        case TLT:
-        case TLTU:
-        case TEQ:
-        case TNE:
-        case MOVZ:
-        case MOVN:
-        case MOVCI:
-          return kRegisterType;
-        default:
-          return kUnsupported;
-      }
-      break;
-    case SPECIAL2:
-      switch (FunctionFieldRaw()) {
-        case MUL:
-        case CLZ:
-          return kRegisterType;
-        default:
-          return kUnsupported;
-      }
-      break;
-    case SPECIAL3:
-      switch (FunctionFieldRaw()) {
-        case INS:
-        case EXT:
-          return kRegisterType;
-        default:
-          return kUnsupported;
-      }
-      break;
-    case COP1:    // Coprocessor instructions.
-      switch (RsFieldRawNoAssert()) {
-        case BC1:   // Branch on coprocessor condition.
-        case BC1EQZ:
-        case BC1NEZ:
-          return kImmediateType;
-        default:
-          return kRegisterType;
-      }
-      break;
-    case COP1X:
-      return kRegisterType;
-    // 16 bits Immediate type instructions. e.g.: addi dest, src, imm16.
-    case REGIMM:
-    case BEQ:
-    case BNE:
-    case BLEZ:
-    case BGTZ:
-    case ADDI:
-    case DADDI:
-    case ADDIU:
-    case SLTI:
-    case SLTIU:
-    case ANDI:
-    case ORI:
-    case XORI:
-    case LUI:
-    case BEQL:
-    case BNEL:
-    case BLEZL:
-    case BGTZL:
-    case BEQZC:
-    case BNEZC:
-    case LB:
-    case LH:
-    case LWL:
-    case LW:
-    case LBU:
-    case LHU:
-    case LWR:
-    case SB:
-    case SH:
-    case SWL:
-    case SW:
-    case SWR:
-    case LWC1:
-    case LDC1:
-    case SWC1:
-    case SDC1:
-      return kImmediateType;
-    // 26 bits immediate type instructions. e.g.: j imm26.
-    case J:
-    case JAL:
-      return kJumpType;
-    default:
-      return kUnsupported;
+  // Look through the alias names.
+  int i = 0;
+  while (aliases_[i].creg != kInvalidRegister) {
+    if (strcmp(aliases_[i].name, name) == 0) {
+      return aliases_[i].creg;
+    }
+    i++;
   }
-  return kUnsupported;
+
+  // No Cregister with the reguested name found.
+  return kInvalidMSARegister;
 }
 
-
-} }   // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_MIPS

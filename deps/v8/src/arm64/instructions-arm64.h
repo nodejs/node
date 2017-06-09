@@ -7,12 +7,12 @@
 
 #include "src/arm64/constants-arm64.h"
 #include "src/arm64/utils-arm64.h"
+#include "src/assembler.h"
 #include "src/globals.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
-
 
 // ISA constants. --------------------------------------------------------------
 
@@ -121,16 +121,24 @@ class Instruction {
     return InstructionBits() & mask;
   }
 
+  V8_INLINE const Instruction* following(int count = 1) const {
+    return InstructionAtOffset(count * static_cast<int>(kInstructionSize));
+  }
+
   V8_INLINE Instruction* following(int count = 1) {
     return InstructionAtOffset(count * static_cast<int>(kInstructionSize));
+  }
+
+  V8_INLINE const Instruction* preceding(int count = 1) const {
+    return following(-count);
   }
 
   V8_INLINE Instruction* preceding(int count = 1) {
     return following(-count);
   }
 
-  #define DEFINE_GETTER(Name, HighBit, LowBit, Func)             \
-  int64_t Name() const { return Func(HighBit, LowBit); }
+#define DEFINE_GETTER(Name, HighBit, LowBit, Func) \
+  int32_t Name() const { return Func(HighBit, LowBit); }
   INSTRUCTION_FIELDS_LIST(DEFINE_GETTER)
   #undef DEFINE_GETTER
 
@@ -138,8 +146,8 @@ class Instruction {
   // formed from ImmPCRelLo and ImmPCRelHi.
   int ImmPCRel() const {
     DCHECK(IsPCRelAddressing());
-    int const offset = ((ImmPCRelHi() << ImmPCRelLo_width) | ImmPCRelLo());
-    int const width = ImmPCRelLo_width + ImmPCRelHi_width;
+    int offset = ((ImmPCRelHi() << ImmPCRelLo_width) | ImmPCRelLo());
+    int width = ImmPCRelLo_width + ImmPCRelHi_width;
     return signed_bitextract_32(width - 1, 0, offset);
   }
 
@@ -187,6 +195,14 @@ class Instruction {
 
   bool IsAdr() const {
     return Mask(PCRelAddressingMask) == ADR;
+  }
+
+  bool IsBrk() const { return Mask(ExceptionMask) == BRK; }
+
+  bool IsUnresolvedInternalReference() const {
+    // Unresolved internal references are encoded as two consecutive brk
+    // instructions.
+    return IsBrk() && following()->IsBrk();
   }
 
   bool IsLogicalImmediate() const {
@@ -306,6 +322,15 @@ class Instruction {
     return 0;
   }
 
+  int ImmUnresolvedInternalReference() const {
+    DCHECK(IsUnresolvedInternalReference());
+    // Unresolved references are encoded as two consecutive brk instructions.
+    // The associated immediate is made of the two 16-bit payloads.
+    int32_t high16 = ImmException();
+    int32_t low16 = following()->ImmException();
+    return (high16 << 16) | low16;
+  }
+
   bool IsBranchAndLinkToRegister() const {
     return Mask(UnconditionalBranchToRegisterMask) == BLR;
   }
@@ -344,11 +369,14 @@ class Instruction {
   // PC-relative addressing instruction.
   Instruction* ImmPCOffsetTarget();
 
-  static bool IsValidImmPCOffset(ImmBranchType branch_type, int32_t offset);
+  static bool IsValidImmPCOffset(ImmBranchType branch_type, ptrdiff_t offset);
   bool IsTargetInImmPCOffsetRange(Instruction* target);
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
-  void SetImmPCOffsetTarget(Instruction* target);
+  void SetImmPCOffsetTarget(AssemblerBase::IsolateData isolate_data,
+                            Instruction* target);
+  void SetUnresolvedInternalReferenceImmTarget(AssemblerBase::IsolateData,
+                                               Instruction* target);
   // Patch a literal load instruction to load from 'source'.
   void SetImmLLiteral(Instruction* source);
 
@@ -359,13 +387,18 @@ class Instruction {
 
   enum CheckAlignment { NO_CHECK, CHECK_ALIGNMENT };
 
-  V8_INLINE Instruction* InstructionAtOffset(
-      int64_t offset,
-      CheckAlignment check = CHECK_ALIGNMENT) {
-    Address addr = reinterpret_cast<Address>(this) + offset;
+  V8_INLINE const Instruction* InstructionAtOffset(
+      int64_t offset, CheckAlignment check = CHECK_ALIGNMENT) const {
     // The FUZZ_disasm test relies on no check being done.
-    DCHECK(check == NO_CHECK || IsAddressAligned(addr, kInstructionSize));
-    return Cast(addr);
+    DCHECK(check == NO_CHECK || IsAligned(offset, kInstructionSize));
+    return this + offset;
+  }
+
+  V8_INLINE Instruction* InstructionAtOffset(
+      int64_t offset, CheckAlignment check = CHECK_ALIGNMENT) {
+    // The FUZZ_disasm test relies on no check being done.
+    DCHECK(check == NO_CHECK || IsAligned(offset, kInstructionSize));
+    return this + offset;
   }
 
   template<typename T> V8_INLINE static Instruction* Cast(T src) {
@@ -378,10 +411,9 @@ class Instruction {
 
 
   static const int ImmPCRelRangeBitwidth = 21;
-  static bool IsValidPCRelOffset(int offset) {
-    return is_int21(offset);
-  }
-  void SetPCRelImmTarget(Instruction* target);
+  static bool IsValidPCRelOffset(ptrdiff_t offset) { return is_int21(offset); }
+  void SetPCRelImmTarget(AssemblerBase::IsolateData isolate_data,
+                         Instruction* target);
   void SetBranchImmTarget(Instruction* target);
 };
 
@@ -503,7 +535,8 @@ enum DebugParameters {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 
 #endif  // V8_ARM64_INSTRUCTIONS_ARM64_H_

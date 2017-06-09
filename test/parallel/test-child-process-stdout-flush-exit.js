@@ -19,51 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
 // if child process output to console and exit
 if (process.argv[2] === 'child') {
   console.log('hello');
-  for (var i = 0; i < 200; i++) {
+  for (let i = 0; i < 200; i++) {
     console.log('filler');
   }
   console.log('goodbye');
   process.exit(0);
 } else {
   // parent process
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
 
   // spawn self as child
-  var child = spawn(process.argv[0], [process.argv[1], 'child']);
+  const child = spawn(process.argv[0], [process.argv[1], 'child']);
 
-  var gotHello = false;
-  var gotBye = false;
+  let stdout = '';
 
   child.stderr.setEncoding('utf8');
-  child.stderr.on('data', function (data) {
-    console.log('parent stderr: ' + data);
-    assert.ok(false);
+  child.stderr.on('data', function(data) {
+    assert.fail(`Unexpected parent stderr: ${data}`);
   });
 
   // check if we receive both 'hello' at start and 'goodbye' at end
   child.stdout.setEncoding('utf8');
-  child.stdout.on('data', function (data) {
-    if (data.slice(0, 6) == 'hello\n') {
-      gotHello = true;
-    } else if (data.slice(data.length - 8) == 'goodbye\n') {
-      gotBye = true;
-    } else {
-      gotBye = false;
-    }
+  child.stdout.on('data', function(data) {
+    stdout += data;
   });
 
-  child.on('close', function (data) {
-    assert(gotHello);
-    assert(gotBye);
-  });
+  child.on('close', common.mustCall(function() {
+    assert.strictEqual(stdout.slice(0, 6), 'hello\n');
+    assert.strictEqual(stdout.slice(stdout.length - 8), 'goodbye\n');
+  }));
 }

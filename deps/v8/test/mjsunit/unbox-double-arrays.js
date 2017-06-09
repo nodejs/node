@@ -279,8 +279,8 @@ function testOneArrayType(allocator) {
                       expected_array_value(7));
 
   %DeoptimizeFunction(test_various_loads6);
-  %ClearFunctionTypeFeedback(test_various_stores);
-  %ClearFunctionTypeFeedback(test_various_loads7);
+  %ClearFunctionFeedback(test_various_stores);
+  %ClearFunctionFeedback(test_various_loads7);
 
   // Test stores for non-NaN.
   var large_array = new allocator(large_array_size);
@@ -488,17 +488,6 @@ test_for_in();
 test_for_in();
 test_for_in();
 test_for_in();
-
-function test_get_property_names() {
-  names = %GetPropertyNames(large_array3);
-  property_name_count = 0;
-  for (x in names) { property_name_count++; };
-  assertEquals(26, property_name_count);
-}
-
-test_get_property_names();
-test_get_property_names();
-test_get_property_names();
 
 // Test elements getters.
 assertEquals(expected_array_value(10), large_array3[10]);

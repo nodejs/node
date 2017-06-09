@@ -19,16 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-#include "util.h"
+#include "node_dtrace.h"
 
 #ifdef HAVE_DTRACE
-#include "node_dtrace.h"
 #include "node_provider.h"
-#include <string.h>
 #elif HAVE_ETW
-#include "node_dtrace.h"
-#include <string.h>
 #include "node_win32_etw_provider.h"
 #include "node_win32_etw_provider-inl.h"
 #else
@@ -44,10 +39,6 @@
 #define NODE_NET_SERVER_CONNECTION_ENABLED() (0)
 #define NODE_NET_STREAM_END(arg0)
 #define NODE_NET_STREAM_END_ENABLED() (0)
-#define NODE_NET_SOCKET_READ(arg0, arg1, arg2, arg3, arg4)
-#define NODE_NET_SOCKET_READ_ENABLED() (0)
-#define NODE_NET_SOCKET_WRITE(arg0, arg1, arg2, arg3, arg4)
-#define NODE_NET_SOCKET_WRITE_ENABLED() (0)
 #define NODE_GC_START(arg0, arg1, arg2)
 #define NODE_GC_DONE(arg0, arg1, arg2)
 #endif
@@ -55,15 +46,15 @@
 #include "env.h"
 #include "env-inl.h"
 
+#include "util.h"
+
+#include <string.h>
+
 namespace node {
 
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::GCCallbackFlags;
-using v8::GCEpilogueCallback;
-using v8::GCPrologueCallback;
 using v8::GCType;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -76,8 +67,8 @@ using v8::Value;
     return env->ThrowError( \
         "expected object for " #obj " to contain string member " #member); \
   } \
-  node::Utf8Value _##member(obj->Get(OneByteString(env->isolate(), \
-                                                     #member))); \
+  node::Utf8Value _##member(env->isolate(), \
+      obj->Get(OneByteString(env->isolate(), #member))); \
   if ((*(const char **)valp = *_##member) == nullptr) \
     *(const char **)valp = "<unknown>";
 
@@ -87,7 +78,7 @@ using v8::Value;
       "expected object for " #obj " to contain integer member " #member); \
   } \
   *valp = obj->Get(OneByteString(env->isolate(), #member)) \
-      ->ToInteger()->Value();
+      ->Int32Value();
 
 #define SLURP_OBJECT(obj, member, valp) \
   if (!(obj)->IsObject()) { \
@@ -161,37 +152,6 @@ void DTRACE_NET_STREAM_END(const FunctionCallbackInfo<Value>& args) {
   NODE_NET_STREAM_END(&conn, conn.remote, conn.port, conn.fd);
 }
 
-
-void DTRACE_NET_SOCKET_READ(const FunctionCallbackInfo<Value>& args) {
-  if (!NODE_NET_SOCKET_READ_ENABLED())
-    return;
-  Environment* env = Environment::GetCurrent(args);
-  SLURP_CONNECTION(args[0], conn);
-
-  if (!args[1]->IsNumber()) {
-    return env->ThrowError("expected argument 1 to be number of bytes");
-  }
-
-  int nbytes = args[1]->Int32Value();
-  NODE_NET_SOCKET_READ(&conn, nbytes, conn.remote, conn.port, conn.fd);
-}
-
-
-void DTRACE_NET_SOCKET_WRITE(const FunctionCallbackInfo<Value>& args) {
-  if (!NODE_NET_SOCKET_WRITE_ENABLED())
-    return;
-  Environment* env = Environment::GetCurrent(args);
-  SLURP_CONNECTION(args[0], conn);
-
-  if (!args[1]->IsNumber()) {
-    return env->ThrowError("expected argument 1 to be number of bytes");
-  }
-
-  int nbytes = args[1]->Int32Value();
-  NODE_NET_SOCKET_WRITE(&conn, nbytes, conn.remote, conn.port, conn.fd);
-}
-
-
 void DTRACE_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
   node_dtrace_http_server_request_t req;
 
@@ -215,7 +175,7 @@ void DTRACE_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> strfwdfor = headers->Get(env->x_forwarded_string());
-  node::Utf8Value fwdfor(strfwdfor);
+  node::Utf8Value fwdfor(env->isolate(), strfwdfor);
 
   if (!strfwdfor->IsString() || (req.forwardedFor = *fwdfor) == nullptr)
     req.forwardedFor = const_cast<char*>("");
@@ -298,7 +258,7 @@ void dtrace_gc_done(Isolate* isolate, GCType type, GCCallbackFlags flags) {
 }
 
 
-void InitDTrace(Environment* env, Handle<Object> target) {
+void InitDTrace(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
   static struct {
@@ -308,8 +268,6 @@ void InitDTrace(Environment* env, Handle<Object> target) {
 #define NODE_PROBE(name) #name, name
     { NODE_PROBE(DTRACE_NET_SERVER_CONNECTION) },
     { NODE_PROBE(DTRACE_NET_STREAM_END) },
-    { NODE_PROBE(DTRACE_NET_SOCKET_READ) },
-    { NODE_PROBE(DTRACE_NET_SOCKET_WRITE) },
     { NODE_PROBE(DTRACE_HTTP_SERVER_REQUEST) },
     { NODE_PROBE(DTRACE_HTTP_SERVER_RESPONSE) },
     { NODE_PROBE(DTRACE_HTTP_CLIENT_REQUEST) },
@@ -317,7 +275,7 @@ void InitDTrace(Environment* env, Handle<Object> target) {
 #undef NODE_PROBE
   };
 
-  for (unsigned int i = 0; i < ARRAY_SIZE(tab); i++) {
+  for (size_t i = 0; i < arraysize(tab); i++) {
     Local<String> key = OneByteString(env->isolate(), tab[i].name);
     Local<Value> val = env->NewFunctionTemplate(tab[i].func)->GetFunction();
     target->Set(key, val);

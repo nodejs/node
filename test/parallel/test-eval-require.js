@@ -19,20 +19,15 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
-
-
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var path = require('path');
-var fs = require('fs');
-
-var options = {
+const options = {
   cwd: common.fixturesDir
 };
-var child = spawn(process.execPath, ['-e', 'require("foo")'], options);
-child.on('exit', function(code) {
-  assert.equal(code, 0);
-});
-
+const child = spawn(process.execPath, ['-e', 'require("foo")'], options);
+child.on('exit', common.mustCall((code) => {
+  assert.strictEqual(code, 0);
+}));

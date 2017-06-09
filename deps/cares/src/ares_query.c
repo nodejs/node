@@ -121,7 +121,7 @@ void ares_query(ares_channel channel, const char *name, int dnsclass,
               &qlen, (channel->flags & ARES_FLAG_EDNS) ? channel->ednspsz : 0);
   if (status != ARES_SUCCESS)
     {
-      if (qbuf != NULL) free(qbuf);
+      if (qbuf != NULL) ares_free(qbuf);
       callback(arg, status, 0, NULL, 0);
       return;
     }
@@ -129,7 +129,7 @@ void ares_query(ares_channel channel, const char *name, int dnsclass,
   channel->next_id = generate_unique_id(channel);
 
   /* Allocate and fill in the query structure. */
-  qquery = malloc(sizeof(struct qquery));
+  qquery = ares_malloc(sizeof(struct qquery));
   if (!qquery)
     {
       ares_free_string(qbuf);
@@ -182,5 +182,5 @@ static void qcallback(void *arg, int status, int timeouts, unsigned char *abuf, 
         }
       qquery->callback(qquery->arg, status, timeouts, abuf, alen);
     }
-  free(qquery);
+  ares_free(qquery);
 }

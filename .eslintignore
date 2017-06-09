@@ -1,0 +1,10 @@
+lib/internal/v8_prof_polyfill.js
+lib/punycode.js
+test/addons/??_*/
+test/fixtures
+test/disabled
+test/tmp*/
+tools/eslint
+node_modules
+benchmark/tmp/
+doc/**/*.js

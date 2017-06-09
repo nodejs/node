@@ -1,6 +1,6 @@
 #!/bin/sh
 
-testsrc=Makefile
+testsrc=testenc
 test=./p
 cmd="../util/shlib_wrap.sh ../apps/openssl"
 

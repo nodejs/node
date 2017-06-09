@@ -1,0 +1,63 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.TH miniunzip 1 "Nov 7, 2001"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+miniunzip - uncompress and examine ZIP archives
+.SH SYNOPSIS
+.B miniunzip
+.RI [ -exvlo ]
+zipfile [ files_to_extract ] [-d tempdir]
+.SH DESCRIPTION
+.B minizip
+is a simple tool which allows the extraction of compressed file
+archives in the ZIP format used by the MS-DOS utility PKZIP.  It was
+written as a demonstration of the
+.IR zlib (3)
+library and therefore lack many of the features of the
+.IR unzip (1)
+program.
+.SH OPTIONS
+A number of options are supported.  With the exception of
+.BI \-d\  tempdir
+these must be supplied before any
+other arguments and are:
+.TP
+.BI \-l\ ,\ \-\-v
+List the files in the archive without extracting them.
+.TP
+.B \-o
+Overwrite files without prompting for confirmation.
+.TP
+.B \-x
+Extract files (default).
+.PP
+The
+.I zipfile
+argument is the name of the archive to process. The next argument can be used
+to specify a single file to extract from the archive.
+
+Lastly, the following option can be specified at the end of the command-line:
+.TP
+.BI \-d\  tempdir
+Extract the archive in the directory
+.I tempdir
+rather than the current directory.
+.SH SEE ALSO
+.BR minizip (1),
+.BR zlib (3),
+.BR unzip (1).
+.SH AUTHOR
+This program was written by Gilles Vollant.  This manual page was
+written by Mark Brown <broonie@sirena.org.uk>. The -d tempdir option
+was added by Dirk Eddelbuettel <edd@debian.org>.

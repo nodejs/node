@@ -8,9 +8,9 @@ The basic syntax for adding an object is as follows:
 
 	1 2 3 4		: shortName	: Long Name
 
-		If the long name doesn't contain spaces, or no short name
-		exists, the long name is used as basis for the base name
-		in C.  Otherwise, the short name is used.
+		If Long Name contains only word characters and hyphen-minus
+		(0x2D) or full stop (0x2E) then Long Name is used as basis
+		for the base name in C. Otherwise, the shortName is used.
 
 		The base name (let's call it 'base') will then be used to
 		create the C macros SN_base, LN_base, NID_base and OBJ_base.
@@ -22,7 +22,7 @@ Then there are some extra commands:
 
 	!Alias foo 1 2 3 4
 
-		This juts makes a name foo for an OID.  The C macro
+		This just makes a name foo for an OID.  The C macro
 		OBJ_foo will be created as a result.
 
 	!Cname foo

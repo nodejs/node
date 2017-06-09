@@ -1,4 +1,4 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2016 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,17 +28,10 @@
 #ifndef V8_PERF_JIT_H_
 #define V8_PERF_JIT_H_
 
-#include "src/v8.h"
+#include "src/log.h"
 
 namespace v8 {
 namespace internal {
-
-// TODO(jarin) For now, we disable perf integration on Android because of a
-// build problem - when building the snapshot with AOSP, librt is not
-// available, so we cannot use the clock_gettime function. To fix this, we
-// should thread through the V8_LIBRT_NOT_AVAILABLE flag here and only disable
-// the perf integration when this flag is present (the perf integration is not
-// needed when generating snapshot, so it is fine to ifdef it away).
 
 #if V8_OS_LINUX
 
@@ -48,15 +41,19 @@ class PerfJitLogger : public CodeEventLogger {
   PerfJitLogger();
   virtual ~PerfJitLogger();
 
-  virtual void CodeMoveEvent(Address from, Address to);
-  virtual void CodeDeleteEvent(Address from);
-  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) {}
-  virtual void SnapshotPositionEvent(Address addr, int pos);
+  void CodeMoveEvent(AbstractCode* from, Address to) override;
+  void CodeDisableOptEvent(AbstractCode* code,
+                           SharedFunctionInfo* shared) override {}
 
  private:
+  void OpenJitDumpFile();
+  void CloseJitDumpFile();
+  void* OpenMarkerFile(int fd);
+  void CloseMarkerFile(void* marker_address);
+
   uint64_t GetTimestamp();
-  virtual void LogRecordedBuffer(Code* code, SharedFunctionInfo* shared,
-                                 const char* name, int length);
+  void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo* shared,
+                         const char* name, int length) override;
 
   // Extension added to V8 log file name to get the low-level log name.
   static const char kFilenameFormatString[];
@@ -68,11 +65,14 @@ class PerfJitLogger : public CodeEventLogger {
 
   void LogWriteBytes(const char* bytes, int size);
   void LogWriteHeader();
+  void LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared);
+  void LogWriteUnwindingInfo(Code* code);
 
   static const uint32_t kElfMachIA32 = 3;
   static const uint32_t kElfMachX64 = 62;
   static const uint32_t kElfMachARM = 40;
   static const uint32_t kElfMachMIPS = 10;
+  static const uint32_t kElfMachARM64 = 183;
 
   uint32_t GetElfMach() {
 #if V8_TARGET_ARCH_IA32
@@ -83,14 +83,29 @@ class PerfJitLogger : public CodeEventLogger {
     return kElfMachARM;
 #elif V8_TARGET_ARCH_MIPS
     return kElfMachMIPS;
+#elif V8_TARGET_ARCH_ARM64
+    return kElfMachARM64;
 #else
     UNIMPLEMENTED();
     return 0;
 #endif
   }
 
-  FILE* perf_output_handle_;
-  uint64_t code_index_;
+#if V8_TARGET_ARCH_32_BIT
+  static const int kElfHeaderSize = 0x34;
+#elif V8_TARGET_ARCH_64_BIT
+  static const int kElfHeaderSize = 0x40;
+#else
+#error Unknown target architecture pointer size
+#endif
+
+  // Per-process singleton file. We assume that there is one main isolate;
+  // to determine when it goes away, we keep reference count.
+  static base::LazyRecursiveMutex file_mutex_;
+  static FILE* perf_output_handle_;
+  static uint64_t reference_count_;
+  static void* marker_address_;
+  static uint64_t code_index_;
 };
 
 #else
@@ -98,23 +113,22 @@ class PerfJitLogger : public CodeEventLogger {
 // PerfJitLogger is only implemented on Linux
 class PerfJitLogger : public CodeEventLogger {
  public:
-  virtual void CodeMoveEvent(Address from, Address to) { UNIMPLEMENTED(); }
-
-  virtual void CodeDeleteEvent(Address from) { UNIMPLEMENTED(); }
-
-  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) {
+  void CodeMoveEvent(AbstractCode* from, Address to) override {
     UNIMPLEMENTED();
   }
 
-  virtual void SnapshotPositionEvent(Address addr, int pos) { UNIMPLEMENTED(); }
+  void CodeDisableOptEvent(AbstractCode* code,
+                           SharedFunctionInfo* shared) override {
+    UNIMPLEMENTED();
+  }
 
-  virtual void LogRecordedBuffer(Code* code, SharedFunctionInfo* shared,
-                                 const char* name, int length) {
+  void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo* shared,
+                         const char* name, int length) override {
     UNIMPLEMENTED();
   }
 };
 
 #endif  // V8_OS_LINUX
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 #endif

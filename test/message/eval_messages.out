@@ -3,52 +3,62 @@
 with(this){__filename}
 ^^^^
 SyntaxError: Strict mode code may not include a with statement
-    at Object.exports.runInThisContext (vm.js:*)
+    at createScript (vm.js:*:*)
+    at Object.runInThisContext (vm.js:*:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at evalScript (node.js:*:*)
-    at startup (node.js:*:*)
-    at node.js:*:*
+    at evalScript (bootstrap_node.js:*:*)
+    at startup (bootstrap_node.js:*:*)
+    at bootstrap_node.js:*:*
 42
 42
 [eval]:1
 throw new Error("hello")
-      ^
+^
+
 Error: hello
     at [eval]:1:7
-    at Object.exports.runInThisContext (vm.js:*)
+    at ContextifyScript.Script.runInThisContext (vm.js:*:*)
+    at Object.runInThisContext (vm.js:*:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at evalScript (node.js:*:*)
-    at startup (node.js:*:*)
-    at node.js:*:*
+    at evalScript (bootstrap_node.js:*:*)
+    at startup (bootstrap_node.js:*:*)
+    at bootstrap_node.js:*:*
+
 [eval]:1
 throw new Error("hello")
-      ^
+^
+
 Error: hello
     at [eval]:1:7
-    at Object.exports.runInThisContext (vm.js:*)
+    at ContextifyScript.Script.runInThisContext (vm.js:*:*)
+    at Object.runInThisContext (vm.js:*:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at evalScript (node.js:*:*)
-    at startup (node.js:*:*)
-    at node.js:*:*
+    at evalScript (bootstrap_node.js:*:*)
+    at startup (bootstrap_node.js:*:*)
+    at bootstrap_node.js:*:*
 100
 [eval]:1
 var x = 100; y = x;
                ^
+
 ReferenceError: y is not defined
     at [eval]:1:16
-    at Object.exports.runInThisContext (vm.js:*)
+    at ContextifyScript.Script.runInThisContext (vm.js:*:*)
+    at Object.runInThisContext (vm.js:*:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at evalScript (node.js:*:*)
-    at startup (node.js:*:*)
-    at node.js:*:*
+    at evalScript (bootstrap_node.js:*:*)
+    at startup (bootstrap_node.js:*:*)
+    at bootstrap_node.js:*:*
+
 [eval]:1
 var ______________________________________________; throw 10
                                                     ^
 10
+
 [eval]:1
 var ______________________________________________; throw 10
                                                     ^

@@ -1,0 +1,97 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "semver-diff@^2.0.0",
+        "scope": null,
+        "escapedName": "semver-diff",
+        "name": "semver-diff",
+        "rawSpec": "^2.0.0",
+        "spec": ">=2.0.0 <3.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier"
+    ]
+  ],
+  "_from": "semver-diff@>=2.0.0 <3.0.0",
+  "_id": "semver-diff@2.1.0",
+  "_inCache": true,
+  "_location": "/update-notifier/semver-diff",
+  "_nodeVersion": "4.2.1",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.14.7",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "semver-diff@^2.0.0",
+    "scope": null,
+    "escapedName": "semver-diff",
+    "name": "semver-diff",
+    "rawSpec": "^2.0.0",
+    "spec": ">=2.0.0 <3.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier"
+  ],
+  "_resolved": "https://registry.npmjs.org/semver-diff/-/semver-diff-2.1.0.tgz",
+  "_shasum": "4bbb8437c8d37e4b0cf1a68fd726ec6d645d6d36",
+  "_shrinkwrap": null,
+  "_spec": "semver-diff@^2.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "http://sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/semver-diff/issues"
+  },
+  "dependencies": {
+    "semver": "^5.0.3"
+  },
+  "description": "Get the diff type of two semver versions: 0.0.1 0.0.2 → patch",
+  "devDependencies": {
+    "mocha": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "4bbb8437c8d37e4b0cf1a68fd726ec6d645d6d36",
+    "tarball": "https://registry.npmjs.org/semver-diff/-/semver-diff-2.1.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "58205f4b171e86b07942a30fb4502bc0ca60a071",
+  "homepage": "https://github.com/sindresorhus/semver-diff",
+  "keywords": [
+    "semver",
+    "version",
+    "semantic",
+    "diff",
+    "difference"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "semver-diff",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/semver-diff.git"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "version": "2.1.0"
+}

@@ -35,20 +35,33 @@
 namespace v8 {
 namespace internal {
 
+class CpuProfiler;
+
 class ProfilerExtension : public v8::Extension {
  public:
   ProfilerExtension() : v8::Extension("v8/profiler", kSource) { }
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
+
+  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name);
+
+  static void set_profiler(v8::CpuProfiler* profiler) { profiler_ = profiler; }
+  static void set_profiler(CpuProfiler* profiler) {
+    profiler_ = reinterpret_cast<v8::CpuProfiler*>(profiler);
+  }
+  static v8::CpuProfiler* profiler() { return profiler_; }
+  static v8::CpuProfile* last_profile;
+
+ private:
   static void StartProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::CpuProfile* last_profile;
- private:
+  static void CollectSample(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static v8::CpuProfiler* profiler_;
   static const char* kSource;
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif

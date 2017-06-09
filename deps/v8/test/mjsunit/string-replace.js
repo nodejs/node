@@ -163,6 +163,30 @@ replaceTest("0a1b2cx", short, /(x)(?=(.))/g, function r(m, c1, c2, i, s) {
 assertEquals(3, ctr, "replace(/x/g,func) num-match");
 
 
+replaceTest("ABCD", "abcd", /(.)/g, function r(m, c1, i, s) {
+  assertEquals("d", RegExp.lastMatch);
+  assertEquals("d", RegExp.$1);
+  assertEquals("abc", RegExp.leftContext);
+  return m.toUpperCase();
+});
+
+
+var long = "";
+while (long.length < 0x2000) {
+  long += String.fromCharCode(65 + Math.random() * 26);
+}
+
+for (var i = 0; i < 3; i++) {
+  replaceTest(long.toLowerCase(), long, /(..)/g, function r(m, c1, i, s) {
+    var expected = long.substring(0x1ffe, 0x2000);
+    assertEquals(expected, RegExp.lastMatch);
+    assertEquals(expected, RegExp.$1);
+    assertEquals(long.substring(0, 0x1ffe), RegExp.leftContext);
+    return m.toLowerCase();
+  });
+}
+
+
 // Test special cases of replacement parts longer than 1<<11.
 var longstring = "xyzzy";
 longstring = longstring + longstring;
@@ -193,20 +217,6 @@ replaceTest("aundefinedbundefinedcundefined",
             "abc", /(.)|(.)/g, function(m, m1, m2, i, s) { return m1+m2; });
 
 // Test nested calls to replace, including that it sets RegExp.$& correctly.
-
-function replacer(m,i,s) {
-  assertEquals(m,RegExp['$&']);
-  return "[" + RegExp['$&'] + "-"
-             + m.replace(/./g,"$&$&") + "-"
-             + m.replace(/./g,function() { return RegExp['$&']; })
-             + "-" + RegExp['$&'] + "]";
-}
-
-replaceTest("[ab-aabb-ab-b][az-aazz-az-z]",
-            "abaz", /a./g, replacer);
-
-replaceTest("[ab-aabb-ab-b][az-aazz-az-z]",
-            "abaz", /a(.)/g, replacer);
 
 var str = 'She sells seashells by the seashore.';
 var re = /sh/g;
@@ -273,3 +283,16 @@ function testIndices59(re) {
 
 testIndices59(new RegExp(regexp59pattern));
 testIndices59(new RegExp(regexp59pattern, "g"));
+
+// Test that ToString(replace) is called.
+
+let replace_tostring_count = 0;
+const fake_replacer = {
+  [Symbol.toPrimitive]: () => { replace_tostring_count++; return "b"; }
+};
+
+"a".replace("x", fake_replacer);
+assertEquals(1, replace_tostring_count);
+
+"a".replace("a", fake_replacer);
+assertEquals(2, replace_tostring_count);

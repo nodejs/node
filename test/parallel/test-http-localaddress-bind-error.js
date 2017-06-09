@@ -19,15 +19,15 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var invalidLocalAddress = '1.2.3.4';
-var gotError = false;
+const invalidLocalAddress = '1.2.3.4';
 
-var server = http.createServer(function(req, res) {
-  console.log("Connect from: " + req.connection.remoteAddress);
+const server = http.createServer(function(req, res) {
+  console.log('Connect from: ' + req.connection.remoteAddress);
 
   req.on('end', function() {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -36,22 +36,17 @@ var server = http.createServer(function(req, res) {
   req.resume();
 });
 
-server.listen(common.PORT, "127.0.0.1", function() {
-  var req = http.request({
+server.listen(0, '127.0.0.1', common.mustCall(function() {
+  http.request({
     host: 'localhost',
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'GET',
     localAddress: invalidLocalAddress
   }, function(res) {
     assert.fail('unexpectedly got response from server');
-  }).on('error', function(e) {
+  }).on('error', common.mustCall(function(e) {
     console.log('client got error: ' + e.message);
-    gotError = true;
     server.close();
-  }).end();
-});
-
-process.on('exit', function() {
-  assert.ok(gotError);
-});
+  })).end();
+}));

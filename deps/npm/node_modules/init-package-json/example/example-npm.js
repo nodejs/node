@@ -1,5 +1,4 @@
 var init = require('../init-package-json.js')
-var path = require('path')
 var dir = process.cwd()
 var npm = require('npm')
 
@@ -10,4 +9,3 @@ npm.load(function (er, npm) {
     console.log('written successfully')
   })
 })
-

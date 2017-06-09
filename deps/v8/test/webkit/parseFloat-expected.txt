@@ -55,7 +55,7 @@ PASS parseFloat(lf + '1') is 1
 PASS parseFloat(ls + '1') is 1
 PASS parseFloat(ps + '1') is 1
 PASS parseFloat(oghamSpaceMark + '1') is 1
-PASS parseFloat(mongolianVowelSeparator + '1') is 1
+FAIL parseFloat(mongolianVowelSeparator + '1') should be 1. Was NaN.
 PASS parseFloat(enQuad + '1') is 1
 PASS parseFloat(emQuad + '1') is 1
 PASS parseFloat(enSpace + '1') is 1

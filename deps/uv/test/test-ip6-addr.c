@@ -77,14 +77,16 @@ TEST_IMPL(ip6_addr_link_local) {
              device_name);
 #endif
 
-    LOGF("Testing link-local address %s "
-         "(iface_index: 0x%02x, device_name: %s)\n",
-         scoped_addr,
-         iface_index,
-         device_name);
+    fprintf(stderr, "Testing link-local address %s "
+            "(iface_index: 0x%02x, device_name: %s)\n",
+            scoped_addr,
+            iface_index,
+            device_name);
+    fflush(stderr);
 
     ASSERT(0 == uv_ip6_addr(scoped_addr, TEST_PORT, &addr));
-    LOGF("Got scope_id 0x%02x\n", addr.sin6_scope_id);
+    fprintf(stderr, "Got scope_id 0x%02x\n", addr.sin6_scope_id);
+    fflush(stderr);
     ASSERT(iface_index == addr.sin6_scope_id);
   }
 

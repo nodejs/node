@@ -82,12 +82,11 @@ function print(arg) {
 function start_process() {
   ArgumentsProcessor.DEFAULTS = {
     logFileName: 'v8.log',
-    snapshotLogFileName: null,
     platform: 'unix',
     stateFilter: null,
     callGraphSize: 5,
     ignoreUnknown: false,
-    separateIc: false,
+    separateIc: true,
     targetRootFS: '',
     nm: 'nm'
   };
@@ -98,8 +97,6 @@ function start_process() {
     'mac': MacCppEntriesProvider
   };
 
-  var snapshotLogProcessor; // not used
-
   var tickProcessor = new TickProcessor(
     new (entriesProviders[ArgumentsProcessor.DEFAULTS.platform])(
         ArgumentsProcessor.DEFAULTS.nm,
@@ -107,8 +104,7 @@ function start_process() {
     ArgumentsProcessor.DEFAULTS.separateIc,
     ArgumentsProcessor.DEFAULTS.callGraphSize,
     ArgumentsProcessor.DEFAULTS.ignoreUnknown,
-    ArgumentsProcessor.DEFAULTS.stateFilter,
-    snapshotLogProcessor);
+    ArgumentsProcessor.DEFAULTS.stateFilter);
 
   tickProcessor.processLogChunk(v8log_content);
   tickProcessor.printStatistics();

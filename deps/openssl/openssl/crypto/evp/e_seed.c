@@ -1,4 +1,4 @@
-/* crypto/evp/e_seed.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/evp/e_seed.c */
 /* ====================================================================
  * Copyright (c) 2007 The OpenSSL Project.  All rights reserved.
  *
@@ -7,7 +7,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -55,29 +55,29 @@
 
 #include <openssl/opensslconf.h>
 #ifndef OPENSSL_NO_SEED
-#include <openssl/evp.h>
-#include <openssl/err.h>
-#include <string.h>
-#include <assert.h>
-#include <openssl/seed.h>
-#include "evp_locl.h"
+# include <openssl/evp.h>
+# include <openssl/err.h>
+# include <string.h>
+# include <assert.h>
+# include <openssl/seed.h>
+# include "evp_locl.h"
 
-static int seed_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,	const unsigned char *iv, int enc);
+static int seed_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
+                         const unsigned char *iv, int enc);
 
-typedef struct
-	{
-	SEED_KEY_SCHEDULE ks;
-	} EVP_SEED_KEY;
+typedef struct {
+    SEED_KEY_SCHEDULE ks;
+} EVP_SEED_KEY;
 
 IMPLEMENT_BLOCK_CIPHER(seed, ks, SEED, EVP_SEED_KEY, NID_seed,
-                       16, 16, 16, 128,
-                       0, seed_init_key, 0, 0, 0, 0)
+                       16, 16, 16, 128, EVP_CIPH_FLAG_DEFAULT_ASN1,
+                       seed_init_key, 0, 0, 0, 0)
 
 static int seed_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                          const unsigned char *iv, int enc)
-	{
-	SEED_set_key(key, ctx->cipher_data);
-	return 1;
-	}
+{
+    SEED_set_key(key, ctx->cipher_data);
+    return 1;
+}
 
 #endif

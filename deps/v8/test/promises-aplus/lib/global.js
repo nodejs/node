@@ -33,15 +33,6 @@ var clearTimeout;
 var timers = {};
 var currentId = 0;
 
-function PostMicrotask(fn) {
-  var o = {};
-  Object.observe(o, function() {
-    fn();
-  });
-  // Change something to enqueue a microtask.
-  o.x = 'hello';
-}
-
 setInterval = function(fn, delay) {
   var i = 0;
   var id = currentId++;
@@ -52,9 +43,9 @@ setInterval = function(fn, delay) {
     if (i++ >= delay) {
       fn();
     }
-    PostMicrotask(loop);
+    %EnqueueMicrotask(loop);
   }
-  PostMicrotask(loop);
+  %EnqueueMicrotask(loop);
   timers[id] = true;
   return id;
 }

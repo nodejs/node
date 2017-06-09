@@ -1,6 +1,7 @@
 /* crypto/rsa/rsa_prn.c */
-/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
- * project 2006.
+/*
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
+ * 2006.
  */
 /* ====================================================================
  * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -63,31 +64,29 @@
 
 #ifndef OPENSSL_NO_FP_API
 int RSA_print_fp(FILE *fp, const RSA *x, int off)
-	{
-	BIO *b;
-	int ret;
+{
+    BIO *b;
+    int ret;
 
-	if ((b=BIO_new(BIO_s_file())) == NULL)
-		{
-		RSAerr(RSA_F_RSA_PRINT_FP,ERR_R_BUF_LIB);
-		return(0);
-		}
-	BIO_set_fp(b,fp,BIO_NOCLOSE);
-	ret=RSA_print(b,x,off);
-	BIO_free(b);
-	return(ret);
-	}
+    if ((b = BIO_new(BIO_s_file())) == NULL) {
+        RSAerr(RSA_F_RSA_PRINT_FP, ERR_R_BUF_LIB);
+        return (0);
+    }
+    BIO_set_fp(b, fp, BIO_NOCLOSE);
+    ret = RSA_print(b, x, off);
+    BIO_free(b);
+    return (ret);
+}
 #endif
 
 int RSA_print(BIO *bp, const RSA *x, int off)
-	{
-	EVP_PKEY *pk;
-	int ret;
-	pk = EVP_PKEY_new();
-	if (!pk || !EVP_PKEY_set1_RSA(pk, (RSA *)x))
-		return 0;
-	ret = EVP_PKEY_print_private(bp, pk, off, NULL);
-	EVP_PKEY_free(pk);
-	return ret;
-	}
-
+{
+    EVP_PKEY *pk;
+    int ret;
+    pk = EVP_PKEY_new();
+    if (!pk || !EVP_PKEY_set1_RSA(pk, (RSA *)x))
+        return 0;
+    ret = EVP_PKEY_print_private(bp, pk, off, NULL);
+    EVP_PKEY_free(pk);
+    return ret;
+}

@@ -22,6 +22,8 @@
 #ifndef SRC_SPAWN_SYNC_H_
 #define SRC_SPAWN_SYNC_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
 #include "node_buffer.h"
 
@@ -30,7 +32,6 @@ namespace node {
 using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -93,7 +94,7 @@ class SyncProcessStdioPipe {
   int Start();
   void Close();
 
-  Local<Object> GetOutputAsBuffer() const;
+  Local<Object> GetOutputAsBuffer(Environment* env) const;
 
   inline bool readable() const;
   inline bool writable() const;
@@ -150,9 +151,9 @@ class SyncProcessRunner {
   };
 
  public:
-  static void Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context);
+  static void Initialize(Local<Object> target,
+                         Local<Value> unused,
+                         Local<Context> context);
   static void Spawn(const FunctionCallbackInfo<Value>& args);
 
  private:
@@ -195,7 +196,6 @@ class SyncProcessRunner {
   inline int AddStdioInheritFD(uint32_t child_fd, int inherit_fd);
 
   static bool IsSet(Local<Value> value);
-  template <typename t> static bool CheckRange(Local<Value> js_value);
   int CopyJsString(Local<Value> js_value, const char** target);
   int CopyJsStringArray(Local<Value> js_value, char** target);
 
@@ -205,7 +205,7 @@ class SyncProcessRunner {
   static void KillTimerCallback(uv_timer_t* handle);
   static void KillTimerCloseCallback(uv_handle_t* handle);
 
-  size_t max_buffer_;
+  double max_buffer_;
   uint64_t timeout_;
   int kill_signal_;
 
@@ -242,6 +242,9 @@ class SyncProcessRunner {
 
   Environment* env_;
 };
-}
+
+}  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_SPAWN_SYNC_H_

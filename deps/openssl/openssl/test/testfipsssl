@@ -38,8 +38,12 @@ fi
 echo test ssl3 is forbidden in FIPS mode
 $ssltest -ssl3 $extra && exit 1
 
-echo test ssl2 is forbidden in FIPS mode
-$ssltest -ssl2 $extra && exit 1
+if ../util/shlib_wrap.sh ../apps/openssl ciphers SSLv2 >/dev/null 2>&1; then
+    echo test ssl2 is forbidden in FIPS mode
+    $ssltest -ssl2 $extra && exit 1
+else
+    echo ssl2 disabled: skipping test
+fi
 
 echo test tls1
 $ssltest -tls1 $extra || exit 1

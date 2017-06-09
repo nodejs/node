@@ -1,0 +1,109 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "unzip-response@^2.0.1",
+        "scope": null,
+        "escapedName": "unzip-response",
+        "name": "unzip-response",
+        "rawSpec": "^2.0.1",
+        "spec": ">=2.0.1 <3.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got"
+    ]
+  ],
+  "_from": "unzip-response@>=2.0.1 <3.0.0",
+  "_id": "unzip-response@2.0.1",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/got/unzip-response",
+  "_nodeVersion": "4.5.0",
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/unzip-response-2.0.1.tgz_1473187386171_0.46349130012094975"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "unzip-response@^2.0.1",
+    "scope": null,
+    "escapedName": "unzip-response",
+    "name": "unzip-response",
+    "rawSpec": "^2.0.1",
+    "spec": ">=2.0.1 <3.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/got"
+  ],
+  "_resolved": "https://registry.npmjs.org/unzip-response/-/unzip-response-2.0.1.tgz",
+  "_shasum": "d2f0f737d16b0615e72a6935ed04214572d56f97",
+  "_shrinkwrap": null,
+  "_spec": "unzip-response@^2.0.1",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got",
+  "bugs": {
+    "url": "https://github.com/sindresorhus/unzip-response/issues"
+  },
+  "dependencies": {},
+  "description": "Unzip a HTTP response if needed",
+  "devDependencies": {
+    "ava": "*",
+    "get-stream": "^2.3.0",
+    "pify": "^2.3.0",
+    "rfpify": "^1.0.0",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "d2f0f737d16b0615e72a6935ed04214572d56f97",
+    "tarball": "https://registry.npmjs.org/unzip-response/-/unzip-response-2.0.1.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "71858052fe94b89678d14ba54e8e96cacbda92c3",
+  "homepage": "https://github.com/sindresorhus/unzip-response#readme",
+  "keywords": [
+    "http",
+    "unzip",
+    "zlib",
+    "gzip",
+    "deflate",
+    "incoming",
+    "message",
+    "response",
+    "stream"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    },
+    {
+      "name": "floatdrop",
+      "email": "floatdrop@gmail.com"
+    }
+  ],
+  "name": "unzip-response",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/unzip-response.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "2.0.1",
+  "xo": {
+    "esnext": true
+  }
+}

@@ -140,9 +140,16 @@ var pointJson = '{"x": 1, "y": 2}';
 assertEquals({'x': 1, 'y': 2}, JSON.parse(pointJson));
 assertEquals({'x': 1}, JSON.parse(pointJson, GetFilter('y')));
 assertEquals({'y': 2}, JSON.parse(pointJson, GetFilter('x')));
+
 assertEquals([1, 2, 3], JSON.parse("[1, 2, 3]"));
-assertEquals([1, undefined, 3], JSON.parse("[1, 2, 3]", GetFilter(1)));
-assertEquals([1, 2, undefined], JSON.parse("[1, 2, 3]", GetFilter(2)));
+
+var array1 = JSON.parse("[1, 2, 3]", GetFilter(1));
+assertEquals([1, , 3], array1);
+assertFalse(array1.hasOwnProperty(1));  // assertEquals above is not enough
+
+var array2 = JSON.parse("[1, 2, 3]", GetFilter(2));
+assertEquals([1, 2, ,], array2);
+assertFalse(array2.hasOwnProperty(2));
 
 function DoubleNumbers(key, value) {
   return (typeof value == 'number') ? 2 * value : value;
@@ -227,7 +234,9 @@ TestInvalid('"Garbage""After string"');
 
 function TestStringify(expected, input) {
   assertEquals(expected, JSON.stringify(input));
-  assertEquals(expected, JSON.stringify(input, null, 0));
+  assertEquals(expected, JSON.stringify(input, (key, value) => value));
+  assertEquals(JSON.stringify(input, null, "="),
+               JSON.stringify(input, (key, value) => value, "="));
 }
 
 TestStringify("true", true);
@@ -318,6 +327,7 @@ assertEquals('{"x":5}', JSON.stringify({x:5,y:6}, ['x']));
 assertEquals('{\n "a": "b",\n "c": "d"\n}',
              JSON.stringify({a:"b",c:"d"}, null, 1));
 assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x']));
+assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x', 'x', 'y']));
 
 // toJSON get string keys.
 var checker = {};
@@ -444,8 +454,8 @@ var counter = { get toJSON() { getCount++;
 // RegExps are not callable, so they are stringified as objects.
 TestStringify('{}', /regexp/);
 TestStringify('42', counter);
-assertEquals(2, getCount);
-assertEquals(2, callCount);
+assertEquals(4, getCount);
+assertEquals(4, callCount);
 
 var oddball2 = Object(42);
 var oddball3 = Object("foo");
@@ -482,3 +492,35 @@ assertTrue(Object.prototype.isPrototypeOf(o2));
 
 var json = '{"stuff before slash\\\\stuff after slash":"whatever"}';
 TestStringify(json, JSON.parse(json));
+
+
+// https://bugs.chromium.org/p/v8/issues/detail?id=3139
+
+reviver = function(p, v) {
+  if (p == "a") {
+    this.b = { get x() {return null}, set x(_){throw 666} }
+  }
+  return v;
+}
+assertEquals({a: 0, b: {x: null}}, JSON.parse('{"a":0,"b":1}', reviver));
+
+
+// Make sure a failed [[Delete]] doesn't throw
+
+reviver = function(p, v) {
+  Object.freeze(this);
+  return p === "" ? v : undefined;
+}
+assertEquals({a: 0, b: 1}, JSON.parse('{"a":0,"b":1}', reviver));
+
+
+// Make sure a failed [[DefineProperty]] doesn't throw
+
+reviver = function(p, v) {
+  Object.freeze(this);
+  return p === "" ? v : 42;
+}
+assertEquals({a: 0, b: 1}, JSON.parse('{"a":0,"b":1}', reviver));
+
+reviver = (k, v) => (v === Infinity) ? "inf" : v;
+assertEquals('{"":"inf"}', JSON.stringify({"":Infinity}, reviver));

@@ -1,0 +1,116 @@
+<?xml version="1.0" ?>
+<package name="zlib" version="1.2.11">
+    <library name="zlib" dlversion="1.2.11" dlname="z">
+	<property name="description"> zip compression library </property>
+	<property name="include-target-dir" value="$(@PACKAGE/install-includedir)" />
+
+	<!-- fixme: not implemented yet -->
+	<property name="compiler/c/inline" value="yes" />
+
+	<include-file name="zlib.h" scope="public" mode="644" />
+	<include-file name="zconf.h" scope="public" mode="644" />
+
+	<source name="adler32.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	</source>
+	<source name="compress.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	</source>
+	<source name="crc32.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	    <depend name="crc32.h" />
+	</source>
+	<source name="gzclose.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	    <depend name="gzguts.h" />
+	</source>
+	<source name="gzlib.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	    <depend name="gzguts.h" />
+	</source>
+	<source name="gzread.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	    <depend name="gzguts.h" />
+	</source>
+	<source name="gzwrite.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	    <depend name="gzguts.h" />
+	</source>
+	<source name="uncompr.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	</source>
+	<source name="deflate.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	    <depend name="zutil.h" />
+	    <depend name="deflate.h" />
+	</source>
+	<source name="trees.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	    <depend name="zutil.h" />
+	    <depend name="deflate.h" />
+	    <depend name="trees.h" />
+	</source>
+	<source name="zutil.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	    <depend name="zutil.h" />
+	</source>
+	<source name="inflate.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	    <depend name="zutil.h" />
+	    <depend name="inftrees.h" />
+	    <depend name="inflate.h" />
+	    <depend name="inffast.h" />
+	</source>
+	<source name="infback.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	    <depend name="zutil.h" />
+	    <depend name="inftrees.h" />
+	    <depend name="inflate.h" />
+	    <depend name="inffast.h" />
+	</source>
+	<source name="inftrees.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	    <depend name="zutil.h" />
+	    <depend name="inftrees.h" />
+	</source>
+	<source name="inffast.c">
+	    <depend name="zlib.h" />
+	    <depend name="zconf.h" />
+	    <depend name="zutil.h" />
+	    <depend name="inftrees.h" />
+	    <depend name="inflate.h" />
+	    <depend name="inffast.h" />
+	</source>
+    </library>
+</package>
+
+<!--
+CFLAGS=-O
+#CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
+#CFLAGS=-g -DZLIB_DEBUG
+#CFLAGS=-O3 -Wall -Wwrite-strings -Wpointer-arith -Wconversion \
+#           -Wstrict-prototypes -Wmissing-prototypes
+
+# OBJA =
+# to use the asm code: make OBJA=match.o
+#
+match.o: match.S
+	$(CPP) match.S > _match.s
+	$(CC) -c _match.s
+	mv _match.o match.o
+	rm -f _match.s
+-->

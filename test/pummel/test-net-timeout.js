@@ -19,21 +19,22 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var exchanges = 0;
-var starttime = null;
-var timeouttime = null;
-var timeout = 1000;
+let exchanges = 0;
+let starttime = null;
+let timeouttime = null;
+const timeout = 1000;
 
-var echo_server = net.createServer(function(socket) {
+const echo_server = net.createServer(function(socket) {
   socket.setTimeout(timeout);
 
   socket.on('timeout', function() {
     console.log('server timeout');
-    timeouttime = new Date;
+    timeouttime = new Date();
     console.dir(timeouttime);
     socket.destroy();
   });
@@ -56,7 +57,7 @@ var echo_server = net.createServer(function(socket) {
 echo_server.listen(common.PORT, function() {
   console.log('server listening at ' + common.PORT);
 
-  var client = net.createConnection(common.PORT);
+  const client = net.createConnection(common.PORT);
   client.setEncoding('UTF8');
   client.setTimeout(0); // disable the timeout for client
   client.on('connect', function() {
@@ -65,16 +66,16 @@ echo_server.listen(common.PORT, function() {
   });
 
   client.on('data', function(chunk) {
-    assert.equal('hello\r\n', chunk);
+    assert.strictEqual('hello\r\n', chunk);
     if (exchanges++ < 5) {
       setTimeout(function() {
         console.log('client write "hello"');
         client.write('hello\r\n');
       }, 500);
 
-      if (exchanges == 5) {
+      if (exchanges === 5) {
         console.log('wait for timeout - should come in ' + timeout + ' ms');
-        starttime = new Date;
+        starttime = new Date();
         console.dir(starttime);
       }
     }
@@ -99,7 +100,7 @@ process.on('exit', function() {
   assert.ok(starttime != null);
   assert.ok(timeouttime != null);
 
-  diff = timeouttime - starttime;
+  const diff = timeouttime - starttime;
   console.log('diff = ' + diff);
 
   assert.ok(timeout < diff);

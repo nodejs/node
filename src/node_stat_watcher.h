@@ -22,6 +22,8 @@
 #ifndef SRC_NODE_STAT_WATCHER_H_
 #define SRC_NODE_STAT_WATCHER_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
 #include "async-wrap.h"
 #include "env.h"
@@ -32,9 +34,9 @@ namespace node {
 
 class StatWatcher : public AsyncWrap {
  public:
-  virtual ~StatWatcher() override;
+  ~StatWatcher() override;
 
-  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
  protected:
   StatWatcher(Environment* env, v8::Local<v8::Object> wrap);
@@ -42,6 +44,8 @@ class StatWatcher : public AsyncWrap {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  size_t self_size() const override { return sizeof(*this); }
 
  private:
   static void Callback(uv_fs_poll_t* handle,
@@ -54,4 +58,7 @@ class StatWatcher : public AsyncWrap {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #endif  // SRC_NODE_STAT_WATCHER_H_

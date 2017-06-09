@@ -5,6 +5,10 @@
 #ifndef V8_TESTING_GMOCK_SUPPORT_H_
 #define V8_TESTING_GMOCK_SUPPORT_H_
 
+#include <cmath>
+#include <cstring>
+#include <string>
+
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace testing {
@@ -60,11 +64,26 @@ class CaptureEqMatcher : public MatcherInterface<T> {
 }  // namespace internal
 
 
+// Creates a polymorphic matcher that matches anything whose bit representation
+// is equal to that of {x}.
+MATCHER_P(BitEq, x, std::string(negation ? "isn't" : "is") +
+                        " bitwise equal to " + PrintToString(x)) {
+  static_assert(sizeof(x) == sizeof(arg), "Size mismatch");
+  return std::memcmp(&arg, &x, sizeof(x)) == 0;
+}
+
+
 // CaptureEq(capture) captures the value passed in during matching as long as it
 // is unset, and once set, compares the value for equality with the argument.
 template <typename T>
-Matcher<T> CaptureEq(Capture<T>* capture) {
+inline Matcher<T> CaptureEq(Capture<T>* capture) {
   return MakeMatcher(new internal::CaptureEqMatcher<T>(capture));
+}
+
+
+// Creates a polymorphic matcher that matches any floating point NaN value.
+MATCHER(IsNaN, std::string(negation ? "isn't" : "is") + " not a number") {
+  return std::isnan(arg);
 }
 
 }  // namespace testing

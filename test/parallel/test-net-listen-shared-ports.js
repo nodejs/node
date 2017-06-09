@@ -19,29 +19,28 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
-
-function noop() {}
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 if (cluster.isMaster) {
-  var worker1 = cluster.fork();
+  const worker1 = cluster.fork();
 
   worker1.on('message', function(msg) {
-    assert.equal(msg, 'success');
-    var worker2 = cluster.fork();
+    assert.strictEqual(msg, 'success');
+    const worker2 = cluster.fork();
 
     worker2.on('message', function(msg) {
-      assert.equal(msg, 'server2:EADDRINUSE');
+      assert.strictEqual(msg, 'server2:EADDRINUSE');
       worker1.kill();
       worker2.kill();
     });
   });
 } else {
-  var server1 = net.createServer(noop);
-  var server2 = net.createServer(noop);
+  const server1 = net.createServer(common.noop);
+  const server2 = net.createServer(common.noop);
 
   server1.on('error', function(err) {
     // no errors expected

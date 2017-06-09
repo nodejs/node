@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-BIO_s_accept, BIO_set_accept_port, BIO_get_accept_port,
+BIO_s_accept, BIO_set_accept_port, BIO_get_accept_port, BIO_new_accept,
 BIO_set_nbio_accept, BIO_set_accept_bios, BIO_set_bind_mode,
 BIO_get_bind_mode, BIO_do_accept - accept BIO
 

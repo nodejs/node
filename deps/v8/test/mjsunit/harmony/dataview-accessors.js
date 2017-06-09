@@ -400,12 +400,8 @@ function TestGeneralAccessors() {
     assertThrows(function() { f(); }, TypeError);
     f.call(a, 0, 0); // should not throw
     assertThrows(function() { f.call({}, 0, 0); }, TypeError);
-    assertThrows(function() { f.call(a); }, TypeError);
-    if (name.indexOf("set") == 0) {
-      assertThrows(function() { f.call(a, 1); }, TypeError);
-    } else {
-      f.call(a, 1); // should not throw
-    }
+    f.call(a);
+    f.call(a, 1); // should not throw
   }
   CheckAccessor("getUint8");
   CheckAccessor("setUint8");
@@ -429,33 +425,27 @@ TestGeneralAccessors();
 
 function TestInsufficientArguments() {
   var a = new DataView(new ArrayBuffer(256));
+  function CheckInsuficientArguments(type) {
+    var expectedValue = type === "Float32" || type === "Float64" ? NaN : 0;
+    var offset = getElementSize(type);
 
-  assertThrows(function() { a.getUint8(); }, TypeError);
-  assertThrows(function() { a.getInt8(); }, TypeError);
-  assertThrows(function() { a.getUint16(); }, TypeError);
-  assertThrows(function() { a.getInt16(); }, TypeError);
-  assertThrows(function() { a.getUint32(); }, TypeError);
-  assertThrows(function() { a.getInt32(); }, TypeError);
-  assertThrows(function() { a.getFloat32(); }, TypeError);
-  assertThrows(function() { a.getFloat64(); }, TypeError);
+    assertSame(undefined, a["set" + type](0, 7));
+    assertSame(undefined, a["set" + type]());
+    assertSame(expectedValue, a["get" + type]());
 
-  assertThrows(function() { a.setUint8(); }, TypeError);
-  assertThrows(function() { a.setInt8(); }, TypeError);
-  assertThrows(function() { a.setUint16(); }, TypeError);
-  assertThrows(function() { a.setInt16(); }, TypeError);
-  assertThrows(function() { a.setUint32(); }, TypeError);
-  assertThrows(function() { a.setInt32(); }, TypeError);
-  assertThrows(function() { a.setFloat32(); }, TypeError);
-  assertThrows(function() { a.setFloat64(); }, TypeError);
+    assertSame(undefined, a["set" + type](offset, 7));
+    assertSame(undefined, a["set" + type](offset));
+    assertSame(expectedValue, a["get" + type](offset));
+  }
 
-  assertThrows(function() { a.setUint8(1) }, TypeError);
-  assertThrows(function() { a.setInt8(1) }, TypeError);
-  assertThrows(function() { a.setUint16(1) }, TypeError);
-  assertThrows(function() { a.setInt16(1) }, TypeError);
-  assertThrows(function() { a.setUint32(1) }, TypeError);
-  assertThrows(function() { a.setInt32(1) }, TypeError);
-  assertThrows(function() { a.setFloat32(1) }, TypeError);
-  assertThrows(function() { a.setFloat64(1) }, TypeError);
+  CheckInsuficientArguments("Uint8");
+  CheckInsuficientArguments("Int8");
+  CheckInsuficientArguments("Uint16");
+  CheckInsuficientArguments("Int16");
+  CheckInsuficientArguments("Uint32");
+  CheckInsuficientArguments("Int32");
+  CheckInsuficientArguments("Float32");
+  CheckInsuficientArguments("Float64");
 }
 
 TestInsufficientArguments();

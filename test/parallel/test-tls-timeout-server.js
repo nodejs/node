@@ -19,34 +19,31 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) process.exit();
+'use strict';
+const common = require('../common');
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var tls = require('tls');
-var fs = require('fs');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+const tls = require('tls');
 
-var clientErrors = 0;
+const net = require('net');
+const fs = require('fs');
 
-process.on('exit', function() {
-  assert.equal(clientErrors, 1);
-});
-
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
   handshakeTimeout: 50
 };
 
-var server = tls.createServer(options, assert.fail);
+const server = tls.createServer(options, common.mustNotCall());
 
-server.on('clientError', function(err, conn) {
+server.on('tlsClientError', common.mustCall(function(err, conn) {
   conn.destroy();
   server.close();
-  clientErrors++;
-});
+}));
 
-server.listen(common.PORT, function() {
-  net.connect({ host: '127.0.0.1', port: common.PORT });
-});
+server.listen(0, common.mustCall(function() {
+  net.connect({ host: '127.0.0.1', port: this.address().port });
+}));

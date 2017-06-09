@@ -1,0 +1,106 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "copy-concurrently@^1.0.0",
+        "scope": null,
+        "escapedName": "copy-concurrently",
+        "name": "copy-concurrently",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/move-concurrently"
+    ]
+  ],
+  "_from": "copy-concurrently@>=1.0.0 <2.0.0",
+  "_id": "copy-concurrently@1.0.3",
+  "_inCache": true,
+  "_location": "/move-concurrently/copy-concurrently",
+  "_nodeVersion": "4.6.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/copy-concurrently-1.0.3.tgz_1489706523710_0.4328302445355803"
+  },
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "_npmVersion": "4.4.3",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "copy-concurrently@^1.0.0",
+    "scope": null,
+    "escapedName": "copy-concurrently",
+    "name": "copy-concurrently",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/move-concurrently"
+  ],
+  "_resolved": "https://registry.npmjs.org/copy-concurrently/-/copy-concurrently-1.0.3.tgz",
+  "_shasum": "45fb7866249a1ca889aa5708e6cbd273e75bb250",
+  "_shrinkwrap": null,
+  "_spec": "copy-concurrently@^1.0.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/move-concurrently",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/copy-concurrently/issues"
+  },
+  "dependencies": {
+    "aproba": "^1.1.1",
+    "fs-write-stream-atomic": "^1.0.8",
+    "iferr": "^0.1.5",
+    "mkdirp": "^0.5.1",
+    "rimraf": "^2.5.4",
+    "run-queue": "^1.0.0"
+  },
+  "description": "Promises of copies of files, directories and symlinks, with concurrency controls and win32 junction fallback.",
+  "devDependencies": {
+    "standard": "^8.6.0",
+    "tacks": "^1.2.6",
+    "tap": "^10.1.1"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dist": {
+    "shasum": "45fb7866249a1ca889aa5708e6cbd273e75bb250",
+    "tarball": "https://registry.npmjs.org/copy-concurrently/-/copy-concurrently-1.0.3.tgz"
+  },
+  "files": [
+    "copy.js",
+    "is-windows.js"
+  ],
+  "gitHead": "1b4b93b19c0cb2f6676c8a73dc86a1333d373230",
+  "homepage": "https://www.npmjs.com/package/copy-concurrently",
+  "keywords": [
+    "copy",
+    "cpr"
+  ],
+  "license": "ISC",
+  "main": "copy.js",
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "name": "copy-concurrently",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/copy-concurrently.git"
+  },
+  "scripts": {
+    "test": "standard && tap --coverage test"
+  },
+  "version": "1.0.3"
+}

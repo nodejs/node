@@ -65,12 +65,22 @@ aesni-x86_64.s: asm/aesni-x86_64.pl
 	$(PERL) asm/aesni-x86_64.pl $(PERLASM_SCHEME) > $@
 aesni-sha1-x86_64.s:	asm/aesni-sha1-x86_64.pl
 	$(PERL) asm/aesni-sha1-x86_64.pl $(PERLASM_SCHEME) > $@
+aesni-sha256-x86_64.s:	asm/aesni-sha256-x86_64.pl
+	$(PERL) asm/aesni-sha256-x86_64.pl $(PERLASM_SCHEME) > $@
+aesni-mb-x86_64.s:	asm/aesni-mb-x86_64.pl
+	$(PERL) asm/aesni-mb-x86_64.pl $(PERLASM_SCHEME) > $@
 
 aes-sparcv9.s: asm/aes-sparcv9.pl
 	$(PERL) asm/aes-sparcv9.pl $(CFLAGS) > $@
+aest4-sparcv9.s: asm/aest4-sparcv9.pl ../perlasm/sparcv9_modes.pl
+	$(PERL) asm/aest4-sparcv9.pl $(CFLAGS) > $@
 
 aes-ppc.s:	asm/aes-ppc.pl
 	$(PERL) asm/aes-ppc.pl $(PERLASM_SCHEME) $@
+vpaes-ppc.s:	asm/vpaes-ppc.pl
+	$(PERL) asm/vpaes-ppc.pl $(PERLASM_SCHEME) $@
+aesp8-ppc.s:	asm/aesp8-ppc.pl
+	$(PERL) asm/aesp8-ppc.pl $(PERLASM_SCHEME) $@
 
 aes-parisc.s:	asm/aes-parisc.pl
 	$(PERL) asm/aes-parisc.pl $(PERLASM_SCHEME) $@
@@ -78,12 +88,18 @@ aes-parisc.s:	asm/aes-parisc.pl
 aes-mips.S:	asm/aes-mips.pl
 	$(PERL) asm/aes-mips.pl $(PERLASM_SCHEME) $@
 
+aesv8-armx.S:	asm/aesv8-armx.pl
+	$(PERL) asm/aesv8-armx.pl $(PERLASM_SCHEME) $@
+aesv8-armx.o:	aesv8-armx.S
+
 # GNU make "catch all"
 aes-%.S:	asm/aes-%.pl;	$(PERL) $< $(PERLASM_SCHEME) > $@
 aes-armv4.o:	aes-armv4.S
+bsaes-%.S:	asm/bsaes-%.pl;	$(PERL) $< $(PERLASM_SCHEME) $@
+bsaes-armv7.o:	bsaes-armv7.S
 
 files:
-	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
+	$(PERL) $(TOP)/util/files.pl "AES_ENC=$(AES_ENC)" Makefile >> $(TOP)/MINFO
 
 links:
 	@$(PERL) $(TOP)/util/mklink.pl ../../include/openssl $(EXHEADER)
@@ -105,6 +121,8 @@ tests:
 
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
+
+update: depend
 
 depend:
 	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...
@@ -147,7 +165,7 @@ aes_wrap.o: ../../e_os.h ../../include/openssl/aes.h
 aes_wrap.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
 aes_wrap.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
 aes_wrap.o: ../../include/openssl/err.h ../../include/openssl/lhash.h
-aes_wrap.o: ../../include/openssl/opensslconf.h
+aes_wrap.o: ../../include/openssl/modes.h ../../include/openssl/opensslconf.h
 aes_wrap.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 aes_wrap.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
 aes_wrap.o: ../../include/openssl/symhacks.h ../cryptlib.h aes_wrap.c

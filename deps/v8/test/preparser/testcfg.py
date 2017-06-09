@@ -27,10 +27,8 @@
 
 
 import os
-import re
 
 from testrunner.local import testsuite
-from testrunner.local import utils
 from testrunner.objects import testcase
 
 
@@ -41,30 +39,15 @@ class PreparserTestSuite(testsuite.TestSuite):
   def shell(self):
     return "d8"
 
-  def _GetExpectations(self):
-    expects_file = os.path.join(self.root, "preparser.expectation")
-    expectations_map = {}
-    if not os.path.exists(expects_file): return expectations_map
-    rule_regex = re.compile("^([\w\-]+)(?::([\w\-]+))?(?::(\d+),(\d+))?$")
-    for line in utils.ReadLinesFrom(expects_file):
-      rule_match = rule_regex.match(line)
-      if not rule_match: continue
-      expects = []
-      if (rule_match.group(2)):
-        expects += [rule_match.group(2)]
-        if (rule_match.group(3)):
-          expects += [rule_match.group(3), rule_match.group(4)]
-      expectations_map[rule_match.group(1)] = " ".join(expects)
-    return expectations_map
-
   def _ParsePythonTestTemplates(self, result, filename):
     pathname = os.path.join(self.root, filename + ".pyt")
-    def Test(name, source, expectation):
+    def Test(name, source, expectation, extra_flags=[]):
       source = source.replace("\n", " ")
       testname = os.path.join(filename, name)
       flags = ["-e", source]
       if expectation:
         flags += ["--throws"]
+      flags += extra_flags
       test = testcase.TestCase(self, testname, flags=flags)
       result.append(test)
     def Template(name, source):
@@ -79,19 +62,7 @@ class PreparserTestSuite(testsuite.TestSuite):
     execfile(pathname, {"Test": Test, "Template": Template})
 
   def ListTests(self, context):
-    expectations = self._GetExpectations()
     result = []
-
-    # Find all .js files in this directory.
-    filenames = [f[:-3] for f in os.listdir(self.root) if f.endswith(".js")]
-    filenames.sort()
-    for f in filenames:
-      throws = expectations.get(f, None)
-      flags = [f + ".js"]
-      if throws:
-        flags += ["--throws"]
-      test = testcase.TestCase(self, f, flags=flags)
-      result.append(test)
 
     # Find all .pyt files in this directory.
     filenames = [f[:-4] for f in os.listdir(self.root) if f.endswith(".pyt")]
@@ -101,19 +72,14 @@ class PreparserTestSuite(testsuite.TestSuite):
     return result
 
   def GetFlagsForTestCase(self, testcase, context):
-    first = testcase.flags[0]
-    if first != "-e":
-      testcase.flags[0] = os.path.join(self.root, first)
     return testcase.flags
 
   def GetSourceForTest(self, testcase):
-    if testcase.flags[0] == "-e":
-      return testcase.flags[1]
-    with open(testcase.flags[0]) as f:
-      return f.read()
+    assert testcase.flags[0] == "-e"
+    return testcase.flags[1]
 
-  def VariantFlags(self, testcase, default_flags):
-    return [[]];
+  def _VariantGeneratorFactory(self):
+    return testsuite.StandardVariantGenerator
 
 
 def GetSuite(name, root):

@@ -27,10 +27,10 @@
 #ifndef NOMCX
 #define NOMCX
 #endif
-// Require Windows XP or higher (this is required for the RtlCaptureContext
-// function to be present).
+// Require Windows Vista or higher (this is required for the
+// QueryThreadCycleTime function to be present).
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x501
+#define _WIN32_WINNT 0x0600
 #endif
 
 #include <windows.h>
@@ -76,6 +76,8 @@
 #undef CreateSemaphore
 #undef Yield
 #undef RotateRight32
+#undef RotateLeft32
 #undef RotateRight64
+#undef RotateLeft64
 
 #endif  // V8_BASE_WIN32_HEADERS_H_

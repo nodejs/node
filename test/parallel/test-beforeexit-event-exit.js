@@ -19,10 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
 process.on('beforeExit', function() {
-  assert(false, 'exit should not allow this to occur');
+  assert.fail('exit should not allow this to occur');
 });
 
 process.exit();

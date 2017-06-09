@@ -52,7 +52,6 @@ def GetPeers():
 class NetworkedRunner(execution.Runner):
   def __init__(self, suites, progress_indicator, context, peers, workspace):
     self.suites = suites
-    num_tests = 0
     datapath = os.path.join("out", "testrunner_data")
     # TODO(machenbach): These fields should exist now in the superclass.
     # But there is no super constructor call. Check if this is a problem.
@@ -61,8 +60,7 @@ class NetworkedRunner(execution.Runner):
     for s in suites:
       for t in s.tests:
         t.duration = self.perfdata.FetchPerfData(t) or 1.0
-      num_tests += len(s.tests)
-    self._CommonInit(num_tests, progress_indicator, context)
+    self._CommonInit(suites, progress_indicator, context)
     self.tests = []  # Only used if we need to fall back to local execution.
     self.tests_lock = threading.Lock()
     self.peers = peers
@@ -205,7 +203,6 @@ class NetworkedRunner(execution.Runner):
                   [constants.INFORM_DURATION, perf_key, test.duration,
                    self.context.arch, self.context.mode],
                   self.local_socket)
-              self.indicator.AboutToRun(test)
               has_unexpected_output = test.suite.HasUnexpectedOutput(test)
               if has_unexpected_output:
                 self.failed.append(test)

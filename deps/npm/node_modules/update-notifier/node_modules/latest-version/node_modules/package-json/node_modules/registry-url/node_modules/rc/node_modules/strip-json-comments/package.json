@@ -1,0 +1,122 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "strip-json-comments@~2.0.1",
+        "scope": null,
+        "escapedName": "strip-json-comments",
+        "name": "strip-json-comments",
+        "rawSpec": "~2.0.1",
+        "spec": ">=2.0.1 <2.1.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/registry-auth-token/node_modules/rc"
+    ],
+    [
+      {
+        "raw": "strip-json-comments@~2.0.1",
+        "scope": null,
+        "escapedName": "strip-json-comments",
+        "name": "strip-json-comments",
+        "rawSpec": "~2.0.1",
+        "spec": ">=2.0.1 <2.1.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/registry-url/node_modules/rc"
+    ]
+  ],
+  "_from": "strip-json-comments@~2.0.1",
+  "_id": "strip-json-comments@2.0.1",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/registry-url/rc/strip-json-comments",
+  "_nodeVersion": "4.2.4",
+  "_npmOperationalInternal": {
+    "host": "packages-9-west.internal.npmjs.com",
+    "tmp": "tmp/strip-json-comments-2.0.1.tgz_1455006605207_0.8280157081317157"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "3.7.2",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "strip-json-comments@~2.0.1",
+    "scope": null,
+    "escapedName": "strip-json-comments",
+    "name": "strip-json-comments",
+    "rawSpec": "~2.0.1",
+    "spec": ">=2.0.1 <2.1.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/registry-url/rc"
+  ],
+  "_resolved": "https://registry.npmjs.org/strip-json-comments/-/strip-json-comments-2.0.1.tgz",
+  "_shasum": "3c531942e908c2697c0ec344858c286c7ca0a60a",
+  "_shrinkwrap": null,
+  "_spec": "strip-json-comments@~2.0.1",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/registry-url/node_modules/rc",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/strip-json-comments/issues"
+  },
+  "dependencies": {},
+  "description": "Strip comments from JSON. Lets you use comments in your JSON files!",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "3c531942e908c2697c0ec344858c286c7ca0a60a",
+    "tarball": "https://registry.npmjs.org/strip-json-comments/-/strip-json-comments-2.0.1.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "1aef99eaa70d07981156e8aaa722e750c3b4eaf9",
+  "homepage": "https://github.com/sindresorhus/strip-json-comments#readme",
+  "keywords": [
+    "json",
+    "strip",
+    "remove",
+    "delete",
+    "trim",
+    "comments",
+    "multiline",
+    "parse",
+    "config",
+    "configuration",
+    "conf",
+    "settings",
+    "util",
+    "env",
+    "environment"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "strip-json-comments",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/strip-json-comments.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "2.0.1"
+}

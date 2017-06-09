@@ -1,0 +1,100 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "validate-npm-package-name@3.0.0",
+        "scope": null,
+        "escapedName": "validate-npm-package-name",
+        "name": "validate-npm-package-name",
+        "rawSpec": "3.0.0",
+        "spec": "3.0.0",
+        "type": "version"
+      },
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "validate-npm-package-name@3.0.0",
+  "_id": "validate-npm-package-name@3.0.0",
+  "_inCache": true,
+  "_location": "/validate-npm-package-name",
+  "_nodeVersion": "6.9.4",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/validate-npm-package-name-3.0.0.tgz_1487026281960_0.640724653378129"
+  },
+  "_npmUser": {
+    "name": "chrisdickinson",
+    "email": "chris@neversaw.us"
+  },
+  "_npmVersion": "4.1.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "validate-npm-package-name@3.0.0",
+    "scope": null,
+    "escapedName": "validate-npm-package-name",
+    "name": "validate-npm-package-name",
+    "rawSpec": "3.0.0",
+    "spec": "3.0.0",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/validate-npm-package-name/-/validate-npm-package-name-3.0.0.tgz",
+  "_shasum": "5fa912d81eb7d0c74afc140de7317f0ca7df437e",
+  "_shrinkwrap": null,
+  "_spec": "validate-npm-package-name@3.0.0",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "zeke"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/validate-npm-package-name/issues"
+  },
+  "dependencies": {
+    "builtins": "^1.0.3"
+  },
+  "description": "Give me a string and I'll tell you if it's a valid npm package name",
+  "devDependencies": {
+    "standard": "^8.6.0",
+    "tap": "^10.0.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dist": {
+    "shasum": "5fa912d81eb7d0c74afc140de7317f0ca7df437e",
+    "tarball": "https://registry.npmjs.org/validate-npm-package-name/-/validate-npm-package-name-3.0.0.tgz"
+  },
+  "gitHead": "ddf73c79e920b59413485ca2ae50a38552156d62",
+  "homepage": "https://github.com/npm/validate-npm-package-name",
+  "keywords": [
+    "npm",
+    "package",
+    "names",
+    "validation"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "chrisdickinson",
+      "email": "chris@neversaw.us"
+    }
+  ],
+  "name": "validate-npm-package-name",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/validate-npm-package-name.git"
+  },
+  "scripts": {
+    "cov:test": "TAP_FLAGS='--cov' npm run test:code",
+    "test": "npm run test:code && npm run test:style",
+    "test:code": "tap ${TAP_FLAGS:-'--'} test/*.js",
+    "test:style": "standard"
+  },
+  "version": "3.0.0"
+}

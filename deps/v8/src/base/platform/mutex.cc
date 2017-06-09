@@ -104,7 +104,7 @@ static V8_INLINE void UnlockNativeHandle(PCRITICAL_SECTION cs) {
 
 
 static V8_INLINE bool TryLockNativeHandle(PCRITICAL_SECTION cs) {
-  return TryEnterCriticalSection(cs);
+  return TryEnterCriticalSection(cs) != FALSE;
 }
 
 #endif  // V8_OS_POSIX
@@ -188,4 +188,5 @@ bool RecursiveMutex::TryLock() {
   return true;
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

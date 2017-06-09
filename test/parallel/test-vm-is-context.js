@@ -19,9 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
+'use strict';
+require('../common');
+const assert = require('assert');
+const vm = require('vm');
 
 assert.throws(function() {
   vm.isContext('string is not supported');
@@ -33,6 +34,6 @@ assert.strictEqual(vm.isContext([]), false);
 assert.strictEqual(vm.isContext(vm.createContext()), true);
 assert.strictEqual(vm.isContext(vm.createContext([])), true);
 
-var sandbox = { foo: 'bar' };
+const sandbox = { foo: 'bar' };
 vm.createContext(sandbox);
 assert.strictEqual(vm.isContext(sandbox), true);

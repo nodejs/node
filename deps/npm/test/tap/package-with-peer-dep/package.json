@@ -1,7 +1,0 @@
-{
-  "name": "package-with-peer-dep",
-  "version": "0.0.0",
-  "peerDependencies": {
-    "opener": "*"
-  }
-}

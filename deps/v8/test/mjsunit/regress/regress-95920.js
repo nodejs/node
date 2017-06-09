@@ -28,31 +28,23 @@
 // Tests that objects with external arrays cannot be sealed or have their
 // properties redefined.
 
-(function() {
-  assertThrows(function() {
-    [0].every(function(){ Object.seal((new Int8Array(42))); });
-    assertUnreable();
-    }, TypeError)
-})();
+Object.preventExtensions(new Int8Array(42));
+Object.seal(new Int8Array(42));
 
-(function() {
-  assertThrows(function() {
-    [0].every(function(){ Object.freeze((new Int8Array(42))); });
-    assertUnreable();
-    }, TypeError)
-})();
+// No elements, so should succeed.
+Object.freeze(new Int8Array(0));
 
-(function() {
-  assertThrows(function() {
-    [0].every(function(){ Object.preventExtensions((new Int8Array(42))); });
-    assertUnreable();
-    }, TypeError)
-})();
+var o = new Int8Array(42);
+assertThrows(function() {
+  Object.freeze(o);
+  assertUnreable();
+  }, TypeError);
 
-(function() {
-  assertThrows(function() {
-      Object.defineProperty(new Int8Array(42), "1",
-                            { writable: false, value: "1" });
-      assertUnreable();
-    })
-})();
+// Freeze should still have managed to preventExtensions o.
+assertFalse(Object.isExtensible(o));
+
+assertThrows(function() {
+    Object.defineProperty(new Int8Array(42), "1",
+                          { writable: false, value: "1" });
+    assertUnreable();
+  });

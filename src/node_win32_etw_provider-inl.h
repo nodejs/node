@@ -22,6 +22,8 @@
 #ifndef SRC_NODE_WIN32_ETW_PROVIDER_INL_H_
 #define SRC_NODE_WIN32_ETW_PROVIDER_INL_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node_win32_etw_provider.h"
 #include "node_etw_provider.h"
 
@@ -113,6 +115,13 @@ extern int events_enabled;
                              sizeof(dataDescriptors) /                        \
                                  sizeof(*dataDescriptors),                    \
                              dataDescriptors);                                \
+  CHECK_EQ(status, ERROR_SUCCESS);
+
+#define ETW_WRITE_EMPTY_EVENT(eventDescriptor)                                \
+  DWORD status = event_write(node_provider,                                   \
+                             &eventDescriptor,                                \
+                             0,                                               \
+                             NULL);                                           \
   CHECK_EQ(status, ERROR_SUCCESS);
 
 
@@ -210,16 +219,13 @@ void NODE_V8SYMBOL_MOVE(const void* addr1, const void* addr2) {
 
 void NODE_V8SYMBOL_RESET() {
   if (events_enabled > 0) {
-    int val = 0;
-    EVENT_DATA_DESCRIPTOR descriptors[1];
-    ETW_WRITE_INT32_DATA(descriptors, &val);
-    ETW_WRITE_EVENT(NODE_V8SYMBOL_RESET_EVENT, descriptors);
+    ETW_WRITE_EMPTY_EVENT(NODE_V8SYMBOL_RESET_EVENT);
   }
 }
 
 #define SETSYMBUF(s)  \
   wcscpy(symbuf, s);  \
-  symbol_len = ARRAY_SIZE(s) - 1;
+  symbol_len = arraysize(s) - 1;
 
 void NODE_V8SYMBOL_ADD(LPCSTR symbol,
                        int symbol_len,
@@ -265,7 +271,7 @@ void NODE_V8SYMBOL_ADD(LPCSTR symbol,
                                   line,
                                   col,
                                   symbuf,
-                                  symbol_len * sizeof(symbuf[0]));
+                                  (symbol_len + 1) * sizeof(symbuf[0]));
     ETW_WRITE_EVENT(MethodLoad, descriptors);
   }
 }
@@ -278,10 +284,10 @@ bool NODE_HTTP_CLIENT_REQUEST_ENABLED() { return events_enabled > 0; }
 bool NODE_HTTP_CLIENT_RESPONSE_ENABLED() { return events_enabled > 0; }
 bool NODE_NET_SERVER_CONNECTION_ENABLED() { return events_enabled > 0; }
 bool NODE_NET_STREAM_END_ENABLED() { return events_enabled > 0; }
-bool NODE_NET_SOCKET_READ_ENABLED() { return events_enabled > 0; }
-bool NODE_NET_SOCKET_WRITE_ENABLED() { return events_enabled > 0; }
 bool NODE_V8SYMBOL_ENABLED() { return events_enabled > 0; }
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_WIN32_ETW_PROVIDER_INL_H_

@@ -19,14 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
+'use strict';
 // Can't test this when 'make test' doesn't assign a tty to the stdout.
 // Yet another use-case for require('tty').spawn ?
-var common = require('../common');
-var assert = require('assert');
-var readline = require('readline');
+const common = require('../common');
+const assert = require('assert');
+const readline = require('readline');
 
 var key = {
   xterm: {
@@ -60,10 +58,10 @@ var readlineFakeStream = function() {
         }
       });
   var _stdoutWrite = process.stdout.write;
-  process.stdout.write = function (data) {
+  process.stdout.write = function(data) {
     data.split('').forEach(rl.written_bytes.push.bind(rl.written_bytes));
     _stdoutWrite.apply(this, arguments);
-  }
+  };
   rl.written_bytes = written_bytes;
   return rl;
 };
@@ -72,12 +70,12 @@ var rl = readlineFakeStream();
 var written_bytes_length, refreshed;
 
 rl.write('foo');
-assert.equal(3, rl.cursor);
-[key.xterm, key.rxvt, key.gnome, key.putty].forEach(function (key) {
+assert.strictEqual(3, rl.cursor);
+[key.xterm, key.rxvt, key.gnome, key.putty].forEach(function(key) {
   rl.write.apply(rl, key.home);
-  assert.equal(0, rl.cursor);
+  assert.strictEqual(0, rl.cursor);
   rl.write.apply(rl, key.end);
-  assert.equal(3, rl.cursor);
+  assert.strictEqual(3, rl.cursor);
 });
 
 rl = readlineFakeStream();
@@ -96,20 +94,27 @@ rl.write.apply(rl, key.xterm.home);
   {cursor: 7, key: key.xterm.metab},
   {cursor: 4, key: key.xterm.metab},
   {cursor: 0, key: key.xterm.metab},
-].forEach(function (action) {
+].forEach(function(action) {
   written_bytes_length = rl.written_bytes.length;
   rl.write.apply(rl, action.key);
-  assert.equal(action.cursor, rl.cursor);
+  assert.strictEqual(action.cursor, rl.cursor);
   refreshed = written_bytes_length !== rl.written_bytes.length;
-  assert.equal(true, refreshed);
+  assert.strictEqual(true, refreshed);
 });
 
 rl = readlineFakeStream();
 rl.write('foo bar.hop/zoo');
 rl.write.apply(rl, key.xterm.home);
-['bar.hop/zoo', '.hop/zoo', 'hop/zoo', '/zoo', 'zoo', ''].forEach(function (expectedLine) {
+[
+  'bar.hop/zoo',
+  '.hop/zoo',
+  'hop/zoo',
+  '/zoo',
+  'zoo',
+  ''
+].forEach(function(expectedLine) {
   rl.write.apply(rl, key.xterm.metad);
-  assert.equal(0, rl.cursor);
-  assert.equal(expectedLine, rl.line);
+  assert.strictEqual(0, rl.cursor);
+  assert.strictEqual(expectedLine, rl.line);
 });
 rl.close();

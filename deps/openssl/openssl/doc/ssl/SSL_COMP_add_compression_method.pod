@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-SSL_COMP_add_compression_method - handle SSL/TLS integrated compression methods
+SSL_COMP_add_compression_method, SSL_COMP_free_compression_methods - handle SSL/TLS integrated compression methods
 
 =head1 SYNOPSIS
 
@@ -10,12 +10,18 @@ SSL_COMP_add_compression_method - handle SSL/TLS integrated compression methods
 
  int SSL_COMP_add_compression_method(int id, COMP_METHOD *cm);
 
+ +void SSL_COMP_free_compression_methods(void);
+
 =head1 DESCRIPTION
 
 SSL_COMP_add_compression_method() adds the compression method B<cm> with
 the identifier B<id> to the list of available compression methods. This
 list is globally maintained for all SSL operations within this application.
 It cannot be set for specific SSL_CTX or SSL objects.
+
+SSL_COMP_free_compression_methods() frees the internal table of
+compression methods that were built internally, and possibly
+augmented by adding SSL_COMP_add_compression_method().
 
 =head1 NOTES
 
@@ -38,8 +44,8 @@ its own compression methods and will unconditionally activate compression
 when a matching identifier is found. There is no way to restrict the list
 of compression methods supported on a per connection basis.
 
-The OpenSSL library has the compression methods B<COMP_rle()> and (when
-especially enabled during compilation) B<COMP_zlib()> available.
+If enabled during compilation, the OpenSSL library will have the
+COMP_zlib() compression method available.
 
 =head1 WARNINGS
 

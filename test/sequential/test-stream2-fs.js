@@ -19,23 +19,22 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var common = require('../common.js');
-var R = require('_stream_readable');
-var assert = require('assert');
+const fs = require('fs');
+const FSReadable = fs.ReadStream;
 
-var fs = require('fs');
-var FSReadable = fs.ReadStream;
+const path = require('path');
+const file = path.resolve(common.fixturesDir, 'x1024.txt');
 
-var path = require('path');
-var file = path.resolve(common.fixturesDir, 'x1024.txt');
+const size = fs.statSync(file).size;
 
-var size = fs.statSync(file).size;
+const expectLengths = [1024];
 
-var expectLengths = [1024];
-
-var util = require('util');
-var Stream = require('stream');
+const util = require('util');
+const Stream = require('stream');
 
 util.inherits(TestWriter, Stream);
 
@@ -54,16 +53,15 @@ TestWriter.prototype.write = function(c) {
 TestWriter.prototype.end = function(c) {
   if (c) this.buffer.push(c.toString());
   this.emit('results', this.buffer);
-}
+};
 
-var r = new FSReadable(file);
-var w = new TestWriter();
+const r = new FSReadable(file);
+const w = new TestWriter();
 
 w.on('results', function(res) {
   console.error(res, w.length);
-  assert.equal(w.length, size);
-  var l = 0;
-  assert.deepEqual(res.map(function (c) {
+  assert.strictEqual(w.length, size);
+  assert.deepStrictEqual(res.map(function(c) {
     return c.length;
   }), expectLengths);
   console.log('ok');

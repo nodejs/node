@@ -1,0 +1,92 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "parallel-transform@^1.1.0",
+        "scope": null,
+        "escapedName": "parallel-transform",
+        "name": "parallel-transform",
+        "rawSpec": "^1.1.0",
+        "spec": ">=1.1.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/mississippi"
+    ]
+  ],
+  "_from": "parallel-transform@>=1.1.0 <2.0.0",
+  "_id": "parallel-transform@1.1.0",
+  "_inCache": true,
+  "_location": "/mississippi/parallel-transform",
+  "_nodeVersion": "4.6.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/parallel-transform-1.1.0.tgz_1478596056784_0.9169374129269272"
+  },
+  "_npmUser": {
+    "name": "mafintosh",
+    "email": "mathiasbuus@gmail.com"
+  },
+  "_npmVersion": "2.15.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "parallel-transform@^1.1.0",
+    "scope": null,
+    "escapedName": "parallel-transform",
+    "name": "parallel-transform",
+    "rawSpec": "^1.1.0",
+    "spec": ">=1.1.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/mississippi"
+  ],
+  "_resolved": "https://registry.npmjs.org/parallel-transform/-/parallel-transform-1.1.0.tgz",
+  "_shasum": "d410f065b05da23081fcd10f28854c29bda33b06",
+  "_shrinkwrap": null,
+  "_spec": "parallel-transform@^1.1.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/mississippi",
+  "author": {
+    "name": "Mathias Buus Madsen",
+    "email": "mathiasbuus@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/mafintosh/parallel-transform/issues"
+  },
+  "dependencies": {
+    "cyclist": "~0.2.2",
+    "inherits": "^2.0.3",
+    "readable-stream": "^2.1.5"
+  },
+  "description": "Transform stream that allows you to run your transforms in parallel without changing the order",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "d410f065b05da23081fcd10f28854c29bda33b06",
+    "tarball": "https://registry.npmjs.org/parallel-transform/-/parallel-transform-1.1.0.tgz"
+  },
+  "gitHead": "1b4919bc318eb0cbd6e8ee08c4d56f405d74e643",
+  "homepage": "https://github.com/mafintosh/parallel-transform",
+  "keywords": [
+    "transform",
+    "stream",
+    "parallel",
+    "preserve",
+    "order"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "mafintosh",
+      "email": "mathiasbuus@gmail.com"
+    }
+  ],
+  "name": "parallel-transform",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mafintosh/parallel-transform.git"
+  },
+  "scripts": {},
+  "version": "1.1.0"
+}

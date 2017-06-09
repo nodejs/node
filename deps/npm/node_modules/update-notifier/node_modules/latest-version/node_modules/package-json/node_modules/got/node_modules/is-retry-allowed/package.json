@@ -1,0 +1,98 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "is-retry-allowed@^1.0.0",
+        "scope": null,
+        "escapedName": "is-retry-allowed",
+        "name": "is-retry-allowed",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got"
+    ]
+  ],
+  "_from": "is-retry-allowed@>=1.0.0 <2.0.0",
+  "_id": "is-retry-allowed@1.1.0",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/got/is-retry-allowed",
+  "_nodeVersion": "4.4.7",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/is-retry-allowed-1.1.0.tgz_1467498831328_0.0396464669611305"
+  },
+  "_npmUser": {
+    "name": "floatdrop",
+    "email": "floatdrop@gmail.com"
+  },
+  "_npmVersion": "2.15.8",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "is-retry-allowed@^1.0.0",
+    "scope": null,
+    "escapedName": "is-retry-allowed",
+    "name": "is-retry-allowed",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/got"
+  ],
+  "_resolved": "https://registry.npmjs.org/is-retry-allowed/-/is-retry-allowed-1.1.0.tgz",
+  "_shasum": "11a060568b67339444033d0125a61a20d564fb34",
+  "_shrinkwrap": null,
+  "_spec": "is-retry-allowed@^1.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got",
+  "author": {
+    "name": "Vsevolod Strukchinsky",
+    "email": "floatdrop@gmail.com",
+    "url": "github.com/floatdrop"
+  },
+  "bugs": {
+    "url": "https://github.com/floatdrop/is-retry-allowed/issues"
+  },
+  "dependencies": {},
+  "description": "My prime module",
+  "devDependencies": {
+    "ava": "^0.8.0",
+    "xo": "^0.12.1"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "11a060568b67339444033d0125a61a20d564fb34",
+    "tarball": "https://registry.npmjs.org/is-retry-allowed/-/is-retry-allowed-1.1.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "8ca0d01b23b0a92bcf232d97801c3f08c41231a3",
+  "homepage": "https://github.com/floatdrop/is-retry-allowed#readme",
+  "keywords": [],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "floatdrop",
+      "email": "floatdrop@gmail.com"
+    },
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "is-retry-allowed",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/floatdrop/is-retry-allowed.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.1.0"
+}

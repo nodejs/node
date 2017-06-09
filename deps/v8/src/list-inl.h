@@ -9,6 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -34,7 +35,7 @@ template<typename T, class P>
 void List<T, P>::AddAll(const Vector<T>& other, P alloc) {
   int result_length = length_ + other.length();
   if (capacity_ < result_length) Resize(result_length, alloc);
-  if (base::is_fundamental<T>()) {
+  if (std::is_fundamental<T>()) {
     memcpy(data_ + length_, other.start(), sizeof(*data_) * other.length());
   } else {
     for (int i = 0; i < other.length(); i++) data_[length_ + i] = other.at(i);
@@ -125,6 +126,12 @@ bool List<T, P>::RemoveElement(const T& elm) {
   return false;
 }
 
+template <typename T, class P>
+void List<T, P>::Swap(List<T, P>* list) {
+  std::swap(data_, list->data_);
+  std::swap(length_, list->length_);
+  std::swap(capacity_, list->capacity_);
+}
 
 template<typename T, class P>
 void List<T, P>::Allocate(int length, P allocator) {
@@ -193,12 +200,19 @@ int List<T, P>::CountOccurrences(const T& elm, int start, int end) const {
 }
 
 
-template<typename T, class P>
-void List<T, P>::Sort(int (*cmp)(const T* x, const T* y)) {
-  ToVector().Sort(cmp);
+template <typename T, class P>
+template <typename CompareFunction>
+void List<T, P>::Sort(CompareFunction cmp) {
+  Sort(cmp, 0, length_);
+}
+
+
+template <typename T, class P>
+template <typename CompareFunction>
+void List<T, P>::Sort(CompareFunction cmp, size_t s, size_t l) {
+  ToVector().Sort(cmp, s, l);
 #ifdef DEBUG
-  for (int i = 1; i < length_; i++)
-    DCHECK(cmp(&data_[i - 1], &data_[i]) <= 0);
+  for (size_t i = s + 1; i < l; i++) DCHECK(cmp(&data_[i - 1], &data_[i]) <= 0);
 #endif
 }
 
@@ -209,56 +223,29 @@ void List<T, P>::Sort() {
 }
 
 
-template<typename T, class P>
-void List<T, P>::Initialize(int capacity, P allocator) {
-  DCHECK(capacity >= 0);
-  data_ = (capacity > 0) ? NewData(capacity, allocator) : NULL;
-  capacity_ = capacity;
-  length_ = 0;
+template <typename T, class P>
+template <typename CompareFunction>
+void List<T, P>::StableSort(CompareFunction cmp) {
+  StableSort(cmp, 0, length_);
 }
 
 
-template <typename T, typename P>
-int SortedListBSearch(const List<T>& list, P cmp) {
-  int low = 0;
-  int high = list.length() - 1;
-  while (low <= high) {
-    int mid = (low + high) / 2;
-    T mid_elem = list[mid];
-
-    if (cmp(&mid_elem) > 0) {
-      high = mid - 1;
-      continue;
-    }
-    if (cmp(&mid_elem) < 0) {
-      low = mid + 1;
-      continue;
-    }
-    // Found the elememt.
-    return mid;
-  }
-  return -1;
+template <typename T, class P>
+template <typename CompareFunction>
+void List<T, P>::StableSort(CompareFunction cmp, size_t s, size_t l) {
+  ToVector().StableSort(cmp, s, l);
+#ifdef DEBUG
+  for (size_t i = s + 1; i < l; i++) DCHECK(cmp(&data_[i - 1], &data_[i]) <= 0);
+#endif
 }
 
 
-template<typename T>
-class ElementCmp {
- public:
-  explicit ElementCmp(T e) : elem_(e) {}
-  int operator()(const T* other) {
-    return PointerValueCompare(other, &elem_);
-  }
- private:
-  T elem_;
-};
-
-
-template <typename T>
-int SortedListBSearch(const List<T>& list, T elem) {
-  return SortedListBSearch<T, ElementCmp<T> > (list, ElementCmp<T>(elem));
+template <typename T, class P>
+void List<T, P>::StableSort() {
+  ToVector().StableSort();
 }
 
-
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_LIST_INL_H_

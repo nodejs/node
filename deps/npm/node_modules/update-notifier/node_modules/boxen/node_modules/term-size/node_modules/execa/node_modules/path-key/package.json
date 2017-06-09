@@ -1,0 +1,101 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "path-key@^1.0.0",
+        "scope": null,
+        "escapedName": "path-key",
+        "name": "path-key",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa"
+    ]
+  ],
+  "_from": "path-key@>=1.0.0 <2.0.0",
+  "_id": "path-key@1.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/term-size/execa/path-key",
+  "_nodeVersion": "4.2.4",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.14.12",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "path-key@^1.0.0",
+    "scope": null,
+    "escapedName": "path-key",
+    "name": "path-key",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen/term-size/execa",
+    "/update-notifier/boxen/term-size/execa/npm-run-path"
+  ],
+  "_resolved": "https://registry.npmjs.org/path-key/-/path-key-1.0.0.tgz",
+  "_shasum": "5d53d578019646c0d68800db4e146e6bdc2ac7af",
+  "_shrinkwrap": null,
+  "_spec": "path-key@^1.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/path-key/issues"
+  },
+  "dependencies": {},
+  "description": "Get the PATH environment variable key cross-platform",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "5d53d578019646c0d68800db4e146e6bdc2ac7af",
+    "tarball": "https://registry.npmjs.org/path-key/-/path-key-1.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "7f9703b3ae62da971bae635d561b1a6b80102cc1",
+  "homepage": "https://github.com/sindresorhus/path-key",
+  "keywords": [
+    "path",
+    "key",
+    "environment",
+    "env",
+    "variable",
+    "var",
+    "get",
+    "cross-platform",
+    "windows"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "path-key",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/path-key.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.0.0"
+}

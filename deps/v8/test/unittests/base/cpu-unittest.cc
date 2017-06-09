@@ -18,6 +18,8 @@ TEST(CPUTest, FeatureImplications) {
   EXPECT_TRUE(!cpu.has_ssse3() || cpu.has_sse3());
   EXPECT_TRUE(!cpu.has_sse41() || cpu.has_sse3());
   EXPECT_TRUE(!cpu.has_sse42() || cpu.has_sse41());
+  EXPECT_TRUE(!cpu.has_avx() || cpu.has_sse2());
+  EXPECT_TRUE(!cpu.has_fma3() || cpu.has_avx());
 
   // arm features
   EXPECT_TRUE(!cpu.has_vfp3_d32() || cpu.has_vfp3());

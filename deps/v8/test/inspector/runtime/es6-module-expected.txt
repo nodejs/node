@@ -1,0 +1,240 @@
+Checks basic ES6 modules support.
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 17
+        endLine : 5
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 9C014F7249BAFA12B91017817AD15091D01A9155
+        isLiveEdit : false
+        isModule : true
+        length : 83
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : module1
+    }
+}
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 17
+        endLine : 5
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 443A2FA24A6112E6B9101781E6A19B56BDC396D4
+        isLiveEdit : false
+        isModule : true
+        length : 84
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : module2
+    }
+}
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 0
+        endLine : 8
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 54D834614FBF9B389082DAE06CD3EFC499BEBF13
+        isLiveEdit : false
+        isModule : true
+        length : 191
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : module3
+    }
+}
+console.log(module1)
+foo (module1:2:10)
+(anonymous) (module3:3:12)
+
+console.log(42)
+(anonymous) (module3:3:8)
+
+console.log(module2)
+foo (module2:2:10)
+(anonymous) (module3:4:12)
+
+console.log(239)
+(anonymous) (module3:4:8)
+
+{
+    method : Debugger.paused
+    params : {
+        callFrames : [
+            [0] : {
+                callFrameId : <callFrameId>
+                functionLocation : {
+                    columnNumber : 0
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                }
+                functionName : 
+                location : {
+                    columnNumber : 0
+                    lineNumber : 7
+                    scriptId : <scriptId>
+                }
+                scopeChain : [
+                    [0] : {
+                        endLocation : {
+                            columnNumber : 0
+                            lineNumber : 8
+                            scriptId : <scriptId>
+                        }
+                        object : {
+                            className : Object
+                            description : Object
+                            objectId : <objectId>
+                            type : object
+                        }
+                        startLocation : {
+                            columnNumber : 0
+                            lineNumber : 0
+                            scriptId : <scriptId>
+                        }
+                        type : module
+                    }
+                    [1] : {
+                        object : {
+                            className : global
+                            description : global
+                            objectId : <objectId>
+                            type : object
+                        }
+                        type : global
+                    }
+                ]
+                this : {
+                    type : undefined
+                }
+            }
+        ]
+        hitBreakpoints : [
+        ]
+        reason : other
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : foo1
+                value : {
+                    className : Function
+                    description : function foo() {   console.log('module1');   return 42; }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : foo2
+                value : {
+                    className : Function
+                    description : function foo() {   console.log('module2');   return 239; }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [2] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : a1
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+            [3] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : a2
+                value : {
+                    description : 2
+                    type : number
+                    value : 2
+                }
+                writable : true
+            }
+        ]
+    }
+}
+{
+    method : Debugger.scriptFailedToParse
+    params : {
+        endColumn : 1
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : FF746120E4E4F1BA4CB5762843D429DC872EBA18
+        isModule : true
+        length : 1
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : module4
+    }
+}
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                className : SyntaxError
+                description : SyntaxError: Unexpected token }
+                objectId : <objectId>
+                preview : {
+                    description : SyntaxError: Unexpected token }
+                    overflow : false
+                    properties : [
+                        [0] : {
+                            name : stack
+                            type : string
+                            value : SyntaxError: Unexpected token }
+                        }
+                        [1] : {
+                            name : message
+                            type : string
+                            value : Unexpected token }
+                        }
+                    ]
+                    subtype : error
+                    type : object
+                }
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught SyntaxError: Unexpected token }
+            url : module4
+        }
+        timestamp : <timestamp>
+    }
+}

@@ -5,6 +5,8 @@
 #ifndef V8_ARM_CODE_STUBS_ARM_H_
 #define V8_ARM_CODE_STUBS_ARM_H_
 
+#include "src/arm/frames-arm.h"
+
 namespace v8 {
 namespace internal {
 
@@ -14,17 +16,6 @@ void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
 
 class StringHelper : public AllStatic {
  public:
-  // Generate code for copying a large number of characters. This function
-  // is allowed to spend extra time setting up conditions to make copying
-  // faster. Copying of overlapping regions is not supported.
-  // Dest register ends at the position after the last character written.
-  static void GenerateCopyCharacters(MacroAssembler* masm,
-                                     Register dest,
-                                     Register src,
-                                     Register count,
-                                     Register scratch,
-                                     String::Encoding encoding);
-
   // Compares two flat one-byte strings and returns result in r0.
   static void GenerateCompareFlatOneByteStrings(
       MacroAssembler* masm, Register left, Register right, Register scratch1,
@@ -43,44 +34,6 @@ class StringHelper : public AllStatic {
       Register scratch1, Register scratch2, Label* chars_not_equal);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
-};
-
-
-// This stub can convert a signed int32 to a heap number (double).  It does
-// not work for int32s that are in Smi range!  No GC occurs during this stub
-// so you don't have to set up the frame.
-class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
- public:
-  WriteInt32ToHeapNumberStub(Isolate* isolate, Register the_int,
-                             Register the_heap_number, Register scratch)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = IntRegisterBits::encode(the_int.code()) |
-                 HeapNumberRegisterBits::encode(the_heap_number.code()) |
-                 ScratchRegisterBits::encode(scratch.code());
-  }
-
-  static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
-
- private:
-  Register the_int() const {
-    return Register::from_code(IntRegisterBits::decode(minor_key_));
-  }
-
-  Register the_heap_number() const {
-    return Register::from_code(HeapNumberRegisterBits::decode(minor_key_));
-  }
-
-  Register scratch() const {
-    return Register::from_code(ScratchRegisterBits::decode(minor_key_));
-  }
-
-  // Minor key encoding in 16 bits.
-  class IntRegisterBits: public BitField<int, 0, 4> {};
-  class HeapNumberRegisterBits: public BitField<int, 4, 4> {};
-  class ScratchRegisterBits: public BitField<int, 8, 4> {};
-
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(WriteInt32ToHeapNumber, PlatformCodeStub);
 };
 
 
@@ -112,7 +65,7 @@ class RecordWriteStub: public PlatformCodeStub {
     INCREMENTAL_COMPACTION
   };
 
-  virtual bool SometimesSetsUpAFrame() { return false; }
+  bool SometimesSetsUpAFrame() override { return false; }
 
   static void PatchBranchIntoNop(MacroAssembler* masm, int pos) {
     masm->instr_at_put(pos, (masm->instr_at(pos) & ~B27) | (B24 | B20));
@@ -145,9 +98,8 @@ class RecordWriteStub: public PlatformCodeStub {
   }
 
   static void Patch(Code* stub, Mode mode) {
-    MacroAssembler masm(NULL,
-                        stub->instruction_start(),
-                        stub->instruction_size());
+    MacroAssembler masm(stub->GetIsolate(), stub->instruction_start(),
+                        stub->instruction_size(), CodeObjectRequired::kNo);
     switch (mode) {
       case STORE_BUFFER_ONLY:
         DCHECK(GetMode(stub) == INCREMENTAL ||
@@ -165,8 +117,8 @@ class RecordWriteStub: public PlatformCodeStub {
         break;
     }
     DCHECK(GetMode(stub) == mode);
-    CpuFeatures::FlushICache(stub->instruction_start(),
-                             2 * Assembler::kInstrSize);
+    Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(),
+                           2 * Assembler::kInstrSize);
   }
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
@@ -235,9 +187,9 @@ class RecordWriteStub: public PlatformCodeStub {
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
-  virtual inline Major MajorKey() const FINAL OVERRIDE { return RecordWrite; }
+  inline Major MajorKey() const final { return RecordWrite; }
 
-  virtual void Generate(MacroAssembler* masm) OVERRIDE;
+  void Generate(MacroAssembler* masm) override;
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,
@@ -245,9 +197,7 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  void Activate(Code* code) {
-    code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
-  }
+  void Activate(Code* code) override;
 
   Register object() const {
     return Register::from_code(ObjectBits::decode(minor_key_));
@@ -293,7 +243,7 @@ class DirectCEntryStub: public PlatformCodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  bool NeedsImmovableCode() { return true; }
+  bool NeedsImmovableCode() override { return true; }
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DirectCEntry, PlatformCodeStub);
@@ -317,15 +267,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
                                      Handle<Name> name,
                                      Register scratch0);
 
-  static void GeneratePositiveLookup(MacroAssembler* masm,
-                                     Label* miss,
-                                     Label* done,
-                                     Register elements,
-                                     Register name,
-                                     Register r0,
-                                     Register r1);
-
-  virtual bool SometimesSetsUpAFrame() { return false; }
+  bool SometimesSetsUpAFrame() override { return false; }
 
  private:
   static const int kInlinedProbes = 4;
@@ -347,6 +289,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_CODE_STUBS_ARM_H_

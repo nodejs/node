@@ -1,0 +1,111 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "crypto-random-string@^1.0.0",
+        "scope": null,
+        "escapedName": "crypto-random-string",
+        "name": "crypto-random-string",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/configstore/node_modules/unique-string"
+    ]
+  ],
+  "_from": "crypto-random-string@>=1.0.0 <2.0.0",
+  "_id": "crypto-random-string@1.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/configstore/unique-string/crypto-random-string",
+  "_nodeVersion": "4.6.1",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/crypto-random-string-1.0.0.tgz_1479096882597_0.12821740517392755"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "crypto-random-string@^1.0.0",
+    "scope": null,
+    "escapedName": "crypto-random-string",
+    "name": "crypto-random-string",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/configstore/unique-string"
+  ],
+  "_resolved": "https://registry.npmjs.org/crypto-random-string/-/crypto-random-string-1.0.0.tgz",
+  "_shasum": "a230f64f568310e1498009940790ec99545bca7e",
+  "_shrinkwrap": null,
+  "_spec": "crypto-random-string@^1.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/configstore/node_modules/unique-string",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/crypto-random-string/issues"
+  },
+  "dependencies": {},
+  "description": "Generate a cryptographically strong random string",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "a230f64f568310e1498009940790ec99545bca7e",
+    "tarball": "https://registry.npmjs.org/crypto-random-string/-/crypto-random-string-1.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "21960c996c3f77cf5f7bf6765e837e7c8a07e200",
+  "homepage": "https://github.com/sindresorhus/crypto-random-string#readme",
+  "keywords": [
+    "random",
+    "string",
+    "str",
+    "rand",
+    "text",
+    "id",
+    "identifier",
+    "slug",
+    "salt",
+    "crypto",
+    "strong",
+    "secure",
+    "hex"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "crypto-random-string",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/crypto-random-string.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.0.0",
+  "xo": {
+    "esnext": true
+  }
+}

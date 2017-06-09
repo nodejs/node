@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file is an internal atomic implementation, use atomicops.h instead.
+// This file is an internal atomic implementation, use base/atomicops.h instead.
 
 #ifndef V8_BASE_ATOMICOPS_INTERNALS_X86_MSVC_H_
 #define V8_BASE_ATOMICOPS_INTERNALS_X86_MSVC_H_
@@ -26,25 +26,23 @@ inline Atomic32 NoBarrier_CompareAndSwap(volatile Atomic32* ptr,
                                          Atomic32 old_value,
                                          Atomic32 new_value) {
   LONG result = InterlockedCompareExchange(
-      reinterpret_cast<volatile LONG*>(ptr),
-      static_cast<LONG>(new_value),
+      reinterpret_cast<volatile LONG*>(ptr), static_cast<LONG>(new_value),
       static_cast<LONG>(old_value));
   return static_cast<Atomic32>(result);
 }
 
 inline Atomic32 NoBarrier_AtomicExchange(volatile Atomic32* ptr,
                                          Atomic32 new_value) {
-  LONG result = InterlockedExchange(
-      reinterpret_cast<volatile LONG*>(ptr),
-      static_cast<LONG>(new_value));
+  LONG result = InterlockedExchange(reinterpret_cast<volatile LONG*>(ptr),
+                                    static_cast<LONG>(new_value));
   return static_cast<Atomic32>(result);
 }
 
 inline Atomic32 Barrier_AtomicIncrement(volatile Atomic32* ptr,
                                         Atomic32 increment) {
-  return InterlockedExchangeAdd(
-      reinterpret_cast<volatile LONG*>(ptr),
-      static_cast<LONG>(increment)) + increment;
+  return InterlockedExchangeAdd(reinterpret_cast<volatile LONG*>(ptr),
+                                static_cast<LONG>(increment)) +
+         increment;
 }
 
 inline Atomic32 NoBarrier_AtomicIncrement(volatile Atomic32* ptr,
@@ -52,9 +50,6 @@ inline Atomic32 NoBarrier_AtomicIncrement(volatile Atomic32* ptr,
   return Barrier_AtomicIncrement(ptr, increment);
 }
 
-#if !(defined(_MSC_VER) && _MSC_VER >= 1400)
-#error "We require at least vs2005 for MemoryBarrier"
-#endif
 inline void MemoryBarrier() {
 #if defined(V8_HOST_ARCH_64_BIT)
   // See #undef and note at the top of this file.
@@ -85,11 +80,6 @@ inline void NoBarrier_Store(volatile Atomic32* ptr, Atomic32 value) {
   *ptr = value;
 }
 
-inline void Acquire_Store(volatile Atomic32* ptr, Atomic32 value) {
-  NoBarrier_AtomicExchange(ptr, value);
-              // acts as a barrier in this implementation
-}
-
 inline void Release_Store(volatile Atomic32* ptr, Atomic32 value) {
   *ptr = value;  // works w/o barrier for current Intel chips as of June 2005
   // See comments in Atomic64 version of Release_Store() below.
@@ -108,16 +98,11 @@ inline Atomic32 Acquire_Load(volatile const Atomic32* ptr) {
   return value;
 }
 
-inline Atomic32 Release_Load(volatile const Atomic32* ptr) {
-  MemoryBarrier();
-  return *ptr;
-}
-
 #if defined(_WIN64)
 
 // 64-bit low-level operations on 64-bit platform.
 
-STATIC_ASSERT(sizeof(Atomic64) == sizeof(PVOID));
+static_assert(sizeof(Atomic64) == sizeof(PVOID), "atomic word is atomic");
 
 inline Atomic64 NoBarrier_CompareAndSwap(volatile Atomic64* ptr,
                                          Atomic64 old_value,
@@ -152,11 +137,6 @@ inline void NoBarrier_Store(volatile Atomic64* ptr, Atomic64 value) {
   *ptr = value;
 }
 
-inline void Acquire_Store(volatile Atomic64* ptr, Atomic64 value) {
-  NoBarrier_AtomicExchange(ptr, value);
-              // acts as a barrier in this implementation
-}
-
 inline void Release_Store(volatile Atomic64* ptr, Atomic64 value) {
   *ptr = value;  // works w/o barrier for current Intel chips as of June 2005
 
@@ -177,11 +157,6 @@ inline Atomic64 Acquire_Load(volatile const Atomic64* ptr) {
   return value;
 }
 
-inline Atomic64 Release_Load(volatile const Atomic64* ptr) {
-  MemoryBarrier();
-  return *ptr;
-}
-
 inline Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr,
                                        Atomic64 old_value,
                                        Atomic64 new_value) {
@@ -197,6 +172,7 @@ inline Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
 
 #endif  // defined(_WIN64)
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_ATOMICOPS_INTERNALS_X86_MSVC_H_

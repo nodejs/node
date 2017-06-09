@@ -36,6 +36,7 @@ JSFUNFUZZ_URL="https://bugzilla.mozilla.org/attachment.cgi?id=310631"
 JSFUNFUZZ_MD5="d0e497201c5cd7bffbb1cdc1574f4e32"
 
 v8_root=$(readlink -f $(dirname $BASH_SOURCE)/../)
+jsfunfuzz_dir="$v8_root/tools/jsfunfuzz"
 
 if [ -n "$1" ]; then
   d8="${v8_root}/$1"
@@ -48,24 +49,28 @@ if [ ! -f "$d8" ]; then
   exit 1
 fi
 
-jsfunfuzz_file="$v8_root/tools/jsfunfuzz.zip"
-if [ ! -f "$jsfunfuzz_file" ]; then
-  echo "Downloading $jsfunfuzz_file ..."
-  wget -q -O "$jsfunfuzz_file" $JSFUNFUZZ_URL || exit 1
-fi
+# Deprecated download method. A prepatched archive is downloaded as a hook
+# if jsfunfuzz=1 is specified as a gyp flag. Requires google.com authentication
+# for google storage.
+if [ "$3" == "--download" ]; then
 
-jsfunfuzz_sum=$(md5sum "$jsfunfuzz_file" | awk '{ print $1 }')
-if [ $jsfunfuzz_sum != $JSFUNFUZZ_MD5 ]; then
-  echo "Failed to verify checksum!"
-  exit 1
-fi
+  jsfunfuzz_file="$v8_root/tools/jsfunfuzz.zip"
+  if [ ! -f "$jsfunfuzz_file" ]; then
+    echo "Downloading $jsfunfuzz_file ..."
+    wget -q -O "$jsfunfuzz_file" $JSFUNFUZZ_URL || exit 1
+  fi
 
-jsfunfuzz_dir="$v8_root/tools/jsfunfuzz"
-if [ ! -d "$jsfunfuzz_dir" ]; then
-  echo "Unpacking into $jsfunfuzz_dir ..."
-  unzip "$jsfunfuzz_file" -d "$jsfunfuzz_dir" || exit 1
-  echo "Patching runner ..."
-  cat << EOF | patch -s -p0 -d "$v8_root"
+  jsfunfuzz_sum=$(md5sum "$jsfunfuzz_file" | awk '{ print $1 }')
+  if [ $jsfunfuzz_sum != $JSFUNFUZZ_MD5 ]; then
+    echo "Failed to verify checksum!"
+    exit 1
+  fi
+
+  if [ ! -d "$jsfunfuzz_dir" ]; then
+    echo "Unpacking into $jsfunfuzz_dir ..."
+    unzip "$jsfunfuzz_file" -d "$jsfunfuzz_dir" || exit 1
+    echo "Patching runner ..."
+    cat << EOF | patch -s -p0 -d "$v8_root"
 --- tools/jsfunfuzz/jsfunfuzz/multi_timed_run.py~
 +++ tools/jsfunfuzz/jsfunfuzz/multi_timed_run.py
 @@ -125,7 +125,7 @@
@@ -78,14 +83,23 @@ if [ ! -d "$jsfunfuzz_dir" ]; then
          logfilename = "w%d" % iteration
          one_timed_run(logfilename)
 EOF
+  fi
+
 fi
 
-flags='--debug-code --expose-gc --verify-gc'
+flags='--expose-gc --verify-gc'
 python -u "$jsfunfuzz_dir/jsfunfuzz/multi_timed_run.py" 300 \
     "$d8" $flags "$jsfunfuzz_dir/jsfunfuzz/jsfunfuzz.js"
 exit_code=$(cat w* | grep " looking good" -c)
 exit_code=$((100-exit_code))
-tar -cjf fuzz-results-$(date +%Y%m%d%H%M%S).tar.bz2 err-* w*
+
+if [ -n "$2" ]; then
+  archive="$2"
+else
+  archive=fuzz-results-$(date +%Y%m%d%H%M%S).tar.bz2
+fi
+echo "Creating archive $archive"
+tar -cjf $archive err-* w*
 rm -f err-* w*
 
 echo "Total failures: $exit_code"

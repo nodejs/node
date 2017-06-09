@@ -1,6 +1,7 @@
 /* pk7_attr.c */
-/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
- * project 2001.
+/*
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
+ * 2001.
  */
 /* ====================================================================
  * Copyright (c) 2001-2004 The OpenSSL Project.  All rights reserved.
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -66,100 +67,99 @@
 #include <openssl/x509.h>
 #include <openssl/err.h>
 
-int PKCS7_add_attrib_smimecap(PKCS7_SIGNER_INFO *si, STACK_OF(X509_ALGOR) *cap)
+int PKCS7_add_attrib_smimecap(PKCS7_SIGNER_INFO *si,
+                              STACK_OF(X509_ALGOR) *cap)
 {
-	ASN1_STRING *seq;
-	if(!(seq = ASN1_STRING_new())) {
-		PKCS7err(PKCS7_F_PKCS7_ADD_ATTRIB_SMIMECAP,ERR_R_MALLOC_FAILURE);
-		return 0;
-	}
-	seq->length = ASN1_item_i2d((ASN1_VALUE *)cap,&seq->data,
-				ASN1_ITEM_rptr(X509_ALGORS));
-        return PKCS7_add_signed_attribute(si, NID_SMIMECapabilities,
-							V_ASN1_SEQUENCE, seq);
+    ASN1_STRING *seq;
+    if (!(seq = ASN1_STRING_new())) {
+        PKCS7err(PKCS7_F_PKCS7_ADD_ATTRIB_SMIMECAP, ERR_R_MALLOC_FAILURE);
+        return 0;
+    }
+    seq->length = ASN1_item_i2d((ASN1_VALUE *)cap, &seq->data,
+                                ASN1_ITEM_rptr(X509_ALGORS));
+    return PKCS7_add_signed_attribute(si, NID_SMIMECapabilities,
+                                      V_ASN1_SEQUENCE, seq);
 }
 
 STACK_OF(X509_ALGOR) *PKCS7_get_smimecap(PKCS7_SIGNER_INFO *si)
-	{
-	ASN1_TYPE *cap;
-	const unsigned char *p;
+{
+    ASN1_TYPE *cap;
+    const unsigned char *p;
 
-	cap = PKCS7_get_signed_attribute(si, NID_SMIMECapabilities);
-	if (!cap || (cap->type != V_ASN1_SEQUENCE))
-		return NULL;
-	p = cap->value.sequence->data;
-	return (STACK_OF(X509_ALGOR) *)
-		ASN1_item_d2i(NULL, &p, cap->value.sequence->length,
-				ASN1_ITEM_rptr(X509_ALGORS));
-	}
+    cap = PKCS7_get_signed_attribute(si, NID_SMIMECapabilities);
+    if (!cap || (cap->type != V_ASN1_SEQUENCE))
+        return NULL;
+    p = cap->value.sequence->data;
+    return (STACK_OF(X509_ALGOR) *)
+        ASN1_item_d2i(NULL, &p, cap->value.sequence->length,
+                      ASN1_ITEM_rptr(X509_ALGORS));
+}
 
 /* Basic smime-capabilities OID and optional integer arg */
 int PKCS7_simple_smimecap(STACK_OF(X509_ALGOR) *sk, int nid, int arg)
 {
-	X509_ALGOR *alg;
+    X509_ALGOR *alg;
 
-	if(!(alg = X509_ALGOR_new())) {
-		PKCS7err(PKCS7_F_PKCS7_SIMPLE_SMIMECAP,ERR_R_MALLOC_FAILURE);
-		return 0;
-	}
-	ASN1_OBJECT_free(alg->algorithm);
-	alg->algorithm = OBJ_nid2obj (nid);
-	if (arg > 0) {
-		ASN1_INTEGER *nbit;
-		if(!(alg->parameter = ASN1_TYPE_new())) {
-			PKCS7err(PKCS7_F_PKCS7_SIMPLE_SMIMECAP,ERR_R_MALLOC_FAILURE);
-			return 0;
-		}
-		if(!(nbit = ASN1_INTEGER_new())) {
-			PKCS7err(PKCS7_F_PKCS7_SIMPLE_SMIMECAP,ERR_R_MALLOC_FAILURE);
-			return 0;
-		}
-		if(!ASN1_INTEGER_set (nbit, arg)) {
-			PKCS7err(PKCS7_F_PKCS7_SIMPLE_SMIMECAP,ERR_R_MALLOC_FAILURE);
-			return 0;
-		}
-		alg->parameter->value.integer = nbit;
-		alg->parameter->type = V_ASN1_INTEGER;
-	}
-	sk_X509_ALGOR_push (sk, alg);
-	return 1;
+    if (!(alg = X509_ALGOR_new())) {
+        PKCS7err(PKCS7_F_PKCS7_SIMPLE_SMIMECAP, ERR_R_MALLOC_FAILURE);
+        return 0;
+    }
+    ASN1_OBJECT_free(alg->algorithm);
+    alg->algorithm = OBJ_nid2obj(nid);
+    if (arg > 0) {
+        ASN1_INTEGER *nbit;
+        if (!(alg->parameter = ASN1_TYPE_new())) {
+            PKCS7err(PKCS7_F_PKCS7_SIMPLE_SMIMECAP, ERR_R_MALLOC_FAILURE);
+            return 0;
+        }
+        if (!(nbit = ASN1_INTEGER_new())) {
+            PKCS7err(PKCS7_F_PKCS7_SIMPLE_SMIMECAP, ERR_R_MALLOC_FAILURE);
+            return 0;
+        }
+        if (!ASN1_INTEGER_set(nbit, arg)) {
+            PKCS7err(PKCS7_F_PKCS7_SIMPLE_SMIMECAP, ERR_R_MALLOC_FAILURE);
+            return 0;
+        }
+        alg->parameter->value.integer = nbit;
+        alg->parameter->type = V_ASN1_INTEGER;
+    }
+    sk_X509_ALGOR_push(sk, alg);
+    return 1;
 }
 
 int PKCS7_add_attrib_content_type(PKCS7_SIGNER_INFO *si, ASN1_OBJECT *coid)
-	{
-	if (PKCS7_get_signed_attribute(si, NID_pkcs9_contentType))
-		return 0;
-	if (!coid)
-		coid = OBJ_nid2obj(NID_pkcs7_data);
-	return PKCS7_add_signed_attribute(si, NID_pkcs9_contentType,
-				V_ASN1_OBJECT, coid);
-	}
+{
+    if (PKCS7_get_signed_attribute(si, NID_pkcs9_contentType))
+        return 0;
+    if (!coid)
+        coid = OBJ_nid2obj(NID_pkcs7_data);
+    return PKCS7_add_signed_attribute(si, NID_pkcs9_contentType,
+                                      V_ASN1_OBJECT, coid);
+}
 
 int PKCS7_add0_attrib_signing_time(PKCS7_SIGNER_INFO *si, ASN1_TIME *t)
-	{
-	if (!t && !(t=X509_gmtime_adj(NULL,0)))
-		{
-		PKCS7err(PKCS7_F_PKCS7_ADD0_ATTRIB_SIGNING_TIME,
-				ERR_R_MALLOC_FAILURE);
-		return 0;
-		}
-	return PKCS7_add_signed_attribute(si, NID_pkcs9_signingTime,
-						V_ASN1_UTCTIME, t);
-	}
+{
+    if (!t && !(t = X509_gmtime_adj(NULL, 0))) {
+        PKCS7err(PKCS7_F_PKCS7_ADD0_ATTRIB_SIGNING_TIME,
+                 ERR_R_MALLOC_FAILURE);
+        return 0;
+    }
+    return PKCS7_add_signed_attribute(si, NID_pkcs9_signingTime,
+                                      V_ASN1_UTCTIME, t);
+}
 
 int PKCS7_add1_attrib_digest(PKCS7_SIGNER_INFO *si,
-				const unsigned char *md, int mdlen)
-	{
-	ASN1_OCTET_STRING *os;
-	os = ASN1_OCTET_STRING_new();
-	if (!os)
-		return 0;
-	if (!ASN1_STRING_set(os, md, mdlen)
-		|| !PKCS7_add_signed_attribute(si, NID_pkcs9_messageDigest,
-						V_ASN1_OCTET_STRING, os))
-		{
-		ASN1_OCTET_STRING_free(os);
-		return 0;
-		}
-	return 1;
-	}
+                             const unsigned char *md, int mdlen)
+{
+    ASN1_OCTET_STRING *os;
+    os = ASN1_OCTET_STRING_new();
+    if (!os)
+        return 0;
+    if (!ASN1_STRING_set(os, md, mdlen)
+        || !PKCS7_add_signed_attribute(si, NID_pkcs9_messageDigest,
+                                       V_ASN1_OCTET_STRING, os)) {
+        ASN1_OCTET_STRING_free(os);
+        return 0;
+    }
+    return 1;
+}

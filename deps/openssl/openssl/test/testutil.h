@@ -1,5 +1,5 @@
 /* test/testutil.h */
-/*
+/*-
  * Utilities for writing OpenSSL unit tests.
  *
  * More information:
@@ -57,9 +57,10 @@
  */
 
 #ifndef HEADER_TESTUTIL_H
-#define HEADER_TESTUTIL_H
+# define HEADER_TESTUTIL_H
 
-/* SETUP_TEST_FIXTURE and EXECUTE_TEST macros for test case functions.
+/*-
+ * SETUP_TEST_FIXTURE and EXECUTE_TEST macros for test case functions.
  *
  * SETUP_TEST_FIXTURE will call set_up() to create a new TEST_FIXTURE_TYPE
  * object called "fixture". It will also allocate the "result" variable used
@@ -83,34 +84,35 @@
  * Then test case functions can take the form:
  *
  * static int test_foobar_feature()
- * 	{
- * 	SETUP_FOOBAR_TEST_FIXTURE();
- *	[...set individual members of fixture...]
- * 	EXECUTE_FOOBAR_TEST();
- * 	}
+ *      {
+ *      SETUP_FOOBAR_TEST_FIXTURE();
+ *      [...set individual members of fixture...]
+ *      EXECUTE_FOOBAR_TEST();
+ *      }
  */
-#define SETUP_TEST_FIXTURE(TEST_FIXTURE_TYPE, set_up)\
-	TEST_FIXTURE_TYPE fixture = set_up(TEST_CASE_NAME);\
-	int result = 0
+# define SETUP_TEST_FIXTURE(TEST_FIXTURE_TYPE, set_up)\
+        TEST_FIXTURE_TYPE fixture = set_up(TEST_CASE_NAME);\
+        int result = 0
 
-#define EXECUTE_TEST(execute_func, tear_down)\
-	if (execute_func(fixture) != 0) result = 1;\
-	tear_down(fixture);\
-	return result
+# define EXECUTE_TEST(execute_func, tear_down)\
+        if (execute_func(fixture) != 0) result = 1;\
+        tear_down(fixture);\
+        return result
 
-/* TEST_CASE_NAME is defined as the name of the test case function where
+/*
+ * TEST_CASE_NAME is defined as the name of the test case function where
  * possible; otherwise we get by with the file name and line number.
  */
-#if __STDC_VERSION__ < 199901L
-#if defined(_MSC_VER)
-#define TEST_CASE_NAME __FUNCTION__
-#else
-#define testutil_stringify_helper(s) #s
-#define testutil_stringify(s) testutil_stringify_helper(s)
-#define TEST_CASE_NAME __FILE__ ":" testutil_stringify(__LINE__)
-#endif /* _MSC_VER */
-#else
-#define TEST_CASE_NAME __func__
-#endif /* __STDC_VERSION__ */
+# if __STDC_VERSION__ < 199901L
+#  if defined(_MSC_VER)
+#   define TEST_CASE_NAME __FUNCTION__
+#  else
+#   define testutil_stringify_helper(s) #s
+#   define testutil_stringify(s) testutil_stringify_helper(s)
+#   define TEST_CASE_NAME __FILE__ ":" testutil_stringify(__LINE__)
+#  endif                        /* _MSC_VER */
+# else
+#  define TEST_CASE_NAME __func__
+# endif                         /* __STDC_VERSION__ */
 
-#endif /* HEADER_TESTUTIL_H */
+#endif                          /* HEADER_TESTUTIL_H */

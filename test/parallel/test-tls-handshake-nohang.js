@@ -19,9 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
+'use strict';
+const common = require('../common');
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+const tls = require('tls');
 
 // neither should hang
 tls.createSecurePair(null, false, false, false);

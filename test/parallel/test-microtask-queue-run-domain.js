@@ -19,18 +19,25 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
+'use strict';
+require('../common');
+const assert = require('assert');
+
+// Requiring the domain module here changes the function that is used by node to
+// call process.nextTick's callbacks to a variant that specifically handles
+// domains. We want to test this specific variant in this test, and so even if
+// the domain module is not used, this require call is needed and must not be
+// removed.
+require('domain');
 
 function enqueueMicrotask(fn) {
   Promise.resolve().then(fn);
 }
 
-var done = 0;
+let done = 0;
 
 process.on('exit', function() {
-  assert.equal(done, 2);
+  assert.strictEqual(done, 2);
 });
 
 // no nextTick, microtask
@@ -43,7 +50,7 @@ setTimeout(function() {
 
 // no nextTick, microtask with nextTick
 setTimeout(function() {
-  var called = false;
+  let called = false;
 
   enqueueMicrotask(function() {
     process.nextTick(function() {

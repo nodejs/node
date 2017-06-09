@@ -33,6 +33,12 @@ functions
 
 The ASN1 object utility functions process ASN1_OBJECT structures which are
 a representation of the ASN1 OBJECT IDENTIFIER (OID) type.
+For convenience, OIDs are usually represented in source code as numeric
+identifiers, or B<NID>s.  OpenSSL has an internal table of OIDs that
+are generated when the library is built, and their corresponding NIDs
+are available as defined constants.  For the functions below, application
+code should treat all returned values -- OIDs, NIDs, or names -- as
+constants.
 
 OBJ_nid2obj(), OBJ_nid2ln() and OBJ_nid2sn() convert the NID B<n> to 
 an ASN1_OBJECT structure, its long name and its short name respectively,
@@ -96,6 +102,16 @@ Objects do not need to be in the internal tables to be processed,
 the functions OBJ_txt2obj() and OBJ_obj2txt() can process the numerical
 form of an OID.
 
+Some objects are used to represent algorithms which do not have a
+corresponding ASN.1 OBJECT IDENTIFIER encoding (for example no OID currently
+exists for a particular algorithm). As a result they B<cannot> be encoded or
+decoded as part of ASN.1 structures. Applications can determine if there
+is a corresponding OBJECT IDENTIFIER by checking OBJ_length() is not zero.
+
+These functions cannot return B<const> because an B<ASN1_OBJECT> can
+represent both an internal, constant, OID and a dynamically-created one.
+The latter cannot be constant because it needs to be freed after use.
+
 =head1 EXAMPLES
 
 Create an object for B<commonName>:
@@ -106,12 +122,13 @@ Create an object for B<commonName>:
 Check if an object is B<commonName>
 
  if (OBJ_obj2nid(obj) == NID_commonName)
-	/* Do something */
+        /* Do something */
 
 Create a new NID and initialize an object from it:
 
  int new_nid;
  ASN1_OBJECT *obj;
+
  new_nid = OBJ_create("1.2.3.4", "NewOID", "New Object Identifier");
 
  obj = OBJ_nid2obj(new_nid);
@@ -133,6 +150,8 @@ than enough to handle any OID encountered in practice.
 
 OBJ_nid2obj() returns an B<ASN1_OBJECT> structure or B<NULL> is an
 error occurred.
+It returns a pointer to an internal table and does not
+allocate memory; ASN1_OBJECT_free() will have no effect.
 
 OBJ_nid2ln() and OBJ_nid2sn() returns a valid string or B<NULL>
 on error.

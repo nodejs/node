@@ -117,7 +117,8 @@ TEST(Bits, RoundUpToPowerOfTwo32) {
   TRACED_FORRANGE(uint32_t, shift, 0, 31) {
     EXPECT_EQ(1u << shift, RoundUpToPowerOfTwo32(1u << shift));
   }
-  EXPECT_EQ(0u, RoundUpToPowerOfTwo32(0));
+  EXPECT_EQ(1u, RoundUpToPowerOfTwo32(0));
+  EXPECT_EQ(1u, RoundUpToPowerOfTwo32(1));
   EXPECT_EQ(4u, RoundUpToPowerOfTwo32(3));
   EXPECT_EQ(0x80000000u, RoundUpToPowerOfTwo32(0x7fffffffu));
 }
@@ -125,7 +126,24 @@ TEST(Bits, RoundUpToPowerOfTwo32) {
 
 TEST(BitsDeathTest, DISABLE_IN_RELEASE(RoundUpToPowerOfTwo32)) {
   ASSERT_DEATH_IF_SUPPORTED({ RoundUpToPowerOfTwo32(0x80000001u); },
-                            "0x80000000");
+                            "Check failed:.* << 31");
+}
+
+TEST(Bits, RoundUpToPowerOfTwo64) {
+  TRACED_FORRANGE(uint64_t, shift, 0, 63) {
+    uint64_t value = uint64_t{1} << shift;
+    EXPECT_EQ(value, RoundUpToPowerOfTwo64(value));
+  }
+  EXPECT_EQ(uint64_t{1}, RoundUpToPowerOfTwo64(0));
+  EXPECT_EQ(uint64_t{1}, RoundUpToPowerOfTwo64(1));
+  EXPECT_EQ(uint64_t{4}, RoundUpToPowerOfTwo64(3));
+  EXPECT_EQ(uint64_t{1} << 63, RoundUpToPowerOfTwo64((uint64_t{1} << 63) - 1));
+  EXPECT_EQ(uint64_t{1} << 63, RoundUpToPowerOfTwo64(uint64_t{1} << 63));
+}
+
+TEST(BitsDeathTest, DISABLE_IN_RELEASE(RoundUpToPowerOfTwo64)) {
+  ASSERT_DEATH_IF_SUPPORTED({ RoundUpToPowerOfTwo64((uint64_t{1} << 63) + 1); },
+                            "Check failed:.* << 63");
 }
 
 
@@ -250,6 +268,25 @@ TEST(Bits, SignedMod32) {
       EXPECT_EQ(0, SignedMod32(j, j));
       EXPECT_EQ(i % j, SignedMod32(i, j));
       EXPECT_EQ(i % j, SignedMod32(i, -j));
+    }
+  }
+}
+
+
+TEST(Bits, UnsignedAddOverflow32) {
+  uint32_t val = 0;
+  EXPECT_FALSE(UnsignedAddOverflow32(0, 0, &val));
+  EXPECT_EQ(0u, val);
+  EXPECT_TRUE(
+      UnsignedAddOverflow32(std::numeric_limits<uint32_t>::max(), 1u, &val));
+  EXPECT_EQ(std::numeric_limits<uint32_t>::min(), val);
+  EXPECT_TRUE(UnsignedAddOverflow32(std::numeric_limits<uint32_t>::max(),
+                                    std::numeric_limits<uint32_t>::max(),
+                                    &val));
+  TRACED_FORRANGE(uint32_t, i, 1, 50) {
+    TRACED_FORRANGE(uint32_t, j, 1, i) {
+      EXPECT_FALSE(UnsignedAddOverflow32(i, j, &val));
+      EXPECT_EQ(i + j, val);
     }
   }
 }

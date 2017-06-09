@@ -30,6 +30,17 @@
 // IC and Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.
 
+// This code exists to eliminate the learning influence of AllocationSites
+// on the following tests.
+function make_array_string(literal) {
+  this.__sequence = this.__sequence + 1;
+  return "/* " + this.__sequence + " */  " + literal;
+}
+function make_array(literal) {
+  return eval(make_array_string(literal));
+}
+
+var __sequence = 0;
 function array_natives_test() {
 
   // Ensure small array literals start in specific element kind mode.
@@ -39,36 +50,25 @@ function array_natives_test() {
   assertTrue(%HasFastDoubleElements([1.1]));
   assertTrue(%HasFastDoubleElements([1.1,2]));
 
-  // This code exists to eliminate the learning influence of AllocationSites
-  // on the following tests.
-  var __sequence = 0;
-  function make_array_string(literal) {
-    this.__sequence = this.__sequence + 1;
-    return "/* " + this.__sequence + " */  " + literal;
-  }
-  function make_array(literal) {
-    return eval(make_array_string(literal));
-  }
-
   // Push
   var a0 = make_array("[1, 2, 3]");
   assertTrue(%HasFastSmiElements(a0));
-  a0.push(4);
+  assertEquals(4, a0.push(4));
   assertTrue(%HasFastSmiElements(a0));
-  a0.push(1.3);
+  assertEquals(5, a0.push(1.3));
   assertTrue(%HasFastDoubleElements(a0));
-  a0.push(1.5);
+  assertEquals(6, a0.push(1.5));
   assertTrue(%HasFastDoubleElements(a0));
-  a0.push({});
+  assertEquals(7, a0.push({}));
   assertTrue(%HasFastObjectElements(a0));
-  a0.push({});
+  assertEquals(8, a0.push({}));
   assertTrue(%HasFastObjectElements(a0));
   assertEquals([1,2,3,4,1.3,1.5,{},{}], a0);
 
   // Concat
   var a1;
   a1 = [1,2,3].concat([]);
-  assertTrue(%HasFastSmiElements(a1));
+  //assertTrue(%HasFastSmiElements(a1));
   assertEquals([1,2,3], a1);
   a1 = [1,2,3].concat([4,5,6]);
   assertTrue(%HasFastSmiElements(a1));
@@ -151,28 +151,26 @@ function array_natives_test() {
   assertTrue(%HasFastSmiElements(a3));
   assertEquals([1], a3r);
   assertEquals([2, 2, 3], a3);
-
   a3 = [1.1,2,3];
   a3r = a3.splice(0, 0);
   assertTrue(%HasFastDoubleElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([1.1, 2, 3], a3);
-  a3 = [1.1,2,3];
+  a3 = [1.1, 2, 3];
   a3r = a3.splice(0, 1);
   assertTrue(%HasFastDoubleElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([1.1], a3r);
   assertEquals([2, 3], a3);
-  a3 = [1.1,2,3];
+  a3 = [1.1, 2, 3];
   a3r = a3.splice(0, 0, 2);
-  // Commented out since handled in js, which takes the best fit.
-  // assertTrue(%HasFastDoubleElements(a3r));
-  assertTrue(%HasFastSmiElements(a3r));
+  assertTrue(%HasFastDoubleElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([2, 1.1, 2, 3], a3);
-  a3 = [1.1,2,3];
+  a3 = [1.1, 2, 3];
+  assertTrue(%HasFastDoubleElements(a3));
   a3r = a3.splice(0, 1, 2);
   assertTrue(%HasFastDoubleElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
@@ -180,9 +178,7 @@ function array_natives_test() {
   assertEquals([2, 2, 3], a3);
   a3 = [1.1,2,3];
   a3r = a3.splice(0, 0, 2.1);
-  // Commented out since handled in js, which takes the best fit.
-  // assertTrue(%HasFastDoubleElements(a3r));
-  assertTrue(%HasFastSmiElements(a3r));
+  assertTrue(%HasFastDoubleElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([2.1, 1.1, 2, 3], a3);
@@ -194,9 +190,7 @@ function array_natives_test() {
   assertEquals([2.2, 2, 3], a3);
   a3 = [1,2,3];
   a3r = a3.splice(0, 0, 2.1);
-  // Commented out since handled in js, which takes the best fit.
-  // assertTrue(%HasFastDoubleElements(a3r));
-  assertTrue(%HasFastSmiElements(a3r));
+  assertTrue(%HasFastDoubleElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([2.1, 1, 2, 3], a3);
@@ -206,7 +200,6 @@ function array_natives_test() {
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([1], a3r);
   assertEquals([2.2, 2, 3], a3);
-
   a3 = [{},2,3];
   a3r = a3.splice(0, 0);
   assertTrue(%HasFastObjectElements(a3r));
@@ -231,7 +224,6 @@ function array_natives_test() {
   assertTrue(%HasFastObjectElements(a3));
   assertEquals([1], a3r);
   assertEquals([{}, 2, 3], a3);
-
   a3 = [1.1,2,3];
   a3r = a3.splice(0, 0, {});
   assertTrue(%HasFastObjectElements(a3r));
@@ -244,48 +236,67 @@ function array_natives_test() {
   assertTrue(%HasFastObjectElements(a3));
   assertEquals([1.1], a3r);
   assertEquals([{}, 2, 3], a3);
+  a3 = [1.1, 2.2, 3.3];
+  a3r = a3.splice(2, 1);
+  assertTrue(%HasFastDoubleElements(a3r));
+  assertTrue(%HasFastDoubleElements(a3));
+  assertEquals([3.3], a3r);
+  //assertTrue(%HasFastDoubleElements(a3r));
+  assertEquals([1.1, 2.2], a3);
+  //assertTrue(%HasFastDoubleElements(a3r));
+  a3r = a3.splice(1, 1, 4.4, 5.5);
+  //assertTrue(%HasFastDoubleElements(a3r));
+  //assertTrue(%HasFastDoubleElements(a3));
+  assertEquals([2.2], a3r);
+  assertEquals([1.1, 4.4, 5.5], a3);
 
   // Pop
   var a4 = [1,2,3];
   assertEquals(3, a4.pop());
-  assertTrue(%HasFastSmiElements(a4));
+  assertEquals([1,2], a4);
+  //assertTrue(%HasFastSmiElements(a4));
   a4 = [1.1,2,3];
   assertEquals(3, a4.pop());
-  assertTrue(%HasFastDoubleElements(a4));
+  assertEquals([1.1,2], a4);
+  //assertTrue(%HasFastDoubleElements(a4));
   a4 = [{},2,3];
   assertEquals(3, a4.pop());
-  assertTrue(%HasFastObjectElements(a4));
+  assertEquals([{},2], a4);
+  //assertTrue(%HasFastObjectElements(a4));
 
   // Shift
   var a4 = [1,2,3];
   assertEquals(1, a4.shift());
-  assertTrue(%HasFastSmiElements(a4));
+  assertEquals([2,3], a4);
+  //assertTrue(%HasFastSmiElements(a4));
   a4 = [1.1,2,3];
   assertEquals(1.1, a4.shift());
-  assertTrue(%HasFastDoubleElements(a4));
+  assertEquals([2,3], a4);
+  //assertTrue(%HasFastDoubleElements(a4));
   a4 = [{},2,3];
   assertEquals({}, a4.shift());
-  assertTrue(%HasFastObjectElements(a4));
+  assertEquals([2,3], a4);
+  //assertTrue(%HasFastObjectElements(a4));
 
   // Unshift
   var a4 = [1,2,3];
-  a4.unshift(1);
+  assertEquals(4, a4.unshift(1));
   assertTrue(%HasFastSmiElements(a4));
   assertEquals([1,1,2,3], a4);
   a4 = [1,2,3];
-  a4.unshift(1.1);
+  assertEquals(4, a4.unshift(1.1));
   assertTrue(%HasFastDoubleElements(a4));
   assertEquals([1.1,1,2,3], a4);
   a4 = [1.1,2,3];
-  a4.unshift(1);
+  assertEquals(4, a4.unshift(1));
   assertTrue(%HasFastDoubleElements(a4));
   assertEquals([1,1.1,2,3], a4);
   a4 = [{},2,3];
-  a4.unshift(1);
+  assertEquals(4, a4.unshift(1));
   assertTrue(%HasFastObjectElements(a4));
   assertEquals([1,{},2,3], a4);
   a4 = [{},2,3];
-  a4.unshift(1.1);
+  assertEquals(4, a4.unshift(1.1));
   assertTrue(%HasFastObjectElements(a4));
   assertEquals([1.1,{},2,3], a4);
 }

@@ -2,8 +2,8 @@
 
 module.exports = findPrefix
 
-var fs = require("fs")
-var path = require("path")
+var fs = require('fs')
+var path = require('path')
 
 function findPrefix (p, cb_) {
   function cb (er, p) {
@@ -17,7 +17,7 @@ function findPrefix (p, cb_) {
   // walk up until we hopefully find one.
   // if none anywhere, then use cwd.
   var walkedUp = false
-  while (path.basename(p) === "node_modules") {
+  while (path.basename(p) === 'node_modules') {
     p = path.dirname(p)
     walkedUp = true
   }
@@ -27,8 +27,8 @@ function findPrefix (p, cb_) {
 }
 
 function findPrefix_ (p, original, cb) {
-  if (p === "/"
-      || (process.platform === "win32" && p.match(/^[a-zA-Z]:(\\|\/)?$/))) {
+  if (p === '/' ||
+      (process.platform === 'win32' && p.match(/^[a-zA-Z]:(\\|\/)?$/))) {
     return cb(null, original)
   }
   fs.readdir(p, function (er, files) {
@@ -36,15 +36,15 @@ function findPrefix_ (p, original, cb) {
     // unless the prefix was simply a non
     // existent directory.
     if (er && p === original) {
-      if (er.code === "ENOENT") return cb(null, original);
+      if (er.code === 'ENOENT') return cb(null, original)
       return cb(er)
     }
 
     // walked up too high or something.
     if (er) return cb(null, original)
 
-    if (files.indexOf("node_modules") !== -1
-        || files.indexOf("package.json") !== -1) {
+    if (files.indexOf('node_modules') !== -1 ||
+        files.indexOf('package.json') !== -1) {
       return cb(null, p)
     }
 

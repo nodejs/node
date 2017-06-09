@@ -7,7 +7,6 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/machine-operator.h"
 #include "src/compiler/typer.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -19,21 +18,21 @@ namespace internal {
 template <class T>
 class Handle;
 class HeapObject;
-template <class T>
-class Unique;
 
 namespace compiler {
 
 using ::testing::Matcher;
 
-
-class GraphTest : public TestWithContext, public TestWithZone {
+class GraphTest : public virtual TestWithNativeContext,
+                  public virtual TestWithIsolateAndZone {
  public:
-  explicit GraphTest(int parameters = 1);
-  virtual ~GraphTest();
+  explicit GraphTest(int num_parameters = 1);
+  ~GraphTest() override;
 
- protected:
-  Node* Parameter(int32_t index);
+  Node* start() { return graph()->start(); }
+  Node* end() { return graph()->end(); }
+
+  Node* Parameter(int32_t index = 0);
   Node* Float32Constant(volatile float value);
   Node* Float64Constant(volatile double value);
   Node* Int32Constant(int32_t value);
@@ -43,13 +42,19 @@ class GraphTest : public TestWithContext, public TestWithZone {
   Node* Int64Constant(int64_t value);
   Node* NumberConstant(volatile double value);
   Node* HeapConstant(const Handle<HeapObject>& value);
-  Node* HeapConstant(const Unique<HeapObject>& value);
   Node* FalseConstant();
   Node* TrueConstant();
   Node* UndefinedConstant();
 
+  Node* EmptyFrameState();
+
+  Matcher<Node*> IsBooleanConstant(bool value) {
+    return value ? IsTrueConstant() : IsFalseConstant();
+  }
   Matcher<Node*> IsFalseConstant();
   Matcher<Node*> IsTrueConstant();
+  Matcher<Node*> IsNullConstant();
+  Matcher<Node*> IsUndefinedConstant();
 
   CommonOperatorBuilder* common() { return &common_; }
   Graph* graph() { return &graph_; }
@@ -62,10 +67,13 @@ class GraphTest : public TestWithContext, public TestWithZone {
 
 class TypedGraphTest : public GraphTest {
  public:
-  explicit TypedGraphTest(int parameters = 1)
-      : GraphTest(parameters), typer_(graph(), MaybeHandle<Context>()) {}
+  explicit TypedGraphTest(int num_parameters = 1);
+  ~TypedGraphTest() override;
 
  protected:
+  Node* Parameter(int32_t index = 0) { return GraphTest::Parameter(index); }
+  Node* Parameter(Type* type, int32_t index = 0);
+
   Typer* typer() { return &typer_; }
 
  private:

@@ -110,7 +110,7 @@ unsigned Utf8::Encode(char* str,
 }
 
 
-uchar Utf8::ValueOf(const byte* bytes, unsigned length, unsigned* cursor) {
+uchar Utf8::ValueOf(const byte* bytes, size_t length, size_t* cursor) {
   if (length <= 0) return kBadChar;
   byte first = bytes[0];
   // Characters between 0000 and 0007F are encoded as a single character
@@ -135,6 +135,12 @@ unsigned Utf8::Length(uchar c, int previous) {
   } else {
     return 4;
   }
+}
+
+bool Utf8::IsValidCharacter(uchar c) {
+  return c < 0xD800u || (c >= 0xE000u && c < 0xFDD0u) ||
+         (c > 0xFDEFu && c <= 0x10FFFFu && (c & 0xFFFEu) != 0xFFFEu &&
+          c != kBadChar);
 }
 
 }  // namespace unibrow

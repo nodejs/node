@@ -19,18 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 
-var common = require('../common.js');
-var R = require('_stream_readable');
-var assert = require('assert');
+const common = require('../common');
+const R = require('_stream_readable');
+const assert = require('assert');
 
-var util = require('util');
-var EE = require('events').EventEmitter;
+const util = require('util');
+const EE = require('events').EventEmitter;
 
 function TestReader(n) {
   R.apply(this);
-  this._buffer = new Buffer(n || 100);
-  this._buffer.fill('x');
+  this._buffer = Buffer.alloc(n || 100, 'x');
   this._pos = 0;
   this._bufs = 10;
 }
@@ -38,9 +38,9 @@ function TestReader(n) {
 util.inherits(TestReader, R);
 
 TestReader.prototype._read = function(n) {
-  var max = this._buffer.length - this._pos;
+  const max = this._buffer.length - this._pos;
   n = Math.max(n, 0);
-  var toRead = Math.min(n, max);
+  const toRead = Math.min(n, max);
   if (toRead === 0) {
     // simulate the read buffer filling up with some more bytes some time
     // in the future.
@@ -61,7 +61,7 @@ TestReader.prototype._read = function(n) {
     return;
   }
 
-  var ret = this._buffer.slice(this._pos, this._pos + toRead);
+  const ret = this._buffer.slice(this._pos, this._pos + toRead);
   this._pos += toRead;
   this.push(ret);
 };
@@ -90,8 +90,8 @@ TestWriter.prototype.end = function(c) {
 ////////
 
 // tiny node-tap lookalike.
-var tests = [];
-var count = 0;
+const tests = [];
+let count = 0;
 
 function test(name, fn) {
   count++;
@@ -99,18 +99,18 @@ function test(name, fn) {
 }
 
 function run() {
-  var next = tests.shift();
+  const next = tests.shift();
   if (!next)
     return console.error('ok');
 
-  var name = next[0];
-  var fn = next[1];
+  const name = next[0];
+  const fn = next[1];
   console.log('# %s', name);
   fn({
-    same: assert.deepEqual,
+    same: assert.deepStrictEqual,
     ok: assert,
-    equal: assert.equal,
-    end: function () {
+    equal: assert.strictEqual,
+    end: function() {
       count--;
       run();
     }
@@ -118,42 +118,42 @@ function run() {
 }
 
 // ensure all tests have run
-process.on("exit", function () {
-  assert.equal(count, 0);
+process.on('exit', function() {
+  assert.strictEqual(count, 0);
 });
 
 process.nextTick(run);
 
 
 test('a most basic test', function(t) {
-  var r = new TestReader(20);
+  const r = new TestReader(20);
 
-  var reads = [];
-  var expect = [ 'x',
-                 'xx',
-                 'xxx',
-                 'xxxx',
-                 'xxxxx',
-                 'xxxxxxxxx',
-                 'xxxxxxxxxx',
-                 'xxxxxxxxxxxx',
-                 'xxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxxxx' ];
+  const reads = [];
+  const expect = [ 'x',
+                   'xx',
+                   'xxx',
+                   'xxxx',
+                   'xxxxx',
+                   'xxxxxxxxx',
+                   'xxxxxxxxxx',
+                   'xxxxxxxxxxxx',
+                   'xxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxxxxxxxx' ];
 
   r.on('end', function() {
     t.same(reads, expect);
     t.end();
   });
 
-  var readSize = 1;
+  let readSize = 1;
   function flow() {
-    var res;
+    let res;
     while (null !== (res = r.read(readSize++))) {
       reads.push(res.toString());
     }
@@ -164,21 +164,20 @@ test('a most basic test', function(t) {
 });
 
 test('pipe', function(t) {
-  var r = new TestReader(5);
+  const r = new TestReader(5);
 
-  var expect = [ 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx' ]
+  const expect = [ 'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx' ];
 
-  var w = new TestWriter;
-  var flush = true;
+  const w = new TestWriter();
 
   w.on('end', function(received) {
     t.same(received, expect);
@@ -189,13 +188,12 @@ test('pipe', function(t) {
 });
 
 
-
-[1,2,3,4,5,6,7,8,9].forEach(function(SPLIT) {
+[1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(function(SPLIT) {
   test('unpipe', function(t) {
-    var r = new TestReader(5);
+    const r = new TestReader(5);
 
     // unpipe after 3 writes, then write to another stream instead.
-    var expect = [ 'xxxxx',
+    let expect = [ 'xxxxx',
                    'xxxxx',
                    'xxxxx',
                    'xxxxx',
@@ -207,9 +205,9 @@ test('pipe', function(t) {
                    'xxxxx' ];
     expect = [ expect.slice(0, SPLIT), expect.slice(SPLIT) ];
 
-    var w = [ new TestWriter(), new TestWriter() ];
+    const w = [ new TestWriter(), new TestWriter() ];
 
-    var writes = SPLIT;
+    let writes = SPLIT;
     w[0].on('write', function() {
       if (--writes === 0) {
         r.unpipe();
@@ -220,10 +218,10 @@ test('pipe', function(t) {
       }
     });
 
-    var ended = 0;
+    let ended = 0;
 
-    var ended0 = false;
-    var ended1 = false;
+    let ended0 = false;
+    let ended1 = false;
     w[0].on('end', function(results) {
       t.equal(ended0, false);
       ended0 = true;
@@ -247,21 +245,21 @@ test('pipe', function(t) {
 
 // both writers should get the same exact data.
 test('multipipe', function(t) {
-  var r = new TestReader(5);
-  var w = [ new TestWriter, new TestWriter ];
+  const r = new TestReader(5);
+  const w = [ new TestWriter(), new TestWriter() ];
 
-  var expect = [ 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx' ];
+  const expect = [ 'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx' ];
 
-  var c = 2;
+  let c = 2;
   w[0].on('end', function(received) {
     t.same(received, expect, 'first');
     if (--c === 0) t.end();
@@ -276,12 +274,12 @@ test('multipipe', function(t) {
 });
 
 
-[1,2,3,4,5,6,7,8,9].forEach(function(SPLIT) {
+[1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(function(SPLIT) {
   test('multi-unpipe', function(t) {
-    var r = new TestReader(5);
+    const r = new TestReader(5);
 
     // unpipe after 3 writes, then write to another stream instead.
-    var expect = [ 'xxxxx',
+    let expect = [ 'xxxxx',
                    'xxxxx',
                    'xxxxx',
                    'xxxxx',
@@ -293,9 +291,9 @@ test('multipipe', function(t) {
                    'xxxxx' ];
     expect = [ expect.slice(0, SPLIT), expect.slice(SPLIT) ];
 
-    var w = [ new TestWriter(), new TestWriter(), new TestWriter() ];
+    const w = [ new TestWriter(), new TestWriter(), new TestWriter() ];
 
-    var writes = SPLIT;
+    let writes = SPLIT;
     w[0].on('write', function() {
       if (--writes === 0) {
         r.unpipe();
@@ -304,7 +302,7 @@ test('multipipe', function(t) {
       }
     });
 
-    var ended = 0;
+    let ended = 0;
 
     w[0].on('end', function(results) {
       ended++;
@@ -323,145 +321,142 @@ test('multipipe', function(t) {
   });
 });
 
-test('back pressure respected', function (t) {
-  function noop() {}
-
-  var r = new R({ objectMode: true });
-  r._read = noop;
-  var counter = 0;
-  r.push(["one"]);
-  r.push(["two"]);
-  r.push(["three"]);
-  r.push(["four"]);
+test('back pressure respected', function(t) {
+  const r = new R({ objectMode: true });
+  r._read = common.noop;
+  let counter = 0;
+  r.push(['one']);
+  r.push(['two']);
+  r.push(['three']);
+  r.push(['four']);
   r.push(null);
 
-  var w1 = new R();
-  w1.write = function (chunk) {
+  const w1 = new R();
+  w1.write = function(chunk) {
     console.error('w1.emit("close")');
-    assert.equal(chunk[0], "one");
-    w1.emit("close");
-    process.nextTick(function () {
+    assert.strictEqual(chunk[0], 'one');
+    w1.emit('close');
+    process.nextTick(function() {
       r.pipe(w2);
       r.pipe(w3);
-    })
+    });
   };
-  w1.end = noop;
+  w1.end = common.noop;
 
   r.pipe(w1);
 
-  var expected = ["two", "two", "three", "three", "four", "four"];
+  const expected = ['two', 'two', 'three', 'three', 'four', 'four'];
 
-  var w2 = new R();
-  w2.write = function (chunk) {
+  const w2 = new R();
+  w2.write = function(chunk) {
     console.error('w2 write', chunk, counter);
-    assert.equal(chunk[0], expected.shift());
-    assert.equal(counter, 0);
+    assert.strictEqual(chunk[0], expected.shift());
+    assert.strictEqual(counter, 0);
 
     counter++;
 
-    if (chunk[0] === "four") {
+    if (chunk[0] === 'four') {
       return true;
     }
 
-    setTimeout(function () {
+    setTimeout(function() {
       counter--;
-      console.error("w2 drain");
-      w2.emit("drain");
+      console.error('w2 drain');
+      w2.emit('drain');
     }, 10);
 
     return false;
-  }
-  w2.end = noop;
+  };
+  w2.end = common.noop;
 
-  var w3 = new R();
-  w3.write = function (chunk) {
+  const w3 = new R();
+  w3.write = function(chunk) {
     console.error('w3 write', chunk, counter);
-    assert.equal(chunk[0], expected.shift());
-    assert.equal(counter, 1);
+    assert.strictEqual(chunk[0], expected.shift());
+    assert.strictEqual(counter, 1);
 
     counter++;
 
-    if (chunk[0] === "four") {
+    if (chunk[0] === 'four') {
       return true;
     }
 
-    setTimeout(function () {
+    setTimeout(function() {
       counter--;
-      console.error("w3 drain");
-      w3.emit("drain");
+      console.error('w3 drain');
+      w3.emit('drain');
     }, 50);
 
     return false;
   };
-  w3.end = function () {
-    assert.equal(counter, 2);
-    assert.equal(expected.length, 0);
+  w3.end = function() {
+    assert.strictEqual(counter, 2);
+    assert.strictEqual(expected.length, 0);
     t.end();
   };
 });
 
-test('read(0) for ended streams', function (t) {
-  var r = new R();
-  var written = false;
-  var ended = false;
-  r._read = function (n) {};
+test('read(0) for ended streams', function(t) {
+  const r = new R();
+  let written = false;
+  let ended = false;
+  r._read = common.noop;
 
-  r.push(new Buffer("foo"));
+  r.push(Buffer.from('foo'));
   r.push(null);
 
-  var v = r.read(0);
+  const v = r.read(0);
 
-  assert.equal(v, null);
+  assert.strictEqual(v, null);
 
-  var w = new R();
+  const w = new R();
 
-  w.write = function (buffer) {
+  w.write = function(buffer) {
     written = true;
-    assert.equal(ended, false);
-    assert.equal(buffer.toString(), "foo")
+    assert.strictEqual(ended, false);
+    assert.strictEqual(buffer.toString(), 'foo');
   };
 
-  w.end = function () {
+  w.end = function() {
     ended = true;
-    assert.equal(written, true);
+    assert.strictEqual(written, true);
     t.end();
   };
 
   r.pipe(w);
-})
+});
 
-test('sync _read ending', function (t) {
-  var r = new R();
-  var called = false;
-  r._read = function (n) {
+test('sync _read ending', function(t) {
+  const r = new R();
+  let called = false;
+  r._read = function(n) {
     r.push(null);
   };
 
-  r.once('end', function () {
+  r.once('end', function() {
     called = true;
-  })
+  });
 
   r.read();
 
-  process.nextTick(function () {
-    assert.equal(called, true);
+  process.nextTick(function() {
+    assert.strictEqual(called, true);
     t.end();
-  })
+  });
 });
 
 test('adding readable triggers data flow', function(t) {
-  var r = new R({ highWaterMark: 5 });
-  var onReadable = false;
-  var readCalled = 0;
+  const r = new R({ highWaterMark: 5 });
+  let onReadable = false;
+  let readCalled = 0;
 
   r._read = function(n) {
     if (readCalled++ === 2)
       r.push(null);
     else
-      r.push(new Buffer('asdf'));
+      r.push(Buffer.from('asdf'));
   };
 
-  var called = false;
   r.on('readable', function() {
     onReadable = true;
     r.read();
@@ -475,9 +470,9 @@ test('adding readable triggers data flow', function(t) {
 });
 
 test('chainable', function(t) {
-  var r = new R();
-  r._read = function() {};
-  var r2 = r.setEncoding('utf8').pause().resume().pause();
+  const r = new R();
+  r._read = common.noop;
+  const r2 = r.setEncoding('utf8').pause().resume().pause();
   t.equal(r, r2);
   t.end();
 });

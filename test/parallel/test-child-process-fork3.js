@@ -19,7 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var child_process = require('child_process');
+'use strict';
+const common = require('../common');
+const child_process = require('child_process');
 
 child_process.fork(common.fixturesDir + '/empty.js'); // should not hang

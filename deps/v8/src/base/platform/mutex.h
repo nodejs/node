@@ -5,6 +5,7 @@
 #ifndef V8_BASE_PLATFORM_MUTEX_H_
 #define V8_BASE_PLATFORM_MUTEX_H_
 
+#include "src/base/base-export.h"
 #include "src/base/lazy-instance.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"
@@ -33,7 +34,7 @@ namespace base {
 // |TryLock()|. The behavior of a program is undefined if a mutex is destroyed
 // while still owned by some thread. The Mutex class is non-copyable.
 
-class Mutex FINAL {
+class V8_BASE_EXPORT Mutex final {
  public:
   Mutex();
   ~Mutex();
@@ -127,7 +128,7 @@ typedef LazyStaticInstance<Mutex, DefaultConstructTrait<Mutex>,
 // The behavior of a program is undefined if a recursive mutex is destroyed
 // while still owned by some thread. The RecursiveMutex class is non-copyable.
 
-class RecursiveMutex FINAL {
+class V8_BASE_EXPORT RecursiveMutex final {
  public:
   RecursiveMutex();
   ~RecursiveMutex();
@@ -199,7 +200,7 @@ typedef LazyStaticInstance<RecursiveMutex,
 // The LockGuard class is non-copyable.
 
 template <typename Mutex>
-class LockGuard FINAL {
+class LockGuard final {
  public:
   explicit LockGuard(Mutex* mutex) : mutex_(mutex) { mutex_->Lock(); }
   ~LockGuard() { mutex_->Unlock(); }
@@ -210,6 +211,7 @@ class LockGuard FINAL {
   DISALLOW_COPY_AND_ASSIGN(LockGuard);
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_PLATFORM_MUTEX_H_

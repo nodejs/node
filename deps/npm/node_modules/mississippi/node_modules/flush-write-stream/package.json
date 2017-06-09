@@ -1,0 +1,89 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "flush-write-stream@^1.0.0",
+        "scope": null,
+        "escapedName": "flush-write-stream",
+        "name": "flush-write-stream",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/mississippi"
+    ]
+  ],
+  "_from": "flush-write-stream@>=1.0.0 <2.0.0",
+  "_id": "flush-write-stream@1.0.2",
+  "_inCache": true,
+  "_location": "/mississippi/flush-write-stream",
+  "_nodeVersion": "4.2.6",
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/flush-write-stream-1.0.2.tgz_1476614807882_0.22224654001183808"
+  },
+  "_npmUser": {
+    "name": "mafintosh",
+    "email": "mathiasbuus@gmail.com"
+  },
+  "_npmVersion": "2.14.12",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "flush-write-stream@^1.0.0",
+    "scope": null,
+    "escapedName": "flush-write-stream",
+    "name": "flush-write-stream",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/mississippi"
+  ],
+  "_resolved": "https://registry.npmjs.org/flush-write-stream/-/flush-write-stream-1.0.2.tgz",
+  "_shasum": "c81b90d8746766f1a609a46809946c45dd8ae417",
+  "_shrinkwrap": null,
+  "_spec": "flush-write-stream@^1.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/mississippi",
+  "author": {
+    "name": "Mathias Buus",
+    "url": "@mafintosh"
+  },
+  "bugs": {
+    "url": "https://github.com/mafintosh/flush-write-stream/issues"
+  },
+  "dependencies": {
+    "inherits": "^2.0.1",
+    "readable-stream": "^2.0.4"
+  },
+  "description": "A write stream constructor that supports a flush function that is called before finish is emitted",
+  "devDependencies": {
+    "tape": "^4.2.2"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "c81b90d8746766f1a609a46809946c45dd8ae417",
+    "tarball": "https://registry.npmjs.org/flush-write-stream/-/flush-write-stream-1.0.2.tgz"
+  },
+  "gitHead": "d35a4071dacbcc60fc40d798fa58fc425cba3efc",
+  "homepage": "https://github.com/mafintosh/flush-write-stream",
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "mafintosh",
+      "email": "mathiasbuus@gmail.com"
+    }
+  ],
+  "name": "flush-write-stream",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mafintosh/flush-write-stream.git"
+  },
+  "scripts": {
+    "test": "tape test.js"
+  },
+  "version": "1.0.2"
+}

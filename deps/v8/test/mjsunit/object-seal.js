@@ -25,33 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests the Object.seal and Object.isSealed methods - ES 15.2.3.9 and
-// ES 15.2.3.12
+// Tests the Object.seal and Object.isSealed methods - ES 19.1.2.17 and
+// ES 19.1.2.13
 
-// Flags: --allow-natives-syntax --noalways-opt
+// Flags: --allow-natives-syntax --opt --noalways-opt
 
-// Test that we throw an error if an object is not passed as argument.
-var non_objects = new Array(undefined, null, 1, -1, 0, 42.43);
+// Test that we return obj if non-object is passed as argument
+var non_objects = new Array(undefined, null, 1, -1, 0, 42.43, Symbol("test"));
 for (var key in non_objects) {
-  var exception = false;
-  try {
-    Object.seal(non_objects[key]);
-  } catch(e) {
-    exception = true;
-    assertTrue(/Object.seal called on non-object/.test(e));
-  }
-  assertTrue(exception);
+  assertSame(non_objects[key], Object.seal(non_objects[key]));
 }
 
+// Test that isFrozen always returns true for non-objects
 for (var key in non_objects) {
-  exception = false;
-  try {
-    Object.isSealed(non_objects[key]);
-  } catch(e) {
-    exception = true;
-    assertTrue(/Object.isSealed called on non-object/.test(e));
-  }
-  assertTrue(exception);
+  assertTrue(Object.isSealed(non_objects[key]));
 }
 
 // Test normal data properties.
@@ -267,3 +254,138 @@ assertDoesNotThrow(function() { obj.splice(1,2,1,2); });
 assertDoesNotThrow(function() { obj.splice(1,2000,1,2); });
 assertThrows(function() { obj.splice(0,0,1); }, TypeError);
 assertThrows(function() { obj.splice(1,2000,1,2,3); }, TypeError);
+
+// Test that the enumerable attribute is unperturbed by sealing.
+obj = { x: 42, y: 'foo' };
+Object.defineProperty(obj, 'y', {enumerable: false});
+Object.seal(obj);
+assertTrue(Object.isSealed(obj));
+assertFalse(Object.isFrozen(obj));
+desc = Object.getOwnPropertyDescriptor(obj, 'x');
+assertTrue(desc.enumerable);
+desc = Object.getOwnPropertyDescriptor(obj, 'y');
+assertFalse(desc.enumerable);
+
+// Fast properties should remain fast
+obj = { x: 42, y: 'foo' };
+assertTrue(%HasFastProperties(obj));
+Object.seal(obj);
+assertTrue(Object.isSealed(obj));
+assertFalse(Object.isFrozen(obj));
+assertTrue(%HasFastProperties(obj));
+
+// Sealed objects should share maps where possible
+obj = { prop1: 1, prop2: 2 };
+obj2 = { prop1: 3, prop2: 4 };
+assertTrue(%HaveSameMap(obj, obj2));
+Object.seal(obj);
+Object.seal(obj2);
+assertTrue(Object.isSealed(obj));
+assertTrue(Object.isSealed(obj2));
+assertFalse(Object.isFrozen(obj));
+assertFalse(Object.isFrozen(obj2));
+assertTrue(%HaveSameMap(obj, obj2));
+
+// Sealed objects should share maps even when they have elements
+obj = { prop1: 1, prop2: 2, 75: 'foo' };
+obj2 = { prop1: 3, prop2: 4, 150: 'bar' };
+assertTrue(%HaveSameMap(obj, obj2));
+Object.seal(obj);
+Object.seal(obj2);
+assertTrue(Object.isSealed(obj));
+assertTrue(Object.isSealed(obj2));
+assertFalse(Object.isFrozen(obj));
+assertFalse(Object.isFrozen(obj));
+assertTrue(%HaveSameMap(obj, obj2));
+
+// Setting elements after sealing should not be allowed
+obj = { prop: 'thing' };
+Object.seal(obj);
+assertTrue(Object.isSealed(obj));
+assertFalse(Object.isFrozen(obj));
+obj[0] = 'hello';
+assertFalse(obj.hasOwnProperty(0));
+
+// Sealing an object in dictionary mode should work
+// Also testing that getter/setter properties work after sealing
+obj = { };
+for (var i = 0; i < 100; ++i) {
+  obj['x' + i] = i;
+}
+var accessorDidRun = false;
+Object.defineProperty(obj, 'accessor', {
+  get: function() { return 42 },
+  set: function() { accessorDidRun = true },
+  configurable: true,
+  enumerable: true
+});
+
+assertFalse(%HasFastProperties(obj));
+Object.seal(obj);
+assertFalse(%HasFastProperties(obj));
+assertTrue(Object.isSealed(obj));
+assertFalse(Object.isFrozen(obj));
+assertFalse(Object.isExtensible(obj));
+for (var i = 0; i < 100; ++i) {
+  desc = Object.getOwnPropertyDescriptor(obj, 'x' + i);
+  assertFalse(desc.configurable);
+}
+assertEquals(42, obj.accessor);
+assertFalse(accessorDidRun);
+obj.accessor = 'ignored value';
+assertTrue(accessorDidRun);
+
+// Sealing arguments should work
+var func = function(arg) {
+  Object.seal(arguments);
+  assertTrue(Object.isSealed(arguments));
+};
+func('hello', 'world');
+func('goodbye', 'world');
+
+// Sealing sparse arrays
+var sparseArr = [0, 1];
+sparseArr[10000] = 10000;
+Object.seal(sparseArr);
+assertTrue(Object.isSealed(sparseArr));
+
+// Accessors on fast object should behavior properly after sealing
+obj = {};
+Object.defineProperty(obj, 'accessor', {
+  get: function() { return 42 },
+  set: function() { accessorDidRun = true },
+  configurable: true,
+  enumerable: true
+});
+assertTrue(%HasFastProperties(obj));
+Object.seal(obj);
+assertTrue(Object.isSealed(obj));
+assertTrue(%HasFastProperties(obj));
+assertEquals(42, obj.accessor);
+accessorDidRun = false;
+obj.accessor = 'ignored value';
+assertTrue(accessorDidRun);
+
+// Test for regression in mixed accessor/data property objects.
+// The strict function is one such object.
+assertTrue(Object.isSealed(Object.seal(function(){"use strict";})));
+
+// Also test a simpler case
+obj = {};
+Object.defineProperty(obj, 'accessor2', {
+  get: function() { return 42 },
+  set: function() { accessorDidRun = true },
+  configurable: true,
+  enumerable: true
+});
+obj.data = 'foo';
+assertTrue(%HasFastProperties(obj));
+Object.seal(obj);
+assertTrue(%HasFastProperties(obj));
+assertTrue(Object.isSealed(obj));
+
+function Sealed() {}
+Object.seal(Sealed);
+assertDoesNotThrow(function() { return new Sealed(); });
+Sealed.prototype.prototypeExists = true;
+assertTrue((new Sealed()).prototypeExists);

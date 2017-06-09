@@ -1,0 +1,216 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../gni/isolate.gni")
+import("../gni/v8.gni")
+
+group("gn_all") {
+  testonly = true
+
+  deps = [
+    ":default_tests",
+    "inspector:inspector-test",
+    "mkgrokdump:mkgrokdump",
+  ]
+
+  if (host_os != "mac" || !is_android) {
+    # These items don't compile for Android on Mac.
+    deps += [
+      "cctest:cctest",
+      "cctest:generate-bytecode-expectations",
+      "unittests:unittests",
+    ]
+  }
+
+  if (v8_test_isolation_mode != "noop") {
+    deps += [
+      ":benchmarks_run",
+      ":bot_default_run",
+      ":default_run",
+      ":mozilla_run",
+      "test262:test262_run",
+    ]
+  }
+}
+
+###############################################################################
+# Test groups
+#
+
+group("default_tests") {
+  testonly = true
+
+  if (v8_test_isolation_mode != "noop") {
+    deps = [
+      ":cctest_run",
+      ":fuzzer_run",
+      ":inspector-test_run",
+      ":intl_run",
+      ":message_run",
+      ":mjsunit_run",
+      ":mkgrokdump_run",
+      ":preparser_run",
+      ":unittests_run",
+      ":wasm_spec_tests_run",
+    ]
+  }
+}
+
+v8_isolate_run("bot_default") {
+  deps = [
+    ":default_tests",
+    ":webkit_run",
+  ]
+
+  isolate = "bot_default.isolate"
+}
+
+v8_isolate_run("default") {
+  deps = [
+    ":default_tests",
+  ]
+
+  isolate = "default.isolate"
+}
+
+v8_isolate_run("optimize_for_size") {
+  deps = [
+    ":cctest_run",
+    ":inspector-test_run",
+    ":intl_run",
+    ":mjsunit_run",
+    ":webkit_run",
+  ]
+
+  isolate = "optimize_for_size.isolate"
+}
+
+v8_isolate_run("perf") {
+  deps = [
+    ":cctest_exe_run",
+    "..:d8_run",
+  ]
+
+  isolate = "perf.isolate"
+}
+
+###############################################################################
+# Subtests
+#
+
+v8_isolate_run("benchmarks") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "benchmarks/benchmarks.isolate"
+}
+
+v8_isolate_run("cctest") {
+  deps = [
+    ":cctest_exe_run",
+  ]
+
+  isolate = "cctest/cctest.isolate"
+}
+
+v8_isolate_run("cctest_exe") {
+  deps = [
+    "cctest:cctest",
+  ]
+
+  isolate = "cctest/cctest_exe.isolate"
+}
+
+v8_isolate_run("fuzzer") {
+  deps = [
+    "..:v8_simple_json_fuzzer",
+    "..:v8_simple_parser_fuzzer",
+    "..:v8_simple_regexp_fuzzer",
+    "..:v8_simple_wasm_asmjs_fuzzer",
+    "..:v8_simple_wasm_fuzzer",
+  ]
+
+  isolate = "fuzzer/fuzzer.isolate"
+}
+
+v8_isolate_run("inspector-test") {
+  deps = [
+    "inspector:inspector-test",
+  ]
+
+  isolate = "inspector/inspector.isolate"
+}
+
+v8_isolate_run("intl") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "intl/intl.isolate"
+}
+
+v8_isolate_run("message") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "message/message.isolate"
+}
+
+v8_isolate_run("mjsunit") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "mjsunit/mjsunit.isolate"
+}
+
+v8_isolate_run("mkgrokdump") {
+  deps = [
+    "mkgrokdump:mkgrokdump",
+  ]
+
+  isolate = "mkgrokdump/mkgrokdump.isolate"
+}
+
+v8_isolate_run("mozilla") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "mozilla/mozilla.isolate"
+}
+
+v8_isolate_run("preparser") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "preparser/preparser.isolate"
+}
+
+v8_isolate_run("unittests") {
+  deps = [
+    "unittests:unittests",
+  ]
+
+  isolate = "unittests/unittests.isolate"
+}
+
+v8_isolate_run("wasm_spec_tests") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "wasm-spec-tests/wasm-spec-tests.isolate"
+}
+
+v8_isolate_run("webkit") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "webkit/webkit.isolate"
+}

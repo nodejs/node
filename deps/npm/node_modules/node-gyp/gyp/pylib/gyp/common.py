@@ -4,6 +4,7 @@
 
 from __future__ import with_statement
 
+import collections
 import errno
 import filecmp
 import os.path
@@ -130,13 +131,20 @@ def QualifiedTarget(build_file, target, toolset):
 
 
 @memoize
-def RelativePath(path, relative_to):
+def RelativePath(path, relative_to, follow_path_symlink=True):
   # Assuming both |path| and |relative_to| are relative to the current
   # directory, returns a relative path that identifies path relative to
   # relative_to.
+  # If |follow_symlink_path| is true (default) and |path| is a symlink, then
+  # this method returns a path to the real file represented by |path|. If it is
+  # false, this method returns a path to the symlink. If |path| is not a
+  # symlink, this option has no effect.
 
   # Convert to normalized (and therefore absolute paths).
-  path = os.path.realpath(path)
+  if follow_path_symlink:
+    path = os.path.realpath(path)
+  else:
+    path = os.path.abspath(path)
   relative_to = os.path.realpath(relative_to)
 
   # On Windows, we can't create a relative path to a different drive, so just
@@ -328,7 +336,7 @@ def WriteOnDiff(filename):
     the target if it differs (on close).
   """
 
-  class Writer:
+  class Writer(object):
     """Wrapper around file which only covers the target if it differs."""
     def __init__(self):
       # Pick temporary file.
@@ -417,6 +425,8 @@ def GetFlavor(params):
     return 'freebsd'
   if sys.platform.startswith('openbsd'):
     return 'openbsd'
+  if sys.platform.startswith('netbsd'):
+    return 'netbsd'
   if sys.platform.startswith('aix'):
     return 'aix'
 
@@ -472,6 +482,72 @@ def uniquer(seq, idfun=None):
     return result
 
 
+# Based on http://code.activestate.com/recipes/576694/.
+class OrderedSet(collections.MutableSet):
+  def __init__(self, iterable=None):
+    self.end = end = []
+    end += [None, end, end]         # sentinel node for doubly linked list
+    self.map = {}                   # key --> [key, prev, next]
+    if iterable is not None:
+      self |= iterable
+
+  def __len__(self):
+    return len(self.map)
+
+  def __contains__(self, key):
+    return key in self.map
+
+  def add(self, key):
+    if key not in self.map:
+      end = self.end
+      curr = end[1]
+      curr[2] = end[1] = self.map[key] = [key, curr, end]
+
+  def discard(self, key):
+    if key in self.map:
+      key, prev_item, next_item = self.map.pop(key)
+      prev_item[2] = next_item
+      next_item[1] = prev_item
+
+  def __iter__(self):
+    end = self.end
+    curr = end[2]
+    while curr is not end:
+      yield curr[0]
+      curr = curr[2]
+
+  def __reversed__(self):
+    end = self.end
+    curr = end[1]
+    while curr is not end:
+      yield curr[0]
+      curr = curr[1]
+
+  # The second argument is an addition that causes a pylint warning.
+  def pop(self, last=True):  # pylint: disable=W0221
+    if not self:
+      raise KeyError('set is empty')
+    key = self.end[1][0] if last else self.end[2][0]
+    self.discard(key)
+    return key
+
+  def __repr__(self):
+    if not self:
+      return '%s()' % (self.__class__.__name__,)
+    return '%s(%r)' % (self.__class__.__name__, list(self))
+
+  def __eq__(self, other):
+    if isinstance(other, OrderedSet):
+      return len(self) == len(other) and list(self) == list(other)
+    return set(self) == set(other)
+
+  # Extensions to the recipe.
+  def update(self, iterable):
+    for i in iterable:
+      if i not in self:
+        self.add(i)
+
+
 class CycleError(Exception):
   """An exception raised when an unexpected cycle is detected."""
   def __init__(self, nodes):
@@ -481,7 +557,7 @@ class CycleError(Exception):
 
 
 def TopologicallySorted(graph, get_edges):
-  """Topologically sort based on a user provided edge definition.
+  r"""Topologically sort based on a user provided edge definition.
 
   Args:
     graph: A list of node names.
@@ -519,3 +595,14 @@ def TopologicallySorted(graph, get_edges):
   for node in sorted(graph):
     Visit(node)
   return ordered_nodes
+
+def CrossCompileRequested():
+  # TODO: figure out how to not build extra host objects in the
+  # non-cross-compile case when this is enabled, and enable unconditionally.
+  return (os.environ.get('GYP_CROSSCOMPILE') or
+          os.environ.get('AR_host') or
+          os.environ.get('CC_host') or
+          os.environ.get('CXX_host') or
+          os.environ.get('AR_target') or
+          os.environ.get('CC_target') or
+          os.environ.get('CXX_target'))

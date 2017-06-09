@@ -1,0 +1,16 @@
+# Do not add new suppressions below.
+# TODO(machenbach): Delete this file as soon as it is empty.
+
+# cctest
+leak:v8::internal::Debug::NextAsyncTaskId
+leak:v8::internal::wasm::DecodeWasmModule
+leak:v8::internal::wasm::WasmInterpreter::WasmInterpreter
+leak:v8::internal::WasmDebugInfo::SetBreakpoint
+
+# debugger
+leak:v8_inspector::WasmTranslation::TranslatorImpl::DisassemblingTranslator::AddFakeScript
+leak:v8::internal::compiler::JumpThreading::ApplyForwarding
+
+# mjsunit
+leak:v8::internal::FuncNameInferrer::FuncNameInferrer
+leak:v8::internal::JSArrayBuffer::SetupAllocatingData

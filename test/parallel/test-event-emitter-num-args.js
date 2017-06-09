@@ -19,20 +19,26 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var events = require('events');
+'use strict';
+require('../common');
+const assert = require('assert');
+const events = require('events');
 
-var e = new events.EventEmitter(),
-    num_args_emited = [];
+const e = new events.EventEmitter();
+const num_args_emitted = [];
 
 e.on('numArgs', function() {
-  var numArgs = arguments.length;
-  console.log('numArgs: ' + numArgs);
-  num_args_emited.push(numArgs);
+  const numArgs = arguments.length;
+  num_args_emitted.push(numArgs);
 });
 
-console.log('start');
+e.on('foo', function() {
+  num_args_emitted.push(arguments.length);
+});
+
+e.on('foo', function() {
+  num_args_emitted.push(arguments.length);
+});
 
 e.emit('numArgs');
 e.emit('numArgs', null);
@@ -41,8 +47,8 @@ e.emit('numArgs', null, null, null);
 e.emit('numArgs', null, null, null, null);
 e.emit('numArgs', null, null, null, null, null);
 
+e.emit('foo', null, null, null, null);
+
 process.on('exit', function() {
-  assert.deepEqual([0, 1, 2, 3, 4, 5], num_args_emited);
+  assert.deepStrictEqual([0, 1, 2, 3, 4, 5, 4, 4], num_args_emitted);
 });
-
-

@@ -1,0 +1,85 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "yallist@^2.0.0",
+        "scope": null,
+        "escapedName": "yallist",
+        "name": "yallist",
+        "rawSpec": "^2.0.0",
+        "spec": ">=2.0.0 <3.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa/node_modules/cross-spawn-async/node_modules/lru-cache"
+    ]
+  ],
+  "_from": "yallist@>=2.0.0 <3.0.0",
+  "_id": "yallist@2.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/term-size/execa/cross-spawn-async/lru-cache/yallist",
+  "_nodeVersion": "4.0.0",
+  "_npmUser": {
+    "name": "isaacs",
+    "email": "i@izs.me"
+  },
+  "_npmVersion": "3.3.2",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "yallist@^2.0.0",
+    "scope": null,
+    "escapedName": "yallist",
+    "name": "yallist",
+    "rawSpec": "^2.0.0",
+    "spec": ">=2.0.0 <3.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen/term-size/execa/cross-spawn-async/lru-cache"
+  ],
+  "_resolved": "https://registry.npmjs.org/yallist/-/yallist-2.0.0.tgz",
+  "_shasum": "306c543835f09ee1a4cb23b7bce9ab341c91cdd4",
+  "_shrinkwrap": null,
+  "_spec": "yallist@^2.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa/node_modules/cross-spawn-async/node_modules/lru-cache",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/yallist/issues"
+  },
+  "dependencies": {},
+  "description": "Yet Another Linked List",
+  "devDependencies": {
+    "tap": "^2.3.2"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dist": {
+    "shasum": "306c543835f09ee1a4cb23b7bce9ab341c91cdd4",
+    "tarball": "https://registry.npmjs.org/yallist/-/yallist-2.0.0.tgz"
+  },
+  "gitHead": "702eaba87deefa9f8fc2f8e36cb225bc2141fdc3",
+  "homepage": "https://github.com/isaacs/yallist#readme",
+  "license": "ISC",
+  "main": "yallist.js",
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    }
+  ],
+  "name": "yallist",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isaacs/yallist.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js --cov"
+  },
+  "version": "2.0.0"
+}

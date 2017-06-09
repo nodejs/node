@@ -1,0 +1,119 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "boxen@^1.0.0",
+        "scope": null,
+        "escapedName": "boxen",
+        "name": "boxen",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier"
+    ]
+  ],
+  "_from": "boxen@>=1.0.0 <2.0.0",
+  "_id": "boxen@1.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen",
+  "_nodeVersion": "4.6.2",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/boxen-1.0.0.tgz_1484299763976_0.962533789454028"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.11",
+  "_phantomChildren": {
+    "strip-ansi": "3.0.1",
+    "which": "1.2.12"
+  },
+  "_requested": {
+    "raw": "boxen@^1.0.0",
+    "scope": null,
+    "escapedName": "boxen",
+    "name": "boxen",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier"
+  ],
+  "_resolved": "https://registry.npmjs.org/boxen/-/boxen-1.0.0.tgz",
+  "_shasum": "b2694baf1f605f708ff0177c12193b22f29aaaab",
+  "_shrinkwrap": null,
+  "_spec": "boxen@^1.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/boxen/issues"
+  },
+  "dependencies": {
+    "ansi-align": "^1.1.0",
+    "camelcase": "^4.0.0",
+    "chalk": "^1.1.1",
+    "cli-boxes": "^1.0.0",
+    "string-width": "^2.0.0",
+    "term-size": "^0.1.0",
+    "widest-line": "^1.0.0"
+  },
+  "description": "Create boxes in the terminal",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "b2694baf1f605f708ff0177c12193b22f29aaaab",
+    "tarball": "https://registry.npmjs.org/boxen/-/boxen-1.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "e73c06d7eea87df51c0d3cd9ec0c574586606d7a",
+  "homepage": "https://github.com/sindresorhus/boxen#readme",
+  "keywords": [
+    "cli",
+    "box",
+    "boxes",
+    "terminal",
+    "term",
+    "console",
+    "ascii",
+    "unicode",
+    "border",
+    "text"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "boxen",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/boxen.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.0.0",
+  "xo": {
+    "esnext": true
+  }
+}

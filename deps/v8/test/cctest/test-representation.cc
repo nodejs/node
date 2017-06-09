@@ -28,7 +28,6 @@
 #include "test/cctest/cctest.h"
 
 #include "src/property-details.h"
-#include "src/types.h"
 
 using namespace v8::internal;
 

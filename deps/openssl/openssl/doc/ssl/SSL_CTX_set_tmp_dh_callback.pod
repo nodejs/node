@@ -48,25 +48,8 @@ even if he gets hold of the normal (certified) key, as this key was
 only used for signing.
 
 In order to perform a DH key exchange the server must use a DH group
-(DH parameters) and generate a DH key.
-The server will always generate a new DH key during the negotiation
-if either the DH parameters are supplied via callback or the
-SSL_OP_SINGLE_DH_USE option of SSL_CTX_set_options(3) is set (or both).
-It will  immediately create a DH key if DH parameters are supplied via
-SSL_CTX_set_tmp_dh() and SSL_OP_SINGLE_DH_USE is not set.
-In this case,
-it may happen that a key is generated on initialization without later
-being needed, while on the other hand the computer time during the
-negotiation is being saved.
-
-If "strong" primes were used to generate the DH parameters, it is not strictly
-necessary to generate a new key for each handshake but it does improve forward
-secrecy. If it is not assured, that "strong" primes were used (see especially
-the section about DSA parameters below), SSL_OP_SINGLE_DH_USE must be used
-in order to prevent small subgroup attacks. Always using SSL_OP_SINGLE_DH_USE
-has an impact on the computer time needed during negotiation, but it is not
-very large, so application authors/users should consider to always enable
-this option.
+(DH parameters) and generate a DH key. The server will always generate
+a new DH key during the negotiation.
 
 As generating DH parameters is extremely time consuming, an application
 should not generate the parameters on the fly but supply the parameters.
@@ -74,82 +57,60 @@ DH parameters can be reused, as the actual key is newly generated during
 the negotiation. The risk in reusing DH parameters is that an attacker
 may specialize on a very often used DH group. Applications should therefore
 generate their own DH parameters during the installation process using the
-openssl L<dhparam(1)|dhparam(1)> application. In order to reduce the computer
-time needed for this generation, it is possible to use DSA parameters
-instead (see L<dhparam(1)|dhparam(1)>), but in this case SSL_OP_SINGLE_DH_USE
-is mandatory.
+openssl L<dhparam(1)|dhparam(1)> application. This application
+guarantees that "strong" primes are used.
 
-Application authors may compile in DH parameters. Files dh512.pem,
-dh1024.pem, dh2048.pem, and dh4096.pem in the 'apps' directory of current
+Files dh2048.pem, and dh4096.pem in the 'apps' directory of the current
 version of the OpenSSL distribution contain the 'SKIP' DH parameters,
 which use safe primes and were generated verifiably pseudo-randomly.
 These files can be converted into C code using the B<-C> option of the
-L<dhparam(1)|dhparam(1)> application.
-Authors may also generate their own set of parameters using
-L<dhparam(1)|dhparam(1)>, but a user may not be sure how the parameters were
-generated. The generation of DH parameters during installation is therefore
-recommended.
+L<dhparam(1)|dhparam(1)> application. Generation of custom DH
+parameters during installation should still be preferred to stop an
+attacker from specializing on a commonly used group. Files dh1024.pem
+and dh512.pem contain old parameters that must not be used by
+applications.
 
 An application may either directly specify the DH parameters or
-can supply the DH parameters via a callback function. The callback approach
-has the advantage, that the callback may supply DH parameters for different
-key lengths.
+can supply the DH parameters via a callback function.
 
-The B<tmp_dh_callback> is called with the B<keylength> needed and
-the B<is_export> information. The B<is_export> flag is set, when the
-ephemeral DH key exchange is performed with an export cipher.
+Previous versions of the callback used B<is_export> and B<keylength>
+parameters to control parameter generation for export and non-export
+cipher suites. Modern servers that do not support export ciphersuites
+are advised to either use SSL_CTX_set_tmp_dh() or alternatively, use
+the callback but ignore B<keylength> and B<is_export> and simply
+supply at least 2048-bit parameters in the callback.
 
 =head1 EXAMPLES
 
-Handle DH parameters for key lengths of 512 and 1024 bits. (Error handling
+Setup DH parameters with a key length of 2048 bits. (Error handling
 partly left out.)
 
+ Command-line parameter generation:
+ $ openssl dhparam -out dh_param_2048.pem 2048
+
+ Code for setting up parameters during server initialization:
+
  ...
- /* Set up ephemeral DH stuff */
- DH *dh_512 = NULL;
- DH *dh_1024 = NULL;
+ SSL_CTX ctx = SSL_CTX_new();
+ ...
+
+ /* Set up ephemeral DH parameters. */
+ DH *dh_2048 = NULL;
  FILE *paramfile;
-
- ...
- /* "openssl dhparam -out dh_param_512.pem -2 512" */
- paramfile = fopen("dh_param_512.pem", "r");
+ paramfile = fopen("dh_param_2048.pem", "r");
  if (paramfile) {
-   dh_512 = PEM_read_DHparams(paramfile, NULL, NULL, NULL);
+   dh_2048 = PEM_read_DHparams(paramfile, NULL, NULL, NULL);
    fclose(paramfile);
+ } else {
+   /* Error. */
  }
- /* "openssl dhparam -out dh_param_1024.pem -2 1024" */
- paramfile = fopen("dh_param_1024.pem", "r");
- if (paramfile) {
-   dh_1024 = PEM_read_DHparams(paramfile, NULL, NULL, NULL);
-   fclose(paramfile);
+ if (dh_2048 == NULL) {
+  /* Error. */
+ }
+ if (SSL_CTX_set_tmp_dh(ctx, dh_2048) != 1) {
+   /* Error. */
  }
  ...
-
- /* "openssl dhparam -C -2 512" etc... */
- DH *get_dh512() { ... }
- DH *get_dh1024() { ... }
-
- DH *tmp_dh_callback(SSL *s, int is_export, int keylength)
- {
-    DH *dh_tmp=NULL;
-
-    switch (keylength) {
-    case 512:
-      if (!dh_512)
-        dh_512 = get_dh512();
-      dh_tmp = dh_512;
-      break;
-    case 1024:
-      if (!dh_1024)
-        dh_1024 = get_dh1024();
-      dh_tmp = dh_1024;
-      break;
-    default:
-      /* Generating a key on the fly is very costly, so use what is there */
-      setup_dh_parameters_like_above();
-    }
-    return(dh_tmp);
- }
 
 =head1 RETURN VALUES
 

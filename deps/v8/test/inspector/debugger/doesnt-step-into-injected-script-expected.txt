@@ -1,0 +1,17 @@
+Check that stepInto at then end of the script go to next user script instead InjectedScriptSource.js.
+paused at:
+(function boo() { setTimeout(() => 239, 0); #debugger; })()
+
+
+paused at:
+(function boo() { setTimeout(() => 239, 0); debugger; #})()
+
+
+paused at:
+(function boo() { setTimeout(() => 239, 0); debugger; })()#
+
+
+paused at:
+(function boo() { setTimeout(() => #239, 0); debugger; })()
+
+

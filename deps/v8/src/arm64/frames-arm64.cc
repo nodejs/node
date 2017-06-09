@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/arm64/frames-arm64.h"
 
 #if V8_TARGET_ARCH_ARM64
 
@@ -31,12 +31,7 @@ Register StubFailureTrampolineFrame::constant_pool_pointer_register() {
 }
 
 
-Object*& ExitFrame::constant_pool_slot() const {
-  UNREACHABLE();
-  return Memory::Object_at(NULL);
-}
-
-
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM64

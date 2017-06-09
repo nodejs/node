@@ -19,20 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
-var Stream = require('stream');
+const Stream = require('stream');
 
 function getSrc() {
   // An old-style readable stream.
   // The Readable class prevents this behavior.
-  var src = new Stream();
+  const src = new Stream();
 
   // start out paused, just so we don't miss anything yet.
-  var paused = false;
+  let paused = false;
   src.pause = function() {
     paused = true;
   };
@@ -40,12 +41,12 @@ function getSrc() {
     paused = false;
   };
 
-  var chunks = [ '', 'asdf', '', 'foo', '', 'bar', '' ];
-  var interval = setInterval(function() {
+  const chunks = [ '', 'asdf', '', 'foo', '', 'bar', '' ];
+  const interval = setInterval(function() {
     if (paused)
-      return
+      return;
 
-    var chunk = chunks.shift();
+    const chunk = chunks.shift();
     if (chunk !== undefined) {
       src.emit('data', chunk);
     } else {
@@ -58,31 +59,31 @@ function getSrc() {
 }
 
 
-var expect = 'asdffoobar';
+const expect = 'asdffoobar';
 
-var server = http.createServer(function(req, res) {
-  var actual = '';
+const server = http.createServer(function(req, res) {
+  let actual = '';
   req.setEncoding('utf8');
   req.on('data', function(c) {
     actual += c;
   });
   req.on('end', function() {
-    assert.equal(actual, expect);
+    assert.strictEqual(actual, expect);
     getSrc().pipe(res);
   });
   server.close();
 });
 
-server.listen(common.PORT, function() {
-  var req = http.request({ port: common.PORT, method: 'POST' });
-  var actual = '';
+server.listen(0, function() {
+  const req = http.request({ port: this.address().port, method: 'POST' });
+  let actual = '';
   req.on('response', function(res) {
     res.setEncoding('utf8');
     res.on('data', function(c) {
       actual += c;
     });
     res.on('end', function() {
-      assert.equal(actual, expect);
+      assert.strictEqual(actual, expect);
     });
   });
   getSrc().pipe(req);

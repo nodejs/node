@@ -108,7 +108,7 @@ SSL BIOs are exceptional in that if the underlying transport
 is non blocking they can still request a retry in exceptional
 circumstances. Specifically this will happen if a session
 renegotiation takes place during a BIO_read() operation, one
-case where this happens is when SGC or step up occurs.
+case where this happens is when step up occurs.
 
 In OpenSSL 0.9.6 and later the SSL flag SSL_AUTO_RETRY can be
 set to disable this behaviour. That is when this flag is set

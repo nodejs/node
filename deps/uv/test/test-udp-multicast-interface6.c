@@ -60,6 +60,9 @@ TEST_IMPL(udp_multicast_interface6) {
   struct sockaddr_in6 addr;
   struct sockaddr_in6 baddr;
 
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   ASSERT(0 == uv_ip6_addr("::1", TEST_PORT, &addr));
 
   r = uv_udp_init(uv_default_loop(), &server);
@@ -69,7 +72,7 @@ TEST_IMPL(udp_multicast_interface6) {
   r = uv_udp_bind(&server, (const struct sockaddr*)&baddr, 0);
   ASSERT(r == 0);
 
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
   r = uv_udp_set_multicast_interface(&server, "::1%lo0");
 #else
   r = uv_udp_set_multicast_interface(&server, NULL);

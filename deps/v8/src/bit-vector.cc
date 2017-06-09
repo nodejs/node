@@ -5,7 +5,7 @@
 #include "src/bit-vector.h"
 
 #include "src/base/bits.h"
-#include "src/scopes.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +21,7 @@ void BitVector::Print() {
       PrintF("%d", i);
     }
   }
-  PrintF("}");
+  PrintF("}\n");
 }
 #endif
 

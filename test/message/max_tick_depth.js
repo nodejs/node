@@ -19,10 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
+'use strict';
+require('../common');
 
 process.maxTickDepth = 10;
-var i = 20;
+let i = 20;
 process.nextTick(function f() {
   console.error('tick %d', i);
   if (i-- > 0)

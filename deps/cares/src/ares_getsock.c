@@ -30,9 +30,7 @@ int ares_getsock(ares_channel channel,
   /* Are there any active queries? */
   int active_queries = !ares__is_list_empty(&(channel->all_queries));
 
-  for (i = 0;
-       (i < channel->nservers) && (sockindex < ARES_GETSOCK_MAXNUM);
-       i++)
+  for (i = 0; i < channel->nservers; i++)
     {
       server = &channel->servers[i];
       /* We only need to register interest in UDP sockets if we have
@@ -40,7 +38,7 @@ int ares_getsock(ares_channel channel,
        */
       if (active_queries && server->udp_socket != ARES_SOCKET_BAD)
         {
-          if(sockindex >= numsocks)
+          if(sockindex >= numsocks || sockindex >= ARES_GETSOCK_MAXNUM)
             break;
           socks[sockindex] = server->udp_socket;
           bitmap |= ARES_GETSOCK_READABLE(setbits, sockindex);
@@ -52,7 +50,7 @@ int ares_getsock(ares_channel channel,
        */
       if (server->tcp_socket != ARES_SOCKET_BAD)
        {
-         if(sockindex >= numsocks)
+         if(sockindex >= numsocks || sockindex >= ARES_GETSOCK_MAXNUM)
            break;
          socks[sockindex] = server->tcp_socket;
          bitmap |= ARES_GETSOCK_READABLE(setbits, sockindex);

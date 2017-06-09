@@ -7,8 +7,8 @@
 
 #include "src/allocation.h"
 #include "src/base/platform/platform.h"
+#include "src/base/timezone-cache.h"
 #include "src/globals.h"
-
 
 namespace v8 {
 namespace internal {
@@ -18,6 +18,7 @@ class DateCache {
   static const int kMsPerMin = 60 * 1000;
   static const int kSecPerDay = 24 * 60 * 60;
   static const int64_t kMsPerDay = kSecPerDay * 1000;
+  static const int64_t kMsPerMonth = kMsPerDay * 30;
 
   // The largest time that can be passed to OS date-time library functions.
   static const int kMaxEpochTimeInSec = kMaxInt;
@@ -30,8 +31,7 @@ class DateCache {
 
   // Conservative upper bound on time that can be stored in JSDate
   // before UTC conversion.
-  static const int64_t kMaxTimeBeforeUTCInMs =
-      kMaxTimeInMs + 10 * kMsPerDay;
+  static const int64_t kMaxTimeBeforeUTCInMs = kMaxTimeInMs + kMsPerMonth;
 
   // Sentinel that denotes an invalid local offset.
   static const int kInvalidLocalOffsetInMs = kMaxInt;
@@ -39,12 +39,10 @@ class DateCache {
   // It is an invariant of DateCache that cache stamp is non-negative.
   static const int kInvalidStamp = -1;
 
-  DateCache() : stamp_(0), tz_cache_(base::OS::CreateTimezoneCache()) {
-    ResetDateCache();
-  }
+  DateCache();
 
   virtual ~DateCache() {
-    base::OS::DisposeTimezoneCache(tz_cache_);
+    delete tz_cache_;
     tz_cache_ = NULL;
   }
 
@@ -93,7 +91,12 @@ class DateCache {
     if (time_ms < 0 || time_ms > kMaxEpochTimeInMs) {
       time_ms = EquivalentTime(time_ms);
     }
-    return base::OS::LocalTimezone(static_cast<double>(time_ms), tz_cache_);
+    bool is_dst = DaylightSavingsOffsetInMs(time_ms) != 0;
+    const char** name = is_dst ? &dst_tz_name_ : &tz_name_;
+    if (*name == nullptr) {
+      *name = tz_cache_->LocalTimezone(static_cast<double>(time_ms));
+    }
+    return *name;
   }
 
   // ECMA 262 - 15.9.5.26
@@ -190,6 +193,10 @@ class DateCache {
   // the first day of the given month in the given year.
   int DaysFromYearMonth(int year, int month);
 
+  // Breaks down the time value.
+  void BreakDownTime(int64_t time_ms, int* year, int* month, int* day,
+                     int* weekday, int* hour, int* min, int* sec, int* ms);
+
   // Cache stamp is used for invalidating caches in JSDate.
   // We increment the stamp each time when the timezone information changes.
   // JSDate objects perform stamp check and invalidate their caches if
@@ -200,12 +207,11 @@ class DateCache {
   // These functions are virtual so that we can override them when testing.
   virtual int GetDaylightSavingsOffsetFromOS(int64_t time_sec) {
     double time_ms = static_cast<double>(time_sec * 1000);
-    return static_cast<int>(
-        base::OS::DaylightSavingsOffset(time_ms, tz_cache_));
+    return static_cast<int>(tz_cache_->DaylightSavingsOffset(time_ms));
   }
 
   virtual int GetLocalOffsetFromOS() {
-    double offset = base::OS::LocalTimeOffset(tz_cache_);
+    double offset = tz_cache_->LocalTimeOffset();
     DCHECK(offset < kInvalidLocalOffsetInMs);
     return static_cast<int>(offset);
   }
@@ -273,9 +279,14 @@ class DateCache {
   int ymd_month_;
   int ymd_day_;
 
+  // Timezone name cache
+  const char* tz_name_;
+  const char* dst_tz_name_;
+
   base::TimezoneCache* tz_cache_;
 };
 
-} }   // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif

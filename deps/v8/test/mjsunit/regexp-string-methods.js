@@ -41,11 +41,3 @@ assertEquals("g", "foo".charAt(0));
 var f2 = new RegExp("[g]", "i");
 assertEquals(["G"], f2.exec("G"));
 assertTrue(f2.ignoreCase);
-
-// On the other hand test is defined in a semi-coherent way as a call to exec.
-// 15.10.6.3
-// We match other browsers in using the original value of RegExp.prototype.exec.
-// I.e., RegExp.prototype.test shouldn't use the current value of
-// RegExp.prototype.exec.
-RegExp.prototype.exec = function(string) { return 'x'; };
-assertFalse(/f/.test('x'));

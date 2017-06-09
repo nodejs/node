@@ -19,19 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
 
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
 
-var path = require('path');
+const spawn = require('child_process').spawn;
 
-var sub = path.join(common.fixturesDir, 'echo.js');
+const path = require('path');
 
-var gotHelloWorld = false;
-var gotEcho = false;
+const sub = path.join(common.fixturesDir, 'echo.js');
 
-var child = spawn(process.argv[0], [sub]);
+let gotHelloWorld = false;
+let gotEcho = false;
+
+const child = spawn(process.argv[0], [sub]);
 
 child.stderr.on('data', function(data) {
   console.log('parent stderr: ' + data);
@@ -43,13 +45,13 @@ child.stdout.on('data', function(data) {
   console.log('child said: ' + JSON.stringify(data));
   if (!gotHelloWorld) {
     console.error('testing for hello world');
-    assert.equal('hello world\r\n', data);
+    assert.strictEqual('hello world\r\n', data);
     gotHelloWorld = true;
     console.error('writing echo me');
     child.stdin.write('echo me\r\n');
   } else {
     console.error('testing for echo me');
-    assert.equal('echo me\r\n', data);
+    assert.strictEqual('echo me\r\n', data);
     gotEcho = true;
     child.stdin.end();
   }

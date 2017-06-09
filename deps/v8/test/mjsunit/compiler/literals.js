@@ -38,8 +38,8 @@ assertEquals(8, eval("6;'abc';8"));
 // "/" comes just before "0".
 assertThrows('"\\x1/"');
 assertThrows('"\\u111/"');
-assertEquals("\\x1/", RegExp("\\x1/").source);
-assertEquals("\\u111/", RegExp("\\u111/").source);
+assertEquals("\\x1\\/", RegExp("\\x1/").source);
+assertEquals("\\u111\\/", RegExp("\\u111/").source);
 
 // ":" comes just after "9".
 assertThrows('"\\x1:"');
@@ -70,6 +70,10 @@ assertThrows('"\\x1G"');
 assertThrows('"\\u111G"');
 assertEquals("\\x1G", /\x1G/.source);
 assertEquals("\\u111G", /\u111G/.source);
+
+// Test that octal literals continue to be forbidden in template even
+// when followed by a string containing an octal literal.
+assertThrows('`\\1`\n"\\1"');
 
 // Test some materialized array literals.
 assertEquals([1,2,3,4], eval('[1,2,3,4]'));

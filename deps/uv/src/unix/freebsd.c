@@ -58,7 +58,7 @@
 static char *process_title;
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   return uv__kqueue_init(loop);
 }
 
@@ -74,33 +74,60 @@ uint64_t uv__hrtime(uv_clocktype_t type) {
 }
 
 
+#ifdef __DragonFly__
 int uv_exepath(char* buffer, size_t* size) {
-  int mib[4];
-  size_t cb;
+  char abspath[PATH_MAX * 2 + 1];
+  ssize_t abspath_size;
 
-  if (buffer == NULL || size == NULL)
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
-#ifdef __DragonFly__
-  mib[0] = CTL_KERN;
-  mib[1] = KERN_PROC;
-  mib[2] = KERN_PROC_ARGS;
-  mib[3] = getpid();
+  abspath_size = readlink("/proc/curproc/file", abspath, sizeof(abspath));
+  if (abspath_size < 0)
+    return -errno;
+
+  assert(abspath_size > 0);
+  *size -= 1;
+
+  if (*size > abspath_size)
+    *size = abspath_size;
+
+  memcpy(buffer, abspath, *size);
+  buffer[*size] = '\0';
+
+  return 0;
+}
 #else
+int uv_exepath(char* buffer, size_t* size) {
+  char abspath[PATH_MAX * 2 + 1];
+  int mib[4];
+  size_t abspath_size;
+
+  if (buffer == NULL || size == NULL || *size == 0)
+    return -EINVAL;
+
   mib[0] = CTL_KERN;
   mib[1] = KERN_PROC;
   mib[2] = KERN_PROC_PATHNAME;
   mib[3] = -1;
-#endif
 
-  cb = *size;
-  if (sysctl(mib, 4, buffer, &cb, NULL, 0))
+  abspath_size = sizeof abspath;
+  if (sysctl(mib, 4, abspath, &abspath_size, NULL, 0))
     return -errno;
-  *size = strlen(buffer);
+
+  assert(abspath_size > 0);
+  abspath_size -= 1;
+  *size -= 1;
+
+  if (*size > abspath_size)
+    *size = abspath_size;
+
+  memcpy(buffer, abspath, *size);
+  buffer[*size] = '\0';
 
   return 0;
 }
-
+#endif
 
 uint64_t uv_get_free_memory(void) {
   int freecount;
@@ -141,7 +168,7 @@ void uv_loadavg(double avg[3]) {
 
 
 char** uv_setup_args(int argc, char** argv) {
-  process_title = argc ? strdup(argv[0]) : NULL;
+  process_title = argc ? uv__strdup(argv[0]) : NULL;
   return argv;
 }
 
@@ -149,8 +176,8 @@ char** uv_setup_args(int argc, char** argv) {
 int uv_set_process_title(const char* title) {
   int oid[4];
 
-  if (process_title) free(process_title);
-  process_title = strdup(title);
+  uv__free(process_title);
+  process_title = uv__strdup(title);
 
   oid[0] = CTL_KERN;
   oid[1] = KERN_PROC;
@@ -169,13 +196,23 @@ int uv_set_process_title(const char* title) {
 
 
 int uv_get_process_title(char* buffer, size_t size) {
+  size_t len;
+
+  if (buffer == NULL || size == 0)
+    return -EINVAL;
+
   if (process_title) {
-    strncpy(buffer, process_title, size);
+    len = strlen(process_title) + 1;
+
+    if (size < len)
+      return -ENOBUFS;
+
+    memcpy(buffer, process_title, len);
   } else {
-    if (size > 0) {
-      buffer[0] = '\0';
-    }
+    len = 0;
   }
+
+  buffer[len] = '\0';
 
   return 0;
 }
@@ -213,17 +250,13 @@ error:
 
 
 int uv_uptime(double* uptime) {
-  time_t now;
-  struct timeval info;
-  size_t size = sizeof(info);
-  static int which[] = {CTL_KERN, KERN_BOOTTIME};
-
-  if (sysctl(which, 2, &info, &size, NULL, 0))
+  int r;
+  struct timespec sp;
+  r = clock_gettime(CLOCK_MONOTONIC, &sp);
+  if (r)
     return -errno;
 
-  now = time(NULL);
-
-  *uptime = (double)(now - info.tv_sec);
+  *uptime = sp.tv_sec;
   return 0;
 }
 
@@ -261,7 +294,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   if (sysctlbyname("hw.ncpu", &numcpus, &size, NULL, 0))
     return -errno;
 
-  *cpu_infos = malloc(numcpus * sizeof(**cpu_infos));
+  *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
   if (!(*cpu_infos))
     return -ENOMEM;
 
@@ -269,7 +302,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   size = sizeof(cpuspeed);
   if (sysctlbyname("hw.clockrate", &cpuspeed, &size, NULL, 0)) {
-    SAVE_ERRNO(free(*cpu_infos));
+    uv__free(*cpu_infos);
     return -errno;
   }
 
@@ -278,21 +311,21 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
    */
   size = sizeof(maxcpus);
   if (sysctlbyname(maxcpus_key, &maxcpus, &size, NULL, 0)) {
-    SAVE_ERRNO(free(*cpu_infos));
+    uv__free(*cpu_infos);
     return -errno;
   }
 
   size = maxcpus * CPUSTATES * sizeof(long);
 
-  cp_times = malloc(size);
+  cp_times = uv__malloc(size);
   if (cp_times == NULL) {
-    free(*cpu_infos);
+    uv__free(*cpu_infos);
     return -ENOMEM;
   }
 
   if (sysctlbyname(cptimes_key, cp_times, &size, NULL, 0)) {
-    SAVE_ERRNO(free(cp_times));
-    SAVE_ERRNO(free(*cpu_infos));
+    uv__free(cp_times);
+    uv__free(*cpu_infos);
     return -errno;
   }
 
@@ -305,13 +338,13 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cpu_info->cpu_times.idle = (uint64_t)(cp_times[CP_IDLE+cur]) * multiplier;
     cpu_info->cpu_times.irq = (uint64_t)(cp_times[CP_INTR+cur]) * multiplier;
 
-    cpu_info->model = strdup(model);
+    cpu_info->model = uv__strdup(model);
     cpu_info->speed = cpuspeed;
 
     cur+=CPUSTATES;
   }
 
-  free(cp_times);
+  uv__free(cp_times);
   return 0;
 }
 
@@ -320,10 +353,10 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   int i;
 
   for (i = 0; i < count; i++) {
-    free(cpu_infos[i].model);
+    uv__free(cpu_infos[i].model);
   }
 
-  free(cpu_infos);
+  uv__free(cpu_infos);
 }
 
 
@@ -349,9 +382,11 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     (*count)++;
   }
 
-  *addresses = malloc(*count * sizeof(**addresses));
-  if (!(*addresses))
+  *addresses = uv__malloc(*count * sizeof(**addresses));
+  if (!(*addresses)) {
+    freeifaddrs(addrs);
     return -ENOMEM;
+  }
 
   address = *addresses;
 
@@ -369,7 +404,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     if (ent->ifa_addr->sa_family == AF_LINK)
       continue;
 
-    address->name = strdup(ent->ifa_name);
+    address->name = uv__strdup(ent->ifa_name);
 
     if (ent->ifa_addr->sa_family == AF_INET6) {
       address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
@@ -418,8 +453,8 @@ void uv_free_interface_addresses(uv_interface_address_t* addresses,
   int i;
 
   for (i = 0; i < count; i++) {
-    free(addresses[i].name);
+    uv__free(addresses[i].name);
   }
 
-  free(addresses);
+  uv__free(addresses);
 }

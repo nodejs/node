@@ -221,7 +221,7 @@ class Server(daemon.Daemon):
     if not self.IsTrusted(signer):
       return
     if self.IsTrusted(fingerprint):
-      return  # Already trust this guy.
+      return  # Already trusted.
     filename = self._PubkeyFilename(fingerprint)
     signer_pubkeyfile = self._PubkeyFilename(signer)
     if not signatures.VerifySignature(filename, pubkey, signature,

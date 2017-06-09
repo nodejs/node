@@ -19,40 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
-
+'use strict';
+const common = require('../common');
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var common = require('../common');
-var assert = require('assert');
-var https = require('https');
-var fs = require('fs');
+const assert = require('assert');
 
-var seen_req = false;
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+const https = require('https');
 
-var options = {
+const fs = require('fs');
+const url = require('url');
+const URL = url.URL;
+
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = https.createServer(options, function(req, res) {
-  assert.equal('GET', req.method);
-  assert.equal('/foo?bar', req.url);
+const server = https.createServer(options, common.mustCall(function(req, res) {
+  assert.strictEqual('GET', req.method);
+  assert.strictEqual('/foo?bar', req.url);
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.write('hello\n');
   res.end();
   server.close();
-  seen_req = true;
-});
+}, 3));
 
-server.listen(common.PORT, function() {
-  https.get('https://127.0.0.1:' + common.PORT + '/foo?bar');
-});
-
-process.on('exit', function() {
-  assert(seen_req);
+server.listen(0, function() {
+  const u = `https://127.0.0.1:${this.address().port}/foo?bar`;
+  https.get(u);
+  https.get(url.parse(u));
+  https.get(new URL(u));
 });

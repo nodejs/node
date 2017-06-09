@@ -2,7 +2,13 @@
 
 =head1 NAME
 
-EVP_PKEY_ctrl, EVP_PKEY_ctrl_str - algorithm specific control operations
+EVP_PKEY_CTX_ctrl, EVP_PKEY_CTX_ctrl_str, EVP_PKEY_get_default_digest_nid,
+EVP_PKEY_CTX_set_signature_md, EVP_PKEY_CTX_set_rsa_padding,
+EVP_PKEY_CTX_set_rsa_pss_saltlen, EVP_PKEY_CTX_set_rsa_rsa_keygen_bits,
+EVP_PKEY_CTX_set_rsa_keygen_pubexp, EVP_PKEY_CTX_set_dsa_paramgen_bits,
+EVP_PKEY_CTX_set_dh_paramgen_prime_len,
+EVP_PKEY_CTX_set_dh_paramgen_generator,
+EVP_PKEY_CTX_set_ec_paramgen_curve_nid - algorithm specific control operations
 
 =head1 SYNOPSIS
 
@@ -45,7 +51,7 @@ B<p1> and B<p2>.
 Applications will not normally call EVP_PKEY_CTX_ctrl() directly but will
 instead call one of the algorithm specific macros below.
 
-The function EVP_PKEY_ctrl_str() allows an application to send an algorithm
+The function EVP_PKEY_CTX_ctrl_str() allows an application to send an algorithm
 specific control operation to a context B<ctx> in string form. This is
 intended to be used for options specified on the command line or in text
 files. The commands supported are documented in the openssl utility

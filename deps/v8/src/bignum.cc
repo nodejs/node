@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/bignum.h"
 #include "src/utils.h"
 
@@ -70,7 +68,9 @@ static uint64_t ReadUInt64(Vector<const char> buffer,
                            int from,
                            int digits_to_read) {
   uint64_t result = 0;
-  for (int i = from; i < from + digits_to_read; ++i) {
+  int to = from + digits_to_read;
+
+  for (int i = from; i < to; ++i) {
     int digit = buffer[i] - '0';
     DCHECK(0 <= digit && digit <= 9);
     result = result * 10 + digit;
@@ -539,13 +539,6 @@ static int SizeInHexChars(S number) {
 }
 
 
-static char HexCharOfValue(int value) {
-  DCHECK(0 <= value && value <= 16);
-  if (value < 10) return value + '0';
-  return value - 10 + 'A';
-}
-
-
 bool Bignum::ToHexString(char* buffer, int buffer_size) const {
   DCHECK(IsClamped());
   // Each bigit must be printable as separate hex-character.
@@ -750,4 +743,5 @@ void Bignum::SubtractTimes(const Bignum& other, int factor) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

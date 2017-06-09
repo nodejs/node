@@ -1,0 +1,111 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "path-is-absolute@^1.0.0",
+        "scope": null,
+        "escapedName": "path-is-absolute",
+        "name": "path-is-absolute",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/glob"
+    ]
+  ],
+  "_from": "path-is-absolute@>=1.0.0 <2.0.0",
+  "_id": "path-is-absolute@1.0.1",
+  "_inCache": true,
+  "_location": "/glob/path-is-absolute",
+  "_nodeVersion": "6.6.0",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/path-is-absolute-1.0.1.tgz_1475210523565_0.9876507974695414"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "3.10.3",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "path-is-absolute@^1.0.0",
+    "scope": null,
+    "escapedName": "path-is-absolute",
+    "name": "path-is-absolute",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/glob"
+  ],
+  "_resolved": "https://registry.npmjs.org/path-is-absolute/-/path-is-absolute-1.0.1.tgz",
+  "_shasum": "174b9268735534ffbc7ace6bf53a5a9e1b5c5f5f",
+  "_shrinkwrap": null,
+  "_spec": "path-is-absolute@^1.0.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/glob",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/path-is-absolute/issues"
+  },
+  "dependencies": {},
+  "description": "Node.js 0.12 path.isAbsolute() ponyfill",
+  "devDependencies": {
+    "xo": "^0.16.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "174b9268735534ffbc7ace6bf53a5a9e1b5c5f5f",
+    "tarball": "https://registry.npmjs.org/path-is-absolute/-/path-is-absolute-1.0.1.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "edc91d348b21dac2ab65ea2fbec2868e2eff5eb6",
+  "homepage": "https://github.com/sindresorhus/path-is-absolute#readme",
+  "keywords": [
+    "path",
+    "paths",
+    "file",
+    "dir",
+    "absolute",
+    "isabsolute",
+    "is-absolute",
+    "built-in",
+    "util",
+    "utils",
+    "core",
+    "ponyfill",
+    "polyfill",
+    "shim",
+    "is",
+    "detect",
+    "check"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "path-is-absolute",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/path-is-absolute.git"
+  },
+  "scripts": {
+    "test": "xo && node test.js"
+  },
+  "version": "1.0.1"
+}

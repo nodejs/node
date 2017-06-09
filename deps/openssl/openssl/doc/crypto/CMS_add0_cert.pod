@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- CMS_add0_cert, CMS_add1_cert, CMS_get1_certs, CMS_add0_crl, CMS_get1_crls, - CMS certificate and CRL utility functions
+CMS_add0_cert, CMS_add1_cert, CMS_get1_certs, CMS_add0_crl, CMS_add1_crl, CMS_get1_crls, - CMS certificate and CRL utility functions
 
 =head1 SYNOPSIS
 

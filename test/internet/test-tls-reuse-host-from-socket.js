@@ -19,24 +19,20 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
 
-var tls = require('tls');
-var net = require('net');
-var connected = false;
-var secure = false;
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+const tls = require('tls');
 
-process.on('exit', function() {
-  assert(connected);
-  assert(secure);
-  console.log('ok');
-});
+const net = require('net');
 
-var socket = net.connect(443, 'www.google.com', function() {
-  connected = true;
-  var secureSocket = tls.connect({ socket: socket }, function() {
-    secure = true;
+const socket = net.connect(443, 'www.example.org', common.mustCall(() => {
+  const secureSocket = tls.connect({socket: socket}, common.mustCall(() => {
     secureSocket.destroy();
-  });
-});
+    console.log('ok');
+  }));
+}));

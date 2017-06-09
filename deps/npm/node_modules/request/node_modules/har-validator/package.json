@@ -1,0 +1,136 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "har-validator@~4.2.1",
+        "scope": null,
+        "escapedName": "har-validator",
+        "name": "har-validator",
+        "rawSpec": "~4.2.1",
+        "spec": ">=4.2.1 <4.3.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/request"
+    ]
+  ],
+  "_from": "har-validator@>=4.2.1 <4.3.0",
+  "_id": "har-validator@4.2.1",
+  "_inCache": true,
+  "_location": "/request/har-validator",
+  "_nodeVersion": "4.8.0",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/har-validator-4.2.1.tgz_1488636538686_0.5101928301155567"
+  },
+  "_npmUser": {
+    "name": "ahmadnassri",
+    "email": "ahmad@ahmadnassri.com"
+  },
+  "_npmVersion": "2.15.11",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "har-validator@~4.2.1",
+    "scope": null,
+    "escapedName": "har-validator",
+    "name": "har-validator",
+    "rawSpec": "~4.2.1",
+    "spec": ">=4.2.1 <4.3.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/har-validator/-/har-validator-4.2.1.tgz",
+  "_shasum": "33481d0f1bbff600dd203d75812a6a5fba002e2a",
+  "_shrinkwrap": null,
+  "_spec": "har-validator@~4.2.1",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/request",
+  "author": {
+    "name": "Ahmad Nassri",
+    "email": "ahmad@ahmadnassri.com",
+    "url": "https://www.ahmadnassri.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/ahmadnassri/har-validator/issues"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  },
+  "dependencies": {
+    "ajv": "^4.9.1",
+    "har-schema": "^1.0.5"
+  },
+  "description": "Extremely fast HTTP Archive (HAR) validator using JSON Schema",
+  "devDependencies": {
+    "babel-cli": "^6.18.0",
+    "babel-plugin-add-module-exports": "^0.2.1",
+    "babel-preset-env": "1.1.10",
+    "babel-register": "^6.18.0",
+    "codeclimate-test-reporter": "^0.4.0",
+    "cz-conventional-changelog": "^1.2.0",
+    "echint": "^4.0.1",
+    "semantic-release": "^6.3.2",
+    "snazzy": "^6.0.0",
+    "tap": "^10.0.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "33481d0f1bbff600dd203d75812a6a5fba002e2a",
+    "tarball": "https://registry.npmjs.org/har-validator/-/har-validator-4.2.1.tgz"
+  },
+  "echint": {
+    "ignore": [
+      "lib/**"
+    ]
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "lib",
+    "src"
+  ],
+  "gitHead": "06cb69e2da150de1643bfe511f0374f23b7a5b11",
+  "homepage": "https://github.com/ahmadnassri/har-validator",
+  "keywords": [
+    "har",
+    "cli",
+    "ajv",
+    "http",
+    "archive",
+    "validate",
+    "validator"
+  ],
+  "license": "ISC",
+  "main": "lib/node4/promise.js",
+  "maintainers": [
+    {
+      "name": "ahmadnassri",
+      "email": "ahmad@ahmadnassri.com"
+    }
+  ],
+  "name": "har-validator",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmadnassri/har-validator.git"
+  },
+  "scripts": {
+    "codeclimate": "BABEL_ENV=test tap --coverage-report=text-lcov | codeclimate-test-reporter",
+    "compile": "babel -q src",
+    "coverage": "BABEL_ENV=test tap test --reporter silent --coverage --nyc-arg=--require --nyc-arg=babel-register",
+    "pretest": "snazzy && echint",
+    "semantic-release": "semantic-release pre && npm publish && semantic-release post",
+    "test": "BABEL_ENV=test tap test --reporter spec --node-arg=--require --node-arg=babel-register",
+    "test-one": "BABEL_ENV=test tap --reporter spec --node-arg=--require --node-arg=babel-register"
+  },
+  "standard": {
+    "ignore": [
+      "lib/**"
+    ]
+  },
+  "version": "4.2.1"
+}

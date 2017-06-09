@@ -42,7 +42,7 @@ assertTrue(veryLongString().length > 256);
 var re = /...<omitted>.../;
 
 try {
-  Number.prototype.toFixed.call(veryLongString);
+  Date.prototype.setDate.call(veryLongString);
 } catch (e) {
   assertTrue(e.message.length < 256);
   assertTrue(re.test(e.message));

@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -48,16 +48,22 @@
 #     because on Itanium 1 stall on MM result is accompanied by
 #     pipeline flush, which takes 6 cycles:-(
 #
-# Resulting performance numbers for 900MHz Itanium 2 system:
+# June 2012
 #
-# The 'numbers' are in 1000s of bytes per second processed.
-# type     16 bytes    64 bytes   256 bytes  1024 bytes  8192 bytes
-# sha1(*)   6210.14k   20376.30k   52447.83k   85870.05k  105478.12k
-# sha256    7476.45k   20572.05k   41538.34k   56062.29k   62093.18k
-# sha512    4996.56k   20026.28k   47597.20k   85278.79k  111501.31k
+# Improve performance by 15-20%. Note about "rules of engagement"
+# above. Contemporary cores are equipped with additional shifter,
+# so that they should perform even better than below, presumably
+# by ~10%.
 #
-# (*) SHA1 numbers are for HP-UX compiler and are presented purely
-#     for reference purposes. I bet it can improved too...
+######################################################################
+# Current performance in cycles per processed byte for Itanium 2
+# pre-9000 series [little-endian] system:
+#
+# SHA1(*)	5.7
+# SHA256	12.6
+# SHA512	6.7
+#
+# (*) SHA1 result is presented purely for reference purposes.
 #
 # To generate code, pass the file name with either 256 or 512 in its
 # name and compiler flags.
@@ -106,8 +112,8 @@ if (!defined($big_endian))
              {	$big_endian=(unpack('L',pack('N',1))==1);  }
 
 $code=<<___;
-.ident  \"$output, version 1.1\"
-.ident  \"IA-64 ISA artwork by Andy Polyakov <appro\@fy.chalmers.se>\"
+.ident  \"$output, version 2.0\"
+.ident  \"IA-64 ISA artwork by Andy Polyakov <appro\@openssl.org>\"
 .explicit
 .text
 
@@ -115,26 +121,25 @@ pfssave=r2;
 lcsave=r3;
 prsave=r14;
 K=r15;
-A=r16;	B=r17;	C=r18;	D=r19;
-E=r20;	F=r21;	G=r22;	H=r23;
+A_=r16; B_=r17; C_=r18; D_=r19;
+E_=r20; F_=r21; G_=r22; H_=r23;
 T1=r24;	T2=r25;
 s0=r26;	s1=r27;	t0=r28;	t1=r29;
 Ktbl=r30;
 ctx=r31;	// 1st arg
-input=r48;	// 2nd arg
-num=r49;	// 3rd arg
-sgm0=r50;	sgm1=r51;	// small constants
-A_=r54;	B_=r55;	C_=r56;	D_=r57;
-E_=r58;	F_=r59;	G_=r60;	H_=r61;
+input=r56;	// 2nd arg
+num=r57;	// 3rd arg
+sgm0=r58;	sgm1=r59;	// small constants
 
 // void $func (SHA_CTX *ctx, const void *in,size_t num[,int host])
 .global	$func#
 .proc	$func#
 .align	32
+.skip	16
 $func:
 	.prologue
 	.save	ar.pfs,pfssave
-{ .mmi;	alloc	pfssave=ar.pfs,3,27,0,16
+{ .mmi;	alloc	pfssave=ar.pfs,3,25,0,24
 	$ADDP	ctx=0,r32		// 1st arg
 	.save	ar.lc,lcsave
 	mov	lcsave=ar.lc	}
@@ -145,11 +150,9 @@ $func:
 
 	.body
 { .mib;	add	r8=0*$SZ,ctx
-	add	r9=1*$SZ,ctx
-	brp.loop.imp	.L_first16,.L_first16_end-16	}
+	add	r9=1*$SZ,ctx	}
 { .mib;	add	r10=2*$SZ,ctx
-	add	r11=3*$SZ,ctx
-	brp.loop.imp	.L_rest,.L_rest_end-16		};;
+	add	r11=3*$SZ,ctx	};;
 
 // load A-H
 .Lpic_point:
@@ -164,7 +167,7 @@ $func:
 	add	Ktbl=($TABLE#-.Lpic_point),Ktbl		}
 { .mmi;	$LDW	G_=[r10]
 	$LDW	H_=[r11]
-	cmp.ne	p0,p16=0,r0	};;	// used in sha256_block
+	cmp.ne	p0,p16=0,r0	};;
 ___
 $code.=<<___ if ($BITS==64);
 { .mii;	and	r8=7,input
@@ -179,50 +182,26 @@ $code.=<<___ if ($BITS==64);
 ___
 $code.=<<___;
 .L_outer:
-.rotr	X[16]
-{ .mmi;	mov	A=A_
-	mov	B=B_
+.rotr	R[8],X[16]
+A=R[0]; B=R[1]; C=R[2]; D=R[3]; E=R[4]; F=R[5]; G=R[6]; H=R[7]
+{ .mmi;	ld1	X[15]=[input],$SZ		// eliminated in sha512
+	mov	A=A_
 	mov	ar.lc=14	}
-{ .mmi;	mov	C=C_
-	mov	D=D_
-	mov	E=E_		}
-{ .mmi;	mov	F=F_
-	mov	G=G_
-	mov	ar.ec=2		}
-{ .mmi;	ld1	X[15]=[input],$SZ		// eliminated in 64-bit
+{ .mmi;	mov	B=B_
+	mov	C=C_
+	mov	D=D_		}
+{ .mmi;	mov	E=E_
+	mov	F=F_
+	mov	ar.ec=2		};;
+{ .mmi;	mov	G=G_
 	mov	H=H_
-	mov	sgm1=$sigma1[2]	};;
-
-___
-$t0="t0", $t1="t1", $code.=<<___ if ($BITS==32);
-.align	32
-.L_first16:
-{ .mmi;		add	r9=1-$SZ,input
-		add	r10=2-$SZ,input
-		add	r11=3-$SZ,input	};;
-{ .mmi;		ld1	r9=[r9]
-		ld1	r10=[r10]
-		dep.z	$t1=E,32,32	}
-{ .mmi;		$LDW	K=[Ktbl],$SZ
-		ld1	r11=[r11]
-		zxt4	E=E		};;
-{ .mii;		or	$t1=$t1,E
-		dep	X[15]=X[15],r9,8,8
-		dep	r11=r10,r11,8,8	};;
-{ .mmi;		and	T1=F,E
-		and	T2=A,B
-		dep	X[15]=X[15],r11,16,16	}
-{ .mmi;		andcm	r8=G,E
-		and	r9=A,C
-		mux2	$t0=A,0x44	};;	// copy lower half to upper
-{ .mmi;	(p16)	ld1	X[15-1]=[input],$SZ	// prefetch
-		xor	T1=T1,r8		// T1=((e & f) ^ (~e & g))
-		_rotr	r11=$t1,$Sigma1[0] }	// ROTR(e,14)
-{ .mib;		and	r10=B,C
-		xor	T2=T2,r9	};;
+	mov	sgm1=$sigma1[2]	}
+{ .mib;	mov	r8=0
+	add	r9=1-$SZ,input
+	brp.loop.imp	.L_first16,.L_first16_end-16	};;
 ___
 $t0="A", $t1="E", $code.=<<___ if ($BITS==64);
-// in 64-bit mode I load whole X[16] at once and take care of alignment...
+// in sha512 case I load whole X[16] at once and take care of alignment...
 { .mmi;	add	r8=1*$SZ,input
 	add	r9=2*$SZ,input
 	add	r10=3*$SZ,input		};;
@@ -248,7 +227,9 @@ $t0="A", $t1="E", $code.=<<___ if ($BITS==64);
 	$LDW	X[ 2]=[r8],4*$SZ
 (p15)	br.cond.dpnt.many	.L7byte	};;
 { .mmb;	$LDW	X[ 1]=[r9],4*$SZ
-	$LDW	X[ 0]=[r10],4*$SZ
+	$LDW	X[ 0]=[r10],4*$SZ	}
+{ .mib;	mov	r8=0
+	mux1	X[15]=X[15],\@rev		// eliminated on big-endian
 	br.many	.L_first16		};;
 .L1byte:
 { .mmi;	$LDW	X[13]=[r9],4*$SZ
@@ -281,7 +262,9 @@ $t0="A", $t1="E", $code.=<<___ if ($BITS==64);
 	shrp	X[ 3]=X[ 3],X[ 2],56	}
 { .mii;	shrp	X[ 2]=X[ 2],X[ 1],56
 	shrp	X[ 1]=X[ 1],X[ 0],56	}
-{ .mib;	shrp	X[ 0]=X[ 0],T1,56
+{ .mib;	shrp	X[ 0]=X[ 0],T1,56	}
+{ .mib;	mov	r8=0
+	mux1	X[15]=X[15],\@rev		// eliminated on big-endian
 	br.many	.L_first16		};;
 .L2byte:
 { .mmi;	$LDW	X[11]=[input],4*$SZ
@@ -313,7 +296,9 @@ $t0="A", $t1="E", $code.=<<___ if ($BITS==64);
 	shrp	X[ 2]=X[ 2],X[ 1],48	}
 { .mii;	shrp	X[ 1]=X[ 1],X[ 0],48
 	shrp	X[ 0]=X[ 0],T1,48	}
-{ .mfb;	br.many	.L_first16		};;
+{ .mib;	mov	r8=0
+	mux1	X[15]=X[15],\@rev		// eliminated on big-endian
+	br.many	.L_first16		};;
 .L3byte:
 { .mmi;	$LDW	X[ 9]=[r9],4*$SZ
 	$LDW	X[ 8]=[r10],4*$SZ
@@ -341,7 +326,9 @@ $t0="A", $t1="E", $code.=<<___ if ($BITS==64);
 	shrp	X[ 3]=X[ 3],X[ 2],40	}
 { .mii;	shrp	X[ 2]=X[ 2],X[ 1],40
 	shrp	X[ 1]=X[ 1],X[ 0],40	}
-{ .mib;	shrp	X[ 0]=X[ 0],T1,40
+{ .mib;	shrp	X[ 0]=X[ 0],T1,40	}
+{ .mib;	mov	r8=0
+	mux1	X[15]=X[15],\@rev		// eliminated on big-endian
 	br.many	.L_first16		};;
 .L4byte:
 { .mmi;	$LDW	X[ 7]=[input],4*$SZ
@@ -369,7 +356,9 @@ $t0="A", $t1="E", $code.=<<___ if ($BITS==64);
 	shrp	X[ 2]=X[ 2],X[ 1],32	}
 { .mii;	shrp	X[ 1]=X[ 1],X[ 0],32
 	shrp	X[ 0]=X[ 0],T1,32	}
-{ .mfb;	br.many	.L_first16		};;
+{ .mib;	mov	r8=0
+	mux1	X[15]=X[15],\@rev		// eliminated on big-endian
+	br.many	.L_first16		};;
 .L5byte:
 { .mmi;	$LDW	X[ 5]=[r9],4*$SZ
 	$LDW	X[ 4]=[r10],4*$SZ
@@ -393,7 +382,9 @@ $t0="A", $t1="E", $code.=<<___ if ($BITS==64);
 	shrp	X[ 3]=X[ 3],X[ 2],24	}
 { .mii;	shrp	X[ 2]=X[ 2],X[ 1],24
 	shrp	X[ 1]=X[ 1],X[ 0],24	}
-{ .mib;	shrp	X[ 0]=X[ 0],T1,24
+{ .mib;	shrp	X[ 0]=X[ 0],T1,24	}
+{ .mib;	mov	r8=0
+	mux1	X[15]=X[15],\@rev		// eliminated on big-endian
 	br.many	.L_first16		};;
 .L6byte:
 { .mmi;	$LDW	X[ 3]=[input],4*$SZ
@@ -417,7 +408,9 @@ $t0="A", $t1="E", $code.=<<___ if ($BITS==64);
 	shrp	X[ 2]=X[ 2],X[ 1],16	}
 { .mii;	shrp	X[ 1]=X[ 1],X[ 0],16
 	shrp	X[ 0]=X[ 0],T1,16	}
-{ .mfb;	br.many	.L_first16		};;
+{ .mib;	mov	r8=0
+	mux1	X[15]=X[15],\@rev		// eliminated on big-endian
+	br.many	.L_first16		};;
 .L7byte:
 { .mmi;	$LDW	X[ 1]=[r9],4*$SZ
 	$LDW	X[ 0]=[r10],4*$SZ
@@ -437,128 +430,146 @@ $t0="A", $t1="E", $code.=<<___ if ($BITS==64);
 	shrp	X[ 3]=X[ 3],X[ 2],8	}
 { .mii;	shrp	X[ 2]=X[ 2],X[ 1],8
 	shrp	X[ 1]=X[ 1],X[ 0],8	}
-{ .mib;	shrp	X[ 0]=X[ 0],T1,8
-	br.many	.L_first16		};;
+{ .mib;	shrp	X[ 0]=X[ 0],T1,8	}
+{ .mib;	mov	r8=0
+	mux1	X[15]=X[15],\@rev	};;	// eliminated on big-endian
 
 .align	32
 .L_first16:
 { .mmi;		$LDW	K=[Ktbl],$SZ
-		and	T1=F,E
-		and	T2=A,B		}
-{ .mmi;		//$LDW	X[15]=[input],$SZ	// X[i]=*input++
+		add	A=A,r8			// H+=Sigma(0) from the past
+		_rotr	r10=$t1,$Sigma1[0]  }	// ROTR(e,14)
+{ .mmi;		and	T1=F,E
 		andcm	r8=G,E
-		and	r9=A,C		};;
-{ .mmi;		xor	T1=T1,r8		//T1=((e & f) ^ (~e & g))
-		and	r10=B,C
-		_rotr	r11=$t1,$Sigma1[0] }	// ROTR(e,14)
-{ .mmi;		xor	T2=T2,r9
-		mux1	X[15]=X[15],\@rev };;	// eliminated in big-endian
+	(p16)	mux1	X[14]=X[14],\@rev   };;	// eliminated on big-endian
+{ .mmi;		and	T2=A,B
+		and	r9=A,C
+		_rotr	r11=$t1,$Sigma1[1]  }	// ROTR(e,41)
+{ .mmi;		xor	T1=T1,r8		// T1=((e & f) ^ (~e & g))
+		and	r8=B,C		    };;
+___
+$t0="t0", $t1="t1", $code.=<<___ if ($BITS==32);
+.align	32
+.L_first16:
+{ .mmi;		add	A=A,r8			// H+=Sigma(0) from the past
+		add	r10=2-$SZ,input
+		add	r11=3-$SZ,input	};;
+{ .mmi;		ld1	r9=[r9]
+		ld1	r10=[r10]
+		dep.z	$t1=E,32,32	}
+{ .mmi;		ld1	r11=[r11]
+		$LDW	K=[Ktbl],$SZ
+		zxt4	E=E		};;
+{ .mii;		or	$t1=$t1,E
+		dep	X[15]=X[15],r9,8,8
+		mux2	$t0=A,0x44	};;	// copy lower half to upper
+{ .mmi;		and	T1=F,E
+		andcm	r8=G,E
+		dep	r11=r10,r11,8,8	};;
+{ .mmi;		and	T2=A,B
+		and	r9=A,C
+		dep	X[15]=X[15],r11,16,16	};;
+{ .mmi;	(p16)	ld1	X[15-1]=[input],$SZ	// prefetch
+		xor	T1=T1,r8		// T1=((e & f) ^ (~e & g))
+		_rotr	r10=$t1,$Sigma1[0] }	// ROTR(e,14)
+{ .mmi;		and	r8=B,C
+		_rotr	r11=$t1,$Sigma1[1] };;	// ROTR(e,18)
 ___
 $code.=<<___;
-{ .mib;		add	T1=T1,H			// T1=Ch(e,f,g)+h
-		_rotr	r8=$t1,$Sigma1[1] }	// ROTR(e,18)
-{ .mib;		xor	T2=T2,r10		// T2=((a & b) ^ (a & c) ^ (b & c))
-		mov	H=G		};;
-{ .mib;		xor	r11=r8,r11
-		_rotr	r9=$t1,$Sigma1[2] }	// ROTR(e,41)
-{ .mib;		mov	G=F
-		mov	F=E		};;
-{ .mib;		xor	r9=r9,r11		// r9=Sigma1(e)
-		_rotr	r10=$t0,$Sigma0[0] }	// ROTR(a,28)
-{ .mib;		add	T1=T1,K			// T1=Ch(e,f,g)+h+K512[i]
-		mov	E=D		};;
-{ .mib;		add	T1=T1,r9		// T1+=Sigma1(e)
-		_rotr	r11=$t0,$Sigma0[1] }	// ROTR(a,34)
-{ .mib;		mov	D=C
-		mov	C=B		};;
-{ .mib;		add	T1=T1,X[15]		// T1+=X[i]
-		_rotr	r8=$t0,$Sigma0[2] }	// ROTR(a,39)
-{ .mib;		xor	r10=r10,r11
-		mux2	X[15]=X[15],0x44 };;	// eliminated in 64-bit
-{ .mmi;		xor	r10=r8,r10		// r10=Sigma0(a)
-		mov	B=A
-		add	A=T1,T2		};;
-{ .mib;		add	E=E,T1
-		add	A=A,r10			// T2=Maj(a,b,c)+Sigma0(a)
-	br.ctop.sptk	.L_first16	};;
+{ .mmi;		add	T1=T1,H			// T1=Ch(e,f,g)+h
+		xor	r10=r10,r11
+		_rotr	r11=$t1,$Sigma1[2]  }	// ROTR(e,41)
+{ .mmi;		xor	T2=T2,r9
+		add	K=K,X[15]	    };;
+{ .mmi;		add	T1=T1,K			// T1+=K[i]+X[i]
+		xor	T2=T2,r8		// T2=((a & b) ^ (a & c) ^ (b & c))
+		_rotr	r8=$t0,$Sigma0[0]   }	// ROTR(a,28)
+{ .mmi;		xor	r11=r11,r10		// Sigma1(e)
+		_rotr	r9=$t0,$Sigma0[1]   };;	// ROTR(a,34)
+{ .mmi;		add	T1=T1,r11		// T+=Sigma1(e)
+		xor	r8=r8,r9
+		_rotr	r9=$t0,$Sigma0[2]   };;	// ROTR(a,39)
+{ .mmi;		xor	r8=r8,r9		// Sigma0(a)
+		add	D=D,T1
+		mux2	H=X[15],0x44	    }	// mov H=X[15] in sha512
+{ .mib;	(p16)	add	r9=1-$SZ,input		// not used in sha512
+		add	X[15]=T1,T2		// H=T1+Maj(a,b,c)
+	br.ctop.sptk	.L_first16	    };;
 .L_first16_end:
 
-{ .mii;	mov	ar.lc=$rounds-17
-	mov	ar.ec=1			};;
+{ .mib;	mov	ar.lc=$rounds-17
+	brp.loop.imp	.L_rest,.L_rest_end-16		}
+{ .mib;	mov	ar.ec=1
+	br.many	.L_rest			};;
 
 .align	32
 .L_rest:
-.rotr	X[16]
-{ .mib;		$LDW	K=[Ktbl],$SZ
+{ .mmi;		$LDW	K=[Ktbl],$SZ
+		add	A=A,r8			// H+=Sigma0(a) from the past
 		_rotr	r8=X[15-1],$sigma0[0] }	// ROTR(s0,1)
-{ .mib; 	$ADD	X[15]=X[15],X[15-9]	// X[i&0xF]+=X[(i+9)&0xF]
-		$SHRU	s0=X[15-1],sgm0	};;	// s0=X[(i+1)&0xF]>>7
+{ .mmi; 	add	X[15]=X[15],X[15-9]	// X[i&0xF]+=X[(i+9)&0xF]
+		$SHRU	s0=X[15-1],sgm0	    };;	// s0=X[(i+1)&0xF]>>7
 { .mib;		and	T1=F,E
 		_rotr	r9=X[15-1],$sigma0[1] }	// ROTR(s0,8)
 { .mib;		andcm	r10=G,E
-		$SHRU	s1=X[15-14],sgm1 };;	// s1=X[(i+14)&0xF]>>6
+		$SHRU	s1=X[15-14],sgm1    };;	// s1=X[(i+14)&0xF]>>6
+// Pair of mmi; splits on Itanium 1 and prevents pipeline flush
+// upon $SHRU output usage
 { .mmi;		xor	T1=T1,r10		// T1=((e & f) ^ (~e & g))
 		xor	r9=r8,r9
-		_rotr	r10=X[15-14],$sigma1[0] };;// ROTR(s1,19)
-{ .mib;		and	T2=A,B		
-		_rotr	r11=X[15-14],$sigma1[1] }// ROTR(s1,61)
-{ .mib;		and	r8=A,C		};;
+		_rotr	r10=X[15-14],$sigma1[0] }// ROTR(s1,19)
+{ .mmi;		and	T2=A,B
+		and	r8=A,C
+		_rotr	r11=X[15-14],$sigma1[1] };;// ROTR(s1,61)
 ___
 $t0="t0", $t1="t1", $code.=<<___ if ($BITS==32);
-// I adhere to mmi; in order to hold Itanium 1 back and avoid 6 cycle
-// pipeline flush in last bundle. Note that even on Itanium2 the
-// latter stalls for one clock cycle...
-{ .mmi;		xor	s0=s0,r9		// s0=sigma0(X[(i+1)&0xF])
-		dep.z	$t1=E,32,32	}
-{ .mmi;		xor	r10=r11,r10
-		zxt4	E=E		};;
-{ .mmi;		or	$t1=$t1,E
-		xor	s1=s1,r10		// s1=sigma1(X[(i+14)&0xF])
-		mux2	$t0=A,0x44	};;	// copy lower half to upper
+{ .mib;		xor	s0=s0,r9		// s0=sigma0(X[(i+1)&0xF])
+		dep.z	$t1=E,32,32	    }
+{ .mib;		xor	r10=r11,r10
+		zxt4	E=E		    };;
+{ .mii;		xor	s1=s1,r10		// s1=sigma1(X[(i+14)&0xF])
+		shrp	r9=E,$t1,32+$Sigma1[0]	// ROTR(e,14)
+		mux2	$t0=A,0x44	    };;	// copy lower half to upper
+// Pair of mmi; splits on Itanium 1 and prevents pipeline flush
+// upon mux2 output usage
 { .mmi;		xor	T2=T2,r8
-		_rotr	r9=$t1,$Sigma1[0] }	// ROTR(e,14)
+		shrp	r8=E,$t1,32+$Sigma1[1]}	// ROTR(e,18)
 { .mmi;		and	r10=B,C
 		add	T1=T1,H			// T1=Ch(e,f,g)+h
-		$ADD	X[15]=X[15],s0	};;	// X[i&0xF]+=sigma0(X[(i+1)&0xF])
+		or	$t1=$t1,E   	    };;
 ___
 $t0="A", $t1="E", $code.=<<___ if ($BITS==64);
 { .mib;		xor	s0=s0,r9		// s0=sigma0(X[(i+1)&0xF])
-		_rotr	r9=$t1,$Sigma1[0] }	// ROTR(e,14)
+		_rotr	r9=$t1,$Sigma1[0]   }	// ROTR(e,14)
 { .mib;		xor	r10=r11,r10
-		xor	T2=T2,r8	};;
+		xor	T2=T2,r8	    };;
 { .mib;		xor	s1=s1,r10		// s1=sigma1(X[(i+14)&0xF])
-		add	T1=T1,H		}
+		_rotr	r8=$t1,$Sigma1[1]   }	// ROTR(e,18)
 { .mib;		and	r10=B,C
-		$ADD	X[15]=X[15],s0	};;	// X[i&0xF]+=sigma0(X[(i+1)&0xF])
+		add	T1=T1,H		    };;	// T1+=H
 ___
 $code.=<<___;
-{ .mmi;		xor	T2=T2,r10		// T2=((a & b) ^ (a & c) ^ (b & c))
-		mov	H=G
-		_rotr	r8=$t1,$Sigma1[1] };;	// ROTR(e,18)
-{ .mmi;		xor	r11=r8,r9
-		$ADD	X[15]=X[15],s1		// X[i&0xF]+=sigma1(X[(i+14)&0xF])
-		_rotr	r9=$t1,$Sigma1[2] }	// ROTR(e,41)
-{ .mmi;		mov	G=F
-		mov	F=E		};;
-{ .mib;		xor	r9=r9,r11		// r9=Sigma1(e)
-		_rotr	r10=$t0,$Sigma0[0] }	// ROTR(a,28)
-{ .mib;		add	T1=T1,K			// T1=Ch(e,f,g)+h+K512[i]
-		mov	E=D		};;
-{ .mib;		add	T1=T1,r9		// T1+=Sigma1(e)
-		_rotr	r11=$t0,$Sigma0[1] }	// ROTR(a,34)
-{ .mib;		mov	D=C
-		mov	C=B		};;
-{ .mmi;		add	T1=T1,X[15]		// T1+=X[i]
-		xor	r10=r10,r11
-		_rotr	r8=$t0,$Sigma0[2] };;	// ROTR(a,39)
-{ .mmi;		xor	r10=r8,r10		// r10=Sigma0(a)
-		mov	B=A
-		add	A=T1,T2		};;
-{ .mib;		add	E=E,T1
-		add	A=A,r10			// T2=Maj(a,b,c)+Sigma0(a)
-	br.ctop.sptk	.L_rest	};;
+{ .mib;		xor	r9=r9,r8
+		_rotr	r8=$t1,$Sigma1[2]   }	// ROTR(e,41)
+{ .mib;		xor	T2=T2,r10		// T2=((a & b) ^ (a & c) ^ (b & c))
+		add	X[15]=X[15],s0	    };;	// X[i]+=sigma0(X[i+1])
+{ .mmi;		xor	r9=r9,r8		// Sigma1(e)
+		add	X[15]=X[15],s1		// X[i]+=sigma0(X[i+14])
+		_rotr	r8=$t0,$Sigma0[0]   };;	// ROTR(a,28)
+{ .mmi;		add	K=K,X[15]
+		add	T1=T1,r9		// T1+=Sigma1(e)
+		_rotr	r9=$t0,$Sigma0[1]   };;	// ROTR(a,34)
+{ .mmi;		add	T1=T1,K			// T1+=K[i]+X[i]
+		xor	r8=r8,r9
+		_rotr	r9=$t0,$Sigma0[2]   };;	// ROTR(a,39)
+{ .mib;		add	D=D,T1
+		mux2	H=X[15],0x44	    }	// mov H=X[15] in sha512
+{ .mib;		xor	r8=r8,r9		// Sigma0(a)
+		add	X[15]=T1,T2		// H=T1+Maj(a,b,c)
+	br.ctop.sptk	.L_rest		    };;
 .L_rest_end:
 
+{ .mmi;	add	A=A,r8			};;	// H+=Sigma0(a) from the past
 { .mmi;	add	A_=A_,A
 	add	B_=B_,B
 	add	C_=C_,C			}
@@ -590,17 +601,19 @@ $code.=<<___;
 .endp	$func#
 ___
 
-$code =~ s/\`([^\`]*)\`/eval $1/gem;
-$code =~ s/_rotr(\s+)([^=]+)=([^,]+),([0-9]+)/shrp$1$2=$3,$3,$4/gm;
-if ($BITS==64) {
-    $code =~ s/mux2(\s+)\S+/nop.i$1 0x0/gm;
-    $code =~ s/mux1(\s+)\S+/nop.i$1 0x0/gm	if ($big_endian);
-    $code =~ s/(shrp\s+X\[[^=]+)=([^,]+),([^,]+),([1-9]+)/$1=$3,$2,64-$4/gm
+foreach(split($/,$code)) {
+    s/\`([^\`]*)\`/eval $1/gem;
+    s/_rotr(\s+)([^=]+)=([^,]+),([0-9]+)/shrp$1$2=$3,$3,$4/gm;
+    if ($BITS==64) {
+	s/mux2(\s+)([^=]+)=([^,]+),\S+/mov$1 $2=$3/gm;
+	s/mux1(\s+)\S+/nop.i$1 0x0/gm	if ($big_endian);
+	s/(shrp\s+X\[[^=]+)=([^,]+),([^,]+),([1-9]+)/$1=$3,$2,64-$4/gm
     						if (!$big_endian);
-    $code =~ s/ld1(\s+)X\[\S+/nop.m$1 0x0/gm;
-}
+	s/ld1(\s+)X\[\S+/nop.m$1 0x0/gm;
+    }
 
-print $code;
+    print $_,"\n";
+}
 
 print<<___ if ($BITS==32);
 .align	64

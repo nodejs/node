@@ -1,0 +1,105 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "minimist@^1.2.0",
+        "scope": null,
+        "escapedName": "minimist",
+        "name": "minimist",
+        "rawSpec": "^1.2.0",
+        "spec": ">=1.2.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/registry-auth-token/node_modules/rc"
+    ]
+  ],
+  "_from": "minimist@>=1.2.0 <2.0.0",
+  "_id": "minimist@1.2.0",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/registry-auth-token/rc/minimist",
+  "_nodeVersion": "2.4.0",
+  "_npmUser": {
+    "name": "substack",
+    "email": "substack@gmail.com"
+  },
+  "_npmVersion": "3.2.2",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "minimist@^1.2.0",
+    "scope": null,
+    "escapedName": "minimist",
+    "name": "minimist",
+    "rawSpec": "^1.2.0",
+    "spec": ">=1.2.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/registry-auth-token/rc"
+  ],
+  "_resolved": "https://registry.npmjs.org/minimist/-/minimist-1.2.0.tgz",
+  "_shasum": "a35008b20f41383eec1fb914f4cd5df79a264284",
+  "_shrinkwrap": null,
+  "_spec": "minimist@^1.2.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/registry-auth-token/node_modules/rc",
+  "author": {
+    "name": "James Halliday",
+    "email": "mail@substack.net",
+    "url": "http://substack.net"
+  },
+  "bugs": {
+    "url": "https://github.com/substack/minimist/issues"
+  },
+  "dependencies": {},
+  "description": "parse argument options",
+  "devDependencies": {
+    "covert": "^1.0.0",
+    "tap": "~0.4.0",
+    "tape": "^3.5.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "a35008b20f41383eec1fb914f4cd5df79a264284",
+    "tarball": "https://registry.npmjs.org/minimist/-/minimist-1.2.0.tgz"
+  },
+  "gitHead": "dc624482fcfec5bc669c68cdb861f00573ed4e64",
+  "homepage": "https://github.com/substack/minimist",
+  "keywords": [
+    "argv",
+    "getopt",
+    "parser",
+    "optimist"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "substack",
+      "email": "mail@substack.net"
+    }
+  ],
+  "name": "minimist",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/substack/minimist.git"
+  },
+  "scripts": {
+    "coverage": "covert test/*.js",
+    "test": "tap test/*.js"
+  },
+  "testling": {
+    "files": "test/*.js",
+    "browsers": [
+      "ie/6..latest",
+      "ff/5",
+      "firefox/latest",
+      "chrome/10",
+      "chrome/latest",
+      "safari/5.1",
+      "safari/latest",
+      "opera/12"
+    ]
+  },
+  "version": "1.2.0"
+}

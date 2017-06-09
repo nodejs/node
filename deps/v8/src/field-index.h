@@ -17,15 +17,16 @@ class Map;
 // from a property index. When available, the wrapper class captures additional
 // information to allow the field index to be translated back into the property
 // index it was originally generated from.
-class FieldIndex FINAL {
+class FieldIndex final {
  public:
+  FieldIndex() : bit_field_(0) {}
+
   static FieldIndex ForPropertyIndex(Map* map,
                                      int index,
                                      bool is_double = false);
   static FieldIndex ForInObjectOffset(int offset, Map* map = NULL);
   static FieldIndex ForDescriptor(Map* map, int descriptor_index);
   static FieldIndex ForLoadByFieldIndex(Map* map, int index);
-  static FieldIndex ForKeyedLookupCacheIndex(Map* map, int index);
   static FieldIndex FromFieldAccessStubKey(int key);
 
   int GetLoadByFieldIndex() const;
@@ -33,6 +34,8 @@ class FieldIndex FINAL {
   bool is_inobject() const {
     return IsInObjectBits::decode(bit_field_);
   }
+
+  bool is_hidden_field() const { return IsHiddenField::decode(bit_field_); }
 
   bool is_double() const {
     return IsDoubleBits::decode(bit_field_);
@@ -55,7 +58,7 @@ class FieldIndex FINAL {
   // Zero-based from the first inobject property. Overflows to out-of-object
   // properties.
   int property_index() const {
-    DCHECK(!IsHiddenField::decode(bit_field_));
+    DCHECK(!is_hidden_field());
     int result = index() - first_inobject_property_offset() / kPointerSize;
     if (!is_inobject()) {
       result += InObjectPropertyBits::decode(bit_field_);
@@ -63,12 +66,15 @@ class FieldIndex FINAL {
     return result;
   }
 
-  int GetKeyedLookupCacheIndex() const;
-
   int GetFieldAccessStubKey() const {
     return bit_field_ &
         (IsInObjectBits::kMask | IsDoubleBits::kMask | IndexBits::kMask);
   }
+
+  bool operator==(FieldIndex const& other) const {
+    return bit_field_ == other.bit_field_;
+  }
+  bool operator!=(FieldIndex const& other) const { return !(*this == other); }
 
  private:
   FieldIndex(bool is_inobject, int local_index, bool is_double,
@@ -86,7 +92,7 @@ class FieldIndex FINAL {
   explicit FieldIndex(int bit_field) : bit_field_(bit_field) {}
 
   int first_inobject_property_offset() const {
-    DCHECK(!IsHiddenField::decode(bit_field_));
+    DCHECK(!is_hidden_field());
     return FirstInobjectPropertyOffsetBits::decode(bit_field_);
   }
 
@@ -109,6 +115,7 @@ class FieldIndex FINAL {
   int bit_field_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif

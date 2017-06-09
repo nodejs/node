@@ -1,7 +1,0 @@
-{
-  "author": "Rockbert",
-  "name": "npm-test-shrinkwrap-empty-deps",
-  "version": "0.0.0",
-  "dependencies": {},
-  "devDependencies": {}
-}

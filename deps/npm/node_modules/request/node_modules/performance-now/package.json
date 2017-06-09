@@ -1,0 +1,85 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "performance-now@^0.2.0",
+        "scope": null,
+        "escapedName": "performance-now",
+        "name": "performance-now",
+        "rawSpec": "^0.2.0",
+        "spec": ">=0.2.0 <0.3.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/request"
+    ]
+  ],
+  "_from": "performance-now@>=0.2.0 <0.3.0",
+  "_id": "performance-now@0.2.0",
+  "_inCache": true,
+  "_location": "/request/performance-now",
+  "_npmUser": {
+    "name": "meryn",
+    "email": "merynstol@gmail.com"
+  },
+  "_npmVersion": "1.3.24",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "performance-now@^0.2.0",
+    "scope": null,
+    "escapedName": "performance-now",
+    "name": "performance-now",
+    "rawSpec": "^0.2.0",
+    "spec": ">=0.2.0 <0.3.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/performance-now/-/performance-now-0.2.0.tgz",
+  "_shasum": "33ef30c5c77d4ea21c5a53869d91b56d8f2555e5",
+  "_shrinkwrap": null,
+  "_spec": "performance-now@^0.2.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/request",
+  "author": {
+    "name": "Meryn Stol",
+    "email": "merynstol@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/meryn/performance-now/issues"
+  },
+  "dependencies": {},
+  "description": "Implements performance.now (based on process.hrtime).",
+  "devDependencies": {
+    "coffee-script": "~1.7.1",
+    "mocha": "~1.21.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "33ef30c5c77d4ea21c5a53869d91b56d8f2555e5",
+    "tarball": "https://registry.npmjs.org/performance-now/-/performance-now-0.2.0.tgz"
+  },
+  "homepage": "https://github.com/meryn/performance-now",
+  "keywords": [],
+  "license": "MIT",
+  "main": "lib/performance-now.js",
+  "maintainers": [
+    {
+      "name": "meryn",
+      "email": "merynstol@gmail.com"
+    }
+  ],
+  "name": "performance-now",
+  "optionalDependencies": {},
+  "private": false,
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/meryn/performance-now.git"
+  },
+  "scripts": {
+    "prepublish": "npm test",
+    "pretest": "make build",
+    "test": "make test"
+  },
+  "version": "0.2.0"
+}

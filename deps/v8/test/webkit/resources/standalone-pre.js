@@ -89,9 +89,12 @@ function isResultCorrect(_actual, _expected)
 
 function stringify(v)
 {
+    if (v)
+        return v.toString();
     if (v === 0 && 1/v < 0)
         return "-0";
-    else return "" + v;
+    else
+        return "" + v;
 }
 
 function shouldBe(_a, _b)
@@ -114,7 +117,7 @@ function shouldBe(_a, _b)
   else if (typeof(_av) == typeof(_bv))
     testFailed(_a + " should be " + _bv + ". Was " + stringify(_av) + ".");
   else
-    testFailed(_a + " should be " + _bv + " (of type " + typeof _bv + "). Was " + _av + " (of type " + typeof _av + ").");
+    testFailed(_a + " should be " + _bv + " (of type " + typeof _bv + "). Was " + stringify(_av) + " (of type " + typeof _av + ").");
 }
 
 function shouldBeTrue(_a) { shouldBe(_a, "true"); }
@@ -171,7 +174,18 @@ function shouldThrow(_a, _e)
   } else if (typeof _av == "undefined")
     testFailed(_a + " should throw " + (typeof _e == "undefined" ? "an exception" : _ev) + ". Was undefined.");
   else
-    testFailed(_a + " should throw " + (typeof _e == "undefined" ? "an exception" : _ev) + ". Was " + _av + ".");
+    testFailed(_a + " should throw " + (typeof _e == "undefined" ? "an exception" : _ev) + ". Was " + stringify(_av) + ".");
+}
+
+
+function shouldNotThrow(_a)
+{
+    try {
+        eval(_a);
+        testPassed(_a + " did not throw exception.");
+    } catch (e) {
+        testFailed(_a + " should not throw exception. Threw exception " + e + ".");
+    }
 }
 
 function isSuccessfullyParsed()

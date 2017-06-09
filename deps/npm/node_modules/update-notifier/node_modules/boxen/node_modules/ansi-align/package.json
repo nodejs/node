@@ -1,0 +1,107 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "ansi-align@^1.1.0",
+        "scope": null,
+        "escapedName": "ansi-align",
+        "name": "ansi-align",
+        "rawSpec": "^1.1.0",
+        "spec": ">=1.1.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen"
+    ]
+  ],
+  "_from": "ansi-align@>=1.1.0 <2.0.0",
+  "_id": "ansi-align@1.1.0",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/ansi-align",
+  "_nodeVersion": "5.11.0",
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/ansi-align-1.1.0.tgz_1465244078324_0.3411616289522499"
+  },
+  "_npmUser": {
+    "name": "nexdrew",
+    "email": "andrew@npmjs.com"
+  },
+  "_npmVersion": "3.8.8",
+  "_phantomChildren": {
+    "strip-ansi": "3.0.1"
+  },
+  "_requested": {
+    "raw": "ansi-align@^1.1.0",
+    "scope": null,
+    "escapedName": "ansi-align",
+    "name": "ansi-align",
+    "rawSpec": "^1.1.0",
+    "spec": ">=1.1.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen"
+  ],
+  "_resolved": "https://registry.npmjs.org/ansi-align/-/ansi-align-1.1.0.tgz",
+  "_shasum": "2f0c1658829739add5ebb15e6b0c6e3423f016ba",
+  "_shrinkwrap": null,
+  "_spec": "ansi-align@^1.1.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen",
+  "author": {
+    "name": "nexdrew"
+  },
+  "bugs": {
+    "url": "https://github.com/nexdrew/ansi-align/issues"
+  },
+  "dependencies": {
+    "string-width": "^1.0.1"
+  },
+  "description": "align-text with ANSI support for CLIs",
+  "devDependencies": {
+    "ava": "^0.15.2",
+    "chalk": "^1.1.3",
+    "coveralls": "^2.11.9",
+    "nyc": "^6.4.4",
+    "standard": "^7.1.2",
+    "standard-version": "^2.3.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "2f0c1658829739add5ebb15e6b0c6e3423f016ba",
+    "tarball": "https://registry.npmjs.org/ansi-align/-/ansi-align-1.1.0.tgz"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "839c4e214a5690d7463dda32cf76d2ac15826f7a",
+  "homepage": "https://github.com/nexdrew/ansi-align#readme",
+  "keywords": [
+    "ansi",
+    "align",
+    "cli",
+    "center",
+    "pad"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "nexdrew",
+      "email": "andrew@npmjs.com"
+    }
+  ],
+  "name": "ansi-align",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nexdrew/ansi-align.git"
+  },
+  "scripts": {
+    "coverage": "nyc report --reporter=text-lcov | coveralls",
+    "pretest": "standard",
+    "release": "standard-version",
+    "test": "nyc ava"
+  },
+  "version": "1.1.0"
+}

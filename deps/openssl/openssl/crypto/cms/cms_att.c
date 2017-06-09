@@ -1,5 +1,6 @@
 /* crypto/cms/cms_att.c */
-/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+/*
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */
 /* ====================================================================
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -62,134 +63,135 @@
 
 int CMS_signed_get_attr_count(const CMS_SignerInfo *si)
 {
-	return X509at_get_attr_count(si->signedAttrs);
+    return X509at_get_attr_count(si->signedAttrs);
 }
 
-int CMS_signed_get_attr_by_NID(const CMS_SignerInfo *si, int nid,
-			  int lastpos)
+int CMS_signed_get_attr_by_NID(const CMS_SignerInfo *si, int nid, int lastpos)
 {
-	return X509at_get_attr_by_NID(si->signedAttrs, nid, lastpos);
+    return X509at_get_attr_by_NID(si->signedAttrs, nid, lastpos);
 }
 
 int CMS_signed_get_attr_by_OBJ(const CMS_SignerInfo *si, ASN1_OBJECT *obj,
-			  int lastpos)
+                               int lastpos)
 {
-	return X509at_get_attr_by_OBJ(si->signedAttrs, obj, lastpos);
+    return X509at_get_attr_by_OBJ(si->signedAttrs, obj, lastpos);
 }
 
 X509_ATTRIBUTE *CMS_signed_get_attr(const CMS_SignerInfo *si, int loc)
 {
-	return X509at_get_attr(si->signedAttrs, loc);
+    return X509at_get_attr(si->signedAttrs, loc);
 }
 
 X509_ATTRIBUTE *CMS_signed_delete_attr(CMS_SignerInfo *si, int loc)
 {
-	return X509at_delete_attr(si->signedAttrs, loc);
+    return X509at_delete_attr(si->signedAttrs, loc);
 }
 
 int CMS_signed_add1_attr(CMS_SignerInfo *si, X509_ATTRIBUTE *attr)
 {
-	if(X509at_add1_attr(&si->signedAttrs, attr)) return 1;
-	return 0;
+    if (X509at_add1_attr(&si->signedAttrs, attr))
+        return 1;
+    return 0;
 }
 
 int CMS_signed_add1_attr_by_OBJ(CMS_SignerInfo *si,
-			const ASN1_OBJECT *obj, int type,
-			const void *bytes, int len)
+                                const ASN1_OBJECT *obj, int type,
+                                const void *bytes, int len)
 {
-	if(X509at_add1_attr_by_OBJ(&si->signedAttrs, obj,
-				type, bytes, len)) return 1;
-	return 0;
+    if (X509at_add1_attr_by_OBJ(&si->signedAttrs, obj, type, bytes, len))
+        return 1;
+    return 0;
 }
 
 int CMS_signed_add1_attr_by_NID(CMS_SignerInfo *si,
-			int nid, int type,
-			const void *bytes, int len)
+                                int nid, int type, const void *bytes, int len)
 {
-	if(X509at_add1_attr_by_NID(&si->signedAttrs, nid,
-				type, bytes, len)) return 1;
-	return 0;
+    if (X509at_add1_attr_by_NID(&si->signedAttrs, nid, type, bytes, len))
+        return 1;
+    return 0;
 }
 
 int CMS_signed_add1_attr_by_txt(CMS_SignerInfo *si,
-			const char *attrname, int type,
-			const void *bytes, int len)
+                                const char *attrname, int type,
+                                const void *bytes, int len)
 {
-	if(X509at_add1_attr_by_txt(&si->signedAttrs, attrname,
-				type, bytes, len)) return 1;
-	return 0;
+    if (X509at_add1_attr_by_txt(&si->signedAttrs, attrname, type, bytes, len))
+        return 1;
+    return 0;
 }
 
 void *CMS_signed_get0_data_by_OBJ(CMS_SignerInfo *si, ASN1_OBJECT *oid,
-					int lastpos, int type)
+                                  int lastpos, int type)
 {
-	return X509at_get0_data_by_OBJ(si->signedAttrs, oid, lastpos, type);
+    return X509at_get0_data_by_OBJ(si->signedAttrs, oid, lastpos, type);
 }
 
 int CMS_unsigned_get_attr_count(const CMS_SignerInfo *si)
 {
-	return X509at_get_attr_count(si->unsignedAttrs);
+    return X509at_get_attr_count(si->unsignedAttrs);
 }
 
 int CMS_unsigned_get_attr_by_NID(const CMS_SignerInfo *si, int nid,
-			  int lastpos)
+                                 int lastpos)
 {
-	return X509at_get_attr_by_NID(si->unsignedAttrs, nid, lastpos);
+    return X509at_get_attr_by_NID(si->unsignedAttrs, nid, lastpos);
 }
 
 int CMS_unsigned_get_attr_by_OBJ(const CMS_SignerInfo *si, ASN1_OBJECT *obj,
-			  int lastpos)
+                                 int lastpos)
 {
-	return X509at_get_attr_by_OBJ(si->unsignedAttrs, obj, lastpos);
+    return X509at_get_attr_by_OBJ(si->unsignedAttrs, obj, lastpos);
 }
 
 X509_ATTRIBUTE *CMS_unsigned_get_attr(const CMS_SignerInfo *si, int loc)
 {
-	return X509at_get_attr(si->unsignedAttrs, loc);
+    return X509at_get_attr(si->unsignedAttrs, loc);
 }
 
 X509_ATTRIBUTE *CMS_unsigned_delete_attr(CMS_SignerInfo *si, int loc)
 {
-	return X509at_delete_attr(si->unsignedAttrs, loc);
+    return X509at_delete_attr(si->unsignedAttrs, loc);
 }
 
 int CMS_unsigned_add1_attr(CMS_SignerInfo *si, X509_ATTRIBUTE *attr)
 {
-	if(X509at_add1_attr(&si->unsignedAttrs, attr)) return 1;
-	return 0;
+    if (X509at_add1_attr(&si->unsignedAttrs, attr))
+        return 1;
+    return 0;
 }
 
 int CMS_unsigned_add1_attr_by_OBJ(CMS_SignerInfo *si,
-			const ASN1_OBJECT *obj, int type,
-			const void *bytes, int len)
+                                  const ASN1_OBJECT *obj, int type,
+                                  const void *bytes, int len)
 {
-	if(X509at_add1_attr_by_OBJ(&si->unsignedAttrs, obj,
-				type, bytes, len)) return 1;
-	return 0;
+    if (X509at_add1_attr_by_OBJ(&si->unsignedAttrs, obj, type, bytes, len))
+        return 1;
+    return 0;
 }
 
 int CMS_unsigned_add1_attr_by_NID(CMS_SignerInfo *si,
-			int nid, int type,
-			const void *bytes, int len)
+                                  int nid, int type,
+                                  const void *bytes, int len)
 {
-	if(X509at_add1_attr_by_NID(&si->unsignedAttrs, nid,
-				type, bytes, len)) return 1;
-	return 0;
+    if (X509at_add1_attr_by_NID(&si->unsignedAttrs, nid, type, bytes, len))
+        return 1;
+    return 0;
 }
 
 int CMS_unsigned_add1_attr_by_txt(CMS_SignerInfo *si,
-			const char *attrname, int type,
-			const void *bytes, int len)
+                                  const char *attrname, int type,
+                                  const void *bytes, int len)
 {
-	if(X509at_add1_attr_by_txt(&si->unsignedAttrs, attrname,
-				type, bytes, len)) return 1;
-	return 0;
+    if (X509at_add1_attr_by_txt(&si->unsignedAttrs, attrname,
+                                type, bytes, len))
+        return 1;
+    return 0;
 }
 
 void *CMS_unsigned_get0_data_by_OBJ(CMS_SignerInfo *si, ASN1_OBJECT *oid,
-					int lastpos, int type)
+                                    int lastpos, int type)
 {
-	return X509at_get0_data_by_OBJ(si->unsignedAttrs, oid, lastpos, type);
+    return X509at_get0_data_by_OBJ(si->unsignedAttrs, oid, lastpos, type);
 }
 
 /* Specific attribute cases */

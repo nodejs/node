@@ -85,9 +85,7 @@ $code.=<<___ if(!$softonly && 0);	# hardware is slow for single block...
 	tmhl	%r0,0x4000	# check for message-security-assist
 	jz	.Lsoft_gmult
 	lghi	%r0,0
-	la	%r1,16($sp)
-	.long	0xb93e0004	# kimd %r0,%r4
-	lg	%r1,24($sp)
+	lg	%r1,24(%r1)	# load second word of kimd capabilities vector
 	tmhh	%r1,0x4000	# check for function 65
 	jz	.Lsoft_gmult
 	stg	%r0,16($sp)	# arrange 16 bytes of zero input
@@ -186,13 +184,13 @@ $code.=<<___;
 	sllg	$rem1,$Zlo,3
 	xgr	$Zlo,$tmp
 	ngr	$rem1,$x78
+	sllg	$tmp,$Zhi,60
 	j	.Lghash_inner
 .align	16
 .Lghash_inner:
 	srlg	$Zlo,$Zlo,4
-	sllg	$tmp,$Zhi,60
-	xg	$Zlo,8($nlo,$Htbl)
 	srlg	$Zhi,$Zhi,4
+	xg	$Zlo,8($nlo,$Htbl)
 	llgc	$xi,0($cnt,$Xi)
 	xg	$Zhi,0($nlo,$Htbl)
 	sllg	$nlo,$xi,4
@@ -213,9 +211,9 @@ $code.=<<___;
 	sllg	$rem1,$Zlo,3
 	xgr	$Zlo,$tmp
 	ngr	$rem1,$x78
+	sllg	$tmp,$Zhi,60
 	brct	$cnt,.Lghash_inner
 
-	sllg	$tmp,$Zhi,60
 	srlg	$Zlo,$Zlo,4
 	srlg	$Zhi,$Zhi,4
 	xg	$Zlo,8($nlo,$Htbl)

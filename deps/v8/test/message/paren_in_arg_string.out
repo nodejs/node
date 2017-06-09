@@ -2,5 +2,5 @@
 var paren_in_arg_string_bad = new Function(')', 'return;');
                               ^
 SyntaxError: Function arg string contains parenthesis
-    at Function (native)
+    at new Function (<anonymous>)
     at *%(basename)s:29:31

@@ -33,7 +33,10 @@ from testrunner.objects import testcase
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
+ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
 SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
+MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
+NO_HARNESS_PATTERN = re.compile(r"^// NO HARNESS$", flags=re.MULTILINE)
 
 
 class MjsunitTestSuite(testsuite.TestSuite):
@@ -43,14 +46,16 @@ class MjsunitTestSuite(testsuite.TestSuite):
 
   def ListTests(self, context):
     tests = []
-    for dirname, dirs, files in os.walk(self.root):
+    for dirname, dirs, files in os.walk(self.root, followlinks=True):
       for dotted in [x for x in dirs if x.startswith('.')]:
         dirs.remove(dotted)
       dirs.sort()
       files.sort()
       for filename in files:
         if filename.endswith(".js") and filename != "mjsunit.js":
-          testname = os.path.join(dirname[len(self.root) + 1:], filename[:-3])
+          fullpath = os.path.join(dirname, filename)
+          relpath = fullpath[len(self.root) + 1 : -3]
+          testname = relpath.replace(os.path.sep, "/")
           test = testcase.TestCase(self, testname)
           tests.append(test)
     return tests
@@ -77,13 +82,24 @@ class MjsunitTestSuite(testsuite.TestSuite):
     if SELF_SCRIPT_PATTERN.search(source):
       env = ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")]
       files = env + files
-    files.append(os.path.join(self.root, "mjsunit.js"))
+
+    if not context.no_harness and not NO_HARNESS_PATTERN.search(source):
+      files.append(os.path.join(self.root, "mjsunit.js"))
+
+    if MODULE_PATTERN.search(source):
+      files.append("--module")
     files.append(testfilename)
 
     flags += files
     if context.isolates:
       flags.append("--isolate")
       flags += files
+
+    env_match = ENV_PATTERN.search(source)
+    if env_match:
+      for env_pair in env_match.group(1).strip().split():
+        var, value = env_pair.split('=')
+        testcase.env[var] = value
 
     return testcase.flags + flags
 

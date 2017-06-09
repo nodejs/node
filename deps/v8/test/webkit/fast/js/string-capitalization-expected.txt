@@ -26,8 +26,8 @@ This test checks that toLowerCase and toUpperCase handle certain non-trivial cas
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-FAIL String("A𐐀").toLowerCase() should be a𐐨. Was a𐐀.
-FAIL String("a𐐨").toUpperCase() should be A𐐀. Was A𐐨.
+PASS String("A𐐀").toLowerCase() is "a𐐨"
+PASS String("a𐐨").toUpperCase() is "A𐐀"
 PASS String("ΚΟΣΜΟΣ ΚΟΣΜΟΣ").toLowerCase() is "κοσμος κοσμος"
 PASS String("ß").toUpperCase() is "SS"
 PASS String("ŉ").toUpperCase() is "ʼN"

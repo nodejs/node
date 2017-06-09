@@ -19,16 +19,15 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
-var common = require('../common');
-var assert = require('assert');
+/* eslint-disable indent, no-tabs */
+'use strict';
+require('../common');
 
 console.error('before');
 
-(function () {
+(function() {
 	// these lines should contain tab!
+	// eslint-disable-next-line no-throw-literal
 	throw ({ foo: 'bar' });
 })();
 

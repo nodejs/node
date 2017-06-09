@@ -1,0 +1,83 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "builtins@^1.0.3",
+        "scope": null,
+        "escapedName": "builtins",
+        "name": "builtins",
+        "rawSpec": "^1.0.3",
+        "spec": ">=1.0.3 <2.0.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/validate-npm-package-name"
+    ]
+  ],
+  "_from": "builtins@>=1.0.3 <2.0.0",
+  "_id": "builtins@1.0.3",
+  "_inCache": true,
+  "_location": "/validate-npm-package-name/builtins",
+  "_nodeVersion": "4.2.1",
+  "_npmUser": {
+    "name": "juliangruber",
+    "email": "julian@juliangruber.com"
+  },
+  "_npmVersion": "2.14.7",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "builtins@^1.0.3",
+    "scope": null,
+    "escapedName": "builtins",
+    "name": "builtins",
+    "rawSpec": "^1.0.3",
+    "spec": ">=1.0.3 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/validate-npm-package-name"
+  ],
+  "_resolved": "https://registry.npmjs.org/builtins/-/builtins-1.0.3.tgz",
+  "_shasum": "cb94faeb61c8696451db36534e1422f94f0aee88",
+  "_shrinkwrap": null,
+  "_spec": "builtins@^1.0.3",
+  "_where": "/Users/rebecca/code/npm/node_modules/validate-npm-package-name",
+  "bugs": {
+    "url": "https://github.com/juliangruber/builtins/issues"
+  },
+  "dependencies": {},
+  "description": "List of node.js builtin modules",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "cb94faeb61c8696451db36534e1422f94f0aee88",
+    "tarball": "https://registry.npmjs.org/builtins/-/builtins-1.0.3.tgz"
+  },
+  "gitHead": "be046dcd4e338cadff24d3330ad43d65dfd80bb3",
+  "homepage": "https://github.com/juliangruber/builtins#readme",
+  "license": "MIT",
+  "main": "builtins.json",
+  "maintainers": [
+    {
+      "name": "juliangruber",
+      "email": "julian@juliangruber.com"
+    },
+    {
+      "name": "segment",
+      "email": "tj@segment.io"
+    }
+  ],
+  "name": "builtins",
+  "optionalDependencies": {},
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juliangruber/builtins.git"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "version": "1.0.3"
+}

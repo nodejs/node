@@ -26,9 +26,11 @@
 #include "env.h"
 #include "env-inl.h"
 #include "node.h"
-#include "req_wrap.h"
+#include "req-wrap.h"
+#include "req-wrap-inl.h"
 #include "tree.h"
 #include "util.h"
+#include "util-inl.h"
 #include "uv.h"
 
 #include <errno.h>
@@ -45,6 +47,9 @@
 # include <arpa/nameser.h>
 #endif
 
+#if defined(__OpenBSD__)
+# define AI_V4MAPPED 0
+#endif
 
 namespace node {
 namespace cares_wrap {
@@ -52,10 +57,8 @@ namespace cares_wrap {
 using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -64,10 +67,45 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+namespace {
+
+inline const char* ToErrorCodeString(int status) {
+  switch (status) {
+#define V(code) case ARES_##code: return #code;
+    V(EADDRGETNETWORKPARAMS)
+    V(EBADFAMILY)
+    V(EBADFLAGS)
+    V(EBADHINTS)
+    V(EBADNAME)
+    V(EBADQUERY)
+    V(EBADRESP)
+    V(EBADSTR)
+    V(ECANCELLED)
+    V(ECONNREFUSED)
+    V(EDESTRUCTION)
+    V(EFILE)
+    V(EFORMERR)
+    V(ELOADIPHLPAPI)
+    V(ENODATA)
+    V(ENOMEM)
+    V(ENONAME)
+    V(ENOTFOUND)
+    V(ENOTIMP)
+    V(ENOTINITIALIZED)
+    V(EOF)
+    V(EREFUSED)
+    V(ESERVFAIL)
+    V(ETIMEOUT)
+#undef V
+  }
+  return "UNKNOWN_ARES_ERROR";
+}
 
 class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
  public:
   GetAddrInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+
+  size_t self_size() const override { return sizeof(*this); }
 };
 
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
@@ -77,14 +115,11 @@ GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
 }
 
 
-static void NewGetAddrInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args.IsConstructCall());
-}
-
-
 class GetNameInfoReqWrap : public ReqWrap<uv_getnameinfo_t> {
-  public:
-    GetNameInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+ public:
+  GetNameInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+
+  size_t self_size() const override { return sizeof(*this); }
 };
 
 GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
@@ -94,12 +129,7 @@ GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
 }
 
 
-static void NewGetNameInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args.IsConstructCall());
-}
-
-
-static int cmp_ares_tasks(const ares_task_t* a, const ares_task_t* b) {
+int cmp_ares_tasks(const node_ares_task* a, const node_ares_task* b) {
   if (a->sock < b->sock)
     return -1;
   if (a->sock > b->sock)
@@ -108,21 +138,21 @@ static int cmp_ares_tasks(const ares_task_t* a, const ares_task_t* b) {
 }
 
 
-RB_GENERATE_STATIC(ares_task_list, ares_task_t, node, cmp_ares_tasks)
+RB_GENERATE_STATIC(node_ares_task_list, node_ares_task, node, cmp_ares_tasks)
 
 
 
 /* This is called once per second by loop->timer. It is used to constantly */
 /* call back into c-ares for possibly processing timeouts. */
-static void ares_timeout(uv_timer_t* handle) {
+void ares_timeout(uv_timer_t* handle) {
   Environment* env = Environment::from_cares_timer_handle(handle);
   CHECK_EQ(false, RB_EMPTY(env->cares_task_list()));
   ares_process_fd(env->cares_channel(), ARES_SOCKET_BAD, ARES_SOCKET_BAD);
 }
 
 
-static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
-  ares_task_t* task = ContainerOf(&ares_task_t::poll_watcher, watcher);
+void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
+  node_ares_task* task = ContainerOf(&node_ares_task::poll_watcher, watcher);
   Environment* env = task->env;
 
   /* Reset the idle timer */
@@ -142,16 +172,16 @@ static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
 }
 
 
-static void ares_poll_close_cb(uv_handle_t* watcher) {
-  ares_task_t* task = ContainerOf(&ares_task_t::poll_watcher,
+void ares_poll_close_cb(uv_handle_t* watcher) {
+  node_ares_task* task = ContainerOf(&node_ares_task::poll_watcher,
                                   reinterpret_cast<uv_poll_t*>(watcher));
   free(task);
 }
 
 
-/* Allocates and returns a new ares_task_t */
-static ares_task_t* ares_task_create(Environment* env, ares_socket_t sock) {
-  ares_task_t* task = static_cast<ares_task_t*>(malloc(sizeof(*task)));
+/* Allocates and returns a new node_ares_task */
+node_ares_task* ares_task_create(Environment* env, ares_socket_t sock) {
+  auto task = node::UncheckedMalloc<node_ares_task>(1);
 
   if (task == nullptr) {
     /* Out of memory. */
@@ -172,16 +202,16 @@ static ares_task_t* ares_task_create(Environment* env, ares_socket_t sock) {
 
 
 /* Callback from ares when socket operation is started */
-static void ares_sockstate_cb(void* data,
-                              ares_socket_t sock,
-                              int read,
-                              int write) {
+void ares_sockstate_cb(void* data,
+                       ares_socket_t sock,
+                       int read,
+                       int write) {
   Environment* env = static_cast<Environment*>(data);
-  ares_task_t* task;
+  node_ares_task* task;
 
-  ares_task_t lookup_task;
+  node_ares_task lookup_task;
   lookup_task.sock = sock;
-  task = RB_FIND(ares_task_list, env->cares_task_list(), &lookup_task);
+  task = RB_FIND(node_ares_task_list, env->cares_task_list(), &lookup_task);
 
   if (read || write) {
     if (!task) {
@@ -197,12 +227,12 @@ static void ares_sockstate_cb(void* data,
       task = ares_task_create(env, sock);
       if (task == nullptr) {
         /* This should never happen unless we're out of memory or something */
-        /* is seriously wrong. The socket won't be polled, but the the query */
-        /* will eventually time out. */
+        /* is seriously wrong. The socket won't be polled, but the query will */
+        /* eventually time out. */
         return;
       }
 
-      RB_INSERT(ares_task_list, env->cares_task_list(), task);
+      RB_INSERT(node_ares_task_list, env->cares_task_list(), task);
     }
 
     /* This should never fail. If it fails anyway, the query will eventually */
@@ -218,7 +248,7 @@ static void ares_sockstate_cb(void* data,
     CHECK(task &&
           "When an ares socket is closed we should have a handle for it");
 
-    RB_REMOVE(ares_task_list, env->cares_task_list(), task);
+    RB_REMOVE(node_ares_task_list, env->cares_task_list(), task);
     uv_close(reinterpret_cast<uv_handle_t*>(&task->poll_watcher),
              ares_poll_close_cb);
 
@@ -229,7 +259,7 @@ static void ares_sockstate_cb(void* data,
 }
 
 
-static Local<Array> HostentToAddresses(Environment* env, struct hostent* host) {
+Local<Array> HostentToAddresses(Environment* env, struct hostent* host) {
   EscapableHandleScope scope(env->isolate());
   Local<Array> addresses = Array::New(env->isolate());
 
@@ -244,7 +274,7 @@ static Local<Array> HostentToAddresses(Environment* env, struct hostent* host) {
 }
 
 
-static Local<Array> HostentToNames(Environment* env, struct hostent* host) {
+Local<Array> HostentToNames(Environment* env, struct hostent* host) {
   EscapableHandleScope scope(env->isolate());
   Local<Array> names = Array::New(env->isolate());
 
@@ -265,8 +295,9 @@ class QueryWrap : public AsyncWrap {
       req_wrap_obj->Set(env->domain_string(), env->domain_array()->Get(0));
   }
 
-  virtual ~QueryWrap() override {
+  ~QueryWrap() override {
     CHECK_EQ(false, persistent().IsEmpty());
+    ClearWrap(object());
     persistent().Reset();
   }
 
@@ -312,77 +343,36 @@ class QueryWrap : public AsyncWrap {
     delete wrap;
   }
 
-  void CallOnComplete(Local<Value> answer) {
-    HandleScope handle_scope(env()->isolate());
-    Context::Scope context_scope(env()->context());
-    Local<Value> argv[] = {
-      Integer::New(env()->isolate(), 0),
-      answer
-    };
-    MakeCallback(env()->oncomplete_string(), ARRAY_SIZE(argv), argv);
-  }
-
-  void CallOnComplete(Local<Value> answer, Local<Value> family) {
+  void CallOnComplete(Local<Value> answer,
+                      Local<Value> extra = Local<Value>()) {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
     Local<Value> argv[] = {
       Integer::New(env()->isolate(), 0),
       answer,
-      family
+      extra
     };
-    MakeCallback(env()->oncomplete_string(), ARRAY_SIZE(argv), argv);
+    const int argc = arraysize(argv) - extra.IsEmpty();
+    MakeCallback(env()->oncomplete_string(), argc, argv);
   }
 
   void ParseError(int status) {
     CHECK_NE(status, ARES_SUCCESS);
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
-    Local<Value> arg;
-    switch (status) {
-#define V(code)                                                               \
-      case ARES_ ## code:                                                     \
-        arg = FIXED_ONE_BYTE_STRING(env()->isolate(), #code);                 \
-        break;
-      V(ENODATA)
-      V(EFORMERR)
-      V(ESERVFAIL)
-      V(ENOTFOUND)
-      V(ENOTIMP)
-      V(EREFUSED)
-      V(EBADQUERY)
-      V(EBADNAME)
-      V(EBADFAMILY)
-      V(EBADRESP)
-      V(ECONNREFUSED)
-      V(ETIMEOUT)
-      V(EOF)
-      V(EFILE)
-      V(ENOMEM)
-      V(EDESTRUCTION)
-      V(EBADSTR)
-      V(EBADFLAGS)
-      V(ENONAME)
-      V(EBADHINTS)
-      V(ENOTINITIALIZED)
-      V(ELOADIPHLPAPI)
-      V(EADDRGETNETWORKPARAMS)
-      V(ECANCELLED)
-#undef V
-      default:
-        arg = FIXED_ONE_BYTE_STRING(env()->isolate(), "UNKNOWN_ARES_ERROR");
-        break;
-    }
+    const char* code = ToErrorCodeString(status);
+    Local<Value> arg = OneByteString(env()->isolate(), code);
     MakeCallback(env()->oncomplete_string(), 1, &arg);
   }
 
   // Subclasses should implement the appropriate Parse method.
   virtual void Parse(unsigned char* buf, int len) {
     UNREACHABLE();
-  };
+  }
 
   virtual void Parse(struct hostent* host) {
     UNREACHABLE();
-  };
+  }
 };
 
 
@@ -402,23 +392,34 @@ class QueryAWrap: public QueryWrap {
     return 0;
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
 
-    struct hostent* host;
+    hostent* host;
+    ares_addrttl addrttls[256];
+    int naddrttls = arraysize(addrttls);
 
-    int status = ares_parse_a_reply(buf, len, &host, nullptr, nullptr);
+    int status = ares_parse_a_reply(buf, len, &host, addrttls, &naddrttls);
     if (status != ARES_SUCCESS) {
       ParseError(status);
       return;
     }
 
     Local<Array> addresses = HostentToAddresses(env(), host);
+    Local<Array> ttls = Array::New(env()->isolate(), naddrttls);
+
+    auto context = env()->context();
+    for (int i = 0; i < naddrttls; i += 1) {
+      auto value = Integer::New(env()->isolate(), addrttls[i].ttl);
+      ttls->Set(context, i, value).FromJust();
+    }
     ares_free_hostent(host);
 
-    this->CallOnComplete(addresses);
+    CallOnComplete(addresses, ttls);
   }
 };
 
@@ -439,23 +440,34 @@ class QueryAaaaWrap: public QueryWrap {
     return 0;
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
 
-    struct hostent* host;
+    hostent* host;
+    ares_addr6ttl addrttls[256];
+    int naddrttls = arraysize(addrttls);
 
-    int status = ares_parse_aaaa_reply(buf, len, &host, nullptr, nullptr);
+    int status = ares_parse_aaaa_reply(buf, len, &host, addrttls, &naddrttls);
     if (status != ARES_SUCCESS) {
       ParseError(status);
       return;
     }
 
     Local<Array> addresses = HostentToAddresses(env(), host);
+    Local<Array> ttls = Array::New(env()->isolate(), naddrttls);
+
+    auto context = env()->context();
+    for (int i = 0; i < naddrttls; i += 1) {
+      auto value = Integer::New(env()->isolate(), addrttls[i].ttl);
+      ttls->Set(context, i, value).FromJust();
+    }
     ares_free_hostent(host);
 
-    this->CallOnComplete(addresses);
+    CallOnComplete(addresses, ttls);
   }
 };
 
@@ -475,6 +487,8 @@ class QueryCnameWrap: public QueryWrap {
                GetQueryArg());
     return 0;
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -514,6 +528,8 @@ class QueryMxWrap: public QueryWrap {
                GetQueryArg());
     return 0;
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -564,6 +580,8 @@ class QueryNsWrap: public QueryWrap {
     return 0;
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
@@ -600,13 +618,15 @@ class QueryTxtWrap: public QueryWrap {
     return 0;
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
-    struct ares_txt_reply* txt_out;
+    struct ares_txt_ext* txt_out;
 
-    int status = ares_parse_txt_reply(buf, len, &txt_out);
+    int status = ares_parse_txt_reply_ext(buf, len, &txt_out);
     if (status != ARES_SUCCESS) {
       ParseError(status);
       return;
@@ -615,7 +635,7 @@ class QueryTxtWrap: public QueryWrap {
     Local<Array> txt_records = Array::New(env()->isolate());
     Local<Array> txt_chunk;
 
-    ares_txt_reply* current = txt_out;
+    struct ares_txt_ext* current = txt_out;
     uint32_t i = 0;
     for (uint32_t j = 0; current != nullptr; current = current->next) {
       Local<String> txt = OneByteString(env()->isolate(), current->txt);
@@ -628,8 +648,9 @@ class QueryTxtWrap: public QueryWrap {
       }
       txt_chunk->Set(j++, txt);
     }
-    // Push last chunk
-    txt_records->Set(i, txt_chunk);
+    // Push last chunk if it isn't empty
+    if (!txt_chunk.IsEmpty())
+      txt_records->Set(i, txt_chunk);
 
     ares_free_data(txt_out);
 
@@ -653,6 +674,8 @@ class QuerySrvWrap: public QueryWrap {
                GetQueryArg());
     return 0;
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -692,6 +715,49 @@ class QuerySrvWrap: public QueryWrap {
   }
 };
 
+class QueryPtrWrap: public QueryWrap {
+ public:
+  explicit QueryPtrWrap(Environment* env, Local<Object> req_wrap_obj)
+      : QueryWrap(env, req_wrap_obj) {
+  }
+
+  int Send(const char* name) override {
+    ares_query(env()->cares_channel(),
+               name,
+               ns_c_in,
+               ns_t_ptr,
+               Callback,
+               GetQueryArg());
+    return 0;
+  }
+
+  size_t self_size() const override { return sizeof(*this); }
+
+ protected:
+  void Parse(unsigned char* buf, int len) override {
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
+
+    struct hostent* host;
+
+    int status = ares_parse_ptr_reply(buf, len, NULL, 0, AF_INET, &host);
+    if (status != ARES_SUCCESS) {
+      ParseError(status);
+      return;
+    }
+
+    Local<Array> aliases = Array::New(env()->isolate());
+
+    for (uint32_t i = 0; host->h_aliases[i] != NULL; i++) {
+      aliases->Set(i, OneByteString(env()->isolate(), host->h_aliases[i]));
+    }
+
+    ares_free_hostent(host);
+
+    this->CallOnComplete(aliases);
+  }
+};
+
 class QueryNaptrWrap: public QueryWrap {
  public:
   explicit QueryNaptrWrap(Environment* env, Local<Object> req_wrap_obj)
@@ -707,6 +773,8 @@ class QueryNaptrWrap: public QueryWrap {
                GetQueryArg());
     return 0;
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -769,6 +837,8 @@ class QuerySoaWrap: public QueryWrap {
                GetQueryArg());
     return 0;
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -836,6 +906,8 @@ class GetHostByAddrWrap: public QueryWrap {
     return 0;
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  protected:
   void Parse(struct hostent* host) override {
     HandleScope handle_scope(env()->isolate());
@@ -884,7 +956,7 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   Local<String> string = args[1].As<String>();
   Wrap* wrap = new Wrap(env, req_wrap_obj);
 
-  node::Utf8Value name(string);
+  node::Utf8Value name(env->isolate(), string);
   int err = wrap->Send(*name);
   if (err)
     delete wrap;
@@ -910,18 +982,11 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     struct addrinfo *address;
     int n = 0;
 
-    // Count the number of responses.
-    for (address = res; address; address = address->ai_next) {
-      n++;
-    }
-
     // Create the response array.
-    Local<Array> results = Array::New(env->isolate(), n);
+    Local<Array> results = Array::New(env->isolate());
 
     char ip[INET6_ADDRSTRLEN];
     const char *addr;
-
-    n = 0;
 
     // Iterate over the IPv4 responses again this time creating javascript
     // strings for each IP and filling the results array.
@@ -978,6 +1043,10 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
       address = address->ai_next;
     }
 
+    // No responses were found to return
+    if (n == 0) {
+      argv[0] = Integer::New(env->isolate(), UV_EAI_NODATA);
+    }
 
     argv[1] = results;
   }
@@ -985,7 +1054,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   uv_freeaddrinfo(res);
 
   // Make the callback into JavaScript
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }
@@ -1016,14 +1085,14 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
   }
 
   // Make the callback into JavaScript
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }
 
 
-static void IsIP(const FunctionCallbackInfo<Value>& args) {
-  node::Utf8Value ip(args[0]);
+void IsIP(const FunctionCallbackInfo<Value>& args) {
+  node::Utf8Value ip(args.GetIsolate(), args[0]);
   char address_buffer[sizeof(struct in6_addr)];
 
   int rc = 0;
@@ -1035,15 +1104,36 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(rc);
 }
 
+void IsIPv4(const FunctionCallbackInfo<Value>& args) {
+  node::Utf8Value ip(args.GetIsolate(), args[0]);
+  char address_buffer[sizeof(struct in_addr)];
 
-static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
+  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0) {
+    args.GetReturnValue().Set(true);
+  } else {
+    args.GetReturnValue().Set(false);
+  }
+}
+
+void IsIPv6(const FunctionCallbackInfo<Value>& args) {
+  node::Utf8Value ip(args.GetIsolate(), args[0]);
+  char address_buffer[sizeof(struct in6_addr)];
+
+  if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0) {
+    args.GetReturnValue().Set(true);
+  } else {
+    args.GetReturnValue().Set(false);
+  }
+}
+
+void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
   CHECK(args[2]->IsInt32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value hostname(args[1]);
+  node::Utf8Value hostname(env->isolate(), args[1]);
 
   int32_t flags = (args[3]->IsInt32()) ? args[3]->Int32Value() : 0;
   int family;
@@ -1060,7 +1150,6 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
     break;
   default:
     CHECK(0 && "bad address family");
-    abort();
   }
 
   GetAddrInfoReqWrap* req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj);
@@ -1072,7 +1161,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   hints.ai_flags = flags;
 
   int err = uv_getaddrinfo(env->event_loop(),
-                           &req_wrap->req_,
+                           req_wrap->req(),
                            AfterGetAddrInfo,
                            *hostname,
                            nullptr,
@@ -1085,14 +1174,14 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
+void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
   CHECK(args[2]->IsUint32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value ip(args[1]);
+  node::Utf8Value ip(env->isolate(), args[1]);
   const unsigned port = args[2]->Uint32Value();
   struct sockaddr_storage addr;
 
@@ -1102,7 +1191,7 @@ static void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   GetNameInfoReqWrap* req_wrap = new GetNameInfoReqWrap(env, req_wrap_obj);
 
   int err = uv_getnameinfo(env->event_loop(),
-                           &req_wrap->req_,
+                           req_wrap->req(),
                            AfterGetNameInfo,
                            (struct sockaddr*)&addr,
                            NI_NAMEREQD);
@@ -1114,7 +1203,7 @@ static void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void GetServers(const FunctionCallbackInfo<Value>& args) {
+void GetServers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   Local<Array> server_array = Array::New(env->isolate());
@@ -1143,7 +1232,7 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void SetServers(const FunctionCallbackInfo<Value>& args) {
+void SetServers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsArray());
@@ -1171,7 +1260,7 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
     CHECK(elm->Get(1)->IsString());
 
     int fam = elm->Get(0)->Int32Value();
-    node::Utf8Value ip(elm->Get(1));
+    node::Utf8Value ip(env->isolate(), elm->Get(1));
 
     ares_addr_node* cur = &servers[i];
 
@@ -1186,7 +1275,6 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
         break;
       default:
         CHECK(0 && "Bad address family.");
-        abort();
     }
 
     if (err)
@@ -1211,34 +1299,35 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void StrError(const FunctionCallbackInfo<Value>& args) {
+void StrError(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   const char* errmsg = ares_strerror(args[0]->Int32Value());
   args.GetReturnValue().Set(OneByteString(env->isolate(), errmsg));
 }
 
 
-static void CaresTimerCloseCb(uv_handle_t* handle) {
+void CaresTimerCloseCb(uv_handle_t* handle) {
   Environment* env = Environment::from_cares_timer_handle(
       reinterpret_cast<uv_timer_t*>(handle));
   env->FinishHandleCleanup(handle);
 }
 
 
-static void CaresTimerClose(Environment* env,
+void CaresTimerClose(Environment* env,
                             uv_handle_t* handle,
                             void* arg) {
   uv_close(handle, CaresTimerCloseCb);
 }
 
 
-static void Initialize(Handle<Object> target,
-                       Handle<Value> unused,
-                       Handle<Context> context) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   int r = ares_library_init(ARES_LIB_INIT_ALL);
-  CHECK_EQ(r, ARES_SUCCESS);
+  if (r != ARES_SUCCESS)
+    return env->ThrowError(ToErrorCodeString(r));
 
   struct ares_options options;
   memset(&options, 0, sizeof(options));
@@ -1250,7 +1339,10 @@ static void Initialize(Handle<Object> target,
   r = ares_init_options(env->cares_channel_ptr(),
                         &options,
                         ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
-  CHECK_EQ(r, ARES_SUCCESS);
+  if (r != ARES_SUCCESS) {
+    ares_library_cleanup();
+    return env->ThrowError(ToErrorCodeString(r));
+  }
 
   /* Initialize the timeout timer. The timer won't be started until the */
   /* first socket is opened. */
@@ -1267,6 +1359,7 @@ static void Initialize(Handle<Object> target,
   env->SetMethod(target, "queryNs", Query<QueryNsWrap>);
   env->SetMethod(target, "queryTxt", Query<QueryTxtWrap>);
   env->SetMethod(target, "querySrv", Query<QuerySrvWrap>);
+  env->SetMethod(target, "queryPtr", Query<QueryPtrWrap>);
   env->SetMethod(target, "queryNaptr", Query<QueryNaptrWrap>);
   env->SetMethod(target, "querySoa", Query<QuerySoaWrap>);
   env->SetMethod(target, "getHostByAddr", Query<GetHostByAddrWrap>);
@@ -1274,6 +1367,8 @@ static void Initialize(Handle<Object> target,
   env->SetMethod(target, "getaddrinfo", GetAddrInfo);
   env->SetMethod(target, "getnameinfo", GetNameInfo);
   env->SetMethod(target, "isIP", IsIP);
+  env->SetMethod(target, "isIPv4", IsIPv4);
+  env->SetMethod(target, "isIPv6", IsIPv6);
 
   env->SetMethod(target, "strerror", StrError);
   env->SetMethod(target, "getServers", GetServers);
@@ -1290,8 +1385,12 @@ static void Initialize(Handle<Object> target,
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_V4MAPPED"),
               Integer::New(env->isolate(), AI_V4MAPPED));
 
+  auto is_construct_call_callback =
+      [](const FunctionCallbackInfo<Value>& args) {
+    CHECK(args.IsConstructCall());
+  };
   Local<FunctionTemplate> aiw =
-      FunctionTemplate::New(env->isolate(), NewGetAddrInfoReqWrap);
+      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   aiw->InstanceTemplate()->SetInternalFieldCount(1);
   aiw->SetClassName(
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap"));
@@ -1299,14 +1398,23 @@ static void Initialize(Handle<Object> target,
               aiw->GetFunction());
 
   Local<FunctionTemplate> niw =
-      FunctionTemplate::New(env->isolate(), NewGetNameInfoReqWrap);
+      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   niw->InstanceTemplate()->SetInternalFieldCount(1);
   niw->SetClassName(
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"),
               niw->GetFunction());
+
+  Local<FunctionTemplate> qrw =
+      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
+  qrw->InstanceTemplate()->SetInternalFieldCount(1);
+  qrw->SetClassName(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"),
+              qrw->GetFunction());
 }
 
+}  // anonymous namespace
 }  // namespace cares_wrap
 }  // namespace node
 

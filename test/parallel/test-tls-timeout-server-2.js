@@ -19,29 +19,35 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) process.exit();
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+const tls = require('tls');
 
-var options = {
+const fs = require('fs');
+
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = tls.createServer(options, function(cleartext) {
-  cleartext.setTimeout(50, function() {
+const server = tls.createServer(options, common.mustCall(function(cleartext) {
+  const s = cleartext.setTimeout(50, function() {
     cleartext.destroy();
     server.close();
   });
-});
+  assert.ok(s instanceof tls.TLSSocket);
+}));
 
-server.listen(common.PORT, function() {
+server.listen(0, common.mustCall(function() {
   tls.connect({
     host: '127.0.0.1',
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   });
-});
+}));

@@ -19,14 +19,20 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var crypto = require('crypto');
-var stream = require('stream');
-var Stream = stream.Stream;
-var util = require('util');
-var assert = require('assert');
-var zlib = require('zlib');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+const crypto = require('crypto');
+
+const stream = require('stream');
+const Stream = stream.Stream;
+const util = require('util');
+const zlib = require('zlib');
 
 
 // emit random bytes, and keep a shasum
@@ -87,14 +93,14 @@ RandomReadStream.prototype._process = function() {
 
   // figure out how many bytes to output
   // if finished, then just emit end.
-  var block = this._opt.block;
-  var jitter = this._opt.jitter;
+  let block = this._opt.block;
+  const jitter = this._opt.jitter;
   if (jitter) {
     block += Math.ceil(Math.random() * jitter - (jitter / 2));
   }
   block = Math.min(block, this._remaining);
-  var buf = new Buffer(block);
-  for (var i = 0; i < block; i++) {
+  const buf = Buffer.allocUnsafe(block);
+  for (let i = 0; i < block; i++) {
     buf[i] = Math.random() * 256;
   }
 
@@ -144,12 +150,10 @@ HashStream.prototype.end = function(c) {
 };
 
 
-
-
-var inp = new RandomReadStream({ total: 1024, block: 256, jitter: 16 });
-var out = new HashStream();
-var gzip = zlib.createGzip();
-var gunz = zlib.createGunzip();
+const inp = new RandomReadStream({ total: 1024, block: 256, jitter: 16 });
+const out = new HashStream();
+const gzip = zlib.createGzip();
+const gunz = zlib.createGunzip();
 
 inp.pipe(gzip).pipe(gunz).pipe(out);
 
@@ -169,13 +173,7 @@ out.on('data', function(c) {
   console.error('out data', c.length);
 });
 
-var didSomething = false;
-out.on('data', function(c) {
-  didSomething = true;
+out.on('data', common.mustCall(function(c) {
   console.error('hash=%s', c);
-  assert.equal(c, inp._hash, 'hashes should match');
-});
-
-process.on('exit', function() {
-  assert(didSomething, 'should have done something');
-});
+  assert.strictEqual(c, inp._hash, 'hashes should match');
+}));

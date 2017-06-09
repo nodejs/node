@@ -62,7 +62,7 @@ Public members
 API
 ---
 
-.. c:function:: int uv_signal_init(uv_loop_t*, uv_signal_t* signal)
+.. c:function:: int uv_signal_init(uv_loop_t* loop, uv_signal_t* signal)
 
     Initialize the handle.
 

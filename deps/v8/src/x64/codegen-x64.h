@@ -5,14 +5,10 @@
 #ifndef V8_X64_CODEGEN_X64_H_
 #define V8_X64_CODEGEN_X64_H_
 
-#include "src/ast.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
-
-
-enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 
 class StringCharLoadGenerator : public AllStatic {
@@ -28,20 +24,6 @@ class StringCharLoadGenerator : public AllStatic {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StringCharLoadGenerator);
-};
-
-
-class MathExpGenerator : public AllStatic {
- public:
-  static void EmitMathExp(MacroAssembler* masm,
-                          XMMRegister input,
-                          XMMRegister result,
-                          XMMRegister double_scratch,
-                          Register temp1,
-                          Register temp2);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
 };
 
 
@@ -111,6 +93,7 @@ class StackArgumentsAccessor BASE_EMBEDDED {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X64_CODEGEN_X64_H_

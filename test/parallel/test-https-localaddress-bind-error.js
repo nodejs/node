@@ -19,21 +19,26 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var https = require('https');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
-var options = {
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+const https = require('https');
+
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var invalidLocalAddress = '1.2.3.4';
-var gotError = false;
+const invalidLocalAddress = '1.2.3.4';
 
-var server = https.createServer(options, function(req, res) {
-  console.log("Connect from: " + req.connection.remoteAddress);
+const server = https.createServer(options, function(req, res) {
+  console.log('Connect from: ' + req.connection.remoteAddress);
 
   req.on('end', function() {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -42,22 +47,17 @@ var server = https.createServer(options, function(req, res) {
   req.resume();
 });
 
-server.listen(common.PORT, "127.0.0.1", function() {
-  var req = https.request({
+server.listen(0, '127.0.0.1', common.mustCall(function() {
+  https.request({
     host: 'localhost',
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'GET',
     localAddress: invalidLocalAddress
   }, function(res) {
     assert.fail('unexpectedly got response from server');
-  }).on('error', function(e) {
+  }).on('error', common.mustCall(function(e) {
     console.log('client got error: ' + e.message);
-    gotError = true;
     server.close();
-  }).end();
-});
-
-process.on('exit', function() {
-  assert.ok(gotError);
-});
+  })).end();
+}));

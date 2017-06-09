@@ -6,97 +6,87 @@
 #define V8_TYPE_INFO_H_
 
 #include "src/allocation.h"
+#include "src/ast/ast-types.h"
+#include "src/contexts.h"
 #include "src/globals.h"
-#include "src/types.h"
-#include "src/zone-inl.h"
+#include "src/parsing/token.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
 class SmallMapList;
-
+class FeedbackNexus;
+class StubCache;
 
 class TypeFeedbackOracle: public ZoneObject {
  public:
-  TypeFeedbackOracle(Handle<Code> code,
-                     Handle<TypeFeedbackVector> feedback_vector,
-                     Handle<Context> native_context, Zone* zone);
+  TypeFeedbackOracle(Isolate* isolate, Zone* zone, Handle<Code> code,
+                     Handle<FeedbackVector> feedback_vector,
+                     Handle<Context> native_context);
 
-  bool LoadIsUninitialized(TypeFeedbackId id);
-  bool StoreIsUninitialized(TypeFeedbackId id);
-  bool CallIsMonomorphic(FeedbackVectorICSlot slot);
-  bool KeyedArrayCallIsHoley(TypeFeedbackId id);
-  bool CallNewIsMonomorphic(FeedbackVectorSlot slot);
+  InlineCacheState LoadInlineCacheState(FeedbackSlot slot);
+  bool StoreIsUninitialized(FeedbackSlot slot);
+  bool CallIsUninitialized(FeedbackSlot slot);
+  bool CallIsMonomorphic(FeedbackSlot slot);
+  bool CallNewIsMonomorphic(FeedbackSlot slot);
 
   // TODO(1571) We can't use ForInStatement::ForInType as the return value due
   // to various cycles in our headers.
   // TODO(rossberg): once all oracle access is removed from ast.cc, it should
   // be possible.
-  byte ForInType(FeedbackVectorSlot feedback_vector_slot);
+  byte ForInType(FeedbackSlot feedback_vector_slot);
 
-  void GetStoreModeAndKeyType(TypeFeedbackId id,
+  void GetStoreModeAndKeyType(FeedbackSlot slot,
                               KeyedAccessStoreMode* store_mode,
                               IcCheckType* key_type);
 
-  void PropertyReceiverTypes(TypeFeedbackId id, Handle<String> name,
+  void PropertyReceiverTypes(FeedbackSlot slot, Handle<Name> name,
                              SmallMapList* receiver_types);
-  void KeyedPropertyReceiverTypes(TypeFeedbackId id,
-                                  SmallMapList* receiver_types,
-                                  bool* is_string);
-  void AssignmentReceiverTypes(TypeFeedbackId id,
-                               Handle<String> name,
+  void KeyedPropertyReceiverTypes(FeedbackSlot slot,
+                                  SmallMapList* receiver_types, bool* is_string,
+                                  IcCheckType* key_type);
+  void AssignmentReceiverTypes(FeedbackSlot slot, Handle<Name> name,
                                SmallMapList* receiver_types);
-  void KeyedAssignmentReceiverTypes(TypeFeedbackId id,
+  void KeyedAssignmentReceiverTypes(FeedbackSlot slot,
                                     SmallMapList* receiver_types,
                                     KeyedAccessStoreMode* store_mode,
                                     IcCheckType* key_type);
-  void CountReceiverTypes(TypeFeedbackId id,
-                          SmallMapList* receiver_types);
+  void CountReceiverTypes(FeedbackSlot slot, SmallMapList* receiver_types);
 
-  void CollectReceiverTypes(TypeFeedbackId id,
-                            SmallMapList* types);
+  void CollectReceiverTypes(FeedbackSlot slot, SmallMapList* types);
+  void CollectReceiverTypes(FeedbackNexus* nexus, SmallMapList* types);
 
-  static bool CanRetainOtherContext(Map* map, Context* native_context);
-  static bool CanRetainOtherContext(JSFunction* function,
-                                    Context* native_context);
+  Handle<JSFunction> GetCallTarget(FeedbackSlot slot);
+  Handle<AllocationSite> GetCallAllocationSite(FeedbackSlot slot);
+  Handle<JSFunction> GetCallNewTarget(FeedbackSlot slot);
+  Handle<AllocationSite> GetCallNewAllocationSite(FeedbackSlot slot);
 
-  Handle<JSFunction> GetCallTarget(FeedbackVectorICSlot slot);
-  Handle<AllocationSite> GetCallAllocationSite(FeedbackVectorICSlot slot);
-  Handle<JSFunction> GetCallNewTarget(FeedbackVectorSlot slot);
-  Handle<AllocationSite> GetCallNewAllocationSite(FeedbackVectorSlot slot);
-
-  bool LoadIsBuiltin(TypeFeedbackId id, Builtins::Name builtin_id);
-
-  // TODO(1571) We can't use ToBooleanStub::Types as the return value because
+  // TODO(1571) We can't use ToBooleanICStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in
   // headers!! :-P
-  byte ToBooleanTypes(TypeFeedbackId id);
+  uint16_t ToBooleanTypes(TypeFeedbackId id);
 
   // Get type information for arithmetic operations and compares.
-  void BinaryType(TypeFeedbackId id,
-                  Type** left,
-                  Type** right,
-                  Type** result,
+  void BinaryType(TypeFeedbackId id, FeedbackSlot slot, AstType** left,
+                  AstType** right, AstType** result,
                   Maybe<int>* fixed_right_arg,
                   Handle<AllocationSite>* allocation_site,
                   Token::Value operation);
 
-  void CompareType(TypeFeedbackId id,
-                   Type** left,
-                   Type** right,
-                   Type** combined);
+  void CompareType(TypeFeedbackId id, FeedbackSlot slot, AstType** left,
+                   AstType** right, AstType** combined);
 
-  Type* CountType(TypeFeedbackId id);
+  AstType* CountType(TypeFeedbackId id, FeedbackSlot slot);
 
   Zone* zone() const { return zone_; }
-  Isolate* isolate() const { return zone_->isolate(); }
+  Isolate* isolate() const { return isolate_; }
 
  private:
-  void CollectReceiverTypes(TypeFeedbackId id,
-                            Handle<String> name,
-                            Code::Flags flags,
-                            SmallMapList* types);
+  // Returns true if there is at least one string map and if
+  // all maps are string maps.
+  bool HasOnlyStringMaps(SmallMapList* receiver_types);
 
   void SetInfo(TypeFeedbackId id, Object* target);
 
@@ -114,18 +104,19 @@ class TypeFeedbackOracle: public ZoneObject {
 
   // Returns an element from the type feedback vector. Returns undefined
   // if there is no information.
-  Handle<Object> GetInfo(FeedbackVectorSlot slot);
-  Handle<Object> GetInfo(FeedbackVectorICSlot slot);
+  Handle<Object> GetInfo(FeedbackSlot slot);
 
  private:
   Handle<Context> native_context_;
+  Isolate* isolate_;
   Zone* zone_;
   Handle<UnseededNumberDictionary> dictionary_;
-  Handle<TypeFeedbackVector> feedback_vector_;
+  Handle<FeedbackVector> feedback_vector_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TYPE_INFO_H_

@@ -19,11 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var repl = require('./helper-debugger-repl.js');
+'use strict';
+const common = require('../common');
+const repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('breakpoints.js');
 
-var addTest = repl.addTest;
+const addTest = repl.addTest;
 
 // Next
 addTest('n', [
@@ -70,8 +72,18 @@ addTest('sb("setInterval()", "!(setInterval.flag++)")', [
 
 // Continue
 addTest('c', [
-  /break in node.js:\d+/,
+  /break in timers\.js:\d+/,
   /\d/, /\d/, /\d/, /\d/, /\d/
+]);
+
+// Execute
+addTest('exec process.title', [
+  common.isFreeBSD || common.isOSX || common.isLinux ? /node/ : ''
+]);
+
+// Execute
+addTest('exec exec process.title', [
+  /SyntaxError: Unexpected identifier/
 ]);
 
 // REPL and process.env regression
@@ -83,4 +95,8 @@ addTest('for (var i in process.env) delete process.env[i]', []);
 
 addTest('process.env', [
   /\{\}/
+]);
+
+addTest('arr = [{foo: "bar"}]', [
+  /\[ \{ foo: 'bar' \} \]/
 ]);

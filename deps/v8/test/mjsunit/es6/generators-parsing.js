@@ -124,8 +124,8 @@ assertThrows("function* g() { yield 3 + yield 4; }", SyntaxError);
 // Yield is still a future-reserved-word in strict mode
 assertThrows("function f() { \"use strict\"; var yield = 13; }", SyntaxError);
 
-// The name of the NFE is let-bound in G, so is invalid.
-assertThrows("function* g() { yield (function yield() {}); }", SyntaxError);
+// The name of the NFE is bound in the generator expression, so is invalid.
+assertThrows("function f() { (function* yield() {}); }", SyntaxError);
 
 // In generators, yield is invalid as a formal argument name.
 assertThrows("function* g(yield) { yield (10); }", SyntaxError);

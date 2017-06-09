@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/runtime/runtime.h"
+
+#include "src/assembler.h"
+#include "src/base/hashmap.h"
+#include "src/contexts.h"
+#include "src/handles-inl.h"
+#include "src/heap/heap.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -14,28 +20,20 @@ namespace internal {
 #define F(name, number_of_args, result_size)                    \
   Object* Runtime_##name(int args_length, Object** args_object, \
                          Isolate* isolate);
+FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
+#undef F
 
 #define P(name, number_of_args, result_size)                       \
   ObjectPair Runtime_##name(int args_length, Object** args_object, \
                             Isolate* isolate);
-
-// Reference implementation for inlined runtime functions.  Only used when the
-// compiler does not support a certain intrinsic.  Don't optimize these, but
-// implement the intrinsic in the respective compiler instead.
-// TODO(mstarzinger): These are place-holder stubs for TurboFan and will
-// eventually all have a C++ implementation and this macro will be gone.
-#define I(name, number_of_args, result_size)                             \
-  Object* RuntimeReference_##name(int args_length, Object** args_object, \
-                                  Isolate* isolate);
-
-RUNTIME_FUNCTION_LIST_RETURN_OBJECT(F)
-RUNTIME_FUNCTION_LIST_RETURN_PAIR(P)
-INLINE_OPTIMIZED_FUNCTION_LIST(F)
-INLINE_FUNCTION_LIST(I)
-
-#undef I
-#undef F
+FOR_EACH_INTRINSIC_RETURN_PAIR(P)
 #undef P
+
+#define T(name, number_of_args, result_size)                         \
+  ObjectTriple Runtime_##name(int args_length, Object** args_object, \
+                              Isolate* isolate);
+FOR_EACH_INTRINSIC_RETURN_TRIPLE(T)
+#undef T
 
 
 #define F(name, number_of_args, result_size)                                  \
@@ -46,55 +44,76 @@ INLINE_FUNCTION_LIST(I)
   ,
 
 
-#define I(name, number_of_args, result_size)                                \
-  {                                                                         \
-    Runtime::kInline##name, Runtime::INLINE, "_" #name,                     \
-        FUNCTION_ADDR(RuntimeReference_##name), number_of_args, result_size \
-  }                                                                         \
+#define I(name, number_of_args, result_size)                       \
+  {                                                                \
+    Runtime::kInline##name, Runtime::INLINE, "_" #name,            \
+        FUNCTION_ADDR(Runtime_##name), number_of_args, result_size \
+  }                                                                \
   ,
-
-
-#define IO(name, number_of_args, result_size)                              \
-  {                                                                        \
-    Runtime::kInlineOptimized##name, Runtime::INLINE_OPTIMIZED, "_" #name, \
-        FUNCTION_ADDR(Runtime_##name), number_of_args, result_size         \
-  }                                                                        \
-  ,
-
 
 static const Runtime::Function kIntrinsicFunctions[] = {
-    RUNTIME_FUNCTION_LIST(F) INLINE_OPTIMIZED_FUNCTION_LIST(F)
-    INLINE_FUNCTION_LIST(I) INLINE_OPTIMIZED_FUNCTION_LIST(IO)};
+  FOR_EACH_INTRINSIC(F)
+  FOR_EACH_INTRINSIC(I)
+};
 
-#undef IO
 #undef I
 #undef F
 
+namespace {
 
-void Runtime::InitializeIntrinsicFunctionNames(Isolate* isolate,
-                                               Handle<NameDictionary> dict) {
-  DCHECK(dict->NumberOfElements() == 0);
-  HandleScope scope(isolate);
-  for (int i = 0; i < kNumFunctions; ++i) {
-    const char* name = kIntrinsicFunctions[i].name;
-    if (name == NULL) continue;
-    Handle<NameDictionary> new_dict = NameDictionary::Add(
-        dict, isolate->factory()->InternalizeUtf8String(name),
-        Handle<Smi>(Smi::FromInt(i), isolate),
-        PropertyDetails(NONE, NORMAL, Representation::None()));
-    // The dictionary does not need to grow.
-    CHECK(new_dict.is_identical_to(dict));
+V8_DECLARE_ONCE(initialize_function_name_map_once);
+static const base::CustomMatcherHashMap* kRuntimeFunctionNameMap;
+
+struct IntrinsicFunctionIdentifier {
+  IntrinsicFunctionIdentifier(const unsigned char* data, const int length)
+      : data_(data), length_(length) {}
+
+  static bool Match(void* key1, void* key2) {
+    const IntrinsicFunctionIdentifier* lhs =
+        static_cast<IntrinsicFunctionIdentifier*>(key1);
+    const IntrinsicFunctionIdentifier* rhs =
+        static_cast<IntrinsicFunctionIdentifier*>(key2);
+    if (lhs->length_ != rhs->length_) return false;
+    return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs->data_),
+                                reinterpret_cast<const uint8_t*>(rhs->data_),
+                                rhs->length_) == 0;
   }
+
+  uint32_t Hash() {
+    return StringHasher::HashSequentialString<uint8_t>(
+        data_, length_, v8::internal::kZeroHashSeed);
+  }
+
+  const unsigned char* data_;
+  const int length_;
+};
+
+void InitializeIntrinsicFunctionNames() {
+  base::CustomMatcherHashMap* function_name_map =
+      new base::CustomMatcherHashMap(IntrinsicFunctionIdentifier::Match);
+  for (size_t i = 0; i < arraysize(kIntrinsicFunctions); ++i) {
+    const Runtime::Function* function = &kIntrinsicFunctions[i];
+    IntrinsicFunctionIdentifier* identifier = new IntrinsicFunctionIdentifier(
+        reinterpret_cast<const unsigned char*>(function->name),
+        static_cast<int>(strlen(function->name)));
+    base::HashMap::Entry* entry =
+        function_name_map->InsertNew(identifier, identifier->Hash());
+    entry->value = const_cast<Runtime::Function*>(function);
+  }
+  kRuntimeFunctionNameMap = function_name_map;
 }
 
+}  // namespace
 
-const Runtime::Function* Runtime::FunctionForName(Handle<String> name) {
-  Heap* heap = name->GetHeap();
-  int entry = heap->intrinsic_function_names()->FindEntry(name);
-  if (entry != kNotFound) {
-    Object* smi_index = heap->intrinsic_function_names()->ValueAt(entry);
-    int function_index = Smi::cast(smi_index)->value();
-    return &(kIntrinsicFunctions[function_index]);
+const Runtime::Function* Runtime::FunctionForName(const unsigned char* name,
+                                                  int length) {
+  base::CallOnce(&initialize_function_name_map_once,
+                 &InitializeIntrinsicFunctionNames);
+  IntrinsicFunctionIdentifier identifier(name, length);
+  base::HashMap::Entry* entry =
+      kRuntimeFunctionNameMap->Lookup(&identifier, identifier.Hash());
+  if (entry) {
+    return reinterpret_cast<Function*>(entry->value);
   }
   return NULL;
 }
@@ -115,9 +134,35 @@ const Runtime::Function* Runtime::FunctionForId(Runtime::FunctionId id) {
 }
 
 
+const Runtime::Function* Runtime::RuntimeFunctionTable(Isolate* isolate) {
+  if (isolate->external_reference_redirector()) {
+    // When running with the simulator we need to provide a table which has
+    // redirected runtime entry addresses.
+    if (!isolate->runtime_state()->redirected_intrinsic_functions()) {
+      size_t function_count = arraysize(kIntrinsicFunctions);
+      Function* redirected_functions = new Function[function_count];
+      memcpy(redirected_functions, kIntrinsicFunctions,
+             sizeof(kIntrinsicFunctions));
+      for (size_t i = 0; i < function_count; i++) {
+        ExternalReference redirected_entry(static_cast<Runtime::FunctionId>(i),
+                                           isolate);
+        redirected_functions[i].entry = redirected_entry.address();
+      }
+      isolate->runtime_state()->set_redirected_intrinsic_functions(
+          redirected_functions);
+    }
+
+    return isolate->runtime_state()->redirected_intrinsic_functions();
+  } else {
+    return kIntrinsicFunctions;
+  }
+}
+
+
 std::ostream& operator<<(std::ostream& os, Runtime::FunctionId id) {
   return os << Runtime::FunctionForId(id)->name;
 }
+
 
 }  // namespace internal
 }  // namespace v8

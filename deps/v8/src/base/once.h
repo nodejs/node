@@ -55,6 +55,7 @@
 #include <stddef.h>
 
 #include "src/base/atomicops.h"
+#include "src/base/base-export.h"
 
 namespace v8 {
 namespace base {
@@ -79,7 +80,8 @@ struct OneArgFunction {
   typedef void (*type)(T);
 };
 
-void CallOnceImpl(OnceType* once, PointerArgFunction init_func, void* arg);
+V8_BASE_EXPORT void CallOnceImpl(OnceType* once, PointerArgFunction init_func,
+                                 void* arg);
 
 inline void CallOnce(OnceType* once, NoArgFunction init_func) {
   if (Acquire_Load(once) != ONCE_STATE_DONE) {
@@ -97,6 +99,7 @@ inline void CallOnce(OnceType* once,
   }
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_ONCE_H_

@@ -279,7 +279,7 @@ int uv__stdio_create(uv_loop_t* loop,
   }
 
   /* Allocate the child stdio buffer */
-  buffer = (BYTE*) malloc(CHILD_STDIO_SIZE(count));
+  buffer = (BYTE*) uv__malloc(CHILD_STDIO_SIZE(count));
   if (buffer == NULL) {
     return ERROR_OUTOFMEMORY;
   }
@@ -372,6 +372,7 @@ int uv__stdio_create(uv_loop_t* loop,
 
           case FILE_TYPE_PIPE:
             CHILD_STDIO_CRT_FLAGS(buffer, i) = FOPEN | FPIPE;
+            break;
 
           case FILE_TYPE_CHAR:
           case FILE_TYPE_REMOTE:
@@ -407,7 +408,7 @@ int uv__stdio_create(uv_loop_t* loop,
           stream_handle = ((uv_tty_t*) stream)->handle;
           crt_flags = FOPEN | FDEV;
         } else if (stream->type == UV_NAMED_PIPE &&
-                   stream->flags & UV_HANDLE_CONNECTED) {
+                   stream->flags & UV_HANDLE_CONNECTION) {
           stream_handle = ((uv_pipe_t*) stream)->handle;
           crt_flags = FOPEN | FPIPE;
         } else {
@@ -459,7 +460,7 @@ void uv__stdio_destroy(BYTE* buffer) {
     }
   }
 
-  free(buffer);
+  uv__free(buffer);
 }
 
 

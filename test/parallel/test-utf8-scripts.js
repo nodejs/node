@@ -19,12 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
 // üäö
 
 console.log('Σὲ γνωρίζω ἀπὸ τὴν κόψη');
 
-assert.equal(true, /Hellö Wörld/.test('Hellö Wörld'));
-
+assert.strictEqual(true, /Hellö Wörld/.test('Hellö Wörld'));

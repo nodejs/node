@@ -34,7 +34,7 @@ PASS JSON.stringify(Object.defineProperties({},{property:{value:'foo'}, property
 PASS JSON.stringify(Object.defineProperties({property:'foo'},{property:{value:'foo', enumerable:true}, property2:{value:'foo', enumerable:true}})) is '{"property":"foo","property2":"foo"}'
 PASS JSON.stringify(Object.defineProperties({property:'foo'},{property:{value:'foo', enumerable:false}, property2:{value:'foo', enumerable:true}})) is '{"property2":"foo"}'
 PASS JSON.stringify(Object.defineProperties({property:'foo'},{property:{value:'foo'}, property2:{value:'foo', enumerable:true}})) is '{"property":"foo","property2":"foo"}'
-PASS Object.defineProperties(emptyObject, {foo:{value: true}, bar:{get:function(){}, writable:true}}) threw exception TypeError: Invalid property.  A property cannot both have accessors and be writable or have a value, #<Object>.
+PASS Object.defineProperties(emptyObject, {foo:{value: true}, bar:{get:function(){}, writable:true}}) threw exception TypeError: Invalid property descriptor. Cannot both specify accessors and a value or writable attribute, #<Object>.
 PASS 'foo' in emptyObject is false
 PASS successfullyParsed is true
 

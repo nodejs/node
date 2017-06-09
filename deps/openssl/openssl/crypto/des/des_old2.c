@@ -1,22 +1,20 @@
-/* crypto/des/des_old.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/des/des_old.c */
 
-/* WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
- *
- * The function names in here are deprecated and are only present to
- * provide an interface compatible with OpenSSL 0.9.6c.  OpenSSL now
- * provides functions where "des_" has been replaced with "DES_" in
- * the names, to make it possible to make incompatible changes that
- * are needed for C type security and other stuff.
- *
- * Please consider starting to use the DES_ functions rather than the
- * des_ ones.  The des_ functions will dissapear completely before
- * OpenSSL 1.0!
- *
- * WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+/*
+ * WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING The
+ * function names in here are deprecated and are only present to provide an
+ * interface compatible with OpenSSL 0.9.6c.  OpenSSL now provides functions
+ * where "des_" has been replaced with "DES_" in the names, to make it
+ * possible to make incompatible changes that are needed for C type security
+ * and other stuff. Please consider starting to use the DES_ functions
+ * rather than the des_ ones.  The des_ functions will dissapear completely
+ * before OpenSSL 1.0! WARNING WARNING WARNING WARNING WARNING WARNING
+ * WARNING WARNING
  */
 
-/* Written by Richard Levitte (richard@levitte.org) for the OpenSSL
- * project 2001.
+/*
+ * Written by Richard Levitte (richard@levitte.org) for the OpenSSL project
+ * 2001.
  */
 /* ====================================================================
  * Copyright (c) 1998-2001 The OpenSSL Project.  All rights reserved.
@@ -26,7 +24,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -77,6 +75,6 @@
 #include <openssl/rand.h>
 
 void _ossl_096_des_random_seed(DES_cblock *key)
-	{
-	RAND_seed(key, sizeof(DES_cblock));
-	}
+{
+    RAND_seed(key, sizeof(DES_cblock));
+}

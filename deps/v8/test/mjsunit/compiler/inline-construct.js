@@ -53,8 +53,8 @@ function TestInlinedConstructor(constructor, closure) {
   assertEquals(4, counter.value);
 
   %DeoptimizeFunction(closure);
-  %ClearFunctionTypeFeedback(closure);
-  %ClearFunctionTypeFeedback(constructor);
+  %ClearFunctionFeedback(closure);
+  %ClearFunctionFeedback(constructor);
 }
 
 function value_context(constructor, val, deopt, counter) {

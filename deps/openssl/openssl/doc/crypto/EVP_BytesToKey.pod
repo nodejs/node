@@ -36,8 +36,8 @@ If the total key and IV length is less than the digest length and
 B<MD5> is used then the derivation algorithm is compatible with PKCS#5 v1.5
 otherwise a non standard extension is used to derive the extra data.
 
-Newer applications should use more standard algorithms such as PKCS#5
-v2.0 for key derivation.
+Newer applications should use a more modern algorithm such as PBKDF2 as
+defined in PKCS#5v2.1 and provided by PKCS5_PBKDF2_HMAC.
 
 =head1 KEY DERIVATION ALGORITHM
 
@@ -55,7 +55,10 @@ the IV.
 
 =head1 RETURN VALUES
 
-EVP_BytesToKey() returns the size of the derived key in bytes.
+If B<data> is NULL, then EVP_BytesToKey() returns the number of bytes
+needed to store the derived key.
+Otherwise, EVP_BytesToKey() returns the size of the derived key in bytes,
+or 0 on error.
 
 =head1 SEE ALSO
 

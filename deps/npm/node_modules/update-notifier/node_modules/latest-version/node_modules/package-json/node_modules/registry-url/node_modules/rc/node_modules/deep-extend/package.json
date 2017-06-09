@@ -1,0 +1,132 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "deep-extend@~0.4.0",
+        "scope": null,
+        "escapedName": "deep-extend",
+        "name": "deep-extend",
+        "rawSpec": "~0.4.0",
+        "spec": ">=0.4.0 <0.5.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/registry-auth-token/node_modules/rc"
+    ],
+    [
+      {
+        "raw": "deep-extend@~0.4.0",
+        "scope": null,
+        "escapedName": "deep-extend",
+        "name": "deep-extend",
+        "rawSpec": "~0.4.0",
+        "spec": ">=0.4.0 <0.5.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/registry-url/node_modules/rc"
+    ]
+  ],
+  "_from": "deep-extend@~0.4.0",
+  "_id": "deep-extend@0.4.1",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/registry-url/rc/deep-extend",
+  "_nodeVersion": "0.12.0",
+  "_npmUser": {
+    "name": "unclechu",
+    "email": "lotsmanov89@gmail.com"
+  },
+  "_npmVersion": "2.5.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "deep-extend@~0.4.0",
+    "scope": null,
+    "escapedName": "deep-extend",
+    "name": "deep-extend",
+    "rawSpec": "~0.4.0",
+    "spec": ">=0.4.0 <0.5.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/registry-url/rc"
+  ],
+  "_resolved": "https://registry.npmjs.org/deep-extend/-/deep-extend-0.4.1.tgz",
+  "_shasum": "efe4113d08085f4e6f9687759810f807469e2253",
+  "_shrinkwrap": null,
+  "_spec": "deep-extend@~0.4.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/registry-url/node_modules/rc",
+  "author": {
+    "name": "Viacheslav Lotsmanov",
+    "email": "lotsmanov89@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/unclechu/node-deep-extend/issues"
+  },
+  "contributors": [
+    {
+      "name": "Romain Prieto",
+      "url": "https://github.com/rprieto"
+    },
+    {
+      "name": "Max Maximov",
+      "url": "https://github.com/maxmaximov"
+    }
+  ],
+  "dependencies": {},
+  "description": "Recursive object extending",
+  "devDependencies": {
+    "mocha": "^2.2.1",
+    "should": "^5.2.0"
+  },
+  "directories": {
+    "lib": "./lib/",
+    "test": "./test/"
+  },
+  "dist": {
+    "shasum": "efe4113d08085f4e6f9687759810f807469e2253",
+    "tarball": "https://registry.npmjs.org/deep-extend/-/deep-extend-0.4.1.tgz"
+  },
+  "engines": {
+    "iojs": ">=1.0.0",
+    "node": ">=0.12.0"
+  },
+  "files": [
+    "lib/deep-extend.js",
+    "index.js"
+  ],
+  "gitHead": "08e39356bba769744c669eb219a31fee07decd19",
+  "homepage": "https://github.com/unclechu/node-deep-extend",
+  "keywords": [
+    "deep-extend",
+    "extend",
+    "deep",
+    "recursive",
+    "xtend",
+    "clone",
+    "merge",
+    "json"
+  ],
+  "license": "MIT",
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://raw.githubusercontent.com/unclechu/node-deep-extend/master/LICENSE"
+    }
+  ],
+  "main": "lib/deep-extend.js",
+  "maintainers": [
+    {
+      "name": "unclechu",
+      "email": "lotsmanov89@gmail.com"
+    }
+  ],
+  "name": "deep-extend",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/unclechu/node-deep-extend.git"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "version": "0.4.1"
+}

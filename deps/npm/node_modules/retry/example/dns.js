@@ -3,7 +3,7 @@ var retry = require('../lib/retry');
 
 function faultTolerantResolve(address, cb) {
   var opts = {
-    times: 2,
+    retries: 2,
     factor: 2,
     minTimeout: 1 * 1000,
     maxTimeout: 2 * 1000,

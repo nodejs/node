@@ -5,6 +5,7 @@
 #ifndef V8_MACRO_ASSEMBLER_H_
 #define V8_MACRO_ASSEMBLER_H_
 
+#include "src/assembler-inl.h"
 
 // Helper types to make boolean flag easier to read at call-site.
 enum InvokeFlag {
@@ -17,72 +18,45 @@ enum InvokeFlag {
 enum AllocationFlags {
   // No special flags.
   NO_ALLOCATION_FLAGS = 0,
-  // Return the pointer to the allocated already tagged as a heap object.
-  TAG_OBJECT = 1 << 0,
   // The content of the result register already contains the allocation top in
   // new space.
-  RESULT_CONTAINS_TOP = 1 << 1,
+  RESULT_CONTAINS_TOP = 1 << 0,
   // Specify that the requested size of the space to allocate is specified in
   // words instead of bytes.
-  SIZE_IN_WORDS = 1 << 2,
+  SIZE_IN_WORDS = 1 << 1,
   // Align the allocation to a multiple of kDoubleSize
-  DOUBLE_ALIGNMENT = 1 << 3,
-  // Directly allocate in old pointer space
-  PRETENURE_OLD_POINTER_SPACE = 1 << 4,
-  // Directly allocate in old data space
-  PRETENURE_OLD_DATA_SPACE = 1 << 5
+  DOUBLE_ALIGNMENT = 1 << 2,
+  // Directly allocate in old space
+  PRETENURE = 1 << 3,
+  // Allocation folding dominator
+  ALLOCATION_FOLDING_DOMINATOR = 1 << 4,
+  // Folded allocation
+  ALLOCATION_FOLDED = 1 << 5
 };
 
-
-// Invalid depth in prototype chain.
-const int kInvalidProtoDepth = -1;
-
 #if V8_TARGET_ARCH_IA32
-#include "src/assembler.h"
-#include "src/ia32/assembler-ia32.h"
-#include "src/ia32/assembler-ia32-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
 #include "src/ia32/macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "src/assembler.h"
-#include "src/x64/assembler-x64.h"
-#include "src/x64/assembler-x64-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
 #include "src/x64/macro-assembler-x64.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/arm64/constants-arm64.h"
-#include "src/assembler.h"
-#include "src/arm64/assembler-arm64.h"  // NOLINT
-#include "src/arm64/assembler-arm64-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
-#include "src/arm64/macro-assembler-arm64.h"  // NOLINT
-#include "src/arm64/macro-assembler-arm64-inl.h"
+#include "src/arm64/macro-assembler-arm64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/constants-arm.h"
-#include "src/assembler.h"
-#include "src/arm/assembler-arm.h"  // NOLINT
-#include "src/arm/assembler-arm-inl.h"
-#include "src/code.h"                     // NOLINT, must be after assembler_*.h
-#include "src/arm/macro-assembler-arm.h"  // NOLINT
+#include "src/arm/macro-assembler-arm.h"
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/constants-ppc.h"
+#include "src/ppc/macro-assembler-ppc.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/constants-mips.h"
-#include "src/assembler.h"            // NOLINT
-#include "src/mips/assembler-mips.h"  // NOLINT
-#include "src/mips/assembler-mips-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
 #include "src/mips/macro-assembler-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/mips64/constants-mips64.h"
-#include "src/assembler.h"                // NOLINT
-#include "src/mips64/assembler-mips64.h"  // NOLINT
-#include "src/mips64/assembler-mips64-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
 #include "src/mips64/macro-assembler-mips64.h"
+#elif V8_TARGET_ARCH_S390
+#include "src/s390/constants-s390.h"
+#include "src/s390/macro-assembler-s390.h"
 #elif V8_TARGET_ARCH_X87
-#include "src/assembler.h"
-#include "src/x87/assembler-x87.h"
-#include "src/x87/assembler-x87-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
 #include "src/x87/macro-assembler-x87.h"
 #else
 #error Unsupported target architecture.
@@ -90,6 +64,9 @@ const int kInvalidProtoDepth = -1;
 
 namespace v8 {
 namespace internal {
+
+// Simulators only support C calls with up to kMaxCParameters parameters.
+static constexpr int kMaxCParameters = 9;
 
 class FrameScope {
  public:
@@ -130,11 +107,11 @@ class FrameAndConstantPoolScope {
       : masm_(masm),
         type_(type),
         old_has_frame_(masm->has_frame()),
-        old_constant_pool_available_(FLAG_enable_ool_constant_pool &&
-                                     masm->is_ool_constant_pool_available()) {
+        old_constant_pool_available_(FLAG_enable_embedded_constant_pool &&
+                                     masm->is_constant_pool_available()) {
     masm->set_has_frame(true);
-    if (FLAG_enable_ool_constant_pool) {
-      masm->set_ool_constant_pool_available(true);
+    if (FLAG_enable_embedded_constant_pool) {
+      masm->set_constant_pool_available(true);
     }
     if (type_ != StackFrame::MANUAL && type_ != StackFrame::NONE) {
       masm->EnterFrame(type, !old_constant_pool_available_);
@@ -144,8 +121,8 @@ class FrameAndConstantPoolScope {
   ~FrameAndConstantPoolScope() {
     masm_->LeaveFrame(type_);
     masm_->set_has_frame(old_has_frame_);
-    if (FLAG_enable_ool_constant_pool) {
-      masm_->set_ool_constant_pool_available(old_constant_pool_available_);
+    if (FLAG_enable_embedded_constant_pool) {
+      masm_->set_constant_pool_available(old_constant_pool_available_);
     }
   }
 
@@ -171,22 +148,22 @@ class FrameAndConstantPoolScope {
 // Class for scoping the the unavailability of constant pool access.
 class ConstantPoolUnavailableScope {
  public:
-  explicit ConstantPoolUnavailableScope(MacroAssembler* masm)
-      : masm_(masm),
-        old_constant_pool_available_(FLAG_enable_ool_constant_pool &&
-                                     masm->is_ool_constant_pool_available()) {
-    if (FLAG_enable_ool_constant_pool) {
-      masm_->set_ool_constant_pool_available(false);
+  explicit ConstantPoolUnavailableScope(Assembler* assembler)
+      : assembler_(assembler),
+        old_constant_pool_available_(FLAG_enable_embedded_constant_pool &&
+                                     assembler->is_constant_pool_available()) {
+    if (FLAG_enable_embedded_constant_pool) {
+      assembler->set_constant_pool_available(false);
     }
   }
   ~ConstantPoolUnavailableScope() {
-    if (FLAG_enable_ool_constant_pool) {
-      masm_->set_ool_constant_pool_available(old_constant_pool_available_);
+    if (FLAG_enable_embedded_constant_pool) {
+      assembler_->set_constant_pool_available(old_constant_pool_available_);
     }
   }
 
  private:
-  MacroAssembler* masm_;
+  Assembler* assembler_;
   int old_constant_pool_available_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantPoolUnavailableScope);
@@ -222,11 +199,11 @@ class NoCurrentFrameScope {
 
 class Comment {
  public:
-  Comment(MacroAssembler* masm, const char* msg);
+  Comment(Assembler* assembler, const char* msg);
   ~Comment();
 
  private:
-  MacroAssembler* masm_;
+  Assembler* assembler_;
   const char* msg_;
 };
 
@@ -234,21 +211,47 @@ class Comment {
 
 class Comment {
  public:
-  Comment(MacroAssembler*, const char*)  {}
+  Comment(Assembler*, const char*) {}
 };
 
 #endif  // DEBUG
+
+
+// Wrapper class for passing expected and actual parameter counts as
+// either registers or immediate values. Used to make sure that the
+// caller provides exactly the expected number of parameters to the
+// callee.
+class ParameterCount BASE_EMBEDDED {
+ public:
+  explicit ParameterCount(Register reg) : reg_(reg), immediate_(0) {}
+  explicit ParameterCount(int imm) : reg_(no_reg), immediate_(imm) {}
+
+  bool is_reg() const { return !reg_.is(no_reg); }
+  bool is_immediate() const { return !is_reg(); }
+
+  Register reg() const {
+    DCHECK(is_reg());
+    return reg_;
+  }
+  int immediate() const {
+    DCHECK(is_immediate());
+    return immediate_;
+  }
+
+ private:
+  const Register reg_;
+  const int immediate_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ParameterCount);
+};
 
 
 class AllocationUtils {
  public:
   static ExternalReference GetAllocationTopReference(
       Isolate* isolate, AllocationFlags flags) {
-    if ((flags & PRETENURE_OLD_POINTER_SPACE) != 0) {
-      return ExternalReference::old_pointer_space_allocation_top_address(
-          isolate);
-    } else if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
-      return ExternalReference::old_data_space_allocation_top_address(isolate);
+    if ((flags & PRETENURE) != 0) {
+      return ExternalReference::old_space_allocation_top_address(isolate);
     }
     return ExternalReference::new_space_allocation_top_address(isolate);
   }
@@ -256,18 +259,15 @@ class AllocationUtils {
 
   static ExternalReference GetAllocationLimitReference(
       Isolate* isolate, AllocationFlags flags) {
-    if ((flags & PRETENURE_OLD_POINTER_SPACE) != 0) {
-      return ExternalReference::old_pointer_space_allocation_limit_address(
-          isolate);
-    } else if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
-      return ExternalReference::old_data_space_allocation_limit_address(
-          isolate);
+    if ((flags & PRETENURE) != 0) {
+      return ExternalReference::old_space_allocation_limit_address(isolate);
     }
     return ExternalReference::new_space_allocation_limit_address(isolate);
   }
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MACRO_ASSEMBLER_H_

@@ -171,3 +171,34 @@ FillOldArrayWithHeapNumbers(1);
 %OptimizeFunctionOnNextCall(FillOldArrayWithHeapNumbers);
 FillOldArrayWithHeapNumbers(old_array.length);
 gc();
+
+// Test that HArgumentsObject does not prevent uint32 optimization and
+// that arguments object with uint32 values inside is correctly materialized.
+function Pack(x, y) {
+  try {  // Prevent inlining.
+    return [x, y];
+  } catch (e) {
+  }
+}
+
+function InnerWithArguments(x, f) {
+  "use strict";
+  x >>>= 8;
+  return f(arguments[0], x|0);
+}
+
+function Outer(v, f) {
+  return InnerWithArguments(v >>> 0, f);
+}
+
+assertArrayEquals([0x0100, 0x01], Outer(0x0100, Pack));
+assertArrayEquals([0x0100, 0x01], Outer(0x0100, Pack));
+assertArrayEquals([0x0100, 0x01], Outer(0x0100, Pack));
+%OptimizeFunctionOnNextCall(Outer);
+assertArrayEquals([0x0100, 0x01], Outer(0x0100, Pack));
+assertArrayEquals([0xFFFFFFFF, 0x00FFFFFF], Outer(-1, Pack));
+
+// Cause deopt inside InnerWithArguments by passing different pack function.
+assertArrayEquals([0xFFFFFFFF, 0x00FFFFFF], Outer(-1, function (x, y) {
+  return [x, y];
+}));

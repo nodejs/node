@@ -19,15 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
-var common = require('../common');
-var assert = require('assert');
-
-console.error('before');
+'use strict';
+require('../common');
 
 // custom error throwing
+// eslint-disable-next-line no-throw-literal
 throw ({ name: 'MyCustomError', message: 'This is a custom message' });
-
-console.error('after');

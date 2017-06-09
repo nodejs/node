@@ -1,0 +1,5 @@
+Paused on 'debugger;'
+f() returns 1
+g() returns 2
+f() returns 1
+g() throws EvalError

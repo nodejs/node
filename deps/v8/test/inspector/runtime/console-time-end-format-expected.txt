@@ -1,0 +1,29 @@
+Checks format of console.timeEnd output
+
+Running test: zero
+js: 0ms
+timeEnd: 0ms
+
+Running test: verySmall
+js: 1e-15ms
+timeEnd: 1e-15ms
+
+Running test: small
+js: 0.001ms
+timeEnd: 0.001ms
+
+Running test: regular
+js: 1.2345ms
+timeEnd: 1.2345ms
+
+Running test: big
+js: 10000.2345ms
+timeEnd: 10000.2345ms
+
+Running test: veryBig
+js: 1000000000000000.2ms
+timeEnd: 1000000000000000.2ms
+
+Running test: huge
+js: 1e+42ms
+timeEnd: 1e+42ms

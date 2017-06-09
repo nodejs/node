@@ -1,0 +1,124 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "execa@^0.4.0",
+        "scope": null,
+        "escapedName": "execa",
+        "name": "execa",
+        "rawSpec": "^0.4.0",
+        "spec": ">=0.4.0 <0.5.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size"
+    ]
+  ],
+  "_from": "execa@>=0.4.0 <0.5.0",
+  "_id": "execa@0.4.0",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/term-size/execa",
+  "_nodeVersion": "4.4.2",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/execa-0.4.0.tgz_1461691655825_0.48842903040349483"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "3.8.8",
+  "_phantomChildren": {
+    "which": "1.2.12"
+  },
+  "_requested": {
+    "raw": "execa@^0.4.0",
+    "scope": null,
+    "escapedName": "execa",
+    "name": "execa",
+    "rawSpec": "^0.4.0",
+    "spec": ">=0.4.0 <0.5.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen/term-size"
+  ],
+  "_resolved": "https://registry.npmjs.org/execa/-/execa-0.4.0.tgz",
+  "_shasum": "4eb6467a36a095fabb2970ff9d5e3fb7bce6ebc3",
+  "_shrinkwrap": null,
+  "_spec": "execa@^0.4.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/execa/issues"
+  },
+  "dependencies": {
+    "cross-spawn-async": "^2.1.1",
+    "is-stream": "^1.1.0",
+    "npm-run-path": "^1.0.0",
+    "object-assign": "^4.0.1",
+    "path-key": "^1.0.0",
+    "strip-eof": "^1.0.0"
+  },
+  "description": "A better `child_process`",
+  "devDependencies": {
+    "ava": "*",
+    "cat-names": "^1.0.2",
+    "coveralls": "^2.11.9",
+    "get-stream": "^2.0.0",
+    "nyc": "^6.4.0",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "4eb6467a36a095fabb2970ff9d5e3fb7bce6ebc3",
+    "tarball": "https://registry.npmjs.org/execa/-/execa-0.4.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.12"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "c72609605b1ce2fcf42b913cd91e74503cd8d629",
+  "homepage": "https://github.com/sindresorhus/execa#readme",
+  "keywords": [
+    "exec",
+    "child",
+    "process",
+    "execute",
+    "fork",
+    "execfile",
+    "spawn",
+    "file",
+    "shell",
+    "bin",
+    "binary",
+    "binaries",
+    "npm",
+    "path",
+    "local"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "execa",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/execa.git"
+  },
+  "scripts": {
+    "coveralls": "nyc report --reporter=text-lcov | coveralls",
+    "test": "xo && nyc ava"
+  },
+  "version": "0.4.0"
+}

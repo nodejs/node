@@ -19,8 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
 switch (process.argv[2]) {
   case 'child':
@@ -32,8 +33,8 @@ switch (process.argv[2]) {
 }
 
 function parent() {
-  var spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child']);
+  const spawn = require('child_process').spawn;
+  const child = spawn(process.execPath, [__filename, 'child']);
 
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', function(c) {
@@ -42,12 +43,12 @@ function parent() {
   });
 
   child.stdout.setEncoding('utf8');
-  var out = '';
+  let out = '';
   child.stdout.on('data', function(c) {
     out += c;
   });
   child.stdout.on('end', function() {
-    assert.equal(out, '10\n');
+    assert.strictEqual(out, '10\n');
     console.log('ok - got expected output');
   });
 
@@ -58,11 +59,12 @@ function parent() {
 }
 
 function child() {
-  var vm = require('vm');
+  const vm = require('vm');
+  let caught;
   try {
     vm.runInThisContext('haf!@##&$!@$*!@', { displayErrors: false });
   } catch (er) {
-    var caught = true;
+    caught = true;
   }
   assert(caught);
   vm.runInThisContext('console.log(10)', { displayErrors: false });

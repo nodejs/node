@@ -42,6 +42,13 @@ L<SSL_CTX_set_verify(3)|SSL_CTX_set_verify(3)> family of functions.
 This document must therefore be updated when documentation about the
 X509_STORE object and its handling becomes available.
 
+=head1 RESTRICTIONS
+
+The X509_STORE structure used by an SSL_CTX is used for verifying peer
+certificates and building certificate chains, it is also shared by
+every child SSL structure. Applications wanting finer control can use 
+functions such as SSL_CTX_set1_verify_cert_store() instead.
+
 =head1 RETURN VALUES
 
 SSL_CTX_set_cert_store() does not return diagnostic output.

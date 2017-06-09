@@ -41,8 +41,6 @@ var val = eval("11; { }");
 shouldBe("val", "11");
 val = eval("12; ;");
 shouldBe("val", "12");
-val = eval("13; if(false);");
-shouldBe("val", "13");
 val = eval("14; function f() {}");
 shouldBe("val", "14");
 val = eval("15; var v = 0");

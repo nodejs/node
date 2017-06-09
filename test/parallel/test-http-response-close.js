@@ -19,32 +19,27 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const http = require('http');
 
-var requestGotEnd = false;
-var responseGotEnd = false;
-
-var server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCall(function(req, res) {
   res.writeHead(200);
   res.write('a');
 
-  req.on('close', function() {
+  req.on('close', common.mustCall(function() {
     console.error('request aborted');
-    requestGotEnd = true;
-  });
-  res.on('close', function() {
+  }));
+  res.on('close', common.mustCall(function() {
     console.error('response aborted');
-    responseGotEnd = true;
-  });
-});
-server.listen(common.PORT);
+  }));
+}));
+server.listen(0);
 
 server.on('listening', function() {
   console.error('make req');
   http.get({
-    port: common.PORT
+    port: this.address().port
   }, function(res) {
     console.error('got res');
     res.on('data', function(data) {
@@ -53,9 +48,4 @@ server.on('listening', function() {
       server.close();
     });
   });
-});
-
-process.on('exit', function() {
-  assert.ok(requestGotEnd);
-  assert.ok(responseGotEnd);
 });

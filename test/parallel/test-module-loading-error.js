@@ -19,38 +19,35 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-common.debug('load test-module-loading-error.js');
-
-var error_desc = {
-  win32: '%1 is not a valid Win32 application',
-  linux: 'file too short',
-  sunos: 'unknown file type'
+const error_desc = {
+  win32: ['%1 is not a valid Win32 application'],
+  linux: ['file too short', 'Exec format error'],
+  sunos: ['unknown file type', 'not an ELF file'],
+  darwin: ['file too short']
 };
+const dlerror_msg = error_desc[process.platform];
 
-var dlerror_msg = error_desc[process.platform];
+assert.throws(
+  () => { require('../fixtures/module-loading-error.node'); },
+  (e) => {
+    if (dlerror_msg && !dlerror_msg.some((msg) => e.message.includes(msg)))
+      return false;
+    if (e.name !== 'Error')
+      return false;
+    return true;
+  }
+);
 
-if (!dlerror_msg) {
-  console.error('Skipping test, platform not supported.');
-  process.exit();
-}
+assert.throws(
+  require,
+  /^AssertionError: missing path$/
+);
 
-try {
-  require('../fixtures/module-loading-error.node');
-} catch (e) {
-  assert.notEqual(e.toString().indexOf(dlerror_msg), -1);
-}
-
-try {
-  require();
-} catch (e) {
-  assert.notEqual(e.toString().indexOf('missing path'), -1);
-}
-
-try {
-  require({});
-} catch (e) {
-  assert.notEqual(e.toString().indexOf('path must be a string'), -1);
-}
+assert.throws(
+  () => { require({}); },
+  /^AssertionError: path must be a string$/
+);

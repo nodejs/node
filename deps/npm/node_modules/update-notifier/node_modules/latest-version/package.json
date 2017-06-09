@@ -1,0 +1,109 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "latest-version@^3.0.0",
+        "scope": null,
+        "escapedName": "latest-version",
+        "name": "latest-version",
+        "rawSpec": "^3.0.0",
+        "spec": ">=3.0.0 <4.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier"
+    ]
+  ],
+  "_from": "latest-version@>=3.0.0 <4.0.0",
+  "_id": "latest-version@3.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version",
+  "_nodeVersion": "4.6.2",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/latest-version-3.0.0.tgz_1486989736223_0.4567320039495826"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.11",
+  "_phantomChildren": {
+    "ini": "1.3.4",
+    "semver": "5.3.0"
+  },
+  "_requested": {
+    "raw": "latest-version@^3.0.0",
+    "scope": null,
+    "escapedName": "latest-version",
+    "name": "latest-version",
+    "rawSpec": "^3.0.0",
+    "spec": ">=3.0.0 <4.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier"
+  ],
+  "_resolved": "https://registry.npmjs.org/latest-version/-/latest-version-3.0.0.tgz",
+  "_shasum": "3104f008c0c391084107f85a344bc61e38970649",
+  "_shrinkwrap": null,
+  "_spec": "latest-version@^3.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/latest-version/issues"
+  },
+  "dependencies": {
+    "package-json": "^3.0.0"
+  },
+  "description": "Get the latest version of an npm package",
+  "devDependencies": {
+    "ava": "*",
+    "semver-regex": "^1.0.0",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "3104f008c0c391084107f85a344bc61e38970649",
+    "tarball": "https://registry.npmjs.org/latest-version/-/latest-version-3.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "6858116bcf3b17c19a9d1b81bc88b6765289ce75",
+  "homepage": "https://github.com/sindresorhus/latest-version#readme",
+  "keywords": [
+    "latest",
+    "version",
+    "npm",
+    "pkg",
+    "package",
+    "package.json",
+    "current",
+    "module"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "latest-version",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/latest-version.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "3.0.0"
+}

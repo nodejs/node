@@ -1,0 +1,40 @@
+Checks Debugger.pause
+
+Running test: testPause
+paused at:
+#var a = 42;
+
+
+Running test: testSkipFrameworks
+paused at:
+#var a = 239;
+
+
+Running test: testSkipOtherContext1
+paused at:
+var a = #1;
+
+
+Running test: testSkipOtherContext2
+paused at:
+#var a = 239;
+
+paused at:
+var a = #239;
+
+
+Running test: testWithNativeBreakpoint
+paused at:
+#var a = 42;
+
+paused at:
+#var a = 42;
+
+paused at:
+#var a = 42;
+
+
+Running test: testDisableBreaksShouldCancelPause
+paused at:
+#debugger
+

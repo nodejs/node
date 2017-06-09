@@ -1,4 +1,5 @@
 // test the throughput of the fs.WriteStream class.
+'use strict';
 
 var path = require('path');
 var common = require('../common.js');
@@ -11,7 +12,7 @@ var type, encoding, size;
 
 var bench = common.createBenchmark(main, {
   type: ['buf', 'asc', 'utf'],
-  size: [1024, 4096, 65535, 1024*1024]
+  size: [1024, 4096, 65535, 1024 * 1024]
 });
 
 function main(conf) {
@@ -59,7 +60,7 @@ function runTest() {
 }
 
 function makeFile() {
-  var buf = new Buffer(filesize / 1024);
+  var buf = Buffer.allocUnsafe(filesize / 1024);
   if (encoding === 'utf8') {
     // ü
     for (var i = 0; i < buf.length; i++) {

@@ -1,0 +1,5 @@
+Tests checks that deprecation messages for console.
+'console.timeline' is deprecated. Please use 'console.time' instead.
+'console.timelineEnd' is deprecated. Please use 'console.timeEnd' instead.
+'console.markTimeline' is deprecated. Please use 'console.timeStamp' instead.
+

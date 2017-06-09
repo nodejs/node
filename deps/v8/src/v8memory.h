@@ -64,8 +64,16 @@ class Memory {
   static Handle<Object>& Object_Handle_at(Address addr)  {
     return *reinterpret_cast<Handle<Object>*>(addr);
   }
+
+  static bool IsAddressInRange(Address base, Address address, uint32_t size) {
+    uintptr_t numeric_base = reinterpret_cast<uintptr_t>(base);
+    uintptr_t numeric_address = reinterpret_cast<uintptr_t>(address);
+    return numeric_base <= numeric_address &&
+           numeric_address < numeric_base + size;
+  }
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MEMORY_H_

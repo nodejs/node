@@ -1,5 +1,6 @@
 // In this benchmark, we connect a client to the server, and write
 // as many bytes as we can in the specified time (default = 10s)
+'use strict';
 
 var common = require('../common.js');
 var util = require('util');
@@ -14,6 +15,8 @@ var bench = common.createBenchmark(main, {
 });
 
 var TCP = process.binding('tcp_wrap').TCP;
+var TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
+var WriteWrap = process.binding('stream_wrap').WriteWrap;
 var PORT = common.PORT;
 
 var dur;
@@ -48,18 +51,16 @@ function server() {
     var chunk;
     switch (type) {
       case 'buf':
-        chunk = new Buffer(len);
-        chunk.fill('x');
+        chunk = Buffer.alloc(len, 'x');
         break;
       case 'utf':
-        chunk = new Array(len / 2 + 1).join('ü');
+        chunk = 'ü'.repeat(len / 2);
         break;
       case 'asc':
-        chunk = new Array(len + 1).join('x');
+        chunk = 'x'.repeat(len);
         break;
       default:
-        throw new Error('invalid type: ' + type);
-        break;
+        throw new Error(`invalid type: ${type}`);
     }
 
     clientHandle.readStart();
@@ -68,7 +69,9 @@ function server() {
       write();
 
     function write() {
-      var writeReq = { async: false, oncomplete: afterWrite };
+      var writeReq = new WriteWrap();
+      writeReq.async = false;
+      writeReq.oncomplete = afterWrite;
       var err;
       switch (type) {
         case 'buf':
@@ -91,7 +94,7 @@ function server() {
       }
     }
 
-    function afterWrite(err, handle, req) {
+    function afterWrite(status, handle, req, err) {
       if (err)
         fail(err, 'write');
 
@@ -105,7 +108,7 @@ function server() {
 
 function client() {
   var clientHandle = new TCP();
-  var connectReq = {};
+  var connectReq = new TCPConnectWrap();
   var err = clientHandle.connect(connectReq, '127.0.0.1', PORT);
 
   if (err)
@@ -132,6 +135,7 @@ function client() {
     setTimeout(function() {
       // report in Gb/sec
       bench.end((bytes * 8) / (1024 * 1024 * 1024));
+      process.exit(0);
     }, dur * 1000);
   };
 }

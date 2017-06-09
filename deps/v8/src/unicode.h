@@ -136,13 +136,13 @@ class Utf8 {
                                 uchar c,
                                 int previous,
                                 bool replace_invalid = false);
-  static uchar CalculateValue(const byte* str,
-                              unsigned length,
-                              unsigned* cursor);
+  static uchar CalculateValue(const byte* str, size_t length, size_t* cursor);
 
   // The unicode replacement character, used to signal invalid unicode
   // sequences (e.g. an orphan surrogate) when converting to a UTF-8 encoding.
   static const uchar kBadChar = 0xFFFD;
+  static const uchar kBufferEmpty = 0x0;
+  static const uchar kIncomplete = 0xFFFFFFFC;  // any non-valid code point.
   static const unsigned kMaxEncodedSize   = 4;
   static const unsigned kMaxOneByteChar   = 0x7f;
   static const unsigned kMaxTwoByteChar   = 0x7ff;
@@ -156,9 +156,17 @@ class Utf8 {
   // The maximum size a single UTF-16 code unit may take up when encoded as
   // UTF-8.
   static const unsigned kMax16BitCodeUnitSize  = 3;
-  static inline uchar ValueOf(const byte* str,
-                              unsigned length,
-                              unsigned* cursor);
+  static inline uchar ValueOf(const byte* str, size_t length, size_t* cursor);
+
+  typedef uint32_t Utf8IncrementalBuffer;
+  static uchar ValueOfIncremental(byte next_byte,
+                                  Utf8IncrementalBuffer* buffer);
+  static uchar ValueOfIncrementalFinish(Utf8IncrementalBuffer* buffer);
+
+  // Excludes non-characters from the set of valid code points.
+  static inline bool IsValidCharacter(uchar c);
+
+  static bool Validate(const byte* str, size_t length);
 };
 
 struct Uppercase {
@@ -170,16 +178,16 @@ struct Lowercase {
 struct Letter {
   static bool Is(uchar c);
 };
-struct ID_Start {
+struct V8_EXPORT_PRIVATE ID_Start {
   static bool Is(uchar c);
 };
-struct ID_Continue {
+struct V8_EXPORT_PRIVATE ID_Continue {
   static bool Is(uchar c);
 };
-struct WhiteSpace {
+struct V8_EXPORT_PRIVATE WhiteSpace {
   static bool Is(uchar c);
 };
-struct LineTerminator {
+struct V8_EXPORT_PRIVATE LineTerminator {
   static bool Is(uchar c);
 };
 struct ToLowercase {

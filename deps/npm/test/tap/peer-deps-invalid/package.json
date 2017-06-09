@@ -1,9 +1,0 @@
-{
-  "author": "Domenic Denicola <domenic@domenicdenicola.com> (http://domenicdenicola.com/)",
-  "name": "peer-deps-invalid",
-  "version": "0.0.0",
-  "dependencies": {
-    "npm-test-peer-deps-file": "http://localhost:1337/ok.js",
-    "npm-test-peer-deps-file-invalid": "http://localhost:1337/invalid.js"
-  }
-}

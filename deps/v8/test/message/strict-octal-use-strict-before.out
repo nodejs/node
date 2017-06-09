@@ -1,0 +1,4 @@
+*%(basename)s:32: SyntaxError: Octal escape sequences are not allowed in strict mode.
+  "use\040strict";
+       ^^
+SyntaxError: Octal escape sequences are not allowed in strict mode.

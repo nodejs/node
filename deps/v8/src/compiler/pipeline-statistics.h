@@ -5,10 +5,12 @@
 #ifndef V8_COMPILER_PIPELINE_STATISTICS_H_
 #define V8_COMPILER_PIPELINE_STATISTICS_H_
 
+#include <memory>
 #include <string>
 
+#include "src/base/platform/elapsed-timer.h"
 #include "src/compilation-statistics.h"
-#include "src/compiler/zone-pool.h"
+#include "src/compiler/zone-stats.h"
 
 namespace v8 {
 namespace internal {
@@ -18,10 +20,11 @@ class PhaseScope;
 
 class PipelineStatistics : public Malloced {
  public:
-  PipelineStatistics(CompilationInfo* info, ZonePool* zone_pool);
+  PipelineStatistics(CompilationInfo* info, ZoneStats* zone_stats);
   ~PipelineStatistics();
 
   void BeginPhaseKind(const char* phase_kind_name);
+  void EndPhaseKind();
 
  private:
   size_t OuterZoneSize() {
@@ -36,23 +39,25 @@ class PipelineStatistics : public Malloced {
     void End(PipelineStatistics* pipeline_stats,
              CompilationStatistics::BasicStats* diff);
 
-    SmartPointer<ZonePool::StatsScope> scope_;
+    std::unique_ptr<ZoneStats::StatsScope> scope_;
     base::ElapsedTimer timer_;
     size_t outer_zone_initial_size_;
     size_t allocated_bytes_at_start_;
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(CommonStats);
   };
 
-  bool InPhaseKind() { return !phase_kind_stats_.scope_.is_empty(); }
-  void EndPhaseKind();
+  bool InPhaseKind() { return !!phase_kind_stats_.scope_; }
 
   friend class PhaseScope;
-  bool InPhase() { return !phase_stats_.scope_.is_empty(); }
+  bool InPhase() { return !!phase_stats_.scope_; }
   void BeginPhase(const char* name);
   void EndPhase();
 
   Isolate* isolate_;
   Zone* outer_zone_;
-  ZonePool* zone_pool_;
+  ZoneStats* zone_stats_;
   CompilationStatistics* compilation_stats_;
   std::string function_name_;
 
@@ -76,10 +81,10 @@ class PhaseScope {
  public:
   PhaseScope(PipelineStatistics* pipeline_stats, const char* name)
       : pipeline_stats_(pipeline_stats) {
-    if (pipeline_stats_ != NULL) pipeline_stats_->BeginPhase(name);
+    if (pipeline_stats_ != nullptr) pipeline_stats_->BeginPhase(name);
   }
   ~PhaseScope() {
-    if (pipeline_stats_ != NULL) pipeline_stats_->EndPhase();
+    if (pipeline_stats_ != nullptr) pipeline_stats_->EndPhase();
   }
 
  private:

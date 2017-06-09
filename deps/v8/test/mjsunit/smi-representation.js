@@ -28,7 +28,11 @@
 // Flags: --track-fields --track-double-fields --allow-natives-syntax
 
 function smi_field() {
-  return {"smi":0};
+  // Assign twice to make the field non-constant.
+  // TODO(ishell): update test once constant field tracking is done.
+  var o = {smi: 1};
+  o.smi = 0;
+  return o;
 }
 
 function check_smi_repr(o, d1, d2) {

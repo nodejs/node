@@ -1,0 +1,107 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "from2@^1.3.0",
+        "scope": null,
+        "escapedName": "from2",
+        "name": "from2",
+        "rawSpec": "^1.3.0",
+        "spec": ">=1.3.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/code/npm/node_modules/sorted-union-stream"
+    ]
+  ],
+  "_from": "from2@>=1.3.0 <2.0.0",
+  "_id": "from2@1.3.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/sorted-union-stream/from2",
+  "_nodeVersion": "0.10.35",
+  "_npmUser": {
+    "name": "mafintosh",
+    "email": "mathiasbuus@gmail.com"
+  },
+  "_npmVersion": "2.1.17",
+  "_phantomChildren": {
+    "inherits": "2.0.1"
+  },
+  "_requested": {
+    "raw": "from2@^1.3.0",
+    "scope": null,
+    "escapedName": "from2",
+    "name": "from2",
+    "rawSpec": "^1.3.0",
+    "spec": ">=1.3.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/sorted-union-stream"
+  ],
+  "_resolved": "https://registry.npmjs.org/from2/-/from2-1.3.0.tgz",
+  "_shasum": "88413baaa5f9a597cfde9221d86986cd3c061dfd",
+  "_shrinkwrap": null,
+  "_spec": "from2@^1.3.0",
+  "_where": "/Users/zkat/code/npm/node_modules/sorted-union-stream",
+  "author": {
+    "name": "Hugh Kennedy",
+    "email": "hughskennedy@gmail.com",
+    "url": "http://hughsk.io/"
+  },
+  "bugs": {
+    "url": "https://github.com/hughsk/from2/issues"
+  },
+  "contributors": [
+    {
+      "name": "Mathias Buus",
+      "email": "mathiasbuus@gmail.com"
+    }
+  ],
+  "dependencies": {
+    "inherits": "~2.0.1",
+    "readable-stream": "~1.1.10"
+  },
+  "description": "Convenience wrapper for ReadableStream, with an API lifted from \"from\" and \"through2\"",
+  "devDependencies": {
+    "tape": "~2.4.2"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "88413baaa5f9a597cfde9221d86986cd3c061dfd",
+    "tarball": "https://registry.npmjs.org/from2/-/from2-1.3.0.tgz"
+  },
+  "gitHead": "96118ea0d8aff6fb28cb8b7d8bc63ab1adb946a9",
+  "homepage": "https://github.com/hughsk/from2",
+  "keywords": [
+    "from",
+    "stream",
+    "readable",
+    "pull",
+    "convenience",
+    "wrapper"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "hughsk",
+      "email": "hughskennedy@gmail.com"
+    },
+    {
+      "name": "mafintosh",
+      "email": "mathiasbuus@gmail.com"
+    }
+  ],
+  "name": "from2",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hughsk/from2.git"
+  },
+  "scripts": {
+    "test": "node test"
+  },
+  "version": "1.3.0"
+}

@@ -5,6 +5,7 @@
 #ifndef V8_BASE_PLATFORM_SEMAPHORE_H_
 #define V8_BASE_PLATFORM_SEMAPHORE_H_
 
+#include "src/base/base-export.h"
 #include "src/base/lazy-instance.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"
@@ -31,7 +32,7 @@ class TimeDelta;
 // count reaches zero,  threads waiting for the semaphore blocks until the
 // count becomes non-zero.
 
-class Semaphore FINAL {
+class V8_BASE_EXPORT Semaphore final {
  public:
   explicit Semaphore(int count);
   ~Semaphore();
@@ -39,14 +40,13 @@ class Semaphore FINAL {
   // Increments the semaphore counter.
   void Signal();
 
-  // Suspends the calling thread until the semaphore counter is non zero
-  // and then decrements the semaphore counter.
+  // Decrements the semaphore counter if it is positive, or blocks until it
+  // becomes positive and then decrements the counter.
   void Wait();
 
-  // Suspends the calling thread until the counter is non zero or the timeout
-  // time has passed. If timeout happens the return value is false and the
-  // counter is unchanged. Otherwise the semaphore counter is decremented and
-  // true is returned.
+  // Like Wait() but returns after rel_time time has passed. If the timeout
+  // happens the return value is false and the counter is unchanged. Otherwise
+  // the semaphore counter is decremented and true is returned.
   bool WaitFor(const TimeDelta& rel_time) WARN_UNUSED_RESULT;
 
 #if V8_OS_MACOSX
@@ -96,6 +96,7 @@ struct LazySemaphore {
 
 #define LAZY_SEMAPHORE_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_PLATFORM_SEMAPHORE_H_

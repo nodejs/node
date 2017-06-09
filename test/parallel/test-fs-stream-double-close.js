@@ -19,9 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
+const fs = require('fs');
+
+common.refreshTmpDir();
 
 test1(fs.createReadStream(__filename));
 test2(fs.createReadStream(__filename));
@@ -38,24 +40,14 @@ function test1(stream) {
 
 function test2(stream) {
   stream.destroy();
-  stream.on('open', function(fd) {
+  stream.on('open', common.mustCall(function(fd) {
     stream.destroy();
-    open_cb_called++;
-  });
-  process.on('exit', function() {
-    assert.equal(open_cb_called, 1);
-  });
-  var open_cb_called = 0;
+  }));
 }
 
 function test3(stream) {
-  stream.on('open', function(fd) {
+  stream.on('open', common.mustCall(function(fd) {
     stream.destroy();
     stream.destroy();
-    open_cb_called++;
-  });
-  process.on('exit', function() {
-    assert.equal(open_cb_called, 1);
-  });
-  var open_cb_called = 0;
+  }));
 }

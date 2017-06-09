@@ -19,16 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var repl = require('./helper-debugger-repl.js');
+'use strict';
+require('../common');
+const repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('breakpoints.js');
-var linesWithBreakpoint = [
-    /1/, /2/, /3/, /4/, /5/, /\* 6/
+const linesWithBreakpoint = [
+  /1/, /2/, /3/, /4/, /5/, /\* 6/
 ];
 // We slice here, because addTest will change the given array.
 repl.addTest('sb(6)', linesWithBreakpoint.slice());
 
-var initialLines = repl.initialLines.slice()
+const initialLines = repl.initialLines.slice();
 initialLines.splice(2, 0, /Restoring/, /Warning/);
 
 // Restart the debugged script

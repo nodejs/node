@@ -46,7 +46,6 @@ if ($FLAVOR =~ /WIN64/)
     # 
     $base_cflags= " $mf_cflag";
     my $f = $shlib || $fips ?' /MD':' /MT';
-    $lib_cflag='/Zl' if (!$shlib);	# remove /DEFAULTLIBs from static lib
     $opt_cflags=$f.' /Ox';
     $dbg_cflags=$f.'d /Od -DDEBUG -D_DEBUG';
     $lflags="/nologo /subsystem:console /opt:ref";
@@ -89,7 +88,7 @@ elsif ($FLAVOR =~ /CE/)
     $wcetgt = $ENV{'TARGETCPU'};	# just shorter name...
     SWITCH: for($wcetgt) {
 	/^X86/		&& do {	$wcecdefs.=" -Dx86 -D_X86_ -D_i386_ -Di_386_";
-				$wcelflag.=" /machine:IX86";	last; };
+				$wcelflag.=" /machine:X86";	last; };
 	/^ARMV4[IT]/	&& do { $wcecdefs.=" -DARM -D_ARM_ -D$wcetgt";
 				$wcecdefs.=" -DTHUMB -D_THUMB_" if($wcetgt=~/T$/);
 				$wcecdefs.=" -QRarch4T -QRinterwork-return";
@@ -114,25 +113,30 @@ elsif ($FLAVOR =~ /CE/)
 	  $wcelflag.=" /machine:$wcetgt";			last; };
     }
 
-    $cc='$(CC)';
+    $cc=($ENV{CC} or "cl");
     $base_cflags=' /W3 /WX /GF /Gy /nologo -DUNICODE -D_UNICODE -DOPENSSL_SYSNAME_WINCE -DWIN32_LEAN_AND_MEAN -DL_ENDIAN -DDSO_WIN32 -DNO_CHMOD -DOPENSSL_SMALL_FOOTPRINT';
     $base_cflags.=" $wcecdefs";
     $base_cflags.=' -I$(WCECOMPAT)/include'		if (defined($ENV{'WCECOMPAT'}));
     $base_cflags.=' -I$(PORTSDK_LIBPATH)/../../include'	if (defined($ENV{'PORTSDK_LIBPATH'}));
-    $opt_cflags=' /MC /O1i';	# optimize for space, but with intrinsics...
-    $dbg_cflags=' /MC /Od -DDEBUG -D_DEBUG';
+    if (`$cc 2>&1` =~ /Version ([0-9]+)\./ && $1>=14) {
+	$base_cflags.=$shlib?' /MD':' /MT';
+    } else {
+	$base_cflags.=' /MC';
+    }
+    $opt_cflags=' /O1i';	# optimize for space, but with intrinsics...
+    $dbg_cflags=' /Od -DDEBUG -D_DEBUG';
     $lflags="/nologo /opt:ref $wcelflag";
     }
 else	# Win32
     {
     $base_cflags= " $mf_cflag";
     my $f = $shlib || $fips ?' /MD':' /MT';
-    $lib_cflag='/Zl' if (!$shlib);	# remove /DEFAULTLIBs from static lib
     $ff = "/fixed";
     $opt_cflags=$f.' /Ox /O2 /Ob2';
     $dbg_cflags=$f.'d /Od -DDEBUG -D_DEBUG';
     $lflags="/nologo /subsystem:console /opt:ref";
     }
+$lib_cflag='/Zl' if (!$shlib);	# remove /DEFAULTLIBs from static lib
 $mlflags='';
 
 $out_def ="out32";	$out_def.="dll"			if ($shlib);
@@ -165,14 +169,26 @@ $rsc="rc";
 $efile="/out:";
 $exep='.exe';
 if ($no_sock)		{ $ex_libs=''; }
-elsif ($FLAVOR =~ /CE/)	{ $ex_libs='winsock.lib'; }
+elsif ($FLAVOR =~ /CE/)	{ $ex_libs='ws2.lib'; }
 else			{ $ex_libs='ws2_32.lib'; }
 
 if ($FLAVOR =~ /CE/)
 	{
-	$ex_libs.=' $(WCECOMPAT)/lib/wcecompatex.lib'	if (defined($ENV{'WCECOMPAT'}));
+	$ex_libs.=' crypt32.lib';	# for e_capi.c
+	if (defined($ENV{WCECOMPAT}))
+		{
+		$ex_libs.= ' $(WCECOMPAT)/lib';
+		if (-f "$ENV{WCECOMPAT}/lib/$ENV{TARGETCPU}/wcecompatex.lib")
+			{
+			$ex_libs.='/$(TARGETCPU)/wcecompatex.lib';
+			}
+		else
+			{
+			$ex_libs.='/wcecompatex.lib';
+			}
+		}
 	$ex_libs.=' $(PORTSDK_LIBPATH)/portlib.lib'	if (defined($ENV{'PORTSDK_LIBPATH'}));
-	$ex_libs.=' /nodefaultlib:oldnames.lib coredll.lib corelibc.lib' if ($ENV{'TARGETCPU'} eq "X86");
+	$ex_libs.=' /nodefaultlib coredll.lib corelibc.lib' if ($ENV{'TARGETCPU'} eq "X86");
 	}
 else
 	{
@@ -314,7 +330,7 @@ sub do_lib_rule
  		if ($fips && $target =~ /O_CRYPTO/)
 			{
 			$ret.="$target: $objs \$(PREMAIN_DSO_EXE)";
-			$ret.="\n\tSET FIPS_LINK=\$(LINK)\n";
+			$ret.="\n\tSET FIPS_LINK=\$(LINK_CMD)\n";
 			$ret.="\tSET FIPS_CC=\$(CC)\n";
 			$ret.="\tSET FIPS_CC_ARGS=/Fo\$(OBJ_D)${o}fips_premain.obj \$(SHLIB_CFLAGS) -c\n";
 			$ret.="\tSET PREMAIN_DSO_EXE=\$(PREMAIN_DSO_EXE)\n";
@@ -328,7 +344,7 @@ sub do_lib_rule
 		else
 			{
 			$ret.="$target: $objs";
-			$ret.="\n\t\$(LINK) \$(MLFLAGS) $efile$target $name @<<\n  \$(SHLIB_EX_OBJ) $objs $ex \$(EX_LIBS)\n<<\n";
+			$ret.="\n\t\$(LINK_CMD) \$(MLFLAGS) $efile$target $name @<<\n  \$(SHLIB_EX_OBJ) $objs $ex \$(EX_LIBS)\n<<\n";
 			}
 		$ret.="\tIF EXIST \$@.manifest mt -nologo -manifest \$@.manifest -outputresource:\$@;2\n\n";
 		}
@@ -341,17 +357,23 @@ sub do_link_rule
 	my($target,$files,$dep_libs,$libs,$standalone)=@_;
 	local($ret,$_);
 	$file =~ s/\//$o/g if $o ne '/';
-	$n=&bname($targer);
-	$ret.="$target: $files $dep_libs\n";
+	$n=&bname($target);
+	$ret.="$target: $files $dep_libs";
 	if ($standalone == 1)
 		{
-		$ret.="  \$(LINK) \$(LFLAGS) $efile$target @<<\n\t";
-		$ret.= "\$(EX_LIBS) " if ($files =~ /O_FIPSCANISTER/ && !$fipscanisterbuild);
+		$ret.=" \$(OBJ_D)${o}applink.obj" if $shlib;
+		$ret.="\n";
+		$ret.="  \$(LINK_CMD) \$(LFLAGS) $efile$target @<<\n\t";
+		if ($files =~ /O_FIPSCANISTER/ && !$fipscanisterbuild) {
+			$ret.= "\$(EX_LIBS) ";
+			$ret.= "\$(OBJ_D)${o}applink.obj " if $shlib;
+		}
 		$ret.="$files $libs\n<<\n";
 		}
 	elsif ($standalone == 2)
 		{
-		$ret.="\tSET FIPS_LINK=\$(LINK)\n";
+		$ret.="\n";
+		$ret.="\tSET FIPS_LINK=\$(LINK_CMD)\n";
 		$ret.="\tSET FIPS_CC=\$(CC)\n";
 		$ret.="\tSET FIPS_CC_ARGS=/Fo\$(OBJ_D)${o}fips_premain.obj \$(SHLIB_CFLAGS) -c\n";
 		$ret.="\tSET PREMAIN_DSO_EXE=\n";
@@ -363,7 +385,8 @@ sub do_link_rule
 		}
 	else
 		{
-		$ret.="\t\$(LINK) \$(LFLAGS) $efile$target @<<\n";
+		$ret.="\n";
+		$ret.="\t\$(LINK_CMD) \$(LFLAGS) $efile$target @<<\n";
 		$ret.="\t\$(APP_EX_OBJ) $files $libs\n<<\n";
 		}
     	$ret.="\tIF EXIST \$@.manifest mt -nologo -manifest \$@.manifest -outputresource:\$@;1\n\n";

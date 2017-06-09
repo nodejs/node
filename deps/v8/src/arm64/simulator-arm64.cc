@@ -5,16 +5,18 @@
 #include <stdlib.h>
 #include <cmath>
 #include <cstdarg>
-#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/arm64/decoder-arm64-inl.h"
 #include "src/arm64/simulator-arm64.h"
-#include "src/assembler.h"
+#include "src/assembler-inl.h"
+#include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -54,6 +56,9 @@ TEXT_COLOUR clr_debug_number   = FLAG_log_colour ? COLOUR_BOLD(YELLOW)  : "";
 TEXT_COLOUR clr_debug_message  = FLAG_log_colour ? COLOUR(YELLOW)       : "";
 TEXT_COLOUR clr_printf         = FLAG_log_colour ? COLOUR(GREEN)        : "";
 
+// static
+base::LazyInstance<Simulator::GlobalMonitor>::type Simulator::global_monitor_ =
+    LAZY_INSTANCE_INITIALIZER;
 
 // This is basically the same as PrintF, with a guard for FLAG_trace_sim.
 void Simulator::TraceSim(const char* format, ...) {
@@ -177,14 +182,14 @@ double Simulator::CallDouble(byte* entry, CallArgument* args) {
 
 
 int64_t Simulator::CallJS(byte* entry,
-                          byte* function_entry,
-                          JSFunction* func,
+                          Object* new_target,
+                          Object* target,
                           Object* revc,
                           int64_t argc,
                           Object*** argv) {
   CallArgument args[] = {
-    CallArgument(function_entry),
-    CallArgument(func),
+    CallArgument(new_target),
+    CallArgument(target),
     CallArgument(revc),
     CallArgument(argc),
     CallArgument(argv),
@@ -192,6 +197,7 @@ int64_t Simulator::CallJS(byte* entry,
   };
   return CallInt64(entry, args);
 }
+
 
 int64_t Simulator::CallRegExp(byte* entry,
                               String* input,
@@ -202,7 +208,6 @@ int64_t Simulator::CallRegExp(byte* entry,
                               int64_t output_size,
                               Address stack_base,
                               int64_t direct_call,
-                              void* return_address,
                               Isolate* isolate) {
   CallArgument args[] = {
     CallArgument(input),
@@ -213,7 +218,6 @@ int64_t Simulator::CallRegExp(byte* entry,
     CallArgument(output_size),
     CallArgument(stack_base),
     CallArgument(direct_call),
-    CallArgument(return_address),
     CallArgument(isolate),
     CallArgument::End()
   };
@@ -222,6 +226,9 @@ int64_t Simulator::CallRegExp(byte* entry,
 
 
 void Simulator::CheckPCSComplianceAndRun() {
+  // Adjust JS-based stack limit to C-based stack limit.
+  isolate_->stack_guard()->AdjustStackLimitForSimulator();
+
 #ifdef DEBUG
   CHECK_EQ(kNumberOfCalleeSavedRegisters, kCalleeSaved.Count());
   CHECK_EQ(kNumberOfCalleeSavedFPRegisters, kCalleeSavedFP.Count());
@@ -332,9 +339,15 @@ uintptr_t Simulator::PopAddress() {
 
 
 // Returns the limit of the stack area to enable checking for stack overflows.
-uintptr_t Simulator::StackLimit() const {
-  // Leave a safety margin of 1024 bytes to prevent overrunning the stack when
-  // pushing values.
+uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
+  // The simulator uses a separate JS stack. If we have exhausted the C stack,
+  // we also drop down the JS limit to reflect the exhaustion on the JS stack.
+  if (GetCurrentStackPosition() < c_limit) {
+    return reinterpret_cast<uintptr_t>(get_sp());
+  }
+
+  // Otherwise the limit is the JS stack. Leave a safety margin of 1024 bytes
+  // to prevent overrunning the stack when pushing values.
   return stack_limit_ + 1024;
 }
 
@@ -413,11 +426,12 @@ void Simulator::ResetState() {
 
   // Reset debug helpers.
   breakpoints_.empty();
-  break_on_next_= false;
+  break_on_next_ = false;
 }
 
 
 Simulator::~Simulator() {
+  global_monitor_.Pointer()->RemoveProcessor(&global_monitor_processor_);
   delete[] reinterpret_cast<byte*>(stack_);
   if (FLAG_log_instruction_stats) {
     delete instrument_;
@@ -452,13 +466,11 @@ void Simulator::RunFrom(Instruction* start) {
 // offset from the svc instruction so the simulator knows what to call.
 class Redirection {
  public:
-  Redirection(void* external_function, ExternalReference::Type type)
-      : external_function_(external_function),
-        type_(type),
-        next_(NULL) {
+  Redirection(Isolate* isolate, void* external_function,
+              ExternalReference::Type type)
+      : external_function_(external_function), type_(type), next_(NULL) {
     redirect_call_.SetInstructionBits(
         HLT | Assembler::ImmException(kImmExceptionIsRedirectedCall));
-    Isolate* isolate = Isolate::Current();
     next_ = isolate->simulator_redirection();
     // TODO(all): Simulator flush I cache
     isolate->set_simulator_redirection(this);
@@ -473,9 +485,8 @@ class Redirection {
 
   ExternalReference::Type type() { return type_; }
 
-  static Redirection* Get(void* external_function,
+  static Redirection* Get(Isolate* isolate, void* external_function,
                           ExternalReference::Type type) {
-    Isolate* isolate = Isolate::Current();
     Redirection* current = isolate->simulator_redirection();
     for (; current != NULL; current = current->next_) {
       if (current->external_function_ == external_function) {
@@ -483,13 +494,13 @@ class Redirection {
         return current;
       }
     }
-    return new Redirection(external_function, type);
+    return new Redirection(isolate, external_function, type);
   }
 
   static Redirection* FromHltInstruction(Instruction* redirect_call) {
     char* addr_of_hlt = reinterpret_cast<char*>(redirect_call);
     char* addr_of_redirection =
-        addr_of_hlt - OFFSET_OF(Redirection, redirect_call_);
+        addr_of_hlt - offsetof(Redirection, redirect_call_);
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 
@@ -497,6 +508,14 @@ class Redirection {
     Redirection* redirection =
         FromHltInstruction(reinterpret_cast<Instruction*>(reg));
     return redirection->external_function<void*>();
+  }
+
+  static void DeleteChain(Redirection* redirection) {
+    while (redirection != nullptr) {
+      Redirection* next = redirection->next_;
+      delete redirection;
+      redirection = next;
+    }
   }
 
  private:
@@ -507,25 +526,28 @@ class Redirection {
 };
 
 
+// static
+void Simulator::TearDown(base::CustomMatcherHashMap* i_cache,
+                         Redirection* first) {
+  Redirection::DeleteChain(first);
+}
+
+
 // Calls into the V8 runtime are based on this very simple interface.
 // Note: To be able to return two values from some calls the code in runtime.cc
 // uses the ObjectPair structure.
 // The simulator assumes all runtime calls return two 64-bits values. If they
 // don't, register x1 is clobbered. This is fine because x1 is caller-saved.
-struct ObjectPair {
-  int64_t res0;
-  int64_t res1;
-};
+typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0, int64_t arg1,
+                                           int64_t arg2, int64_t arg3,
+                                           int64_t arg4, int64_t arg5,
+                                           int64_t arg6, int64_t arg7,
+                                           int64_t arg8);
 
-
-typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0,
-                                           int64_t arg1,
-                                           int64_t arg2,
-                                           int64_t arg3,
-                                           int64_t arg4,
-                                           int64_t arg5,
-                                           int64_t arg6,
-                                           int64_t arg7);
+typedef ObjectTriple (*SimulatorRuntimeTripleCall)(int64_t arg0, int64_t arg1,
+                                                   int64_t arg2, int64_t arg3,
+                                                   int64_t arg4, int64_t arg5,
+                                                   int64_t arg6, int64_t arg7);
 
 typedef int64_t (*SimulatorRuntimeCompareCall)(double arg1, double arg2);
 typedef double (*SimulatorRuntimeFPFPCall)(double arg1, double arg2);
@@ -562,14 +584,29 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
     FATAL("ALIGNMENT EXCEPTION");
   }
 
+  int64_t* stack_pointer = reinterpret_cast<int64_t*>(sp());
+
+  const int64_t arg0 = xreg(0);
+  const int64_t arg1 = xreg(1);
+  const int64_t arg2 = xreg(2);
+  const int64_t arg3 = xreg(3);
+  const int64_t arg4 = xreg(4);
+  const int64_t arg5 = xreg(5);
+  const int64_t arg6 = xreg(6);
+  const int64_t arg7 = xreg(7);
+  const int64_t arg8 = stack_pointer[0];
+  STATIC_ASSERT(kMaxCParameters == 9);
+
   switch (redirection->type()) {
     default:
       TraceSim("Type: Unknown.\n");
       UNREACHABLE();
       break;
 
-    case ExternalReference::BUILTIN_CALL: {
-      // Object* f(v8::internal::Arguments).
+    case ExternalReference::BUILTIN_CALL:
+    case ExternalReference::BUILTIN_CALL_PAIR: {
+      // Object* f(v8::internal::Arguments) or
+      // ObjectPair f(v8::internal::Arguments).
       TraceSim("Type: BUILTIN_CALL\n");
       SimulatorRuntimeCall target =
         reinterpret_cast<SimulatorRuntimeCall>(external);
@@ -577,22 +614,59 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       // We don't know how many arguments are being passed, but we can
       // pass 8 without touching the stack. They will be ignored by the
       // host function if they aren't used.
-      TraceSim("Arguments: "
-               "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
-               "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
-               "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
-               "0x%016" PRIx64 ", 0x%016" PRIx64,
-               xreg(0), xreg(1), xreg(2), xreg(3),
-               xreg(4), xreg(5), xreg(6), xreg(7));
-      ObjectPair result = target(xreg(0), xreg(1), xreg(2), xreg(3),
-                                 xreg(4), xreg(5), xreg(6), xreg(7));
-      TraceSim("Returned: {0x%" PRIx64 ", 0x%" PRIx64 "}\n",
-               result.res0, result.res1);
+      TraceSim(
+          "Arguments: "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64,
+          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+      ObjectPair result =
+          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+      TraceSim("Returned: {%p, %p}\n", static_cast<void*>(result.x),
+               static_cast<void*>(result.y));
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
 #endif
-      set_xreg(0, result.res0);
-      set_xreg(1, result.res1);
+      set_xreg(0, reinterpret_cast<int64_t>(result.x));
+      set_xreg(1, reinterpret_cast<int64_t>(result.y));
+      break;
+    }
+
+    case ExternalReference::BUILTIN_CALL_TRIPLE: {
+      // ObjectTriple f(v8::internal::Arguments).
+      TraceSim("Type: BUILTIN_CALL TRIPLE\n");
+      SimulatorRuntimeTripleCall target =
+          reinterpret_cast<SimulatorRuntimeTripleCall>(external);
+
+      // We don't know how many arguments are being passed, but we can
+      // pass 8 without touching the stack. They will be ignored by the
+      // host function if they aren't used.
+      TraceSim(
+          "Arguments: "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64,
+          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+      // Return location passed in x8.
+      ObjectTriple* sim_result = reinterpret_cast<ObjectTriple*>(xreg(8));
+      ObjectTriple result =
+          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+      TraceSim("Returned: {%p, %p, %p}\n", static_cast<void*>(result.x),
+               static_cast<void*>(result.y), static_cast<void*>(result.z));
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      *sim_result = result;
       break;
     }
 
@@ -724,9 +798,12 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
 }
 
 
-void* Simulator::RedirectExternalReference(void* external_function,
+void* Simulator::RedirectExternalReference(Isolate* isolate,
+                                           void* external_function,
                                            ExternalReference::Type type) {
-  Redirection* redirection = Redirection::Get(external_function, type);
+  base::LockGuard<base::Mutex> lock_guard(
+      isolate->simulator_redirection_mutex());
+  Redirection* redirection = Redirection::Get(isolate, external_function, type);
   return redirection->address_of_redirect_call();
 }
 
@@ -834,36 +911,31 @@ int Simulator::CodeFromName(const char* name) {
 
 // Helpers ---------------------------------------------------------------------
 template <typename T>
-T Simulator::AddWithCarry(bool set_flags,
-                          T src1,
-                          T src2,
-                          T carry_in) {
-  typedef typename make_unsigned<T>::type unsignedT;
+T Simulator::AddWithCarry(bool set_flags, T left, T right, int carry_in) {
+  // Use unsigned types to avoid implementation-defined overflow behaviour.
+  static_assert(std::is_unsigned<T>::value, "operands must be unsigned");
+  static_assert((sizeof(T) == kWRegSize) || (sizeof(T) == kXRegSize),
+                "Only W- or X-sized operands are tested");
+
   DCHECK((carry_in == 0) || (carry_in == 1));
-
-  T signed_sum = src1 + src2 + carry_in;
-  T result = signed_sum;
-
-  bool N, Z, C, V;
-
-  // Compute the C flag
-  unsignedT u1 = static_cast<unsignedT>(src1);
-  unsignedT u2 = static_cast<unsignedT>(src2);
-  unsignedT urest = std::numeric_limits<unsignedT>::max() - u1;
-  C = (u2 > urest) || (carry_in && (((u2 + 1) > urest) || (u2 > (urest - 1))));
-
-  // Overflow iff the sign bit is the same for the two inputs and different
-  // for the result.
-  V = ((src1 ^ src2) >= 0) && ((src1 ^ result) < 0);
-
-  N = CalcNFlag(result);
-  Z = CalcZFlag(result);
+  T result = left + right + carry_in;
 
   if (set_flags) {
-    nzcv().SetN(N);
-    nzcv().SetZ(Z);
-    nzcv().SetC(C);
-    nzcv().SetV(V);
+    nzcv().SetN(CalcNFlag(result));
+    nzcv().SetZ(CalcZFlag(result));
+
+    // Compute the C flag by comparing the result to the max unsigned integer.
+    T max_uint_2op = std::numeric_limits<T>::max() - carry_in;
+    nzcv().SetC((left > max_uint_2op) || ((max_uint_2op - left) < right));
+
+    // Overflow iff the sign bit is the same for the two inputs and different
+    // for the result.
+    T sign_mask = T(1) << (sizeof(T) * 8 - 1);
+    T left_sign = left & sign_mask;
+    T right_sign = right & sign_mask;
+    T result_sign = result & sign_mask;
+    nzcv().SetV((left_sign == right_sign) && (left_sign != result_sign));
+
     LogSystemRegister(NZCV);
   }
   return result;
@@ -872,6 +944,9 @@ T Simulator::AddWithCarry(bool set_flags,
 
 template<typename T>
 void Simulator::AddSubWithCarry(Instruction* instr) {
+  // Use unsigned types to avoid implementation-defined overflow behaviour.
+  static_assert(std::is_unsigned<T>::value, "operands must be unsigned");
+
   T op2 = reg<T>(instr->Rm());
   T new_val;
 
@@ -902,10 +977,11 @@ T Simulator::ShiftOperand(T value, Shift shift_type, unsigned amount) {
       return static_cast<unsignedT>(value) >> amount;
     case ASR:
       return value >> amount;
-    case ROR:
+    case ROR: {
+      unsignedT mask = (static_cast<unsignedT>(1) << amount) - 1;
       return (static_cast<unsignedT>(value) >> amount) |
-              ((value & ((1L << amount) - 1L)) <<
-                  (sizeof(unsignedT) * 8 - amount));
+             ((value & mask) << (sizeof(mask) * 8 - amount));
+    }
     default:
       UNIMPLEMENTED();
       return 0;
@@ -1363,6 +1439,9 @@ void Simulator::VisitCompareBranch(Instruction* instr) {
 
 template<typename T>
 void Simulator::AddSubHelper(Instruction* instr, T op2) {
+  // Use unsigned types to avoid implementation-defined overflow behaviour.
+  static_assert(std::is_unsigned<T>::value, "operands must be unsigned");
+
   bool set_flags = instr->FlagsUpdate();
   T new_val = 0;
   Instr operation = instr->Mask(AddSubOpMask);
@@ -1395,10 +1474,10 @@ void Simulator::VisitAddSubShifted(Instruction* instr) {
   unsigned shift_amount = instr->ImmDPShift();
 
   if (instr->SixtyFourBits()) {
-    int64_t op2 = ShiftOperand(xreg(instr->Rm()), shift_type, shift_amount);
+    uint64_t op2 = ShiftOperand(xreg(instr->Rm()), shift_type, shift_amount);
     AddSubHelper(instr, op2);
   } else {
-    int32_t op2 = ShiftOperand(wreg(instr->Rm()), shift_type, shift_amount);
+    uint32_t op2 = ShiftOperand(wreg(instr->Rm()), shift_type, shift_amount);
     AddSubHelper(instr, op2);
   }
 }
@@ -1407,9 +1486,9 @@ void Simulator::VisitAddSubShifted(Instruction* instr) {
 void Simulator::VisitAddSubImmediate(Instruction* instr) {
   int64_t op2 = instr->ImmAddSub() << ((instr->ShiftAddSub() == 1) ? 12 : 0);
   if (instr->SixtyFourBits()) {
-    AddSubHelper<int64_t>(instr, op2);
+    AddSubHelper(instr, static_cast<uint64_t>(op2));
   } else {
-    AddSubHelper<int32_t>(instr, op2);
+    AddSubHelper(instr, static_cast<uint32_t>(op2));
   }
 }
 
@@ -1418,10 +1497,10 @@ void Simulator::VisitAddSubExtended(Instruction* instr) {
   Extend ext = static_cast<Extend>(instr->ExtendMode());
   unsigned left_shift = instr->ImmExtendShift();
   if (instr->SixtyFourBits()) {
-    int64_t op2 = ExtendValue(xreg(instr->Rm()), ext, left_shift);
+    uint64_t op2 = ExtendValue(xreg(instr->Rm()), ext, left_shift);
     AddSubHelper(instr, op2);
   } else {
-    int32_t op2 = ExtendValue(wreg(instr->Rm()), ext, left_shift);
+    uint32_t op2 = ExtendValue(wreg(instr->Rm()), ext, left_shift);
     AddSubHelper(instr, op2);
   }
 }
@@ -1429,9 +1508,9 @@ void Simulator::VisitAddSubExtended(Instruction* instr) {
 
 void Simulator::VisitAddSubWithCarry(Instruction* instr) {
   if (instr->SixtyFourBits()) {
-    AddSubWithCarry<int64_t>(instr);
+    AddSubWithCarry<uint64_t>(instr);
   } else {
-    AddSubWithCarry<int32_t>(instr);
+    AddSubWithCarry<uint32_t>(instr);
   }
 }
 
@@ -1441,22 +1520,22 @@ void Simulator::VisitLogicalShifted(Instruction* instr) {
   unsigned shift_amount = instr->ImmDPShift();
 
   if (instr->SixtyFourBits()) {
-    int64_t op2 = ShiftOperand(xreg(instr->Rm()), shift_type, shift_amount);
+    uint64_t op2 = ShiftOperand(xreg(instr->Rm()), shift_type, shift_amount);
     op2 = (instr->Mask(NOT) == NOT) ? ~op2 : op2;
-    LogicalHelper<int64_t>(instr, op2);
+    LogicalHelper(instr, op2);
   } else {
-    int32_t op2 = ShiftOperand(wreg(instr->Rm()), shift_type, shift_amount);
+    uint32_t op2 = ShiftOperand(wreg(instr->Rm()), shift_type, shift_amount);
     op2 = (instr->Mask(NOT) == NOT) ? ~op2 : op2;
-    LogicalHelper<int32_t>(instr, op2);
+    LogicalHelper(instr, op2);
   }
 }
 
 
 void Simulator::VisitLogicalImmediate(Instruction* instr) {
   if (instr->SixtyFourBits()) {
-    LogicalHelper<int64_t>(instr, instr->ImmLogical());
+    LogicalHelper(instr, static_cast<uint64_t>(instr->ImmLogical()));
   } else {
-    LogicalHelper<int32_t>(instr, instr->ImmLogical());
+    LogicalHelper(instr, static_cast<uint32_t>(instr->ImmLogical()));
   }
 }
 
@@ -1492,24 +1571,27 @@ void Simulator::LogicalHelper(Instruction* instr, T op2) {
 
 void Simulator::VisitConditionalCompareRegister(Instruction* instr) {
   if (instr->SixtyFourBits()) {
-    ConditionalCompareHelper(instr, xreg(instr->Rm()));
+    ConditionalCompareHelper(instr, static_cast<uint64_t>(xreg(instr->Rm())));
   } else {
-    ConditionalCompareHelper(instr, wreg(instr->Rm()));
+    ConditionalCompareHelper(instr, static_cast<uint32_t>(wreg(instr->Rm())));
   }
 }
 
 
 void Simulator::VisitConditionalCompareImmediate(Instruction* instr) {
   if (instr->SixtyFourBits()) {
-    ConditionalCompareHelper<int64_t>(instr, instr->ImmCondCmp());
+    ConditionalCompareHelper(instr, static_cast<uint64_t>(instr->ImmCondCmp()));
   } else {
-    ConditionalCompareHelper<int32_t>(instr, instr->ImmCondCmp());
+    ConditionalCompareHelper(instr, static_cast<uint32_t>(instr->ImmCondCmp()));
   }
 }
 
 
 template<typename T>
 void Simulator::ConditionalCompareHelper(Instruction* instr, T op2) {
+  // Use unsigned types to avoid implementation-defined overflow behaviour.
+  static_assert(std::is_unsigned<T>::value, "operands must be unsigned");
+
   T op1 = reg<T>(instr->Rn());
 
   if (ConditionPassed(static_cast<Condition>(instr->Condition()))) {
@@ -1567,6 +1649,15 @@ void Simulator::LoadStoreHelper(Instruction* instr,
   unsigned addr_reg = instr->Rn();
   uintptr_t address = LoadStoreAddress(addr_reg, offset, addrmode);
   uintptr_t stack = 0;
+
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  if (instr->IsLoad()) {
+    local_monitor_.NotifyLoad(address);
+  } else {
+    local_monitor_.NotifyStore(address);
+    global_monitor_.Pointer()->NotifyStore_Locked(address,
+                                                  &global_monitor_processor_);
+  }
 
   // Handle the writeback for stores before the store. On a CPU the writeback
   // and the store are atomic, but when running on the simulator it is possible
@@ -1659,11 +1750,6 @@ void Simulator::VisitLoadStorePairPostIndex(Instruction* instr) {
 }
 
 
-void Simulator::VisitLoadStorePairNonTemporal(Instruction* instr) {
-  LoadStorePairHelper(instr, Offset);
-}
-
-
 void Simulator::LoadStorePairHelper(Instruction* instr,
                                     AddrMode addrmode) {
   unsigned rt = instr->Rt();
@@ -1674,6 +1760,19 @@ void Simulator::LoadStorePairHelper(Instruction* instr,
   uintptr_t address = LoadStoreAddress(addr_reg, offset, addrmode);
   uintptr_t address2 = address + access_size;
   uintptr_t stack = 0;
+
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  if (instr->IsLoad()) {
+    local_monitor_.NotifyLoad(address);
+    local_monitor_.NotifyLoad(address2);
+  } else {
+    local_monitor_.NotifyStore(address);
+    local_monitor_.NotifyStore(address2);
+    global_monitor_.Pointer()->NotifyStore_Locked(address,
+                                                  &global_monitor_processor_);
+    global_monitor_.Pointer()->NotifyStore_Locked(address2,
+                                                  &global_monitor_processor_);
+  }
 
   // Handle the writeback for stores before the store. On a CPU the writeback
   // and the store are atomic, but when running on the simulator it is possible
@@ -1798,6 +1897,9 @@ void Simulator::VisitLoadLiteral(Instruction* instr) {
   uintptr_t address = instr->LiteralAddress();
   unsigned rt = instr->Rt();
 
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoad(address);
+
   switch (instr->Mask(LoadLiteralMask)) {
     // Use _no_log variants to suppress the register trace (LOG_REGS,
     // LOG_FP_REGS), then print a more detailed log.
@@ -1851,6 +1953,109 @@ void Simulator::LoadStoreWriteBack(unsigned addr_reg,
   }
 }
 
+Simulator::TransactionSize Simulator::get_transaction_size(unsigned size) {
+  switch (size) {
+    case 0:
+      return TransactionSize::None;
+    case 1:
+      return TransactionSize::Byte;
+    case 2:
+      return TransactionSize::HalfWord;
+    case 4:
+      return TransactionSize::Word;
+    default:
+      UNREACHABLE();
+  }
+  return TransactionSize::None;
+}
+
+void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
+  unsigned rt = instr->Rt();
+  unsigned rn = instr->Rn();
+  LoadStoreAcquireReleaseOp op = static_cast<LoadStoreAcquireReleaseOp>(
+      instr->Mask(LoadStoreAcquireReleaseMask));
+  int32_t is_acquire_release = instr->LoadStoreXAcquireRelease();
+  int32_t is_exclusive = (instr->LoadStoreXNotExclusive() == 0);
+  int32_t is_load = instr->LoadStoreXLoad();
+  int32_t is_pair = instr->LoadStoreXPair();
+  USE(is_acquire_release);
+  USE(is_pair);
+  DCHECK_NE(is_acquire_release, 0);  // Non-acquire/release unimplemented.
+  DCHECK_EQ(is_pair, 0);             // Pair unimplemented.
+  unsigned access_size = 1 << instr->LoadStoreXSizeLog2();
+  uintptr_t address = LoadStoreAddress(rn, 0, AddrMode::Offset);
+  DCHECK_EQ(address % access_size, 0);
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  if (is_load != 0) {
+    if (is_exclusive) {
+      local_monitor_.NotifyLoadExcl(address, get_transaction_size(access_size));
+      global_monitor_.Pointer()->NotifyLoadExcl_Locked(
+          address, &global_monitor_processor_);
+    } else {
+      local_monitor_.NotifyLoad(address);
+    }
+    switch (op) {
+      case LDAR_b:
+      case LDAXR_b:
+        set_wreg_no_log(rt, MemoryRead<uint8_t>(address));
+        break;
+      case LDAR_h:
+      case LDAXR_h:
+        set_wreg_no_log(rt, MemoryRead<uint16_t>(address));
+        break;
+      case LDAR_w:
+      case LDAXR_w:
+        set_wreg_no_log(rt, MemoryRead<uint32_t>(address));
+        break;
+      default:
+        UNIMPLEMENTED();
+    }
+    LogRead(address, access_size, rt);
+  } else {
+    if (is_exclusive) {
+      unsigned rs = instr->Rs();
+      if (local_monitor_.NotifyStoreExcl(address,
+                                         get_transaction_size(access_size)) &&
+          global_monitor_.Pointer()->NotifyStoreExcl_Locked(
+              address, &global_monitor_processor_)) {
+        switch (op) {
+          case STLXR_b:
+            MemoryWrite<uint8_t>(address, wreg(rt));
+            break;
+          case STLXR_h:
+            MemoryWrite<uint16_t>(address, wreg(rt));
+            break;
+          case STLXR_w:
+            MemoryWrite<uint32_t>(address, wreg(rt));
+            break;
+          default:
+            UNIMPLEMENTED();
+        }
+        LogWrite(address, access_size, rt);
+        set_wreg(rs, 0);
+      } else {
+        set_wreg(rs, 1);
+      }
+    } else {
+      local_monitor_.NotifyStore(address);
+      global_monitor_.Pointer()->NotifyStore_Locked(address,
+                                                    &global_monitor_processor_);
+      switch (op) {
+        case STLR_b:
+          MemoryWrite<uint8_t>(address, wreg(rt));
+          break;
+        case STLR_h:
+          MemoryWrite<uint16_t>(address, wreg(rt));
+          break;
+        case STLR_w:
+          MemoryWrite<uint32_t>(address, wreg(rt));
+          break;
+        default:
+          UNIMPLEMENTED();
+      }
+    }
+  }
+}
 
 void Simulator::CheckMemoryAccess(uintptr_t address, uintptr_t stack) {
   if ((address >= stack_limit_) && (address < stack)) {
@@ -1878,7 +2083,7 @@ void Simulator::VisitMoveWideImmediate(Instruction* instr) {
 
   // Get the shifted immediate.
   int64_t shift = instr->ShiftMoveWide() * 16;
-  int64_t shifted_imm16 = instr->ImmMoveWide() << shift;
+  int64_t shifted_imm16 = static_cast<int64_t>(instr->ImmMoveWide()) << shift;
 
   // Compute the new value.
   switch (mov_op) {
@@ -1911,25 +2116,32 @@ void Simulator::VisitMoveWideImmediate(Instruction* instr) {
 
 
 void Simulator::VisitConditionalSelect(Instruction* instr) {
+  uint64_t new_val = xreg(instr->Rn());
   if (ConditionFailed(static_cast<Condition>(instr->Condition()))) {
-    uint64_t new_val = xreg(instr->Rm());
+    new_val = xreg(instr->Rm());
     switch (instr->Mask(ConditionalSelectMask)) {
-      case CSEL_w: set_wreg(instr->Rd(), new_val); break;
-      case CSEL_x: set_xreg(instr->Rd(), new_val); break;
-      case CSINC_w: set_wreg(instr->Rd(), new_val + 1); break;
-      case CSINC_x: set_xreg(instr->Rd(), new_val + 1); break;
-      case CSINV_w: set_wreg(instr->Rd(), ~new_val); break;
-      case CSINV_x: set_xreg(instr->Rd(), ~new_val); break;
-      case CSNEG_w: set_wreg(instr->Rd(), -new_val); break;
-      case CSNEG_x: set_xreg(instr->Rd(), -new_val); break;
+      case CSEL_w:
+      case CSEL_x:
+        break;
+      case CSINC_w:
+      case CSINC_x:
+        new_val++;
+        break;
+      case CSINV_w:
+      case CSINV_x:
+        new_val = ~new_val;
+        break;
+      case CSNEG_w:
+      case CSNEG_x:
+        new_val = -new_val;
+        break;
       default: UNIMPLEMENTED();
     }
+  }
+  if (instr->SixtyFourBits()) {
+    set_xreg(instr->Rd(), new_val);
   } else {
-    if (instr->SixtyFourBits()) {
-      set_xreg(instr->Rd(), xreg(instr->Rn()));
-    } else {
-      set_wreg(instr->Rd(), wreg(instr->Rn()));
-    }
+    set_wreg(instr->Rd(), static_cast<uint32_t>(new_val));
   }
 }
 
@@ -1939,13 +2151,27 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
   unsigned src = instr->Rn();
 
   switch (instr->Mask(DataProcessing1SourceMask)) {
-    case RBIT_w: set_wreg(dst, ReverseBits(wreg(src), kWRegSizeInBits)); break;
-    case RBIT_x: set_xreg(dst, ReverseBits(xreg(src), kXRegSizeInBits)); break;
-    case REV16_w: set_wreg(dst, ReverseBytes(wreg(src), Reverse16)); break;
-    case REV16_x: set_xreg(dst, ReverseBytes(xreg(src), Reverse16)); break;
-    case REV_w: set_wreg(dst, ReverseBytes(wreg(src), Reverse32)); break;
-    case REV32_x: set_xreg(dst, ReverseBytes(xreg(src), Reverse32)); break;
-    case REV_x: set_xreg(dst, ReverseBytes(xreg(src), Reverse64)); break;
+    case RBIT_w:
+      set_wreg(dst, base::bits::ReverseBits(wreg(src)));
+      break;
+    case RBIT_x:
+      set_xreg(dst, base::bits::ReverseBits(xreg(src)));
+      break;
+    case REV16_w:
+      set_wreg(dst, ReverseBytes(wreg(src), 1));
+      break;
+    case REV16_x:
+      set_xreg(dst, ReverseBytes(xreg(src), 1));
+      break;
+    case REV_w:
+      set_wreg(dst, ReverseBytes(wreg(src), 2));
+      break;
+    case REV32_x:
+      set_xreg(dst, ReverseBytes(xreg(src), 2));
+      break;
+    case REV_x:
+      set_xreg(dst, ReverseBytes(xreg(src), 3));
+      break;
     case CLZ_w: set_wreg(dst, CountLeadingZeros(wreg(src), kWRegSizeInBits));
                 break;
     case CLZ_x: set_xreg(dst, CountLeadingZeros(xreg(src), kXRegSizeInBits));
@@ -1960,44 +2186,6 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
     }
     default: UNIMPLEMENTED();
   }
-}
-
-
-uint64_t Simulator::ReverseBits(uint64_t value, unsigned num_bits) {
-  DCHECK((num_bits == kWRegSizeInBits) || (num_bits == kXRegSizeInBits));
-  uint64_t result = 0;
-  for (unsigned i = 0; i < num_bits; i++) {
-    result = (result << 1) | (value & 1);
-    value >>= 1;
-  }
-  return result;
-}
-
-
-uint64_t Simulator::ReverseBytes(uint64_t value, ReverseByteMode mode) {
-  // Split the 64-bit value into an 8-bit array, where b[0] is the least
-  // significant byte, and b[7] is the most significant.
-  uint8_t bytes[8];
-  uint64_t mask = 0xff00000000000000UL;
-  for (int i = 7; i >= 0; i--) {
-    bytes[i] = (value & mask) >> (i * 8);
-    mask >>= 8;
-  }
-
-  // Permutation tables for REV instructions.
-  //  permute_table[Reverse16] is used by REV16_x, REV16_w
-  //  permute_table[Reverse32] is used by REV32_x, REV_w
-  //  permute_table[Reverse64] is used by REV_x
-  DCHECK((Reverse16 == 0) && (Reverse32 == 1) && (Reverse64 == 2));
-  static const uint8_t permute_table[3][8] = { {6, 7, 4, 5, 2, 3, 0, 1},
-                                               {4, 5, 6, 7, 0, 1, 2, 3},
-                                               {0, 1, 2, 3, 4, 5, 6, 7} };
-  uint64_t result = 0;
-  for (int i = 0; i < 8; i++) {
-    result <<= 8;
-    result |= bytes[permute_table[mode][i]];
-  }
-  return result;
 }
 
 
@@ -2120,7 +2308,7 @@ void Simulator::VisitDataProcessing3Source(Instruction* instr) {
   if (instr->SixtyFourBits()) {
     set_xreg(instr->Rd(), result);
   } else {
-    set_wreg(instr->Rd(), result);
+    set_wreg(instr->Rd(), static_cast<int32_t>(result));
   }
 }
 
@@ -2137,8 +2325,9 @@ void Simulator::BitfieldHelper(Instruction* instr) {
     mask = diff < reg_size - 1 ? (static_cast<T>(1) << (diff + 1)) - 1
                                : static_cast<T>(-1);
   } else {
-    mask = ((1L << (S + 1)) - 1);
-    mask = (static_cast<uint64_t>(mask) >> R) | (mask << (reg_size - R));
+    uint64_t umask = ((1L << (S + 1)) - 1);
+    umask = (umask >> R) | (umask << (reg_size - R));
+    mask = static_cast<T>(umask);
     diff += reg_size;
   }
 
@@ -2562,7 +2751,7 @@ static T FPRound(int64_t sign, int64_t exponent, uint64_t mantissa,
 
   // Bail out early for zero inputs.
   if (mantissa == 0) {
-    return sign << sign_offset;
+    return static_cast<T>(sign << sign_offset);
   }
 
   // If all bits in the exponent are set, the value is infinite or NaN.
@@ -2579,9 +2768,9 @@ static T FPRound(int64_t sign, int64_t exponent, uint64_t mantissa,
     // FPTieEven rounding mode handles overflows using infinities.
     exponent = infinite_exponent;
     mantissa = 0;
-    return (sign << sign_offset) |
-           (exponent << exponent_offset) |
-           (mantissa << mantissa_offset);
+    return static_cast<T>((sign << sign_offset) |
+                          (exponent << exponent_offset) |
+                          (mantissa << mantissa_offset));
   }
 
   // Calculate the shift required to move the top mantissa bit to the proper
@@ -2604,7 +2793,7 @@ static T FPRound(int64_t sign, int64_t exponent, uint64_t mantissa,
     // non-zero result after rounding.
     if (shift > (highest_significant_bit + 1)) {
       // The result will always be +/-0.0.
-      return sign << sign_offset;
+      return static_cast<T>(sign << sign_offset);
     }
 
     // Properly encode the exponent for a subnormal output.
@@ -2623,9 +2812,9 @@ static T FPRound(int64_t sign, int64_t exponent, uint64_t mantissa,
     uint64_t adjusted = mantissa - (halfbit_mantissa & ~onebit_mantissa);
     T halfbit_adjusted = (adjusted >> (shift-1)) & 1;
 
-    T result = (sign << sign_offset) |
-               (exponent << exponent_offset) |
-               ((mantissa >> shift) << mantissa_offset);
+    T result =
+        static_cast<T>((sign << sign_offset) | (exponent << exponent_offset) |
+                       ((mantissa >> shift) << mantissa_offset));
 
     // A very large mantissa can overflow during rounding. If this happens, the
     // exponent should be incremented and the mantissa set to 1.0 (encoded as
@@ -2640,9 +2829,9 @@ static T FPRound(int64_t sign, int64_t exponent, uint64_t mantissa,
     // We have to shift the mantissa to the left (or not at all). The input
     // mantissa is exactly representable in the output mantissa, so apply no
     // rounding correction.
-    return (sign << sign_offset) |
-           (exponent << exponent_offset) |
-           ((mantissa << -shift) << mantissa_offset);
+    return static_cast<T>((sign << sign_offset) |
+                          (exponent << exponent_offset) |
+                          ((mantissa << -shift) << mantissa_offset));
   }
 }
 
@@ -2756,7 +2945,7 @@ double Simulator::FPRoundInt(double value, FPRounding round_mode) {
       // If the error is greater than 0.5, or is equal to 0.5 and the integer
       // result is odd, round up.
       } else if ((error > 0.5) ||
-          ((error == 0.5) && (fmod(int_result, 2) != 0))) {
+                 ((error == 0.5) && (modulo(int_result, 2) != 0))) {
         int_result++;
       }
       break;
@@ -2837,7 +3026,8 @@ float Simulator::FPToFloat(double value, FPRounding round_mode) {
 
       uint32_t sign = raw >> 63;
       uint32_t exponent = (1 << 8) - 1;
-      uint32_t payload = unsigned_bitextract_64(50, 52 - 23, raw);
+      uint32_t payload =
+          static_cast<uint32_t>(unsigned_bitextract_64(50, 52 - 23, raw));
       payload |= (1 << 22);   // Force a quiet NaN.
 
       return rawbits_to_float((sign << 31) | (exponent << 23) | payload);
@@ -2858,7 +3048,8 @@ float Simulator::FPToFloat(double value, FPRounding round_mode) {
       // Extract the IEEE-754 double components.
       uint32_t sign = raw >> 63;
       // Extract the exponent and remove the IEEE-754 encoding bias.
-      int32_t exponent = unsigned_bitextract_64(62, 52, raw) - 1023;
+      int32_t exponent =
+          static_cast<int32_t>(unsigned_bitextract_64(62, 52, raw)) - 1023;
       // Extract the mantissa and add the implicit '1' bit.
       uint64_t mantissa = unsigned_bitextract_64(51, 0, raw);
       if (std::fpclassify(value) == FP_NORMAL) {
@@ -3100,7 +3291,8 @@ T Simulator::FPSqrt(T op) {
   } else if (op < 0.0) {
     return FPDefaultNaN<T>();
   } else {
-    return std::sqrt(op);
+    lazily_initialize_fast_sqrt(isolate_);
+    return fast_sqrt(op, isolate_);
   }
 }
 
@@ -3209,11 +3401,11 @@ void Simulator::VisitSystem(Instruction* instr) {
       case MSR: {
         switch (instr->ImmSystemRegister()) {
           case NZCV:
-            nzcv().SetRawValue(xreg(instr->Rt()));
+            nzcv().SetRawValue(wreg(instr->Rt()));
             LogSystemRegister(NZCV);
             break;
           case FPCR:
-            fpcr().SetRawValue(xreg(instr->Rt()));
+            fpcr().SetRawValue(wreg(instr->Rt()));
             LogSystemRegister(FPCR);
             break;
           default: UNIMPLEMENTED();
@@ -3503,8 +3695,9 @@ void Simulator::Debug() {
                  reinterpret_cast<uint64_t>(cur), *cur, *cur);
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int64_t value = *cur;
-          Heap* current_heap = v8::internal::Isolate::Current()->heap();
-          if (((value & 1) == 0) || current_heap->Contains(obj)) {
+          Heap* current_heap = isolate_->heap();
+          if (((value & 1) == 0) ||
+              current_heap->ContainsSlow(obj->address())) {
             PrintF(" (");
             if ((value & kSmiTagMask) == 0) {
               STATIC_ASSERT(kSmiValueSize == 32);
@@ -3831,9 +4024,190 @@ void Simulator::DoPrintf(Instruction* instr) {
   delete[] format;
 }
 
+Simulator::LocalMonitor::LocalMonitor()
+    : access_state_(MonitorAccess::Open),
+      tagged_addr_(0),
+      size_(TransactionSize::None) {}
+
+void Simulator::LocalMonitor::Clear() {
+  access_state_ = MonitorAccess::Open;
+  tagged_addr_ = 0;
+  size_ = TransactionSize::None;
+}
+
+void Simulator::LocalMonitor::NotifyLoad(uintptr_t addr) {
+  if (access_state_ == MonitorAccess::Exclusive) {
+    // A non exclusive load could clear the local monitor. As a result, it's
+    // most strict to unconditionally clear the local monitor on load.
+    Clear();
+  }
+}
+
+void Simulator::LocalMonitor::NotifyLoadExcl(uintptr_t addr,
+                                             TransactionSize size) {
+  access_state_ = MonitorAccess::Exclusive;
+  tagged_addr_ = addr;
+  size_ = size;
+}
+
+void Simulator::LocalMonitor::NotifyStore(uintptr_t addr) {
+  if (access_state_ == MonitorAccess::Exclusive) {
+    // A non exclusive store could clear the local monitor. As a result, it's
+    // most strict to unconditionally clear the local monitor on store.
+    Clear();
+  }
+}
+
+bool Simulator::LocalMonitor::NotifyStoreExcl(uintptr_t addr,
+                                              TransactionSize size) {
+  if (access_state_ == MonitorAccess::Exclusive) {
+    // It is allowed for a processor to require that the address matches
+    // exactly (B2.10.1), so this comparison does not mask addr.
+    if (addr == tagged_addr_ && size_ == size) {
+      Clear();
+      return true;
+    } else {
+      // It is implementation-defined whether an exclusive store to a
+      // non-tagged address will update memory. As a result, it's most strict
+      // to unconditionally clear the local monitor.
+      Clear();
+      return false;
+    }
+  } else {
+    DCHECK(access_state_ == MonitorAccess::Open);
+    return false;
+  }
+}
+
+Simulator::GlobalMonitor::Processor::Processor()
+    : access_state_(MonitorAccess::Open),
+      tagged_addr_(0),
+      next_(nullptr),
+      prev_(nullptr),
+      failure_counter_(0) {}
+
+void Simulator::GlobalMonitor::Processor::Clear_Locked() {
+  access_state_ = MonitorAccess::Open;
+  tagged_addr_ = 0;
+}
+
+void Simulator::GlobalMonitor::Processor::NotifyLoadExcl_Locked(
+    uintptr_t addr) {
+  access_state_ = MonitorAccess::Exclusive;
+  tagged_addr_ = addr;
+}
+
+void Simulator::GlobalMonitor::Processor::NotifyStore_Locked(
+    uintptr_t addr, bool is_requesting_processor) {
+  if (access_state_ == MonitorAccess::Exclusive) {
+    // A non exclusive store could clear the global monitor. As a result, it's
+    // most strict to unconditionally clear global monitors on store.
+    Clear_Locked();
+  }
+}
+
+bool Simulator::GlobalMonitor::Processor::NotifyStoreExcl_Locked(
+    uintptr_t addr, bool is_requesting_processor) {
+  if (access_state_ == MonitorAccess::Exclusive) {
+    if (is_requesting_processor) {
+      // It is allowed for a processor to require that the address matches
+      // exactly (B2.10.2), so this comparison does not mask addr.
+      if (addr == tagged_addr_) {
+        Clear_Locked();
+        // Introduce occasional stxr failures. This is to simulate the
+        // behavior of hardware, which can randomly fail due to background
+        // cache evictions.
+        if (failure_counter_++ >= kMaxFailureCounter) {
+          failure_counter_ = 0;
+          return false;
+        } else {
+          return true;
+        }
+      }
+    } else if ((addr & kExclusiveTaggedAddrMask) ==
+               (tagged_addr_ & kExclusiveTaggedAddrMask)) {
+      // Check the masked addresses when responding to a successful lock by
+      // another processor so the implementation is more conservative (i.e. the
+      // granularity of locking is as large as possible.)
+      Clear_Locked();
+      return false;
+    }
+  }
+  return false;
+}
+
+Simulator::GlobalMonitor::GlobalMonitor() : head_(nullptr) {}
+
+void Simulator::GlobalMonitor::NotifyLoadExcl_Locked(uintptr_t addr,
+                                                     Processor* processor) {
+  processor->NotifyLoadExcl_Locked(addr);
+  PrependProcessor_Locked(processor);
+}
+
+void Simulator::GlobalMonitor::NotifyStore_Locked(uintptr_t addr,
+                                                  Processor* processor) {
+  // Notify each processor of the store operation.
+  for (Processor* iter = head_; iter; iter = iter->next_) {
+    bool is_requesting_processor = iter == processor;
+    iter->NotifyStore_Locked(addr, is_requesting_processor);
+  }
+}
+
+bool Simulator::GlobalMonitor::NotifyStoreExcl_Locked(uintptr_t addr,
+                                                      Processor* processor) {
+  DCHECK(IsProcessorInLinkedList_Locked(processor));
+  if (processor->NotifyStoreExcl_Locked(addr, true)) {
+    // Notify the other processors that this StoreExcl succeeded.
+    for (Processor* iter = head_; iter; iter = iter->next_) {
+      if (iter != processor) {
+        iter->NotifyStoreExcl_Locked(addr, false);
+      }
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool Simulator::GlobalMonitor::IsProcessorInLinkedList_Locked(
+    Processor* processor) const {
+  return head_ == processor || processor->next_ || processor->prev_;
+}
+
+void Simulator::GlobalMonitor::PrependProcessor_Locked(Processor* processor) {
+  if (IsProcessorInLinkedList_Locked(processor)) {
+    return;
+  }
+
+  if (head_) {
+    head_->prev_ = processor;
+  }
+  processor->prev_ = nullptr;
+  processor->next_ = head_;
+  head_ = processor;
+}
+
+void Simulator::GlobalMonitor::RemoveProcessor(Processor* processor) {
+  base::LockGuard<base::Mutex> lock_guard(&mutex);
+  if (!IsProcessorInLinkedList_Locked(processor)) {
+    return;
+  }
+
+  if (processor->prev_) {
+    processor->prev_->next_ = processor->next_;
+  } else {
+    head_ = processor->next_;
+  }
+  if (processor->next_) {
+    processor->next_->prev_ = processor->prev_;
+  }
+  processor->prev_ = nullptr;
+  processor->next_ = nullptr;
+}
 
 #endif  // USE_SIMULATOR
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM64

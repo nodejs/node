@@ -1,0 +1,753 @@
+Checks that inspector correctly process compiled scripts
+scriptParsed
+{
+    scriptSource : function foo1(){}//# sourceURL=oneline.js<nl>
+}
+{
+    endColumn : 0
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 2ACD11425BF645075D5696189A7BA7EB4048D6F7
+    isLiveEdit : false
+    isModule : false
+    length : 42
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : oneline.js
+}
+scriptParsed
+{
+    scriptSource : function foo2(){}//# sourceURL=oneline-without-nl.js
+}
+{
+    endColumn : 52
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 0CD3C4132CE40E415D5696189A7BA7EB4048D6F7
+    isLiveEdit : false
+    isModule : false
+    length : 52
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : oneline-without-nl.js
+}
+scriptParsed
+{
+    scriptSource : function foo3(){}<nl>//# sourceURL=twoline.js<nl>
+}
+{
+    endColumn : 0
+    endLine : 2
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 0E35E860580550805D5681F7BCD47D855B794EB3
+    isLiveEdit : false
+    isModule : false
+    length : 43
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : twoline.js
+}
+scriptParsed
+{
+    scriptSource : function foo4(){}<nl><nl>//# sourceURL=threeline.js<nl>
+}
+{
+    endColumn : 0
+    endLine : 3
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : AD4760425BF645075D5681F7D1786BD4DA9A86A7
+    isLiveEdit : false
+    isModule : false
+    length : 46
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : threeline.js
+}
+scriptParsed
+{
+    scriptSource : function foo5(){}//# sourceMappingURL=oneline-map<nl>
+}
+{
+    endColumn : 0
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 3E60CE61913387795D5696189A7BA7EB4048B715
+    isLiveEdit : false
+    isModule : false
+    length : 50
+    scriptId : <scriptId>
+    sourceMapURL : oneline-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo6(){}//# sourceMappingURL=oneline-without-nl-map
+}
+{
+    endColumn : 60
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 3E60CE617215C621E8825B319A7BA7EB4048B715
+    isLiveEdit : false
+    isModule : false
+    length : 60
+    scriptId : <scriptId>
+    sourceMapURL : oneline-without-nl-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo7(){}<nl>//# sourceMappingURL=twoline-map<nl>
+}
+{
+    endColumn : 0
+    endLine : 2
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : F2A32D219EFACBF470C48663BCD47D85864D1A22
+    isLiveEdit : false
+    isModule : false
+    length : 51
+    scriptId : <scriptId>
+    sourceMapURL : twoline-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo8(){}<nl><nl>//# sourceMappingURL=threeline-map<nl>
+}
+{
+    endColumn : 0
+    endLine : 3
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 46927EC1BFB78C355D5681F7D1786BD4216D5124
+    isLiveEdit : false
+    isModule : false
+    length : 54
+    scriptId : <scriptId>
+    sourceMapURL : threeline-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo9(){}//# sourceMappingURL=source-mapping-url-map<nl>//# sourceURL=source-url.js
+}
+{
+    endColumn : 27
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 793E2411EDECF405E8825B31460F7CD9A656E096
+    isLiveEdit : false
+    isModule : false
+    length : 88
+    scriptId : <scriptId>
+    sourceMapURL : source-mapping-url-map
+    startColumn : 0
+    startLine : 0
+    url : source-url.js
+}
+scriptParsed
+{
+    scriptSource : function foo10(){}//# sourceURL=source-url.js<nl>//# sourceMappingURL=source-mapping-url-map
+}
+{
+    endColumn : 43
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : DED761235CC24EE21D0E9277CF599B5A292D8053
+    isLiveEdit : false
+    isModule : false
+    length : 89
+    scriptId : <scriptId>
+    sourceMapURL : source-mapping-url-map
+    startColumn : 0
+    startLine : 0
+    url : source-url.js
+}
+scriptParsed
+{
+    scriptSource : function foo11(){}<nl>//# sourceURL=end1.js
+}
+{
+    endColumn : 21
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 9CF28A415BF64507692D5A84D1786BD4437C3511
+    isLiveEdit : false
+    isModule : false
+    length : 40
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : end1.js
+}
+scriptParsed
+{
+    scriptSource : function foo12(){}<nl>//# sourceURL=end2.js 
+}
+{
+    endColumn : 22
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : BEE49C625BF64507692D5A84D1786BD4437C3511
+    isLiveEdit : false
+    isModule : false
+    length : 41
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : end2.js
+}
+scriptParsed
+{
+    scriptSource : function foo13(){}
+}
+{
+    endColumn : 18
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 9CF28A415BF64507692D5A8443D429DC872EBA18
+    isLiveEdit : false
+    isModule : false
+    length : 18
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo15(){}; eval("function foo14(){}//# sourceURL=eval.js")//# sourceURL=eval-wrapper.js
+}
+{
+    endColumn : 96
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : D26251F019679C792E2B4EF437A20E96134D5C26
+    isLiveEdit : false
+    isModule : false
+    length : 96
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : eval-wrapper.js
+}
+scriptParsed
+{
+    scriptSource : function foo14(){}//# sourceURL=eval.js
+}
+{
+    endColumn : 39
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 814AEF635BF64507692D5A84BCD47D85C4031CD2
+    isLiveEdit : false
+    isModule : false
+    length : 39
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : eval.js
+}
+scriptParsed
+{
+    scriptSource : function foo16(){}<nl>
+}
+{
+    endColumn : 0
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 9CF28A415BF64507692D5A84A8DC8126872EBA18
+    isLiveEdit : false
+    isModule : false
+    length : 19
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo17(){}<nl><nl>
+}
+{
+    endColumn : 0
+    endLine : 2
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 9CF28A415BF64507692D5A8443D429DC872EBA18
+    isLiveEdit : false
+    isModule : false
+    length : 20
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo18(){}<nl><nl><nl>
+}
+{
+    endColumn : 0
+    endLine : 3
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 9CF28A415BF64507692D5A84A8DC8126872EBA18
+    isLiveEdit : false
+    isModule : false
+    length : 21
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo19(){}<nl><nl><nl><nl>
+}
+{
+    endColumn : 0
+    endLine : 4
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 9CF28A415BF64507692D5A8443D429DC872EBA18
+    isLiveEdit : false
+    isModule : false
+    length : 22
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo1(){}//# sourceURL=oneline.js<nl>
+}
+{
+    endColumn : 0
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 2ACD11425BF645075D5696189A7BA7EB4048D6F7
+    isLiveEdit : false
+    isModule : false
+    length : 42
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : oneline.js
+}
+scriptParsed
+{
+    scriptSource : function foo2(){}//# sourceURL=oneline-without-nl.js
+}
+{
+    endColumn : 52
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 0CD3C4132CE40E415D5696189A7BA7EB4048D6F7
+    isLiveEdit : false
+    isModule : false
+    length : 52
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : oneline-without-nl.js
+}
+scriptParsed
+{
+    scriptSource : function foo3(){}<nl>//# sourceURL=twoline.js<nl>
+}
+{
+    endColumn : 0
+    endLine : 2
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 0E35E860580550805D5681F7BCD47D855B794EB3
+    isLiveEdit : false
+    isModule : false
+    length : 43
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : twoline.js
+}
+scriptParsed
+{
+    scriptSource : function foo4(){}<nl><nl>//# sourceURL=threeline.js<nl>
+}
+{
+    endColumn : 0
+    endLine : 3
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : AD4760425BF645075D5681F7D1786BD4DA9A86A7
+    isLiveEdit : false
+    isModule : false
+    length : 46
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : threeline.js
+}
+scriptParsed
+{
+    scriptSource : function foo5(){}//# sourceMappingURL=oneline-map<nl>
+}
+{
+    endColumn : 0
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 3E60CE61913387795D5696189A7BA7EB4048B715
+    isLiveEdit : false
+    isModule : false
+    length : 50
+    scriptId : <scriptId>
+    sourceMapURL : oneline-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo6(){}//# sourceMappingURL=oneline-without-nl-map
+}
+{
+    endColumn : 60
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 3E60CE617215C621E8825B319A7BA7EB4048B715
+    isLiveEdit : false
+    isModule : false
+    length : 60
+    scriptId : <scriptId>
+    sourceMapURL : oneline-without-nl-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo7(){}<nl>//# sourceMappingURL=twoline-map<nl>
+}
+{
+    endColumn : 0
+    endLine : 2
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : F2A32D219EFACBF470C48663BCD47D85864D1A22
+    isLiveEdit : false
+    isModule : false
+    length : 51
+    scriptId : <scriptId>
+    sourceMapURL : twoline-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo8(){}<nl><nl>//# sourceMappingURL=threeline-map<nl>
+}
+{
+    endColumn : 0
+    endLine : 3
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 46927EC1BFB78C355D5681F7D1786BD4216D5124
+    isLiveEdit : false
+    isModule : false
+    length : 54
+    scriptId : <scriptId>
+    sourceMapURL : threeline-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo9(){}//# sourceMappingURL=source-mapping-url-map<nl>//# sourceURL=source-url.js
+}
+{
+    endColumn : 27
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 793E2411EDECF405E8825B31460F7CD9A656E096
+    isLiveEdit : false
+    isModule : false
+    length : 88
+    scriptId : <scriptId>
+    sourceMapURL : source-mapping-url-map
+    startColumn : 0
+    startLine : 0
+    url : source-url.js
+}
+scriptParsed
+{
+    scriptSource : function foo10(){}//# sourceURL=source-url.js<nl>//# sourceMappingURL=source-mapping-url-map
+}
+{
+    endColumn : 43
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : DED761235CC24EE21D0E9277CF599B5A292D8053
+    isLiveEdit : false
+    isModule : false
+    length : 89
+    scriptId : <scriptId>
+    sourceMapURL : source-mapping-url-map
+    startColumn : 0
+    startLine : 0
+    url : source-url.js
+}
+scriptParsed
+{
+    scriptSource : function foo11(){}<nl>//# sourceURL=end1.js
+}
+{
+    endColumn : 21
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 9CF28A415BF64507692D5A84D1786BD4437C3511
+    isLiveEdit : false
+    isModule : false
+    length : 40
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : end1.js
+}
+scriptParsed
+{
+    scriptSource : function foo12(){}<nl>//# sourceURL=end2.js 
+}
+{
+    endColumn : 22
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : BEE49C625BF64507692D5A84D1786BD4437C3511
+    isLiveEdit : false
+    isModule : false
+    length : 41
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : end2.js
+}
+scriptParsed
+{
+    scriptSource : function foo13(){}
+}
+{
+    endColumn : 18
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 9CF28A415BF64507692D5A8443D429DC872EBA18
+    isLiveEdit : false
+    isModule : false
+    length : 18
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo15(){}; eval("function foo14(){}//# sourceURL=eval.js")//# sourceURL=eval-wrapper.js
+}
+{
+    endColumn : 96
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : D26251F019679C792E2B4EF437A20E96134D5C26
+    isLiveEdit : false
+    isModule : false
+    length : 96
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : eval-wrapper.js
+}
+scriptParsed
+{
+    scriptSource : function foo14(){}//# sourceURL=eval.js
+}
+{
+    endColumn : 39
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 814AEF635BF64507692D5A84BCD47D85C4031CD2
+    isLiveEdit : false
+    isModule : false
+    length : 39
+    scriptId : <scriptId>
+    sourceMapURL : 
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 20
+                functionName : 
+                lineNumber : 0
+                scriptId : <scriptId>
+                url : eval-wrapper.js
+            }
+        ]
+    }
+    startColumn : 0
+    startLine : 0
+    url : eval.js
+}
+scriptFailedToParse
+{
+    scriptSource : }//# sourceURL=failed.js<nl>//# sourceMappingURL=failed-map
+}
+{
+    endColumn : 31
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : C0C37C619263496792D5CFE7CA6F2911028287A6
+    isModule : false
+    length : 56
+    scriptId : <scriptId>
+    sourceMapURL : failed-map
+    startColumn : 0
+    startLine : 0
+    url : failed.js
+}
+scriptParsed
+{
+    scriptSource : function foo16(){}<nl>
+}
+{
+    endColumn : 0
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 9CF28A415BF64507692D5A84A8DC8126872EBA18
+    isLiveEdit : false
+    isModule : false
+    length : 19
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo17(){}<nl><nl>
+}
+{
+    endColumn : 0
+    endLine : 2
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 9CF28A415BF64507692D5A8443D429DC872EBA18
+    isLiveEdit : false
+    isModule : false
+    length : 20
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo18(){}<nl><nl><nl>
+}
+{
+    endColumn : 0
+    endLine : 3
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 9CF28A415BF64507692D5A84A8DC8126872EBA18
+    isLiveEdit : false
+    isModule : false
+    length : 21
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo19(){}<nl><nl><nl><nl>
+}
+{
+    endColumn : 0
+    endLine : 4
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : 9CF28A415BF64507692D5A8443D429DC872EBA18
+    isLiveEdit : false
+    isModule : false
+    length : 22
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+Remove script references and re-enable debugger.

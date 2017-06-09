@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax
-// Flags: --noconcurrent-recompilation --noconcurrent-osr
+// Flags: --noconcurrent-recompilation
 
 if (%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is turned on after all. Skipping this test.");
@@ -42,18 +42,6 @@ if (%IsConcurrentRecompilationSupported()) {
 function OptTracker() {
   this.opt_counts_ = {};
 }
-
-/**
- * The possible optimization states of a function. Must be in sync with the
- * return values of Runtime_GetOptimizationStatus() in runtime.cc!
- * @enum {int}
- */
-OptTracker.OptimizationState = {
-    YES: 1,
-    NO: 2,
-    ALWAYS: 3,
-    NEVER: 4
-};
 
 /**
  * Always call this at the beginning of your test, once for each function
@@ -94,12 +82,10 @@ OptTracker.prototype.AssertIsOptimized = function(func, expect_optimized) {
   if (this.DisableAsserts_(func)) {
     return;
   }
-  var raw_optimized = %GetOptimizationStatus(func);
-  if (expect_optimized) {
-    assertEquals(OptTracker.OptimizationState.YES, raw_optimized);
-  } else {
-    assertEquals(OptTracker.OptimizationState.NO, raw_optimized);
-  }
+  var opt_status = %GetOptimizationStatus(func);
+  assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0);
+  assertEquals(expect_optimized,
+               (opt_status & V8OptimizationStatus.kOptimized) !== 0);
 }
 
 /**
@@ -119,7 +105,8 @@ OptTracker.prototype.GetOptCount_ = function(func) {
  */
 OptTracker.prototype.GetDeoptCount_ = function(func) {
   var count = this.GetOptCount_(func);
-  if (%GetOptimizationStatus(func) == OptTracker.OptimizationState.YES) {
+  var opt_status = %GetOptimizationStatus(func);
+  if ((opt_status & V8OptimizationStatus.kOptimized) !== 0) {
     count -= 1;
   }
   return count;
@@ -129,15 +116,9 @@ OptTracker.prototype.GetDeoptCount_ = function(func) {
  * @private
  */
 OptTracker.prototype.DisableAsserts_ = function(func) {
-  switch(%GetOptimizationStatus(func)) {
-    case OptTracker.OptimizationState.YES:
-    case OptTracker.OptimizationState.NO:
-      return false;
-    case OptTracker.OptimizationState.ALWAYS:
-    case OptTracker.OptimizationState.NEVER:
-      return true;
-  }
-  return true;
+  var opt_status = %GetOptimizationStatus(func);
+  return (opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0 ||
+         (opt_status & V8OptimizationStatus.kNeverOptimize) !== 0;
 }
 // (End of class OptTracker.)
 

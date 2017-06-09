@@ -30,9 +30,8 @@
 namespace v8 {
 namespace internal {
 
-v8::Handle<v8::FunctionTemplate> PrintExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate,
-    v8::Handle<v8::String> str) {
+v8::Local<v8::FunctionTemplate> PrintExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate, v8::Local<v8::String> str) {
   return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
 }
 
@@ -48,4 +47,5 @@ void PrintExtension::Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
   printf("\n");
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

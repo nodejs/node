@@ -1,31 +1,58 @@
 #!/usr/local/bin/perl
 
-
 # Perl c_rehash script, scan all files in a directory
 # and add symbolic links to their hash values.
-
-my $openssl;
 
 my $dir;
 my $prefix;
 
-if(defined $ENV{OPENSSL}) {
-	$openssl = $ENV{OPENSSL};
-} else {
-	$openssl = "openssl";
-	$ENV{OPENSSL} = $openssl;
+my $openssl = $ENV{OPENSSL} || "openssl";
+my $pwd;
+my $x509hash = "-subject_hash";
+my $crlhash = "-hash";
+my $verbose = 0;
+my $symlink_exists=eval {symlink("",""); 1};
+my $removelinks = 1;
+
+##  Parse flags.
+while ( $ARGV[0] =~ /^-/ ) {
+    my $flag = shift @ARGV;
+    last if ( $flag eq '--');
+    if ( $flag eq '-old') {
+	    $x509hash = "-subject_hash_old";
+	    $crlhash = "-hash_old";
+    } elsif ( $flag eq '-h') {
+	    help();
+    } elsif ( $flag eq '-n' ) {
+	    $removelinks = 0;
+    } elsif ( $flag eq '-v' ) {
+	    $verbose++;
+    }
+    else {
+	    print STDERR "Usage error; try -help.\n";
+	    exit 1;
+    }
 }
 
-my $pwd;
+sub help {
+	print "Usage: c_rehash [-old] [-h] [-v] [dirs...]\n";
+	print "   -old use old-style digest\n";
+	print "   -h print this help text\n";
+	print "   -v print files removed and linked\n";
+	exit 0;
+}
+
 eval "require Cwd";
 if (defined(&Cwd::getcwd)) {
 	$pwd=Cwd::getcwd();
 } else {
-	$pwd=`pwd`; chomp($pwd);
+	$pwd=`pwd`;
+	chomp($pwd);
 }
-my $path_delim = ($pwd =~ /^[a-z]\:/i) ? ';' : ':'; # DOS/Win32 or Unix delimiter?
 
-$ENV{PATH} = "$prefix/bin" . ($ENV{PATH} ? $path_delim . $ENV{PATH} : ""); # prefix our path
+# DOS/Win32 or Unix delimiter?  Prefix our installdir, then search.
+my $path_delim = ($pwd =~ /^[a-z]\:/i) ? ';' : ':';
+$ENV{PATH} = "$prefix/bin" . ($ENV{PATH} ? $path_delim . $ENV{PATH} : "");
 
 if(! -x $openssl) {
 	my $found = 0;
@@ -68,14 +95,17 @@ sub hash_dir {
 	chdir $_[0];
 	opendir(DIR, ".");
 	my @flist = readdir(DIR);
-	# Delete any existing symbolic links
-	foreach (grep {/^[\da-f]+\.r{0,1}\d+$/} @flist) {
-		if(-l $_) {
-			unlink $_;
+	closedir DIR;
+	if ( $removelinks ) {
+		# Delete any existing symbolic links
+		foreach (grep {/^[\da-f]+\.r{0,1}\d+$/} @flist) {
+			if(-l $_) {
+				unlink $_;
+				print "unlink $_" if $verbose;
+			}
 		}
 	}
-	closedir DIR;
-	FILE: foreach $fname (grep {/\.pem$/} @flist) {
+	FILE: foreach $fname (grep {/\.(pem)|(crt)|(cer)|(crl)$/} @flist) {
 		# Check to see if certificates and/or CRLs present.
 		my ($cert, $crl) = check_file($fname);
 		if(!$cert && !$crl) {
@@ -117,7 +147,7 @@ sub check_file {
 sub link_hash_cert {
 		my $fname = $_[0];
 		$fname =~ s/'/'\\''/g;
-		my ($hash, $fprint) = `"$openssl" x509 -hash -fingerprint -noout -in "$fname"`;
+		my ($hash, $fprint) = `"$openssl" x509 $x509hash -fingerprint -noout -in "$fname"`;
 		chomp $hash;
 		chomp $fprint;
 		$fprint =~ s/^.*=//;
@@ -133,16 +163,16 @@ sub link_hash_cert {
 			$suffix++;
 		}
 		$hash .= ".$suffix";
-		print "$fname => $hash\n";
-		$symlink_exists=eval {symlink("",""); 1};
 		if ($symlink_exists) {
 			symlink $fname, $hash;
+			print "link $fname -> $hash\n" if $verbose;
 		} else {
 			open IN,"<$fname" or die "can't open $fname for read";
 			open OUT,">$hash" or die "can't open $hash for write";
 			print OUT <IN>;	# does the job for small text files
 			close OUT;
 			close IN;
+			print "copy $fname -> $hash\n" if $verbose;
 		}
 		$hashlist{$hash} = $fprint;
 }
@@ -152,7 +182,7 @@ sub link_hash_cert {
 sub link_hash_crl {
 		my $fname = $_[0];
 		$fname =~ s/'/'\\''/g;
-		my ($hash, $fprint) = `"$openssl" crl -hash -fingerprint -noout -in '$fname'`;
+		my ($hash, $fprint) = `"$openssl" crl $crlhash -fingerprint -noout -in '$fname'`;
 		chomp $hash;
 		chomp $fprint;
 		$fprint =~ s/^.*=//;
@@ -168,12 +198,12 @@ sub link_hash_crl {
 			$suffix++;
 		}
 		$hash .= ".r$suffix";
-		print "$fname => $hash\n";
-		$symlink_exists=eval {symlink("",""); 1};
 		if ($symlink_exists) {
 			symlink $fname, $hash;
+			print "link $fname -> $hash\n" if $verbose;
 		} else {
 			system ("cp", $fname, $hash);
+			print "cp $fname -> $hash\n" if $verbose;
 		}
 		$hashlist{$hash} = $fprint;
 }

@@ -15,7 +15,7 @@ namespace internal {
 #include "src/flag-definitions.h"  // NOLINT
 
 // The global list of all flags.
-class FlagList {
+class V8_EXPORT_PRIVATE FlagList {
  public:
   // The list of all flags with a value different from the default
   // and their values. The format of the list is like the format of the
@@ -57,8 +57,13 @@ class FlagList {
 
   // Set flags as consequence of being implied by another flag.
   static void EnforceFlagImplications();
+
+  // Hash of flags (to quickly determine mismatching flag expectations).
+  // This hash is calculated during V8::Initialize and cached.
+  static uint32_t Hash();
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_FLAGS_H_

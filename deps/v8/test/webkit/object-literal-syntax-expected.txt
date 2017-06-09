@@ -26,20 +26,20 @@ Make sure that we correctly identify parse errors in object literals
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-PASS ({a:1, get a(){}}) threw exception SyntaxError: Object literal may not have data and accessor property with the same name.
-PASS ({a:1, set a(v){}}) threw exception SyntaxError: Object literal may not have data and accessor property with the same name.
-PASS ({get a(){}, a:1}) threw exception SyntaxError: Object literal may not have data and accessor property with the same name.
-PASS ({set a(v){}, a:1}) threw exception SyntaxError: Object literal may not have data and accessor property with the same name.
-PASS ({get a(){}, get a(){}}) threw exception SyntaxError: Object literal may not have multiple get/set accessors with the same name.
-PASS ({set a(v){}, set a(v){}}) threw exception SyntaxError: Object literal may not have multiple get/set accessors with the same name.
-PASS ({set a(v){}, get a(){}, set a(v){}}) threw exception SyntaxError: Object literal may not have multiple get/set accessors with the same name.
-PASS (function(){({a:1, get a(){}})}) threw exception SyntaxError: Object literal may not have data and accessor property with the same name.
-PASS (function(){({a:1, set a(v){}})}) threw exception SyntaxError: Object literal may not have data and accessor property with the same name.
-PASS (function(){({get a(){}, a:1})}) threw exception SyntaxError: Object literal may not have data and accessor property with the same name.
-PASS (function(){({set a(v){}, a:1})}) threw exception SyntaxError: Object literal may not have data and accessor property with the same name.
-PASS (function(){({get a(){}, get a(){}})}) threw exception SyntaxError: Object literal may not have multiple get/set accessors with the same name.
-PASS (function(){({set a(v){}, set a(v){}})}) threw exception SyntaxError: Object literal may not have multiple get/set accessors with the same name.
-PASS (function(){({set a(v){}, get a(){}, set a(v){}})}) threw exception SyntaxError: Object literal may not have multiple get/set accessors with the same name.
+PASS ({a:1, get a(){}}), true is true
+PASS ({a:1, set a(v){}}), true is true
+PASS ({get a(){}, a:1}), true is true
+PASS ({set a(v){}, a:1}), true is true
+PASS ({get a(){}, get a(){}}), true is true
+PASS ({set a(v){}, set a(v){}}), true is true
+PASS ({set a(v){}, get a(){}, set a(v){}}), true is true
+PASS (function(){({a:1, get a(){}})}), true is true
+PASS (function(){({a:1, set a(v){}})}), true is true
+PASS (function(){({get a(){}, a:1})}), true is true
+PASS (function(){({set a(v){}, a:1})}), true is true
+PASS (function(){({get a(){}, get a(){}})}), true is true
+PASS (function(){({set a(v){}, set a(v){}})}), true is true
+PASS (function(){({set a(v){}, get a(){}, set a(v){}})}), true is true
 PASS ({a:1, a:1, a:1}), true is true
 PASS ({get a(){}, set a(v){}}), true is true
 PASS ({set a(v){}, get a(){}}), true is true
@@ -47,6 +47,7 @@ PASS (function(){({a:1, a:1, a:1})}), true is true
 PASS (function(){({get a(){}, set a(v){}})}), true is true
 PASS (function(){({set a(v){}, get a(){}})}), true is true
 PASS successfullyParsed is true
+
 
 TEST COMPLETE
 

@@ -19,13 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 // test uncompressing invalid input
 
-var common = require('../common.js'),
-    assert = require('assert'),
-    zlib = require('zlib');
+require('../common');
+const assert = require('assert');
+const zlib = require('zlib');
 
-var nonStringInputs = [1, true, {a: 1}, ['a']];
+const nonStringInputs = [1, true, {a: 1}, ['a']];
 
 console.error('Doing the non-strings');
 nonStringInputs.forEach(function(input) {
@@ -40,20 +41,20 @@ nonStringInputs.forEach(function(input) {
 
 console.error('Doing the unzips');
 // zlib.Unzip classes need to get valid data, or else they'll throw.
-var unzips = [ zlib.Unzip(),
-               zlib.Gunzip(),
-               zlib.Inflate(),
-               zlib.InflateRaw() ];
-var hadError = [];
-unzips.forEach(function (uz, i) {
-  console.error('Error for '+uz.constructor.name);
+const unzips = [ zlib.Unzip(),
+                 zlib.Gunzip(),
+                 zlib.Inflate(),
+                 zlib.InflateRaw() ];
+const hadError = [];
+unzips.forEach(function(uz, i) {
+  console.error('Error for ' + uz.constructor.name);
   uz.on('error', function(er) {
     console.error('Error event', er);
     hadError[i] = true;
   });
 
   uz.on('end', function(er) {
-    throw new Error('end event should not be emitted '+uz.constructor.name);
+    throw new Error('end event should not be emitted ' + uz.constructor.name);
   });
 
   // this will trigger error event
@@ -61,5 +62,5 @@ unzips.forEach(function (uz, i) {
 });
 
 process.on('exit', function() {
-  assert.deepEqual(hadError, [true, true, true, true], 'expect 4 errors');
+  assert.deepStrictEqual(hadError, [true, true, true, true], 'expect 4 errors');
 });

@@ -17,15 +17,16 @@ class PoolTest(unittest.TestCase):
     results = set()
     pool = Pool(3)
     for result in pool.imap_unordered(Run, [[x] for x in range(0, 10)]):
-      results.add(result)
+      results.add(result.value)
     self.assertEquals(set(range(0, 10)), results)
 
   def testException(self):
     results = set()
     pool = Pool(3)
-    for result in pool.imap_unordered(Run, [[x] for x in range(0, 12)]):
-      # Item 10 will not appear in results due to an internal exception.
-      results.add(result)
+    with self.assertRaises(Exception):
+      for result in pool.imap_unordered(Run, [[x] for x in range(0, 12)]):
+        # Item 10 will not appear in results due to an internal exception.
+        results.add(result.value)
     expect = set(range(0, 12))
     expect.remove(10)
     self.assertEquals(expect, results)
@@ -34,8 +35,8 @@ class PoolTest(unittest.TestCase):
     results = set()
     pool = Pool(3)
     for result in pool.imap_unordered(Run, [[x] for x in range(0, 10)]):
-      results.add(result)
-      if result < 30:
-        pool.add([result + 20])
+      results.add(result.value)
+      if result.value < 30:
+        pool.add([result.value + 20])
     self.assertEquals(set(range(0, 10) + range(20, 30) + range(40, 50)),
                       results)

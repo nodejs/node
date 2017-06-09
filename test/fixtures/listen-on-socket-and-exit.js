@@ -21,8 +21,10 @@
 
 // child process that listens on a socket, allows testing of an EADDRINUSE condition
 
-var common = require('../common');
-var net = require('net');
+const common = require('../common');
+const net = require('net');
+
+common.refreshTmpDir();
 
 var server = net.createServer().listen(common.PIPE, function() {
   console.log('child listening');

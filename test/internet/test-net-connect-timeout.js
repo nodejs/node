@@ -19,76 +19,32 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 // This example attempts to time out before the connection is established
 // https://groups.google.com/forum/#!topic/nodejs/UE0ZbfLt6t8
 // https://groups.google.com/forum/#!topic/nodejs-dev/jR7-5UDqXkw
-//
-// TODO: how to do this without relying on the responses of specific sites?
 
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
 
-var start = new Date();
+const start = new Date();
 
-var gotTimeout0 = false;
-var gotTimeout1 = false;
+const T = 100;
 
-var gotConnect0 = false;
-var gotConnect1 = false;
+// 192.0.2.1 is part of subnet assigned as "TEST-NET" in RFC 5737.
+// For use solely in documentation and example source code.
+// In short, it should be unreachable.
+// In practice, it's a network black hole.
+const socket = net.createConnection(9999, '192.0.2.1');
 
-var T = 100;
+socket.setTimeout(T);
 
-
-// With DNS
-
-var socket0 = net.createConnection(9999, 'google.com');
-
-socket0.setTimeout(T);
-
-socket0.on('timeout', function() {
+socket.on('timeout', common.mustCall(function() {
   console.error('timeout');
-  gotTimeout0 = true;
-  var now = new Date();
+  const now = new Date();
   assert.ok(now - start < T + 500);
-  socket0.destroy();
-});
+  socket.destroy();
+}));
 
-socket0.on('connect', function() {
-  console.error('connect');
-  gotConnect0 = true;
-  socket0.destroy();
-});
-
-
-// Without DNS
-
-var socket1 = net.createConnection(9999, '24.24.24.24');
-
-socket1.setTimeout(T);
-
-socket1.on('timeout', function() {
-  console.error('timeout');
-  gotTimeout1 = true;
-  var now = new Date();
-  assert.ok(now - start < T + 500);
-  socket1.destroy();
-});
-
-socket1.on('connect', function() {
-  console.error('connect');
-  gotConnect1 = true;
-  socket1.destroy();
-});
-
-
-
-
-
-process.on('exit', function() {
-  assert.ok(gotTimeout0);
-  assert.ok(!gotConnect0);
-
-  assert.ok(gotTimeout1);
-  assert.ok(!gotConnect1);
-});
+socket.on('connect', common.mustNotCall());

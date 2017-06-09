@@ -1,0 +1,98 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "aproba@latest",
+        "scope": null,
+        "escapedName": "aproba",
+        "name": "aproba",
+        "rawSpec": "latest",
+        "spec": "latest",
+        "type": "tag"
+      },
+      "/Users/zkat/Documents/code/npm"
+    ]
+  ],
+  "_from": "aproba@latest",
+  "_id": "aproba@1.1.1",
+  "_inCache": true,
+  "_location": "/aproba",
+  "_nodeVersion": "7.5.0",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/aproba-1.1.1.tgz_1486593129508_0.5718816472217441"
+  },
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "_npmVersion": "4.2.0",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "aproba@latest",
+    "scope": null,
+    "escapedName": "aproba",
+    "name": "aproba",
+    "rawSpec": "latest",
+    "spec": "latest",
+    "type": "tag"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/",
+    "/npmlog/gauge"
+  ],
+  "_resolved": "https://registry.npmjs.org/aproba/-/aproba-1.1.1.tgz",
+  "_shasum": "95d3600f07710aa0e9298c726ad5ecf2eacbabab",
+  "_shrinkwrap": null,
+  "_spec": "aproba@latest",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org"
+  },
+  "bugs": {
+    "url": "https://github.com/iarna/aproba/issues"
+  },
+  "dependencies": {},
+  "description": "A rediculously light-weight argument validator",
+  "devDependencies": {
+    "standard": "^8.6.0",
+    "tap": "^10.0.2"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dist": {
+    "shasum": "95d3600f07710aa0e9298c726ad5ecf2eacbabab",
+    "tarball": "https://registry.npmjs.org/aproba/-/aproba-1.1.1.tgz"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "e7c76b4b42356092db3cd9e2d9388a0134845eb2",
+  "homepage": "https://github.com/iarna/aproba",
+  "keywords": [
+    "argument",
+    "validate"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "name": "aproba",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/aproba.git"
+  },
+  "scripts": {
+    "test": "standard && tap -j3 test/*.js"
+  },
+  "version": "1.1.1"
+}

@@ -19,12 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
-var common = require('../common');
-var assert = require('assert');
-var path = require('path'),
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const path = require('path'),
     fs = require('fs'),
     filepath = path.join(common.tmpDir, 'large.txt'),
     fd = fs.openSync(filepath, 'w+'),
@@ -32,14 +30,14 @@ var path = require('path'),
     message = 'Large File';
 
 fs.truncateSync(fd, offset);
-assert.equal(fs.statSync(filepath).size, offset);
-var writeBuf = new Buffer(message);
+assert.strictEqual(fs.statSync(filepath).size, offset);
+var writeBuf = Buffer.from(message);
 fs.writeSync(fd, writeBuf, 0, writeBuf.length, offset);
-var readBuf = new Buffer(writeBuf.length);
+var readBuf = Buffer.allocUnsafe(writeBuf.length);
 fs.readSync(fd, readBuf, 0, readBuf.length, offset);
-assert.equal(readBuf.toString(), message);
+assert.strictEqual(readBuf.toString(), message);
 fs.readSync(fd, readBuf, 0, 1, 0);
-assert.equal(readBuf[0], 0);
+assert.strictEqual(readBuf[0], 0);
 
 var exceptionRaised = false;
 try {
@@ -47,7 +45,7 @@ try {
 } catch (err) {
   console.log(err);
   exceptionRaised = true;
-  assert.equal(err.message, 'Not an integer');
+  assert.strictEqual(err.message, 'Not an integer');
 }
 assert.ok(exceptionRaised);
 fs.close(fd);
@@ -55,4 +53,3 @@ fs.close(fd);
 process.on('exit', function() {
   fs.unlinkSync(filepath);
 });
-

@@ -51,7 +51,7 @@ if test "$contains" -eq 0; then
   calibration_log=calibration.log
   calibration_script="for (var i = 0; i < 1000000; i++) print();"
 
-  $d8_exec --nocrankshaft --prof --logfile $calibration_log \
+  $d8_exec --noopt --prof --logfile $calibration_log \
        --log-timer-events -e "$calibration_script" > /dev/null
   t_1_start=`grep "timer-event-start,\"V8.Execute\"" $calibration_log  \
        | tail -n1 | awk -F, '{print $3}'`
@@ -59,7 +59,7 @@ if test "$contains" -eq 0; then
        | tail -n1 | awk -F, '{print $3}'`
   n_1=`grep "timer-event\|tick" $calibration_log  | wc -l`
 
-  $d8_exec --nocrankshaft --prof --logfile $calibration_log \
+  $d8_exec --noopt --prof --logfile $calibration_log \
        --log-internal-timer-events -e "$calibration_script" > /dev/null
   t_2_start=`grep "timer-event-start,\"V8.Execute\"" $calibration_log  \
        | tail -n1 | awk -F, '{print $3}'`
@@ -70,10 +70,9 @@ if test "$contains" -eq 0; then
   rm $calibration_log
 
   # Overhead in picoseconds.
-  options=--distortion=
-  options+=`echo "1000*(($t_1_end - $t_1_start) - ($t_2_end - $t_2_start)) \
+  distortion=`echo "1000*(($t_1_end - $t_1_start) - ($t_2_end - $t_2_start)) \
               / ($n_1 - $n_2)" | bc`
-  echo $options
+  options="--distortion=$distortion"
 fi
 
 cat $log_file |

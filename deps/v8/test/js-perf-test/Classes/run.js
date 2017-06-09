@@ -5,6 +5,7 @@
 
 load('../base.js');
 load('super.js');
+load('default-constructor.js');
 
 
 var success = true;

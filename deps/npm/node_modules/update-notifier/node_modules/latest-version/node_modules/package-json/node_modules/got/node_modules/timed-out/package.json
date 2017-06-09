@@ -1,0 +1,104 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "timed-out@^4.0.0",
+        "scope": null,
+        "escapedName": "timed-out",
+        "name": "timed-out",
+        "rawSpec": "^4.0.0",
+        "spec": ">=4.0.0 <5.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got"
+    ]
+  ],
+  "_from": "timed-out@>=4.0.0 <5.0.0",
+  "_id": "timed-out@4.0.1",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/got/timed-out",
+  "_nodeVersion": "6.9.3",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/timed-out-4.0.1.tgz_1484575090971_0.24377561057917774"
+  },
+  "_npmUser": {
+    "name": "floatdrop",
+    "email": "floatdrop@gmail.com"
+  },
+  "_npmVersion": "3.10.10",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "timed-out@^4.0.0",
+    "scope": null,
+    "escapedName": "timed-out",
+    "name": "timed-out",
+    "rawSpec": "^4.0.0",
+    "spec": ">=4.0.0 <5.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/got"
+  ],
+  "_resolved": "https://registry.npmjs.org/timed-out/-/timed-out-4.0.1.tgz",
+  "_shasum": "f32eacac5a175bea25d7fab565ab3ed8741ef56f",
+  "_shrinkwrap": null,
+  "_spec": "timed-out@^4.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got",
+  "author": {
+    "name": "Vsevolod Strukchinsky",
+    "email": "floatdrop@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/floatdrop/timed-out/issues"
+  },
+  "dependencies": {},
+  "description": "Emit `ETIMEDOUT` or `ESOCKETTIMEDOUT` when ClientRequest is hanged",
+  "devDependencies": {
+    "mocha": "*",
+    "xo": "^0.16.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "f32eacac5a175bea25d7fab565ab3ed8741ef56f",
+    "tarball": "https://registry.npmjs.org/timed-out/-/timed-out-4.0.1.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "2f00fdafb6af0a9b91fb23a04a9271766c5559a4",
+  "homepage": "https://github.com/floatdrop/timed-out#readme",
+  "keywords": [
+    "http",
+    "https",
+    "get",
+    "got",
+    "url",
+    "uri",
+    "request",
+    "util",
+    "utility",
+    "simple"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "floatdrop",
+      "email": "floatdrop@gmail.com"
+    }
+  ],
+  "name": "timed-out",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/floatdrop/timed-out.git"
+  },
+  "scripts": {
+    "test": "xo && mocha"
+  },
+  "version": "4.0.1"
+}

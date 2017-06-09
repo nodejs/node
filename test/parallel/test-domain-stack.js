@@ -19,15 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
+'use strict';
 // Make sure that the domain stack doesn't get out of hand.
 
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
-var events = require('events');
+require('../common');
+const domain = require('domain');
 
-var a = domain.create();
+const a = domain.create();
 a.name = 'a';
 
 a.on('error', function() {
@@ -37,11 +35,11 @@ a.on('error', function() {
   }
 });
 
-var foo = a.bind(function() {
+const foo = a.bind(function() {
   throw new Error('error from foo');
 });
 
-for (var i = 0; i < 1000; i++) {
+for (let i = 0; i < 1000; i++) {
   process.nextTick(foo);
 }
 

@@ -19,29 +19,22 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var MESSAGE = 'catch me if you can';
-var caughtException = false;
+const MESSAGE = 'catch me if you can';
 
-process.on('uncaughtException', function(e) {
+process.on('uncaughtException', common.mustCall(function(e) {
   console.log('uncaught exception! 1');
-  assert.equal(MESSAGE, e.message);
-  caughtException = true;
-});
+  assert.strictEqual(MESSAGE, e.message);
+}));
 
-process.on('uncaughtException', function(e) {
+process.on('uncaughtException', common.mustCall(function(e) {
   console.log('uncaught exception! 2');
-  assert.equal(MESSAGE, e.message);
-  caughtException = true;
-});
+  assert.strictEqual(MESSAGE, e.message);
+}));
 
 setTimeout(function() {
   throw new Error(MESSAGE);
 }, 10);
-
-process.on('exit', function() {
-  console.log('exit');
-  assert.equal(true, caughtException);
-});

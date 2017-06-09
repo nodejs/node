@@ -1,0 +1,4 @@
+*%(basename)s:7: SyntaxError: Unexpected token =
+var f = (a, ...x = 10) => x;
+                 ^
+SyntaxError: Unexpected token =

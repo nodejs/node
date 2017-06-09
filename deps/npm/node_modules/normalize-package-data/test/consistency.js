@@ -13,7 +13,7 @@ tap.test("consistent normalization", function(t) {
   fs.readdir (__dirname + "/fixtures", function (err, entries) {
     // entries = ['coffee-script.json'] // uncomment to limit to a specific file
     verifyConsistency = function(entryName, next) {
-      warn = function(msg) { 
+      warn = function(msg) {
         // t.equal("",msg) // uncomment to have some kind of logging of warnings
       }
       filename = __dirname + "/fixtures/" + entryName

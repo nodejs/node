@@ -16,50 +16,50 @@ namespace internal {
 
 // List macro containing all visitors needed by the decoder class.
 
-#define VISITOR_LIST(V)             \
-  V(PCRelAddressing)                \
-  V(AddSubImmediate)                \
-  V(LogicalImmediate)               \
-  V(MoveWideImmediate)              \
-  V(Bitfield)                       \
-  V(Extract)                        \
-  V(UnconditionalBranch)            \
-  V(UnconditionalBranchToRegister)  \
-  V(CompareBranch)                  \
-  V(TestBranch)                     \
-  V(ConditionalBranch)              \
-  V(System)                         \
-  V(Exception)                      \
-  V(LoadStorePairPostIndex)         \
-  V(LoadStorePairOffset)            \
-  V(LoadStorePairPreIndex)          \
-  V(LoadStorePairNonTemporal)       \
-  V(LoadLiteral)                    \
-  V(LoadStoreUnscaledOffset)        \
-  V(LoadStorePostIndex)             \
-  V(LoadStorePreIndex)              \
-  V(LoadStoreRegisterOffset)        \
-  V(LoadStoreUnsignedOffset)        \
-  V(LogicalShifted)                 \
-  V(AddSubShifted)                  \
-  V(AddSubExtended)                 \
-  V(AddSubWithCarry)                \
-  V(ConditionalCompareRegister)     \
-  V(ConditionalCompareImmediate)    \
-  V(ConditionalSelect)              \
-  V(DataProcessing1Source)          \
-  V(DataProcessing2Source)          \
-  V(DataProcessing3Source)          \
-  V(FPCompare)                      \
-  V(FPConditionalCompare)           \
-  V(FPConditionalSelect)            \
-  V(FPImmediate)                    \
-  V(FPDataProcessing1Source)        \
-  V(FPDataProcessing2Source)        \
-  V(FPDataProcessing3Source)        \
-  V(FPIntegerConvert)               \
-  V(FPFixedPointConvert)            \
-  V(Unallocated)                    \
+#define VISITOR_LIST(V)            \
+  V(PCRelAddressing)               \
+  V(AddSubImmediate)               \
+  V(LogicalImmediate)              \
+  V(MoveWideImmediate)             \
+  V(Bitfield)                      \
+  V(Extract)                       \
+  V(UnconditionalBranch)           \
+  V(UnconditionalBranchToRegister) \
+  V(CompareBranch)                 \
+  V(TestBranch)                    \
+  V(ConditionalBranch)             \
+  V(System)                        \
+  V(Exception)                     \
+  V(LoadStorePairPostIndex)        \
+  V(LoadStorePairOffset)           \
+  V(LoadStorePairPreIndex)         \
+  V(LoadLiteral)                   \
+  V(LoadStoreUnscaledOffset)       \
+  V(LoadStorePostIndex)            \
+  V(LoadStorePreIndex)             \
+  V(LoadStoreRegisterOffset)       \
+  V(LoadStoreUnsignedOffset)       \
+  V(LoadStoreAcquireRelease)       \
+  V(LogicalShifted)                \
+  V(AddSubShifted)                 \
+  V(AddSubExtended)                \
+  V(AddSubWithCarry)               \
+  V(ConditionalCompareRegister)    \
+  V(ConditionalCompareImmediate)   \
+  V(ConditionalSelect)             \
+  V(DataProcessing1Source)         \
+  V(DataProcessing2Source)         \
+  V(DataProcessing3Source)         \
+  V(FPCompare)                     \
+  V(FPConditionalCompare)          \
+  V(FPConditionalSelect)           \
+  V(FPImmediate)                   \
+  V(FPDataProcessing1Source)       \
+  V(FPDataProcessing2Source)       \
+  V(FPDataProcessing3Source)       \
+  V(FPIntegerConvert)              \
+  V(FPFixedPointConvert)           \
+  V(Unallocated)                   \
   V(Unimplemented)
 
 // The Visitor interface. Disassembler and simulator (and other tools)
@@ -182,6 +182,7 @@ class Decoder : public V {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_DECODER_ARM64_H_

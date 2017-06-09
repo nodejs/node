@@ -19,13 +19,27 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var crypto = require('crypto');
-var odd = new Buffer(39);
-odd.fill('A');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+const crypto = require('crypto');
 
-var c = crypto.createDiffieHellman(32);
-c.setPrivateKey(odd);
-c.generateKeys();
+function test() {
+  const odd = Buffer.alloc(39, 'A');
+
+  const c = crypto.createDiffieHellman(32);
+  c.setPrivateKey(odd);
+  c.generateKeys();
+}
+
+// FIPS requires a length of at least 1024
+if (!common.hasFipsCrypto) {
+  assert.doesNotThrow(function() { test(); });
+} else {
+  assert.throws(function() { test(); }, /key size too small/);
+}

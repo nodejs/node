@@ -109,12 +109,12 @@ that's connected to it, like duplicated input strings, results and others.
 
 UI_add_input_string() and UI_add_verify_string() add a prompt to the UI,
 as well as flags and a result buffer and the desired minimum and maximum
-sizes of the result.  The given information is used to prompt for
-information, for example a password, and to verify a password (i.e. having
-the user enter it twice and check that the same string was entered twice).
-UI_add_verify_string() takes and extra argument that should be a pointer
-to the result buffer of the input string that it's supposed to verify, or
-verification will fail.
+sizes of the result, not counting the final NUL character.  The given
+information is used to prompt for information, for example a password,
+and to verify a password (i.e. having the user enter it twice and check
+that the same string was entered twice).  UI_add_verify_string() takes
+and extra argument that should be a pointer to the result buffer of the
+input string that it's supposed to verify, or verification will fail.
 
 UI_add_input_boolean() adds a prompt to the UI that's supposed to be answered
 in a boolean way, with a single character for yes and a different character

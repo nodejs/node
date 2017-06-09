@@ -19,21 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const net = require('net');
 
-var net = require('net');
-var closed = false;
-
-var s = net.createServer();
-s.listen(common.PORT);
+const s = net.createServer();
+s.listen(0);
 s.unref();
 
-setTimeout(function() {
-  closed = true;
-  s.close();
-}, 1000).unref();
-
-process.on('exit', function() {
-  assert.strictEqual(closed, false, 'Unrefd socket should not hold loop open');
-});
+setTimeout(common.mustNotCall(), 1000).unref();

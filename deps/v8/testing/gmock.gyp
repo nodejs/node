@@ -31,16 +31,19 @@
         'gmock/src/gmock-spec-builders.cc',
         'gmock/src/gmock.cc',
         'gmock-support.h',  # gMock helpers
+        'gmock_custom/gmock/internal/custom/gmock-port.h',
       ],
       'sources!': [
         'gmock/src/gmock-all.cc',  # Not needed by our build.
       ],
       'include_dirs': [
+        'gmock_custom',
         'gmock',
         'gmock/include',
       ],
-      'direct_dependent_settings': {
+      'all_dependent_settings': {
         'include_dirs': [
+          'gmock_custom',
           'gmock/include',  # So that gmock headers can find themselves.
         ],
       },

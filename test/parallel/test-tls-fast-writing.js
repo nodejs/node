@@ -19,26 +19,31 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var tls = require('tls');
-var fs = require('fs');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+const tls = require('tls');
 
-var PORT = common.PORT;
-var dir = common.fixturesDir;
-var options = { key: fs.readFileSync(dir + '/test_key.pem'),
-                cert: fs.readFileSync(dir + '/test_cert.pem'),
-                ca: [ fs.readFileSync(dir + '/test_ca.pem') ] };
+const fs = require('fs');
 
-var server = tls.createServer(options, onconnection);
-var gotChunk = false;
-var gotDrain = false;
+const dir = common.fixturesDir;
+const options = { key: fs.readFileSync(dir + '/test_key.pem'),
+                  cert: fs.readFileSync(dir + '/test_cert.pem'),
+                  ca: [ fs.readFileSync(dir + '/test_ca.pem') ] };
 
-var timer = setTimeout(function() {
+const server = tls.createServer(options, onconnection);
+let gotChunk = false;
+let gotDrain = false;
+
+setTimeout(function() {
   console.log('not ok - timed out');
   process.exit(1);
-}, 500);
+}, common.platformTimeout(1000));
 
 function onconnection(conn) {
   conn.on('data', function(c) {
@@ -56,11 +61,10 @@ function onconnection(conn) {
   });
 }
 
-server.listen(PORT, function() {
-  var chunk = new Buffer(1024);
-  chunk.fill('x');
-  var opt = { port: PORT, rejectUnauthorized: false };
-  var conn = tls.connect(opt, function() {
+server.listen(0, function() {
+  const chunk = Buffer.alloc(1024, 'x');
+  const opt = { port: this.address().port, rejectUnauthorized: false };
+  const conn = tls.connect(opt, function() {
     conn.on('drain', ondrain);
     write();
   });

@@ -19,9 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var os = require('os');
+'use strict';
+require('../common');
+const assert = require('assert');
+const os = require('os');
 
 switch (process.argv[2]) {
   case 'child':
@@ -33,10 +34,10 @@ switch (process.argv[2]) {
 }
 
 function parent() {
-  var spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child']);
+  const spawn = require('child_process').spawn;
+  const child = spawn(process.execPath, [__filename, 'child']);
 
-  var output = '';
+  let output = '';
 
   child.stderr.on('data', function(c) {
     output += c;
@@ -45,7 +46,7 @@ function parent() {
   child.stderr.setEncoding('utf8');
 
   child.stderr.on('end', function() {
-    assert.equal(output, 'I can still debug!' + os.EOL);
+    assert.strictEqual(output, 'I can still debug!' + os.EOL);
     console.log('ok - got expected message');
   });
 
@@ -62,7 +63,7 @@ function child() {
     throw new Error('No ticking!');
   };
 
-  var stderr = process.stderr;
+  const stderr = process.stderr;
   stderr.write = function() {
     throw new Error('No writing to stderr!');
   };

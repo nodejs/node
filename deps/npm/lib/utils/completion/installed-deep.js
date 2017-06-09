@@ -1,21 +1,25 @@
 module.exports = installedDeep
 
-var npm = require("../../npm.js")
-  , readInstalled = require("read-installed")
+var npm = require('../../npm.js')
+var readInstalled = require('read-installed')
 
 function installedDeep (opts, cb) {
   var local
-    , global
-    , depth = npm.config.get("depth")
-    , opt = { depth: depth, dev: true }
+  var global
+  var depth = npm.config.get('depth')
+  var opt = { depth: depth, dev: true }
 
-  if (npm.config.get("global")) local = [], next()
-  else readInstalled(npm.prefix, opt, function (er, data) {
-    local = getNames(data || {})
+  if (npm.config.get('global')) {
+    local = []
     next()
-  })
+  } else {
+    readInstalled(npm.prefix, opt, function (er, data) {
+      local = getNames(data || {})
+      next()
+    })
+  }
 
-  readInstalled(npm.config.get("prefix"), opt, function (er, data) {
+  readInstalled(npm.config.get('prefix'), opt, function (er, data) {
     global = getNames(data || {})
     next()
   })
@@ -37,14 +41,12 @@ function installedDeep (opts, cb) {
 
   function next () {
     if (!local || !global) return
-    if (!npm.config.get("global")) {
+    if (!npm.config.get('global')) {
       global = global.map(function (g) {
-        return [g, "-g"]
+        return [g, '-g']
       })
     }
     var names = local.concat(global)
     return cb(null, names)
   }
-
 }
-

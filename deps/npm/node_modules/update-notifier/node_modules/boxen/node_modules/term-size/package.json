@@ -1,0 +1,115 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "term-size@^0.1.0",
+        "scope": null,
+        "escapedName": "term-size",
+        "name": "term-size",
+        "rawSpec": "^0.1.0",
+        "spec": ">=0.1.0 <0.2.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen"
+    ]
+  ],
+  "_from": "term-size@>=0.1.0 <0.2.0",
+  "_id": "term-size@0.1.1",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/term-size",
+  "_nodeVersion": "4.6.2",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/term-size-0.1.1.tgz_1486106219108_0.7680419140961021"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.11",
+  "_phantomChildren": {
+    "which": "1.2.12"
+  },
+  "_requested": {
+    "raw": "term-size@^0.1.0",
+    "scope": null,
+    "escapedName": "term-size",
+    "name": "term-size",
+    "rawSpec": "^0.1.0",
+    "spec": ">=0.1.0 <0.2.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen"
+  ],
+  "_resolved": "https://registry.npmjs.org/term-size/-/term-size-0.1.1.tgz",
+  "_shasum": "87360b96396cab5760963714cda0d0cbeecad9ca",
+  "_shrinkwrap": null,
+  "_spec": "term-size@^0.1.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/term-size/issues"
+  },
+  "dependencies": {
+    "execa": "^0.4.0"
+  },
+  "description": "Reliably get the terminal window size",
+  "devDependencies": {
+    "ava": "*",
+    "execa": "^0.4.0",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "87360b96396cab5760963714cda0d0cbeecad9ca",
+    "tarball": "https://registry.npmjs.org/term-size/-/term-size-0.1.1.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js",
+    "vendor"
+  ],
+  "gitHead": "038e258a49fa7a13e63928e0da496b7940e07ac4",
+  "homepage": "https://github.com/sindresorhus/term-size#readme",
+  "keywords": [
+    "term",
+    "terminal",
+    "size",
+    "console",
+    "window",
+    "width",
+    "height",
+    "columns",
+    "rows",
+    "lines",
+    "tty"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "term-size",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/term-size.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "0.1.1",
+  "xo": {
+    "esnext": true
+  }
+}

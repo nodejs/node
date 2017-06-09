@@ -19,18 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
 // Verify that ServerResponse.writeHead() works as setHeader.
 // Issue 5036 on github.
 
-var s = http.createServer(function(req, res) {
+const s = http.createServer(common.mustCall((req, res) => {
   res.setHeader('test', '1');
 
   // toLowerCase() is used on the name argument, so it must be a string.
-  var threw = false;
+  let threw = false;
   try {
     res.setHeader(0xf00, 'bar');
   } catch (e) {
@@ -39,19 +40,36 @@ var s = http.createServer(function(req, res) {
   }
   assert.ok(threw, 'Non-string names should throw');
 
-  res.writeHead(200, { Test: '2' });
-  res.end();
-});
+  // undefined value should throw, via 979d0ca8
+  threw = false;
+  try {
+    res.setHeader('foo', undefined);
+  } catch (e) {
+    assert.ok(e instanceof Error);
+    assert.strictEqual(e.message,
+                       '"value" required in setHeader("foo", value)');
+    threw = true;
+  }
+  assert.ok(threw, 'Undefined value should throw');
 
-s.listen(common.PORT, runTest);
+  res.writeHead(200, { Test: '2' });
+
+  assert.throws(() => {
+    res.writeHead(100, {});
+  }, /^Error: Can't render headers after they are sent to the client$/);
+
+  res.end();
+}));
+
+s.listen(0, common.mustCall(runTest));
 
 function runTest() {
-  http.get({ port: common.PORT }, function(response) {
-    response.on('end', function() {
-      assert.equal(response.headers['test'], '2');
-      assert(response.rawHeaders.indexOf('Test') !== -1);
+  http.get({ port: this.address().port }, common.mustCall((response) => {
+    response.on('end', common.mustCall(() => {
+      assert.strictEqual(response.headers['test'], '2');
+      assert.notStrictEqual(response.rawHeaders.indexOf('Test'), -1);
       s.close();
-    });
+    }));
     response.resume();
-  });
+  }));
 }

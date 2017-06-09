@@ -6,19 +6,19 @@ function Module(stdlib, foreign, heap) {
   "use asm";
   function f1(i) {
     i = i|0;
-    return i % 3;
+    return ((i | 0) % 3) | 0;
   }
   function f2(i) {
     i = i|0;
-    return i % 9;
+    return ((i | 0) % 9) | 0;
   }
   function f3(i) {
     i = i|0;
-    return i % 1024;
+    return ((i | 0) % 1024) | 0;
   }
   function f4(i) {
     i = i|0;
-    return i % 3133335;
+    return ((i | 0) % 3133335) | 0;
   }
   return { f1: f1, f2: f2, f3: f3, f4: f4 };
 }
@@ -26,8 +26,8 @@ function Module(stdlib, foreign, heap) {
 var m = Module(this, {}, new ArrayBuffer(1024));
 
 for (var i = -2147483648; i < 2147483648; i += 3999773) {
-  assertEquals(i % 3, m.f1(i));
-  assertEquals(i % 9, m.f2(i));
-  assertEquals(i % 1024, m.f3(i));
-  assertEquals(i % 3133335, m.f4(i));
+  assertEquals((i % 3) | 0, m.f1(i));
+  assertEquals((i % 9) | 0, m.f2(i));
+  assertEquals((i % 1024) | 0, m.f3(i));
+  assertEquals((i % 3133335) | 0, m.f4(i));
 }

@@ -20,48 +20,26 @@
 # length, more for longer keys. Even though NEON 1x1 multiplication
 # runs in even less cycles, ~30, improvement is measurable only on
 # longer keys. One has to optimize code elsewhere to get NEON glow...
+#
+# April 2014
+#
+# Double bn_GF2m_mul_2x2 performance by using algorithm from paper
+# referred below, which improves ECDH and ECDSA verify benchmarks
+# by 18-40%.
+#
+# CÃ¢mara, D.; GouvÃªa, C. P. L.; LÃ³pez, J. & Dahab, R.: Fast Software
+# Polynomial Multiplication on ARM Processors using the NEON Engine.
+# 
+# http://conradoplg.cryptoland.net/files/2010/12/mocrysen13.pdf
 
 while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
 open STDOUT,">$output";
-
-sub Dlo()   { shift=~m|q([1]?[0-9])|?"d".($1*2):"";     }
-sub Dhi()   { shift=~m|q([1]?[0-9])|?"d".($1*2+1):"";   }
-sub Q()     { shift=~m|d([1-3]?[02468])|?"q".($1/2):""; }
 
 $code=<<___;
 #include "arm_arch.h"
 
 .text
 .code	32
-
-#if __ARM_ARCH__>=7
-.fpu	neon
-
-.type	mul_1x1_neon,%function
-.align	5
-mul_1x1_neon:
-	vshl.u64	`&Dlo("q1")`,d16,#8	@ q1-q3 are slided $a
-	vmull.p8	`&Q("d0")`,d16,d17	@ a·bb
-	vshl.u64	`&Dlo("q2")`,d16,#16
-	vmull.p8	q1,`&Dlo("q1")`,d17	@ a<<8·bb
-	vshl.u64	`&Dlo("q3")`,d16,#24
-	vmull.p8	q2,`&Dlo("q2")`,d17	@ a<<16·bb
-	vshr.u64	`&Dlo("q1")`,#8
-	vmull.p8	q3,`&Dlo("q3")`,d17	@ a<<24·bb
-	vshl.u64	`&Dhi("q1")`,#24
-	veor		d0,`&Dlo("q1")`
-	vshr.u64	`&Dlo("q2")`,#16
-	veor		d0,`&Dhi("q1")`
-	vshl.u64	`&Dhi("q2")`,#16
-	veor		d0,`&Dlo("q2")`
-	vshr.u64	`&Dlo("q3")`,#24
-	veor		d0,`&Dhi("q2")`
-	vshl.u64	`&Dhi("q3")`,#8
-	veor		d0,`&Dlo("q3")`
-	veor		d0,`&Dhi("q3")`
-	bx	lr
-.size	mul_1x1_neon,.-mul_1x1_neon
-#endif
 ___
 ################
 # private interface to mul_1x1_ialu
@@ -158,57 +136,18 @@ ___
 ################
 # void	bn_GF2m_mul_2x2(BN_ULONG *r,
 #	BN_ULONG a1,BN_ULONG a0,
-#	BN_ULONG b1,BN_ULONG b0);	# r[3..0]=a1a0·b1b0
-
-($A1,$B1,$A0,$B0,$A1B1,$A0B0)=map("d$_",(18..23));
-
+#	BN_ULONG b1,BN_ULONG b0);	# r[3..0]=a1a0Â·b1b0
+{
 $code.=<<___;
 .global	bn_GF2m_mul_2x2
 .type	bn_GF2m_mul_2x2,%function
 .align	5
 bn_GF2m_mul_2x2:
-#if __ARM_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7
 	ldr	r12,.LOPENSSL_armcap
 .Lpic:	ldr	r12,[pc,r12]
 	tst	r12,#1
-	beq	.Lialu
-
-	veor	$A1,$A1
-	vmov.32	$B1,r3,r3		@ two copies of b1
-	vmov.32	${A1}[0],r1		@ a1
-
-	veor	$A0,$A0
-	vld1.32	${B0}[],[sp,:32]	@ two copies of b0
-	vmov.32	${A0}[0],r2		@ a0
-	mov	r12,lr
-
-	vmov	d16,$A1
-	vmov	d17,$B1
-	bl	mul_1x1_neon		@ a1·b1
-	vmov	$A1B1,d0
-
-	vmov	d16,$A0
-	vmov	d17,$B0
-	bl	mul_1x1_neon		@ a0·b0
-	vmov	$A0B0,d0
-
-	veor	d16,$A0,$A1
-	veor	d17,$B0,$B1
-	veor	$A0,$A0B0,$A1B1
-	bl	mul_1x1_neon		@ (a0+a1)·(b0+b1)
-
-	veor	d0,$A0			@ (a0+a1)·(b0+b1)-a0·b0-a1·b1
-	vshl.u64 d1,d0,#32
-	vshr.u64 d0,d0,#32
-	veor	$A0B0,d1
-	veor	$A1B1,d0
-	vst1.32	{${A0B0}[0]},[r0,:32]!
-	vst1.32	{${A0B0}[1]},[r0,:32]!
-	vst1.32	{${A1B1}[0]},[r0,:32]!
-	vst1.32	{${A1B1}[1]},[r0,:32]
-	bx	r12
-.align	4
-.Lialu:
+	bne	.LNEON
 #endif
 ___
 $ret="r10";	# reassigned 1st argument
@@ -220,7 +159,7 @@ $code.=<<___;
 	mov	$mask,#7<<2
 	sub	sp,sp,#32		@ allocate tab[8]
 
-	bl	mul_1x1_ialu		@ a1·b1
+	bl	mul_1x1_ialu		@ a1Â·b1
 	str	$lo,[$ret,#8]
 	str	$hi,[$ret,#12]
 
@@ -230,13 +169,13 @@ $code.=<<___;
 	 eor	r2,r2,$a
 	eor	$b,$b,r3
 	 eor	$a,$a,r2
-	bl	mul_1x1_ialu		@ a0·b0
+	bl	mul_1x1_ialu		@ a0Â·b0
 	str	$lo,[$ret]
 	str	$hi,[$ret,#4]
 
 	eor	$a,$a,r2
 	eor	$b,$b,r3
-	bl	mul_1x1_ialu		@ (a1+a0)·(b1+b0)
+	bl	mul_1x1_ialu		@ (a1+a0)Â·(b1+b0)
 ___
 @r=map("r$_",(6..9));
 $code.=<<___;
@@ -260,8 +199,72 @@ $code.=<<___;
 	moveq	pc,lr			@ be binary compatible with V4, yet
 	bx	lr			@ interoperable with Thumb ISA:-)
 #endif
+___
+}
+{
+my ($r,$t0,$t1,$t2,$t3)=map("q$_",(0..3,8..12));
+my ($a,$b,$k48,$k32,$k16)=map("d$_",(26..31));
+
+$code.=<<___;
+#if __ARM_MAX_ARCH__>=7
+.arch	armv7-a
+.fpu	neon
+
+.align	5
+.LNEON:
+	ldr		r12, [sp]		@ 5th argument
+	vmov.32		$a, r2, r1
+	vmov.32		$b, r12, r3
+	vmov.i64	$k48, #0x0000ffffffffffff
+	vmov.i64	$k32, #0x00000000ffffffff
+	vmov.i64	$k16, #0x000000000000ffff
+
+	vext.8		$t0#lo, $a, $a, #1	@ A1
+	vmull.p8	$t0, $t0#lo, $b		@ F = A1*B
+	vext.8		$r#lo, $b, $b, #1	@ B1
+	vmull.p8	$r, $a, $r#lo		@ E = A*B1
+	vext.8		$t1#lo, $a, $a, #2	@ A2
+	vmull.p8	$t1, $t1#lo, $b		@ H = A2*B
+	vext.8		$t3#lo, $b, $b, #2	@ B2
+	vmull.p8	$t3, $a, $t3#lo		@ G = A*B2
+	vext.8		$t2#lo, $a, $a, #3	@ A3
+	veor		$t0, $t0, $r		@ L = E + F
+	vmull.p8	$t2, $t2#lo, $b		@ J = A3*B
+	vext.8		$r#lo, $b, $b, #3	@ B3
+	veor		$t1, $t1, $t3		@ M = G + H
+	vmull.p8	$r, $a, $r#lo		@ I = A*B3
+	veor		$t0#lo, $t0#lo, $t0#hi	@ t0 = (L) (P0 + P1) << 8
+	vand		$t0#hi, $t0#hi, $k48
+	vext.8		$t3#lo, $b, $b, #4	@ B4
+	veor		$t1#lo, $t1#lo, $t1#hi	@ t1 = (M) (P2 + P3) << 16
+	vand		$t1#hi, $t1#hi, $k32
+	vmull.p8	$t3, $a, $t3#lo		@ K = A*B4
+	veor		$t2, $t2, $r		@ N = I + J
+	veor		$t0#lo, $t0#lo, $t0#hi
+	veor		$t1#lo, $t1#lo, $t1#hi
+	veor		$t2#lo, $t2#lo, $t2#hi	@ t2 = (N) (P4 + P5) << 24
+	vand		$t2#hi, $t2#hi, $k16
+	vext.8		$t0, $t0, $t0, #15
+	veor		$t3#lo, $t3#lo, $t3#hi	@ t3 = (K) (P6 + P7) << 32
+	vmov.i64	$t3#hi, #0
+	vext.8		$t1, $t1, $t1, #14
+	veor		$t2#lo, $t2#lo, $t2#hi
+	vmull.p8	$r, $a, $b		@ D = A*B
+	vext.8		$t3, $t3, $t3, #12
+	vext.8		$t2, $t2, $t2, #13
+	veor		$t0, $t0, $t1
+	veor		$t2, $t2, $t3
+	veor		$r, $r, $t0
+	veor		$r, $r, $t2
+
+	vst1.32		{$r}, [r0]
+	ret		@ bx lr
+#endif
+___
+}
+$code.=<<___;
 .size	bn_GF2m_mul_2x2,.-bn_GF2m_mul_2x2
-#if __ARM_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7
 .align	5
 .LOPENSSL_armcap:
 .word	OPENSSL_armcap_P-(.Lpic+8)
@@ -269,10 +272,18 @@ $code.=<<___;
 .asciz	"GF(2^m) Multiplication for ARMv4/NEON, CRYPTOGAMS by <appro\@openssl.org>"
 .align	5
 
+#if __ARM_MAX_ARCH__>=7
 .comm	OPENSSL_armcap_P,4,4
+#endif
 ___
 
-$code =~ s/\`([^\`]*)\`/eval $1/gem;
-$code =~ s/\bbx\s+lr\b/.word\t0xe12fff1e/gm;    # make it possible to compile with -march=armv4
-print $code;
+foreach (split("\n",$code)) {
+	s/\`([^\`]*)\`/eval $1/geo;
+
+	s/\bq([0-9]+)#(lo|hi)/sprintf "d%d",2*$1+($2 eq "hi")/geo	or
+	s/\bret\b/bx	lr/go		or
+	s/\bbx\s+lr\b/.word\t0xe12fff1e/go;    # make it possible to compile with -march=armv4
+
+	print $_,"\n";
+}
 close STDOUT;   # enforce flush

@@ -8,214 +8,215 @@
 #include "src/allocation.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/cancelable-task.h"
 #include "src/globals.h"
+#include "src/heap/remembered-set.h"
+#include "src/heap/slot-set.h"
 
 namespace v8 {
 namespace internal {
 
-class Page;
-class PagedSpace;
-class StoreBuffer;
-
-typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
-
-typedef void (StoreBuffer::*RegionCallback)(Address start, Address end,
-                                            ObjectSlotCallback slot_callback,
-                                            bool clear_maps);
-
-// Used to implement the write barrier by collecting addresses of pointers
-// between spaces.
+// Intermediate buffer that accumulates old-to-new stores from the generated
+// code. Moreover, it stores invalid old-to-new slots with two entries.
+// The first is a tagged address of the start of the invalid range, the second
+// one is the end address of the invalid range or null if there is just one slot
+// that needs to be removed from the remembered set. On buffer overflow the
+// slots are moved to the remembered set.
 class StoreBuffer {
  public:
+  enum StoreBufferMode { IN_GC, NOT_IN_GC };
+
+  static const int kStoreBufferSize = 1 << (11 + kPointerSizeLog2);
+  static const int kStoreBufferMask = kStoreBufferSize - 1;
+  static const int kStoreBuffers = 2;
+  static const intptr_t kDeletionTag = 1;
+
+  V8_EXPORT_PRIVATE static void StoreBufferOverflow(Isolate* isolate);
+
   explicit StoreBuffer(Heap* heap);
-
-  static void StoreBufferOverflow(Isolate* isolate);
-
-  inline Address TopAddress();
-
   void SetUp();
   void TearDown();
 
-  // This is used by the mutator to enter addresses into the store buffer.
-  inline void Mark(Address addr);
+  // Used to add entries from generated code.
+  inline Address* top_address() { return reinterpret_cast<Address*>(&top_); }
 
-  // This is used by the heap traversal to enter the addresses into the store
-  // buffer that should still be in the store buffer after GC.  It enters
-  // addresses directly into the old buffer because the GC starts by wiping the
-  // old buffer and thereafter only visits each cell once so there is no need
-  // to attempt to remove any dupes.  During the first part of a GC we
-  // are using the store buffer to access the old spaces and at the same time
-  // we are rebuilding the store buffer using this function.  There is, however
-  // no issue of overwriting the buffer we are iterating over, because this
-  // stage of the scavenge can only reduce the number of addresses in the store
-  // buffer (some objects are promoted so pointers to them do not need to be in
-  // the store buffer).  The later parts of the GC scan the pages that are
-  // exempt from the store buffer and process the promotion queue.  These steps
-  // can overflow this buffer.  We check for this and on overflow we call the
-  // callback set up with the StoreBufferRebuildScope object.
-  inline void EnterDirectlyIntoStoreBuffer(Address addr);
+  // Moves entries from a specific store buffer to the remembered set. This
+  // method takes a lock.
+  void MoveEntriesToRememberedSet(int index);
 
-  // Iterates over all pointers that go from old space to new space.  It will
-  // delete the store buffer as it starts so the callback should reenter
-  // surviving old-to-new pointers into the store buffer to rebuild it.
-  void IteratePointersToNewSpace(ObjectSlotCallback callback);
+  // This method ensures that all used store buffer entries are transfered to
+  // the remembered set.
+  void MoveAllEntriesToRememberedSet();
 
-  // Same as IteratePointersToNewSpace but additonally clears maps in objects
-  // referenced from the store buffer that do not contain a forwarding pointer.
-  void IteratePointersToNewSpaceAndClearMaps(ObjectSlotCallback callback);
-
-  static const int kStoreBufferOverflowBit = 1 << (14 + kPointerSizeLog2);
-  static const int kStoreBufferSize = kStoreBufferOverflowBit;
-  static const int kStoreBufferLength = kStoreBufferSize / sizeof(Address);
-  static const int kOldStoreBufferLength = kStoreBufferLength * 16;
-  static const int kHashSetLengthLog2 = 12;
-  static const int kHashSetLength = 1 << kHashSetLengthLog2;
-
-  void Compact();
-
-  void GCPrologue();
-  void GCEpilogue();
-
-  Object*** Limit() { return reinterpret_cast<Object***>(old_limit_); }
-  Object*** Start() { return reinterpret_cast<Object***>(old_start_); }
-  Object*** Top() { return reinterpret_cast<Object***>(old_top_); }
-  void SetTop(Object*** top) {
-    DCHECK(top >= Start());
-    DCHECK(top <= Limit());
-    old_top_ = reinterpret_cast<Address*>(top);
+  inline bool IsDeletionAddress(Address address) const {
+    return reinterpret_cast<intptr_t>(address) & kDeletionTag;
   }
 
-  bool old_buffer_is_sorted() { return old_buffer_is_sorted_; }
-  bool old_buffer_is_filtered() { return old_buffer_is_filtered_; }
+  inline Address MarkDeletionAddress(Address address) {
+    return reinterpret_cast<Address>(reinterpret_cast<intptr_t>(address) |
+                                     kDeletionTag);
+  }
 
-  // Goes through the store buffer removing pointers to things that have
-  // been promoted.  Rebuilds the store buffer completely if it overflowed.
-  void SortUniq();
+  inline Address UnmarkDeletionAddress(Address address) {
+    return reinterpret_cast<Address>(reinterpret_cast<intptr_t>(address) &
+                                     ~kDeletionTag);
+  }
 
-  void EnsureSpace(intptr_t space_needed);
-  void Verify();
+  // If we only want to delete a single slot, end should be set to null which
+  // will be written into the second field. When processing the store buffer
+  // the more efficient Remove method will be called in this case.
+  void DeleteEntry(Address start, Address end = nullptr) {
+    // Deletions coming from the GC are directly deleted from the remembered
+    // set. Deletions coming from the runtime are added to the store buffer
+    // to allow concurrent processing.
+    deletion_callback(this, start, end);
+  }
 
-  bool PrepareForIteration();
+  static void DeleteDuringGarbageCollection(StoreBuffer* store_buffer,
+                                            Address start, Address end) {
+    // In GC the store buffer has to be empty at any time.
+    DCHECK(store_buffer->Empty());
+    DCHECK(store_buffer->mode() != StoreBuffer::NOT_IN_GC);
+    Page* page = Page::FromAddress(start);
+    if (end) {
+      RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
+                                             SlotSet::PREFREE_EMPTY_BUCKETS);
+    } else {
+      RememberedSet<OLD_TO_NEW>::Remove(page, start);
+    }
+  }
 
-#ifdef DEBUG
-  void Clean();
-  // Slow, for asserts only.
-  bool CellIsInStoreBuffer(Address cell);
-#endif
+  static void DeleteDuringRuntime(StoreBuffer* store_buffer, Address start,
+                                  Address end) {
+    DCHECK(store_buffer->mode() == StoreBuffer::NOT_IN_GC);
+    store_buffer->InsertDeletionIntoStoreBuffer(start, end);
+  }
 
-  void Filter(int flag);
+  void InsertDeletionIntoStoreBuffer(Address start, Address end) {
+    if (top_ + sizeof(Address) * 2 > limit_[current_]) {
+      StoreBufferOverflow(heap_->isolate());
+    }
+    *top_ = MarkDeletionAddress(start);
+    top_++;
+    *top_ = end;
+    top_++;
+  }
+
+  static void InsertDuringGarbageCollection(StoreBuffer* store_buffer,
+                                            Address slot) {
+    DCHECK(store_buffer->mode() != StoreBuffer::NOT_IN_GC);
+    RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot), slot);
+  }
+
+  static void InsertDuringRuntime(StoreBuffer* store_buffer, Address slot) {
+    DCHECK(store_buffer->mode() == StoreBuffer::NOT_IN_GC);
+    store_buffer->InsertIntoStoreBuffer(slot);
+  }
+
+  void InsertIntoStoreBuffer(Address slot) {
+    if (top_ + sizeof(Address) > limit_[current_]) {
+      StoreBufferOverflow(heap_->isolate());
+    }
+    *top_ = slot;
+    top_++;
+  }
+
+  void InsertEntry(Address slot) {
+    // Insertions coming from the GC are directly inserted into the remembered
+    // set. Insertions coming from the runtime are added to the store buffer to
+    // allow concurrent processing.
+    insertion_callback(this, slot);
+  }
+
+  void SetMode(StoreBufferMode mode) {
+    mode_ = mode;
+    if (mode == NOT_IN_GC) {
+      insertion_callback = &InsertDuringRuntime;
+      deletion_callback = &DeleteDuringRuntime;
+    } else {
+      insertion_callback = &InsertDuringGarbageCollection;
+      deletion_callback = &DeleteDuringGarbageCollection;
+    }
+  }
+
+  // Used by the concurrent processing thread to transfer entries from the
+  // store buffer to the remembered set.
+  void ConcurrentlyProcessStoreBuffer();
+
+  bool Empty() {
+    for (int i = 0; i < kStoreBuffers; i++) {
+      if (lazy_top_[i]) {
+        return false;
+      }
+    }
+    return top_ == start_[current_];
+  }
+
+  Heap* heap() { return heap_; }
 
  private:
+  // There are two store buffers. If one store buffer fills up, the main thread
+  // publishes the top pointer of the store buffer that needs processing in its
+  // global lazy_top_ field. After that it start the concurrent processing
+  // thread. The concurrent processing thread uses the pointer in lazy_top_.
+  // It will grab the given mutex and transfer its entries to the remembered
+  // set. If the concurrent thread does not make progress, the main thread will
+  // perform the work.
+  // Important: there is an ordering constrained. The store buffer with the
+  // older entries has to be processed first.
+  class Task : public CancelableTask {
+   public:
+    Task(Isolate* isolate, StoreBuffer* store_buffer)
+        : CancelableTask(isolate), store_buffer_(store_buffer) {}
+    virtual ~Task() {}
+
+   private:
+    void RunInternal() override {
+      store_buffer_->ConcurrentlyProcessStoreBuffer();
+    }
+    StoreBuffer* store_buffer_;
+    DISALLOW_COPY_AND_ASSIGN(Task);
+  };
+
+  StoreBufferMode mode() const { return mode_; }
+
+  void FlipStoreBuffers();
+
   Heap* heap_;
 
-  // The store buffer is divided up into a new buffer that is constantly being
-  // filled by mutator activity and an old buffer that is filled with the data
-  // from the new buffer after compression.
-  Address* start_;
-  Address* limit_;
+  Address* top_;
 
-  Address* old_start_;
-  Address* old_limit_;
-  Address* old_top_;
-  Address* old_reserved_limit_;
-  base::VirtualMemory* old_virtual_memory_;
+  // The start and the limit of the buffer that contains store slots
+  // added from the generated code. We have two chunks of store buffers.
+  // Whenever one fills up, we notify a concurrent processing thread and
+  // use the other empty one in the meantime.
+  Address* start_[kStoreBuffers];
+  Address* limit_[kStoreBuffers];
 
-  bool old_buffer_is_sorted_;
-  bool old_buffer_is_filtered_;
-  bool during_gc_;
-  // The garbage collector iterates over many pointers to new space that are not
-  // handled by the store buffer.  This flag indicates whether the pointers
-  // found by the callbacks should be added to the store buffer or not.
-  bool store_buffer_rebuilding_enabled_;
-  StoreBufferCallback callback_;
-  bool may_move_store_buffer_entries_;
+  // At most one lazy_top_ pointer is set at any time.
+  Address* lazy_top_[kStoreBuffers];
+  base::Mutex mutex_;
+
+  // We only want to have at most one concurrent processing tas running.
+  bool task_running_;
+
+  // Points to the current buffer in use.
+  int current_;
+
+  // During GC, entries are directly added to the remembered set without
+  // going through the store buffer. This is signaled by a special
+  // IN_GC mode.
+  StoreBufferMode mode_;
 
   base::VirtualMemory* virtual_memory_;
 
-  // Two hash sets used for filtering.
-  // If address is in the hash set then it is guaranteed to be in the
-  // old part of the store buffer.
-  uintptr_t* hash_set_1_;
-  uintptr_t* hash_set_2_;
-  bool hash_sets_are_empty_;
-
-  void ClearFilteringHashSets();
-
-  bool SpaceAvailable(intptr_t space_needed);
-  void Uniq();
-  void ExemptPopularPages(int prime_sample_step, int threshold);
-
-  // Set the map field of the object to NULL if contains a map.
-  inline void ClearDeadObject(HeapObject* object);
-
-  void IteratePointersToNewSpace(ObjectSlotCallback callback, bool clear_maps);
-
-  void FindPointersToNewSpaceInRegion(Address start, Address end,
-                                      ObjectSlotCallback slot_callback,
-                                      bool clear_maps);
-
-  // For each region of pointers on a page in use from an old space call
-  // visit_pointer_region callback.
-  // If either visit_pointer_region or callback can cause an allocation
-  // in old space and changes in allocation watermark then
-  // can_preallocate_during_iteration should be set to true.
-  void IteratePointersOnPage(PagedSpace* space, Page* page,
-                             RegionCallback region_callback,
-                             ObjectSlotCallback slot_callback);
-
-  void IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback,
-                                    bool clear_maps);
-
-#ifdef VERIFY_HEAP
-  void VerifyPointers(LargeObjectSpace* space);
-#endif
-
-  friend class StoreBufferRebuildScope;
-  friend class DontMoveStoreBufferEntriesScope;
+  // Callbacks are more efficient than reading out the gc state for every
+  // store buffer operation.
+  void (*insertion_callback)(StoreBuffer*, Address);
+  void (*deletion_callback)(StoreBuffer*, Address, Address);
 };
 
-
-class StoreBufferRebuildScope {
- public:
-  explicit StoreBufferRebuildScope(Heap* heap, StoreBuffer* store_buffer,
-                                   StoreBufferCallback callback)
-      : store_buffer_(store_buffer),
-        stored_state_(store_buffer->store_buffer_rebuilding_enabled_),
-        stored_callback_(store_buffer->callback_) {
-    store_buffer_->store_buffer_rebuilding_enabled_ = true;
-    store_buffer_->callback_ = callback;
-    (*callback)(heap, NULL, kStoreBufferStartScanningPagesEvent);
-  }
-
-  ~StoreBufferRebuildScope() {
-    store_buffer_->callback_ = stored_callback_;
-    store_buffer_->store_buffer_rebuilding_enabled_ = stored_state_;
-  }
-
- private:
-  StoreBuffer* store_buffer_;
-  bool stored_state_;
-  StoreBufferCallback stored_callback_;
-};
-
-
-class DontMoveStoreBufferEntriesScope {
- public:
-  explicit DontMoveStoreBufferEntriesScope(StoreBuffer* store_buffer)
-      : store_buffer_(store_buffer),
-        stored_state_(store_buffer->may_move_store_buffer_entries_) {
-    store_buffer_->may_move_store_buffer_entries_ = false;
-  }
-
-  ~DontMoveStoreBufferEntriesScope() {
-    store_buffer_->may_move_store_buffer_entries_ = stored_state_;
-  }
-
- private:
-  StoreBuffer* store_buffer_;
-  bool stored_state_;
-};
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STORE_BUFFER_H_

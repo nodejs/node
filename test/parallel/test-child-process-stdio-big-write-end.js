@@ -19,9 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var BUFSIZE = 1024;
+'use strict';
+require('../common');
+const assert = require('assert');
+const BUFSIZE = 1024;
 
 switch (process.argv[2]) {
   case undefined:
@@ -33,31 +34,30 @@ switch (process.argv[2]) {
 }
 
 function parent() {
-  var spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child']);
-  var sent = 0;
+  const spawn = require('child_process').spawn;
+  const child = spawn(process.execPath, [__filename, 'child']);
+  let sent = 0;
 
-  var n = '';
+  let n = '';
   child.stdout.setEncoding('ascii');
   child.stdout.on('data', function(c) {
     n += c;
   });
   child.stdout.on('end', function() {
-    assert.equal(+n, sent);
+    assert.strictEqual(+n, sent);
     console.log('ok');
   });
 
   // Write until the buffer fills up.
+  let buf;
   do {
-    var buf = new Buffer(BUFSIZE);
-    buf.fill('.');
+    buf = Buffer.alloc(BUFSIZE, '.');
     sent += BUFSIZE;
   } while (child.stdin.write(buf));
 
   // then write a bunch more times.
-  for (var i = 0; i < 100; i++) {
-    var buf = new Buffer(BUFSIZE);
-    buf.fill('.');
+  for (let i = 0; i < 100; i++) {
+    const buf = Buffer.alloc(BUFSIZE, '.');
     sent += BUFSIZE;
     child.stdin.write(buf);
   }
@@ -69,7 +69,7 @@ function parent() {
 }
 
 function child() {
-  var received = 0;
+  let received = 0;
   process.stdin.on('data', function(c) {
     received += c.length;
   });

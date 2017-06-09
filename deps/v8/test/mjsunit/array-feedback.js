@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc
-// Flags: --noalways-opt
+// Flags: --opt --no-always-opt
 
 var elements_kind = {
   fast_smi_only            :  'fast smi only elements',
@@ -92,7 +92,7 @@ function assertKind(expected, obj, name_opt) {
   assertKind(elements_kind.fast, b);
 
   a = create1(100000);
-  assertKind(elements_kind.fast_smi_only, a);
+  assertKind(elements_kind.fast, a);
 
   function create3(arg1, arg2, arg3) {
     return Array(arg1, arg2, arg3);

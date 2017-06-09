@@ -1,0 +1,90 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "call-limit@latest",
+        "scope": null,
+        "escapedName": "call-limit",
+        "name": "call-limit",
+        "rawSpec": "latest",
+        "spec": "latest",
+        "type": "tag"
+      },
+      "/Users/rebecca/code/npm-latest"
+    ]
+  ],
+  "_from": "call-limit@latest",
+  "_id": "call-limit@1.1.0",
+  "_inCache": true,
+  "_location": "/call-limit",
+  "_nodeVersion": "7.7.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/call-limit-1.1.0.tgz_1488849297527_0.29955350141972303"
+  },
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "_npmVersion": "4.4.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "call-limit@latest",
+    "scope": null,
+    "escapedName": "call-limit",
+    "name": "call-limit",
+    "rawSpec": "latest",
+    "spec": "latest",
+    "type": "tag"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/call-limit/-/call-limit-1.1.0.tgz",
+  "_shasum": "6fd61b03f3da42a2cd0ec2b60f02bd0e71991fea",
+  "_shrinkwrap": null,
+  "_spec": "call-limit@latest",
+  "_where": "/Users/rebecca/code/npm-latest",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org"
+  },
+  "bugs": {
+    "url": "https://github.com/iarna/call-limit/issues"
+  },
+  "dependencies": {},
+  "description": "Limit the number of simultaneous calls to an async function",
+  "devDependencies": {
+    "tap": "^1.0.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "6fd61b03f3da42a2cd0ec2b60f02bd0e71991fea",
+    "tarball": "https://registry.npmjs.org/call-limit/-/call-limit-1.1.0.tgz"
+  },
+  "files": [
+    "call-limit.js"
+  ],
+  "gitHead": "2b05fe72f0cf33a2aac951cd68dd949fccb0d9e9",
+  "homepage": "https://npmjs.com/packages/call-limit",
+  "license": "ISC",
+  "main": "call-limit.js",
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "name": "call-limit",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/call-limit.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "1.1.0"
+}

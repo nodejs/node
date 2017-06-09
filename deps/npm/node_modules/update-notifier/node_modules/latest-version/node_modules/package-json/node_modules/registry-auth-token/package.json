@@ -1,0 +1,110 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "registry-auth-token@^3.0.1",
+        "scope": null,
+        "escapedName": "registry-auth-token",
+        "name": "registry-auth-token",
+        "rawSpec": "^3.0.1",
+        "spec": ">=3.0.1 <4.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json"
+    ]
+  ],
+  "_from": "registry-auth-token@>=3.0.1 <4.0.0",
+  "_id": "registry-auth-token@3.1.0",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/registry-auth-token",
+  "_nodeVersion": "6.6.0",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/registry-auth-token-3.1.0.tgz_1476906788283_0.3755947477184236"
+  },
+  "_npmUser": {
+    "name": "rexxars",
+    "email": "rexxars@gmail.com"
+  },
+  "_npmVersion": "3.10.3",
+  "_phantomChildren": {
+    "ini": "1.3.4"
+  },
+  "_requested": {
+    "raw": "registry-auth-token@^3.0.1",
+    "scope": null,
+    "escapedName": "registry-auth-token",
+    "name": "registry-auth-token",
+    "rawSpec": "^3.0.1",
+    "spec": ">=3.0.1 <4.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json"
+  ],
+  "_resolved": "https://registry.npmjs.org/registry-auth-token/-/registry-auth-token-3.1.0.tgz",
+  "_shasum": "997c08256e0c7999837b90e944db39d8a790276b",
+  "_shrinkwrap": null,
+  "_spec": "registry-auth-token@^3.0.1",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json",
+  "author": {
+    "name": "Espen Hovlandsdal",
+    "email": "espen@hovlandsdal.com"
+  },
+  "bugs": {
+    "url": "https://github.com/rexxars/registry-auth-token/issues"
+  },
+  "dependencies": {
+    "rc": "^1.1.6"
+  },
+  "description": "Get the auth token set for an npm registry (if any)",
+  "devDependencies": {
+    "eslint": "^2.4.0",
+    "eslint-config-bengler": "^1.0.7",
+    "istanbul": "^0.4.2",
+    "mocha": "^2.4.5",
+    "require-uncached": "^1.0.2"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "997c08256e0c7999837b90e944db39d8a790276b",
+    "tarball": "https://registry.npmjs.org/registry-auth-token/-/registry-auth-token-3.1.0.tgz"
+  },
+  "gitHead": "349c63e86949846b70bc57e6801018800dc76382",
+  "homepage": "https://github.com/rexxars/registry-auth-token#readme",
+  "keywords": [
+    "npm",
+    "conf",
+    "config",
+    "npmconf",
+    "registry",
+    "auth",
+    "token",
+    "authtoken"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "leipert",
+      "email": "git@leipert.io"
+    },
+    {
+      "name": "rexxars",
+      "email": "rexxars@gmail.com"
+    }
+  ],
+  "name": "registry-auth-token",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/rexxars/registry-auth-token.git"
+  },
+  "scripts": {
+    "coverage": "istanbul cover _mocha",
+    "posttest": "eslint .",
+    "test": "mocha"
+  },
+  "version": "3.1.0"
+}

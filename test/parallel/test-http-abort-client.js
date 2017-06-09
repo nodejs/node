@@ -19,11 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var http = require('http');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const http = require('http');
 
-var server = http.Server(function(req, res) {
+const server = http.Server(function(req, res) {
   console.log('Server accepted request.');
   res.writeHead(200);
   res.write('Part of my res.');
@@ -31,14 +31,11 @@ var server = http.Server(function(req, res) {
   res.destroy();
 });
 
-var responseClose = false;
-
-server.listen(common.PORT, function() {
-  var client = http.get({
-    port: common.PORT,
+server.listen(0, common.mustCall(function() {
+  http.get({
+    port: this.address().port,
     headers: { connection: 'keep-alive' }
-
-  }, function(res) {
+  }, common.mustCall(function(res) {
     server.close();
 
     console.log('Got res: ' + res.statusCode);
@@ -59,17 +56,9 @@ server.listen(common.PORT, function() {
 
     res.socket.on('close', function() {
       console.log('socket closed, but not res');
-    })
+    });
 
     // it would be nice if this worked:
-    res.on('close', function() {
-      console.log('Response aborted');
-      responseClose = true;
-    });
-  });
-});
-
-
-process.on('exit', function() {
-  assert.ok(responseClose);
-});
+    res.on('close', common.mustCall());
+  }));
+}));

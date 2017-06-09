@@ -1,0 +1,138 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "ansi-regex@2.1.1",
+        "scope": null,
+        "escapedName": "ansi-regex",
+        "name": "ansi-regex",
+        "rawSpec": "2.1.1",
+        "spec": "2.1.1",
+        "type": "version"
+      },
+      "/Users/zkat/Documents/code/npm"
+    ]
+  ],
+  "_from": "ansi-regex@2.1.1",
+  "_id": "ansi-regex@2.1.1",
+  "_inCache": true,
+  "_location": "/ansi-regex",
+  "_nodeVersion": "0.10.32",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/ansi-regex-2.1.1.tgz_1484363378013_0.4482989883981645"
+  },
+  "_npmUser": {
+    "name": "qix",
+    "email": "i.am.qix@gmail.com"
+  },
+  "_npmVersion": "2.14.2",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "ansi-regex@2.1.1",
+    "scope": null,
+    "escapedName": "ansi-regex",
+    "name": "ansi-regex",
+    "rawSpec": "2.1.1",
+    "spec": "2.1.1",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/",
+    "/npm-registry-couchapp/couchapp/nano/follow/request/har-validator/chalk/has-ansi",
+    "/request/har-validator/chalk/has-ansi",
+    "/standard/eslint/chalk/has-ansi",
+    "/standard/eslint/inquirer",
+    "/strip-ansi",
+    "/tap/coveralls/request/har-validator/chalk/has-ansi"
+  ],
+  "_resolved": "https://registry.npmjs.org/ansi-regex/-/ansi-regex-2.1.1.tgz",
+  "_shasum": "c3b33ab5ee360d86e0e628f0468ae7ef27d654df",
+  "_shrinkwrap": null,
+  "_spec": "ansi-regex@2.1.1",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/chalk/ansi-regex/issues"
+  },
+  "dependencies": {},
+  "description": "Regular expression for matching ANSI escape codes",
+  "devDependencies": {
+    "ava": "0.17.0",
+    "xo": "0.16.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "c3b33ab5ee360d86e0e628f0468ae7ef27d654df",
+    "tarball": "https://registry.npmjs.org/ansi-regex/-/ansi-regex-2.1.1.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "7c908e7b4eb6cd82bfe1295e33fdf6d166c7ed85",
+  "homepage": "https://github.com/chalk/ansi-regex#readme",
+  "keywords": [
+    "ansi",
+    "styles",
+    "color",
+    "colour",
+    "colors",
+    "terminal",
+    "console",
+    "cli",
+    "string",
+    "tty",
+    "escape",
+    "formatting",
+    "rgb",
+    "256",
+    "shell",
+    "xterm",
+    "command-line",
+    "text",
+    "regex",
+    "regexp",
+    "re",
+    "match",
+    "test",
+    "find",
+    "pattern"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "qix",
+      "email": "i.am.qix@gmail.com"
+    },
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "ansi-regex",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chalk/ansi-regex.git"
+  },
+  "scripts": {
+    "test": "xo && ava --verbose",
+    "view-supported": "node fixtures/view-codes.js"
+  },
+  "version": "2.1.1",
+  "xo": {
+    "rules": {
+      "guard-for-in": 0,
+      "no-loop-func": 0
+    }
+  }
+}

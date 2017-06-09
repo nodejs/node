@@ -19,38 +19,32 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 
-var server = http.createServer(function(req, res) {
-  common.error('got req');
+const server = http.createServer(function(req, res) {
   throw new Error('This shouldn\'t happen.');
 });
 
 server.on('upgrade', function(req, socket, upgradeHead) {
-  common.error('got upgrade event');
   // test that throwing an error from upgrade gets
   // is uncaught
   throw new Error('upgrade error');
 });
 
-var gotError = false;
-
-process.on('uncaughtException', function(e) {
-  common.error('got \'clientError\' event');
-  assert.equal('upgrade error', e.message);
-  gotError = true;
+process.on('uncaughtException', common.mustCall(function(e) {
+  assert.strictEqual('upgrade error', e.message);
   process.exit(0);
-});
+}));
 
 
-server.listen(common.PORT, function() {
-  var c = net.createConnection(common.PORT);
+server.listen(0, function() {
+  const c = net.createConnection(this.address().port);
 
   c.on('connect', function() {
-    common.error('client wrote message');
     c.write('GET /blah HTTP/1.1\r\n' +
             'Upgrade: WebSocket\r\n' +
             'Connection: Upgrade\r\n' +
@@ -62,11 +56,6 @@ server.listen(common.PORT, function() {
   });
 
   c.on('close', function() {
-    common.error('client close');
     server.close();
   });
-});
-
-process.on('exit', function() {
-  assert.ok(gotError);
 });

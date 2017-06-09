@@ -712,4 +712,5 @@ bool FastDtoa(double v,
   return result;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

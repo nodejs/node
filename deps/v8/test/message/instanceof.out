@@ -1,5 +1,0 @@
-*%(basename)s:28: TypeError: Expecting a function in instanceof check, but got 2
-1 instanceof 2;
-  ^
-TypeError: Expecting a function in instanceof check, but got 2
-    at *%(basename)s:28:3

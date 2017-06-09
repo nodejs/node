@@ -4104,12 +4104,23 @@
 # define JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE          0x00002000
 #endif
 
+/* from winternl.h */
+typedef struct _UNICODE_STRING {
+  USHORT Length;
+  USHORT MaximumLength;
+  PWSTR  Buffer;
+} UNICODE_STRING, *PUNICODE_STRING;
+
+typedef const UNICODE_STRING *PCUNICODE_STRING;
+
+/* from ntifs.h */
 #ifndef DEVICE_TYPE
 # define DEVICE_TYPE DWORD
 #endif
 
-/* from ntifs.h */
-/* MinGW already has it, mingw-w64 does not. */
+/* MinGW already has a definition for REPARSE_DATA_BUFFER, but mingw-w64 does
+ * not.
+ */
 #if defined(_MSC_VER) || defined(__MINGW64_VERSION_MAJOR)
   typedef struct _REPARSE_DATA_BUFFER {
     ULONG  ReparseTag;
@@ -4134,7 +4145,7 @@
       struct {
         UCHAR  DataBuffer[1];
       } GenericReparseBuffer;
-    } DUMMYUNIONNAME;
+    };
   } REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
 #endif
 
@@ -4142,7 +4153,7 @@ typedef struct _IO_STATUS_BLOCK {
   union {
     NTSTATUS Status;
     PVOID Pointer;
-  } DUMMYUNIONNAME;
+  };
   ULONG_PTR Information;
 } IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
 
@@ -4204,6 +4215,37 @@ typedef enum _FILE_INFORMATION_CLASS {
   FileRemoteProtocolInformation,
   FileMaximumInformation
 } FILE_INFORMATION_CLASS, *PFILE_INFORMATION_CLASS;
+
+typedef struct _FILE_DIRECTORY_INFORMATION {
+  ULONG NextEntryOffset;
+  ULONG FileIndex;
+  LARGE_INTEGER CreationTime;
+  LARGE_INTEGER LastAccessTime;
+  LARGE_INTEGER LastWriteTime;
+  LARGE_INTEGER ChangeTime;
+  LARGE_INTEGER EndOfFile;
+  LARGE_INTEGER AllocationSize;
+  ULONG FileAttributes;
+  ULONG FileNameLength;
+  WCHAR FileName[1];
+} FILE_DIRECTORY_INFORMATION, *PFILE_DIRECTORY_INFORMATION;
+
+typedef struct _FILE_BOTH_DIR_INFORMATION {
+  ULONG NextEntryOffset;
+  ULONG FileIndex;
+  LARGE_INTEGER CreationTime;
+  LARGE_INTEGER LastAccessTime;
+  LARGE_INTEGER LastWriteTime;
+  LARGE_INTEGER ChangeTime;
+  LARGE_INTEGER EndOfFile;
+  LARGE_INTEGER AllocationSize;
+  ULONG FileAttributes;
+  ULONG FileNameLength;
+  ULONG EaSize;
+  CCHAR ShortNameLength;
+  WCHAR ShortName[12];
+  WCHAR FileName[1];
+} FILE_BOTH_DIR_INFORMATION, *PFILE_BOTH_DIR_INFORMATION;
 
 typedef struct _FILE_BASIC_INFORMATION {
   LARGE_INTEGER CreationTime;
@@ -4512,6 +4554,19 @@ typedef NTSTATUS (NTAPI *sNtQuerySystemInformation)
                   ULONG SystemInformationLength,
                   PULONG ReturnLength);
 
+typedef NTSTATUS (NTAPI *sNtQueryDirectoryFile)
+                 (HANDLE FileHandle,
+                  HANDLE Event,
+                  PIO_APC_ROUTINE ApcRoutine,
+                  PVOID ApcContext,
+                  PIO_STATUS_BLOCK IoStatusBlock,
+                  PVOID FileInformation,
+                  ULONG Length,
+                  FILE_INFORMATION_CLASS FileInformationClass,
+                  BOOLEAN ReturnSingleEntry,
+                  PUNICODE_STRING FileName,
+                  BOOLEAN RestartScan
+                );
 
 /*
  * Kernel32 headers
@@ -4551,8 +4606,36 @@ typedef NTSTATUS (NTAPI *sNtQuerySystemInformation)
 #endif
 
 /* from winerror.h */
+#ifndef ERROR_ELEVATION_REQUIRED
+# define ERROR_ELEVATION_REQUIRED 740
+#endif
+
 #ifndef ERROR_SYMLINK_NOT_SUPPORTED
 # define ERROR_SYMLINK_NOT_SUPPORTED 1464
+#endif
+
+#ifndef ERROR_MUI_FILE_NOT_FOUND
+# define ERROR_MUI_FILE_NOT_FOUND 15100
+#endif
+
+#ifndef ERROR_MUI_INVALID_FILE
+# define ERROR_MUI_INVALID_FILE 15101
+#endif
+
+#ifndef ERROR_MUI_INVALID_RC_CONFIG
+# define ERROR_MUI_INVALID_RC_CONFIG 15102
+#endif
+
+#ifndef ERROR_MUI_INVALID_LOCALE_NAME
+# define ERROR_MUI_INVALID_LOCALE_NAME 15103
+#endif
+
+#ifndef ERROR_MUI_INVALID_ULTIMATEFALLBACK_NAME
+# define ERROR_MUI_INVALID_ULTIMATEFALLBACK_NAME 15104
+#endif
+
+#ifndef ERROR_MUI_FILE_NOT_LOADED
+# define ERROR_MUI_FILE_NOT_LOADED 15105
 #endif
 
 typedef BOOL (WINAPI *sGetQueuedCompletionStatusEx)
@@ -4575,27 +4658,6 @@ typedef BOOLEAN (WINAPI* sCreateSymbolicLinkW)
 typedef BOOL (WINAPI* sCancelIoEx)
              (HANDLE hFile,
               LPOVERLAPPED lpOverlapped);
-
-typedef VOID (WINAPI* sInitializeSRWLock)
-             (PSRWLOCK SRWLock);
-
-typedef VOID (WINAPI* sAcquireSRWLockShared)
-             (PSRWLOCK SRWLock);
-
-typedef VOID (WINAPI* sAcquireSRWLockExclusive)
-             (PSRWLOCK SRWLock);
-
-typedef BOOL (WINAPI* sTryAcquireSRWLockShared)
-             (PSRWLOCK SRWLock);
-
-typedef BOOL (WINAPI* sTryAcquireSRWLockExclusive)
-             (PSRWLOCK SRWLock);
-
-typedef VOID (WINAPI* sReleaseSRWLockShared)
-             (PSRWLOCK SRWLock);
-
-typedef VOID (WINAPI* sReleaseSRWLockExclusive)
-             (PSRWLOCK SRWLock);
 
 typedef VOID (WINAPI* sInitializeConditionVariable)
              (PCONDITION_VARIABLE ConditionVariable);
@@ -4620,12 +4682,53 @@ typedef VOID (WINAPI* sWakeConditionVariable)
 typedef BOOL (WINAPI* sCancelSynchronousIo)
              (HANDLE hThread);
 
+typedef DWORD (WINAPI* sGetFinalPathNameByHandleW)
+             (HANDLE hFile,
+              LPWSTR lpszFilePath,
+              DWORD cchFilePath,
+              DWORD dwFlags);
+
+/* from powerbase.h */
+#ifndef DEVICE_NOTIFY_CALLBACK
+# define DEVICE_NOTIFY_CALLBACK 2
+#endif
+
+#ifndef PBT_APMRESUMEAUTOMATIC
+# define PBT_APMRESUMEAUTOMATIC 18
+#endif
+
+#ifndef PBT_APMRESUMESUSPEND
+# define PBT_APMRESUMESUSPEND 7
+#endif
+
+typedef ULONG CALLBACK _DEVICE_NOTIFY_CALLBACK_ROUTINE(
+  PVOID Context,
+  ULONG Type,
+  PVOID Setting
+);
+typedef _DEVICE_NOTIFY_CALLBACK_ROUTINE* _PDEVICE_NOTIFY_CALLBACK_ROUTINE;
+
+typedef struct _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS {
+  _PDEVICE_NOTIFY_CALLBACK_ROUTINE Callback;
+  PVOID Context;
+} _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS, *_PDEVICE_NOTIFY_SUBSCRIBE_PARAMETERS;
+
+typedef PVOID _HPOWERNOTIFY;
+typedef _HPOWERNOTIFY *_PHPOWERNOTIFY;
+
+typedef DWORD (WINAPI *sPowerRegisterSuspendResumeNotification)
+              (DWORD         Flags,
+               HANDLE        Recipient,
+               _PHPOWERNOTIFY RegistrationHandle);
+
+
 /* Ntdll function pointers */
 extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
 extern sNtDeviceIoControlFile pNtDeviceIoControlFile;
 extern sNtQueryInformationFile pNtQueryInformationFile;
 extern sNtSetInformationFile pNtSetInformationFile;
 extern sNtQueryVolumeInformationFile pNtQueryVolumeInformationFile;
+extern sNtQueryDirectoryFile pNtQueryDirectoryFile;
 extern sNtQuerySystemInformation pNtQuerySystemInformation;
 
 
@@ -4634,18 +4737,16 @@ extern sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 extern sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
 extern sCreateSymbolicLinkW pCreateSymbolicLinkW;
 extern sCancelIoEx pCancelIoEx;
-extern sInitializeSRWLock pInitializeSRWLock;
-extern sAcquireSRWLockShared pAcquireSRWLockShared;
-extern sAcquireSRWLockExclusive pAcquireSRWLockExclusive;
-extern sTryAcquireSRWLockShared pTryAcquireSRWLockShared;
-extern sTryAcquireSRWLockExclusive pTryAcquireSRWLockExclusive;
-extern sReleaseSRWLockShared pReleaseSRWLockShared;
-extern sReleaseSRWLockExclusive pReleaseSRWLockExclusive;
 extern sInitializeConditionVariable pInitializeConditionVariable;
 extern sSleepConditionVariableCS pSleepConditionVariableCS;
 extern sSleepConditionVariableSRW pSleepConditionVariableSRW;
 extern sWakeAllConditionVariable pWakeAllConditionVariable;
 extern sWakeConditionVariable pWakeConditionVariable;
 extern sCancelSynchronousIo pCancelSynchronousIo;
+extern sGetFinalPathNameByHandleW pGetFinalPathNameByHandleW;
+
+
+/* Powrprof.dll function pointer */
+extern sPowerRegisterSuspendResumeNotification pPowerRegisterSuspendResumeNotification;
 
 #endif /* UV_WIN_WINAPI_H_ */

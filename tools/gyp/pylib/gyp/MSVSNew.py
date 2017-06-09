@@ -172,7 +172,7 @@ class MSVSProject(MSVSSolutionEntry):
 #------------------------------------------------------------------------------
 
 
-class MSVSSolution:
+class MSVSSolution(object):
   """Visual Studio solution."""
 
   def __init__(self, path, version, entries=None, variants=None,

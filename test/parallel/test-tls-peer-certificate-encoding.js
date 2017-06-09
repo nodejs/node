@@ -19,44 +19,39 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
 }
+const tls = require('tls');
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
-var util = require('util');
-var join = require('path').join;
-var spawn = require('child_process').spawn;
+const fs = require('fs');
+const util = require('util');
+const join = require('path').join;
 
-var options = {
+const options = {
   key: fs.readFileSync(join(common.fixturesDir, 'keys', 'agent5-key.pem')),
   cert: fs.readFileSync(join(common.fixturesDir, 'keys', 'agent5-cert.pem')),
   ca: [ fs.readFileSync(join(common.fixturesDir, 'keys', 'ca2-cert.pem')) ]
 };
-var verified = false;
 
-var server = tls.createServer(options, function(cleartext) {
+const server = tls.createServer(options, function(cleartext) {
   cleartext.end('World');
 });
-server.listen(common.PORT, function() {
-  var socket = tls.connect({
-    port: common.PORT,
+server.listen(0, common.mustCall(function() {
+  const socket = tls.connect({
+    port: this.address().port,
     rejectUnauthorized: false
-  }, function() {
-    var peerCert = socket.getPeerCertificate();
+  }, common.mustCall(function() {
+    const peerCert = socket.getPeerCertificate();
 
-    common.debug(util.inspect(peerCert));
-    assert.equal(peerCert.subject.CN, 'Ádám Lippai');
-    verified = true;
+    console.error(util.inspect(peerCert));
+    assert.strictEqual(peerCert.subject.CN, 'Ádám Lippai');
     server.close();
-  });
+  }));
   socket.end('Hello');
-});
-
-process.on('exit', function() {
-  assert.ok(verified);
-});
+}));

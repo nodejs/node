@@ -29,23 +29,47 @@
 
 # Simple wrapper for running valgrind and checking the output on
 # stderr for memory leaks.
+# Uses valgrind from third_party/valgrind. Assumes the executable is passed
+# with a path relative to the v8 root.
 
+
+from os import path
+import platform
+import re
 import subprocess
 import sys
-import re
+
+V8_ROOT = path.dirname(path.dirname(path.abspath(__file__)))
+MACHINE = 'linux_x64' if platform.machine() == 'x86_64' else 'linux_x86'
+VALGRIND_ROOT = path.join(V8_ROOT, 'third_party', 'valgrind', MACHINE)
+VALGRIND_BIN = path.join(VALGRIND_ROOT, 'bin', 'valgrind')
+VALGRIND_LIB = path.join(VALGRIND_ROOT, 'lib', 'valgrind')
 
 VALGRIND_ARGUMENTS = [
-  'valgrind',
+  VALGRIND_BIN,
   '--error-exitcode=1',
   '--leak-check=full',
-  '--smc-check=all'
+  '--smc-check=all',
 ]
 
+if len(sys.argv) < 2:
+  print 'Please provide an executable to analyze.'
+  sys.exit(1)
+
+executable = path.join(V8_ROOT, sys.argv[1])
+if not path.exists(executable):
+  print 'Cannot find the file specified: %s' % executable
+  sys.exit(1)
+
 # Compute the command line.
-command = VALGRIND_ARGUMENTS + sys.argv[1:]
+command = VALGRIND_ARGUMENTS + [executable] + sys.argv[2:]
 
 # Run valgrind.
-process = subprocess.Popen(command, stderr=subprocess.PIPE)
+process = subprocess.Popen(
+    command,
+    stderr=subprocess.PIPE,
+    env={'VALGRIND_LIB': VALGRIND_LIB}
+)
 code = process.wait();
 errors = process.stderr.readlines();
 
@@ -74,4 +98,5 @@ if len(leaks) < 2 or len(leaks) > 3:
   sys.exit(1)
 
 # No leaks found.
+sys.stderr.writelines(errors)
 sys.exit(0)

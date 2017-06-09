@@ -19,9 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
 // test variants of pid
 //
@@ -38,12 +38,20 @@ var assert = require('assert');
 //
 // process.pid, String(process.pid): ourself
 
-assert.throws(function() { process.kill('SIGTERM'); }, TypeError);
-assert.throws(function() { process.kill(null); }, TypeError);
-assert.throws(function() { process.kill(undefined); }, TypeError);
-assert.throws(function() { process.kill(+'not a number'); }, TypeError);
-assert.throws(function() { process.kill(1/0); }, TypeError);
-assert.throws(function() { process.kill(-1/0); }, TypeError);
+assert.throws(function() { process.kill('SIGTERM'); },
+              /^TypeError: invalid pid$/);
+assert.throws(function() { process.kill(null); }, /^TypeError: invalid pid$/);
+assert.throws(function() { process.kill(undefined); },
+              /^TypeError: invalid pid$/);
+assert.throws(function() { process.kill(+'not a number'); },
+              /^TypeError: invalid pid$/);
+assert.throws(function() { process.kill(1 / 0); }, /^TypeError: invalid pid$/);
+assert.throws(function() { process.kill(-1 / 0); }, /^TypeError: invalid pid$/);
+
+// Test that kill throws an error for invalid signal
+
+assert.throws(function() { process.kill(1, 'test'); },
+              /^Error: Unknown signal: test$/);
 
 // Test kill argument processing in valid cases.
 //
@@ -51,9 +59,9 @@ assert.throws(function() { process.kill(-1/0); }, TypeError);
 // that we don't kill our process group, or try to actually send ANY signals on
 // windows, which doesn't support them.
 function kill(tryPid, trySig, expectPid, expectSig) {
-  var getPid;
-  var getSig;
-  var origKill = process._kill;
+  let getPid;
+  let getSig;
+  const origKill = process._kill;
   process._kill = function(pid, sig) {
     getPid = pid;
     getSig = sig;
@@ -64,8 +72,8 @@ function kill(tryPid, trySig, expectPid, expectSig) {
 
   process.kill(tryPid, trySig);
 
-  assert.equal(getPid, expectPid);
-  assert.equal(getSig, expectSig);
+  assert.strictEqual(getPid.toString(), expectPid.toString());
+  assert.strictEqual(getSig, expectSig);
 }
 
 // Note that SIGHUP and SIGTERM map to 1 and 15 respectively, even on Windows

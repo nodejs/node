@@ -19,22 +19,22 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
 }
+const tls = require('tls');
 
-var assert = require('assert');
-var fs = require('fs');
-var net = require('net');
-var tls = require('tls');
+const fs = require('fs');
 
-var common = require('../common');
 
-var received = '';
-var ended = 0;
+let received = '';
 
-var server = tls.createServer({
+const server = tls.createServer({
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 }, function(c) {
@@ -42,24 +42,19 @@ var server = tls.createServer({
     c._write('world!', null, function() {
       c.destroy();
     });
-    c._write(' gosh', null, function() {});
+    c._write(' gosh', null, common.noop);
   });
 
   server.close();
-}).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, {
+}).listen(0, common.mustCall(function() {
+  const c = tls.connect(this.address().port, {
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
     c.on('data', function(chunk) {
       received += chunk;
     });
-    c.on('end', function() {
-      ended++;
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(ended, 1);
-  assert.equal(received, 'hello world! gosh');
-});
+    c.on('end', common.mustCall(function() {
+      assert.strictEqual(received, 'hello world! gosh');
+    }));
+  }));
+}));

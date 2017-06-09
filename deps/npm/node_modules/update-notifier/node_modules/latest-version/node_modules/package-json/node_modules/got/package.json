@@ -1,0 +1,141 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "got@^6.7.1",
+        "scope": null,
+        "escapedName": "got",
+        "name": "got",
+        "rawSpec": "^6.7.1",
+        "spec": ">=6.7.1 <7.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json"
+    ]
+  ],
+  "_from": "got@>=6.7.1 <7.0.0",
+  "_id": "got@6.7.1",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/got",
+  "_nodeVersion": "6.9.2",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/got-6.7.1.tgz_1483022570319_0.12133173388428986"
+  },
+  "_npmUser": {
+    "name": "floatdrop",
+    "email": "floatdrop@gmail.com"
+  },
+  "_npmVersion": "3.10.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "got@^6.7.1",
+    "scope": null,
+    "escapedName": "got",
+    "name": "got",
+    "rawSpec": "^6.7.1",
+    "spec": ">=6.7.1 <7.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json"
+  ],
+  "_resolved": "https://registry.npmjs.org/got/-/got-6.7.1.tgz",
+  "_shasum": "240cd05785a9a18e561dc1b44b41c763ef1e8db0",
+  "_shrinkwrap": null,
+  "_spec": "got@^6.7.1",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json",
+  "ava": {
+    "concurrency": 4
+  },
+  "browser": {
+    "unzip-response": false
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/got/issues"
+  },
+  "dependencies": {
+    "create-error-class": "^3.0.0",
+    "duplexer3": "^0.1.4",
+    "get-stream": "^3.0.0",
+    "is-redirect": "^1.0.0",
+    "is-retry-allowed": "^1.0.0",
+    "is-stream": "^1.0.0",
+    "lowercase-keys": "^1.0.0",
+    "safe-buffer": "^5.0.1",
+    "timed-out": "^4.0.0",
+    "unzip-response": "^2.0.1",
+    "url-parse-lax": "^1.0.0"
+  },
+  "description": "Simplified HTTP requests",
+  "devDependencies": {
+    "ava": "^0.17.0",
+    "coveralls": "^2.11.4",
+    "form-data": "^2.1.1",
+    "get-port": "^2.0.0",
+    "into-stream": "^3.0.0",
+    "nyc": "^10.0.0",
+    "pem": "^1.4.4",
+    "pify": "^2.3.0",
+    "tempfile": "^1.1.1",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "240cd05785a9a18e561dc1b44b41c763ef1e8db0",
+    "tarball": "https://registry.npmjs.org/got/-/got-6.7.1.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "52da6067ddac5250d6c2e76af9a150b9cf4ba025",
+  "homepage": "https://github.com/sindresorhus/got#readme",
+  "keywords": [
+    "http",
+    "https",
+    "get",
+    "got",
+    "url",
+    "uri",
+    "request",
+    "util",
+    "utility",
+    "simple",
+    "curl",
+    "wget",
+    "fetch"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    },
+    {
+      "name": "floatdrop",
+      "email": "floatdrop@gmail.com"
+    },
+    {
+      "name": "kevva",
+      "email": "kevinmartensson@gmail.com"
+    }
+  ],
+  "name": "got",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/got.git"
+  },
+  "scripts": {
+    "coveralls": "nyc report --reporter=text-lcov | coveralls",
+    "test": "xo && nyc ava"
+  },
+  "version": "6.7.1",
+  "xo": {
+    "esnext": true
+  }
+}

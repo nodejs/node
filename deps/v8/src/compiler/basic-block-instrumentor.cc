@@ -6,11 +6,14 @@
 
 #include <sstream>
 
+#include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/operator-properties-inl.h"
+#include "src/compiler/node.h"
+#include "src/compiler/operator-properties.h"
 #include "src/compiler/schedule.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -53,8 +56,7 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
   BasicBlockProfiler::Data* data =
       info->isolate()->GetOrCreateBasicBlockProfiler()->NewData(n_blocks);
   // Set the function name.
-  if (!info->shared_info().is_null() &&
-      info->shared_info()->name()->IsString()) {
+  if (info->has_shared_info() && info->shared_info()->name()->IsString()) {
     std::ostringstream os;
     String::cast(info->shared_info()->name())->PrintUC16(os);
     data->SetFunctionName(&os);
@@ -69,7 +71,7 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
   CommonOperatorBuilder common(graph->zone());
   Node* zero = graph->NewNode(common.Int32Constant(0));
   Node* one = graph->NewNode(common.Int32Constant(1));
-  MachineOperatorBuilder machine;
+  MachineOperatorBuilder machine(graph->zone());
   BasicBlockVector* blocks = schedule->rpo_order();
   size_t block_number = 0;
   for (BasicBlockVector::iterator it = blocks->begin(); block_number < n_blocks;
@@ -80,11 +82,13 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
     // Construct increment operation.
     Node* base = graph->NewNode(
         PointerConstant(&common, data->GetCounterAddress(block_number)));
-    Node* load = graph->NewNode(machine.Load(kMachUint32), base, zero);
+    Node* load = graph->NewNode(machine.Load(MachineType::Uint32()), base, zero,
+                                graph->start(), graph->start());
     Node* inc = graph->NewNode(machine.Int32Add(), load, one);
-    Node* store = graph->NewNode(
-        machine.Store(StoreRepresentation(kMachUint32, kNoWriteBarrier)), base,
-        zero, inc);
+    Node* store =
+        graph->NewNode(machine.Store(StoreRepresentation(
+                           MachineRepresentation::kWord32, kNoWriteBarrier)),
+                       base, zero, inc, graph->start(), graph->start());
     // Insert the new nodes.
     static const int kArraySize = 6;
     Node* to_insert[kArraySize] = {zero, one, base, load, inc, store};

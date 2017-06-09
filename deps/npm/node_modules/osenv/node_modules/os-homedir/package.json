@@ -1,0 +1,109 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "os-homedir@^1.0.0",
+        "scope": null,
+        "escapedName": "os-homedir",
+        "name": "os-homedir",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/osenv"
+    ]
+  ],
+  "_from": "os-homedir@>=1.0.0 <2.0.0",
+  "_id": "os-homedir@1.0.2",
+  "_inCache": true,
+  "_location": "/osenv/os-homedir",
+  "_nodeVersion": "6.6.0",
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/os-homedir-1.0.2.tgz_1475211519628_0.7873868853785098"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "3.10.3",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "os-homedir@^1.0.0",
+    "scope": null,
+    "escapedName": "os-homedir",
+    "name": "os-homedir",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/osenv"
+  ],
+  "_resolved": "https://registry.npmjs.org/os-homedir/-/os-homedir-1.0.2.tgz",
+  "_shasum": "ffbc4988336e0e833de0c168c7ef152121aa7fb3",
+  "_shrinkwrap": null,
+  "_spec": "os-homedir@^1.0.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/osenv",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/os-homedir/issues"
+  },
+  "dependencies": {},
+  "description": "Node.js 4 `os.homedir()` ponyfill",
+  "devDependencies": {
+    "ava": "*",
+    "path-exists": "^2.0.0",
+    "xo": "^0.16.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "ffbc4988336e0e833de0c168c7ef152121aa7fb3",
+    "tarball": "https://registry.npmjs.org/os-homedir/-/os-homedir-1.0.2.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "b1b0ae70a5965fef7005ff6509a5dd1a78c95e36",
+  "homepage": "https://github.com/sindresorhus/os-homedir#readme",
+  "keywords": [
+    "builtin",
+    "core",
+    "ponyfill",
+    "polyfill",
+    "shim",
+    "os",
+    "homedir",
+    "home",
+    "dir",
+    "directory",
+    "folder",
+    "user",
+    "path"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "os-homedir",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/os-homedir.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.0.2"
+}

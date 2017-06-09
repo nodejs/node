@@ -19,23 +19,45 @@
 # IN THE SOFTWARE.
 
 PLATFORM ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
-SONAME ?= libhttp_parser.so.2.3
+HELPER ?=
+BINEXT ?=
+ifeq (darwin,$(PLATFORM))
+SONAME ?= libhttp_parser.2.7.0.dylib
+SOEXT ?= dylib
+else ifeq (wine,$(PLATFORM))
+CC = winegcc
+BINEXT = .exe.so
+HELPER = wine
+else
+SONAME ?= libhttp_parser.so.2.7.0
+SOEXT ?= so
+endif
 
 CC?=gcc
 AR?=ar
+
+CPPFLAGS ?=
+LDFLAGS ?=
 
 CPPFLAGS += -I.
 CPPFLAGS_DEBUG = $(CPPFLAGS) -DHTTP_PARSER_STRICT=1
 CPPFLAGS_DEBUG += $(CPPFLAGS_DEBUG_EXTRA)
 CPPFLAGS_FAST = $(CPPFLAGS) -DHTTP_PARSER_STRICT=0
 CPPFLAGS_FAST += $(CPPFLAGS_FAST_EXTRA)
+CPPFLAGS_BENCH = $(CPPFLAGS_FAST)
 
 CFLAGS += -Wall -Wextra -Werror
 CFLAGS_DEBUG = $(CFLAGS) -O0 -g $(CFLAGS_DEBUG_EXTRA)
 CFLAGS_FAST = $(CFLAGS) -O3 $(CFLAGS_FAST_EXTRA)
+CFLAGS_BENCH = $(CFLAGS_FAST) -Wno-unused-parameter
 CFLAGS_LIB = $(CFLAGS_FAST) -fPIC
 
 LDFLAGS_LIB = $(LDFLAGS) -shared
+
+INSTALL ?= install
+PREFIX ?= $(DESTDIR)/usr/local
+LIBDIR = $(PREFIX)/lib
+INCLUDEDIR = $(PREFIX)/include
 
 ifneq (darwin,$(PLATFORM))
 # TODO(bnoordhuis) The native SunOS linker expects -h rather than -soname...
@@ -43,8 +65,8 @@ LDFLAGS_LIB += -Wl,-soname=$(SONAME)
 endif
 
 test: test_g test_fast
-	./test_g
-	./test_fast
+	$(HELPER) ./test_g$(BINEXT)
+	$(HELPER) ./test_fast$(BINEXT)
 
 test_g: http_parser_g.o test_g.o
 	$(CC) $(CFLAGS_DEBUG) $(LDFLAGS) http_parser_g.o test_g.o -o $@
@@ -61,11 +83,17 @@ test_fast: http_parser.o test.o http_parser.h
 test.o: test.c http_parser.h Makefile
 	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) -c test.c -o $@
 
+bench: http_parser.o bench.o
+	$(CC) $(CFLAGS_BENCH) $(LDFLAGS) http_parser.o bench.o -o $@
+
+bench.o: bench.c http_parser.h Makefile
+	$(CC) $(CPPFLAGS_BENCH) $(CFLAGS_BENCH) -c bench.c -o $@
+
 http_parser.o: http_parser.c http_parser.h Makefile
 	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) -c http_parser.c
 
 test-run-timed: test_fast
-	while(true) do time ./test_fast > /dev/null; done
+	while(true) do time $(HELPER) ./test_fast$(BINEXT) > /dev/null; done
 
 test-valgrind: test_g
 	valgrind ./test_g
@@ -86,20 +114,36 @@ url_parser_g: http_parser_g.o contrib/url_parser.c
 	$(CC) $(CPPFLAGS_DEBUG) $(CFLAGS_DEBUG) $^ -o $@
 
 parsertrace: http_parser.o contrib/parsertrace.c
-	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) $^ -o parsertrace
+	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) $^ -o parsertrace$(BINEXT)
 
 parsertrace_g: http_parser_g.o contrib/parsertrace.c
-	$(CC) $(CPPFLAGS_DEBUG) $(CFLAGS_DEBUG) $^ -o parsertrace_g
+	$(CC) $(CPPFLAGS_DEBUG) $(CFLAGS_DEBUG) $^ -o parsertrace_g$(BINEXT)
 
 tags: http_parser.c http_parser.h test.c
 	ctags $^
 
+install: library
+	$(INSTALL) -D  http_parser.h $(INCLUDEDIR)/http_parser.h
+	$(INSTALL) -D $(SONAME) $(LIBDIR)/$(SONAME)
+	ln -s $(LIBDIR)/$(SONAME) $(LIBDIR)/libhttp_parser.$(SOEXT)
+
+install-strip: library
+	$(INSTALL) -D  http_parser.h $(INCLUDEDIR)/http_parser.h
+	$(INSTALL) -D -s $(SONAME) $(LIBDIR)/$(SONAME)
+	ln -s $(LIBDIR)/$(SONAME) $(LIBDIR)/libhttp_parser.$(SOEXT)
+
+uninstall:
+	rm $(INCLUDEDIR)/http_parser.h
+	rm $(LIBDIR)/$(SONAME)
+	rm $(LIBDIR)/libhttp_parser.so
+
 clean:
 	rm -f *.o *.a tags test test_fast test_g \
 		http_parser.tar libhttp_parser.so.* \
-		url_parser url_parser_g parsertrace parsertrace_g
+		url_parser url_parser_g parsertrace parsertrace_g \
+		*.exe *.exe.so
 
 contrib/url_parser.c:	http_parser.h
 contrib/parsertrace.c:	http_parser.h
 
-.PHONY: clean package test-run test-run-timed test-valgrind
+.PHONY: clean package test-run test-run-timed test-valgrind install install-strip uninstall

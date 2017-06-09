@@ -19,21 +19,28 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+/* eslint-disable strict */
+const common = require('../common');
+const path = require('path');
+const assert = require('assert');
 
 common.globalCheck = false;
 
-baseFoo = 'foo';
+baseFoo = 'foo'; // eslint-disable-line no-undef
 global.baseBar = 'bar';
 
-assert.equal('foo', global.baseFoo, 'x -> global.x in base level not working');
+assert.strictEqual('foo', global.baseFoo,
+                   'x -> global.x in base level not working');
 
-assert.equal('bar', baseBar, 'global.x -> x in base level not working');
+assert.strictEqual('bar',
+                   baseBar, // eslint-disable-line no-undef
+                   'global.x -> x in base level not working');
 
-var module = require('../fixtures/global/plain'),
-    fooBar = module.fooBar;
+const mod = require(path.join(common.fixturesDir, 'global', 'plain'));
+const fooBar = mod.fooBar;
 
-assert.equal('foo', fooBar.foo, 'x -> global.x in sub level not working');
+assert.strictEqual('foo', fooBar.foo, 'x -> global.x in sub level not working');
 
-assert.equal('bar', fooBar.bar, 'global.x -> x in sub level not working');
+assert.strictEqual('bar', fooBar.bar, 'global.x -> x in sub level not working');
+
+assert.strictEqual(Object.prototype.toString.call(global), '[object global]');

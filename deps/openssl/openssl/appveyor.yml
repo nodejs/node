@@ -1,0 +1,60 @@
+platform:
+    - x86
+    - x64
+
+environment:
+    matrix:
+        - VSVER: 9
+        - VSVER: 10
+        - VSVER: 11
+        - VSVER: 12
+        - VSVER: 14
+
+configuration:
+    - plain
+    - shared
+
+matrix:
+    allow_failures:
+        - platform: x64
+          VSVER: 9
+        - platform: x64
+          VSVER: 10
+        - platform: x64
+          VSVER: 11
+
+before_build:
+    - ps: >-
+        If ($env:Platform -Match "x86") {
+            $env:VCVARS_PLATFORM="x86"
+            $env:TARGET="VC-WIN32"
+            $env:DO="do_ms"
+        } Else {
+            $env:VCVARS_PLATFORM="amd64"
+            $env:TARGET="VC-WIN64A"
+            $env:DO="do_win64a"
+        }
+    - ps: >-
+        If ($env:Configuration -Like "*shared*") {
+            $env:MAK="ntdll.mak"
+        } Else {
+            $env:MAK="nt.mak"
+        }
+    - ps: $env:VSCOMNTOOLS=(Get-Content ("env:VS" + "$env:VSVER" + "0COMNTOOLS"))
+    - call "%VSCOMNTOOLS%\..\..\VC\vcvarsall.bat" %VCVARS_PLATFORM%
+    - perl Configure %TARGET% no-asm
+    - call ms\%DO%
+
+build_script:
+    - nmake /f ms\%MAK%
+
+test_script:
+    - nmake /f ms\%MAK% test
+
+notifications:
+    - provider: Email
+      to:
+          - openssl-commits@openssl.org
+      on_build_success: false
+      on_build_failure: true
+      on_build_status_changed: true

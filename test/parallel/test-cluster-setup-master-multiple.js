@@ -19,22 +19,22 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+'use strict';
+require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
 assert(cluster.isMaster);
 
 // The cluster.settings object is cloned even though the current implementation
-// makes that unecessary. This is to make the test less fragile if the
+// makes that unnecessary. This is to make the test less fragile if the
 // implementation ever changes such that cluster.settings is mutated instead of
 // replaced.
 function cheapClone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-var configs = [];
+const configs = [];
 
 // Capture changes
 cluster.on('setup', function() {
@@ -42,7 +42,7 @@ cluster.on('setup', function() {
   configs.push(cheapClone(cluster.settings));
 });
 
-var execs = [
+const execs = [
   'node-next',
   'node-next-2',
   'node-next-3',

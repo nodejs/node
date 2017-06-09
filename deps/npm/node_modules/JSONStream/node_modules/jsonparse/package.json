@@ -1,0 +1,98 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "jsonparse@^1.2.0",
+        "scope": null,
+        "escapedName": "jsonparse",
+        "name": "jsonparse",
+        "rawSpec": "^1.2.0",
+        "spec": ">=1.2.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/JSONStream"
+    ]
+  ],
+  "_from": "jsonparse@>=1.2.0 <2.0.0",
+  "_id": "jsonparse@1.3.0",
+  "_inCache": true,
+  "_location": "/JSONStream/jsonparse",
+  "_nodeVersion": "4.1.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/jsonparse-1.3.0.tgz_1484597944748_0.925271877553314"
+  },
+  "_npmUser": {
+    "name": "creationix",
+    "email": "tim@creationix.com"
+  },
+  "_npmVersion": "2.14.4",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "jsonparse@^1.2.0",
+    "scope": null,
+    "escapedName": "jsonparse",
+    "name": "jsonparse",
+    "rawSpec": "^1.2.0",
+    "spec": ">=1.2.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/JSONStream"
+  ],
+  "_resolved": "https://registry.npmjs.org/jsonparse/-/jsonparse-1.3.0.tgz",
+  "_shasum": "85fc245b1d9259acc6941960b905adf64e7de0e8",
+  "_shrinkwrap": null,
+  "_spec": "jsonparse@^1.2.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/JSONStream",
+  "author": {
+    "name": "Tim Caswell",
+    "email": "tim@creationix.com"
+  },
+  "bugs": {
+    "url": "http://github.com/creationix/jsonparse/issues"
+  },
+  "dependencies": {},
+  "description": "This is a pure-js JSON streaming parser for node.js",
+  "devDependencies": {
+    "tap": "~0.3.3",
+    "tape": "~0.1.1"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "85fc245b1d9259acc6941960b905adf64e7de0e8",
+    "tarball": "https://registry.npmjs.org/jsonparse/-/jsonparse-1.3.0.tgz"
+  },
+  "engines": [
+    "node >= 0.2.0"
+  ],
+  "gitHead": "69f02ca615aeeb4cbbe786ab42ce0592b44dc217",
+  "homepage": "https://github.com/creationix/jsonparse#readme",
+  "license": "MIT",
+  "main": "jsonparse.js",
+  "maintainers": [
+    {
+      "name": "creationix",
+      "email": "tim@creationix.com"
+    },
+    {
+      "name": "substack",
+      "email": "mail@substack.net"
+    }
+  ],
+  "name": "jsonparse",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/creationix/jsonparse.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "tags": [
+    "json",
+    "stream"
+  ],
+  "version": "1.3.0"
+}

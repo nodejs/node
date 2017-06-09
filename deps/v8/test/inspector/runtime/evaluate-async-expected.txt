@@ -1,0 +1,91 @@
+Tests that Runtime.evaluate works with awaitPromise flag.
+
+Running test: testResolvedPromise
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
+}
+
+Running test: testRejectedPromise
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                description : 239
+                type : number
+                value : 239
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            text : Uncaught (in promise)
+        }
+        result : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
+}
+
+Running test: testPrimitiveValueInsteadOfPromise
+{
+    error : {
+        code : -32000
+        message : Result of the evaluation is not a promise
+    }
+    id : <messageId>
+}
+
+Running test: testObjectInsteadOfPromise
+{
+    error : {
+        code : -32000
+        message : Result of the evaluation is not a promise
+    }
+    id : <messageId>
+}
+
+Running test: testPendingPromise
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : {
+                a : 239
+            }
+        }
+    }
+}
+
+Running test: testExceptionInEvaluate
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                description : 239
+                type : number
+                value : 239
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
+}

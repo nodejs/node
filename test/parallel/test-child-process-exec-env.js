@@ -19,16 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
-var common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
-var success_count = 0;
-var error_count = 0;
-var response = '';
-var child;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const exec = require('child_process').exec;
+let success_count = 0;
+let error_count = 0;
+let response = '';
+let child;
 
 function after(err, stdout, stderr) {
   if (err) {
@@ -36,14 +34,14 @@ function after(err, stdout, stderr) {
     console.log('error!: ' + err.code);
     console.log('stdout: ' + JSON.stringify(stdout));
     console.log('stderr: ' + JSON.stringify(stderr));
-    assert.equal(false, err.killed);
+    assert.strictEqual(false, err.killed);
   } else {
     success_count++;
-    assert.equal(true, stdout != '');
+    assert.notStrictEqual('', stdout);
   }
 }
 
-if (process.platform !== 'win32') {
+if (!common.isWindows) {
   child = exec('/usr/bin/env', { env: { 'HELLO': 'WORLD' } }, after);
 } else {
   child = exec('set', { env: { 'HELLO': 'WORLD' } }, after);
@@ -56,7 +54,7 @@ child.stdout.on('data', function(chunk) {
 
 process.on('exit', function() {
   console.log('response: ', response);
-  assert.equal(1, success_count);
-  assert.equal(0, error_count);
-  assert.ok(response.indexOf('HELLO=WORLD') >= 0);
+  assert.strictEqual(1, success_count);
+  assert.strictEqual(0, error_count);
+  assert.ok(response.includes('HELLO=WORLD'));
 });

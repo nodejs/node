@@ -48,6 +48,7 @@ eval('f(null)');
 
 // Check called from strict builtin functions.
 [null, null].sort(f);
+[null].forEach(f, null);
 
 // Check called from sloppy builtin functions.
 "abel".replace(/b/g, function h() {

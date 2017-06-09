@@ -1,0 +1,26 @@
+{
+  "name": "Memory",
+  "run_count": 5,
+  "units": "bytes",
+  "path" : ["."],
+  "binary": "cctest",
+  "main": "test-serialize/SerializationMemoryStats",
+  "tests": [
+    {
+      "name": "ReservedMemoryIsolate",
+      "results_regexp": "(\\d+) bytes per isolate$"
+    },
+    {
+      "name": "ReservedMemoryContext",
+      "results_regexp": "(\\d+) bytes per context #0$"
+    },
+    {
+      "name": "SnapshotSizeStartup",
+      "results_regexp": "(\\d+) bytes for startup$"
+    },
+    {
+      "name": "SnapshotSizeContext",
+      "results_regexp": "(\\d+) bytes for context #0$"
+    }
+  ]
+}

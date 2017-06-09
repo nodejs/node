@@ -4,6 +4,7 @@
 //
 // This file was generated at 2014-10-08 15:25:47.940335
 
+#include "src/unicode.h"
 #include "src/unicode-inl.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -189,76 +190,191 @@ static int LookupMapping(const int32_t* table,
   }
 }
 
+static inline uint8_t NonASCIISequenceLength(byte first) {
+  // clang-format off
+  static const uint8_t lengths[256] = {
+      // The first 128 entries correspond to ASCII characters.
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      // The following 64 entries correspond to continuation bytes.
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      // The next are two invalid overlong encodings and 30 two-byte sequences.
+      0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      // 16 three-byte sequences.
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      // 5 four-byte sequences, followed by sequences that could only encode
+      // code points outside of the unicode range.
+      4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  // clang-format on
+  return lengths[first];
+}
 
-uchar Utf8::CalculateValue(const byte* str,
-                           unsigned length,
-                           unsigned* cursor) {
-  // We only get called for non-ASCII characters.
-  if (length == 1) {
-    *cursor += 1;
-    return kBadChar;
+
+static inline bool IsContinuationCharacter(byte chr) {
+  return chr >= 0x80 && chr <= 0xBF;
+}
+
+
+// This method decodes an UTF-8 value according to RFC 3629.
+uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
+  size_t length = NonASCIISequenceLength(str[0]);
+
+  // Check continuation characters.
+  size_t max_count = std::min(length, max_length);
+  size_t count = 1;
+  while (count < max_count && IsContinuationCharacter(str[count])) {
+    count++;
   }
-  byte first = str[0];
-  byte second = str[1] ^ 0x80;
-  if (second & 0xC0) {
-    *cursor += 1;
-    return kBadChar;
-  }
-  if (first < 0xE0) {
-    if (first < 0xC0) {
-      *cursor += 1;
-      return kBadChar;
-    }
-    uchar code_point = ((first << 6) | second) & kMaxTwoByteChar;
-    if (code_point <= kMaxOneByteChar) {
-      *cursor += 1;
-      return kBadChar;
-    }
-    *cursor += 2;
-    return code_point;
-  }
-  if (length == 2) {
-    *cursor += 1;
-    return kBadChar;
-  }
-  byte third = str[2] ^ 0x80;
-  if (third & 0xC0) {
-    *cursor += 1;
-    return kBadChar;
-  }
-  if (first < 0xF0) {
-    uchar code_point = ((((first << 6) | second) << 6) | third)
-        & kMaxThreeByteChar;
-    if (code_point <= kMaxTwoByteChar) {
-      *cursor += 1;
-      return kBadChar;
-    }
-    *cursor += 3;
-    return code_point;
-  }
+  *cursor += count;
+
+  // There must be enough continuation characters.
+  if (count != length) return kBadChar;
+
+  // Check overly long sequences & other conditions.
   if (length == 3) {
-    *cursor += 1;
-    return kBadChar;
-  }
-  byte fourth = str[3] ^ 0x80;
-  if (fourth & 0xC0) {
-    *cursor += 1;
-    return kBadChar;
-  }
-  if (first < 0xF8) {
-    uchar code_point = (((((first << 6 | second) << 6) | third) << 6) | fourth)
-        & kMaxFourByteChar;
-    if (code_point <= kMaxThreeByteChar) {
-      *cursor += 1;
+    if (str[0] == 0xE0 && (str[1] < 0xA0 || str[1] > 0xBF)) {
+      // Overlong three-byte sequence?
+      return kBadChar;
+    } else if (str[0] == 0xED && (str[1] < 0x80 || str[1] > 0x9F)) {
+      // High and low surrogate halves?
       return kBadChar;
     }
-    *cursor += 4;
-    return code_point;
+  } else if (length == 4) {
+    if (str[0] == 0xF0 && (str[1] < 0x90 || str[1] > 0xBF)) {
+      // Overlong four-byte sequence.
+      return kBadChar;
+    } else if (str[0] == 0xF4 && (str[1] < 0x80 || str[1] > 0x8F)) {
+      // Code points outside of the unicode range.
+      return kBadChar;
+    }
   }
-  *cursor += 1;
+
+  // All errors have been handled, so we only have to assemble the result.
+  switch (length) {
+    case 1:
+      return str[0];
+    case 2:
+      return ((str[0] << 6) + str[1]) - 0x00003080;
+    case 3:
+      return ((str[0] << 12) + (str[1] << 6) + str[2]) - 0x000E2080;
+    case 4:
+      return ((str[0] << 18) + (str[1] << 12) + (str[2] << 6) + str[3]) -
+             0x03C82080;
+  }
+
+  UNREACHABLE();
   return kBadChar;
 }
 
+uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
+  DCHECK_NOT_NULL(buffer);
+
+  // The common case: 1-byte Utf8 (and no incomplete char in the buffer)
+  if (V8_LIKELY(next <= kMaxOneByteChar && *buffer == 0)) {
+    return static_cast<uchar>(next);
+  }
+
+  if (*buffer == 0) {
+    // We're at the start of a new character.
+    uint32_t kind = NonASCIISequenceLength(next);
+    if (kind >= 2 && kind <= 4) {
+      // Start of 2..4 byte character, and no buffer.
+
+      // The mask for the lower bits depends on the kind, and is
+      // 0x1F, 0x0F, 0x07 for kinds 2, 3, 4 respectively. We can get that
+      // with one shift.
+      uint8_t mask = 0x7f >> kind;
+
+      // Store the kind in the top nibble, and kind - 1 (i.e., remaining bytes)
+      // in 2nd nibble, and the value  in the bottom three. The 2nd nibble is
+      // intended as a counter about how many bytes are still needed.
+      *buffer = kind << 28 | (kind - 1) << 24 | (next & mask);
+      return kIncomplete;
+    } else {
+      // No buffer, and not the start of a 1-byte char (handled at the
+      // beginning), and not the start of a 2..4 byte char? Bad char.
+      *buffer = 0;
+      return kBadChar;
+    }
+  } else if (*buffer <= 0xff) {
+    // We have one unprocessed byte left (from the last else case in this if
+    // statement).
+    uchar previous = *buffer;
+    *buffer = 0;
+    uchar t = ValueOfIncremental(previous, buffer);
+    if (t == kIncomplete) {
+      // If we have an incomplete character, process both the previous and the
+      // next byte at once.
+      return ValueOfIncremental(next, buffer);
+    } else {
+      // Otherwise, process the previous byte and save the next byte for next
+      // time.
+      DCHECK_EQ(0u, *buffer);
+      *buffer = next;
+      return t;
+    }
+  } else if (IsContinuationCharacter(next)) {
+    // We're inside of a character, as described by buffer.
+
+    // How many bytes (excluding this one) do we still expect?
+    uint8_t bytes_expected = *buffer >> 28;
+    uint8_t bytes_left = (*buffer >> 24) & 0x0f;
+    bytes_left--;
+    // Update the value.
+    uint32_t value = ((*buffer & 0xffffff) << 6) | (next & 0x3F);
+    if (bytes_left) {
+      *buffer = (bytes_expected << 28 | bytes_left << 24 | value);
+      return kIncomplete;
+    } else {
+      *buffer = 0;
+      bool sequence_was_too_long = (bytes_expected == 2 && value < 0x80) ||
+                                   (bytes_expected == 3 && value < 0x800);
+      return sequence_was_too_long ? kBadChar : value;
+    }
+  } else {
+    // Within a character, but not a continuation character? Then the
+    // previous char was a bad char. But we need to save the current
+    // one.
+    *buffer = next;
+    return kBadChar;
+  }
+}
+
+uchar Utf8::ValueOfIncrementalFinish(Utf8IncrementalBuffer* buffer) {
+  DCHECK_NOT_NULL(buffer);
+  if (*buffer == 0) {
+    return kBufferEmpty;
+  } else {
+    // Process left-over chars. An incomplete char at the end maps to kBadChar.
+    uchar t = ValueOfIncremental(0, buffer);
+    return (t == kIncomplete) ? kBadChar : t;
+  }
+}
+
+bool Utf8::Validate(const byte* bytes, size_t length) {
+  size_t cursor = 0;
+
+  // Performance optimization: Skip over single-byte values first.
+  while (cursor < length && bytes[cursor] <= kMaxOneByteChar) {
+    ++cursor;
+  }
+
+  while (cursor < length) {
+    uchar c = ValueOf(bytes + cursor, length - cursor, &cursor);
+    if (!IsValidCharacter(c)) return false;
+  }
+  return true;
+}
 
 // Uppercase:            point.category == 'Lu'
 
@@ -1168,9 +1284,9 @@ bool ID_Continue::Is(uchar c) {
 // WhiteSpace:           (point.category == 'Zs') or ('JS_White_Space' in
 // point.properties)
 
-static const uint16_t kWhiteSpaceTable0Size = 7;
-static const int32_t kWhiteSpaceTable0[7] = {9,   1073741835, 12,  32,
-                                             160, 5760,       6158};  // NOLINT
+static const uint16_t kWhiteSpaceTable0Size = 6;
+static const int32_t kWhiteSpaceTable0[6] = {9,  1073741835, 12,
+                                             32, 160,        5760};  // NOLINT
 static const uint16_t kWhiteSpaceTable1Size = 5;
 static const int32_t kWhiteSpaceTable1[5] = {
   1073741824, 10, 47, 95, 4096 };  // NOLINT

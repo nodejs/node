@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- CMS_verify - verify a CMS SignedData structure
+CMS_verify, CMS_get0_signers - verify a CMS SignedData structure
 
 =head1 SYNOPSIS
 

@@ -1,16 +1,18 @@
 This directory contains code for binding the test262 test suite
-into the v8 test harness. To use the tests check out the test262
-tests from
+into the v8 test harness. The tests are checked out as a dependency from
 
-  https://github.com/tc39/test262
+  https://chromium.googlesource.com/external/github.com/tc39/test262
 
-at revision 365 (hash fbba29f) as 'data' in this directory.  Using later
-version may be possible but the tests are only known to pass (and indeed run)
-with that revision.
+at a revision specified in the DEPS file as 'data' in this directory. They are
+fetched with 'gclient sync'. To update to a newer version, please change the
+DEPS file.
 
-  git clone https://github.com/tc39/test262 data
+Using a newer version, e.g. 'deadbeef' may be possible but the tests are only
+known to pass (and indeed run) with the DEPS revision. Example:
+
   cd data
-  git checkout fbba29f
+  git fetch
+  git checkout deadbeef
 
 If you do update to a newer revision you may have to change the test
 harness adapter code since it uses internal functionality from the

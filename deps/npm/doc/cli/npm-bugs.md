@@ -3,8 +3,9 @@ npm-bugs(1) -- Bugs for a package in a web browser maybe
 
 ## SYNOPSIS
 
-    npm bugs <pkgname>
-    npm bugs (with no args in a package dir)
+    npm bugs [<pkgname>]
+
+    aliases: issues
 
 ## DESCRIPTION
 

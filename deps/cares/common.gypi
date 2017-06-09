@@ -137,7 +137,7 @@
         ],
       }],
 
-      [ 'OS in "linux freebsd openbsd solaris android"', {
+      [ 'OS in "linux freebsd openbsd solaris android aix"', {
         'variables': {
           'gcc_version%': '<!(python build/gcc_version.py)>)'
         },

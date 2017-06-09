@@ -1,7 +1,0 @@
-{
-    "name": "package-bar",
-    "version": "0.5.0",
-    "dependencies": {
-        "package-foo": "*"
-    }
-}

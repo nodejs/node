@@ -19,23 +19,20 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
+const path = require('path');
 
-var f = path.join(common.fixturesDir, 'x.txt');
-var f2 = path.join(common.fixturesDir, 'x2.txt');
+const f = path.join(common.fixturesDir, 'x.txt');
 
-console.log('watching for changes of ' + f);
-
-var changes = 0;
+let changes = 0;
 function watchFile() {
-  fs.watchFile(f, function(curr, prev) {
-    console.log(f + ' change');
+  fs.watchFile(f, (curr, prev) => {
     changes++;
-    assert.ok(curr.mtime != prev.mtime);
+    assert.notDeepStrictEqual(curr.mtime, prev.mtime);
     fs.unwatchFile(f);
     watchFile();
     fs.unwatchFile(f);
@@ -45,7 +42,7 @@ function watchFile() {
 watchFile();
 
 
-var fd = fs.openSync(f, 'w+');
+const fd = fs.openSync(f, 'w+');
 fs.writeSync(fd, 'xyz\n');
 fs.closeSync(fd);
 

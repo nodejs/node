@@ -5,6 +5,7 @@
 #ifndef V8_BASE_PLATFORM_CONDITION_VARIABLE_H_
 #define V8_BASE_PLATFORM_CONDITION_VARIABLE_H_
 
+#include "src/base/base-export.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
 
@@ -28,7 +29,7 @@ class TimeDelta;
 // the mutex and suspend the execution of the calling thread. When the condition
 // variable is notified, the thread is awakened, and the mutex is reacquired.
 
-class ConditionVariable FINAL {
+class V8_BASE_EXPORT ConditionVariable final {
  public:
   ConditionVariable();
   ~ConditionVariable();
@@ -63,7 +64,7 @@ class ConditionVariable FINAL {
   typedef pthread_cond_t NativeHandle;
 #elif V8_OS_WIN
   struct Event;
-  class NativeHandle FINAL {
+  class NativeHandle final {
    public:
     NativeHandle() : waitlist_(NULL), freelist_(NULL) {}
     ~NativeHandle();
@@ -113,6 +114,7 @@ typedef LazyStaticInstance<
 
 #define LAZY_CONDITION_VARIABLE_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_PLATFORM_CONDITION_VARIABLE_H_

@@ -1,0 +1,99 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "pumpify@^1.3.3",
+        "scope": null,
+        "escapedName": "pumpify",
+        "name": "pumpify",
+        "rawSpec": "^1.3.3",
+        "spec": ">=1.3.3 <2.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/mississippi"
+    ]
+  ],
+  "_from": "pumpify@>=1.3.3 <2.0.0",
+  "_id": "pumpify@1.3.5",
+  "_inCache": true,
+  "_location": "/mississippi/pumpify",
+  "_nodeVersion": "4.4.3",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/pumpify-1.3.5.tgz_1465886760120_0.06353981443680823"
+  },
+  "_npmUser": {
+    "name": "mafintosh",
+    "email": "mathiasbuus@gmail.com"
+  },
+  "_npmVersion": "2.15.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "pumpify@^1.3.3",
+    "scope": null,
+    "escapedName": "pumpify",
+    "name": "pumpify",
+    "rawSpec": "^1.3.3",
+    "spec": ">=1.3.3 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/mississippi"
+  ],
+  "_resolved": "https://registry.npmjs.org/pumpify/-/pumpify-1.3.5.tgz",
+  "_shasum": "1b671c619940abcaeac0ad0e3a3c164be760993b",
+  "_shrinkwrap": null,
+  "_spec": "pumpify@^1.3.3",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/mississippi",
+  "author": {
+    "name": "Mathias Buus"
+  },
+  "bugs": {
+    "url": "https://github.com/mafintosh/pumpify/issues"
+  },
+  "dependencies": {
+    "duplexify": "^3.1.2",
+    "inherits": "^2.0.1",
+    "pump": "^1.0.0"
+  },
+  "description": "Combine an array of streams into a single duplex stream using pump and duplexify",
+  "devDependencies": {
+    "tape": "^2.13.3",
+    "through2": "^0.5.1"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "1b671c619940abcaeac0ad0e3a3c164be760993b",
+    "tarball": "https://registry.npmjs.org/pumpify/-/pumpify-1.3.5.tgz"
+  },
+  "gitHead": "b3eb78d20b310409beca86de87a4fba68bc9656e",
+  "homepage": "https://github.com/mafintosh/pumpify",
+  "keywords": [
+    "pump",
+    "duplexify",
+    "duplex",
+    "streams",
+    "stream",
+    "pipeline",
+    "combine"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "mafintosh",
+      "email": "mathiasbuus@gmail.com"
+    }
+  ],
+  "name": "pumpify",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mafintosh/pumpify.git"
+  },
+  "scripts": {
+    "test": "tape test.js"
+  },
+  "version": "1.3.5"
+}

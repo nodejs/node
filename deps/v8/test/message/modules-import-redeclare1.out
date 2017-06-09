@@ -1,0 +1,5 @@
+*%(basename)s:8: SyntaxError: Identifier 'x' has already been declared
+import {x} from "modules-import-redeclare1.js";
+        ^
+SyntaxError: Identifier 'x' has already been declared
+

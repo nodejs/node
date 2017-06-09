@@ -5,16 +5,19 @@
 #ifndef V8_BACKGROUND_PARSING_TASK_H_
 #define V8_BACKGROUND_PARSING_TASK_H_
 
+#include <memory>
+
+#include "include/v8.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
-#include "src/compiler.h"
-#include "src/parser.h"
-#include "src/smart-pointers.h"
+#include "src/parsing/parse-info.h"
+#include "src/unicode-cache.h"
 
 namespace v8 {
 namespace internal {
 
 class Parser;
+class ScriptData;
 
 // Internal representation of v8::ScriptCompiler::StreamedSource. Contains all
 // data which needs to be transmitted between threads for background parsing,
@@ -22,29 +25,25 @@ class Parser;
 struct StreamedSource {
   StreamedSource(ScriptCompiler::ExternalSourceStream* source_stream,
                  ScriptCompiler::StreamedSource::Encoding encoding)
-      : source_stream(source_stream),
-        encoding(encoding),
-        hash_seed(0),
-        allow_lazy(false) {}
+      : source_stream(source_stream), encoding(encoding) {}
+
+  void Release();
 
   // Internal implementation of v8::ScriptCompiler::StreamedSource.
-  SmartPointer<ScriptCompiler::ExternalSourceStream> source_stream;
+  std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream;
   ScriptCompiler::StreamedSource::Encoding encoding;
-  SmartPointer<ScriptCompiler::CachedData> cached_data;
+  std::unique_ptr<ScriptCompiler::CachedData> cached_data;
 
   // Data needed for parsing, and data needed to to be passed between thread
   // between parsing and compilation. These need to be initialized before the
   // compilation starts.
   UnicodeCache unicode_cache;
-  SmartPointer<CompilationInfo> info;
-  uint32_t hash_seed;
-  bool allow_lazy;
-  SmartPointer<Parser> parser;
+  std::unique_ptr<ParseInfo> info;
+  std::unique_ptr<Parser> parser;
 
- private:
-  // Prevent copying. Not implemented.
-  StreamedSource(const StreamedSource&);
-  StreamedSource& operator=(const StreamedSource&);
+  // Prevent copying.
+  StreamedSource(const StreamedSource&) = delete;
+  StreamedSource& operator=(const StreamedSource&) = delete;
 };
 
 
@@ -58,10 +57,10 @@ class BackgroundParsingTask : public ScriptCompiler::ScriptStreamingTask {
 
  private:
   StreamedSource* source_;  // Not owned.
-  ScriptCompiler::CompileOptions options_;
   int stack_size_;
+  ScriptData* script_data_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_BACKGROUND_PARSING_TASK_H_

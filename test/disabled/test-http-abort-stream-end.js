@@ -19,10 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
 var maxSize = 1024;
 var size = 0;
@@ -56,6 +57,6 @@ s.listen(common.PORT, function() {
 
 process.on('exit', function() {
   assert(aborted);
-  assert.equal(size, maxSize);
+  assert.strictEqual(size, maxSize);
   console.log('ok');
 });

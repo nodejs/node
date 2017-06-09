@@ -63,6 +63,8 @@ def GuessOS():
     return 'solaris'
   elif id == 'NetBSD':
     return 'netbsd'
+  elif id == 'AIX':
+    return 'aix'
   else:
     return None
 
@@ -73,7 +75,9 @@ def GuessOS():
 def GuessArchitecture():
   id = platform.machine()
   id = id.lower()  # Windows 7 capitalizes 'AMD64'.
-  if id.startswith('arm'):
+  if id.startswith('armv6'): # Can return 'armv6l'.
+    return 'armv6'
+  elif id.startswith('arm') or id == 'aarch64':
     return 'arm'
   elif (not id) or (not re.match('(x|i[3-6])86$', id) is None):
     return 'ia32'
@@ -83,15 +87,15 @@ def GuessArchitecture():
     return 'ia32'
   elif id == 'amd64':
     return 'ia32'
+  elif id.startswith('ppc'):
+    return 'ppc'
+  elif id == 's390x':
+    return 's390'
   else:
+    id = platform.processor()
+    if id == 'powerpc':
+      return 'ppc'
     return None
-
-
-def GuessWordsize():
-  if '64' in platform.machine():
-    return '64'
-  else:
-    return '32'
 
 
 def IsWindows():

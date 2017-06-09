@@ -19,13 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-
-var cat = spawn('cat');
-var called;
+const cat = spawn('cat');
+let called;
 
 assert.ok(process.kill(cat.pid, 0));
 

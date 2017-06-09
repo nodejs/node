@@ -36,8 +36,7 @@
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/isolate.h"
-#include "src/parser.h"
-#include "src/snapshot.h"
+#include "src/objects-inl.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
@@ -46,7 +45,6 @@ using ::v8::Context;
 using ::v8::Extension;
 using ::v8::Function;
 using ::v8::FunctionTemplate;
-using ::v8::Handle;
 using ::v8::HandleScope;
 using ::v8::Local;
 using ::v8::Message;
@@ -62,9 +60,10 @@ using ::v8::Undefined;
 using ::v8::V8;
 using ::v8::Value;
 
-static void ExpectInt32(int32_t expected, Local<Value> result) {
+static void ExpectInt32(Local<Context> context, int32_t expected,
+                        Local<Value> result) {
   CHECK(result->IsInt32());
-  CHECK_EQ(expected, result->Int32Value());
+  CHECK_EQ(expected, result->Int32Value(context).FromJust());
 }
 
 
@@ -76,7 +75,7 @@ TEST(global_variables) {
 "var x = 0;"
 "function f0() { return x; }"
 "f0();");
-  ExpectInt32(0, result);
+  ExpectInt32(env.local(), 0, result);
 }
 
 
@@ -87,7 +86,7 @@ TEST(parameters) {
   Local<Value> result = CompileRun(
 "function f1(x) { return x; }"
 "f1(1);");
-  ExpectInt32(1, result);
+  ExpectInt32(env.local(), 1, result);
 }
 
 
@@ -98,7 +97,7 @@ TEST(stack_allocated_locals) {
   Local<Value> result = CompileRun(
 "function f2() { var x = 2; return x; }"
 "f2();");
-  ExpectInt32(2, result);
+  ExpectInt32(env.local(), 2, result);
 }
 
 
@@ -112,7 +111,7 @@ TEST(context_allocated_locals) {
 "  return x;"
 "}"
 "f3(3);");
-  ExpectInt32(3, result);
+  ExpectInt32(env.local(), 3, result);
 }
 
 
@@ -126,7 +125,7 @@ TEST(read_from_outer_context) {
 "  return g();"
 "}"
 "f4(4);");
-  ExpectInt32(4, result);
+  ExpectInt32(env.local(), 4, result);
 }
 
 
@@ -139,5 +138,5 @@ TEST(lookup_slots) {
 "  with ({}) return x;"
 "}"
 "f5(5);");
-  ExpectInt32(5, result);
+  ExpectInt32(env.local(), 5, result);
 }

@@ -1,0 +1,91 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "capture-stack-trace@^1.0.0",
+        "scope": null,
+        "escapedName": "capture-stack-trace",
+        "name": "capture-stack-trace",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got/node_modules/create-error-class"
+    ]
+  ],
+  "_from": "capture-stack-trace@>=1.0.0 <2.0.0",
+  "_id": "capture-stack-trace@1.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/got/create-error-class/capture-stack-trace",
+  "_npmUser": {
+    "name": "floatdrop",
+    "email": "floatdrop@gmail.com"
+  },
+  "_npmVersion": "1.4.28",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "capture-stack-trace@^1.0.0",
+    "scope": null,
+    "escapedName": "capture-stack-trace",
+    "name": "capture-stack-trace",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/got/create-error-class"
+  ],
+  "_resolved": "https://registry.npmjs.org/capture-stack-trace/-/capture-stack-trace-1.0.0.tgz",
+  "_shasum": "4a6fa07399c26bba47f0b2496b4d0fb408c5550d",
+  "_shrinkwrap": null,
+  "_spec": "capture-stack-trace@^1.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got/node_modules/create-error-class",
+  "author": {
+    "name": "Vsevolod Strukchinsky",
+    "email": "floatdrop@gmail.com",
+    "url": "github.com/floatdrop"
+  },
+  "bugs": {
+    "url": "https://github.com/floatdrop/capture-stack-trace/issues"
+  },
+  "dependencies": {},
+  "description": "Error.captureStackTrace ponyfill",
+  "devDependencies": {
+    "mocha": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "4a6fa07399c26bba47f0b2496b4d0fb408c5550d",
+    "tarball": "https://registry.npmjs.org/capture-stack-trace/-/capture-stack-trace-1.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "eb46ce326fa9074b6ce17a94d4b76500321a331f",
+  "homepage": "https://github.com/floatdrop/capture-stack-trace",
+  "keywords": [
+    "Error",
+    "captureStackTrace"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "floatdrop",
+      "email": "floatdrop@gmail.com"
+    }
+  ],
+  "name": "capture-stack-trace",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/floatdrop/capture-stack-trace.git"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "version": "1.0.0"
+}

@@ -1,0 +1,107 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "cli-boxes@^1.0.0",
+        "scope": null,
+        "escapedName": "cli-boxes",
+        "name": "cli-boxes",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen"
+    ]
+  ],
+  "_from": "cli-boxes@>=1.0.0 <2.0.0",
+  "_id": "cli-boxes@1.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/cli-boxes",
+  "_nodeVersion": "4.3.0",
+  "_npmOperationalInternal": {
+    "host": "packages-9-west.internal.npmjs.com",
+    "tmp": "tmp/cli-boxes-1.0.0.tgz_1456820449966_0.9008902586065233"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.14.12",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "cli-boxes@^1.0.0",
+    "scope": null,
+    "escapedName": "cli-boxes",
+    "name": "cli-boxes",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen"
+  ],
+  "_resolved": "https://registry.npmjs.org/cli-boxes/-/cli-boxes-1.0.0.tgz",
+  "_shasum": "4fa917c3e59c94a004cd61f8ee509da651687143",
+  "_shrinkwrap": null,
+  "_spec": "cli-boxes@^1.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/cli-boxes/issues"
+  },
+  "dependencies": {},
+  "description": "Boxes for use in the terminal",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "4fa917c3e59c94a004cd61f8ee509da651687143",
+    "tarball": "https://registry.npmjs.org/cli-boxes/-/cli-boxes-1.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js",
+    "boxes.json"
+  ],
+  "gitHead": "30c6977f9c053c2e2de7bed9395512f90cd6e5ae",
+  "homepage": "https://github.com/sindresorhus/cli-boxes",
+  "keywords": [
+    "cli",
+    "box",
+    "boxes",
+    "terminal",
+    "term",
+    "console",
+    "ascii",
+    "unicode",
+    "border",
+    "text",
+    "json"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "cli-boxes",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/cli-boxes.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.0.0"
+}

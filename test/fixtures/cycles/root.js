@@ -19,8 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-var foo = exports.foo = require('./folder/foo');
+const foo = exports.foo = require('./folder/foo');
 
 exports.hello = 'hello';
 exports.sayHello = function() {

@@ -1,6 +1,7 @@
 var test = require("tap").test
 
 var fixNameField = require("../lib/fixer.js").fixNameField
+var fixBinField = require("../lib/fixer.js").fixBinField
 
 test("a simple scoped module has a valid name", function (t) {
   var data = {name : "@org/package"}
@@ -47,5 +48,12 @@ test("'@/package' is not a valid name", function (t) {
     fixNameField({name : "@/package"}, false)
   }, "blows up as expected")
 
+  t.end()
+})
+
+test("name='@org/package', bin='bin.js' is bin={package:'bin.js'}", function (t) {
+  var obj = {name : "@org/package", bin: "bin.js"}
+  fixBinField(obj)
+  t.isDeeply(obj.bin, {package: 'bin.js'})
   t.end()
 })

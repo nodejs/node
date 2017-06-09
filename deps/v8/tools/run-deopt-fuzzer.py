@@ -48,6 +48,9 @@ from testrunner.local import verbose
 from testrunner.objects import context
 
 
+# Base dir of the v8 checkout to be used as cwd.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 ARCH_GUESS = utils.DefaultArch()
 DEFAULT_TESTS = ["mjsunit", "webkit"]
 TIMEOUT_DEFAULT = 60
@@ -57,8 +60,7 @@ TIMEOUT_SCALEFACTOR = {"debug"   : 4,
 MODE_FLAGS = {
     "debug"   : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--enable-slow-asserts",
-                 "--debug-code", "--verify-heap",
-                 "--noconcurrent-recompilation"],
+                 "--verify-heap", "--noconcurrent-recompilation"],
     "release" : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--noconcurrent-recompilation"]}
 
@@ -66,17 +68,17 @@ SUPPORTED_ARCHS = ["android_arm",
                    "android_ia32",
                    "arm",
                    "ia32",
+                   "ppc",
+                   "ppc64",
+                   "s390",
+                   "s390x",
                    "mipsel",
-                   "nacl_ia32",
-                   "nacl_x64",
                    "x64"]
 # Double the timeout for these:
 SLOW_ARCHS = ["android_arm",
               "android_ia32",
               "arm",
-              "mipsel",
-              "nacl_ia32",
-              "nacl_x64"]
+              "mipsel"]
 MAX_DEOPT = 1000000000
 DISTRIBUTION_MODES = ["smooth", "random"]
 
@@ -159,6 +161,9 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("--buildbot",
                     help="Adapt to path structure used on buildbots",
+                    default=False, action="store_true")
+  result.add_option("--dcheck-always-on",
+                    help="Indicates that V8 was compiled with DCHECKs enabled",
                     default=False, action="store_true")
   result.add_option("--command-prefix",
                     help="Prepended to each shell command used to run a test",
@@ -285,6 +290,9 @@ def ShardTests(tests, shard_count, shard_run):
 
 
 def Main():
+  # Use the v8 root as cwd as some test cases use "load" with relative paths.
+  os.chdir(BASE_DIR)
+
   parser = BuildOptions()
   (options, args) = parser.parse_args()
   if not ProcessOptions(options):
@@ -292,9 +300,8 @@ def Main():
     return 1
 
   exit_code = 0
-  workspace = os.path.abspath(join(os.path.dirname(sys.argv[0]), ".."))
 
-  suite_paths = utils.GetSuitePaths(join(workspace, "test"))
+  suite_paths = utils.GetSuitePaths(join(BASE_DIR, "test"))
 
   if len(args) == 0:
     suite_paths = [ s for s in suite_paths if s in DEFAULT_TESTS ]
@@ -309,7 +316,7 @@ def Main():
   suites = []
   for root in suite_paths:
     suite = testsuite.TestSuite.LoadTestSuite(
-        os.path.join(workspace, "test", root))
+        os.path.join(BASE_DIR, "test", root))
     if suite:
       suites.append(suite)
 
@@ -320,7 +327,7 @@ def Main():
   for mode in options.mode:
     for arch in options.arch:
       try:
-        code = Execute(arch, mode, args, options, suites, workspace)
+        code = Execute(arch, mode, args, options, suites, BASE_DIR)
         exit_code = exit_code or code
       except KeyboardInterrupt:
         return 2
@@ -374,7 +381,10 @@ def Execute(arch, mode, args, options, suites, workspace):
                         True,  # No sorting of test cases.
                         0,  # Don't rerun failing tests.
                         0,  # No use of a rerun-failing-tests maximum.
-                        False)  # No predictable mode.
+                        False,  # No predictable mode.
+                        False,  # No no_harness mode.
+                        False,  # Don't use perf data.
+                        False)  # Coverage not supported.
 
   # Find available test suites and read test cases from them.
   variables = {
@@ -382,6 +392,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "asan": options.asan,
     "deopt_fuzzer": True,
     "gc_stress": False,
+    "gcov_coverage": False,
     "isolates": options.isolates,
     "mode": mode,
     "no_i18n": False,
@@ -390,6 +401,10 @@ def Execute(arch, mode, args, options, suites, workspace):
     "system": utils.GuessOS(),
     "tsan": False,
     "msan": False,
+    "dcheck_always_on": options.dcheck_always_on,
+    "novfp3": False,
+    "predictable": False,
+    "byteorder": sys.byteorder,
   }
   all_tests = []
   num_tests = 0
@@ -408,7 +423,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     test_backup[s] = s.tests
     analysis_flags = ["--deopt-every-n-times", "%d" % MAX_DEOPT,
                       "--print-deopt-stress"]
-    s.tests = [ t.CopyAddingFlags(analysis_flags) for t in s.tests ]
+    s.tests = [ t.CopyAddingFlags(t.variant, analysis_flags) for t in s.tests ]
     num_tests += len(s.tests)
     for t in s.tests:
       t.id = test_id
@@ -455,7 +470,7 @@ def Execute(arch, mode, args, options, suites, workspace):
         print "%s %s" % (t.path, distribution)
       for i in distribution:
         fuzzing_flags = ["--deopt-every-n-times", "%d" % i]
-        s.tests.append(t.CopyAddingFlags(fuzzing_flags))
+        s.tests.append(t.CopyAddingFlags(t.variant, fuzzing_flags))
     num_tests += len(s.tests)
     for t in s.tests:
       t.id = test_id

@@ -5,6 +5,9 @@
 #ifndef V8_STRING_SEARCH_H_
 #define V8_STRING_SEARCH_H_
 
+#include "src/isolate.h"
+#include "src/vector.h"
+
 namespace v8 {
 namespace internal {
 
@@ -187,6 +190,46 @@ class StringSearch : private StringSearchBase {
 };
 
 
+template <typename T, typename U>
+inline T AlignDown(T value, U alignment) {
+  return reinterpret_cast<T>(
+      (reinterpret_cast<uintptr_t>(value) & ~(alignment - 1)));
+}
+
+
+inline uint8_t GetHighestValueByte(uc16 character) {
+  return Max(static_cast<uint8_t>(character & 0xFF),
+             static_cast<uint8_t>(character >> 8));
+}
+
+
+inline uint8_t GetHighestValueByte(uint8_t character) { return character; }
+
+
+template <typename PatternChar, typename SubjectChar>
+inline int FindFirstCharacter(Vector<const PatternChar> pattern,
+                              Vector<const SubjectChar> subject, int index) {
+  const PatternChar pattern_first_char = pattern[0];
+  const int max_n = (subject.length() - pattern.length() + 1);
+
+  const uint8_t search_byte = GetHighestValueByte(pattern_first_char);
+  const SubjectChar search_char = static_cast<SubjectChar>(pattern_first_char);
+  int pos = index;
+  do {
+    DCHECK_GE(max_n - pos, 0);
+    const SubjectChar* char_pos = reinterpret_cast<const SubjectChar*>(
+        memchr(subject.start() + pos, search_byte,
+               (max_n - pos) * sizeof(SubjectChar)));
+    if (char_pos == NULL) return -1;
+    char_pos = AlignDown(char_pos, sizeof(SubjectChar));
+    pos = static_cast<int>(char_pos - subject.start());
+    if (subject[pos] == search_char) return pos;
+  } while (++pos < max_n);
+
+  return -1;
+}
+
+
 //---------------------------------------------------------------------
 // Single Character Pattern Search Strategy
 //---------------------------------------------------------------------
@@ -198,27 +241,12 @@ int StringSearch<PatternChar, SubjectChar>::SingleCharSearch(
     int index) {
   DCHECK_EQ(1, search->pattern_.length());
   PatternChar pattern_first_char = search->pattern_[0];
-  int i = index;
-  if (sizeof(SubjectChar) == 1 && sizeof(PatternChar) == 1) {
-    const SubjectChar* pos = reinterpret_cast<const SubjectChar*>(
-        memchr(subject.start() + i,
-               pattern_first_char,
-               subject.length() - i));
-    if (pos == NULL) return -1;
-    return static_cast<int>(pos - subject.start());
-  } else {
-    if (sizeof(PatternChar) > sizeof(SubjectChar)) {
-      if (exceedsOneByte(pattern_first_char)) {
-        return -1;
-      }
+  if (sizeof(PatternChar) > sizeof(SubjectChar)) {
+    if (exceedsOneByte(pattern_first_char)) {
+      return -1;
     }
-    SubjectChar search_char = static_cast<SubjectChar>(pattern_first_char);
-    int n = subject.length();
-    while (i < n) {
-      if (subject[i++] == search_char) return i - 1;
-    }
-    return -1;
   }
+  return FindFirstCharacter(search->pattern_, subject, index);
 }
 
 //---------------------------------------------------------------------
@@ -251,20 +279,13 @@ int StringSearch<PatternChar, SubjectChar>::LinearSearch(
   Vector<const PatternChar> pattern = search->pattern_;
   DCHECK(pattern.length() > 1);
   int pattern_length = pattern.length();
-  PatternChar pattern_first_char = pattern[0];
   int i = index;
   int n = subject.length() - pattern_length;
   while (i <= n) {
-    if (sizeof(SubjectChar) == 1 && sizeof(PatternChar) == 1) {
-      const SubjectChar* pos = reinterpret_cast<const SubjectChar*>(
-          memchr(subject.start() + i,
-                 pattern_first_char,
-                 n - i + 1));
-      if (pos == NULL) return -1;
-      i = static_cast<int>(pos - subject.start()) + 1;
-    } else {
-      if (subject[i++] != pattern_first_char) continue;
-    }
+    i = FindFirstCharacter(pattern, subject, i);
+    if (i == -1) return -1;
+    DCHECK_LE(i, n);
+    i++;
     // Loop extracted to separate function to allow using return to do
     // a deeper break.
     if (CharCompare(pattern.start() + 1,
@@ -502,22 +523,12 @@ int StringSearch<PatternChar, SubjectChar>::InitialSearch(
 
   // We know our pattern is at least 2 characters, we cache the first so
   // the common case of the first character not matching is faster.
-  PatternChar pattern_first_char = pattern[0];
   for (int i = index, n = subject.length() - pattern_length; i <= n; i++) {
     badness++;
     if (badness <= 0) {
-      if (sizeof(SubjectChar) == 1 && sizeof(PatternChar) == 1) {
-        const SubjectChar* pos = reinterpret_cast<const SubjectChar*>(
-            memchr(subject.start() + i,
-                   pattern_first_char,
-                   n - i + 1));
-        if (pos == NULL) {
-          return -1;
-        }
-        i = static_cast<int>(pos - subject.start());
-      } else {
-        if (subject[i] != pattern_first_char) continue;
-      }
+      i = FindFirstCharacter(pattern, subject, i);
+      if (i == -1) return -1;
+      DCHECK_LE(i, n);
       int j = 1;
       do {
         if (pattern[j] != subject[i + j]) {
@@ -552,6 +563,20 @@ int SearchString(Isolate* isolate,
   return search.Search(subject, start_index);
 }
 
-}}  // namespace v8::internal
+// A wrapper function around SearchString that wraps raw pointers to the subject
+// and pattern as vectors before calling SearchString. Used from the
+// StringIndexOf builtin.
+template <typename SubjectChar, typename PatternChar>
+int SearchStringRaw(Isolate* isolate, const SubjectChar* subject_ptr,
+                    int subject_length, const PatternChar* pattern_ptr,
+                    int pattern_length, int start_index) {
+  DisallowHeapAllocation no_gc;
+  Vector<const SubjectChar> subject(subject_ptr, subject_length);
+  Vector<const PatternChar> pattern(pattern_ptr, pattern_length);
+  return SearchString(isolate, subject, pattern, start_index);
+}
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STRING_SEARCH_H_

@@ -9,8 +9,8 @@ new BenchmarkSuite('StringFunctions', [1000], [
                 StartsWith, WithSetup, WithTearDown),
   new Benchmark('StringEndsWith', false, false, 0,
                 EndsWith, WithSetup, WithTearDown),
-  new Benchmark('StringContains', false, false, 0,
-                Contains, ContainsSetup, WithTearDown),
+  new Benchmark('StringIncludes', false, false, 0,
+                Includes, IncludesSetup, WithTearDown),
   new Benchmark('StringFromCodePoint', false, false, 0,
                 FromCodePoint, FromCodePointSetup, FromCodePointTearDown),
   new Benchmark('StringCodePointAt', false, false, 0,
@@ -60,13 +60,13 @@ function EndsWith() {
   result = str.endsWith(substr);
 }
 
-function ContainsSetup() {
+function IncludesSetup() {
   str = "def".repeat(100) + "abc".repeat(100) + "qqq".repeat(100);
   substr = "abc".repeat(100);
 }
 
-function Contains() {
-  result = str.contains(substr);
+function Includes() {
+  result = str.includes(substr);
 }
 
 var MAX_CODE_POINT = 0xFFFFF;

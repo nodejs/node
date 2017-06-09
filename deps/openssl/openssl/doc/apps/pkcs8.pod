@@ -20,6 +20,7 @@ B<openssl> B<pkcs8>
 [B<-embed>]
 [B<-nsdb>]
 [B<-v2 alg>]
+[B<-v2prf alg>]
 [B<-v1 alg>]
 [B<-engine id>]
 
@@ -118,6 +119,12 @@ private keys with OpenSSL then this doesn't matter.
 The B<alg> argument is the encryption algorithm to use, valid values include
 B<des>, B<des3> and B<rc2>. It is recommended that B<des3> is used.
 
+=item B<-v2prf alg>
+
+This option sets the PRF algorithm to use with PKCS#5 v2.0. A typical value
+values would be B<hmacWithSHA256>. If this option isn't set then the default
+for the cipher is used or B<hmacWithSHA1> if there is no default.
+
 =item B<-v1 alg>
 
 This option specifies a PKCS#5 v1.5 or PKCS#12 algorithm to use. A complete
@@ -194,6 +201,11 @@ Convert a private from traditional to PKCS#5 v2.0 format using triple
 DES:
 
  openssl pkcs8 -in key.pem -topk8 -v2 des3 -out enckey.pem
+
+Convert a private from traditional to PKCS#5 v2.0 format using AES with
+256 bits in CBC mode and B<hmacWithSHA256> PRF:
+
+ openssl pkcs8 -in key.pem -topk8 -v2 aes-256-cbc -v2prf hmacWithSHA256 -out enckey.pem
 
 Convert a private key to PKCS#8 using a PKCS#5 1.5 compatible algorithm
 (DES):

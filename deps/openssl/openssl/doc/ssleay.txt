@@ -6026,7 +6026,7 @@ one at a time, or use 'aliases' to specify the preference and order for
 the ciphers.
 
 There are a large number of aliases, but the most importaint are
-kRSA, kDHr, kDHd and kEDH for key exchange types.
+kRSA, kDHr, kDHd and kDHE for key exchange types.
 
 aRSA, aDSS, aNULL and aDH for authentication
 DES, 3DES, RC4, RC2, IDEA and eNULL for ciphers

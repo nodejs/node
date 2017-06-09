@@ -19,16 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var dgram = require('dgram');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
 
-var socket = dgram.createSocket('udp4');
+const socket = dgram.createSocket('udp4');
 
-socket.on('listening', function () {
+socket.on('listening', common.mustCall(() => {
+  assert.throws(() => {
+    socket.bind();
+  }, /^Error: Socket is already bound$/);
+
   socket.close();
-});
+}));
 
-var result = socket.bind(); // should not throw
+const result = socket.bind(); // should not throw
 
 assert.strictEqual(result, socket); // should have returned itself
