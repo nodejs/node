@@ -4638,6 +4638,11 @@ typedef NTSTATUS (NTAPI *sNtQueryDirectoryFile)
 # define ERROR_MUI_FILE_NOT_LOADED 15105
 #endif
 
+/* See https://blogs.windows.com/buildingapps/2016/12/02/symlinks-windows-10/#C6gRguKlBZWuXPuW.97 */
+#ifndef SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+# define SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE 0x2
+#endif
+
 typedef BOOL (WINAPI *sGetQueuedCompletionStatusEx)
              (HANDLE CompletionPort,
               LPOVERLAPPED_ENTRY lpCompletionPortEntries,
