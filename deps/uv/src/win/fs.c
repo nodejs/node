@@ -1684,9 +1684,11 @@ static void fs__symlink(uv_fs_t* req) {
   if (flags & UV_FS_SYMLINK_JUNCTION) {
     fs__create_junction(req, pathw, new_pathw);
   } else if (pCreateSymbolicLinkW) {
-    result = pCreateSymbolicLinkW(new_pathw,
-                                  pathw,
-                                  flags & UV_FS_SYMLINK_DIR ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0) ? 0 : -1;
+    int symlink_flags = flags & UV_FS_SYMLINK_DIR ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
+    symlink_flags |= SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
+
+    result = pCreateSymbolicLinkW(new_pathw, pathw, symlink_flags) ? 0 : -1;
+
     if (result == -1) {
       SET_REQ_WIN32_ERROR(req, GetLastError());
     } else {
