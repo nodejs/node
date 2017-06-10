@@ -15,7 +15,7 @@ const server1 = https.createServer(opts);
 assert.deepStrictEqual(opts, { foo: 'bar' });
 assert.strictEqual(server1.NPNProtocols.compare(dftProtocol.NPNProtocols), 0);
 
-const mustNotCall = common.mustNotCall('dummy callback');
+const mustNotCall = common.mustNotCall();
 const server2 = https.createServer(mustNotCall);
 
 assert.strictEqual(server2.NPNProtocols.compare(dftProtocol.NPNProtocols), 0);
