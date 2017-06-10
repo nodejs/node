@@ -293,7 +293,7 @@ inline void NODE_SET_PROTOTYPE_METHOD(v8::Local<v8::FunctionTemplate> recv,
       v8::FunctionTemplate::New(isolate, callback, v8::Local<v8::Value>(), s);
   v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name);
   t->SetClassName(fn_name);
-  recv->PrototypeTemplate()->Set(v8::String::NewFromUtf8(isolate, name), t);
+  recv->PrototypeTemplate()->Set(fn_name, t);
 }
 #define NODE_SET_PROTOTYPE_METHOD node::NODE_SET_PROTOTYPE_METHOD
 
