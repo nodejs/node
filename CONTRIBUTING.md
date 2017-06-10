@@ -30,7 +30,7 @@ locally.
 ```text
 $ git clone git@github.com:username/node.git
 $ cd node
-$ git remote add upstream git://github.com/nodejs/node.git
+$ git remote add upstream https://github.com/nodejs/node.git
 ```
 
 #### Which branch?
