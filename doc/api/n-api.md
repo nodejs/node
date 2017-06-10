@@ -161,11 +161,9 @@ For more details, review the [Object Lifetime Management][].
 
 ### N-API Callback types
 #### *napi_callback_info*
-Opaque datatype that is passed to a callback function. It can be used for two
-purposes:
-- Get additional information about the context in which the callback was
-  invoked.
-- Set the return value of the callback.
+Opaque datatype that is passed to a callback function. It can be used for
+getting additional information about the context in which the callback was
+invoked.
 
 #### *napi_callback*
 Function pointer type for user-provided native functions which are to be
