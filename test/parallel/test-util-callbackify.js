@@ -79,7 +79,7 @@ const values = [
       if (err instanceof Error) {
         if ('reason' in err) {
           assert(!value);
-          assert.strictEqual(err.code, 'FALSY_VALUE_REJECTION');
+          assert.strictEqual(err.code, 'ERR_FALSY_VALUE_REJECTION');
           assert.strictEqual(err.reason, value);
         } else {
           assert.strictEqual(String(value).endsWith(err.message), true);
@@ -100,7 +100,7 @@ const values = [
       if (err instanceof Error) {
         if ('reason' in err) {
           assert(!value);
-          assert.strictEqual(err.code, 'FALSY_VALUE_REJECTION');
+          assert.strictEqual(err.code, 'ERR_FALSY_VALUE_REJECTION');
           assert.strictEqual(err.reason, value);
         } else {
           assert.strictEqual(String(value).endsWith(err.message), true);
@@ -125,7 +125,7 @@ const values = [
       if (err instanceof Error) {
         if ('reason' in err) {
           assert(!value);
-          assert.strictEqual(err.code, 'FALSY_VALUE_REJECTION');
+          assert.strictEqual(err.code, 'ERR_FALSY_VALUE_REJECTION');
           assert.strictEqual(err.reason, value);
         } else {
           assert.strictEqual(String(value).endsWith(err.message), true);
