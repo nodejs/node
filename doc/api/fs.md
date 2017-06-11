@@ -426,6 +426,13 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
+  - version: v6.3.0
+    pr-url: https://github.com/nodejs/node/pull/6534
+    description: The constants like `fs.R_OK`, etc which were present directly
+                 on `fs` were moved into `fs.constants` as a soft deprecation.
+                 Thus for Node `< v6.3.0` use `fs` to access those constants, or
+                 do something like `(fs.constants || fs).R_OK` to work with all
+                 versions.
 -->
 
 * `path` {string|Buffer|URL}
