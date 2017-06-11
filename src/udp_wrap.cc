@@ -222,6 +222,36 @@ void UDPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void UDPWrap::SetRecvBufferSize(const FunctionCallbackInfo<Value>& args) {
+  UDPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+
+  CHECK(args[0]->IsUint32());
+
+  int inputSize = args[0]->Uint32Value();
+  int err = uv_recv_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &inputSize);
+  
+  args.GetReturnValue().Set(err);  
+}
+
+
+void UDPWrap::SetSendBufferSize(const FunctionCallbackInfo<Value>& args) {
+  UDPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+
+  CHECK(args[0]->IsUint32());
+  
+  int inputSize = args[0]->Uint32Value();
+  int err = uv_send_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &inputSize);
+  
+  args.GetReturnValue().Set(err);  
+}
+
+
 #define X(name, fn)                                                           \
   void UDPWrap::name(const FunctionCallbackInfo<Value>& args) {               \
     UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());                           \
