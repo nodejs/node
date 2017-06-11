@@ -2840,7 +2840,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readFile`]: #fs_fs_readfile_file_options_callback
 [`fs.stat()`]: #fs_fs_stat_path_callback
-[`fs.utimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
+[`fs.utimes()`]: #fs_fs_utimes_path_atime_mtime_callback
 [`fs.watch()`]: #fs_fs_watch_filename_options_listener
 [`fs.write()`]: #fs_fs_write_fd_buffer_offset_length_position_callback
 [`fs.writeFile()`]: #fs_fs_writefile_file_data_options_callback
