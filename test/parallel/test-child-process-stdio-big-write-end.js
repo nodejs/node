@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 let bufsize = 0;
 
@@ -43,10 +43,10 @@ function parent() {
   child.stdout.on('data', function(c) {
     n += c;
   });
-  child.stdout.on('end', function() {
+  child.stdout.on('end', common.mustCall(function() {
     assert.strictEqual(+n, sent);
     console.log('ok');
-  });
+  }));
 
   // Write until the buffer fills up.
   let buf;
