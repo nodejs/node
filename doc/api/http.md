@@ -496,6 +496,15 @@ added: v0.11.14
 If a request has been aborted, this value is the time when the request was
 aborted, in milliseconds since 1 January 1970 00:00:00 UTC.
 
+### request.connection
+<!-- YAML
+added: v0.3.0
+-->
+
+* {net.Socket}
+
+See [`request.socket`][]
+
 ### request.end([data[, encoding]][, callback])
 <!-- YAML
 added: v0.1.90
@@ -563,6 +572,30 @@ Once a socket is assigned to this request and is connected
 [`socket.setTimeout()`][] will be called.
 
 Returns `request`.
+
+### request.socket
+<!-- YAML
+added: v0.3.0
+-->
+
+* {net.Socket}
+
+Reference to the underlying socket. Usually users will not want to access
+this property. In particular, the socket will not emit `'readable'` events
+because of how the protocol parser attaches to the socket. After
+`response.end()`, the property is nulled. The `socket` may also be accessed
+via `request.connection`.
+
+Example:
+
+```js
+const http = require('http');
+const server = http.createServer((req, res) => {
+  const ip = req.socket.remoteAddress;
+  const port = req.socket.remotePort;
+  res.end(`Your IP address is ${ip} and your source port is ${port}.`);
+}).listen(3000);
+```
 
 ### request.write(chunk[, encoding][, callback])
 <!-- YAML
@@ -955,6 +988,16 @@ response.end();
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
+
+### response.connection
+<!-- YAML
+added: v0.3.0
+-->
+
+* {net.Socket}
+
+See [`response.socket`][].
+
 ### response.end([data][, encoding][, callback])
 <!-- YAML
 added: v0.1.90
@@ -1162,6 +1205,30 @@ assigned to the request, the response, or the server's `'timeout'` events,
 timed out sockets must be handled explicitly.
 
 Returns `response`.
+
+### response.socket
+<!-- YAML
+added: v0.3.0
+-->
+
+* {net.Socket}
+
+Reference to the underlying socket. Usually users will not want to access
+this property. In particular, the socket will not emit `'readable'` events
+because of how the protocol parser attaches to the socket. After
+`response.end()`, the property is nulled. The `socket` may also be accessed
+via `response.connection`.
+
+Example:
+
+```js
+const http = require('http');
+const server = http.createServer((req, res) => {
+  const ip = req.socket.remoteAddress;
+  const port = req.socket.remotePort;
+  res.end(`Your IP address is ${ip} and your source port is ${port}.`);
+}).listen(3000);
+```
 
 ### response.statusCode
 <!-- YAML
@@ -1831,9 +1898,11 @@ const req = http.request(options, (res) => {
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
+[`request.socket`]: #http_request_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http_response_end_data_encoding_callback
 [`response.setHeader()`]: #http_response_setheader_name_value
+[`response.socket`]: #http_response_socket
 [`response.write()`]: #http_response_write_chunk_encoding_callback
 [`response.write(data, encoding)`]: #http_response_write_chunk_encoding_callback
 [`response.writeContinue()`]: #http_response_writecontinue
