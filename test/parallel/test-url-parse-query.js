@@ -36,7 +36,7 @@ const parseTestsWithQueryString = {
     host: 'example.com',
     hostname: 'example.com',
     query: createWithNoPrototype(),
-    search: '',
+    search: null,
     pathname: '/',
     path: '/'
   },
@@ -48,7 +48,7 @@ const parseTestsWithQueryString = {
     port: null,
     hostname: null,
     hash: null,
-    search: '',
+    search: null,
     query: createWithNoPrototype(),
     pathname: '/example',
     path: '/example',
