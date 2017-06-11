@@ -570,6 +570,12 @@ The `'ERR_ARG_NOT_ITERABLE'` error code is used generically to identify that an
 iterable argument (i.e. a value that works with `for...of` loops) is required,
 but not provided to a Node.js API.
 
+<a id="ERR_FALSY_VALUE_REJECTION"></a>
+### ERR_FALSY_VALUE_REJECTION
+
+The `ERR_FALSY_VALUE_REJECTION` error code is used by the `util.callbackify()`
+API when a callbackified `Promise` is rejected with a falsy value (e.g. `null`).
+
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
 
