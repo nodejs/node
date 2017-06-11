@@ -52,7 +52,7 @@ function main(conf) {
   var buff = new clazz(8);
   var fn = `write${conf.type}`;
 
-  if (fn.match(/Int/))
+  if (/Int/.test(fn))
     benchInt(buff, fn, len, noAssert);
   else
     benchFloat(buff, fn, len, noAssert);
