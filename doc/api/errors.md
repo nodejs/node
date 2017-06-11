@@ -576,6 +576,12 @@ The `ERR_CONSOLE_WRITABLE_STREAM` error code is thrown when `Console` is
 instantiated without `stdout` stream or when `stdout` or `stderr` streams
 are not writable.
 
+<a id="ERR_FALSY_VALUE_REJECTION"></a>
+### ERR_FALSY_VALUE_REJECTION
+
+The `ERR_FALSY_VALUE_REJECTION` error code is used by the `util.callbackify()`
+API when a callbackified `Promise` is rejected with a falsy value (e.g. `null`).
+
 <a id="ERR_INDEX_OUT_OF_RANGE"></a>
 ### ERR_INDEX_OUT_OF_RANGE
 
