@@ -242,7 +242,7 @@ static double prog_start_time;
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
 
-static node::DebugOptions debug_options;
+node::DebugOptions debug_options;
 
 static struct {
 #if NODE_USE_V8_PLATFORM
