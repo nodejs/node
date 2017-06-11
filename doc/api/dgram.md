@@ -398,6 +398,26 @@ decremented to 0 by a router, it will not be forwarded.
 The argument passed to to `socket.setMulticastTTL()` is a number of hops
 between 0 and 255. The default on most systems is `1` but can vary.
 
+### socket.setRecvBufferSize(size)
+<!-- YAML
+added: vx.x.x
+-->
+
+* `size` {number} Integer
+
+Sets the `SO_RCVBUF` socket option. Sets the maximum socket receive buffer
+in bytes.
+
+### socket.setSendBufferSize(size)
+<!-- YAML
+added: vx.x.x
+-->
+
+* `size` {number} Integer
+
+Sets the `SO_SNDBUF` socket option. Sets the maximum socket send buffer
+in bytes.
+
 ### socket.setTTL(ttl)
 <!-- YAML
 added: v0.1.101
