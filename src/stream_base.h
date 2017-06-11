@@ -248,7 +248,7 @@ class StreamBase : public StreamResource {
   virtual ~StreamBase() = default;
 
   // One of these must be implemented
-  virtual AsyncWrap* GetAsyncWrap();
+  virtual AsyncWrap* GetAsyncWrap() = 0;
   virtual v8::Local<v8::Object> GetObject();
 
   // Libuv callbacks

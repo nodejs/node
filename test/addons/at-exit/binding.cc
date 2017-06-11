@@ -40,4 +40,4 @@ void init(Local<Object> exports) {
   atexit(sanity_check);
 }
 
-NODE_MODULE(binding, init);
+NODE_MODULE(binding, init)

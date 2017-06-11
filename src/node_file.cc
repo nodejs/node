@@ -479,9 +479,9 @@ void FillStatsArray(double* fields, const uv_stat_t* s) {
   fields[9] = -1;
 #endif
   // Dates.
-#define X(idx, name)                                                          \
-  fields[idx] = (static_cast<double>(s->st_##name.tv_sec) * 1000) +           \
-                (static_cast<double>(s->st_##name.tv_nsec / 1000000));        \
+#define X(idx, name)                          \
+  fields[idx] = (s->st_##name.tv_sec * 1e3) + \
+                (s->st_##name.tv_nsec / 1e6); \
 
   X(10, atim)
   X(11, mtim)
@@ -1099,8 +1099,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   FSReqWrap::Ownership ownership = FSReqWrap::COPY;
 
   // will assign buf and len if string was external
-  if (!StringBytes::GetExternalParts(env->isolate(),
-                                     string,
+  if (!StringBytes::GetExternalParts(string,
                                      const_cast<const char**>(&buf),
                                      &len)) {
     enum encoding enc = ParseEncoding(env->isolate(), args[3], UTF8);

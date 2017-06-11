@@ -29,37 +29,36 @@ test('setup', function (t) {
   t.end()
 })
 
-var included = [
+var expected = [
   'package.json',
   'elf.js',
-  join('node_modules', '@npmwombat', 'scoped', 'index.js')
+  join('node_modules', '@npmwombat', 'scoped', 'index.js'),
+  join('node_modules', '@npmwombat', 'scoped', 'node_modules', 'example', 'index.js')
 ]
 
 test('includes bundledDependencies', function (t) {
   var subject = new Packer({ path: pkg, type: 'Directory', isDirectory: true })
-  var filenames = []
+  var actual = []
   subject.on('entry', function (entry) {
     t.equal(entry.type, 'File', 'only files in this package')
-
     // include relative path in filename
     var filename = entry._path.slice(entry.root._path.length + 1)
-
-    filenames.push(filename)
+    actual.push(filename)
   })
   // need to do this so fstream doesn't explode when files are removed from
   // under it
   subject.on('end', function () {
     // ensure we get *exactly* the results we expect by comparing in both
     // directions
-    filenames.forEach(function (filename) {
+    actual.forEach(function (filename) {
       t.ok(
-        included.indexOf(filename) > -1,
+        expected.indexOf(filename) > -1,
         filename + ' is included'
       )
     })
-    included.forEach(function (filename) {
+    expected.forEach(function (filename) {
       t.ok(
-        filenames.indexOf(filename) > -1,
+        actual.indexOf(filename) > -1,
         filename + ' is not included'
       )
     })
@@ -90,5 +89,11 @@ function setup () {
   fs.writeFileSync(
     join(scopedDir, 'index.js'),
     "console.log('hello wombat')"
+  )
+  var scopedContent = join(scopedDir, 'node_modules', 'example')
+  mkdirp.sync(scopedContent)
+  fs.writeFileSync(
+    join(scopedContent, 'index.js'),
+    "console.log('hello example')"
   )
 }

@@ -14,11 +14,11 @@ const constants = process.binding('constants').zlib;
 const handle = new Zlib(constants.DEFLATE);
 
 const as = hooks.activitiesOfTypes('ZLIB');
-assert.strictEqual(as.length, 1, 'one zlib on when created handle');
+assert.strictEqual(as.length, 1);
 const hdl = as[0];
-assert.strictEqual(hdl.type, 'ZLIB', 'zlib');
-assert.strictEqual(typeof hdl.uid, 'number', 'uid is a number');
-assert.strictEqual(typeof hdl.triggerId, 'number', 'triggerId is a number');
+assert.strictEqual(hdl.type, 'ZLIB');
+assert.strictEqual(typeof hdl.uid, 'number');
+assert.strictEqual(typeof hdl.triggerId, 'number');
 checkInvocations(hdl, { init: 1 }, 'when created handle');
 
 handle.init(

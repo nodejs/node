@@ -11,6 +11,7 @@
 #endif
 
 #include <stdio.h>
+#include <algorithm>
 
 namespace node {
 
@@ -49,8 +50,7 @@ void Environment::Start(int argc,
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
 
-  uv_idle_init(event_loop(), destroy_ids_idle_handle());
-  uv_unref(reinterpret_cast<uv_handle_t*>(destroy_ids_idle_handle()));
+  uv_timer_init(event_loop(), destroy_ids_timer_handle());
 
   auto close_and_finish = [](Environment* env, uv_handle_t* handle, void* arg) {
     handle->data = env;
@@ -101,16 +101,6 @@ void Environment::CleanupHandles() {
 
   while (handle_cleanup_waiting_ != 0)
     uv_run(event_loop(), UV_RUN_ONCE);
-
-  // Closing the destroy_ids_idle_handle_ within the handle cleanup queue
-  // prevents the async wrap destroy hook from being called.
-  uv_handle_t* handle =
-    reinterpret_cast<uv_handle_t*>(&destroy_ids_idle_handle_);
-  handle->data = this;
-  handle_cleanup_waiting_ = 1;
-  uv_close(handle, [](uv_handle_t* handle) {
-    static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
-  });
 
   while (handle_cleanup_waiting_ != 0)
     uv_run(event_loop(), UV_RUN_ONCE);
@@ -189,10 +179,34 @@ void Environment::AtExit(void (*cb)(void* arg), void* arg) {
 }
 
 void Environment::AddPromiseHook(promise_hook_func fn, void* arg) {
+  auto it = std::find_if(
+      promise_hooks_.begin(), promise_hooks_.end(),
+      [&](const PromiseHookCallback& hook) {
+        return hook.cb_ == fn && hook.arg_ == arg;
+      });
+  CHECK_EQ(it, promise_hooks_.end());
   promise_hooks_.push_back(PromiseHookCallback{fn, arg});
+
   if (promise_hooks_.size() == 1) {
     isolate_->SetPromiseHook(EnvPromiseHook);
   }
+}
+
+bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
+  auto it = std::find_if(
+      promise_hooks_.begin(), promise_hooks_.end(),
+      [&](const PromiseHookCallback& hook) {
+        return hook.cb_ == fn && hook.arg_ == arg;
+      });
+
+  if (it == promise_hooks_.end()) return false;
+
+  promise_hooks_.erase(it);
+  if (promise_hooks_.empty()) {
+    isolate_->SetPromiseHook(nullptr);
+  }
+
+  return true;
 }
 
 void Environment::EnvPromiseHook(v8::PromiseHookType type,

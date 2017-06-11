@@ -167,7 +167,9 @@ assertEquals(2, counter);
 
 // Check ToUint32 conversion of limit.
 assertArrayEquals(["a"], "a,b,c,d,e,f".split(/,/, -4294967295));
-assertArrayEquals(["a"], "a,b,c,d,e,f".split(/,/, -4294967294.5));
+assertArrayEquals(["a", "b"], "a,b,c,d,e,f".split(/,/, -4294967294.001));
+assertArrayEquals(["a", "b"], "a,b,c,d,e,f".split(/,/, -4294967294.5));
+assertArrayEquals(["a", "b"], "a,b,c,d,e,f".split(/,/, -4294967294.999));
 assertArrayEquals(["a", "b"], "a,b,c,d,e,f".split(/,/, -4294967294));
 assertArrayEquals(["a", "b", "c"], "a,b,c,d,e,f".split(/,/, -4294967293));
 assertArrayEquals(["a", "b", "c", "d"], "a,b,c,d,e,f".split(/,/, -4294967292));

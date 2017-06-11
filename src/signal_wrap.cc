@@ -92,7 +92,8 @@ class SignalWrap : public HandleWrap {
     if (signum == SIGPROF) {
       Environment* env = Environment::GetCurrent(args);
       if (env->inspector_agent()->IsStarted()) {
-        fprintf(stderr, "process.on(SIGPROF) is reserved while debugging\n");
+        ProcessEmitWarning(env,
+                           "process.on(SIGPROF) is reserved while debugging");
         return;
       }
     }

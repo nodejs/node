@@ -84,12 +84,7 @@ enum CheckResult {
 
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
-extern X509_STORE* root_cert_store;
-
 extern void UseExtraCaCerts(const std::string& file);
-
-// Forward declaration
-class Connection;
 
 class SecureContext : public BaseObject {
  public:
@@ -402,7 +397,7 @@ class Connection : public AsyncWrap, public SSLWrap<Connection> {
              v8::Local<v8::Object> wrap,
              SecureContext* sc,
              SSLWrap<Connection>::Kind kind)
-      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CONNECTION),
+      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_SSLCONNECTION),
         SSLWrap<Connection>(env, sc, kind),
         bio_read_(nullptr),
         bio_write_(nullptr),

@@ -18,9 +18,6 @@ var pkg = path.resolve(__dirname, 'cache-shasum-fork')
 var cache = path.join(pkg, 'cache')
 var server
 
-var installed_output = path.join(__dirname, 'cache-shasum-fork') +
-  '\n`-- underscore@1.5.1 \n\n'
-
 test('setup', function (t) {
   setup()
   t.comment('test for https://github.com/npm/npm/issues/3265')
@@ -35,6 +32,7 @@ test('npm cache - install from fork', function (t) {
   common.npm(
     [
       '--loglevel', 'silent',
+      '--json',
       '--registry', common.registry,
       'install', forkPath
     ],
@@ -47,7 +45,9 @@ test('npm cache - install from fork', function (t) {
       t.notOk(stderr, 'Should not get data on stderr: ' + stderr)
       t.equal(code, 0, 'install finished successfully')
 
-      t.equal(stdout, installed_output)
+      var deps = {}
+      JSON.parse(stdout).added.forEach(function (dep) { deps[dep.name] = dep })
+      t.equal(deps.underscore && deps.underscore.version, '1.5.1')
       var index = fs.readFileSync(
         path.join(pkg, 'node_modules', 'underscore', 'index.js'),
         'utf8'
@@ -64,6 +64,7 @@ test('npm cache - install from origin', function (t) {
   common.npm(
     [
       '--loglevel', 'silent',
+      '--json',
       '--registry', common.registry,
       'install', 'underscore'
     ],
@@ -75,7 +76,9 @@ test('npm cache - install from origin', function (t) {
       t.ifErr(err, 'install finished without error')
       t.equal(code, 0, 'install finished successfully')
       t.notOk(stderr, 'Should not get data on stderr: ' + stderr)
-      t.equal(stdout, installed_output)
+      var deps = {}
+      JSON.parse(stdout).updated.forEach(function (dep) { deps[dep.name] = dep })
+      t.equal(deps.underscore && deps.underscore.version, '1.5.1')
       var index = fs.readFileSync(
         path.join(pkg, 'node_modules', 'underscore', 'index.js'),
         'utf8'

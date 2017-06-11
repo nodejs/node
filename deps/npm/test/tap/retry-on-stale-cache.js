@@ -163,10 +163,11 @@ test('setup new server', function (t) {
 
 test('install new version', function (t) {
   common.npm(config.concat([
-    '--cache-min', 'Infinity',
+    '--prefer-offline',
     'install', 'good-night@1.0.0'
-  ]), {stdio: 'inherit'}, function (err, code) {
+  ]), {}, function (err, code, stdout, stderr) {
     if (err) throw err
+    t.equal(stderr, '', 'no error output')
     t.is(code, 0, 'install succeeded')
 
     t.end()
@@ -176,13 +177,14 @@ test('install new version', function (t) {
 test('install does not hit server again', function (t) {
   // The mock server route definitions ensure we don't hit the server again
   common.npm(config.concat([
-    '--cache-min', 'Infinity',
+    '--prefer-offline',
+    '--parseable',
     'install', 'good-night'
   ]), {stdio: [0, 'pipe', 2]}, function (err, code, stdout) {
     if (err) throw err
     t.is(code, 0, 'install succeeded')
 
-    t.match(stdout, /@1\.0\.0/, 'installed latest version')
+    t.match(stdout, /^update\tgood-night\t1.0.0\t/, 'installed latest version')
     server.done()
     t.end()
   })

@@ -7,6 +7,7 @@ var isExtraneous = require('./is-extraneous.js')
 var validateAllPeerDeps = require('./deps.js').validateAllPeerDeps
 var packageId = require('../utils/package-id.js')
 var moduleName = require('../utils/module-name.js')
+var npm = require('../npm.js')
 
 // Return true if tree is a part of a cycle that:
 //   A) Never connects to the top of the tree
@@ -128,7 +129,7 @@ function translateTree_ (tree, seen) {
   pkg.path = tree.path
 
   pkg.error = tree.error
-  pkg.extraneous = isExtraneous(tree)
+  pkg.extraneous = !tree.isTop && (!tree.parent.isTop || !tree.parent.error) && !npm.config.get('global') && isExtraneous(tree)
   if (tree.target && tree.parent && !tree.parent.target) pkg.link = tree.realpath
   return pkg
 }

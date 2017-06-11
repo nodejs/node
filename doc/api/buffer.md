@@ -193,11 +193,11 @@ The character encodings currently supported by Node.js include:
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
-_Note_: Today's browsers follow the [WHATWG spec] which aliases both 'latin1' and
-ISO-8859-1 to win-1252. This means that while doing something like `http.get()`,
-if the returned charset is one of those listed in the WHATWG spec it's possible
-that the server actually returned win-1252-encoded data, and using `'latin1'`
-encoding may incorrectly decode the characters.
+*Note*: Today's browsers follow the [WHATWG spec] which aliases both 'latin1'
+and ISO-8859-1 to win-1252. This means that while doing something like
+`http.get()`, if the returned charset is one of those listed in the WHATWG spec
+it's possible that the server actually returned win-1252-encoded data, and
+using `'latin1'` encoding may incorrectly decode the characters.
 
 ## Buffers and TypedArray
 <!-- YAML
@@ -686,7 +686,7 @@ Returns the actual byte length of a string. This is not the same as
 [`String.prototype.length`] since that returns the number of *characters* in
 a string.
 
-*Note* that for `'base64'` and `'hex'`, this function assumes valid input. For
+*Note*: For `'base64'` and `'hex'`, this function assumes valid input. For
 strings that contain non-Base64/Hex-encoded data (e.g. whitespace), the return
 value might be greater than the length of a `Buffer` created from the string.
 
@@ -707,7 +707,7 @@ actual byte length is returned.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The arguments can now be `Uint8Array`s.
 -->
@@ -736,7 +736,7 @@ console.log(arr.sort(Buffer.compare));
 <!-- YAML
 added: v0.7.11
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The elements of `list` can now be `Uint8Array`s.
 -->
@@ -984,7 +984,7 @@ console.log(buffer.buffer === arrayBuffer);
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The `target` parameter can now be a `Uint8Array`.
   - version: v5.11.0
@@ -1146,7 +1146,7 @@ for (const pair of buf.entries()) {
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The arguments can now be `Uint8Array`s.
 -->
@@ -1257,7 +1257,7 @@ console.log(buf.includes('this', 4));
 <!-- YAML
 added: v1.5.0
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The `value` can now be a `Uint8Array`.
   - version: v5.7.0, v4.4.0
@@ -1340,6 +1340,10 @@ console.log(b.indexOf('b', null));
 console.log(b.indexOf('b', []));
 ```
 
+If `value` is an empty string or empty `Buffer` and `byteOffset` is less
+than `buf.length`, `byteOffset` will be returned. If `value` is empty and
+`byteOffset` is at least `buf.length`, `buf.length` will be returned.
+
 ### buf.keys()
 <!-- YAML
 added: v1.1.0
@@ -1370,7 +1374,7 @@ for (const key of buf.keys()) {
 <!-- YAML
 added: v6.0.0
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The `value` can now be a `Uint8Array`.
 -->
@@ -1450,6 +1454,8 @@ console.log(b.lastIndexOf('b', null));
 console.log(b.lastIndexOf('b', []));
 ```
 
+If `value` is an empty string or empty `Buffer`, `byteOffset` will be returned.
+
 ### buf.length
 <!-- YAML
 added: v0.1.90
@@ -1497,7 +1503,7 @@ console.log(buf.length);
 
 ### buf.parent
 <!-- YAML
-deprecated: REPLACEME
+deprecated: v8.0.0
 -->
 
 > Stability: 0 - Deprecated: Use [`buf.buffer`] instead.
@@ -1862,8 +1868,8 @@ changes:
 Returns a new `Buffer` that references the same memory as the original, but
 offset and cropped by the `start` and `end` indices.
 
-**Note that modifying the new `Buffer` slice will modify the memory in the
-original `Buffer` because the allocated memory of the two objects overlap.**
+*Note*: Modifying the new `Buffer` slice will modify the memory in the
+original `Buffer` because the allocated memory of the two objects overlap.
 
 Example: Create a `Buffer` with the ASCII alphabet, take a slice, and then modify
 one byte from the original `Buffer`
@@ -2511,7 +2517,7 @@ Note that this is a property on the `buffer` module returned by
 <!-- YAML
 added: v7.1.0
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The `source` parameter can now be a `Uint8Array`.
 -->
@@ -2603,7 +2609,7 @@ sensitive data. Use [`buf.fill(0)`][`buf.fill()`] to initialize a `SlowBuffer` t
 Example:
 
 ```js
-const SlowBuffer = require('buffer').SlowBuffer;
+const { SlowBuffer } = require('buffer');
 
 const buf = new SlowBuffer(5);
 

@@ -59,6 +59,17 @@
 # define UNLEN 256
 #endif
 
+/*
+  Max hostname length. The Windows gethostname() documentation states that 256
+  bytes will always be large enough to hold the null-terminated hostname.
+*/
+#ifndef MAXHOSTNAMELEN
+# define MAXHOSTNAMELEN 256
+#endif
+
+/* Maximum environment variable size, including the terminating null */
+#define MAX_ENV_VAR_LENGTH 32767
+
 /* Cached copy of the process title, plus a mutex guarding it. */
 static char *process_title;
 static CRITICAL_SECTION process_title_lock;
@@ -74,7 +85,7 @@ static double hrtime_interval_ = 0;
 /*
  * One-time initialization code for functionality defined in util.c.
  */
-void uv__util_init() {
+void uv__util_init(void) {
   LARGE_INTEGER perf_frequency;
 
   /* Initialize process title access mutex. */
@@ -320,7 +331,7 @@ uint64_t uv_get_total_memory(void) {
 }
 
 
-int uv_parent_pid() {
+int uv_parent_pid(void) {
   int parent_pid = -1;
   HANDLE handle;
   PROCESSENTRY32 pe;
@@ -343,7 +354,7 @@ int uv_parent_pid() {
 }
 
 
-int uv_current_pid() {
+int uv_current_pid(void) {
   if (current_pid == 0) {
     current_pid = GetCurrentProcessId();
   }
@@ -405,7 +416,7 @@ done:
 }
 
 
-static int uv__get_process_title() {
+static int uv__get_process_title(void) {
   WCHAR title_w[MAX_TITLE_LENGTH];
 
   if (!GetConsoleTitleW(title_w, sizeof(title_w) / sizeof(WCHAR))) {
@@ -1322,6 +1333,47 @@ int uv__convert_utf16_to_utf8(const WCHAR* utf16, int utf16len, char** utf8) {
 }
 
 
+/*
+ * Converts a UTF-8 string into a UTF-16 one. The resulting string is
+ * null-terminated.
+ *
+ * If utf8 is null terminated, utf8len can be set to -1, otherwise it must
+ * be specified.
+ */
+int uv__convert_utf8_to_utf16(const char* utf8, int utf8len, WCHAR** utf16) {
+  int bufsize;
+
+  if (utf8 == NULL)
+    return UV_EINVAL;
+
+  /* Check how much space we need */
+  bufsize = MultiByteToWideChar(CP_UTF8, 0, utf8, utf8len, NULL, 0);
+
+  if (bufsize == 0)
+    return uv_translate_sys_error(GetLastError());
+
+  /* Allocate the destination buffer adding an extra byte for the terminating
+   * NULL. If utf8len is not -1 MultiByteToWideChar will not add it, so
+   * we do it ourselves always, just in case. */
+  *utf16 = uv__malloc(sizeof(WCHAR) * (bufsize + 1));
+
+  if (*utf16 == NULL)
+    return UV_ENOMEM;
+
+  /* Convert to UTF-16 */
+  bufsize = MultiByteToWideChar(CP_UTF8, 0, utf8, utf8len, *utf16, bufsize);
+
+  if (bufsize == 0) {
+    uv__free(*utf16);
+    *utf16 = NULL;
+    return uv_translate_sys_error(GetLastError());
+  }
+
+  (*utf16)[bufsize] = '\0';
+  return 0;
+}
+
+
 int uv__getpwuid_r(uv_passwd_t* pwd) {
   HANDLE token;
   wchar_t username[UNLEN + 1];
@@ -1386,4 +1438,139 @@ int uv__getpwuid_r(uv_passwd_t* pwd) {
 
 int uv_os_get_passwd(uv_passwd_t* pwd) {
   return uv__getpwuid_r(pwd);
+}
+
+
+int uv_os_getenv(const char* name, char* buffer, size_t* size) {
+  wchar_t var[MAX_ENV_VAR_LENGTH];
+  wchar_t* name_w;
+  DWORD bufsize;
+  size_t len;
+  int r;
+
+  if (name == NULL || buffer == NULL || size == NULL || *size == 0)
+    return UV_EINVAL;
+
+  r = uv__convert_utf8_to_utf16(name, -1, &name_w);
+
+  if (r != 0)
+    return r;
+
+  len = GetEnvironmentVariableW(name_w, var, MAX_ENV_VAR_LENGTH);
+  uv__free(name_w);
+  assert(len < MAX_ENV_VAR_LENGTH); /* len does not include the null */
+
+  if (len == 0) {
+    r = GetLastError();
+
+    if (r == ERROR_ENVVAR_NOT_FOUND)
+      return UV_ENOENT;
+
+    return uv_translate_sys_error(r);
+  }
+
+  /* Check how much space we need */
+  bufsize = WideCharToMultiByte(CP_UTF8, 0, var, -1, NULL, 0, NULL, NULL);
+
+  if (bufsize == 0) {
+    return uv_translate_sys_error(GetLastError());
+  } else if (bufsize > *size) {
+    *size = bufsize;
+    return UV_ENOBUFS;
+  }
+
+  /* Convert to UTF-8 */
+  bufsize = WideCharToMultiByte(CP_UTF8,
+                                0,
+                                var,
+                                -1,
+                                buffer,
+                                *size,
+                                NULL,
+                                NULL);
+
+  if (bufsize == 0)
+    return uv_translate_sys_error(GetLastError());
+
+  *size = bufsize - 1;
+  return 0;
+}
+
+
+int uv_os_setenv(const char* name, const char* value) {
+  wchar_t* name_w;
+  wchar_t* value_w;
+  int r;
+
+  if (name == NULL || value == NULL)
+    return UV_EINVAL;
+
+  r = uv__convert_utf8_to_utf16(name, -1, &name_w);
+
+  if (r != 0)
+    return r;
+
+  r = uv__convert_utf8_to_utf16(value, -1, &value_w);
+
+  if (r != 0) {
+    uv__free(name_w);
+    return r;
+  }
+
+  r = SetEnvironmentVariableW(name_w, value_w);
+  uv__free(name_w);
+  uv__free(value_w);
+
+  if (r == 0)
+    return uv_translate_sys_error(GetLastError());
+
+  return 0;
+}
+
+
+int uv_os_unsetenv(const char* name) {
+  wchar_t* name_w;
+  int r;
+
+  if (name == NULL)
+    return UV_EINVAL;
+
+  r = uv__convert_utf8_to_utf16(name, -1, &name_w);
+
+  if (r != 0)
+    return r;
+
+  r = SetEnvironmentVariableW(name_w, NULL);
+  uv__free(name_w);
+
+  if (r == 0)
+    return uv_translate_sys_error(GetLastError());
+
+  return 0;
+}
+
+
+int uv_os_gethostname(char* buffer, size_t* size) {
+  char buf[MAXHOSTNAMELEN + 1];
+  size_t len;
+
+  if (buffer == NULL || size == NULL || *size == 0)
+    return UV_EINVAL;
+
+  uv__once_init(); /* Initialize winsock */
+
+  if (gethostname(buf, sizeof(buf)) != 0)
+    return uv_translate_sys_error(WSAGetLastError());
+
+  buf[sizeof(buf) - 1] = '\0'; /* Null terminate, just to be safe. */
+  len = strlen(buf);
+
+  if (len >= *size) {
+    *size = len + 1;
+    return UV_ENOBUFS;
+  }
+
+  memcpy(buffer, buf, len + 1);
+  *size = len;
+  return 0;
 }

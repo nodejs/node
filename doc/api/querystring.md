@@ -31,7 +31,7 @@ necessary by assigning `querystring.escape` to an alternative function.
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10967
     description: Multiple empty entries are now parsed correctly (e.g. `&=&=`).
   - version: v6.0.0

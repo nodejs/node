@@ -31,8 +31,8 @@ let sent_continue = false;
 let got_continue = false;
 
 function handler(req, res) {
-  assert.strictEqual(sent_continue, true, 'Full response sent before ' +
-                     '100 Continue');
+  assert.strictEqual(sent_continue, true,
+                     'Full response sent before 100 Continue');
   console.error('Server sending full response...');
   res.writeHead(200, {
     'Content-Type': 'text/plain',

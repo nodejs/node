@@ -69,7 +69,7 @@ class V8_EXPORT_PRIVATE BranchElimination final
    public:
     PathConditionsForControlNodes(Zone* zone, size_t size_hint)
         : info_for_node_(size_hint, nullptr, zone) {}
-    const ControlPathConditions* Get(Node* node);
+    const ControlPathConditions* Get(Node* node) const;
     void Set(Node* node, const ControlPathConditions* conditions);
 
    private:

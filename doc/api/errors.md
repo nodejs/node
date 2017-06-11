@@ -238,7 +238,7 @@ function MyError() {
 
 // Without passing MyError to captureStackTrace, the MyError
 // frame would show up in the .stack property. By passing
-// the constructor, we omit that frame and all frames above it.
+// the constructor, we omit that frame, and retain all frames below it.
 new MyError().stack;
 ```
 
@@ -559,7 +559,6 @@ found [here][online].
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
 
-
 <a id="nodejs-error-codes"></a>
 ## Node.js Error Codes
 
@@ -569,6 +568,19 @@ found [here][online].
 The `'ERR_ARG_NOT_ITERABLE'` error code is used generically to identify that an
 iterable argument (i.e. a value that works with `for...of` loops) is required,
 but not provided to a Node.js API.
+
+<a id="ERR_CONSOLE_WRITABLE_STREAM"></a>
+### ERR_CONSOLE_WRITABLE_STREAM
+
+The `ERR_CONSOLE_WRITABLE_STREAM` error code is thrown when `Console` is
+instantiated without `stdout` stream or when `stdout` or `stderr` streams
+are not writable.
+
+<a id="ERR_INDEX_OUT_OF_RANGE"></a>
+### ERR_INDEX_OUT_OF_RANGE
+
+The `'ERR_INDEX_OUT_OF_RANGE'` error code is used when a given index is out of
+the accepted range.
 
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
@@ -702,6 +714,35 @@ in the [WHATWG URL API][] for strict compliance with the specification (which
 in some cases may accept `func(undefined)` but not `func()`). In most native
 Node.js APIs, `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
+
+<a id="ERR_SOCKET_ALREADY_BOUND"></a>
+### ERR_SOCKET_ALREADY_BOUND
+An error using the `'ERR_SOCKET_ALREADY_BOUND'` code is thrown when an attempt
+is made to bind a socket that has already been bound.
+
+<a id="ERR_SOCKET_BAD_PORT"></a>
+### ERR_SOCKET_BAD_PORT
+
+An error using the `'ERR_SOCKET_BAD_PORT'` code is thrown when an API
+function expecting a port > 0 and < 65536 receives an invalid value.
+
+<a id="ERR_SOCKET_BAD_TYPE"></a>
+### ERR_SOCKET_BAD_TYPE
+
+An error using the `'ERR_SOCKET_BAD_TYPE'` code is thrown when an API
+function expecting a socket type (`udp4` or `udp6`) receives an invalid value.
+
+<a id="ERR_SOCKET_CANNOT_SEND"></a>
+### ERR_SOCKET_CANNOT_SEND
+
+An error using the `'ERR_SOCKET_CANNOT_SEND'` code is thrown when data
+cannot be sent on a socket.
+
+<a id="ERR_SOCKET_DGRAM_NOT_RUNNING"></a>
+### ERR_SOCKET_DGRAM_NOT_RUNNING
+
+An error using the `'ERR_SOCKET_DGRAM_NOT_RUNNING'` code is thrown
+when a call is made and the UDP subsystem is not running.
 
 <a id="ERR_STDERR_CLOSE"></a>
 ### ERR_STDERR_CLOSE

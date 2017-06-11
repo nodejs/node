@@ -1,6 +1,6 @@
-# C/C++ Addons
+# C++ Addons
 
-Node.js Addons are dynamically-linked shared objects, written in C or C++, that
+Node.js Addons are dynamically-linked shared objects, written in C++, that
 can be loaded into Node.js using the [`require()`][require] function, and used
 just as if they were an ordinary Node.js module. They are used primarily to
 provide an interface between JavaScript running in Node.js and C/C++ libraries.
@@ -26,7 +26,7 @@ involving knowledge of several components and APIs :
    off-loading work via libuv to non-blocking system operations, worker threads
    or a custom use of libuv's threads.
 
- - Internal Node.js libraries. Node.js itself exports a number of C/C++ APIs
+ - Internal Node.js libraries. Node.js itself exports a number of C++ APIs
    that Addons can use &mdash; the most important of which is the
    `node::ObjectWrap` class.
 
@@ -113,13 +113,13 @@ specifically to compile Node.js Addons.
 }
 ```
 
-*Note: A version of the `node-gyp` utility is bundled and distributed with
+*Note*: A version of the `node-gyp` utility is bundled and distributed with
 Node.js as part of `npm`. This version is not made directly available for
 developers to use and is intended only to support the ability to use the
 `npm install` command to compile and install Addons. Developers who wish to
 use `node-gyp` directly can install it using the command
 `npm install -g node-gyp`. See the `node-gyp` [installation instructions][] for
-more information, including platform-specific requirements.*
+more information, including platform-specific requirements.
 
 Once the `binding.gyp` file has been created, use `node-gyp configure` to
 generate the appropriate project build files for the current platform. This
@@ -1116,7 +1116,7 @@ void init(Local<Object> exports) {
   AtExit(at_exit_cb1, exports->GetIsolate());
 }
 
-NODE_MODULE(addon, init);
+NODE_MODULE(addon, init)
 
 }  // namespace demo
 ```

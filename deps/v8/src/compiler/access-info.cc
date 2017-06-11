@@ -97,12 +97,6 @@ PropertyAccessInfo PropertyAccessInfo::AccessorConstant(
   return PropertyAccessInfo(kAccessorConstant, holder, constant, receiver_maps);
 }
 
-// static
-PropertyAccessInfo PropertyAccessInfo::Generic(MapList const& receiver_maps) {
-  return PropertyAccessInfo(kGeneric, MaybeHandle<JSObject>(), Handle<Object>(),
-                            receiver_maps);
-}
-
 PropertyAccessInfo::PropertyAccessInfo()
     : kind_(kInvalid),
       field_representation_(MachineRepresentation::kNone),
@@ -177,8 +171,7 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
       return false;
     }
 
-    case kNotFound:
-    case kGeneric: {
+    case kNotFound: {
       this->receiver_maps_.insert(this->receiver_maps_.end(),
                                   that->receiver_maps_.begin(),
                                   that->receiver_maps_.end());
@@ -236,6 +229,7 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
       if (transition_target == nullptr) {
         receiver_maps.Add(map);
       } else {
+        DCHECK(!map->is_stable());
         transitions.push_back(std::make_pair(map, handle(transition_target)));
       }
     }
@@ -370,9 +364,6 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           if (!accessor->IsJSFunction()) {
             CallOptimization optimization(accessor);
             if (!optimization.is_simple_api_call()) {
-              return false;
-            }
-            if (optimization.api_call_info()->fast_handler()->IsCode()) {
               return false;
             }
             if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
@@ -518,10 +509,6 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
                                          MaybeHandle<JSObject> holder,
                                          PropertyAccessInfo* access_info) {
   // Check if the {map} has a data transition with the given {name}.
-  if (map->unused_property_fields() == 0) {
-    *access_info = PropertyAccessInfo::Generic(MapList{map});
-    return true;
-  }
   Handle<Map> transition_map;
   if (TransitionArray::SearchTransition(map, kData, name, NONE)
           .ToHandle(&transition_map)) {

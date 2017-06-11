@@ -7,14 +7,20 @@ npm supports the "scripts" property of the package.json script, for the
 following scripts:
 
 * prepublish:
-  Run BEFORE the package is published.  (Also run on local `npm
-  install` without any arguments. See below.)
+  Run BEFORE the package is packed and published, as well as on local `npm
+  install` without any arguments. (See below)
 * prepare:
-  Run both BEFORE the package is published, and on local `npm
-  install` without any arguments. (See below.) This is run
+  Run both BEFORE the package is packed and published, and on local `npm
+  install` without any arguments (See below). This is run
   AFTER `prepublish`, but BEFORE `prepublishOnly`.
 * prepublishOnly:
-  Run BEFORE the package is published. (See below.)
+  Run BEFORE the package is prepared and packed, ONLY on `npm publish`. (See
+  below.)
+* prepack:
+  run BEFORE a tarball is packed (on `npm pack`, `npm publish`, and when
+  installing git dependencies)
+* postpack:
+  Run AFTER the tarball has been generated and moved to its final destination.
 * publish, postpublish:
   Run AFTER the package is published.
 * preinstall:

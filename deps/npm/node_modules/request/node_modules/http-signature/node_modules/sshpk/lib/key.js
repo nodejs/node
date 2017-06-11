@@ -1,4 +1,4 @@
-// Copyright 2015 Joyent, Inc.
+// Copyright 2017 Joyent, Inc.
 
 module.exports = Key;
 
@@ -7,7 +7,7 @@ var algs = require('./algs');
 var crypto = require('crypto');
 var Fingerprint = require('./fingerprint');
 var Signature = require('./signature');
-var DiffieHellman = require('./dhe');
+var DiffieHellman = require('./dhe').DiffieHellman;
 var errs = require('./errors');
 var utils = require('./utils');
 var PrivateKey = require('./private-key');
@@ -171,6 +171,7 @@ Key.prototype.createVerify = function (hashAlgo) {
 	assert.ok(v, 'failed to create verifier');
 	var oldVerify = v.verify.bind(v);
 	var key = this.toBuffer('pkcs8');
+	var curve = this.curve;
 	var self = this;
 	v.verify = function (signature, fmt) {
 		if (Signature.isSignature(signature, [2, 0])) {
@@ -178,6 +179,9 @@ Key.prototype.createVerify = function (hashAlgo) {
 				return (false);
 			if (signature.hashAlgorithm &&
 			    signature.hashAlgorithm !== hashAlgo)
+				return (false);
+			if (signature.curve && self.type === 'ecdsa' &&
+			    signature.curve !== curve)
 				return (false);
 			return (oldVerify(key, signature.toBuffer('asn1')));
 

@@ -40,3 +40,8 @@ test_object.readwriteAccessor2 = 2;
 assert.strictEqual(test_object.readwriteAccessor2, 2);
 assert.strictEqual(test_object.readonlyAccessor2, 2);
 assert.throws(() => { test_object.readonlyAccessor2 = 3; }, TypeError);
+
+// validate that static properties are on the class as opposed
+// to the instance
+assert.strictEqual(TestConstructor.staticReadonlyAccessor1, 10);
+assert.strictEqual(test_object.staticReadonlyAccessor1, undefined);

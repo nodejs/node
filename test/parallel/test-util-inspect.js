@@ -1028,11 +1028,21 @@ if (typeof Symbol !== 'undefined') {
 
   assert.throws(() => {
     util.inspect.defaultOptions = null;
-  }, /"options" must be an object/);
+  }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "options" argument must be of type object'
+  })
+  );
 
   assert.throws(() => {
     util.inspect.defaultOptions = 'bad';
-  }, /"options" must be an object/);
+  }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "options" argument must be of type object'
+  })
+  );
 }
 
 assert.doesNotThrow(() => util.inspect(process));

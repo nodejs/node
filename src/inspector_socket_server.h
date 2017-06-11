@@ -27,19 +27,33 @@ class SocketServerDelegate {
   virtual std::vector<std::string> GetTargetIds() = 0;
   virtual std::string GetTargetTitle(const std::string& id) = 0;
   virtual std::string GetTargetUrl(const std::string& id) = 0;
+  virtual void ServerDone() = 0;
 };
+
+// HTTP Server, writes messages requested as TransportActions, and responds
+// to HTTP requests and WS upgrades.
+
+
 
 class InspectorSocketServer {
  public:
   using ServerCallback = void (*)(InspectorSocketServer*);
   InspectorSocketServer(SocketServerDelegate* delegate,
+                        uv_loop_t* loop,
                         const std::string& host,
                         int port,
                         FILE* out = stderr);
-  bool Start(uv_loop_t* loop);
+  // Start listening on host/port
+  bool Start();
+
+  // Called by the TransportAction sent with InspectorIo::Write():
+  //   kKill and kStop
   void Stop(ServerCallback callback);
+  //   kSendMessage
   void Send(int session_id, const std::string& message);
-  void TerminateConnections(ServerCallback callback);
+  //   kKill
+  void TerminateConnections();
+
   int port() {
     return port_;
   }
@@ -59,11 +73,11 @@ class InspectorSocketServer {
   void SendListResponse(InspectorSocket* socket);
   void ReadCallback(InspectorSocket* socket, ssize_t read, const uv_buf_t* buf);
   bool SessionStarted(SocketSession* session, const std::string& id);
-  void SessionTerminated(int id);
+  void SessionTerminated(SocketSession* session);
   bool TargetExists(const std::string& id);
-  static void SocketSessionDeleter(SocketSession*);
   SocketServerDelegate* Delegate() { return delegate_; }
 
+  enum class ServerState {kNew, kRunning, kStopping, kStopped};
   uv_loop_t* loop_;
   SocketServerDelegate* const delegate_;
   const std::string host_;
@@ -74,6 +88,7 @@ class InspectorSocketServer {
   std::map<int, SocketSession*> connected_sessions_;
   int next_session_id_;
   FILE* out_;
+  ServerState state_;
 
   friend class SocketSession;
   friend class Closer;

@@ -30,7 +30,7 @@ f();
 f();
 `,
 [{"start":0,"end":25,"count":1},
- {"start":0,"end":15,"count":2}]
+ {"start":0,"end":15,"count":1}]
 );
 
 TestCoverage(
@@ -41,7 +41,7 @@ f();
 f();
 `,
 [{"start":0,"end":26,"count":1},
- {"start":8,"end":15,"count":2}]
+ {"start":8,"end":15,"count":1}]
 );
 
 TestCoverage(
@@ -56,8 +56,8 @@ f();
 f();
 `,
 [{"start":0,"end":58,"count":1},
- {"start":0,"end":48,"count":2},
- {"start":17,"end":32,"count":4}]
+ {"start":0,"end":48,"count":1},
+ {"start":17,"end":32,"count":1}]
 );
 
 TestCoverage(
@@ -70,5 +70,5 @@ function fib(x) {
 fib(5);
 `,
 [{"start":0,"end":80,"count":1},
- {"start":0,"end":72,"count":15}]
+ {"start":0,"end":72,"count":1}]
 );

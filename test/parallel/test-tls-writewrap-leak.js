@@ -16,7 +16,7 @@ const server = net.createServer(common.mustCall((c) => {
   const c = tls.connect({ port: server.address().port });
   c.on('error', () => {
     // Otherwise `.write()` callback won't be invoked.
-    c.destroyed = false;
+    c._undestroy();
   });
 
   c.write('hello', common.mustCall((err) => {

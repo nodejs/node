@@ -1,0 +1,86 @@
+* Finished
+  * [COMPLETED] npm: remove packageIntegrity
+  * [COMPLETED] npm: fix lifecycle stuff
+    * pack:
+      * pre-: immediately before tarball contents are packed. Need to re-read package.json immediately after
+      * pack: No pack lifecycle
+      * post-: immediately after tarball reaches its final destination (not immediately after packaging)
+    * prepare: `npm install`, immediately before `postinstall`, and immediately before `prepack`, never if `--prod`, after prepublish, before prepublishOnly
+    * prepublish: alias for `prepare`
+    * prepublishOnly: ONLY on `npm publish` (never on `npm pack`), runs before prepack (which takes care of re-reading package.json), re-reads package.json immediately after
+  * [COMPLETED] pacote: fix always-auth bug
+  * [COMPLETED] pacote: figure out why cache is being written as root
+  * [COMPLETED] npm: make `npm update` save files as the right type
+  * [COMPLETED] npm: update docs with npm5 changes
+  * [COMPLETED] npm: don't write "problems" into package-lock
+  * [COMPLETED] npm: add `created-with`, `shrinkwrap-version`, and `package-integrity`
+  * [COMPLETED] npm: warn on incompatible package-lock version
+  * [COMPLETED] npm: warn if both shrinkwrap and package-lock are there
+  * [COMPLETED] npm: fix git-prepare
+  * [COMPLETED] npm: fix auth failure for locked scoped deps
+  * [COMPLETED] npm: send the user-agent through to pacote
+  * [COMPLETED] npm: get https://github.com/npm/write-file-atomic/pull/23 merged
+  * [COMPLETED] npm: get https://github.com/npm/fstream-npm/pull/27 merged
+  * [COMPLETED] npm: if local deps exist w/o needed metadata, fetch it
+  * [COMPLETED] Run `prepare` during git tarball packing phase
+  * [COMPLETED] npm: put npm cache clear behind --force
+  * [COMPLETED] npm: package-lock.json
+    * lib/install/read-shrinkwrap.js
+    * lib/shrinkwrap.js
+    * lib/install/save.js (?)
+    * lib/utils/tar.js (add autoignore)
+    * fstream-npm (add autoignore)
+    * lib/version.js
+  * [COMPLETED] npm: --save by default
+  * [COMPLETED] npm: make sure `npm i <pkg>` defaults to package.json
+    * it only happens for command line arguments
+    * getAllMetadata
+    * Apparently, I did this way back when and totally forgot. lol.
+  * [COMPLETED] make-fetch-happen: make sure other options npm used are implemented
+    * look at the comment at the bottom of pacote.js
+  * [COMPLETED] make-fetch-happen: support strictSSL option
+  * [COMPLETED] Write npm@5 speeds presentation for Friday
+  * [COMPLETED] pacote: support `opts.fullMetadata` for `pkg.manifest`
+  * [COMPLETED] npm: fix invalid package: null error
+  * [COMPLETED] make-fetch-happen: case-insensitive http_proxy/proxy/https_proxy
+  * [COMPLETED] cacache: integrate cacache@8 into npm/pacote/mfh
+  * [COMPLETED] make-fetch-happen: literally vendor in node-fetch. sigh.
+    * basically, the whole tarball situation prevents shrinkwrap. sux :<
+    * note: solved this by forking node-fetch into node-fetch-npm
+  * [COMPLETED] pacote: http auth and alwaysAuth
+    * https://github.com/zkat/pacote/issues/77
+  * [COMPLETED] make-fetch-happen: NO_PROXY support
+    * https://github.com/zkat/make-fetch-happen/issues/17
+  * [COMPLETED] npm: calculate sri with ssri and add it to dist.integrity
+  * [COMPLETED] pacote: refactor handler API
+    * maybe use Protoduck?
+  * [COMPLETED] npm: nag Ryan about when sha512 is happening
+    * He says it's delayed 😭
+    * I can still start sending integrity in the publish
+  * [COMPLETED] npm: fix bundle replacement issues (see: npm i nyc warning spam)
+    * need fromBundle attribute on shrinkwrap and pass it through. the sw.version && sw.integrity-based fake node needs to have this there.
+* Backlog
+  * [TODO] make-fetch-happen: integrity failures are being thrown
+  * [TODO] write-file-atomic: review https://github.com/npm/write-file-atomic/pull/22
+  * [TODO] pacote: write tests for git handlers
+    * https://github.com/zkat/pacote/issues/70
+  * [TODO] pacote: offline feature support for git deps
+  * [TODO] npm: get logging working during the recalculateMetadata spam
+  * [TODO] pacote: opts.extraHeaders
+    * https://github.com/zkat/pacote/issues/79
+  * [TODO] pacote: ECONNRESET recovery
+    * https://github.com/zkat/pacote/issues/8
+  * [TODO] pacote: skip node_modules extraction for non-bundleDeps
+    * https://github.com/zkat/pacote/issues/49
+  * [TODO] pacote: write tests for file/directory handlers
+  * [TODO] npm: `npm publish --dry-run` -> https://npm.im/pkgfiles ?
+    * Rebecca says yea
+  * [TODO] make-fetch-happen: write tests for agent pooling/proxy
+    * https://github.com/zkat/make-fetch-happen/issues/16
+  * [TODO] make-fetch-happen: retry notification
+    * https://github.com/zkat/make-fetch-happen/issues/21
+  * [TODO] npm: more informative logging when building git deps
+* Needed for npm@5
+* Active
+  * [TODO] npm: figure out https://github.com/npm/npm/issues/16665
+  * [TODO] npm: first-run notice about npm5 still having known issues

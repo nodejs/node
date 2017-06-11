@@ -53,23 +53,23 @@ latest:
 	@echo "Installing latest published npm"
 	@echo "Use 'make install' or 'make link' to install the code"
 	@echo "in this folder that you're looking at right now."
-	node cli.js install -g -f npm ${NPMOPTS}
+	node bin/npm-cli.js install -g -f npm ${NPMOPTS}
 
 install: all
-	node cli.js install -g -f ${NPMOPTS}
+	node bin/npm-cli.js install -g -f ${NPMOPTS}
 
 # backwards compat
 dev: install
 
 link: uninstall
-	node cli.js link -f
+	node bin/npm-cli.js link -f
 
 clean: markedclean marked-manclean doc-clean uninstall
 	rm -rf npmrc
-	node cli.js cache clean
+	node bin/npm-cli.js cache clean
 
 uninstall:
-	node cli.js rm npm -g -f
+	node bin/npm-cli.js rm npm -g -f
 
 doc: $(mandocs) $(htmldocs)
 
@@ -143,22 +143,22 @@ html/doc/misc/%.html: doc/misc/%.md $(html_docdeps)
 marked: node_modules/.bin/marked
 
 node_modules/.bin/marked:
-	node cli.js install marked --no-global
+	node bin/npm-cli.js install marked --no-global --no-timing --no-save
 
 marked-man: node_modules/.bin/marked-man
 
 node_modules/.bin/marked-man:
-	node cli.js install marked-man --no-global
+	node bin/npm-cli.js install marked-man --no-global --no-timing --no-save
 
 doc: man
 
 man: $(cli_docs)
 
 test: doc
-	node cli.js test
+	node bin/npm-cli.js test
 
 tag:
-	npm tag npm@$(PUBLISHTAG) latest
+	node bin/npm-cli.js tag npm@$(PUBLISHTAG) latest
 
 ls-ok:
 	node . ls >/dev/null
@@ -167,13 +167,13 @@ gitclean:
 	git clean -fd
 
 publish: gitclean ls-ok link doc-clean doc
-	@git push origin :v$(shell npm -v) 2>&1 || true
+	@git push origin :v$(shell node bin/npm-cli.js --no-timing -v) 2>&1 || true
 	git push origin $(BRANCH) &&\
 	git push origin --tags &&\
-	npm publish --tag=$(PUBLISHTAG)
+	node bin/npm-cli.js publish --tag=$(PUBLISHTAG)
 
 release: gitclean ls-ok markedclean marked-manclean doc-clean doc
-	node cli.js prune --production
+	node bin/npm-cli.js prune --production --no-save
 	@bash scripts/release.sh
 
 sandwich:

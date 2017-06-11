@@ -27,8 +27,8 @@ const cluster = require('cluster');
 const http = require('http');
 
 if (common.isWindows) {
-  common.skip('It is not possible to send pipe handles over ' +
-              'the IPC pipe on Windows');
+  common.skip(
+    'It is not possible to send pipe handles over the IPC pipe on Windows');
   return;
 }
 

@@ -19,14 +19,22 @@
 #undef MAP_TYPE
 
 #include "src/base/macros.h"
+#include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
 #include "src/base/win32-headers.h"
 
 namespace v8 {
 namespace base {
 
+class CygwinTimezoneCache : public PosixTimezoneCache {
+  const char* LocalTimezone(double time) override;
 
-const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
+  double LocalTimeOffset() override;
+
+  ~CygwinTimezoneCache() override {}
+};
+
+const char* CygwinTimezoneCache::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm tm;
@@ -35,8 +43,7 @@ const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
   return tzname[0];  // The location of the timezone string on Cygwin.
 }
 
-
-double OS::LocalTimeOffset(TimezoneCache* cache) {
+double CygwinTimezoneCache::LocalTimeOffset() {
   // On Cygwin, struct tm does not contain a tm_gmtoff field.
   time_t utc = time(NULL);
   DCHECK(utc != -1);

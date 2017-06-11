@@ -55,6 +55,7 @@
 #include <unicode/utypes.h>
 #include <unicode/putil.h>
 #include <unicode/uchar.h>
+#include <unicode/uclean.h>
 #include <unicode/udata.h>
 #include <unicode/uidna.h>
 #include <unicode/ucnv.h>
@@ -325,7 +326,7 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
             tfn = &TranscodeUtf8FromUcs2;
             break;
           default:
-            tfn = TranscodeFromUcs2;
+            tfn = &TranscodeFromUcs2;
         }
         break;
       default:
@@ -418,28 +419,26 @@ void GetVersion(const FunctionCallbackInfo<Value>& args) {
 }  // anonymous namespace
 
 bool InitializeICUDirectory(const std::string& path) {
+  UErrorCode status = U_ZERO_ERROR;
   if (path.empty()) {
-    UErrorCode status = U_ZERO_ERROR;
 #ifdef NODE_HAVE_SMALL_ICU
     // install the 'small' data.
     udata_setCommonData(&SMALL_ICUDATA_ENTRY_POINT, &status);
 #else  // !NODE_HAVE_SMALL_ICU
     // no small data, so nothing to do.
 #endif  // !NODE_HAVE_SMALL_ICU
-    return (status == U_ZERO_ERROR);
   } else {
     u_setDataDirectory(path.c_str());
-    return true;  // No error.
+    u_init(&status);
   }
+  return status == U_ZERO_ERROR;
 }
 
 int32_t ToUnicode(MaybeStackBuffer<char>* buf,
                   const char* input,
-                  size_t length,
-                  bool lenient) {
+                  size_t length) {
   UErrorCode status = U_ZERO_ERROR;
-  uint32_t options = UIDNA_DEFAULT;
-  options |= UIDNA_NONTRANSITIONAL_TO_UNICODE;
+  uint32_t options = UIDNA_NONTRANSITIONAL_TO_UNICODE;
   UIDNA* uidna = uidna_openUTS46(options, &status);
   if (U_FAILURE(status))
     return -1;
@@ -451,6 +450,9 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
                                         &info,
                                         &status);
 
+  // Do not check info.errors like we do with ToASCII since ToUnicode always
+  // returns a string, despite any possible errors that may have occurred.
+
   if (status == U_BUFFER_OVERFLOW_ERROR) {
     status = U_ZERO_ERROR;
     buf->AllocateSufficientStorage(len);
@@ -461,14 +463,10 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
                                   &status);
   }
 
-  // UTS #46's ToUnicode operation applies no validation of domain name length
-  // (nor a flag requesting it to do so, like VerifyDnsLength for ToASCII). For
-  // that reason, unlike ToASCII below, ICU4C correctly accepts long domain
-  // names. However, ICU4C still sets the EMPTY_LABEL error in contrary to UTS
-  // #46. Therefore, explicitly filters out that error here.
-  info.errors &= ~UIDNA_ERROR_EMPTY_LABEL;
+  // info.errors is ignored as UTS #46 ToUnicode always produces a Unicode
+  // string, regardless of whether an error occurred.
 
-  if (U_FAILURE(status) || (!lenient && info.errors != 0)) {
+  if (U_FAILURE(status)) {
     len = -1;
     buf->SetLength(0);
   } else {
@@ -482,10 +480,18 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
 int32_t ToASCII(MaybeStackBuffer<char>* buf,
                 const char* input,
                 size_t length,
-                bool lenient) {
+                enum idna_mode mode) {
   UErrorCode status = U_ZERO_ERROR;
-  uint32_t options = UIDNA_DEFAULT;
-  options |= UIDNA_NONTRANSITIONAL_TO_ASCII;
+  uint32_t options =                  // CheckHyphens = false; handled later
+    UIDNA_CHECK_BIDI |                // CheckBidi = true
+    UIDNA_CHECK_CONTEXTJ |            // CheckJoiners = true
+    UIDNA_NONTRANSITIONAL_TO_ASCII;   // Nontransitional_Processing
+  if (mode == IDNA_STRICT) {
+    options |= UIDNA_USE_STD3_RULES;  // UseSTD3ASCIIRules = beStrict
+                                      // VerifyDnsLength = beStrict;
+                                      //   handled later
+  }
+
   UIDNA* uidna = uidna_openUTS46(options, &status);
   if (U_FAILURE(status))
     return -1;
@@ -507,17 +513,35 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
                                  &status);
   }
 
-  // The WHATWG URL "domain to ASCII" algorithm explicitly sets the
-  // VerifyDnsLength flag to false, which disables the domain name length
-  // verification step in ToASCII (as specified by UTS #46). Unfortunately,
-  // ICU4C's IDNA module does not support disabling this flag through `options`,
-  // so just filter out the errors that may be caused by the verification step
-  // afterwards.
-  info.errors &= ~UIDNA_ERROR_EMPTY_LABEL;
-  info.errors &= ~UIDNA_ERROR_LABEL_TOO_LONG;
-  info.errors &= ~UIDNA_ERROR_DOMAIN_NAME_TOO_LONG;
+  // In UTS #46 which specifies ToASCII, certain error conditions are
+  // configurable through options, and the WHATWG URL Standard promptly elects
+  // to disable some of them to accomodate for real-world use cases.
+  // Unfortunately, ICU4C's IDNA module does not support disabling some of
+  // these options through `options` above, and thus continues throwing
+  // unnecessary errors. To counter this situation, we just filter out the
+  // errors that may have happened afterwards, before deciding whether to
+  // return an error from this function.
 
-  if (U_FAILURE(status) || (!lenient && info.errors != 0)) {
+  // CheckHyphens = false
+  // (Specified in the current UTS #46 draft rev. 18.)
+  // Refs:
+  // - https://github.com/whatwg/url/issues/53
+  // - https://github.com/whatwg/url/pull/309
+  // - http://www.unicode.org/review/pri317/
+  // - http://www.unicode.org/reports/tr46/tr46-18.html
+  // - https://www.icann.org/news/announcement-2000-01-07-en
+  info.errors &= ~UIDNA_ERROR_HYPHEN_3_4;
+  info.errors &= ~UIDNA_ERROR_LEADING_HYPHEN;
+  info.errors &= ~UIDNA_ERROR_TRAILING_HYPHEN;
+
+  if (mode != IDNA_STRICT) {
+    // VerifyDnsLength = beStrict
+    info.errors &= ~UIDNA_ERROR_EMPTY_LABEL;
+    info.errors &= ~UIDNA_ERROR_LABEL_TOO_LONG;
+    info.errors &= ~UIDNA_ERROR_DOMAIN_NAME_TOO_LONG;
+  }
+
+  if (U_FAILURE(status) || (mode != IDNA_LENIENT && info.errors != 0)) {
     len = -1;
     buf->SetLength(0);
   } else {
@@ -533,11 +557,9 @@ static void ToUnicode(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
   Utf8Value val(env->isolate(), args[0]);
-  // optional arg
-  bool lenient = args[1]->BooleanValue(env->context()).FromJust();
 
   MaybeStackBuffer<char> buf;
-  int32_t len = ToUnicode(&buf, *val, val.length(), lenient);
+  int32_t len = ToUnicode(&buf, *val, val.length());
 
   if (len < 0) {
     return env->ThrowError("Cannot convert name to Unicode");
@@ -557,9 +579,10 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
   Utf8Value val(env->isolate(), args[0]);
   // optional arg
   bool lenient = args[1]->BooleanValue(env->context()).FromJust();
+  enum idna_mode mode = lenient ? IDNA_LENIENT : IDNA_DEFAULT;
 
   MaybeStackBuffer<char> buf;
-  int32_t len = ToASCII(&buf, *val, val.length(), lenient);
+  int32_t len = ToASCII(&buf, *val, val.length(), mode);
 
   if (len < 0) {
     return env->ThrowError("Cannot convert name to ASCII");

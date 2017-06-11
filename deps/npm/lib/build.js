@@ -79,7 +79,8 @@ var writeBuiltinConf = build.writeBuiltinConf = function (pkg, folder, cb) {
   var parent = path.dirname(folder)
   var dir = npm.globalDir
 
-  if (pkg.name !== 'npm' ||
+  // Make this count for canary, too
+  if ((pkg.name !== 'npm' && pkg.name !== 'npmc') ||
       !npm.config.get('global') ||
       !npm.config.usingBuiltin ||
       dir !== parent) {
@@ -211,7 +212,7 @@ function linkBins (pkg, folder, parent, gtop, cb) {
           var out = npm.config.get('parseable')
                   ? dest + '::' + src + ':BINFILE'
                   : dest + ' -> ' + src
-          output(out)
+          if (!npm.config.get('json') && !npm.config.get('parseable')) output(out)
           cb()
         })
       }

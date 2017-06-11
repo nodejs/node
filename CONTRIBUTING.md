@@ -30,7 +30,7 @@ locally.
 ```text
 $ git clone git@github.com:username/node.git
 $ cd node
-$ git remote add upstream git://github.com/nodejs/node.git
+$ git remote add upstream https://github.com/nodejs/node.git
 ```
 
 #### Which branch?
@@ -170,7 +170,14 @@ C++ linting.
 If you are updating tests and just want to run a single test to check it:
 
 ```text
-$ python tools/test.py -v --mode=release parallel/test-stream2-transform
+$ python tools/test.py -J --mode=release parallel/test-stream2-transform
+```
+
+If you want to check the other options, please refer to the help by using
+the `--help` option
+
+```text
+$ python tools/test.py --help
 ```
 
 You can usually run tests directly with node:

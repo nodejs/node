@@ -424,6 +424,14 @@ clean:	libclean
 	rm -fr $$i/*; \
 	done
 
+distclean: clean
+	-$(RM) `find . -name .git -prune -o -type l -print`
+	$(RM) apps/CA.pl
+	$(RM) test/evptests.txt test/newkey.pem test/testkey.pem test/testreq.pem
+	$(RM) tools/c_rehash
+	$(RM) crypto/opensslconf.h
+	$(RM) Makefile Makefile.bak
+
 makefile.one: files
 	$(PERL) util/mk1mf.pl >makefile.one; \
 	sh util/do_ms.sh

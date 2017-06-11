@@ -1,7 +1,9 @@
 'use strict';
 // Flags: --inspect={PORT}
 const common = require('../common');
+
 common.skipIfInspectorDisabled();
+
 const assert = require('assert');
 const cluster = require('cluster');
 const debuggerPort = common.PORT;

@@ -8,7 +8,8 @@ const domainToASCII = url.domainToASCII;
 const domainToUnicode = url.domainToUnicode;
 
 const domainWithASCII = [
-  ['ıídيٴ', 'xn--d-iga7ro0q9f'],
+  ['ıíd', 'xn--d-iga7r'],
+  ['يٴ', 'xn--mhb8f'],
   ['www.ϧƽəʐ.com', 'www.xn--cja62apfr6c.com'],
   ['новини.com', 'xn--b1amarcd.com'],
   ['名がドメイン.com', 'xn--v8jxj3d1dzdz08w.com'],

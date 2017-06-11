@@ -82,6 +82,10 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSGeneratorObject::input_or_debug_pos() field.
   static FieldAccess ForJSGeneratorObjectInputOrDebugPos();
 
+  // Provides access to JSAsyncGeneratorObject::await_input_or_debug_pos()
+  // field.
+  static FieldAccess ForJSAsyncGeneratorObjectAwaitInputOrDebugPos();
+
   // Provides access to JSGeneratorObject::register_file() field.
   static FieldAccess ForJSGeneratorObjectRegisterFile();
 

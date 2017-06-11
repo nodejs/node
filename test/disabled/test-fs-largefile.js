@@ -21,13 +21,17 @@
 
 'use strict';
 const common = require('../common');
+
 const assert = require('assert');
-const path = require('path'),
-    fs = require('fs'),
-    filepath = path.join(common.tmpDir, 'large.txt'),
-    fd = fs.openSync(filepath, 'w+'),
-    offset = 5 * 1024 * 1024 * 1024, // 5GB
-    message = 'Large File';
+const fs = require('fs');
+const path = require('path');
+
+common.refreshTmpDir();
+
+const filepath = path.join(common.tmpDir, 'large.txt');
+const fd = fs.openSync(filepath, 'w+');
+const offset = 5 * 1024 * 1024 * 1024; // 5GB
+const message = 'Large File';
 
 fs.truncateSync(fd, offset);
 assert.strictEqual(fs.statSync(filepath).size, offset);
@@ -39,17 +43,13 @@ assert.strictEqual(readBuf.toString(), message);
 fs.readSync(fd, readBuf, 0, 1, 0);
 assert.strictEqual(readBuf[0], 0);
 
-var exceptionRaised = false;
-try {
-  fs.writeSync(fd, writeBuf, 0, writeBuf.length, 42.000001);
-} catch (err) {
-  console.log(err);
-  exceptionRaised = true;
-  assert.strictEqual(err.message, 'Not an integer');
-}
-assert.ok(exceptionRaised);
+assert.doesNotThrow(
+  () => { fs.writeSync(fd, writeBuf, 0, writeBuf.length, 42.000001); }
+);
 fs.close(fd);
 
+// Normally, we don't clean up tmp files at the end of a test, but we'll make an
+// exception for a 5 GB file.
 process.on('exit', function() {
   fs.unlinkSync(filepath);
 });

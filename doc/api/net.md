@@ -185,10 +185,11 @@ by the OS through sysctl settings such as `tcp_max_syn_backlog` and `somaxconn`
 on Linux. The default value of this parameter is 511 (not 512).
 
 
-Note:
+*Note*:
 
 * All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for
   details).
+
 * The `server.listen()` method may be called multiple times. Each
   subsequent call will *re-open* the server using the provided options.
 
@@ -294,7 +295,7 @@ If `host` is omitted, the server will accept connections on the
 [unspecified IPv6 address][] (`::`) when IPv6 is available, or the
 [unspecified IPv4 address][] (`0.0.0.0`) otherwise.
 
-*Note*: in most operating systems, listening to the
+*Note*: In most operating systems, listening to the
 [unspecified IPv6 address][] (`::`) may cause the `net.Server` to also listen on
 the [unspecified IPv4 address][] (`0.0.0.0`).
 
@@ -647,6 +648,8 @@ server will still send some data.
 If `data` is specified, it is equivalent to calling
 `socket.write(data, encoding)` followed by [`socket.end()`][].
 
+Returns `socket`.
+
 ### socket.localAddress
 <!-- YAML
 added: v0.9.6
@@ -852,7 +855,7 @@ Possible signatures:
 * [`net.createConnection(port[, host][, connectListener])`][`net.createConnection(port, host)`]
   for TCP connections.
 
-*Note*: the [`net.connect()`][] function is an alias to this function.
+*Note*: The [`net.connect()`][] function is an alias to this function.
 
 ### net.createConnection(options[, connectListener])
 <!-- YAML
@@ -883,7 +886,7 @@ in the [`net.createServer()`][] section:
 
 ```js
 const net = require('net');
-const client = net.createConnection({port: 8124}, () => {
+const client = net.createConnection({ port: 8124 }, () => {
   //'connect' listener
   console.log('connected to server!');
   client.write('world!\r\n');
@@ -901,7 +904,7 @@ To connect on the socket `/tmp/echo.sock` the second line would just be
 changed to
 
 ```js
-const client = net.createConnection({path: '/tmp/echo.sock'});
+const client = net.createConnection({ path: '/tmp/echo.sock' });
 ```
 
 ### net.createConnection(path[, connectListener])
@@ -1060,7 +1063,6 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`net.Server`]: #net_class_net_server
 [`net.Socket`]: #net_class_net_socket
-[`net.connect()`]: #net_net_connect
 [`net.connect()`]: #net_net_connect
 [`net.connect(options)`]: #net_net_connect_options_connectlistener
 [`net.connect(path)`]: #net_net_connect_path_connectlistener

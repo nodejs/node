@@ -81,30 +81,35 @@ struct url_data {
 class URL {
  public:
   static void Parse(const char* input,
-                    const size_t len,
+                    size_t len,
                     enum url_parse_state state_override,
                     struct url_data* url,
+                    bool has_url,
                     const struct url_data* base,
                     bool has_base);
 
   URL(const char* input, const size_t len) {
-    Parse(input, len, kUnknownState, &context_, nullptr, false);
+    Parse(input, len, kUnknownState, &context_, false, nullptr, false);
   }
 
   URL(const char* input, const size_t len, const URL* base) {
     if (base != nullptr)
-      Parse(input, len, kUnknownState, &context_, &(base->context_), true);
+      Parse(input, len, kUnknownState,
+            &context_, false,
+            &(base->context_), true);
     else
-      Parse(input, len, kUnknownState, &context_, nullptr, false);
+      Parse(input, len, kUnknownState, &context_, false, nullptr, false);
   }
 
   URL(const char* input, const size_t len,
       const char* base, const size_t baselen) {
     if (base != nullptr && baselen > 0) {
       URL _base(base, baselen);
-      Parse(input, len, kUnknownState, &context_, &(_base.context_), true);
+      Parse(input, len, kUnknownState,
+            &context_, false,
+            &(_base.context_), true);
     } else {
-      Parse(input, len, kUnknownState, &context_, nullptr, false);
+      Parse(input, len, kUnknownState, &context_, false, nullptr, false);
     }
   }
 

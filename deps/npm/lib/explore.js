@@ -2,7 +2,7 @@
 // open a subshell to the package folder.
 
 module.exports = explore
-explore.usage = 'npm explore <pkg> [ -- <cmd>]'
+explore.usage = 'npm explore <pkg> [ -- <command>]'
 explore.completion = require('./utils/completion/installed-shallow.js')
 
 var npm = require('./npm.js')

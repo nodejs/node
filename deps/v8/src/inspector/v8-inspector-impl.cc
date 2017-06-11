@@ -34,6 +34,7 @@
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console-agent-impl.h"
 #include "src/inspector/v8-console-message.h"
+#include "src/inspector/v8-console.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-session-impl.h"
@@ -88,52 +89,6 @@ V8ProfilerAgentImpl* V8InspectorImpl::enabledProfilerAgentForGroup(
   V8InspectorSessionImpl* session = sessionForContextGroup(contextGroupId);
   V8ProfilerAgentImpl* agent = session ? session->profilerAgent() : nullptr;
   return agent && agent->enabled() ? agent : nullptr;
-}
-
-v8::MaybeLocal<v8::Value> V8InspectorImpl::runCompiledScript(
-    v8::Local<v8::Context> context, v8::Local<v8::Script> script) {
-  v8::MicrotasksScope microtasksScope(m_isolate,
-                                      v8::MicrotasksScope::kRunMicrotasks);
-  int groupId = contextGroupId(context);
-  if (V8DebuggerAgentImpl* agent = enabledDebuggerAgentForGroup(groupId))
-    agent->willExecuteScript(script->GetUnboundScript()->GetId());
-  v8::MaybeLocal<v8::Value> result = script->Run(context);
-  // Get agent from the map again, since it could have detached during script
-  // execution.
-  if (V8DebuggerAgentImpl* agent = enabledDebuggerAgentForGroup(groupId))
-    agent->didExecuteScript();
-  return result;
-}
-
-v8::MaybeLocal<v8::Value> V8InspectorImpl::callFunction(
-    v8::Local<v8::Function> function, v8::Local<v8::Context> context,
-    v8::Local<v8::Value> receiver, int argc, v8::Local<v8::Value> info[]) {
-  return callFunction(function, context, receiver, argc, info,
-                      v8::MicrotasksScope::kRunMicrotasks);
-}
-
-v8::MaybeLocal<v8::Value> V8InspectorImpl::callInternalFunction(
-    v8::Local<v8::Function> function, v8::Local<v8::Context> context,
-    v8::Local<v8::Value> receiver, int argc, v8::Local<v8::Value> info[]) {
-  return callFunction(function, context, receiver, argc, info,
-                      v8::MicrotasksScope::kDoNotRunMicrotasks);
-}
-
-v8::MaybeLocal<v8::Value> V8InspectorImpl::callFunction(
-    v8::Local<v8::Function> function, v8::Local<v8::Context> context,
-    v8::Local<v8::Value> receiver, int argc, v8::Local<v8::Value> info[],
-    v8::MicrotasksScope::Type runMicrotasks) {
-  v8::MicrotasksScope microtasksScope(m_isolate, runMicrotasks);
-  int groupId = contextGroupId(context);
-  if (V8DebuggerAgentImpl* agent = enabledDebuggerAgentForGroup(groupId))
-    agent->willExecuteScript(function->ScriptId());
-  v8::MaybeLocal<v8::Value> result =
-      function->Call(context, receiver, argc, info);
-  // Get agent from the map again, since it could have detached during script
-  // execution.
-  if (V8DebuggerAgentImpl* agent = enabledDebuggerAgentForGroup(groupId))
-    agent->didExecuteScript();
-  return result;
 }
 
 v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
@@ -285,21 +240,6 @@ void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   m_debugger->wasmTranslation()->Clear();
 }
 
-void V8InspectorImpl::willExecuteScript(v8::Local<v8::Context> context,
-                                        int scriptId) {
-  if (V8DebuggerAgentImpl* agent =
-          enabledDebuggerAgentForGroup(contextGroupId(context))) {
-    agent->willExecuteScript(scriptId);
-  }
-}
-
-void V8InspectorImpl::didExecuteScript(v8::Local<v8::Context> context) {
-  if (V8DebuggerAgentImpl* agent =
-          enabledDebuggerAgentForGroup(contextGroupId(context))) {
-    agent->didExecuteScript();
-  }
-}
-
 void V8InspectorImpl::idleStarted() {
   for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it) {
     if (it->second->profilerAgent()->idleStarted()) return;
@@ -394,6 +334,11 @@ V8InspectorSessionImpl* V8InspectorImpl::sessionForContextGroup(
   if (!contextGroupId) return nullptr;
   SessionMap::iterator iter = m_sessions.find(contextGroupId);
   return iter == m_sessions.end() ? nullptr : iter->second;
+}
+
+V8Console* V8InspectorImpl::console() {
+  if (!m_console) m_console.reset(new V8Console(this));
+  return m_console.get();
 }
 
 }  // namespace v8_inspector

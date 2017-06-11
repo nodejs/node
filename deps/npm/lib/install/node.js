@@ -18,26 +18,41 @@ var defaultTemplate = {
   realpath: null,
   location: null,
   userRequired: false,
-  existing: false,
-  isTop: false
+  save: false,
+  saveSpec: null,
+  isTop: false,
+  fromBundle: false
 }
 
 function isLink (node) {
   return node && node.isLink
 }
 
-var create = exports.create = function (node, template) {
+var create = exports.create = function (node, template, isNotTop) {
   if (!template) template = defaultTemplate
   Object.keys(template).forEach(function (key) {
     if (template[key] != null && typeof template[key] === 'object' && !(template[key] instanceof Array)) {
       if (!node[key]) node[key] = {}
-      return create(node[key], template[key])
+      return create(node[key], template[key], true)
     }
     if (node[key] != null) return
     node[key] = template[key]
   })
-  if (isLink(node.parent)) {
-    node.isLink = true
+  if (!isNotTop) {
+    // isLink is true for the symlink and everything inside it.
+    // by contrast, isInLink is true for only the things inside a link
+    if (node.isLink == null && isLink(node.parent)) {
+      node.isLink = true
+      node.isInLink = true
+    } else if (node.isLink == null) {
+      node.isLink = false
+      node.isInLink = false
+    }
+    if (node.fromBundle == null && node.package) {
+      node.fromBundle = node.package._inBundle
+    } else if (node.fromBundle == null) {
+      node.fromBundle = false
+    }
   }
   return node
 }

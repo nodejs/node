@@ -35,3 +35,32 @@ getSocket((socket) => {
 
   socket.send('foo', socket.address().port, 'localhost', callback);
 });
+
+{
+  const socket = dgram.createSocket('udp4');
+
+  socket.on('message', common.mustNotCall('Should not receive any messages.'));
+
+  socket.bind(common.mustCall(() => {
+    const port = socket.address().port;
+    const errCode = process.binding('uv').UV_UNKNOWN;
+    const callback = common.mustCall((err) => {
+      socket.close();
+      assert.strictEqual(err.code, 'UNKNOWN');
+      assert.strictEqual(err.errno, 'UNKNOWN');
+      assert.strictEqual(err.syscall, 'send');
+      assert.strictEqual(err.address, common.localhostIPv4);
+      assert.strictEqual(err.port, port);
+      assert.strictEqual(
+        err.message,
+        `${err.syscall} ${err.code} ${err.address}:${err.port}`
+      );
+    });
+
+    socket._handle.send = function() {
+      return errCode;
+    };
+
+    socket.send('foo', port, common.localhostIPv4, callback);
+  }));
+}

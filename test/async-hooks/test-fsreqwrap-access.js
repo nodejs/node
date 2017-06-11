@@ -27,11 +27,11 @@ function onexit() {
   hooks.sanityCheck('FSREQWRAP');
 
   const as = hooks.activitiesOfTypes('FSREQWRAP');
-  assert.strictEqual(as.length, 1, 'one activity');
+  assert.strictEqual(as.length, 1);
 
   const a = as[0];
-  assert.strictEqual(a.type, 'FSREQWRAP', 'fs req wrap');
-  assert.strictEqual(typeof a.uid, 'number', 'uid is a number');
+  assert.strictEqual(a.type, 'FSREQWRAP');
+  assert.strictEqual(typeof a.uid, 'number');
   checkInvocations(a, { init: 1, before: 1, after: 1, destroy: 1 },
                    'when process exits');
 }

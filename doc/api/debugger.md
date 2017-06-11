@@ -195,4 +195,3 @@ debugging sessions.)
 
 [Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer/
 [TCP-based protocol]: #debugger_tcp_based_protocol
-[V8 Inspector Integration]: #debugger_v8_inspector_integration_for_node_js

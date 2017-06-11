@@ -162,7 +162,8 @@ struct uv__stream_queued_fds_s {
     defined(__DragonFly__) || \
     defined(__FreeBSD__) || \
     defined(__FreeBSD_kernel__) || \
-    defined(__linux__)
+    defined(__linux__) || \
+    defined(__OpenBSD__)
 #define uv__cloexec uv__cloexec_ioctl
 #define uv__nonblock uv__nonblock_ioctl
 #else
@@ -191,12 +192,12 @@ void uv__io_feed(uv_loop_t* loop, uv__io_t* w);
 int uv__io_active(const uv__io_t* w, unsigned int events);
 int uv__io_check_fd(uv_loop_t* loop, int fd);
 void uv__io_poll(uv_loop_t* loop, int timeout); /* in milliseconds or -1 */
+int uv__io_fork(uv_loop_t* loop);
 
 /* async */
-void uv__async_send(struct uv__async* wa);
-void uv__async_init(struct uv__async* wa);
-int uv__async_start(uv_loop_t* loop, struct uv__async* wa, uv__async_cb cb);
-void uv__async_stop(uv_loop_t* loop, struct uv__async* wa);
+void uv__async_stop(uv_loop_t* loop);
+int uv__async_fork(uv_loop_t* loop);
+
 
 /* loop */
 void uv__run_idle(uv_loop_t* loop);
@@ -232,6 +233,7 @@ int uv__next_timeout(const uv_loop_t* loop);
 void uv__signal_close(uv_signal_t* handle);
 void uv__signal_global_once_init(void);
 void uv__signal_loop_cleanup(uv_loop_t* loop);
+int uv__signal_loop_fork(uv_loop_t* loop);
 
 /* platform specific */
 uint64_t uv__hrtime(uv_clocktype_t type);
@@ -301,15 +303,6 @@ static const int kFSEventStreamEventFlagItemIsSymlink = 0x00040000;
 
 #endif /* defined(__APPLE__) */
 
-UV_UNUSED(static void uv__req_init(uv_loop_t* loop,
-                                   uv_req_t* req,
-                                   uv_req_type type)) {
-  req->type = type;
-  uv__req_register(loop, req);
-}
-#define uv__req_init(loop, req, type) \
-  uv__req_init((loop), (uv_req_t*)(req), (type))
-
 UV_UNUSED(static void uv__update_time(uv_loop_t* loop)) {
   /* Use a fast time source if available.  We only need millisecond precision.
    */
@@ -325,5 +318,9 @@ UV_UNUSED(static char* uv__basename_r(const char* path)) {
 
   return s + 1;
 }
+
+#if defined(__linux__)
+int uv__inotify_fork(uv_loop_t* loop, void* old_watchers);
+#endif
 
 #endif /* UV_UNIX_INTERNAL_H_ */

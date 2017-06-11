@@ -150,10 +150,9 @@ explicitly via error event handlers set on the domain instead.
 <a id="DEP0013"></a>
 ### DEP0013: fs async function without callback
 
-Type: End-of-Life
+Type: Runtime
 
-Calling an asynchronous function without a callback will throw a `TypeError`
-v8.0.0 onwards. Refer: [PR 12562](https://github.com/nodejs/node/pull/12562)
+Calling an asynchronous function without a callback is deprecated.
 
 <a id="DEP0014"></a>
 ### DEP0014: fs.read legacy String interface
@@ -238,7 +237,7 @@ The `os.getNetworkInterfaces()` method is deprecated. Please use the
 <a id="DEP0024"></a>
 ### DEP0024: REPLServer.prototype.convertToContext()
 
-Type: Runtime
+Type: End-of-Life
 
 The `REPLServer.prototype.convertToContext()` API is deprecated and should
 not be used.
@@ -532,8 +531,8 @@ Type: Documentation-only
 The `http` module `ServerResponse.prototype.writeHeader()` API has been
 deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
 
-*Note*: The `ServerResponse.prototype.writeHeader()` method was never documented
-as an officially supported API.
+*Note*: The `ServerResponse.prototype.writeHeader()` method was never
+documented as an officially supported API.
 
 <a id="DEP0064"></a>
 ### DEP0064: tls.createSecurePair()
@@ -569,8 +568,8 @@ properties have been deprecated. Please instead use one of the public methods
 `outgoingMessage.removeHeader()`, `outgoingMessage.setHeader()`) for working
 with outgoing headers.
 
-*Note*: `outgoingMessage._headers` and `outgoingMessage._headerNames` were never
-documented as officially supported properties.
+*Note*: `outgoingMessage._headers` and `outgoingMessage._headerNames` were
+never documented as officially supported properties.
 
 <a id="DEP0067"></a>
 ### DEP0067: OutgoingMessage.prototype.\_renderHeaders

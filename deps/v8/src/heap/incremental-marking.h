@@ -185,26 +185,18 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   static void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
 
-  // Returns true if the color transfer requires live bytes updating.
-  INLINE(static bool TransferColor(HeapObject* from, HeapObject* to,
-                                   int size)) {
-    MarkBit from_mark_bit = ObjectMarking::MarkBitFrom(from);
-    MarkBit to_mark_bit = ObjectMarking::MarkBitFrom(to);
-
-    if (Marking::IsBlack(to_mark_bit)) {
+  V8_INLINE static void TransferColor(HeapObject* from, HeapObject* to) {
+    if (ObjectMarking::IsBlack(to, MarkingState::Internal(to))) {
       DCHECK(to->GetHeap()->incremental_marking()->black_allocation());
-      return false;
+      return;
     }
 
-    DCHECK(Marking::IsWhite(to_mark_bit));
-    if (from_mark_bit.Get()) {
-      to_mark_bit.Set();
-      if (from_mark_bit.Next().Get()) {
-        to_mark_bit.Next().Set();
-        return true;
-      }
+    DCHECK(ObjectMarking::IsWhite(to, MarkingState::Internal(to)));
+    if (ObjectMarking::IsGrey(from, MarkingState::Internal(from))) {
+      ObjectMarking::WhiteToGrey(to, MarkingState::Internal(to));
+    } else if (ObjectMarking::IsBlack(from, MarkingState::Internal(from))) {
+      ObjectMarking::WhiteToBlack(to, MarkingState::Internal(to));
     }
-    return false;
   }
 
   void IterateBlackObject(HeapObject* object);
@@ -244,7 +236,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void FinishBlackAllocation();
 
   void MarkRoots();
-  void MarkObjectGroups();
   void ProcessWeakCells();
   // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
   // increase chances of reusing of map transition tree in future.

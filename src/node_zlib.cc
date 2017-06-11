@@ -551,16 +551,19 @@ class ZCtx : public AsyncWrap {
         CHECK(0 && "wtf?");
     }
 
-    if (ctx->err_ != Z_OK) {
-      ZCtx::Error(ctx, "Init error");
-    }
-
-
     ctx->dictionary_ = reinterpret_cast<Bytef *>(dictionary);
     ctx->dictionary_len_ = dictionary_len;
 
     ctx->write_in_progress_ = false;
     ctx->init_done_ = true;
+
+    if (ctx->err_ != Z_OK) {
+      if (dictionary != nullptr) {
+        delete[] dictionary;
+        ctx->dictionary_ = nullptr;
+      }
+      ctx->env()->ThrowError("Init error");
+    }
   }
 
   static void SetDictionary(ZCtx* ctx) {

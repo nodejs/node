@@ -1,6 +1,7 @@
 'use strict'
 
 var test = require('tape')
+var path = require('path')
 var configure = require('../lib/configure')
 var execFile = require('child_process').execFile
 var PythonFinder = configure.test.PythonFinder
@@ -34,10 +35,19 @@ function poison(object, property) {
   Object.defineProperty(object, property, descriptor)
 }
 
+// Work around a v0.10.x CI issue where path.resolve() on UNIX systems prefixes
+// Windows paths with the current working directory.  v0.12 and up are free of
+// this issue because they use path.win32.resolve() which does the right thing.
+var resolve = path.win32 && path.win32.resolve || function() {
+  function rstrip(s) { return s.replace(/\\+$/, '') }
+  return [].slice.call(arguments).map(rstrip).join('\\')
+}
+
 function TestPythonFinder() { PythonFinder.apply(this, arguments) }
 TestPythonFinder.prototype = Object.create(PythonFinder.prototype)
 poison(TestPythonFinder.prototype, 'env')
 poison(TestPythonFinder.prototype, 'execFile')
+poison(TestPythonFinder.prototype, 'resolve')
 poison(TestPythonFinder.prototype, 'stat')
 poison(TestPythonFinder.prototype, 'which')
 poison(TestPythonFinder.prototype, 'win')
@@ -287,6 +297,7 @@ test('find python - no python, no python launcher, good guess', function (t) {
     t.strictEqual(program, 'py.exe')
     cb(new Error('not found'))
   }
+  f.resolve = resolve
   f.stat = function(path, cb) {
     t.ok(re.test(path))
     cb(null, {})
@@ -313,6 +324,7 @@ test('find python - no python, no python launcher, bad guess', function (t) {
     t.strictEqual(program, 'py.exe')
     cb(new Error('not found'))
   }
+  f.resolve = resolve
   f.stat = function(path, cb) {
     t.ok(/Z:[\\\/]Python27[\\\/]python.exe/.test(path))
     var err = new Error('not found')

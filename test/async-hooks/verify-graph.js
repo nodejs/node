@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('assert');
+const util = require('util');
 require('../common');
 
 function findInGraph(graph, type, n) {
@@ -85,14 +86,14 @@ module.exports = function verifyGraph(hooks, graph) {
       )
     );
   }
-  assert.strictEqual(errors.length, 0, 'Found errors while verifying graph.');
+  assert.strictEqual(errors.length, 0);
 };
 
 //
 // Helper to generate the input to the verifyGraph tests
 //
 function inspect(obj, depth) {
-  console.error(require('util').inspect(obj, false, depth || 5, true));
+  console.error(util.inspect(obj, false, depth || 5, true));
 }
 
 module.exports.printGraph = function printGraph(hooks) {

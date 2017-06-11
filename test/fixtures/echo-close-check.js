@@ -26,7 +26,7 @@ const fs = require('fs');
 
 process.stdout.write('hello world\r\n');
 
-var stdin = process.openStdin();
+const stdin = process.openStdin();
 
 stdin.on('data', function(data) {
   process.stdout.write(data.toString());

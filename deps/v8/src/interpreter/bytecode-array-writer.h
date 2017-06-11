@@ -65,6 +65,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final
   void EmitJump(BytecodeNode* node, BytecodeLabel* label);
   void UpdateSourcePositionTable(const BytecodeNode* const node);
 
+  void UpdateExitSeenInBlock(Bytecode bytecode);
+
+  void MaybeElideLastBytecode(Bytecode next_bytecode, bool has_source_info);
+  void InvalidateLastBytecode();
+
   ZoneVector<uint8_t>* bytecodes() { return &bytecodes_; }
   SourcePositionTableBuilder* source_position_table_builder() {
     return &source_position_table_builder_;
@@ -77,6 +82,13 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final
   int unbound_jumps_;
   SourcePositionTableBuilder source_position_table_builder_;
   ConstantArrayBuilder* constant_array_builder_;
+
+  Bytecode last_bytecode_;
+  size_t last_bytecode_offset_;
+  bool last_bytecode_had_source_info_;
+  bool elide_noneffectful_bytecodes_;
+
+  bool exit_seen_in_block_;
 
   friend class BytecodeArrayWriterUnittest;
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayWriter);

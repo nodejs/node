@@ -535,6 +535,18 @@ a.throws(makeBlock(thrower, TypeError), function(err) {
 
   a.throws(makeBlock(a.deepEqual, d, e), /AssertionError/);
   a.throws(makeBlock(a.deepStrictEqual, d, e), /AssertionError/);
+
+  // https://github.com/nodejs/node/issues/13314
+  const f = {};
+  f.ref = f;
+
+  const g = {};
+  g.ref = g;
+
+  const h = {ref: g};
+
+  a.throws(makeBlock(a.deepEqual, f, h), /AssertionError/);
+  a.throws(makeBlock(a.deepStrictEqual, f, h), /AssertionError/);
 }
 // GH-7178. Ensure reflexivity of deepEqual with `arguments` objects.
 const args = (function() { return arguments; })();

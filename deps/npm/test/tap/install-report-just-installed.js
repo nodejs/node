@@ -50,7 +50,7 @@ test('setup', function (t) {
 })
 
 test('install-report', function (t) {
-  common.npm(['install', '--json', 'b-src'], {cwd: testdir}, function (err, code, stdout, stderr) {
+  common.npm(['install', '--no-save', '--json', './b-src'], {cwd: testdir}, function (err, code, stdout, stderr) {
     if (err) throw err
     t.is(code, 0, 'installed successfully')
     t.is(stderr, '', 'no warnings')
@@ -63,9 +63,8 @@ test('install-report', function (t) {
       t.skip(2)
       return t.end()
     }
-    var depNames = Object.keys(report.dependencies)
-    t.is(depNames.length, 1, 'one dependency reported as installed')
-    t.ok(report.dependencies.b, 'that dependency was `b`')
+    t.is(report.added.length, 1, 'one dependency reported as installed')
+    t.match(report.added, [{name: 'b'}], 'that dependency was `b`')
     t.end()
   })
 })

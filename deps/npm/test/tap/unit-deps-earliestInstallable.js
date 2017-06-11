@@ -1,6 +1,7 @@
 'use strict'
 var test = require('tap').test
 var requireInject = require('require-inject')
+var npa = require('npm-package-arg')
 
 // we're just mocking to avoid having to call `npm.load`
 var deps = requireInject('../../lib/install/deps.js', {
@@ -22,7 +23,9 @@ test('earliestInstallable should consider devDependencies', function (t) {
     package: {
       name: 'dep1',
       dependencies: { dep2: '2.0.0' }
-    }
+    },
+    path: '/dep1',
+    realpath: '/dep1'
   }
 
   // a library required by the base package
@@ -30,7 +33,9 @@ test('earliestInstallable should consider devDependencies', function (t) {
     package: {
       name: 'dep2',
       version: '1.0.0'
-    }
+    },
+    path: '/dep2',
+    realpath: '/dep2'
   }
 
   // an incompatible verson of dep2. required by dep1
@@ -38,27 +43,23 @@ test('earliestInstallable should consider devDependencies', function (t) {
     package: {
       name: 'dep2',
       version: '2.0.0',
-      _from: {
-        raw: 'dep2@1.0.0',
-        scope: null,
-        escapedName: 'dep2',
-        name: 'dep2',
-        rawSpec: '1.0.0',
-        spec: '1.0.0',
-        type: 'version'
-      }
+      _requested: npa('dep2@2.0.0')
     },
-    parent: dep1
+    parent: dep1,
+    path: '/dep1/node_modules/dep2a',
+    realpath: '/dep1/node_modules/dep2a'
   }
 
   var pkg = {
     isTop: true,
-    children: [dep1],
+    children: [dep1, dep2],
     package: {
       name: 'pkg',
       dependencies: { dep1: '1.0.0' },
       devDependencies: { dep2: '1.0.0' }
-    }
+    },
+    path: '/',
+    realpath: '/'
   }
 
   dep1.parent = pkg
@@ -76,23 +77,19 @@ test('earliestInstallable should reuse shared prod/dev deps when they are identi
     package: {
       name: 'dep1',
       dependencies: { dep2: '1.0.0' }
-    }
+    },
+    path: '/dep1',
+    realpath: '/dep1'
   }
 
   var dep2 = {
     package: {
       name: 'dep2',
       version: '1.0.0',
-      _from: {
-        raw: 'dep2@^1.0.0',
-        scope: null,
-        escapedName: 'dep2',
-        name: 'dep2',
-        rawSpec: '^1.0.0',
-        spec: '>=1.0.0 <2.0.0',
-        type: 'range'
-      }
-    }
+      _requested: npa('dep2@^1.0.0')
+    },
+    path: '/dep2',
+    realpath: '/dep2'
   }
 
   var pkg = {
@@ -102,7 +99,9 @@ test('earliestInstallable should reuse shared prod/dev deps when they are identi
       name: 'pkg',
       dependencies: { dep1: '1.0.0' },
       devDependencies: { dep2: '^1.0.0' }
-    }
+    },
+    path: '/',
+    realpath: '/'
   }
 
   dep1.parent = pkg

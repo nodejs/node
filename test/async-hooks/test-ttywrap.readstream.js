@@ -13,11 +13,11 @@ const ReadStream = require('tty').ReadStream;
 const ttyStream = new ReadStream(0);
 
 const as = hooks.activitiesOfTypes('TTYWRAP');
-assert.strictEqual(as.length, 1, 'one TTYWRAP when tty created');
+assert.strictEqual(as.length, 1);
 const tty = as[0];
-assert.strictEqual(tty.type, 'TTYWRAP', 'tty wrap');
-assert.strictEqual(typeof tty.uid, 'number', 'uid is a number');
-assert.strictEqual(typeof tty.triggerId, 'number', 'triggerId is a number');
+assert.strictEqual(tty.type, 'TTYWRAP');
+assert.strictEqual(typeof tty.uid, 'number');
+assert.strictEqual(typeof tty.triggerId, 'number');
 checkInvocations(tty, { init: 1 }, 'when tty created');
 
 ttyStream.end(common.mustCall(onend));

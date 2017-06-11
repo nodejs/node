@@ -56,6 +56,10 @@ Node* GraphAssembler::CEntryStubConstant(int result_size) {
   return jsgraph()->CEntryStubConstant(result_size);
 }
 
+Node* GraphAssembler::LoadFramePointer() {
+  return graph()->NewNode(machine()->LoadFramePointer());
+}
+
 #define SINGLETON_CONST_DEF(Name) \
   Node* GraphAssembler::Name() { return jsgraph()->Name(); }
 JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DEF)
@@ -95,8 +99,8 @@ Node* GraphAssembler::Projection(int index, Node* value) {
 
 Node* GraphAssembler::Allocate(PretenureFlag pretenure, Node* size) {
   return current_effect_ =
-             graph()->NewNode(simplified()->Allocate(NOT_TENURED), size,
-                              current_effect_, current_control_);
+             graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
+                              size, current_effect_, current_control_);
 }
 
 Node* GraphAssembler::LoadField(FieldAccess const& access, Node* object) {

@@ -17,9 +17,9 @@ function onread() {
   let lastParent = 1;
   for (let i = 0; i < as.length; i++) {
     const a = as[i];
-    assert.strictEqual(a.type, 'FSREQWRAP', 'fs req wrap');
-    assert.strictEqual(typeof a.uid, 'number', 'uid is a number');
-    assert.strictEqual(a.triggerId, lastParent, 'parent uid 1');
+    assert.strictEqual(a.type, 'FSREQWRAP');
+    assert.strictEqual(typeof a.uid, 'number');
+    assert.strictEqual(a.triggerId, lastParent);
     lastParent = a.uid;
   }
   checkInvocations(as[0], { init: 1, before: 1, after: 1, destroy: 1 },

@@ -1,8 +1,13 @@
 # object-assign [![Build Status](https://travis-ci.org/sindresorhus/object-assign.svg?branch=master)](https://travis-ci.org/sindresorhus/object-assign)
 
-> ES2015 [`Object.assign()`](http://www.2ality.com/2014/01/object-assign.html) ponyfill
+> ES2015 [`Object.assign()`](http://www.2ality.com/2014/01/object-assign.html) [ponyfill](https://ponyfill.com)
 
-> Ponyfill: A polyfill that doesn't overwrite the native method
+
+## Use the built-in
+
+Node.js 4 and up, as well as every evergreen browser (Chrome, Edge, Firefox, Opera, Safari),
+support `Object.assign()` :tada:. If you target only those environments, then by all
+means, use `Object.assign()` instead of this package.
 
 
 ## Install
@@ -36,7 +41,7 @@ objectAssign({foo: 0}, null, {bar: 1}, undefined);
 
 ## API
 
-### objectAssign(target, source, [source, ...])
+### objectAssign(target, [source, ...])
 
 Assigns enumerable own properties of `source` objects to the `target` object and returns the `target` object. Additional `source` objects will overwrite previous ones.
 

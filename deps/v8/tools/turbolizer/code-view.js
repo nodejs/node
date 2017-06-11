@@ -122,13 +122,13 @@ class CodeView extends View {
 
   initializeCode(sourceText, sourcePosition) {
     var view = this;
-    if (sourceText == "") {
-      var newHtml = "<pre class=\"prettyprint\"</pre>";
-      view.divNode.innerHTML = newHtml;
-    } else {
-      var newHtml =
-          "<pre class=\"prettyprint linenums\">" + sourceText + "</pre>";
-      view.divNode.innerHTML = newHtml;
+    var codePre = document.createElement("pre");
+    codePre.classList.add("prettyprint");
+    view.divNode.innerHTML = "";
+    view.divNode.appendChild(codePre);
+    if (sourceText != "") {
+      codePre.classList.add("linenums");
+      codePre.textContent = sourceText;
       try {
         // Wrap in try to work when offline.
         view.PR.prettyPrint();

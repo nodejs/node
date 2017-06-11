@@ -312,7 +312,13 @@
   "application/emergencycalldata.comment+xml": {
     "source": "iana"
   },
+  "application/emergencycalldata.control+xml": {
+    "source": "iana"
+  },
   "application/emergencycalldata.deviceinfo+xml": {
+    "source": "iana"
+  },
+  "application/emergencycalldata.ecall.msd": {
     "source": "iana"
   },
   "application/emergencycalldata.providerinfo+xml": {
@@ -322,6 +328,9 @@
     "source": "iana"
   },
   "application/emergencycalldata.subscriberinfo+xml": {
+    "source": "iana"
+  },
+  "application/emergencycalldata.veds+xml": {
     "source": "iana"
   },
   "application/emma+xml": {
@@ -383,6 +392,9 @@
     "source": "iana",
     "compressible": true,
     "extensions": ["geojson"]
+  },
+  "application/geo+json-seq": {
+    "source": "iana"
   },
   "application/gml+xml": {
     "source": "iana",
@@ -725,6 +737,12 @@
   "application/mxf": {
     "source": "iana",
     "extensions": ["mxf"]
+  },
+  "application/n-quads": {
+    "source": "iana"
+  },
+  "application/n-triples": {
+    "source": "iana"
   },
   "application/nasdata": {
     "source": "iana"
@@ -1400,6 +1418,10 @@
     "source": "iana",
     "compressible": true
   },
+  "application/vnd.apothekende.reservation+json": {
+    "source": "iana",
+    "compressible": true
+  },
   "application/vnd.apple.installer+xml": {
     "source": "iana",
     "extensions": ["mpkg"]
@@ -1813,6 +1835,12 @@
     "source": "iana"
   },
   "application/vnd.ecowin.seriesupdate": {
+    "source": "iana"
+  },
+  "application/vnd.efi.img": {
+    "source": "iana"
+  },
+  "application/vnd.efi.iso": {
     "source": "iana"
   },
   "application/vnd.emclient.accessrequest+xml": {
@@ -2262,6 +2290,9 @@
     "source": "iana",
     "extensions": ["igl"]
   },
+  "application/vnd.imagemeter.image+zip": {
+    "source": "iana"
+  },
   "application/vnd.immervision-ivp": {
     "source": "iana",
     "extensions": ["ivp"]
@@ -2479,6 +2510,10 @@
   "application/vnd.kodak-descriptor": {
     "source": "iana",
     "extensions": ["sse"]
+  },
+  "application/vnd.las.las+json": {
+    "source": "iana",
+    "compressible": true
   },
   "application/vnd.las.las+xml": {
     "source": "iana",
@@ -3057,6 +3092,9 @@
     "extensions": ["oth"]
   },
   "application/vnd.obn": {
+    "source": "iana"
+  },
+  "application/vnd.ocf+cbor": {
     "source": "iana"
   },
   "application/vnd.oftn.l10n+json": {
@@ -5156,6 +5194,18 @@
   "audio/lpc": {
     "source": "iana"
   },
+  "audio/melp": {
+    "source": "iana"
+  },
+  "audio/melp1200": {
+    "source": "iana"
+  },
+  "audio/melp2400": {
+    "source": "iana"
+  },
+  "audio/melp600": {
+    "source": "iana"
+  },
   "audio/midi": {
     "source": "apache",
     "extensions": ["mid","midi","kar","rmi"]
@@ -5528,6 +5578,10 @@
   "font/opentype": {
     "compressible": true,
     "extensions": ["otf"]
+  },
+  "image/apng": {
+    "compressible": false,
+    "extensions": ["apng"]
   },
   "image/bmp": {
     "source": "iana",

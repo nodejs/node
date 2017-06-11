@@ -89,6 +89,9 @@ static void connection_cb(uv_stream_t* tcp, int status) {
   ASSERT(0 == uv_tcp_init(tcp->loop, &incoming));
   ASSERT(0 == uv_accept(tcp, (uv_stream_t*) &incoming));
 
+  ASSERT(0 == uv_timer_init(uv_default_loop(), &timer));
+  ASSERT(0 == uv_timer_start(&timer, timer_cb, 1, 0));
+
   connection_cb_called++;
 }
 
@@ -119,9 +122,6 @@ TEST_IMPL(tcp_write_queue_order) {
                              (struct sockaddr*) &addr,
                              connect_cb));
   ASSERT(0 == uv_send_buffer_size((uv_handle_t*) &client, &buffer_size));
-
-  ASSERT(0 == uv_timer_init(uv_default_loop(), &timer));
-  ASSERT(0 == uv_timer_start(&timer, timer_cb, 100, 0));
 
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 

@@ -12,7 +12,7 @@ if (process.argv[2] === 'child') {
   return;
 }
 
-const cmd = `${process.execPath} ${__filename} child`;
+const cmd = `"${process.execPath}" "${__filename}" child`;
 
 // Test the case where a timeout is set, and it expires.
 cp.exec(cmd, { timeout: 1 }, common.mustCall((err, stdout, stderr) => {

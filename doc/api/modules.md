@@ -348,9 +348,9 @@ If this was in a folder at `./some-library`, then
 
 This is the extent of Node.js's awareness of package.json files.
 
-Note: If the file specified by the `"main"` entry of `package.json` is missing
-and can not be resolved, Node.js will report the entire module as missing with
-the default error:
+*Note*: If the file specified by the `"main"` entry of `package.json` is
+missing and can not be resolved, Node.js will report the entire module as
+missing with the default error:
 
 ```txt
 Error: Cannot find module 'some-library'
@@ -401,8 +401,9 @@ same module resolution semantics.
 
 If the `NODE_PATH` environment variable is set to a colon-delimited list
 of absolute paths, then Node.js will search those paths for modules if they
-are not found elsewhere.  (Note: On Windows, `NODE_PATH` is delimited by
-semicolons instead of colons.)
+are not found elsewhere.
+
+*Note*: On Windows, `NODE_PATH` is delimited by semicolons instead of colons.
 
 `NODE_PATH` was originally created to support loading modules from
 varying paths before the current [module resolution][] algorithm was frozen.
@@ -627,10 +628,10 @@ added: v0.5.1
 The `module.require` method provides a way to load a module as if
 `require()` was called from the original module.
 
-*Note*: In order to do this, it is necessary to get a reference to the `module`
-object.  Since `require()` returns the `module.exports`, and the `module` is
-typically *only* available within a specific module's code, it must be
-explicitly exported in order to be used.
+*Note*: In order to do this, it is necessary to get a reference to the
+`module` object.  Since `require()` returns the `module.exports`, and the
+`module` is typically *only* available within a specific module's code, it must
+be explicitly exported in order to be used.
 
 [`Error`]: errors.html#errors_class_error
 [module resolution]: #modules_all_together

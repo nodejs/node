@@ -14,8 +14,8 @@ const throwsObjsAndReportTypes = new Map([
 ]);
 
 for (const [obj, type] of throwsObjsAndReportTypes) {
-  const error = new RegExp('^TypeError: Parameter "urlObj" must be an object' +
-                           `, not ${type}$`);
+  const error = new RegExp(
+    `^TypeError: Parameter "urlObj" must be an object, not ${type}$`);
   assert.throws(function() { url.format(obj); }, error);
 }
 assert.strictEqual(url.format(''), '');

@@ -6,9 +6,12 @@
 
 #include "src/regexp/arm/regexp-macro-assembler-arm.h"
 
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
+#include "src/factory.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/unicode.h"
@@ -368,7 +371,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReference(int start_reg,
     __ ldr(r3, MemOperand(frame_pointer(), kStringStartMinusOne));
     __ add(r3, r3, r1);
     __ cmp(current_input_offset(), r3);
-    BranchOrBacktrack(lt, on_no_match);
+    BranchOrBacktrack(le, on_no_match);
   } else {
     __ cmn(r1, Operand(current_input_offset()));
     BranchOrBacktrack(gt, on_no_match);

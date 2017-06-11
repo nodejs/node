@@ -71,7 +71,32 @@ int wmain(int argc, wchar_t *wargv[]) {
 }
 #else
 // UNIX
+#ifdef __linux__
+#include <elf.h>
+#ifdef __LP64__
+#define Elf_auxv_t Elf64_auxv_t
+#else
+#define Elf_auxv_t Elf32_auxv_t
+#endif  // __LP64__
+extern char** environ;
+#endif  // __linux__
+
+namespace node {
+  extern bool linux_at_secure;
+}  // namespace node
+
 int main(int argc, char *argv[]) {
+#if defined(__linux__)
+  char** envp = environ;
+  while (*envp++ != nullptr) {}
+  Elf_auxv_t* auxv = reinterpret_cast<Elf_auxv_t*>(envp);
+  for (; auxv->a_type != AT_NULL; auxv++) {
+    if (auxv->a_type == AT_SECURE) {
+      node::linux_at_secure = auxv->a_un.a_val;
+      break;
+    }
+  }
+#endif
   // Disable stdio buffering, it interacts poorly with printf()
   // calls elsewhere in the program (e.g., any logging from V8.)
   setvbuf(stdout, nullptr, _IONBF, 0);

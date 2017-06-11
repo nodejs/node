@@ -67,9 +67,9 @@
   var $valid = 'valid' + $lvl
     , $breakOnError = !it.opts.allErrors
     , $closingBraces1 = ''
-    , $closingBraces2 = ''
-    , $errorKeyword;
+    , $closingBraces2 = '';
 
+  var $errorKeyword;
   var $typeSchema = it.schema.type
     , $typeIsArray = Array.isArray($typeSchema);
 }}
@@ -141,7 +141,7 @@
         {{?}}
       {{? $rulesGroup.type }}
         }
-        {{? $typeSchema && $typeSchema === $rulesGroup.type }}
+        {{? $typeSchema && $typeSchema === $rulesGroup.type && !$coerceToTypes }}
           {{ var $typeChecked = true; }}
           else {
             {{
@@ -161,7 +161,7 @@
   {{~}}
 {{?}}
 
-{{? $typeSchema && !$typeChecked && !(it.opts.coerceTypes && $coerceToTypes) }}
+{{? $typeSchema && !$typeChecked && !$coerceToTypes }}
   {{# def.checkType }}
     {{# def.error:'type' }}
   }

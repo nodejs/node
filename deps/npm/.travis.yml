@@ -17,8 +17,10 @@ matrix:
     # previous LTS is next most important
     - node_js: "4"
       env: DEPLOY_VERSION=testing
-    # then master
     - node_js: "7"
+      env: DEPLOY_VERSION=testing
+      # then master
+    - node_js: "8"
       env: DEPLOY_VERSION=testing
 before_install:
   # required by test/tap/registry.js
@@ -43,9 +45,9 @@ cache:
   - node_modules/tacks
   - node_modules/tap
 install:
-  - "node . prune"
   - "node . rebuild --depth=0"
   - "node . install --ignore-scripts"
+  - "node . prune"
   - "make -j4 doc"
 script:
   - "node . run tap -- \"test/tap/*.js\" \"test/broken-under-nyc/*.js\""

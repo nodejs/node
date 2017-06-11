@@ -62,7 +62,7 @@ test('spits out a useful error when no cache nor network', function (t) {
   ], {}, function (err, code, stdout, stderr) {
     if (err) throw err
     t.equal(code, 1, 'non-zero exit code')
-    t.equal(stdout, '', 'no stdout output')
+    t.match(JSON.parse(stdout).error.summary, /No search sources available/)
     t.match(stderr, /No search sources available/, 'useful error')
     t.done()
   })

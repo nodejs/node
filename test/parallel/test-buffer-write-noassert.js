@@ -4,7 +4,7 @@ const assert = require('assert');
 
 // testing buffer write functions
 
-const outOfRange = /^RangeError: (?:Index )?out of range(?: index)?$/;
+const outOfRange = /^RangeError\b.*\bIndex out of range$/;
 
 function write(funx, args, result, res) {
   {

@@ -6,6 +6,18 @@
 
 `node-extend` is a port of the classic extend() method from jQuery. It behaves as you expect. It is simple, tried and true.
 
+Notes:
+
+* Since Node.js >= 4,
+  [`Object.assign`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign)
+  now offers the same functionality natively (but without the "deep copy" option).
+  See [ECMAScript 2015 (ES6) in Node.js](https://nodejs.org/en/docs/es6).
+* Some native implementations of `Object.assign` in both Node.js and many
+  browsers (since NPM modules are for the browser too) may not be fully
+  spec-compliant.
+  Check [`object.assign`](https://www.npmjs.com/package/object.assign) module for
+  a compliant candidate.
+
 ## Installation
 
 This package is available on [npm][npm-url] as: `extend`
@@ -19,6 +31,13 @@ npm install extend
 **Syntax:** extend **(** [`deep`], `target`, `object1`, [`objectN`] **)**
 
 *Extend one object with one or more others, returning the modified object.*
+
+**Example:**
+
+``` js
+var extend = require('extend');
+extend(targetObject, object1, object2);
+```
 
 Keep in mind that the target object will be modified, and will be returned from extend().
 
@@ -54,7 +73,7 @@ Ported to Node.js by [Stefan Thomas][github-justmoon] with contributions by [Jon
 [github-justmoon]: https://github.com/justmoon
 [github-insin]: https://github.com/insin
 [github-ljharb]: https://github.com/ljharb
-[npm-version-png]: http://vb.teelaun.ch/justmoon/node-extend.svg
+[npm-version-png]: http://versionbadg.es/justmoon/node-extend.svg
 [deps-svg]: https://david-dm.org/justmoon/node-extend.svg
 [deps-url]: https://david-dm.org/justmoon/node-extend
 [dev-deps-svg]: https://david-dm.org/justmoon/node-extend/dev-status.svg

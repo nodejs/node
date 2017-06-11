@@ -11,7 +11,11 @@ socket.on('listening', common.mustCall(() => {
 
   assert.throws(() => {
     socket.setTTL('foo');
-  }, /^TypeError: Argument must be a number$/);
+  }, common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: /^The "arg" argument must be of type number$/
+  }));
 
   // TTL must be a number from > 0 to < 256
   assert.throws(() => {

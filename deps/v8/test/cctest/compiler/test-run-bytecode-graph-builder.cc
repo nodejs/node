@@ -6,6 +6,7 @@
 
 #include "src/compilation-info.h"
 #include "src/compiler/pipeline.h"
+#include "src/debug/debug-interface.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
@@ -124,7 +125,8 @@ class BytecodeGraphTester {
     // having to instantiate a ParseInfo first. Fix this!
     ParseInfo parse_info(handle(function->shared()));
 
-    CompilationInfo compilation_info(parse_info.zone(), &parse_info, function);
+    CompilationInfo compilation_info(parse_info.zone(), &parse_info,
+                                     function->GetIsolate(), function);
     compilation_info.SetOptimizing();
     compilation_info.MarkAsDeoptimizationEnabled();
     compilation_info.MarkAsOptimizeFromBytecode();
@@ -826,6 +828,49 @@ TEST(BytecodeGraphBuilderTypeOf) {
   }
 }
 
+TEST(BytecodeGraphBuilderCompareTypeOf) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<1> snippets[] = {
+      {"return typeof p1 === 'number';",
+       {factory->true_value(), factory->NewNumber(1.1)}},
+      {"return typeof p1 === 'string';",
+       {factory->false_value(), factory->NewNumber(1.1)}},
+      {"return typeof p1 === 'string';",
+       {factory->true_value(), factory->NewStringFromStaticChars("string")}},
+      {"return typeof p1 === 'string';",
+       {factory->false_value(), factory->undefined_value()}},
+      {"return typeof p1 === 'undefined';",
+       {factory->true_value(), factory->undefined_value()}},
+      {"return typeof p1 === 'object';",
+       {factory->true_value(), factory->null_value()}},
+      {"return typeof p1 === 'object';",
+       {factory->true_value(), BytecodeGraphTester::NewObject("({val : 10})")}},
+      {"return typeof p1 === 'function';",
+       {factory->false_value(),
+        BytecodeGraphTester::NewObject("({val : 10})")}},
+      {"return typeof p1 === 'symbol';",
+       {factory->true_value(), factory->NewSymbol()}},
+      {"return typeof p1 === 'symbol';",
+       {factory->false_value(), factory->NewStringFromStaticChars("string")}},
+      {"return typeof p1 === 'other';",
+       {factory->false_value(), factory->NewNumber(1.1)}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s(p1) { %s }\n%s({});", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, script.start());
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> return_value =
+        callable(snippets[i].parameter(0)).ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
 
 TEST(BytecodeGraphBuilderCountOperation) {
   HandleAndZoneScope scope;
@@ -2966,16 +3011,22 @@ TEST(BytecodeGraphBuilderIllegalConstDeclaration) {
   }
 }
 
-static int debug_break_count = 0;
-static void DebugEventCounter(const v8::Debug::EventDetails& event_details) {
-  if (event_details.GetEvent() == v8::Break) debug_break_count++;
-}
+class CountBreakDebugDelegate : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             v8::Local<v8::Object> exec_state,
+                             v8::Local<v8::Value> break_points_hit) override {
+    debug_break_count++;
+  }
+  int debug_break_count = 0;
+};
 
 TEST(BytecodeGraphBuilderDebuggerStatement) {
+  CountBreakDebugDelegate delegate;
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
 
-  v8::Debug::SetDebugEventListener(CcTest::isolate(), DebugEventCounter);
+  v8::debug::SetDebugDelegate(CcTest::isolate(), &delegate);
 
   ExpectedSnippet<0> snippet = {
       "function f() {"
@@ -2988,9 +3039,9 @@ TEST(BytecodeGraphBuilderDebuggerStatement) {
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
 
-  v8::Debug::SetDebugEventListener(CcTest::isolate(), nullptr);
+  v8::debug::SetDebugDelegate(CcTest::isolate(), nullptr);
   CHECK(return_value.is_identical_to(snippet.return_value()));
-  CHECK_EQ(2, debug_break_count);
+  CHECK_EQ(2, delegate.debug_break_count);
 }
 
 }  // namespace compiler

@@ -165,8 +165,8 @@ For example:
 ]
 ```
 
-*Note*: Because `nice` values are UNIX-specific, on Windows the `nice` values of
-all processors are always 0.
+*Note*: Because `nice` values are UNIX-specific, on Windows the `nice` values
+of all processors are always 0.
 
 ## os.endianness()
 <!-- YAML
@@ -328,8 +328,8 @@ added: v0.3.3
 The `os.release()` method returns a string identifying the operating system
 release.
 
-*Note*: On POSIX systems, the operating system release is determined by calling
-uname(3). On Windows, `GetVersionExW()` is used. Please see
+*Note*: On POSIX systems, the operating system release is determined by
+calling uname(3). On Windows, `GetVersionExW()` is used. Please see
 https://en.wikipedia.org/wiki/Uname#Examples for more information.
 
 ## os.tmpdir()
@@ -406,8 +406,9 @@ operating system response.
 
 ## OS Constants
 
-The following constants are exported by `os.constants`. **Note:** Not all
-constants will be available on every operating system.
+The following constants are exported by `os.constants`.
+
+*Note*: Not all constants will be available on every operating system.
 
 ### Signal Constants
 <!-- YAML

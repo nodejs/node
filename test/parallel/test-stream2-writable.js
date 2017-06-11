@@ -408,3 +408,25 @@ test('finish is emitted if last chunk is empty', function(t) {
   w.write(Buffer.allocUnsafe(1));
   w.end(Buffer.alloc(0));
 });
+
+test('finish is emitted after shutdown', function(t) {
+  const w = new W();
+  let shutdown = false;
+
+  w._final = common.mustCall(function(cb) {
+    assert.strictEqual(this, w);
+    setTimeout(function() {
+      shutdown = true;
+      cb();
+    }, 100);
+  });
+  w._write = function(chunk, e, cb) {
+    process.nextTick(cb);
+  };
+  w.on('finish', common.mustCall(function() {
+    assert(shutdown);
+    t.end();
+  }));
+  w.write(Buffer.allocUnsafe(1));
+  w.end(Buffer.allocUnsafe(0));
+});

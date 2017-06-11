@@ -227,16 +227,29 @@ Parameters
 - `format` -- String name of format to use, valid options are:
   - `auto`: choose automatically from all below
   - `pem`: supports both PKCS#1 and PKCS#8
-  - `ssh`, `openssh`: new post-OpenSSH 6.5 internal format, produced by 
+  - `ssh`, `openssh`: new post-OpenSSH 6.5 internal format, produced by
                       `ssh-keygen -o`
   - `pkcs1`, `pkcs8`: variants of `pem`
   - `rfc4253`: raw OpenSSH wire format
 - `options` -- Optional Object, extra options, with keys:
-  - `filename` -- Optional String, name for the key being parsed 
+  - `filename` -- Optional String, name for the key being parsed
                   (eg. the filename that was opened). Used to generate
                   Error messages
   - `passphrase` -- Optional String, encryption passphrase used to decrypt an
                     encrypted PEM file
+
+### `generatePrivateKey(type[, options])`
+
+Generates a new private key of a certain key type, from random data.
+
+Parameters
+
+- `type` -- String, type of key to generate. Currently supported are `'ecdsa'`
+            and `'ed25519'`
+- `options` -- optional Object, with keys:
+  - `curve` -- optional String, for `'ecdsa'` keys, specifies the curve to use.
+               If ECDSA is specified and this option is not given, defaults to
+               using `'nistp256'`.
 
 ### `PrivateKey.isPrivateKey(obj)`
 

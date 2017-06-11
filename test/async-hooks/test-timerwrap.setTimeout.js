@@ -13,11 +13,11 @@ hooks.enable();
 // install first timeout
 setTimeout(common.mustCall(ontimeout), TIMEOUT);
 const as = hooks.activitiesOfTypes('TIMERWRAP');
-assert.strictEqual(as.length, 1, 'one timer wrap when first timeout installed');
+assert.strictEqual(as.length, 1);
 const t1 = as[0];
-assert.strictEqual(t1.type, 'TIMERWRAP', 'timer wrap');
-assert.strictEqual(typeof t1.uid, 'number', 'uid is a number');
-assert.strictEqual(typeof t1.triggerId, 'number', 'triggerId is a number');
+assert.strictEqual(t1.type, 'TIMERWRAP');
+assert.strictEqual(typeof t1.uid, 'number');
+assert.strictEqual(typeof t1.triggerId, 'number');
 checkInvocations(t1, { init: 1 }, 't1: when first timer installed');
 
 function ontimeout() {
@@ -26,8 +26,7 @@ function ontimeout() {
   // install second timeout with same TIMEOUT to see timer wrap being reused
   setTimeout(onsecondTimeout, TIMEOUT);
   const as = hooks.activitiesOfTypes('TIMERWRAP');
-  assert.strictEqual(as.length, 1,
-                     'one timer wrap when second timer installed');
+  assert.strictEqual(as.length, 1);
   checkInvocations(t1, { init: 1, before: 1 },
                    't1: when second timer installed');
 }
@@ -38,19 +37,18 @@ let t2;
 
 function onsecondTimeout() {
   let as = hooks.activitiesOfTypes('TIMERWRAP');
-  assert.strictEqual(as.length, 1, 'one timer wrap when second timer fired');
+  assert.strictEqual(as.length, 1);
   checkInvocations(t1, { init: 1, before: 2, after: 1 },
                    't1: when second timer fired');
 
   // install third timeout with different TIMEOUT
   setTimeout(onthirdTimeout, TIMEOUT + 1);
   as = hooks.activitiesOfTypes('TIMERWRAP');
-  assert.strictEqual(as.length, 2,
-                     'two timer wraps when third timer installed');
+  assert.strictEqual(as.length, 2);
   t2 = as[1];
-  assert.strictEqual(t2.type, 'TIMERWRAP', 'timer wrap');
-  assert.strictEqual(typeof t2.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof t2.triggerId, 'number', 'triggerId is a number');
+  assert.strictEqual(t2.type, 'TIMERWRAP');
+  assert.strictEqual(typeof t2.uid, 'number');
+  assert.strictEqual(typeof t2.triggerId, 'number');
   checkInvocations(t1, { init: 1, before: 2, after: 1 },
                    't1: when third timer installed');
   checkInvocations(t2, { init: 1 },

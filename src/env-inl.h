@@ -146,7 +146,7 @@ inline bool Environment::AsyncHooks::pop_ids(double async_id) {
   if (uid_fields_[kCurrentAsyncId] != async_id) {
     fprintf(stderr,
             "Error: async hook stack has become corrupted ("
-            "actual: %'.f, expected: %'.f)\n",
+            "actual: %.f, expected: %.f)\n",
             uid_fields_[kCurrentAsyncId],
             async_id);
     Environment* env = Environment::GetCurrent(isolate_);
@@ -292,6 +292,8 @@ inline Environment::Environment(IsolateData* isolate_data,
       isolate_data_(isolate_data),
       async_hooks_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),
+      cares_query_last_ok_(true),
+      cares_is_servers_default_(true),
       using_domains_(false),
       printed_error_(false),
       trace_sync_io_(false),
@@ -354,13 +356,13 @@ inline uv_idle_t* Environment::immediate_idle_handle() {
   return &immediate_idle_handle_;
 }
 
-inline Environment* Environment::from_destroy_ids_idle_handle(
-    uv_idle_t* handle) {
-  return ContainerOf(&Environment::destroy_ids_idle_handle_, handle);
+inline Environment* Environment::from_destroy_ids_timer_handle(
+    uv_timer_t* handle) {
+  return ContainerOf(&Environment::destroy_ids_timer_handle_, handle);
 }
 
-inline uv_idle_t* Environment::destroy_ids_idle_handle() {
-  return &destroy_ids_idle_handle_;
+inline uv_timer_t* Environment::destroy_ids_timer_handle() {
+  return &destroy_ids_timer_handle_;
 }
 
 inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
@@ -503,6 +505,22 @@ inline ares_channel Environment::cares_channel() {
 // Only used in the call to ares_init_options().
 inline ares_channel* Environment::cares_channel_ptr() {
   return &cares_channel_;
+}
+
+inline bool Environment::cares_query_last_ok() {
+  return cares_query_last_ok_;
+}
+
+inline void Environment::set_cares_query_last_ok(bool ok) {
+  cares_query_last_ok_ = ok;
+}
+
+inline bool Environment::cares_is_servers_default() {
+  return cares_is_servers_default_;
+}
+
+inline void Environment::set_cares_is_servers_default(bool is_default) {
+  cares_is_servers_default_ = is_default;
 }
 
 inline node_ares_task_list* Environment::cares_task_list() {

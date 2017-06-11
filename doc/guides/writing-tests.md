@@ -38,7 +38,7 @@ const server = http.createServer(common.mustCall((req, res) => {       // 10
 server.listen(0, () => {                                               // 13
   http.get({                                                           // 14
     port: server.address().port,                                       // 15
-    headers: {'Test': 'Düsseldorf'}                                    // 16
+    headers: { 'Test': 'Düsseldorf' }                                  // 16
   }, common.mustCall((res) => {                                        // 17
     assert.strictEqual(res.statusCode, 200);                           // 18
     server.close();                                                    // 19
@@ -56,7 +56,7 @@ const common = require('../common');
 The first line enables strict mode. All tests should be in strict mode unless
 the nature of the test requires that the test run without it.
 
-The second line loads the `common` module. The `common` module is a helper
+The second line loads the `common` module. The [`common` module][] is a helper
 module that provides useful tools for the tests.
 
 Even if a test uses no functions or other properties exported by `common`,
@@ -232,8 +232,8 @@ For performance considerations, we only use a selected subset of ES.Next
 features in JavaScript code in the `lib` directory. However, when writing
 tests, for the ease of backporting, it is encouraged to use those ES.Next
 features that can be used directly without a flag in [all maintained branches]
-(https://github.com/nodejs/lts), you can check [node.green](http://node.green)
-for all available features in each release.
+(https://github.com/nodejs/lts). [node.green](http://node.green/) lists
+available features in each release.
 
 For example:
 
@@ -274,8 +274,8 @@ These imported tests will be wrapped like this:
 /* eslint-enable */
 ```
 
-If you want to improve tests that have been imported this way, please send
-a PR to the upstream project first. When your proposed change is merged in
+To improve tests that have been imported this way, please send
+a PR to the upstream project first. When the proposed change is merged in
 the upstream project, send another PR here to update Node.js accordingly.
 Be sure to update the hash in the URL following `WPT Refs:`.
 
@@ -319,14 +319,14 @@ static void at_exit_callback(void* arg) {
 ```
 
 Next add the test to the `sources` in the `cctest` target in node.gyp:
-```
+```console
 'sources': [
   'test/cctest/test_env.cc',
   ...
 ],
 ```
 The test can be executed by running the `cctest` target:
-```
+```console
 $ make cctest
 ```
 
@@ -340,3 +340,4 @@ will depend on what is being tested if this is required or not.
 
 [Google Test]: https://github.com/google/googletest
 [Test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests
+[`common` module]: https://github.com/nodejs/node/blob/master/test/common/README.md

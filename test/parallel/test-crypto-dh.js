@@ -172,6 +172,7 @@ assert.strictEqual(bad_dh.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 const availableCurves = new Set(crypto.getCurves());
+const availableHashes = new Set(crypto.getHashes());
 
 // Oakley curves do not clean up ERR stack, it was causing unexpected failure
 // when accessing other OpenSSL APIs afterwards.
@@ -304,6 +305,28 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
     }, /^Error: Private key is not valid for specified curve\.$/);
     // Verify object state did not change.
     assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
+  });
+}
+
+// Use of invalid keys was not cleaning up ERR stack, and was causing
+// unexpected failure in subsequent signing operations.
+if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
+  const curve = crypto.createECDH('prime256v1');
+  const invalidKey = Buffer.alloc(65);
+  invalidKey.fill('\0');
+  curve.generateKeys();
+  assert.throws(() => {
+    curve.computeSecret(invalidKey);
+  }, /^Error: Failed to translate Buffer to a EC_POINT$/);
+  // Check that signing operations are not impacted by the above error.
+  const ecPrivateKey =
+    '-----BEGIN EC PRIVATE KEY-----\n' +
+    'MHcCAQEEIF+jnWY1D5kbVYDNvxxo/Y+ku2uJPDwS0r/VuPZQrjjVoAoGCCqGSM49\n' +
+    'AwEHoUQDQgAEurOxfSxmqIRYzJVagdZfMMSjRNNhB8i3mXyIMq704m2m52FdfKZ2\n' +
+    'pQhByd5eyj3lgZ7m7jbchtdgyOF8Io/1ng==\n' +
+    '-----END EC PRIVATE KEY-----';
+  assert.doesNotThrow(() => {
+    crypto.createSign('SHA256').sign(ecPrivateKey);
   });
 }
 

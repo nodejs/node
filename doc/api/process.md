@@ -639,7 +639,7 @@ If the Node.js process was not spawned with an IPC channel,
 
 ## process.emitWarning(warning[, options])
 <!-- YAML
-added: REPLACEME
+added: 8.0.0
 -->
 
 * `warning` {string|Error} The warning to emit.
@@ -1005,7 +1005,7 @@ if (process.getegid) {
 ```
 
 *Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android)
+or Android).
 
 ## process.geteuid()
 <!-- YAML
@@ -1023,8 +1023,8 @@ if (process.geteuid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.getgid()
 <!-- YAML
@@ -1042,8 +1042,8 @@ if (process.getgid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 
 ## process.getgroups()
@@ -1057,8 +1057,8 @@ The `process.getgroups()` method returns an array with the supplementary group
 IDs. POSIX leaves it unspecified if the effective group ID is included but
 Node.js ensures it always is.
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.getuid()
 <!-- YAML
@@ -1076,8 +1076,8 @@ if (process.getuid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.hrtime([time])
 <!-- YAML
@@ -1139,8 +1139,8 @@ process.setgid(1000);                     // drop root gid
 console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.kill(pid[, signal])
 <!-- YAML
@@ -1162,9 +1162,9 @@ case, a signal of `0` can be used to test for the existence of a process.
 Windows platforms will throw an error if the `pid` is used to kill a process
 group.
 
-*Note*:Even though the name of this function is `process.kill()`, it is really
-just a signal sender, like the `kill` system call.  The signal sent may do
-something other than kill the target process.
+*Note*: Even though the name of this function is `process.kill()`, it is
+really just a signal sender, like the `kill` system call.  The signal sent may
+do something other than kill the target process.
 
 For example:
 
@@ -1181,8 +1181,8 @@ setTimeout(() => {
 process.kill(process.pid, 'SIGHUP');
 ```
 
-*Note*: When `SIGUSR1` is received by a Node.js process, Node.js will start the
-debugger, see [Signal Events][].
+*Note*: When `SIGUSR1` is received by a Node.js process, Node.js will start
+the debugger, see [Signal Events][].
 
 ## process.mainModule
 <!-- YAML
@@ -1331,7 +1331,7 @@ function definitelyAsync(arg, cb) {
 }
 ```
 
-*Note*: the next tick queue is completely drained on each pass of the
+*Note*: The next tick queue is completely drained on each pass of the
 event loop **before** additional I/O is processed.  As a result,
 recursively setting nextTick callbacks will block any I/O from
 happening, just like a `while(true);` loop.
@@ -1430,7 +1430,7 @@ If Node.js was not spawned with an IPC channel, `process.send()` will be
 `undefined`.
 
 *Note*: This function uses [`JSON.stringify()`][] internally to serialize the
-`message`.*
+`message`.
 
 ## process.setegid(id)
 <!-- YAML
@@ -1456,8 +1456,8 @@ if (process.getegid && process.setegid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 
 ## process.seteuid(id)
@@ -1484,8 +1484,8 @@ if (process.geteuid && process.seteuid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.setgid(id)
 <!-- YAML
@@ -1511,8 +1511,8 @@ if (process.getgid && process.setgid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.setgroups(groups)
 <!-- YAML
@@ -1527,8 +1527,8 @@ to have `root` or the `CAP_SETGID` capability.
 
 The `groups` array can contain numeric group IDs, group names or both.
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.setuid(id)
 <!-- YAML
@@ -1552,8 +1552,8 @@ if (process.getuid && process.setuid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 
 ## process.stderr
@@ -1565,7 +1565,7 @@ The `process.stderr` property returns a stream connected to
 stream) unless fd `2` refers to a file, in which case it is
 a [Writable][] stream.
 
-Note: `process.stderr` differs from other Node.js streams in important ways,
+*Note*: `process.stderr` differs from other Node.js streams in important ways,
 see [note on process I/O][] for more information.
 
 ## process.stdin
@@ -1617,7 +1617,7 @@ For example, to copy process.stdin to process.stdout:
 process.stdin.pipe(process.stdout);
 ```
 
-Note: `process.stdout` differs from other Node.js streams in important ways,
+*Note*: `process.stdout` differs from other Node.js streams in important ways,
 see [note on process I/O][] for more information.
 
 ### A note on process I/O
@@ -1635,7 +1635,7 @@ important ways:
    - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on Unix
    - Pipes (and sockets): *synchronous* on Windows, *asynchronous* on Unix
 
-These behaviours are partly for historical reasons, as changing them would
+These behaviors are partly for historical reasons, as changing them would
 create backwards incompatibility, but they are also expected by some users.
 
 Synchronous writes avoid problems such as output written with `console.log()` or
@@ -1680,14 +1680,14 @@ The `process.title` property returns the current process title (i.e. returns
 the current value of `ps`). Assigning a new value to `process.title` modifies
 the current value of `ps`.
 
-*Note*: When a new value is assigned, different platforms will impose different
-maximum length restrictions on the title. Usually such restrictions are quite
-limited. For instance, on Linux and macOS, `process.title` is limited to the
-size of the binary name plus the length of the command line arguments because
-setting the `process.title` overwrites the `argv` memory of the process.
-Node.js v0.8 allowed for longer process title strings by also overwriting the
-`environ` memory but that was potentially insecure and confusing in some
-(rather obscure) cases.
+*Note*: When a new value is assigned, different platforms will impose
+different maximum length restrictions on the title. Usually such restrictions
+are quite limited. For instance, on Linux and macOS, `process.title` is limited
+to the size of the binary name plus the length of the command line arguments
+because setting the `process.title` overwrites the `argv` memory of the
+process.  Node.js v0.8 allowed for longer process title strings by also
+overwriting the `environ` memory but that was potentially insecure and
+confusing in some (rather obscure) cases.
 
 ## process.umask([mask])
 <!-- YAML
@@ -1720,7 +1720,7 @@ added: v0.5.0
 The `process.uptime()` method returns the number of seconds the current Node.js
 process has been running.
 
-*Note*: the return value includes fractions of a second. Use `Math.floor()`
+*Note*: The return value includes fractions of a second. Use `Math.floor()`
 to get whole seconds.
 
 ## process.version

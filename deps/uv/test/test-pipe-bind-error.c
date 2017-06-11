@@ -116,6 +116,9 @@ TEST_IMPL(pipe_bind_error_inval) {
 
 
 TEST_IMPL(pipe_listen_without_bind) {
+#if defined(NO_SELF_CONNECT)
+  RETURN_SKIP(NO_SELF_CONNECT);
+#endif
   uv_pipe_t server;
   int r;
 

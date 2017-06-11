@@ -7,7 +7,7 @@ const options = 'test';
 const unknownEncodingMessage = /^Error: Unknown encoding: test$/;
 
 assert.throws(() => {
-  fs.readFile('path', options, common.noop);
+  fs.readFile('path', options, common.mustNotCall());
 }, unknownEncodingMessage);
 
 assert.throws(() => {
@@ -15,7 +15,7 @@ assert.throws(() => {
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.readdir('path', options, common.noop);
+  fs.readdir('path', options, common.mustNotCall());
 }, unknownEncodingMessage);
 
 assert.throws(() => {
@@ -23,7 +23,7 @@ assert.throws(() => {
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.readlink('path', options, common.noop);
+  fs.readlink('path', options, common.mustNotCall());
 }, unknownEncodingMessage);
 
 assert.throws(() => {
@@ -31,7 +31,7 @@ assert.throws(() => {
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.writeFile('path', 'data', options, common.noop);
+  fs.writeFile('path', 'data', options, common.mustNotCall());
 }, unknownEncodingMessage);
 
 assert.throws(() => {
@@ -39,7 +39,7 @@ assert.throws(() => {
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.appendFile('path', 'data', options, common.noop);
+  fs.appendFile('path', 'data', options, common.mustNotCall());
 }, unknownEncodingMessage);
 
 assert.throws(() => {
@@ -47,11 +47,11 @@ assert.throws(() => {
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.watch('path', options, common.noop);
+  fs.watch('path', options, common.mustNotCall());
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.realpath('path', options, common.noop);
+  fs.realpath('path', options, common.mustNotCall());
 }, unknownEncodingMessage);
 
 assert.throws(() => {
@@ -59,7 +59,7 @@ assert.throws(() => {
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.mkdtemp('path', options, common.noop);
+  fs.mkdtemp('path', options, common.mustNotCall());
 }, unknownEncodingMessage);
 
 assert.throws(() => {

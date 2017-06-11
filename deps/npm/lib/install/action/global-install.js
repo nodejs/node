@@ -8,7 +8,7 @@ module.exports = function (staging, pkg, log, next) {
   log.silly('global-install', packageId(pkg))
   var globalRoot = path.resolve(npm.globalDir, '..')
   npm.config.set('global', true)
-  var install = new Installer(globalRoot, false, [pkg.package.name + '@' + pkg.package._requested.spec])
+  var install = new Installer(globalRoot, false, [pkg.package.name + '@' + pkg.package._requested.fetchSpec])
   install.link = false
   install.run(function () {
     npm.config.set('global', false)

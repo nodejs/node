@@ -488,11 +488,9 @@ changes:
   * `secureContext`: Optional TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
-    `tls.createSecureContext()`. *Note*: In effect, all
-    [`tls.createSecureContext()`][] options can be provided, but they will be
-    _completely ignored_ unless the `secureContext` option is missing.
-  * ...: Optional [`tls.createSecureContext()`][] options can be provided, see
-    the `secureContext` option for more information.
+    `tls.createSecureContext()`.
+  * ...: Optional [`tls.createSecureContext()`][] options that are used if the
+    `secureContext` option is missing, otherwise they are ignored.
 
 Construct a new `tls.TLSSocket` object from an existing TCP socket.
 
@@ -667,8 +665,8 @@ added: v0.11.4
 
 Returns the TLS session ticket or `undefined` if no session was negotiated.
 
-*Note*: This only works with client TLS sockets. Useful only for debugging, for
-session reuse provide `session` option to [`tls.connect()`][].
+*Note*: This only works with client TLS sockets. Useful only for debugging,
+for session reuse provide `session` option to [`tls.connect()`][].
 
 ### tlsSocket.localAddress
 <!-- YAML
@@ -752,7 +750,10 @@ decrease overall server throughput.
 <!-- YAML
 added: v0.11.3
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12839
+    description: The `lookup` option is supported now.
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11984
     description: The `ALPNProtocols` and `NPNProtocols` options can
                  be `Uint8Array`s now.
@@ -781,7 +782,7 @@ changes:
     verification fails; `err.code` contains the OpenSSL error code. Defaults to
     `true`.
   * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
-    An array of strings, Buffer`s or `Uint8Array`s, or a single `Buffer` or
+    An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
     format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
     first byte is the length of the next protocol name. Passing an array is
@@ -806,11 +807,10 @@ changes:
   * `secureContext`: Optional TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
-    `tls.createSecureContext()`. *Note*: In effect, all
-    [`tls.createSecureContext()`][] options can be provided, but they will be
-    _completely ignored_ unless the `secureContext` option is missing.
-  * ...: Optional [`tls.createSecureContext()`][] options can be provided, see
-    the `secureContext` option for more information.
+    `tls.createSecureContext()`.
+  * `lookup`: {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
+  * ...: Optional [`tls.createSecureContext()`][] options that are used if the
+    `secureContext` option is missing, otherwise they are ignored.
 * `callback` {Function}
 
 The `callback` function, if specified, will be added as a listener for the
@@ -901,8 +901,8 @@ added: v0.11.3
 Same as [`tls.connect()`][] except that `port` and `host` can be provided
 as arguments instead of options.
 
-*Note*: A port or host option, if specified, will take precedence over any port
-or host argument.
+*Note*: A port or host option, if specified, will take precedence over any
+port or host argument.
 
 
 ## tls.createSecureContext(options)
@@ -967,8 +967,6 @@ changes:
     preferences instead of the client's. When `true`, causes
     `SSL_OP_CIPHER_SERVER_PREFERENCE` to be set in `secureOptions`, see
     [OpenSSL Options][] for more information.
-    *Note*: [`tls.createServer()`][] sets the default value to `true`, other
-    APIs that create secure contexts leave it unset.
   * `ecdhCurve` {string} A string describing a named curve to use for ECDH key
     agreement or `false` to disable ECDH. Defaults to
     [`tls.DEFAULT_ECDH_CURVE`].  Use [`crypto.getCurves()`][] to obtain a list
@@ -984,15 +982,22 @@ changes:
     `"SSLv23_method"`. The possible values are listed as [SSL_METHODS][], use
     the function names as strings. For example, `"SSLv3_method"` to force SSL
     version 3.
-  * `secureOptions` {number} Optionally affect the OpenSSL protocol behaviour,
+  * `secureOptions` {number} Optionally affect the OpenSSL protocol behavior,
     which is not usually necessary. This should be used carefully if at all!
     Value is a numeric bitmask of the `SSL_OP_*` options from
     [OpenSSL Options][].
   * `sessionIdContext` {string} Optional opaque identifier used by servers to
     ensure session state is not shared between applications. Unused by clients.
-    *Note*: [`tls.createServer()`][] uses a 128 bit truncated SHA1 hash value
-    generated from `process.argv`, other APIs that create secure contexts
-    have no default value.
+
+*Note*:
+
+* [`tls.createServer()`][] sets the default value of the
+  `honorCipherOrder` option to `true`, other APIs that create secure contexts
+  leave it unset.
+
+* [`tls.createServer()`][] uses a 128 bit truncated SHA1 hash value
+  generated from `process.argv` as the default value of the `sessionIdContext`
+  option, other APIs that create secure contexts have no default value.
 
 The `tls.createSecureContext()` method creates a credentials object.
 
@@ -1008,7 +1013,7 @@ publicly trusted list of CAs as given in
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11984
     description: The `ALPNProtocols` and `NPNProtocols` options can
                  be `Uint8Array`s now.
@@ -1020,8 +1025,8 @@ changes:
 * `options` {Object}
   * `handshakeTimeout` {number} Abort the connection if the SSL/TLS handshake
     does not finish in the specified number of milliseconds. Defaults to `120`
-    seconds. A `'clientError'` is emitted on the `tls.Server` object whenever a
-    handshake times out.
+    seconds. A `'tlsClientError'` is emitted on the `tls.Server` object whenever
+    a handshake times out.
   * `requestCert` {boolean} If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. Defaults to
     `false`.
@@ -1029,7 +1034,7 @@ changes:
     connection which is not authorized with the list of supplied CAs. This
     option only has an effect if `requestCert` is `true`. Defaults to `true`.
   * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
-    An array of strings, Buffer`s or `Uint8Array`s, or a single `Buffer` or
+    An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
     format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
     first byte is the length of the next protocol name. Passing an array is
@@ -1056,14 +1061,16 @@ changes:
     server will time out. See [SSL_CTX_set_timeout] for more details.
   * `ticketKeys`: A 48-byte `Buffer` instance consisting of a 16-byte prefix,
     a 16-byte HMAC key, and a 16-byte AES key. This can be used to accept TLS
-    session tickets on multiple instances of the TLS server. *Note* that this is
-    automatically shared between `cluster` module workers.
+    session tickets on multiple instances of the TLS server.
   * ...: Any [`tls.createSecureContext()`][] options can be provided. For
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
 * `secureConnectionListener` {Function}
 
 Creates a new [tls.Server][].  The `secureConnectionListener`, if provided, is
 automatically set as a listener for the [`'secureConnection'`][] event.
+
+*Note*: The `ticketKeys` options is automatically shared between `cluster`
+module workers.
 
 The following illustrates a simple echo server:
 
@@ -1291,3 +1298,4 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [tls.Server]: #tls_class_tls_server
+[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback

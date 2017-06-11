@@ -9,8 +9,6 @@ function throwTheError() {
 }
 let caughtError;
 
-const throwNoError = common.noop;
-
 // Test that the native side successfully captures the exception
 let returnedError = test_exception.returnException(throwTheError);
 assert.strictEqual(theError, returnedError,
@@ -34,13 +32,13 @@ assert.strictEqual(test_exception.wasPending(), true,
                    ' when it was allowed through');
 
 // Test that the native side does not capture a non-existing exception
-returnedError = test_exception.returnException(throwNoError);
+returnedError = test_exception.returnException(common.mustCall());
 assert.strictEqual(undefined, returnedError,
                    'Returned error is undefined when no exception is thrown');
 
 // Test that no exception appears that was not thrown by us
 try {
-  test_exception.allowException(throwNoError);
+  test_exception.allowException(common.mustCall());
 } catch (anError) {
   caughtError = anError;
 }

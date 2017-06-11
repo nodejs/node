@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 // the default behavior, return an Array "tuple" of numbers
@@ -32,19 +32,25 @@ validateTuple(tuple);
 // validate that passing an existing tuple returns another valid tuple
 validateTuple(process.hrtime(tuple));
 
+const invalidHrtimeArgument = common.expectsError({
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "process.hrtime()" argument must be of type Array'
+});
+
 // test that only an Array may be passed to process.hrtime()
 assert.throws(() => {
   process.hrtime(1);
-}, /^TypeError: process\.hrtime\(\) only accepts an Array tuple$/);
+}, invalidHrtimeArgument);
 assert.throws(() => {
   process.hrtime([]);
-}, /^TypeError: process\.hrtime\(\) only accepts an Array tuple$/);
+}, invalidHrtimeArgument);
 assert.throws(() => {
   process.hrtime([1]);
-}, /^TypeError: process\.hrtime\(\) only accepts an Array tuple$/);
+}, invalidHrtimeArgument);
 assert.throws(() => {
   process.hrtime([1, 2, 3]);
-}, /^TypeError: process\.hrtime\(\) only accepts an Array tuple$/);
+}, invalidHrtimeArgument);
 
 function validateTuple(tuple) {
   assert(Array.isArray(tuple));

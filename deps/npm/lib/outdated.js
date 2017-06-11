@@ -23,7 +23,6 @@ outdated.completion = require('./utils/completion/installed-deep.js')
 var os = require('os')
 var url = require('url')
 var path = require('path')
-var log = require('npmlog')
 var readPackageTree = require('read-package-tree')
 var readJson = require('read-package-json')
 var asyncMap = require('slide').asyncMap
@@ -38,7 +37,7 @@ var npm = require('./npm.js')
 var long = npm.config.get('long')
 var mapToRegistry = require('./utils/map-to-registry.js')
 var isExtraneous = require('./install/is-extraneous.js')
-var recalculateMetadata = require('./install/deps.js').recalculateMetadata
+var computeMetadata = require('./install/deps.js').computeMetadata
 var moduleName = require('./utils/module-name.js')
 var output = require('./utils/output.js')
 var ansiTrim = require('./utils/ansi-trim')
@@ -59,10 +58,10 @@ function uniq (list) {
   return uniqed
 }
 
-function andRecalculateMetadata (next) {
+function andComputeMetadata (next) {
   return function (er, tree) {
     if (er) return next(er)
-    recalculateMetadata(tree, log, next)
+    next(null, computeMetadata(tree))
   }
 }
 
@@ -76,7 +75,7 @@ function outdated (args, silent, cb) {
   // default depth for `outdated` is 0 (cf. `ls`)
   if (npm.config.get('depth') === Infinity) npm.config.set('depth', 0)
 
-  readPackageTree(dir, andRecalculateMetadata(function (er, tree) {
+  readPackageTree(dir, andComputeMetadata(function (er, tree) {
     if (!tree) return cb(er)
     mutateIntoLogicalTree(tree)
     outdated_(args, '', tree, {}, 0, function (er, list) {
@@ -292,7 +291,7 @@ function outdated_ (args, path, tree, parentHas, depth, cb) {
     var required = (tree.package.dependencies)[name] ||
                    (tree.package.optionalDependencies)[name] ||
                    (tree.package.devDependencies)[name] ||
-                   dep.package._requested && dep.package._requested.spec ||
+                   dep.package._requested && dep.package._requested.fetchSpec ||
                    '*'
     if (!long) return shouldUpdate(args, dep, name, has, required, depth, path, cb)
 
@@ -327,7 +326,7 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
   }
 
   if (args.length && args.indexOf(dep) === -1) return skip()
-  var parsed = npa(dep + '@' + req)
+  var parsed = npa.resolve(dep, req)
   if (tree.isLink && tree.parent && tree.parent.isTop) {
     return doIt('linked', 'linked')
   }
@@ -343,7 +342,7 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
   })
 
   function updateLocalDeps (latestRegistryVersion) {
-    readJson(path.resolve(parsed.spec, 'package.json'), function (er, localDependency) {
+    readJson(path.resolve(parsed.fetchSpec, 'package.json'), function (er, localDependency) {
       if (er) return cb()
 
       var wanted = localDependency.version
@@ -367,7 +366,7 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
 
   function updateDeps (er, d) {
     if (er) {
-      if (parsed.type !== 'local') return cb(er)
+      if (parsed.type !== 'directory' && parsed.type !== 'file') return cb(er)
       return updateLocalDeps()
     }
 
@@ -413,7 +412,7 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
           dFromUrl && cFromUrl && d._from !== curr.from ||
           d.version !== curr.version ||
           d.version !== l.version) {
-        if (parsed.type === 'local') return updateLocalDeps(l.version)
+        if (parsed.type === 'file' || parsed.type === 'directory') return updateLocalDeps(l.version)
 
         doIt(d.version, l.version)
       } else {

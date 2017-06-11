@@ -32,26 +32,20 @@ const tls = require('tls');
 const net = require('net');
 const fs = require('fs');
 const path = require('path');
-
-let serverConnected = 0;
-let clientConnected = 0;
-
 const options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };
 
-const server = tls.createServer(options, (socket) => {
-  serverConnected++;
+const server = tls.createServer(options, common.mustCall((socket) => {
   socket.end('Hello');
-}).listen(0, () => {
+}, 2)).listen(0, common.mustCall(() => {
   let waiting = 2;
-  function establish(socket) {
+  function establish(socket, calls) {
     const client = tls.connect({
       rejectUnauthorized: false,
       socket: socket
-    }, () => {
-      clientConnected++;
+    }, common.mustCall(() => {
       let data = '';
       client.on('data', common.mustCall((chunk) => {
         data += chunk.toString();
@@ -61,7 +55,7 @@ const server = tls.createServer(options, (socket) => {
         if (--waiting === 0)
           server.close();
       }));
-    });
+    }, calls));
     assert(client.readable);
     assert(client.writable);
 
@@ -72,14 +66,14 @@ const server = tls.createServer(options, (socket) => {
 
   // Immediate death socket
   const immediateDeath = net.connect(port);
-  establish(immediateDeath).destroy();
+  establish(immediateDeath, 0).destroy();
 
   // Outliving
   const outlivingTCP = net.connect(port, common.mustCall(() => {
     outlivingTLS.destroy();
     next();
   }));
-  const outlivingTLS = establish(outlivingTCP);
+  const outlivingTLS = establish(outlivingTCP, 0);
 
   function next() {
     // Already connected socket
@@ -91,9 +85,4 @@ const server = tls.createServer(options, (socket) => {
     const connecting = net.connect(port);
     establish(connecting);
   }
-});
-
-process.on('exit', () => {
-  assert.strictEqual(serverConnected, 2);
-  assert.strictEqual(clientConnected, 2);
-});
+}));

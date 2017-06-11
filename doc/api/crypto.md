@@ -971,7 +971,7 @@ console.log(sign.sign(privateKey).toString('hex'));
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11705
     description: Support for RSASSA-PSS and additional options was added.
 -->
@@ -1095,7 +1095,7 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11705
     description: Support for RSASSA-PSS and additional options was added.
 -->
@@ -1277,10 +1277,10 @@ The `key` is the raw key used by the `algorithm` and `iv` is an
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `prime` argument can be any `TypedArray` or `DataView` now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11983
     description: The `prime` argument can be a `Uint8Array` now.
   - version: v6.0.0
@@ -1502,7 +1502,7 @@ console.log(hashes); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11305
     description: The `digest` parameter is always required now.
   - version: v6.0.0
@@ -1637,7 +1637,7 @@ treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
 <!-- YAML
 added: v1.1.0
 -->
-- `private_key` {Object | string}
+- `public_key` {Object | string}
   - `key` {string} A PEM encoded private key.
   - `passphrase` {string} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
@@ -1657,7 +1657,7 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.11.14
 -->
-- `private_key` {Object | string}
+- `public_key` {Object | string}
   - `key` {string} A PEM encoded private key.
   - `passphrase` {string} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
@@ -1665,7 +1665,8 @@ added: v0.11.14
     `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
 
-Encrypts `buffer` with `public_key`.
+Encrypts the content of `buffer` with `public_key` and returns a new
+[`Buffer`][] with encrypted content.
 
 `public_key` can be an object or a string. If `public_key` is a string, it is
 treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
@@ -1819,7 +1820,7 @@ comparing HMAC digests or secret values like authentication cookies or
 `a` and `b` must both be `Buffer`s, `TypedArray`s, or `DataView`s, and they
 must have the same length.
 
-**Note**: Use of `crypto.timingSafeEqual` does not guarantee that the
+*Note*: Use of `crypto.timingSafeEqual` does not guarantee that the
 *surrounding* code is timing-safe. Care should be taken to ensure that the
 surrounding code does not introduce timing vulnerabilities.
 
@@ -1900,7 +1901,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   <tr>
     <td><code>SSL_OP_CIPHER_SERVER_PREFERENCE</code></td>
     <td>Attempts to use the server's preferences instead of the client's when
-    selecting a cipher. Behaviour depends on protocol version. See
+    selecting a cipher. Behavior depends on protocol version. See
     https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html.</td>
   </tr>
   <tr>
@@ -2237,12 +2238,10 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
-[OpenSSL cipher list format]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
-[publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
 [stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
 [stream]: stream.html

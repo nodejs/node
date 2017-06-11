@@ -38,9 +38,8 @@ Public members
 
 .. c:member:: void* uv_loop_t.data
 
-    Space for user-defined arbitrary data. libuv does not use this field. libuv does, however,
-    initialize it to NULL in :c:func:`uv_loop_init`, and it poisons the value (on debug builds)
-    on :c:func:`uv_loop_close`.
+    Space for user-defined arbitrary data. libuv does not use and does not
+    touch this field.
 
 
 API
@@ -165,3 +164,57 @@ API
 .. c:function:: void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg)
 
     Walk the list of handles: `walk_cb` will be executed with the given `arg`.
+
+.. c:function:: int uv_loop_fork(uv_loop_t* loop)
+
+    .. versionadded:: 1.12.0
+
+    Reinitialize any kernel state necessary in the child process after
+    a :man:`fork(2)` system call.
+
+    Previously started watchers will continue to be started in the
+    child process.
+
+    It is necessary to explicitly call this function on every event
+    loop created in the parent process that you plan to continue to
+    use in the child, including the default loop (even if you don't
+    continue to use it in the parent). This function must be called
+    before calling :c:func:`uv_run` or any other API function using
+    the loop in the child. Failure to do so will result in undefined
+    behaviour, possibly including duplicate events delivered to both
+    parent and child or aborting the child process.
+
+    When possible, it is preferred to create a new loop in the child
+    process instead of reusing a loop created in the parent. New loops
+    created in the child process after the fork should not use this
+    function.
+
+    This function is not implemented on Windows, where it returns ``UV_ENOSYS``.
+
+    .. caution::
+
+       This function is experimental. It may contain bugs, and is subject to
+       change or removal. API and ABI stability is not guaranteed.
+
+    .. note::
+
+        On Mac OS X, if directory FS event handles were in use in the
+        parent process *for any event loop*, the child process will no
+        longer be able to use the most efficient FSEvent
+        implementation. Instead, uses of directory FS event handles in
+        the child will fall back to the same implementation used for
+        files and on other kqueue-based systems.
+
+    .. caution::
+
+       On AIX and SunOS, FS event handles that were already started in
+       the parent process at the time of forking will *not* deliver
+       events in the child process; they must be closed and restarted.
+       On all other platforms, they will continue to work normally
+       without any further intervention.
+
+    .. caution::
+
+       Any previous value returned from :c:func`uv_backend_fd` is now
+       invalid. That function must be called again to determine the
+       correct backend file descriptor.

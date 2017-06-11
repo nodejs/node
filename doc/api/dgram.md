@@ -245,10 +245,10 @@ chained.
 <!-- YAML
 added: v0.1.99
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11985
     description: The `msg` parameter can be an Uint8Array now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10473
     description: The `address` parameter is always optional now.
   - version: v6.0.0
@@ -499,7 +499,6 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`][] and [`socket.address().port`][].
 
 [`'close'`]: #dgram_event_close
-[`Buffer`]: buffer.html
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html
 [`close()`]: #dgram_socket_close_callback

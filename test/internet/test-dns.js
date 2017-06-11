@@ -402,19 +402,6 @@ TEST(function test_lookup_failure(done) {
 });
 
 
-TEST(function test_lookup_null(done) {
-  const req = dns.lookup(null, function(err, ip, family) {
-    assert.ifError(err);
-    assert.strictEqual(ip, null);
-    assert.strictEqual(family, 4);
-
-    done();
-  });
-
-  checkWrap(req);
-});
-
-
 TEST(function test_lookup_ip_all(done) {
   const req = dns.lookup('127.0.0.1', {all: true}, function(err, ips, family) {
     assert.ifError(err);
@@ -505,11 +492,12 @@ TEST(function test_lookupservice_invalid(done) {
 
 
 TEST(function test_reverse_failure(done) {
-  const req = dns.reverse('0.0.0.0', function(err) {
+  // 203.0.113.0/24 are addresses reserved for (RFC) documentation use only
+  const req = dns.reverse('203.0.113.0', function(err) {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
-    assert.strictEqual(err.hostname, '0.0.0.0');
-    assert.ok(/0\.0\.0\.0/.test(err.message));
+    assert.strictEqual(err.hostname, '203.0.113.0');
+    assert.ok(/203\.0\.113\.0/.test(err.message));
 
     done();
   });
@@ -578,3 +566,12 @@ process.on('exit', function() {
   assert.strictEqual(expected, completed);
   assert.ok(getaddrinfoCallbackCalled);
 });
+
+
+assert.doesNotThrow(() => dns.lookup('nodejs.org', 6, common.mustCall()));
+
+assert.doesNotThrow(() => dns.lookup('nodejs.org', {}, common.mustCall()));
+
+assert.doesNotThrow(() => dns.lookupService('0.0.0.0', '0', common.mustCall()));
+
+assert.doesNotThrow(() => dns.lookupService('0.0.0.0', 0, common.mustCall()));

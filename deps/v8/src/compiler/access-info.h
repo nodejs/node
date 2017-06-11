@@ -63,8 +63,7 @@ class PropertyAccessInfo final {
     kDataConstant,
     kDataField,
     kDataConstantField,
-    kAccessorConstant,
-    kGeneric
+    kAccessorConstant
   };
 
   static PropertyAccessInfo NotFound(MapList const& receiver_maps,
@@ -81,7 +80,6 @@ class PropertyAccessInfo final {
   static PropertyAccessInfo AccessorConstant(MapList const& receiver_maps,
                                              Handle<Object> constant,
                                              MaybeHandle<JSObject> holder);
-  static PropertyAccessInfo Generic(MapList const& receiver_maps);
 
   PropertyAccessInfo();
 
@@ -94,7 +92,6 @@ class PropertyAccessInfo final {
   // is done.
   bool IsDataConstantField() const { return kind() == kDataConstantField; }
   bool IsAccessorConstant() const { return kind() == kAccessorConstant; }
-  bool IsGeneric() const { return kind() == kGeneric; }
 
   bool HasTransitionMap() const { return !transition_map().is_null(); }
 

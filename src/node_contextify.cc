@@ -736,8 +736,10 @@ class ContextifyScript : public BaseObject {
       return;
     }
 
-    Local<String> decorated_stack = String::Concat(arrow.As<String>(),
-                                                   stack.As<String>());
+    Local<String> decorated_stack = String::Concat(
+        String::Concat(arrow.As<String>(),
+          FIXED_ONE_BYTE_STRING(env->isolate(), "\n")),
+        stack.As<String>());
     err_obj->Set(env->stack_string(), decorated_stack);
     err_obj->SetPrivate(
         env->context(),
@@ -956,27 +958,20 @@ class ContextifyScript : public BaseObject {
     bool timed_out = false;
     bool received_signal = false;
     if (break_on_sigint && timeout != -1) {
-      Watchdog wd(env->isolate(), timeout);
-      SigintWatchdog swd(env->isolate());
+      Watchdog wd(env->isolate(), timeout, &timed_out);
+      SigintWatchdog swd(env->isolate(), &received_signal);
       result = script->Run();
-      timed_out = wd.HasTimedOut();
-      received_signal = swd.HasReceivedSignal();
     } else if (break_on_sigint) {
-      SigintWatchdog swd(env->isolate());
+      SigintWatchdog swd(env->isolate(), &received_signal);
       result = script->Run();
-      received_signal = swd.HasReceivedSignal();
     } else if (timeout != -1) {
-      Watchdog wd(env->isolate(), timeout);
+      Watchdog wd(env->isolate(), timeout, &timed_out);
       result = script->Run();
-      timed_out = wd.HasTimedOut();
     } else {
       result = script->Run();
     }
 
-    if (try_catch->HasCaught()) {
-      if (try_catch->HasTerminated())
-        env->isolate()->CancelTerminateExecution();
-
+    if (timed_out || received_signal) {
       // It is possible that execution was terminated by another timeout in
       // which this timeout is nested, so check whether one of the watchdogs
       // from this invocation is responsible for termination.
@@ -984,6 +979,14 @@ class ContextifyScript : public BaseObject {
         env->ThrowError("Script execution timed out.");
       } else if (received_signal) {
         env->ThrowError("Script execution interrupted.");
+      }
+      env->isolate()->CancelTerminateExecution();
+    }
+
+    if (try_catch->HasCaught()) {
+      if (!timed_out && !received_signal && display_errors) {
+        // We should decorate non-termination exceptions
+        DecorateErrorStack(env, *try_catch);
       }
 
       // If there was an exception thrown during script execution, re-throw it.
@@ -993,15 +996,6 @@ class ContextifyScript : public BaseObject {
       // this invocation, this will re-throw a `null` value.
       try_catch->ReThrow();
 
-      return false;
-    }
-
-    if (result.IsEmpty()) {
-      // Error occurred during execution of the script.
-      if (display_errors) {
-        DecorateErrorStack(env, *try_catch);
-      }
-      try_catch->ReThrow();
       return false;
     }
 
@@ -1033,4 +1027,4 @@ void InitContextify(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(contextify, node::InitContextify);
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(contextify, node::InitContextify)

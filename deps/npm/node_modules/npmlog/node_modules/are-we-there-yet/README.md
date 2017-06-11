@@ -42,14 +42,15 @@ fs.stat("file", function(er, stat) {
 Shared Methods
 ==============
 
-All tracker objects described below have the following methods, they, along
-with the event comprise the interface for consumers of tracker objects.
-
 * var completed = tracker.completed()
+
+Implemented in: `Tracker`, `TrackerGroup`, `TrackerStream`
 
 Returns the ratio of completed work to work to be done. Range of 0 to 1.
 
 * tracker.finish()
+
+Implemented in: `Tracker`, `TrackerGroup`
 
 Marks the tracker as completed. With a TrackerGroup this marks all of its
 components as completed.

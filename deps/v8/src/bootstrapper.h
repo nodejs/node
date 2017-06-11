@@ -6,6 +6,7 @@
 #define V8_BOOTSTRAPPER_H_
 
 #include "src/factory.h"
+#include "src/snapshot/natives.h"
 
 namespace v8 {
 namespace internal {
@@ -48,7 +49,9 @@ class SourceCodeCache final BASE_EMBEDDED {
     cache_->CopyTo(0, *new_array, 0, cache_->length());
     cache_ = *new_array;
     Handle<String> str =
-        factory->NewStringFromAscii(name, TENURED).ToHandleChecked();
+        factory
+            ->NewStringFromOneByte(Vector<const uint8_t>::cast(name), TENURED)
+            .ToHandleChecked();
     DCHECK(!str.is_null());
     cache_->set(length, *str);
     cache_->set(length + 1, *shared);
@@ -80,7 +83,7 @@ class Bootstrapper final {
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
       GlobalContextType context_type = FULL_CONTEXT);
 
   Handle<JSGlobalProxy> NewRemoteContext(
@@ -94,8 +97,7 @@ class Bootstrapper final {
   void Iterate(ObjectVisitor* v);
 
   // Accessor for the native scripts source code.
-  template <class Source>
-  Handle<String> SourceLookup(int index);
+  Handle<String> GetNativeSource(NativeType type, int index);
 
   // Tells whether bootstrapping is active.
   bool IsActive() const { return nesting_ != 0; }
@@ -116,7 +118,6 @@ class Bootstrapper final {
                             Handle<String> source, int argc,
                             Handle<Object> argv[], NativesFlag natives_flag);
   static bool CompileBuiltin(Isolate* isolate, int index);
-  static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
   static bool CompileExtraBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalExtraBuiltin(Isolate* isolate, int index);
 
@@ -160,20 +161,6 @@ class BootstrapperActive final BASE_EMBEDDED {
   Bootstrapper* bootstrapper_;
 
   DISALLOW_COPY_AND_ASSIGN(BootstrapperActive);
-};
-
-
-class NativesExternalStringResource final
-    : public v8::String::ExternalOneByteStringResource {
- public:
-  NativesExternalStringResource(const char* source, size_t length)
-      : data_(source), length_(length) {}
-  const char* data() const override { return data_; }
-  size_t length() const override { return length_; }
-
- private:
-  const char* data_;
-  size_t length_;
 };
 
 }  // namespace internal

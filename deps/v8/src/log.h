@@ -58,6 +58,10 @@ namespace internal {
 // --prof
 // Collect statistical profiling information (ticks), default is off.  The
 // tick profiler requires code events, so --prof implies --log-code.
+//
+// --prof-sampling-interval <microseconds>
+// The interval between --prof samples, default is 1000 microseconds (5000 on
+// Android).
 
 // Forward declarations.
 class CodeEventListener;
@@ -181,7 +185,8 @@ class Logger : public CodeEventListener {
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 
-  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
+  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+                      int fp_to_sp_delta);
 
   void ICEvent(const char* type, bool keyed, const Address pc, int line,
                int column, Map* map, Object* key, char old_state,
@@ -253,15 +258,6 @@ class Logger : public CodeEventListener {
   // Converts tag to a corresponding NATIVE_... if the script is native.
   INLINE(static CodeEventListener::LogEventsAndTags ToNativeByScript(
       CodeEventListener::LogEventsAndTags, Script*));
-
-  // Profiler's sampling interval (in milliseconds).
-#if defined(ANDROID)
-  // Phones and tablets have processors that are much slower than desktop
-  // and laptop computers for which current heuristics are tuned.
-  static const int kSamplingIntervalMs = 5;
-#else
-  static const int kSamplingIntervalMs = 1;
-#endif
 
   // Callback from Log, stops profiling in case of insufficient resources.
   void LogFailure();
@@ -399,7 +395,8 @@ class CodeEventLogger : public CodeEventListener {
   void SetterCallbackEvent(Name* name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
-  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) override {}
+  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+                      int fp_to_sp_delta) override {}
 
  private:
   class NameBuffer;

@@ -1,7 +1,7 @@
 # Domain
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12489
     description: Handlers for `Promise`s are now invoked in the domain in which
                  the first promise of a chain was created.
@@ -115,7 +115,7 @@ if (cluster.isMaster) {
     d.on('error', (er) => {
       console.error(`error ${er.stack}`);
 
-      // Note: we're in dangerous territory!
+      // Note: We're in dangerous territory!
       // By definition, something unexpected occurred,
       // which we probably didn't want.
       // Anything can happen now!  Be very careful!
@@ -453,7 +453,7 @@ than crashing the program.
 
 ## Domains and Promises
 
-As of Node REPLACEME, the handlers of Promises are run inside the domain in
+As of Node 8.0.0, the handlers of Promises are run inside the domain in
 which the call to `.then` or `.catch` itself was made:
 
 ```js

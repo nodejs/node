@@ -43,6 +43,7 @@
       'lib/_http_outgoing.js',
       'lib/_http_server.js',
       'lib/https.js',
+      'lib/inspector.js',
       'lib/module.js',
       'lib/net.js',
       'lib/os.js',
@@ -105,6 +106,7 @@
       'lib/internal/streams/lazy_transform.js',
       'lib/internal/streams/BufferList.js',
       'lib/internal/streams/legacy.js',
+      'lib/internal/streams/destroy.js',
       'deps/v8/tools/splaytree.js',
       'deps/v8/tools/codemap.js',
       'deps/v8/tools/consarray.js',
@@ -275,7 +277,7 @@
               # Categories to export.
               '-CAES,BF,BIO,DES,DH,DSA,EC,ECDH,ECDSA,ENGINE,EVP,HMAC,MD4,MD5,'
               'NEXTPROTONEG,PSK,RC2,RC4,RSA,SHA,SHA0,SHA1,SHA256,SHA512,SOCK,'
-              'STDIO,TLSEXT',
+              'STDIO,TLSEXT,FP_API',
               # Defines.
               '-DWIN32',
               # Symbols to filter from the export list.
@@ -512,7 +514,7 @@
                 '<(OBJ_DIR)/node/src/node_dtrace_ustack.o'
               ],
               'conditions': [
-                [ 'target_arch=="ia32"', {
+                [ 'target_arch=="ia32" or target_arch=="arm"', {
                   'action': [
                     'dtrace', '-32', '-I<(SHARED_INTERMEDIATE_DIR)', '-Isrc',
                     '-C', '-G', '-s', 'src/v8ustack.d', '-o', '<@(_outputs)',
@@ -669,7 +671,7 @@
                 'deps/zlib/zlib.gyp:zlib',
               ]
             }],
-            [ 'node_shared_openssl=="false"', {
+            [ 'node_shared_openssl=="false" and node_shared=="false"', {
               'dependencies': [
                 'deps/openssl/openssl.gyp:openssl'
               ]

@@ -67,7 +67,7 @@ test('\'npm install --save local/path\' should save to package.json', function (
     [
       '--loglevel', 'silent',
       '--save',
-      'install', 'package-local-dependency'
+      'install', 'package-local-dependency/'
     ],
     EXEC_OPTS,
     function (err, code) {
@@ -125,7 +125,7 @@ test('\'npm install --save-dev local/path\' should save to package.json', functi
     [
       '--loglevel', 'silent',
       '--save-dev',
-      'install', 'package-local-dev-dependency'
+      'install', 'package-local-dev-dependency/'
     ],
     EXEC_OPTS,
     function (err, code) {

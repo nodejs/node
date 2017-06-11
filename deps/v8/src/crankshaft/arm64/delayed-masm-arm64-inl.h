@@ -5,6 +5,7 @@
 #ifndef V8_CRANKSHAFT_ARM64_DELAYED_MASM_ARM64_INL_H_
 #define V8_CRANKSHAFT_ARM64_DELAYED_MASM_ARM64_INL_H_
 
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/crankshaft/arm64/delayed-masm-arm64.h"
 
 namespace v8 {
@@ -12,6 +13,21 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
+DelayedMasm::DelayedMasm(LCodeGen* owner, MacroAssembler* masm,
+                         const Register& scratch_register)
+    : cgen_(owner),
+      masm_(masm),
+      scratch_register_(scratch_register),
+      scratch_register_used_(false),
+      pending_(kNone),
+      saved_value_(0) {
+#ifdef DEBUG
+  pending_register_ = no_reg;
+  pending_value_ = 0;
+  pending_pc_ = 0;
+  scratch_register_acquired_ = false;
+#endif
+}
 
 void DelayedMasm::EndDelayedUse() {
   EmitPending();
@@ -47,6 +63,7 @@ void DelayedMasm::LoadObject(Register result, Handle<Object> object) {
   __ LoadObject(result, object);
 }
 
+void DelayedMasm::InitializeRootRegister() { masm_->InitializeRootRegister(); }
 
 #undef __
 

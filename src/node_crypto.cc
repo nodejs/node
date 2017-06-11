@@ -146,16 +146,15 @@ static X509_NAME *cnnic_ev_name =
 
 static Mutex* mutexes;
 
-const char* const root_certs[] = {
+static const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
 };
 
-std::string extra_root_certs_file;  // NOLINT(runtime/string)
+static std::string extra_root_certs_file;  // NOLINT(runtime/string)
 
-X509_STORE* root_cert_store;
+static X509_STORE* root_cert_store;
 
 // Just to generate static methods
-template class SSLWrap<TLSWrap>;
 template void SSLWrap<TLSWrap>::AddMethods(Environment* env,
                                            Local<FunctionTemplate> t);
 template void SSLWrap<TLSWrap>::InitNPN(SecureContext* sc);
@@ -229,8 +228,6 @@ static void crypto_lock_cb(int mode, int n, const char* file, int line) {
 }
 
 
-// This callback is used by OpenSSL when it needs to query for the passphrase
-// which may be used for encrypted PEM structures.
 static int PasswordCallback(char *buf, int size, int rwflag, void *u) {
   if (u) {
     size_t buflen = static_cast<size_t>(size);
@@ -240,6 +237,16 @@ static int PasswordCallback(char *buf, int size, int rwflag, void *u) {
     return len;
   }
 
+  return 0;
+}
+
+
+// This callback is used to avoid the default passphrase callback in OpenSSL
+// which will typically prompt for the passphrase. The prompting is designed
+// for the OpenSSL CLI, but works poorly for Node.js because it involves
+// synchronous interaction with the controlling terminal, something we never
+// want, and use this function to avoid it.
+static int NoPasswordCallback(char *buf, int size, int rwflag, void *u) {
   return 0;
 }
 
@@ -613,7 +620,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   // that we are interested in
   ERR_clear_error();
 
-  x = PEM_read_bio_X509_AUX(in, nullptr, PasswordCallback, nullptr);
+  x = PEM_read_bio_X509_AUX(in, nullptr, NoPasswordCallback, nullptr);
 
   if (x == nullptr) {
     SSLerr(SSL_F_SSL_CTX_USE_CERTIFICATE_CHAIN_FILE, ERR_R_PEM_LIB);
@@ -631,7 +638,10 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
     goto done;
   }
 
-  while ((extra = PEM_read_bio_X509(in, nullptr, PasswordCallback, nullptr))) {
+  while ((extra = PEM_read_bio_X509(in,
+                                    nullptr,
+                                    NoPasswordCallback,
+                                    nullptr))) {
     if (sk_X509_push(extra_certs, extra))
       continue;
 
@@ -728,7 +738,7 @@ static X509_STORE* NewRootCertStore() {
   if (root_certs_vector.empty()) {
     for (size_t i = 0; i < arraysize(root_certs); i++) {
       BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
-      X509 *x509 = PEM_read_bio_X509(bp, nullptr, PasswordCallback, nullptr);
+      X509 *x509 = PEM_read_bio_X509(bp, nullptr, NoPasswordCallback, nullptr);
       BIO_free(bp);
 
       // Parse errors from the built-in roots are fatal.
@@ -771,7 +781,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
 
   X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_);
   while (X509* x509 =
-             PEM_read_bio_X509(bio, nullptr, PasswordCallback, nullptr)) {
+             PEM_read_bio_X509(bio, nullptr, NoPasswordCallback, nullptr)) {
     if (cert_store == root_cert_store) {
       cert_store = NewRootCertStore();
       SSL_CTX_set_cert_store(sc->ctx_, cert_store);
@@ -803,7 +813,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
     return;
 
   X509_CRL* crl =
-      PEM_read_bio_X509_CRL(bio, nullptr, PasswordCallback, nullptr);
+      PEM_read_bio_X509_CRL(bio, nullptr, NoPasswordCallback, nullptr);
 
   if (crl == nullptr) {
     BIO_free_all(bio);
@@ -842,7 +852,7 @@ static unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
   }
 
   while (X509* x509 =
-      PEM_read_bio_X509(bio, nullptr, PasswordCallback, nullptr)) {
+      PEM_read_bio_X509(bio, nullptr, NoPasswordCallback, nullptr)) {
     X509_STORE_add_cert(store, x509);
     X509_free(x509);
   }
@@ -1192,6 +1202,8 @@ void SecureContext::SetFreeListLength(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+// Currently, EnableTicketKeyCallback and TicketKeyCallback are only present for
+// the regression test in test/parallel/test-https-resume-after-renew.js.
 void SecureContext::EnableTicketKeyCallback(
     const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
@@ -1225,11 +1237,13 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
                  kTicketPartSize).ToLocalChecked(),
     Boolean::New(env->isolate(), enc != 0)
   };
-  Local<Value> ret = node::MakeCallback(env,
+
+  Local<Value> ret = node::MakeCallback(env->isolate(),
                                         sc->object(),
                                         env->ticketkeycallback_string(),
                                         arraysize(argv),
-                                        argv);
+                                        argv,
+                                        0, 0).ToLocalChecked();
   Local<Array> arr = ret.As<Array>();
 
   int r = arr->Get(kTicketKeyReturnIndex)->Int32Value();
@@ -1567,26 +1581,26 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     rsa = EVP_PKEY_get1_RSA(pkey);
 
   if (rsa != nullptr) {
-      BN_print(bio, rsa->n);
-      BIO_get_mem_ptr(bio, &mem);
-      info->Set(env->modulus_string(),
-                String::NewFromUtf8(env->isolate(), mem->data,
-                                    String::kNormalString, mem->length));
-      (void) BIO_reset(bio);
+    BN_print(bio, rsa->n);
+    BIO_get_mem_ptr(bio, &mem);
+    info->Set(env->modulus_string(),
+              String::NewFromUtf8(env->isolate(), mem->data,
+                                  String::kNormalString, mem->length));
+    (void) BIO_reset(bio);
 
-      uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(rsa->e));
-      uint32_t lo = static_cast<uint32_t>(exponent_word);
-      uint32_t hi = static_cast<uint32_t>(exponent_word >> 32);
-      if (hi == 0) {
-          BIO_printf(bio, "0x%x", lo);
-      } else {
-          BIO_printf(bio, "0x%x%08x", hi, lo);
-      }
-      BIO_get_mem_ptr(bio, &mem);
-      info->Set(env->exponent_string(),
-                String::NewFromUtf8(env->isolate(), mem->data,
-                                    String::kNormalString, mem->length));
-      (void) BIO_reset(bio);
+    uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(rsa->e));
+    uint32_t lo = static_cast<uint32_t>(exponent_word);
+    uint32_t hi = static_cast<uint32_t>(exponent_word >> 32);
+    if (hi == 0) {
+      BIO_printf(bio, "0x%x", lo);
+    } else {
+      BIO_printf(bio, "0x%x%08x", hi, lo);
+    }
+    BIO_get_mem_ptr(bio, &mem);
+    info->Set(env->exponent_string(),
+              String::NewFromUtf8(env->isolate(), mem->data,
+                                  String::kNormalString, mem->length));
+    (void) BIO_reset(bio);
   }
 
   if (pkey != nullptr) {
@@ -2867,14 +2881,14 @@ inline int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   // Failure on verification of the cert is handled in
   // Connection::VerifyError.
   if (preverify_ok == 0 || X509_STORE_CTX_get_error(ctx) != X509_V_OK)
-    return 1;
+    return CHECK_OK;
 
   // Server does not need to check the whitelist.
   SSL* ssl = static_cast<SSL*>(
       X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx()));
 
   if (SSL_is_server(ssl))
-    return 1;
+    return CHECK_OK;
 
   // Client needs to check if the server cert is listed in the
   // whitelist when it is issued by the specific rootCAs.
@@ -3309,7 +3323,7 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
 
 
 void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(args.IsConstructCall(), true);
+  CHECK(args.IsConstructCall());
   CipherKind kind = args[0]->IsTrue() ? kCipher : kDecipher;
   Environment* env = Environment::GetCurrent(args);
   new CipherBase(env, args.This(), kind);
@@ -4387,7 +4401,7 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
   // Split this out into a separate function once we have more than one
   // consumer of public keys.
   if (strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
-    pkey = PEM_read_bio_PUBKEY(bp, nullptr, PasswordCallback, nullptr);
+    pkey = PEM_read_bio_PUBKEY(bp, nullptr, NoPasswordCallback, nullptr);
     if (pkey == nullptr)
       goto exit;
   } else if (strncmp(key_pem, PUBRSA_KEY_PFX, PUBRSA_KEY_PFX_LEN) == 0) {
@@ -4403,7 +4417,7 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
       goto exit;
   } else {
     // X.509 fallback
-    x509 = PEM_read_bio_X509(bp, nullptr, PasswordCallback, nullptr);
+    x509 = PEM_read_bio_X509(bp, nullptr, NoPasswordCallback, nullptr);
     if (x509 == nullptr)
       goto exit;
 
@@ -4530,7 +4544,7 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
       goto exit;
   } else if (operation == kPublic &&
              strncmp(key_pem, CERTIFICATE_PFX, CERTIFICATE_PFX_LEN) == 0) {
-    x509 = PEM_read_bio_X509(bp, nullptr, PasswordCallback, nullptr);
+    x509 = PEM_read_bio_X509(bp, nullptr, NoPasswordCallback, nullptr);
     if (x509 == nullptr)
       goto exit;
 
@@ -5122,6 +5136,8 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
 
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
   if (!ecdh->IsKeyPairValid())
     return env->ThrowError("Invalid key pair");
 
@@ -5267,6 +5283,8 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Public key");
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0].As<Object>()),
                                       Buffer::Length(args[0].As<Object>()));

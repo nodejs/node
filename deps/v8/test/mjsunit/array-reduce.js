@@ -408,6 +408,12 @@ testReduce("reduceRight", "ArrayWithNonElementPropertiesReduceRight", 6,
             [5, 1, 0, arrayPlus, 6],
            ], arrayPlus, sum, 0);
 
+// Test passing undefined as initial value (to test missing parameter
+// detection).
+[1].reduce((a, b) => { assertEquals(a, undefined); assertEquals(b, 1) },
+           undefined);
+[1, 2].reduce((a, b) => { assertEquals(a, 1); assertEquals(b, 2); });
+[1].reduce((a, b) => { assertTrue(false); });
 
 // Test error conditions:
 

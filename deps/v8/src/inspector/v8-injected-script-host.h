@@ -29,6 +29,7 @@ class V8InjectedScriptHost {
  private:
   static void nullifyPrototypeCallback(
       const v8::FunctionCallbackInfo<v8::Value>&);
+  static void getPropertyCallback(const v8::FunctionCallbackInfo<v8::Value>&);
   static void internalConstructorNameCallback(
       const v8::FunctionCallbackInfo<v8::Value>&);
   static void formatAccessorsAsProperties(

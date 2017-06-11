@@ -933,6 +933,7 @@ void TLSWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "wrap", TLSWrap::Wrap);
 
   auto constructor = [](const FunctionCallbackInfo<Value>& args) {
+    CHECK(args.IsConstructCall());
     args.This()->SetAlignedPointerInInternalField(0, nullptr);
   };
   auto t = env->NewFunctionTemplate(constructor);
@@ -940,6 +941,7 @@ void TLSWrap::Initialize(Local<Object> target,
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TLSWrap"));
 
   env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+  env->SetProtoMethod(t, "asyncReset", AsyncWrap::AsyncReset);
   env->SetProtoMethod(t, "receive", Receive);
   env->SetProtoMethod(t, "start", Start);
   env->SetProtoMethod(t, "setVerifyMode", SetVerifyMode);

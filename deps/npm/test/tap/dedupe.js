@@ -60,6 +60,7 @@ test('setup', function (t) {
 test('dedupe finds the common module and moves it up one level', function (t) {
   common.npm([
     '--registry', common.registry,
+    '--no-save',
     'install', '.'
   ],
   EXEC_OPTS,

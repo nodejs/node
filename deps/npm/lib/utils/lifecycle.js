@@ -55,6 +55,10 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
     log.info('lifecycle', logid(pkg, stage), 'ignored because ignore-scripts is set to true', pkg._id)
     pkg.scripts = {}
   }
+  if (stage === 'prepublish' && npm.config.get('ignore-prepublish')) {
+    log.info('lifecycle', logid(pkg, stage), 'ignored because ignore-prepublish is set to true', pkg._id)
+    delete pkg.scripts.prepublish
+  }
 
   validWd(wd || path.resolve(npm.dir, pkg.name), function (er, wd) {
     if (er) return cb(er)

@@ -158,6 +158,16 @@ assertNotDeepOrStrict(new Set([1, 2, 3, 4]), new Set([1, 2, 3]));
 assertDeepAndStrictEqual(new Set(['1', '2', '3']), new Set(['1', '2', '3']));
 assertDeepAndStrictEqual(new Set([[1, 2], [3, 4]]), new Set([[3, 4], [1, 2]]));
 
+const a = [ 1, 2 ];
+const b = [ 3, 4 ];
+const c = [ 1, 2 ];
+const d = [ 3, 4 ];
+
+assertDeepAndStrictEqual(
+  { a: a, b: b, s: new Set([a, b]) },
+  { a: c, b: d, s: new Set([d, c]) }
+);
+
 assertDeepAndStrictEqual(new Map([[1, 1], [2, 2]]), new Map([[1, 1], [2, 2]]));
 assertDeepAndStrictEqual(new Map([[1, 1], [2, 2]]), new Map([[2, 2], [1, 1]]));
 assertNotDeepOrStrict(new Map([[1, 1], [2, 2]]), new Map([[1, 2], [2, 1]]));
@@ -176,6 +186,28 @@ assertOnlyDeepEqual(new Map([['1', 'a']]), new Map([[1, 'a']]));
 assertOnlyDeepEqual(new Map([['a', '1']]), new Map([['a', 1]]));
 
 assertDeepAndStrictEqual(new Set([{}]), new Set([{}]));
+
+// Ref: https://github.com/nodejs/node/issues/13347
+assertNotDeepOrStrict(
+  new Set([{a: 1}, {a: 1}]),
+  new Set([{a: 1}, {a: 2}])
+);
+assertNotDeepOrStrict(
+  new Set([{a: 1}, {a: 1}, {a: 2}]),
+  new Set([{a: 1}, {a: 2}, {a: 2}])
+);
+assertNotDeepOrStrict(
+  new Map([[{x: 1}, 5], [{x: 1}, 5]]),
+  new Map([[{x: 1}, 5], [{x: 2}, 5]])
+);
+
+assertNotDeepOrStrict(new Set([3, '3']), new Set([3, 4]));
+assertNotDeepOrStrict(new Map([[3, 0], ['3', 0]]), new Map([[3, 0], [4, 0]]));
+
+assertNotDeepOrStrict(
+  new Set([{a: 1}, {a: 1}, {a: 2}]),
+  new Set([{a: 1}, {a: 2}, {a: 2}])
+);
 
 // This is an awful case, where a map contains multiple equivalent keys:
 assertOnlyDeepEqual(

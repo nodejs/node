@@ -45,16 +45,14 @@ assert.doesNotThrow(function() {
 // an Object with a custom .inspect() function
 const custom_inspect = { foo: 'bar', inspect: () => 'inspect' };
 
-const stdout_write = global.process.stdout.write;
-const stderr_write = global.process.stderr.write;
 const strings = [];
 const errStrings = [];
-global.process.stdout.write = function(string) {
-  strings.push(string);
-};
-global.process.stderr.write = function(string) {
-  errStrings.push(string);
-};
+common.hijackStdout(function(data) {
+  strings.push(data);
+});
+common.hijackStderr(function(data) {
+  errStrings.push(data);
+});
 
 // test console.log() goes to stdout
 console.log('foo');
@@ -105,8 +103,10 @@ console.timeEnd('constructor');
 console.time('hasOwnProperty');
 console.timeEnd('hasOwnProperty');
 
-global.process.stdout.write = stdout_write;
-global.process.stderr.write = stderr_write;
+assert.strictEqual(strings.length, process.stdout.writeTimes);
+assert.strictEqual(errStrings.length, process.stderr.writeTimes);
+common.restoreStdout();
+common.restoreStderr();
 
 // verify that console.timeEnd() doesn't leave dead links
 const timesMapSize = console._times.size;
@@ -146,9 +146,6 @@ assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.strictEqual('Trace: This is a {"formatted":"trace"} 10 foo',
                    errStrings.shift().split('\n').shift());
 
-assert.strictEqual(strings.length, 0);
-assert.strictEqual(errStrings.length, 0);
-
 assert.throws(() => {
   console.assert(false, 'should throw');
 }, common.expectsError({
@@ -159,3 +156,14 @@ assert.throws(() => {
 assert.doesNotThrow(() => {
   console.assert(true, 'this should not throw');
 });
+
+// hijack stderr to catch `process.emitWarning` which is using
+// `process.nextTick`
+common.hijackStderr(common.mustCall(function(data) {
+  common.restoreStderr();
+
+  // stderr.write will catch sync error, so use `process.nextTick` here
+  process.nextTick(function() {
+    assert.strictEqual(data.includes('no such label'), true);
+  });
+}));

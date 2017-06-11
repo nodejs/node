@@ -37,6 +37,7 @@ var affordances = {
   'info': 'view',
   'show': 'view',
   'find': 'search',
+  'add': 'install',
   'unlink': 'uninstall',
   'remove': 'uninstall',
   'rm': 'uninstall',

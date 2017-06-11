@@ -27,9 +27,9 @@
 
 namespace node {
 
-Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms) : isolate_(isolate),
-                                                        timed_out_(false),
-                                                        destroyed_(false) {
+Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms, bool* timed_out)
+    : isolate_(isolate), timed_out_(timed_out) {
+
   int rc;
   loop_ = new uv_loop_t;
   CHECK(loop_);
@@ -54,20 +54,6 @@ Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms) : isolate_(isolate),
 
 
 Watchdog::~Watchdog() {
-  Destroy();
-}
-
-
-void Watchdog::Dispose() {
-  Destroy();
-}
-
-
-void Watchdog::Destroy() {
-  if (destroyed_) {
-    return;
-  }
-
   uv_async_send(&async_);
   uv_thread_join(&thread_);
 
@@ -80,8 +66,6 @@ void Watchdog::Destroy() {
   CHECK_EQ(0, rc);
   delete loop_;
   loop_ = nullptr;
-
-  destroyed_ = true;
 }
 
 
@@ -93,7 +77,7 @@ void Watchdog::Run(void* arg) {
   uv_run(wd->loop_, UV_RUN_DEFAULT);
 
   // Loop ref count reaches zero when both handles are closed.
-  // Close the timer handle on this side and let Destroy() close async_
+  // Close the timer handle on this side and let ~Watchdog() close async_
   uv_close(reinterpret_cast<uv_handle_t*>(&wd->timer_), nullptr);
 }
 
@@ -106,24 +90,15 @@ void Watchdog::Async(uv_async_t* async) {
 
 void Watchdog::Timer(uv_timer_t* timer) {
   Watchdog* w = ContainerOf(&Watchdog::timer_, timer);
-  w->timed_out_ = true;
-  uv_stop(w->loop_);
+  *w->timed_out_ = true;
   w->isolate()->TerminateExecution();
+  uv_stop(w->loop_);
 }
 
 
-SigintWatchdog::~SigintWatchdog() {
-  Destroy();
-}
-
-
-void SigintWatchdog::Dispose() {
-  Destroy();
-}
-
-
-SigintWatchdog::SigintWatchdog(v8::Isolate* isolate)
-    : isolate_(isolate), received_signal_(false), destroyed_(false) {
+SigintWatchdog::SigintWatchdog(
+  v8::Isolate* isolate, bool* received_signal)
+    : isolate_(isolate), received_signal_(received_signal) {
   // Register this watchdog with the global SIGINT/Ctrl+C listener.
   SigintWatchdogHelper::GetInstance()->Register(this);
   // Start the helper thread, if that has not already happened.
@@ -131,20 +106,14 @@ SigintWatchdog::SigintWatchdog(v8::Isolate* isolate)
 }
 
 
-void SigintWatchdog::Destroy() {
-  if (destroyed_) {
-    return;
-  }
-
-  destroyed_ = true;
-
+SigintWatchdog::~SigintWatchdog() {
   SigintWatchdogHelper::GetInstance()->Unregister(this);
   SigintWatchdogHelper::GetInstance()->Stop();
 }
 
 
 void SigintWatchdog::HandleSigint() {
-  received_signal_ = true;
+  *received_signal_ = true;
   isolate_->TerminateExecution();
 }
 

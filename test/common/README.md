@@ -116,6 +116,22 @@ Checks whether `IPv6` is supported on this platform.
 
 Checks if there are multiple localhosts available.
 
+### hijackStderr(listener)
+* `listener` [&lt;Function>][MDN-Function]: a listener with a single parameter called `data`.
+
+Eavesdrop to `process.stderr.write` calls. Once `process.stderr.write` is
+called, `listener` will also be called and the `data` of `write` function will
+be passed to `listener`. What's more, `process.stderr.writeTimes` is a count of
+the number of calls.
+
+### hijackStdout(listener)
+* `listener` [&lt;Function>][MDN-Function]: a listener with a single parameter called `data`.
+
+Eavesdrop to `process.stdout.write` calls. Once `process.stdout.write` is
+called, `listener` will also be called and the `data` of `write` function will
+be passed to `listener`. What's more, `process.stdout.writeTimes` is a count of
+the number of calls.
+
 ### inFreeBSDJail
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
 
@@ -182,9 +198,9 @@ Gets IP of localhost
 
 Array of IPV6 hosts.
 
-### mustCall([fn][, expected])
-* fn [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
-* expected [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
+### mustCall([fn][, exact])
+* `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) default = `common.noop`
+* `exact` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
 * return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
 
 Returns a function that calls `fn`. If the returned function has not been called
@@ -192,6 +208,23 @@ exactly `expected` number of times when the test is complete, then the test will
 fail.
 
 If `fn` is not provided, `common.noop` will be used.
+
+### mustCallAtLeast([fn][, minimum])
+* `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) default = `common.noop`
+* `minimum` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
+* return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
+
+Returns a function that calls `fn`. If the returned function has not been called
+at least `minimum` number of times when the test is complete, then the test will
+fail.
+
+If `fn` is not provided, `common.noop` will be used.
+
+### mustNotCall([msg])
+* `msg` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) default = 'function should not have been called'
+* return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
+
+Returns a function that triggers an `AssertionError` if it is invoked. `msg` is used as the error message for the `AssertionError`.
 
 ### nodeProcessAborted(exitCode, signal)
 * `exitCode` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type)
@@ -239,6 +272,14 @@ Port tests are running on.
 
 Deletes the 'tmp' dir and recreates it
 
+### restoreStderr()
+
+Restore the original `process.stderr.write`.
+
+### restoreStdout()
+
+Restore the original `process.stdout.write`.
+
 ### rootDir
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 
@@ -279,3 +320,5 @@ Node.js
 [WHATWG URL API](https://nodejs.org/api/url.html#url_the_whatwg_url_api)
 implementation with tests from
 [W3C Web Platform Tests](https://github.com/w3c/web-platform-tests).
+
+[MDN-Function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Normal_objects_and_functions

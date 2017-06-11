@@ -39,8 +39,8 @@ const server = http.createServer(function(request, response) {
 });
 
 server.listen(0, function() {
-  const testURL = url.parse('http://asdf:qwer@localhost:' +
-      `${this.address().port}`);
+  const testURL =
+    url.parse(`http://asdf:qwer@localhost:${this.address().port}`);
   // the test here is if you set a specific authorization header in the
   // request we should not override that with basic auth
   testURL.headers = {

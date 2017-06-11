@@ -1,6 +1,10 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 const call_log = [0, 0, 0, 0];  // [before, callback, exception, after];

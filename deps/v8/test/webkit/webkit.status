@@ -117,7 +117,8 @@
 
 ##############################################################################
 ['variant == asm_wasm', {
-  '*': [SKIP],
+  # Stack size too large with asm.js validator.
+  'fast/js/excessive-comma-usage': [SKIP],
 }],  # variant == asm_wasm
 
 ##############################################################################

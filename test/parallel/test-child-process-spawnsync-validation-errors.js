@@ -31,7 +31,7 @@ function fail(option, value, message) {
   fail('cwd', false, err);
   fail('cwd', [], err);
   fail('cwd', {}, err);
-  fail('cwd', common.noop, err);
+  fail('cwd', common.mustNotCall(), err);
 }
 
 {
@@ -47,7 +47,7 @@ function fail(option, value, message) {
   fail('detached', __dirname, err);
   fail('detached', [], err);
   fail('detached', {}, err);
-  fail('detached', common.noop, err);
+  fail('detached', common.mustNotCall(), err);
 }
 
 if (!common.isWindows) {
@@ -64,7 +64,7 @@ if (!common.isWindows) {
       fail('uid', false, err);
       fail('uid', [], err);
       fail('uid', {}, err);
-      fail('uid', common.noop, err);
+      fail('uid', common.mustNotCall(), err);
       fail('uid', NaN, err);
       fail('uid', Infinity, err);
       fail('uid', 3.1, err);
@@ -85,7 +85,7 @@ if (!common.isWindows) {
       fail('gid', false, err);
       fail('gid', [], err);
       fail('gid', {}, err);
-      fail('gid', common.noop, err);
+      fail('gid', common.mustNotCall(), err);
       fail('gid', NaN, err);
       fail('gid', Infinity, err);
       fail('gid', 3.1, err);
@@ -105,7 +105,7 @@ if (!common.isWindows) {
   fail('shell', 1, err);
   fail('shell', [], err);
   fail('shell', {}, err);
-  fail('shell', common.noop, err);
+  fail('shell', common.mustNotCall(), err);
 }
 
 {
@@ -121,7 +121,7 @@ if (!common.isWindows) {
   fail('argv0', false, err);
   fail('argv0', [], err);
   fail('argv0', {}, err);
-  fail('argv0', common.noop, err);
+  fail('argv0', common.mustNotCall(), err);
 }
 
 {
@@ -137,7 +137,7 @@ if (!common.isWindows) {
   fail('windowsVerbatimArguments', __dirname, err);
   fail('windowsVerbatimArguments', [], err);
   fail('windowsVerbatimArguments', {}, err);
-  fail('windowsVerbatimArguments', common.noop, err);
+  fail('windowsVerbatimArguments', common.mustNotCall(), err);
 }
 
 {
@@ -154,7 +154,7 @@ if (!common.isWindows) {
   fail('timeout', __dirname, err);
   fail('timeout', [], err);
   fail('timeout', {}, err);
-  fail('timeout', common.noop, err);
+  fail('timeout', common.mustNotCall(), err);
   fail('timeout', NaN, err);
   fail('timeout', Infinity, err);
   fail('timeout', 3.1, err);
@@ -179,7 +179,7 @@ if (!common.isWindows) {
   fail('maxBuffer', __dirname, err);
   fail('maxBuffer', [], err);
   fail('maxBuffer', {}, err);
-  fail('maxBuffer', common.noop, err);
+  fail('maxBuffer', common.mustNotCall(), err);
 }
 
 {
@@ -196,7 +196,7 @@ if (!common.isWindows) {
   fail('killSignal', false, typeErr);
   fail('killSignal', [], typeErr);
   fail('killSignal', {}, typeErr);
-  fail('killSignal', common.noop, typeErr);
+  fail('killSignal', common.mustNotCall(), typeErr);
 
   // Invalid signal names and numbers should fail
   fail('killSignal', 500, unknownSignalErr);

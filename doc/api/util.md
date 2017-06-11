@@ -10,6 +10,64 @@ module developers as well. It can be accessed using:
 const util = require('util');
 ```
 
+## util.callbackify(original)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `original` {Function} An `async` function
+* Returns: {Function} a callback style function
+
+Takes an `async` function (or a function that returns a Promise) and returns a
+function following the Node.js error first callback style. In the callback, the
+first argument will be the rejection reason (or `null` if the Promise resolved),
+and the second argument will be the resolved value.
+
+For example:
+
+```js
+const util = require('util');
+
+async function fn() {
+  return await Promise.resolve('hello world');
+}
+const callbackFunction = util.callbackify(fn);
+
+callbackFunction((err, ret) => {
+  if (err) throw err;
+  console.log(ret);
+});
+```
+
+Will print:
+
+```txt
+hello world
+```
+
+*Note*:
+
+* The callback is executed asynchronously, and will have a limited stack trace.
+If the callback throws, the process will emit an [`'uncaughtException'`][]
+event, and if not handled will exit.
+
+* Since `null` has a special meaning as the first argument to a callback, if a
+wrapped function rejects a `Promise` with a falsy value as a reason, the value
+is wrapped in an `Error` with the original value stored in a field named
+`reason`.
+  ```js
+  function fn() {
+    return Promise.reject(null);
+  }
+  const callbackFunction = util.callbackify(fn);
+
+  callbackFunction((err, ret) => {
+    // When the Promise was rejected with `null` it is wrapped with an Error and
+    // the original value is stored in `reason`.
+    err && err.hasOwnProperty('reason') && err.reason === null;  // true
+  });
+  ```
+
 ## util.debuglog(section)
 <!-- YAML
 added: v0.11.3
@@ -55,6 +113,7 @@ added: v0.8.0
 The `util.deprecate()` method wraps the given `function` or class in such a way that
 it is marked as deprecated.
 
+<!-- eslint-disable prefer-rest-params -->
 ```js
 const util = require('util');
 
@@ -151,9 +210,9 @@ changes:
     description: The `constructor` parameter can refer to an ES6 class now.
 -->
 
-_Note: usage of `util.inherits()` is discouraged. Please use the ES6 `class` and
-`extends` keywords to get language level inheritance support. Also note that
-the two styles are [semantically incompatible][]._
+*Note*: Usage of `util.inherits()` is discouraged. Please use the ES6 `class`
+and `extends` keywords to get language level inheritance support. Also note
+that the two styles are [semantically incompatible][].
 
 * `constructor` {Function}
 * `superConstructor` {Function}
@@ -196,9 +255,6 @@ ES6 example using `class` and `extends`
 const EventEmitter = require('events');
 
 class MyStream extends EventEmitter {
-  constructor() {
-    super();
-  }
   write(data) {
     this.emit('data', data);
   }
@@ -329,8 +385,8 @@ class Box {
     // Five space padding because that's the size of "Box< ".
     const padding = ' '.repeat(5);
     const inner = util.inspect(this.value, newOptions)
-                      .replace(/\n/g, '\n' + padding);
-    return options.stylize('Box', 'special') + '< ' + inner + ' >';
+                      .replace(/\n/g, `\n${padding}`);
+    return `${options.stylize('Box', 'special')}< ${inner} >`;
   }
 }
 
@@ -392,7 +448,7 @@ option properties directly is also supported.
 
 ```js
 const util = require('util');
-const arr = Array(101);
+const arr = Array(101).fill(0);
 
 console.log(arr); // logs the truncated array
 util.inspect.defaultOptions.maxArrayLength = null;
@@ -401,7 +457,7 @@ console.log(arr); // logs the full array
 
 ## util.promisify(original)
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 * `original` {Function}
@@ -443,7 +499,7 @@ will return its value, see [Custom promisified functions][].
 
 `promisify()` assumes that `original` is a function taking a callback as its
 final argument in all cases, and the returned function will result in undefined
-behaviour if it does not.
+behavior if it does not.
 
 ### Custom promisified functions
 
@@ -471,7 +527,7 @@ standard format of taking an error-first callback as the last argument.
 
 ### util.promisify.custom
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 * {symbol}
@@ -957,6 +1013,7 @@ Deprecated predecessor of `console.log`.
 [`Object.assign()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`util.inspect()`]: #util_util_inspect_object_options
 [`util.promisify()`]: #util_util_promisify_original
 [Custom inspection functions on Objects]: #util_custom_inspection_functions_on_objects

@@ -14,6 +14,9 @@ command regex -h 'Print a v8 Code object from an internal code address' jco 's/(
 # Print FeedbackVector
 command regex -h 'Print a v8 FeedbackVector object' jfv 's/(.+)/expr -- '_v8_internal_Print_FeedbackVector((void*)(%1))/'
 
+# Print FeedbackMetadata
+command regex -h 'Print a v8 FeedbackMetadata object' jfm 's/(.+)/expr -- '_v8_internal_Print_FeedbackMetadata((void*)(%1))/'
+
 # Print DescriptorArray.
 command regex -h 'Print a v8 DescriptorArray object' jda 's/(.+)/expr -- '_v8_internal_Print_DescriptorArray((void*)(%1))/'
 

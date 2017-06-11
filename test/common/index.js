@@ -285,8 +285,8 @@ exports.childShouldThrowAndAbort = function() {
     // continuous testing and developers' machines
     testCmd += 'ulimit -c 0 && ';
   }
-  testCmd += `${process.argv[0]} --abort-on-uncaught-exception `;
-  testCmd += `${process.argv[1]} child`;
+  testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception `;
+  testCmd += `"${process.argv[1]}" child`;
   const child = child_process.exec(testCmd);
   child.on('exit', function onExit(exitCode, signal) {
     const errMsg = 'Test should have aborted ' +
@@ -459,13 +459,19 @@ function runCallChecks(exitCode) {
   if (exitCode !== 0) return;
 
   const failed = mustCallChecks.filter(function(context) {
-    return context.actual !== context.expected;
+    if ('minimum' in context) {
+      context.messageSegment = `at least ${context.minimum}`;
+      return context.actual < context.minimum;
+    } else {
+      context.messageSegment = `exactly ${context.exact}`;
+      return context.actual !== context.exact;
+    }
   });
 
   failed.forEach(function(context) {
-    console.log('Mismatched %s function calls. Expected %d, actual %d.',
+    console.log('Mismatched %s function calls. Expected %s, actual %d.',
                 context.name,
-                context.expected,
+                context.messageSegment,
                 context.actual);
     console.log(context.stack.split('\n').slice(2).join('\n'));
   });
@@ -473,22 +479,29 @@ function runCallChecks(exitCode) {
   if (failed.length) process.exit(1);
 }
 
+exports.mustCall = function(fn, exact) {
+  return _mustCallInner(fn, exact, 'exact');
+};
 
-exports.mustCall = function(fn, expected) {
+exports.mustCallAtLeast = function(fn, minimum) {
+  return _mustCallInner(fn, minimum, 'minimum');
+};
+
+function _mustCallInner(fn, criteria, field) {
   if (typeof fn === 'number') {
-    expected = fn;
+    criteria = fn;
     fn = noop;
   } else if (fn === undefined) {
     fn = noop;
   }
 
-  if (expected === undefined)
-    expected = 1;
-  else if (typeof expected !== 'number')
-    throw new TypeError(`Invalid expected value: ${expected}`);
+  if (criteria === undefined)
+    criteria = 1;
+  else if (typeof criteria !== 'number')
+    throw new TypeError(`Invalid ${field} value: ${criteria}`);
 
   const context = {
-    expected: expected,
+    [field]: criteria,
     actual: 0,
     stack: (new Error()).stack,
     name: fn.name || '<anonymous>'
@@ -503,7 +516,7 @@ exports.mustCall = function(fn, expected) {
     context.actual++;
     return fn.apply(this, arguments);
   };
-};
+}
 
 exports.hasMultiLocalhost = function hasMultiLocalhost() {
   const TCP = process.binding('tcp_wrap').TCP;
@@ -746,3 +759,27 @@ exports.getTTYfd = function getTTYfd() {
   }
   return tty_fd;
 };
+
+// Hijack stdout and stderr
+const stdWrite = {};
+function hijackStdWritable(name, listener) {
+  const stream = process[name];
+  const _write = stdWrite[name] = stream.write;
+
+  stream.writeTimes = 0;
+  stream.write = function(data, callback) {
+    listener(data);
+    _write.call(stream, data, callback);
+    stream.writeTimes++;
+  };
+}
+
+function restoreWritable(name) {
+  process[name].write = stdWrite[name];
+  delete process[name].writeTimes;
+}
+
+exports.hijackStdout = hijackStdWritable.bind(null, 'stdout');
+exports.hijackStderr = hijackStdWritable.bind(null, 'stderr');
+exports.restoreStdout = restoreWritable.bind(null, 'stdout');
+exports.restoreStderr = restoreWritable.bind(null, 'stderr');

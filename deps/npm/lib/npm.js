@@ -33,11 +33,18 @@
   var rimraf = require('rimraf')
   var lazyProperty = require('lazy-property')
   var parseJSON = require('./utils/parse-json.js')
+  var clientConfig = require('./config/reg-client.js')
   var aliases = require('./config/cmd-list').aliases
   var cmdList = require('./config/cmd-list').cmdList
   var plumbing = require('./config/cmd-list').plumbing
   var output = require('./utils/output.js')
   var startMetrics = require('./utils/metrics.js').start
+  var perf = require('./utils/perf.js')
+
+  perf.emit('time', 'npm')
+  perf.on('timing', function (name, finished) {
+    log.timing(name, 'Completed in', finished + 'ms')
+  })
 
   npm.config = {
     loaded: false,
@@ -54,9 +61,11 @@
   // TUNING
   npm.limit = {
     fetch: 10,
-    action: 10
+    action: 50
   }
   // ***
+
+  npm.lockfileVersion = 1
 
   npm.rollbacks = []
 
@@ -64,6 +73,7 @@
     // startup, ok to do this synchronously
     var j = parseJSON(fs.readFileSync(
       path.join(__dirname, '../package.json')) + '')
+    npm.name = j.name
     npm.version = j.version
   } catch (ex) {
     try {
@@ -94,7 +104,7 @@
       if (!loaded) {
         throw new Error(
           'Call npm.load(config, cb) before using this command.\n' +
-            'See the README.md or cli.js for example usage.'
+            'See the README.md or bin/npm-cli.js for example usage.'
         )
       }
       var a = npm.deref(c)
@@ -334,8 +344,8 @@
         // go ahead and spin up the registry client.
         lazyProperty(npm, 'registry', function () {
           registryLoaded = true
-          var CachingRegClient = require('./cache/caching-client.js')
-          var registry = new CachingRegClient(npm.config)
+          var RegClient = require('npm-registry-client')
+          var registry = new RegClient(clientConfig(npm, log, npm.config))
           registry.version = npm.version
           registry.refer = registryRefer
           return registry

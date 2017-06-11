@@ -44,6 +44,7 @@ test('install noargs installs devDependencies', function (t) {
     [
       '--registry', common.registry,
       '--loglevel', 'silent',
+      '--no-save',
       'install'
     ],
     EXEC_OPTS,
@@ -70,6 +71,7 @@ test('install noargs installs updated devDependencies', function (t) {
     [
       '--registry', common.registry,
       '--loglevel', 'silent',
+      '--no-save',
       'install'
     ],
     EXEC_OPTS,

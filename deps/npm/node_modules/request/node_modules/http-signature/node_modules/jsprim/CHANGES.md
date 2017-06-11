@@ -4,6 +4,10 @@
 
 None yet.
 
+## v1.4.0 (2017-03-13)
+
+* #7 Add parseInteger() function for safer number parsing
+
 ## v1.3.1 (2016-09-12)
 
 * #13 Incompatible with webpack

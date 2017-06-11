@@ -1,4 +1,4 @@
-# Node.js v4 ChangeLog
+# Node.js 4 ChangeLog
 
 <table>
 <tr>
@@ -7,8 +7,8 @@
 </tr>
 <tr>
 <td valign="top">
-<a href="#4.8.1">4.8.3</a><br/>
-<a href="#4.8.1">4.8.2</a><br/>
+<a href="#4.8.3">4.8.3</a><br/>
+<a href="#4.8.2">4.8.2</a><br/>
 <a href="#4.8.1">4.8.1</a><br/>
 <a href="#4.8.0">4.8.0</a><br/>
 <a href="#4.7.3">4.7.3</a><br/>
@@ -48,6 +48,7 @@
 </table>
 
 * Other Versions
+  * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
   * [6.x](CHANGELOG_V6.md)
   * [5.x](CHANGELOG_V5.md)
@@ -57,7 +58,7 @@
   * [Archive](CHANGELOG_ARCHIVE.md)
 
 
-**Note:** Node.js v4 is covered by the
+*Note*: Node.js v4 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
 
@@ -683,7 +684,7 @@ Notable SEMVER-PATCH changes include:
 
 * **build**:
   - introduce the configure --shared option for embedders (sxa555) [#6994](https://github.com/nodejs/node/pull/6994)
-* **gtest**: the test reporter now outputs tap comments as yamlish (Johan Bergström) [#9262](https://github.com/nodejs/node/pull/9262)  
+* **gtest**: the test reporter now outputs tap comments as yamlish (Johan Bergström) [#9262](https://github.com/nodejs/node/pull/9262)
 * **src**: node no longer aborts when c-ares initialization fails (Ben Noordhuis) [#8710](https://github.com/nodejs/node/pull/8710)
 * **tls**: fix memory leak when writing data to TLSWrap instance during handshake (Fedor Indutny) [#9586](https://github.com/nodejs/node/pull/9586)
 

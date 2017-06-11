@@ -10,6 +10,7 @@
 #include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/descriptor-array.h"
 
 namespace v8 {
 namespace internal {
