@@ -46,6 +46,7 @@ using v8::Object;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::String;
+using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
@@ -134,6 +135,7 @@ void UDPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "setMulticastLoopback", SetMulticastLoopback);
   env->SetProtoMethod(t, "setBroadcast", SetBroadcast);
   env->SetProtoMethod(t, "setTTL", SetTTL);
+  env->SetProtoMethod(t, "bufferSize", BufferSize);
 
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
@@ -219,6 +221,43 @@ void UDPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 
 void UDPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   DoBind(args, AF_INET6);
+}
+
+
+void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  UDPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+
+  CHECK(args[0]->IsUint32());
+  CHECK(args[1]->IsUint32());
+  int size = static_cast<int>(args[0].As<Uint32>()->Value());
+
+  if (size != args[0].As<Uint32>()->Value()) {
+    if (args[1].As<Uint32>()->Value() == 0)
+      return env->ThrowUVException(EINVAL, "uv_recv_buffer_size");
+    else
+      return env->ThrowUVException(EINVAL, "uv_send_buffer_size");
+  }
+
+  int err;
+  if (args[1].As<Uint32>()->Value() == 0) {
+    err = uv_recv_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
+                              &size);
+  } else {
+    err = uv_send_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
+                              &size);
+  }
+
+  if (err != 0) {
+    if (args[1].As<Uint32>()->Value() == 0)
+      return env->ThrowUVException(err, "uv_recv_buffer_size");
+    else
+      return env->ThrowUVException(err, "uv_send_buffer_size");
+  }
+  args.GetReturnValue().Set(size);
 }
 
 
