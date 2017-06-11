@@ -134,6 +134,8 @@ void UDPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "setMulticastLoopback", SetMulticastLoopback);
   env->SetProtoMethod(t, "setBroadcast", SetBroadcast);
   env->SetProtoMethod(t, "setTTL", SetTTL);
+  env->SetProtoMethod(t, "setRecvBufferSize", SetRecvBufferSize);
+  env->SetProtoMethod(t, "setSendBufferSize", SetSendBufferSize);
 
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
