@@ -14,6 +14,7 @@
 | `lib/dgram` | @cjihrig, @mcollina |
 | `lib/domains` | @misterdjules |
 | `lib/fs`, `src/{fs,file}` | @nodejs/fs |
+| `lib/inspector.js`, `src/inspector_*` | @nodejs/v8-inspector |
 | `lib/internal/url`, `src/node_url` | @nodejs/url |
 | `lib/{_}http{*}` | @nodejs/http |
 | `lib/net` | @bnoordhuis, @indutny, @nodejs/streams |
