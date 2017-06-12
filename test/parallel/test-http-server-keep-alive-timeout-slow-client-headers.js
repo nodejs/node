@@ -9,7 +9,7 @@ const server = http.createServer(common.mustCall((req, res) => {
   res.end();
 }, 2));
 
-server.keepAliveTimeout = 100;
+server.keepAliveTimeout = common.platformTimeout(100);
 
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;
@@ -38,7 +38,7 @@ server.listen(0, common.mustCall(() => {
     setTimeout(() => {
       socket.write('Connection: keep-alive\r\n' +
                    '\r\n');
-    }, 200);
+    }, common.platformTimeout(300));
 
     function onData(chunk) {
       response += chunk;
