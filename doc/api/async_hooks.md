@@ -131,6 +131,16 @@ provided by AsyncHooks itself. The logging should then be skipped when
 it was the logging itself that caused AsyncHooks callback to call. By
 doing this the otherwise infinite recursion is broken.
 
+#### `async_hooks.getTypes()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: `{Array}` list of async resource type names
+
+Return the list of async resource type names. Names are simple strings.
+
 #### `asyncHook.enable()`
 
 * Returns {AsyncHook} A reference to `asyncHook`.
@@ -427,6 +437,13 @@ const server = net.createServer(function onConnection(conn) {
   async_hooks.currentId();
 });
 ```
+
+#### `async_hooks.registerTypeName(type)`
+
+* `type` {string} a new type of async resource
+* Returns {string} the type name to use
+
+Registers the type name for a new async resource.
 
 #### `async_hooks.triggerId()`
 
