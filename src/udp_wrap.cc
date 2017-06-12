@@ -46,6 +46,7 @@ using v8::Object;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::String;
+using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
@@ -225,32 +226,34 @@ void UDPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
 
 
 void UDPWrap::SetRecvBufferSize(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   UDPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
 
   CHECK(args[0]->IsUint32());
+  int size =  (int)args[0].As<Uint32>()->Value();
+  int err = uv_recv_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
+                                &size);
 
-  int inputSize = args[0]->Uint32Value();
-  int err = uv_recv_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &inputSize);
-  
-  args.GetReturnValue().Set(err);  
+  args.GetReturnValue().Set(err);
 }
 
 
 void UDPWrap::SetSendBufferSize(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   UDPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
 
   CHECK(args[0]->IsUint32());
-  
-  int inputSize = args[0]->Uint32Value();
-  int err = uv_send_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &inputSize);
-  
-  args.GetReturnValue().Set(err);  
+  int size =  (int)args[0].As<Uint32>()->Value();
+  int err = uv_send_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
+                                &size);
+
+  args.GetReturnValue().Set(err);
 }
 
 

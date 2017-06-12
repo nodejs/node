@@ -10,11 +10,55 @@ const dgram = require('dgram');
 
   assert.throws(() => {
     socket.setRecvBufferSize(8192);
-  }, /^Error: setRecvBufferSize E[A-Z]+$/);
-  
-    assert.throws(() => {
+  }, common.expectsError({
+    code: 'ERR_SOCKET_SET_BUFFER_SIZE',
+    type: Error,
+    message: /^Coud not set buffer size: E[A-Z]+$/
+  }));
+
+  assert.throws(() => {
     socket.setSendBufferSize(8192);
-  }, /^Error: setSendBufferSize E[A-Z]+$/);
+  }, common.expectsError({
+    code: 'ERR_SOCKET_SET_BUFFER_SIZE',
+    type: Error,
+    message: /^Coud not set buffer size: E[A-Z]+$/
+  }));
+  
+  
+}
+
+{
+  // Should throw error if invalid buffer size is specified
+  const socket = dgram.createSocket('udp4');
+
+  socket.bind(0, common.mustCall(() => {
+
+    assert.throws(() => {
+      socket.setRecvBufferSize(-1);
+    }, common.expectsError({
+      code: 'ERR_SOCKET_BAD_BUFFER_SIZE',
+      type: Error,
+      message: /^Buffer size must be a positive integer$/
+    }));
+
+    assert.throws(() => {
+      socket.setRecvBufferSize(Infinity);
+    }, common.expectsError({
+      code: 'ERR_SOCKET_BAD_BUFFER_SIZE',
+      type: Error,
+      message: /^Buffer size must be a positive integer$/
+    }));
+
+    assert.throws(() => {
+      socket.setRecvBufferSize('Doh!');
+    }, common.expectsError({
+      code: 'ERR_SOCKET_BAD_BUFFER_SIZE',
+      type: Error,
+      message: /^Buffer size must be a positive integer$/
+    }));
+
+    socket.close();
+  }));
 }
 
 {

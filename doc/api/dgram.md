@@ -481,6 +481,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/14560
     description: The `lookup` option is supported.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/13623
+    description: `recvBufferSize` and `sendBufferSize` options are supported now.
 -->
 
 * `options` {Object} Available options are:
@@ -489,6 +492,8 @@ changes:
   * `reuseAddr` {boolean} When `true` [`socket.bind()`][] will reuse the
     address, even if another process has already bound a socket on it. Optional.
     Defaults to `false`.
+  * `recvBufferSize` {number} - Optional. Sets the `SO_RCVBUF` socket value.
+  * `sendBufferSize` {number} - Optional. Sets the `SO_SNDBUF` socket value.
   * `lookup` {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
     Optional.
 * `callback` {Function} Attached as a listener for `'message'` events. Optional.
