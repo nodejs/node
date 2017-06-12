@@ -5,16 +5,16 @@ const assert = require('assert');
 const dgram = require('dgram');
 
 {
-  // Should throw ENOTSOCK if the socket is never bound.
+  // Should throw error if the socket is never bound.
   const socket = dgram.createSocket('udp4');
 
   assert.throws(() => {
     socket.setRecvBufferSize(8192);
-  }, /^Error: setRecvBufferSize ENOTSOCK$/);
+  }, /^Error: setRecvBufferSize E[A-Z]+$/);
   
     assert.throws(() => {
     socket.setSendBufferSize(8192);
-  }, /^Error: setSendBufferSize ENOTSOCK$/);
+  }, /^Error: setSendBufferSize E[A-Z]+$/);
 }
 
 {

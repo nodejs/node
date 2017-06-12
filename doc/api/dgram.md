@@ -400,7 +400,7 @@ between 0 and 255. The default on most systems is `1` but can vary.
 
 ### socket.setRecvBufferSize(size)
 <!-- YAML
-added: vx.x.x
+added: REPLACEME
 -->
 
 * `size` {number} Integer
@@ -410,7 +410,7 @@ in bytes.
 
 ### socket.setSendBufferSize(size)
 <!-- YAML
-added: vx.x.x
+added: REPLACEME
 -->
 
 * `size` {number} Integer
