@@ -106,6 +106,10 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
     debug_event = TrueConstant();
   }
 
+  Label if_not_constructor(this, Label::kDeferred);
+  GotoIf(TaggedIsSmi(constructor), &if_not_constructor);
+  GotoIfNot(IsConstructorMap(LoadMap(constructor)), &if_not_constructor);
+
   Node* native_context = LoadNativeContext(context);
 
   Node* map = LoadRoot(Heap::kJSPromiseCapabilityMapRootIndex);
@@ -186,6 +190,13 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
     StoreObjectField(capability, JSPromiseCapability::kRejectOffset,
                      UndefinedConstant());
     CallRuntime(Runtime::kThrowTypeError, context, message);
+    Unreachable();
+  }
+
+  BIND(&if_not_constructor);
+  {
+    Node* const message_id = SmiConstant(MessageTemplate::kNotConstructor);
+    CallRuntime(Runtime::kThrowTypeError, context, message_id, constructor);
     Unreachable();
   }
 
@@ -312,6 +323,7 @@ Node* PromiseBuiltinsAssembler::SpeciesConstructor(Node* context, Node* object,
 
   // 7. If IsConstructor(S) is true, return S.
   Label throw_error(this);
+  GotoIf(TaggedIsSmi(species), &throw_error);
   Node* species_bitfield = LoadMapBitField(LoadMap(species));
   GotoIfNot(Word32Equal(Word32And(species_bitfield,
                                   Int32Constant((1 << Map::kIsConstructor))),
