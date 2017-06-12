@@ -735,9 +735,19 @@ async_uid AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
   return Environment::GetCurrent(isolate)->current_async_id();
 }
 
+[[deprecated("Use AsyncHooksGetExecutionAsyncId(isolate)")]]
+async_uid AsyncHooksGetCurrentId(v8::Isolate* isolate) {
+  return AsyncHooksGetExecutionAsyncId(isolate);
+}
+
 
 async_uid AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
   return Environment::GetCurrent(isolate)->get_init_trigger_id();
+}
+
+[[deprecated("Use AsyncHooksGetTriggerAsyncId(isolate)")]]
+async_uid AsyncHooksGetTriggerId(v8::Isolate* isolate) {
+  return AsyncHooksGetTriggerAsyncId(isolate);
 }
 
 
