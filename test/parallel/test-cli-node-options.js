@@ -72,8 +72,8 @@ function expect(opt, want) {
     assert.ifError(err);
     if (!RegExp(want).test(stdout)) {
       console.error('For %j, failed to find %j in: <\n%s\n>',
-                    opt, expect, stdout);
-      assert(false, `Expected ${expect}`);
+                    opt, want, stdout);
+      assert.fail(`Expected ${want}`);
     }
   }));
 }
