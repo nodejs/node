@@ -1200,6 +1200,27 @@ void Swap64(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+// Encode a single string to a UTF-8 Uint8Array (not Buffer).
+// Used in TextEncoder.prototype.encode.
+static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  Local<String> str = args[0].As<String>();
+  size_t length = str->Utf8Length();
+  char* data = node::UncheckedMalloc(length);
+  str->WriteUtf8(data,
+                 -1,   // We are certain that `data` is sufficiently large
+                 NULL,
+                 String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
+  auto array_buf = ArrayBuffer::New(env->isolate(), data, length,
+                                    ArrayBufferCreationMode::kInternalized);
+  auto array = Uint8Array::New(array_buf, 0, length);
+  args.GetReturnValue().Set(array);
+}
+
+
 // pass Buffer object to load prototype methods
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1265,6 +1286,8 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "swap16", Swap16);
   env->SetMethod(target, "swap32", Swap32);
   env->SetMethod(target, "swap64", Swap64);
+
+  env->SetMethod(target, "encodeUtf8String", EncodeUtf8String);
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
