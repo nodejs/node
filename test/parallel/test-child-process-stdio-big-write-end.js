@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const BUFSIZE = 1024;
+let bufsize = 0;
 
 switch (process.argv[2]) {
   case undefined:
@@ -30,14 +30,15 @@ function parent() {
   // Write until the buffer fills up.
   let buf;
   do {
-    buf = Buffer.alloc(BUFSIZE, '.');
-    sent += BUFSIZE;
+    bufsize += 1024;
+    buf = Buffer.alloc(bufsize, '.');
+    sent += bufsize;
   } while (child.stdin.write(buf));
 
   // then write a bunch more times.
   for (let i = 0; i < 100; i++) {
-    const buf = Buffer.alloc(BUFSIZE, '.');
-    sent += BUFSIZE;
+    const buf = Buffer.alloc(bufsize, '.');
+    sent += bufsize;
     child.stdin.write(buf);
   }
 
