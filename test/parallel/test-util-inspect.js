@@ -1045,4 +1045,22 @@ if (typeof Symbol !== 'undefined') {
   );
 }
 
+// util.inspect
+{
+  let inspectWasNotAccessed = true;
+  const obj = {};
+  const proxy = new Proxy(obj, {
+    get(obj, prop) {
+      if (prop === 'inspect') {
+        inspectWasNotAccessed = false;
+      }
+
+      return obj[prop];
+    }
+  });
+
+  util.inspect(proxy);
+  assert.ok(inspectWasNotAccessed, `'obj.inspect' was unexpectedly accessed`);
+}
+
 assert.doesNotThrow(() => util.inspect(process));
