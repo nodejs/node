@@ -979,6 +979,9 @@ added: v0.4.2
 Change the file timestamps of a file referenced by the supplied file
 descriptor.
 
+*Note*: This function does not work on AIX versions before 7.1, it will return
+the error `UV_ENOSYS`.
+
 ## fs.futimesSync(fd, atime, mtime)
 <!-- YAML
 added: v0.4.2
