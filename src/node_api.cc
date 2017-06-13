@@ -10,6 +10,7 @@
 
 #include <node_buffer.h>
 #include <node_object_wrap.h>
+
 #include <string.h>
 #include <algorithm>
 #include <cassert>
@@ -17,6 +18,7 @@
 #include <vector>
 #include "uv.h"
 #include "node_api.h"
+#include "node_internals.h"
 #include "env-inl.h"
 #include "node_api_backport.h"
 
@@ -160,14 +162,20 @@ class HandleScopeWrapper {
 // across different versions.
 class EscapableHandleScopeWrapper {
  public:
-  explicit EscapableHandleScopeWrapper(v8::Isolate* isolate) : scope(isolate) {}
+  explicit EscapableHandleScopeWrapper(v8::Isolate* isolate)
+      : scope(isolate), escape_called_(false) {}
+  bool escape_called() const {
+    return escape_called_;
+  }
   template <typename T>
   v8::Local<T> Escape(v8::Local<T> handle) {
+    escape_called_ = true;
     return scope.Escape(handle);
   }
 
  private:
   v8::EscapableHandleScope scope;
+  bool escape_called_;
 };
 
 napi_handle_scope JsHandleScopeFromV8HandleScope(HandleScopeWrapper* s) {
@@ -720,7 +728,8 @@ const char* error_messages[] = {nullptr,
                                 "An array was expected",
                                 "Unknown failure",
                                 "An exception is pending",
-                                "The async work item was cancelled"};
+                                "The async work item was cancelled",
+                                "napi_escape_handle already called on scope"};
 
 static napi_status napi_clear_last_error(napi_env env) {
   CHECK_ENV(env);
@@ -748,10 +757,14 @@ napi_status napi_get_last_error_info(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, result);
 
+  // you must update this assert to reference the last message
+  // in the napi_status enum each time a new error message is added.
+  // We don't have a napi_status_last as this would result in an ABI
+  // change each time a message was added.
   static_assert(
-      (sizeof (error_messages) / sizeof (*error_messages)) == napi_status_last,
+      node::arraysize(error_messages) == napi_escape_called_twice + 1,
       "Count of error messages must match count of error values");
-  assert(env->last_error.error_code < napi_status_last);
+  assert(env->last_error.error_code <= napi_escape_called_twice);
 
   // Wait until someone requests the last error information to fetch the error
   // message string
@@ -2213,9 +2226,12 @@ napi_status napi_escape_handle(napi_env env,
 
   v8impl::EscapableHandleScopeWrapper* s =
       v8impl::V8EscapableHandleScopeFromJsEscapableHandleScope(scope);
-  *result = v8impl::JsValueFromV8LocalValue(
-      s->Escape(v8impl::V8LocalValueFromJsValue(escapee)));
-  return napi_clear_last_error(env);
+  if (!s->escape_called()) {
+    *result = v8impl::JsValueFromV8LocalValue(
+        s->Escape(v8impl::V8LocalValueFromJsValue(escapee)));
+    return napi_clear_last_error(env);
+  }
+  return napi_set_last_error(env, napi_escape_called_twice);
 }
 
 napi_status napi_new_instance(napi_env env,

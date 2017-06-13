@@ -29,6 +29,19 @@ napi_value NewScopeEscape(napi_env env, napi_callback_info info) {
   return escapee;
 }
 
+napi_value NewScopeEscapeTwice(napi_env env, napi_callback_info info) {
+  napi_escapable_handle_scope scope;
+  napi_value output = NULL;
+  napi_value escapee = NULL;
+
+  NAPI_CALL(env, napi_open_escapable_handle_scope(env, &scope));
+  NAPI_CALL(env, napi_create_object(env, &output));
+  NAPI_CALL(env, napi_escape_handle(env, scope, output, &escapee));
+  NAPI_CALL(env, napi_escape_handle(env, scope, output, &escapee));
+  NAPI_CALL(env, napi_close_escapable_handle_scope(env, scope));
+  return escapee;
+}
+
 napi_value NewScopeWithException(napi_env env, napi_callback_info info) {
   napi_handle_scope scope;
   size_t argc;
@@ -57,6 +70,7 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_property_descriptor properties[] = {
     DECLARE_NAPI_PROPERTY("NewScope", NewScope),
     DECLARE_NAPI_PROPERTY("NewScopeEscape", NewScopeEscape),
+    DECLARE_NAPI_PROPERTY("NewScopeEscapeTwice", NewScopeEscapeTwice),
     DECLARE_NAPI_PROPERTY("NewScopeWithException", NewScopeWithException),
   };
 
