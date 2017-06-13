@@ -11,20 +11,23 @@ types1.forEach((v, k) => assert.strictEqual(
 );
 
 const sillyName = 'gaga';
-const newType = async_hooks.getTypes(sillyName);
+const newType = async_hooks.registerTypeName(sillyName);
 assert.strictEqual(
   typeof newType,
   'string',
   `${newType} should be a string`
 );
 assert.strictEqual(newType, sillyName);
-
-assert.throws(() => async_hooks.getTypes(sillyName),
-              common.expectsError(
-                'ERR_ASYNC_PROVIDER_NAME',
-                TypeError,
-                `${sillyName} type name already registered`
-              ));
+assert.throws(
+  () => async_hooks.registerTypeName(sillyName),
+  common.expectsError(
+    {
+      code: 'ERR_ASYNC_PROVIDER_NAME',
+      type: TypeError,
+      message: `"${sillyName}" type name already registered`
+    }
+  )
+);
 
 const types2 = async_hooks.getTypes();
 assert.strictEqual(types2.length, types1 + 1);
