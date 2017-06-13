@@ -485,7 +485,7 @@ goto exit
 :no-lint
 echo Linting is not available through the source tarball.
 echo Use the git repo instead: $ git clone https://github.com/nodejs/node.git
-goto exit
+exit /b 1
 
 :create-msvs-files-failed
 echo Failed to create vc project files.
