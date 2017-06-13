@@ -282,13 +282,12 @@ function getConfigForStyleGuide(guide) {
 /* istanbul ignore next: no need to test inquirer*/
 /**
  * Ask use a few questions on command prompt
- * @param {Function} callback callback function when file has been written
- * @returns {void}
+ * @returns {Promise} The promise with the result of the prompt
  */
-function promptUser(callback) {
+function promptUser() {
     let config;
 
-    inquirer.prompt([
+    return inquirer.prompt([
         {
             type: "list",
             name: "source",
@@ -343,29 +342,26 @@ function promptUser(callback) {
                 return ((answers.source === "guide" && answers.packageJsonExists) || answers.source === "auto");
             }
         }
-    ], earlyAnswers => {
+    ]).then(earlyAnswers => {
 
         // early exit if you are using a style guide
         if (earlyAnswers.source === "guide") {
             if (!earlyAnswers.packageJsonExists) {
                 log.info("A package.json is necessary to install plugins such as style guides. Run `npm init` to create a package.json file and try again.");
-                return;
+                return void 0;
             }
             if (earlyAnswers.styleguide === "airbnb" && !earlyAnswers.airbnbReact) {
                 earlyAnswers.styleguide = "airbnb-base";
             }
-            try {
-                config = getConfigForStyleGuide(earlyAnswers.styleguide);
-                writeFile(config, earlyAnswers.format);
-            } catch (err) {
-                callback(err);
-                return;
-            }
-            return;
+
+            config = getConfigForStyleGuide(earlyAnswers.styleguide);
+            writeFile(config, earlyAnswers.format);
+
+            return void 0;
         }
 
         // continue with the questions otherwise...
-        inquirer.prompt([
+        return inquirer.prompt([
             {
                 type: "confirm",
                 name: "es6",
@@ -412,25 +408,21 @@ function promptUser(callback) {
                     return answers.jsx;
                 }
             }
-        ], secondAnswers => {
+        ]).then(secondAnswers => {
 
             // early exit if you are using automatic style generation
             if (earlyAnswers.source === "auto") {
-                try {
-                    const combinedAnswers = Object.assign({}, earlyAnswers, secondAnswers);
+                const combinedAnswers = Object.assign({}, earlyAnswers, secondAnswers);
 
-                    config = processAnswers(combinedAnswers);
-                    installModules(config);
-                    writeFile(config, earlyAnswers.format);
-                } catch (err) {
-                    callback(err);
-                    return;
-                }
-                return;
+                config = processAnswers(combinedAnswers);
+                installModules(config);
+                writeFile(config, earlyAnswers.format);
+
+                return void 0;
             }
 
             // continue with the style questions otherwise...
-            inquirer.prompt([
+            return inquirer.prompt([
                 {
                     type: "list",
                     name: "indent",
@@ -465,16 +457,12 @@ function promptUser(callback) {
                     default: "JavaScript",
                     choices: ["JavaScript", "YAML", "JSON"]
                 }
-            ], answers => {
-                try {
-                    const totalAnswers = Object.assign({}, earlyAnswers, secondAnswers, answers);
+            ]).then(answers => {
+                const totalAnswers = Object.assign({}, earlyAnswers, secondAnswers, answers);
 
-                    config = processAnswers(totalAnswers);
-                    installModules(config);
-                    writeFile(config, answers.format);
-                } catch (err) {
-                    callback(err); // eslint-disable-line callback-return
-                }
+                config = processAnswers(totalAnswers);
+                installModules(config);
+                writeFile(config, answers.format);
             });
         });
     });
@@ -487,8 +475,8 @@ function promptUser(callback) {
 const init = {
     getConfigForStyleGuide,
     processAnswers,
-    /* istanbul ignore next */initializeConfig(callback) {
-        promptUser(callback);
+    /* istanbul ignore next */initializeConfig() {
+        return promptUser();
     }
 };
 

@@ -28,8 +28,10 @@ function pluralize(word, count) {
 module.exports = function(results) {
 
     let output = "\n",
-        errors = 0,
-        warnings = 0,
+        errorCount = 0,
+        warningCount = 0,
+        fixableErrorCount = 0,
+        fixableWarningCount = 0,
         summaryColor = "yellow";
 
     results.forEach(result => {
@@ -39,8 +41,10 @@ module.exports = function(results) {
             return;
         }
 
-        errors += result.errorCount;
-        warnings += result.warningCount;
+        errorCount += result.errorCount;
+        warningCount += result.warningCount;
+        fixableErrorCount += result.fixableErrorCount;
+        fixableWarningCount += result.fixableWarningCount;
 
         output += `${chalk.underline(result.filePath)}\n`;
 
@@ -73,14 +77,22 @@ module.exports = function(results) {
         ).split("\n").map(el => el.replace(/(\d+)\s+(\d+)/, (m, p1, p2) => chalk.dim(`${p1}:${p2}`))).join("\n")}\n\n`;
     });
 
-    const total = errors + warnings;
+    const total = errorCount + warningCount;
 
     if (total > 0) {
         output += chalk[summaryColor].bold([
             "\u2716 ", total, pluralize(" problem", total),
-            " (", errors, pluralize(" error", errors), ", ",
-            warnings, pluralize(" warning", warnings), ")\n"
+            " (", errorCount, pluralize(" error", errorCount), ", ",
+            warningCount, pluralize(" warning", warningCount), ")\n"
         ].join(""));
+
+        if (fixableErrorCount > 0 || fixableWarningCount > 0) {
+            output += chalk[summaryColor].bold([
+                "  ", fixableErrorCount, pluralize(" error", fixableErrorCount), ", ",
+                fixableWarningCount, pluralize(" warning", fixableWarningCount),
+                " potentially fixable with the `--fix` option.\n"
+            ].join(""));
+        }
     }
 
     return total > 0 ? output : "";

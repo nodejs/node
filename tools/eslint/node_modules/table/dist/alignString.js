@@ -104,5 +104,3 @@ exports.default = (subject, containerWidth, alignment) => {
 
   return alignCenter(subject, availableWidth);
 };
-
-module.exports = exports['default'];

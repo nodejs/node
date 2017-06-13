@@ -2,12 +2,11 @@
  * `confirm` type prompt
  */
 
-var _ = require("lodash");
-var util = require("util");
-var chalk = require("chalk");
-var Base = require("./base");
-var observe = require("../utils/events");
-
+var _ = require('lodash');
+var util = require('util');
+var chalk = require('chalk');
+var Base = require('./base');
+var observe = require('../utils/events');
 
 /**
  * Module exports
@@ -15,36 +14,34 @@ var observe = require("../utils/events");
 
 module.exports = Prompt;
 
-
 /**
  * Constructor
  */
 
 function Prompt() {
-  Base.apply( this, arguments );
+  Base.apply(this, arguments);
 
   var rawDefault = true;
 
-  _.extend( this.opt, {
-    filter: function( input ) {
+  _.extend(this.opt, {
+    filter: function (input) {
       var value = rawDefault;
-      if ( input != null && input !== "" ) {
+      if (input != null && input !== '') {
         value = /^y(es)?/i.test(input);
       }
       return value;
-    }.bind(this)
+    }
   });
 
-  if ( _.isBoolean(this.opt.default) ) {
+  if (_.isBoolean(this.opt.default)) {
     rawDefault = this.opt.default;
   }
 
-  this.opt.default = rawDefault ? "Y/n" : "y/N";
+  this.opt.default = rawDefault ? 'Y/n' : 'y/N';
 
   return this;
 }
-util.inherits( Prompt, Base );
-
+util.inherits(Prompt, Base);
 
 /**
  * Start the Inquiry session
@@ -52,21 +49,20 @@ util.inherits( Prompt, Base );
  * @return {this}
  */
 
-Prompt.prototype._run = function( cb ) {
+Prompt.prototype._run = function (cb) {
   this.done = cb;
 
   // Once user confirm (enter key)
   var events = observe(this.rl);
-  events.keypress.takeUntil( events.line ).forEach( this.onKeypress.bind(this) );
+  events.keypress.takeUntil(events.line).forEach(this.onKeypress.bind(this));
 
-  events.line.take(1).forEach( this.onEnd.bind(this) );
+  events.line.take(1).forEach(this.onEnd.bind(this));
 
   // Init
   this.render();
 
   return this;
 };
-
 
 /**
  * Render the prompt to screen
@@ -76,8 +72,8 @@ Prompt.prototype._run = function( cb ) {
 Prompt.prototype.render = function (answer) {
   var message = this.getQuestion();
 
-  if (typeof answer === "boolean") {
-    message += chalk.cyan(answer ? "Yes" : "No");
+  if (typeof answer === 'boolean') {
+    message += chalk.cyan(answer ? 'Yes' : 'No');
   } else {
     message += this.rl.line;
   }
@@ -91,20 +87,20 @@ Prompt.prototype.render = function (answer) {
  * When user press `enter` key
  */
 
-Prompt.prototype.onEnd = function( input ) {
-  this.status = "answered";
+Prompt.prototype.onEnd = function (input) {
+  this.status = 'answered';
 
-  var output = this.opt.filter( input );
-  this.render( output );
+  var output = this.opt.filter(input);
+  this.render(output);
 
   this.screen.done();
-  this.done( input ); // send "input" because the master class will refilter
+  this.done(output);
 };
 
 /**
  * When user press a key
  */
 
-Prompt.prototype.onKeypress = function() {
-    this.render();
+Prompt.prototype.onKeypress = function () {
+  this.render();
 };

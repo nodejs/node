@@ -134,7 +134,17 @@ module.exports = {
                         node,
                         loc: node.consequent.loc.start,
                         message: "Unnecessary use of conditional expression for default assignment.",
-                        fix: fixer => fixer.replaceText(node, `${astUtils.getParenthesisedText(sourceCode, node.test)} || ${astUtils.getParenthesisedText(sourceCode, node.alternate)}`)
+                        fix: fixer => {
+                            let nodeAlternate = astUtils.getParenthesisedText(sourceCode, node.alternate);
+
+                            if (node.alternate.type === "ConditionalExpression") {
+                                const isAlternateParenthesised = astUtils.isParenthesised(sourceCode, node.alternate);
+
+                                nodeAlternate = isAlternateParenthesised ? nodeAlternate : `(${nodeAlternate})`;
+                            }
+
+                            return fixer.replaceText(node, `${astUtils.getParenthesisedText(sourceCode, node.test)} || ${nodeAlternate}`);
+                        }
                     });
                 }
             }

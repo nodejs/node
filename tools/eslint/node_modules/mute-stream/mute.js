@@ -84,9 +84,9 @@ Object.defineProperty(MuteStream.prototype, 'columns', {
   }, enumerable: true, configurable: true })
 
 
-MuteStream.prototype.pipe = function (dest) {
+MuteStream.prototype.pipe = function (dest, options) {
   this._dest = dest
-  return Stream.prototype.pipe.call(this, dest)
+  return Stream.prototype.pipe.call(this, dest, options)
 }
 
 MuteStream.prototype.pause = function () {
@@ -101,6 +101,11 @@ MuteStream.prototype.write = function (c) {
   if (this.muted) {
     if (!this.replace) return true
     if (c.match(/^\u001b/)) {
+      if(c.indexOf(this._prompt) === 0) {
+        c = c.substr(this._prompt.length);
+        c = c.replace(/./g, this.replace);
+        c = this._prompt + c;
+      }
       this._hadControl = true
       return this.emit('data', c)
     } else {

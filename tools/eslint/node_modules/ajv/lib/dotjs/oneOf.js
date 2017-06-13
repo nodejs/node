@@ -7,7 +7,6 @@ module.exports = function generate_oneOf(it, $keyword) {
   var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
-  var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
   var $valid = 'valid' + $lvl;
   var $errs = 'errs__' + $lvl;
@@ -47,7 +46,7 @@ module.exports = function generate_oneOf(it, $keyword) {
   $$outStack.push(out);
   out = ''; /* istanbul ignore else */
   if (it.createErrors !== false) {
-    out += ' { keyword: \'' + ($errorKeyword || 'oneOf') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: {} ';
+    out += ' { keyword: \'' + ('oneOf') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: {} ';
     if (it.opts.messages !== false) {
       out += ' , message: \'should match exactly one schema in oneOf\' ';
     }

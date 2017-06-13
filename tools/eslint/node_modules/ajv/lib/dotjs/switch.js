@@ -7,7 +7,6 @@ module.exports = function generate_switch(it, $keyword) {
   var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
-  var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
   var $valid = 'valid' + $lvl;
   var $errs = 'errs__' + $lvl;
@@ -48,7 +47,7 @@ module.exports = function generate_switch(it, $keyword) {
             $$outStack.push(out);
             out = ''; /* istanbul ignore else */
             if (it.createErrors !== false) {
-              out += ' { keyword: \'' + ($errorKeyword || 'switch') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { caseIndex: ' + ($caseIndex) + ' } ';
+              out += ' { keyword: \'' + ('switch') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { caseIndex: ' + ($caseIndex) + ' } ';
               if (it.opts.messages !== false) {
                 out += ' , message: \'should pass "switch" keyword validation\' ';
               }
@@ -88,7 +87,7 @@ module.exports = function generate_switch(it, $keyword) {
             $$outStack.push(out);
             out = ''; /* istanbul ignore else */
             if (it.createErrors !== false) {
-              out += ' { keyword: \'' + ($errorKeyword || 'switch') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { caseIndex: ' + ($caseIndex) + ' } ';
+              out += ' { keyword: \'' + ('switch') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { caseIndex: ' + ($caseIndex) + ' } ';
               if (it.opts.messages !== false) {
                 out += ' , message: \'should pass "switch" keyword validation\' ';
               }

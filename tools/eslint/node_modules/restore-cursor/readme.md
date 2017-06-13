@@ -2,12 +2,12 @@
 
 > Gracefully restore the CLI cursor on exit
 
-Prevent the cursor you've hidden interactively to remain hidden if the process crashes.
+Prevent the cursor you've hidden interactively from remaining hidden if the process crashes.
 
 
 ## Install
 
-```sh
+```
 $ npm install --save restore-cursor
 ```
 
@@ -15,11 +15,11 @@ $ npm install --save restore-cursor
 ## Usage
 
 ```js
-var restoreCursor = require('restore-cursor');
+const restoreCursor = require('restore-cursor');
 restoreCursor();
 ```
 
 
 ## License
 
-MIT © [Sindre Sorhus](http://sindresorhus.com)
+MIT © [Sindre Sorhus](https://sindresorhus.com)

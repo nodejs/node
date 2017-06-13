@@ -75,7 +75,7 @@ module.exports = {
         docs: {
             description: "disallow unnecessary escape characters",
             category: "Best Practices",
-            recommended: false
+            recommended: true
         },
 
         schema: []
