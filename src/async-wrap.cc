@@ -736,7 +736,7 @@ async_uid AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
 }
 
 [[deprecated("Use AsyncHooksGetExecutionAsyncId(isolate)")]]
-async_uid AsyncHooksGetCurrentId(v8::Isolate* isolate) {
+async_uid AsyncHooksGetCurrentId(Isolate* isolate) {
   return AsyncHooksGetExecutionAsyncId(isolate);
 }
 
@@ -746,7 +746,7 @@ async_uid AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
 }
 
 [[deprecated("Use AsyncHooksGetTriggerAsyncId(isolate)")]]
-async_uid AsyncHooksGetTriggerId(v8::Isolate* isolate) {
+async_uid AsyncHooksGetTriggerId(Isolate* isolate) {
   return AsyncHooksGetTriggerAsyncId(isolate);
 }
 
