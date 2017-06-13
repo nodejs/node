@@ -12,34 +12,15 @@ const assert = require("assert");
 const cursors = require("./cursors");
 const ForwardTokenCursor = require("./forward-token-cursor");
 const PaddedTokenCursor = require("./padded-token-cursor");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-const PUBLIC_METHODS = Object.freeze([
-    "getTokenByRangeStart",
-
-    "getFirstToken",
-    "getLastToken",
-    "getTokenBefore",
-    "getTokenAfter",
-    "getFirstTokenBetween",
-    "getLastTokenBetween",
-
-    "getFirstTokens",
-    "getLastTokens",
-    "getTokensBefore",
-    "getTokensAfter",
-    "getFirstTokensBetween",
-    "getLastTokensBetween",
-
-    "getTokens",
-    "getTokensBetween",
-
-    "getTokenOrCommentBefore",
-    "getTokenOrCommentAfter"
-]);
+const TOKENS = Symbol("tokens");
+const COMMENTS = Symbol("comments");
+const INDEX_MAP = Symbol("indexMap");
 
 /**
  * Creates the map from locations to indices in `tokens`.
@@ -192,6 +173,24 @@ function createCursorWithPadding(tokens, comments, indexMap, startLoc, endLoc, b
     return createCursorWithCount(cursors.forward, tokens, comments, indexMap, startLoc, endLoc, beforeCount);
 }
 
+/**
+ * Gets comment tokens that are adjacent to the current cursor position.
+ * @param {Cursor} cursor - A cursor instance.
+ * @returns {Array} An array of comment tokens adjacent to the current cursor position.
+ * @private
+ */
+function getAdjacentCommentTokensFromCursor(cursor) {
+    const tokens = [];
+    let currentToken = cursor.getOneToken();
+
+    while (currentToken && astUtils.isCommentToken(currentToken)) {
+        tokens.push(currentToken);
+        currentToken = cursor.getOneToken();
+    }
+
+    return tokens;
+}
+
 //------------------------------------------------------------------------------
 // Exports
 //------------------------------------------------------------------------------
@@ -211,22 +210,13 @@ module.exports = class TokenStore {
 
     /**
      * Initializes this token store.
-     *
-     * ※ `comments` needs to be cloned for backward compatibility.
-     * After this initialization, ESLint removes a shebang's comment from `comments`.
-     * However, so far we had been concatenating 'tokens' and 'comments' before,
-     * so the shebang's comment had remained in the concatenated array.
-     * As a result, both the result of `getTokenOrCommentAfter` and `getTokenOrCommentBefore`
-     * methods had included the shebang's comment.
-     * And some rules depends on this behavior.
-     *
      * @param {Token[]} tokens - The array of tokens.
      * @param {Comment[]} comments - The array of comments.
      */
     constructor(tokens, comments) {
-        this.tokens = tokens;
-        this.comments = comments.slice(0);
-        this.indexMap = createIndexMap(tokens, comments);
+        this[TOKENS] = tokens;
+        this[COMMENTS] = comments;
+        this[INDEX_MAP] = createIndexMap(tokens, comments);
     }
 
     //--------------------------------------------------------------------------
@@ -243,9 +233,9 @@ module.exports = class TokenStore {
     getTokenByRangeStart(offset, options) {
         const includeComments = options && options.includeComments;
         const token = cursors.forward.createBaseCursor(
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             offset,
             -1,
             includeComments
@@ -269,9 +259,9 @@ module.exports = class TokenStore {
     getFirstToken(node, options) {
         return createCursorWithSkip(
             cursors.forward,
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             node.range[0],
             node.range[1],
             options
@@ -281,18 +271,15 @@ module.exports = class TokenStore {
     /**
      * Gets the last token of the given node.
      * @param {ASTNode} node - The AST node.
-     * @param {number|Function|Object} [options=0] - The option object. If this is a number then it's `options.skip`. If this is a function then it's `options.filter`.
-     * @param {boolean} [options.includeComments=false] - The flag to iterate comments as well.
-     * @param {Function|null} [options.filter=null] - The predicate function to choose tokens.
-     * @param {number} [options.skip=0] - The count of tokens the cursor skips.
+     * @param {number|Function|Object} [options=0] - The option object. Same options as getFirstToken()
      * @returns {Token|null} An object representing the token.
      */
     getLastToken(node, options) {
         return createCursorWithSkip(
             cursors.backward,
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             node.range[0],
             node.range[1],
             options
@@ -302,18 +289,15 @@ module.exports = class TokenStore {
     /**
      * Gets the token that precedes a given node or token.
      * @param {ASTNode|Token|Comment} node - The AST node or token.
-     * @param {number|Function|Object} [options=0] - The option object. If this is a number then it's `options.skip`. If this is a function then it's `options.filter`.
-     * @param {boolean} [options.includeComments=false] - The flag to iterate comments as well.
-     * @param {Function|null} [options.filter=null] - The predicate function to choose tokens.
-     * @param {number} [options.skip=0] - The count of tokens the cursor skips.
+     * @param {number|Function|Object} [options=0] - The option object. Same options as getFirstToken()
      * @returns {Token|null} An object representing the token.
      */
     getTokenBefore(node, options) {
         return createCursorWithSkip(
             cursors.backward,
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             -1,
             node.range[0],
             options
@@ -323,18 +307,15 @@ module.exports = class TokenStore {
     /**
      * Gets the token that follows a given node or token.
      * @param {ASTNode|Token|Comment} node - The AST node or token.
-     * @param {number|Function|Object} [options=0] - The option object. If this is a number then it's `options.skip`. If this is a function then it's `options.filter`.
-     * @param {boolean} [options.includeComments=false] - The flag to iterate comments as well.
-     * @param {Function|null} [options.filter=null] - The predicate function to choose tokens.
-     * @param {number} [options.skip=0] - The count of tokens the cursor skips.
+     * @param {number|Function|Object} [options=0] - The option object. Same options as getFirstToken()
      * @returns {Token|null} An object representing the token.
      */
     getTokenAfter(node, options) {
         return createCursorWithSkip(
             cursors.forward,
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             node.range[1],
             -1,
             options
@@ -345,18 +326,15 @@ module.exports = class TokenStore {
      * Gets the first token between two non-overlapping nodes.
      * @param {ASTNode|Token|Comment} left - Node before the desired token range.
      * @param {ASTNode|Token|Comment} right - Node after the desired token range.
-     * @param {number|Function|Object} [options=0] - The option object. If this is a number then it's `options.skip`. If this is a function then it's `options.filter`.
-     * @param {boolean} [options.includeComments=false] - The flag to iterate comments as well.
-     * @param {Function|null} [options.filter=null] - The predicate function to choose tokens.
-     * @param {number} [options.skip=0] - The count of tokens the cursor skips.
+     * @param {number|Function|Object} [options=0] - The option object. Same options as getFirstToken()
      * @returns {Token|null} An object representing the token.
      */
     getFirstTokenBetween(left, right, options) {
         return createCursorWithSkip(
             cursors.forward,
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             left.range[1],
             right.range[0],
             options
@@ -367,18 +345,15 @@ module.exports = class TokenStore {
      * Gets the last token between two non-overlapping nodes.
      * @param {ASTNode|Token|Comment} left Node before the desired token range.
      * @param {ASTNode|Token|Comment} right Node after the desired token range.
-     * @param {number|Function|Object} [options=0] The option object. If this is a number then it's `options.skip`. If this is a function then it's `options.filter`.
-     * @param {boolean} [options.includeComments=false] - The flag to iterate comments as well.
-     * @param {Function|null} [options.filter=null] - The predicate function to choose tokens.
-     * @param {number} [options.skip=0] - The count of tokens the cursor skips.
-     * @returns {Token|null} Tokens between left and right.
+     * @param {number|Function|Object} [options=0] - The option object. Same options as getFirstToken()
+     * @returns {Token|null} An object representing the token.
      */
     getLastTokenBetween(left, right, options) {
         return createCursorWithSkip(
             cursors.backward,
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             left.range[1],
             right.range[0],
             options
@@ -427,9 +402,9 @@ module.exports = class TokenStore {
     getFirstTokens(node, options) {
         return createCursorWithCount(
             cursors.forward,
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             node.range[0],
             node.range[1],
             options
@@ -439,18 +414,15 @@ module.exports = class TokenStore {
     /**
      * Gets the last `count` tokens of the given node.
      * @param {ASTNode} node - The AST node.
-     * @param {number|Function|Object} [options=0] - The option object. If this is a number then it's `options.count`. If this is a function then it's `options.filter`.
-     * @param {boolean} [options.includeComments=false] - The flag to iterate comments as well.
-     * @param {Function|null} [options.filter=null] - The predicate function to choose tokens.
-     * @param {number} [options.count=0] - The maximum count of tokens the cursor iterates.
+     * @param {number|Function|Object} [options=0] - The option object. Same options as getFirstTokens()
      * @returns {Token[]} Tokens.
      */
     getLastTokens(node, options) {
         return createCursorWithCount(
             cursors.backward,
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             node.range[0],
             node.range[1],
             options
@@ -460,18 +432,15 @@ module.exports = class TokenStore {
     /**
      * Gets the `count` tokens that precedes a given node or token.
      * @param {ASTNode|Token|Comment} node - The AST node or token.
-     * @param {number|Function|Object} [options=0] - The option object. If this is a number then it's `options.count`. If this is a function then it's `options.filter`.
-     * @param {boolean} [options.includeComments=false] - The flag to iterate comments as well.
-     * @param {Function|null} [options.filter=null] - The predicate function to choose tokens.
-     * @param {number} [options.count=0] - The maximum count of tokens the cursor iterates.
+     * @param {number|Function|Object} [options=0] - The option object. Same options as getFirstTokens()
      * @returns {Token[]} Tokens.
      */
     getTokensBefore(node, options) {
         return createCursorWithCount(
             cursors.backward,
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             -1,
             node.range[0],
             options
@@ -481,18 +450,15 @@ module.exports = class TokenStore {
     /**
      * Gets the `count` tokens that follows a given node or token.
      * @param {ASTNode|Token|Comment} node - The AST node or token.
-     * @param {number|Function|Object} [options=0] - The option object. If this is a number then it's `options.count`. If this is a function then it's `options.filter`.
-     * @param {boolean} [options.includeComments=false] - The flag to iterate comments as well.
-     * @param {Function|null} [options.filter=null] - The predicate function to choose tokens.
-     * @param {number} [options.count=0] - The maximum count of tokens the cursor iterates.
+     * @param {number|Function|Object} [options=0] - The option object. Same options as getFirstTokens()
      * @returns {Token[]} Tokens.
      */
     getTokensAfter(node, options) {
         return createCursorWithCount(
             cursors.forward,
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             node.range[1],
             -1,
             options
@@ -503,18 +469,15 @@ module.exports = class TokenStore {
      * Gets the first `count` tokens between two non-overlapping nodes.
      * @param {ASTNode|Token|Comment} left - Node before the desired token range.
      * @param {ASTNode|Token|Comment} right - Node after the desired token range.
-     * @param {number|Function|Object} [options=0] - The option object. If this is a number then it's `options.count`. If this is a function then it's `options.filter`.
-     * @param {boolean} [options.includeComments=false] - The flag to iterate comments as well.
-     * @param {Function|null} [options.filter=null] - The predicate function to choose tokens.
-     * @param {number} [options.count=0] - The maximum count of tokens the cursor iterates.
+     * @param {number|Function|Object} [options=0] - The option object. Same options as getFirstTokens()
      * @returns {Token[]} Tokens between left and right.
      */
     getFirstTokensBetween(left, right, options) {
         return createCursorWithCount(
             cursors.forward,
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             left.range[1],
             right.range[0],
             options
@@ -525,18 +488,15 @@ module.exports = class TokenStore {
      * Gets the last `count` tokens between two non-overlapping nodes.
      * @param {ASTNode|Token|Comment} left Node before the desired token range.
      * @param {ASTNode|Token|Comment} right Node after the desired token range.
-     * @param {number|Function|Object} [options=0] The option object. If this is a number then it's `options.count`. If this is a function then it's `options.filter`.
-     * @param {boolean} [options.includeComments=false] - The flag to iterate comments as well.
-     * @param {Function|null} [options.filter=null] - The predicate function to choose tokens.
-     * @param {number} [options.count=0] - The maximum count of tokens the cursor iterates.
+     * @param {number|Function|Object} [options=0] - The option object. Same options as getFirstTokens()
      * @returns {Token[]} Tokens between left and right.
      */
     getLastTokensBetween(left, right, options) {
         return createCursorWithCount(
             cursors.backward,
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             left.range[1],
             right.range[0],
             options
@@ -561,9 +521,9 @@ module.exports = class TokenStore {
      */
     getTokens(node, beforeCount, afterCount) {
         return createCursorWithPadding(
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             node.range[0],
             node.range[1],
             beforeCount,
@@ -590,15 +550,63 @@ module.exports = class TokenStore {
      */
     getTokensBetween(left, right, padding) {
         return createCursorWithPadding(
-            this.tokens,
-            this.comments,
-            this.indexMap,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
             left.range[1],
             right.range[0],
             padding,
             padding
         ).getAllTokens();
     }
-};
 
-module.exports.PUBLIC_METHODS = PUBLIC_METHODS;
+    /**
+     * Gets all comment tokens directly before the given node or token.
+     * @param {ASTNode|token} nodeOrToken The AST node or token to check for adjacent comment tokens.
+     * @returns {Array} An array of comments in occurrence order.
+     */
+    getCommentsBefore(nodeOrToken) {
+        const cursor = createCursorWithCount(
+            cursors.backward,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
+            -1,
+            nodeOrToken.range[0],
+            { includeComments: true }
+        );
+
+        return getAdjacentCommentTokensFromCursor(cursor).reverse();
+    }
+
+    /**
+     * Gets all comment tokens directly after the given node or token.
+     * @param {ASTNode|token} nodeOrToken The AST node or token to check for adjacent comment tokens.
+     * @returns {Array} An array of comments in occurrence order.
+     */
+    getCommentsAfter(nodeOrToken) {
+        const cursor = createCursorWithCount(
+            cursors.forward,
+            this[TOKENS],
+            this[COMMENTS],
+            this[INDEX_MAP],
+            nodeOrToken.range[1],
+            -1,
+            { includeComments: true }
+        );
+
+        return getAdjacentCommentTokensFromCursor(cursor);
+    }
+
+    /**
+     * Gets all comment tokens inside the given node.
+     * @param {ASTNode} node The AST node to get the comments for.
+     * @returns {Array} An array of comments in occurrence order.
+     */
+    getCommentsInside(node) {
+        return this.getTokens(node, {
+            includeComments: true,
+            filter: astUtils.isCommentToken
+        });
+    }
+};

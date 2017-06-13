@@ -1,9 +1,9 @@
 'use strict';
-var objectAssign = require('object-assign');
-var escapeStringRegexp = require('escape-string-regexp');
-var platform = process.platform;
+const escapeStringRegexp = require('escape-string-regexp');
 
-var main = {
+const platform = process.platform;
+
+const main = {
 	tick: '✔',
 	cross: '✖',
 	star: '★',
@@ -62,7 +62,7 @@ var main = {
 	sevenEighths: '⅞'
 };
 
-var win = {
+const win = {
 	tick: '√',
 	cross: '×',
 	star: '*',
@@ -126,14 +126,14 @@ if (platform === 'linux') {
 	main.questionMarkPrefix = '?';
 }
 
-var figures = platform === 'win32' ? win : main;
+const figures = platform === 'win32' ? win : main;
 
-var fn = function (str) {
+const fn = str => {
 	if (figures === main) {
 		return str;
 	}
 
-	Object.keys(main).forEach(function (key) {
+	Object.keys(main).forEach(key => {
 		if (main[key] === figures[key]) {
 			return;
 		}
@@ -144,4 +144,4 @@ var fn = function (str) {
 	return str;
 };
 
-module.exports = objectAssign(fn, figures);
+module.exports = Object.assign(fn, figures);

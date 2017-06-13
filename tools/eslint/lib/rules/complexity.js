@@ -122,7 +122,7 @@ module.exports = {
 
             // Avoiding `default`
             if (node.test) {
-                increaseComplexity(node);
+                increaseComplexity();
             }
         }
 
@@ -136,7 +136,7 @@ module.exports = {
 
             // Avoiding &&
             if (node.operator === "||") {
-                increaseComplexity(node);
+                increaseComplexity();
             }
         }
 

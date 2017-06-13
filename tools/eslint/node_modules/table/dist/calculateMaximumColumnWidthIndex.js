@@ -39,5 +39,3 @@ exports.default = rows => {
 
   return columns;
 };
-
-module.exports = exports['default'];

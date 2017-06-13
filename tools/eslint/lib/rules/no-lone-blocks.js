@@ -94,13 +94,13 @@ module.exports = {
 
             ruleDef.VariableDeclaration = function(node) {
                 if (node.kind === "let" || node.kind === "const") {
-                    markLoneBlock(node);
+                    markLoneBlock();
                 }
             };
 
-            ruleDef.FunctionDeclaration = function(node) {
+            ruleDef.FunctionDeclaration = function() {
                 if (context.getScope().isStrict) {
-                    markLoneBlock(node);
+                    markLoneBlock();
                 }
             };
 

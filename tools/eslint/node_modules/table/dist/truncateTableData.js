@@ -25,5 +25,3 @@ exports.default = (rows, config) => {
     });
   });
 };
-
-module.exports = exports['default'];

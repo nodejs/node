@@ -79,11 +79,17 @@ module.exports = {
                                     return null;
                                 }
 
+                                const tokenAfterProperty = sourceCode.getTokenAfter(rightBracket);
+                                const needsSpaceAfterProperty = tokenAfterProperty &&
+                                    rightBracket.range[1] === tokenAfterProperty.range[0] &&
+                                    !astUtils.canTokensBeAdjacent(String(node.property.value), tokenAfterProperty);
+
                                 const textBeforeDot = astUtils.isDecimalInteger(node.object) ? " " : "";
+                                const textAfterProperty = needsSpaceAfterProperty ? " " : "";
 
                                 return fixer.replaceTextRange(
                                     [leftBracket.range[0], rightBracket.range[1]],
-                                    `${textBeforeDot}.${node.property.value}`
+                                    `${textBeforeDot}.${node.property.value}${textAfterProperty}`
                                 );
                             }
                         });
