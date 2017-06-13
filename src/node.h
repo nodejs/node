@@ -530,14 +530,15 @@ NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
  * I/O from native code. */
 NODE_EXTERN async_uid AsyncHooksGetExecutionAsyncId(v8::Isolate* isolate);
 /* legacy alias */
-[[deprecated("Use AsyncHooksGetExecutionAsyncId(isolate)")]]
-NODE_EXTERN async_uid AsyncHooksGetCurrentId(v8::Isolate* isolate);
+NODE_EXTERN NODE_DEPRECATED("Use AsyncHooksGetExecutionAsyncId(isolate)",
+                async_uid AsyncHooksGetCurrentId(v8::Isolate* isolate));
+
 
 /* Return same value as async_hooks.triggerAsyncId(); */
 NODE_EXTERN async_uid AsyncHooksGetTriggerAsyncId(v8::Isolate* isolate);
 /* legacy alias */
-[[deprecated("Use AsyncHooksGetTriggerAsyncId(isolate)")]]
-NODE_EXTERN async_uid AsyncHooksGetTriggerId(v8::Isolate* isolate);
+NODE_EXTERN NODE_DEPRECATED("Use AsyncHooksGetTriggerAsyncId(isolate)",
+                async_uid AsyncHooksGetTriggerId(v8::Isolate* isolate));
 
 
 /* If the native API doesn't inherit from the helper class then the callbacks
