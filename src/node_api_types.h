@@ -67,7 +67,7 @@ typedef enum {
   napi_generic_failure,
   napi_pending_exception,
   napi_cancelled,
-  napi_status_last
+  napi_escape_called_twice
 } napi_status;
 
 typedef napi_value (*napi_callback)(napi_env env,
