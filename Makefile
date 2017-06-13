@@ -924,6 +924,7 @@ lint:
 	@echo "Linting is not available through the source tarball."
 	@echo "Use the git repo instead:" \
 		"$ git clone https://github.com/nodejs/node.git"
+	exit 1
 
 lint-ci: lint
 endif
