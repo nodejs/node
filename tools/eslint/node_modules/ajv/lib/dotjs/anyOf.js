@@ -7,7 +7,6 @@ module.exports = function generate_anyOf(it, $keyword) {
   var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
-  var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
   var $valid = 'valid' + $lvl;
   var $errs = 'errs__' + $lvl;
@@ -41,7 +40,7 @@ module.exports = function generate_anyOf(it, $keyword) {
     it.compositeRule = $it.compositeRule = $wasComposite;
     out += ' ' + ($closingBraces) + ' if (!' + ($valid) + ') {  var err =   '; /* istanbul ignore else */
     if (it.createErrors !== false) {
-      out += ' { keyword: \'' + ($errorKeyword || 'anyOf') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: {} ';
+      out += ' { keyword: \'' + ('anyOf') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: {} ';
       if (it.opts.messages !== false) {
         out += ' , message: \'should match some schema in anyOf\' ';
       }

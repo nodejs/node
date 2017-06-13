@@ -10,13 +10,12 @@
 //------------------------------------------------------------------------------
 
 const path = require("path"),
+    os = require("os"),
     ConfigOps = require("./config/config-ops"),
     ConfigFile = require("./config/config-file"),
     Plugins = require("./config/plugins"),
     FileFinder = require("./file-finder"),
-    userHome = require("user-home"),
-    isResolvable = require("is-resolvable"),
-    pathIsInside = require("path-is-inside");
+    isResolvable = require("is-resolvable");
 
 const debug = require("debug")("eslint:config");
 
@@ -24,7 +23,7 @@ const debug = require("debug")("eslint:config");
 // Constants
 //------------------------------------------------------------------------------
 
-const PERSONAL_CONFIG_DIR = userHome || null;
+const PERSONAL_CONFIG_DIR = os.homedir() || null;
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -43,10 +42,11 @@ function isObject(item) {
 /**
  * Load and parse a JSON config object from a file.
  * @param {string|Object} configToLoad the path to the JSON config file or the config object itself.
+ * @param {Config} configContext config instance object
  * @returns {Object} the parsed config object (empty object if there was a parse error)
  * @private
  */
-function loadConfig(configToLoad) {
+function loadConfig(configToLoad, configContext) {
     let config = {},
         filePath = "";
 
@@ -56,32 +56,33 @@ function loadConfig(configToLoad) {
             config = configToLoad;
 
             if (config.extends) {
-                config = ConfigFile.applyExtends(config, filePath);
+                config = ConfigFile.applyExtends(config, configContext, filePath);
             }
         } else {
             filePath = configToLoad;
-            config = ConfigFile.load(filePath);
+            config = ConfigFile.load(filePath, configContext);
         }
 
     }
-
     return config;
 }
 
 /**
  * Get personal config object from ~/.eslintrc.
+ * @param {Config} configContext Plugin context for the config instance
  * @returns {Object} the personal config object (null if there is no personal config)
  * @private
  */
-function getPersonalConfig() {
+function getPersonalConfig(configContext) {
     let config;
 
     if (PERSONAL_CONFIG_DIR) {
+
         const filename = ConfigFile.getFilenameForDirectory(PERSONAL_CONFIG_DIR);
 
         if (filename) {
             debug("Using personal config");
-            config = loadConfig(filename);
+            config = loadConfig(filename, configContext);
         }
     }
 
@@ -99,21 +100,18 @@ function hasRules(options) {
 
 /**
  * Get a local config object.
- * @param {Object} thisConfig A Config object.
+ * @param {Config} thisConfig A Config object.
  * @param {string} directory The directory to start looking in for a local config file.
  * @returns {Object} The local config object, or an empty object if there is no local config.
  */
 function getLocalConfig(thisConfig, directory) {
-    const localConfigFiles = thisConfig.findLocalConfigFiles(directory),
-        numFiles = localConfigFiles.length,
-        projectConfigPath = ConfigFile.getFilenameForDirectory(thisConfig.options.cwd);
+
+    const projectConfigPath = ConfigFile.getFilenameForDirectory(thisConfig.options.cwd);
+    const localConfigFiles = thisConfig.findLocalConfigFiles(directory);
     let found,
-        config = {},
-        rootPath;
+        config = {};
 
-    for (let i = 0; i < numFiles; i++) {
-
-        const localConfigFile = localConfigFiles[i];
+    for (const localConfigFile of localConfigFiles) {
 
         // Don't consider the personal config file in the home directory,
         // except if the home directory is the same as the current working directory
@@ -121,27 +119,22 @@ function getLocalConfig(thisConfig, directory) {
             continue;
         }
 
-        // If root flag is set, don't consider file if it is above root
-        if (rootPath && !pathIsInside(path.dirname(localConfigFile), rootPath)) {
-            continue;
-        }
-
         debug(`Loading ${localConfigFile}`);
-        const localConfig = loadConfig(localConfigFile);
+        const localConfig = loadConfig(localConfigFile, thisConfig);
 
         // Don't consider a local config file found if the config is null
         if (!localConfig) {
             continue;
         }
 
-        // Check for root flag
-        if (localConfig.root === true) {
-            rootPath = path.dirname(localConfigFile);
-        }
-
         found = true;
         debug(`Using ${localConfigFile}`);
         config = ConfigOps.merge(localConfig, config);
+
+        // Check for root flag
+        if (localConfig.root === true) {
+            break;
+        }
     }
 
     if (!found && !thisConfig.useSpecificConfig) {
@@ -152,7 +145,7 @@ function getLocalConfig(thisConfig, directory) {
          * - Otherwise, if no rules were manually passed in, throw and error.
          * - Note: This function is not called if useEslintrc is false.
          */
-        const personalConfig = getPersonalConfig();
+        const personalConfig = getPersonalConfig(thisConfig);
 
         if (personalConfig) {
             config = ConfigOps.merge(config, personalConfig);
@@ -186,9 +179,13 @@ class Config {
     /**
      * Config options
      * @param {Object} options Options to be passed in
+     * @param {Linter} linterContext Linter instance object
      */
-    constructor(options) {
+    constructor(options, linterContext) {
         options = options || {};
+
+        this.linterContext = linterContext;
+        this.plugins = new Plugins(linterContext.environments, linterContext.rules);
 
         this.ignore = options.ignore;
         this.ignorePath = options.ignorePath;
@@ -196,7 +193,7 @@ class Config {
         this.parser = options.parser;
         this.parserOptions = options.parserOptions || {};
 
-        this.baseConfig = options.baseConfig ? loadConfig(options.baseConfig) : { rules: {} };
+        this.baseConfig = options.baseConfig ? loadConfig(options.baseConfig, this) : { rules: {} };
 
         this.useEslintrc = (options.useEslintrc !== false);
 
@@ -219,16 +216,22 @@ class Config {
             return globals;
         }, {});
 
-        const useConfig = options.configFile;
-
         this.options = options;
+        this.loadConfigFile(options.configFile);
+    }
 
-        if (useConfig) {
-            debug(`Using command line config ${useConfig}`);
-            if (isResolvable(useConfig) || isResolvable(`eslint-config-${useConfig}`) || useConfig.charAt(0) === "@") {
-                this.useSpecificConfig = loadConfig(useConfig);
+    /**
+     * Loads the config from the configuration file
+     * @param {string} configFile - patch to the config file
+     * @returns {undefined}
+     */
+    loadConfigFile(configFile) {
+        if (configFile) {
+            debug(`Using command line config ${configFile}`);
+            if (isResolvable(configFile) || isResolvable(`eslint-config-${configFile}`) || configFile.charAt(0) === "@") {
+                this.useSpecificConfig = loadConfig(configFile, this);
             } else {
-                this.useSpecificConfig = loadConfig(path.resolve(this.options.cwd, useConfig));
+                this.useSpecificConfig = loadConfig(path.resolve(this.options.cwd, configFile), this);
             }
         }
     }
@@ -248,7 +251,6 @@ class Config {
         debug(`Constructing config for ${filePath ? filePath : "text"}`);
 
         config = this.cache[directory];
-
         if (config) {
             debug("Using config from cache");
             return config;
@@ -306,13 +308,13 @@ class Config {
         // Step 8: Merge in command line plugins
         if (this.options.plugins) {
             debug("Merging command line plugins");
-            Plugins.loadAll(this.options.plugins);
+            this.plugins.loadAll(this.options.plugins);
             config = ConfigOps.merge(config, { plugins: this.options.plugins });
         }
 
         // Step 9: Apply environments to the config if present
         if (config.env) {
-            config = ConfigOps.applyEnvironments(config);
+            config = ConfigOps.applyEnvironments(config, this.linterContext.environments);
         }
 
         this.cache[directory] = config;
@@ -323,7 +325,7 @@ class Config {
     /**
      * Find local config files from directory and parent directories.
      * @param {string} directory The directory to start searching from.
-     * @returns {string[]} The paths of local config files found.
+     * @returns {GeneratorFunction} The paths of local config files found.
      */
     findLocalConfigFiles(directory) {
 

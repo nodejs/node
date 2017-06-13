@@ -109,8 +109,10 @@ module.exports = {
                 return;
             }
 
-            if (checkArrays && isArrayIndexAccess(rightNode)) {
-                report(reportNode, "array");
+            if (isArrayIndexAccess(rightNode)) {
+                if (checkArrays) {
+                    report(reportNode, "array");
+                }
                 return;
             }
 

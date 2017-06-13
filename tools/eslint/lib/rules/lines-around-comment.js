@@ -31,7 +31,7 @@ function getEmptyLineNums(lines) {
 
 /**
  * Return an array with with any line numbers that contain comments.
- * @param {Array} comments An array of comment nodes.
+ * @param {Array} comments An array of comment tokens.
  * @returns {Array} An array of line numbers.
  */
 function getCommentLineNums(comments) {
@@ -132,37 +132,27 @@ module.exports = {
             commentAndEmptyLines = commentLines.concat(emptyLines);
 
         /**
-         * Returns whether or not a token is a comment node type
-         * @param {Token} token The token to check
-         * @returns {boolean} True if the token is a comment node
-         */
-        function isCommentNodeType(token) {
-            return token && (token.type === "Block" || token.type === "Line");
-        }
-
-        /**
          * Returns whether or not comments are on lines starting with or ending with code
-         * @param {ASTNode} node The comment node to check.
+         * @param {token} token The comment token to check.
          * @returns {boolean} True if the comment is not alone.
          */
-        function codeAroundComment(node) {
-            let token;
+        function codeAroundComment(token) {
+            let currentToken = token;
 
-            token = node;
             do {
-                token = sourceCode.getTokenBefore(token, { includeComments: true });
-            } while (isCommentNodeType(token));
+                currentToken = sourceCode.getTokenBefore(currentToken, { includeComments: true });
+            } while (currentToken && astUtils.isCommentToken(currentToken));
 
-            if (token && astUtils.isTokenOnSameLine(token, node)) {
+            if (currentToken && astUtils.isTokenOnSameLine(currentToken, token)) {
                 return true;
             }
 
-            token = node;
+            currentToken = token;
             do {
-                token = sourceCode.getTokenAfter(token, { includeComments: true });
-            } while (isCommentNodeType(token));
+                currentToken = sourceCode.getTokenAfter(currentToken, { includeComments: true });
+            } while (currentToken && astUtils.isCommentToken(currentToken));
 
-            if (token && astUtils.isTokenOnSameLine(node, token)) {
+            if (currentToken && astUtils.isTokenOnSameLine(token, currentToken)) {
                 return true;
             }
 
@@ -171,137 +161,135 @@ module.exports = {
 
         /**
          * Returns whether or not comments are inside a node type or not.
-         * @param {ASTNode} node The Comment node.
          * @param {ASTNode} parent The Comment parent node.
          * @param {string} nodeType The parent type to check against.
          * @returns {boolean} True if the comment is inside nodeType.
          */
-        function isCommentInsideNodeType(node, parent, nodeType) {
+        function isParentNodeType(parent, nodeType) {
             return parent.type === nodeType ||
                 (parent.body && parent.body.type === nodeType) ||
                 (parent.consequent && parent.consequent.type === nodeType);
         }
 
         /**
+         * Returns the parent node that contains the given token.
+         * @param {token} token The token to check.
+         * @returns {ASTNode} The parent node that contains the given token.
+         */
+        function getParentNodeOfToken(token) {
+            return sourceCode.getNodeByRangeIndex(token.range[0]);
+        }
+
+        /**
          * Returns whether or not comments are at the parent start or not.
-         * @param {ASTNode} node The Comment node.
+         * @param {token} token The Comment token.
          * @param {string} nodeType The parent type to check against.
          * @returns {boolean} True if the comment is at parent start.
          */
-        function isCommentAtParentStart(node, nodeType) {
-            const ancestors = context.getAncestors();
-            let parent;
+        function isCommentAtParentStart(token, nodeType) {
+            const parent = getParentNodeOfToken(token);
 
-            if (ancestors.length) {
-                parent = ancestors.pop();
-            }
-
-            return parent && isCommentInsideNodeType(node, parent, nodeType) &&
-                    node.loc.start.line - parent.loc.start.line === 1;
+            return parent && isParentNodeType(parent, nodeType) &&
+                    token.loc.start.line - parent.loc.start.line === 1;
         }
 
         /**
          * Returns whether or not comments are at the parent end or not.
-         * @param {ASTNode} node The Comment node.
+         * @param {token} token The Comment token.
          * @param {string} nodeType The parent type to check against.
          * @returns {boolean} True if the comment is at parent end.
          */
-        function isCommentAtParentEnd(node, nodeType) {
-            const ancestors = context.getAncestors();
-            let parent;
+        function isCommentAtParentEnd(token, nodeType) {
+            const parent = getParentNodeOfToken(token);
 
-            if (ancestors.length) {
-                parent = ancestors.pop();
-            }
-
-            return parent && isCommentInsideNodeType(node, parent, nodeType) &&
-                    parent.loc.end.line - node.loc.end.line === 1;
+            return parent && isParentNodeType(parent, nodeType) &&
+                    parent.loc.end.line - token.loc.end.line === 1;
         }
 
         /**
          * Returns whether or not comments are at the block start or not.
-         * @param {ASTNode} node The Comment node.
+         * @param {token} token The Comment token.
          * @returns {boolean} True if the comment is at block start.
          */
-        function isCommentAtBlockStart(node) {
-            return isCommentAtParentStart(node, "ClassBody") || isCommentAtParentStart(node, "BlockStatement") || isCommentAtParentStart(node, "SwitchCase");
+        function isCommentAtBlockStart(token) {
+            return isCommentAtParentStart(token, "ClassBody") || isCommentAtParentStart(token, "BlockStatement") || isCommentAtParentStart(token, "SwitchCase");
         }
 
         /**
          * Returns whether or not comments are at the block end or not.
-         * @param {ASTNode} node The Comment node.
+         * @param {token} token The Comment token.
          * @returns {boolean} True if the comment is at block end.
          */
-        function isCommentAtBlockEnd(node) {
-            return isCommentAtParentEnd(node, "ClassBody") || isCommentAtParentEnd(node, "BlockStatement") || isCommentAtParentEnd(node, "SwitchCase") || isCommentAtParentEnd(node, "SwitchStatement");
+        function isCommentAtBlockEnd(token) {
+            return isCommentAtParentEnd(token, "ClassBody") || isCommentAtParentEnd(token, "BlockStatement") || isCommentAtParentEnd(token, "SwitchCase") || isCommentAtParentEnd(token, "SwitchStatement");
         }
 
         /**
          * Returns whether or not comments are at the object start or not.
-         * @param {ASTNode} node The Comment node.
+         * @param {token} token The Comment token.
          * @returns {boolean} True if the comment is at object start.
          */
-        function isCommentAtObjectStart(node) {
-            return isCommentAtParentStart(node, "ObjectExpression") || isCommentAtParentStart(node, "ObjectPattern");
+        function isCommentAtObjectStart(token) {
+            return isCommentAtParentStart(token, "ObjectExpression") || isCommentAtParentStart(token, "ObjectPattern");
         }
 
         /**
          * Returns whether or not comments are at the object end or not.
-         * @param {ASTNode} node The Comment node.
+         * @param {token} token The Comment token.
          * @returns {boolean} True if the comment is at object end.
          */
-        function isCommentAtObjectEnd(node) {
-            return isCommentAtParentEnd(node, "ObjectExpression") || isCommentAtParentEnd(node, "ObjectPattern");
+        function isCommentAtObjectEnd(token) {
+            return isCommentAtParentEnd(token, "ObjectExpression") || isCommentAtParentEnd(token, "ObjectPattern");
         }
 
         /**
          * Returns whether or not comments are at the array start or not.
-         * @param {ASTNode} node The Comment node.
+         * @param {token} token The Comment token.
          * @returns {boolean} True if the comment is at array start.
          */
-        function isCommentAtArrayStart(node) {
-            return isCommentAtParentStart(node, "ArrayExpression") || isCommentAtParentStart(node, "ArrayPattern");
+        function isCommentAtArrayStart(token) {
+            return isCommentAtParentStart(token, "ArrayExpression") || isCommentAtParentStart(token, "ArrayPattern");
         }
 
         /**
          * Returns whether or not comments are at the array end or not.
-         * @param {ASTNode} node The Comment node.
+         * @param {token} token The Comment token.
          * @returns {boolean} True if the comment is at array end.
          */
-        function isCommentAtArrayEnd(node) {
-            return isCommentAtParentEnd(node, "ArrayExpression") || isCommentAtParentEnd(node, "ArrayPattern");
+        function isCommentAtArrayEnd(token) {
+            return isCommentAtParentEnd(token, "ArrayExpression") || isCommentAtParentEnd(token, "ArrayPattern");
         }
 
         /**
-         * Checks if a comment node has lines around it (ignores inline comments)
-         * @param {ASTNode} node The Comment node.
+         * Checks if a comment token has lines around it (ignores inline comments)
+         * @param {token} token The Comment token.
          * @param {Object} opts Options to determine the newline.
          * @param {boolean} opts.after Should have a newline after this line.
          * @param {boolean} opts.before Should have a newline before this line.
          * @returns {void}
          */
-        function checkForEmptyLine(node, opts) {
-            if (applyDefaultIgnorePatterns && defaultIgnoreRegExp.test(node.value)) {
+        function checkForEmptyLine(token, opts) {
+            if (applyDefaultIgnorePatterns && defaultIgnoreRegExp.test(token.value)) {
                 return;
             }
 
-            if (ignorePattern && customIgnoreRegExp.test(node.value)) {
+            if (ignorePattern && customIgnoreRegExp.test(token.value)) {
                 return;
             }
 
             let after = opts.after,
                 before = opts.before;
 
-            const prevLineNum = node.loc.start.line - 1,
-                nextLineNum = node.loc.end.line + 1,
-                commentIsNotAlone = codeAroundComment(node);
+            const prevLineNum = token.loc.start.line - 1,
+                nextLineNum = token.loc.end.line + 1,
+                commentIsNotAlone = codeAroundComment(token);
 
-            const blockStartAllowed = options.allowBlockStart && isCommentAtBlockStart(node),
-                blockEndAllowed = options.allowBlockEnd && isCommentAtBlockEnd(node),
-                objectStartAllowed = options.allowObjectStart && isCommentAtObjectStart(node),
-                objectEndAllowed = options.allowObjectEnd && isCommentAtObjectEnd(node),
-                arrayStartAllowed = options.allowArrayStart && isCommentAtArrayStart(node),
-                arrayEndAllowed = options.allowArrayEnd && isCommentAtArrayEnd(node);
+            const blockStartAllowed = options.allowBlockStart && isCommentAtBlockStart(token),
+                blockEndAllowed = options.allowBlockEnd && isCommentAtBlockEnd(token),
+                objectStartAllowed = options.allowObjectStart && isCommentAtObjectStart(token),
+                objectEndAllowed = options.allowObjectEnd && isCommentAtObjectEnd(token),
+                arrayStartAllowed = options.allowArrayStart && isCommentAtArrayStart(token),
+                arrayEndAllowed = options.allowArrayEnd && isCommentAtArrayEnd(token);
 
             const exceptionStartAllowed = blockStartAllowed || objectStartAllowed || arrayStartAllowed;
             const exceptionEndAllowed = blockEndAllowed || objectEndAllowed || arrayEndAllowed;
@@ -319,17 +307,17 @@ module.exports = {
                 return;
             }
 
-            const previousTokenOrComment = sourceCode.getTokenBefore(node, { includeComments: true });
-            const nextTokenOrComment = sourceCode.getTokenAfter(node, { includeComments: true });
+            const previousTokenOrComment = sourceCode.getTokenBefore(token, { includeComments: true });
+            const nextTokenOrComment = sourceCode.getTokenAfter(token, { includeComments: true });
 
             // check for newline before
             if (!exceptionStartAllowed && before && !lodash.includes(commentAndEmptyLines, prevLineNum) &&
-                    !(isCommentNodeType(previousTokenOrComment) && astUtils.isTokenOnSameLine(previousTokenOrComment, node))) {
-                const lineStart = node.range[0] - node.loc.start.column;
+                    !(astUtils.isCommentToken(previousTokenOrComment) && astUtils.isTokenOnSameLine(previousTokenOrComment, token))) {
+                const lineStart = token.range[0] - token.loc.start.column;
                 const range = [lineStart, lineStart];
 
                 context.report({
-                    node,
+                    node: token,
                     message: "Expected line before comment.",
                     fix(fixer) {
                         return fixer.insertTextBeforeRange(range, "\n");
@@ -339,12 +327,12 @@ module.exports = {
 
             // check for newline after
             if (!exceptionEndAllowed && after && !lodash.includes(commentAndEmptyLines, nextLineNum) &&
-                    !(isCommentNodeType(nextTokenOrComment) && astUtils.isTokenOnSameLine(node, nextTokenOrComment))) {
+                    !(astUtils.isCommentToken(nextTokenOrComment) && astUtils.isTokenOnSameLine(token, nextTokenOrComment))) {
                 context.report({
-                    node,
+                    node: token,
                     message: "Expected line after comment.",
                     fix(fixer) {
-                        return fixer.insertTextAfter(node, "\n");
+                        return fixer.insertTextAfter(token, "\n");
                     }
                 });
             }
@@ -356,25 +344,25 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-
-            LineComment(node) {
-                if (options.beforeLineComment || options.afterLineComment) {
-                    checkForEmptyLine(node, {
-                        after: options.afterLineComment,
-                        before: options.beforeLineComment
-                    });
-                }
-            },
-
-            BlockComment(node) {
-                if (options.beforeBlockComment || options.afterBlockComment) {
-                    checkForEmptyLine(node, {
-                        after: options.afterBlockComment,
-                        before: options.beforeBlockComment
-                    });
-                }
+            Program() {
+                comments.forEach(token => {
+                    if (token.type === "Line") {
+                        if (options.beforeLineComment || options.afterLineComment) {
+                            checkForEmptyLine(token, {
+                                after: options.afterLineComment,
+                                before: options.beforeLineComment
+                            });
+                        }
+                    } else if (token.type === "Block") {
+                        if (options.beforeBlockComment || options.afterBlockComment) {
+                            checkForEmptyLine(token, {
+                                after: options.afterBlockComment,
+                                before: options.beforeBlockComment
+                            });
+                        }
+                    }
+                });
             }
-
         };
     }
 };

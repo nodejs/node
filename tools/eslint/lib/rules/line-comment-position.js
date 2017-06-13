@@ -78,33 +78,37 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            LineComment(node) {
-                if (applyDefaultIgnorePatterns && (defaultIgnoreRegExp.test(node.value) || fallThroughRegExp.test(node.value))) {
-                    return;
-                }
+            Program() {
+                const comments = sourceCode.getAllComments();
 
-                if (ignorePattern && customIgnoreRegExp.test(node.value)) {
-                    return;
-                }
-
-                const previous = sourceCode.getTokenBefore(node, { includeComments: true });
-                const isOnSameLine = previous && previous.loc.end.line === node.loc.start.line;
-
-                if (above) {
-                    if (isOnSameLine) {
-                        context.report({
-                            node,
-                            message: "Expected comment to be above code."
-                        });
+                comments.filter(token => token.type === "Line").forEach(node => {
+                    if (applyDefaultIgnorePatterns && (defaultIgnoreRegExp.test(node.value) || fallThroughRegExp.test(node.value))) {
+                        return;
                     }
-                } else {
-                    if (!isOnSameLine) {
-                        context.report({
-                            node,
-                            message: "Expected comment to be beside code."
-                        });
+
+                    if (ignorePattern && customIgnoreRegExp.test(node.value)) {
+                        return;
                     }
-                }
+
+                    const previous = sourceCode.getTokenBefore(node, { includeComments: true });
+                    const isOnSameLine = previous && previous.loc.end.line === node.loc.start.line;
+
+                    if (above) {
+                        if (isOnSameLine) {
+                            context.report({
+                                node,
+                                message: "Expected comment to be above code."
+                            });
+                        }
+                    } else {
+                        if (!isOnSameLine) {
+                            context.report({
+                                node,
+                                message: "Expected comment to be beside code."
+                            });
+                        }
+                    }
+                });
             }
         };
     }

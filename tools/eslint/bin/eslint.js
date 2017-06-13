@@ -61,14 +61,12 @@ if (useStdIn) {
 } else if (init) {
     const configInit = require("../lib/config/config-initializer");
 
-    configInit.initializeConfig(err => {
-        if (err) {
-            process.exitCode = 1;
-            console.error(err.message);
-            console.error(err.stack);
-        } else {
-            process.exitCode = 0;
-        }
+    configInit.initializeConfig().then(() => {
+        process.exitCode = 0;
+    }).catch(err => {
+        process.exitCode = 1;
+        console.error(err.message);
+        console.error(err.stack);
     });
 } else {
     process.exitCode = cli.execute(process.argv);

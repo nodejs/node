@@ -4,7 +4,6 @@ var _ = require('lodash');
 var Separator = require('./separator');
 var Choice = require('./choice');
 
-
 /**
  * Choices collection
  * Collection of multiple `choice` object
@@ -48,7 +47,6 @@ var Choices = module.exports = function (choices, answers) {
   });
 };
 
-
 /**
  * Get a valid choice from the collection
  * @param  {Number} selector  The selected choice index
@@ -59,7 +57,6 @@ Choices.prototype.getChoice = function (selector) {
   assert(_.isNumber(selector));
   return this.realChoices[selector];
 };
-
 
 /**
  * Get a raw element from the collection
@@ -72,7 +69,6 @@ Choices.prototype.get = function (selector) {
   return this.choices[selector];
 };
 
-
 /**
  * Match the valid choices against a where clause
  * @param  {Object} whereClause Lodash `where` clause
@@ -82,7 +78,6 @@ Choices.prototype.get = function (selector) {
 Choices.prototype.where = function (whereClause) {
   return _.filter(this.realChoices, whereClause);
 };
-
 
 /**
  * Pluck a particular key from the choices
@@ -94,7 +89,6 @@ Choices.prototype.pluck = function (propertyName) {
   return _.map(this.realChoices, propertyName);
 };
 
-
 // Expose usual Array methods
 Choices.prototype.indexOf = function () {
   return this.choices.indexOf.apply(this.choices, arguments);
@@ -105,8 +99,13 @@ Choices.prototype.forEach = function () {
 Choices.prototype.filter = function () {
   return this.choices.filter.apply(this.choices, arguments);
 };
+Choices.prototype.find = function (func) {
+  return _.find(this.choices, func);
+};
 Choices.prototype.push = function () {
-  var objs = _.map(arguments, function (val) { return new Choice(val); });
+  var objs = _.map(arguments, function (val) {
+    return new Choice(val);
+  });
   this.choices.push.apply(this.choices, objs);
   this.realChoices = this.choices.filter(Separator.exclude);
   return this.choices;

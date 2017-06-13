@@ -4,7 +4,7 @@ The Reactive Extensions for JavaScript Lite version is a lightweight version of 
 
 ## Getting Started
 
-There are a number of ways to get started with RxJS. 
+There are a number of ways to get started with RxJS.
 
 ### Installing with [NPM](https://npmjs.org/)
 
@@ -115,7 +115,6 @@ var Rx = require('rx-lite');
 - [`tapOnError`](../../doc/api/core/operators/doonerror.md)
 - [`tapOnCompleted`](../../doc/api/core/operators/dooncompleted.md)
 - [`throttle`](../../doc/api/core/operators/throttle.md)
-- [`throttleFirst`](../../doc/api/core/operators/throttlefirst.md)
 - [`timeout`](../../doc/api/core/operators/timeout.md)
 - [`timestamp`](../../doc/api/core/operators/timestamp.md)
 - [`toArray`](../../doc/api/core/operators/toarray.md)

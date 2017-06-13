@@ -45,5 +45,3 @@ exports.default = function (value, columnWidth) {
 
   return _lodash2.default.ceil((0, _stringWidth2.default)(value) / columnWidth);
 };
-
-module.exports = exports['default'];
