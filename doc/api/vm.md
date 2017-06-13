@@ -129,7 +129,7 @@ console.log(util.inspect(sandbox));
 event loops and corresponding threads being started, which have a non-zero
 performance overhead.
 
-### script.runInNewContext([sandbox][, options])
+### script.runInNewContext([sandbox[, options]])
 <!-- YAML
 added: v0.3.1
 -->
