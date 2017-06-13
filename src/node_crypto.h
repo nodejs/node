@@ -9,8 +9,8 @@ namespace crypto {
 class Crypto {
  public:
   virtual ~Crypto() {}
-  __attribute__((constructor)) virtual void RegisterCrypto();
-  __attribute__((destructor)) virtual void UnregisterCrypto();
+  virtual void RegisterCrypto() __attribute__((constructor));
+  virtual void UnregisterCrypto() __attribute__((destructor));
   /**
    * Allows a crypto implementation to do any additional initializations
    * required.
