@@ -33,7 +33,7 @@ assert.throws(() => tls.createServer({sessionTimeout: 'abcd'}),
 assert.throws(() => tls.createServer({ticketKeys: 'abcd'}),
               /TypeError: Ticket keys must be a buffer/);
 
-assert.throws(() => tls.createServer({ticketKeys: new Buffer(0)}),
+assert.throws(() => tls.createServer({ticketKeys: Buffer.alloc(0)}),
               /TypeError: Ticket keys length must be 48 bytes/);
 
 assert.throws(() => tls.createSecurePair({}),
