@@ -468,6 +468,10 @@ assert.strictEqual(Buffer.from('=bad'.repeat(1e4), 'base64').length, 0);
 assert.deepStrictEqual(Buffer.from('w0  ', 'base64'),
                        Buffer.from('w0', 'base64'));
 
+// Regression test for https://github.com/nodejs/node/issues/13657.
+assert.deepStrictEqual(Buffer.from(' YWJvcnVtLg', 'base64'),
+                       Buffer.from('YWJvcnVtLg', 'base64'));
+
 {
   // Creating buffers larger than pool size.
   const l = Buffer.poolSize + 5;
