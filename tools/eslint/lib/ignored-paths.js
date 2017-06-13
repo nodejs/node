@@ -12,7 +12,6 @@
 const fs = require("fs"),
     path = require("path"),
     ignore = require("ignore"),
-    shell = require("shelljs"),
     pathUtil = require("./util/path-util");
 
 const debug = require("debug")("eslint:ignored-paths");
@@ -54,7 +53,7 @@ function findIgnoreFile(cwd) {
 
     const ignoreFilePath = path.resolve(cwd, ESLINT_IGNORE_FILENAME);
 
-    return shell.test("-f", ignoreFilePath) ? ignoreFilePath : "";
+    return fs.existsSync(ignoreFilePath) && fs.statSync(ignoreFilePath).isFile() ? ignoreFilePath : "";
 }
 
 /**
@@ -179,7 +178,7 @@ class IgnoredPaths {
 
         let result = false;
         const absolutePath = path.resolve(this.options.cwd, filepath);
-        const relativePath = pathUtil.getRelativePath(absolutePath, this.options.cwd);
+        const relativePath = pathUtil.getRelativePath(absolutePath, this.baseDir);
 
         if ((typeof category === "undefined") || (category === "default")) {
             result = result || (this.ig.default.filter([relativePath]).length === 0);
@@ -213,15 +212,7 @@ class IgnoredPaths {
 
         const filter = ig.createFilter();
 
-        /**
-         * TODO
-         * 1.
-         * Actually, it should be `this.options.baseDir`, which is the base dir of `ignore-path`,
-         * as well as Line 177.
-         * But doing this leads to a breaking change and fails tests.
-         * Related to #6759
-         */
-        const base = this.options.cwd;
+        const base = this.baseDir;
 
         return function(absolutePath) {
             const relative = pathUtil.getRelativePath(absolutePath, base);

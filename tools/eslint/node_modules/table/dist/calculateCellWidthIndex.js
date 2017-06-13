@@ -25,5 +25,3 @@ exports.default = cells => {
     return (0, _stringWidth2.default)(value);
   });
 };
-
-module.exports = exports['default'];

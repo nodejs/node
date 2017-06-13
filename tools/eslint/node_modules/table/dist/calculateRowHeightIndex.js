@@ -46,5 +46,3 @@ exports.default = (rows, config) => {
 
   return rowSpanIndex;
 };
-
-module.exports = exports['default'];

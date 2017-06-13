@@ -9,9 +9,10 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const rules = require("../rules"),
+const Rules = require("../rules"),
     loadRules = require("../load-rules");
 
+const rules = new Rules();
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -168,16 +169,16 @@ function combinePropertyObjects(objArr1, objArr2) {
     return res;
 }
 
- /**
-  * Creates a new instance of a rule configuration set
-  *
-  * A rule configuration set is an array of configurations that are valid for a
-  * given rule.  For example, the configuration set for the "semi" rule could be:
-  *
-  * ruleConfigSet.ruleConfigs // -> [[2], [2, "always"], [2, "never"]]
-  *
-  * Rule configuration set class
-  */
+/**
+ * Creates a new instance of a rule configuration set
+ *
+ * A rule configuration set is an array of configurations that are valid for a
+ * given rule.  For example, the configuration set for the "semi" rule could be:
+ *
+ * ruleConfigSet.ruleConfigs // -> [[2], [2, "always"], [2, "never"]]
+ *
+ * Rule configuration set class
+ */
 class RuleConfigSet {
 
     /**

@@ -149,7 +149,7 @@ module.exports = {
                             message: "Member '{{memberName}}' of the import declaration should be sorted alphabetically.",
                             data: { memberName: importSpecifiers[firstUnsortedIndex].local.name },
                             fix(fixer) {
-                                if (importSpecifiers.some(specifier => sourceCode.getComments(specifier).leading.length || sourceCode.getComments(specifier).trailing.length)) {
+                                if (importSpecifiers.some(specifier => sourceCode.getCommentsBefore(specifier).length || sourceCode.getCommentsAfter(specifier).length)) {
 
                                     // If there are comments in the ImportSpecifier list, don't rearrange the specifiers.
                                     return null;
