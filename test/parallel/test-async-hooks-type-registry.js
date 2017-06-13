@@ -30,5 +30,5 @@ assert.throws(
 );
 
 const types2 = async_hooks.getTypes();
-assert.strictEqual(types2.length, types1 + 1);
+assert.strictEqual(types2.length, types1.length + 1);
 assert.strictEqual(types2.includes(newType), true);
