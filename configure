@@ -1284,7 +1284,6 @@ def configure_intl(o):
     'stubdata': 'stubdata',
     'common': 'common',
     'i18n': 'i18n',
-    'io': 'io',
     'tools': 'tools/toolutil',
     'genccode': 'tools/genccode',
     'genrb': 'tools/genrb',
