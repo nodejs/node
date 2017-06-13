@@ -28,8 +28,8 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-// since this test should fail with `ENOTFOUND` becuase of the unfindable host
-// we don't care about the port, so we just pick an arbitrary but valid port
+// Since this test should fail with `ENOTFOUND` becuase of the unfindable host
+// we don't care about the port, so we just pick an arbitrary but valid port.
 const arbitrary_port = common.PORT
 const unfindable_host = '***';
 const client = net.connect({host: unfindable_host, port: arbitrary_port});
