@@ -7,7 +7,6 @@ module.exports = function generate_dependencies(it, $keyword) {
   var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
-  var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
   var $errs = 'errs__' + $lvl;
   var $it = it.util.copy(it);
@@ -52,7 +51,7 @@ module.exports = function generate_dependencies(it, $keyword) {
       $$outStack.push(out);
       out = ''; /* istanbul ignore else */
       if (it.createErrors !== false) {
-        out += ' { keyword: \'' + ($errorKeyword || 'dependencies') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { property: \'' + (it.util.escapeQuotes($property)) + '\', missingProperty: \'' + ($missingProperty) + '\', depsCount: ' + ($deps.length) + ', deps: \'' + (it.util.escapeQuotes($deps.length == 1 ? $deps[0] : $deps.join(", "))) + '\' } ';
+        out += ' { keyword: \'' + ('dependencies') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { property: \'' + (it.util.escapeQuotes($property)) + '\', missingProperty: \'' + ($missingProperty) + '\', depsCount: ' + ($deps.length) + ', deps: \'' + (it.util.escapeQuotes($deps.length == 1 ? $deps[0] : $deps.join(", "))) + '\' } ';
         if (it.opts.messages !== false) {
           out += ' , message: \'should have ';
           if ($deps.length == 1) {
@@ -95,7 +94,7 @@ module.exports = function generate_dependencies(it, $keyword) {
           }
           out += ' if (' + ($data) + ($prop) + ' === undefined) {  var err =   '; /* istanbul ignore else */
           if (it.createErrors !== false) {
-            out += ' { keyword: \'' + ($errorKeyword || 'dependencies') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { property: \'' + (it.util.escapeQuotes($property)) + '\', missingProperty: \'' + ($missingProperty) + '\', depsCount: ' + ($deps.length) + ', deps: \'' + (it.util.escapeQuotes($deps.length == 1 ? $deps[0] : $deps.join(", "))) + '\' } ';
+            out += ' { keyword: \'' + ('dependencies') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { property: \'' + (it.util.escapeQuotes($property)) + '\', missingProperty: \'' + ($missingProperty) + '\', depsCount: ' + ($deps.length) + ', deps: \'' + (it.util.escapeQuotes($deps.length == 1 ? $deps[0] : $deps.join(", "))) + '\' } ';
             if (it.opts.messages !== false) {
               out += ' , message: \'should have ';
               if ($deps.length == 1) {

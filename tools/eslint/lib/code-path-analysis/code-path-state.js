@@ -988,7 +988,7 @@ class CodePathState {
         switch (context.type) {
             case "WhileStatement":
             case "ForStatement":
-                choiceContext = this.popChoiceContext();
+                this.popChoiceContext();
                 makeLooped(
                     this,
                     forkContext.head,

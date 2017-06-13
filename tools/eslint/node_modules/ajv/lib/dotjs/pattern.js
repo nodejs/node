@@ -7,7 +7,6 @@ module.exports = function generate_pattern(it, $keyword) {
   var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
-  var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
   var $isData = it.opts.v5 && $schema && $schema.$data,
     $schemaValue;
@@ -27,7 +26,7 @@ module.exports = function generate_pattern(it, $keyword) {
   $$outStack.push(out);
   out = ''; /* istanbul ignore else */
   if (it.createErrors !== false) {
-    out += ' { keyword: \'' + ($errorKeyword || 'pattern') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { pattern:  ';
+    out += ' { keyword: \'' + ('pattern') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { pattern:  ';
     if ($isData) {
       out += '' + ($schemaValue);
     } else {

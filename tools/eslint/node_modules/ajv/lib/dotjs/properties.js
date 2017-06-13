@@ -7,7 +7,6 @@ module.exports = function generate_properties(it, $keyword) {
   var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
-  var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
   var $valid = 'valid' + $lvl;
   var $errs = 'errs__' + $lvl;
@@ -101,7 +100,7 @@ module.exports = function generate_properties(it, $keyword) {
           $$outStack.push(out);
           out = ''; /* istanbul ignore else */
           if (it.createErrors !== false) {
-            out += ' { keyword: \'' + ($errorKeyword || 'additionalProperties') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { additionalProperty: \'' + ($additionalProperty) + '\' } ';
+            out += ' { keyword: \'' + ('additionalProperties') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { additionalProperty: \'' + ($additionalProperty) + '\' } ';
             if (it.opts.messages !== false) {
               out += ' , message: \'should NOT have additional properties\' ';
             }
@@ -221,7 +220,7 @@ module.exports = function generate_properties(it, $keyword) {
               $$outStack.push(out);
               out = ''; /* istanbul ignore else */
               if (it.createErrors !== false) {
-                out += ' { keyword: \'' + ($errorKeyword || 'required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
+                out += ' { keyword: \'' + ('required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
                 if (it.opts.messages !== false) {
                   out += ' , message: \'';
                   if (it.opts._errorDataPathProperty) {
@@ -366,7 +365,7 @@ module.exports = function generate_properties(it, $keyword) {
               $$outStack.push(out);
               out = ''; /* istanbul ignore else */
               if (it.createErrors !== false) {
-                out += ' { keyword: \'' + ($errorKeyword || 'patternGroups') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { reason: \'' + ($reason) + '\', limit: ' + ($limit) + ', pattern: \'' + (it.util.escapeQuotes($pgProperty)) + '\' } ';
+                out += ' { keyword: \'' + ('patternGroups') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { reason: \'' + ($reason) + '\', limit: ' + ($limit) + ', pattern: \'' + (it.util.escapeQuotes($pgProperty)) + '\' } ';
                 if (it.opts.messages !== false) {
                   out += ' , message: \'should NOT have ' + ($moreOrLess) + ' than ' + ($limit) + ' properties matching pattern "' + (it.util.escapeQuotes($pgProperty)) + '"\' ';
                 }
@@ -404,7 +403,7 @@ module.exports = function generate_properties(it, $keyword) {
               $$outStack.push(out);
               out = ''; /* istanbul ignore else */
               if (it.createErrors !== false) {
-                out += ' { keyword: \'' + ($errorKeyword || 'patternGroups') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { reason: \'' + ($reason) + '\', limit: ' + ($limit) + ', pattern: \'' + (it.util.escapeQuotes($pgProperty)) + '\' } ';
+                out += ' { keyword: \'' + ('patternGroups') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { reason: \'' + ($reason) + '\', limit: ' + ($limit) + ', pattern: \'' + (it.util.escapeQuotes($pgProperty)) + '\' } ';
                 if (it.opts.messages !== false) {
                   out += ' , message: \'should NOT have ' + ($moreOrLess) + ' than ' + ($limit) + ' properties matching pattern "' + (it.util.escapeQuotes($pgProperty)) + '"\' ';
                 }

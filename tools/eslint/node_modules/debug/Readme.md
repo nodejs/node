@@ -100,7 +100,7 @@ Then, run the program to be debugged as usual.
 
 | Name      | Purpose                                         |
 |-----------|-------------------------------------------------|
-| `DEBUG`   | Enables/disabled specific debugging namespaces. |
+| `DEBUG`   | Enables/disables specific debugging namespaces. |
 | `DEBUG_COLORS`| Whether or not to use colors in the debug output. |
 | `DEBUG_DEPTH` | Object inspection depth. |
 | `DEBUG_SHOW_HIDDEN` | Shows hidden properties on inspected objects. |

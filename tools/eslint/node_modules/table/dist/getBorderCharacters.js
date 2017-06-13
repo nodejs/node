@@ -124,5 +124,3 @@ exports.default = name => {
 
   throw new Error('Unknown border template "' + name + '".');
 };
-
-module.exports = exports['default'];

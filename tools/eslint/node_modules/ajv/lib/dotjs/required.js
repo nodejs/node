@@ -7,7 +7,6 @@ module.exports = function generate_required(it, $keyword) {
   var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
-  var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
   var $valid = 'valid' + $lvl;
   var $isData = it.opts.v5 && $schema && $schema.$data,
@@ -66,7 +65,7 @@ module.exports = function generate_required(it, $keyword) {
         $$outStack.push(out);
         out = ''; /* istanbul ignore else */
         if (it.createErrors !== false) {
-          out += ' { keyword: \'' + ($errorKeyword || 'required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
+          out += ' { keyword: \'' + ('required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
           if (it.opts.messages !== false) {
             out += ' , message: \'';
             if (it.opts._errorDataPathProperty) {
@@ -120,7 +119,7 @@ module.exports = function generate_required(it, $keyword) {
         $$outStack.push(out);
         out = ''; /* istanbul ignore else */
         if (it.createErrors !== false) {
-          out += ' { keyword: \'' + ($errorKeyword || 'required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
+          out += ' { keyword: \'' + ('required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
           if (it.opts.messages !== false) {
             out += ' , message: \'';
             if (it.opts._errorDataPathProperty) {
@@ -164,7 +163,7 @@ module.exports = function generate_required(it, $keyword) {
         if ($isData) {
           out += ' if (' + ($vSchema) + ' && !Array.isArray(' + ($vSchema) + ')) {  var err =   '; /* istanbul ignore else */
           if (it.createErrors !== false) {
-            out += ' { keyword: \'' + ($errorKeyword || 'required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
+            out += ' { keyword: \'' + ('required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
             if (it.opts.messages !== false) {
               out += ' , message: \'';
               if (it.opts._errorDataPathProperty) {
@@ -185,7 +184,7 @@ module.exports = function generate_required(it, $keyword) {
         }
         out += ' for (var ' + ($i) + ' = 0; ' + ($i) + ' < ' + ($vSchema) + '.length; ' + ($i) + '++) { if (' + ($data) + '[' + ($vSchema) + '[' + ($i) + ']] === undefined) {  var err =   '; /* istanbul ignore else */
         if (it.createErrors !== false) {
-          out += ' { keyword: \'' + ($errorKeyword || 'required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
+          out += ' { keyword: \'' + ('required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
           if (it.opts.messages !== false) {
             out += ' , message: \'';
             if (it.opts._errorDataPathProperty) {
@@ -220,7 +219,7 @@ module.exports = function generate_required(it, $keyword) {
             }
             out += ' if (' + ($data) + ($prop) + ' === undefined) {  var err =   '; /* istanbul ignore else */
             if (it.createErrors !== false) {
-              out += ' { keyword: \'' + ($errorKeyword || 'required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
+              out += ' { keyword: \'' + ('required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
               if (it.opts.messages !== false) {
                 out += ' , message: \'';
                 if (it.opts._errorDataPathProperty) {

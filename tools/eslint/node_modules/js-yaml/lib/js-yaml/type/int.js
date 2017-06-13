@@ -51,7 +51,7 @@ function resolveYamlInteger(data) {
         if (ch !== '0' && ch !== '1') return false;
         hasDigits = true;
       }
-      return hasDigits;
+      return hasDigits && ch !== '_';
     }
 
 
@@ -65,7 +65,7 @@ function resolveYamlInteger(data) {
         if (!isHexCode(data.charCodeAt(index))) return false;
         hasDigits = true;
       }
-      return hasDigits;
+      return hasDigits && ch !== '_';
     }
 
     // base 8
@@ -75,10 +75,13 @@ function resolveYamlInteger(data) {
       if (!isOctCode(data.charCodeAt(index))) return false;
       hasDigits = true;
     }
-    return hasDigits;
+    return hasDigits && ch !== '_';
   }
 
   // base 10 (except 0) or base 60
+
+  // value should not start with `_`;
+  if (ch === '_') return false;
 
   for (; index < max; index++) {
     ch = data[index];
@@ -90,7 +93,8 @@ function resolveYamlInteger(data) {
     hasDigits = true;
   }
 
-  if (!hasDigits) return false;
+  // Should have digits and should not end with `_`
+  if (!hasDigits || ch === '_') return false;
 
   // if !base60 - done;
   if (ch !== ':') return true;

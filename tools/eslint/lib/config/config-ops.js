@@ -9,8 +9,6 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const Environments = require("./environments");
-
 const debug = require("debug")("eslint:config-ops");
 
 //------------------------------------------------------------------------------
@@ -46,10 +44,11 @@ module.exports = {
     /**
      * Creates an environment config based on the specified environments.
      * @param {Object<string,boolean>} env The environment settings.
+     * @param {Environments} envContext The environment context.
      * @returns {Object} A configuration object with the appropriate rules and globals
      *      set.
      */
-    createEnvironmentConfig(env) {
+    createEnvironmentConfig(env, envContext) {
 
         const envConfig = this.createEmptyConfig();
 
@@ -58,7 +57,7 @@ module.exports = {
             envConfig.env = env;
 
             Object.keys(env).filter(name => env[name]).forEach(name => {
-                const environment = Environments.get(name);
+                const environment = envContext.get(name);
 
                 if (environment) {
                     debug(`Creating config for environment ${name}`);
@@ -80,12 +79,13 @@ module.exports = {
      * Given a config with environment settings, applies the globals and
      * ecmaFeatures to the configuration and returns the result.
      * @param {Object} config The configuration information.
+     * @param {Environments} envContent env context.
      * @returns {Object} The updated configuration information.
      */
-    applyEnvironments(config) {
+    applyEnvironments(config, envContent) {
         if (config.env && typeof config.env === "object") {
             debug("Apply environment settings to config");
-            return this.merge(this.createEnvironmentConfig(config.env), config);
+            return this.merge(this.createEnvironmentConfig(config.env, envContent), config);
         }
 
         return config;
@@ -175,7 +175,7 @@ module.exports = {
             }
             Object.keys(src).forEach(key => {
                 if (Array.isArray(src[key]) || Array.isArray(target[key])) {
-                    dst[key] = deepmerge(target[key], src[key], key === "plugins", isRule);
+                    dst[key] = deepmerge(target[key], src[key], key === "plugins" || key === "extends", isRule);
                 } else if (typeof src[key] !== "object" || !src[key] || key === "exported" || key === "astGlobals") {
                     dst[key] = src[key];
                 } else {

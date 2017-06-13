@@ -19,8 +19,8 @@ const astUtils = require("../ast-utils");
  * Finds the nearest function scope or global scope walking up the scope
  * hierarchy.
  *
- * @param {escope.Scope} scope - The scope to traverse.
- * @returns {escope.Scope} a function scope or global scope containing the given
+ * @param {eslint-scope.Scope} scope - The scope to traverse.
+ * @returns {eslint-scope.Scope} a function scope or global scope containing the given
  *      scope.
  */
 function getEnclosingFunctionScope(scope) {
@@ -34,7 +34,7 @@ function getEnclosingFunctionScope(scope) {
  * Checks whether the given variable has any references from a more specific
  * function expression (i.e. a closure).
  *
- * @param {escope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable - A variable to check.
  * @returns {boolean} `true` if the variable is used from a closure.
  */
 function isReferencedInClosure(variable) {
@@ -93,7 +93,7 @@ function getScopeNode(node) {
 /**
  * Checks whether a given variable is redeclared or not.
  *
- * @param {escope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable - A variable to check.
  * @returns {boolean} `true` if the variable is redeclared.
  */
 function isRedeclared(variable) {
@@ -112,7 +112,7 @@ function isUsedFromOutsideOf(scopeNode) {
     /**
      * Checks whether a given reference is inside of the specified scope or not.
      *
-     * @param {escope.Reference} reference - A reference to check.
+     * @param {eslint-scope.Reference} reference - A reference to check.
      * @returns {boolean} `true` if the reference is inside of the specified
      *      scope.
      */

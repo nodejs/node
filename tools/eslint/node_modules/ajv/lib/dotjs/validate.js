@@ -43,8 +43,7 @@ module.exports = function generate_validate(it, $keyword) {
   var $valid = 'valid' + $lvl,
     $breakOnError = !it.opts.allErrors,
     $closingBraces1 = '',
-    $closingBraces2 = '',
-    $errorKeyword;
+    $closingBraces2 = '';
   var $typeSchema = it.schema.type,
     $typeIsArray = Array.isArray($typeSchema);
   if ($typeSchema && it.opts.coerceTypes) {
@@ -97,7 +96,7 @@ module.exports = function generate_validate(it, $keyword) {
       $$outStack.push(out);
       out = ''; /* istanbul ignore else */
       if (it.createErrors !== false) {
-        out += ' { keyword: \'' + ($errorKeyword || 'type') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { type: \'';
+        out += ' { keyword: \'' + ('type') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { type: \'';
         if ($typeIsArray) {
           out += '' + ($typeSchema.join(","));
         } else {
@@ -239,7 +238,7 @@ module.exports = function generate_validate(it, $keyword) {
           }
           if ($rulesGroup.type) {
             out += ' } ';
-            if ($typeSchema && $typeSchema === $rulesGroup.type) {
+            if ($typeSchema && $typeSchema === $rulesGroup.type && !$coerceToTypes) {
               var $typeChecked = true;
               out += ' else { ';
               var $schemaPath = it.schemaPath + '.type',
@@ -248,7 +247,7 @@ module.exports = function generate_validate(it, $keyword) {
               $$outStack.push(out);
               out = ''; /* istanbul ignore else */
               if (it.createErrors !== false) {
-                out += ' { keyword: \'' + ($errorKeyword || 'type') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { type: \'';
+                out += ' { keyword: \'' + ('type') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { type: \'';
                 if ($typeIsArray) {
                   out += '' + ($typeSchema.join(","));
                 } else {
@@ -299,7 +298,7 @@ module.exports = function generate_validate(it, $keyword) {
       }
     }
   }
-  if ($typeSchema && !$typeChecked && !(it.opts.coerceTypes && $coerceToTypes)) {
+  if ($typeSchema && !$typeChecked && !$coerceToTypes) {
     var $schemaPath = it.schemaPath + '.type',
       $errSchemaPath = it.errSchemaPath + '/type',
       $method = $typeIsArray ? 'checkDataTypes' : 'checkDataType';
@@ -308,7 +307,7 @@ module.exports = function generate_validate(it, $keyword) {
     $$outStack.push(out);
     out = ''; /* istanbul ignore else */
     if (it.createErrors !== false) {
-      out += ' { keyword: \'' + ($errorKeyword || 'type') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { type: \'';
+      out += ' { keyword: \'' + ('type') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { type: \'';
       if ($typeIsArray) {
         out += '' + ($typeSchema.join(","));
       } else {
