@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -66,21 +72,6 @@ module.exports = {
         */
         function isArgumentObjectExpression(node) {
             return node.argument && node.argument.type && node.argument.type === "ObjectExpression";
-        }
-
-        /**
-         * Check if it is safe to remove the spaces between the two tokens in
-         * the context of a non-word prefix unary operator. For example, `+ +1`
-         * cannot safely be changed to `++1`.
-         * @param {Token} firstToken The operator for a non-word prefix unary operator
-         * @param {Token} secondToken The first token of its operand
-         * @returns {boolean} Whether or not the spacing between the tokens can be removed
-         */
-        function canRemoveSpacesBetween(firstToken, secondToken) {
-            return !(
-                (firstToken.value === "+" && secondToken.value[0] === "+") ||
-                (firstToken.value === "-" && secondToken.value[0] === "-")
-            );
         }
 
         /**
@@ -259,7 +250,7 @@ module.exports = {
                             operator: firstToken.value
                         },
                         fix(fixer) {
-                            if (canRemoveSpacesBetween(firstToken, secondToken)) {
+                            if (astUtils.canTokensBeAdjacent(firstToken, secondToken)) {
                                 return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
                             }
                             return null;
@@ -288,9 +279,11 @@ module.exports = {
         * @returns {void}
         */
         function checkForSpaces(node) {
-            const tokens = sourceCode.getFirstTokens(node, 2),
-                firstToken = tokens[0],
-                secondToken = tokens[1];
+            const tokens = node.type === "UpdateExpression" && !node.prefix
+                ? sourceCode.getLastTokens(node, 2)
+                : sourceCode.getFirstTokens(node, 2);
+            const firstToken = tokens[0];
+            const secondToken = tokens[1];
 
             if ((node.type === "NewExpression" || node.prefix) && firstToken.type === "Keyword") {
                 checkUnaryWordOperatorForSpaces(node, firstToken, secondToken);

@@ -62,10 +62,12 @@ module.exports = {
         function removeNewlineBetween(firstToken, secondToken) {
             const textRange = [firstToken.range[1], secondToken.range[0]];
             const textBetween = sourceCode.text.slice(textRange[0], textRange[1]);
-            const NEWLINE_REGEX = astUtils.createGlobalLinebreakMatcher();
 
             // Don't do a fix if there is a comment between the tokens
-            return fixer => fixer.replaceTextRange(textRange, textBetween.trim() ? null : textBetween.replace(NEWLINE_REGEX, ""));
+            if (textBetween.trim()) {
+                return null;
+            }
+            return fixer => fixer.replaceTextRange(textRange, " ");
         }
 
         /**

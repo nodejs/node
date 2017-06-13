@@ -110,6 +110,11 @@ String where the unicode symbols will be replaced with fallback symbols dependin
 | sevenEighths       |     ⅞     |   7/8   |
 
 
+## Related
+
+- [log-symbols](https://github.com/sindresorhus/log-symbols) - Colored symbols for various log levels
+
+
 ## License
 
 MIT © [Sindre Sorhus](https://sindresorhus.com)

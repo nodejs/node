@@ -21,5 +21,3 @@ exports.default = rows => {
     return _lodash2.default.map(cells, String);
   });
 };
-
-module.exports = exports['default'];

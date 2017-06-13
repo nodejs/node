@@ -1,6 +1,7 @@
 /**
  * @fileoverview Require or disallow newlines around directives.
  * @author Kai Cataldo
+ * @deprecated
  */
 
 "use strict";
@@ -16,7 +17,8 @@ module.exports = {
         docs: {
             description: "require or disallow newlines around directives",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            replacedBy: ["padding-line-between-statements"]
         },
         schema: [{
             oneOf: [
@@ -38,7 +40,8 @@ module.exports = {
                 }
             ]
         }],
-        fixable: "whitespace"
+        fixable: "whitespace",
+        deprecated: true
     },
 
     create(context) {
@@ -131,17 +134,12 @@ module.exports = {
             }
 
             const firstDirective = directives[0];
-            const hasTokenOrCommentBefore = !!sourceCode.getTokenBefore(firstDirective, { includeComments: true });
+            const leadingComments = sourceCode.getCommentsBefore(firstDirective);
 
             // Only check before the first directive if it is preceded by a comment or if it is at the top of
             // the file and expectLineBefore is set to "never". This is to not force a newline at the top of
             // the file if there are no comments as well as for compatibility with padded-blocks.
-            if (
-                firstDirective.leadingComments && firstDirective.leadingComments.length ||
-
-                // Shebangs are not added to leading comments but are accounted for by the following.
-                node.type === "Program" && hasTokenOrCommentBefore
-            ) {
+            if (leadingComments.length) {
                 if (expectLineBefore === "always" && !hasNewlineBefore(firstDirective)) {
                     reportError(firstDirective, "before", true);
                 }
@@ -152,7 +150,7 @@ module.exports = {
             } else if (
                 node.type === "Program" &&
                 expectLineBefore === "never" &&
-                !hasTokenOrCommentBefore &&
+                !leadingComments.length &&
                 hasNewlineBefore(firstDirective)
             ) {
                 reportError(firstDirective, "before", false);
