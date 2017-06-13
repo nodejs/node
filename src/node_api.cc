@@ -156,14 +156,20 @@ class HandleScopeWrapper {
 // across different versions.
 class EscapableHandleScopeWrapper {
  public:
-  explicit EscapableHandleScopeWrapper(v8::Isolate* isolate) : scope(isolate) {}
+  explicit EscapableHandleScopeWrapper(v8::Isolate* isolate) :
+    scope(isolate), escapeCalled(false) {}
+  bool escapeAllreadyCalled(void) {
+    return escapeCalled;
+  }
   template <typename T>
   v8::Local<T> Escape(v8::Local<T> handle) {
+    escapeCalled = true;
     return scope.Escape(handle);
   }
 
  private:
   v8::EscapableHandleScope scope;
+  bool escapeCalled;
 };
 
 napi_handle_scope JsHandleScopeFromV8HandleScope(HandleScopeWrapper* s) {
@@ -718,7 +724,8 @@ const char* error_messages[] = {nullptr,
                                 "An array was expected",
                                 "Unknown failure",
                                 "An exception is pending",
-                                "The async work item was cancelled"};
+                                "The async work item was cancelled",
+                                "napi_escape_handle already called on scope"};
 
 static napi_status napi_clear_last_error(napi_env env) {
   CHECK_ENV(env);
@@ -2211,9 +2218,12 @@ napi_status napi_escape_handle(napi_env env,
 
   v8impl::EscapableHandleScopeWrapper* s =
       v8impl::V8EscapableHandleScopeFromJsEscapableHandleScope(scope);
-  *result = v8impl::JsValueFromV8LocalValue(
-      s->Escape(v8impl::V8LocalValueFromJsValue(escapee)));
-  return napi_clear_last_error(env);
+  if (!s->escapeAllreadyCalled()) {
+    *result = v8impl::JsValueFromV8LocalValue(
+        s->Escape(v8impl::V8LocalValueFromJsValue(escapee)));
+    return napi_clear_last_error(env);
+  }
+  return napi_set_last_error(env, napi_escape_called_twice);
 }
 
 napi_status napi_new_instance(napi_env env,

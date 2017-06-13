@@ -12,6 +12,12 @@ assert.ok(testHandleScope.NewScopeEscape() instanceof Object);
 
 assert.throws(
   () => {
+    testHandleScope.NewScopeEscapeTwice();
+  },
+  Error);
+
+assert.throws(
+  () => {
     testHandleScope.NewScopeWithException(() => { throw new RangeError(); });
   },
   RangeError);
