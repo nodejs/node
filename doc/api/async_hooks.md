@@ -192,8 +192,8 @@ Every new resource is assigned a unique ID.
 ###### `type`
 
 The `type` is a string that represents the type of resource that caused
-`init` to be called. Generally it will correspond the name of the resource's
-constructor.
+`init` to be called. Generally, it will correspond to the name of the
+resource's constructor.
 
 ```
 FSEVENTWRAP, FSREQWRAP, GETADDRINFOREQWRAP, GETNAMEINFOREQWRAP, HTTPPARSER,
