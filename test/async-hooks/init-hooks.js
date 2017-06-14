@@ -162,12 +162,12 @@ class ActivityCollector {
     return h;
   }
 
-  _init(uid, type, triggerId, handle) {
-    const activity = { uid, type, triggerId };
+  _init(uid, type, triggerAsyncId, handle) {
+    const activity = { uid, type, triggerAsyncId };
     this._stamp(activity, 'init');
     this._activities.set(uid, activity);
     this._maybeLog(uid, type, 'init');
-    this.oninit(uid, type, triggerId, handle);
+    this.oninit(uid, type, triggerAsyncId, handle);
   }
 
   _before(uid) {

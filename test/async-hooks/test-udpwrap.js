@@ -17,7 +17,7 @@ const udpwrap = as[0];
 assert.strictEqual(as.length, 1);
 assert.strictEqual(udpwrap.type, 'UDPWRAP');
 assert.strictEqual(typeof udpwrap.uid, 'number');
-assert.strictEqual(typeof udpwrap.triggerId, 'number');
+assert.strictEqual(typeof udpwrap.triggerAsyncId, 'number');
 checkInvocations(udpwrap, { init: 1 }, 'after dgram.createSocket call');
 
 sock.close(common.mustCall(onsockClosed));

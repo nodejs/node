@@ -32,7 +32,7 @@ const httpparser = as[0];
 
 assert.strictEqual(as.length, 1);
 assert.strictEqual(typeof httpparser.uid, 'number');
-assert.strictEqual(typeof httpparser.triggerId, 'number');
+assert.strictEqual(typeof httpparser.triggerAsyncId, 'number');
 checkInvocations(httpparser, { init: 1 }, 'when created new Httphttpparser');
 
 parser[kOnHeadersComplete] = common.mustCall(onheadersComplete);

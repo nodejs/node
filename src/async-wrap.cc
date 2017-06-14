@@ -350,11 +350,11 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     bool silent = type != PromiseHookType::kInit;
     PromiseWrap* parent_wrap = nullptr;
 
-    // set parent promise's async Id as this promise's triggerId
+    // set parent promise's async Id as this promise's triggerAsyncId
     if (parent->IsPromise()) {
       // parent promise exists, current promise
       // is a chained promise, so we set parent promise's id as
-      // current promise's triggerId
+      // current promise's triggerAsyncId
       Local<Promise> parent_promise = parent.As<Promise>();
       Local<Value> parent_resource = parent_promise->GetInternalField(0);
       if (parent_resource->IsObject()) {
@@ -731,13 +731,21 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 /* Public C++ embedder API */
 
 
-async_uid AsyncHooksGetCurrentId(Isolate* isolate) {
+async_uid AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
   return Environment::GetCurrent(isolate)->current_async_id();
 }
 
+async_uid AsyncHooksGetCurrentId(Isolate* isolate) {
+  return AsyncHooksGetExecutionAsyncId(isolate);
+}
+
+
+async_uid AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
+  return Environment::GetCurrent(isolate)->get_init_trigger_id();
+}
 
 async_uid AsyncHooksGetTriggerId(Isolate* isolate) {
-  return Environment::GetCurrent(isolate)->get_init_trigger_id();
+  return AsyncHooksGetTriggerAsyncId(isolate);
 }
 
 

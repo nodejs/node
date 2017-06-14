@@ -32,13 +32,13 @@ const pipe2 = pipes[1];
 const pipe3 = pipes[2];
 
 assert.strictEqual(processwrap.type, 'PROCESSWRAP');
-assert.strictEqual(processwrap.triggerId, 1);
+assert.strictEqual(processwrap.triggerAsyncId, 1);
 checkInvocations(processwrap, { init: 1 },
                  'processwrap when sleep.spawn was called');
 
 [ pipe1, pipe2, pipe3 ].forEach((x) => {
   assert.strictEqual(x.type, 'PIPEWRAP');
-  assert.strictEqual(x.triggerId, 1);
+  assert.strictEqual(x.triggerAsyncId, 1);
   checkInvocations(x, { init: 1 }, 'pipe wrap when sleep.spawn was called');
 });
 
@@ -70,7 +70,7 @@ function onexit() {
 
   [ pipe1, pipe2, pipe3 ].forEach((x) => {
     assert.strictEqual(x.type, 'PIPEWRAP');
-    assert.strictEqual(x.triggerId, 1);
+    assert.strictEqual(x.triggerAsyncId, 1);
   });
 
   const ioEvents = Math.min(pipe2.before.length, pipe2.after.length);
