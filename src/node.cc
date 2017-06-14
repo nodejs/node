@@ -117,6 +117,10 @@ typedef int mode_t;
 #include <grp.h>  // getgrnam()
 #endif
 
+#if defined(__POSIX__)
+#include <dlfcn.h>
+#endif
+
 #ifdef __APPLE__
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
@@ -2503,7 +2507,49 @@ struct node_module* get_linked_module(const char* name) {
   return mp;
 }
 
-// DLOpen is process.dlopen(module, filename).
+struct DLib {
+  std::string filename_;
+  std::string errmsg_;
+  void* handle_;
+  int flags_;
+
+#ifdef __POSIX__
+  static const int kDefaultFlags = RTLD_LAZY;
+
+  bool Open() {
+    handle_ = dlopen(filename_.c_str(), flags_);
+    if (handle_ != nullptr)
+      return true;
+    errmsg_ = dlerror();
+    return false;
+  }
+
+  void Close() {
+    if (handle_ != nullptr)
+      dlclose(handle_);
+  }
+#else  // !__POSIX__
+  static const int kDefaultFlags = 0;
+  uv_lib_t lib_;
+
+  bool Open() {
+    int ret = uv_dlopen(filename_.c_str(), &lib_);
+    if (ret == 0) {
+      handle_ = static_cast<void*>(lib_.handle);
+      return true;
+    }
+    errmsg_ = uv_dlerror(&lib_);
+    uv_dlclose(&lib_);
+    return false;
+  }
+
+  void Close() {
+    uv_dlclose(&lib_);
+  }
+#endif  // !__POSIX__
+};
+
+// DLOpen is process.dlopen(module, filename, flags).
 // Used to load 'module.node' dynamically shared objects.
 //
 // FIXME(bnoordhuis) Not multi-context ready. TBD how to resolve the conflict
@@ -2511,18 +2557,25 @@ struct node_module* get_linked_module(const char* name) {
 // cache that's a plain C list or hash table that's shared across contexts?
 static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  uv_lib_t lib;
 
   CHECK_EQ(modpending, nullptr);
 
-  if (args.Length() != 2) {
-    env->ThrowError("process.dlopen takes exactly 2 arguments.");
+  if (args.Length() < 2) {
+    env->ThrowError("process.dlopen needs at least 2 arguments.");
     return;
+  }
+
+  int32_t flags = DLib::kDefaultFlags;
+  if (args.Length() > 2 && !args[2]->Int32Value(env->context()).To(&flags)) {
+    return env->ThrowTypeError("flag argument must be an integer.");
   }
 
   Local<Object> module = args[0]->ToObject(env->isolate());  // Cast
   node::Utf8Value filename(env->isolate(), args[1]);  // Cast
-  const bool is_dlopen_error = uv_dlopen(*filename, &lib);
+  DLib dlib;
+  dlib.filename_ = *filename;
+  dlib.flags_ = flags;
+  bool is_opened = dlib.Open();
 
   // Objects containing v14 or later modules will have registered themselves
   // on the pending list.  Activate all of them now.  At present, only one
@@ -2530,9 +2583,9 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   node_module* const mp = modpending;
   modpending = nullptr;
 
-  if (is_dlopen_error) {
-    Local<String> errmsg = OneByteString(env->isolate(), uv_dlerror(&lib));
-    uv_dlclose(&lib);
+  if (!is_opened) {
+    Local<String> errmsg = OneByteString(env->isolate(), dlib.errmsg_.c_str());
+    dlib.Close();
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
     errmsg = String::Concat(errmsg, args[1]->ToString(env->isolate()));
@@ -2542,7 +2595,7 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (mp == nullptr) {
-    uv_dlclose(&lib);
+    dlib.Close();
     env->ThrowError("Module did not self-register.");
     return;
   }
@@ -2569,18 +2622,18 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
     }
 
     // NOTE: `mp` is allocated inside of the shared library's memory, calling
-    // `uv_dlclose` will deallocate it
-    uv_dlclose(&lib);
+    // `dlclose` will deallocate it
+    dlib.Close();
     env->ThrowError(errmsg);
     return;
   }
   if (mp->nm_flags & NM_F_BUILTIN) {
-    uv_dlclose(&lib);
+    dlib.Close();
     env->ThrowError("Built-in module self-registered.");
     return;
   }
 
-  mp->nm_dso_handle = lib.handle;
+  mp->nm_dso_handle = dlib.handle_;
   mp->nm_link = modlist_addon;
   modlist_addon = mp;
 
@@ -2592,7 +2645,7 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   } else if (mp->nm_register_func != nullptr) {
     mp->nm_register_func(exports, module, mp->nm_priv);
   } else {
-    uv_dlclose(&lib);
+    dlib.Close();
     env->ThrowError("Module has no declared entry point.");
     return;
   }
