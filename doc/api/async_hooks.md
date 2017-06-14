@@ -192,7 +192,7 @@ Every new resource is assigned a unique ID.
 ###### `type`
 
 The `type` is a string that represents the type of resource that caused
-`init` to be called. Generally it will correspond with the name of the
+`init` to be called. Generally, it will correspond to the name of the
 resource's constructor.
 
 ```
