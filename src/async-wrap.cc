@@ -451,7 +451,8 @@ void AsyncWrap::ClearAsyncIdStack(const FunctionCallbackInfo<Value>& args) {
 void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-  wrap->AsyncReset();
+  double execution_async_id = args[0]->IsNumber() ? args[0]->NumberValue() : -1;
+  wrap->AsyncReset(execution_async_id);
 }
 
 
@@ -573,7 +574,8 @@ void LoadAsyncWrapperInfo(Environment* env) {
 
 AsyncWrap::AsyncWrap(Environment* env,
                      Local<Object> object,
-                     ProviderType provider)
+                     ProviderType provider,
+                     double execution_async_id)
     : BaseObject(env, object),
       provider_type_(provider) {
   CHECK_NE(provider, PROVIDER_NONE);
@@ -583,7 +585,7 @@ AsyncWrap::AsyncWrap(Environment* env,
   persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider);
 
   // Use AsyncReset() call to execute the init() callbacks.
-  AsyncReset();
+  AsyncReset(execution_async_id);
 }
 
 
@@ -599,7 +601,7 @@ AsyncWrap::AsyncWrap(Environment* env,
   persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider_type_);
 
   // Use AsyncReset() call to execute the init() callbacks.
-  AsyncReset(silent);
+  AsyncReset(-1, silent);
 }
 
 
@@ -611,8 +613,9 @@ AsyncWrap::~AsyncWrap() {
 // Generalized call for both the constructor and for handles that are pooled
 // and reused over their lifetime. This way a new uid can be assigned when
 // the resource is pulled out of the pool and put back into use.
-void AsyncWrap::AsyncReset(bool silent) {
-  async_id_ = env()->new_async_id();
+void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
+  async_id_ =
+    execution_async_id == -1 ? env()->new_async_id() : execution_async_id;
   trigger_async_id_ = env()->get_init_trigger_async_id();
 
   if (silent) return;
