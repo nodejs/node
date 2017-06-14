@@ -94,8 +94,7 @@ class AsyncWrap : public BaseObject {
 
   AsyncWrap(Environment* env,
             v8::Local<v8::Object> object,
-            ProviderType provider,
-            bool silent = false);
+            ProviderType provider);
 
   virtual ~AsyncWrap();
 
@@ -150,6 +149,10 @@ class AsyncWrap : public BaseObject {
   virtual size_t self_size() const = 0;
 
  private:
+  friend class PromiseWrap;
+
+  // This is specifically used by the PromiseWrap constructor.
+  AsyncWrap(Environment* env, v8::Local<v8::Object> promise, bool silent);
   inline AsyncWrap();
   const ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.
