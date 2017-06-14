@@ -21,8 +21,8 @@ if (process.argv[2] === 'child') {
   // The first test of the two below follows that rule,
   // the second one doesnt.
 
-  const event1 = new AsyncResource('event1', async_hooks.currentId());
-  const event2 = new AsyncResource('event2', async_hooks.currentId());
+  const event1 = new AsyncResource('event1', async_hooks.executionAsyncId());
+  const event2 = new AsyncResource('event2', async_hooks.executionAsyncId());
 
   // Proper unwind
   event1.emitBefore();

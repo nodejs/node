@@ -17,13 +17,13 @@ if (process.argv[2] === 'child') {
   // async hooks enforce proper order of 'before' and 'after' invocations
 
   // Proper ordering
-  const event1 = new AsyncResource('event1', async_hooks.currentId());
+  const event1 = new AsyncResource('event1', async_hooks.executionAsyncId());
   event1.emitBefore();
   event1.emitAfter();
 
   // Improper ordering
   // Emitting 'after' without 'before' which is illegal
-  const event2 = new AsyncResource('event2', async_hooks.currentId());
+  const event2 = new AsyncResource('event2', async_hooks.executionAsyncId());
 
   console.log('heartbeat: still alive');
   event2.emitAfter();

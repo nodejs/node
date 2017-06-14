@@ -24,9 +24,9 @@ function onexit() {
   hooks.disable();
   verifyGraph(
     hooks,
-    [ { type: 'PROCESSWRAP', id: 'process:1', triggerId: null },
-      { type: 'PIPEWRAP', id: 'pipe:1', triggerId: null },
-      { type: 'PIPEWRAP', id: 'pipe:2', triggerId: null },
-      { type: 'PIPEWRAP', id: 'pipe:3', triggerId: null } ]
+    [ { type: 'PROCESSWRAP', id: 'process:1', triggerAsyncId: null },
+      { type: 'PIPEWRAP', id: 'pipe:1', triggerAsyncId: null },
+      { type: 'PIPEWRAP', id: 'pipe:2', triggerAsyncId: null },
+      { type: 'PIPEWRAP', id: 'pipe:3', triggerAsyncId: null } ]
   );
 }

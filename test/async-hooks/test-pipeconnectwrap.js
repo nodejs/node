@@ -44,7 +44,7 @@ function onlisten() {
   assert.strictEqual(pipeconnect.type, 'PIPECONNECTWRAP');
   for (const a of [ pipe1, pipe2, pipeconnect ]) {
     assert.strictEqual(typeof a.uid, 'number');
-    assert.strictEqual(typeof a.triggerId, 'number');
+    assert.strictEqual(typeof a.triggerAsyncId, 'number');
     checkInvocations(a, { init: 1 }, 'after net.connect');
   }
 }
@@ -64,7 +64,7 @@ function maybeOnconnect(source) {
   assert.strictEqual(pipeconnects.length, 1);
   pipe3 = pipes[2];
   assert.strictEqual(typeof pipe3.uid, 'number');
-  assert.strictEqual(typeof pipe3.triggerId, 'number');
+  assert.strictEqual(typeof pipe3.triggerAsyncId, 'number');
 
   checkInvocations(pipe1, { init: 1, before: 1, after: 1 },
                    'pipe1, client connected');
