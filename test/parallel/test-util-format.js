@@ -126,6 +126,12 @@ assert.strictEqual(util.format('o: %j, a: %j', {}, []), 'o: {}, a: []');
 assert.strictEqual(util.format('o: %j, a: %j', {}), 'o: {}, a: %j');
 assert.strictEqual(util.format('o: %j, a: %j'), 'o: %j, a: %j');
 
+// Invalid format specifiers
+assert.strictEqual(util.format('a% b', 'x'), 'a% b x');
+assert.strictEqual(util.format('percent: %d%, fraction: %d', 10, 0.1),
+                   'percent: 10%, fraction: 0.1');
+assert.strictEqual(util.format('abc%', 1), 'abc% 1');
+
 {
   const o = {};
   o.o = o;
