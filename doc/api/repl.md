@@ -335,7 +335,7 @@ const replServer = repl.start({ prompt: '> ' });
 replServer.defineCommand('sayhello', {
   help: 'Say hello',
   action(name) {
-    this.bufferedCommand = '';
+    this.clearBufferedCommand();
     console.log(`Hello, ${name}!`);
     this.displayPrompt();
   }
@@ -373,6 +373,16 @@ When `preserveCursor` is `true`, the cursor placement will not be reset to `0`.
 
 The `replServer.displayPrompt` method is primarily intended to be called from
 within the action function for commands registered using the
+`replServer.defineCommand()` method.
+
+### replServer.clearBufferedCommand()
+<!-- YAML
+added: REPLACEME
+-->
+
+The `replServer.clearBufferedComand()` method clears any command that has been
+buffered but not yet executed. This method is primarily intended to be
+called from within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
 ## repl.start([options])
