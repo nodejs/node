@@ -227,6 +227,20 @@ never have reason to call this.
 If `multicastInterface` is not specified, the operating system will attempt to
 drop membership on all valid interfaces.
 
+### socket.getRecvBufferSize(size)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns {number} the `SO_RCVBUF` socket receive buffer size in bytes.
+
+### socket.getSendBufferSize(size)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns {number} the `SO_SNDBUF` socket send buffer size in bytes.
+
 ### socket.ref()
 <!-- YAML
 added: v0.9.1
@@ -478,6 +492,7 @@ s.bind(1234, () => {
 <!-- YAML
 added: v0.11.13
 changes:
+<<<<<<< f6bf7f248e558ec49cddef9f440498c558a6574a
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/14560
     description: The `lookup` option is supported.

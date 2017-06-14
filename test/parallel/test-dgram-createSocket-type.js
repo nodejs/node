@@ -39,3 +39,22 @@ validTypes.forEach((validType) => {
     socket.close();
   });
 });
+
+// Ensure buffer sizes can be set
+{
+  const socket = dgram.createSocket({ type: 'udp4',
+                                      recvBufferSize: 1300,
+                                      sendBufferSize: 1800,
+                                    });
+
+  socket.bind(common.mustCall(() => {
+    // note: linux will double the buffer size
+    assert.ok(socket.getRecvBufferSize() === 1300 ||
+              socket.getRecvBufferSize() === 2600,
+              "SO_RCVBUF not 1300 or 2600");
+    assert.ok(socket.getSendBufferSize() === 1800 ||
+              socket.getSendBufferSize() === 3600,
+              "SO_SNDVBUF not 1800 or 3600");
+    socket.close();
+  }));
+}
