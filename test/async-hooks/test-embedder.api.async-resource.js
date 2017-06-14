@@ -15,14 +15,16 @@ hooks.enable();
 assert.throws(() => new AsyncResource(),
               /^TypeError: type must be a string with length > 0$/);
 assert.throws(() => new AsyncResource('invalid_trigger_id', null),
-              /^RangeError: triggerId must be an unsigned integer$/);
+              /^RangeError: triggerAsyncId must be an unsigned integer$/);
 
-assert.strictEqual(typeof new AsyncResource('default_trigger_id').triggerId(),
-                   'number');
+assert.strictEqual(
+    typeof new AsyncResource('default_trigger_id').triggerAsyncId(),
+    'number'
+);
 
-// create first custom event 'alcazares' with triggerId derived
-// from async_hooks currentId
-const alcaTriggerId = async_hooks.currentId();
+// create first custom event 'alcazares' with triggerAsyncId derived
+// from async_hooks executionAsyncId
+const alcaTriggerId = async_hooks.executionAsyncId();
 const alcaEvent = new AsyncResource('alcazares', alcaTriggerId);
 const alcazaresActivities = hooks.activitiesOfTypes([ 'alcazares' ]);
 
@@ -31,12 +33,12 @@ assert.strictEqual(alcazaresActivities.length, 1);
 const alcazares = alcazaresActivities[0];
 assert.strictEqual(alcazares.type, 'alcazares');
 assert.strictEqual(typeof alcazares.uid, 'number');
-assert.strictEqual(alcazares.triggerId, alcaTriggerId);
+assert.strictEqual(alcazares.triggerAsyncId, alcaTriggerId);
 checkInvocations(alcazares, { init: 1 }, 'alcazares constructed');
 
 assert.strictEqual(typeof alcaEvent.asyncId(), 'number');
 assert.notStrictEqual(alcaEvent.asyncId(), alcaTriggerId);
-assert.strictEqual(alcaEvent.triggerId(), alcaTriggerId);
+assert.strictEqual(alcaEvent.triggerAsyncId(), alcaTriggerId);
 
 alcaEvent.emitBefore();
 checkInvocations(alcazares, { init: 1, before: 1 },
@@ -64,7 +66,7 @@ function tick1() {
   const poblado = pobladoActivities[0];
   assert.strictEqual(poblado.type, 'poblado');
   assert.strictEqual(typeof poblado.uid, 'number');
-  assert.strictEqual(poblado.triggerId, pobTriggerId);
+  assert.strictEqual(poblado.triggerAsyncId, pobTriggerId);
   checkInvocations(poblado, { init: 1 }, 'poblado constructed');
   pobEvent.emitBefore();
   checkInvocations(poblado, { init: 1, before: 1 },

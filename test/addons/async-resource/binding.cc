@@ -93,7 +93,8 @@ void GetResource(const FunctionCallbackInfo<Value>& args) {
 }
 
 void GetCurrentId(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(node::AsyncHooksGetCurrentId(args.GetIsolate()));
+  args.GetReturnValue().Set(
+    node::AsyncHooksGetExecutionAsyncId(args.GetIsolate()));
 }
 
 void Initialize(Local<Object> exports) {

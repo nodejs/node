@@ -59,21 +59,21 @@ function onexit() {
 
   verifyGraph(
     hooks,
-    [ { type: 'TCPWRAP', id: 'tcp:1', triggerId: null },
-      { type: 'TCPWRAP', id: 'tcp:2', triggerId: 'tcp:1' },
-      { type: 'TLSWRAP', id: 'tls:1', triggerId: 'tcp:1' },
+    [ { type: 'TCPWRAP', id: 'tcp:1', triggerAsyncId: null },
+      { type: 'TCPWRAP', id: 'tcp:2', triggerAsyncId: 'tcp:1' },
+      { type: 'TLSWRAP', id: 'tls:1', triggerAsyncId: 'tcp:1' },
       { type: 'GETADDRINFOREQWRAP',
-        id: 'getaddrinforeq:1', triggerId: 'tls:1' },
+        id: 'getaddrinforeq:1', triggerAsyncId: 'tls:1' },
       { type: 'TCPCONNECTWRAP',
-        id: 'tcpconnect:1', triggerId: 'tcp:2' },
-      { type: 'WRITEWRAP', id: 'write:1', triggerId: 'tcpconnect:1' },
-      { type: 'TCPWRAP', id: 'tcp:3', triggerId: 'tcp:1' },
-      { type: 'TLSWRAP', id: 'tls:2', triggerId: 'tcp:1' },
-      { type: 'TIMERWRAP', id: 'timer:1', triggerId: 'tcp:1' },
-      { type: 'WRITEWRAP', id: 'write:2', triggerId: null },
-      { type: 'WRITEWRAP', id: 'write:3', triggerId: null },
-      { type: 'WRITEWRAP', id: 'write:4', triggerId: null },
-      { type: 'Immediate', id: 'immediate:1', triggerId: 'tcp:2' },
-      { type: 'Immediate', id: 'immediate:2', triggerId: 'tcp:3' } ]
+        id: 'tcpconnect:1', triggerAsyncId: 'tcp:2' },
+      { type: 'WRITEWRAP', id: 'write:1', triggerAsyncId: 'tcpconnect:1' },
+      { type: 'TCPWRAP', id: 'tcp:3', triggerAsyncId: 'tcp:1' },
+      { type: 'TLSWRAP', id: 'tls:2', triggerAsyncId: 'tcp:1' },
+      { type: 'TIMERWRAP', id: 'timer:1', triggerAsyncId: 'tcp:1' },
+      { type: 'WRITEWRAP', id: 'write:2', triggerAsyncId: null },
+      { type: 'WRITEWRAP', id: 'write:3', triggerAsyncId: null },
+      { type: 'WRITEWRAP', id: 'write:4', triggerAsyncId: null },
+      { type: 'Immediate', id: 'immediate:1', triggerAsyncId: 'tcp:2' },
+      { type: 'Immediate', id: 'immediate:2', triggerAsyncId: 'tcp:3' } ]
   );
 }

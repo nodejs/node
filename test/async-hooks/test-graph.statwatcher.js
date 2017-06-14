@@ -28,7 +28,7 @@ function onexit() {
   hooks.disable();
   verifyGraph(
     hooks,
-    [ { type: 'STATWATCHER', id: 'statwatcher:1', triggerId: null },
-      { type: 'STATWATCHER', id: 'statwatcher:2', triggerId: null } ]
+    [ { type: 'STATWATCHER', id: 'statwatcher:1', triggerAsyncId: null },
+      { type: 'STATWATCHER', id: 'statwatcher:2', triggerAsyncId: null } ]
   );
 }

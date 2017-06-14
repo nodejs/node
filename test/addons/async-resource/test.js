@@ -14,13 +14,13 @@ let after = 0;
 let destroy = 0;
 
 async_hooks.createHook({
-  init(id, type, triggerId, resource) {
+  init(id, type, triggerAsyncId, resource) {
     assert.strictEqual(typeof id, 'number');
     assert.strictEqual(typeof resource, 'object');
     assert(id > 1);
     if (type === 'foobär') {
       assert.strictEqual(resource.kObjectTag, kObjectTag);
-      assert.strictEqual(triggerId, expectedTriggerId);
+      assert.strictEqual(triggerAsyncId, expectedTriggerId);
       bindingUids.push(id);
     }
   },

@@ -15,10 +15,10 @@ const expectedType = 'test_emit_init_type';
 const expectedResource = { key: 'test_emit_init_resource' };
 
 const hooks1 = initHooks({
-  oninit: common.mustCall((id, type, triggerId, resource) => {
+  oninit: common.mustCall((id, type, triggerAsyncId, resource) => {
     assert.strictEqual(id, expectedId);
     assert.strictEqual(type, expectedType);
-    assert.strictEqual(triggerId, expectedTriggerId);
+    assert.strictEqual(triggerAsyncId, expectedTriggerId);
     assert.strictEqual(resource.key, expectedResource.key);
   })
 });
@@ -30,7 +30,7 @@ assert.throws(() => async_hooks.emitInit(),
 assert.throws(() => async_hooks.emitInit(expectedId),
               /^TypeError: type must be a string with length > 0$/);
 assert.throws(() => async_hooks.emitInit(expectedId, expectedType, -1),
-              /^RangeError: triggerId must be an unsigned integer$/);
+              /^RangeError: triggerAsyncId must be an unsigned integer$/);
 
 async_hooks.emitInit(expectedId, expectedType, expectedTriggerId,
                      expectedResource);
@@ -38,10 +38,10 @@ async_hooks.emitInit(expectedId, expectedType, expectedTriggerId,
 hooks1.disable();
 
 initHooks({
-  oninit: common.mustCall((id, type, triggerId, resource) => {
+  oninit: common.mustCall((id, type, triggerAsyncId, resource) => {
     assert.strictEqual(id, expectedId);
     assert.strictEqual(type, expectedType);
-    assert.notStrictEqual(triggerId, expectedTriggerId);
+    assert.notStrictEqual(triggerAsyncId, expectedTriggerId);
     assert.strictEqual(resource.key, expectedResource.key);
   })
 }).enable();
