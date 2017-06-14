@@ -29,11 +29,11 @@ Following is a simple overview of the public API.
 const async_hooks = require('async_hooks');
 
 // Return the ID of the current execution context.
-const cid = async_hooks.currentId();
+const eid = async_hooks.executionAsyncId();
 
 // Return the ID of the handle responsible for triggering the callback of the
 // current execution scope to call.
-const tid = async_hooks.triggerId();
+const tid = async_hooks.triggerAsyncId();
 
 // Create a new AsyncHook instance. All of these callbacks are optional.
 const asyncHook = async_hooks.createHook({ init, before, after, destroy });
@@ -53,7 +53,7 @@ asyncHook.disable();
 // init is called during object construction. The resource may not have
 // completed construction when this callback runs, therefore all fields of the
 // resource referenced by "asyncId" may not have been populated.
-function init(asyncId, type, triggerId, resource) { }
+function init(asyncId, type, triggerAsyncId, resource) { }
 
 // before is called just before the resource's callback is called. It can be
 // called 0-N times for handles (e.g. TCPWrap), and will be called exactly 1
@@ -163,11 +163,11 @@ Key events in the lifetime of asynchronous events have been categorized into
 four areas: instantiation, before/after the callback is called, and when the
 instance is destructed.
 
-##### `init(asyncId, type, triggerId, resource)`
+##### `init(asyncId, type, triggerAsyncId, resource)`
 
 * `asyncId` {number} a unique ID for the async resource
 * `type` {string} the type of the async resource
-* `triggerId` {number} the unique ID of the async resource in whose
+* `triggerAsyncId` {number} the unique ID of the async resource in whose
   execution context this async resource was created
 * `resource` {Object} reference to the resource representing the async operation,
   needs to be released during _destroy_
@@ -214,20 +214,20 @@ when listening to the hooks.
 
 ###### `triggerId`
 
-`triggerId` is the `asyncId` of the resource that caused (or "triggered") the
+`triggerAsyncId` is the `asyncId` of the resource that caused (or "triggered") the
 new resource to initialize and that caused `init` to call. This is different
-from `async_hooks.currentId()` that only shows *when* a resource was created,
-while `triggerId` shows *why* a resource was created.
+from `async_hooks.executionAsyncId()` that only shows *when* a resource was
+created, while `triggerAsyncId` shows *why* a resource was created.
 
 
-The following is a simple demonstration of `triggerId`:
+The following is a simple demonstration of `triggerAsyncId`:
 
 ```js
 async_hooks.createHook({
-  init(asyncId, type, triggerId) {
-    const cId = async_hooks.currentId();
+  init(asyncId, type, triggerAsyncId) {
+    const eid = async_hooks.executionAsyncId();
     fs.writeSync(
-      1, `${type}(${asyncId}): trigger: ${triggerId} scope: ${cId}\n`);
+      1, `${type}(${asyncId}): trigger: ${triggerAsyncId} execution: ${eid}\n`);
   }
 }).enable();
 
@@ -237,18 +237,18 @@ require('net').createServer((conn) => {}).listen(8080);
 Output when hitting the server with `nc localhost 8080`:
 
 ```
-TCPWRAP(2): trigger: 1 scope: 1
-TCPWRAP(4): trigger: 2 scope: 0
+TCPWRAP(2): trigger: 1 execution: 1
+TCPWRAP(4): trigger: 2 execution: 0
 ```
 
 The first `TCPWRAP` is the server which receives the connections.
 
 The second `TCPWRAP` is the new connection from the client. When a new
 connection is made the `TCPWrap` instance is immediately constructed. This
-happens outside of any JavaScript stack (side note: a `currentId()` of `0`
+happens outside of any JavaScript stack (side note: a `executionAsyncId()` of `0`
 means it's being executed from C++, with no JavaScript stack above it).
 With only that information it would be impossible to link resources together in
-terms of what caused them to be created, so `triggerId` is given the task of
+terms of what caused them to be created, so `triggerAsyncId` is given the task of
 propagating what resource is responsible for the new resource's existence.
 
 ###### `resource`
@@ -280,12 +280,13 @@ elaborate to make calling context easier to see.
 ```js
 let indent = 0;
 async_hooks.createHook({
-  init(asyncId, type, triggerId) {
-    const cId = async_hooks.currentId();
+  init(asyncId, type, triggerAsyncId) {
+    const eid = async_hooks.executionAsyncId();
     const indentStr = ' '.repeat(indent);
     fs.writeSync(
       1,
-      `${indentStr}${type}(${asyncId}): trigger: ${triggerId} scope: ${cId}\n`);
+      `${indentStr}${type}(${asyncId}):` +
+      ` trigger: ${triggerAsyncId} execution: ${eid}\n`);
   },
   before(asyncId) {
     const indentStr = ' '.repeat(indent);
@@ -306,7 +307,7 @@ async_hooks.createHook({
 require('net').createServer(() => {}).listen(8080, () => {
   // Let's wait 10ms before logging the server started.
   setTimeout(() => {
-    console.log('>>>', async_hooks.currentId());
+    console.log('>>>', async_hooks.executionAsyncId());
   }, 10);
 });
 ```
@@ -314,20 +315,20 @@ require('net').createServer(() => {}).listen(8080, () => {
 Output from only starting the server:
 
 ```
-TCPWRAP(2): trigger: 1 scope: 1
-TickObject(3): trigger: 2 scope: 1
+TCPWRAP(2): trigger: 1 execution: 1
+TickObject(3): trigger: 2 execution: 1
 before:  3
-  Timeout(4): trigger: 3 scope: 3
-  TIMERWRAP(5): trigger: 3 scope: 3
+  Timeout(4): trigger: 3 execution: 3
+  TIMERWRAP(5): trigger: 3 execution: 3
 after:   3
 destroy: 3
 before:  5
   before:  4
-    TTYWRAP(6): trigger: 4 scope: 4
-    SIGNALWRAP(7): trigger: 4 scope: 4
-    TTYWRAP(8): trigger: 4 scope: 4
+    TTYWRAP(6): trigger: 4 execution: 4
+    SIGNALWRAP(7): trigger: 4 execution: 4
+    TTYWRAP(8): trigger: 4 execution: 4
 >>> 4
-    TickObject(9): trigger: 4 scope: 4
+    TickObject(9): trigger: 4 execution: 4
   after:   4
 after:   5
 before:  9
@@ -337,11 +338,11 @@ destroy: 9
 destroy: 5
 ```
 
-*Note*: As illustrated in the example, `currentId()` and `scope` each specify
-the value of the current execution context; which is delineated by calls to
-`before` and `after`.
+*Note*: As illustrated in the example, `executionAsyncId()` and `execution`
+each specify the value of the current execution context; which is delineated by
+calls to `before` and `after`.
 
-Only using `scope` to graph resource allocation results in the following:
+Only using `execution` to graph resource allocation results in the following:
 
 ```
 TTYWRAP(6) -> Timeout(4) -> TIMERWRAP(5) -> TickObject(3) -> root(1)
@@ -353,7 +354,7 @@ hostname is actually synchronous, but to maintain a completely asynchronous API
 the user's callback is placed in a `process.nextTick()`.
 
 The graph only shows *when* a resource was created, not *why*, so to track
-the *why* use `triggerId`.
+the *why* use `triggerAsyncId`.
 
 
 ##### `before(asyncId)`
@@ -396,7 +397,7 @@ the `resource` object passed to `init` it's possible that `destroy` is
 never called, causing a memory leak in the application. Of course if
 the resource doesn't depend on GC then this isn't an issue.
 
-#### `async_hooks.currentId()`
+#### `async_hooks.executionAsyncId()`
 
 * Returns {number} the `asyncId` of the current execution context. Useful to track
   when something calls.
@@ -404,14 +405,14 @@ the resource doesn't depend on GC then this isn't an issue.
 For example:
 
 ```js
-console.log(async_hooks.currentId());  // 1 - bootstrap
+console.log(async_hooks.executionAsyncId());  // 1 - bootstrap
 fs.open(path, 'r', (err, fd) => {
-  console.log(async_hooks.currentId());  // 6 - open()
+  console.log(async_hooks.executionAsyncId());  // 6 - open()
 });
 ```
 
-It is important to note that the ID returned fom `currentId()` is related to
-execution timing, not causality (which is covered by `triggerId()`). For
+It is important to note that the ID returned fom `executionAsyncId()` is related
+to execution timing, not causality (which is covered by `triggerAsyncId()`). For
 example:
 
 ```js
@@ -419,16 +420,16 @@ const server = net.createServer(function onConnection(conn) {
   // Returns the ID of the server, not of the new connection, because the
   // onConnection callback runs in the execution scope of the server's
   // MakeCallback().
-  async_hooks.currentId();
+  async_hooks.executionAsyncId();
 
 }).listen(port, function onListening() {
   // Returns the ID of a TickObject (i.e. process.nextTick()) because all
   // callbacks passed to .listen() are wrapped in a nextTick().
-  async_hooks.currentId();
+  async_hooks.executionAsyncId();
 });
 ```
 
-#### `async_hooks.triggerId()`
+#### `async_hooks.triggerAsyncId()`
 
 * Returns {number} the ID of the resource responsible for calling the callback
   that is currently being executed.
@@ -438,15 +439,15 @@ For example:
 ```js
 const server = net.createServer((conn) => {
   // The resource that caused (or triggered) this callback to be called
-  // was that of the new connection. Thus the return value of triggerId()
+  // was that of the new connection. Thus the return value of triggerAsyncId()
   // is the asyncId of "conn".
-  async_hooks.triggerId();
+  async_hooks.triggerAsyncId();
 
 }).listen(port, () => {
   // Even though all callbacks passed to .listen() are wrapped in a nextTick()
   // the callback itself exists because the call to the server's .listen()
   // was made. So the return value would be the ID of the server.
-  async_hooks.triggerId();
+  async_hooks.triggerAsyncId();
 });
 ```
 
@@ -475,9 +476,9 @@ The following is an overview of the `AsyncResource` API.
 const { AsyncResource } = require('async_hooks');
 
 // AsyncResource() is meant to be extended. Instantiating a
-// new AsyncResource() also triggers init. If triggerId is omitted then
-// async_hook.currentId() is used.
-const asyncResource = new AsyncResource(type, triggerId);
+// new AsyncResource() also triggers init. If triggerAsyncId is omitted then
+// async_hook.executionAsyncId() is used.
+const asyncResource = new AsyncResource(type, triggerAsyncId);
 
 // Call AsyncHooks before callbacks.
 asyncResource.emitBefore();
@@ -492,14 +493,14 @@ asyncResource.emitDestroy();
 asyncResource.asyncId();
 
 // Return the trigger ID for the AsyncResource instance.
-asyncResource.triggerId();
+asyncResource.triggerAsyncId();
 ```
 
-#### `AsyncResource(type[, triggerId])`
+#### `AsyncResource(type[, triggerAsyncId])`
 
 * arguments
   * `type` {string} the type of ascyc event
-  * `triggerId` {number} the ID of the execution context that created this async
+  * `triggerAsyncId` {number} the ID of the execution context that created this async
     event
 
 Example usage:
@@ -558,9 +559,9 @@ never be called.
 
 * Returns {number} the unique `asyncId` assigned to the resource.
 
-#### `asyncResource.triggerId()`
+#### `asyncResource.triggerAsyncId()`
 
-* Returns {number} the same `triggerId` that is passed to the `AsyncResource`
+* Returns {number} the same `triggerAsyncId` that is passed to the `AsyncResource`
 constructor.
 
 [`Hook Callbacks`]: #hook-callbacks

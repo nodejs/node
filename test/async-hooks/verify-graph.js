@@ -31,13 +31,13 @@ function pruneTickObjects(activities) {
     if (tickObjectIdx >= 0) {
       foundTickObject = true;
 
-      // point all triggerIds that point to the tickObject
-      // to its triggerId and findally remove it from the activities
+      // point all triggerAsyncIds that point to the tickObject
+      // to its triggerAsyncId and findally remove it from the activities
       const tickObject = activities[tickObjectIdx];
-      const newTriggerId = tickObject.triggerId;
+      const newTriggerId = tickObject.triggerAsyncId;
       const oldTriggerId = tickObject.uid;
       activities.forEach(function repointTriggerId(x) {
-        if (x.triggerId === oldTriggerId) x.triggerId = newTriggerId;
+        if (x.triggerAsyncId === oldTriggerId) x.triggerAsyncId = newTriggerId;
       });
       activities.splice(tickObjectIdx, 1);
     }
@@ -66,15 +66,15 @@ module.exports = function verifyGraph(hooks, graph) {
 
     idtouid[node.id] = x.uid;
     uidtoid[x.uid] = node.id;
-    if (node.triggerId == null) return;
+    if (node.triggerAsyncId == null) return;
 
-    const tid = idtouid[node.triggerId];
-    if (x.triggerId === tid) return;
+    const tid = idtouid[node.triggerAsyncId];
+    if (x.triggerAsyncId === tid) return;
 
     errors.push({
       id: node.id,
-      expectedTid: node.triggerId,
-      actualTid: uidtoid[x.triggerId]
+      expectedTid: node.triggerAsyncId,
+      actualTid: uidtoid[x.triggerAsyncId]
     });
   }
 
@@ -108,8 +108,8 @@ module.exports.printGraph = function printGraph(hooks) {
     if (!ids[key]) ids[key] = 1;
     const id = key + ':' + ids[key]++;
     uidtoid[x.uid] = id;
-    const triggerId = uidtoid[x.triggerId] || null;
-    graph.push({ type: x.type, id, triggerId });
+    const triggerAsyncId = uidtoid[x.triggerAsyncId] || null;
+    graph.push({ type: x.type, id, triggerAsyncId });
   }
   inspect(graph);
 };

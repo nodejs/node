@@ -17,7 +17,7 @@ assert.strictEqual(as.length, 1);
 const imd1 = as[0];
 assert.strictEqual(imd1.type, 'Immediate');
 assert.strictEqual(typeof imd1.uid, 'number');
-assert.strictEqual(typeof imd1.triggerId, 'number');
+assert.strictEqual(typeof imd1.triggerAsyncId, 'number');
 checkInvocations(imd1, { init: 1 },
                  'imd1: when first set immediate installed');
 
@@ -36,7 +36,7 @@ function onimmediate() {
   imd2 = as[1];
   assert.strictEqual(imd2.type, 'Immediate');
   assert.strictEqual(typeof imd2.uid, 'number');
-  assert.strictEqual(typeof imd2.triggerId, 'number');
+  assert.strictEqual(typeof imd2.triggerAsyncId, 'number');
   checkInvocations(imd1, { init: 1, before: 1 },
                    'imd1: when second set immediate installed');
   checkInvocations(imd2, { init: 1 },

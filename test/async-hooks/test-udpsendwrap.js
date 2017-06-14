@@ -35,7 +35,7 @@ function onsent() {
   assert.strictEqual(as.length, 1);
   assert.strictEqual(send.type, 'UDPSENDWRAP');
   assert.strictEqual(typeof send.uid, 'number');
-  assert.strictEqual(typeof send.triggerId, 'number');
+  assert.strictEqual(typeof send.triggerAsyncId, 'number');
   checkInvocations(send, { init: 1, before: 1 }, 'when message sent');
 
   sock.close(common.mustCall(onsockClosed));

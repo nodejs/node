@@ -37,13 +37,13 @@ function onexit() {
   hooks.disable();
   verifyGraph(
     hooks,
-    [ { type: 'TCPWRAP', id: 'tcp:1', triggerId: null },
-      { type: 'TCPWRAP', id: 'tcp:2', triggerId: 'tcp:1' },
+    [ { type: 'TCPWRAP', id: 'tcp:1', triggerAsyncId: null },
+      { type: 'TCPWRAP', id: 'tcp:2', triggerAsyncId: 'tcp:1' },
       { type: 'GETADDRINFOREQWRAP',
-        id: 'getaddrinforeq:1', triggerId: 'tcp:2' },
+        id: 'getaddrinforeq:1', triggerAsyncId: 'tcp:2' },
       { type: 'TCPCONNECTWRAP',
-        id: 'tcpconnect:1', triggerId: 'tcp:2' },
-      { type: 'TCPWRAP', id: 'tcp:3', triggerId: 'tcp:1' },
-      { type: 'SHUTDOWNWRAP', id: 'shutdown:1', triggerId: 'tcp:3' } ]
+        id: 'tcpconnect:1', triggerAsyncId: 'tcp:2' },
+      { type: 'TCPWRAP', id: 'tcp:3', triggerAsyncId: 'tcp:1' },
+      { type: 'SHUTDOWNWRAP', id: 'shutdown:1', triggerAsyncId: 'tcp:3' } ]
   );
 }
