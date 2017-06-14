@@ -645,6 +645,14 @@ with inappropriate names has been deprecated.
 *Note*: As the original API was undocumented and not generally useful for
 non-internal code, no replacement API is provided.
 
+<a id="DEP0074"></a>
+### DEP0074: REPLServer.bufferedCommand
+
+Type: Runtime
+
+The `REPLServer.bufferedCommand` property was deprecated in favor of
+[`REPLServer.clearBufferedCommand()`][].
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
@@ -708,3 +716,4 @@ non-internal code, no replacement API is provided.
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
+[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
