@@ -58,28 +58,28 @@ bool base64_decode_group_slow(char* const dst, const size_t dstlen,
                               size_t* const i, size_t* const k) {
   uint8_t hi;
   uint8_t lo;
-#define V(expr)                                                               \
-  for (;;) {                                                                  \
-    const uint8_t c = src[*i];                                                \
-    lo = unbase64(c);                                                         \
-    *i += 1;                                                                  \
-    if (lo < 64)                                                              \
-      break;  /* Legal character. */                                          \
-    if (c == '=' || *i >= srclen)                                             \
-      return false;  /* Stop decoding. */                                     \
-  }                                                                           \
-  expr;                                                                       \
-  if (*i >= srclen)                                                           \
-    return false;                                                             \
-  if (*k >= dstlen)                                                           \
-    return false;                                                             \
-  hi = lo;
-  V(/* Nothing. */);
-  V(dst[(*k)++] = ((hi & 0x3F) << 2) | ((lo & 0x30) >> 4));
-  V(dst[(*k)++] = ((hi & 0x0F) << 4) | ((lo & 0x3C) >> 2));
-  V(dst[(*k)++] = ((hi & 0x03) << 6) | ((lo & 0x3F) >> 0));
-#undef V
-  return true;  // Continue decoding.
+  auto V = [&](auto expr) {
+    for (;;) {
+      const uint8_t c = src[*i];
+      lo = unbase64(c);
+      *i += 1;
+      if (lo < 64)
+        break;  /* Legal character. */
+      if (c == '=' || *i >= srclen)
+        return false;  /* Stop decoding. */
+    }
+    expr();
+    if (*i >= srclen)
+      return false;
+    if (*k >= dstlen)
+      return false;
+    hi = lo;
+    return true;
+  };
+  return V([] {}) &&
+         V([&] { dst[(*k)++] = ((hi & 0x3F) << 2) | ((lo & 0x30) >> 4); }) &&
+         V([&] { dst[(*k)++] = ((hi & 0x0F) << 4) | ((lo & 0x3C) >> 2); }) &&
+         V([&] { dst[(*k)++] = ((hi & 0x03) << 6) | ((lo & 0x3F) >> 0); });
 }
 
 
