@@ -88,7 +88,7 @@ const dgram = require('dgram');
               "SO_RCVBUF not 1200 or 2400");
     assert.ok(socket.getSendBufferSize() === 1500 ||
               socket.getSendBufferSize() === 3000,
-              "SO_SNDVBUF not 1500 or 3000");
+              "SO_SNDBUF not 1500 or 3000");
     socket.close();
   }));
 }

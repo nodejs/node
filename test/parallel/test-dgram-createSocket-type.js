@@ -54,7 +54,7 @@ validTypes.forEach((validType) => {
               "SO_RCVBUF not 1300 or 2600");
     assert.ok(socket.getSendBufferSize() === 1800 ||
               socket.getSendBufferSize() === 3600,
-              "SO_SNDVBUF not 1800 or 3600");
+              "SO_SNDBUF not 1800 or 3600");
     socket.close();
   }));
 }
