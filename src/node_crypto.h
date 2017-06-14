@@ -9,8 +9,6 @@ namespace crypto {
 class Crypto {
  public:
   virtual ~Crypto() {}
-  virtual void RegisterCrypto() __attribute__((constructor));
-  virtual void UnregisterCrypto() __attribute__((destructor));
   /**
    * Allows a crypto implementation to do any additional initializations
    * required.
@@ -48,6 +46,9 @@ class Crypto {
    * Returns true if Online Certificate Status Protocol is supported.
    */
   virtual bool HasOCSP() = 0;
+
+ protected:
+  static std::string id_;
 };
 
 }  //  namespace crypto

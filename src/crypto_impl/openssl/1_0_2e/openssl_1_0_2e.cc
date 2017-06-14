@@ -6,21 +6,11 @@
 namespace node {
 namespace crypto {
 
-constexpr char version_[] = "1.0.2e";
-constexpr char typeversion_[] = "openssl_1_0_2e";
+const std::string id_ = CryptoFactory::Register("openssl_1_0_2e",
+    []() -> Crypto* { return new OpenSSL(); });
 
 const std::string OpenSSL::Version() {
-  return version_;
-}
-
-void Crypto::RegisterCrypto() {
-  CryptoFactory::Register(typeversion_, []() -> Crypto* {
-     return new OpenSSL();
-  });
-}
-
-void Crypto::UnregisterCrypto() {
-  CryptoFactory::Unregister(typeversion_);
+  return "1.0.2e";
 }
 
 bool OpenSSL::HasSNI() {

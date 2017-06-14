@@ -12,12 +12,13 @@ CryptoFactory::CallbackMap CryptoFactory::crypto_libs;
 
 typedef std::pair<const std::string, std::shared_ptr<Crypto>> CryptoPair;
 
-void CryptoFactory::Register(const std::string& version,
+std::string CryptoFactory::Register(const std::string& version,
                                    CreateCallback cb) {
   if (!crypto_libs.count(version)) {
     std::shared_ptr<Crypto> crypto{cb()};
     crypto_libs.insert(CryptoPair(version, crypto));
   }
+  return version;
 }
 
 void CryptoFactory::Unregister(const std::string& version) {

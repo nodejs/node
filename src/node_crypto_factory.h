@@ -18,7 +18,7 @@ class CryptoFactory {
   /**
    * Registers a Crypto implementation for the specified version.
    */
-  static void Register(const std::string& version, CreateCallback cb);
+  static std::string Register(const std::string& version, CreateCallback cb);
   /**
    * Unregisters a the Crypto implementation identified with version.
    */
