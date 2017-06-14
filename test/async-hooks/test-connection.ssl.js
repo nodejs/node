@@ -42,7 +42,7 @@ assert.strictEqual(as.length, 1);
 const f1 = as[0];
 assert.strictEqual(f1.type, 'SSLCONNECTION');
 assert.strictEqual(typeof f1.uid, 'number');
-assert.strictEqual(typeof f1.triggerId, 'number');
+assert.strictEqual(typeof f1.triggerAsyncId, 'number');
 checkInvocations(f1, { init: 1 }, 'first connection, when first created');
 
 // creating second server connection
@@ -53,7 +53,7 @@ assert.strictEqual(as.length, 2);
 const f2 = as[1];
 assert.strictEqual(f2.type, 'SSLCONNECTION');
 assert.strictEqual(typeof f2.uid, 'number');
-assert.strictEqual(typeof f2.triggerId, 'number');
+assert.strictEqual(typeof f2.triggerAsyncId, 'number');
 checkInvocations(f1, { init: 1 }, 'first connection, when second created');
 checkInvocations(f2, { init: 1 }, 'second connection, when second created');
 

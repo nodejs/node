@@ -35,13 +35,13 @@ hooks = async_hooks.createHook({
 
 
 process.on('uncaughtException', common.mustCall(() => {
-  assert.strictEqual(call_id, async_hooks.currentId());
+  assert.strictEqual(call_id, async_hooks.executionAsyncId());
   call_log[2]++;
 }));
 
 
 require('crypto').randomBytes(1, common.mustCall(() => {
-  assert.strictEqual(call_id, async_hooks.currentId());
+  assert.strictEqual(call_id, async_hooks.executionAsyncId());
   call_log[1]++;
   throw new Error('ah crap');
 }));

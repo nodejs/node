@@ -36,7 +36,7 @@ process.on('exit', function onexit() {
   // never called. However, it is known that the parent promise was created
   // immediately before the child promise, thus there should only be one
   // difference in id.
-  assert.strictEqual(a0.triggerId, a0.uid - 1);
+  assert.strictEqual(a0.triggerAsyncId, a0.uid - 1);
   // We expect a destroy hook as well but we cannot guarentee predictable gc.
   checkInvocations(a0, { init: 1, before: 1, after: 1 }, 'when process exits');
 });

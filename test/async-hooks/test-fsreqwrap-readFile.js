@@ -19,7 +19,7 @@ function onread() {
     const a = as[i];
     assert.strictEqual(a.type, 'FSREQWRAP');
     assert.strictEqual(typeof a.uid, 'number');
-    assert.strictEqual(a.triggerId, lastParent);
+    assert.strictEqual(a.triggerAsyncId, lastParent);
     lastParent = a.uid;
   }
   checkInvocations(as[0], { init: 1, before: 1, after: 1, destroy: 1 },

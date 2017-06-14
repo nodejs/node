@@ -528,22 +528,30 @@ NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
 /* Returns the id of the current execution context. If the return value is
  * zero then no execution has been set. This will happen if the user handles
  * I/O from native code. */
-NODE_EXTERN async_uid AsyncHooksGetCurrentId(v8::Isolate* isolate);
+NODE_EXTERN async_uid AsyncHooksGetExecutionAsyncId(v8::Isolate* isolate);
+/* legacy alias */
+NODE_EXTERN NODE_DEPRECATED("Use AsyncHooksGetExecutionAsyncId(isolate)",
+                async_uid AsyncHooksGetCurrentId(v8::Isolate* isolate));
 
-/* Return same value as async_hooks.triggerId(); */
-NODE_EXTERN async_uid AsyncHooksGetTriggerId(v8::Isolate* isolate);
+
+/* Return same value as async_hooks.triggerAsyncId(); */
+NODE_EXTERN async_uid AsyncHooksGetTriggerAsyncId(v8::Isolate* isolate);
+/* legacy alias */
+NODE_EXTERN NODE_DEPRECATED("Use AsyncHooksGetTriggerAsyncId(isolate)",
+                async_uid AsyncHooksGetTriggerId(v8::Isolate* isolate));
+
 
 /* If the native API doesn't inherit from the helper class then the callbacks
  * must be triggered manually. This triggers the init() callback. The return
  * value is the uid assigned to the resource.
  *
- * The `trigger_id` parameter should correspond to the resource which is
+ * The `trigger_async_id` parameter should correspond to the resource which is
  * creating the new resource, which will usually be the return value of
- * `AsyncHooksGetTriggerId()`. */
+ * `AsyncHooksGetTriggerAsyncId()`. */
 NODE_EXTERN async_uid EmitAsyncInit(v8::Isolate* isolate,
                                     v8::Local<v8::Object> resource,
                                     const char* name,
-                                    async_uid trigger_id);
+                                    async_uid trigger_async_id);
 
 /* Emit the destroy() callback. */
 NODE_EXTERN void EmitAsyncDestroy(v8::Isolate* isolate, async_uid id);
@@ -554,8 +562,8 @@ NODE_EXTERN void EmitAsyncDestroy(v8::Isolate* isolate, async_uid id);
  * These methods may create handles on their own, so run them inside a
  * HandleScope.
  *
- * `asyncId` and `triggerId` should correspond to the values returned by
- * `EmitAsyncInit()` and `AsyncHooksGetTriggerId()`, respectively, when the
+ * `asyncId` and `triggerAsyncId` should correspond to the values returned by
+ * `EmitAsyncInit()` and `AsyncHooksGetTriggerAsyncId()`, respectively, when the
  * invoking resource was created. If these values are unknown, 0 can be passed.
  * */
 NODE_EXTERN
@@ -565,7 +573,7 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        int argc,
                                        v8::Local<v8::Value>* argv,
                                        async_uid asyncId,
-                                       async_uid triggerId);
+                                       async_uid triggerAsyncId);
 NODE_EXTERN
 v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Object> recv,
@@ -573,7 +581,7 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        int argc,
                                        v8::Local<v8::Value>* argv,
                                        async_uid asyncId,
-                                       async_uid triggerId);
+                                       async_uid triggerAsyncId);
 NODE_EXTERN
 v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Object> recv,
@@ -581,7 +589,7 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        int argc,
                                        v8::Local<v8::Value>* argv,
                                        async_uid asyncId,
-                                       async_uid triggerId);
+                                       async_uid triggerAsyncId);
 
 /* Helper class users can optionally inherit from. If
  * `AsyncResource::MakeCallback()` is used, then all four callbacks will be
@@ -591,14 +599,14 @@ class AsyncResource {
     AsyncResource(v8::Isolate* isolate,
                   v8::Local<v8::Object> resource,
                   const char* name,
-                  async_uid trigger_id = -1)
+                  async_uid trigger_async_id = -1)
         : isolate_(isolate),
           resource_(isolate, resource),
-          trigger_id_(trigger_id) {
-      if (trigger_id_ == -1)
-        trigger_id_ = AsyncHooksGetTriggerId(isolate);
+          trigger_async_id_(trigger_async_id) {
+      if (trigger_async_id_ == -1)
+        trigger_async_id_ = AsyncHooksGetTriggerAsyncId(isolate);
 
-      uid_ = EmitAsyncInit(isolate, resource, name, trigger_id_);
+      uid_ = EmitAsyncInit(isolate, resource, name, trigger_async_id_);
     }
 
     ~AsyncResource() {
@@ -611,7 +619,7 @@ class AsyncResource {
         v8::Local<v8::Value>* argv) {
       return node::MakeCallback(isolate_, get_resource(),
                                 callback, argc, argv,
-                                uid_, trigger_id_);
+                                uid_, trigger_async_id_);
     }
 
     v8::MaybeLocal<v8::Value> MakeCallback(
@@ -620,7 +628,7 @@ class AsyncResource {
         v8::Local<v8::Value>* argv) {
       return node::MakeCallback(isolate_, get_resource(),
                                 method, argc, argv,
-                                uid_, trigger_id_);
+                                uid_, trigger_async_id_);
     }
 
     v8::MaybeLocal<v8::Value> MakeCallback(
@@ -629,7 +637,7 @@ class AsyncResource {
         v8::Local<v8::Value>* argv) {
       return node::MakeCallback(isolate_, get_resource(),
                                 symbol, argc, argv,
-                                uid_, trigger_id_);
+                                uid_, trigger_async_id_);
     }
 
     v8::Local<v8::Object> get_resource() {
@@ -643,7 +651,7 @@ class AsyncResource {
     v8::Isolate* isolate_;
     v8::Persistent<v8::Object> resource_;
     async_uid uid_;
-    async_uid trigger_id_;
+    async_uid trigger_async_id_;
 };
 
 }  // namespace node

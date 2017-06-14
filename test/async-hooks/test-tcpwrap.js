@@ -34,7 +34,7 @@ const server = net
   tcp1 = tcps[0];
   assert.strictEqual(tcp1.type, 'TCPWRAP');
   assert.strictEqual(typeof tcp1.uid, 'number');
-  assert.strictEqual(typeof tcp1.triggerId, 'number');
+  assert.strictEqual(typeof tcp1.triggerAsyncId, 'number');
   checkInvocations(tcp1, { init: 1 }, 'when calling server.listen');
 }
 
@@ -54,7 +54,7 @@ const server = net
   assert.strictEqual(tcps.length, 2);
   assert.strictEqual(tcp2.type, 'TCPWRAP');
   assert.strictEqual(typeof tcp2.uid, 'number');
-  assert.strictEqual(typeof tcp2.triggerId, 'number');
+  assert.strictEqual(typeof tcp2.triggerAsyncId, 'number');
 
   checkInvocations(tcp1, { init: 1 }, 'tcp1 when client is connecting');
   checkInvocations(tcp2, { init: 1 }, 'tcp2 when client is connecting');
@@ -86,7 +86,7 @@ function ontcpConnection(serverConnection) {
   tcpconnect = tcpconnects[0];
   assert.strictEqual(tcpconnect.type, 'TCPCONNECTWRAP');
   assert.strictEqual(typeof tcpconnect.uid, 'number');
-  assert.strictEqual(typeof tcpconnect.triggerId, 'number');
+  assert.strictEqual(typeof tcpconnect.triggerAsyncId, 'number');
   // When client receives connection first ('onconnected'), we 'before' has
   // been invoked at this point already, otherwise it only was 'init'ed
   const expected = serverConnection ? { init: 1 } : { init: 1, before: 1 };
@@ -117,7 +117,7 @@ function onconnection(c) {
   tcp3 = tcps[2];
   assert.strictEqual(tcp3.type, 'TCPWRAP');
   assert.strictEqual(typeof tcp3.uid, 'number');
-  assert.strictEqual(typeof tcp3.triggerId, 'number');
+  assert.strictEqual(typeof tcp3.triggerAsyncId, 'number');
 
   checkInvocations(tcp1, { init: 1, before: 1 },
                    'tcp1 when server receives connection');
