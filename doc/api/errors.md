@@ -638,6 +638,12 @@ passed in an options object.
 Used when both `breakEvalOnSigint` and `eval` options are set
 in the REPL config, which is not supported.
 
+<a id="ERR_INVALID_REPL_EVAL_CONFIG"></a>
+### ERR_INVALID_REPL_EVAL_CONFIG
+
+Used when both `breakEvalOnSigint` and `eval` options are set
+in the REPL config, which is not supported.
+
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
 ### ERR_INVALID_SYNC_FORK_INPUT
 
