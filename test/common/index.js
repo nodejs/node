@@ -689,6 +689,11 @@ exports.expectsError = function expectsError(fn, settings, exact) {
       }
       assert(error instanceof type,
              `${error.name} is not instance of ${type.name}`);
+      let typeName = error.constructor.name;
+      if (typeName === 'NodeError' && type.name !== 'NodeError') {
+        typeName = Object.getPrototypeOf(error.constructor).name;
+      }
+      assert.strictEqual(typeName, type.name);
     }
     if ('message' in settings) {
       const message = settings.message;
