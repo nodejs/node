@@ -377,11 +377,11 @@ within the action function for commands registered using the
 
 ### replServer.clearBufferedCommand()
 <!-- YAML
-added: v8.1.0
+added: REPLACEME
 -->
 
 The `replServer.clearBufferedComand()` method clears any command that has been
-buffered but not yet executed.This method is primarily intended to be 
+buffered but not yet executed. This method is primarily intended to be 
 called from within the action function for commands registered using the 
 `replServer.defineCommand()` method.
 
