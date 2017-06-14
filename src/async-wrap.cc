@@ -243,7 +243,7 @@ void AsyncWrap::EmitAfter(Environment* env, double async_id) {
 class PromiseWrap : public AsyncWrap {
  public:
   PromiseWrap(Environment* env, Local<Object> object, bool silent)
-    : AsyncWrap(env, object, PROVIDER_PROMISE, silent) {
+      : AsyncWrap(env, object, silent) {
     MakeWeak(this);
   }
   size_t self_size() const override { return sizeof(*this); }
@@ -573,8 +573,7 @@ void LoadAsyncWrapperInfo(Environment* env) {
 
 AsyncWrap::AsyncWrap(Environment* env,
                      Local<Object> object,
-                     ProviderType provider,
-                     bool silent)
+                     ProviderType provider)
     : BaseObject(env, object),
       provider_type_(provider) {
   CHECK_NE(provider, PROVIDER_NONE);
@@ -582,6 +581,22 @@ AsyncWrap::AsyncWrap(Environment* env,
 
   // Shift provider value over to prevent id collision.
   persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider);
+
+  // Use AsyncReset() call to execute the init() callbacks.
+  AsyncReset();
+}
+
+
+// This is specifically used by the PromiseWrap constructor.
+AsyncWrap::AsyncWrap(Environment* env,
+                     Local<Object> object,
+                     bool silent)
+    : BaseObject(env, object),
+      provider_type_(PROVIDER_PROMISE) {
+  CHECK_GE(object->InternalFieldCount(), 1);
+
+  // Shift provider value over to prevent id collision.
+  persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider_type_);
 
   // Use AsyncReset() call to execute the init() callbacks.
   AsyncReset(silent);
