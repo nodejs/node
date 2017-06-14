@@ -1840,7 +1840,7 @@ const req = http.request(options, (res) => {
 [`response.writeHead()`]: #http_response_writehead_statuscode_statusmessage_headers
 [`server.timeout`]: #http_server_timeout
 [`socket.setKeepAlive()`]: net.html#net_socket_setkeepalive_enable_initialdelay
-[`socket.setNoDelay()`]: net.html#net_socket_setnodelay_nodelay
+[`socket.setNoDelay()`]: net.html#net_socket_setnodelay_enable
 [`socket.setTimeout()`]: net.html#net_socket_settimeout_timeout_callback
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [Readable Stream]: stream.html#stream_class_stream_readable
