@@ -8,9 +8,11 @@ const zlib = require('zlib');
 // For raw deflate encoding, requests for 256-byte windows are rejected as
 // invalid by zlib.
 // (http://zlib.net/manual.html#Advanced)
-assert.throws(() => {
-  zlib.createDeflateRaw({ windowBits: 8 });
-}, /^Error: Init error$/);
+if (process.versions.zlib.match(/^\d+\.\d+\.[9]|\d{2,}$/)) {
+  assert.throws(() => {
+    zlib.createDeflateRaw({ windowBits: 8 });
+  }, /^Error: Init error$/);
+}
 
 // Regression tests for bugs in the validation logic.
 
