@@ -84,7 +84,7 @@ function test(keyfn, certfn, check, next) {
     console.error(state);
     switch (state) {
       case 'WAIT-ACCEPT':
-        if (/ACCEPT/g.test(serverStdoutBuffer)) {
+        if (/ACCEPT/.test(serverStdoutBuffer)) {
           // Give s_server half a second to start up.
           setTimeout(startClient, 500);
           state = 'WAIT-HELLO';
@@ -92,7 +92,7 @@ function test(keyfn, certfn, check, next) {
         break;
 
       case 'WAIT-HELLO':
-        if (/hello/g.test(serverStdoutBuffer)) {
+        if (/hello/.test(serverStdoutBuffer)) {
 
           // End the current SSL connection and exit.
           // See s_server(1ssl).

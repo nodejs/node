@@ -79,10 +79,10 @@ function runAb(opts, callback) {
       return;
     }
 
-    let matches = /Requests\/sec:\s*(\d+)\./mi.exec(stdout);
+    let matches = /Requests\/sec:\s*(\d+)\./i.exec(stdout);
     const reqSec = parseInt(matches[1]);
 
-    matches = /Keep-Alive requests:\s*(\d+)/mi.exec(stdout);
+    matches = /Keep-Alive requests:\s*(\d+)/i.exec(stdout);
     let keepAliveRequests;
     if (matches) {
       keepAliveRequests = parseInt(matches[1]);
