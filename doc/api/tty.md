@@ -88,7 +88,9 @@ process.stdout.on('resize', () => {
 });
 ```
 
-*Note:* Unrealiable event handler execution on all Windows platforms. The Event handler is only executed for changes in the width of the window and the console must be in raw mode.
+*Note:* Terminal window resize events are unreliable on Windows. The event 
+handler is only executed for changes in the width of the window and the 
+console must be in raw mode.
 
 ### writeStream.columns
 <!-- YAML
