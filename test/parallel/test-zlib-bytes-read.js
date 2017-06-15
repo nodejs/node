@@ -28,7 +28,7 @@ for (const method of [
   ['createDeflateRaw', 'createInflateRaw', true]
 ]) {
   let compWriter;
-  let compData = new Buffer(0);
+  let compData = Buffer.alloc(0);
 
   const comp = zlib[method[0]]();
   comp.on('data', function(d) {
@@ -44,7 +44,7 @@ for (const method of [
 
     {
       let decompWriter;
-      let decompData = new Buffer(0);
+      let decompData = Buffer.alloc(0);
 
       const decomp = zlib[method[1]]();
       decomp.on('data', function(d) {
@@ -66,10 +66,10 @@ for (const method of [
 
     // Some methods should allow extra data after the compressed data
     if (method[2]) {
-      const compDataExtra = Buffer.concat([compData, new Buffer('extra')]);
+      const compDataExtra = Buffer.concat([compData, Buffer.from('extra')]);
 
       let decompWriter;
-      let decompData = new Buffer(0);
+      let decompData = Buffer.alloc(0);
 
       const decomp = zlib[method[1]]();
       decomp.on('data', function(d) {
