@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td>
+<a href="#8.1.2">8.1.2</a><br/>
 <a href="#8.1.1">8.1.1</a><br/>
 <a href="#8.1.0">8.1.0</a><br/>
 <a href="#8.0.0">8.0.0</a><br/>
@@ -22,6 +23,14 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="8.1.2"></a>
+## 2017-06-15, Version 8.1.2 (Current), @rvagg
+
+### Notable changes
+
+Release to fix broken `process.release` properties
+Ref: https://github.com/nodejs/node/issues/13667
 
 <a id="8.1.1"></a>
 ## 2017-06-13, Version 8.1.1 (Current), @addaleax
