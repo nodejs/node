@@ -95,12 +95,16 @@ methods, the `options.customFds` option is deprecated. The `options.stdio`
 option should be used instead.
 
 <a id="DEP0007"></a>
-### DEP0007: cluster worker.suicide
+### DEP0007: Replace cluster worker.suicide with worker.exitedAfterDisconnect
 
-Type: Runtime
+Type: End-of-Life
 
-Within the `cluster` module, the [`worker.suicide`][] property has been
-deprecated. Please use [`worker.exitedAfterDisconnect`][] instead.
+In an earlier version of the Node.js `cluster`, a boolean property with the name
+`suicide` was added to the `Worker` object. The intent of this property was to
+provide an indication of how and why the `Worker` instance exited. In Node.js
+6.0.0, the old property was deprecated and replaced with a new
+[worker.exitedAfterDisconnect][] property. The old property name did not
+precisely describe the actual semantics and was unnecessarily emotion-laden.
 
 <a id="DEP0008"></a>
 ### DEP0008: require('constants')
@@ -689,7 +693,6 @@ Type: Runtime
 [`util.puts()`]: util.html#util_util_puts_strings
 [`util`]: util.html
 [`worker.exitedAfterDisconnect`]: cluster.html#cluster_worker_exitedafterdisconnect
-[`worker.suicide`]: cluster.html#cluster_worker_suicide
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
