@@ -111,6 +111,11 @@ Checks `hasCrypto` and `crypto` with fips.
 
 Checks if [internationalization] is supported.
 
+### hasSmallICU
+* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+
+Checks `hasIntl` and `small-icu` is supported.
+
 ### hasIPv6
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
 
