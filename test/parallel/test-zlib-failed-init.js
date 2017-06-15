@@ -10,7 +10,7 @@ const zlib = require('zlib');
 // This check was introduced in vesion 1.2.9 and prior to that there was
 // no such rejection which is the reason for the version check below
 // (http://zlib.net/ChangeLog.txt).
-if (process.versions.zlib.match(/^\d+\.\d+\.[9]|\d{2,}$/)) {
+if (/^\d+\.\d+\.[9]|\d{2,}$/.test(process.versions.zlib)) {
   assert.throws(() => {
     zlib.createDeflateRaw({ windowBits: 8 });
   }, /^Error: Init error$/);
