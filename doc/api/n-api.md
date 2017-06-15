@@ -410,7 +410,7 @@ NODE_EXTERN napi_status napi_create_error(napi_env env,
                                           napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
-- `[in] msg`: napi_value that referneces a JavaScript String to be
+- `[in] msg`: napi_value that references a JavaScript String to be
 used as the message for the Error.
 - `[out] result`: `napi_value` representing the error created.
 
@@ -428,7 +428,7 @@ NODE_EXTERN napi_status napi_create_type_error(napi_env env,
                                                napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
-- `[in] msg`: napi_value that referneces a JavaScript String to be
+- `[in] msg`: napi_value that references a JavaScript String to be
 used as the message for the Error.
 - `[out] result`: `napi_value` representing the error created.
 
@@ -447,7 +447,7 @@ NODE_EXTERN napi_status napi_create_range_error(napi_env env,
                                                 napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
-- `[in] msg`: napi_value that referneces a JavaScript String to be
+- `[in] msg`: napi_value that references a JavaScript String to be
 used as the message for the Error.
 - `[out] result`: `napi_value` representing the error created.
 
@@ -662,8 +662,8 @@ Object in the outer scope.
 Returns `napi_ok` if the API succeeded.
 
 This API promotes the handle to the JavaScript object so that it is valid
-for the lifetime of the outer scope. It can only be called once.  If it
-is called more than once an error will be returned.
+for the lifetime of the outer scope. It can only be called once per scope.
+If it is called more than once an error will be returned.
 
 ### References to objects with a lifespan longer than that of the native method
 In some cases an addon will need to be able to create and reference objects
@@ -1303,8 +1303,8 @@ napi_status napi_create_string_utf16(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] str`: Character buffer representing a UTF16-LE-encoded string.
-- `[in] length`: The length of the string in characters, or -1 if it is
-null-terminated.
+- `[in] length`: The length of the string in two-byte code units, or -1 if
+it is null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
 Returns `napi_ok` if the API succeeded.
@@ -1328,7 +1328,7 @@ NAPI_EXTERN napi_status napi_create_string_latin1(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] str`: Character buffer representing a latin1-encoded string.
-- `[in] length`: The length of the string in characters, or -1 if it is
+- `[in] length`: The length of the string in bytes, or -1 if it is
 null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
@@ -1353,7 +1353,7 @@ napi_status napi_create_string_utf8(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] str`: Character buffer representing a UTF8-encoded string.
-- `[in] length`: The length of the string in characters, or -1 if it is
+- `[in] length`: The length of the string in bytes, or -1 if it is
 null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
