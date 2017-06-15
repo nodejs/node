@@ -722,6 +722,12 @@ only used in the [WHATWG URL API][] for strict compliance with the specification
 native Node.js APIs, `func(undefined)` and `func()` are treated identically, and
 the [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
+<a id="ERR_REQUIRED_ARG"></a>
+### ERR_REQUIRED_ARG
+
+The `'ERR_REQUIRED_ARG'` error code is used generically when a required 
+argument is not passed to a function or is undefined.
+
 <a id="ERR_SOCKET_ALREADY_BOUND"></a>
 ### ERR_SOCKET_ALREADY_BOUND
 Used when an attempt is made to bind a socket that has already been bound.

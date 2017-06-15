@@ -6,7 +6,7 @@ const inherits = require('util').inherits;
 const errCheck = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "superCtor" argument must be of type function'
+  message: 'The "superConstructor" argument must be of type function'
 });
 
 // super constructor
@@ -85,7 +85,8 @@ assert.throws(function() {
 }, common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "superCtor.prototype" argument must be of type function'
+    message: 'The "superConstructor.prototype" argument must be of type \
+      function'
 })
 );
 assert.throws(function() {
@@ -96,6 +97,6 @@ assert.throws(function() {
 }, common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "ctor" argument must be of type function'
+    message: 'The "constructor" argument must be of type function'
 })
 );
