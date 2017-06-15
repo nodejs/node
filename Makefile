@@ -887,6 +887,8 @@ CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 	src/*.c \
 	src/*.cc \
 	src/*.h \
+	src/crypto_impl/*.h \
+	src/crypto_impl/*.cc \
 	test/addons/*/*.cc \
 	test/addons/*/*.h \
 	test/cctest/*.cc \

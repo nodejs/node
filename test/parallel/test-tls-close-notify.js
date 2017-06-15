@@ -30,13 +30,24 @@ const tls = require('tls');
 
 const fs = require('fs');
 
+// In OpenSSL 1.0.x SSL_shutdown would return 1 even if it was in the
+// initialize stage without any error being set. In 1.1.x this will
+// instead be -1 and en error will be set (SSL_R_SHUTDOWN_WHILE_IN_INIT)
+// which this test will have to handle.
+const shutdownRet = common.isOpenSSL10 ? 1 : -1;
+
 const server = tls.createServer({
   key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
   cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
 }, function(c) {
-  // Send close-notify without shutting down TCP socket
-  if (c._handle.shutdownSSL() !== 1)
+  if (c._handle.shutdownSSL() !== shutdownRet) {
     c._handle.shutdownSSL();
+  }
+  if (!common.isOpenSSL10) {
+    c.on('error', function(err) {
+      c.destroy();
+    });
+  }
 }).listen(0, common.mustCall(function() {
   const c = tls.connect(this.address().port, {
     rejectUnauthorized: false

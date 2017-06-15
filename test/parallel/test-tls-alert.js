@@ -56,7 +56,7 @@ const server = tls.Server({
                 '-connect', `127.0.0.1:${this.address().port}`];
 
   // for the performance and stability issue in s_client on Windows
-  if (common.isWindows)
+  if (common.needNoRandScreen)
     args.push('-no_rand_screen');
 
   const client = spawn(common.opensslCli, args);

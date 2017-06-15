@@ -47,7 +47,7 @@ function faultyServer(port) {
   https.createServer(options, function(req, res) {
     res.end('hello faulty');
   }).listen(port, function() {
-    second(this);
+    common.isOpenSSL10 ? second(this) : forth(this);
   });
 }
 
@@ -73,6 +73,21 @@ function second(server, session) {
 
 // Try one more time - session should be evicted!
 function third(server) {
+  const req = https.request({
+    port: server.address().port,
+    rejectUnauthorized: false
+  }, function(res) {
+    res.resume();
+    assert(!req.socket.isSessionReused());
+    server.close();
+  });
+  req.on('error', common.mustNotCall());
+  req.end();
+}
+
+// Attempt to request using cached session but resumption gets faild
+// and it leads full handshake
+function forth(server) {
   const req = https.request({
     port: server.address().port,
     rejectUnauthorized: false

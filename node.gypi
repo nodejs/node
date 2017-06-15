@@ -98,16 +98,39 @@
     [ 'node_use_openssl=="true"', {
       'defines': [ 'HAVE_OPENSSL=1' ],
       'sources': [
-        'src/node_crypto.cc',
-        'src/node_crypto_bio.cc',
-        'src/node_crypto_clienthello.cc',
         'src/node_crypto.h',
-        'src/node_crypto_bio.h',
-        'src/node_crypto_clienthello.h',
-        'src/tls_wrap.cc',
-        'src/tls_wrap.h'
+        'src/node_crypto_factory.h',
+        'src/node_crypto_factory.cc',
       ],
       'conditions': [
+        [ 'node_crypto_version=="openssl_1_0_2e"', {
+          'sources+': [
+            'src/crypto_impl/openssl/1_0_2e/node_crypto.cc',
+            'src/crypto_impl/openssl/1_0_2e/node_crypto_bio.cc',
+            'src/crypto_impl/openssl/1_0_2e/node_crypto_clienthello.cc',
+            'src/crypto_impl/openssl/1_0_2e/node_crypto.h',
+            'src/crypto_impl/openssl/1_0_2e/node_crypto_bio.h',
+            'src/crypto_impl/openssl/1_0_2e/node_crypto_clienthello.h',
+            'src/crypto_impl/openssl/1_0_2e/tls_wrap.cc',
+            'src/crypto_impl/openssl/1_0_2e/tls_wrap.h',
+            'src/crypto_impl/openssl/openssl.h',
+            'src/crypto_impl/openssl/1_0_2e/openssl_1_0_2e.cc',
+          ],
+        }],
+        [ 'node_crypto_version=="openssl_1_1_0f"', {
+          'sources+': [
+            'src/crypto_impl/openssl/1_1_0f/node_crypto.cc',
+            'src/crypto_impl/openssl/1_1_0f/node_crypto_bio.cc',
+            'src/crypto_impl/openssl/1_1_0f/node_crypto_clienthello.cc',
+            'src/crypto_impl/openssl/1_1_0f/node_crypto.h',
+            'src/crypto_impl/openssl/1_1_0f/node_crypto_bio.h',
+            'src/crypto_impl/openssl/1_1_0f/node_crypto_clienthello.h',
+            'src/crypto_impl/openssl/1_1_0f/tls_wrap.cc',
+            'src/crypto_impl/openssl/1_1_0f/tls_wrap.h',
+            'src/crypto_impl/openssl/openssl.h',
+            'src/crypto_impl/openssl/1_1_0f/openssl_1_1_0f.cc',
+           ],
+        }],
         ['openssl_fips != ""', {
           'defines': [ 'NODE_FIPS_MODE' ],
         }],

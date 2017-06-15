@@ -23,10 +23,22 @@
 const common = require('../common');
 const assert = require('assert');
 
+// Check if a tls server can handle clientError properly.
+// The ECONRESET error is triggered from a tls client due to TLS
+// handshake error with using 384 bits RSA certs and RSA key exchange
+// because its RSA size is too small to carry premaster secret.
+
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
+
+// 384 bits RSA key cannot be accepted in openssl-1.1.x
+if (!common.isOpenSSL10) {
+  common.skip('due to openssl-' + process.versions.openssl);
+  return;
+}
+
 const tls = require('tls');
 
 const cacert =

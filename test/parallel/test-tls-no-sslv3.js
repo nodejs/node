@@ -16,6 +16,11 @@ if (common.opensslCli === false) {
   return;
 }
 
+if (!common.isOpenSSL10) {
+  common.skip('node compiled without OpenSSL CLI version > 1.1.x.');
+  return;
+}
+
 const cert = fs.readFileSync(`${common.fixturesDir}/test_cert.pem`);
 const key = fs.readFileSync(`${common.fixturesDir}/test_key.pem`);
 const server = tls.createServer({ cert: cert, key: key }, common.mustNotCall());
@@ -29,7 +34,7 @@ server.listen(0, '127.0.0.1', function() {
                 '-connect', address];
 
   // for the performance and stability issue in s_client on Windows
-  if (common.isWindows)
+  if (common.needNoRandScreen)
     args.push('-no_rand_screen');
 
   const client = spawn(common.opensslCli, args, { stdio: 'pipe' });

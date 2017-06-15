@@ -12,6 +12,8 @@ if (!process.features.tls_alpn || !process.features.tls_npn) {
   return;
 }
 
+const isOpenSSL10 = common.isOpenSSL10;
+
 const assert = require('assert');
 const fs = require('fs');
 const tls = require('tls');
@@ -26,17 +28,22 @@ function loadPEM(n) {
 
 const serverIP = common.localhostIPv4;
 
-function checkResults(result, expected) {
-  assert.strictEqual(result.server.ALPN, expected.server.ALPN);
-  assert.strictEqual(result.server.NPN, expected.server.NPN);
-  assert.strictEqual(result.client.ALPN, expected.client.ALPN);
-  assert.strictEqual(result.client.NPN, expected.client.NPN);
+function checkResults(result, expected, error) {
+  if (!error) {
+    assert.strictEqual(result.server.ALPN, expected.server.ALPN);
+    assert.strictEqual(result.server.NPN, expected.server.NPN);
+    assert.strictEqual(result.client.ALPN, expected.client.ALPN);
+    assert.strictEqual(result.client.NPN, expected.client.NPN);
+  } else {
+    assert(error.message.match(/socket hang up/));
+  }
 }
 
 function runTest(clientsOptions, serverOptions, cb) {
   serverOptions.key = loadPEM('agent2-key');
   serverOptions.cert = loadPEM('agent2-cert');
   const results = [];
+  const errors = [];
   let index = 0;
   const server = tls.createServer(serverOptions, function(c) {
     results[index].server = {ALPN: c.alpnProtocol, NPN: c.npnProtocol};
@@ -46,27 +53,33 @@ function runTest(clientsOptions, serverOptions, cb) {
     connectClient(clientsOptions);
   });
 
+  function runNext(options) {
+    if (options.length) {
+      index++;
+      connectClient(options);
+    } else {
+      server.close();
+      cb(results, errors);
+    }
+  }
+
   function connectClient(options) {
     const opt = options.shift();
     opt.port = server.address().port;
     opt.host = serverIP;
     opt.rejectUnauthorized = false;
-
     results[index] = {};
     const client = tls.connect(opt, function() {
       results[index].client = {ALPN: client.alpnProtocol,
                                NPN: client.npnProtocol};
       client.destroy();
-      if (options.length) {
-        index++;
-        connectClient(options);
-      } else {
-        server.close();
-        cb(results);
-      }
+      runNext(options);
+    });
+    client.on('error', function(e) {
+      errors[index] = e;
+      runNext(options);
     });
   }
-
 }
 
 // Server: ALPN/NPN, Client: ALPN/NPN
@@ -87,19 +100,23 @@ function Test1() {
     NPNProtocols: ['first-priority-unsupported', 'x', 'y']
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // 'a' is selected by ALPN
     checkResults(results[0],
                  {server: {ALPN: 'a', NPN: false},
-                  client: {ALPN: 'a', NPN: undefined}});
+                  client: {ALPN: 'a', NPN: undefined}}, errors[0]);
     // 'b' is selected by ALPN
     checkResults(results[1],
                  {server: {ALPN: 'b', NPN: false},
-                  client: {ALPN: 'b', NPN: undefined}});
+                  client: {ALPN: 'b', NPN: undefined}}, errors[1]);
     // nothing is selected by ALPN
-    checkResults(results[2],
-                 {server: {ALPN: false, NPN: 'first-priority-unsupported'},
-                  client: {ALPN: false, NPN: false}});
+    const expected_openssl10 = {server: {ALPN: false,
+                                         NPN: 'first-priority-unsupported'},
+                                client: {ALPN: false, NPN: false}};
+    const expected_openssl11 = {};
+    const expected = isOpenSSL10 ? expected_openssl10 : expected_openssl11;
+    checkResults(results[2], expected, errors[2]);
+
     // execute next test
     Test2();
   });
@@ -120,19 +137,23 @@ function Test2() {
     ALPNProtocols: ['first-priority-unsupported', 'x', 'y']
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // 'a' is selected by ALPN
     checkResults(results[0],
                  {server: {ALPN: 'a', NPN: false},
-                  client: {ALPN: 'a', NPN: undefined}});
+                  client: {ALPN: 'a', NPN: undefined}}, errors[0]);
     // 'b' is selected by ALPN
     checkResults(results[1],
                  {server: {ALPN: 'b', NPN: false},
-                  client: {ALPN: 'b', NPN: undefined}});
+                  client: {ALPN: 'b', NPN: undefined}}, errors[1]);
     // nothing is selected by ALPN
-    checkResults(results[2],
-                 {server: {ALPN: false, NPN: 'http/1.1'},
-                  client: {ALPN: false, NPN: false}});
+    const expected_openssl10 = {server: {ALPN: false, NPN: 'http/1.1'},
+                                client: {ALPN: false, NPN: false}};
+    const expected_openssl11 = {};
+    const expected = isOpenSSL10 ? expected_openssl10 : expected_openssl11;
+    checkResults(results[2], expected, errors[2]);
+
+
     // execute next test
     Test3();
   });
@@ -153,19 +174,19 @@ function Test3() {
     NPPNProtocols: ['first-priority-unsupported', 'x', 'y']
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // 'a' is selected by NPN
     checkResults(results[0],
                  {server: {ALPN: false, NPN: 'a'},
-                  client: {ALPN: false, NPN: 'a'}});
+                  client: {ALPN: false, NPN: 'a'}}, errors[0]);
     // nothing is selected by ALPN
     checkResults(results[1],
                  {server: {ALPN: false, NPN: 'http/1.1'},
-                  client: {ALPN: false, NPN: false}});
+                  client: {ALPN: false, NPN: false}}, errors[1]);
     // nothing is selected by ALPN
     checkResults(results[2],
                  {server: {ALPN: false, NPN: 'http/1.1'},
-                  client: {ALPN: false, NPN: false}});
+                  client: {ALPN: false, NPN: false}}, errors[2]);
     // execute next test
     Test4();
   });
@@ -215,17 +236,21 @@ function Test5() {
     NPNProtocols: ['first-priority-unsupported', 'x', 'y']
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // 'a' is selected by ALPN
     checkResults(results[0], {server: {ALPN: 'a', NPN: false},
-                              client: {ALPN: 'a', NPN: undefined}});
+                              client: {ALPN: 'a', NPN: undefined}}, errors[0]);
     // 'b' is selected by ALPN
     checkResults(results[1], {server: {ALPN: 'b', NPN: false},
-                              client: {ALPN: 'b', NPN: undefined}});
+                              client: {ALPN: 'b', NPN: undefined}}, errors[1]);
     // nothing is selected by ALPN
-    checkResults(results[2], {server: {ALPN: false,
-                                       NPN: 'first-priority-unsupported'},
-                              client: {ALPN: false, NPN: false}});
+    const expected_openssl10 = {server: {ALPN: false,
+                                         NPN: 'first-priority-unsupported'},
+                                client: {ALPN: false, NPN: false}};
+    const expected_openssl11 = {};
+    const expected = isOpenSSL10 ? expected_openssl10 : expected_openssl11;
+
+    checkResults(results[2], expected, errors[2]);
     // execute next test
     Test6();
   });
@@ -245,16 +270,19 @@ function Test6() {
     ALPNProtocols: ['first-priority-unsupported', 'x', 'y']
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // 'a' is selected by ALPN
     checkResults(results[0], {server: {ALPN: 'a', NPN: false},
-                              client: {ALPN: 'a', NPN: undefined}});
+                              client: {ALPN: 'a', NPN: undefined}}, errors[0]);
     // 'b' is selected by ALPN
     checkResults(results[1], {server: {ALPN: 'b', NPN: false},
-                              client: {ALPN: 'b', NPN: undefined}});
+                              client: {ALPN: 'b', NPN: undefined}}, errors[1]);
     // nothing is selected by ALPN
-    checkResults(results[2], {server: {ALPN: false, NPN: 'http/1.1'},
-                              client: {ALPN: false, NPN: false}});
+    const expected_openssl10 = {server: {ALPN: false, NPN: 'http/1.1'},
+                                client: {ALPN: false, NPN: false}};
+    const expected_openssl11 = {};
+    const expected = isOpenSSL10 ? expected_openssl10 : expected_openssl11;
+    checkResults(results[2], expected, errors[2]);
     // execute next test
     Test7();
   });
@@ -274,17 +302,20 @@ function Test7() {
     NPNProtocols: ['first-priority-unsupported', 'x', 'y']
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // nothing is selected by ALPN
     checkResults(results[0], {server: {ALPN: false, NPN: 'a'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}},
+                 errors[0]);
     // nothing is selected by ALPN
     checkResults(results[1], {server: {ALPN: false, NPN: 'c'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}},
+                 errors[1]);
     // nothing is selected by ALPN
     checkResults(results[2],
                  {server: {ALPN: false, NPN: 'first-priority-unsupported'},
-                  client: {ALPN: false, NPN: false}});
+                  client: {ALPN: false, NPN: false}},
+                 errors[2]);
     // execute next test
     Test8();
   });
@@ -298,17 +329,20 @@ function Test8() {
 
   const clientsOptions = [{}, {}, {}];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // nothing is selected by ALPN
     checkResults(results[0], {server: {ALPN: false, NPN: 'http/1.1'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}},
+                 errors[0]);
     // nothing is selected by ALPN
     checkResults(results[1], {server: {ALPN: false, NPN: 'http/1.1'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}},
+                 errors[1]);
     // nothing is selected by ALPN
     checkResults(results[2],
                  {server: {ALPN: false, NPN: 'http/1.1'},
-                  client: {ALPN: false, NPN: false}});
+                  client: {ALPN: false, NPN: false}},
+                 errors[2]);
     // execute next test
     Test9();
   });
@@ -331,17 +365,18 @@ function Test9() {
     NPNProtocols: ['first-priority-unsupported', 'x', 'y']
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // 'a' is selected by NPN
     checkResults(results[0], {server: {ALPN: false, NPN: 'a'},
-                              client: {ALPN: false, NPN: 'a'}});
+                              client: {ALPN: false, NPN: 'a'}}, errors[0]);
     // 'b' is selected by NPN
     checkResults(results[1], {server: {ALPN: false, NPN: 'b'},
-                              client: {ALPN: false, NPN: 'b'}});
+                              client: {ALPN: false, NPN: 'b'}}, errors[1]);
     // nothing is selected
     checkResults(results[2],
                  {server: {ALPN: false, NPN: 'first-priority-unsupported'},
-                  client: {ALPN: false, NPN: false}});
+                  client: {ALPN: false, NPN: false}},
+                 errors[2]);
     // execute next test
     Test10();
   });
@@ -361,16 +396,16 @@ function Test10() {
     ALPNProtocols: ['first-priority-unsupported', 'x', 'y']
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // nothing is selected
     checkResults(results[0], {server: {ALPN: false, NPN: 'http/1.1'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[0]);
     // nothing is selected
     checkResults(results[1], {server: {ALPN: false, NPN: 'http/1.1'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[1]);
     // nothing is selected
     checkResults(results[2], {server: {ALPN: false, NPN: 'http/1.1'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[2]);
     // execute next test
     Test11();
   });
@@ -390,17 +425,17 @@ function Test11() {
     NPNProtocols: ['first-priority-unsupported', 'x', 'y']
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // 'a' is selected by NPN
     checkResults(results[0], {server: {ALPN: false, NPN: 'a'},
-                              client: {ALPN: false, NPN: 'a'}});
+                              client: {ALPN: false, NPN: 'a'}}, errors[0]);
     // 'b' is selected by NPN
     checkResults(results[1], {server: {ALPN: false, NPN: 'b'},
-                              client: {ALPN: false, NPN: 'b'}});
+                              client: {ALPN: false, NPN: 'b'}}, errors[1]);
     // nothing is selected
     checkResults(results[2],
                  {server: {ALPN: false, NPN: 'first-priority-unsupported'},
-                  client: {ALPN: false, NPN: false}});
+                  client: {ALPN: false, NPN: false}}, errors[2]);
     // execute next test
     Test12();
   });
@@ -414,17 +449,17 @@ function Test12() {
 
   const clientsOptions = [{}, {}, {}];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // nothing is selected
     checkResults(results[0], {server: {ALPN: false, NPN: 'http/1.1'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[0]);
     // nothing is selected
     checkResults(results[1], {server: {ALPN: false, NPN: 'http/1.1'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[1]);
     // nothing is selected
     checkResults(results[2],
                  {server: {ALPN: false, NPN: 'http/1.1'},
-                  client: {ALPN: false, NPN: false}});
+                  client: {ALPN: false, NPN: false}}, errors[2]);
     // execute next test
     Test13();
   });
@@ -445,17 +480,17 @@ function Test13() {
     NPNProtocols: ['first-priority-unsupported', 'x', 'y']
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // nothing is selected
     checkResults(results[0], {server: {ALPN: false, NPN: 'a'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[0]);
     // nothing is selected
     checkResults(results[1], {server: {ALPN: false, NPN: 'c'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[1]);
     // nothing is selected
     checkResults(results[2],
                  {server: {ALPN: false, NPN: 'first-priority-unsupported'},
-                  client: {ALPN: false, NPN: false}});
+                  client: {ALPN: false, NPN: false}}, errors[2]);
     // execute next test
     Test14();
   });
@@ -473,17 +508,17 @@ function Test14() {
     ALPNProtocols: ['first-priority-unsupported', 'x', 'y']
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // nothing is selected
     checkResults(results[0], {server: {ALPN: false, NPN: 'http/1.1'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[0]);
     // nothing is selected
     checkResults(results[1], {server: {ALPN: false, NPN: 'http/1.1'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[1]);
     // nothing is selected
     checkResults(results[2],
                  {server: {ALPN: false, NPN: 'http/1.1'},
-                  client: {ALPN: false, NPN: false}});
+                  client: {ALPN: false, NPN: false}}, errors[2]);
     // execute next test
     Test15();
   });
@@ -501,17 +536,17 @@ function Test15() {
     NPNProtocols: ['first-priority-unsupported', 'x', 'y']
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // nothing is selected
     checkResults(results[0], {server: {ALPN: false, NPN: 'a'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[0]);
     // nothing is selected
     checkResults(results[1], {server: {ALPN: false, NPN: 'c'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[1]);
     // nothing is selected
     checkResults(results[2],
                  {server: {ALPN: false, NPN: 'first-priority-unsupported'},
-                  client: {ALPN: false, NPN: false}});
+                  client: {ALPN: false, NPN: false}}, errors[2]);
     // execute next test
     Test16();
   });
@@ -523,17 +558,17 @@ function Test16() {
 
   const clientsOptions = [{}, {}, {}];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, function(results, errors) {
     // nothing is selected
     checkResults(results[0], {server: {ALPN: false, NPN: 'http/1.1'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[0]);
     // nothing is selected
     checkResults(results[1], {server: {ALPN: false, NPN: 'http/1.1'},
-                              client: {ALPN: false, NPN: false}});
+                              client: {ALPN: false, NPN: false}}, errors[1]);
     // nothing is selected
     checkResults(results[2],
                  {server: {ALPN: false, NPN: 'http/1.1'},
-                  client: {ALPN: false, NPN: false}});
+                  client: {ALPN: false, NPN: false}}, errors[2]);
   });
 }
 
