@@ -24,7 +24,7 @@ for (const enc of ['utf8', 'utf16le', 'latin1', 'UTF-8']) {
       const headerEnd = received.indexOf('\r\n\r\n', 'utf8');
       assert.notStrictEqual(headerEnd, -1);
 
-      const header = received.toString('utf8', 0, headerEnd).split(/\r\n/g);
+      const header = received.toString('utf8', 0, headerEnd).split(/\r\n/);
       const body = received.toString(enc, headerEnd + 4);
 
       assert.strictEqual(header[0], 'HTTP/1.1 200 OK');
