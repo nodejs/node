@@ -748,6 +748,12 @@ Used when data cannot be sent on a socket.
 
 Used when a call is made and the UDP subsystem is not running.
 
+<a id="ERR_NO_CRYPTO"></a>
+### ERR_NO_CRYPTO
+
+Used when an attempt is made to use crypto features while Node.js is not
+compiled with OpenSSL crypto support.
+
 <a id="ERR_STDERR_CLOSE"></a>
 ### ERR_STDERR_CLOSE
 
