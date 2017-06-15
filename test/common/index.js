@@ -689,6 +689,12 @@ Object.defineProperty(exports, 'hasIntl', {
   }
 });
 
+Object.defineProperty(exports, 'hasSmallICU', {
+  get: function() {
+    return process.binding('config').hasSmallICU;
+  }
+});
+
 // Useful for testing expected internal/error objects
 exports.expectsError = function expectsError({code, type, message}) {
   return function(error) {
