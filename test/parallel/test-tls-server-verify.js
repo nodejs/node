@@ -217,7 +217,7 @@ function runClient(prefix, port, options, cb) {
   client.stdout.on('data', function(d) {
     out += d;
 
-    if (!goodbye && /_unauthed/g.test(out)) {
+    if (!goodbye && /_unauthed/.test(out)) {
       console.error(`${prefix}  * unauthed`);
       goodbye = true;
       client.kill();
@@ -225,7 +225,7 @@ function runClient(prefix, port, options, cb) {
       rejected = false;
     }
 
-    if (!goodbye && /_authed/g.test(out)) {
+    if (!goodbye && /_authed/.test(out)) {
       console.error(`${prefix}  * authed`);
       goodbye = true;
       client.kill();
