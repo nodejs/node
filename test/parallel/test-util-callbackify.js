@@ -225,3 +225,37 @@ const values = [
     })
   );
 }
+
+{
+  // Verify that non-function inputs throw.
+  ['foo', null, undefined, false, 0, {}, Symbol(), []].forEach((value) => {
+    assert.throws(() => {
+      callbackify(value);
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "original" argument must be of type function'
+    }));
+  });
+}
+
+{
+  async function asyncFn() {
+    return await Promise.resolve(42);
+  }
+
+  const cb = callbackify(asyncFn);
+  const args = [];
+
+  // Verify that the last argument to the callbackified function is a function.
+  ['foo', null, undefined, false, 0, {}, Symbol(), []].forEach((value) => {
+    args.push(value);
+    assert.throws(() => {
+      cb(...args);
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "last argument" argument must be of type function'
+    }));
+  });
+}
