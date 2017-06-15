@@ -52,7 +52,6 @@ if (cluster.isWorker) {
     worker_emitDisconnect: [1, "the worker did not emit 'disconnect'"],
     worker_emitExit: [1, "the worker did not emit 'exit'"],
     worker_state: ['disconnected', 'the worker state is incorrect'],
-    worker_suicideMode: [false, 'the worker.suicide flag is incorrect'],
     worker_exitedAfterDisconnect: [
       false, 'the .exitedAfterDisconnect flag is incorrect'
     ],
@@ -84,7 +83,6 @@ if (cluster.isWorker) {
   // Check worker events and properties
   worker.on('disconnect', common.mustCall(() => {
     results.worker_emitDisconnect += 1;
-    results.worker_suicideMode = worker.suicide;
     results.worker_exitedAfterDisconnect = worker.exitedAfterDisconnect;
     results.worker_state = worker.state;
     if (results.worker_emitExit > 0) {
