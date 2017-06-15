@@ -205,7 +205,7 @@ const values = [
       assert.strictEqual(err.code, 1);
       assert.strictEqual(Object.getPrototypeOf(err).name, 'Error');
       assert.strictEqual(stdout, '');
-      const errLines = stderr.trim().split(/[\r\n]+/g);
+      const errLines = stderr.trim().split(/[\r\n]+/);
       const errLine = errLines.find((l) => /^Error/.exec(l));
       assert.strictEqual(errLine, `Error: ${fixture}`);
     })

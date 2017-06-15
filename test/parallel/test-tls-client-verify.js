@@ -31,7 +31,7 @@ const tls = require('tls');
 
 const fs = require('fs');
 
-const hosterr = /Hostname\/IP doesn't match certificate's altnames/g;
+const hosterr = /Hostname\/IP doesn't match certificate's altnames/;
 const testCases =
   [{ ca: ['ca1-cert'],
      key: 'agent2-key',
