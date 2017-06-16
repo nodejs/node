@@ -184,8 +184,11 @@ void Environment::AddPromiseHook(promise_hook_func fn, void* arg) {
       [&](const PromiseHookCallback& hook) {
         return hook.cb_ == fn && hook.arg_ == arg;
       });
-  CHECK_EQ(it, promise_hooks_.end());
-  promise_hooks_.push_back(PromiseHookCallback{fn, arg});
+  if (it != promise_hooks_.end()) {
+    it->enable_count_++;
+    return;
+  }
+  promise_hooks_.push_back(PromiseHookCallback{fn, arg, 1});
 
   if (promise_hooks_.size() == 1) {
     isolate_->SetPromiseHook(EnvPromiseHook);
@@ -200,6 +203,8 @@ bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
       });
 
   if (it == promise_hooks_.end()) return false;
+
+  if (--it->enable_count_ > 0) return true;
 
   promise_hooks_.erase(it);
   if (promise_hooks_.empty()) {
