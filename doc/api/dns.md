@@ -59,8 +59,21 @@ the [Implementation considerations section][] for more information.
 added: v0.11.3
 -->
 
-Returns an array of IP address strings that are being used for name
-resolution.
+Returns an array of IP address strings, formatted according to [rfc5952][],
+that are currently configured for DNS resolution. A string will include a port
+section if a custom port is used.
+
+For example:
+
+<!-- eslint-disable -->
+```js
+[
+  '4.4.4.4',
+  '2001:4860:4860::8888',
+  '4.4.4.4:1053',
+  '[2001:4860:4860::8888]:1053'
+]
+```
 
 ## dns.lookup(hostname[, options], callback)
 <!-- YAML
@@ -482,12 +495,22 @@ one of the [DNS error codes][].
 <!-- YAML
 added: v0.11.3
 -->
-- `servers` {string[]}
+- `servers` {string[]} array of [rfc5952][] formatted addresses
 
-Sets the IP addresses of the servers to be used when resolving. The `servers`
-argument is an array of IPv4 or IPv6 addresses.
+Sets the IP address and port of servers to be used when performing DNS
+resolution. The `servers` argument is an array of [rfc5952][] formatted
+addresses. If the port is the IANA default DNS port (53) it can be omitted.
 
-If a port is specified on the address, it will be removed.
+For example:
+
+```js
+dns.setServers([
+  '4.4.4.4',
+  '[2001:4860:4860::8888]',
+  '4.4.4.4:1053',
+  '[2001:4860:4860::8888]:1053'
+]);
+```
 
 An error will be thrown if an invalid address is provided.
 
@@ -583,3 +606,4 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
 [the official libuv documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [`util.promisify()`]: util.html#util_util_promisify_original
+[rfc5952]: https://tools.ietf.org/html/rfc5952#section-6

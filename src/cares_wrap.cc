@@ -442,9 +442,9 @@ void AresEnsureServers(Environment* env) {
   }
 
   ares_channel channel = env->cares_channel();
-  ares_addr_node* servers = nullptr;
+  ares_addr_port_node* servers = nullptr;
 
-  ares_get_servers(channel, &servers);
+  ares_get_servers_ports(channel, &servers);
 
   /* if no server or multi-servers, ignore */
   if (servers == nullptr) return;
@@ -456,7 +456,9 @@ void AresEnsureServers(Environment* env) {
 
   /* if the only server is not 127.0.0.1, ignore */
   if (servers[0].family != AF_INET ||
-      servers[0].addr.addr4.s_addr != htonl(INADDR_LOOPBACK)) {
+      servers[0].addr.addr4.s_addr != htonl(INADDR_LOOPBACK) ||
+      servers[0].tcp_port != 0 ||
+      servers[0].udp_port != 0) {
     ares_free_data(servers);
     env->set_cares_is_servers_default(false);
     return;
@@ -1924,12 +1926,12 @@ void GetServers(const FunctionCallbackInfo<Value>& args) {
 
   Local<Array> server_array = Array::New(env->isolate());
 
-  ares_addr_node* servers;
+  ares_addr_port_node* servers;
 
-  int r = ares_get_servers(env->cares_channel(), &servers);
+  int r = ares_get_servers_ports(env->cares_channel(), &servers);
   CHECK_EQ(r, ARES_SUCCESS);
 
-  ares_addr_node* cur = servers;
+  ares_addr_port_node* cur = servers;
 
   for (uint32_t i = 0; cur != nullptr; ++i, cur = cur->next) {
     char ip[INET6_ADDRSTRLEN];
@@ -1938,8 +1940,11 @@ void GetServers(const FunctionCallbackInfo<Value>& args) {
     int err = uv_inet_ntop(cur->family, caddr, ip, sizeof(ip));
     CHECK_EQ(err, 0);
 
-    Local<String> addr = OneByteString(env->isolate(), ip);
-    server_array->Set(i, addr);
+    Local<Array> ret = Array::New(env->isolate(), 2);
+    ret->Set(0, OneByteString(env->isolate(), ip));
+    ret->Set(1, Integer::New(env->isolate(), cur->udp_port));
+
+    server_array->Set(i, ret);
   }
 
   ares_free_data(servers);
@@ -1962,8 +1967,8 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(rv);
   }
 
-  ares_addr_node* servers = new ares_addr_node[len];
-  ares_addr_node* last = nullptr;
+  ares_addr_port_node* servers = new ares_addr_port_node[len];
+  ares_addr_port_node* last = nullptr;
 
   int err;
 
@@ -1974,12 +1979,15 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
 
     CHECK(elm->Get(0)->Int32Value());
     CHECK(elm->Get(1)->IsString());
+    CHECK(elm->Get(2)->Int32Value());
 
     int fam = elm->Get(0)->Int32Value();
     node::Utf8Value ip(env->isolate(), elm->Get(1));
+    int port = elm->Get(2)->Int32Value();
 
-    ares_addr_node* cur = &servers[i];
+    ares_addr_port_node* cur = &servers[i];
 
+    cur->tcp_port = cur->udp_port = port;
     switch (fam) {
       case 4:
         cur->family = AF_INET;
@@ -2005,7 +2013,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (err == 0)
-    err = ares_set_servers(env->cares_channel(), &servers[0]);
+    err = ares_set_servers_ports(env->cares_channel(), &servers[0]);
   else
     err = ARES_EBADSTR;
 
