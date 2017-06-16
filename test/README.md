@@ -5,7 +5,7 @@ This directory contains code and data used to test the Node.js implementation.
 For a detailed guide on how to write tests in this
 directory, see [the guide on writing tests](../doc/guides/writing-tests.md).
 
-On how to run tests in this direcotry, see
+On how to run tests in this directory, see
 [the contributing guide](../CONTRIBUTING.md#step-5-test).
 
 ## Test Directories
