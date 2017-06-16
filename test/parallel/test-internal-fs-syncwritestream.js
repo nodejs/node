@@ -11,7 +11,7 @@ common.refreshTmpDir();
 
 const filename = path.join(common.tmpDir, 'sync-write-stream.txt');
 
-// Verify constructing the instance with defualt options.
+// Verify constructing the instance with default options.
 {
   const stream = new SyncWriteStream(1);
 
@@ -31,7 +31,7 @@ const filename = path.join(common.tmpDir, 'sync-write-stream.txt');
   assert.strictEqual(stream.listenerCount('end'), 1);
 }
 
-// Verfiy that the file will be writen synchronously.
+// Verfiy that the file will be written synchronously.
 {
   const fd = fs.openSync(filename, 'w');
   const stream = new SyncWriteStream(fd);
@@ -41,7 +41,7 @@ const filename = path.join(common.tmpDir, 'sync-write-stream.txt');
   assert.strictEqual(fs.readFileSync(filename).equals(chunk), true);
 }
 
-// Verify that the stream will unset the fd after destory().
+// Verify that the stream will unset the fd after destroy().
 {
   const fd = fs.openSync(filename, 'w');
   const stream = new SyncWriteStream(fd);

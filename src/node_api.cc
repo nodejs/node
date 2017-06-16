@@ -2546,7 +2546,7 @@ napi_status napi_create_arraybuffer(napi_env env,
       v8::ArrayBuffer::New(isolate, byte_length);
 
   // Optionally return a pointer to the buffer's data, to avoid another call to
-  // retreive it.
+  // retrieve it.
   if (data != nullptr) {
     *data = buffer->GetContents().Data();
   }
