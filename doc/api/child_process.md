@@ -469,7 +469,7 @@ grep.on('close', (code) => {
 ```
 
 
-Example of checking for failed spawn:
+Example of checking for failed `spawn`:
 
 ```js
 const { spawn } = require('child_process');
