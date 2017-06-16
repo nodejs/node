@@ -775,13 +775,12 @@ internal bug within the Node.js binary itself.
 
 <a id="ERR_UNK_ENCODING"></a>
 ### ERR_UNK_ENCODING
-=======
+
 <a id="ERR_UNKNOWN_ENCODING"></a>
 ### ERR_UNKNOWN_ENCODING
->>>>>>> doc: fix typos and make the error code more verbose
 
 The `'ERR_UNKNOWN_ENCODING'` error code is used when an invalid or unknown
-file encoding is passed.
+character encoding is passed to a method.
 
 <a id="ERR_UNKNOWN_SIGNAL"></a>
 ### ERR_UNKNOWN_SIGNAL
