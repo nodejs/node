@@ -157,19 +157,19 @@ class HandleScopeWrapper {
 class EscapableHandleScopeWrapper {
  public:
   explicit EscapableHandleScopeWrapper(v8::Isolate* isolate) :
-    scope(isolate), _escapeCalled(false) {}
-  bool escapeAlreadyCalled(void) {
-    return _escapeCalled;
+    scope(isolate), escape_called_(false) {}
+  bool escape_called() const {
+    return escape_called_;
   }
   template <typename T>
   v8::Local<T> Escape(v8::Local<T> handle) {
-    _escapeCalled = true;
+    escape_called_ = true;
     return scope.Escape(handle);
   }
 
  private:
   v8::EscapableHandleScope scope;
-  bool _escapeCalled;
+  bool escape_called_;
 };
 
 napi_handle_scope JsHandleScopeFromV8HandleScope(HandleScopeWrapper* s) {
@@ -2218,7 +2218,7 @@ napi_status napi_escape_handle(napi_env env,
 
   v8impl::EscapableHandleScopeWrapper* s =
       v8impl::V8EscapableHandleScopeFromJsEscapableHandleScope(scope);
-  if (!s->escapeAlreadyCalled()) {
+  if (!s->escape_called()) {
     *result = v8impl::JsValueFromV8LocalValue(
         s->Escape(v8impl::V8LocalValueFromJsValue(escapee)));
     return napi_clear_last_error(env);
