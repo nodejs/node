@@ -28,7 +28,7 @@ release.
 <tr>
     <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V8.md#8.1.2">8.1.2</a></b><br/>
-<a href="doc/changelogs/CHANGELOG_V8.md#8.1.1">8.1.1</a>><br/>
+<a href="doc/changelogs/CHANGELOG_V8.md#8.1.1">8.1.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.1.0">8.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.0.0">8.0.0</a><br/>
     </td>
