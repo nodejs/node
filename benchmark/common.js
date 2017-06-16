@@ -217,7 +217,7 @@ function formatResult(data) {
   }
 
   var rate = data.rate.toString().split('.');
-  rate[0] = rate[0].replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,');
+  rate[0] = rate[0].replace(/(\d)(?=(?:\d\d\d)+(?!\d))/g, '$1,');
   rate = (rate[1] ? rate.join('.') : rate[0]);
   return `${data.name}${conf}: ${rate}`;
 }
