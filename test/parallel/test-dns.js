@@ -35,6 +35,8 @@ assert.doesNotThrow(() => {
   servers[0] = '127.0.0.1';
   servers[2] = '0.0.0.0';
   dns.setServers(servers);
+
+  assert.deepStrictEqual(dns.getServers(), ['127.0.0.1', '0.0.0.0']);
 });
 
 assert.doesNotThrow(() => {
@@ -53,6 +55,11 @@ assert.doesNotThrow(() => {
   });
 
   dns.setServers(servers);
+  assert.deepStrictEqual(dns.getServers(), [
+    '127.0.0.1',
+    '192.168.1.1',
+    '0.0.0.0'
+  ]);
 });
 
 const goog = [
@@ -63,6 +70,8 @@ assert.doesNotThrow(() => dns.setServers(goog));
 assert.deepStrictEqual(dns.getServers(), goog);
 assert.throws(() => dns.setServers(['foobar']),
               /^Error: IP address is not properly formatted: foobar$/);
+assert.throws(() => dns.setServers(['127.0.0.1:va']),
+              /^Error: IP address is not properly formatted: 127\.0\.0\.1:va$/);
 assert.deepStrictEqual(dns.getServers(), goog);
 
 const goog6 = [
@@ -79,10 +88,14 @@ assert.deepStrictEqual(dns.getServers(), goog6);
 const ports = [
   '4.4.4.4:53',
   '[2001:4860:4860::8888]:53',
+  '103.238.225.181:666',
+  '[fe80::483a:5aff:fee6:1f04]:666'
 ];
 const portsExpected = [
   '4.4.4.4',
   '2001:4860:4860::8888',
+  '103.238.225.181:666',
+  '[fe80::483a:5aff:fee6:1f04]:666'
 ];
 dns.setServers(ports);
 assert.deepStrictEqual(dns.getServers(), portsExpected);
