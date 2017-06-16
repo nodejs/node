@@ -30,7 +30,7 @@ if (cluster.isWorker) {
     socket.end('echo');
   }).listen(0, '127.0.0.1');
 
-  net.createServer((socket) => {
+  const server  = net.createServer((socket) => {
     socket.end('echo');
   }).listen(0, '127.0.0.1');
 } else if (cluster.isMaster) {
@@ -56,7 +56,6 @@ if (cluster.isWorker) {
   const testCluster = (cb) => {
     let done = 0;
     const portsArray = Array.from(serverPorts);
-
     for (let i = 0; i < servers; i++) {
       testConnection(portsArray[i], (success) => {
         assert.ok(success);
