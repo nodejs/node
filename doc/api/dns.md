@@ -59,12 +59,13 @@ the [Implementation considerations section][] for more information.
 added: v0.11.3
 -->
 
-Returns an array of IP address and port strings that are being used for name
-resolution, splited with `:`. If a server uses a default DNS server port, the
-port part will be ignored in the result.
+Returns an array of IP address strings, formatted according to [rfc3986][],
+that are currently configured for DNS resolution. A string will include a port
+section if a custom port is used.
 
 eg.
 
+<!-- eslint-disable -->
 ```js
 [
   '4.4.4.4',
@@ -494,11 +495,11 @@ one of the [DNS error codes][].
 <!-- YAML
 added: v0.11.3
 -->
-- `servers` {string[]}
+- `servers` {string[]} array of [rfc3986][] formatted addresses
 
-Sets the IP addresses and port of the servers to be used when resolving. The
-`servers` argument is an array of IPv4 or IPv6 addresses. If the port of a
-server is the default DNS server port, this part can be ignored in the string.
+Sets the IP address and port of servers to be used when performing DNS
+resolution. The `servers` argument is an array of [rfc3986][] formatted
+addresses. If the port is the IANA default DNS port (53) it can be omitted.
 
 eg.
 
@@ -605,3 +606,4 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
 [the official libuv documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [`util.promisify()`]: util.html#util_util_promisify_original
+[rfc3986]: https://tools.ietf.org/html/rfc3986#section-3.2.2

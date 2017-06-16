@@ -70,6 +70,8 @@ assert.doesNotThrow(() => dns.setServers(goog));
 assert.deepStrictEqual(dns.getServers(), goog);
 assert.throws(() => dns.setServers(['foobar']),
               /^Error: IP address is not properly formatted: foobar$/);
+assert.throws(() => dns.setServers(['127.0.0.1:va']),
+              /^Error: IP address is not properly formatted: 127\.0\.0\.1:va$/);
 assert.deepStrictEqual(dns.getServers(), goog);
 
 const goog6 = [
