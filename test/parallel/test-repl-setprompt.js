@@ -44,6 +44,6 @@ child.stdin.end(`e.setPrompt("${p}");${os.EOL}`);
 child.on('close', function(code, signal) {
   assert.strictEqual(code, 0);
   assert.ok(!signal);
-  const lines = data.split(/\n/);
+  const lines = data.split('\n');
   assert.strictEqual(lines.pop(), p);
 });
