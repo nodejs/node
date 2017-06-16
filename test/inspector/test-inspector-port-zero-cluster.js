@@ -16,7 +16,7 @@ if (cluster.isMaster) {
       ports.push(message.debugPort);
       worker.kill();
     });
-    worker.on('exit', (code, signal) => {
+    worker.on('exit', () => {
       // If the worker exited via `worker.kill()` above, exitedAfterDisconnect
       // will be true. If the worker exited because the debug port was already
       // in use, exitedAfterDisconnect will be false. That can be expected in
