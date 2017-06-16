@@ -79,18 +79,21 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
     if (destroyListList[id] !== undefined) {
       process._rawDebug(destroyListList[id]);
       process._rawDebug();
-      throw new Error(`same id added twice (${id})`);
+      throw new Error(`same id added to destroy list twice (${id})`);
     }
     destroyListList[id] = new Error().stack;
     _queueDestroyAsyncId(id);
   };
 
   require('async_hooks').createHook({
-    init(id, ty, tr, h) {
+    init(id, ty, tr, r) {
       if (initHandles[id]) {
+        process._rawDebug(
+          `Is same resource: ${r === initHandles[id].resource}`);
+        process._rawDebug(`Previous stack:\n${initHandles[id].stack}\n`);
         throw new Error(`init called twice for same id (${id})`);
       }
-      initHandles[id] = h;
+      initHandles[id] = { resource: r, stack: new Error().stack.substr(6) };
     },
     before() { },
     after() { },
