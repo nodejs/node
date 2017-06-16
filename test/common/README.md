@@ -106,6 +106,11 @@ Checks for 'openssl'.
 
 Checks `hasCrypto` and `crypto` with fips.
 
+### hasIntl
+* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+
+Checks if [internationalization] is supported.
+
 ### hasIPv6
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
 
@@ -322,3 +327,4 @@ implementation with tests from
 [W3C Web Platform Tests](https://github.com/w3c/web-platform-tests).
 
 [MDN-Function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Normal_objects_and_functions
+[internationalization]: https://github.com/nodejs/node/wiki/Intl
