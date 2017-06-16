@@ -59,8 +59,20 @@ the [Implementation considerations section][] for more information.
 added: v0.11.3
 -->
 
-Returns an array of IP address strings that are being used for name
-resolution.
+Returns an array of IP address and port strings that are being used for name
+resolution, splited with `:`. If a server uses a default DNS server port, the
+port part will be ignored in the result.
+
+eg.
+
+```js
+[
+  '4.4.4.4',
+  '[2001:4860:4860::8888]',
+  '4.4.4.4:1053',
+  '[2001:4860:4860::8888]:1053'
+]
+```
 
 ## dns.lookup(hostname[, options], callback)
 <!-- YAML
@@ -484,10 +496,20 @@ added: v0.11.3
 -->
 - `servers` {string[]}
 
-Sets the IP addresses of the servers to be used when resolving. The `servers`
-argument is an array of IPv4 or IPv6 addresses.
+Sets the IP addresses and port of the servers to be used when resolving. The
+`servers` argument is an array of IPv4 or IPv6 addresses. If the port of a
+server is the default DNS server port, this part can be ignored in the string.
 
-If a port is specified on the address, it will be removed.
+eg.
+
+```js
+dns.setServers([
+  '4.4.4.4',
+  '[2001:4860:4860::8888]',
+  '4.4.4.4:1053',
+  '[2001:4860:4860::8888]:1053'
+]);
+```
 
 An error will be thrown if an invalid address is provided.
 
