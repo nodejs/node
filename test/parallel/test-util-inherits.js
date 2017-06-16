@@ -85,7 +85,7 @@ assert.throws(function() {
 }, common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "superCtor.prototype" argument must be of type function'
+    message: 'The "superCtor.prototype" property must be of type function'
 })
 );
 assert.throws(function() {
