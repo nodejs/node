@@ -12,10 +12,23 @@ if (cluster.isMaster) {
   for (const worker of [cluster.fork(),
                         cluster.fork(),
                         cluster.fork()]) {
-    worker.on('message', common.mustCall((message) => {
+    worker.on('message', (message) => {
       ports.push(message.debugPort);
       worker.kill();
-    }));
+    });
+    worker.on('exit', (code, signal) => {
+      // If the worker exited via `worker.kill()` above, exitedAfterDisconnect
+      // will be true. If the worker exited because the debug port was already
+      // in use, exitedAfterDisconnect will be false. That can be expected in
+      // some cases, so grab the port from spawnargs.
+      if (!worker.exitedAfterDisconnect) {
+        const arg = worker.process.spawnargs.filter(
+          (val) => /^--inspect=\d+$/.test(val)
+        );
+        const port = arg[0].replace('--inspect=', '');
+        ports.push(+port);
+      }
+    });
     worker.send('debugPort');
   }
   process.on('exit', () => {
