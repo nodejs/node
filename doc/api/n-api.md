@@ -239,7 +239,7 @@ typedef struct napi_extended_error_info {
   napi_status error_code;
 };
 ```
-- `error_message`: Textual representation of the error that occured.
+- `error_message`: Textual representation of the error that occurred.
 - `engine_reserved`: Opaque handle reserved for engine use only.
 - `engine_error_code`: VM specific error code.
 - `error_code`: n-api status code for the last error.
@@ -267,7 +267,7 @@ information about the error.
 Returns `napi_ok` if the API succeeded.
 
 This API retrieves a `napi_extended_error_info` structure with information
-about the last error that occured.
+about the last error that occurred.
 
 *Note*: Do not rely on the content or format of any of the extended
 information as it is not subject to SemVer and may change at any time.

@@ -65,7 +65,7 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
     }));
     socket.on('end', common.mustCall(function() {
       serverReceivedFIN++;
-      console.error(`Server recieved FIN sent by No. ${clientId}`);
+      console.error(`Server received FIN sent by No. ${clientId}`);
       if (serverReceivedFIN === CLIENT_VARIANTS) {
         setTimeout(() => {
           server.close();

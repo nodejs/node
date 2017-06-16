@@ -78,7 +78,7 @@ bool DebugOptions::ParseOption(const char* argv0, const std::string& option) {
       argument.clear();
   }
 
-  // Note that --debug-port and --debug-brk in conjuction with --inspect
+  // Note that --debug-port and --debug-brk in conjunction with --inspect
   // work but are undocumented.
   // --debug is no longer valid.
   // Ref: https://github.com/nodejs/node/issues/12630

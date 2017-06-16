@@ -515,7 +515,7 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
 
   // In UTS #46 which specifies ToASCII, certain error conditions are
   // configurable through options, and the WHATWG URL Standard promptly elects
-  // to disable some of them to accomodate for real-world use cases.
+  // to disable some of them to accommodate for real-world use cases.
   // Unfortunately, ICU4C's IDNA module does not support disabling some of
   // these options through `options` above, and thus continues throwing
   // unnecessary errors. To counter this situation, we just filter out the
