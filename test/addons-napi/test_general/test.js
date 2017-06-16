@@ -31,6 +31,6 @@ assert.ok(test_general.testGetPrototype(baseObject) !==
           test_general.testGetPrototype(extendedObject),
           'Prototypes for base and extended should be different');
 
-// test version management funcitons
+// test version management functions
 // expected version is currently 1
 assert.strictEqual(test_general.testGetVersion(), 1);

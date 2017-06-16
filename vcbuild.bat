@@ -55,7 +55,7 @@ if /i "%1"=="clean"         set target=Clean&goto arg-ok
 if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
-@rem args should be vs2017 and vs2015. keeping vc2015 for backward combatibility (undocumented)
+@rem args should be vs2017 and vs2015. keeping vc2015 for backward compatibility (undocumented)
 if /i "%1"=="vc2015"        set target_env=vs2015&goto arg-ok
 if /i "%1"=="vs2015"        set target_env=vs2015&goto arg-ok
 if /i "%1"=="vs2017"        set target_env=vs2017&goto arg-ok
@@ -157,7 +157,7 @@ if defined noprojgen if defined nobuild if not defined sign if not defined msi g
 set msvs_host_arch=x86
 if _%PROCESSOR_ARCHITECTURE%_==_AMD64_ set msvs_host_arch=amd64
 if _%PROCESSOR_ARCHITEW6432%_==_AMD64_ set msvs_host_arch=amd64
-@rem usualy vcvarsall takes an argument: host + '_' + target
+@rem usually vcvarsall takes an argument: host + '_' + target
 set vcvarsall_arg=%msvs_host_arch%_%target_arch%
 @rem unless both host and target are x64
 if %target_arch%==x64 if %msvs_host_arch%==amd64 set vcvarsall_arg=amd64
