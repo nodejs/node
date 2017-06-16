@@ -34,43 +34,20 @@ const validDelays = [0, 0.001, 1, 1e6];
 
 
 for (let i = 0; i < nonNumericDelays.length; i++) {
-<<<<<<< HEAD
-  assert.throws(function() {
-<<<<<<< HEAD
-    s.setTimeout(nonNumericDelays[i], common.noop);
-  }, TypeError);
-=======
-=======
   assert.throws(() => {
->>>>>>> test: refactor functions to use arrow functions
     s.setTimeout(nonNumericDelays[i], noop);
   }, common.expectsError('ERR_INVALID_ARG_TYPE', TypeError));
->>>>>>> timers, test: migrate to internal/errors.js
 }
 
 for (let i = 0; i < badRangeDelays.length; i++) {
-<<<<<<< HEAD
-  assert.throws(function() {
-<<<<<<< HEAD
-    s.setTimeout(badRangeDelays[i], common.noop);
-  }, RangeError);
-=======
-=======
   assert.throws(() => {
->>>>>>> test: refactor functions to use arrow functions
     s.setTimeout(badRangeDelays[i], noop);
   }, common.expectsError('ERR_INVALID_ARG_TYPE', RangeError));
->>>>>>> timers, test: migrate to internal/errors.js
 }
 
 for (let i = 0; i < validDelays.length; i++) {
-<<<<<<< HEAD
-  assert.doesNotThrow(function() {
-    s.setTimeout(validDelays[i], common.noop);
-=======
   assert.doesNotThrow(() => {
     s.setTimeout(validDelays[i], noop);
->>>>>>> test: refactor functions to use arrow functions
   });
 }
 
