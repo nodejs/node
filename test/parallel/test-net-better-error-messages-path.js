@@ -15,10 +15,7 @@ const assert = require('assert');
 }
 
 {
-  try {
+  assert.throws(() => {
     net.createConnection({ path: {} });
-    throw new Error('UNREACHABLE');
-  } catch (e) {
-    assert.strictEqual(e.message, 'Invalid address: [object Object]');
-  }
+  }, TypeError);
 }
