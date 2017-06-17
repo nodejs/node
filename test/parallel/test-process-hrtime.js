@@ -35,7 +35,7 @@ validateTuple(process.hrtime(tuple));
 const invalidHrtimeArgument = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "process.hrtime()" argument must be of type Array'
+  message: 'The "time" argument must be of type Array'
 });
 
 // test that only an Array may be passed to process.hrtime()
