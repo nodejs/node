@@ -683,12 +683,6 @@ passed in an options object.
 Used when both `breakEvalOnSigint` and `eval` options are set
 in the REPL config, which is not supported.
 
-<a id="ERR_INVALID_REPL_HISTORY"></a>
-### ERR_INVALID_REPL_HISTORY
-
-Used in the `repl` in case the old history file is used and an error occurred
-while trying to read and parse it.
-
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
 ### ERR_INVALID_SYNC_FORK_INPUT
 
