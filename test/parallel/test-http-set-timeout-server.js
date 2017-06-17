@@ -61,7 +61,7 @@ test(function serverTimeout(cb) {
 test(function serverRequestTimeout(cb) {
   const server = http.createServer(function(req, res) {
     // just do nothing, we should get a timeout event.
-    const s = req.setTimeout(50,  common.mustCall(function(socket) {
+    const s = req.setTimeout(50, common.mustCall(function(socket) {
       socket.destroy();
       server.close();
       cb();
