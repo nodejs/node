@@ -253,7 +253,7 @@ PR-URL: <full URL to your release proposal PR>
 
 This sets up the branch so that nightly builds are produced with the next version number _and_ a pre-release tag.
 
-Merge your release branch into the stable branch that you are releasing from (not master).
+Merge your release proposal branch into the stable branch that you are releasing from (e.g. `v8.x`), and rebase the corresponding staging branch (`v8.x-staging`) on top of that.
 
 Cherry-pick the release commit to `master`. After cherry-picking, edit `src/node_version.h` to ensure the version macros contain whatever values were previously on `master`. `NODE_VERSION_IS_RELEASE` should be `0`.
 
