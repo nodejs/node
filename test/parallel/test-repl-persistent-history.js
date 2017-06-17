@@ -63,6 +63,12 @@ const homedirErr = '\nError: Could not get the home directory.\n' +
                    'REPL session history will not be persisted.\n';
 const replFailedRead = '\nError: Could not open history file.\n' +
                        'REPL session history will not be persisted.\n';
+const oldHistoryFailedOpen = '\nError: Could not open old history file.\n' +
+                             'REPL session history will not be persisted.\n';
+const oldHistoryFailedParse = '\nError: Could not parse old history file.\n' +
+                              'REPL session history will not be persisted.\n';
+const oldHistoryObj = '\nError: The old history file data has to be an Array' +
+                      '.\nREPL session history will not be persisted.\n';
 const sameHistoryFilePaths = '\nThe old repl history file has the same name ' +
                              'and location as the new one i.e., ' +
                              path.join(common.tmpDir, '.node_repl_history') +
@@ -72,6 +78,10 @@ const fixtures = common.fixturesDir;
 const historyFixturePath = path.join(fixtures, '.node_repl_history');
 const historyPath = path.join(common.tmpDir, '.fixture_copy_repl_history');
 const historyPathFail = path.join(common.tmpDir, '.node_repl\u0000_history');
+const oldHistoryPathObj = path.join(fixtures,
+                                    'old-repl-history-file-obj.json');
+const oldHistoryPathFaulty = path.join(fixtures,
+                                       'old-repl-history-file-faulty.json');
 const oldHistoryPath = path.join(fixtures, 'old-repl-history-file.json');
 const enoentHistoryPath = path.join(fixtures, 'enoent-repl-history-file.json');
 const emptyHistoryPath = path.join(fixtures, '.empty-repl-history-file');
@@ -93,10 +103,19 @@ const tests = [
     expected: [prompt, replDisabled, prompt]
   },
   {
-    env: { NODE_REPL_HISTORY: '',
-           NODE_REPL_HISTORY_FILE: enoentHistoryPath },
+    env: { NODE_REPL_HISTORY_FILE: enoentHistoryPath },
     test: [UP],
-    expected: [prompt, replDisabled, prompt]
+    expected: [prompt, oldHistoryFailedOpen, prompt]
+  },
+  {
+    env: { NODE_REPL_HISTORY_FILE: oldHistoryPathObj },
+    test: [UP],
+    expected: [prompt, oldHistoryObj, prompt]
+  },
+  {
+    env: { NODE_REPL_HISTORY_FILE: oldHistoryPathFaulty },
+    test: [UP],
+    expected: [prompt, oldHistoryFailedParse, prompt]
   },
   {
     env: { NODE_REPL_HISTORY: '',
