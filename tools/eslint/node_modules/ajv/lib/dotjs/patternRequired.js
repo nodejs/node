@@ -7,7 +7,6 @@ module.exports = function generate_patternRequired(it, $keyword) {
   var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
-  var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
   var $valid = 'valid' + $lvl;
   var $key = 'key' + $lvl,
@@ -29,7 +28,7 @@ module.exports = function generate_patternRequired(it, $keyword) {
       var $missingPattern = it.util.escapeQuotes($pProperty);
       out += ' if (!' + ($matched) + ') { ' + ($valid) + ' = false;  var err =   '; /* istanbul ignore else */
       if (it.createErrors !== false) {
-        out += ' { keyword: \'' + ($errorKeyword || 'patternRequired') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingPattern: \'' + ($missingPattern) + '\' } ';
+        out += ' { keyword: \'' + ('patternRequired') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingPattern: \'' + ($missingPattern) + '\' } ';
         if (it.opts.messages !== false) {
           out += ' , message: \'should have property matching pattern \\\'' + ($missingPattern) + '\\\'\' ';
         }

@@ -96,7 +96,7 @@ module.exports = {
                 const isLong = name.length > maxLength;
 
                 if (!(isShort || isLong) || exceptions[name]) {
-                    return;  // Nothing to report
+                    return; // Nothing to report
                 }
 
                 const isValidExpression = SUPPORTED_EXPRESSIONS[parent.type];

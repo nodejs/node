@@ -1,4 +1,4 @@
-/* js-yaml 3.8.2 https://github.com/nodeca/js-yaml */(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.jsyaml = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+/* js-yaml 3.8.4 https://github.com/nodeca/js-yaml */(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.jsyaml = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
 
 
@@ -607,7 +607,14 @@ function writeBlockSequence(state, level, object, compact) {
       if (!compact || index !== 0) {
         _result += generateNextLine(state, level);
       }
-      _result += '- ' + state.dump;
+
+      if (state.dump && CHAR_LINE_FEED === state.dump.charCodeAt(0)) {
+        _result += '-';
+      } else {
+        _result += '- ';
+      }
+
+      _result += state.dump;
     }
   }
 
@@ -3114,7 +3121,12 @@ var YAML_FLOAT_PATTERN = new RegExp(
 function resolveYamlFloat(data) {
   if (data === null) return false;
 
-  if (!YAML_FLOAT_PATTERN.test(data)) return false;
+  if (!YAML_FLOAT_PATTERN.test(data) ||
+      // Quick hack to not allow integers end with `_`
+      // Probably should update regexp & check speed
+      data[data.length - 1] === '_') {
+    return false;
+  }
 
   return true;
 }
@@ -3259,7 +3271,7 @@ function resolveYamlInteger(data) {
         if (ch !== '0' && ch !== '1') return false;
         hasDigits = true;
       }
-      return hasDigits;
+      return hasDigits && ch !== '_';
     }
 
 
@@ -3273,7 +3285,7 @@ function resolveYamlInteger(data) {
         if (!isHexCode(data.charCodeAt(index))) return false;
         hasDigits = true;
       }
-      return hasDigits;
+      return hasDigits && ch !== '_';
     }
 
     // base 8
@@ -3283,10 +3295,13 @@ function resolveYamlInteger(data) {
       if (!isOctCode(data.charCodeAt(index))) return false;
       hasDigits = true;
     }
-    return hasDigits;
+    return hasDigits && ch !== '_';
   }
 
   // base 10 (except 0) or base 60
+
+  // value should not start with `_`;
+  if (ch === '_') return false;
 
   for (; index < max; index++) {
     ch = data[index];
@@ -3298,7 +3313,8 @@ function resolveYamlInteger(data) {
     hasDigits = true;
   }
 
-  if (!hasDigits) return false;
+  // Should have digits and should not end with `_`
+  if (!hasDigits || ch === '_') return false;
 
   // if !base60 - done;
   if (ch !== ':') return true;

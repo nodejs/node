@@ -21,9 +21,8 @@ module.exports = function generate_custom(it, $keyword) {
   }
   var $rule = this,
     $definition = 'definition' + $lvl,
-    $rDef = $rule.definition,
-    $validate = $rDef.validate,
-    $compile, $inline, $macro, $ruleValidate, $validateCode;
+    $rDef = $rule.definition;
+  var $compile, $inline, $macro, $ruleValidate, $validateCode;
   if ($isData && $rDef.$data) {
     $validateCode = 'keywordValidate' + $lvl;
     var $validateSchema = $rDef.validateSchema;

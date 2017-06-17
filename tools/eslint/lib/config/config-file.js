@@ -13,17 +13,13 @@
 
 const fs = require("fs"),
     path = require("path"),
-    shell = require("shelljs"),
     ConfigOps = require("./config-ops"),
     validator = require("./config-validator"),
-    Plugins = require("./plugins"),
     pathUtil = require("../util/path-util"),
     ModuleResolver = require("../util/module-resolver"),
     pathIsInside = require("path-is-inside"),
-    stripBom = require("strip-bom"),
     stripComments = require("strip-json-comments"),
     stringify = require("json-stable-stringify"),
-    defaultOptions = require("../../conf/eslint-recommended"),
     requireUncached = require("require-uncached");
 
 const debug = require("debug")("eslint:config-file");
@@ -63,11 +59,11 @@ const resolver = new ModuleResolver();
 /**
  * Convenience wrapper for synchronously reading file contents.
  * @param {string} filePath The filename to read.
- * @returns {string} The file contents.
+ * @returns {string} The file contents, with the BOM removed.
  * @private
  */
 function readFile(filePath) {
-    return stripBom(fs.readFileSync(filePath, "utf8"));
+    return fs.readFileSync(filePath, "utf8").replace(/^\ufeff/, "");
 }
 
 /**
@@ -368,18 +364,18 @@ function getLookupPath(configFilePath) {
 function getEslintCoreConfigPath(name) {
     if (name === "eslint:recommended") {
 
-       /*
-        * Add an explicit substitution for eslint:recommended to
-        * conf/eslint-recommended.js.
-        */
+        /*
+         * Add an explicit substitution for eslint:recommended to
+         * conf/eslint-recommended.js.
+         */
         return path.resolve(__dirname, "../../conf/eslint-recommended.js");
     }
 
     if (name === "eslint:all") {
 
-       /*
-        * Add an explicit substitution for eslint:all to conf/eslint-all.js
-        */
+        /*
+         * Add an explicit substitution for eslint:all to conf/eslint-all.js
+         */
         return path.resolve(__dirname, "../../conf/eslint-all.js");
     }
 
@@ -389,6 +385,7 @@ function getEslintCoreConfigPath(name) {
 /**
  * Applies values from the "extends" field in a configuration file.
  * @param {Object} config The configuration information.
+ * @param {Config} configContext Plugin context for the config instance
  * @param {string} filePath The file path from which the configuration information
  *      was loaded.
  * @param {string} [relativeTo] The path to resolve relative to.
@@ -396,7 +393,7 @@ function getEslintCoreConfigPath(name) {
  *      loaded and merged.
  * @private
  */
-function applyExtends(config, filePath, relativeTo) {
+function applyExtends(config, configContext, filePath, relativeTo) {
     let configExtends = config.extends;
 
     // normalize into an array for easier handling
@@ -421,7 +418,7 @@ function applyExtends(config, filePath, relativeTo) {
                 );
             }
             debug(`Loading ${parentPath}`);
-            return ConfigOps.merge(load(parentPath, false, relativeTo), previousValue);
+            return ConfigOps.merge(load(parentPath, configContext, false, relativeTo), previousValue);
         } catch (e) {
 
             /*
@@ -516,19 +513,18 @@ function resolve(filePath, relativeTo) {
     return { filePath };
 
 
-
 }
 
 /**
  * Loads a configuration file from the given file path.
  * @param {string} filePath The filename or package name to load the configuration
  *      information from.
+ * @param {Config} configContext Plugins context
  * @param {boolean} [applyEnvironments=false] Set to true to merge in environment settings.
  * @param {string} [relativeTo] The path to resolve relative to.
  * @returns {Object} The configuration information.
- * @private
  */
-function load(filePath, applyEnvironments, relativeTo) {
+function load(filePath, configContext, applyEnvironments, relativeTo) {
     const resolvedPath = resolve(filePath, relativeTo),
         dirname = path.dirname(resolvedPath.filePath),
         lookupPath = getLookupPath(dirname);
@@ -538,12 +534,7 @@ function load(filePath, applyEnvironments, relativeTo) {
 
         // ensure plugins are properly loaded first
         if (config.plugins) {
-            Plugins.loadAll(config.plugins);
-        }
-
-        // remove parser from config if it is the default parser
-        if (config.parser === defaultOptions.parser) {
-            config.parser = null;
+            configContext.plugins.loadAll(config.plugins);
         }
 
         // include full path of parser if present
@@ -556,20 +547,20 @@ function load(filePath, applyEnvironments, relativeTo) {
         }
 
         // validate the configuration before continuing
-        validator.validate(config, filePath);
+        validator.validate(config, filePath, configContext.linterContext.rules, configContext.linterContext.environments);
 
         /*
          * If an `extends` property is defined, it represents a configuration file to use as
          * a "parent". Load the referenced file and merge the configuration recursively.
          */
         if (config.extends) {
-            config = applyExtends(config, filePath, dirname);
+            config = applyExtends(config, configContext, filePath, dirname);
         }
 
         if (config.env && applyEnvironments) {
 
             // Merge in environment-specific globals and parserOptions.
-            config = ConfigOps.applyEnvironments(config);
+            config = ConfigOps.applyEnvironments(config, configContext.linterContext.environments);
         }
 
     }
@@ -603,7 +594,7 @@ module.exports = {
         for (let i = 0, len = CONFIG_FILES.length; i < len; i++) {
             const filename = path.join(directory, CONFIG_FILES[i]);
 
-            if (shell.test("-f", filename)) {
+            if (fs.existsSync(filename) && fs.statSync(filename).isFile()) {
                 return filename;
             }
         }

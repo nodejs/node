@@ -9,7 +9,6 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("../ast-utils.js");
-const esUtils = require("esutils");
 
 module.exports = {
     meta: {
@@ -250,28 +249,27 @@ module.exports = {
             const tokenBeforeLeftParen = sourceCode.getTokenBefore(node, 1);
             const firstToken = sourceCode.getFirstToken(node);
 
-            // If there is already whitespace before the previous token, don't add more.
-            if (!tokenBeforeLeftParen || tokenBeforeLeftParen.end !== leftParenToken.start) {
-                return false;
-            }
+            return tokenBeforeLeftParen &&
+                tokenBeforeLeftParen.range[1] === leftParenToken.range[0] &&
+                leftParenToken.range[1] === firstToken.range[0] &&
+                !astUtils.canTokensBeAdjacent(tokenBeforeLeftParen, firstToken);
+        }
 
-            // If the parens are preceded by a keyword (e.g. `typeof(0)`), a space should be inserted (`typeof 0`)
-            const precededByIdentiferPart = esUtils.code.isIdentifierPartES6(tokenBeforeLeftParen.value.slice(-1).charCodeAt(0));
+        /**
+         * Determines whether a node should be followed by an additional space when removing parens
+         * @param {ASTNode} node node to evaluate; must be surrounded by parentheses
+         * @returns {boolean} `true` if a space should be inserted after the node
+         * @private
+         */
+        function requiresTrailingSpace(node) {
+            const nextTwoTokens = sourceCode.getTokensAfter(node, { count: 2 });
+            const rightParenToken = nextTwoTokens[0];
+            const tokenAfterRightParen = nextTwoTokens[1];
+            const tokenBeforeRightParen = sourceCode.getLastToken(node);
 
-            // However, a space should not be inserted unless the first character of the token is an identifier part
-            // e.g. `typeof([])` should be fixed to `typeof[]`
-            const startsWithIdentifierPart = esUtils.code.isIdentifierPartES6(firstToken.value.charCodeAt(0));
-
-            // If the parens are preceded by and start with a unary plus/minus (e.g. `+(+foo)`), a space should be inserted (`+ +foo`)
-            const precededByUnaryPlus = tokenBeforeLeftParen.type === "Punctuator" && tokenBeforeLeftParen.value === "+";
-            const precededByUnaryMinus = tokenBeforeLeftParen.type === "Punctuator" && tokenBeforeLeftParen.value === "-";
-
-            const startsWithUnaryPlus = firstToken.type === "Punctuator" && firstToken.value === "+";
-            const startsWithUnaryMinus = firstToken.type === "Punctuator" && firstToken.value === "-";
-
-            return (precededByIdentiferPart && startsWithIdentifierPart) ||
-                (precededByUnaryPlus && startsWithUnaryPlus) ||
-                (precededByUnaryMinus && startsWithUnaryMinus);
+            return rightParenToken && tokenAfterRightParen &&
+                !sourceCode.isSpaceBetweenTokens(rightParenToken, tokenAfterRightParen) &&
+                !astUtils.canTokensBeAdjacent(tokenBeforeRightParen, tokenAfterRightParen);
         }
 
         /**
@@ -298,7 +296,7 @@ module.exports = {
                     return fixer.replaceTextRange([
                         leftParenToken.range[0],
                         rightParenToken.range[1]
-                    ], (requiresLeadingSpace(node) ? " " : "") + parenthesizedSource);
+                    ], (requiresLeadingSpace(node) ? " " : "") + parenthesizedSource + (requiresTrailingSpace(node) ? " " : ""));
                 }
             });
         }
@@ -507,11 +505,17 @@ module.exports = {
                 if (hasExcessParens(node.right)) {
                     report(node.right);
                 }
+                if (hasExcessParens(node.left)) {
+                    report(node.left);
+                }
             },
 
             ForOfStatement(node) {
                 if (hasExcessParens(node.right)) {
                     report(node.right);
+                }
+                if (hasExcessParens(node.left)) {
+                    report(node.left);
                 }
             },
 

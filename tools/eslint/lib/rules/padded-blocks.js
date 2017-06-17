@@ -51,7 +51,11 @@ module.exports = {
         const config = context.options[0] || "always";
 
         if (typeof config === "string") {
-            options.blocks = config === "always";
+            const shouldHavePadding = config === "always";
+
+            options.blocks = shouldHavePadding;
+            options.switches = shouldHavePadding;
+            options.classes = shouldHavePadding;
         } else {
             if (config.hasOwnProperty("blocks")) {
                 options.blocks = config.blocks === "always";

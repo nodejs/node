@@ -19,7 +19,7 @@ const ALWAYS_MESSAGE = "Comments should not begin with a lowercase character",
     NEVER_MESSAGE = "Comments should not begin with an uppercase character",
     DEFAULT_IGNORE_PATTERN = astUtils.COMMENTS_IGNORE_PATTERN,
     WHITESPACE = /\s/g,
-    MAYBE_URL = /^\s*[^:/?#\s]+:\/\/[^?#]/,    // TODO: Combine w/ max-len pattern?
+    MAYBE_URL = /^\s*[^:/?#\s]+:\/\/[^?#]/, // TODO: Combine w/ max-len pattern?
     DEFAULTS = {
         ignorePattern: null,
         ignoreInlineComments: false,
@@ -270,7 +270,7 @@ module.exports = {
                     : NEVER_MESSAGE;
 
                 context.report({
-                    node: null,         // Intentionally using loc instead
+                    node: null, // Intentionally using loc instead
                     loc: comment.loc,
                     message,
                     fix(fixer) {
@@ -295,7 +295,7 @@ module.exports = {
             Program() {
                 const comments = sourceCode.getAllComments();
 
-                comments.forEach(processComment);
+                comments.filter(token => token.type !== "Shebang").forEach(processComment);
             }
         };
     }

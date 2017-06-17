@@ -40,7 +40,7 @@ rules:
   eqeqeq: [2, smart]
   no-fallthrough: 2
   no-global-assign: 2
-  no-multi-spaces: 2
+  no-multi-spaces: [2, {ignoreEOLComments: true}]
   no-octal: 2
   no-proto: 2
   no-redeclare: 2
@@ -98,11 +98,18 @@ rules:
   func-call-spacing: 2
   func-name-matching: 2
   func-style: [2, declaration, {allowArrowFunctions: true}]
-  indent: [2, 2, {ArrayExpression: first,
-                  CallExpression: {arguments: first},
-                  MemberExpression: 1,
-                  ObjectExpression: first,
-                  SwitchCase: 1}]
+  # indent: [2, 2, {ArrayExpression: first,
+  #                 CallExpression: {arguments: first},
+  #                 FunctionDeclaration: {parameters: first},
+  #                 FunctionExpression: {parameters: first},
+  #                 MemberExpression: off,
+  #                 ObjectExpression: first,
+  #                 SwitchCase: 1}]
+  indent-legacy: [2, 2, {ArrayExpression: first,
+                         CallExpression: {arguments: first},
+                         MemberExpression: 1,
+                         ObjectExpression: first,
+                         SwitchCase: 1}]
   key-spacing: [2, {mode: minimum}]
   keyword-spacing: 2
   linebreak-style: [2, unix]
@@ -122,7 +129,7 @@ rules:
   }, {
     selector: "ThrowStatement > CallExpression[callee.name=/Error$/]",
     message: "Use new keyword when throwing an Error."
-    }]
+  }]
   no-tabs: 2
   no-trailing-spaces: 2
   one-var-declaration-per-line: 2
@@ -131,7 +138,11 @@ rules:
   semi: 2
   semi-spacing: 2
   space-before-blocks: [2, always]
-  space-before-function-paren: [2, never]
+  space-before-function-paren: [2, {
+    "anonymous": "never",
+    "named": "never",
+    "asyncArrow": "always"
+  }]
   space-in-parens: [2, never]
   space-infix-ops: 2
   space-unary-ops: 2
