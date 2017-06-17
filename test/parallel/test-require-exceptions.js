@@ -33,6 +33,11 @@ assert.throws(function() {
   require(`${common.fixturesDir}/throws_error`);
 }, /^Error: blah$/);
 
+// Requiring the module with null character
+assert.throws(function() {
+  require('../\u0000on');
+}, /^Error: blah$/); //TODO: Fix the acual error
+
 // Requiring a module that does not exist should throw an
 // error with its `code` set to MODULE_NOT_FOUND
 assertModuleNotFound('/DOES_NOT_EXIST');
