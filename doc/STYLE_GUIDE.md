@@ -40,8 +40,8 @@
 * When documenting APIs, note the version the API was introduced in at
   the end of the section. If an API has been deprecated, also note the first
   version that the API appeared deprecated in.
-* When using dashes, use emdashes ("—", Option+Shift+"-" on macOS) surrounded by
-  spaces, per the New York Times usage.
+* When using dashes, use [Em dashes][] ("—" or `Option+Shift+"-"` on macOS)
+  surrounded by spaces, as per [The New York Times Manual of Style and Usage][].
 * Including assets:
   * If you wish to add an illustration or full program, add it to the
     appropriate sub-directory in the `assets/` dir.
@@ -68,3 +68,5 @@
 
 [plugin]: http://editorconfig.org/#download
 [Oxford comma]: https://en.wikipedia.org/wiki/Serial_comma
+[Em dashes]: https://en.wikipedia.org/wiki/Dash#Em_dash
+[The New York Times Manual of Style and Usage]: https://en.wikipedia.org/wiki/The_New_York_Times_Manual_of_Style_and_Usage
