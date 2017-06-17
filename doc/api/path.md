@@ -431,6 +431,10 @@ added: v0.11.15
 The `path.posix` property provides access to POSIX specific implementations
 of the `path` methods.
 
+The following functions do not support direct use on Windows.
+* path.posix.resolve
+* path.posix.relative
+
 ## path.relative(from, to)
 <!-- YAML
 added: v0.5.0
@@ -550,6 +554,10 @@ added: v0.11.15
 
 The `path.win32` property provides access to Windows-specific implementations
 of the `path` methods.
+
+The following functions do not support direct use on *nix.
+* path.win32.resolve
+* path.win32.relative
 
 [`TypeError`]: errors.html#errors_class_typeerror
 [`path.parse()`]: #path_path_parse_path
