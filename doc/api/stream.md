@@ -1504,7 +1504,7 @@ user programs.
 * `chunk` {Buffer|null|string} Chunk of data to push into the read queue
 * `encoding` {string} Encoding of String chunks.  Must be a valid
   Buffer encoding, such as `'utf8'` or `'ascii'`
-* Returns {boolean} `true` if additional chunks of data may continued to be
+* Returns: {boolean} `true` if additional chunks of data may continued to be
   pushed; `false` otherwise.
 
 When `chunk` is a `Buffer` or `string`, the `chunk` of data will be added to the

@@ -150,8 +150,8 @@ In a worker you can also use `process.on('error')`.
 added: v0.11.2
 -->
 
-* `code` {number} the exit code, if it exited normally.
-* `signal` {string} the name of the signal (e.g. `'SIGHUP'`) that caused
+* `code` {number} The exit code, if it exited normally.
+* `signal` {string} The name of the signal (e.g. `'SIGHUP'`) that caused
   the process to be killed.
 
 Similar to the `cluster.on('exit')` event, but specific to this worker.
@@ -423,7 +423,7 @@ added: v0.7.0
 * `message` {Object}
 * `sendHandle` {Handle}
 * `callback` {Function}
-* Returns: Boolean
+* Returns: {boolean}
 
 Send a message to a worker or master, optionally with a handle.
 
@@ -504,8 +504,8 @@ added: v0.7.9
 -->
 
 * `worker` {cluster.Worker}
-* `code` {number} the exit code, if it exited normally.
-* `signal` {string} the name of the signal (e.g. `'SIGHUP'`) that caused
+* `code` {number} The exit code, if it exited normally.
+* `signal` {string} The name of the signal (e.g. `'SIGHUP'`) that caused
   the process to be killed.
 
 When any of the workers die the cluster module will emit the `'exit'` event.
@@ -648,8 +648,8 @@ If accuracy is important, use `cluster.settings`.
 added: v0.7.7
 -->
 
-* `callback` {Function} called when all workers are disconnected and handles are
-  closed
+* `callback` {Function} Called when all workers are disconnected and handles are
+  closed.
 
 Calls `.disconnect()` on each worker in `cluster.workers`.
 
@@ -666,7 +666,7 @@ added: v0.6.0
 -->
 
 * `env` {Object} Key/value pairs to add to worker process environment.
-* return {cluster.Worker}
+* Returns: {cluster.Worker}
 
 Spawn a new worker process.
 
@@ -717,17 +717,17 @@ added: v0.7.1
 
 * {Object}
   * `execArgv` {Array} list of string arguments passed to the Node.js
-    executable. (Default=`process.execArgv`)
-  * `exec` {string} file path to worker file.  (Default=`process.argv[1]`)
+    executable. **Default:** `process.execArgv`
+  * `exec` {string} file path to worker file. **Default:** `process.argv[1]`
   * `args` {Array} string arguments passed to worker.
-    (Default=`process.argv.slice(2)`)
+    **Default:**: `process.argv.slice(2)`
   * `silent` {boolean} whether or not to send output to parent's stdio.
-    (Default=`false`)
+    **Default:** `false`
   * `stdio` {Array} Configures the stdio of forked processes. Because the
     cluster module relies on IPC to function, this configuration must contain an
     `'ipc'` entry. When this option is provided, it overrides `silent`.
-  * `uid` {number} Sets the user identity of the process. (See setuid(2).)
-  * `gid` {number} Sets the group identity of the process. (See setgid(2).)
+  * `uid` {number} Sets the user identity of the process. (see setuid(2))
+  * `gid` {number} Sets the group identity of the process. (see setgid(2))
 
 After calling `.setupMaster()` (or `.fork()`) this settings object will contain
 the settings, including the default values.
@@ -740,11 +740,11 @@ added: v0.7.1
 -->
 
 * `settings` {Object}
-  * `exec` {string} file path to worker file.  (Default=`process.argv[1]`)
+  * `exec` {string} file path to worker file. **Default:** `process.argv[1]`
   * `args` {Array} string arguments passed to worker.
-    (Default=`process.argv.slice(2)`)
+    **Default:**: `process.argv.slice(2)`
   * `silent` {boolean} whether or not to send output to parent's stdio.
-    (Default=`false`)
+    **Default:** `false`
   * `stdio` {Array} Configures the stdio of forked processes. When this option
     is provided, it overrides `silent`.
 
