@@ -20,26 +20,29 @@ function setHiddenValue(obj, index, val) {
   };
 }
 
-assert.throws(getHiddenValue(), /obj must be an object/);
-assert.throws(getHiddenValue(null, 'foo'), /obj must be an object/);
-assert.throws(getHiddenValue(undefined, 'foo'), /obj must be an object/);
-assert.throws(getHiddenValue('bar', 'foo'), /obj must be an object/);
-assert.throws(getHiddenValue(85, 'foo'), /obj must be an object/);
-assert.throws(getHiddenValue({}), /index must be an uint32/);
-assert.throws(getHiddenValue({}, null), /index must be an uint32/);
-assert.throws(getHiddenValue({}, []), /index must be an uint32/);
+const errMessageObj = /obj must be an object/;
+const errMessageIndex = /index must be an uint32/;
+
+assert.throws(getHiddenValue(), errMessageObj);
+assert.throws(getHiddenValue(null, 'foo'), errMessageObj);
+assert.throws(getHiddenValue(undefined, 'foo'), errMessageObj);
+assert.throws(getHiddenValue('bar', 'foo'), errMessageObj);
+assert.throws(getHiddenValue(85, 'foo'), errMessageObj);
+assert.throws(getHiddenValue({}), errMessageIndex);
+assert.throws(getHiddenValue({}, null), errMessageIndex);
+assert.throws(getHiddenValue({}, []), errMessageIndex);
 assert.deepStrictEqual(
     binding.getHiddenValue({}, kArrowMessagePrivateSymbolIndex),
     undefined);
 
-assert.throws(setHiddenValue(), /obj must be an object/);
-assert.throws(setHiddenValue(null, 'foo'), /obj must be an object/);
-assert.throws(setHiddenValue(undefined, 'foo'), /obj must be an object/);
-assert.throws(setHiddenValue('bar', 'foo'), /obj must be an object/);
-assert.throws(setHiddenValue(85, 'foo'), /obj must be an object/);
-assert.throws(setHiddenValue({}), /index must be an uint32/);
-assert.throws(setHiddenValue({}, null), /index must be an uint32/);
-assert.throws(setHiddenValue({}, []), /index must be an uint32/);
+assert.throws(setHiddenValue(), errMessageObj);
+assert.throws(setHiddenValue(null, 'foo'), errMessageObj);
+assert.throws(setHiddenValue(undefined, 'foo'), errMessageObj);
+assert.throws(setHiddenValue('bar', 'foo'), errMessageObj);
+assert.throws(setHiddenValue(85, 'foo'), errMessageObj);
+assert.throws(setHiddenValue({}), errMessageIndex);
+assert.throws(setHiddenValue({}, null), errMessageIndex);
+assert.throws(setHiddenValue({}, []), errMessageIndex);
 const obj = {};
 assert.strictEqual(
     binding.setHiddenValue(obj, kArrowMessagePrivateSymbolIndex, 'bar'),

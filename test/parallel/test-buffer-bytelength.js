@@ -7,14 +7,11 @@ const SlowBuffer = require('buffer').SlowBuffer;
 const vm = require('vm');
 
 // coerce values to string
-assert.throws(() => { Buffer.byteLength(32, 'latin1'); },
-              /"string" must be a string, Buffer, or ArrayBuffer/);
-assert.throws(() => { Buffer.byteLength(NaN, 'utf8'); },
-              /"string" must be a string, Buffer, or ArrayBuffer/);
-assert.throws(() => { Buffer.byteLength({}, 'latin1'); },
-              /"string" must be a string, Buffer, or ArrayBuffer/);
-assert.throws(() => { Buffer.byteLength(); },
-              /"string" must be a string, Buffer, or ArrayBuffer/);
+const re = /"string" must be a string, Buffer, or ArrayBuffer/;
+assert.throws(() => { Buffer.byteLength(32, 'latin1'); }, re);
+assert.throws(() => { Buffer.byteLength(NaN, 'utf8'); }, re);
+assert.throws(() => { Buffer.byteLength({}, 'latin1'); }, re);
+assert.throws(() => { Buffer.byteLength(); }, re);
 
 assert.strictEqual(Buffer.byteLength('', undefined, true), -1);
 

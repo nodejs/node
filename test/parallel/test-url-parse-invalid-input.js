@@ -4,6 +4,7 @@ const assert = require('assert');
 const url = require('url');
 
 // https://github.com/joyent/node/issues/568
+const errMessage = /^TypeError: Parameter "url" must be a string, not (?:undefined|boolean|number|object|function|symbol)$/;
 [
   undefined,
   null,
@@ -16,8 +17,7 @@ const url = require('url');
   () => {},
   Symbol('foo')
 ].forEach((val) => {
-  assert.throws(() => { url.parse(val); },
-                /^TypeError: Parameter "url" must be a string, not (undefined|boolean|number|object|function|symbol)$/);
+  assert.throws(() => { url.parse(val); }, errMessage);
 });
 
 assert.throws(() => { url.parse('http://%E0%A4%A@fail'); },
