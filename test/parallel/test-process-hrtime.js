@@ -32,25 +32,35 @@ validateTuple(tuple);
 // validate that passing an existing tuple returns another valid tuple
 validateTuple(process.hrtime(tuple));
 
-const invalidHrtimeArgument = common.expectsError({
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "time" argument must be of type Array'
-});
-
 // test that only an Array may be passed to process.hrtime()
 assert.throws(() => {
   process.hrtime(1);
-}, invalidHrtimeArgument);
+}, common.expectsError({
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "time" argument must be of type Array. Received type number'
+}));
 assert.throws(() => {
   process.hrtime([]);
-}, invalidHrtimeArgument);
+}, common.expectsError({
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "time" argument must be of type Array. Received type object'
+}));
 assert.throws(() => {
   process.hrtime([1]);
-}, invalidHrtimeArgument);
+}, common.expectsError({
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "time" argument must be of type Array. Received type object'
+}));
 assert.throws(() => {
   process.hrtime([1, 2, 3]);
-}, invalidHrtimeArgument);
+}, common.expectsError({
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "time" argument must be of type Array. Received type object'
+}));
 
 function validateTuple(tuple) {
   assert(Array.isArray(tuple));
