@@ -196,8 +196,9 @@ if (exports.isWindows) {
 }
 
 const ifaces = os.networkInterfaces();
+const re = /lo/;
 exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
-  return /lo/.test(name) && ifaces[name].some(function(info) {
+  return re.test(name) && ifaces[name].some(function(info) {
     return info.family === 'IPv6';
   });
 });
