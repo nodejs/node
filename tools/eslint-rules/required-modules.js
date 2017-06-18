@@ -77,13 +77,13 @@ module.exports = function(context) {
           function(module) {
             return foundModules.indexOf(module === -1);
           }
-          );
+        );
         missingModules.forEach(function(moduleName) {
           context.report(
             node,
             'Mandatory module "{{moduleName}}" must be loaded.',
             { moduleName: moduleName }
-            );
+          );
         });
       }
     }
