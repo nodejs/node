@@ -722,13 +722,14 @@ assert.throws(() => {
 {
   // bad args to AssertionError constructor should throw TypeError
   const args = [1, true, false, '', null, Infinity, Symbol('test'), undefined];
+  const re = /^The "options" argument must be of type object$/;
   args.forEach((input) => {
     assert.throws(
       () => new assert.AssertionError(input),
       common.expectsError({
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: /^The "options" argument must be of type object$/
+        message: re
       }));
   });
 }

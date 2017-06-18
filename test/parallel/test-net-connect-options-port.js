@@ -190,7 +190,7 @@ function canConnect(port) {
 
 function asyncFailToConnect(port) {
   const onError = () => common.mustCall(function(err) {
-    const regexp = /^Error: connect (E\w+)(.+)$/;
+    const regexp = /^Error: connect E\w+.+$/;
     assert(regexp.test(String(err)), String(err));
   });
 

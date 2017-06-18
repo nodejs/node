@@ -28,6 +28,9 @@ const path = require('path');
 const f = __filename;
 const failures = [];
 
+const slashRE = /\//g;
+const backslashRE = /\\/g;
+
 // path.basename tests
 assert.strictEqual(path.basename(f), 'test-path.js');
 assert.strictEqual(path.basename(f, '.js'), 'test-path');
@@ -188,7 +191,7 @@ assert.strictEqual(path.win32.dirname('foo'), '.');
     let input = test[0];
     let os;
     if (extname === path.win32.extname) {
-      input = input.replace(/\//g, '\\');
+      input = input.replace(slashRE, '\\');
       os = 'win32';
     } else {
       os = 'posix';
@@ -345,7 +348,7 @@ joinTests.forEach((test) => {
       let actualAlt;
       let os;
       if (join === path.win32.join) {
-        actualAlt = actual.replace(/\\/g, '/');
+        actualAlt = actual.replace(backslashRE, '/');
         os = 'win32';
       } else {
         os = 'posix';
@@ -451,9 +454,9 @@ resolveTests.forEach((test) => {
     let actualAlt;
     const os = resolve === path.win32.resolve ? 'win32' : 'posix';
     if (resolve === path.win32.resolve && !common.isWindows)
-      actualAlt = actual.replace(/\\/g, '/');
+      actualAlt = actual.replace(backslashRE, '/');
     else if (resolve !== path.win32.resolve && common.isWindows)
-      actualAlt = actual.replace(/\//g, '\\');
+      actualAlt = actual.replace(slashRE, '\\');
 
     const expected = test[1];
     const message =

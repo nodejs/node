@@ -25,6 +25,8 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
+const backslash = /\\/g;
+
 console.error('load test-module-loading.js');
 
 // assert that this is the main module.
@@ -195,7 +197,7 @@ try {
     require(`${loadOrder}file3`);
   } catch (e) {
     // Not a real .node module, but we know we require'd the right thing.
-    assert.ok(e.message.replace(/\\/g, '/').match(/file3\.node/));
+    assert.ok(/file3\.node/.test(e.message.replace(backslash, '/')));
   }
   assert.strictEqual(require(`${loadOrder}file4`).file4, 'file4.reg', msg);
   assert.strictEqual(require(`${loadOrder}file5`).file5, 'file5.reg2', msg);
@@ -203,7 +205,7 @@ try {
   try {
     require(`${loadOrder}file7`);
   } catch (e) {
-    assert.ok(e.message.replace(/\\/g, '/').match(/file7\/index\.node/));
+    assert.ok(/file7\/index\.node/.test(e.message.replace(backslash, '/')));
   }
   assert.strictEqual(require(`${loadOrder}file8`).file8, 'file8/index.reg',
                      msg);
@@ -237,7 +239,7 @@ try {
 
   const children = module.children.reduce(function red(set, child) {
     let id = path.relative(path.dirname(__dirname), child.id);
-    id = id.replace(/\\/g, '/');
+    id = id.replace(backslash, '/');
     set[id] = child.children.reduce(red, {});
     return set;
   }, {});
