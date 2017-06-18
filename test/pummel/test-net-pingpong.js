@@ -31,7 +31,7 @@ function pingPongTest(port, host, on_complete) {
       console.log(`server got: ${JSON.stringify(data)}`);
       assert.strictEqual('open', socket.readyState);
       assert.strictEqual(true, count <= N);
-      if (/PING/.exec(data)) {
+      if (/PING/.test(data)) {
         socket.write('PONG');
       }
     });

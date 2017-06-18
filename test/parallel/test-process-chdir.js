@@ -31,9 +31,10 @@ process.chdir('..');
 assert.strictEqual(process.cwd().normalize(),
                    path.resolve(common.tmpDir).normalize());
 
+const errMessage = /^TypeError: Bad argument\.$/;
 assert.throws(function() { process.chdir({}); },
-              /^TypeError: Bad argument\.$/, 'Bad argument.');
+              errMessage, 'Bad argument.');
 assert.throws(function() { process.chdir(); },
-              /^TypeError: Bad argument\.$/, 'Bad argument.');
+              errMessage, 'Bad argument.');
 assert.throws(function() { process.chdir('x', 'y'); },
-              /^TypeError: Bad argument\.$/, 'Bad argument.');
+              errMessage, 'Bad argument.');

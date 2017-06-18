@@ -10,8 +10,8 @@ function checkListResponse(err, response) {
   assert.strictEqual(1, response.length);
   assert.ok(response[0]['devtoolsFrontendUrl']);
   assert.ok(
-    response[0]['webSocketDebuggerUrl']
-      .match(/ws:\/\/127.0.0.1:\d+\/[0-9A-Fa-f]{8}-/));
+    /ws:\/\/127.0.0.1:\d+\/[0-9A-Fa-f]{8}-/
+      .test(response[0]['webSocketDebuggerUrl']));
 }
 
 function checkVersion(err, response) {

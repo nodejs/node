@@ -12,29 +12,33 @@ assert.throws(function() {
   tls.createSecureContext({ secureProtocol: 'blargh' });
 }, /Unknown method/);
 
+const errMessageSSLv2 = /SSLv2 methods disabled/;
+
 assert.throws(function() {
   tls.createSecureContext({ secureProtocol: 'SSLv2_method' });
-}, /SSLv2 methods disabled/);
+}, errMessageSSLv2);
 
 assert.throws(function() {
   tls.createSecureContext({ secureProtocol: 'SSLv2_client_method' });
-}, /SSLv2 methods disabled/);
+}, errMessageSSLv2);
 
 assert.throws(function() {
   tls.createSecureContext({ secureProtocol: 'SSLv2_server_method' });
-}, /SSLv2 methods disabled/);
+}, errMessageSSLv2);
+
+const errMessageSSLv3 = /SSLv3 methods disabled/;
 
 assert.throws(function() {
   tls.createSecureContext({ secureProtocol: 'SSLv3_method' });
-}, /SSLv3 methods disabled/);
+}, errMessageSSLv3);
 
 assert.throws(function() {
   tls.createSecureContext({ secureProtocol: 'SSLv3_client_method' });
-}, /SSLv3 methods disabled/);
+}, errMessageSSLv3);
 
 assert.throws(function() {
   tls.createSecureContext({ secureProtocol: 'SSLv3_server_method' });
-}, /SSLv3 methods disabled/);
+}, errMessageSSLv3);
 
 // Note that SSLv2 and SSLv3 are disallowed but SSLv2_method and friends are
 // still accepted.  They are OpenSSL's way of saying that all known protocols
