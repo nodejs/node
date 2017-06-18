@@ -43,23 +43,23 @@ assert.throws(() => {
 assert.throws(() => {
   process.hrtime([]);
 }, common.expectsError({
-  code: 'ERR_INVALID_ARG_TYPE',
+  code: 'ERR_INVALID_ARRAY_LENGTH',
   type: TypeError,
-  message: 'The "time" argument must be of type Array. Received type object'
+  message: 'The "time" array must have a length of 2. Received length 0'
 }));
 assert.throws(() => {
   process.hrtime([1]);
 }, common.expectsError({
-  code: 'ERR_INVALID_ARG_TYPE',
+  code: 'ERR_INVALID_ARRAY_LENGTH',
   type: TypeError,
-  message: 'The "time" argument must be of type Array. Received type object'
+  message: 'The "time" array must have a length of 2. Received length 1'
 }));
 assert.throws(() => {
   process.hrtime([1, 2, 3]);
 }, common.expectsError({
-  code: 'ERR_INVALID_ARG_TYPE',
+  code: 'ERR_INVALID_ARRAY_LENGTH',
   type: TypeError,
-  message: 'The "time" argument must be of type Array. Received type object'
+  message: 'The "time" array must have a length of 2. Received length 3'
 }));
 
 function validateTuple(tuple) {
