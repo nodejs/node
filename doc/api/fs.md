@@ -436,7 +436,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer}
+* `mode` {integer} default = `fs.constants.F_OK`
 * `callback` {Function}
 
 Tests a user's permissions for the file or directory specified by `path`.
@@ -562,7 +562,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer}
+* `mode` {integer} default = `fs.constants.F_OK`
 
 Synchronous version of [`fs.access()`][]. This throws if any accessibility
 checks fail, and does nothing otherwise.
@@ -1135,7 +1135,7 @@ added: v0.1.96
 
 Synchronous fsync(2). Returns `undefined`.
 
-## fs.ftruncate(fd, len, callback)
+## fs.ftruncate(fd[, len], callback)
 <!-- YAML
 added: v0.8.6
 changes:
@@ -1193,7 +1193,7 @@ fs.ftruncate(fd, 10, (err) => {
 
 The last three bytes are null bytes ('\0'), to compensate the over-truncation.
 
-## fs.ftruncateSync(fd, len)
+## fs.ftruncateSync(fd[, len])
 <!-- YAML
 added: v0.8.6
 -->
@@ -1388,7 +1388,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer}
+* `mode` {integer} default = `0o777`
 * `callback` {Function}
 
 Asynchronous mkdir(2). No arguments other than a possible exception are given
@@ -1405,7 +1405,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer}
+* `mode` {integer} default = `0o777`
 
 Synchronous mkdir(2). Returns `undefined`.
 
@@ -1506,7 +1506,7 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `flags` {string|number}
-* `mode` {integer}
+* `mode` {integer} default = `0o666`
 * `callback` {Function}
 
 Asynchronous file open. See open(2). `flags` can be:
@@ -1548,7 +1548,7 @@ The file is created if it does not exist.
 * `'ax+'` - Like `'a+'` but fails if `path` exists.
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
-created. It defaults to `0666`, readable and writable.
+created. It defaults to `0o666`, readable and writable.
 
 The callback gets two arguments `(err, fd)`.
 
@@ -1595,7 +1595,7 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `flags` {string|number}
-* `mode` {integer}
+* `mode` {integer} default = `0o666`
 
 Synchronous version of [`fs.open()`][]. Returns an integer representing the file
 descriptor.
@@ -2063,7 +2063,7 @@ changes:
 
 * `target` {string|Buffer|URL}
 * `path` {string|Buffer|URL}
-* `type` {string}
+* `type` {string} default = `'file'`
 * `callback` {Function}
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
@@ -2094,11 +2094,11 @@ changes:
 
 * `target` {string|Buffer|URL}
 * `path` {string|Buffer|URL}
-* `type` {string}
+* `type` {string} default = `'file'`
 
 Synchronous symlink(2). Returns `undefined`.
 
-## fs.truncate(path, len, callback)
+## fs.truncate(path[, len], callback)
 <!-- YAML
 added: v0.8.6
 changes:
@@ -2116,7 +2116,7 @@ Asynchronous truncate(2). No arguments other than a possible exception are
 given to the completion callback. A file descriptor can also be passed as the
 first argument. In this case, `fs.ftruncate()` is called.
 
-## fs.truncateSync(path, len)
+## fs.truncateSync(path[, len])
 <!-- YAML
 added: v0.8.6
 -->
@@ -2167,7 +2167,7 @@ added: v0.1.31
 -->
 
 * `filename` {string|Buffer}
-* `listener` {Function}
+* `listener` {Function|undefined} default = `undefined`
 
 Stop watching for changes on `filename`. If `listener` is specified, only that
 particular listener is removed. Otherwise, *all* listeners are removed,
@@ -2257,7 +2257,7 @@ changes:
     `false`
   * `encoding` {string} Specifies the character encoding to be used for the
      filename passed to the listener. default = `'utf8'`
-* `listener` {Function}
+* `listener` {Function|undefined} default = `undefined`
 
 Watch for changes on `filename`, where `filename` is either a file or a
 directory.  The returned object is a [`fs.FSWatcher`][].
@@ -2357,8 +2357,8 @@ changes:
 
 * `filename` {string|Buffer|URL}
 * `options` {Object}
-  * `persistent` {boolean}
-  * `interval` {integer}
+  * `persistent` {boolean} default = `true`
+  * `interval` {integer} default = `5007`
 * `listener` {Function}
 
 Watch for changes on `filename`. The callback `listener` will be called each
