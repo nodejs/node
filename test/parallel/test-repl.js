@@ -95,7 +95,7 @@ function error_test() {
         let expect = client_unix.expect;
         if (expect === prompt_multiline)
           expect = /[.]{3} /;
-        assert.ok(read_buffer.match(expect));
+        assert.ok(RegExp(expect).test(read_buffer));
         console.error('match');
       }
       read_buffer = '';

@@ -56,7 +56,7 @@ function startDebugger(scriptToDebug) {
     assert.ok(expected.length > 0, `Got unexpected line: ${line}`);
 
     const expectedLine = expected[0].lines.shift();
-    assert.ok(line.match(expectedLine) !== null, `${line} != ${expectedLine}`);
+    assert.ok(expectedLine.test(line), `${line} != ${expectedLine}`);
 
     if (expected[0].lines.length === 0) {
       const callback = expected[0].callback;

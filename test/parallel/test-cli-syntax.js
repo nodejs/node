@@ -56,8 +56,8 @@ const syntaxArgs = [
     assert(c.stderr.startsWith(file), "stderr doesn't start with the filename");
 
     // stderr should have a syntax error message
-    const match = c.stderr.match(/^SyntaxError: Unexpected identifier$/m);
-    assert(match, 'stderr incorrect');
+    assert(/^SyntaxError: Unexpected identifier$/m.test(c.stderr),
+           'stderr incorrect');
 
     assert.strictEqual(c.status, 1, `code === ${c.status}`);
   });
@@ -79,8 +79,7 @@ const syntaxArgs = [
     assert.strictEqual(c.stdout, '', 'stdout produced');
 
     // stderr should have a module not found error message
-    const match = c.stderr.match(/^Error: Cannot find module/m);
-    assert(match, 'stderr incorrect');
+    assert(/^Error: Cannot find module/m.test(c.stderr), 'stderr incorrect');
 
     assert.strictEqual(c.status, 1, `code === ${c.status}`);
   });
@@ -112,8 +111,8 @@ syntaxArgs.forEach(function(args) {
   assert.strictEqual(c.stdout, '', 'stdout produced');
 
   // stderr should have a syntax error message
-  const match = c.stderr.match(/^SyntaxError: Unexpected identifier$/m);
-  assert(match, 'stderr incorrect');
+  assert(/^SyntaxError: Unexpected identifier$/m.test(c.stderr),
+         'stderr incorrect');
 
   assert.strictEqual(c.status, 1, `code === ${c.status}`);
 });
