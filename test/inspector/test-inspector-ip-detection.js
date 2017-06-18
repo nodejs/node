@@ -22,7 +22,7 @@ function checkListResponse(instance, err, response) {
   const match = wsUrl.match(/^ws:\/\/(.*):9229\/(.*)/);
   assert.strictEqual(ip, match[1]);
   assert.strictEqual(res['id'], match[2]);
-  assert.strictEqual(ip, res['devtoolsFrontendUrl'].match(/.*ws=(.*):9229/)[1]);
+  assert.strictEqual(ip, res['devtoolsFrontendUrl'].match(/ws=(.*):9229/)[1]);
   instance.childInstanceDone = true;
 }
 
