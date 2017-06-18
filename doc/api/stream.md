@@ -1624,7 +1624,7 @@ changes:
   any JavaScript value.
 * `encoding` {string} Encoding of string chunks.  Must be a valid
   Buffer encoding, such as `'utf8'` or `'ascii'`
-* Returns {boolean} `true` if additional chunks of data may continued to be
+* Returns: {boolean} `true` if additional chunks of data may continued to be
   pushed; `false` otherwise.
 
 When `chunk` is a `Buffer`, `Uint8Array` or `string`, the `chunk` of data will
