@@ -23,7 +23,7 @@ function testRunnerMain() {
     workers: [{expectedPort: 9230}]
   });
 
-  let port = debuggerPort + offset++ * 10;
+  let port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: [`--inspect=${port}`],
@@ -34,28 +34,28 @@ function testRunnerMain() {
     ]
   });
 
-  port = debuggerPort + offset++ * 10;
+  port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: ['--inspect', `--inspect-port=${port}`],
     workers: [{expectedPort: port + 1}]
   });
 
-  port = debuggerPort + offset++ * 10;
+  port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: ['--inspect', `--debug-port=${port}`],
     workers: [{expectedPort: port + 1}]
   });
 
-  port = debuggerPort + offset++ * 10;
+  port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: [`--inspect=0.0.0.0:${port}`],
     workers: [{expectedPort: port + 1, expectedHost: '0.0.0.0'}]
   });
 
-  port = debuggerPort + offset++ * 10;
+  port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: [`--inspect=127.0.0.1:${port}`],
@@ -63,52 +63,143 @@ function testRunnerMain() {
   });
 
   if (common.hasIPv6) {
-    port = debuggerPort + offset++ * 10;
+    port = debuggerPort + offset++ * 5;
 
     spawnMaster({
       execArgv: [`--inspect=[::]:${port}`],
       workers: [{expectedPort: port + 1, expectedHost: '::'}]
     });
 
-    port = debuggerPort + offset++ * 10;
+    port = debuggerPort + offset++ * 5;
 
     spawnMaster({
       execArgv: [`--inspect=[::1]:${port}`],
       workers: [{expectedPort: port + 1, expectedHost: '::1'}]
     });
   }
+
+  /*
+   * Following tests check that port should not increment
+   * if developer sets inspector port in cluster.setupMaster arguments.
+   */
+
+  port = debuggerPort + offset++ * 5;
+
+  spawnMaster({
+    execArgv: [`--inspect=${port}`],
+    workers: [
+      {expectedPort: port + 2},
+      {expectedPort: port + 4},
+      {expectedPort: port + 6}
+    ],
+    clusterExecArgv: [
+      [`--inspect=${port + 2}`],
+      [`--inspect-port=${port + 4}`],
+      [`--debug-port=${port + 6}`],
+    ]
+  });
+
+  port = debuggerPort + offset++ * 5;
+
+  spawnMaster({
+    execArgv: [],
+    workers: [
+      {expectedPort: port}
+    ],
+    clusterExecArgv: [
+      [`--inspect=${port}`]
+    ]
+  });
+
+  // Next tests check that inspector port incrementing logic
+  // is disabled if zero port passed to workers.
+  // Even if supplied execArgv is equal to master's.
+
+  spawnMaster({
+    execArgv: [],
+    workers: [
+      {expectedInitialPort: 0},
+      {expectedInitialPort: 0},
+      {expectedInitialPort: 0}
+    ],
+    clusterExecArgv: [
+      ['--inspect=0'],
+      ['--inspect=0'],
+      ['--inspect=0']
+    ]
+  });
+
+  spawnMaster({
+    execArgv: ['--inspect=0'],
+    workers: [
+      {expectedInitialPort: 0},
+      {expectedInitialPort: 0},
+      {expectedInitialPort: 0}
+    ],
+    clusterExecArgv: [
+      ['--inspect=0'],
+      ['--inspect=0'],
+      ['--inspect=0']
+    ]
+  });
+
+  spawnMaster({
+    execArgv: ['--inspect=0'],
+    workers: [
+      {expectedInitialPort: 0},
+      {expectedInitialPort: 0},
+      {expectedInitialPort: 0}
+    ],
+    clusterExecArgv: [
+      ['--inspect', '--inspect-port=0'],
+      ['--inspect', '--inspect-port=0'],
+      ['--inspect', '--inspect-port=0']
+    ]
+  });
+
 }
 
 function masterProcessMain() {
   const workers = JSON.parse(process.env.workers);
+  const clusterExecArgv = JSON.parse(process.env.clusterExecArgv);
 
-  for (const worker of workers) {
+  for (const [index, worker] of workers.entries()) {
+    if (clusterExecArgv[index]) {
+      cluster.setupMaster({execArgv: clusterExecArgv[index]});
+    }
+
     cluster.fork({
       expectedPort: worker.expectedPort,
+      expectedInitialPort: worker.expectedInitialPort,
       expectedHost: worker.expectedHost
     }).on('exit', common.mustCall(checkExitCode));
   }
 }
 
 function workerProcessMain() {
-  const {expectedPort, expectedHost} = process.env;
+  const {expectedPort, expectedInitialPort, expectedHost} = process.env;
+  const debugOptions = process.binding('config').debugOptions;
 
-  assert.strictEqual(process.debugPort, +expectedPort);
+  if (+expectedPort) {
+    assert.strictEqual(process.debugPort, +expectedPort);
+  }
+
+  if (+expectedInitialPort) {
+    assert.strictEqual(debugOptions.port, +expectedInitialPort);
+  }
 
   if (expectedHost !== 'undefined') {
-    assert.strictEqual(
-      process.binding('config').debugOptions.host,
-      expectedHost
-    );
+    assert.strictEqual(debugOptions.host, expectedHost);
   }
 
   process.exit();
 }
 
-function spawnMaster({execArgv, workers}) {
+function spawnMaster({execArgv, workers, clusterExecArgv = []}) {
   childProcess.fork(__filename, {
     env: {
       workers: JSON.stringify(workers),
+      clusterExecArgv: JSON.stringify(clusterExecArgv),
       testProcess: true
     },
     execArgv
