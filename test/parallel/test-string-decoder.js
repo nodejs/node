@@ -127,6 +127,7 @@ function test(encoding, input, expected, singleSequence) {
   } else {
     sequences = [singleSequence];
   }
+  const hexNumberRE = /.{2}/g;
   sequences.forEach((sequence) => {
     const decoder = new StringDecoder(encoding);
     let output = '';
@@ -139,7 +140,7 @@ function test(encoding, input, expected, singleSequence) {
       const message =
         'Expected "' + unicodeEscape(expected) + '", ' +
         'but got "' + unicodeEscape(output) + '"\n' +
-        'input: ' + input.toString('hex').match(/.{2}/g) + '\n' +
+        'input: ' + input.toString('hex').match(hexNumberRE) + '\n' +
         'Write sequence: ' + JSON.stringify(sequence) + '\n' +
         'Full Decoder State: ' + inspect(decoder);
       assert.fail(output, expected, message);

@@ -33,9 +33,8 @@ fork(__filename, opts)
     assert.strictEqual(status, 0, 'client did not succeed in connecting');
   }))
   .on('close', common.mustCall(function() {
-    assert(stderr.match(
-      /Warning: Ignoring extra certs from.*no-such-file-exists.* load failed:.*No such file or directory/
-    ), stderr);
+    const re = /Warning: Ignoring extra certs from.*no-such-file-exists.* load failed:.*No such file or directory/;
+    assert(re.test(stderr), stderr);
   }))
   .stderr.setEncoding('utf8').on('data', function(str) {
     stderr += str;

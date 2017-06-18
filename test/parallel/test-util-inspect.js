@@ -746,9 +746,10 @@ assert.strictEqual(util.inspect(keys), 'SetIterator { 1, 3 }');
 
 function checkAlignment(container) {
   const lines = util.inspect(container).split('\n');
+  const numRE = /\d/;
   let pos;
   lines.forEach(function(line) {
-    const npos = line.search(/\d/);
+    const npos = line.search(numRE);
     if (npos !== -1) {
       if (pos !== undefined)
         assert.strictEqual(pos, npos, 'container items not aligned');

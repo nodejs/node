@@ -15,6 +15,8 @@ const inputString = 'ΩΩLorem ipsum dolor sit amet, consectetur adipiscing eli'
                     'm arcu mi, sodales non suscipit id, ultrices ut massa. S' +
                     'ed ac sem sit amet arcu malesuada fermentum. Nunc sed. ';
 
+const errMessage = /unexpected end of file/;
+
 [
   { comp: 'gzip', decomp: 'gunzip', decompSync: 'gunzipSync' },
   { comp: 'gzip', decomp: 'unzip', decompSync: 'unzipSync' },
@@ -41,11 +43,11 @@ const inputString = 'ΩΩLorem ipsum dolor sit amet, consectetur adipiscing eli'
     // sync truncated input test
     assert.throws(function() {
       zlib[methods.decompSync](truncated);
-    }, /unexpected end of file/);
+    }, errMessage);
 
     // async truncated input test
     zlib[methods.decomp](truncated, function(err, result) {
-      assert(/unexpected end of file/.test(err.message));
+      assert(errMessage.test(err.message));
     });
 
     const syncFlushOpt = { finishFlush: zlib.Z_SYNC_FLUSH };

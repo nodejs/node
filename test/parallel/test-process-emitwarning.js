@@ -8,7 +8,7 @@ const util = require('util');
 
 process.on('warning', common.mustCall((warning) => {
   assert(warning);
-  assert(/^(Warning|CustomWarning)/.test(warning.name));
+  assert(/^(?:Warning|CustomWarning)/.test(warning.name));
   assert(warning.message, 'A Warning');
 }, 7));
 

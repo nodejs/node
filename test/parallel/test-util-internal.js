@@ -19,24 +19,27 @@ function setHiddenValue(obj, name, val) {
   };
 }
 
-assert.throws(getHiddenValue(), /obj must be an object/);
-assert.throws(getHiddenValue(null, 'foo'), /obj must be an object/);
-assert.throws(getHiddenValue(undefined, 'foo'), /obj must be an object/);
-assert.throws(getHiddenValue('bar', 'foo'), /obj must be an object/);
-assert.throws(getHiddenValue(85, 'foo'), /obj must be an object/);
-assert.throws(getHiddenValue({}), /name must be a string/);
-assert.throws(getHiddenValue({}, null), /name must be a string/);
-assert.throws(getHiddenValue({}, []), /name must be a string/);
+const errMessageObj = /obj must be an object/;
+const errMessageStr = /name must be a string/;
+
+assert.throws(getHiddenValue(), errMessageObj);
+assert.throws(getHiddenValue(null, 'foo'), errMessageObj);
+assert.throws(getHiddenValue(undefined, 'foo'), errMessageObj);
+assert.throws(getHiddenValue('bar', 'foo'), errMessageObj);
+assert.throws(getHiddenValue(85, 'foo'), errMessageObj);
+assert.throws(getHiddenValue({}), errMessageStr);
+assert.throws(getHiddenValue({}, null), errMessageStr);
+assert.throws(getHiddenValue({}, []), errMessageStr);
 assert.deepStrictEqual(internalUtil.getHiddenValue({}, 'foo'), undefined);
 
-assert.throws(setHiddenValue(), /obj must be an object/);
-assert.throws(setHiddenValue(null, 'foo'), /obj must be an object/);
-assert.throws(setHiddenValue(undefined, 'foo'), /obj must be an object/);
-assert.throws(setHiddenValue('bar', 'foo'), /obj must be an object/);
-assert.throws(setHiddenValue(85, 'foo'), /obj must be an object/);
-assert.throws(setHiddenValue({}), /name must be a string/);
-assert.throws(setHiddenValue({}, null), /name must be a string/);
-assert.throws(setHiddenValue({}, []), /name must be a string/);
+assert.throws(setHiddenValue(), errMessageObj);
+assert.throws(setHiddenValue(null, 'foo'), errMessageObj);
+assert.throws(setHiddenValue(undefined, 'foo'), errMessageObj);
+assert.throws(setHiddenValue('bar', 'foo'), errMessageObj);
+assert.throws(setHiddenValue(85, 'foo'), errMessageObj);
+assert.throws(setHiddenValue({}), errMessageStr);
+assert.throws(setHiddenValue({}, null), errMessageStr);
+assert.throws(setHiddenValue({}, []), errMessageStr);
 const obj = {};
 assert.strictEqual(internalUtil.setHiddenValue(obj, 'foo', 'bar'), true);
 assert.strictEqual(internalUtil.getHiddenValue(obj, 'foo'), 'bar');

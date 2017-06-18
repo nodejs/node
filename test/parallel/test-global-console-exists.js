@@ -24,7 +24,7 @@ process.on('warning', (warning) => {
 
 process.stderr.write = (data) => {
   if (write_calls === 0)
-    assert.ok(data.match(leak_warning));
+    assert.ok(leak_warning.test(data));
   else
     common.fail('stderr.write should be called only once');
 
