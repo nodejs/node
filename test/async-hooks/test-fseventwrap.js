@@ -1,6 +1,6 @@
 'use strict';
-
 require('../common');
+
 const assert = require('assert');
 const initHooks = require('./init-hooks');
 const tick = require('./tick');
@@ -10,7 +10,7 @@ const fs = require('fs');
 const hooks = initHooks();
 
 hooks.enable();
-const watcher = fs.watch(__dirname, onwatcherChanged);
+const watcher = fs.watch(__filename, onwatcherChanged);
 function onwatcherChanged() { }
 
 watcher.close();
