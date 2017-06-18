@@ -7,10 +7,11 @@ const util = require('util');
 // for assert.throws()
 function re(literals, ...values) {
   let result = literals[0];
+  const escapeRE = /[\\^$.*+?()[\]{}|=!<>:-]/g;
   for (const [i, value] of values.entries()) {
     const str = util.inspect(value);
     // Need to escape special characters.
-    result += str.replace(/[\\^$.*+?()[\]{}|=!<>:-]/g, '\\$&');
+    result += str.replace(escapeRE, '\\$&');
     result += literals[i + 1];
   }
   return common.expectsError({

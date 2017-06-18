@@ -46,10 +46,10 @@ const tests = [
 ];
 
 // test util.log()
+const re = /[0-9]{1,2} [A-Z][a-z]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} - (.+)$/;
 tests.forEach(function(test) {
   util.log(test.input);
   const result = strings.shift().trim();
-  const re = (/[0-9]{1,2} [A-Z][a-z]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} - (.+)$/);
   const match = re.exec(result);
   assert.ok(match);
   assert.strictEqual(match[1], test.output);

@@ -295,14 +295,15 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   // rejected.
   ecdh5.setPrivateKey(cafebabeKey, 'hex');
 
-  [ // Some invalid private keys for the secp256k1 curve.
-    '0000000000000000000000000000000000000000000000000000000000000000',
-    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141',
-    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
+  // Some invalid private keys for the secp256k1 curve.
+  const errMessage = /^Error: Private key is not valid for specified curve\.$/;
+  ['0000000000000000000000000000000000000000000000000000000000000000',
+   'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141',
+   'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
   ].forEach((element) => {
     assert.throws(() => {
       ecdh5.setPrivateKey(element, 'hex');
-    }, /^Error: Private key is not valid for specified curve\.$/);
+    }, errMessage);
     // Verify object state did not change.
     assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
   });

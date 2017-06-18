@@ -70,28 +70,30 @@ const responses = [];
 function afterPing(result) {
   responses.push(result);
   console.error(`afterPing. responses.length = ${responses.length}`);
+  const ECONNREFUSED_RE = /ECONNREFUSED/;
+  const successRE = /success/;
   switch (responses.length) {
     case 2:
-      assert.ok(/ECONNREFUSED/.test(responses[0]));
-      assert.ok(/ECONNREFUSED/.test(responses[1]));
+      assert.ok(ECONNREFUSED_RE.test(responses[0]));
+      assert.ok(ECONNREFUSED_RE.test(responses[1]));
       serverOn();
       break;
 
     case 4:
-      assert.ok(/success/.test(responses[2]));
-      assert.ok(/success/.test(responses[3]));
+      assert.ok(successRE.test(responses[2]));
+      assert.ok(successRE.test(responses[3]));
       serverOff();
       break;
 
     case 6:
-      assert.ok(/ECONNREFUSED/.test(responses[4]));
-      assert.ok(/ECONNREFUSED/.test(responses[5]));
+      assert.ok(ECONNREFUSED_RE.test(responses[4]));
+      assert.ok(ECONNREFUSED_RE.test(responses[5]));
       serverOn();
       break;
 
     case 8:
-      assert.ok(/success/.test(responses[6]));
-      assert.ok(/success/.test(responses[7]));
+      assert.ok(successRE.test(responses[6]));
+      assert.ok(successRE.test(responses[7]));
       server.close();
       // we should go to process.on('exit') from here.
       break;

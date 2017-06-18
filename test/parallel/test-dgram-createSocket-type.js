@@ -19,6 +19,7 @@ const validTypes = [
   { type: 'udp4' },
   { type: 'udp6' }
 ];
+const errMessage = /^Bad socket type specified\. Valid types are: udp4, udp6$/;
 
 // Error must be thrown with invalid types
 invalidTypes.forEach((invalidType) => {
@@ -27,7 +28,7 @@ invalidTypes.forEach((invalidType) => {
   }, common.expectsError({
     code: 'ERR_SOCKET_BAD_TYPE',
     type: Error,
-    message: /^Bad socket type specified\. Valid types are: udp4, udp6$/
+    message: errMessage
   }));
 });
 

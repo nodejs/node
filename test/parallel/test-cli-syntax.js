@@ -13,6 +13,9 @@ const syntaxArgs = [
   ['--check']
 ];
 
+const syntaxErrorRE = /^SyntaxError: Unexpected identifier$/m;
+const notFoundRE = /^Error: Cannot find module/m;
+
 // test good syntax with and without shebang
 [
   'syntax/good_syntax.js',
@@ -56,8 +59,7 @@ const syntaxArgs = [
     assert(c.stderr.startsWith(file), "stderr doesn't start with the filename");
 
     // stderr should have a syntax error message
-    assert(/^SyntaxError: Unexpected identifier$/m.test(c.stderr),
-           'stderr incorrect');
+    assert(syntaxErrorRE.test(c.stderr), 'stderr incorrect');
 
     assert.strictEqual(c.status, 1, `code === ${c.status}`);
   });
@@ -79,7 +81,7 @@ const syntaxArgs = [
     assert.strictEqual(c.stdout, '', 'stdout produced');
 
     // stderr should have a module not found error message
-    assert(/^Error: Cannot find module/m.test(c.stderr), 'stderr incorrect');
+    assert(notFoundRE.test(c.stderr), 'stderr incorrect');
 
     assert.strictEqual(c.status, 1, `code === ${c.status}`);
   });
@@ -111,8 +113,7 @@ syntaxArgs.forEach(function(args) {
   assert.strictEqual(c.stdout, '', 'stdout produced');
 
   // stderr should have a syntax error message
-  assert(/^SyntaxError: Unexpected identifier$/m.test(c.stderr),
-         'stderr incorrect');
+  assert(syntaxErrorRE.test(c.stderr), 'stderr incorrect');
 
   assert.strictEqual(c.status, 1, `code === ${c.status}`);
 });
