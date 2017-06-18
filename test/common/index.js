@@ -433,7 +433,7 @@ function leakedGlobals() {
       leaked.push(val);
 
   if (global.__coverage__) {
-    return leaked.filter((varname) => !/^(cov_|__cov)/.test(varname));
+    return leaked.filter((varname) => !/^(?:cov_|__cov)/.test(varname));
   } else {
     return leaked;
   }

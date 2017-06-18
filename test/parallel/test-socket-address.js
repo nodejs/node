@@ -12,6 +12,6 @@ server.listen(0, common.mustCall(function() {
     return -1;
   };
   assert.throws(() => this.address(),
-                /^Error: address ([\w|\s-\d])+$/);
+                /^Error: address [\w|\s-\d]+$/);
   server.close();
 }));

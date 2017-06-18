@@ -51,7 +51,7 @@ function startDebugger(scriptToDebug) {
   child.stderr.pipe(process.stderr);
 
   child.on('line', function(line) {
-    line = line.replace(/^(debug> *)+/, '');
+    line = line.replace(/^(?:debug> *)+/, '');
     console.log(line);
     assert.ok(expected.length > 0, `Got unexpected line: ${line}`);
 

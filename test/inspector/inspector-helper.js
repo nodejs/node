@@ -521,11 +521,11 @@ exports.startNodeForInspectorTest = function(callback,
     clearTimeout(timeoutId);
     console.log('[err]', text);
     if (found) return;
-    const match = text.match(/Debugger listening on ws:\/\/(.+):(\d+)\/(.+)/);
+    const match = text.match(/Debugger listening on ws:\/\/.+:(\d+)\/.+/);
     found = true;
     child.stderr.removeListener('data', dataCallback);
     assert.ok(match, text);
-    callback(new Harness(match[2], child));
+    callback(new Harness(match[1], child));
   });
 
   child.stderr.on('data', dataCallback);
