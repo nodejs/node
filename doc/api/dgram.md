@@ -74,12 +74,12 @@ added: v0.1.99
 
 The `'message'` event is emitted when a new datagram is available on a socket.
 The event handler function is passed two arguments: `msg` and `rinfo`.
-* `msg` {Buffer} - The message
-* `rinfo` {Object} - Remote address information
-  * `address` {string} The sender address
-  * `family` {string} The address family (`'IPv4'` or `'IPv6'`)
-  * `port` {number} The sender port
-  * `size` {number} The message size
+* `msg` {Buffer} The message.
+* `rinfo` {Object} Remote address information.
+  * `address` {string} The sender address.
+  * `family` {string} The address family (`'IPv4'` or `'IPv6'`).
+  * `port` {number} The sender port.
+  * `size` {number} The message size.
 
 ### socket.addMembership(multicastAddress[, multicastInterface])
 <!-- YAML
@@ -87,7 +87,7 @@ added: v0.6.9
 -->
 
 * `multicastAddress` {string}
-* `multicastInterface` {string}, Optional
+* `multicastInterface` {string}
 
 Tells the kernel to join a multicast group at the given `multicastAddress` and
 `multicastInterface` using the `IP_ADD_MEMBERSHIP` socket option. If the
@@ -109,10 +109,9 @@ properties.
 added: v0.1.99
 -->
 
-* `port` {number} - Integer, Optional
-* `address` {string}, Optional
-* `callback` {Function} with no parameters, Optional. Called when
-  binding is complete.
+* `port` {number} Integer.
+* `address` {string}
+* `callback` {Function} with no parameters. Called when binding is complete.
 
 For UDP sockets, causes the `dgram.Socket` to listen for datagram
 messages on a named `port` and optional `address`. If `port` is not
@@ -161,11 +160,11 @@ server.bind(41234);
 added: v0.11.14
 -->
 
-* `options` {Object} - Required. Supports the following properties:
-  * `port` {number} - Optional.
-  * `address` {string} - Optional.
-  * `exclusive` {boolean} - Optional.
-* `callback` {Function} - Optional.
+* `options` {Object} Required. Supports the following properties:
+  * `port` {Integer}
+  * `address` {string}
+  * `exclusive` {boolean}
+* `callback` {Function}
 
 For UDP sockets, causes the `dgram.Socket` to listen for datagram
 messages on a named `port` and optional `address` that are passed as
@@ -217,7 +216,7 @@ added: v0.6.9
 -->
 
 * `multicastAddress` {string}
-* `multicastInterface` {string}, Optional
+* `multicastInterface` {string}
 
 Instructs the kernel to leave a multicast group at `multicastAddress` using the
 `IP_DROP_MEMBERSHIP` socket option. This method is automatically called by the
@@ -232,12 +231,12 @@ drop membership on all valid interfaces.
 added: v0.1.99
 -->
 
-* `msg` {Buffer|string|array} Message to be sent
-* `offset` {number} Integer. Optional. Offset in the buffer where the message starts.
-* `length` {number} Integer. Optional. Number of bytes in the message.
+* `msg` {Buffer|string|array} Message to be sent.
+* `offset` {number} Integer. Offset in the buffer where the message starts.
+* `length` {number} Integer. Number of bytes in the message.
 * `port` {number} Integer. Destination port.
 * `address` {string} Destination hostname or IP address.
-* `callback` {Function} Called when the message has been sent. Optional.
+* `callback` {Function} Called when the message has been sent.
 
 Broadcasts a datagram on the socket. The destination `port` and `address` must
 be specified.
@@ -352,7 +351,7 @@ multicast packets will also be received on the local interface.
 added: v0.3.8
 -->
 
-* `ttl` {number} Integer
+* `ttl` {number} Integer.
 
 Sets the `IP_MULTICAST_TTL` socket option.  While TTL generally stands for
 "Time to Live", in this context it specifies the number of IP hops that a
@@ -368,7 +367,7 @@ between 0 and 255. The default on most systems is `1` but can vary.
 added: v0.1.101
 -->
 
-* `ttl` {number} Integer
+* `ttl` {number} Integer.
 
 Sets the `IP_TTL` socket option. While TTL generally stands for "Time to Live",
 in this context it specifies the number of IP hops that a packet is allowed to
@@ -465,9 +464,8 @@ and `udp6` sockets). The bound address and port can be retrieved using
 added: v0.1.99
 -->
 
-* `type` {string} - Either 'udp4' or 'udp6'
+* `type` {string} - Either 'udp4' or 'udp6'.
 * `callback` {Function} - Attached as a listener to `'message'` events.
-  Optional
 * Returns: {dgram.Socket}
 
 Creates a `dgram.Socket` object of the specified `type`. The `type` argument

@@ -59,8 +59,16 @@
 * References to constructor instances should use camelCase.
 * References to methods should be used with parentheses: for example,
   `socket.end()` instead of `socket.end`.
+* Function arguments or object properties should use the following format:
+  * <code>* \`name\` {type|type2} Optional description. \*\*Default:\*\* \`defaultValue\`</code>
+  * E.g. <code>* `byteOffset` {integer} Index of first byte to expose. **Default:** `0`</code>
+  * The `type` should refer to a Node.js type or a [JavaScript type][]
+* Function returns should use the following format:
+  * <code>* Returns: {type|type2} Optional description.</code>
+  * E.g. <code>* Returns: {AsyncHook} A reference to `asyncHook`.</code>
 
-[plugin]: http://editorconfig.org/#download
-[Oxford comma]: https://en.wikipedia.org/wiki/Serial_comma
 [Em dashes]: https://en.wikipedia.org/wiki/Dash#Em_dash
+[Javascript type]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#Data_structures_and_types
+[Oxford comma]: https://en.wikipedia.org/wiki/Serial_comma
 [The New York Times Manual of Style and Usage]: https://en.wikipedia.org/wiki/The_New_York_Times_Manual_of_Style_and_Usage
+[plugin]: http://editorconfig.org/#download
