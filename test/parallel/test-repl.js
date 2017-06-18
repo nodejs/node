@@ -75,7 +75,7 @@ function error_test() {
         let expect = client_unix.expect;
         if (expect === prompt_multiline)
           expect = /[.]{3} /;
-        assert.ok(read_buffer.match(expect));
+        assert.ok(RegExp(expect).test(read_buffer));
         console.error('match');
       }
       read_buffer = '';
@@ -358,7 +358,7 @@ function error_test() {
       expect: /^(?!repl)/ },
     // Avoid emitting stack trace
     { client: client_unix, send: 'a = 3.5e',
-      expect: /^(?!\s+at\s)/gm },
+      expect: /^(?!\s+at\s)/m },
 
     // https://github.com/nodejs/node/issues/9850
     { client: client_unix, send: 'function* foo() {}; foo().next();',
