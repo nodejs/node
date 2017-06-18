@@ -105,6 +105,7 @@ const modSize = 1024;
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
       0, 16, 32, 64, 128
     ];
+    const errMessage = /^Error:.*data too large for key size$/;
 
     signSaltLengths.forEach((signSaltLength) => {
       if (signSaltLength > max) {
@@ -117,7 +118,7 @@ const modSize = 1024;
               padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
               saltLength: signSaltLength
             });
-        }, /^Error:.*data too large for key size$/);
+        }, errMessage);
       } else {
         // Otherwise, a valid signature should be generated
         const s4 = crypto.createSign(algo)
@@ -200,6 +201,9 @@ const modSize = 1024;
 
 // Test exceptions for invalid `padding` and `saltLength` values
 {
+  const paddingNotInteger = /^TypeError: padding must be an integer$/;
+  const saltLengthNotInteger = /^TypeError: saltLength must be an integer$/;
+
   [null, undefined, NaN, 'boom', {}, [], true, false]
     .forEach((invalidValue) => {
       assert.throws(() => {
@@ -209,7 +213,7 @@ const modSize = 1024;
             key: keyPem,
             padding: invalidValue
           });
-      }, /^TypeError: padding must be an integer$/);
+      }, paddingNotInteger);
 
       assert.throws(() => {
         crypto.createSign('RSA-SHA256')
@@ -219,7 +223,7 @@ const modSize = 1024;
             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
             saltLength: invalidValue
           });
-      }, /^TypeError: saltLength must be an integer$/);
+      }, saltLengthNotInteger);
     });
 
   assert.throws(() => {

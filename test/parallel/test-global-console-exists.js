@@ -11,7 +11,7 @@ const leakWarning = /EventEmitter memory leak detected\. 2 hello listeners/;
 
 common.hijackStderr(common.mustCall(function(data) {
   if (process.stderr.writeTimes === 0) {
-    assert.ok(data.match(leakWarning));
+    assert.ok(leakWarning.test(data));
   } else {
     assert.fail('stderr.write should be called only once');
   }
