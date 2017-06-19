@@ -195,7 +195,7 @@ The `type` is a string that represents the type of resource that caused
 `init` to be called. Generally, it will correspond to the name of the
 resource's constructor.
 
-```
+```text
 FSEVENTWRAP, FSREQWRAP, GETADDRINFOREQWRAP, GETNAMEINFOREQWRAP, HTTPPARSER,
 JSSTREAM, PIPECONNECTWRAP, PIPEWRAP, PROCESSWRAP, QUERYWRAP, SHUTDOWNWRAP,
 SIGNALWRAP, STATWATCHER, TCPCONNECTWRAP, TCPWRAP, TIMERWRAP, TTYWRAP,
@@ -236,7 +236,7 @@ require('net').createServer((conn) => {}).listen(8080);
 
 Output when hitting the server with `nc localhost 8080`:
 
-```
+```console
 TCPWRAP(2): trigger: 1 execution: 1
 TCPWRAP(4): trigger: 2 execution: 0
 ```
@@ -314,7 +314,7 @@ require('net').createServer(() => {}).listen(8080, () => {
 
 Output from only starting the server:
 
-```
+```console
 TCPWRAP(2): trigger: 1 execution: 1
 TickObject(3): trigger: 2 execution: 1
 before:  3
@@ -344,7 +344,7 @@ calls to `before` and `after`.
 
 Only using `execution` to graph resource allocation results in the following:
 
-```
+```console
 TTYWRAP(6) -> Timeout(4) -> TIMERWRAP(5) -> TickObject(3) -> root(1)
 ```
 
