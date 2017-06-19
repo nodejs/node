@@ -54,6 +54,12 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
+// Side effect-free stringification that will never throw exceptions.
+static void SafeToString(const FunctionCallbackInfo<Value>& args) {
+  auto context = args.GetIsolate()->GetCurrentContext();
+  args.GetReturnValue().Set(args[0]->ToDetailString(context).ToLocalChecked());
+}
+
 static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -122,6 +128,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "getHiddenValue", GetHiddenValue);
   env->SetMethod(target, "setHiddenValue", SetHiddenValue);
   env->SetMethod(target, "getProxyDetails", GetProxyDetails);
+  env->SetMethod(target, "safeToString", SafeToString);
 
   env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
