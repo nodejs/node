@@ -55,7 +55,6 @@ void AfterAsync(uv_work_t* r) {
 
 void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
-  v8::HandleScope scope(isolate);
 
   async_req* req = new async_req;
   req->req.data = req;
