@@ -428,8 +428,7 @@ exports.allowGlobals = allowGlobals;
 function leakedGlobals() {
   const leaked = [];
 
-  // eslint-disable-next-line no-var
-  for (var val in global) {
+  for (const val in global) {
     if (!knownGlobals.includes(global[val])) {
       leaked.push(val);
     }
