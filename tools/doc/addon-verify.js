@@ -94,7 +94,7 @@ ${files[name].replace('Release', "' + common.buildType + '")}
   fs.mkdir(dir, function() {
     // Ignore errors
 
-    var done = once(ondone);
+    const done = once(ondone);
     var waiting = files.length;
     files.forEach(function(file) {
       fs.writeFile(file.path, file.content, function(err) {
