@@ -33,7 +33,7 @@ module.exports = toHTML;
 const STABILITY_TEXT_REG_EXP = /(.*:)\s*(\d)([\s\S]*)/;
 
 // customized heading without id attribute
-var renderer = new marked.Renderer();
+const renderer = new marked.Renderer();
 renderer.heading = function(text, level) {
   return '<h' + level + '>' + text + '</h' + level + '>\n';
 };
@@ -42,7 +42,7 @@ marked.setOptions({
 });
 
 // TODO(chrisdickinson): never stop vomitting / fix this.
-var gtocPath = path.resolve(path.join(
+const gtocPath = path.resolve(path.join(
   __dirname,
   '..',
   '..',
@@ -57,8 +57,8 @@ var gtocData = null;
  * opts: input, filename, template, nodeVersion.
  */
 function toHTML(opts, cb) {
-  var template = opts.template;
-  var nodeVersion = opts.nodeVersion || process.version;
+  const template = opts.template;
+  const nodeVersion = opts.nodeVersion || process.version;
 
   if (gtocData) {
     return onGtocLoaded();
@@ -80,7 +80,7 @@ function toHTML(opts, cb) {
   }
 
   function onGtocLoaded() {
-    var lexed = marked.lexer(opts.input);
+    const lexed = marked.lexer(opts.input);
     fs.readFile(template, 'utf8', function(er, template) {
       if (er) return cb(er);
       render({
@@ -123,10 +123,10 @@ function render(opts, cb) {
   var lexed = opts.lexed;
   var filename = opts.filename;
   var template = opts.template;
-  var nodeVersion = opts.nodeVersion || process.version;
+  const nodeVersion = opts.nodeVersion || process.version;
 
   // get the section
-  var section = getSection(lexed);
+  const section = getSection(lexed);
 
   filename = path.basename(filename, '.md');
 
@@ -138,7 +138,7 @@ function render(opts, cb) {
   buildToc(lexed, filename, function(er, toc) {
     if (er) return cb(er);
 
-    var id = toID(path.basename(filename));
+    const id = toID(path.basename(filename));
 
     template = template.replace(/__ID__/g, id);
     template = template.replace(/__FILENAME__/g, filename);
@@ -220,9 +220,9 @@ function parseText(lexed) {
 // lists that come right after a heading are what we're after.
 function parseLists(input) {
   var state = null;
-  var savedState = [];
+  const savedState = [];
   var depth = 0;
-  var output = [];
+  const output = [];
   let headingIndex = -1;
   let heading = null;
 
@@ -353,7 +353,7 @@ function parseYAML(text) {
 }
 
 // Syscalls which appear in the docs, but which only exist in BSD / OSX
-var BSD_ONLY_SYSCALLS = new Set(['lchmod']);
+const BSD_ONLY_SYSCALLS = new Set(['lchmod']);
 
 // Handle references to man pages, eg "open(2)" or "lchmod(2)"
 // Returns modified text, with such refs replace with HTML links, for example
@@ -363,7 +363,7 @@ function linkManPages(text) {
     / ([a-z.]+)\((\d)([a-z]?)\)/gm,
     (match, name, number, optionalCharacter) => {
       // name consists of lowercase letters, number is a single digit
-      var displayAs = `${name}(${number}${optionalCharacter})`;
+      const displayAs = `${name}(${number}${optionalCharacter})`;
       if (BSD_ONLY_SYSCALLS.has(name)) {
         return ` <a href="https://www.freebsd.org/cgi/man.cgi?query=${name}` +
           `&sektion=${number}">${displayAs}</a>`;
@@ -375,7 +375,7 @@ function linkManPages(text) {
 }
 
 function linkJsTypeDocs(text) {
-  var parts = text.split('`');
+  const parts = text.split('`');
   var i;
   var typeMatches;
 
@@ -453,7 +453,7 @@ function buildToc(lexed, filename, cb) {
   cb(null, toc);
 }
 
-var idCounters = {};
+const idCounters = {};
 function getId(text) {
   text = text.toLowerCase();
   text = text.replace(/[^a-z0-9]+/g, '_');
