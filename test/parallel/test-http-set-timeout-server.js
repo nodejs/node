@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
@@ -9,16 +10,13 @@ const tests = [];
 function test(fn) {
   if (!tests.length)
     process.nextTick(run);
-  tests.push(fn);
+  tests.push(common.mustCall(fn));
 }
 
 function run() {
   const fn = tests.shift();
   if (fn) {
-    console.log('# %s', fn.name);
     fn(run);
-  } else {
-    console.log('ok');
   }
 }
 
@@ -27,7 +25,7 @@ test(function serverTimeout(cb) {
     // just do nothing, we should get a timeout event.
   });
   server.listen(common.mustCall(function() {
-    http.get({ port: server.address().port }).on('error', common.noop);
+    http.get({ port: server.address().port }).on('error', common.mustCall());
   }));
   const s = server.setTimeout(50, common.mustCall(function(socket) {
     socket.destroy();
@@ -50,7 +48,7 @@ test(function serverRequestTimeout(cb) {
   server.listen(common.mustCall(function() {
     const port = server.address().port;
     const req = http.request({ port: port, method: 'POST' });
-    req.on('error', common.noop);
+    req.on('error', common.mustCall());
     req.write('Hello');
     // req is in progress
   }));
@@ -68,7 +66,7 @@ test(function serverResponseTimeout(cb) {
   });
   server.listen(common.mustCall(function() {
     const port = server.address().port;
-    http.get({ port: port }).on('error', common.noop);
+    http.get({ port: port }).on('error', common.mustCall());
   }));
 });
 
@@ -86,7 +84,7 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
   });
   server.listen(common.mustCall(function() {
     const port = server.address().port;
-    http.get({ port: port }).on('error', common.noop);
+    http.get({ port: port }).on('error', common.mustCall());
   }));
 });
 
