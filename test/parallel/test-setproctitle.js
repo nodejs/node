@@ -20,7 +20,18 @@ assert.notStrictEqual(process.title, title);
 process.title = title;
 assert.strictEqual(process.title, title);
 
-exec(`ps -p ${process.pid} -o args=`, function callback(error, stdout, stderr) {
+// Test setting the title but do not try to run `ps` on Windows.
+if (common.isWindows) {
+  return common.skip('Windows does not have "ps" utility');
+}
+
+// To pass this test on alpine, since Busybox `ps` does not
+// support `-p` switch, use `ps -o` and `grep` instead.
+const cmd = common.isLinux ?
+            `ps -o pid,args | grep '${process.pid} ${title}' | grep -v grep` :
+            `ps -p ${process.pid} -o args=`;
+
+exec(cmd, common.mustCall((error, stdout, stderr) => {
   assert.ifError(error);
   assert.strictEqual(stderr, '');
 
@@ -29,5 +40,5 @@ exec(`ps -p ${process.pid} -o args=`, function callback(error, stdout, stderr) {
     title += ` (${path.basename(process.execPath)})`;
 
   // omitting trailing whitespace and \n
-  assert.strictEqual(stdout.replace(/\s+$/, ''), title);
-});
+  assert.strictEqual(stdout.replace(/\s+$/, '').endsWith(title), true);
+}));
