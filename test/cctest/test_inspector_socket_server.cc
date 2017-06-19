@@ -172,12 +172,14 @@ class SocketWrapper {
     contents_.clear();
     uv_tcp_init(loop_, &socket_);
     union {sockaddr generic; sockaddr_in v4; sockaddr_in6 v6;} addr;
+    int err = 0;
     if (v6) {
-      uv_ip6_addr(host.c_str(), port, &addr.v6);
+      err = uv_ip6_addr(host.c_str(), port, &addr.v6);
     } else {
-      uv_ip4_addr(host.c_str(), port, &addr.v4);
+      err = uv_ip4_addr(host.c_str(), port, &addr.v4);
     }
-    int err = uv_tcp_connect(&connect_, &socket_, &addr.generic, Connected_);
+    ASSERT_EQ(0, err);
+    err = uv_tcp_connect(&connect_, &socket_, &addr.generic, Connected_);
     ASSERT_EQ(0, err);
     SPIN_WHILE(!connected_)
     uv_read_start(reinterpret_cast<uv_stream_t*>(&socket_), AllocCallback,
@@ -618,7 +620,7 @@ TEST_F(InspectorSocketServerTest, BindsToIpV6) {
   ASSERT_TRUE(server->Start());
 
   SocketWrapper socket1(&loop);
-  socket1.Connect("[::]", server.port(), true);
+  socket1.Connect("::", server.port(), true);
   socket1.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   socket1.Expect(WS_HANDSHAKE_RESPONSE);
   server->Stop(ServerHolder::CloseCallback);
