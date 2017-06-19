@@ -75,7 +75,7 @@ module.exports = function(context) {
       if (foundModules.length < requiredModules.length) {
         var missingModules = requiredModules.filter(
           function(module) {
-            return foundModules.indexOf(module === -1);
+            return foundModules.indexOf(module) === -1;
           }
         );
         missingModules.forEach(function(moduleName) {
