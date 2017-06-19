@@ -649,10 +649,6 @@ if (common.isWindows) {
   assert.strictEqual(path.win32._makeLong(1), 1);
   assert.strictEqual(path.win32._makeLong(), undefined);
   assert.strictEqual(path.win32._makeLong(emptyObj), emptyObj);
-  // direct use path.posix._makeLong on windows will throw error
-  assert.throws(() => {
-    path.posix._makeLong('/foo/bar');
-  }, common.expectsError({code: 'ERR_UNSUPPORTED_PLATFORM', type: Error}));
 } else {
   assert.strictEqual(path.posix._makeLong('/foo/bar'), '/foo/bar');
   assert.strictEqual(path.posix._makeLong('foo/bar'), 'foo/bar');
