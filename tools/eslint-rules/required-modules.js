@@ -4,7 +4,7 @@
  */
 'use strict';
 
-var path = require('path');
+const path = require('path');
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -14,7 +14,7 @@ module.exports = function(context) {
   // trim required module names
   var requiredModules = context.options;
 
-  var foundModules = [];
+  const foundModules = [];
 
   // if no modules are required we don't need to check the CallExpressions
   if (requiredModules.length === 0) {
