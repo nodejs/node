@@ -11,14 +11,20 @@ will be displayed indicating successful launch of the debugger:
 
 ```txt
 $ node debug myscript.js
-< Debugger listening on 127.0.0.1:5858
-connecting to 127.0.0.1:5858 ... ok
-break in /home/indutny/Code/git/indutny/myscript.js:1
-> 1 global.x = 5;
+(node:8468) [DEP0068] DeprecationWarning: `node debug` is deprecated.
+Please use `node inspect` instead.
+< Debugger listening on ws://127.0.0.1:9229/ebf2d19a-5300-4b1f-a60d-1ed8326a9049
+< For help see https://nodejs.org/en/docs/inspector
+Break on start in /home/indutny/Code/git/indutny/myscript.js:1
+> 1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
   2 setTimeout(() => {
   3   debugger;
 debug>
 ```
+
+(In the example above, the UUID ebf2d19a-5300-4b1f-a60d-1ed8326a9049
+at the end of the URL is generated on the fly, it varies in different
+debugging sessions.)
 
 Node.js's debugger client is not a full-featured debugger, but simple step and
 inspection are possible.
@@ -40,17 +46,18 @@ console.log('hello');
 Once the debugger is run, a breakpoint will occur at line 3:
 
 ```txt
-$ node debug myscript.js
-< Debugger listening on 127.0.0.1:5858
-connecting to 127.0.0.1:5858 ... ok
-break in /home/indutny/Code/git/indutny/myscript.js:1
-> 1 global.x = 5;
+(node:8468) [DEP0068] DeprecationWarning: `node debug` is deprecated.
+Please use `node inspect` instead.
+< Debugger listening on ws://127.0.0.1:9229/ebf2d19a-5300-4b1f-a60d-1ed8326a9049
+< For help see https://nodejs.org/en/docs/inspector
+Break on start in /home/indutny/Code/git/indutny/myscript.js:1
+> 1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
   2 setTimeout(() => {
   3   debugger;
 debug> cont
 < hello
 break in /home/indutny/Code/git/indutny/myscript.js:3
-  1 global.x = 5;
+  1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
   2 setTimeout(() => {
 > 3   debugger;
   4   console.log('world');
@@ -69,14 +76,14 @@ Press Ctrl + C to leave debug repl
 > 2+2
 4
 debug> next
-break in /home/indutny/Code/git/indutny/myscript.js:5
 < world
+break in /home/indutny/Code/git/indutny/myscript.js:5
   3   debugger;
   4   console.log('world');
 > 5 }, 1000);
   6 console.log('hello');
   7
-debug> quit
+debug> .exit
 ```
 
 The `repl` command allows code to be evaluated remotely. The `next` command
@@ -122,26 +129,23 @@ is not loaded yet:
 
 ```txt
 $ node debug test/fixtures/break-in-module/main.js
-< Debugger listening on 127.0.0.1:5858
-connecting to 127.0.0.1:5858 ... ok
+(node:8564) [DEP0068] DeprecationWarning: `node debug` is deprecated.
+Please use `node inspect` instead.
+< Debugger listening on ws://127.0.0.1:9229/773f22ce-49a7-450f-85be-81bfb92e02d3
+< For help see https://nodejs.org/en/docs/inspector
 break in test/fixtures/break-in-module/main.js:1
-> 1 const mod = require('./mod.js');
+> 1 (function (exports, require, module, __filename, __dirname) { const mod = require('./mod.js');
   2 mod.hello();
   3 mod.hello();
-debug> setBreakpoint('mod.js', 2)
+debug> setBreakpoint('mod.js', 23)
 Warning: script 'mod.js' was not loaded yet.
-> 1 const mod = require('./mod.js');
-  2 mod.hello();
-  3 mod.hello();
-  4 debugger;
-  5
-  6 });
 debug> c
-break in test/fixtures/break-in-module/mod.js:2
-  1 exports.hello = function() {
-> 2   return 'hello from module';
-  3 };
-  4
+break in test/fixtures/break-in-module/mod.js:23
+ 21
+ 22 exports.hello = function() {
+>23   return 'hello from module';
+ 24 };
+ 25
 debug>
 ```
 
@@ -184,14 +188,13 @@ flag instead of `--inspect`.
 
 ```txt
 $ node --inspect index.js
-Debugger listening on 127.0.0.1:9229.
-To start debugging, open the following URL in Chrome:
-    chrome-devtools://devtools/bundled/inspector.html?experiments=true&v8only=true&ws=127.0.0.1:9229/dc9010dd-f8b8-4ac5-a510-c1a114ec7d29
+Debugger listening on ws://127.0.0.1:9229/10b81040-7534-4c13-8aba-78e9f50d70f8
+For help see https://nodejs.org/en/docs/inspector
 ```
 
-(In the example above, the UUID dc9010dd-f8b8-4ac5-a510-c1a114ec7d29
+(In the example above, the UUID 10b81040-7534-4c13-8aba-78e9f50d70f8
 at the end of the URL is generated on the fly, it varies in different
 debugging sessions.)
 
-[Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer/
+[Chrome Debugging Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [TCP-based protocol]: #debugger_tcp_based_protocol
