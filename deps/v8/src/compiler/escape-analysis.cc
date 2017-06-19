@@ -853,6 +853,13 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kObjectIsString:
       case IrOpcode::kObjectIsSymbol:
       case IrOpcode::kObjectIsUndetectable:
+      case IrOpcode::kNumberLessThan:
+      case IrOpcode::kNumberLessThanOrEqual:
+      case IrOpcode::kNumberEqual:
+#define CASE(opcode) case IrOpcode::k##opcode:
+        SIMPLIFIED_NUMBER_BINOP_LIST(CASE)
+        SIMPLIFIED_NUMBER_UNOP_LIST(CASE)
+#undef CASE
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
                 rep->id(), rep->op()->mnemonic(), use->id(),
