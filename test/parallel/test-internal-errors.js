@@ -187,6 +187,7 @@ common.expectsError(() => {
        message: /^Error for testing 2/ });
 }, {
   code: 'ERR_ASSERTION',
+  type: assert.AssertionError,
   message: /.+ does not match \S/
 });
 
@@ -237,6 +238,7 @@ common.expectsError(
   () => errors.message('ERR_INVALID_URL_SCHEME', [[]]),
   {
     code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
     message: /^At least one expected value needs to be specified$/
   });
 
@@ -251,6 +253,7 @@ common.expectsError(
   () => errors.message('ERR_MISSING_ARGS'),
   {
     code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
     message: /^At least one arg needs to be specified$/
   });
 
