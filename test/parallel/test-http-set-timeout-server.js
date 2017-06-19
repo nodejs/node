@@ -44,38 +44,28 @@ function run() {
 }
 
 test(function serverTimeout(cb) {
-  let caughtTimeout = false;
-  process.on('exit', function() {
-    assert(caughtTimeout);
-  });
   const server = http.createServer(function(req, res) {
     // just do nothing, we should get a timeout event.
   });
   server.listen(common.mustCall(function() {
     http.get({ port: server.address().port }).on('error', common.noop);
   }));
-  const s = server.setTimeout(50, function(socket) {
-    caughtTimeout = true;
+  const s = server.setTimeout(50, common.mustCall(function(socket) {
     socket.destroy();
     server.close();
     cb();
-  });
+  }));
   assert.ok(s instanceof http.Server);
 });
 
 test(function serverRequestTimeout(cb) {
-  let caughtTimeout = false;
-  process.on('exit', function() {
-    assert(caughtTimeout);
-  });
   const server = http.createServer(function(req, res) {
     // just do nothing, we should get a timeout event.
-    const s = req.setTimeout(50, function() {
-      caughtTimeout = true;
-      req.socket.destroy();
+    const s = req.setTimeout(50, common.mustCall(function(socket) {
+      socket.destroy();
       server.close();
       cb();
-    });
+    }));
     assert.ok(s instanceof http.IncomingMessage);
   });
   server.listen(common.mustCall(function() {
@@ -88,18 +78,13 @@ test(function serverRequestTimeout(cb) {
 });
 
 test(function serverResponseTimeout(cb) {
-  let caughtTimeout = false;
-  process.on('exit', function() {
-    assert(caughtTimeout);
-  });
   const server = http.createServer(function(req, res) {
     // just do nothing, we should get a timeout event.
-    const s = res.setTimeout(50, function() {
-      caughtTimeout = true;
-      res.socket.destroy();
+    const s = res.setTimeout(50, common.mustCall(function(socket) {
+      socket.destroy();
       server.close();
       cb();
-    });
+    }));
     assert.ok(s instanceof http.OutgoingMessage);
   });
   server.listen(common.mustCall(function() {
@@ -109,21 +94,11 @@ test(function serverResponseTimeout(cb) {
 });
 
 test(function serverRequestNotTimeoutAfterEnd(cb) {
-  let caughtTimeoutOnRequest = false;
-  let caughtTimeoutOnResponse = false;
-  process.on('exit', function() {
-    assert(!caughtTimeoutOnRequest);
-    assert(caughtTimeoutOnResponse);
-  });
   const server = http.createServer(function(req, res) {
     // just do nothing, we should get a timeout event.
-    const s = req.setTimeout(50, function(socket) {
-      caughtTimeoutOnRequest = true;
-    });
+    const s = req.setTimeout(50, common.mustNotCall());
     assert.ok(s instanceof http.IncomingMessage);
-    res.on('timeout', function(socket) {
-      caughtTimeoutOnResponse = true;
-    });
+    res.on('timeout', common.mustCall());
   });
   server.on('timeout', function(socket) {
     socket.destroy();
@@ -169,29 +144,16 @@ test(function serverResponseTimeoutWithPipeline(cb) {
 });
 
 test(function idleTimeout(cb) {
-  let caughtTimeoutOnRequest = false;
-  let caughtTimeoutOnResponse = false;
-  let caughtTimeoutOnServer = false;
-  process.on('exit', function() {
-    assert(!caughtTimeoutOnRequest);
-    assert(!caughtTimeoutOnResponse);
-    assert(caughtTimeoutOnServer);
-  });
   const server = http.createServer(function(req, res) {
-    req.on('timeout', function(socket) {
-      caughtTimeoutOnRequest = true;
-    });
-    res.on('timeout', function(socket) {
-      caughtTimeoutOnResponse = true;
-    });
+    req.on('timeout', common.mustNotCall());
+    res.on('timeout', common.mustNotCall());
     res.end();
   });
-  const s = server.setTimeout(50, function(socket) {
-    caughtTimeoutOnServer = true;
+  const s = server.setTimeout(50, common.mustCall(function(socket) {
     socket.destroy();
     server.close();
     cb();
-  });
+  }));
   assert.ok(s instanceof http.Server);
   server.listen(common.mustCall(function() {
     const port = server.address().port;
