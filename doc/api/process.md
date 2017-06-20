@@ -1856,5 +1856,5 @@ cases:
 [TTY]: tty.html#tty_tty
 [Writable]: stream.html#stream_writable_streams
 [note on process I/O]: process.html#process_a_note_on_process_i_o
-[process_emit_warning]: #process_process_emitwarning_warning_name_ctor
+[process_emit_warning]: #process_process_emitwarning_warning_type_code_ctor
 [process_warning]: #process_event_warning
