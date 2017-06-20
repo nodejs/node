@@ -23,6 +23,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const Buffer = require('buffer').Buffer;
 
 // We have to change the directory to ../fixtures before requiring repl
 // in order to make the tests for completion of node_modules work properly
@@ -304,6 +305,34 @@ putIn.run(['.clear']);
 testMe.complete('.b', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['break'], 'b']);
 }));
+
+// tab completion for large buffer
+[ Array, Buffer ].forEach((type) => {
+  putIn.run(['.clear']);
+
+  if (type === Array) {
+    putIn.run(['var ele = []; for (let i = 0; i < 1e7; i++) ele.push(i);']);
+  } else {
+    putIn.run(['var ele = Buffer.alloc(1e8)']);
+  }
+
+  common.hijackStderr(common.mustCall((err) => {
+    process.nextTick(function() {
+      assert.ok(/REPLWarning: Instance is too large that the/.test(err));
+    });
+  }));
+  testMe.complete('ele.', common.mustCall((err, data) => {
+    common.restoreStderr();
+    assert.ifError(err);
+
+    const ele = (type === Array) ? [] : Buffer.alloc(1);
+
+    data[0].forEach((key) => {
+      if (!key) return;
+      assert.notStrictEqual(ele[key.substr(4)], undefined);
+    });
+  }));
+});
 
 const testNonGlobal = repl.start({
   input: putIn,
