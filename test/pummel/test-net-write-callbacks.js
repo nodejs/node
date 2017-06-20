@@ -46,9 +46,10 @@ function makeCallback(c) {
     if (called)
       throw new Error(`called callback #${c} more than once`);
     called = true;
-    if (c < lastCalled)
+    if (c < lastCalled) {
       throw new Error(
         `callbacks out of order. last=${lastCalled} current=${c}`);
+    }
     lastCalled = c;
     cbcount++;
   };

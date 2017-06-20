@@ -46,17 +46,19 @@ function server() {
   var onsend = type === 'concat' ? onsendConcat : onsendMulti;
 
   function onsendConcat() {
-    if (sent++ % num === 0)
+    if (sent++ % num === 0) {
       for (var i = 0; i < num; i++) {
         socket.send(Buffer.concat(chunk), PORT, '127.0.0.1', onsend);
       }
+    }
   }
 
   function onsendMulti() {
-    if (sent++ % num === 0)
+    if (sent++ % num === 0) {
       for (var i = 0; i < num; i++) {
         socket.send(chunk, PORT, '127.0.0.1', onsend);
       }
+    }
   }
 
   socket.on('listening', function() {
