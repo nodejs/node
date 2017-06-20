@@ -61,6 +61,7 @@ function assertWrongList(value) {
   });
 }
 
+// eslint-disable-next-line crypto-check
 const random10 = common.hasCrypto ?
   require('crypto').randomBytes(10) :
   Buffer.alloc(10, 1);

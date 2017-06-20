@@ -905,7 +905,7 @@ assert.throws(() => Buffer.from('', 'buffer'),
   }
 }
 
-if (common.hasCrypto) {
+if (common.hasCrypto) { // eslint-disable-line crypto-check
   // Test truncation after decode
   const crypto = require('crypto');
 
