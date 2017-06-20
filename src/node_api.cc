@@ -753,10 +753,15 @@ napi_status napi_get_last_error_info(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, result);
 
+  // you must udpate this assert to reference the last message
+  // in the napi_status enum each time a new error message is added.
+  // We don't have a napi_status_last as this would result in an ABI
+  // change each time a message was added.
   static_assert(
-      (sizeof (error_messages) / sizeof (*error_messages)) == napi_status_last,
+      (sizeof (error_messages) / sizeof (*error_messages)) ==
+         napi_escape_called_twice + 1,
       "Count of error messages must match count of error values");
-  assert(env->last_error.error_code < napi_status_last);
+  assert(env->last_error.error_code <= napi_escape_called_twice);
 
   // Wait until someone requests the last error information to fetch the error
   // message string
