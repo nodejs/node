@@ -530,6 +530,7 @@ class Environment {
              const char* const* exec_argv,
              bool start_profiler_idle_notifier);
   void AssignToContext(v8::Local<v8::Context> context);
+  void UnassignFromContext(v8::Local<v8::Context> context);
   void CleanupHandles();
 
   void StartProfilerIdleNotifier();
