@@ -200,9 +200,12 @@ if defined msi (
     goto wix-not-found
   )
 )
-@rem VS2015 vsvarsall is quick, so run anyway
+
+@rem check if VS2015 is already setup
+if "_%VisualStudioVersion%_" == "_14.0_" if "_%VCVARS_VER%_" == "_140_" goto found_vs2015
 call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat"
 SET VCVARS_VER=140
+:found_vs2015
 if not defined VCINSTALLDIR goto msbuild-not-found
 @rem Visual C++ Build Tools 2015 does not define VisualStudioVersion
 echo Found MSVS version 14.0
