@@ -33,13 +33,15 @@ function check(async, sync) {
     assert.strictEqual(er.code, 'ENOENT');
   });
 
-  if (sync)
+  if (sync) {
     assert.throws(() => {
       sync.apply(null, argsSync);
     }, expected);
+  }
 
-  if (async)
+  if (async) {
     async.apply(null, argsAsync);
+  }
 }
 
 check(fs.access, fs.accessSync, 'foo\u0000bar');
