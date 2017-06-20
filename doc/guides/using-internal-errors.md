@@ -27,7 +27,7 @@ are intended to replace existing `Error` objects within the Node.js source.
 For instance, an existing `Error` such as:
 
 ```js
-  const err = new TypeError('Expected string received ' + type);
+const err = new TypeError(`Expected string received ${type}`);
 ```
 
 Can be replaced by first adding a new error key into the `internal/errors.js`
@@ -40,9 +40,9 @@ E('FOO', 'Expected string received %s');
 Then replacing the existing `new TypeError` in the code:
 
 ```js
-  const errors = require('internal/errors');
-  // ...
-  const err = new errors.TypeError('FOO', type);
+const errors = require('internal/errors');
+// ...
+const err = new errors.TypeError('FOO', type);
 ```
 
 ## Adding new errors
@@ -90,7 +90,7 @@ The specific error message for the `myError` instance will depend on the
 associated value of `KEY` (see "Adding new errors").
 
 The `myError` object will have a `code` property equal to the `key` and a
-`name` property equal to `Error[${key}]`.
+`name` property equal to `` `Error [${key}]` ``.
 
 ### Class: errors.TypeError(key[, args...])
 
@@ -110,7 +110,7 @@ The specific error message for the `myError` instance will depend on the
 associated value of `KEY` (see "Adding new errors").
 
 The `myError` object will have a `code` property equal to the `key` and a
-`name` property equal to `TypeError[${key}]`.
+`name` property equal to `` `TypeError [${key}]` ``.
 
 ### Class: errors.RangeError(key[, args...])
 
@@ -130,7 +130,7 @@ The specific error message for the `myError` instance will depend on the
 associated value of `KEY` (see "Adding new errors").
 
 The `myError` object will have a `code` property equal to the `key` and a
-`name` property equal to `RangeError[${key}]`.
+`name` property equal to `` `RangeError [${key}]` ``.
 
 ### Method: errors.message(key, args)
 
