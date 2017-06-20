@@ -1118,6 +1118,7 @@
         'objects/dictionary.h',
         'objects/frame-array.h',
         'objects/frame-array-inl.h',
+        'objects/hash-table-inl.h',
         'objects/hash-table.h',
         'objects/literal-objects.cc',
         'objects/literal-objects.h',
