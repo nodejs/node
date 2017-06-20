@@ -2,6 +2,7 @@
 #define SRC_INSPECTOR_AGENT_H_
 
 #include <memory>
+#include <vector>
 
 #include <stddef.h>
 
@@ -108,6 +109,7 @@ class Agent {
   bool enabled_;
   std::string path_;
   DebugOptions debug_options_;
+  std::vector<v8::Local<v8::Context>> contexts_;
   int next_context_number_;
 };
 
