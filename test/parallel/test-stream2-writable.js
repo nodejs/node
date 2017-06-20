@@ -294,7 +294,9 @@ for (let i = 0; i < chunks.length; i++) {
 {
   // Verify that end(chunk) twice is an error
   const w = new W();
-  w._write = common.noop;
+  w._write = common.mustCall((msg) => {
+    assert.strictEqual(msg.toString(), 'this is the end');
+  });
   let gotError = false;
   w.on('error', function(er) {
     gotError = true;
