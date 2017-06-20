@@ -1748,6 +1748,7 @@ v8_source_set("v8_base") {
     "src/objects/dictionary.h",
     "src/objects/frame-array-inl.h",
     "src/objects/frame-array.h",
+    "src/objects/hash-table-inl.h",
     "src/objects/hash-table.h",
     "src/objects/intl-objects.cc",
     "src/objects/intl-objects.h",
