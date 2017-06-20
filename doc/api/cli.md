@@ -558,4 +558,4 @@ equivalent to using the `--redirect-warnings=file` command-line flag.
 [REPL]: repl.html
 [SlowBuffer]: buffer.html#buffer_class_slowbuffer
 [debugger]: debugger.html
-[emit_warning]: process.html#process_process_emitwarning_warning_name_ctor
+[emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
