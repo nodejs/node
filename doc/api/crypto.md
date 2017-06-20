@@ -1198,7 +1198,8 @@ rapidly.
 In line with OpenSSL's recommendation to use pbkdf2 instead of
 [`EVP_BytesToKey`][] it is recommended that developers derive a key and IV on
 their own using [`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][]
-to create the `Cipher` object.
+to create the `Cipher` object. A warning is emitted when counter mode (e.g. CTR,
+GCM or CCM) is used in `crypto.createCipher()` in order to avoid IV reuse.
 
 ### crypto.createCipheriv(algorithm, key, iv)
 - `algorithm` {string}

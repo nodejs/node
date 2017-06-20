@@ -3340,6 +3340,14 @@ void CipherBase::Init(const char* cipher_type,
   EVP_CIPHER_CTX_init(&ctx_);
   const bool encrypt = (kind_ == kCipher);
   EVP_CipherInit_ex(&ctx_, cipher, nullptr, nullptr, nullptr, encrypt);
+
+  int mode = EVP_CIPHER_CTX_mode(&ctx_);
+  if (encrypt && (mode == EVP_CIPH_CTR_MODE || mode == EVP_CIPH_GCM_MODE ||
+      mode == EVP_CIPH_CCM_MODE)) {
+    ProcessEmitWarning(env(), "Use Cipheriv for counter mode of %s",
+                       cipher_type);
+  }
+
   if (!EVP_CIPHER_CTX_set_key_length(&ctx_, key_len)) {
     EVP_CIPHER_CTX_cleanup(&ctx_);
     return env()->ThrowError("Invalid key length");
