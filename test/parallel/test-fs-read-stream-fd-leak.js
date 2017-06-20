@@ -29,7 +29,7 @@ function testLeak(endFn, callback) {
   let i = 0;
   let check = 0;
 
-  const checkFunction = function() {
+  function checkFunction() {
     if (openCount !== 0 && check < totalCheck) {
       check++;
       setTimeout(checkFunction, 100);
@@ -44,7 +44,7 @@ function testLeak(endFn, callback) {
 
     openCount = 0;
     callback && setTimeout(callback, 100);
-  };
+  }
 
   setInterval(function() {
     const s = fs.createReadStream(emptyTxt);

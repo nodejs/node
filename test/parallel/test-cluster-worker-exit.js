@@ -82,7 +82,7 @@ if (cluster.isWorker) {
     }
   }));
 
-  const finish_test = function() {
+  const finish_test = () => {
     try {
       checkResults(expected_results, results);
     } catch (exc) {

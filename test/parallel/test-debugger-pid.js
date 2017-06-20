@@ -11,7 +11,7 @@ const interfacer = spawn(process.execPath, ['debug', '-p', '655555']);
 console.error(process.execPath, 'debug', '-p', '655555');
 interfacer.stdout.setEncoding('utf-8');
 interfacer.stderr.setEncoding('utf-8');
-const onData = function(data) {
+const onData = (data) => {
   data = (buffer + data).split('\n');
   buffer = data.pop();
   data.forEach(function(line) {
