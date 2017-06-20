@@ -1228,6 +1228,7 @@
         'objects/dictionary.h',
         'objects/frame-array.h',
         'objects/frame-array-inl.h',
+        'objects/hash-table-inl.h',
         'objects/hash-table.h',
         'objects/intl-objects.cc',
         'objects/intl-objects.h',
