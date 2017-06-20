@@ -10,5 +10,6 @@ rules:
   prefer-assert-iferror: error
   prefer-assert-methods: error
   prefer-common-mustnotcall: error
+  crypto-check: error
   ## common module is mandatory in tests
   required-modules: [error, common]
