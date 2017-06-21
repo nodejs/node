@@ -2060,6 +2060,7 @@ readable buffer so there is nothing for a user to consume.
 [HTTP responses, on the server]: http.html#http_class_http_serverresponse
 [http-incoming-message]: http.html#http_class_http_incomingmessage
 [Readable]: #stream_class_stream_readable
+[zlib]: zlib.html
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
 [stream-_transform]: #stream_transform_transform_chunk_encoding_callback
