@@ -165,7 +165,7 @@ trailingTests.forEach(function(test) {
     if (!failed) {
       for (let i = 0; i < actualKeys.length; ++i) {
         const key = actualKeys[i];
-        if (expectedKeys.indexOf(key) === -1 || actual[key] !== expected[key]) {
+        if (!expectedKeys.includes(key) || actual[key] !== expected[key]) {
           failed = true;
           break;
         }

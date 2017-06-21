@@ -35,7 +35,7 @@ const tailProc = require('child_process').spawn('tail', ['-f', testFileName]);
 tailProc.stdout.on('data', tailCB);
 
 function tailCB(data) {
-  PASS = data.toString().indexOf('.') < 0;
+  PASS = !data.toString().includes('.');
 
   if (PASS) {
     //console.error('i');

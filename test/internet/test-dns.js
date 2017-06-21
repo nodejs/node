@@ -366,7 +366,7 @@ TEST(function test_resolveTxt(done) {
     assert.ifError(err);
     assert.strictEqual(records.length, 1);
     assert.ok(util.isArray(records[0]));
-    assert.strictEqual(records[0][0].indexOf('v=spf1'), 0);
+    assert(records[0][0].startsWith('v=spf1'));
     done();
   });
 
