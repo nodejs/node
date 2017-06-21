@@ -74,7 +74,7 @@ pipeReadStream.on('data', function(data) {
     var rd = JSON.parse(d);
 
     assert.strictEqual(rd.pid, cpp);
-    assert.strictEqual(seenOrdinals.indexOf(rd.ord), -1);
+    assert.strictEqual(seenOrdinals.includes(rd.ord), false)
 
     seenOrdinals.unshift(rd.ord);
   });

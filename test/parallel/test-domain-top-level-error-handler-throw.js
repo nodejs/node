@@ -37,11 +37,8 @@ if (process.argv[2] === 'child') {
     });
 
     child.on('close', function onChildClosed() {
-      assert.notStrictEqual(
-        stderrOutput.indexOf(domainErrHandlerExMessage),
-        -1
-      );
-      assert.strictEqual(stderrOutput.indexOf(internalExMessage), -1);
+      assert(stderrOutput.includes(domainErrHandlerExMessage));
+      assert.strictEqual(stderrOutput.includes(internalExMessage), false);
     });
 
     child.on('exit', function onChildExited(exitCode, signal) {
