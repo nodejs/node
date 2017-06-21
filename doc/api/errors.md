@@ -568,11 +568,23 @@ found [here][online].
 Used generically to identify that an iterable argument (i.e. a value that works
 with `for...of` loops) is required, but not provided to a Node.js API.
 
+<a id="ERR_ASSERTION"></a>
+### ERR_ASSERTION
+
+Used as special type of error that can be triggered whenever Node.js detects an
+exceptional logic violation that should never occur. These are raised typically
+by the `assert` module.
+
 <a id="ERR_CONSOLE_WRITABLE_STREAM"></a>
 ### ERR_CONSOLE_WRITABLE_STREAM
 
 Used when `Console` is instantiated without `stdout` stream or when `stdout` or
 `stderr` streams are not writable.
+
+<a id="ERR_CPU_USAGE"></a>
+### ERR_CPU_USAGE
+
+Used when the native call from `process.cpuUsage` cannot be processed properly.
 
 <a id="ERR_FALSY_VALUE_REJECTION"></a>
 ### ERR_FALSY_VALUE_REJECTION
@@ -580,10 +592,27 @@ Used when `Console` is instantiated without `stdout` stream or when `stdout` or
 Used by the `util.callbackify()` API when a callbackified `Promise` is rejected
 with a falsy value (e.g. `null`).
 
+<a id="ERR_HTTP_HEADERS_SENT"></a>
+### ERR_HTTP_HEADERS_SENT
+
+Used when headers have already been sent and another attempt is made to add
+more headers.
+
+<a id="ERR_HTTP_INVALID_STATUS_CODE"></a>
+### ERR_HTTP_INVALID_STATUS_CODE
+
+Used for status codes outside the regular status code ranges (100-999).
+
+<a id="ERR_HTTP_TRAILER_INVALID"></a>
+### ERR_HTTP_TRAILER_INVALID
+
+Used when the `Trailer` header is set even though the transfer encoding does not
+support that.
+
 <a id="ERR_INDEX_OUT_OF_RANGE"></a>
 ### ERR_INDEX_OUT_OF_RANGE
 
-Used when a given index is out of the accepted range.
+Used when a given index is out of the accepted range (e.g. negative offsets).
 
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
@@ -591,17 +620,32 @@ Used when a given index is out of the accepted range.
 Used generically to identify that an argument of the wrong type has been passed
 to a Node.js API.
 
+<a id="ERR_INVALID_ARRAY_LENGTH"></a>
+### ERR_INVALID_ARRAY_LENGTH
+
+Used when an Array is not of the expected length or in a valid range.
+
 <a id="ERR_INVALID_CALLBACK"></a>
 ### ERR_INVALID_CALLBACK
 
 Used generically to identify that a callback function is required and has not
 been provided to a Node.js API.
 
+<a id="ERR_INVALID_CHAR"></a>
+### ERR_INVALID_CHAR
+
+Used when invalid characters are detected in headers.
+
 <a id="ERR_INVALID_CURSOR_POS"></a>
 ### ERR_INVALID_CURSOR_POS
 
 The `'ERR_INVALID_CURSOR_POS'` is thrown specifically when a cursor on a given
 stream is attempted to move to a specified row without a specified column.
+
+<a id="ERR_INVALID_FD"></a>
+### ERR_INVALID_FD
+
+Used when a file descriptor ('fd') is not valid (e.g. it has a negative value).
 
 <a id="ERR_INVALID_FILE_URL_HOST"></a>
 ### ERR_INVALID_FILE_URL_HOST
@@ -637,6 +681,12 @@ passed in an options object.
 
 Used when both `breakEvalOnSigint` and `eval` options are set
 in the REPL config, which is not supported.
+
+<a id="ERR_INVALID_REPL_HISTORY"></a>
+### ERR_INVALID_REPL_HISTORY
+
+Used in the `repl` in case the old history file is used and an error occurred
+while trying to read and parse it.
 
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
 ### ERR_INVALID_SYNC_FORK_INPUT
@@ -716,14 +766,33 @@ synchronous forked Node.js process. See the documentation for the
 <a id="ERR_MISSING_ARGS"></a>
 ### ERR_MISSING_ARGS
 
-Used when a required argument of a Node.js API is not passed. This is currently
-only used in the [WHATWG URL API][] for strict compliance with the specification
-(which in some cases may accept `func(undefined)` but not `func()`). In most
-native Node.js APIs, `func(undefined)` and `func()` are treated identically, and
-the [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
+Used when a required argument of a Node.js API is not passed. This is only used
+for strict compliance with the API specification (which in some cases may accept
+`func(undefined)` but not `func()`). In most native Node.js APIs,
+`func(undefined)` and `func()` are treated identically, and the
+[`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
+
+<a id="ERR_MULTIPLE_CALLBACK"></a>
+### ERR_MULTIPLE_CALLBACK
+
+Used when a callback is called more then once.
+
+*Note*: A callback is almost always meant to only be called once as the query
+can either be fulfilled or rejected but not both at the same time. The latter
+would be possible by calling a callback more then once.
+
+<a id="ERR_NO_CRYPTO"></a>
+### ERR_NO_CRYPTO
+
+Used when an attempt is made to use crypto features while Node.js is not
+compiled with OpenSSL crypto support.
+
+<a id="ERR_PARSE_HISTORY_DATA"></a>
+### ERR_PARSE_HISTORY_DATA
 
 <a id="ERR_SOCKET_ALREADY_BOUND"></a>
 ### ERR_SOCKET_ALREADY_BOUND
+
 Used when an attempt is made to bind a socket that has already been bound.
 
 <a id="ERR_SOCKET_BAD_PORT"></a>
@@ -748,12 +817,6 @@ Used when data cannot be sent on a socket.
 
 Used when a call is made and the UDP subsystem is not running.
 
-<a id="ERR_NO_CRYPTO"></a>
-### ERR_NO_CRYPTO
-
-Used when an attempt is made to use crypto features while Node.js is not
-compiled with OpenSSL crypto support.
-
 <a id="ERR_STDERR_CLOSE"></a>
 ### ERR_STDERR_CLOSE
 
@@ -765,6 +828,19 @@ Node.js does not allow `stdout` or `stderr` Streams to be closed by user code.
 
 Used when an attempt is made to close the `process.stdout` stream. By design,
 Node.js does not allow `stdout` or `stderr` Streams to be closed by user code.
+
+<a id="ERR_STREAM_HAS_STRINGDECODER"></a>
+### ERR_STREAM_HAS_STRINGDECODER
+
+Used to prevent an abort if a string decoder was set on the Socket.
+
+Example
+```js
+const Socket = require('net').Socket;
+const instance = new Socket();
+
+instance.setEncoding('utf-8');
+```
 
 <a id="ERR_UNKNOWN_BUILTIN_MODULE"></a>
 ### ERR_UNKNOWN_BUILTIN_MODULE
@@ -795,6 +871,11 @@ Used when an attempt is made to launch a Node.js process with an unknown
 by errors in user code, although it is not impossible. Occurrences of this error
 are most likely an indication of a bug within Node.js itself.
 
+<a id="ERR_V8BREAKITERATOR"></a>
+### ERR_V8BREAKITERATOR
+
+Used when the V8 BreakIterator API is used but the full ICU data set is not
+installed.
 
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`child.kill()`]: child_process.html#child_process_child_kill_signal
@@ -817,6 +898,7 @@ are most likely an indication of a bug within Node.js itself.
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[intl wiki]: https://github.com/nodejs/node/wiki/Intl
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
