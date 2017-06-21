@@ -306,8 +306,11 @@ testMe.complete('.b', common.mustCall((error, data) => {
 }));
 
 // tab completion for large buffer
-const warningRegEx =
-  /\(node:\d+\) REPLWarning: Instance is too large so the completion may missing some custom properties\./;
+const warningRegEx = new RegExp(
+  '\\(node:\\d+\\) REPLWarning: The current array, Buffer or TypedArray has ' +
+  'too many entries\\. Certain properties may be missing from completion ' +
+  'output\\.');
+
 [
   Array,
   Buffer,
@@ -363,7 +366,7 @@ const warningRegEx =
 });
 
 // check Buffer.prototype.length not crashing.
-// Refs: Refs: https://github.com/nodejs/node/pull/11961
+// Refs: https://github.com/nodejs/node/pull/11961
 putIn.run['.clear'];
 testMe.complete('Buffer.prototype.', common.mustCall());
 
