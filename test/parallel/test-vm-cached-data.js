@@ -3,7 +3,6 @@ require('../common');
 const assert = require('assert');
 const vm = require('vm');
 const spawnSync = require('child_process').spawnSync;
-const Buffer = require('buffer').Buffer;
 
 function getSource(tag) {
   return `(function ${tag}() { return '${tag}'; })`;
