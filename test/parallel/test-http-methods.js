@@ -27,7 +27,7 @@ const util = require('util');
 
 assert(Array.isArray(http.METHODS));
 assert(http.METHODS.length > 0);
-assert.notStrictEqual(http.METHODS.indexOf('GET'), -1);
-assert.notStrictEqual(http.METHODS.indexOf('HEAD'), -1);
-assert.notStrictEqual(http.METHODS.indexOf('POST'), -1);
+assert(http.METHODS.includes('GET'));
+assert(http.METHODS.includes('HEAD'));
+assert(http.METHODS.includes('POST'));
 assert.deepStrictEqual(util._extend([], http.METHODS), http.METHODS.sort());

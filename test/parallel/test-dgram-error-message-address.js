@@ -47,7 +47,7 @@ socket_ipv6.on('listening', common.mustNotCall());
 socket_ipv6.on('error', common.mustCall(function(e) {
   // EAFNOSUPPORT or EPROTONOSUPPORT means IPv6 is disabled on this system.
   const allowed = ['EADDRNOTAVAIL', 'EAFNOSUPPORT', 'EPROTONOSUPPORT'];
-  assert.notStrictEqual(allowed.indexOf(e.code), -1);
+  assert(allowed.includes(e.code));
   assert.strictEqual(e.port, undefined);
   assert.strictEqual(e.message, `bind ${e.code} 111::1`);
   assert.strictEqual(e.address, '111::1');
