@@ -8,7 +8,7 @@
 // persons to whom the Software is furnished to do so, subject to the
 // following conditions:
 //
-// The above copyright notice and this permission notice shall be included
+// The above copnotice and this permission notice shall be included
 // in all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -50,7 +50,6 @@
 const common = require('../common');
 const assert = require('assert');
 
-const buffer = require('buffer');
 const child_process = require('child_process');
 const fs = require('fs');
 const net = require('net');
@@ -58,13 +57,13 @@ var netBinding = process.binding('net');
 const path = require('path');
 
 var DATA = {
-  'ppid' : process.pid,
-  'ord' : 0
+  'ppid': process.pid,
+  'ord': 0
 };
 
 var SOCK_PATH = path.join(__dirname,
-                          '..',
-                          path.basename(__filename, '.js') + '.sock');
+  '..',
+  path.basename(__filename, '.js') + '.sock');
 
 var logChild = function(d) {
   if (typeof d == 'object') {
@@ -112,7 +111,7 @@ var srv = net.createServer(function(s) {
   var str = JSON.stringify(DATA) + '\n';
 
   DATA.ord = DATA.ord + 1;
-  var buf = buffer.Buffer.allocUnsafe(str.length);
+  var buf = Buffer.allocUnsafe(str.length);
   buf.write(JSON.stringify(DATA) + '\n', 'utf8');
 
   s.write(str, 'utf8', pipeFDs[1]);
@@ -127,9 +126,9 @@ var srv = net.createServer(function(s) {
 srv.listen(SOCK_PATH);
 
 // Spawn a child running test/fixtures/recvfd.js
-var cp = child_process.spawn(process.argv[0],
-                             [path.join(common.fixturesDir, 'recvfd.js'),
-                              SOCK_PATH]);
+var cp = child_process.spawn(process.argv[0], [path.join(common.fixturesDir, 'recvfd.js'),
+  SOCK_PATH
+]);
 
 cp.stdout.on('data', logChild);
 cp.stderr.on('data', logChild);
