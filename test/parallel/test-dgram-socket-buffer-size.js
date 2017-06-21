@@ -39,21 +39,20 @@ const dgram = require('dgram');
     message: /^Buffer size must be a positive integer$/
   };
 
+  const badBufferSizes = [-1, Infinity, 'Doh!'];
+
   const socket = dgram.createSocket('udp4');
 
   socket.bind(common.mustCall(() => {
-    assert.throws(() => {
-      socket.setRecvBufferSize(-1);
-    }, common.expectsError(errorObj));
+    badBufferSizes.forEach((badBufferSize) => {
+      assert.throws(() => {
+        socket.setRecvBufferSize(badBufferSize);
+      }, common.expectsError(errorObj));
 
-    assert.throws(() => {
-      socket.setRecvBufferSize(Infinity);
-    }, common.expectsError(errorObj));
-
-    assert.throws(() => {
-      socket.setRecvBufferSize('Doh!');
-    }, common.expectsError(errorObj));
-
+      assert.throws(() => {
+        socket.setSendBufferSize(badBufferSize);
+      }, common.expectsError(errorObj));
+    });
     socket.close();
   }));
 }
@@ -64,15 +63,12 @@ const dgram = require('dgram');
 
   socket.bind(common.mustCall(() => {
     socket.setRecvBufferSize(1200);
-    socket.setSendBufferSize(1500);
+    socket.setSendBufferSize(1200);
 
     // note: linux will double the buffer size
-    assert.ok(socket.getRecvBufferSize() === 1200 ||
-              socket.getRecvBufferSize() === 2400,
-              'SO_RCVBUF not 1200 or 2400');
-    assert.ok(socket.getSendBufferSize() === 1500 ||
-              socket.getSendBufferSize() === 3000,
-              'SO_SNDBUF not 1500 or 3000');
+    const expectedBufferSize = common.isLinux ? 2400 : 1200;
+    assert.strictEqual(socket.getRecvBufferSize(), expectedBufferSize);
+    assert.strictEqual(socket.getSendBufferSize(), expectedBufferSize);
     socket.close();
   }));
 }

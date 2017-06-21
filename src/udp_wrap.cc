@@ -235,13 +235,21 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsUint32());
   int size = static_cast<int>(args[0].As<Uint32>()->Value());
 
+  if (size != args[0].As<Uint32>()->Value()) {
+    if (args[1].As<Uint32>()->Value() == 0)
+      return env->ThrowUVException(EINVAL, "uv_recv_buffer_size");
+    else
+      return env->ThrowUVException(EINVAL, "uv_send_buffer_size");
+  }
+
   int err;
-  if (args[1].As<Uint32>()->Value() == 0)
+  if (args[1].As<Uint32>()->Value() == 0) {
     err = uv_recv_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
                               &size);
-  else
+  } else {
     err = uv_send_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
                               &size);
+  }
 
   if (err != 0) {
     if (args[1].As<Uint32>()->Value() == 0)
