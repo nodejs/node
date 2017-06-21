@@ -17,6 +17,7 @@
 #include <vector>
 #include "uv.h"
 #include "node_api.h"
+#include "node_internals.h"
 
 #define NAPI_VERSION  1
 
@@ -156,8 +157,8 @@ class HandleScopeWrapper {
 // across different versions.
 class EscapableHandleScopeWrapper {
  public:
-  explicit EscapableHandleScopeWrapper(v8::Isolate* isolate) :
-    scope(isolate), escape_called_(false) {}
+  explicit EscapableHandleScopeWrapper(v8::Isolate* isolate)
+      : scope(isolate), escape_called_(false) {}
   bool escape_called() const {
     return escape_called_;
   }
@@ -758,8 +759,7 @@ napi_status napi_get_last_error_info(napi_env env,
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
   static_assert(
-      (sizeof (error_messages) / sizeof (*error_messages)) ==
-         napi_escape_called_twice + 1,
+      node::arraysize(error_messages) == napi_escape_called_twice + 1,
       "Count of error messages must match count of error values");
   assert(env->last_error.error_code <= napi_escape_called_twice);
 
