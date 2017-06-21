@@ -36,5 +36,5 @@ if (common.isWindows) {
 
 exec(pwdcommand, {cwd: dir}, common.mustCall(function(err, stdout, stderr) {
   assert.ifError(err);
-  assert.strictEqual(stdout.indexOf(dir), 0);
+  assert(stdout.startsWith(dir));
 }));
