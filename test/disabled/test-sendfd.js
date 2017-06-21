@@ -57,8 +57,8 @@ var netBinding = process.binding('net');
 const path = require('path');
 
 var DATA = {
-  'ppid': process.pid,
-  'ord': 0
+  'ppid' : process.pid,
+  'ord' : 0
 };
 
 var SOCK_PATH = path.join(__dirname,
