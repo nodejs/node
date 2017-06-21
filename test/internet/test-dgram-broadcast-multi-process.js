@@ -4,7 +4,6 @@ const assert = require('assert');
 const dgram = require('dgram');
 const util = require('util');
 const networkInterfaces = require('os').networkInterfaces();
-const Buffer = require('buffer').Buffer;
 const fork = require('child_process').fork;
 const LOCAL_BROADCAST_HOST = '255.255.255.255';
 const TIMEOUT = common.platformTimeout(5000);
