@@ -2,7 +2,6 @@
 
 require('../common');
 const assert = require('assert');
-const Buffer = require('buffer').Buffer;
 const SlowBuffer = require('buffer').SlowBuffer;
 const vm = require('vm');
 
