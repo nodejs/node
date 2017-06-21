@@ -60,7 +60,7 @@ assert.throws(function() { process.kill(-1 / 0); },
 // Test that kill throws an error for invalid signal
 const unknownSignal = common.expectsError({
   code: 'ERR_UNKNOWN_SIGNAL',
-  type: Error,
+  type: TypeError,
   message: 'Unknown signal: test'
 });
 

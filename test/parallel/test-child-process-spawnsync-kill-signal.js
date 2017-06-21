@@ -31,7 +31,7 @@ if (process.argv[2] === 'child') {
   // Verify that an error is thrown for unknown signals.
   assert.throws(() => {
     spawn('SIG_NOT_A_REAL_SIGNAL');
-  }, common.expectsError({ code: 'ERR_UNKNOWN_SIGNAL' }));
+  }, common.expectsError({ code: 'ERR_UNKNOWN_SIGNAL', type: TypeError }));
 
   // Verify that the default kill signal is SIGTERM.
   {
