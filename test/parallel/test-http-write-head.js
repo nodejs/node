@@ -67,7 +67,7 @@ function runTest() {
   http.get({ port: this.address().port }, common.mustCall((response) => {
     response.on('end', common.mustCall(() => {
       assert.strictEqual(response.headers['test'], '2');
-      assert.notStrictEqual(response.rawHeaders.indexOf('Test'), -1);
+      assert(response.rawHeaders.includes('Test'));
       s.close();
     }));
     response.resume();

@@ -28,7 +28,7 @@ const http = require('http');
 
 const serverSockets = [];
 const server = http.createServer(function(req, res) {
-  if (serverSockets.indexOf(req.socket) === -1) {
+  if (!serverSockets.includes(req.socket)) {
     serverSockets.push(req.socket);
   }
   res.end(req.url);
