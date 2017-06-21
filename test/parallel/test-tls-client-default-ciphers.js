@@ -40,7 +40,7 @@ function test1() {
   };
 
   try {
-    tls.connect(common.PORT);
+    tls.connect(0);
   } catch (e) {
     assert(e instanceof Done);
   }
