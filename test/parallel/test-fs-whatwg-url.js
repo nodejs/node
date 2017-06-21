@@ -6,7 +6,6 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const URL = require('url').URL;
-const Buffer = require('buffer').Buffer;
 
 function pathToFileURL(p) {
   if (!path.isAbsolute(p))
