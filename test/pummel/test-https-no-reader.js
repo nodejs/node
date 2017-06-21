@@ -8,7 +8,6 @@ if (!common.hasCrypto) {
 }
 const https = require('https');
 
-const Buffer = require('buffer').Buffer;
 const fs = require('fs');
 const path = require('path');
 
