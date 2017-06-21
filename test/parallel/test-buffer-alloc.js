@@ -3,7 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
-const Buffer = require('buffer').Buffer;
 const SlowBuffer = require('buffer').SlowBuffer;
 
 const b = Buffer.allocUnsafe(1024);

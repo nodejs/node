@@ -1,7 +1,6 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const Buffer = require('buffer').Buffer;
 
 // Test hex strings and bad hex strings
 {
