@@ -23,7 +23,6 @@
 
 const common = require('../common');
 const assert = require('assert');
-const Buffer = require('buffer').Buffer;
 
 // We have to change the directory to ../fixtures before requiring repl
 // in order to make the tests for completion of node_modules work properly
@@ -307,6 +306,8 @@ testMe.complete('.b', common.mustCall((error, data) => {
 }));
 
 // tab completion for large buffer
+const warningRegEx =
+  /\(node:\d+\) REPLWarning: Instance is too large so the completion may missing some custom properties\./;
 [ Array, Buffer ].forEach((type) => {
   putIn.run(['.clear']);
 
@@ -317,8 +318,8 @@ testMe.complete('.b', common.mustCall((error, data) => {
   }
 
   common.hijackStderr(common.mustCall((err) => {
-    process.nextTick(function() {
-      assert.ok(/REPLWarning: Instance is too large that the/.test(err));
+    process.nextTick(() => {
+      assert.ok(warningRegEx.test(err));
     });
   }));
   testMe.complete('ele.', common.mustCall((err, data) => {
