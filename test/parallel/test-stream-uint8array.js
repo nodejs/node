@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const Buffer = require('buffer').Buffer;
 
 const { Readable, Writable } = require('stream');
 
