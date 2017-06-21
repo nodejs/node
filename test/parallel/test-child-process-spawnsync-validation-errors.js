@@ -186,7 +186,7 @@ if (!common.isWindows) {
   // Validate the killSignal option
   const typeErr = /^TypeError: "killSignal" must be a string or number$/;
   const unknownSignalErr =
-    common.expectsError({ code: 'ERR_UNKNOWN_SIGNAL' });
+    common.expectsError({ code: 'ERR_UNKNOWN_SIGNAL', type: TypeError });
 
   pass('killSignal', undefined);
   pass('killSignal', null);

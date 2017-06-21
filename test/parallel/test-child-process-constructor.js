@@ -68,6 +68,6 @@ assert(Number.isInteger(child.pid));
 // try killing with invalid signal
 assert.throws(() => {
   child.kill('foo');
-}, common.expectsError({ code: 'ERR_UNKNOWN_SIGNAL' }));
+}, common.expectsError({ code: 'ERR_UNKNOWN_SIGNAL', type: TypeError }));
 
 assert.strictEqual(child.kill(), true);

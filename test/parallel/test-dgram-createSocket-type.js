@@ -27,7 +27,7 @@ invalidTypes.forEach((invalidType) => {
     dgram.createSocket(invalidType);
   }, common.expectsError({
     code: 'ERR_SOCKET_BAD_TYPE',
-    type: Error,
+    type: TypeError,
     message: errMessage
   }));
 });
