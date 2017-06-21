@@ -754,7 +754,7 @@ napi_status napi_get_last_error_info(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, result);
 
-  // you must udpate this assert to reference the last message
+  // you must update this assert to reference the last message
   // in the napi_status enum each time a new error message is added.
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
