@@ -1,15 +1,14 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const { Transform } = require('stream');
 const stream = new Transform({
   transform(chunk, enc, cb) { cb(); cb(); }
 });
 
-stream.on('error', common.mustCall((err) => {
-  assert.strictEqual(err.toString(),
-                     'Error [ERR_TRANSFORM_MULTIPLE_CALLBACK]: ' +
-                     'Callback called multiple times');
+stream.on('error', common.expectsError({
+  type: Error,
+  message: 'Callback called multiple times',
+  code: 'ERR_MULTIPLE_CALLBACK'
 }));
 
 stream.write('foo');
