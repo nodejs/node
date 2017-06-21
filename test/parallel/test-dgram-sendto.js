@@ -5,7 +5,7 @@ const dgram = require('dgram');
 const socket = dgram.createSocket('udp4');
 
 const errorMessageOffset =
-  /^The "offset" argument must be of type number$/;
+  /^The "offset" argument must be of type number\. Received /;
 
 assert.throws(() => {
   socket.sendto();
@@ -20,7 +20,7 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /^The "length" argument must be of type number$/
+  message: /^The "length" argument must be of type number\. Received /
 }));
 
 assert.throws(() => {
@@ -36,7 +36,7 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /^The "address" argument must be of type string$/
+  message: /^The "address" argument must be of type string\. Received /
 }));
 
 assert.throws(() => {
@@ -44,5 +44,5 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /^The "port" argument must be of type number$/
+  message: /^The "port" argument must be of type number\. Received /
 }));

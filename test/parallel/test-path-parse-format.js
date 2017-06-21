@@ -209,7 +209,14 @@ function checkFormat(path, testCases) {
   });
 
   function typeName(value) {
-    return value === null ? 'null' : typeof value;
+    if (value == null) {
+      return value;
+    }
+    const type = typeof value;
+    if (type !== 'object') {
+      return `type ${type}`;
+    }
+    return `instance of ${value.constructor.name}`;
   }
 
   [null, undefined, 1, true, false, 'string'].forEach((pathObject) => {
@@ -218,8 +225,8 @@ function checkFormat(path, testCases) {
     }, common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "pathObject" argument must be of type Object. Received ' +
-               'type ' + typeName(pathObject)
+      message: 'The "pathObject" argument must be of type object. Received ' +
+               typeName(pathObject)
     }));
   });
 }

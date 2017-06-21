@@ -181,24 +181,42 @@ assert.throws(() => {
 }));
 
 // // Test ERR_INVALID_ARG_TYPE
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b']),
-                   'The "a" argument must be of type b');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', ['b']]),
-                   'The "a" argument must be of type b');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', ['b', 'c']]),
-                   'The "a" argument must be one of type b or c');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
-                                  ['a', ['b', 'c', 'd']]),
-                   'The "a" argument must be one of type b, c, or d');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b', 'c']),
-                   'The "a" argument must be of type b. Received type string');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
-                                  ['a', 'b', undefined]),
-                   'The "a" argument must be of type b. Received type ' +
-                   'undefined');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
-                                  ['a', 'b', null]),
-                   'The "a" argument must be of type b. Received type null');
+const specialArray = [];
+Object.defineProperty(specialArray, 'constructor', {
+  enumerable: false,
+  configurable: false,
+  writable: false,
+  value: null
+});
+assert.strictEqual(
+  errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b', specialArray]),
+  'The "a" argument must be of type b. Received a plain object'
+);
+assert.strictEqual(
+  errors.message('ERR_INVALID_ARG_TYPE', ['a', ['b'], new Error()]),
+  'The "a" argument must be of type b. Received instance of Error'
+);
+assert.strictEqual(
+  errors.message('ERR_INVALID_ARG_TYPE',
+                 ['a', ['b', 'Array'], Object.create(null)]),
+  'The "a" argument must be of type b or Array. Received a plain object'
+);
+assert.strictEqual(
+  errors.message('ERR_INVALID_ARG_TYPE', ['a', ['Array', 'c', 'd'], null]),
+  'The "a" argument must be instance of Array, c, or d. Received null'
+);
+assert.strictEqual(
+  errors.message('ERR_INVALID_ARG_TYPE', ['a', 'B', 'c']),
+  'The "a" argument must be instance of B. Received type string'
+);
+assert.strictEqual(
+  errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b', undefined]),
+  'The "a" argument must be of type b. Received undefined'
+);
+assert.strictEqual(
+  errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b', /a/]),
+  'The "a" argument must be of type b. Received instance of RegExp'
+);
 
 // Test ERR_INVALID_URL_SCHEME
 assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', ['file']),
@@ -206,9 +224,9 @@ assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', ['file']),
 assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['file']]),
                    'The URL must be of scheme file');
 assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['http', 'ftp']]),
-                   'The URL must be one of scheme http or ftp');
+                   'The URL must be of scheme http or ftp');
 assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['a', 'b', 'c']]),
-                   'The URL must be one of scheme a, b, or c');
+                   'The URL must be of scheme a, b, or c');
 assert.throws(
   () => errors.message('ERR_INVALID_URL_SCHEME', [[]]),
   common.expectsError({

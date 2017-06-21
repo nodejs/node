@@ -676,7 +676,14 @@ try {
 {
   // Verify that throws() and doesNotThrow() throw on non-function block
   function typeName(value) {
-    return value === null ? 'null' : typeof value;
+    if (value == null) {
+      return value;
+    }
+    const type = typeof value;
+    if (type !== 'object') {
+      return `type ${type}`;
+    }
+    return `instance of ${value.constructor.name}`;
   }
 
   const testBlockTypeError = (method, block) => {
@@ -690,7 +697,7 @@ try {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "block" argument must be of type function. Received ' +
-                 'type ' + typeName(block)
+                 typeName(block)
       })(e);
     }
 
@@ -732,7 +739,7 @@ assert.throws(() => {
 {
   // bad args to AssertionError constructor should throw TypeError
   const args = [1, true, false, '', null, Infinity, Symbol('test'), undefined];
-  const re = /^The "options" argument must be of type object$/;
+  const re = /^The "options" argument must be of type object\. Received /;
   args.forEach((input) => {
     assert.throws(
       () => new assert.AssertionError(input),
