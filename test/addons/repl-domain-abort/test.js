@@ -33,7 +33,7 @@ dInput._read = function _read(size) {
 };
 
 dOutput._write = function _write(chunk, encoding, cb) {
-  if (chunk.toString().indexOf('cb_ran') === 0)
+  if (chunk.toString().startsWith('cb_ran'))
     cb_ran = true;
   cb();
 };
