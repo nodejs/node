@@ -973,7 +973,10 @@ def configure_openssl(o):
     ]
   else:
     o['variables']['openssl_fips'] = ''
-
+    try:
+      os.remove('config_fips.gypi')
+    except OSError:
+      pass
 
   if options.without_ssl:
     def without_ssl_error(option):
