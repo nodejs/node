@@ -2,7 +2,6 @@
 const common = require('../common');
 const assert = require('assert');
 const path = require('path');
-const Buffer = require('buffer').Buffer;
 const fs = require('fs');
 
 common.refreshTmpDir();
