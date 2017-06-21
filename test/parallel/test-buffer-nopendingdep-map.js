@@ -1,8 +1,7 @@
-// Flags: --no-warnings --pending-deprecation
+    // Flags: --no-warnings --pending-deprecation
 'use strict';
 
 const common = require('../common');
-const Buffer = require('buffer').Buffer;
 
 process.on('warning', common.mustNotCall('A warning should not be emitted'));
 
