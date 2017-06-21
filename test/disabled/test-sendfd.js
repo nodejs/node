@@ -126,9 +126,9 @@ var srv = net.createServer(function(s) {
 srv.listen(SOCK_PATH);
 
 // Spawn a child running test/fixtures/recvfd.js
-var cp = child_process.spawn(process.argv[0], [path.join(common.fixturesDir, 'recvfd.js'),
-  SOCK_PATH
-]);
+var cp = child_process.spawn(process.argv[0],
+                             [path.join(common.fixturesDir, 'recvfd.js'),
+                              SOCK_PATH]);
 
 cp.stdout.on('data', logChild);
 cp.stderr.on('data', logChild);
