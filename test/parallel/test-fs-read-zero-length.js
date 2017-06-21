@@ -2,7 +2,6 @@
 const common = require('../common');
 const assert = require('assert');
 const path = require('path');
-const Buffer = require('buffer').Buffer;
 const fs = require('fs');
 const filepath = path.join(common.fixturesDir, 'x.txt');
 const fd = fs.openSync(filepath, 'r');
