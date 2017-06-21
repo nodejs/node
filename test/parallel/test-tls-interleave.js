@@ -59,7 +59,7 @@ const server = tls.createServer(options, function(c) {
 
       data = data.toString();
       while (data.length !== 0) {
-        assert.strictEqual(data.indexOf(writes[receivedWrites]), 0);
+        assert(data.startsWith(writes[receivedWrites]));
         data = data.slice(writes[receivedWrites].length);
 
         if (++receivedWrites === writes.length) {
