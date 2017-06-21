@@ -30,7 +30,7 @@ encodings
     const len = Buffer.byteLength('foo', encoding);
     assert.strictEqual(buf.write('foo', 0, len, encoding), len);
 
-    if (encoding.indexOf('-') !== -1)
+    if (encoding.includes('-'))
       encoding = encoding.replace('-', '');
 
     assert.deepStrictEqual(buf, resultMap.get(encoding.toLowerCase()));

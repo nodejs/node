@@ -191,7 +191,7 @@ if (process.argv[2] === 'child') {
 
       if (test.messagesReceived) {
         test.messagesReceived.forEach(function(receivedMessage) {
-          if (test.expectedMessages.indexOf(receivedMessage) === -1) {
+          if (!test.expectedMessages.includes(receivedMessage)) {
             assert.fail(`test ${test.fn.name} should not have sent message: ${
                         receivedMessage} but did`);
           }

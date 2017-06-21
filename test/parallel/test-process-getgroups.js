@@ -45,7 +45,7 @@ if (typeof process.getgroups === 'function') {
 }
 
 function check(a, b) {
-  for (let i = 0; i < a.length; ++i) assert.notStrictEqual(b.indexOf(a[i]), -1);
+  for (let i = 0; i < a.length; ++i) assert(b.includes(a[i]));
 }
 
 function unique(groups) {
