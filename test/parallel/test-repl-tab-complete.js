@@ -308,13 +308,33 @@ testMe.complete('.b', common.mustCall((error, data) => {
 // tab completion for large buffer
 const warningRegEx =
   /\(node:\d+\) REPLWarning: Instance is too large so the completion may missing some custom properties\./;
-[ Array, Buffer ].forEach((type) => {
+[
+  Array,
+  Buffer,
+
+  Uint8Array,
+  Uint16Array,
+  Uint32Array,
+
+  Uint8ClampedArray,
+  Int8Array,
+  Int16Array,
+  Int32Array,
+  Float32Array,
+  Float64Array,
+].forEach((type) => {
   putIn.run(['.clear']);
 
   if (type === Array) {
-    putIn.run(['var ele = []; for (let i = 0; i < 1e7; i++) ele.push(i);']);
+    putIn.run([
+      'var ele = [];',
+      'for (let i = 0; i < 1e6 + 1; i++) ele[i] = 0;',
+      'ele.biu = 1;'
+    ]);
+  } else if (type === Buffer) {
+    putIn.run(['var ele = Buffer.alloc(1e6 + 1); ele.biu = 1;']);
   } else {
-    putIn.run(['var ele = Buffer.alloc(1e8)']);
+    putIn.run([`var ele = new ${type.name}(1e6 + 1); ele.biu = 1;`]);
   }
 
   common.hijackStderr(common.mustCall((err) => {
@@ -326,14 +346,26 @@ const warningRegEx =
     common.restoreStderr();
     assert.ifError(err);
 
-    const ele = (type === Array) ? [] : Buffer.alloc(1);
+    const ele = (type === Array) ?
+      [] :
+      (type === Buffer ?
+        Buffer.alloc(0) :
+        new type(0));
 
     data[0].forEach((key) => {
       if (!key) return;
       assert.notStrictEqual(ele[key.substr(4)], undefined);
     });
+
+    // no `biu`
+    assert.strictEqual(data.indexOf('ele.biu'), -1);
   }));
 });
+
+// check Buffer.prototype.length not crashing.
+// Refs: Refs: https://github.com/nodejs/node/pull/11961
+putIn.run['.clear'];
+testMe.complete('Buffer.prototype.', common.mustCall());
 
 const testNonGlobal = repl.start({
   input: putIn,
