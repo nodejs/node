@@ -405,7 +405,8 @@ changes:
      REPL instances `terminal` value.
   * `useGlobal` {boolean} If `true`, specifies that the default evaluation
      function will use the JavaScript `global` as the context as opposed to
-     creating a new separate context for the REPL instance. Defaults to `false`.
+     creating a new separate context for the REPL instance. The node CLI REPL
+     sets this value to `true`. Defaults to `false`.
   * `ignoreUndefined` {boolean} If `true`, specifies that the default writer
      will not output the return value of a command if it evaluates to
      `undefined`. Defaults to `false`.
