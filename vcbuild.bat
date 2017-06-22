@@ -122,6 +122,9 @@ if defined build_release (
 
 :: assign path to node_exe
 set "node_exe=%config%\node.exe"
+set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
+if "%target_env%"=="vs2015" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2015"
+if "%target_env%"=="vs2017" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2017"
 
 if "%config%"=="Debug" set configure_flags=%configure_flags% --debug
 if defined nosnapshot set configure_flags=%configure_flags% --without-snapshot
@@ -351,7 +354,7 @@ ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/no
 
 @rem Build test/gc add-on if required.
 if "%build_testgc_addon%"=="" goto build-addons
-"%config%\node" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild --directory="%~dp0test\gc" --nodedir="%~dp0."
+%node_gyp_exe% rebuild --directory="%~dp0test\gc" --nodedir="%~dp0."
 if errorlevel 1 goto build-testgc-addon-failed
 goto build-addons
 
@@ -376,7 +379,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal EnableDelayedExpansion
 for /d %%F in (test\addons\*) do (
-  "%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild ^
+  %node_gyp_exe% rebuild ^
     --directory="%%F" ^
     --nodedir="%cd%"
   if !errorlevel! neq 0 exit /b !errorlevel!
@@ -395,7 +398,7 @@ for /d %%F in (test\addons-napi\??_*) do (
 )
 :: building addons-napi
 for /d %%F in (test\addons-napi\*) do (
-  "%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild ^
+  %node_gyp_exe% rebuild ^
     --directory="%%F" ^
     --nodedir="%cd%"
 )
