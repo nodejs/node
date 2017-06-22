@@ -50,3 +50,11 @@ assert.strictEqual(test_general.testGetVersion(), 1);
 // since typeof in js return object need to validate specific case
 // for null
 assert.strictEqual(test_general.testNapiTypeof(null), 'null');
+
+const x = {};
+
+// Assert that wrapping twice fails.
+test_general.wrap(x, 25);
+assert.throws(function() {
+  test_general.wrap(x, 'Blah');
+}, Error);
