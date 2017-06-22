@@ -378,9 +378,10 @@ instead.
 <a id="DEP0041"></a>
 ### DEP0041: NODE\_REPL\_HISTORY\_FILE environment variable
 
-Type: Documentation-only
+Type: End-of-life
 
-The `NODE_REPL_HISTORY_FILE` environment variable has been deprecated.
+The `NODE_REPL_HISTORY_FILE` environment variable was removed. Please use
+`NODE_REPL_HISTORY` instead.
 
 <a id="DEP0042"></a>
 ### DEP0042: tls.CryptoStream
