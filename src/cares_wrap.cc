@@ -318,7 +318,7 @@ void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
 
   /* copy `h_name` */
   size_t name_size = strlen(src->h_name) + 1;
-  dest->h_name = reinterpret_cast<char*>(node::Malloc(name_size));
+  dest->h_name = static_cast<char*>(node::Malloc(name_size));
   memcpy(dest->h_name, src->h_name, name_size);
 
   /* copy `h_aliases` */
@@ -329,12 +329,11 @@ void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
       alias_count++) {
   }
 
-  dest->h_aliases = reinterpret_cast<char**>(node::Malloc((alias_count + 1) *
+  dest->h_aliases = static_cast<char**>(node::Malloc((alias_count + 1) *
                                                            sizeof(char*)));
   for (size_t i = 0; i < alias_count; i++) {
     cur_alias_length = strlen(src->h_aliases[i]);
-    dest->h_aliases[i] = reinterpret_cast<char*>(node::Malloc(cur_alias_length +
-                                                              1));
+    dest->h_aliases[i] = static_cast<char*>(node::Malloc(cur_alias_length + 1));
     memcpy(dest->h_aliases[i], src->h_aliases[i], cur_alias_length + 1);
   }
   dest->h_aliases[alias_count] = nullptr;
@@ -346,10 +345,10 @@ void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
       list_count++) {
   }
 
-  dest->h_addr_list = reinterpret_cast<char**>(node::Malloc((list_count + 1) *
+  dest->h_addr_list = static_cast<char**>(node::Malloc((list_count + 1) *
                                                              sizeof(char*)));
   for (size_t i = 0; i < list_count; i++) {
-    dest->h_addr_list[i] = reinterpret_cast<char*>(node::Malloc(src->h_length));
+    dest->h_addr_list[i] = static_cast<char*>(node::Malloc(src->h_length));
     memcpy(dest->h_addr_list[i], src->h_addr_list[i], src->h_length);
   }
   dest->h_addr_list[list_count] = nullptr;
@@ -438,7 +437,7 @@ class QueryWrap : public AsyncWrap {
 
     unsigned char* buf_copy = nullptr;
     if (status == ARES_SUCCESS) {
-      buf_copy = reinterpret_cast<unsigned char*>(node::Malloc(answer_len));
+      buf_copy = static_cast<unsigned char*>(node::Malloc(answer_len));
       memcpy(buf_copy, answer_buf, answer_len);
     }
 
@@ -462,7 +461,7 @@ class QueryWrap : public AsyncWrap {
 
     struct hostent* host_copy = nullptr;
     if (status == ARES_SUCCESS) {
-      host_copy = reinterpret_cast<hostent*>(node::Malloc(sizeof(hostent)));
+      host_copy = static_cast<hostent*>(node::Malloc(sizeof(hostent)));
       cares_wrap_hostent_cpy(host_copy, host);
     }
 
