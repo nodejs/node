@@ -194,10 +194,11 @@ class SocketWrapper {
     contents_.clear();
     uv_tcp_init(loop_, &socket_);
     sockaddr_in addr;
-    uv_ip4_addr(host.c_str(), port, &addr);
-    int err = uv_tcp_connect(&connect_, &socket_,
-                             reinterpret_cast<const sockaddr*>(&addr),
-                             ConnectionMustFail_);
+    int err = uv_ip4_addr(host.c_str(), port, &addr);
+    ASSERT_EQ(0, err);
+    err = uv_tcp_connect(&connect_, &socket_,
+                         reinterpret_cast<const sockaddr*>(&addr),
+                         ConnectionMustFail_);
     ASSERT_EQ(0, err);
     SPIN_WHILE(!connection_failed_)
     uv_read_start(reinterpret_cast<uv_stream_t*>(&socket_), AllocCallback,
