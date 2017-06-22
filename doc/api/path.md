@@ -431,9 +431,38 @@ added: v0.11.15
 The `path.posix` property provides access to POSIX specific implementations
 of the `path` methods.
 
-The following functions do not support direct use on Windows.
-* path.posix.resolve
-* path.posix.relative
+*Note*: Be careful when using the following functions directly on Windows.
+
+### path.posix.resolve([...path])
+If after processing all given `path` segments an absolute path has not yet
+been generated, `path.posix.resolve` will throw [`UNSUPPORTED_PLATFORM`] error.
+
+### path.posix.relative(from, to)
+If `from` and `to` are both relative path, `path.posix.relative` will use the
+path `/fakepath/` as the current working path to generate the result.
+
+For example
+
+```
+path.posix.relative('a/b/c', '../../x');
+
+// 'from' will be '/fakepath/a/b/c'
+// 'to' will be '/fakepath/../../x', then will be normalized to '/x'
+// Returns: '../../../../x'
+```
+
+If one of `from` and `to` is relative path, `path.posix.relative` will use the
+other absolute path as the current working path to generate the result.
+
+For example
+
+```
+path.posix.relative('/a/b/c', '../../x');
+
+// 'from' will be '/a/b/c'
+// 'to' will be '/a/b/c/../../x', then will be normalized to '/a/x'
+// Returns: '../../x'
+```
 
 ## path.relative(from, to)
 <!-- YAML
@@ -555,9 +584,38 @@ added: v0.11.15
 The `path.win32` property provides access to Windows-specific implementations
 of the `path` methods.
 
-The following functions do not support direct use on *nix.
-* path.win32.resolve
-* path.win32.relative
+*Note*: Be careful when using the following functions directly on POSIX.
+
+### path.win32.resolve([...path])
+If after processing all given `path` segments an absolute path has not yet
+been generated, `path.win32.resolve` will throw [`UNSUPPORTED_PLATFORM`] error.
+
+### path.win32.relative(from, to)
+If `from` and `to` are both relative path, `path.win32.relative` will use the
+path `c:\\fakepath\\` as the current working path to generate the result.
+
+For example
+
+```
+path.win32.relative('a\\b\\c', '..\\..\\x');
+
+// 'from' will be 'c:\\fakepath\\a\\b\\c'
+// 'to' will be 'c:\\fakepath\\..\\..\\x', then will be normalized to 'c:\\x'
+// Returns: '..\\..\\..\\..\\x'
+```
+
+If one of `from` and `to` is relative path, `path.win32.relative` will use the
+other absolute path as the current working path to generate the result.
+
+For example
+
+```
+path.win32.relative('c:\\a\\b\\c', '..\\..\\x');
+
+// 'from' will be 'c:\\a\\b\\c'
+// 'to' will be 'c:\\a\\b\\c\\..\\..\\x', then will be normalized to 'c:\\a\\x'
+// Returns: '..\\..\\x'
+```
 
 [`TypeError`]: errors.html#errors_class_typeerror
 [`path.parse()`]: #path_path_parse_path
