@@ -419,71 +419,79 @@ assert.strictEqual(path.posix.normalize('///..//./foo/.//bar'), '/foo/bar');
 
 // path.resolve tests
 const resolveTest = {
-  win32: {
-    resolve: path.win32.resolve,
-    tests:
-    // arguments                               result
-    [[['c:/blah\\blah', 'd:/games', 'c:../a'], 'c:\\blah\\a'],
-      [['c:/ignore', 'd:\\a/b\\c/d', '\\e.exe'], 'd:\\e.exe'],
-      [['c:/ignore', 'c:/some/file'], 'c:\\some\\file'],
-      [['d:/ignore', 'd:some/dir//'], 'd:\\ignore\\some\\dir'],
-      [['.'], process.cwd()],
-      [['//server/share', '..', 'relative\\'], '\\\\server\\share\\relative'],
-      [['c:/', '//'], 'c:\\'],
-      [['c:/', '//dir'], 'c:\\dir'],
-      [['c:/', '//server/share'], '\\\\server\\share\\'],
-      [['c:/', '//server//share'], '\\\\server\\share\\'],
-      [['c:/', '///some//dir'], 'c:\\some\\dir'],
-     [['C:\\foo\\tmp.3\\', '..\\tmp.3\\cycles\\root.js'],
-      'C:\\foo\\tmp.3\\cycles\\root.js']
+  win32: [
+    [ path.win32.resolve,
+      // arguments                               result
+      [[['c:/blah\\blah', 'd:/games', 'c:../a'], 'c:\\blah\\a'],
+       [['c:/ignore', 'd:\\a/b\\c/d', '\\e.exe'], 'd:\\e.exe'],
+       [['c:/ignore', 'c:/some/file'], 'c:\\some\\file'],
+       [['d:/ignore', 'd:some/dir//'], 'd:\\ignore\\some\\dir'],
+       [['.'], process.cwd()],
+       [['//server/share', '..', 'relative\\'], '\\\\server\\share\\relative'],
+       [['c:/', '//'], 'c:\\'],
+       [['c:/', '//dir'], 'c:\\dir'],
+       [['c:/', '//server/share'], '\\\\server\\share\\'],
+       [['c:/', '//server//share'], '\\\\server\\share\\'],
+       [['c:/', '///some//dir'], 'c:\\some\\dir'],
+       [['C:\\foo\\tmp.3\\', '..\\tmp.3\\cycles\\root.js'],
+        'C:\\foo\\tmp.3\\cycles\\root.js']
+      ]
     ]
-  },
-  posix: {
-    resolve: path.posix.resolve,
-    tests:
-    // arguments                    result
-    [[['/var/lib', '../', 'file/'], '/var/file'],
-      [['/var/lib', '/../', 'file/'], '/file'],
-      [['a/b/c/', '../../..'], process.cwd()],
-      [['.'], process.cwd()],
-      [['/some/dir', '.', '/absolute/'], '/absolute'],
-      [['/foo/tmp.3/', '../tmp.3/cycles/root.js'], '/foo/tmp.3/cycles/root.js']
+  ],
+  posix: [
+    [ path.posix.resolve,
+      // arguments                    result
+      [[['/var/lib', '../', 'file/'], '/var/file'],
+       [['/var/lib', '/../', 'file/'], '/file'],
+       [['a/b/c/', '../../..'], process.cwd()],
+       [['.'], process.cwd()],
+       [['/some/dir', '.', '/absolute/'], '/absolute'],
+       [['/foo/tmp.3/', '../tmp.3/cycles/root.js'], '/foo/tmp.3/cycles/root.js']
+      ]
     ]
-  }
+  ]
 };
+
 {
-  let resolve;
   let tests;
+
   if (common.isWindows) {
-    resolve = resolveTest.win32.resolve;
-    tests = resolveTest.win32.tests;
-    // direct use path.posix.resolve on windows will throw error
+    tests = resolveTest.win32;
+
+    // direct use path.posix.resolve with relative path param
+    // on windows will throw error
     assert.throws(() => {
       path.posix.resolve('foo/bar');
     }, common.expectsError({code: 'ERR_UNSUPPORTED_PLATFORM', type: Error}));
   } else {
-    resolve = resolveTest.posix.resolve;
-    tests = resolveTest.posix.tests;
-    // direct use path.win32.resolve on *nix will throw error
+    tests = resolveTest.posix;
+
+    // direct use path.win32.resolve with relative path param
+    // on *nix will throw error
     assert.throws(() => {
       path.win32.resolve('foo\\bar');
     }, common.expectsError({code: 'ERR_UNSUPPORTED_PLATFORM', type: Error}));
   }
-  tests.forEach((test) => {
-    const actual = resolve.apply(null, test[0]);
-    let actualAlt;
-    const os = resolve === path.win32.resolve ? 'win32' : 'posix';
-    if (resolve === path.win32.resolve && !common.isWindows)
-      actualAlt = actual.replace(backslashRE, '/');
-    else if (resolve !== path.win32.resolve && common.isWindows)
-      actualAlt = actual.replace(slashRE, '\\');
 
-    const expected = test[1];
-    const message =
-      `path.${os}.resolve(${test[0].map(JSON.stringify).join(',')})\n  expect=${
-      JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
-    if (actual !== expected && actualAlt !== expected)
-      failures.push(`\n${message}`);
+  tests.forEach((test) => {
+    const resolve = test[0];
+    test[1].forEach((test) => {
+      const actual = resolve.apply(null, test[0]);
+      let actualAlt;
+      const os = resolve === path.win32.resolve ? 'win32' : 'posix';
+      if (resolve === path.win32.resolve && !common.isWindows)
+        actualAlt = actual.replace(backslashRE, '/');
+      else if (resolve !== path.win32.resolve && common.isWindows)
+        actualAlt = actual.replace(slashRE, '\\');
+
+      const expected = test[1];
+      const message =
+        `path.${os}.resolve(${test[0].map(JSON.stringify).join(',')})
+          \n  expect=${JSON.stringify(expected)}
+          \n  actual=${JSON.stringify(actual)}`;
+      if (actual !== expected && actualAlt !== expected)
+        failures.push(`\n${message}`);
+    });
   });
 }
 assert.strictEqual(failures.length, 0, failures.join(''));
@@ -528,85 +536,97 @@ assert.strictEqual(path.posix.isAbsolute('./baz'), false);
 
 // path.relative tests
 const relativeTest = {
-  win32: {
-    relative: path.win32.relative,
-    tests:
-    // arguments                     result
-    [['c:/blah\\blah', 'd:/games', 'd:\\games'],
-      ['c:/aaaa/bbbb', 'c:/aaaa', '..'],
-      ['c:/aaaa/bbbb', 'c:/cccc', '..\\..\\cccc'],
-      ['c:/aaaa/bbbb', 'c:/aaaa/bbbb', ''],
-      ['c:/aaaa/bbbb', 'c:/aaaa/cccc', '..\\cccc'],
-      ['c:/aaaa/', 'c:/aaaa/cccc', 'cccc'],
-      ['c:/', 'c:\\aaaa\\bbbb', 'aaaa\\bbbb'],
-      ['c:/aaaa/bbbb', 'd:\\', 'd:\\'],
-      ['c:/AaAa/bbbb', 'c:/aaaa/bbbb', ''],
-      ['c:/aaaaa/', 'c:/aaaa/cccc', '..\\aaaa\\cccc'],
-      ['C:\\foo\\bar\\baz\\quux', 'C:\\', '..\\..\\..\\..'],
-     [
-       'C:\\foo\\test', 'C:\\foo\\test\\bar\\package.json',
-       'bar\\package.json'
-     ],
-      ['C:\\foo\\bar\\baz-quux', 'C:\\foo\\bar\\baz', '..\\baz'],
-      ['C:\\foo\\bar\\baz', 'C:\\foo\\bar\\baz-quux', '..\\baz-quux'],
-      ['\\\\foo\\bar', '\\\\foo\\bar\\baz', 'baz'],
-      ['\\\\foo\\bar\\baz', '\\\\foo\\bar', '..'],
-      ['\\\\foo\\bar\\baz-quux', '\\\\foo\\bar\\baz', '..\\baz'],
-      ['\\\\foo\\bar\\baz', '\\\\foo\\bar\\baz-quux', '..\\baz-quux'],
-      ['C:\\baz-quux', 'C:\\baz', '..\\baz'],
-      ['C:\\baz', 'C:\\baz-quux', '..\\baz-quux'],
-      ['\\\\foo\\baz-quux', '\\\\foo\\baz', '..\\baz'],
-      ['\\\\foo\\baz', '\\\\foo\\baz-quux', '..\\baz-quux'],
-      ['C:\\baz', '\\\\foo\\bar\\baz', '\\\\foo\\bar\\baz'],
-      ['\\\\foo\\bar\\baz', 'C:\\baz', 'C:\\baz']
+  win32: [
+    [ path.win32.relative,
+      // arguments                     result
+      [['c:/blah\\blah', 'd:/games', 'd:\\games'],
+       ['c:/aaaa/bbbb', 'c:/aaaa', '..'],
+       ['c:/aaaa/bbbb', 'c:/cccc', '..\\..\\cccc'],
+       ['c:/aaaa/bbbb', 'c:/aaaa/bbbb', ''],
+       ['c:/aaaa/bbbb', 'c:/aaaa/cccc', '..\\cccc'],
+       ['c:/aaaa/', 'c:/aaaa/cccc', 'cccc'],
+       ['c:/', 'c:\\aaaa\\bbbb', 'aaaa\\bbbb'],
+       ['c:/aaaa/bbbb', 'd:\\', 'd:\\'],
+       ['c:/AaAa/bbbb', 'c:/aaaa/bbbb', ''],
+       ['c:/aaaaa/', 'c:/aaaa/cccc', '..\\aaaa\\cccc'],
+       ['C:\\foo\\bar\\baz\\quux', 'C:\\', '..\\..\\..\\..'],
+       [
+         'C:\\foo\\test', 'C:\\foo\\test\\bar\\package.json',
+         'bar\\package.json'
+       ],
+       ['C:\\foo\\bar\\baz-quux', 'C:\\foo\\bar\\baz', '..\\baz'],
+       ['C:\\foo\\bar\\baz', 'C:\\foo\\bar\\baz-quux', '..\\baz-quux'],
+       ['\\\\foo\\bar', '\\\\foo\\bar\\baz', 'baz'],
+       ['\\\\foo\\bar\\baz', '\\\\foo\\bar', '..'],
+       ['\\\\foo\\bar\\baz-quux', '\\\\foo\\bar\\baz', '..\\baz'],
+       ['\\\\foo\\bar\\baz', '\\\\foo\\bar\\baz-quux', '..\\baz-quux'],
+       ['C:\\baz-quux', 'C:\\baz', '..\\baz'],
+       ['C:\\baz', 'C:\\baz-quux', '..\\baz-quux'],
+       ['\\\\foo\\baz-quux', '\\\\foo\\baz', '..\\baz'],
+       ['\\\\foo\\baz', '\\\\foo\\baz-quux', '..\\baz-quux'],
+       ['C:\\baz', '\\\\foo\\bar\\baz', '\\\\foo\\bar\\baz'],
+       ['\\\\foo\\bar\\baz', 'C:\\baz', 'C:\\baz']
+      ]
+    ],
+    [ path.posix.relative,
+      // arguments          result
+      [['a/b/c', '../../x', '../../../../x'],
+       ['../../x', 'a/b/c', '../fakepath/a/b/c'],
+       ['/a/b/c', '../../x', '../../x'],
+       ['../../x', '/a/b/c', '../b/c'],
+       ['/a/b/c', '/d/e/f', '../../../d/e/f']
+      ]
     ]
-  },
-  posix: {
-    relative: path.posix.relative,
-    tests:
-    // arguments          result
-    [['/var/lib', '/var', '..'],
-      ['/var/lib', '/bin', '../../bin'],
-      ['/var/lib', '/var/lib', ''],
-      ['/var/lib', '/var/apache', '../apache'],
-      ['/var/', '/var/lib', 'lib'],
-      ['/', '/var/lib', 'var/lib'],
-      ['/foo/test', '/foo/test/bar/package.json', 'bar/package.json'],
-      ['/Users/a/web/b/test/mails', '/Users/a/web/b', '../..'],
-      ['/foo/bar/baz-quux', '/foo/bar/baz', '../baz'],
-      ['/foo/bar/baz', '/foo/bar/baz-quux', '../baz-quux'],
-      ['/baz-quux', '/baz', '../baz'],
-      ['/baz', '/baz-quux', '../baz-quux']
+  ],
+  posix: [
+    [ path.posix.relative,
+      // arguments          result
+      [['/var/lib', '/var', '..'],
+       ['/var/lib', '/bin', '../../bin'],
+       ['/var/lib', '/var/lib', ''],
+       ['/var/lib', '/var/apache', '../apache'],
+       ['/var/', '/var/lib', 'lib'],
+       ['/', '/var/lib', 'var/lib'],
+       ['/foo/test', '/foo/test/bar/package.json', 'bar/package.json'],
+       ['/Users/a/web/b/test/mails', '/Users/a/web/b', '../..'],
+       ['/foo/bar/baz-quux', '/foo/bar/baz', '../baz'],
+       ['/foo/bar/baz', '/foo/bar/baz-quux', '../baz-quux'],
+       ['/baz-quux', '/baz', '../baz'],
+       ['/baz', '/baz-quux', '../baz-quux']
+      ]
+    ],
+    [ path.win32.relative,
+      // arguments              result
+      [['a\\b\\c', '..\\..\\x', '..\\..\\..\\..\\x'],
+       ['..\\..\\x', 'a\\b\\c', '..\\fakepath\\a\\b\\c'],
+       ['c:\\a\\b\\c', '..\\..\\x', '..\\..\\x'],
+       ['..\\..\\x', 'c:\\a\\b\\c', '..\\b\\c'],
+       ['c:\\a\\b\\c', 'c:\\d\\e\\f', '..\\..\\..\\d\\e\\f']
+      ]
     ]
-  }
+  ]
 };
 {
-  let relative;
   let tests;
+
   if (common.isWindows) {
-    relative = relativeTest.win32.relative;
-    tests = relativeTest.win32.tests;
-    // direct use path.posix.relative on windows will throw error
-    assert.throws(() => {
-      path.posix.relative('foo/bar', 'foo');
-    }, common.expectsError({code: 'ERR_UNSUPPORTED_PLATFORM', type: Error}));
+    tests = relativeTest.win32;
   } else {
-    relative = relativeTest.posix.relative;
-    tests = relativeTest.posix.tests;
-    // direct use path.win32.relative on *nix will throw error
-    assert.throws(() => {
-      path.win32.relative('foo\\bar', 'foo');
-    }, common.expectsError({code: 'ERR_UNSUPPORTED_PLATFORM', type: Error}));
+    tests = relativeTest.posix;
   }
+
   tests.forEach((test) => {
-    const actual = relative(test[0], test[1]);
-    const expected = test[2];
-    const os = relative === path.win32.relative ? 'win32' : 'posix';
-    const message = `path.${os}.relative(${
-      test.slice(0, 2).map(JSON.stringify).join(',')})\n  expect=${
-      JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
-    if (actual !== expected)
-      failures.push(`\n${message}`);
+    const relative = test[0];
+    test[1].forEach((test) => {
+      const actual = relative(test[0], test[1]);
+      const expected = test[2];
+      const os = relative === path.win32.relative ? 'win32' : 'posix';
+      const message = `path.${os}.relative(${
+        test.slice(0, 2).map(JSON.stringify).join(',')})\n  expect=${
+        JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
+      if (actual !== expected)
+        failures.push(`\n${message}`);
+    });
   });
 }
 assert.strictEqual(failures.length, 0, failures.join(''));
@@ -627,7 +647,16 @@ assert.strictEqual(path.posix.delimiter, ':');
 
 // path._makeLong tests
 const emptyObj = {};
+assert.strictEqual(path.posix._makeLong('/foo/bar'), '/foo/bar');
+assert.strictEqual(path.posix._makeLong('foo/bar'), 'foo/bar');
+assert.strictEqual(path.posix._makeLong(null), null);
+assert.strictEqual(path.posix._makeLong(true), true);
+assert.strictEqual(path.posix._makeLong(1), 1);
+assert.strictEqual(path.posix._makeLong(), undefined);
+assert.strictEqual(path.posix._makeLong(emptyObj), emptyObj);
 if (common.isWindows) {
+  // These tests cause resolve() to insert the cwd, so we cannot test them from
+  // non-Windows platforms (easily)
   assert.strictEqual(path.win32._makeLong('foo\\bar').toLowerCase(),
                      `\\\\?\\${process.cwd().toLowerCase()}\\foo\\bar`);
   assert.strictEqual(path.win32._makeLong('foo/bar').toLowerCase(),
@@ -637,31 +666,19 @@ if (common.isWindows) {
                      `\\\\?\\${process.cwd().toLowerCase()}`);
   assert.strictEqual(path.win32._makeLong('C').toLowerCase(),
                      `\\\\?\\${process.cwd().toLowerCase()}\\c`);
-  assert.strictEqual(path.win32._makeLong('C:\\foo'), '\\\\?\\C:\\foo');
-  assert.strictEqual(path.win32._makeLong('C:/foo'), '\\\\?\\C:\\foo');
-  assert.strictEqual(path.win32._makeLong('\\\\foo\\bar'),
-                     '\\\\?\\UNC\\foo\\bar\\');
-  assert.strictEqual(path.win32._makeLong('//foo//bar'),
-                     '\\\\?\\UNC\\foo\\bar\\');
-  assert.strictEqual(path.win32._makeLong('\\\\?\\foo'), '\\\\?\\foo');
-  assert.strictEqual(path.win32._makeLong(null), null);
-  assert.strictEqual(path.win32._makeLong(true), true);
-  assert.strictEqual(path.win32._makeLong(1), 1);
-  assert.strictEqual(path.win32._makeLong(), undefined);
-  assert.strictEqual(path.win32._makeLong(emptyObj), emptyObj);
-} else {
-  assert.strictEqual(path.posix._makeLong('/foo/bar'), '/foo/bar');
-  assert.strictEqual(path.posix._makeLong('foo/bar'), 'foo/bar');
-  assert.strictEqual(path.posix._makeLong(null), null);
-  assert.strictEqual(path.posix._makeLong(true), true);
-  assert.strictEqual(path.posix._makeLong(1), 1);
-  assert.strictEqual(path.posix._makeLong(), undefined);
-  assert.strictEqual(path.posix._makeLong(emptyObj), emptyObj);
-  // direct use path.win32._makeLong on *nix will throw error
-  assert.throws(() => {
-    path.win32._makeLong('\\\\?\\foo');
-  }, common.expectsError({code: 'ERR_UNSUPPORTED_PLATFORM', type: Error}));
 }
+assert.strictEqual(path.win32._makeLong('C:\\foo'), '\\\\?\\C:\\foo');
+assert.strictEqual(path.win32._makeLong('C:/foo'), '\\\\?\\C:\\foo');
+assert.strictEqual(path.win32._makeLong('\\\\foo\\bar'),
+                   '\\\\?\\UNC\\foo\\bar\\');
+assert.strictEqual(path.win32._makeLong('//foo//bar'),
+                   '\\\\?\\UNC\\foo\\bar\\');
+assert.strictEqual(path.win32._makeLong('\\\\?\\foo'), '\\\\?\\foo');
+assert.strictEqual(path.win32._makeLong(null), null);
+assert.strictEqual(path.win32._makeLong(true), true);
+assert.strictEqual(path.win32._makeLong(1), 1);
+assert.strictEqual(path.win32._makeLong(), undefined);
+assert.strictEqual(path.win32._makeLong(emptyObj), emptyObj);
 
 
 if (common.isWindows)
