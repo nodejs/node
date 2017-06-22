@@ -23,4 +23,4 @@ void init(Local<Object> exports) {
   NODE_SET_METHOD(exports, "method", Method);
 }
 
-NODE_MODULE(binding, init);
+NODE_MODULE(binding, init)

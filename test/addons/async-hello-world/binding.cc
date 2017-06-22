@@ -77,4 +77,4 @@ void init(v8::Local<v8::Object> exports, v8::Local<v8::Object> module) {
   NODE_SET_METHOD(module, "exports", Method);
 }
 
-NODE_MODULE(binding, init);
+NODE_MODULE(binding, init)
