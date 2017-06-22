@@ -119,6 +119,24 @@ napi_value testNapiTypeof(napi_env env, napi_callback_info info) {
   return result;
 }
 
+static void deref_item(napi_env env, void* data, void* hint) {
+  (void) hint;
+
+  NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, (napi_ref)data));
+}
+
+napi_value wrap(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
+  napi_value argv[2];
+  napi_ref payload;
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
+  NAPI_CALL(env, napi_create_reference(env, argv[1], 1, &payload));
+  NAPI_CALL(env, napi_wrap(env, argv[0], payload, deref_item, NULL, NULL));
+
+  return NULL;
+}
+
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("testStrictEquals", testStrictEquals),
@@ -130,6 +148,7 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("createNapiError", createNapiError),
     DECLARE_NAPI_PROPERTY("testNapiErrorCleanup", testNapiErrorCleanup),
     DECLARE_NAPI_PROPERTY("testNapiTypeof", testNapiTypeof),
+    DECLARE_NAPI_PROPERTY("wrap", wrap),
   };
 
   NAPI_CALL_RETURN_VOID(env, napi_define_properties(

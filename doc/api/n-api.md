@@ -2876,8 +2876,8 @@ napi_status napi_wrap(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-Wraps a native instance in JavaScript object of the corresponding type.
-The native instance can be retrieved later using `napi_unwrap()`.
+Wraps a native instance in a JavaScript object. The native instance can be
+retrieved later using `napi_unwrap()`.
 
 When JavaScript code invokes a constructor for a class that was defined using
 `napi_define_class()`, the `napi_callback` for the constructor is invoked.
@@ -2904,6 +2904,10 @@ required in order to enable correct proper of the reference.
 *Note*: This API may modify the prototype chain of the wrapper object.
 Afterward, additional manipulation of the wrapper's prototype chain may cause
 `napi_unwrap()` to fail.
+
+*Note*: Calling `napi_wrap()` a second time on an object that already has a
+native instance associated with it by virtue of a previous call to
+`napi_wrap()` will cause an error to be returned.
 
 ### *napi_unwrap*
 <!-- YAML
