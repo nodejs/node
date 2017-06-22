@@ -163,7 +163,8 @@ $ [sudo] make install
 
 Prerequisites:
 
-* [Python 2.6 or 2.7](https://www.python.org/downloads/)
+* [Python 2.6 or 2.7](https://www.python.org/downloads/)  
+  *Note*: It is recommanded to include the "Add python.exe to path" option
 * One of:
   * [Visual C++ Build Tools](http://landinghub.visualstudio.com/visual-cpp-build-tools)
   * [Visual Studio 2015 Update 3](https://www.visualstudio.com/), all editions
