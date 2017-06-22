@@ -915,4 +915,4 @@ void InitContextify(Local<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(contextify, node::InitContextify);
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(contextify, node::InitContextify)
