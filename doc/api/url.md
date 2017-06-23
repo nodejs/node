@@ -211,9 +211,7 @@ will be thrown.
 
 * {string}
 
-Gets the read-only serialization of the URL's origin. Unicode characters that
-may be contained within the hostname will be encoded as-is without [Punycode][]
-encoding.
+Gets the read-only serialization of the URL's origin.
 
 ```js
 const { URL } = require('url');
@@ -226,7 +224,7 @@ console.log(myURL.origin);
 const { URL } = require('url');
 const idnURL = new URL('https://你好你好');
 console.log(idnURL.origin);
-// Prints https://你好你好
+// Prints https://xn--6qqa088eba
 
 console.log(idnURL.hostname);
 // Prints xn--6qqa088eba
