@@ -3,7 +3,6 @@
 require('../common');
 const assert = require('assert');
 
-const Buffer = require('buffer').Buffer;
 const LENGTH = 16;
 
 const ab = new ArrayBuffer(LENGTH);
