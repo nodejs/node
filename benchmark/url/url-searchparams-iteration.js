@@ -32,11 +32,12 @@ function iterator(n) {
   const noDead = [];
 
   bench.start();
-  for (var i = 0; i < n; i += 1)
+  for (var i = 0; i < n; i += 1) {
     for (var pair of params) {
       noDead[0] = pair[0];
       noDead[1] = pair[1];
     }
+  }
   bench.end(n);
 
   assert.strictEqual(noDead[0], 'three');

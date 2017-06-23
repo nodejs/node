@@ -429,9 +429,11 @@ function leakedGlobals() {
   const leaked = [];
 
   // eslint-disable-next-line no-var
-  for (var val in global)
-    if (!knownGlobals.includes(global[val]))
+  for (var val in global) {
+    if (!knownGlobals.includes(global[val])) {
       leaked.push(val);
+    }
+  }
 
   if (global.__coverage__) {
     return leaked.filter((varname) => !/^(?:cov_|__cov)/.test(varname));
@@ -700,9 +702,10 @@ Object.defineProperty(exports, 'hasSmallICU', {
 exports.expectsError = function expectsError({code, type, message}) {
   return function(error) {
     assert.strictEqual(error.code, code);
-    if (type !== undefined)
+    if (type !== undefined) {
       assert(error instanceof type,
              `${error} is not the expected type ${type}`);
+    }
     if (message instanceof RegExp) {
       assert(message.test(error.message),
              `${error.message} does not match ${message}`);
@@ -758,11 +761,13 @@ exports.getTTYfd = function getTTYfd() {
   if (!tty.isatty(tty_fd)) tty_fd++;
   else if (!tty.isatty(tty_fd)) tty_fd++;
   else if (!tty.isatty(tty_fd)) tty_fd++;
-  else try {
-    tty_fd = require('fs').openSync('/dev/tty');
-  } catch (e) {
-    // There aren't any tty fd's available to use.
-    return -1;
+  else {
+    try {
+      tty_fd = require('fs').openSync('/dev/tty');
+    } catch (e) {
+      // There aren't any tty fd's available to use.
+      return -1;
+    }
   }
   return tty_fd;
 };
