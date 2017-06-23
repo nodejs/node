@@ -17,7 +17,9 @@
 #include <vector>
 #include "uv.h"
 #include "node_api.h"
-#include "node_internals.h"
+
+// We must avoid making use of node internals because this file must compile
+// outside of node as well.
 
 #define NAPI_VERSION  1
 
@@ -759,7 +761,8 @@ napi_status napi_get_last_error_info(napi_env env,
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
   static_assert(
-      node::arraysize(error_messages) == napi_escape_called_twice + 1,
+      (sizeof (error_messages) / sizeof (*error_messages)) ==
+          napi_escape_called_twice + 1,
       "Count of error messages must match count of error values");
   assert(env->last_error.error_code <= napi_escape_called_twice);
 
