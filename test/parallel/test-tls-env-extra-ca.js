@@ -9,18 +9,19 @@ if (!common.hasCrypto) {
 }
 
 const assert = require('assert');
-const tls = require('tls');
-const fork = require('child_process').fork;
 const fs = require('fs');
+const tls = require('tls');
+
+const fork = require('child_process').fork;
 
 if (process.env.CHILD) {
   const copts = {
     port: process.env.PORT,
-    checkServerIdentity: common.noop,
+    checkServerIdentity: common.mustCall(),
   };
-  const client = tls.connect(copts, function() {
+  const client = tls.connect(copts, common.mustCall(function() {
     client.end('hi');
-  });
+  }));
   return;
 }
 
@@ -29,10 +30,10 @@ const options = {
   cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`),
 };
 
-const server = tls.createServer(options, function(s) {
+const server = tls.createServer(options, common.mustCall(function(s) {
   s.end('bye');
   server.close();
-}).listen(0, common.mustCall(function() {
+})).listen(0, common.mustCall(function() {
   const env = {
     CHILD: 'yes',
     PORT: this.address().port,
