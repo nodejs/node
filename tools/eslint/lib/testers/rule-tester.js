@@ -468,9 +468,11 @@ class RuleTester {
                     )
                 );
 
+                const hasMessageOfThisRule = messages.some(m => m.ruleId === ruleName);
+
                 for (let i = 0, l = item.errors.length; i < l; i++) {
-                    assert.ok(!("fatal" in messages[i]), `A fatal parsing error occurred: ${messages[i].message}`);
-                    assert.equal(messages[i].ruleId, ruleName, "Error rule name should be the same as the name of the rule being tested");
+                    assert(!messages[i].fatal, `A fatal parsing error occurred: ${messages[i].message}`);
+                    assert(hasMessageOfThisRule, "Error rule name should be the same as the name of the rule being tested");
 
                     if (typeof item.errors[i] === "string" || item.errors[i] instanceof RegExp) {
 
