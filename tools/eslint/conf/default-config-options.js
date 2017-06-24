@@ -25,9 +25,5 @@ module.exports = deepFreeze({
     rules: {},
     settings: {},
     parser: "espree",
-    parserOptions: {
-        ecmaVersion: 5,
-        sourceType: "script",
-        ecmaFeatures: {}
-    }
+    parserOptions: {}
 });
