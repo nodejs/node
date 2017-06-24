@@ -16,7 +16,6 @@ const fs = require("fs"),
 
 const debug = require("debug")("eslint:ignored-paths");
 
-
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
@@ -37,11 +36,23 @@ const DEFAULT_OPTIONS = {
     cwd: process.cwd()
 };
 
-
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
+/**
+ * Find a file in the current directory.
+ * @param {string} cwd Current working directory
+ * @param {string} name File name
+ * @returns {string} Path of ignore file or an empty string.
+ */
+function findFile(cwd, name) {
+    cwd = cwd || DEFAULT_OPTIONS.cwd;
+
+    const ignoreFilePath = path.resolve(cwd, name);
+
+    return fs.existsSync(ignoreFilePath) && fs.statSync(ignoreFilePath).isFile() ? ignoreFilePath : "";
+}
 
 /**
  * Find an ignore file in the current directory.
@@ -49,11 +60,16 @@ const DEFAULT_OPTIONS = {
  * @returns {string} Path of ignore file or an empty string.
  */
 function findIgnoreFile(cwd) {
-    cwd = cwd || DEFAULT_OPTIONS.cwd;
+    return findFile(cwd, ESLINT_IGNORE_FILENAME);
+}
 
-    const ignoreFilePath = path.resolve(cwd, ESLINT_IGNORE_FILENAME);
-
-    return fs.existsSync(ignoreFilePath) && fs.statSync(ignoreFilePath).isFile() ? ignoreFilePath : "";
+/**
+ * Find an package.json file in the current directory.
+ * @param {string} cwd Current working directory
+ * @returns {string} Path of package.json file or an empty string.
+ */
+function findPackageJSONFile(cwd) {
+    return findFile(cwd, "package.json");
 }
 
 /**
@@ -80,6 +96,7 @@ class IgnoredPaths {
      */
     constructor(options) {
         options = mergeDefaultOptions(options);
+        this.cache = {};
 
         /**
          * add pattern to node-ignore instance
@@ -89,17 +106,6 @@ class IgnoredPaths {
          */
         function addPattern(ig, pattern) {
             return ig.addPattern(pattern);
-        }
-
-        /**
-         * add ignore file to node-ignore instance
-         * @param {Object} ig, instance of node-ignore
-         * @param {string} filepath, file to add to ig
-         * @returns {array} raw ignore rules
-         */
-        function addIgnoreFile(ig, filepath) {
-            ig.ignoreFiles.push(filepath);
-            return ig.add(fs.readFileSync(filepath, "utf8"));
         }
 
         this.defaultPatterns = [].concat(DEFAULT_IGNORE_DIRS, options.patterns || []);
@@ -155,8 +161,39 @@ class IgnoredPaths {
             if (ignorePath) {
                 debug(`Adding ${ignorePath}`);
                 this.baseDir = path.dirname(path.resolve(options.cwd, ignorePath));
-                addIgnoreFile(this.ig.custom, ignorePath);
-                addIgnoreFile(this.ig.default, ignorePath);
+                this.addIgnoreFile(this.ig.custom, ignorePath);
+                this.addIgnoreFile(this.ig.default, ignorePath);
+            } else {
+                try {
+
+                    // if the ignoreFile does not exist, check package.json for eslintIgnore
+                    const packageJSONPath = findPackageJSONFile(options.cwd);
+
+                    if (packageJSONPath) {
+                        let packageJSONOptions;
+
+                        try {
+                            packageJSONOptions = JSON.parse(fs.readFileSync(packageJSONPath, "utf8"));
+                        } catch (e) {
+                            debug("Could not read package.json file to check eslintIgnore property");
+                            throw e;
+                        }
+
+                        if (packageJSONOptions.eslintIgnore) {
+                            if (Array.isArray(packageJSONOptions.eslintIgnore)) {
+                                packageJSONOptions.eslintIgnore.forEach(pattern => {
+                                    addPattern(this.ig.custom, pattern);
+                                    addPattern(this.ig.default, pattern);
+                                });
+                            } else {
+                                throw new Error("Package.json eslintIgnore property requires an array of paths");
+                            }
+                        }
+                    }
+                } catch (e) {
+                    debug("Could not find package.json to check eslintIgnore property");
+                    throw e;
+                }
             }
 
             if (options.ignorePattern) {
@@ -166,6 +203,29 @@ class IgnoredPaths {
         }
 
         this.options = options;
+    }
+
+    /**
+     * read ignore filepath
+     * @param {string} filePath, file to add to ig
+     * @returns {array} raw ignore rules
+     */
+    readIgnoreFile(filePath) {
+        if (typeof this.cache[filePath] === "undefined") {
+            this.cache[filePath] = fs.readFileSync(filePath, "utf8");
+        }
+        return this.cache[filePath];
+    }
+
+    /**
+     * add ignore file to node-ignore instance
+     * @param {Object} ig, instance of node-ignore
+     * @param {string} filePath, file to add to ig
+     * @returns {array} raw ignore rules
+     */
+    addIgnoreFile(ig, filePath) {
+        ig.ignoreFiles.push(filePath);
+        return ig.add(this.readIgnoreFile(filePath));
     }
 
     /**

@@ -12,6 +12,7 @@ const assert = require("assert");
 const cursors = require("./cursors");
 const ForwardTokenCursor = require("./forward-token-cursor");
 const PaddedTokenCursor = require("./padded-token-cursor");
+const utils = require("./utils");
 const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
@@ -558,6 +559,26 @@ module.exports = class TokenStore {
             padding,
             padding
         ).getAllTokens();
+    }
+
+    //--------------------------------------------------------------------------
+    // Others.
+    //--------------------------------------------------------------------------
+
+    /**
+     * Checks whether any comments exist or not between the given 2 nodes.
+     *
+     * @param {ASTNode} left - The node to check.
+     * @param {ASTNode} right - The node to check.
+     * @returns {boolean} `true` if one or more comments exist.
+     */
+    commentsExistBetween(left, right) {
+        const index = utils.search(this[COMMENTS], left.range[1]);
+
+        return (
+            index < this[COMMENTS].length &&
+            this[COMMENTS][index].range[1] <= right.range[0]
+        );
     }
 
     /**

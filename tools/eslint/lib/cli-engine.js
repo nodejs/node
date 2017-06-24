@@ -23,11 +23,9 @@ const fs = require("fs"),
     Config = require("./config"),
     fileEntryCache = require("file-entry-cache"),
     globUtil = require("./util/glob-util"),
-    SourceCodeFixer = require("./util/source-code-fixer"),
     validator = require("./config/config-validator"),
     stringify = require("json-stable-stringify"),
     hash = require("./util/hash"),
-
     pkg = require("../package.json");
 
 const debug = require("debug")("eslint:cli-engine");
@@ -133,80 +131,6 @@ function calculateStatsPerRun(results) {
 }
 
 /**
- * Performs multiple autofix passes over the text until as many fixes as possible
- * have been applied.
- * @param {string} text The source text to apply fixes to.
- * @param {Object} config The ESLint config object to use.
- * @param {Object} options The ESLint options object to use.
- * @param {string} options.filename The filename from which the text was read.
- * @param {boolean} options.allowInlineConfig Flag indicating if inline comments
- *      should be allowed.
- * @param {Linter} linter Linter context
- * @returns {Object} The result of the fix operation as returned from the
- *      SourceCodeFixer.
- * @private
- */
-function multipassFix(text, config, options, linter) {
-    const MAX_PASSES = 10;
-    let messages = [],
-        fixedResult,
-        fixed = false,
-        passNumber = 0;
-
-    /**
-     * This loop continues until one of the following is true:
-     *
-     * 1. No more fixes have been applied.
-     * 2. Ten passes have been made.
-     *
-     * That means anytime a fix is successfully applied, there will be another pass.
-     * Essentially, guaranteeing a minimum of two passes.
-     */
-    do {
-        passNumber++;
-
-        debug(`Linting code for ${options.filename} (pass ${passNumber})`);
-        messages = linter.verify(text, config, options);
-
-        debug(`Generating fixed text for ${options.filename} (pass ${passNumber})`);
-        fixedResult = SourceCodeFixer.applyFixes(linter.getSourceCode(), messages);
-
-        // stop if there are any syntax errors.
-        // 'fixedResult.output' is a empty string.
-        if (messages.length === 1 && messages[0].fatal) {
-            break;
-        }
-
-        // keep track if any fixes were ever applied - important for return value
-        fixed = fixed || fixedResult.fixed;
-
-        // update to use the fixed output instead of the original text
-        text = fixedResult.output;
-
-    } while (
-        fixedResult.fixed &&
-        passNumber < MAX_PASSES
-    );
-
-
-    /*
-     * If the last result had fixes, we need to lint again to be sure we have
-     * the most up-to-date information.
-     */
-    if (fixedResult.fixed) {
-        fixedResult.messages = linter.verify(text, config, options);
-    }
-
-
-    // ensure the last result properly reflects if fixes were done
-    fixedResult.fixed = fixed;
-    fixedResult.output = text;
-
-    return fixedResult;
-
-}
-
-/**
  * Processes an source code using ESLint.
  * @param {string} text The source code to check.
  * @param {Object} configHelper The configuration options for ESLint.
@@ -269,10 +193,10 @@ function processText(text, configHelper, filename, fix, allowInlineConfig, linte
     } else {
 
         if (fix) {
-            fixedResult = multipassFix(text, config, {
+            fixedResult = linter.verifyAndFix(text, config, {
                 filename,
                 allowInlineConfig
-            }, linter);
+            });
             messages = fixedResult.messages;
         } else {
             messages = linter.verify(text, config, {
@@ -394,7 +318,7 @@ function getCacheFile(cacheFile, cwd) {
     cacheFile = path.normalize(cacheFile);
 
     const resolvedCacheFile = path.resolve(cwd, cacheFile);
-    const looksLikeADirectory = cacheFile[cacheFile.length - 1 ] === path.sep;
+    const looksLikeADirectory = cacheFile[cacheFile.length - 1] === path.sep;
 
     /**
      * return the name for the cache file in case the provided parameter is a directory
@@ -474,15 +398,17 @@ class CLIEngine {
         this.options = options;
         this.linter = new Linter();
 
-        const cacheFile = getCacheFile(this.options.cacheLocation || this.options.cacheFile, this.options.cwd);
+        if (options.cache) {
+            const cacheFile = getCacheFile(this.options.cacheLocation || this.options.cacheFile, this.options.cwd);
 
-        /**
-         * Cache used to avoid operating on files that haven't changed since the
-         * last successful execution (e.g., file passed linting with no errors and
-         * no warnings).
-         * @type {Object}
-         */
-        this._fileCache = fileEntryCache.create(cacheFile);
+            /**
+             * Cache used to avoid operating on files that haven't changed since the
+             * last successful execution (e.g., file passed linting with no errors and
+             * no warnings).
+             * @type {Object}
+             */
+            this._fileCache = fileEntryCache.create(cacheFile);
+        }
 
         // load in additional rules
         if (this.options.rulePaths) {
@@ -571,6 +497,11 @@ class CLIEngine {
             fileCache = this._fileCache,
             configHelper = this.config;
         let prevConfig; // the previous configuration used
+        const cacheFile = getCacheFile(this.options.cacheLocation || this.options.cacheFile, this.options.cwd);
+
+        if (!options.cache && fs.existsSync(cacheFile)) {
+            fs.unlinkSync(cacheFile);
+        }
 
         /**
          * Calculates the hash of the config file used to validate a given file
@@ -646,8 +577,6 @@ class CLIEngine {
                     // move to the next file
                     return;
                 }
-            } else {
-                fileCache.destroy();
             }
 
             debug(`Processing ${filename}`);
