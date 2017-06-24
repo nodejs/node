@@ -108,12 +108,7 @@ Prompt.prototype.onEnd = function (state) {
 
 Prompt.prototype.onError = function (state) {
   this.render(state.isValid);
-  this.rl.output.unmute();
 };
-
-/**
- * When user type
- */
 
 Prompt.prototype.onKeypress = function () {
   this.render();
