@@ -2,7 +2,6 @@
 
 var entities = require('character-entities-html4');
 var legacy = require('character-entities-legacy');
-var has = require('has');
 var hexadecimal = require('is-hexadecimal');
 var alphanumerical = require('is-alphanumerical');
 var dangerous = require('./dangerous.json');
@@ -11,6 +10,8 @@ var dangerous = require('./dangerous.json');
 module.exports = encode;
 
 encode.escape = escape;
+
+var own = {}.hasOwnProperty;
 
 /* List of enforced escapes. */
 var escapes = ['"', '\'', '<', '>', '&', '`'];
@@ -75,7 +76,7 @@ function one(char, next, options) {
 
   if (
     (shortest || options.useNamedReferences) &&
-    has(characters, char)
+    own.call(characters, char)
   ) {
     named = toNamed(characters[char], next, omit, options.attribute);
   }
@@ -97,7 +98,7 @@ function toNamed(name, next, omit, attribute) {
 
   if (
     omit &&
-    has(legacy, name) &&
+    own.call(legacy, name) &&
     dangerous.indexOf(name) === -1 &&
     (!attribute || (next && next !== '=' && !alphanumerical(next)))
   ) {

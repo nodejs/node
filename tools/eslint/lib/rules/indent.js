@@ -658,7 +658,6 @@ module.exports = {
                 while (astUtils.isOpeningParenToken(token) && token !== startToken) {
                     token = sourceCode.getTokenBefore(token);
                 }
-
                 return sourceCode.getTokenAfter(token);
             }
 
@@ -675,7 +674,6 @@ module.exports = {
             if (offset === "first" && elements.length && !elements[0]) {
                 return;
             }
-
             elements.forEach((element, index) => {
                 if (offset === "off") {
                     offsets.ignoreToken(getFirstToken(element));
@@ -816,7 +814,6 @@ module.exports = {
 
             offsets.ignoreToken(operator);
             offsets.ignoreToken(tokensAfterOperator[0]);
-            offsets.setDesiredOffset(tokensAfterOperator[0], sourceCode.getFirstToken(node), 1);
             offsets.setDesiredOffsets(tokensAfterOperator, tokensAfterOperator[0], 1);
         }
 
@@ -882,6 +879,13 @@ module.exports = {
 
                 // We only want to handle parens around expressions, so exclude parentheses that are in function parameters and function call arguments.
                 if (!parameterParens.has(leftParen) && !parameterParens.has(rightParen)) {
+                    const parenthesizedTokens = new Set(sourceCode.getTokensBetween(leftParen, rightParen));
+
+                    parenthesizedTokens.forEach(token => {
+                        if (!parenthesizedTokens.has(offsets.getFirstDependency(token))) {
+                            offsets.setDesiredOffset(token, leftParen, 1);
+                        }
+                    });
                     offsets.setDesiredOffset(sourceCode.getTokenAfter(leftParen), leftParen, 1);
                 }
 
@@ -1114,28 +1118,29 @@ module.exports = {
                 const tokenBeforeObject = sourceCode.getTokenBefore(node.object, token => astUtils.isNotOpeningParenToken(token) || parameterParens.has(token));
                 const firstObjectToken = tokenBeforeObject ? sourceCode.getTokenAfter(tokenBeforeObject) : sourceCode.ast.tokens[0];
                 const lastObjectToken = sourceCode.getTokenBefore(firstNonObjectToken);
+                const firstPropertyToken = node.computed ? firstNonObjectToken : secondNonObjectToken;
 
                 if (node.computed) {
 
                     // For computed MemberExpressions, match the closing bracket with the opening bracket.
                     offsets.matchIndentOf(firstNonObjectToken, sourceCode.getLastToken(node));
+                    offsets.setDesiredOffsets(getTokensAndComments(node.property), firstNonObjectToken, 1);
                 }
 
-                if (typeof options.MemberExpression === "number") {
-                    const firstPropertyToken = node.computed ? firstNonObjectToken : secondNonObjectToken;
+                /*
+                 * If the object ends on the same line that the property starts, match against the last token
+                 * of the object, to ensure that the MemberExpression is not indented.
+                 *
+                 * Otherwise, match against the first token of the object, e.g.
+                 * foo
+                 *   .bar
+                 *   .baz // <-- offset by 1 from `foo`
+                 */
+                const offsetBase = lastObjectToken.loc.end.line === firstPropertyToken.loc.start.line
+                    ? lastObjectToken
+                    : firstObjectToken;
 
-                    /*
-                     * If the object ends on the same line that the property starts, match against the last token
-                     * of the object, to ensure that the MemberExpression is not indented.
-                     *
-                     * Otherwise, match against the first token of the object, e.g.
-                     * foo
-                     *   .bar
-                     *   .baz // <-- offset by 1 from `foo`
-                     */
-                    const offsetBase = lastObjectToken.loc.end.line === firstPropertyToken.loc.start.line
-                        ? lastObjectToken
-                        : firstObjectToken;
+                if (typeof options.MemberExpression === "number") {
 
                     // Match the dot (for non-computed properties) or the opening bracket (for computed properties) against the object.
                     offsets.setDesiredOffset(firstNonObjectToken, offsetBase, options.MemberExpression);
@@ -1150,6 +1155,9 @@ module.exports = {
                     // If the MemberExpression option is off, ignore the dot and the first token of the property.
                     offsets.ignoreToken(firstNonObjectToken);
                     offsets.ignoreToken(secondNonObjectToken);
+
+                    // To ignore the property indentation, ensure that the property tokens depend on the ignored tokens.
+                    offsets.matchIndentOf(offsetBase, firstNonObjectToken);
                     offsets.matchIndentOf(firstNonObjectToken, secondNonObjectToken);
                 }
             },
@@ -1232,6 +1240,7 @@ module.exports = {
                     offsets.ignoreToken(equalOperator);
                     offsets.ignoreToken(tokenAfterOperator);
                     offsets.matchIndentOf(equalOperator, tokenAfterOperator);
+                    offsets.matchIndentOf(sourceCode.getFirstToken(node), equalOperator);
                 }
             },
 
