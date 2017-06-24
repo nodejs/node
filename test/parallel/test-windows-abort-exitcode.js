@@ -16,7 +16,7 @@ if (process.argv[2] === 'child') {
 } else {
   const child = spawn(process.execPath, [__filename, 'child']);
   child.on('exit', common.mustCall((code, signal) => {
-    assert.strictEqual(code, 3);
+    assert.strictEqual(code, 134);
     assert.strictEqual(signal, null);
   }));
 }
