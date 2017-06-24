@@ -1,50 +1,28 @@
 {
-  "_args": [
-    [
-      {
-        "raw": "eslint",
-        "scope": null,
-        "escapedName": "eslint",
-        "name": "eslint",
-        "rawSpec": "",
-        "spec": "latest",
-        "type": "tag"
-      },
-      "/Users/trott/io.js/tools"
-    ]
-  ],
-  "_from": "eslint@latest",
-  "_id": "eslint@4.0.0",
-  "_inCache": true,
+  "_from": "eslint@4.1.0",
+  "_id": "eslint@4.1.0",
+  "_inBundle": false,
+  "_integrity": "sha1-u7VaKCIO4Itp2pVU1FprLr/X2RM=",
   "_location": "/eslint",
-  "_nodeVersion": "6.10.3",
-  "_npmOperationalInternal": {
-    "host": "s3://npm-registry-packages",
-    "tmp": "tmp/eslint-4.0.0.tgz_1497230482786_0.8626390695571899"
-  },
-  "_npmUser": {
-    "name": "eslint",
-    "email": "nicholas+eslint@nczconsulting.com"
-  },
-  "_npmVersion": "4.5.0",
   "_phantomChildren": {},
   "_requested": {
-    "raw": "eslint",
-    "scope": null,
-    "escapedName": "eslint",
+    "type": "version",
+    "registry": true,
+    "raw": "eslint@4.1.0",
     "name": "eslint",
-    "rawSpec": "",
-    "spec": "latest",
-    "type": "tag"
+    "escapedName": "eslint",
+    "rawSpec": "4.1.0",
+    "saveSpec": null,
+    "fetchSpec": "4.1.0"
   },
   "_requiredBy": [
-    "#USER"
+    "#USER",
+    "/"
   ],
-  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-4.0.0.tgz",
-  "_shasum": "7277c01437fdf41dccd168d5aa0e49b75ca1f260",
-  "_shrinkwrap": null,
-  "_spec": "eslint",
-  "_where": "/Users/trott/io.js/tools",
+  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-4.1.0.tgz",
+  "_shasum": "bbb55a28220ee08b69da9554d45a6b2ebfd7d913",
+  "_spec": "eslint@4.1.0",
+  "_where": "/Users/trott/io.js/tools/eslint-tmp",
   "author": {
     "name": "Nicholas C. Zakas",
     "email": "nicholas+npm@nczconsulting.com"
@@ -55,13 +33,14 @@
   "bugs": {
     "url": "https://github.com/eslint/eslint/issues/"
   },
+  "bundleDependencies": false,
   "dependencies": {
     "babel-code-frame": "^6.22.0",
     "chalk": "^1.1.3",
     "concat-stream": "^1.6.0",
     "debug": "^2.6.8",
     "doctrine": "^2.0.0",
-    "eslint-plugin-markdown": "^1.0.0-beta.7",
+    "eslint-plugin-markdown": "^1.0.0-beta.4",
     "eslint-scope": "^3.7.1",
     "espree": "^3.4.3",
     "esquery": "^1.0.0",
@@ -79,6 +58,7 @@
     "json-stable-stringify": "^1.0.1",
     "levn": "^0.3.0",
     "lodash": "^4.17.4",
+    "minimatch": "^3.0.2",
     "mkdirp": "^0.5.1",
     "natural-compare": "^1.4.0",
     "optionator": "^0.8.2",
@@ -90,6 +70,7 @@
     "table": "^4.0.1",
     "text-table": "~0.2.0"
   },
+  "deprecated": false,
   "description": "An AST-based pattern checker for JavaScript.",
   "devDependencies": {
     "babel-polyfill": "^6.23.0",
@@ -130,11 +111,6 @@
     "temp": "^0.8.3",
     "through": "^2.3.8"
   },
-  "directories": {},
-  "dist": {
-    "shasum": "7277c01437fdf41dccd168d5aa0e49b75ca1f260",
-    "tarball": "https://registry.npmjs.org/eslint/-/eslint-4.0.0.tgz"
-  },
   "engines": {
     "node": ">=4"
   },
@@ -146,7 +122,6 @@
     "lib",
     "messages"
   ],
-  "gitHead": "c61194f9440981d6c858525273e5c469bdd98290",
   "homepage": "http://eslint.org",
   "keywords": [
     "ast",
@@ -157,47 +132,7 @@
   ],
   "license": "MIT",
   "main": "./lib/api.js",
-  "maintainers": [
-    {
-      "name": "btmills",
-      "email": "mills.brandont@gmail.com"
-    },
-    {
-      "name": "eslint",
-      "email": "nicholas+eslint@nczconsulting.com"
-    },
-    {
-      "name": "gyandeeps",
-      "email": "gyandeeps@gmail.com"
-    },
-    {
-      "name": "ivolodin",
-      "email": "ivolodin@gmail.com"
-    },
-    {
-      "name": "kaicataldo",
-      "email": "kaicataldo@gmail.com"
-    },
-    {
-      "name": "mysticatea",
-      "email": "star.ctor@gmail.com"
-    },
-    {
-      "name": "not-an-aardvark",
-      "email": "notaardvark@gmail.com"
-    },
-    {
-      "name": "nzakas",
-      "email": "nicholas@nczconsulting.com"
-    },
-    {
-      "name": "sharpbites",
-      "email": "alberto.email@gmail.com"
-    }
-  ],
   "name": "eslint",
-  "optionalDependencies": {},
-  "readme": "ERROR: No README data found!",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/eslint/eslint.git"
@@ -217,5 +152,5 @@
     "release": "node Makefile.js release",
     "test": "node Makefile.js test"
   },
-  "version": "4.0.0"
+  "version": "4.1.0"
 }

@@ -8,6 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
+const assert = require("assert");
 const ruleFixer = require("./util/rule-fixer");
 
 //------------------------------------------------------------------------------
@@ -59,6 +60,75 @@ const PASSTHROUGHS = [
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/**
+ * Compares items in a fixes array by range.
+ * @param {Fix} a The first message.
+ * @param {Fix} b The second message.
+ * @returns {int} -1 if a comes before b, 1 if a comes after b, 0 if equal.
+ * @private
+ */
+function compareFixesByRange(a, b) {
+    return a.range[0] - b.range[0] || a.range[1] - b.range[1];
+}
+
+/**
+ * Merges the given fixes array into one.
+ * @param {Fix[]} fixes The fixes to merge.
+ * @param {SourceCode} sourceCode The source code object to get the text between fixes.
+ * @returns {void}
+ */
+function mergeFixes(fixes, sourceCode) {
+    if (fixes.length === 0) {
+        return null;
+    }
+    if (fixes.length === 1) {
+        return fixes[0];
+    }
+
+    fixes.sort(compareFixesByRange);
+
+    const originalText = sourceCode.text;
+    const start = fixes[0].range[0];
+    const end = fixes[fixes.length - 1].range[1];
+    let text = "";
+    let lastPos = Number.MIN_SAFE_INTEGER;
+
+    for (const fix of fixes) {
+        assert(fix.range[0] >= lastPos, "Fix objects must not be overlapped in a report.");
+
+        if (fix.range[0] >= 0) {
+            text += originalText.slice(Math.max(0, start, lastPos), fix.range[0]);
+        }
+        text += fix.text;
+        lastPos = fix.range[1];
+    }
+    text += originalText.slice(Math.max(0, start, lastPos), end);
+
+    return { range: [start, end], text };
+}
+
+/**
+ * Gets one fix object from the given descriptor.
+ * If the descriptor retrieves multiple fixes, this merges those to one.
+ * @param {Object} descriptor The report descriptor.
+ * @param {SourceCode} sourceCode The source code object to get text between fixes.
+ * @returns {Fix} The got fix object.
+ */
+function getFix(descriptor, sourceCode) {
+    if (typeof descriptor.fix !== "function") {
+        return null;
+    }
+
+    // @type {null | Fix | Fix[] | IterableIterator<Fix>}
+    const fix = descriptor.fix(ruleFixer);
+
+    // Merge to one.
+    if (fix && Symbol.iterator in fix) {
+        return mergeFixes(Array.from(fix), sourceCode);
+    }
+    return fix;
+}
 
 /**
  * Rule context class
@@ -120,12 +190,7 @@ class RuleContext {
         // check to see if it's a new style call
         if (arguments.length === 1) {
             const descriptor = nodeOrDescriptor;
-            let fix = null;
-
-            // if there's a fix specified, get it
-            if (typeof descriptor.fix === "function") {
-                fix = descriptor.fix(ruleFixer);
-            }
+            const fix = getFix(descriptor, this.getSourceCode());
 
             this.eslint.report(
                 this.id,
