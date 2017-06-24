@@ -10,3 +10,4 @@ rules:
                   MemberExpression: off,
                   ObjectExpression: first,
                   SwitchCase: 1}]
+  indent-legacy: 0
