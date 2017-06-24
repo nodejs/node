@@ -2,12 +2,12 @@
 
 Encode HTML character references and character entities.
 
-*   [x] Very fast;
-*   [x] Just the encoding part;
+*   [x] Very fast
+*   [x] Just the encoding part
 *   [x] Reliable: ``'`'`` characters are escaped to ensure no scripts
     run in IE6-8.  Additionally, only named entities recognised by HTML4
     are encoded, meaning the infamous `&apos;` (which people think is a
-    [virus][]) won’t show up.
+    [virus][]) won’t show up
 
 ## Algorithm
 

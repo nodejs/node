@@ -14,12 +14,12 @@ module.exports = str => {
 	for (let i = 0; i < str.length; i++) {
 		const code = str.codePointAt(i);
 
-		// ignore control characters
-		if (code <= 0x1f || (code >= 0x7f && code <= 0x9f)) {
+		// Ignore control characters
+		if (code <= 0x1F || (code >= 0x7F && code <= 0x9F)) {
 			continue;
 		}
 
-		// surrogates
+		// Surrogates
 		if (code >= 0x10000) {
 			i++;
 		}
