@@ -174,8 +174,7 @@ goto run
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-echo configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG%
-python configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG%
+call :run-python configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
@@ -340,8 +339,7 @@ if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
-echo running 'python tools\test.py %test_args%'
-python tools\test.py %test_args%
+call :run-python tools\test.py %test_args%
 goto jslint
 
 :jslint
@@ -377,6 +375,14 @@ echo   vcbuild.bat build-release  : builds the release distribution as used by n
 echo   vcbuild.bat enable-vtune   : builds nodejs with Intel VTune profiling support to profile JavaScript
 goto exit
 
+:run-python
+call tools\msvs\find_python.cmd
+if errorlevel 1 echo Could not find python2 & goto :exit
+set cmd1=%VCBUILD_PYTHON_LOCATION% %*
+echo %cmd1%
+%cmd1%
+exit /b %ERRORLEVEL%
+
 :exit
 goto :EOF
 
@@ -388,8 +394,9 @@ rem ***************
 set NODE_VERSION=
 set TAG=
 set FULLVERSION=
-
-for /F "usebackq tokens=*" %%i in (`python "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
+:: Call as subroutine for validation of python
+call :run-python tools\getnodeversion.py > nul
+for /F "tokens=*" %%i in ('%VCBUILD_PYTHON_LOCATION% tools\getnodeversion.py') do set NODE_VERSION=%%i
 if not defined NODE_VERSION (
   echo Cannot determine current version of Node.js
   exit /b 1
@@ -398,7 +405,7 @@ if not defined NODE_VERSION (
 if not defined DISTTYPE set DISTTYPE=release
 if "%DISTTYPE%"=="release" (
   set FULLVERSION=%NODE_VERSION%
-  goto exit
+  exit /b 0
 )
 if "%DISTTYPE%"=="custom" (
   if not defined CUSTOMTAG (
@@ -425,7 +432,4 @@ if not "%DISTTYPE%"=="custom" (
   set TAG=%DISTTYPE%%DATESTRING%%COMMIT%
 )
 set FULLVERSION=%NODE_VERSION%-%TAG%
-
-:exit
-if not defined DISTTYPEDIR set DISTTYPEDIR=%DISTTYPE%
-goto :EOF
+exit /b 0
