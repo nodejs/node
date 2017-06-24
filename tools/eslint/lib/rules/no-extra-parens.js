@@ -44,7 +44,8 @@ module.exports = {
                                 conditionalAssign: { type: "boolean" },
                                 nestedBinaryExpressions: { type: "boolean" },
                                 returnAssign: { type: "boolean" },
-                                ignoreJSX: { enum: ["none", "all", "single-line", "multi-line"] }
+                                ignoreJSX: { enum: ["none", "all", "single-line", "multi-line"] },
+                                enforceForArrowConditionals: { type: "boolean" }
                             },
                             additionalProperties: false
                         }
@@ -67,6 +68,9 @@ module.exports = {
         const NESTED_BINARY = ALL_NODES && context.options[1] && context.options[1].nestedBinaryExpressions === false;
         const EXCEPT_RETURN_ASSIGN = ALL_NODES && context.options[1] && context.options[1].returnAssign === false;
         const IGNORE_JSX = ALL_NODES && context.options[1] && context.options[1].ignoreJSX;
+        const IGNORE_ARROW_CONDITIONALS = ALL_NODES && context.options[1] &&
+            context.options[1].enforceForArrowConditionals === false;
+
         const PRECEDENCE_OF_ASSIGNMENT_EXPR = precedence({ type: "AssignmentExpression" });
         const PRECEDENCE_OF_UPDATE_EXPR = precedence({ type: "UpdateExpression" });
 
@@ -445,6 +449,13 @@ module.exports = {
 
             ArrowFunctionExpression(node) {
                 if (isReturnAssignException(node)) {
+                    return;
+                }
+
+                if (node.body.type === "ConditionalExpression" &&
+                    IGNORE_ARROW_CONDITIONALS &&
+                    !isParenthesisedTwice(node.body)
+                ) {
                     return;
                 }
 

@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------------
 
 const schemaValidator = require("is-my-json-valid"),
-    configSchema = require("../../conf/config-schema.json"),
+    configSchema = require("../../conf/config-schema.js"),
     util = require("util");
 
 const validators = {
@@ -170,7 +170,7 @@ function formatErrors(errors) {
 
             return `Property "${formattedField}" is the wrong type (expected ${formattedExpectedType} but got \`${formattedValue}\`)`;
         }
-        return `"${error.field.replace(/^(data\.)/, "")}" ${error.message}. Value: ${error.value}`;
+        return `"${error.field.replace(/^(data\.)/, "")}" ${error.message}. Value: ${JSON.stringify(error.value)}`;
     }).map(message => `\t- ${message}.\n`).join("");
 }
 

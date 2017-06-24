@@ -57,6 +57,20 @@ function installSyncSaveDev(packages) {
 }
 
 /**
+ * Fetch `peerDependencies` of the given package by `npm show` command.
+ * @param {string} packageName The package name to fetch peerDependencies.
+ * @returns {string[]} Gotten peerDependencies.
+ */
+function fetchPeerDependencies(packageName) {
+    const fetchedText = childProcess.execSync(
+        `npm show --json ${packageName} peerDependencies`,
+        { encoding: "utf8" }
+    ).trim();
+
+    return JSON.parse(fetchedText || "{}");
+}
+
+/**
  * Check whether node modules are include in a project's package.json.
  *
  * @param   {string[]} packages           Array of node module names
@@ -140,6 +154,7 @@ function checkPackageJson(startDir) {
 
 module.exports = {
     installSyncSaveDev,
+    fetchPeerDependencies,
     checkDeps,
     checkDevDeps,
     checkPackageJson
