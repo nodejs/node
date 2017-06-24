@@ -30,6 +30,9 @@ module.exports = {
                 properties: {
                     skipBlankLines: {
                         type: "boolean"
+                    },
+                    ignoreComments: {
+                        type: "boolean"
                     }
                 },
                 additionalProperties: false
@@ -45,7 +48,8 @@ module.exports = {
             NONBLANK = `${BLANK_CLASS}+$`;
 
         const options = context.options[0] || {},
-            skipBlankLines = options.skipBlankLines || false;
+            skipBlankLines = options.skipBlankLines || false,
+            ignoreComments = typeof options.ignoreComments === "undefined" || options.ignoreComments;
 
         /**
          * Report the error message
@@ -72,6 +76,22 @@ module.exports = {
             });
         }
 
+        /**
+         * Given a list of comment nodes, return the line numbers for those comments.
+         * @param {Array} comments An array of comment nodes.
+         * @returns {number[]} An array of line numbers containing comments.
+         */
+        function getCommentLineNumbers(comments) {
+            const lines = new Set();
+
+            comments.forEach(comment => {
+                for (let i = comment.loc.start.line; i <= comment.loc.end.line; i++) {
+                    lines.add(i);
+                }
+            });
+
+            return lines;
+        }
 
         //--------------------------------------------------------------------------
         // Public
@@ -87,7 +107,10 @@ module.exports = {
                 const re = new RegExp(NONBLANK),
                     skipMatch = new RegExp(SKIP_BLANK),
                     lines = sourceCode.lines,
-                    linebreaks = sourceCode.getText().match(astUtils.createGlobalLinebreakMatcher());
+                    linebreaks = sourceCode.getText().match(astUtils.createGlobalLinebreakMatcher()),
+                    comments = sourceCode.getAllComments(),
+                    commentLineNumbers = getCommentLineNumbers(comments);
+
                 let totalLength = 0,
                     fixRange = [];
 
@@ -125,7 +148,10 @@ module.exports = {
                         }
 
                         fixRange = [rangeStart, rangeEnd];
-                        report(node, location, fixRange);
+
+                        if (!ignoreComments || !commentLineNumbers.has(location.line)) {
+                            report(node, location, fixRange);
+                        }
                     }
 
                     totalLength += lineLength;
