@@ -13,9 +13,8 @@ exports.PORT = process.env.PORT || 12346;
 class AutocannonBenchmarker {
   constructor() {
     this.name = 'autocannon';
-    this.executable = process.platform === 'win32' ?
-                      'autocannon.cmd' :
-                      'autocannon';
+    this.executable =
+      process.platform === 'win32' ? 'autocannon.cmd' : 'autocannon';
     const result = child_process.spawnSync(this.executable, ['-h']);
     this.present = !(result.error && result.error.code === 'ENOENT');
   }
@@ -136,19 +135,19 @@ exports.run = function(options, callback) {
     benchmarker: exports.default_http_benchmarker
   }, options);
   if (!options.benchmarker) {
-    callback(new Error(`Could not locate required http benchmarker. See ${
-                        requirementsURL} for further instructions.`));
+    callback(new Error('Could not locate required http benchmarker. See ' +
+                       `${requirementsURL} for further instructions.`));
     return;
   }
   const benchmarker = benchmarkers[options.benchmarker];
   if (!benchmarker) {
-    callback(new Error(`Requested benchmarker '${
-                        options.benchmarker}' is  not supported`));
+    callback(new Error(`Requested benchmarker '${options.benchmarker}' ` +
+                       'is  not supported'));
     return;
   }
   if (!benchmarker.present) {
-    callback(new Error(`Requested benchmarker '${
-                        options.benchmarker}' is  not installed`));
+    callback(new Error(`Requested benchmarker '${options.benchmarker}' ` +
+                       'is  not installed'));
     return;
   }
 

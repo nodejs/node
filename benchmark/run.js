@@ -11,9 +11,7 @@ const cli = CLI(`usage: ./node run.js [options] [--] <category> ...
   --filter pattern          string to filter benchmark scripts
   --set    variable=value   set benchmark variable (can be repeated)
   --format [simple|csv]     optional value that specifies the output format
-`, {
-  arrayArgs: ['set']
-});
+`, { arrayArgs: ['set'] });
 const benchmarks = cli.benchmarks();
 
 if (benchmarks.length === 0) {
