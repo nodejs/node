@@ -2,8 +2,6 @@
 require('../common');
 const assert = require('assert');
 
-const Buffer = require('buffer').Buffer;
-
 const b = Buffer.from('abcdef');
 const buf_a = Buffer.from('a');
 const buf_bc = Buffer.from('bc');
