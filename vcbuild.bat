@@ -15,7 +15,7 @@ if /i "%1"=="/?" goto help
 set config=Release
 set target=Build
 set target_arch=x64
-set target_env=vs2015
+set target_env=
 set noprojgen=
 set nobuild=
 set sign=
@@ -164,18 +164,18 @@ if %target_arch%==x64 if %msvs_host_arch%==amd64 set vcvarsall_arg=amd64
 
 @rem Look for Visual Studio 2017
 :vs-set-2017
-if "%target_env%" NEQ "vs2017" goto vs-set-2015
+if defined target_env if "%target_env%" NEQ "vs2017" goto vs-set-2015
 echo Looking for Visual Studio 2017
 @rem check if VS2017 is already setup, and for the requested arch
 if "_%VisualStudioVersion%_" == "_15.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2017
+@rem need to clear VSINSTALLDIR for vcvarsall to work as expected
 set "VSINSTALLDIR="
 call tools\msvs\vswhere_usability_wrapper.cmd
 if "_%VCINSTALLDIR%_" == "__" goto vs-set-2015
-@rem need to clear VSINSTALLDIR for vcvarsall to work as expected
 set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
 echo calling: %vcvars_call%
 call %vcvars_call%
-
+if errorlevel 1 goto vs-set-2015
 :found_vs2017
 echo Found MSVS version %VisualStudioVersion%
 set GYP_MSVS_VERSION=2017
@@ -184,11 +184,10 @@ goto msbuild-found
 
 @rem Look for Visual Studio 2015
 :vs-set-2015
-if "%target_env%" NEQ "vs2015" goto msbuild-not-found
+if defined target_env if "%target_env%" NEQ "vs2015" goto msbuild-not-found
 echo Looking for Visual Studio 2015
 if not defined VS140COMNTOOLS goto msbuild-not-found
 if not exist "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
-echo Found Visual Studio 2015
 if defined msi (
   echo Looking for WiX installation for Visual Studio 2015...
   if not exist "%WIX%\SDK\VS2015" (
@@ -201,6 +200,8 @@ if defined msi (
 call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat"
 SET VCVARS_VER=140
 if not defined VCINSTALLDIR goto msbuild-not-found
+@rem Visual C++ Build Tools 2015 does not define VisualStudioVersion
+echo Found MSVS version 14.0
 set GYP_MSVS_VERSION=2015
 set PLATFORM_TOOLSET=v140
 goto msbuild-found
