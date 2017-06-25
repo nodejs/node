@@ -466,7 +466,7 @@ path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb');
 // Returns: '..\\..\\impl\\bbb'
 ```
 
-A [`TypeError`][] is thrown if neither `from` nor `to` is a string.
+A [`TypeError`][] is thrown if either `from` or `to` is not a string.
 
 ## path.resolve([...paths])
 <!-- YAML
