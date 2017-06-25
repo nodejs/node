@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+
 const assert = require('assert');
 const cluster = require('cluster');
 
@@ -14,7 +15,7 @@ function forEach(obj, fn) {
 
 
 if (cluster.isWorker) {
-  require('http').Server(common.noop).listen(0, '127.0.0.1');
+  require('http').Server(common.mustNotCall()).listen(0, '127.0.0.1');
 } else if (cluster.isMaster) {
 
   const checks = {
