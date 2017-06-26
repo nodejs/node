@@ -9,7 +9,7 @@ const { spawnSync } = require('child_process');
 
 const expected =
     'could not initialize ICU ' +
-    '(check NODE_ICU_DATA or --icu-data-dir parameters)';
+    '(check NODE_ICU_DATA or --icu-data-dir parameters)\n';
 
 {
   const child = spawnSync(process.execPath, ['--icu-data-dir=/', '-e', '0']);
