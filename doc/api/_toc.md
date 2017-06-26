@@ -26,6 +26,7 @@
 * [HTTP](http.html)
 * [HTTPS](https.html)
 * [Inspector](inspector.html)
+* [Internationalization](intl.html)
 * [Modules](modules.html)
 * [Net](net.html)
 * [OS](os.html)
