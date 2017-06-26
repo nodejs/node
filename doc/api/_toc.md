@@ -22,6 +22,7 @@
 * [Globals](globals.html)
 * [HTTP](http.html)
 * [HTTPS](https.html)
+* [Internationalization](intl.html)
 * [Modules](modules.html)
 * [Net](net.html)
 * [OS](os.html)
