@@ -86,6 +86,31 @@ napi_value Has(napi_env env, napi_callback_info info) {
   return ret;
 }
 
+napi_value Delete(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
+  napi_value args[2];
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+  NAPI_ASSERT(env, argc == 2, "Wrong number of arguments");
+
+  napi_valuetype valuetype0;
+  NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
+  NAPI_ASSERT(env, valuetype0 == napi_object,
+    "Wrong type of arguments. Expects an object as first argument.");
+
+  napi_valuetype valuetype1;
+  NAPI_CALL(env, napi_typeof(env, args[1], &valuetype1));
+  NAPI_ASSERT(env, valuetype1 == napi_string || valuetype1 == napi_symbol,
+    "Wrong type of arguments. Expects a string or symbol as second.");
+
+  bool result;
+  napi_value ret;
+  NAPI_CALL(env, napi_delete_property(env, args[0], args[1], &result));
+  NAPI_CALL(env, napi_get_boolean(env, result, &ret));
+
+  return ret;
+}
+
 napi_value New(napi_env env, napi_callback_info info) {
   napi_value ret;
   NAPI_CALL(env, napi_create_object(env, &ret));
@@ -171,6 +196,7 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("Get", Get),
     DECLARE_NAPI_PROPERTY("Set", Set),
     DECLARE_NAPI_PROPERTY("Has", Has),
+    DECLARE_NAPI_PROPERTY("Delete", Delete),
     DECLARE_NAPI_PROPERTY("New", New),
     DECLARE_NAPI_PROPERTY("Inflate", Inflate),
     DECLARE_NAPI_PROPERTY("Wrap", Wrap),
