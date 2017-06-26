@@ -18,6 +18,7 @@
 @include globals
 @include http
 @include https
+@include intl
 @include modules
 @include net
 @include os
