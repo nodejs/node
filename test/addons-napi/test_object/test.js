@@ -120,3 +120,47 @@ assert.strictEqual(newObject.test_string, 'test string');
   assert(wrapper.protoA, true);
   assert(wrapper.protoB, true);
 }
+
+{
+  // Verify that normal and nonexistent properties can be deleted.
+  const sym = Symbol();
+  const obj = { foo: 'bar', [sym]: 'baz' };
+
+  assert.strictEqual('foo' in obj, true);
+  assert.strictEqual(sym in obj, true);
+  assert.strictEqual('does_not_exist' in obj, false);
+  assert.strictEqual(test_object.Delete(obj, 'foo'), true);
+  assert.strictEqual('foo' in obj, false);
+  assert.strictEqual(sym in obj, true);
+  assert.strictEqual('does_not_exist' in obj, false);
+  assert.strictEqual(test_object.Delete(obj, sym), true);
+  assert.strictEqual('foo' in obj, false);
+  assert.strictEqual(sym in obj, false);
+  assert.strictEqual('does_not_exist' in obj, false);
+}
+
+{
+  // Verify that non-configurable properties are not deleted.
+  const obj = {};
+
+  Object.defineProperty(obj, 'foo', { configurable: false });
+  assert.strictEqual(test_object.Delete(obj, 'foo'), false);
+  assert.strictEqual('foo' in obj, true);
+}
+
+{
+  // Verify that prototype properties are not deleted.
+  function Foo() {
+    this.foo = 'bar';
+  }
+
+  Foo.prototype.foo = 'baz';
+
+  const obj = new Foo();
+
+  assert.strictEqual(obj.foo, 'bar');
+  assert.strictEqual(test_object.Delete(obj, 'foo'), true);
+  assert.strictEqual(obj.foo, 'baz');
+  assert.strictEqual(test_object.Delete(obj, 'foo'), true);
+  assert.strictEqual(obj.foo, 'baz');
+}
