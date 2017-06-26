@@ -40,6 +40,7 @@ function disallow(opt) {
 
 const printA = require.resolve('../fixtures/printA.js');
 
+expect('--abort-on-uncaught-exception', 'B\n');
 expect(`-r ${printA}`, 'A\nB\n');
 expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
