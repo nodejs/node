@@ -601,14 +601,33 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
 // newer wide characters. wcwidth, on the other hand, uses a fixed
 // algorithm that does not take things like emoji into proper
 // consideration.
+//
+// TODO(TimothyGu): Investigate Cc (C0/C1 control codes). Both VTE (used by
+// GNOME Terminal) and Konsole don't consider them to be zero-width (see refs
+// below), and when printed in VTE it is Narrow. However GNOME Terminal doesn't
+// allow it to be input. Linux's PTY terminal prints control characters as
+// Narrow rhombi.
+//
+// TODO(TimothyGu): Investigate Hangul jamo characters. Medial vowels and final
+// consonants are 0-width when combined with initial consonants; otherwise they
+// are technically Wide. But many terminals (including Konsole and
+// VTE/GLib-based) implement all medials and finals as 0-width.
+//
+// Refs: https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/#combining-characters-and-character-width
+// Refs: https://github.com/GNOME/glib/blob/79e4d4c6be/glib/guniprop.c#L388-L420
+// Refs: https://github.com/KDE/konsole/blob/8c6a5d13c0/src/konsole_wcwidth.cpp#L101-L223
 static int GetColumnWidth(UChar32 codepoint,
                           bool ambiguous_as_full_width = false) {
-  if (!u_isdefined(codepoint) ||
-      u_iscntrl(codepoint) ||
-      u_getCombiningClass(codepoint) > 0 ||
-      u_hasBinaryProperty(codepoint, UCHAR_EMOJI_MODIFIER)) {
+  const auto zero_width_mask = U_GC_CC_MASK |  // C0/C1 control code
+                               U_GC_CF_MASK |  // Format control character
+                               U_GC_ME_MASK |  // Enclosing mark
+                               U_GC_MN_MASK;   // Nonspacing mark
+  if (codepoint != 0x00AD &&  // SOFT HYPHEN is Cf but not zero-width
+      ((U_MASK(u_charType(codepoint)) & zero_width_mask) ||
+       u_hasBinaryProperty(codepoint, UCHAR_EMOJI_MODIFIER))) {
     return 0;
   }
+
   // UCHAR_EAST_ASIAN_WIDTH is the Unicode property that identifies a
   // codepoint as being full width, wide, ambiguous, neutral, narrow,
   // or halfwidth.
