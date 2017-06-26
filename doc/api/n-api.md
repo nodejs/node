@@ -2276,6 +2276,28 @@ Returns `napi_ok` if the API succeeded.
 This API checks if the Object passed in has the named property.
 
 
+#### *napi_delete_property*
+<!-- YAML
+added: REPLACEME
+-->
+```C
+napi_status napi_delete_property(napi_env env,
+                                 napi_value object,
+                                 napi_value key,
+                                 bool* result);
+```
+
+- `[in] env`: The environment that the N-API call is invoked under.
+- `[in] object`: The object to query.
+- `[in] key`: The name of the property to delete.
+- `[out] result`: Whether the property deletion succeeded or not. `result` can
+optionally be ignored by passing `NULL`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API attempts to delete the `key` own property from `object`.
+
+
 #### *napi_set_named_property*
 <!-- YAML
 added: v8.0.0
@@ -3074,6 +3096,7 @@ support it:
 [`napi_delete_async_work`]: #n_api_napi_delete_async_work
 [`napi_define_class`]: #n_api_napi_define_class
 [`napi_delete_element`]: #n_api_napi_delete_element
+[`napi_delete_property`]: #n_api_napi_delete_property
 [`napi_delete_reference`]: #n_api_napi_delete_reference
 [`napi_escape_handle`]: #n_api_napi_escape_handle
 [`napi_get_array_length`]: #n_api_napi_get_array_length
