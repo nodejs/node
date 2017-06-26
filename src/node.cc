@@ -4425,7 +4425,7 @@ void Init(int* argc,
   // If icu_data_dir is empty here, it will load the 'minimal' data.
   if (!i18n::InitializeICUDirectory(icu_data_dir)) {
     FatalError(nullptr, "Could not initialize ICU "
-                     "(check NODE_ICU_DATA or --icu-data-dir parameters)");
+                     "(check NODE_ICU_DATA or --icu-data-dir parameters)\n");
   }
 #endif
   // The const_cast doesn't violate conceptual const-ness.  V8 doesn't modify
