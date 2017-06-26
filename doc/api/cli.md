@@ -367,6 +367,7 @@ Node options that are allowed are:
 - `--zero-fill-buffers`
 
 V8 options that are allowed are:
+- `--abort-on-uncaught-exception`
 - `--max_old_space_size`
 
 

@@ -41,7 +41,8 @@ function disallow(opt) {
 
 const printA = require.resolve('../fixtures/printA.js');
 
-expect('-r ' + printA, 'A\nB\n');
+expect(`-r ${printA}`, 'A\nB\n');
+expect('--abort-on-uncaught-exception', 'B\n');
 expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
 expect('--trace-warnings', 'B\n');
@@ -58,7 +59,7 @@ if (common.hasCrypto) {
 }
 expect('--icu-data-dir=_d', 'B\n');
 
-    // V8 options
+// V8 options
 expect('--max_old_space_size=0', 'B\n');
 
 function expect(opt, want) {
