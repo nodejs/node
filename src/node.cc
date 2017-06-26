@@ -3763,6 +3763,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--icu-data-dir",
 
     // V8 options
+    "--abort-on-uncaught-exception",
     "--max_old_space_size",
   };
 
