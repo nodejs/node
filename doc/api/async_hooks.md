@@ -564,4 +564,4 @@ never be called.
 * Returns {number} the same `triggerAsyncId` that is passed to the `AsyncResource`
 constructor.
 
-[`Hook Callbacks`]: #hook-callbacks
+[`Hook Callbacks`]: #async_hooks_hook_callbacks
