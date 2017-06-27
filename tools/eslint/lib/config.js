@@ -66,13 +66,14 @@ class Config {
         this.parser = options.parser;
         this.parserOptions = options.parserOptions || {};
 
+        this.configCache = new ConfigCache();
+
         this.baseConfig = options.baseConfig
             ? ConfigOps.merge({}, ConfigFile.loadObject(options.baseConfig, this))
             : { rules: {} };
         this.baseConfig.filePath = "";
         this.baseConfig.baseDirectory = this.options.cwd;
 
-        this.configCache = new ConfigCache();
         this.configCache.setConfig(this.baseConfig.filePath, this.baseConfig);
         this.configCache.setMergedVectorConfig(this.baseConfig.filePath, this.baseConfig);
 
