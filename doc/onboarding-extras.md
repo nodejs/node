@@ -6,6 +6,7 @@
 | --- | --- |
 | `benchmark/*` | @nodejs/benchmarking, @mscdex |
 | `bootstrap_node.js` | @fishrock123 |
+| `doc/*`, `*.md` | @nodejs/documentation |
 | `lib/assert` | @nodejs/testing |
 | `lib/buffer` | @nodejs/buffer |
 | `lib/child_process` | @bnoordhuis, @cjihrig |
