@@ -24,12 +24,12 @@ function hash(vector) {
 //------------------------------------------------------------------------------
 
 /**
- * Configuration caching class (not exported)
+ * Configuration caching class
  */
-class ConfigCache {
+module.exports = class ConfigCache {
 
     constructor() {
-        this.filePathCache = new Map();
+        this.configFullNameCache = new Map();
         this.localHierarchyCache = new Map();
         this.mergedVectorCache = new Map();
         this.mergedCache = new Map();
@@ -37,23 +37,25 @@ class ConfigCache {
 
     /**
      * Gets a config object from the cache for the specified config file path.
-     * @param {string} configFilePath the absolute path to the config file
+     * @param {string} configFullName the name of the configuration as used in the eslint config(e.g. 'plugin:node/recommended'),
+     * or the absolute path to a config file. This should uniquely identify a config.
      * @returns {Object|null} config object, if found in the cache, otherwise null
      * @private
      */
-    getConfig(configFilePath) {
-        return this.filePathCache.get(configFilePath);
+    getConfig(configFullName) {
+        return this.configFullNameCache.get(configFullName);
     }
 
     /**
      * Sets a config object in the cache for the specified config file path.
-     * @param {string} configFilePath the absolute path to the config file
+     * @param {string} configFullName the name of the configuration as used in the eslint config(e.g. 'plugin:node/recommended'),
+     * or the absolute path to a config file. This should uniquely identify a config.
      * @param {Object} config the config object to add to the cache
      * @returns {void}
      * @private
      */
-    setConfig(configFilePath, config) {
-        this.filePathCache.set(configFilePath, config);
+    setConfig(configFullName, config) {
+        this.configFullNameCache.set(configFullName, config);
     }
 
     /**
@@ -125,6 +127,4 @@ class ConfigCache {
     setMergedConfig(vector, config) {
         this.mergedCache.set(hash(vector), config);
     }
-}
-
-module.exports = ConfigCache;
+};
