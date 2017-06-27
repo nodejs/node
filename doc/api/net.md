@@ -40,7 +40,7 @@ double-backslashes, such as:
 
 ```js
 net.createServer().listen(
-    path.join('\\\\?\\pipe', process.cwd(), 'myctl'));
+  path.join('\\\\?\\pipe', process.cwd(), 'myctl'));
 ```
 
 ## Class: net.Server
