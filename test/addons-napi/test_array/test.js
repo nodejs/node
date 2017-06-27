@@ -47,3 +47,14 @@ assert(test_array.NewWithLength(0) instanceof Array);
 assert(test_array.NewWithLength(1) instanceof Array);
 // check max allowed length for an array 2^32 -1
 assert(test_array.NewWithLength(4294967295) instanceof Array);
+
+{
+  // Verify that array elements can be deleted.
+  const arr = ['a', 'b', 'c', 'd'];
+
+  assert.strictEqual(arr.length, 4);
+  assert.strictEqual(2 in arr, true);
+  assert.strictEqual(test_array.TestDeleteElement(arr, 2), true);
+  assert.strictEqual(arr.length, 4);
+  assert.strictEqual(2 in arr, false);
+}
