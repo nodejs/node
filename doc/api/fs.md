@@ -235,9 +235,10 @@ support. If `filename` is provided, it will be provided as a `Buffer` if
 ```js
 // Example when handled through fs.watch listener
 fs.watch('./tmp', { encoding: 'buffer' }, (eventType, filename) => {
-  if (filename)
+  if (filename) {
     console.log(filename);
     // Prints: <Buffer ...>
+  }
 });
 ```
 

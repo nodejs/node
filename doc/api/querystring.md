@@ -81,7 +81,7 @@ in the following example:
 // Assuming gbkDecodeURIComponent function already exists...
 
 querystring.parse('w=%D6%D0%CE%C4&foo=bar', null, null,
-  { decodeURIComponent: gbkDecodeURIComponent });
+                  { decodeURIComponent: gbkDecodeURIComponent });
 ```
 
 ## querystring.stringify(obj[, sep[, eq[, options]]])
@@ -125,7 +125,7 @@ following example:
 // Assuming gbkEncodeURIComponent function already exists,
 
 querystring.stringify({ w: '中文', foo: 'bar' }, null, null,
-  { encodeURIComponent: gbkEncodeURIComponent });
+                      { encodeURIComponent: gbkEncodeURIComponent });
 ```
 
 ## querystring.unescape(str)

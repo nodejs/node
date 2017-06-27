@@ -586,7 +586,7 @@ const aliceSecret = alice.computeSecret(bobKey);
 const bobSecret = bob.computeSecret(aliceKey);
 
 assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
-  // OK
+// OK
 ```
 
 ### ecdh.computeSecret(otherPublicKey[, inputEncoding][, outputEncoding])
@@ -746,10 +746,11 @@ const hash = crypto.createHash('sha256');
 
 hash.on('readable', () => {
   const data = hash.read();
-  if (data)
+  if (data) {
     console.log(data.toString('hex'));
     // Prints:
     //   6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50
+  }
 });
 
 hash.write('some data to hash');
@@ -836,10 +837,11 @@ const hmac = crypto.createHmac('sha256', 'a secret');
 
 hmac.on('readable', () => {
   const data = hmac.read();
-  if (data)
+  if (data) {
     console.log(data.toString('hex'));
     // Prints:
     //   7fd04df92f636fd450bc841c9418e5825c17f33ad9c87c518115a45971f7f77e
+  }
 });
 
 hmac.write('some data to hash');
