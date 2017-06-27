@@ -1142,6 +1142,26 @@ napi_status napi_get_element(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+napi_status napi_delete_element(napi_env env,
+                                napi_value object,
+                                uint32_t index,
+                                bool* result) {
+  NAPI_PREAMBLE(env);
+
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Object> obj;
+
+  CHECK_TO_OBJECT(env, context, obj, object);
+  v8::Maybe<bool> delete_maybe = obj->Delete(context, index);
+  CHECK_MAYBE_NOTHING(env, delete_maybe, napi_generic_failure);
+
+  if (result != NULL)
+    *result = delete_maybe.FromMaybe(false);
+
+  return GET_RETURN_STATUS(env);
+}
+
 napi_status napi_define_properties(napi_env env,
                                    napi_value object,
                                    size_t property_count,
