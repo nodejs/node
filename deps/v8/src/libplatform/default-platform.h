@@ -27,10 +27,6 @@ class TaskQueue;
 class Thread;
 class WorkerThread;
 
-namespace tracing {
-class TracingController;
-}
-
 class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
  public:
   explicit DefaultPlatform(
@@ -72,7 +68,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
       unsigned int flags) override;
   void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
                                 const char* name, uint64_t handle) override;
-  void SetTracingController(tracing::TracingController* tracing_controller);
+  void SetTracingController(TracingController* tracing_controller);
 
   void AddTraceStateObserver(TraceStateObserver* observer) override;
   void RemoveTraceStateObserver(TraceStateObserver* observer) override;
@@ -103,7 +99,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
            std::priority_queue<DelayedEntry, std::vector<DelayedEntry>,
                                std::greater<DelayedEntry> > >
       main_thread_delayed_queue_;
-  std::unique_ptr<tracing::TracingController> tracing_controller_;
+  std::unique_ptr<TracingController> tracing_controller_;
 
   DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);
 };
