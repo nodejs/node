@@ -13,3 +13,13 @@ rules:
   no-var: 2
   prefer-const: 2
   prefer-rest-params: 2
+
+  # use stricter indent over indent-legacy
+  indent-legacy: 0
+  indent: [2, 2, {ArrayExpression: first,
+                  CallExpression: {arguments: first},
+                  FunctionDeclaration: {parameters: first},
+                  FunctionExpression: {parameters: first},
+                  MemberExpression: off,
+                  ObjectExpression: first,
+                  SwitchCase: 1}]
