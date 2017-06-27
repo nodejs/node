@@ -15,6 +15,7 @@ programs. Some of them are:
     [`Date.prototype.toLocaleString()`][]
 - The [WHATWG URL parser][]'s [internationalized domain names][] (IDNs) support
 - [`require('buffer').transcode()`][]
+- More accurate [REPL][] line editing
 
 Node.js (and its underlying V8 engine) uses [ICU][] to implement these features
 in native C/C++ code. However, some of them require a very large ICU data file
@@ -38,17 +39,18 @@ in [BUILDING.md][].
 An overview of available Node.js and JavaScript features for each `configure`
 option:
 
-|                                         | `none`                         | `system-icu`                 | `small-icu`            | `full-icu`
-|-----------------------------------------|--------------------------------|------------------------------|------------------------|------------
-| [`String.prototype.normalize()`][]      | none (function is no-op)       | full                         | full                   | full
-| `String.prototype.to*Case()`            | full                           | full                         | full                   | full
-| [`Intl`][]                              | none (object does not exist)   | partial/full (depends on OS) | partial (English-only) | full
-| [`String.prototype.localeCompare()`][]  | partial (not locale-aware)     | full                         | full                   | full
-| `String.prototype.toLocale*Case()`      | partial (not locale-aware)     | full                         | full                   | full
-| [`Number.prototype.toLocaleString()`][] | partial (not locale-aware)     | partial/full (depends on OS) | partial (English-only) | full
-| `Date.prototype.toLocale*String()`      | partial (not locale-aware)     | partial/full (depends on OS) | partial (English-only) | full
-| [WHATWG URL Parser][]                   | partial (no IDN support)       | full                         | full                   | full
-| [`require('buffer').transcode()`][]     | none (function does not exist) | full                         | full                   | full
+|                                         | `none`                            | `system-icu`                 | `small-icu`            | `full-icu`
+|-----------------------------------------|-----------------------------------|------------------------------|------------------------|------------
+| [`String.prototype.normalize()`][]      | none (function is no-op)          | full                         | full                   | full
+| `String.prototype.to*Case()`            | full                              | full                         | full                   | full
+| [`Intl`][]                              | none (object does not exist)      | partial/full (depends on OS) | partial (English-only) | full
+| [`String.prototype.localeCompare()`][]  | partial (not locale-aware)        | full                         | full                   | full
+| `String.prototype.toLocale*Case()`      | partial (not locale-aware)        | full                         | full                   | full
+| [`Number.prototype.toLocaleString()`][] | partial (not locale-aware)        | partial/full (depends on OS) | partial (English-only) | full
+| `Date.prototype.toLocale*String()`      | partial (not locale-aware)        | partial/full (depends on OS) | partial (English-only) | full
+| [WHATWG URL Parser][]                   | partial (no IDN support)          | full                         | full                   | full
+| [`require('buffer').transcode()`][]     | none (function does not exist)    | full                         | full                   | full
+| [REPL][]                                | partial (inaccurate line editing) | full                         | full                   | full
 
 *Note*: The "(not locale-aware)" designation denotes that the function carries
 out its operation just like the non-`Locale` version of the function, if one
@@ -197,6 +199,7 @@ to be helpful:
 [`Intl.DateTimeFormat`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat
 [`NODE_ICU_DATA`]: cli.html#cli_node_icu_data_file
 [`Number.prototype.toLocaleString()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Number/toLocaleString
+[REPL]: repl.html#repl_repl
 [`require('buffer').transcode()`]: buffer.html#buffer_buffer_transcode_source_fromenc_toenc
 [`String.prototype.localeCompare()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/String/localeCompare
 [`String.prototype.normalize()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/String/normalize
