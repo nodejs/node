@@ -220,8 +220,8 @@ class OffsetStorage {
 
     /**
      * Sets the offset column of token B to match the offset column of token A.
-     * This is different from matchIndentOf because it matches a *column*, even if baseToken is not
-     * the first token on its line.
+     * **WARNING**: This is different from matchIndentOf because it matches a *column*, even if baseToken is not
+     * the first token on its line. In most cases, `matchIndentOf` should be used instead.
      * @param {Token} baseToken The first token
      * @param {Token} offsetToken The second token, whose offset should be matched to the first token
      * @returns {void}
@@ -239,12 +239,62 @@ class OffsetStorage {
     }
 
     /**
-    * Sets the desired offset of a token
-    * @param {Token} token The token
-    * @param {Token} offsetFrom The token that this is offset from
-    * @param {number} offset The desired indent level
-    * @returns {void}
-    */
+     * Sets the desired offset of a token.
+     *
+     * This uses a line-based offset collapsing behavior to handle tokens on the same line.
+     * For example, consider the following two cases:
+     *
+     * (
+     *     [
+     *         bar
+     *     ]
+     * )
+     *
+     * ([
+     *     bar
+     * ])
+     *
+     * Based on the first case, it's clear that the `bar` token needs to have an offset of 1 indent level (4 spaces) from
+     * the `[` token, and the `[` token has to have an offset of 1 indent level from the `(` token. Since the `(` token is
+     * the first on its line (with an indent of 0 spaces), the `bar` token needs to be offset by 2 indent levels (8 spaces)
+     * from the start of its line.
+     *
+     * However, in the second case `bar` should only be indented by 4 spaces. This is because the offset of 1 indent level
+     * between the `(` and the `[` tokens gets "collapsed" because the two tokens are on the same line. As a result, the
+     * `(` token is mapped to the `[` token with an offset of 0, and the rule correctly decides that `bar` should be indented
+     * by 1 indent level from the start of the line.
+     *
+     * This is useful because rule listeners can usually just call `setDesiredOffset` for all the tokens in the node,
+     * without needing to check which lines those tokens are on.
+     *
+     * Note that since collapsing only occurs when two tokens are on the same line, there are a few cases where non-intuitive
+     * behavior can occur. For example, consider the following cases:
+     *
+     * foo(
+     * ).
+     *     bar(
+     *         baz
+     *     )
+     *
+     * foo(
+     * ).bar(
+     *     baz
+     * )
+     *
+     * Based on the first example, it would seem that `bar` should be offset by 1 indent level from `foo`, and `baz`
+     * should be offset by 1 indent level from `bar`. However, this is not correct, because it would result in `baz`
+     * being indented by 2 indent levels in the second case (since `foo`, `bar`, and `baz` are all on separate lines, no
+     * collapsing would occur).
+     *
+     * Instead, the correct way would be to offset `baz` by 1 level from `bar`, offset `bar` by 1 level from the `)`, and
+     * offset the `)` by 0 levels from `foo`. This ensures that the offset between `bar` and the `)` are correctly collapsed
+     * in the second case.
+     *
+     * @param {Token} token The token
+     * @param {Token} offsetFrom The token that `token` should be offset from
+     * @param {number} offset The desired indent level
+     * @returns {void}
+     */
     setDesiredOffset(token, offsetFrom, offset) {
         if (offsetFrom && token.loc.start.line === offsetFrom.loc.start.line) {
             this.matchIndentOf(offsetFrom, token);
