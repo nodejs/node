@@ -3340,7 +3340,6 @@ void CipherBase::Init(const char* cipher_type,
   }
 
   unsigned char key[EVP_MAX_KEY_LENGTH];
-  unsigned char iv[EVP_MAX_IV_LENGTH];
 
   int key_len = EVP_BytesToKey(cipher_,
                                EVP_md5(),
@@ -3349,11 +3348,20 @@ void CipherBase::Init(const char* cipher_type,
                                key_buf_len,
                                1,
                                key,
-                               iv);
+                               nullptr);
 
   EVP_CIPHER_CTX_init(&ctx_);
   const bool encrypt = (kind_ == kCipher);
+
   EVP_CipherInit_ex(&ctx_, cipher_, nullptr, nullptr, nullptr, encrypt);
+
+  const int mode = EVP_CIPHER_CTX_mode(&ctx_);
+  const int iv_len = EVP_CIPHER_iv_length(cipher_);
+
+  if (encrypt && iv_len != 0) {
+    return env()->ThrowError("crypto.createCipher() is no longer supported with ciphers that require initialization vectors. Generate a random IV and pass it to crypto.createCipheriv().");
+  }
+
   if (!EVP_CIPHER_CTX_set_key_length(&ctx_, key_len)) {
     EVP_CIPHER_CTX_cleanup(&ctx_);
     return env()->ThrowError("Invalid key length");
@@ -3363,7 +3371,7 @@ void CipherBase::Init(const char* cipher_type,
                     nullptr,
                     nullptr,
                     reinterpret_cast<unsigned char*>(key),
-                    reinterpret_cast<unsigned char*>(iv),
+                    nullptr,
                     kind_ == kCipher);
   initialised_ = true;
 }
@@ -3443,14 +3451,22 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_STRING(args[0], "Cipher type");
   THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Key");
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[2], "IV");
+
+  if (!Buffer::HasInstance(args[2]) && !args[2]->IsNull()) {
+    return env->ThrowTypeError("IV must be a buffer or null");
+  }
 
   const node::Utf8Value cipher_type(env->isolate(), args[0]);
   ssize_t key_len = Buffer::Length(args[1]);
   const char* key_buf = Buffer::Data(args[1]);
-  ssize_t iv_len = Buffer::Length(args[2]);
-  const char* iv_buf = Buffer::Data(args[2]);
-  cipher->InitIv(*cipher_type, key_buf, key_len, iv_buf, iv_len);
+
+  if (args[2]->IsNull()) {
+    cipher->InitIv(*cipher_type, key_buf, key_len, nullptr, 0);
+  } else {
+    ssize_t iv_len = Buffer::Length(args[2]);
+    const char* iv_buf = Buffer::Data(args[2]);
+    cipher->InitIv(*cipher_type, key_buf, key_len, iv_buf, iv_len);
+  }
 }
 
 
