@@ -29,15 +29,18 @@ void PrintStackTrace() {
 
 }  // namespace
 
-v8::Platform* CreateDefaultPlatform(
-    int thread_pool_size, IdleTaskSupport idle_task_support,
-    InProcessStackDumping in_process_stack_dumping) {
+v8::Platform* CreateDefaultPlatform(int thread_pool_size,
+                                    IdleTaskSupport idle_task_support,
+                                    InProcessStackDumping in_process_stack_dumping,
+                                    v8::TracingController* tracing_controller) {
   if (in_process_stack_dumping == InProcessStackDumping::kEnabled) {
     v8::base::debug::EnableInProcessStackDumping();
   }
   DefaultPlatform* platform = new DefaultPlatform(idle_task_support);
   platform->SetThreadPoolSize(thread_pool_size);
   platform->EnsureInitialized();
+  if (tracing_controller != nullptr)
+    platform->SetTracingController(tracing_controller);
   return platform;
 }
 
@@ -73,11 +76,6 @@ DefaultPlatform::DefaultPlatform(IdleTaskSupport idle_task_support)
       idle_task_support_(idle_task_support) {}
 
 DefaultPlatform::~DefaultPlatform() {
-  if (tracing_controller_) {
-    tracing_controller_->StopTracing();
-    tracing_controller_.reset();
-  }
-
   base::LockGuard<base::Mutex> guard(&lock_);
   queue_.Terminate();
   if (initialized_) {
@@ -316,7 +314,7 @@ const char* DefaultPlatform::GetCategoryGroupName(
 }
 
 void DefaultPlatform::SetTracingController(
-    tracing::TracingController* tracing_controller) {
+    TracingController* tracing_controller) {
   tracing_controller_.reset(tracing_controller);
 }
 
