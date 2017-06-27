@@ -3355,7 +3355,6 @@ void CipherBase::Init(const char* cipher_type,
 
   EVP_CipherInit_ex(&ctx_, cipher_, nullptr, nullptr, nullptr, encrypt);
 
-  const int mode = EVP_CIPHER_CTX_mode(&ctx_);
   const int iv_len = EVP_CIPHER_iv_length(cipher_);
 
   if (encrypt && iv_len != 0) {
