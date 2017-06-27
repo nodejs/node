@@ -58,6 +58,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override;
   bool IdleTasksEnabled(Isolate* isolate) override;
   double MonotonicallyIncreasingTime() override;
+  TracingController* GetTracingController() override;
   const uint8_t* GetCategoryGroupEnabled(const char* name) override;
   const char* GetCategoryGroupName(
       const uint8_t* category_enabled_flag) override;
