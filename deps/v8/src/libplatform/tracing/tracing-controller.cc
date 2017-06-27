@@ -98,7 +98,7 @@ const char* TracingController::GetCategoryGroupName(
 
 void TracingController::StartTracing(TraceConfig* trace_config) {
   trace_config_.reset(trace_config);
-  std::unordered_set<Platform::TraceStateObserver*> observers_copy;
+  std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
   {
     base::LockGuard<base::Mutex> lock(mutex_.get());
     mode_ = RECORDING_MODE;
@@ -113,7 +113,7 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
 void TracingController::StopTracing() {
   mode_ = DISABLED;
   UpdateCategoryGroupEnabledFlags();
-  std::unordered_set<Platform::TraceStateObserver*> observers_copy;
+  std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
   {
     base::LockGuard<base::Mutex> lock(mutex_.get());
     observers_copy = observers_;
@@ -196,7 +196,7 @@ const uint8_t* TracingController::GetCategoryGroupEnabledInternal(
 }
 
 void TracingController::AddTraceStateObserver(
-    Platform::TraceStateObserver* observer) {
+    v8::TracingController::TraceStateObserver* observer) {
   {
     base::LockGuard<base::Mutex> lock(mutex_.get());
     observers_.insert(observer);
@@ -207,7 +207,7 @@ void TracingController::AddTraceStateObserver(
 }
 
 void TracingController::RemoveTraceStateObserver(
-    Platform::TraceStateObserver* observer) {
+    v8::TracingController::TraceStateObserver* observer) {
   base::LockGuard<base::Mutex> lock(mutex_.get());
   DCHECK(observers_.find(observer) != observers_.end());
   observers_.erase(observer);

@@ -272,6 +272,10 @@ double DefaultPlatform::MonotonicallyIncreasingTime() {
          static_cast<double>(base::Time::kMicrosecondsPerSecond);
 }
 
+TracingController* DefaultPlatform::GetTracingController() {
+  return tracing_controller_.get();
+}
+
 uint64_t DefaultPlatform::AddTraceEvent(
     char phase, const uint8_t* category_enabled_flag, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, int num_args,
