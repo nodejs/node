@@ -250,6 +250,10 @@ NAPI_EXTERN napi_status napi_get_element(napi_env env,
                                          napi_value object,
                                          uint32_t index,
                                          napi_value* result);
+NAPI_EXTERN napi_status napi_delete_element(napi_env env,
+                                            napi_value object,
+                                            uint32_t index,
+                                            bool* result);
 NAPI_EXTERN napi_status
 napi_define_properties(napi_env env,
                        napi_value object,
