@@ -18,9 +18,11 @@ programs. Some of them are:
 
 Node.js (and its underlying V8 engine) uses [ICU][] to implement these features
 in native C/C++ code. However, some of them require a very large ICU data file
-in order to support all locales of the world. Since most Node.js users will
-make use of only a small section in the full ICU data set, we provide several
-options for customizing ICU support in a Node.js build.
+in order to support all locales of the world. Because it is expected that most
+Node.js users will make use of only a small portion of ICU functionality, only
+a subset of the full ICU data set is provided by Node.js by default. Several
+options are provided for customizing and expanding the ICU data set either when
+building or running Node.js.
 
 ## Options for building Node.js
 
@@ -62,7 +64,7 @@ will be **unavailable** in the resulting `node` binary.
 
 Node.js can link against an ICU build already installed on the system. In fact,
 most Linux distributions already come with ICU installed, and this option would
-make it possible to reuse the same set of data used by other components in your
+make it possible to reuse the same set of data used by other components in the
 OS.
 
 Functionalities that only require the ICU library itself, such as
@@ -101,9 +103,9 @@ are also built in this mode.
 
 #### Providing ICU data at runtime
 
-If you use the `small-icu` option, you can still provide additional locale data
+If the `small-icu` option is used, one can still provide additional locale data
 at runtime so that the JS methods would work for all ICU locales. Assuming the
-data file is stored at `/some/directory`, you could make ICU be aware of it
+data file is stored at `/some/directory`, it can be made available to ICU
 through either:
 
 * The [`NODE_ICU_DATA`][] environmental variable:
@@ -124,7 +126,7 @@ ICU is able to automatically find and load a variety of data formats, but the
 data must be appropriate for the ICU version, and the file correctly named.
 The most common name for the data file is `icudt5X[bl].dat`, where `5X` denotes
 the intended ICU version, and `b` or `l` indicates the system's endianness.
-Check "[ICU Data][]" article in the ICU User Guide for other supported formats
+Check ["ICU Data"][] article in the ICU User Guide for other supported formats
 and more details on ICU data in general.
 
 The [full-icu][] npm module can greatly simplify ICU data installation by
@@ -188,7 +190,7 @@ to be helpful:
 [ECMA-402]: https://tc39.github.io/ecma402/
 [full-icu]: https://www.npmjs.com/package/full-icu
 [ICU]: http://icu-project.org/
-[ICU Data]: http://userguide.icu-project.org/icudata
+["ICU Data"]: http://userguide.icu-project.org/icudata
 [`--icu-data-dir`]: https://nodejs.org/api/cli.html#cli_icu_data_dir_file
 [internationalized domain names]: https://en.wikipedia.org/wiki/Internationalized_domain_name
 [`Intl`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Intl
