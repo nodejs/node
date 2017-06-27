@@ -1244,6 +1244,7 @@ void URL::Parse(const char* input,
           }
 
           url->scheme = buffer;
+          url->port = NormalizePort(url->scheme, url->port);
           if (new_is_special) {
             url->flags |= URL_FLAGS_SPECIAL;
             special = true;
