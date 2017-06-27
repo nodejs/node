@@ -1,27 +1,27 @@
 {
-  "_from": "eslint@4.1.0",
-  "_id": "eslint@4.1.0",
+  "_from": "eslint@latest",
+  "_id": "eslint@4.1.1",
   "_inBundle": false,
-  "_integrity": "sha1-u7VaKCIO4Itp2pVU1FprLr/X2RM=",
+  "_integrity": "sha1-+svfz+Pg+s06i4DcmMTmwTrlgt8=",
   "_location": "/eslint",
   "_phantomChildren": {},
   "_requested": {
-    "type": "version",
+    "type": "tag",
     "registry": true,
-    "raw": "eslint@4.1.0",
+    "raw": "eslint@latest",
     "name": "eslint",
     "escapedName": "eslint",
-    "rawSpec": "4.1.0",
+    "rawSpec": "latest",
     "saveSpec": null,
-    "fetchSpec": "4.1.0"
+    "fetchSpec": "latest"
   },
   "_requiredBy": [
     "#USER",
     "/"
   ],
-  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-4.1.0.tgz",
-  "_shasum": "bbb55a28220ee08b69da9554d45a6b2ebfd7d913",
-  "_spec": "eslint@4.1.0",
+  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-4.1.1.tgz",
+  "_shasum": "facbdfcfe3e0facd3a8b80dc98c4e6c13ae582df",
+  "_spec": "eslint@latest",
   "_where": "/Users/trott/io.js/tools/eslint-tmp",
   "author": {
     "name": "Nicholas C. Zakas",
@@ -152,5 +152,5 @@
     "release": "node Makefile.js release",
     "test": "node Makefile.js test"
   },
-  "version": "4.1.0"
+  "version": "4.1.1"
 }

@@ -488,12 +488,15 @@ function normalizePackageName(name, prefix) {
  * @returns {Object} An object containing 3 properties:
  * - 'filePath' (required) the resolved path that can be used directly to load the configuration.
  * - 'configName' the name of the configuration inside the plugin.
- * - 'configFullName' the name of the configuration as used in the eslint config (e.g. 'plugin:node/recommended').
+ * - 'configFullName' (required) the name of the configuration as used in the eslint config(e.g. 'plugin:node/recommended'),
+ *     or the absolute path to a config file. This should uniquely identify a config.
  * @private
  */
 function resolve(filePath, relativeTo) {
     if (isFilePath(filePath)) {
-        return { filePath: path.resolve(relativeTo || "", filePath) };
+        const fullPath = path.resolve(relativeTo || "", filePath);
+
+        return { filePath: fullPath, configFullName: fullPath };
     }
     let normalizedPackageName;
 
@@ -510,7 +513,7 @@ function resolve(filePath, relativeTo) {
     normalizedPackageName = normalizePackageName(filePath, "eslint-config");
     debug(`Attempting to resolve ${normalizedPackageName}`);
     filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
-    return { filePath };
+    return { filePath, configFullName: filePath };
 
 
 }
@@ -560,11 +563,12 @@ function loadFromDisk(resolvedPath, configContext) {
 /**
  * Loads a config object, applying extends if present.
  * @param {Object} configObject a config object to load
+ * @param {Config} configContext Context for the config instance
  * @returns {Object} the config object with extends applied if present, or the passed config if not
  * @private
  */
-function loadObject(configObject) {
-    return configObject.extends ? applyExtends(configObject, "") : configObject;
+function loadObject(configObject, configContext) {
+    return configObject.extends ? applyExtends(configObject, configContext, "") : configObject;
 }
 
 /**
@@ -579,7 +583,7 @@ function loadObject(configObject) {
 function load(filePath, configContext, relativeTo) {
     const resolvedPath = resolve(filePath, relativeTo);
 
-    const cachedConfig = configContext.configCache.getConfig(resolvedPath.filePath);
+    const cachedConfig = configContext.configCache.getConfig(resolvedPath.configFullName);
 
     if (cachedConfig) {
         return cachedConfig;
@@ -590,7 +594,7 @@ function load(filePath, configContext, relativeTo) {
     if (config) {
         config.filePath = resolvedPath.filePath;
         config.baseDirectory = path.dirname(resolvedPath.filePath);
-        configContext.configCache.setConfig(resolvedPath.filePath, config);
+        configContext.configCache.setConfig(resolvedPath.configFullName, config);
     }
 
     return config;
