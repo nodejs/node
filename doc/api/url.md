@@ -94,7 +94,7 @@ Creates a new `URL` object by parsing the `input` relative to the `base`. If
 ```js
 const { URL } = require('url');
 const myURL = new URL('/foo', 'https://example.org/');
-  // https://example.org/foo
+// https://example.org/foo
 ```
 
 A `TypeError` will be thrown if the `input` or `base` are not valid URLs. Note
@@ -104,7 +104,7 @@ instance:
 ```js
 const { URL } = require('url');
 const myURL = new URL({ toString: () => 'https://example.org/' });
-  // https://example.org/
+// https://example.org/
 ```
 
 Unicode characters appearing within the hostname of `input` will be
@@ -113,7 +113,7 @@ automatically converted to ASCII using the [Punycode][] algorithm.
 ```js
 const { URL } = require('url');
 const myURL = new URL('https://你好你好');
-  // https://xn--6qqa088eba/
+// https://xn--6qqa088eba/
 ```
 
 Additional [examples of parsed URLs][] may be found in the WHATWG URL Standard.
@@ -128,11 +128,11 @@ Gets and sets the fragment portion of the URL.
 const { URL } = require('url');
 const myURL = new URL('https://example.org/foo#bar');
 console.log(myURL.hash);
-  // Prints #bar
+// Prints #bar
 
 myURL.hash = 'baz';
 console.log(myURL.href);
-  // Prints https://example.org/foo#baz
+// Prints https://example.org/foo#baz
 ```
 
 Invalid URL characters included in the value assigned to the `hash` property
@@ -150,11 +150,11 @@ Gets and sets the host portion of the URL.
 const { URL } = require('url');
 const myURL = new URL('https://example.org:81/foo');
 console.log(myURL.host);
-  // Prints example.org:81
+// Prints example.org:81
 
 myURL.host = 'example.com:82';
 console.log(myURL.href);
-  // Prints https://example.com:82/foo
+// Prints https://example.com:82/foo
 ```
 
 Invalid host values assigned to the `host` property are ignored.
@@ -171,11 +171,11 @@ port.
 const { URL } = require('url');
 const myURL = new URL('https://example.org:81/foo');
 console.log(myURL.hostname);
-  // Prints example.org
+// Prints example.org
 
 myURL.hostname = 'example.com:82';
 console.log(myURL.href);
-  // Prints https://example.com:81/foo
+// Prints https://example.com:81/foo
 ```
 
 Invalid hostname values assigned to the `hostname` property are ignored.
@@ -190,11 +190,11 @@ Gets and sets the serialized URL.
 const { URL } = require('url');
 const myURL = new URL('https://example.org/foo');
 console.log(myURL.href);
-  // Prints https://example.org/foo
+// Prints https://example.org/foo
 
 myURL.href = 'https://example.com/bar';
 console.log(myURL.href);
-  // Prints https://example.com/bar
+// Prints https://example.com/bar
 ```
 
 Getting the value of the `href` property is equivalent to calling
@@ -219,17 +219,17 @@ encoding.
 const { URL } = require('url');
 const myURL = new URL('https://example.org/foo/bar?baz');
 console.log(myURL.origin);
-  // Prints https://example.org
+// Prints https://example.org
 ```
 
 ```js
 const { URL } = require('url');
 const idnURL = new URL('https://你好你好');
 console.log(idnURL.origin);
-  // Prints https://你好你好
+// Prints https://你好你好
 
 console.log(idnURL.hostname);
-  // Prints xn--6qqa088eba
+// Prints xn--6qqa088eba
 ```
 
 #### url.password
@@ -242,11 +242,11 @@ Gets and sets the password portion of the URL.
 const { URL } = require('url');
 const myURL = new URL('https://abc:xyz@example.com');
 console.log(myURL.password);
-  // Prints xyz
+// Prints xyz
 
 myURL.password = '123';
 console.log(myURL.href);
-  // Prints https://abc:123@example.com
+// Prints https://abc:123@example.com
 ```
 
 Invalid URL characters included in the value assigned to the `password` property
@@ -264,11 +264,11 @@ Gets and sets the path portion of the URL.
 const { URL } = require('url');
 const myURL = new URL('https://example.org/abc/xyz?123');
 console.log(myURL.pathname);
-  // Prints /abc/xyz
+// Prints /abc/xyz
 
 myURL.pathname = '/abcdef';
 console.log(myURL.href);
-  // Prints https://example.org/abcdef?123
+// Prints https://example.org/abcdef?123
 ```
 
 Invalid URL characters included in the value assigned to the `pathname`
@@ -286,41 +286,41 @@ Gets and sets the port portion of the URL.
 const { URL } = require('url');
 const myURL = new URL('https://example.org:8888');
 console.log(myURL.port);
-  // Prints 8888
+// Prints 8888
 
 // Default ports are automatically transformed to the empty string
 // (HTTPS protocol's default port is 443)
 myURL.port = '443';
 console.log(myURL.port);
-  // Prints the empty string
+// Prints the empty string
 console.log(myURL.href);
-  // Prints https://example.org/
+// Prints https://example.org/
 
 myURL.port = 1234;
 console.log(myURL.port);
-  // Prints 1234
+// Prints 1234
 console.log(myURL.href);
-  // Prints https://example.org:1234/
+// Prints https://example.org:1234/
 
 // Completely invalid port strings are ignored
 myURL.port = 'abcd';
 console.log(myURL.port);
-  // Prints 1234
+// Prints 1234
 
 // Leading numbers are treated as a port number
 myURL.port = '5678abcd';
 console.log(myURL.port);
-  // Prints 5678
+// Prints 5678
 
 // Non-integers are truncated
 myURL.port = 1234.5678;
 console.log(myURL.port);
-  // Prints 1234
+// Prints 1234
 
 // Out-of-range numbers are ignored
 myURL.port = 1e10;
 console.log(myURL.port);
-  // Prints 1234
+// Prints 1234
 ```
 
 The port value may be set as either a number or as a String containing a number
@@ -342,11 +342,11 @@ Gets and sets the protocol portion of the URL.
 const { URL } = require('url');
 const myURL = new URL('https://example.org');
 console.log(myURL.protocol);
-  // Prints https:
+// Prints https:
 
 myURL.protocol = 'ftp';
 console.log(myURL.href);
-  // Prints ftp://example.org/
+// Prints ftp://example.org/
 ```
 
 Invalid URL protocol values assigned to the `protocol` property are ignored.
@@ -361,11 +361,11 @@ Gets and sets the serialized query portion of the URL.
 const { URL } = require('url');
 const myURL = new URL('https://example.org/abc?123');
 console.log(myURL.search);
-  // Prints ?123
+// Prints ?123
 
 myURL.search = 'abc=xyz';
 console.log(myURL.href);
-  // Prints https://example.org/abc?abc=xyz
+// Prints https://example.org/abc?abc=xyz
 ```
 
 Any invalid URL characters appearing in the value assigned the `search`
@@ -392,11 +392,11 @@ Gets and sets the username portion of the URL.
 const { URL } = require('url');
 const myURL = new URL('https://abc:xyz@example.com');
 console.log(myURL.username);
-  // Prints abc
+// Prints abc
 
 myURL.username = '123';
 console.log(myURL.href);
-  // Prints https://123:xyz@example.com/
+// Prints https://123:xyz@example.com/
 ```
 
 Any invalid URL characters appearing in the value assigned the `username`
@@ -433,7 +433,7 @@ const myURLs = [
   new URL('https://test.example.org')
 ];
 console.log(JSON.stringify(myURLs));
-  // Prints ["https://www.example.com/","https://test.example.org/"]
+// Prints ["https://www.example.com/","https://test.example.org/"]
 ```
 
 ### Class: URLSearchParams
@@ -455,16 +455,16 @@ const { URL, URLSearchParams } = require('url');
 
 const myURL = new URL('https://example.org/?abc=123');
 console.log(myURL.searchParams.get('abc'));
-  // Prints 123
+// Prints 123
 
 myURL.searchParams.append('abc', 'xyz');
 console.log(myURL.href);
-  // Prints https://example.org/?abc=123&abc=xyz
+// Prints https://example.org/?abc=123&abc=xyz
 
 myURL.searchParams.delete('abc');
 myURL.searchParams.set('a', 'b');
 console.log(myURL.href);
-  // Prints https://example.org/?a=b
+// Prints https://example.org/?a=b
 
 const newSearchParams = new URLSearchParams(myURL.searchParams);
 // The above is equivalent to
@@ -472,17 +472,17 @@ const newSearchParams = new URLSearchParams(myURL.searchParams);
 
 newSearchParams.append('a', 'c');
 console.log(myURL.href);
-  // Prints https://example.org/?a=b
+// Prints https://example.org/?a=b
 console.log(newSearchParams.toString());
-  // Prints a=b&a=c
+// Prints a=b&a=c
 
 // newSearchParams.toString() is implicitly called
 myURL.search = newSearchParams;
 console.log(myURL.href);
-  // Prints https://example.org/?a=b&a=c
+// Prints https://example.org/?a=b&a=c
 newSearchParams.delete('a');
 console.log(myURL.href);
-  // Prints https://example.org/?a=b&a=c
+// Prints https://example.org/?a=b&a=c
 ```
 
 #### Constructor: new URLSearchParams()
@@ -502,13 +502,13 @@ let params;
 
 params = new URLSearchParams('user=abc&query=xyz');
 console.log(params.get('user'));
-  // Prints 'abc'
+// Prints 'abc'
 console.log(params.toString());
-  // Prints 'user=abc&query=xyz'
+// Prints 'user=abc&query=xyz'
 
 params = new URLSearchParams('?user=abc&query=xyz');
 console.log(params.toString());
-  // Prints 'user=abc&query=xyz'
+// Prints 'user=abc&query=xyz'
 ```
 
 #### Constructor: new URLSearchParams(obj)
@@ -532,9 +532,9 @@ const params = new URLSearchParams({
   query: ['first', 'second']
 });
 console.log(params.getAll('query'));
-  // Prints [ 'first,second' ]
+// Prints [ 'first,second' ]
 console.log(params.toString());
-  // Prints 'user=abc&query=first%2Csecond'
+// Prints 'user=abc&query=first%2Csecond'
 ```
 
 #### Constructor: new URLSearchParams(iterable)
@@ -564,7 +564,7 @@ params = new URLSearchParams([
   ['query', 'second']
 ]);
 console.log(params.toString());
-  // Prints 'user=abc&query=first&query=second'
+// Prints 'user=abc&query=first&query=second'
 
 // Using a Map object
 const map = new Map();
@@ -572,7 +572,7 @@ map.set('user', 'abc');
 map.set('query', 'xyz');
 params = new URLSearchParams(map);
 console.log(params.toString());
-  // Prints 'user=abc&query=xyz'
+// Prints 'user=abc&query=xyz'
 
 // Using a generator function
 function* getQueryPairs() {
@@ -582,14 +582,14 @@ function* getQueryPairs() {
 }
 params = new URLSearchParams(getQueryPairs());
 console.log(params.toString());
-  // Prints 'user=abc&query=first&query=second'
+// Prints 'user=abc&query=first&query=second'
 
 // Each key-value pair must have exactly two elements
 new URLSearchParams([
   ['user', 'abc', 'error']
 ]);
-  // Throws TypeError [ERR_INVALID_TUPLE]:
-  //        Each query pair must be an iterable [name, value] tuple
+// Throws TypeError [ERR_INVALID_TUPLE]:
+//        Each query pair must be an iterable [name, value] tuple
 ```
 
 #### urlSearchParams.append(name, value)
@@ -628,9 +628,9 @@ const myURL = new URL('https://example.org/?a=b&c=d');
 myURL.searchParams.forEach((value, name, searchParams) => {
   console.log(name, value, myURL.searchParams === searchParams);
 });
-  // Prints:
-  // a b true
-  // c d true
+// Prints:
+//   a b true
+//   c d true
 ```
 
 #### urlSearchParams.get(name)
@@ -669,9 +669,9 @@ const params = new URLSearchParams('foo=bar&foo=baz');
 for (const name of params.keys()) {
   console.log(name);
 }
-  // Prints:
-  // foo
-  // foo
+// Prints:
+//   foo
+//   foo
 ```
 
 #### urlSearchParams.set(name, value)
@@ -692,12 +692,12 @@ params.append('foo', 'bar');
 params.append('foo', 'baz');
 params.append('abc', 'def');
 console.log(params.toString());
-  // Prints foo=bar&foo=baz&abc=def
+// Prints foo=bar&foo=baz&abc=def
 
 params.set('foo', 'def');
 params.set('xyz', 'opq');
 console.log(params.toString());
-  // Prints foo=def&abc=def&xyz=opq
+// Prints foo=def&abc=def&xyz=opq
 ```
 
 #### urlSearchParams.sort()
@@ -716,7 +716,7 @@ const { URLSearchParams } = require('url');
 const params = new URLSearchParams('query[]=abc&type=search&query[]=123');
 params.sort();
 console.log(params.toString());
-  // Prints query%5B%5D=abc&query%5B%5D=123&type=search
+// Prints query%5B%5D=abc&query%5B%5D=123&type=search
 ```
 
 #### urlSearchParams.toString()
@@ -748,9 +748,9 @@ const params = new URLSearchParams('foo=bar&xyz=baz');
 for (const [name, value] of params) {
   console.log(name, value);
 }
-  // Prints:
-  // foo bar
-  // xyz baz
+// Prints:
+//   foo bar
+//   xyz baz
 ```
 
 ### url.domainToASCII(domain)
@@ -769,11 +769,11 @@ It performs the inverse operation to [`url.domainToUnicode()`][].
 ```js
 const url = require('url');
 console.log(url.domainToASCII('español.com'));
-  // Prints xn--espaol-zwa.com
+// Prints xn--espaol-zwa.com
 console.log(url.domainToASCII('中文.com'));
-  // Prints xn--fiq228c.com
+// Prints xn--fiq228c.com
 console.log(url.domainToASCII('xn--iñvalid.com'));
-  // Prints an empty string
+// Prints an empty string
 ```
 
 ### url.domainToUnicode(domain)
@@ -792,11 +792,11 @@ It performs the inverse operation to [`url.domainToASCII()`][].
 ```js
 const url = require('url');
 console.log(url.domainToUnicode('xn--espaol-zwa.com'));
-  // Prints español.com
+// Prints español.com
 console.log(url.domainToUnicode('xn--fiq228c.com'));
-  // Prints 中文.com
+// Prints 中文.com
 console.log(url.domainToUnicode('xn--iñvalid.com'));
-  // Prints an empty string
+// Prints an empty string
 ```
 
 ### url.format(URL[, options])
@@ -831,13 +831,13 @@ const { URL } = require('url');
 const myURL = new URL('https://a:b@你好你好?abc#foo');
 
 console.log(myURL.href);
-  // Prints https://a:b@xn--6qqa088eba/?abc#foo
+// Prints https://a:b@xn--6qqa088eba/?abc#foo
 
 console.log(myURL.toString());
-  // Prints https://a:b@xn--6qqa088eba/?abc#foo
+// Prints https://a:b@xn--6qqa088eba/?abc#foo
 
 console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
-  // Prints 'https://你好你好/?abc'
+// Prints 'https://你好你好/?abc'
 ```
 
 ## Legacy URL API
@@ -1120,9 +1120,9 @@ using the [Punycode][] algorithm. Note, however, that a hostname *may* contain
 const { URL } = require('url');
 const myURL = new URL('https://%CF%80.com/foo');
 console.log(myURL.href);
-  // Prints https://xn--1xa.com/foo
+// Prints https://xn--1xa.com/foo
 console.log(myURL.origin);
-  // Prints https://π.com
+// Prints https://π.com
 ```
 
 [`Error`]: errors.html#errors_class_error
