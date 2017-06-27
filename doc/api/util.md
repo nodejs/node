@@ -519,7 +519,7 @@ doSomething[util.promisify.custom] = function(foo) {
 
 const promisified = util.promisify(doSomething);
 console.log(promisified === doSomething[util.promisify.custom]);
-  // prints 'true'
+// prints 'true'
 ```
 
 This can be useful for cases where the original function does not follow the
