@@ -137,6 +137,10 @@ These folks keep the project moving and are resources for help.
 
 We have scheduled releases every two weeks on Friday or Saturday.
 
+## Code of Conduct
+
+ESLint adheres to the [JS Foundation Code of Conduct](https://js.foundation/community/code-of-conduct).
+
 ## Filing Issues
 
 Before filing an issue, please be sure to read the guidelines for what you're reporting:
