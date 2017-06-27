@@ -54,7 +54,6 @@ function testAssignment(context, node) {
 function testDeclaration(context, node) {
   node.declarations.forEach((declaration) => {
     const msg = checkExpressionAlignment(declaration.init);
-    // const start = declaration.init.loc.start;
     if (msg)
       context.report(node, msg);
   });
