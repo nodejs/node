@@ -25,13 +25,13 @@ Let's analyze this basic test from the Node.js test suite:
 ```javascript
 'use strict';                                                          // 1
 const common = require('../common');                                   // 2
-                                                                       // 3
+
 // This test ensures that the http-parser can handle UTF-8 characters  // 4
 // in the http header.                                                 // 5
-                                                                       // 6
+
 const assert = require('assert');                                      // 7
 const http = require('http');                                          // 8
-                                                                       // 9
+
 const server = http.createServer(common.mustCall((req, res) => {       // 10
   res.end('ok');                                                       // 11
 }));                                                                   // 12
