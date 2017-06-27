@@ -191,16 +191,16 @@ to be helpful:
 [full-icu]: https://www.npmjs.com/package/full-icu
 [ICU]: http://icu-project.org/
 ["ICU Data"]: http://userguide.icu-project.org/icudata
-[`--icu-data-dir`]: https://nodejs.org/api/cli.html#cli_icu_data_dir_file
+[`--icu-data-dir`]: cli.html#cli_icu_data_dir_file
 [internationalized domain names]: https://en.wikipedia.org/wiki/Internationalized_domain_name
 [`Intl`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Intl
 [`Intl.DateTimeFormat`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat
-[`NODE_ICU_DATA`]: https://nodejs.org/api/cli.html#cli_node_icu_data_file
+[`NODE_ICU_DATA`]: cli.html#cli_node_icu_data_file
 [`Number.prototype.toLocaleString()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Number/toLocaleString
-[`require('buffer').transcode()`]: https://nodejs.org/api/buffer.html#buffer_buffer_transcode_source_fromenc_toenc
+[`require('buffer').transcode()`]: buffer.html#buffer_buffer_transcode_source_fromenc_toenc
 [`String.prototype.localeCompare()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/String/localeCompare
 [`String.prototype.normalize()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/String/normalize
 [`String.prototype.toLowerCase()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/String/toLowerCase
 [`String.prototype.toUpperCase()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/String/toUpperCase
 [Test262]: https://github.com/tc39/test262/tree/master/test/intl402
-[WHATWG URL parser]: https://nodejs.org/api/url.html#url_the_whatwg_url_api
+[WHATWG URL parser]: url.html#url_the_whatwg_url_api
