@@ -17,10 +17,10 @@
 namespace node {
 
 // Forward-declarations
-class NodeBIO;
 class WriteWrap;
 namespace crypto {
 class SecureContext;
+class NodeBIO;
 }
 
 class TLSWrap : public AsyncWrap,
@@ -151,7 +151,7 @@ class TLSWrap : public AsyncWrap,
   StreamBase* stream_;
   BIO* enc_in_;
   BIO* enc_out_;
-  NodeBIO* clear_in_;
+  crypto::NodeBIO* clear_in_;
   size_t write_size_;
   typedef ListHead<WriteItem, &WriteItem::member_> WriteItemList;
   WriteItemList write_item_queue_;
