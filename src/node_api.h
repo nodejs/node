@@ -37,6 +37,12 @@
 # define NAPI_MODULE_EXPORT __attribute__((visibility("default")))
 #endif
 
+#ifdef __GNUC__
+#define NAPI_NO_RETURN __attribute__((noreturn))
+#else
+#define NAPI_NO_RETURN
+#endif
+
 
 typedef void (*napi_addon_register_func)(napi_env env,
                                          napi_value exports,
@@ -103,6 +109,9 @@ NAPI_EXTERN void napi_module_register(napi_module* mod);
 NAPI_EXTERN napi_status
 napi_get_last_error_info(napi_env env,
                          const napi_extended_error_info** result);
+
+NAPI_EXTERN NAPI_NO_RETURN void napi_fatal_error(const char* location,
+                                                 const char* message);
 
 // Getters for defined singletons
 NAPI_EXTERN napi_status napi_get_undefined(napi_env env, napi_value* result);
