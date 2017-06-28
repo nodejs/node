@@ -1797,7 +1797,7 @@
           # .cpp files in the same shard.
           'msvs_settings': {
             'VCCLCompilerTool': {
-              'ObjectFile':'$(IntDir)/%(Extension)/',
+              'ObjectFile':'$(IntDir)%(Extension)\\',
             },
           },
         }],
