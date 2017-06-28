@@ -283,6 +283,8 @@ more information about the governance of the Node.js project, see
 **Wyatt Preul** &lt;wpreul@gmail.com&gt;
 * [gibfahn](https://github.com/gibfahn) -
 **Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
+* [gireeshpunathil](https://github.com/gireeshpunathil) -
+**Gireesh Punathil** &lt;gpunathi@in.ibm.com&gt; (he/him)
 * [iarna](https://github.com/iarna) -
 **Rebecca Turner** &lt;me@re-becca.org&gt;
 * [imran-iq](https://github.com/imran-iq) -
