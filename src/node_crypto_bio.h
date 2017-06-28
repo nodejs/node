@@ -11,6 +11,7 @@
 #include "v8.h"
 
 namespace node {
+namespace crypto {
 
 class NodeBIO {
  public:
@@ -135,6 +136,7 @@ class NodeBIO {
   Buffer* write_head_;
 };
 
+}  // namespace crypto
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
