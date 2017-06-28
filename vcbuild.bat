@@ -45,6 +45,8 @@ set build_addons_napi=
 set test_node_inspect=
 set test_check_deopts=
 set js_test_suites=async-hooks inspector known_issues message parallel sequential
+set v8_test_options=
+set v8_build_options=
 set "common_test_suites=%js_test_suites% doctool addons addons-napi&set build_addons=1&set build_addons_napi=1"
 
 :next-arg
@@ -83,6 +85,10 @@ if /i "%1"=="test-async-hooks"  set test_args=%test_args% async-hooks&goto arg-o
 if /i "%1"=="test-all"      set test_args=%test_args% gc internet pummel %common_test_suites%&set build_testgc_addon=1&set cpplint=1&set jslint=1&goto arg-ok
 if /i "%1"=="test-node-inspect" set test_node_inspect=1&goto arg-ok
 if /i "%1"=="test-check-deopts" set test_check_deopts=1&goto arg-ok
+if /i "%1"=="test-v8"       set test_v8=1&set custom_v8_test=1&goto arg-ok
+if /i "%1"=="test-v8-intl"  set test_v8_intl=1&set custom_v8_test=1&goto arg-ok
+if /i "%1"=="test-v8-benchmarks" set test_v8_benchmarks=1&set custom_v8_test=1&goto arg-ok
+if /i "%1"=="test-v8-all"       set test_v8=1&set test_v8_intl=1&set test_v8_benchmarks=1&set custom_v8_test=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="jslint-ci"     set jslint_ci=1&goto arg-ok
 if /i "%1"=="lint"          set cpplint=1&set jslint=1&goto arg-ok
@@ -427,12 +433,18 @@ set USE_EMBEDDED_NODE_INSPECT=1
 goto node-tests
 
 :node-tests
-if "%test_args%"=="" goto cpplint
+if "%test_args%"=="" goto test-v8
 if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
 call :run-python tools\test.py %test_args%
+goto test-v8
+
+:test-v8
+if not defined custom_v8_test goto cpplint
+call tools/test-v8.bat
+if errorlevel 1 goto exit
 goto cpplint
 
 :cpplint
@@ -503,7 +515,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message/test-async-hooks] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci] [no-NODE-OPTIONS]
+echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci] [no-NODE-OPTIONS]
 echo Examples:
 echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
@@ -523,6 +535,7 @@ exit /b %ERRORLEVEL%
 
 :exit
 goto :EOF
+
 
 rem ***************
 rem   Subroutines
