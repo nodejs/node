@@ -3216,6 +3216,19 @@ napi_status napi_get_node_version(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status napi_adjust_external_memory(napi_env env,
+                                        int64_t change_in_bytes,
+                                        int64_t* adjusted_value) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, &change_in_bytes);
+  CHECK_ARG(env, adjusted_value);
+
+  *adjusted_value = env->isolate->AdjustAmountOfExternalAllocatedMemory(
+      change_in_bytes);
+
+  return napi_clear_last_error(env);
+}
+
 namespace uvimpl {
 
 static napi_status ConvertUVErrorCode(int code) {

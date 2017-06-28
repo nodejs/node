@@ -205,6 +205,16 @@ napi_value finalize_was_called(napi_env env, napi_callback_info info) {
   return it_was_called;
 }
 
+napi_value testAdjustExternalMemory(napi_env env, napi_callback_info info) {
+  napi_value result;
+  int64_t adjustedValue;
+
+  NAPI_CALL(env, napi_adjust_external_memory(env, 1, &adjustedValue));
+  NAPI_CALL(env, napi_create_double(env, adjustedValue, &result));
+
+  return result;
+}
+
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("testStrictEquals", testStrictEquals),
@@ -222,6 +232,7 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("testFinalizeWrap", test_finalize_wrap),
     DECLARE_NAPI_PROPERTY("finalizeWasCalled", finalize_was_called),
     DECLARE_NAPI_PROPERTY("derefItemWasCalled", deref_item_was_called),
+    DECLARE_NAPI_PROPERTY("testAdjustExternalMemory", testAdjustExternalMemory)
   };
 
   NAPI_CALL_RETURN_VOID(env, napi_define_properties(
