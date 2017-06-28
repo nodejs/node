@@ -36,6 +36,16 @@ assert.ok(a.AssertionError.prototype instanceof Error,
 
 assert.throws(makeBlock(a, false), a.AssertionError, 'ok(false)');
 
+// Using a object as second arg results in a failure
+assert.throws(
+  () => { assert.throws(() => { throw new Error(); }, { foo: 'bar' }); },
+  common.expectsError({
+    type: TypeError,
+    message: 'expected.test is not a function'
+  })
+);
+
+
 assert.doesNotThrow(makeBlock(a, true), a.AssertionError, 'ok(true)');
 
 assert.doesNotThrow(makeBlock(a, 'test', 'ok(\'test\')'));
@@ -419,8 +429,7 @@ assert.throws(makeBlock(thrower, TypeError));
     assert.ok(e instanceof TypeError, 'type');
   }
   assert.strictEqual(true, threw,
-                     'a.throws with an explicit error is eating extra errors',
-                     a.AssertionError);
+                     'a.throws with an explicit error is eating extra errors');
 }
 
 // doesNotThrow should pass through all errors
