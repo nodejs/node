@@ -6,6 +6,7 @@
 #include <string.h>
 
 namespace node {
+namespace crypto {
 
 const BIO_METHOD NodeBIO::method = {
   BIO_TYPE_MEM,
@@ -467,4 +468,5 @@ NodeBIO::~NodeBIO() {
   write_head_ = nullptr;
 }
 
+}  // namespace crypto
 }  // namespace node
