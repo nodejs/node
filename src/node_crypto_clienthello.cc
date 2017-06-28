@@ -23,6 +23,7 @@
 #include "node_crypto_clienthello-inl.h"
 
 namespace node {
+namespace crypto {
 
 void ClientHelloParser::Parse(const uint8_t* data, size_t avail) {
   switch (state_) {
@@ -244,4 +245,5 @@ bool ClientHelloParser::ParseTLSClientHello(const uint8_t* data, size_t avail) {
   return true;
 }
 
+}  // namespace crypto
 }  // namespace node
