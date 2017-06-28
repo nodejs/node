@@ -8,7 +8,7 @@ assert.throws(
   common.expectsError({
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: 'undefined undefined undefined'
+    message: 'Failed'
   })
 );
 
