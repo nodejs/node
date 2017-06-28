@@ -1,21 +1,11 @@
 'use strict';
+
 const common = require('../common.js');
 const assert = require('assert');
 
-const primValues = {
-  'null': null,
-  'undefined': undefined,
-  'string': 'a',
-  'number': 1,
-  'boolean': true,
-  'object': { 0: 'a' },
-  'array': [1, 2, 3],
-  'new-array': new Array([1, 2, 3])
-};
-
 const bench = common.createBenchmark(main, {
-  prim: Object.keys(primValues),
   n: [1e6],
+  size: [1e2, 1e3, 1e4],
   method: [
     'deepEqual',
     'deepStrictEqual',
@@ -24,28 +14,41 @@ const bench = common.createBenchmark(main, {
   ]
 });
 
+function createObj(source, add = '') {
+  return source.map((n) => ({
+    foo: 'yarp',
+    nope: {
+      bar: `123${add}`,
+      a: [1, 2, 3],
+      baz: n
+    }
+  }));
+}
+
 function main(conf) {
-  const prim = primValues[conf.prim];
-  const n = +conf.n;
-  const actual = prim;
-  const expected = prim;
-  const expectedWrong = 'b';
+  const size = +conf.size;
+  // TODO: Fix this "hack"
+  const n = (+conf.n) / size;
   var i;
 
-  // Creates new array to avoid loop invariant code motion
+  const source = Array.apply(null, Array(size));
+  const actual = createObj(source);
+  const expected = createObj(source);
+  const expectedWrong = createObj(source, '4');
+
   switch (conf.method) {
     case 'deepEqual':
       bench.start();
       for (i = 0; i < n; ++i) {
         // eslint-disable-next-line no-restricted-properties
-        assert.deepEqual([actual], [expected]);
+        assert.deepEqual(actual, expected);
       }
       bench.end(n);
       break;
     case 'deepStrictEqual':
       bench.start();
       for (i = 0; i < n; ++i) {
-        assert.deepStrictEqual([actual], [expected]);
+        assert.deepStrictEqual(actual, expected);
       }
       bench.end(n);
       break;
@@ -53,14 +56,14 @@ function main(conf) {
       bench.start();
       for (i = 0; i < n; ++i) {
         // eslint-disable-next-line no-restricted-properties
-        assert.notDeepEqual([actual], [expectedWrong]);
+        assert.notDeepEqual(actual, expectedWrong);
       }
       bench.end(n);
       break;
     case 'notDeepStrictEqual':
       bench.start();
       for (i = 0; i < n; ++i) {
-        assert.notDeepStrictEqual([actual], [expectedWrong]);
+        assert.notDeepStrictEqual(actual, expectedWrong);
       }
       bench.end(n);
       break;
