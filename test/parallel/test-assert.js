@@ -433,8 +433,7 @@ assert.throws(makeBlock(thrower, TypeError));
     assert.ok(e instanceof TypeError, 'type');
   }
   assert.strictEqual(true, threw,
-                     'a.throws with an explicit error is eating extra errors',
-                     a.AssertionError);
+                     'a.throws with an explicit error is eating extra errors');
 }
 
 // doesNotThrow should pass through all errors
