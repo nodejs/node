@@ -32,6 +32,25 @@ assert.strictEqual(newObject.test_number, 987654321);
 assert.strictEqual(newObject.test_string, 'test string');
 
 {
+  // Verify that napi_get_property() walks the prototype chain.
+  function MyObject() {
+    this.foo = 42;
+    this.bar = 43;
+  }
+
+  MyObject.prototype.bar = 44;
+  MyObject.prototype.baz = 45;
+
+  const obj = new MyObject();
+
+  assert.strictEqual(test_object.Get(obj, 'foo'), 42);
+  assert.strictEqual(test_object.Get(obj, 'bar'), 43);
+  assert.strictEqual(test_object.Get(obj, 'baz'), 45);
+  assert.strictEqual(test_object.Get(obj, 'toString'),
+                     Object.prototype.toString);
+}
+
+{
   // test_object.Inflate increases all properties by 1
   const cube = {
     x: 10,
