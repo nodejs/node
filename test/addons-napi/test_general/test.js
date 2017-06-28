@@ -91,3 +91,7 @@ z = null;
 global.gc();
 assert.strictEqual(test_general.finalizeWasCalled(), false,
                    'finalize callback was not called upon garbage collection');
+
+// test napi_adjust_external_memory
+const adjustedValue = test_general.testAdjustExternalMemory();
+assert.strictEqual(typeof adjustedValue, 'number');

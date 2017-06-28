@@ -3394,6 +3394,27 @@ support it:
 * If the function is not available, provide an alternate implementation
   that does not use the function.
 
+### napi_adjust_external_memory
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN int64_t napi_adjust_external_memory(napi_env env,
+                                         int64_t change_in_bytes);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] change_in_bytes`: The change in externally allocated memory that is
+kept alive by JavaScript objects.
+
+Returns `int64_t` the adjusted value.
+
+This function gives V8 an indication of the amount of externally allocated 
+memory that is kept alive by JavaScript objects (i.e. a JavaScript object
+that points to its own memory allocated by a native module). Registering 
+externally allocated memory will trigger global garbage collections more 
+often than it would otherwise.
+
 <!-- it's very convenient to have all the anchors indexed -->
 <!--lint disable no-unused-definitions remark-lint-->
 ## Promises
@@ -3549,6 +3570,7 @@ object - that is, a promise object created by the underlying engine.
 [Working with JavaScript Values]: #n_api_working_with_javascript_values
 [Working with JavaScript Values - Abstract Operations]: #n_api_working_with_javascript_values_abstract_operations
 
+[`napi_adjust_external_memory`]: #n_api_napi_adjust_external_memory
 [`napi_cancel_async_work`]: #n_api_napi_cancel_async_work
 [`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
 [`napi_close_handle_scope`]: #n_api_napi_close_handle_scope
