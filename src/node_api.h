@@ -557,6 +557,11 @@ NAPI_EXTERN napi_status napi_is_promise(napi_env env,
                                         napi_value promise,
                                         bool* is_promise);
 
+// Memory management
+NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
+                                                    int64_t change_in_bytes,
+                                                    int64_t* adjusted_value);
+
 EXTERN_C_END
 
 #endif  // SRC_NODE_API_H_
