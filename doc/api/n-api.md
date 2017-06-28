@@ -533,6 +533,23 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns true if an exception is pending.
 
+### Fatal Errors
+
+In the event of an unrecoverable error in a native module, a fatal error can be
+thrown to immediately terminate the process.
+
+#### napi_fatal_error
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN NAPI_NO_RETURN void napi_fatal_error(const char* location, const char* message);
+```
+
+- `[in] location`: Optional location at which the error occurred.
+- `[in] message`: The message associated with the error.
+
+The function call does not return, the process will be terminated.
 
 ## Object Lifetime management
 
