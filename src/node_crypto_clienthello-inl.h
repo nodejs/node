@@ -28,6 +28,7 @@
 #include "util-inl.h"
 
 namespace node {
+namespace crypto {
 
 inline void ClientHelloParser::Reset() {
   frame_len_ = 0;
@@ -74,6 +75,7 @@ inline bool ClientHelloParser::IsPaused() const {
   return state_ == kPaused;
 }
 
+}  // namespace crypto
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
