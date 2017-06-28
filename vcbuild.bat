@@ -534,7 +534,7 @@ if not defined NODE_VERSION (
 if not defined DISTTYPE set DISTTYPE=release
 if "%DISTTYPE%"=="release" (
   set FULLVERSION=%NODE_VERSION%
-  exit /b 0
+  goto distexit
 )
 if "%DISTTYPE%"=="custom" (
   if not defined CUSTOMTAG (
@@ -561,4 +561,7 @@ if not "%DISTTYPE%"=="custom" (
   set TAG=%DISTTYPE%%DATESTRING%%COMMIT%
 )
 set FULLVERSION=%NODE_VERSION%-%TAG%
-exit /b 0
+
+:distexit
+if not defined DISTTYPEDIR set DISTTYPEDIR=%DISTTYPE%
+goto :EOF
