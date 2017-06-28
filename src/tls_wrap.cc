@@ -138,10 +138,10 @@ void TLSWrap::NewSessionDoneCb() {
 
 void TLSWrap::InitSSL() {
   // Initialize SSL
-  enc_in_ = NodeBIO::New();
-  enc_out_ = NodeBIO::New();
-  NodeBIO::FromBIO(enc_in_)->AssignEnvironment(env());
-  NodeBIO::FromBIO(enc_out_)->AssignEnvironment(env());
+  enc_in_ = crypto::NodeBIO::New();
+  enc_out_ = crypto::NodeBIO::New();
+  crypto::NodeBIO::FromBIO(enc_in_)->AssignEnvironment(env());
+  crypto::NodeBIO::FromBIO(enc_out_)->AssignEnvironment(env());
 
   SSL_set_bio(ssl_, enc_in_, enc_out_);
 
@@ -170,7 +170,7 @@ void TLSWrap::InitSSL() {
     SSL_set_accept_state(ssl_);
   } else if (is_client()) {
     // Enough space for server response (hello, cert)
-    NodeBIO::FromBIO(enc_in_)->set_initial(kInitialClientBufferLength);
+    crypto::NodeBIO::FromBIO(enc_in_)->set_initial(kInitialClientBufferLength);
     SSL_set_connect_state(ssl_);
   } else {
     // Unexpected
@@ -178,7 +178,7 @@ void TLSWrap::InitSSL() {
   }
 
   // Initialize ring for queud clear data
-  clear_in_ = new NodeBIO();
+  clear_in_ = new crypto::NodeBIO();
   clear_in_->AssignEnvironment(env());
 }
 
@@ -310,7 +310,9 @@ void TLSWrap::EncOut() {
   char* data[kSimultaneousBufferCount];
   size_t size[arraysize(data)];
   size_t count = arraysize(data);
-  write_size_ = NodeBIO::FromBIO(enc_out_)->PeekMultiple(data, size, &count);
+  write_size_ = crypto::NodeBIO::FromBIO(enc_out_)->PeekMultiple(data,
+                                                                 size,
+                                                                 &count);
   CHECK(write_size_ != 0 && count != 0);
 
   Local<Object> req_wrap_obj =
@@ -356,7 +358,7 @@ void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
   }
 
   // Commit
-  NodeBIO::FromBIO(wrap->enc_out_)->Read(nullptr, wrap->write_size_);
+  crypto::NodeBIO::FromBIO(wrap->enc_out_)->Read(nullptr, wrap->write_size_);
 
   // Ensure that the progress will be made and `InvokeQueued` will be called.
   wrap->ClearIn();
@@ -674,7 +676,7 @@ void TLSWrap::OnAllocImpl(size_t suggested_size, uv_buf_t* buf, void* ctx) {
   }
 
   size_t size = 0;
-  buf->base = NodeBIO::FromBIO(wrap->enc_in_)->PeekWritable(&size);
+  buf->base = crypto::NodeBIO::FromBIO(wrap->enc_in_)->PeekWritable(&size);
   buf->len = size;
 }
 
@@ -737,7 +739,7 @@ void TLSWrap::DoRead(ssize_t nread,
   }
 
   // Commit read data
-  NodeBIO* enc_in = NodeBIO::FromBIO(enc_in_);
+  crypto::NodeBIO* enc_in = crypto::NodeBIO::FromBIO(enc_in_);
   enc_in->Commit(nread);
 
   // Parse ClientHello first
@@ -808,7 +810,7 @@ void TLSWrap::EnableSessionCallbacks(
         "EnableSessionCallbacks after destroySSL");
   }
   wrap->enable_session_callbacks();
-  NodeBIO::FromBIO(wrap->enc_in_)->set_initial(kMaxHelloLength);
+  crypto::NodeBIO::FromBIO(wrap->enc_in_)->set_initial(kMaxHelloLength);
   wrap->hello_parser_.Start(SSLWrap<TLSWrap>::OnClientHello,
                             OnClientHelloParseEnd,
                             wrap);
