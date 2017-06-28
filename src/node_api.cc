@@ -826,6 +826,11 @@ napi_status napi_get_last_error_info(napi_env env,
   return napi_ok;
 }
 
+NAPI_NO_RETURN void napi_fatal_error(const char* location,
+                                     const char* message) {
+  node::FatalError(location, message);
+}
+
 napi_status napi_create_function(napi_env env,
                                  const char* utf8name,
                                  napi_callback cb,
