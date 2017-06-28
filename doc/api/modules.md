@@ -453,6 +453,157 @@ to the module, such as:
   - The convenience variables `__filename` and `__dirname`, containing the
   module's absolute filename and directory path.
 
+## The module scope
+
+### \_\_dirname
+<!-- YAML
+added: v0.1.27
+-->
+
+<!-- type=var -->
+
+* {string}
+
+The directory name of the current module. This the same as the
+[`path.dirname()`][] of the [`__filename`][].
+
+Example: running `node example.js` from `/Users/mjr`
+
+```js
+console.log(__dirname);
+// Prints: /Users/mjr
+console.log(path.dirname(__filename));
+// Prints: /Users/mjr
+```
+
+### \_\_filename
+<!-- YAML
+added: v0.0.1
+-->
+
+<!-- type=var -->
+
+* {string}
+
+The file name of the current module. This is the resolved absolute path of the
+current module file.
+
+For a main program this is not necessarily the same as the file name used in the
+command line.
+
+See [`__dirname`][] for the directory name of the current module.
+
+Examples:
+
+Running `node example.js` from `/Users/mjr`
+
+```js
+console.log(__filename);
+// Prints: /Users/mjr/example.js
+console.log(__dirname);
+// Prints: /Users/mjr
+```
+
+Given two modules: `a` and `b`, where `b` is a dependency of
+`a` and there is a directory structure of:
+
+* `/Users/mjr/app/a.js`
+* `/Users/mjr/app/node_modules/b/b.js`
+
+References to `__filename` within `b.js` will return
+`/Users/mjr/app/node_modules/b/b.js` while references to `__filename` within
+`a.js` will return `/Users/mjr/app/a.js`.
+
+### exports
+<!-- YAML
+added: v0.1.12
+-->
+
+<!-- type=var -->
+
+A reference to the `module.exports` that is shorter to type.
+See the section about the [exports shortcut][] for details on when to use
+`exports` and when to use `module.exports`.
+
+### module
+<!-- YAML
+added: v0.1.16
+-->
+
+<!-- type=var -->
+
+* {Object}
+
+A reference to the current module, see the section about the
+[`module` object][]. In particular, `module.exports` is used for defining what
+a module exports and makes available through `require()`.
+
+### require()
+<!-- YAML
+added: v0.1.13
+-->
+
+<!-- type=var -->
+
+* {Function}
+
+To require modules.
+
+#### require.cache
+<!-- YAML
+added: v0.3.0
+-->
+
+* {Object}
+
+Modules are cached in this object when they are required. By deleting a key
+value from this object, the next `require` will reload the module. Note that
+this does not apply to [native addons][], for which reloading will result in an
+Error.
+
+#### require.extensions
+<!-- YAML
+added: v0.3.0
+deprecated: v0.10.6
+-->
+
+> Stability: 0 - Deprecated
+
+* {Object}
+
+Instruct `require` on how to handle certain file extensions.
+
+Process files with the extension `.sjs` as `.js`:
+
+```js
+require.extensions['.sjs'] = require.extensions['.js'];
+```
+
+**Deprecated**  In the past, this list has been used to load
+non-JavaScript modules into Node.js by compiling them on-demand.
+However, in practice, there are much better ways to do this, such as
+loading modules via some other Node.js program, or compiling them to
+JavaScript ahead of time.
+
+Since the module system is locked, this feature will probably never go
+away.  However, it may have subtle bugs and complexities that are best
+left untouched.
+
+Note that the number of file system operations that the module system
+has to perform in order to resolve a `require(...)` statement to a
+filename scales linearly with the number of registered extensions.
+
+In other words, adding extensions slows down the module loader and
+should be discouraged.
+
+#### require.resolve()
+<!-- YAML
+added: v0.3.0
+-->
+
+Use the internal `require()` machinery to look up the location of a module,
+but rather than loading the module, just return the resolved filename.
+
 ## The `module` Object
 <!-- YAML
 added: v0.1.16
@@ -633,5 +784,11 @@ The `module.require` method provides a way to load a module as if
 `module` is typically *only* available within a specific module's code, it must
 be explicitly exported in order to be used.
 
+[`__dirname`]: #modules_dirname
+[`__filename`]: #modules_filename
 [`Error`]: errors.html#errors_class_error
+[`module` object]: #modules_the_module_object
+[`path.dirname()`]: path.html#path_path_dirname_path
+[exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together
+[native addons]: addons.html
