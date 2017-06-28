@@ -256,19 +256,20 @@ If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned.
 
-## assert.fail(message)
+## assert.fail([message])
 ## assert.fail(actual, expected, message, operator)
 <!-- YAML
 added: v0.1.21
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {any} (default: 'Failed')
 * `operator` {string} (default: '!=')
 
 Throws an `AssertionError`. If `message` is falsy, the error message is set as
 the values of `actual` and `expected` separated by the provided `operator`.
 Otherwise, the error message is the value of `message`.
+If no arguments are provided at all, a default message will be used instead.
 
 ```js
 const assert = require('assert');
@@ -284,6 +285,9 @@ assert.fail('boom');
 
 assert.fail('a', 'b');
 // AssertionError: 'a' != 'b'
+
+assert.fail();
+// AssertionError: Failed
 ```
 
 ## assert.ifError(value)
