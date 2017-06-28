@@ -609,6 +609,23 @@ Used for status codes outside the regular status code ranges (100-999).
 Used when the `Trailer` header is set even though the transfer encoding does not
 support that.
 
+<a id="ERR_HTTP_HEADERS_SENT"></a>
+### ERR_HTTP_HEADERS_SENT
+
+Used when headers have already been sent and another attempt is made to add
+more headers.
+
+<a id="ERR_HTTP_INVALID_STATUS_CODE"></a>
+### ERR_HTTP_INVALID_STATUS_CODE
+
+Used for status codes outside the regular status code ranges (100-999).
+
+<a id="ERR_HTTP_TRAILER_INVALID"></a>
+### ERR_HTTP_TRAILER_INVALID
+
+Used when the `Trailer` header is set even though the transfer encoding does not
+support that.
+
 <a id="ERR_INDEX_OUT_OF_RANGE"></a>
 ### ERR_INDEX_OUT_OF_RANGE
 
