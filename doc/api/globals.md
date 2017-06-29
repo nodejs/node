@@ -2,8 +2,8 @@
 
 <!-- type=misc -->
 
-These objects are available in all modules. The following global-looking
-variables are specific to modules and therefore listed as part of the
+These objects are available in all modules. The following variables may appear
+to be global but are not. They exist only in the scope of modules, see the
 [module system documentation][]:
 
 - [`__dirname`][]
@@ -26,6 +26,14 @@ added: v0.1.103
 * {Function}
 
 Used to handle binary data. See the [buffer section][].
+
+## \_\_dirname
+
+This variable may appear to be global but is not. See [`__dirname`].
+
+## \_\_filename
+
+This variable may appear to be global but is not. See [`__filename`].
 
 ## clearImmediate(immediateObject)
 <!-- YAML
@@ -65,6 +73,10 @@ added: v0.1.100
 
 Used to print to stdout and stderr. See the [`console`][] section.
 
+## exports
+
+This variable may appear to be global but is not. See [`exports`].
+
 ## global
 <!-- YAML
 added: v0.1.27
@@ -79,6 +91,10 @@ within the browser `var something` will define a new global variable. In
 Node.js this is different. The top-level scope is not the global scope;
 `var something` inside a Node.js module will be local to that module.
 
+## module
+
+This variable may appear to be global but is not. See [`module`].
+
 ## process
 <!-- YAML
 added: v0.1.7
@@ -89,6 +105,10 @@ added: v0.1.7
 * {Object}
 
 The process object. See the [`process` object][] section.
+
+## require()
+
+This variable may appear to be global but is not. See [`require()`].
 
 ## setImmediate(callback[, ...args])
 <!-- YAML
