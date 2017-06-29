@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const LENGTH = 16;
@@ -65,16 +65,16 @@ b.writeDoubleBE(11.11, 0, true);
   buf[0] = 9;
   assert.strictEqual(ab[1], 9);
 
-  assert.throws(() => Buffer.from(ab.buffer, 6), (err) => {
-    assert(err instanceof RangeError);
-    assert(/'offset' is out of bounds/.test(err.message));
-    return true;
-  });
-  assert.throws(() => Buffer.from(ab.buffer, 3, 6), (err) => {
-    assert(err instanceof RangeError);
-    assert(/'length' is out of bounds/.test(err.message));
-    return true;
-  });
+  assert.throws(() => Buffer.from(ab.buffer, 6), common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"offset" is outside of buffer bounds'
+  }));
+  assert.throws(() => Buffer.from(ab.buffer, 3, 6), common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"length" is outside of buffer bounds'
+  }));
 }
 
 // Test the deprecated Buffer() version also
@@ -93,16 +93,16 @@ b.writeDoubleBE(11.11, 0, true);
   buf[0] = 9;
   assert.strictEqual(ab[1], 9);
 
-  assert.throws(() => Buffer(ab.buffer, 6), (err) => {
-    assert(err instanceof RangeError);
-    assert(/'offset' is out of bounds/.test(err.message));
-    return true;
-  });
-  assert.throws(() => Buffer(ab.buffer, 3, 6), (err) => {
-    assert(err instanceof RangeError);
-    assert(/'length' is out of bounds/.test(err.message));
-    return true;
-  });
+  assert.throws(() => Buffer(ab.buffer, 6), common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"offset" is outside of buffer bounds'
+  }));
+  assert.throws(() => Buffer(ab.buffer, 3, 6), common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"length" is outside of buffer bounds'
+  }));
 }
 
 {
@@ -118,10 +118,13 @@ b.writeDoubleBE(11.11, 0, true);
   assert.deepStrictEqual(Buffer.from(ab, [1]), Buffer.from(ab, 1));
 
   // If byteOffset is Infinity, throw.
-  assert.throws(
-    () => { Buffer.from(ab, Infinity); },
-    /^RangeError: 'offset' is out of bounds$/
-  );
+  assert.throws(() => {
+    Buffer.from(ab, Infinity);
+  }, common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"offset" is outside of buffer bounds'
+  }));
 }
 
 {
@@ -137,8 +140,11 @@ b.writeDoubleBE(11.11, 0, true);
   assert.deepStrictEqual(Buffer.from(ab, 0, [1]), Buffer.from(ab, 0, 1));
 
   //If length is Infinity, throw.
-  assert.throws(
-    () => { Buffer.from(ab, 0, Infinity); },
-    /^RangeError: 'length' is out of bounds$/
-  );
+  assert.throws(() => {
+    Buffer.from(ab, 0, Infinity);
+  }, common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"length" is outside of buffer bounds'
+  }));
 }

@@ -54,11 +54,12 @@ assertWrongList(['hello', Buffer.from('world')]);
 function assertWrongList(value) {
   assert.throws(() => {
     Buffer.concat(value);
-  }, function(err) {
-    return err instanceof TypeError &&
-           err.message === '"list" argument must be an Array of Buffer ' +
-                           'or Uint8Array instances';
-  });
+  }, common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "list" argument must be one of type ' +
+             'array, buffer, or uint8Array'
+  }));
 }
 
 const random10 = common.hasCrypto ?

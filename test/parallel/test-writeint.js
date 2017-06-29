@@ -23,9 +23,13 @@
 /*
  * Tests to verify we're writing signed integers correctly
  */
-require('../common');
+const common = require('../common');
 const assert = require('assert');
-const errorOutOfBounds = /^TypeError: "value" argument is out of bounds$/;
+const errorOutOfBounds = common.expectsError({
+  code: 'ERR_INVALID_OPT_VALUE',
+  type: RangeError,
+  message: /^The value "[^"]*" is invalid for option "value"$/
+}, 12);
 
 function test8(clazz) {
   const buffer = new clazz(2);

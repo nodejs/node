@@ -206,16 +206,30 @@ assert.throws(
   common.expectsError({code: 'ERR_INDEX_OUT_OF_RANGE'}));
 assert.throws(
   () => buf1.fill('a', 0, buf1.length, 'node rocks!'),
-  /^TypeError: Unknown encoding: node rocks!$/);
+  common.expectsError({
+    code: 'ERR_UNKNOWN_ENCODING',
+    type: TypeError,
+    message: 'Unknown encoding: node rocks!'
+  }));
 assert.throws(
   () => buf1.fill('a', 0, 0, NaN),
-  /^TypeError: encoding must be a string$/);
+  common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "encoding" argument must be of type string'
+  }));
 assert.throws(
   () => buf1.fill('a', 0, 0, null),
-  /^TypeError: encoding must be a string$/);
+  common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "encoding" argument must be of type string'
+  }));
 assert.throws(
   () => buf1.fill('a', 0, 0, 'foo'),
-  /^TypeError: Unknown encoding: foo$/);
+  common.expectsError({
+    code: 'ERR_UNKNOWN_ENCODING',
+    type: TypeError,
+    message: 'Unknown encoding: foo'
+  }));
 
 
 function genBuffer(size, args) {

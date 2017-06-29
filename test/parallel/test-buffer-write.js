@@ -1,9 +1,13 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
-const outsideBounds = /^RangeError: Attempt to write outside buffer bounds$/;
+const outsideBounds = common.expectsError({
+  code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+  type: RangeError,
+  message: 'Attempt to write outside buffer bounds'
+}, 2);
 
 assert.throws(() => Buffer.alloc(9).write('foo', -1), outsideBounds);
 assert.throws(() => Buffer.alloc(9).write('foo', 10), outsideBounds);
@@ -57,7 +61,11 @@ encodings
 // Invalid encodings
 for (let i = 1; i < 10; i++) {
   const encoding = String(i).repeat(i);
-  const error = new RegExp(`^TypeError: Unknown encoding: ${encoding}$`);
+  const error = common.expectsError({
+    code: 'ERR_UNKNOWN_ENCODING',
+    type: TypeError,
+    message: `Unknown encoding: ${encoding}`
+  });
 
   assert.ok(!Buffer.isEncoding(encoding));
   assert.throws(() => Buffer.alloc(9).write('foo', encoding), error);

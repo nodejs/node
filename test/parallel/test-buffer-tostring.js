@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 // utf8, ucs2, ascii, latin1, utf16le
@@ -27,8 +27,11 @@ encodings
 // Invalid encodings
 for (let i = 1; i < 10; i++) {
   const encoding = String(i).repeat(i);
-  const error = new RegExp(`^TypeError: Unknown encoding: ${encoding}$`);
-
+  const error = common.expectsError({
+    code: 'ERR_UNKNOWN_ENCODING',
+    type: TypeError,
+    message: `Unknown encoding: ${encoding}`
+  });
   assert.ok(!Buffer.isEncoding(encoding));
   assert.throws(() => Buffer.from('foo').toString(encoding), error);
 }
