@@ -4372,7 +4372,7 @@ void Init(int* argc,
   if (!i18n::InitializeICUDirectory(icu_data_dir)) {
     fprintf(stderr,
             "%s: could not initialize ICU "
-            "(check NODE_ICU_DATA or --icu-data-dir parameters)\n",
+            "(check NODE_ICU_DATA or --icu-data-dir parameters)",
             argv[0]);
     exit(9);
   }
