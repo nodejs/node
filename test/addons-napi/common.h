@@ -12,7 +12,7 @@
       const char* error_message = error_info->error_message != NULL ?    \
         error_info->error_message :                                      \
         "empty error message";                                           \
-      napi_throw_error((env), error_message);                            \
+      napi_throw_error((env), NULL, error_message);                      \
     }                                                                    \
   } while (0)
 
@@ -21,6 +21,7 @@
     if (!(assertion)) {                                                  \
       napi_throw_error(                                                  \
           (env),                                                         \
+        NULL,                                                            \
           "assertion (" #assertion ") failed: " message);                \
       return ret_val;                                                    \
     }                                                                    \

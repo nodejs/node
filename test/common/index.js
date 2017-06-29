@@ -626,6 +626,59 @@ Object.defineProperty(exports, 'hasIntl', {
   }
 });
 
+// Useful for testing expected internal/error objects
+exports.expectsError = function expectsError(fn, settings, exact) {
+  if (typeof fn !== 'function') {
+    exact = settings;
+    settings = fn;
+    fn = undefined;
+  }
+  function innerFn(error) {
+    assert.strictEqual(error.code, settings.code);
+    if ('type' in settings) {
+      const type = settings.type;
+      if (type !== Error && !Error.isPrototypeOf(type)) {
+        throw new TypeError('`settings.type` must inherit from `Error`');
+      }
+      assert(error instanceof type,
+             `${error.name} is not instance of ${type.name}`);
+      let typeName = error.constructor.name;
+      if (typeName === 'NodeError' && type.name !== 'NodeError') {
+        typeName = Object.getPrototypeOf(error.constructor).name;
+      }
+      assert.strictEqual(typeName, type.name);
+    }
+    if ('message' in settings) {
+      const message = settings.message;
+      if (typeof message === 'string') {
+        assert.strictEqual(error.message, message);
+      } else {
+        assert(message.test(error.message),
+               `${error.message} does not match ${message}`);
+      }
+    }
+    if ('name' in settings) {
+      assert.strictEqual(error.name, settings.name);
+    }
+    if (error.constructor.name === 'AssertionError') {
+      ['generatedMessage', 'actual', 'expected', 'operator'].forEach((key) => {
+        if (key in settings) {
+          const actual = error[key];
+          const expected = settings[key];
+          assert.strictEqual(actual, expected,
+                             `${key}: expected ${expected}, not ${actual}`);
+        }
+      });
+    }
+    return true;
+  }
+  if (fn) {
+    assert.throws(fn, innerFn);
+    return;
+  }
+  return exports.mustCall(innerFn, exact);
+};
+
 // Crash the process on unhandled rejections.
 exports.crashOnUnhandledRejection = function() {
   process.on('unhandledRejection',
