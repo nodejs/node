@@ -323,6 +323,31 @@ code needs to create an Error object: [`napi_create_error`][],
 where result is the napi_value that refers to the newly created
 JavaScript Error object.
 
+The Node.js project is adding error codes to all of the errors
+generated internally.  The goal is for applications to use these
+error codes for all error checking. The associated error messages
+will remain, but will only be meant to be used for logging and
+display with the expectation that the message can change without
+SemVer applying. In order to support this model with N-API, both
+in internal functionality and for module specific functionality
+(as its good practice), the `throw_` and `create_` functions
+take an optional code parameter which is the string for the code
+to be added to the error object.  If the optional parameter is NULL
+then no code will be associated with the error. If a code is provided,
+the name associated with the error is also updated to be:
+
+```
+originalName [code]
+```
+
+where originalName is the original name associated with the error
+and code is the code that was provided.  For example if the code
+is 'ERR_ERROR_1' and a TypeError is being created the name will be:
+
+```
+TypeError [ERR_ERROR_1]
+```
+
 #### napi_throw
 <!-- YAML
 added: v8.0.0
@@ -343,9 +368,12 @@ This API throws the JavaScript Error provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_throw_error(napi_env env, const char* msg);
+NODE_EXTERN napi_status napi_throw_error(napi_env env,
+                                         const char* code,
+                                         const char* msg);
 ```
 - `[in] env`: The environment that the API is invoked under.
+- `[in] code`: Optional error code to be set on the error.
 - `[in] msg`: C string representing the text to be associated with
 the error.
 
@@ -358,9 +386,12 @@ This API throws a JavaScript Error with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_throw_type_error(napi_env env, const char* msg);
+NODE_EXTERN napi_status napi_throw_type_error(napi_env env,
+                                              const char* code,
+                                              const char* msg);
 ```
 - `[in] env`: The environment that the API is invoked under.
+- `[in] code`: Optional error code to be set on the error.
 - `[in] msg`: C string representing the text to be associated with
 the error.
 
@@ -373,9 +404,12 @@ This API throws a JavaScript TypeError with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_throw_range_error(napi_env env, const char* msg);
+NODE_EXTERN napi_status napi_throw_range_error(napi_env env,
+                                               const char* code,
+                                               const char* msg);
 ```
 - `[in] env`: The environment that the API is invoked under.
+- `[in] code`: Optional error code to be set on the error.
 - `[in] msg`: C string representing the text to be associated with
 the error.
 
@@ -409,10 +443,13 @@ added: v8.0.0
 -->
 ```C
 NODE_EXTERN napi_status napi_create_error(napi_env env,
+                                          napi_value code,
                                           napi_value msg,
                                           napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
+- `[in] code`: Optional `napi_value` with the string for the error code to
+               be associated with the error.
 - `[in] msg`: napi_value that references a JavaScript String to be
 used as the message for the Error.
 - `[out] result`: `napi_value` representing the error created.
@@ -427,10 +464,13 @@ added: v8.0.0
 -->
 ```C
 NODE_EXTERN napi_status napi_create_type_error(napi_env env,
+                                               napi_value code,
                                                napi_value msg,
                                                napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
+- `[in] code`: Optional `napi_value` with the string for the error code to
+               be associated with the error.
 - `[in] msg`: napi_value that references a JavaScript String to be
 used as the message for the Error.
 - `[out] result`: `napi_value` representing the error created.
@@ -446,10 +486,13 @@ added: v8.0.0
 -->
 ```C
 NODE_EXTERN napi_status napi_create_range_error(napi_env env,
+                                                napi_value code,
                                                 const char* msg,
                                                 napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
+- `[in] code`: Optional `napi_value` with the string for the error code to
+               be associated with the error.
 - `[in] msg`: napi_value that references a JavaScript String to be
 used as the message for the Error.
 - `[out] result`: `napi_value` representing the error created.
