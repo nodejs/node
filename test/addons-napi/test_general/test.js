@@ -34,3 +34,19 @@ assert.ok(test_general.testGetPrototype(baseObject) !==
 // test version management funcitons
 // expected version is currently 1
 assert.strictEqual(test_general.testGetVersion(), 1);
+
+[
+  123,
+  'test string',
+  function() {},
+  new Object(),
+  true,
+  undefined,
+  Symbol()
+].forEach((val) => {
+  assert.strictEqual(test_general.testNapiTypeof(val), typeof val);
+});
+
+// since typeof in js return object need to validate specific case
+// for null
+assert.strictEqual(test_general.testNapiTypeof(null), 'null');
