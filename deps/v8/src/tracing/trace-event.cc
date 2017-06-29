@@ -15,8 +15,8 @@ namespace v8 {
 namespace internal {
 namespace tracing {
 
-v8::Platform* TraceEventHelper::GetCurrentPlatform() {
-  return v8::internal::V8::GetCurrentPlatform();
+v8::TracingController* TraceEventHelper::GetTracingController() {
+  return v8::internal::V8::GetCurrentPlatform()->GetTracingController();
 }
 
 void CallStatsScopedTracer::AddEndTraceEvent() {
