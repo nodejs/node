@@ -113,7 +113,7 @@ function startTest() {
     const client = tls.connect(options, function() {
       clientResults.push(
         client.authorizationError &&
-        /Hostname\/IP doesn't/.test(client.authorizationError));
+        (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID'));
       client.destroy();
 
       // Continue
