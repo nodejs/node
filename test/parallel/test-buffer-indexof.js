@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const b = Buffer.from('abcdef');
@@ -344,8 +344,12 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
   }
 }
 
-const argumentExpected =
-    /^TypeError: "val" argument must be string, number, Buffer or Uint8Array$/;
+const argumentExpected = common.expectsError({
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "val" argument must be one of type ' +
+           'string, buffer, or uint8Array'
+}, 3);
 
 assert.throws(() => {
   b.indexOf(() => { });

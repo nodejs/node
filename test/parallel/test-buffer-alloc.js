@@ -888,7 +888,11 @@ assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1), RangeError);
 
 // Regression test for #5482: should throw but not assert in C++ land.
 assert.throws(() => Buffer.from('', 'buffer'),
-              /^TypeError: "encoding" must be a valid string encoding$/);
+              common.expectsError({
+                code: 'ERR_UNKNOWN_ENCODING',
+                type: TypeError,
+                message: 'Unknown encoding: buffer'
+              }));
 
 // Regression test for #6111. Constructing a buffer from another buffer
 // should a) work, and b) not corrupt the source buffer.
@@ -930,7 +934,8 @@ assert.throws(() => Buffer.allocUnsafe(10).copy(),
               /TypeError: argument should be a Buffer/);
 
 const regErrorMsg =
-  /First argument must be a string, Buffer, ArrayBuffer, Array, or array-like object\./;
+  new RegExp('The first argument must be one of type string, buffer, ' +
+             'arrayBuffer, array, or array-like object\\.');
 
 assert.throws(() => Buffer.from(), regErrorMsg);
 assert.throws(() => Buffer.from(null), regErrorMsg);
@@ -957,8 +962,14 @@ assert.strictEqual(SlowBuffer.prototype.offset, undefined);
 
 
 // Test that ParseArrayIndex handles full uint32
-assert.throws(() => Buffer.from(new ArrayBuffer(0), -1 >>> 0),
-              /RangeError: 'offset' is out of bounds/);
+{
+  const errMsg = common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"offset" is outside of buffer bounds'
+  });
+  assert.throws(() => Buffer.from(new ArrayBuffer(0), -1 >>> 0), errMsg);
+}
 
 // ParseArrayIndex() should reject values that don't fit in a 32 bits size_t.
 assert.throws(() => {
@@ -985,9 +996,9 @@ assert.doesNotThrow(() => Buffer.from(arrayBuf));
 assert.doesNotThrow(() => Buffer.from({ buffer: arrayBuf }));
 
 assert.throws(() => Buffer.alloc({ valueOf: () => 1 }),
-              /"size" argument must be a number/);
+              /"size" argument must be of type number/);
 assert.throws(() => Buffer.alloc({ valueOf: () => -1 }),
-              /"size" argument must be a number/);
+              /"size" argument must be of type number/);
 
 assert.strictEqual(Buffer.prototype.toLocaleString, Buffer.prototype.toString);
 {

@@ -255,7 +255,7 @@ const values = [
     }, common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "last argument" argument must be of type function'
+      message: 'The last argument must be of type function'
     }));
   });
 }

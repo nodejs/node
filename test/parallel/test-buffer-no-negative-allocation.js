@@ -1,9 +1,13 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
-const msg = /"size" argument must not be negative/;
+const msg = common.expectsError({
+  code: 'ERR_INVALID_OPT_VALUE',
+  type: RangeError,
+  message: /^The value "[^"]*" is invalid for option "size"$/
+}, 12);
 
 // Test that negative Buffer length inputs throw errors.
 

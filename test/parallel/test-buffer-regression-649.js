@@ -6,7 +6,11 @@ const SlowBuffer = require('buffer').SlowBuffer;
 
 // Regression test for https://github.com/nodejs/node/issues/649.
 const len = 1422561062959;
-const message = common.bufferMaxSizeMsg;
+const message = common.expectsError({
+  code: 'ERR_INVALID_OPT_VALUE',
+  type: RangeError,
+  message: /^The value "[^"]*" is invalid for option "size"$/
+}, 5);
 assert.throws(() => Buffer(len).toString('utf8'), message);
 assert.throws(() => SlowBuffer(len).toString('utf8'), message);
 assert.throws(() => Buffer.alloc(len).toString('utf8'), message);

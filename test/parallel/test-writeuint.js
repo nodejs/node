@@ -23,7 +23,7 @@
 /*
  * A battery of tests to help us read a series of uints
  */
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 /*
@@ -149,13 +149,17 @@ function testUint(clazz) {
 
   // Test 0 to 5 bytes.
   for (let i = 0; i <= 5; i++) {
-    const errmsg = `byteLength: ${i}`;
+    const errMsg = common.expectsError({
+      code: 'ERR_INVALID_OPT_VALUE',
+      type: RangeError,
+      message: /^The value "[^"]*" is invalid for option "value"$/
+    }, 2);
     assert.throws(function() {
       data.writeUIntBE(val, 0, i);
-    }, /"value" argument is out of bounds/, errmsg);
+    }, errMsg);
     assert.throws(function() {
       data.writeUIntLE(val, 0, i);
-    }, /"value" argument is out of bounds/, errmsg);
+    }, errMsg);
     val *= 0x100;
   }
 }

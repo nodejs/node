@@ -575,6 +575,11 @@ Used as special type of error that can be triggered whenever Node.js detects an
 exceptional logic violation that should never occur. These are raised typically
 by the `assert` module.
 
+<a id="ERR_BUFFER_OUT_OF_BOUNDS"></a>
+### ERR_BUFFER_OUT_OF_BOUNDS
+
+Used when attempting to perform an operation outside the bounds of a `Buffer`.
+
 <a id="ERR_CONSOLE_WRITABLE_STREAM"></a>
 ### ERR_CONSOLE_WRITABLE_STREAM
 
@@ -624,6 +629,11 @@ to a Node.js API.
 ### ERR_INVALID_ARRAY_LENGTH
 
 Used when an Array is not of the expected length or in a valid range.
+
+<a id="ERR_INVALID_BUFFER_SIZE"></a>
+### ERR_INVALID_BUFFER_SIZE
+
+Used when performing a swap on a `Buffer` but it's size is not compatible with the operation.
 
 <a id="ERR_INVALID_CALLBACK"></a>
 ### ERR_INVALID_CALLBACK
@@ -781,6 +791,13 @@ would be possible by calling a callback more then once.
 Used when an attempt is made to use crypto features while Node.js is not
 compiled with OpenSSL crypto support.
 
+<a id="ERR_NO_LONGER_SUPPORTED"></a>
+### ERR_NO_LONGER_SUPPORTED
+
+Used when a Node.js API is called in an unsupported manner.
+
+For example: `Buffer.write(string, encoding, offset[, length])`
+
 <a id="ERR_PARSE_HISTORY_DATA"></a>
 ### ERR_PARSE_HISTORY_DATA
 
@@ -843,6 +860,11 @@ instance.setEncoding('utf-8');
 Used to identify a specific kind of internal Node.js error that should not
 typically be triggered by user code. Instances of this error point to an
 internal bug within the Node.js binary itself.
+
+<a id="ERR_UNKNOWN_ENCODING"></a>
+### ERR_UNKNOWN_ENCODING
+
+Used when an invalid or unknown encoding option is passed to an API.
 
 <a id="ERR_UNKNOWN_SIGNAL"></a>
 ### ERR_UNKNOWN_SIGNAL
