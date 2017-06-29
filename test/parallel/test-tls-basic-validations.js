@@ -23,7 +23,12 @@ assert.throws(() => tls.createServer({ecdhCurve: 1}),
               /TypeError: ECDH curve name must be a string/);
 
 assert.throws(() => tls.createServer({handshakeTimeout: 'abcd'}),
-              /TypeError: handshakeTimeout must be a number/);
+              common.expectsError({
+                code: 'ERR_INVALID_ARG_TYPE',
+                type: TypeError,
+                message: 'The "timeout" argument must be of type number'
+              })
+            );
 
 assert.throws(() => tls.createServer({sessionTimeout: 'abcd'}),
               /TypeError: Session timeout must be a 32-bit integer/);
