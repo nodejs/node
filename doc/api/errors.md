@@ -829,10 +829,11 @@ Node.js does not allow `stdout` or `stderr` Streams to be closed by user code.
 Used when an attempt is made to close the `process.stdout` stream. By design,
 Node.js does not allow `stdout` or `stderr` Streams to be closed by user code.
 
-<a id="ERR_STREAM_HAS_STRINGDECODER"></a>
-### ERR_STREAM_HAS_STRINGDECODER
+<a id="ERR_STREAM_WRAP"></a>
+### ERR_STREAM_WRAP
 
-Used to prevent an abort if a string decoder was set on the Socket.
+Used to prevent an abort if a string decoder was set on the Socket or if in
+`objectMode`.
 
 Example
 ```js
