@@ -90,6 +90,41 @@ napi_value testNapiErrorCleanup(napi_env env, napi_callback_info info) {
   return result;
 }
 
+napi_value testNapiTypeof(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  napi_valuetype object_type;
+  NAPI_CALL(env, napi_typeof(env, args[0], &object_type));  
+
+  napi_value result;
+  if (object_type == napi_number) {
+    NAPI_CALL(env ,napi_create_number(env, 42, &result));
+  } else if (object_type == napi_string) {
+    NAPI_CALL(env, napi_create_string_utf8(env, "42", -1, &result));
+  } else if (object_type == napi_function) {
+    NAPI_CALL(env, napi_create_function(env,
+                                        NULL,
+                                        testNapiTypeof,
+                                        NULL,
+                                        &result));
+  } else if (object_type == napi_object) {
+    NAPI_CALL(env, napi_create_object(env, &result));
+  } else if (object_type == napi_boolean) {
+    NAPI_CALL(env, napi_get_boolean(env, true, &result));
+  } else if (object_type == napi_undefined) {
+    NAPI_CALL(env, napi_get_undefined(env, &result));
+  } else if (object_type == napi_symbol) {
+    napi_value symbol_description;
+    NAPI_CALL(env, napi_create_string_utf8(env, "NameKeySymbol", -1, &symbol_description));
+    NAPI_CALL(env, napi_create_symbol(env, symbol_description, &result));
+  } else if (object_type == napi_null) {
+    NAPI_CALL(env, napi_get_null(env, &result));
+  }
+  return result;
+}
+
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("testStrictEquals", testStrictEquals),
@@ -100,6 +135,7 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("getNull", getNull),
     DECLARE_NAPI_PROPERTY("createNapiError", createNapiError),
     DECLARE_NAPI_PROPERTY("testNapiErrorCleanup", testNapiErrorCleanup),
+    DECLARE_NAPI_PROPERTY("testNapiTypeof", testNapiTypeof),
   };
 
   NAPI_CALL_RETURN_VOID(env, napi_define_properties(
