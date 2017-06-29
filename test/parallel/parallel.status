@@ -13,6 +13,7 @@ prefix parallel
 [$system==macos]
 
 [$arch==arm || $arch==arm64]
+test-fs-readdir-ucs2 : PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 
