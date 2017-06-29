@@ -8,8 +8,8 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 
 const expected =
-    'could not initialize ICU ' +
-    '(check NODE_ICU_DATA or --icu-data-dir parameters)\n';
+    'could not initialize ICU (check NODE_ICU_DATA or ' +
+    '--icu-data-dir parameters)' + (common.isWindows ? '\r\n' : '\n');
 
 {
   const child = spawnSync(process.execPath, ['--icu-data-dir=/', '-e', '0']);
