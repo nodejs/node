@@ -30,7 +30,8 @@ class WorkerThread;
 class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
  public:
   explicit DefaultPlatform(
-      IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled);
+      IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled,
+      v8::TracingController* tracing_controller = nullptr);
   virtual ~DefaultPlatform();
 
   void SetThreadPoolSize(int thread_pool_size);
@@ -44,6 +45,8 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
 
   void RunIdleTasks(v8::Isolate* isolate, double idle_time_in_seconds);
 
+  void SetTracingController(v8::TracingController* tracing_controller);
+
   // v8::Platform implementation.
   size_t NumberOfAvailableBackgroundThreads() override;
   void CallOnBackgroundThread(Task* task,
@@ -54,24 +57,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override;
   bool IdleTasksEnabled(Isolate* isolate) override;
   double MonotonicallyIncreasingTime() override;
-  TracingController* GetTracingController() override;
-  const uint8_t* GetCategoryGroupEnabled(const char* name) override;
-  const char* GetCategoryGroupName(
-      const uint8_t* category_enabled_flag) override;
-  using Platform::AddTraceEvent;
-  uint64_t AddTraceEvent(
-      char phase, const uint8_t* category_enabled_flag, const char* name,
-      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
-      const char** arg_names, const uint8_t* arg_types,
-      const uint64_t* arg_values,
-      std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
-      unsigned int flags) override;
-  void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
-                                const char* name, uint64_t handle) override;
-  void SetTracingController(TracingController* tracing_controller);
-
-  void AddTraceStateObserver(TraceStateObserver* observer) override;
-  void RemoveTraceStateObserver(TraceStateObserver* observer) override;
+  v8::TracingController* GetTracingController() override;
   StackTracePrinter GetStackTracePrinter() override;
 
  private:

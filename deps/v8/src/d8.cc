@@ -225,6 +225,10 @@ class PredictablePlatform : public Platform {
     return synthetic_time_in_sec_ += 0.00001;
   }
 
+  v8::TracingController* GetTracingController() override {
+    return platform_->GetTracingController();
+  }
+
   using Platform::AddTraceEvent;
   uint64_t AddTraceEvent(char phase, const uint8_t* categoryEnabledFlag,
                          const char* name, const char* scope, uint64_t id,
@@ -3063,6 +3067,17 @@ int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
 
+  platform::tracing::TracingController* tracing_controller = nullptr;
+  if (options.trace_enabled) {
+    trace_file.open("v8_trace.json");
+    tracing_controller = new platform::tracing::TracingController();
+    platform::tracing::TraceBuffer* trace_buffer =
+        platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
+            platform::tracing::TraceBuffer::kRingBufferChunks,
+            platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
+    tracing_controller->Initialize(trace_buffer);
+  }
+
   v8::platform::InProcessStackDumping in_process_stack_dumping =
       options.disable_in_process_stack_traces
           ? v8::platform::InProcessStackDumping::kDisabled
@@ -3072,21 +3087,8 @@ int Shell::Main(int argc, char* argv[]) {
                    ? new PredictablePlatform()
                    : v8::platform::CreateDefaultPlatform(
                          0, v8::platform::IdleTaskSupport::kEnabled,
-                         in_process_stack_dumping);
-
-  platform::tracing::TracingController* tracing_controller;
-  if (options.trace_enabled) {
-    trace_file.open("v8_trace.json");
-    tracing_controller = new platform::tracing::TracingController();
-    platform::tracing::TraceBuffer* trace_buffer =
-        platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
-            platform::tracing::TraceBuffer::kRingBufferChunks,
-            platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
-    tracing_controller->Initialize(trace_buffer);
-    if (!i::FLAG_verify_predictable) {
-      platform::SetTracingController(g_platform, tracing_controller);
-    }
-  }
+                         in_process_stack_dumping,
+                         tracing_controller);
 
   v8::V8::InitializePlatform(g_platform);
   v8::V8::Initialize();
