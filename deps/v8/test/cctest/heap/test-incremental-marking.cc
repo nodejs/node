@@ -62,6 +62,10 @@ class MockPlatform : public v8::Platform {
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
 
+  v8::TracingController* GetTracingController() override {
+    return platform_->GetTracingController();
+  }
+
   bool PendingTask() { return task_ != nullptr; }
 
   void PerformTask() {

@@ -206,7 +206,7 @@ class Platform {
   /**
    * Returns an instance of a v8::TracingController. This must be non-nullptr.
    */
-  virtual TracingController* GetTracingController() { return nullptr; }
+  virtual TracingController* GetTracingController() = 0;
 
   // DEPRECATED methods, use TracingController interface instead.
 
