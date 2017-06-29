@@ -70,6 +70,8 @@ V8_PLATFORM_EXPORT void RunIdleTasks(v8::Platform* platform,
  * Attempts to set the tracing controller for the given platform.
  *
  * The |platform| has to be created using |CreateDefaultPlatform|.
+ *
+ * DEPRECATED: Will be removed soon.
  */
 V8_PLATFORM_EXPORT void SetTracingController(
     v8::Platform* platform,
