@@ -26,7 +26,7 @@
   * [Archive](CHANGELOG_ARCHIVE.md)
 
 <a id="8.1.3"></a>
-## 2017-06-??, Version 8.1.3 (Current), @addaleax
+## 2017-06-29, Version 8.1.3 (Current), @addaleax
 
 ### Notable changes
 
