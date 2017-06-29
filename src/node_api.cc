@@ -21,6 +21,7 @@
 #include "node_internals.h"
 #include "env-inl.h"
 #include "node_api_backport.h"
+#include "util.h"
 
 #define NAPI_VERSION  1
 
@@ -1525,7 +1526,61 @@ napi_status napi_create_symbol(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+static napi_status set_error_code(napi_env env,
+                                  v8::Local<v8::Value> error,
+                                  napi_value code,
+                                  const char* code_cstring) {
+  if ((code != nullptr) || (code_cstring != nullptr)) {
+    v8::Isolate* isolate = env->isolate;
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8::Local<v8::Object> err_object = error.As<v8::Object>();
+
+    v8::Local<v8::Value> code_value = v8impl::V8LocalValueFromJsValue(code);
+    if (code != nullptr) {
+      code_value = v8impl::V8LocalValueFromJsValue(code);
+      RETURN_STATUS_IF_FALSE(env, code_value->IsString(), napi_string_expected);
+    } else {
+      CHECK_NEW_FROM_UTF8(env, code_value, code_cstring);
+    }
+
+    v8::Local<v8::Name> code_key;
+    CHECK_NEW_FROM_UTF8(env, code_key, "code");
+
+    v8::Maybe<bool> set_maybe = err_object->Set(context, code_key, code_value);
+    RETURN_STATUS_IF_FALSE(env,
+                           set_maybe.FromMaybe(false),
+                           napi_generic_failure);
+
+    // now update the name to be "name [code]" where name is the
+    // original name and code is the code associated with the Error
+    v8::Local<v8::String> name_string;
+    CHECK_NEW_FROM_UTF8(env, name_string, "");
+    v8::Local<v8::Name> name_key;
+    CHECK_NEW_FROM_UTF8(env, name_key, "name");
+
+    auto maybe_name = err_object->Get(context, name_key);
+    if (!maybe_name.IsEmpty()) {
+      v8::Local<v8::Value> name = maybe_name.ToLocalChecked();
+      if (name->IsString()) {
+        name_string = v8::String::Concat(name_string, name.As<v8::String>());
+      }
+    }
+    name_string = v8::String::Concat(name_string,
+                                     FIXED_ONE_BYTE_STRING(isolate, " ["));
+    name_string = v8::String::Concat(name_string, code_value.As<v8::String>());
+    name_string = v8::String::Concat(name_string,
+                                     FIXED_ONE_BYTE_STRING(isolate, "]"));
+
+    set_maybe = err_object->Set(context, name_key, name_string);
+    RETURN_STATUS_IF_FALSE(env,
+                           set_maybe.FromMaybe(false),
+                           napi_generic_failure);
+  }
+  return napi_ok;
+}
+
 napi_status napi_create_error(napi_env env,
+                              napi_value code,
                               napi_value msg,
                               napi_value* result) {
   NAPI_PREAMBLE(env);
@@ -1535,13 +1590,18 @@ napi_status napi_create_error(napi_env env,
   v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
   RETURN_STATUS_IF_FALSE(env, message_value->IsString(), napi_string_expected);
 
-  *result = v8impl::JsValueFromV8LocalValue(v8::Exception::Error(
-      message_value.As<v8::String>()));
+  v8::Local<v8::Value> error_obj =
+      v8::Exception::Error(message_value.As<v8::String>());
+  napi_status status = set_error_code(env, error_obj, code, nullptr);
+  if (status != napi_ok) return status;
+
+  *result = v8impl::JsValueFromV8LocalValue(error_obj);
 
   return GET_RETURN_STATUS(env);
 }
 
 napi_status napi_create_type_error(napi_env env,
+                                   napi_value code,
                                    napi_value msg,
                                    napi_value* result) {
   NAPI_PREAMBLE(env);
@@ -1551,13 +1611,18 @@ napi_status napi_create_type_error(napi_env env,
   v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
   RETURN_STATUS_IF_FALSE(env, message_value->IsString(), napi_string_expected);
 
-  *result = v8impl::JsValueFromV8LocalValue(v8::Exception::TypeError(
-      message_value.As<v8::String>()));
+  v8::Local<v8::Value> error_obj =
+      v8::Exception::TypeError(message_value.As<v8::String>());
+  napi_status status = set_error_code(env, error_obj, code, nullptr);
+  if (status != napi_ok) return status;
+
+  *result = v8impl::JsValueFromV8LocalValue(error_obj);
 
   return GET_RETURN_STATUS(env);
 }
 
 napi_status napi_create_range_error(napi_env env,
+                                    napi_value code,
                                     napi_value msg,
                                     napi_value* result) {
   NAPI_PREAMBLE(env);
@@ -1567,8 +1632,12 @@ napi_status napi_create_range_error(napi_env env,
   v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
   RETURN_STATUS_IF_FALSE(env, message_value->IsString(), napi_string_expected);
 
-  *result = v8impl::JsValueFromV8LocalValue(v8::Exception::RangeError(
-      message_value.As<v8::String>()));
+  v8::Local<v8::Value> error_obj =
+      v8::Exception::RangeError(message_value.As<v8::String>());
+  napi_status status = set_error_code(env, error_obj, code, nullptr);
+  if (status != napi_ok) return status;
+
+  *result = v8impl::JsValueFromV8LocalValue(error_obj);
 
   return GET_RETURN_STATUS(env);
 }
@@ -1741,40 +1810,58 @@ napi_status napi_throw(napi_env env, napi_value error) {
   return napi_clear_last_error(env);
 }
 
-napi_status napi_throw_error(napi_env env, const char* msg) {
+napi_status napi_throw_error(napi_env env,
+                             const char* code,
+                             const char* msg) {
   NAPI_PREAMBLE(env);
 
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::String> str;
   CHECK_NEW_FROM_UTF8(env, str, msg);
 
-  isolate->ThrowException(v8::Exception::Error(str));
+  v8::Local<v8::Value> error_obj = v8::Exception::Error(str);
+  napi_status status = set_error_code(env, error_obj, nullptr, code);
+  if (status != napi_ok) return status;
+
+  isolate->ThrowException(error_obj);
   // any VM calls after this point and before returning
   // to the javascript invoker will fail
   return napi_clear_last_error(env);
 }
 
-napi_status napi_throw_type_error(napi_env env, const char* msg) {
+napi_status napi_throw_type_error(napi_env env,
+                                  const char* code,
+                                  const char* msg) {
   NAPI_PREAMBLE(env);
 
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::String> str;
   CHECK_NEW_FROM_UTF8(env, str, msg);
 
-  isolate->ThrowException(v8::Exception::TypeError(str));
+  v8::Local<v8::Value> error_obj = v8::Exception::TypeError(str);
+  napi_status status = set_error_code(env, error_obj, nullptr, code);
+  if (status != napi_ok) return status;
+
+  isolate->ThrowException(error_obj);
   // any VM calls after this point and before returning
   // to the javascript invoker will fail
   return napi_clear_last_error(env);
 }
 
-napi_status napi_throw_range_error(napi_env env, const char* msg) {
+napi_status napi_throw_range_error(napi_env env,
+                                   const char* code,
+                                   const char* msg) {
   NAPI_PREAMBLE(env);
 
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::String> str;
   CHECK_NEW_FROM_UTF8(env, str, msg);
 
-  isolate->ThrowException(v8::Exception::RangeError(str));
+  v8::Local<v8::Value> error_obj = v8::Exception::RangeError(str);
+  napi_status status = set_error_code(env, error_obj, nullptr, code);
+  if (status != napi_ok) return status;
+
+  isolate->ThrowException(error_obj);
   // any VM calls after this point and before returning
   // to the javascript invoker will fail
   return napi_clear_last_error(env);
@@ -2394,7 +2481,9 @@ napi_status napi_instanceof(napi_env env,
   CHECK_TO_OBJECT(env, context, ctor, constructor);
 
   if (!ctor->IsFunction()) {
-    napi_throw_type_error(env, "constructor must be a function");
+    napi_throw_type_error(env,
+                          "ERR_NAPI_CONS_FUNCTION",
+                          "Constructor must be a function");
 
     return napi_set_last_error(env, napi_function_expected);
   }
@@ -2462,7 +2551,10 @@ napi_status napi_instanceof(napi_env env,
 
   v8::Local<v8::Value> prototype_property = maybe_prototype.ToLocalChecked();
   if (!prototype_property->IsObject()) {
-    napi_throw_type_error(env, "constructor.prototype must be an object");
+    napi_throw_type_error(
+        env,
+        "ERR_NAPI_CONS_PROTOTYPE_OBJECT",
+        "Constructor.prototype must be an object");
 
     return napi_set_last_error(env, napi_object_expected);
   }
