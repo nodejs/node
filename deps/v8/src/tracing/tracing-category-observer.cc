@@ -15,8 +15,9 @@ TracingCategoryObserver* TracingCategoryObserver::instance_ = nullptr;
 
 void TracingCategoryObserver::SetUp() {
   TracingCategoryObserver::instance_ = new TracingCategoryObserver();
-  v8::internal::V8::GetCurrentPlatform()->AddTraceStateObserver(
-      TracingCategoryObserver::instance_);
+  v8::internal::V8::GetCurrentPlatform()
+      ->GetTracingController()
+      ->AddTraceStateObserver(TracingCategoryObserver::instance_);
   TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"));
   TRACE_EVENT_WARMUP_CATEGORY(
       TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats_sampling"));
@@ -25,8 +26,9 @@ void TracingCategoryObserver::SetUp() {
 }
 
 void TracingCategoryObserver::TearDown() {
-  v8::internal::V8::GetCurrentPlatform()->RemoveTraceStateObserver(
-      TracingCategoryObserver::instance_);
+  v8::internal::V8::GetCurrentPlatform()
+      ->GetTracingController()
+      ->RemoveTraceStateObserver(TracingCategoryObserver::instance_);
   delete TracingCategoryObserver::instance_;
 }
 
