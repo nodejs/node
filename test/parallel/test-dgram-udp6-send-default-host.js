@@ -1,13 +1,11 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasIPv6)
+  common.skip('no IPv6 support');
+
 const assert = require('assert');
 const dgram = require('dgram');
-
-if (!common.hasIPv6) {
-  common.skip('no IPv6 support');
-  return;
-}
 
 const client = dgram.createSocket('udp6');
 

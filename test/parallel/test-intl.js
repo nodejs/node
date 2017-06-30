@@ -52,7 +52,6 @@ if (!common.hasIntl) {
     `"Intl" object is NOT present but v8_enable_i18n_support is ${enablei18n}`;
   assert.strictEqual(enablei18n, 0, erMsg);
   common.skip('Intl tests because Intl object not present.');
-
 } else {
   const erMsg =
     `"Intl" object is present but v8_enable_i18n_support is ${
@@ -72,7 +71,7 @@ if (!common.hasIntl) {
 
   // If list is specified and doesn't contain 'en' then return.
   if (process.config.variables.icu_locales && !haveLocale('en')) {
-    common.skip(
+    common.printSkipMessage(
       'detailed Intl tests because English is not listed as supported.');
     // Smoke test. Does it format anything, or fail?
     console.log(`Date(0) formatted to: ${dtf.format(date0)}`);

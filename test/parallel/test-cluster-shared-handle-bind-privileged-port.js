@@ -21,19 +21,15 @@
 
 'use strict';
 const common = require('../common');
+if (common.isWindows)
+  common.skip('not reliable on Windows');
+
+if (process.getuid() === 0)
+  common.skip('as this test should not be run as `root`');
+
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
-
-if (common.isWindows) {
-  common.skip('not reliable on Windows');
-  return;
-}
-
-if (process.getuid() === 0) {
-  common.skip('as this test should not be run as `root`');
-  return;
-}
 
 if (cluster.isMaster) {
   // Master opens and binds the socket and shares it with the worker.

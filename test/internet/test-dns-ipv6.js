@@ -1,5 +1,8 @@
 'use strict';
 const common = require('../common');
+if (!common.hasIPv6)
+  common.skip('this test, no IPv6 support');
+
 const assert = require('assert');
 const dns = require('dns');
 const net = require('net');
@@ -7,11 +10,6 @@ const isIPv6 = net.isIPv6;
 
 let running = false;
 const queue = [];
-
-if (!common.hasIPv6) {
-  common.skip('this test, no IPv6 support');
-  return;
-}
 
 function TEST(f) {
   function next() {

@@ -21,15 +21,13 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
 // simulate `cat readfile.js | node readfile.js`
 
-if (common.isWindows || common.isAix) {
+if (common.isWindows || common.isAix)
   common.skip(`No /dev/stdin on ${process.platform}.`);
-  return;
-}
 
+const assert = require('assert');
 const fs = require('fs');
 
 const dataExpected = fs.readFileSync(__filename, 'utf8');

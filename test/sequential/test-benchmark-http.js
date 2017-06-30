@@ -2,10 +2,8 @@
 
 const common = require('../common');
 
-if (!common.enoughTestMem) {
+if (!common.enoughTestMem)
   common.skip('Insufficient memory for HTTP benchmark test');
-  return;
-}
 
 // Minimal test for http benchmarks. This makes sure the benchmarks aren't
 // horribly broken but nothing more than that.

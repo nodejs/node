@@ -22,19 +22,15 @@
 'use strict';
 const common = require('../common');
 
-if (!process.features.tls_ocsp) {
+if (!process.features.tls_ocsp)
   common.skip('node compiled without OpenSSL or with old OpenSSL version.');
-  return;
-}
-if (!common.opensslCli) {
-  common.skip('node compiled without OpenSSL CLI.');
-  return;
-}
 
-if (!common.hasCrypto) {
+if (!common.opensslCli)
+  common.skip('node compiled without OpenSSL CLI.');
+
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const tls = require('tls');
 
 const assert = require('assert');

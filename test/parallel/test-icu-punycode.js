@@ -1,10 +1,8 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasIntl) {
+if (!common.hasIntl)
   common.skip('missing Intl');
-  return;
-}
 
 const icu = process.binding('icu');
 const assert = require('assert');

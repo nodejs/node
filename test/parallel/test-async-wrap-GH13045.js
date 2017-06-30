@@ -1,9 +1,7 @@
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 // Refs: https://github.com/nodejs/node/issues/13045
 // An HTTP Agent reuses a TLSSocket, and makes a failed call to `asyncReset`.
