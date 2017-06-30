@@ -5,17 +5,19 @@ if (!process.features.tls_sni) {
 }
 
 const common = require('../common');
-const assert = require('assert');
-const fs = require('fs');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
+
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const tls = require('tls');
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', `${n}.pem`);
+  return path.join(common.fixturesDir, 'keys', `${n}.pem`);
 }
 
 function loadPEM(n) {
