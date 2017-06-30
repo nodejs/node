@@ -180,3 +180,15 @@ class AsyncHooksTestConfiguration(SimpleTestConfiguration):
     for test in result:
       test.parallel = True
     return result
+
+class AbortTestConfiguration(SimpleTestConfiguration):
+  def __init__(self, context, root, section, additional=None):
+    super(AbortTestConfiguration, self).__init__(context, root, section,
+                                                 additional)
+
+  def ListTests(self, current_path, path, arch, mode):
+    result = super(AbortTestConfiguration, self).ListTests(
+         current_path, path, arch, mode)
+    for test in result:
+      test.disable_core_files = True
+    return result
