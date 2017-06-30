@@ -14,10 +14,11 @@ if (!process.features.tls_alpn || !process.features.tls_npn) {
 
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 const tls = require('tls');
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', `${n}.pem`);
+  return path.join(common.fixturesDir, 'keys', `${n}.pem`);
 }
 
 function loadPEM(n) {
