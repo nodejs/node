@@ -27,7 +27,7 @@ const bench = common.createBenchmark(main, {
     'foo\nbar',
     '\x7F'
   ],
-  n: [5e8],
+  n: [1e6],
 });
 
 function main(conf) {
