@@ -40,7 +40,7 @@ server_ipv4
   }));
 
 if (!common.hasIPv6) {
-  common.skip('ipv6 part of test, no IPv6 support');
+  common.printSkipMessage('ipv6 part of test, no IPv6 support');
   return;
 }
 

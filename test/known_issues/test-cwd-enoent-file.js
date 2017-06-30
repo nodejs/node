@@ -9,7 +9,6 @@ if (common.isSunOS || common.isWindows || common.isAix) {
   // The current working directory cannot be removed on these platforms.
   // Change this to common.skip() when this is no longer a known issue test.
   assert.fail('cannot rmdir current working directory');
-  return;
 }
 
 const cp = require('child_process');

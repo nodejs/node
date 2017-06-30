@@ -570,8 +570,13 @@ exports.mustNotCall = function(msg) {
   };
 };
 
-exports.skip = function(msg) {
+exports.printSkipMessage = function(msg) {
   console.log(`1..0 # Skipped: ${msg}`);
+};
+
+exports.skip = function(msg) {
+  exports.printSkipMessage(msg);
+  process.exit(0);
 };
 
 // A stream to push an array into a REPL
@@ -717,7 +722,6 @@ exports.expectsError = function expectsError({code, type, message}) {
 exports.skipIfInspectorDisabled = function skipIfInspectorDisabled() {
   if (process.config.variables.v8_enable_inspector === 0) {
     exports.skip('V8 inspector is disabled');
-    process.exit(0);
   }
 };
 

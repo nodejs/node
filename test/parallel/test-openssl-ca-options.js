@@ -2,10 +2,9 @@
 // This test checks the usage of --use-bundled-ca and --use-openssl-ca arguments
 // to verify that both are not used at the same time.
 const common = require('../common');
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const assert = require('assert');
 const os = require('os');
 const childProcess = require('child_process');

@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 if (process.config.variables.node_without_node_options)
-  return common.skip('missing NODE_OPTIONS support');
+  common.skip('missing NODE_OPTIONS support');
 
 // Test options specified by env variable.
 

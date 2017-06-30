@@ -103,7 +103,7 @@ function test_simple_error_callback(cb) {
 function test_simple_relative_symlink(callback) {
   console.log('test_simple_relative_symlink');
   if (skipSymlinks) {
-    common.skip('symlink test (no privs)');
+    common.printSkipMessage('symlink test (no privs)');
     return runNextTest();
   }
   const entry = `${tmpDir}/symlink`;
@@ -152,7 +152,7 @@ function test_simple_absolute_symlink(callback) {
 function test_deep_relative_file_symlink(callback) {
   console.log('test_deep_relative_file_symlink');
   if (skipSymlinks) {
-    common.skip('symlink test (no privs)');
+    common.printSkipMessage('symlink test (no privs)');
     return runNextTest();
   }
 
@@ -182,7 +182,7 @@ function test_deep_relative_file_symlink(callback) {
 function test_deep_relative_dir_symlink(callback) {
   console.log('test_deep_relative_dir_symlink');
   if (skipSymlinks) {
-    common.skip('symlink test (no privs)');
+    common.printSkipMessage('symlink test (no privs)');
     return runNextTest();
   }
   const expected = path.join(common.fixturesDir, 'cycles', 'folder');
@@ -210,7 +210,7 @@ function test_deep_relative_dir_symlink(callback) {
 function test_cyclic_link_protection(callback) {
   console.log('test_cyclic_link_protection');
   if (skipSymlinks) {
-    common.skip('symlink test (no privs)');
+    common.printSkipMessage('symlink test (no privs)');
     return runNextTest();
   }
   const entry = path.join(tmpDir, '/cycles/realpath-3a');
@@ -237,7 +237,7 @@ function test_cyclic_link_protection(callback) {
 function test_cyclic_link_overprotection(callback) {
   console.log('test_cyclic_link_overprotection');
   if (skipSymlinks) {
-    common.skip('symlink test (no privs)');
+    common.printSkipMessage('symlink test (no privs)');
     return runNextTest();
   }
   const cycles = `${tmpDir}/cycles`;
@@ -258,7 +258,7 @@ function test_cyclic_link_overprotection(callback) {
 function test_relative_input_cwd(callback) {
   console.log('test_relative_input_cwd');
   if (skipSymlinks) {
-    common.skip('symlink test (no privs)');
+    common.printSkipMessage('symlink test (no privs)');
     return runNextTest();
   }
 
@@ -297,7 +297,7 @@ function test_deep_symlink_mix(callback) {
   if (common.isWindows) {
     // This one is a mix of files and directories, and it's quite tricky
     // to get the file/dir links sorted out correctly.
-    common.skip('symlink test (no privs)');
+    common.printSkipMessage('symlink test (no privs)');
     return runNextTest();
   }
 
@@ -384,7 +384,7 @@ assertEqualPath(
 function test_up_multiple(cb) {
   console.error('test_up_multiple');
   if (skipSymlinks) {
-    common.skip('symlink test (no privs)');
+    common.printSkipMessage('symlink test (no privs)');
     return runNextTest();
   }
   function cleanup() {

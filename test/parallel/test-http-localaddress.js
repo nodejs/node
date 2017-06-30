@@ -21,13 +21,11 @@
 
 'use strict';
 const common = require('../common');
+if (!common.hasMultiLocalhost())
+  common.skip('platform-specific test.');
+
 const http = require('http');
 const assert = require('assert');
-
-if (!common.hasMultiLocalhost()) {
-  common.skip('platform-specific test.');
-  return;
-}
 
 const server = http.createServer(function(req, res) {
   console.log(`Connect from: ${req.connection.remoteAddress}`);
