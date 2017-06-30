@@ -1,10 +1,8 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 // Test interaction of compiled-in CAs with user-provided CAs.
 

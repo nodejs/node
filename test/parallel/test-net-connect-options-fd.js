@@ -1,14 +1,12 @@
 'use strict';
 const common = require('../common');
+if (common.isWindows)
+  common.skip('Does not support wrapping sockets with fd on Windows');
+
 const assert = require('assert');
 const net = require('net');
 const path = require('path');
 const Pipe = process.binding('pipe_wrap').Pipe;
-
-if (common.isWindows) {
-  common.skip('Does not support wrapping sockets with fd on Windows');
-  return;
-}
 
 common.refreshTmpDir();
 

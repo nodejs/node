@@ -21,20 +21,14 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
-if (!common.opensslCli) {
+if (!common.opensslCli)
   common.skip('missing openssl-cli');
-  return;
-}
 
+const assert = require('assert');
 const tls = require('tls');
-
 const join = require('path').join;
 const net = require('net');
 const fs = require('fs');

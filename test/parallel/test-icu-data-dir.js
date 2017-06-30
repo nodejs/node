@@ -1,9 +1,8 @@
 'use strict';
 const common = require('../common');
-if (!(common.hasIntl && common.hasSmallICU)) {
+if (!(common.hasIntl && common.hasSmallICU))
   common.skip('missing Intl');
-  return;
-}
+
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 
