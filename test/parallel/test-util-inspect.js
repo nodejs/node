@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const JSStream = process.binding('js_stream').JSStream;
 const util = require('util');
 const vm = require('vm');
 
@@ -83,7 +84,7 @@ assert.strictEqual(util.inspect(Object.assign(new String('hello'),
                    { [Symbol('foo')]: 123 }), { showHidden: true }),
                    '{ [String: \'hello\'] [length]: 5, [Symbol(foo)]: 123 }');
 
-assert.strictEqual(util.inspect(process.stdin._handle._externalStream),
+assert.strictEqual(util.inspect((new JSStream())._externalStream),
                    '[External]');
 
 {
