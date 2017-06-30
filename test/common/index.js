@@ -493,8 +493,13 @@ exports.mustNotCall = function(msg) {
   };
 };
 
-exports.skip = function(msg) {
+exports.printSkipMessage = function(msg) {
   console.log(`1..0 # Skipped: ${msg}`);
+};
+
+exports.skip = function(msg) {
+  exports.printSkipMessage(msg);
+  process.exit(0);
 };
 
 // A stream to push an array into a REPL

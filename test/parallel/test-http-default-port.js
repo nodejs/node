@@ -17,7 +17,7 @@ let https;
 if (common.hasCrypto) {
   https = require('https');
 } else {
-  common.skip('missing crypto');
+  common.printSkipMessage('missing crypto');
 }
 
 process.on('exit', function() {

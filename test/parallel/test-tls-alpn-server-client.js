@@ -1,15 +1,12 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 if (!process.features.tls_alpn || !process.features.tls_npn) {
   common.skip(
     'Skipping because node compiled without NPN or ALPN feature of OpenSSL.');
-  return;
 }
 
 const assert = require('assert');

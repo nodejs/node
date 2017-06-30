@@ -1,20 +1,19 @@
 'use strict';
 const common = require('../common');
+
+if (common.isWindows) {
+  // No way to send CTRL_C_EVENT to processes from JS right now.
+  common.skip('platform not supported');
+}
+
 const assert = require('assert');
 const vm = require('vm');
-
 const spawn = require('child_process').spawn;
 
 const methods = [
   'runInThisContext',
   'runInContext'
 ];
-
-if (common.isWindows) {
-  // No way to send CTRL_C_EVENT to processes from JS right now.
-  common.skip('platform not supported');
-  return;
-}
 
 if (process.argv[2] === 'child') {
   const method = process.argv[3];

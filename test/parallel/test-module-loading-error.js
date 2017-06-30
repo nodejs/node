@@ -12,10 +12,8 @@ const error_desc = {
 };
 const dlerror_msg = error_desc[process.platform];
 
-if (!dlerror_msg) {
+if (!dlerror_msg)
   common.skip('platform not supported.');
-  return;
-}
 
 try {
   require('../fixtures/module-loading-error.node');

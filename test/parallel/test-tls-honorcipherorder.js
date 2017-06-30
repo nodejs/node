@@ -1,14 +1,12 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-const tls = require('tls');
 
+const assert = require('assert');
+const tls = require('tls');
 const fs = require('fs');
+
 let nconns = 0;
 
 // We explicitly set TLS version to 1.2 so as to be safe when the

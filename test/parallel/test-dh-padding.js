@@ -1,14 +1,11 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
-let crypto;
-try {
-  crypto = require('crypto');
-} catch (e) {
+if (!common.hasCrypto)
   common.skip('node compiled without OpenSSL.');
-  return;
-}
+
+const assert = require('assert');
+const crypto = require('crypto');
 
 /* This test verifies padding with leading zeroes for shared
  * secrets that are strictly smaller than the modulus (prime).

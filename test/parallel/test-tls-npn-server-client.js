@@ -2,15 +2,11 @@
 
 const common = require('../common');
 
-if (!process.features.tls_npn) {
-  common.skip('Skipping because node compiled without NPN feature of OpenSSL.');
-  return;
-}
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+if (!process.features.tls_npn)
+  common.skip('Skipping because node compiled without NPN feature of OpenSSL.');
 
 const assert = require('assert');
 const fs = require('fs');
