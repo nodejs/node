@@ -1,5 +1,9 @@
 'use strict';
 const common = require('../common');
+// Skip test in FreeBSD jails.
+if (common.inFreeBSDJail)
+  common.skip('In a FreeBSD jail');
+
 const assert = require('assert');
 const dgram = require('dgram');
 const fork = require('child_process').fork;
@@ -14,12 +18,6 @@ const messages = [
 const workers = {};
 const listeners = 3;
 let dead, listening, sendSocket, done, timer;
-
-// Skip test in FreeBSD jails.
-if (common.inFreeBSDJail) {
-  common.skip('In a FreeBSD jail');
-  return;
-}
 
 function launchChildProcess() {
   const worker = fork(__filename, ['child']);

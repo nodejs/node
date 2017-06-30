@@ -12,10 +12,8 @@ function getPunycode() {
   }
 }
 
-if (!icu) {
+if (!icu)
   common.skip('icu punycode tests because ICU is not present.');
-  return;
-}
 
 // Credit for list: http://www.i18nguy.com/markup/idna-examples.html
 const tests = [

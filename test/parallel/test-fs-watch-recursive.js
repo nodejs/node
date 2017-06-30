@@ -2,10 +2,8 @@
 
 const common = require('../common');
 
-if (!(common.isOSX || common.isWindows)) {
+if (!(common.isOSX || common.isWindows))
   common.skip('recursive option is darwin/windows specific');
-  return;
-}
 
 const assert = require('assert');
 const path = require('path');

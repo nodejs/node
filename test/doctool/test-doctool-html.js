@@ -1,17 +1,16 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
-
 // The doctool currently uses js-yaml from the tool/eslint/ tree.
 try {
   require('../../tools/eslint/node_modules/js-yaml');
 } catch (e) {
-  return common.skip('missing js-yaml (eslint not present)');
+  common.skip('missing js-yaml (eslint not present)');
 }
 
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const processIncludes = require('../../tools/doc/preprocess.js');
 const html = require('../../tools/doc/html.js');
 

@@ -1,15 +1,13 @@
 'use strict';
 
 const common = require('../common');
+// Refs: https://github.com/nodejs/node/pull/2253
+if (common.isSunOS)
+  common.skip('unreliable on SunOS');
+
 const assert = require('assert');
 const path = require('path');
 const childProcess = require('child_process');
-
-// Refs: https://github.com/nodejs/node/pull/2253
-if (common.isSunOS) {
-  common.skip('unreliable on SunOS');
-  return;
-}
 
 const nodeBinary = process.argv[0];
 

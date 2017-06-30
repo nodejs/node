@@ -1,15 +1,13 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const path = require('path');
 
 // simulate `cat readfile.js | node readfile.js`
 
-if (common.isWindows || common.isAix) {
+if (common.isWindows || common.isAix)
   common.skip(`No /dev/stdin on ${process.platform}.`);
-  return;
-}
 
+const assert = require('assert');
+const path = require('path');
 const fs = require('fs');
 
 if (process.argv[2] === 'child') {

@@ -46,7 +46,6 @@ try {
 } catch (err) {
   if (err.code !== 'EPERM') throw err;
   common.skip('insufficient privileges for symlinks');
-  return;
 }
 
 fs.writeFileSync(path.join(moduleA, 'package.json'),

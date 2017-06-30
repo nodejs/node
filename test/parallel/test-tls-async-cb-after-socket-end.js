@@ -2,14 +2,12 @@
 
 const common = require('../common');
 
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const path = require('path');
 const fs = require('fs');
 const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
-
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
 
 const tls = require('tls');
 
