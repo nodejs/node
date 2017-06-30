@@ -670,10 +670,9 @@ try {
 
 {
   // Verify that throws() and doesNotThrow() throw on non-function block
-  const validationFunction = common.expectsError({
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
-  });
+  function typeName(value) {
+    return value === null ? 'null' : typeof value;
+  }
 
   const testBlockTypeError = (method, block) => {
     let threw = true;
@@ -682,7 +681,12 @@ try {
       method(block);
       threw = false;
     } catch (e) {
-      validationFunction(e);
+      common.expectsError({
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "block" argument must be of type function. Received ' +
+                 'type ' + typeName(block)
+      })(e);
     }
 
     assert.ok(threw);
