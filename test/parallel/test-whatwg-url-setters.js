@@ -1,18 +1,17 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasIntl) {
+  // A handful of the tests fail when ICU is not included.
+  common.skip('missing Intl');
+}
+
 const assert = require('assert');
 const path = require('path');
 const URL = require('url').URL;
 const { test, assert_equals } = require('../common/wpt');
 const additionalTestCases = require(
     path.join(common.fixturesDir, 'url-setter-tests-additional.js'));
-
-if (!common.hasIntl) {
-  // A handful of the tests fail when ICU is not included.
-  common.skip('missing Intl');
-  return;
-}
 
 const request = {
   response: require(path.join(common.fixturesDir, 'url-setter-tests'))

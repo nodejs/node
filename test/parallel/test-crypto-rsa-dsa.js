@@ -1,15 +1,13 @@
 'use strict';
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const assert = require('assert');
 const fs = require('fs');
-
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
-const constants = require('crypto').constants;
 const crypto = require('crypto');
 
+const constants = crypto.constants;
 const fixtDir = common.fixturesDir;
 
 // Test certificates

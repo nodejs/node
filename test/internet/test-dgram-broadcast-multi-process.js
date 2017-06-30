@@ -21,6 +21,9 @@
 
 'use strict';
 const common = require('../common');
+if (common.inFreeBSDJail)
+  common.skip('in a FreeBSD jail');
+
 const assert = require('assert');
 const dgram = require('dgram');
 const util = require('util');
@@ -34,11 +37,6 @@ const messages = [
   Buffer.from('Third message to send'),
   Buffer.from('Fourth message to send')
 ];
-
-if (common.inFreeBSDJail) {
-  common.skip('in a FreeBSD jail');
-  return;
-}
 
 let bindAddress = null;
 

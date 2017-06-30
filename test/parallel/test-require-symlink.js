@@ -27,10 +27,8 @@ if (common.isWindows) {
   // On Windows, creating symlinks requires admin privileges.
   // We'll only try to run symlink test if we have enough privileges.
   exec('whoami /priv', function(err, o) {
-    if (err || !o.includes('SeCreateSymbolicLinkPrivilege')) {
+    if (err || !o.includes('SeCreateSymbolicLinkPrivilege'))
       common.skip('insufficient privileges');
-      return;
-    }
 
     test();
   });

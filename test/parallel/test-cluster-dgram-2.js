@@ -21,18 +21,15 @@
 
 'use strict';
 const common = require('../common');
+if (common.isWindows)
+  common.skip('dgram clustering is currently not supported on Windows.');
+
 const NUM_WORKERS = 4;
 const PACKETS_PER_WORKER = 10;
 
 const cluster = require('cluster');
 const dgram = require('dgram');
 const assert = require('assert');
-
-
-if (common.isWindows) {
-  common.skip('dgram clustering is currently not supported on Windows.');
-  return;
-}
 
 if (cluster.isMaster)
   master();

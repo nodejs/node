@@ -22,10 +22,8 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const assert = require('assert');
 const http = require('http');
@@ -57,7 +55,7 @@ function test(mod) {
 if (common.hasCrypto) {
   test(https);
 } else {
-  common.skip('missing crypto');
+  common.printSkipMessage('missing crypto');
 }
 
 test(http);

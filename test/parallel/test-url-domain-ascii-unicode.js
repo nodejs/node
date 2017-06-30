@@ -1,10 +1,9 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasIntl) {
+if (!common.hasIntl)
   common.skip('missing Intl');
-  return;
-}
+
 const strictEqual = require('assert').strictEqual;
 const url = require('url');
 

@@ -23,15 +23,13 @@
 
 // This test requires the program 'wrk'
 const common = require('../common');
+if (common.isWindows)
+  common.skip('no `wrk` on windows');
+
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 const http = require('http');
 const url = require('url');
-
-if (common.isWindows) {
-  common.skip('no `wrk` on windows');
-  return;
-}
 
 const body = 'hello world\n';
 const server = http.createServer(function(req, res) {

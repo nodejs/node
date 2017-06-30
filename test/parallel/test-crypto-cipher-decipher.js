@@ -1,14 +1,12 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-if (common.hasFipsCrypto) {
+
+if (common.hasFipsCrypto)
   common.skip('not supported in FIPS mode');
-  return;
-}
+
 const crypto = require('crypto');
 const assert = require('assert');
 
