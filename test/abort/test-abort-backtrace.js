@@ -1,12 +1,10 @@
 'use strict';
 const common = require('../common');
+if (common.isWindows)
+  common.skip('Backtraces unimplemented on Windows.');
+
 const assert = require('assert');
 const cp = require('child_process');
-
-if (common.isWindows) {
-  common.skip('Backtraces unimplemented on Windows.');
-  return;
-}
 
 if (process.argv[2] === 'child') {
   process.abort();

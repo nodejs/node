@@ -3,9 +3,8 @@
 const common = require('../common');
 
 // FIXME add sunos support
-if (!(common.isFreeBSD || common.isOSX || common.isLinux)) {
-  return common.skip(`Unsupported platform [${process.platform}]`);
-}
+if (!(common.isFreeBSD || common.isOSX || common.isLinux))
+  common.skip(`Unsupported platform [${process.platform}]`);
 
 const assert = require('assert');
 const exec = require('child_process').exec;

@@ -3,16 +3,15 @@
 'use strict';
 
 const common = require('../common');
+
+if (common.isWindows)
+  common.skip('SCHED_RR not reliable on Windows');
+
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
 const Protocol = require('_debugger').Protocol;
-
-if (common.isWindows) {
-  common.skip('SCHED_RR not reliable on Windows');
-  return;
-}
 
 cluster.schedulingPolicy = cluster.SCHED_RR;
 

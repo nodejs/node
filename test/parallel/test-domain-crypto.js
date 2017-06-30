@@ -2,13 +2,10 @@
 
 const common = require('../common');
 
-let crypto;
-try {
-  crypto = require('crypto');
-} catch (e) {
+if (!common.hasCrypto)
   common.skip('node compiled without OpenSSL.');
-  return;
-}
+
+const crypto = require('crypto');
 
 // Pollution of global is intentional as part of test.
 common.globalCheck = false;
