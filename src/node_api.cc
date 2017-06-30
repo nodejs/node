@@ -36,13 +36,31 @@ struct napi_env__ {
   ~napi_env__() {
     last_exception.Reset();
     has_instance.Reset();
+    wrap_template.Reset();
+    function_data_template.Reset();
+    accessor_data_template.Reset();
   }
   v8::Isolate* isolate;
   v8::Persistent<v8::Value> last_exception;
   v8::Persistent<v8::Value> has_instance;
+  v8::Persistent<v8::ObjectTemplate> wrap_template;
+  v8::Persistent<v8::ObjectTemplate> function_data_template;
+  v8::Persistent<v8::ObjectTemplate> accessor_data_template;
   bool has_instance_available;
   napi_extended_error_info last_error;
 };
+
+#define ENV_OBJECT_TEMPLATE(env, prefix, destination, field_count) \
+  do {                                                             \
+    if ((env)->prefix ## _template.IsEmpty()) {                    \
+      (destination) = v8::ObjectTemplate::New(isolate);            \
+      (destination)->SetInternalFieldCount((field_count));         \
+      (env)->prefix ## _template.Reset(isolate, (destination));    \
+    } else {                                                       \
+      (destination) = env->prefix ## _template.Get(isolate);       \
+    }                                                              \
+  } while (0)
+
 
 #define RETURN_STATUS_IF_FALSE(env, condition, status)                  \
   do {                                                                  \
@@ -608,8 +626,8 @@ v8::Local<v8::Object> CreateFunctionCallbackData(napi_env env,
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-  v8::Local<v8::ObjectTemplate> otpl = v8::ObjectTemplate::New(isolate);
-  otpl->SetInternalFieldCount(v8impl::kFunctionFieldCount);
+  v8::Local<v8::ObjectTemplate> otpl;
+  ENV_OBJECT_TEMPLATE(env, function_data, otpl, v8impl::kFunctionFieldCount);
   v8::Local<v8::Object> cbdata = otpl->NewInstance(context).ToLocalChecked();
 
   cbdata->SetInternalField(
@@ -634,8 +652,8 @@ v8::Local<v8::Object> CreateAccessorCallbackData(napi_env env,
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-  v8::Local<v8::ObjectTemplate> otpl = v8::ObjectTemplate::New(isolate);
-  otpl->SetInternalFieldCount(v8impl::kAccessorFieldCount);
+  v8::Local<v8::ObjectTemplate> otpl;
+  ENV_OBJECT_TEMPLATE(env, accessor_data, otpl, v8impl::kAccessorFieldCount);
   v8::Local<v8::Object> cbdata = otpl->NewInstance(context).ToLocalChecked();
 
   cbdata->SetInternalField(
@@ -2011,11 +2029,10 @@ napi_status napi_wrap(napi_env env,
   v8::Local<v8::Object> obj = value.As<v8::Object>();
 
   // Create a wrapper object with an internal field to hold the wrapped pointer.
-  v8::Local<v8::ObjectTemplate> wrapperTemplate =
-    v8::ObjectTemplate::New(isolate);
-  wrapperTemplate->SetInternalFieldCount(1);
+  v8::Local<v8::ObjectTemplate> wrapper_template;
+  ENV_OBJECT_TEMPLATE(env, wrap, wrapper_template, 1);
   v8::Local<v8::Object> wrapper =
-    wrapperTemplate->NewInstance(context).ToLocalChecked();
+      wrapper_template->NewInstance(context).ToLocalChecked();
   wrapper->SetInternalField(0, v8::External::New(isolate, native_object));
 
   // Insert the wrapper into the object's prototype chain.
