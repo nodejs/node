@@ -56,7 +56,7 @@ const prompt = '> ';
 const replDisabled = '\nPersistent history support disabled. Set the ' +
                      'NODE_REPL_HISTORY environment\nvariable to a valid, ' +
                      'user-writable path to enable.\n';
-const convertMsg = '\nConverting old JSON repl history to line-separated ' +
+const convertMsg = '\nConverted old JSON repl history to line-separated ' +
                    'history.\nThe new repl history file can be found at ' +
                    path.join(common.tmpDir, '.node_repl_history') + '.\n';
 const homedirErr = '\nError: Could not get the home directory.\n' +
