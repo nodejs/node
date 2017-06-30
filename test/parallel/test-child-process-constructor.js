@@ -5,51 +5,71 @@ const assert = require('assert');
 const { ChildProcess } = require('child_process');
 assert.strictEqual(typeof ChildProcess, 'function');
 
+function typeName(value) {
+  return value === null ? 'null' : typeof value;
+}
+
 {
   // Verify that invalid options to spawn() throw.
   const child = new ChildProcess();
-  const re = /^TypeError: "options" must be an object$/;
 
   [undefined, null, 'foo', 0, 1, NaN, true, false].forEach((options) => {
     assert.throws(() => {
       child.spawn(options);
-    }, re);
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "options" argument must be of type object. Received type ' +
+               typeName(options)
+    }));
   });
 }
 
 {
   // Verify that spawn throws if file is not a string.
   const child = new ChildProcess();
-  const re = /^TypeError: "file" must be a string$/;
 
   [undefined, null, 0, 1, NaN, true, false, {}].forEach((file) => {
     assert.throws(() => {
       child.spawn({ file });
-    }, re);
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "options.file" property must be of type string. Received ' +
+               'type ' + typeName(file)
+    }));
   });
 }
 
 {
   // Verify that spawn throws if envPairs is not an array or undefined.
   const child = new ChildProcess();
-  const re = /^TypeError: "envPairs" must be an array$/;
 
   [null, 0, 1, NaN, true, false, {}, 'foo'].forEach((envPairs) => {
     assert.throws(() => {
       child.spawn({ envPairs, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
-    }, re);
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "options.envPairs" property must be of type array. ' +
+               'Received type ' + typeName(envPairs)
+    }));
   });
 }
 
 {
   // Verify that spawn throws if args is not an array or undefined.
   const child = new ChildProcess();
-  const re = /^TypeError: "args" must be an array$/;
 
   [null, 0, 1, NaN, true, false, {}, 'foo'].forEach((args) => {
     assert.throws(() => {
       child.spawn({ file: 'foo', args });
-    }, re);
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "options.args" property must be of type array. Received ' +
+               'type ' + typeName(args)
+    }));
   });
 }
 
