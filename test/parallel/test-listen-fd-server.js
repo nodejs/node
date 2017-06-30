@@ -21,14 +21,12 @@
 
 'use strict';
 const common = require('../common');
+if (common.isWindows)
+  common.skip('This test is disabled on windows.');
+
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
-
-if (common.isWindows) {
-  common.skip('This test is disabled on windows.');
-  return;
-}
 
 switch (process.argv[2]) {
   case 'child': return child();

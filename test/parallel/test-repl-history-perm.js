@@ -7,7 +7,6 @@ if (common.isWindows) {
   common.skip('Win32 uses ACLs for file permissions, ' +
               'modes are always 0666 and says nothing about group/other ' +
               'read access.');
-  return;
 }
 
 const assert = require('assert');

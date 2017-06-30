@@ -2,15 +2,11 @@
 
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
-if (common.hasFipsCrypto) {
+if (common.hasFipsCrypto)
   common.skip('some benchmarks are FIPS-incompatible');
-  return;
-}
 
 // Minimal test for crypto benchmarks. This makes sure the benchmarks aren't
 // horribly broken but nothing more than that.

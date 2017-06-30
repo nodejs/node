@@ -21,13 +21,11 @@
 
 'use strict';
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('node compiled without OpenSSL.');
+
 const assert = require('assert');
 const crypto = require('crypto');
-
-if (!common.hasCrypto) {
-  common.skip('node compiled without OpenSSL.');
-  return;
-}
 
 assert.throws(
   function() {

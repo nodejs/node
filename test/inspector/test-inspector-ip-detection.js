@@ -9,10 +9,8 @@ const os = require('os');
 
 const ip = pickIPv4Address();
 
-if (!ip) {
+if (!ip)
   common.skip('No IP address found');
-  return;
-}
 
 function checkListResponse(instance, err, response) {
   assert.ifError(err);
@@ -29,7 +27,7 @@ function checkListResponse(instance, err, response) {
 function checkError(instance, error) {
   // Some OSes will not allow us to connect
   if (error.code === 'EHOSTUNREACH') {
-    common.skip('Unable to connect to self');
+    common.printSkipMessage('Unable to connect to self');
   } else {
     throw error;
   }

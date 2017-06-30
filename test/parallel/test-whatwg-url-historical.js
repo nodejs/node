@@ -1,13 +1,12 @@
 'use strict';
 const common = require('../common');
-const URL = require('url').URL;
-const { test, assert_equals, assert_throws } = require('../common/wpt');
-
 if (!common.hasIntl) {
   // A handful of the tests fail when ICU is not included.
   common.skip('missing Intl');
-  return;
 }
+
+const URL = require('url').URL;
+const { test, assert_equals, assert_throws } = require('../common/wpt');
 
 /* eslint-disable */
 /* WPT Refs:

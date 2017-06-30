@@ -21,19 +21,15 @@
 
 'use strict';
 const common = require('../common');
+if (common.isWindows)
+  common.skip('not reliable on Windows.');
+
+if (process.getuid() === 0)
+  common.skip('Test is not supposed to be run as root.');
+
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
-
-if (common.isWindows) {
-  common.skip('not reliable on Windows.');
-  return;
-}
-
-if (process.getuid() === 0) {
-  common.skip('Test is not supposed to be run as root.');
-  return;
-}
 
 if (cluster.isMaster) {
   cluster.fork().on('exit', common.mustCall((exitCode) => {

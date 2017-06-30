@@ -22,15 +22,14 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
-const cluster = require('cluster');
-const http = require('http');
-
 if (common.isWindows) {
   common.skip(
     'It is not possible to send pipe handles over the IPC pipe on Windows');
-  return;
 }
+
+const assert = require('assert');
+const cluster = require('cluster');
+const http = require('http');
 
 if (cluster.isMaster) {
   common.refreshTmpDir();

@@ -1,14 +1,13 @@
 'use strict';
 const common = require('../common');
-const path = require('path');
-const URL = require('url').URL;
-const { test, assert_equals } = require('../common/wpt');
-
 if (!common.hasIntl) {
   // A handful of the tests fail when ICU is not included.
   common.skip('missing Intl');
-  return;
 }
+
+const path = require('path');
+const URL = require('url').URL;
+const { test, assert_equals } = require('../common/wpt');
 
 const request = {
   response: require(path.join(common.fixturesDir, 'url-tests'))

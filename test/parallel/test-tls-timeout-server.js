@@ -22,12 +22,10 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-const tls = require('tls');
 
+const tls = require('tls');
 const net = require('net');
 const fs = require('fs');
 
