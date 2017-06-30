@@ -8,9 +8,9 @@ if (!common.hasCrypto) {
 }
 
 const assert = require('assert');
-const tls = require('tls');
 const fs = require('fs');
 const path = require('path');
+const tls = require('tls');
 
 function filenamePEM(n) {
   return path.join(common.fixturesDir, 'keys', `${n}.pem`);

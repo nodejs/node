@@ -11,12 +11,13 @@ if (!common.hasCrypto) {
   return;
 }
 
-const tls = require('tls');
-const net = require('net');
 const fs = require('fs');
+const net = require('net');
+const path = require('path');
+const tls = require('tls');
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', `${n}.pem`);
+  return path.join(common.fixturesDir, 'keys', `${n}.pem`);
 }
 
 function loadPEM(n) {

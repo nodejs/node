@@ -6,6 +6,11 @@ if (!common.opensslCli) {
   return;
 }
 
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
 // This is a rather complex test which sets up various TLS servers with node
 // and connects to them using the 'openssl s_client' command line utility
 // with various keys. Depending on the certificate authority and other
@@ -13,6 +18,14 @@ if (!common.opensslCli) {
 // - rejected,
 // - accepted and "unauthorized", or
 // - accepted and "authorized".
+
+const assert = require('assert');
+const { spawn } = require('child_process');
+const { SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION } =
+  require('crypto').constants;
+const fs = require('fs');
+const path = require('path');
+const tls = require('tls');
 
 const testCases =
   [{ title: 'Do not request certs. Everyone is unauthorized.',
@@ -98,22 +111,9 @@ const testCases =
   }
   ];
 
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
-const tls = require('tls');
-
-const SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION =
-  require('crypto').constants.SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
-
-const assert = require('assert');
-const fs = require('fs');
-const spawn = require('child_process').spawn;
-
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', `${n}.pem`);
+  return path.join(common.fixturesDir, 'keys', `${n}.pem`);
 }
 
 
