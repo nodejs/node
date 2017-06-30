@@ -1794,6 +1794,13 @@
           # limit. This breaks it into multiple pieces to avoid the limit.
           # See http://crbug.com/485155.
           'msvs_shard': 4,
+          # This will prevent V8's .cc files conflicting with the inspector's 
+          # .cpp files in the same shard.
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'ObjectFile':'$(IntDir)%(Extension)\\',
+            },
+          },
         }],
         ['component=="shared_library"', {
           'defines': [
