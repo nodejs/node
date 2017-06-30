@@ -182,10 +182,11 @@ if (process.argv[2] === 'child') {
       // Make sure that all expected messages were sent from the
       // child process
       test.expectedMessages.forEach(function(expectedMessage) {
-        if (test.messagesReceived === undefined ||
-          test.messagesReceived.indexOf(expectedMessage) === -1)
+        const msgs = test.messagesReceived;
+        if (msgs === undefined || !msgs.includes(expectedMessage)) {
           assert.fail(`test ${test.fn.name} should have sent message: ${
                       expectedMessage} but didn't`);
+        }
       });
 
       if (test.messagesReceived) {
