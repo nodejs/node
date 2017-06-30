@@ -21,15 +21,16 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-const tls = require('tls');
 
+const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
+const tls = require('tls');
 
 const hosterr = /Hostname\/IP doesn't match certificate's altnames/;
 const testCases =
@@ -65,7 +66,7 @@ const testCases =
   ];
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', `${n}.pem`);
+  return path.join(common.fixturesDir, 'keys', `${n}.pem`);
 }
 
 
