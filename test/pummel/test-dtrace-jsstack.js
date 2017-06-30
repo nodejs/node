@@ -24,10 +24,8 @@ const common = require('../common');
 const assert = require('assert');
 const os = require('os');
 
-if (!common.isSunOS) {
+if (!common.isSunOS)
   common.skip('no DTRACE support');
-  return;
-}
 
 /*
  * Some functions to create a recognizable stack.

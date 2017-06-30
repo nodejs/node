@@ -4,10 +4,8 @@ const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const path = require('path');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const FIPS_ENABLED = 1;
 const FIPS_DISABLED = 0;

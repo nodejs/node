@@ -9,7 +9,7 @@ const path = require('path');
 try {
   require('../../tools/eslint/node_modules/js-yaml');
 } catch (e) {
-  return common.skip('missing js-yaml (eslint not present)');
+  common.skip('missing js-yaml (eslint not present)');
 }
 
 const json = require('../../tools/doc/json.js');

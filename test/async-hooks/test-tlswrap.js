@@ -7,10 +7,8 @@ const initHooks = require('./init-hooks');
 const fs = require('fs');
 const { checkInvocations } = require('./hook-checks');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const tls = require('tls');
 const hooks = initHooks();

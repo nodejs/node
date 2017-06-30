@@ -9,10 +9,8 @@ const assert = require('assert');
 const kStringMaxLength = process.binding('buffer').kStringMaxLength;
 
 const skipMessage = 'intensive toString tests due to memory confinements';
-if (!common.enoughTestMem) {
+if (!common.enoughTestMem)
   common.skip(skipMessage);
-  return;
-}
 
 let buf;
 try {
@@ -21,14 +19,11 @@ try {
   // If the exception is not due to memory confinement then rethrow it.
   if (e.message !== 'Array buffer allocation failed') throw (e);
   common.skip(skipMessage);
-  return;
 }
 
 // Ensure we have enough memory available for future allocations to succeed.
-if (!binding.ensureAllocation(2 * kStringMaxLength)) {
+if (!binding.ensureAllocation(2 * kStringMaxLength))
   common.skip(skipMessage);
-  return;
-}
 
 const maxString = buf.toString('latin1');
 assert.strictEqual(maxString.length, kStringMaxLength);

@@ -38,10 +38,8 @@ let listening, sendSocket, done, timer, dead;
 
 
 // Skip test in FreeBSD jails.
-if (common.inFreeBSDJail) {
+if (common.inFreeBSDJail)
   common.skip('In a FreeBSD jail');
-  return;
-}
 
 function launchChildProcess() {
   const worker = fork(__filename, ['child']);

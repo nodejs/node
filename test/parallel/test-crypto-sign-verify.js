@@ -5,10 +5,9 @@ const fs = require('fs');
 const path = require('path');
 const exec = require('child_process').exec;
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const crypto = require('crypto');
 
 // Test certificates
@@ -245,10 +244,8 @@ const modSize = 1024;
 
 // RSA-PSS Sign test by verifying with 'openssl dgst -verify'
 {
-  if (!common.opensslCli) {
+  if (!common.opensslCli)
     common.skip('node compiled without OpenSSL CLI.');
-    return;
-  }
 
   const pubfile = path.join(common.fixturesDir, 'keys/rsa_public_2048.pem');
   const privfile = path.join(common.fixturesDir, 'keys/rsa_private_2048.pem');

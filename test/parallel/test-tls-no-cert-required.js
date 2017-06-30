@@ -23,10 +23,9 @@
 const assert = require('assert');
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const tls = require('tls');
 
 // Omitting the cert or pfx option to tls.createServer() should not throw.

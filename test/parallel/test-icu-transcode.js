@@ -2,10 +2,8 @@
 
 const common = require('../common');
 
-if (!common.hasIntl) {
+if (!common.hasIntl)
   common.skip('missing Intl');
-  return;
-}
 
 const buffer = require('buffer');
 const assert = require('assert');

@@ -6,10 +6,8 @@ const path = require('path');
 const childProcess = require('child_process');
 
 // Refs: https://github.com/nodejs/node/pull/2253
-if (common.isSunOS) {
+if (common.isSunOS)
   common.skip('unreliable on SunOS');
-  return;
-}
 
 const nodeBinary = process.argv[0];
 

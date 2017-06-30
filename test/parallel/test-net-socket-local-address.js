@@ -4,10 +4,8 @@ const assert = require('assert');
 const net = require('net');
 
 // skip test in FreeBSD jails
-if (common.inFreeBSDJail) {
+if (common.inFreeBSDJail)
   common.skip('In a FreeBSD jail');
-  return;
-}
 
 let conns = 0;
 const clientLocalPorts = [];

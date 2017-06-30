@@ -8,10 +8,9 @@ const assert = require('assert');
 // exit code in the parent.
 
 const spawn = require('child_process').spawn;
-if (!common.isWindows) {
+if (!common.isWindows)
   common.skip('test is windows specific');
-  return;
-}
+
 if (process.argv[2] === 'child') {
   process.abort();
 } else {

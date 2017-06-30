@@ -2,10 +2,9 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const crypto = require('crypto');
 
 function testCipher1(key, iv) {

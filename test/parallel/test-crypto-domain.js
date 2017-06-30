@@ -24,10 +24,9 @@ const common = require('../common');
 const assert = require('assert');
 const domain = require('domain');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const crypto = require('crypto');
 
 function test(fn) {

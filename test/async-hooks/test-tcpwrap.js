@@ -7,10 +7,8 @@ const tick = require('./tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 
-if (!common.hasIPv6) {
+if (!common.hasIPv6)
   common.skip('IPv6 support required');
-  return;
-}
 
 const net = require('net');
 

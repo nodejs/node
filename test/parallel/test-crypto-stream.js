@@ -25,10 +25,9 @@ const assert = require('assert');
 const stream = require('stream');
 const util = require('util');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const crypto = require('crypto');
 
 // Small stream to buffer converter

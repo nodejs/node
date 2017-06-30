@@ -29,10 +29,8 @@ const dgram = require('dgram');
 const assert = require('assert');
 
 
-if (common.isWindows) {
+if (common.isWindows)
   common.skip('dgram clustering is currently not supported on Windows.');
-  return;
-}
 
 if (cluster.isMaster)
   master();

@@ -35,10 +35,8 @@ const messages = [
   Buffer.from('Fourth message to send')
 ];
 
-if (common.inFreeBSDJail) {
+if (common.inFreeBSDJail)
   common.skip('in a FreeBSD jail');
-  return;
-}
 
 let bindAddress = null;
 

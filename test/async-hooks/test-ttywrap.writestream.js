@@ -8,7 +8,8 @@ const { checkInvocations } = require('./hook-checks');
 const tty_fd = common.getTTYfd();
 
 if (tty_fd < 0)
-  return common.skip('no valid TTY fd available');
+  common.skip('no valid TTY fd available');
+
 const ttyStream = (() => {
   try {
     return new (require('tty').WriteStream)(tty_fd);
@@ -17,7 +18,7 @@ const ttyStream = (() => {
   }
 })();
 if (ttyStream === null)
-  return common.skip('no valid TTY fd available');
+  common.skip('no valid TTY fd available');
 
 const hooks = initHooks();
 hooks.enable();

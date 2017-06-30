@@ -25,10 +25,8 @@ const assert = require('assert');
 const dgram = require('dgram');
 
 // skip test in FreeBSD jails since 0.0.0.0 will resolve to default interface
-if (common.inFreeBSDJail) {
+if (common.inFreeBSDJail)
   common.skip('In a FreeBSD jail');
-  return;
-}
 
 dgram.createSocket('udp4').bind(0, common.mustCall(function() {
   assert.strictEqual(typeof this.address().port, 'number');
@@ -39,7 +37,7 @@ dgram.createSocket('udp4').bind(0, common.mustCall(function() {
 }));
 
 if (!common.hasIPv6) {
-  common.skip('udp6 part of test, because no IPv6 support');
+  common.printSkipMessage('udp6 part of test, because no IPv6 support');
   return;
 }
 

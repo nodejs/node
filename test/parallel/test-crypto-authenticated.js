@@ -23,10 +23,9 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const crypto = require('crypto');
 
 crypto.DEFAULT_ENCODING = 'buffer';
@@ -341,12 +340,12 @@ for (const i in TEST_CASES) {
   const test = TEST_CASES[i];
 
   if (!ciphers.includes(test.algo)) {
-    common.skip(`unsupported ${test.algo} test`);
+    common.printSkipMessage(`unsupported ${test.algo} test`);
     continue;
   }
 
   if (common.hasFipsCrypto && test.iv.length < 24) {
-    common.skip('IV len < 12 bytes unsupported in FIPS mode');
+    common.printSkipMessage('IV len < 12 bytes unsupported in FIPS mode');
     continue;
   }
 

@@ -3,10 +3,8 @@ const common = require('../common');
 const assert = require('assert');
 
 // This test is intended for Windows only
-if (!common.isWindows) {
+if (!common.isWindows)
   common.skip('this test is Windows-specific.');
-  return;
-}
 
 if (!process.argv[2]) {
   // parent

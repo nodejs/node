@@ -4,10 +4,8 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-if (common.isWindows) {
+if (common.isWindows)
   common.skip('Unix-specific test');
-  return;
-}
 
 common.refreshTmpDir();
 

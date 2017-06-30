@@ -26,10 +26,9 @@ const assert = require('assert');
 const d = domain.create();
 const expect = ['pbkdf2', 'randomBytes', 'pseudoRandomBytes'];
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const crypto = require('crypto');
 
 d.on('error', common.mustCall(function(e) {

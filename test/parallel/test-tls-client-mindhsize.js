@@ -2,10 +2,9 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  process.exit();
-}
+
 const tls = require('tls');
 
 const fs = require('fs');

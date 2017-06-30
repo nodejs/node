@@ -3,10 +3,8 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 // Ensure accessing ._external doesn't hit an assert in the accessor method.
 const tls = require('tls');

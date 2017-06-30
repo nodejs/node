@@ -28,10 +28,8 @@ const spawn = require('child_process').spawn;
 const http = require('http');
 const url = require('url');
 
-if (common.isWindows) {
+if (common.isWindows)
   common.skip('no `wrk` on windows');
-  return;
-}
 
 const body = 'hello world\n';
 const server = http.createServer(function(req, res) {

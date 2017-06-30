@@ -25,10 +25,9 @@
 const common = require('../common');
 const http = require('http');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const https = require('https');
 
 const server = http.createServer(common.mustNotCall());

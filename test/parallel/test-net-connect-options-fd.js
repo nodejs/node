@@ -5,10 +5,8 @@ const net = require('net');
 const path = require('path');
 const Pipe = process.binding('pipe_wrap').Pipe;
 
-if (common.isWindows) {
+if (common.isWindows)
   common.skip('Does not support wrapping sockets with fd on Windows');
-  return;
-}
 
 common.refreshTmpDir();
 

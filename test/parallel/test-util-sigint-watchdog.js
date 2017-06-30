@@ -6,7 +6,6 @@ const binding = process.binding('util');
 if (common.isWindows) {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
-  return;
 }
 
 [(next) => {

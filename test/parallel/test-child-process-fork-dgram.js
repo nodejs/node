@@ -32,10 +32,8 @@ const dgram = require('dgram');
 const fork = require('child_process').fork;
 const assert = require('assert');
 
-if (common.isWindows) {
+if (common.isWindows)
   common.skip('Sending dgram sockets to child processes is not supported');
-  return;
-}
 
 if (process.argv[2] === 'child') {
   let childServer;

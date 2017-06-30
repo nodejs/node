@@ -29,7 +29,6 @@ const http = require('http');
 if (common.isWindows) {
   common.skip(
     'It is not possible to send pipe handles over the IPC pipe on Windows');
-  return;
 }
 
 if (cluster.isMaster) {

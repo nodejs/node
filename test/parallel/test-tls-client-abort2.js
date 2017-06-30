@@ -23,10 +23,9 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const tls = require('tls');
 
 const conn = tls.connect(0, common.mustNotCall());

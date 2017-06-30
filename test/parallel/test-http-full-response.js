@@ -43,7 +43,7 @@ function runAb(opts, callback) {
   exec(command, function(err, stdout, stderr) {
     if (err) {
       if (/ab|apr/i.test(stderr)) {
-        common.skip(`problem spawning \`ab\`.\n${stderr}`);
+        common.printSkipMessage(`problem spawning \`ab\`.\n${stderr}`);
         process.reallyExit(0);
       }
       process.exit();

@@ -28,10 +28,8 @@ const cluster = require('cluster');
 
 console.error('Cluster listen fd test', process.argv[2] || 'runner');
 
-if (common.isWindows) {
+if (common.isWindows)
   common.skip('This test is disabled on windows.');
-  return;
-}
 
 // Process relationship is:
 //

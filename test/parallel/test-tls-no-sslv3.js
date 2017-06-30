@@ -2,19 +2,16 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const tls = require('tls');
 
 const fs = require('fs');
 const spawn = require('child_process').spawn;
 
-if (common.opensslCli === false) {
+if (common.opensslCli === false)
   common.skip('node compiled without OpenSSL CLI.');
-  return;
-}
 
 const cert = fs.readFileSync(`${common.fixturesDir}/test_cert.pem`);
 const key = fs.readFileSync(`${common.fixturesDir}/test_key.pem`);
@@ -48,7 +45,7 @@ server.on('tlsClientError', (err) => errors.push(err));
 
 process.on('exit', function() {
   if (/unknown option -ssl3/.test(stderr)) {
-    common.skip('`openssl s_client -ssl3` not supported.');
+    common.printSkipMessage('`openssl s_client -ssl3` not supported.');
   } else {
     assert.strictEqual(errors.length, 1);
     assert(/:wrong version number/.test(errors[0].message));

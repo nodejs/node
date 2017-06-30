@@ -4,10 +4,8 @@ const common = require('../common');
 const initHooks = require('./init-hooks');
 const verifyGraph = require('./verify-graph');
 
-if (!common.hasIPv6) {
+if (!common.hasIPv6)
   common.skip('IPv6 support required');
-  return;
-}
 
 const net = require('net');
 

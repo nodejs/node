@@ -5,10 +5,8 @@ const fs = require('fs');
 const path = require('path');
 
 // This test is only relevant on Windows.
-if (!common.isWindows) {
+if (!common.isWindows)
   common.skip('Windows specific test.');
-  return;
-}
 
 function test(p) {
   const result = fs.realpathSync(p);

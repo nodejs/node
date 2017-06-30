@@ -28,10 +28,8 @@ const fs = require('fs');
 let linkTime;
 let fileTime;
 
-if (!common.canCreateSymLink()) {
+if (!common.canCreateSymLink())
   common.skip('insufficient privileges');
-  return;
-}
 
 common.refreshTmpDir();
 

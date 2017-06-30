@@ -8,7 +8,6 @@ const { test, assert_equals, assert_true, assert_throws } =
 if (!common.hasIntl) {
   // A handful of the tests fail when ICU is not included.
   common.skip('missing Intl');
-  return;
 }
 
 const request = {

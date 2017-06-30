@@ -8,10 +8,8 @@ const assert = require('assert');
 const net = require('net');
 const cluster = require('cluster');
 
-if (common.isWindows) {
+if (common.isWindows)
   common.skip('This test does not apply to Windows.');
-  return;
-}
 
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 

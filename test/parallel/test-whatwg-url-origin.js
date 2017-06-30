@@ -7,7 +7,6 @@ const { test, assert_equals } = require('../common/wpt');
 if (!common.hasIntl) {
   // A handful of the tests fail when ICU is not included.
   common.skip('missing Intl');
-  return;
 }
 
 const request = {

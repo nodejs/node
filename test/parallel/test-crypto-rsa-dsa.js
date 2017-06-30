@@ -3,10 +3,9 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const constants = require('crypto').constants;
 const crypto = require('crypto');
 

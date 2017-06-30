@@ -5,10 +5,8 @@ const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 
-if (!common.isLinux) {
+if (!common.isLinux)
   common.skip('Test is linux specific.');
-  return;
-}
 
 common.refreshTmpDir();
 const filename = '\uD83D\uDC04';

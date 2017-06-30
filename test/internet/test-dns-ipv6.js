@@ -8,10 +8,8 @@ const isIPv6 = net.isIPv6;
 let running = false;
 const queue = [];
 
-if (!common.hasIPv6) {
+if (!common.hasIPv6)
   common.skip('this test, no IPv6 support');
-  return;
-}
 
 function TEST(f) {
   function next() {

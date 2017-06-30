@@ -24,15 +24,11 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
-if (!common.opensslCli) {
+if (!common.opensslCli)
   common.skip('missing openssl-cli');
-  return;
-}
 
 const tls = require('tls');
 

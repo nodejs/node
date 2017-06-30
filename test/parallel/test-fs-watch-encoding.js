@@ -18,10 +18,8 @@ const path = require('path');
 // The testcase makes use of folder watching, and causes
 // hang. This behavior is documented. Skip this for AIX.
 
-if (common.isAix) {
+if (common.isAix)
   common.skip('folder watch capability is limited in AIX.');
-  return;
-}
 
 common.refreshTmpDir();
 

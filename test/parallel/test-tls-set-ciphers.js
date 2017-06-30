@@ -22,15 +22,11 @@
 'use strict';
 const common = require('../common');
 
-if (!common.opensslCli) {
+if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
-  return;
-}
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const assert = require('assert');
 const exec = require('child_process').exec;

@@ -2,15 +2,11 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
-if (!common.enoughTestMem) {
+if (!common.enoughTestMem)
   common.skip('memory-intensive test');
-  return;
-}
 
 const crypto = require('crypto');
 
