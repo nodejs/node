@@ -1,4 +1,3 @@
-#undef NDEBUG
 #include <assert.h>
 #include <stdlib.h>
 #include <node.h>
