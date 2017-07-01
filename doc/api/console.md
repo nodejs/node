@@ -246,9 +246,7 @@ console.log('count:', count);
 // Prints: count: 5, to stdout
 ```
 
-If formatting elements (e.g. `%d`) are not found in the first string then
-[`util.inspect()`][] is called on each argument and the resulting string
-values are concatenated. See [`util.format()`][] for more information.
+See [`util.format()`][] for more information.
 
 ### console.time(label)
 <!-- YAML
