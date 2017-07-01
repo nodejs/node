@@ -1,17 +1,15 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const tls = require('tls');
-
-const fs = require('fs');
-const spawn = require('child_process').spawn;
-
 if (common.opensslCli === false)
   common.skip('node compiled without OpenSSL CLI.');
+
+const assert = require('assert');
+const tls = require('tls');
+const fs = require('fs');
+const spawn = require('child_process').spawn;
 
 const cert = fs.readFileSync(`${common.fixturesDir}/test_cert.pem`);
 const key = fs.readFileSync(`${common.fixturesDir}/test_key.pem`);

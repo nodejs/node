@@ -26,7 +26,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const tls = require('tls');
-
 const fs = require('fs');
 const path = require('path');
 

@@ -21,11 +21,11 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const net = require('net');
-
 if (!common.hasIPv6)
   common.skip('no IPv6 support');
+
+const assert = require('assert');
+const net = require('net');
 
 const hosts = common.localIPv6Hosts;
 let hostIdx = 0;

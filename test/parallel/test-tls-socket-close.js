@@ -4,7 +4,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-
 const tls = require('tls');
 const fs = require('fs');
 const net = require('net');

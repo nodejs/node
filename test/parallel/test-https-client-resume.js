@@ -24,13 +24,11 @@
 // Cache session and close connection.  Use session on second connection.
 // ASSERT resumption.
 const common = require('../common');
-const assert = require('assert');
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 const https = require('https');
-
 const tls = require('tls');
 const fs = require('fs');
 

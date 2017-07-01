@@ -1,11 +1,11 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const net = require('net');
-
 // skip test in FreeBSD jails
 if (common.inFreeBSDJail)
   common.skip('In a FreeBSD jail');
+
+const assert = require('assert');
+const net = require('net');
 
 let conns = 0;
 const clientLocalPorts = [];

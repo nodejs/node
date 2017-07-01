@@ -1,13 +1,13 @@
 'use strict';
 
-const initHooks = require('./init-hooks');
-const tick = require('./tick');
 const common = require('../common');
-const assert = require('assert');
-const { checkInvocations } = require('./hook-checks');
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+const initHooks = require('./init-hooks');
+const tick = require('./tick');
+const assert = require('assert');
+const { checkInvocations } = require('./hook-checks');
 
 const tls = require('tls');
 const Connection = process.binding('crypto').Connection;

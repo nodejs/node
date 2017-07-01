@@ -1,10 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
-
 // The doctool currently uses js-yaml from the tool/eslint/ tree.
 try {
   require('../../tools/eslint/node_modules/js-yaml');
@@ -12,6 +8,9 @@ try {
   common.skip('missing js-yaml (eslint not present)');
 }
 
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const json = require('../../tools/doc/json.js');
 
 // Outputs valid json with the expected fields when given simple markdown

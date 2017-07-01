@@ -1,14 +1,15 @@
 'use strict';
 
 const common = require('../common');
+
+const tty_fd = common.getTTYfd();
+if (tty_fd < 0)
+  common.skip('no valid TTY fd available');
+
 const assert = require('assert');
 const tick = require('./tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
-const tty_fd = common.getTTYfd();
-
-if (tty_fd < 0)
-  common.skip('no valid TTY fd available');
 
 const ttyStream = (() => {
   try {

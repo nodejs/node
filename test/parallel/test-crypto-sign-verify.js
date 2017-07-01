@@ -1,13 +1,12 @@
 'use strict';
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const exec = require('child_process').exec;
-
-if (!common.hasCrypto)
-  common.skip('missing crypto');
-
 const crypto = require('crypto');
 
 // Test certificates

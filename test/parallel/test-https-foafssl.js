@@ -21,19 +21,16 @@
 
 'use strict';
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
 if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
 
 const assert = require('assert');
 const join = require('path').join;
-
 const fs = require('fs');
 const spawn = require('child_process').spawn;
-
-if (!common.hasCrypto)
-  common.skip('missing crypto');
-
 const https = require('https');
 
 const options = {

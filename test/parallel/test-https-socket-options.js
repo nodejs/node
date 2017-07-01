@@ -26,9 +26,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const https = require('https');
-
 const fs = require('fs');
-
 const http = require('http');
 
 const options = {

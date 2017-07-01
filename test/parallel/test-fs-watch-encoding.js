@@ -11,8 +11,6 @@
 // On SmartOS, the watch events fire but the filename is null.
 
 const common = require('../common');
-const fs = require('fs');
-const path = require('path');
 
 // fs-watch on folders have limited capability in AIX.
 // The testcase makes use of folder watching, and causes
@@ -20,6 +18,9 @@ const path = require('path');
 
 if (common.isAix)
   common.skip('folder watch capability is limited in AIX.');
+
+const fs = require('fs');
+const path = require('path');
 
 common.refreshTmpDir();
 

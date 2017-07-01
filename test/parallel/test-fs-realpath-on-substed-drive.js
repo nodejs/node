@@ -1,12 +1,12 @@
 'use strict';
 
 const common = require('../common');
+if (!common.isWindows)
+  common.skip('Test for Windows only');
+
 const assert = require('assert');
 const fs = require('fs');
 const spawnSync = require('child_process').spawnSync;
-
-if (!common.isWindows)
-  common.skip('Test for Windows only');
 
 let result;
 

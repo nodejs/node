@@ -21,12 +21,11 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const fs = require('fs');
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
+const fs = require('fs');
 const https = require('https');
 
 const pfx = fs.readFileSync(`${common.fixturesDir}/test_cert.pfx`);

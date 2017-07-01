@@ -1,12 +1,12 @@
 'use strict';
 
 const common = require('../common');
+if (!common.isLinux)
+  common.skip('Test is linux specific.');
+
 const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
-
-if (!common.isLinux)
-  common.skip('Test is linux specific.');
 
 common.refreshTmpDir();
 const filename = '\uD83D\uDC04';

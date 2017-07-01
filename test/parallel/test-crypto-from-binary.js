@@ -25,11 +25,10 @@
 
 
 const common = require('../common');
-const assert = require('assert');
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 const crypto = require('crypto');
 
 const EXTERN_APEX = 0xFBEE9;

@@ -21,15 +21,15 @@
 
 'use strict';
 const common = require('../common');
-const domain = require('domain');
-const assert = require('assert');
-const d = domain.create();
-const expect = ['pbkdf2', 'randomBytes', 'pseudoRandomBytes'];
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const domain = require('domain');
+const assert = require('assert');
 const crypto = require('crypto');
+
+const d = domain.create();
+const expect = ['pbkdf2', 'randomBytes', 'pseudoRandomBytes'];
 
 d.on('error', common.mustCall(function(e) {
   assert.strictEqual(e.message, expect.shift());

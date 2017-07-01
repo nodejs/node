@@ -21,15 +21,13 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-// Check getPeerCertificate can properly handle '\0' for fix CVE-2009-2408.
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const tls = require('tls');
+// Check getPeerCertificate can properly handle '\0' for fix CVE-2009-2408.
 
+const assert = require('assert');
+const tls = require('tls');
 const fs = require('fs');
 
 const server = tls.createServer({

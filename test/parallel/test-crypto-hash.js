@@ -1,12 +1,11 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
 
 // Test hashing

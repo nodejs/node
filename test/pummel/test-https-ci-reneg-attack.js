@@ -21,19 +21,17 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const spawn = require('child_process').spawn;
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const tls = require('tls');
-const https = require('https');
-
-const fs = require('fs');
-
 if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
+
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const tls = require('tls');
+const https = require('https');
+const fs = require('fs');
 
 // renegotiation limits to test
 const LIMITS = [0, 1, 2, 3, 5, 10, 16];

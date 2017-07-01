@@ -1,10 +1,10 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const execFile = require('child_process').execFile;
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+const assert = require('assert');
+const execFile = require('child_process').execFile;
 
 const setup = 'const enc = { toString: () => { throw new Error("xyz"); } };';
 

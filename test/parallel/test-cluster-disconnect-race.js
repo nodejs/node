@@ -4,12 +4,12 @@
 // Ref: https://github.com/nodejs/node/issues/4205
 
 const common = require('../common');
+if (common.isWindows)
+  common.skip('This test does not apply to Windows.');
+
 const assert = require('assert');
 const net = require('net');
 const cluster = require('cluster');
-
-if (common.isWindows)
-  common.skip('This test does not apply to Windows.');
 
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 

@@ -21,12 +21,11 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const domain = require('domain');
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
+const domain = require('domain');
 const crypto = require('crypto');
 
 function test(fn) {

@@ -1,13 +1,12 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 if (!common.enoughTestMem)
   common.skip('memory-intensive test');
 
+const assert = require('assert');
 const crypto = require('crypto');
 
 const BENCHMARK_FUNC_PATH =

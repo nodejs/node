@@ -1,11 +1,11 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
-const net = require('net');
-
 if (common.isWindows)
   common.skip('Unix-specific test');
+
+const assert = require('assert');
+const net = require('net');
 
 common.refreshTmpDir();
 

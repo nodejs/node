@@ -1,15 +1,13 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const TOTAL_REQS = 2;
-
+const assert = require('assert');
 const https = require('https');
-
 const fs = require('fs');
+
+const TOTAL_REQS = 2;
 
 const options = {
   key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
