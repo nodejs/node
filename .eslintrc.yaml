@@ -62,6 +62,9 @@ rules:
   no-delete-var: 2
   no-undef: 2
   no-unused-vars: [2, {args: none}]
+  no-use-before-define: [2, {classes: true,
+                             functions: false,
+                             variables: false}]
 
   # Node.js and CommonJS
   # http://eslint.org/docs/rules/#nodejs-and-commonjs
