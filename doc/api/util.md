@@ -186,7 +186,14 @@ returned string, each delimited by a space.
 util.format('%s:%s', 'foo', 'bar', 'baz'); // 'foo:bar baz'
 ```
 
-If the first argument is not a format string then `util.format()` returns
+Any non-object and non-symbol excessive argument will **not** have
+`util.inspect()` called on them.
+
+```js
+util.format('%s', 'foo', () => true); // 'foo () => true'
+```
+
+If the first argument is not a string then `util.format()` returns
 a string that is the concatenation of all arguments separated by spaces.
 Each argument is converted to a string using `util.inspect()`.
 
