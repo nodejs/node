@@ -106,10 +106,15 @@ class ActivityCollector {
             '\nExpected "destroy" to be called after "after"');
         }
       }
+      if (!a.handleIsObject) {
+        v('No resource object\n' + activityString(a) +
+          '\nExpected "init" to be called with a resource object');
+      }
     }
     if (violations.length) {
-      console.error(violations.join('\n'));
-      assert.fail(violations.length, 0, `Failed sanity checks: ${violations}`);
+      console.error(violations.join('\n\n') + '\n');
+      assert.fail(violations.length, 0,
+                  `${violations.length} failed sanity checks`);
     }
   }
 
@@ -147,7 +152,7 @@ class ActivityCollector {
       // events this makes sense for a few tests in which we enable some hooks
       // later
       if (this._allowNoInit) {
-        const stub = { uid, type: 'Unknown' };
+        const stub = { uid, type: 'Unknown', handleIsObject: true };
         this._activities.set(uid, stub);
         return stub;
       } else {
@@ -163,7 +168,14 @@ class ActivityCollector {
   }
 
   _init(uid, type, triggerAsyncId, handle) {
-    const activity = { uid, type, triggerAsyncId };
+    const activity = {
+      uid,
+      type,
+      triggerAsyncId,
+      // in some cases (Timeout) the handle is a function, thus the usual
+      // `typeof handle === 'object' && handle !== null` check can't be used.
+      handleIsObject: handle instanceof Object
+    };
     this._stamp(activity, 'init');
     this._activities.set(uid, activity);
     this._maybeLog(uid, type, 'init');
