@@ -14,7 +14,6 @@ test-fs-read-buffer-tostring-fail      : PASS,FLAKY
 [$system==macos]
 
 [$arch==arm || $arch==arm64]
-test-fs-readdir-ucs2 : PASS,FLAKY
 test-npm-install:      PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
