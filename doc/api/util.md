@@ -177,20 +177,14 @@ util.format('%s:%s', 'foo');
 // Returns: 'foo:%s'
 ```
 
-If there are more arguments passed to the `util.format()` method than the
-number of placeholders, the extra arguments are coerced into strings (for
-objects and symbols, `util.inspect()` is used) then concatenated to the
-returned string, each delimited by a space.
+If there are more arguments passed to the `util.format()` method than the number
+of placeholders, the extra arguments are coerced into strings then concatenated
+to the returned string, each delimited by a space. Excessive arguments whose
+`typeof` is `'object'` or `'symbol'` (except `null`) will be transformed by
+`util.inspect()`.
 
 ```js
 util.format('%s:%s', 'foo', 'bar', 'baz'); // 'foo:bar baz'
-```
-
-Any non-object and non-symbol excessive argument will **not** have
-`util.inspect()` called on them.
-
-```js
-util.format('%s', 'foo', () => true); // 'foo () => true'
 ```
 
 If the first argument is not a string then `util.format()` returns
