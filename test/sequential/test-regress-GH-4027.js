@@ -36,4 +36,4 @@ fs.watchFile(filename, { interval: 50 }, common.mustCall(function(curr, prev) {
   fs.unwatchFile(filename);
 }));
 
-setTimeout(fs.unlinkSync, 300, filename);
+setTimeout(fs.unlinkSync, common.platformTimeout(300), filename);
