@@ -1,10 +1,11 @@
 'use strict';
+
+const common = require('../common');
+
 if (!process.features.tls_npn) {
   common.skip('Skipping because node compiled without NPN feature of OpenSSL.');
   return;
 }
-
-const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
