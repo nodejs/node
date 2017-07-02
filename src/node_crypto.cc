@@ -1237,7 +1237,7 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
                                         env->ticketkeycallback_string(),
                                         arraysize(argv),
                                         argv,
-                                        0, 0).ToLocalChecked();
+                                        {0, 0}).ToLocalChecked();
   Local<Array> arr = ret.As<Array>();
 
   int r = arr->Get(kTicketKeyReturnIndex)->Int32Value();

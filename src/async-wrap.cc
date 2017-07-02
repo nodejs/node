@@ -759,22 +759,34 @@ async_uid AsyncHooksGetTriggerId(Isolate* isolate) {
 }
 
 
-async_uid EmitAsyncInit(Isolate* isolate,
-                     Local<Object> resource,
-                     const char* name,
-                     async_uid trigger_id) {
+async_context EmitAsyncInit(Isolate* isolate,
+                            Local<Object> resource,
+                            const char* name,
+                            async_uid trigger_async_id) {
   Environment* env = Environment::GetCurrent(isolate);
-  async_uid async_id = env->new_async_id();
 
+  // Initialize async context struct
+  async_context context = {};
+  context.async_id = env->new_async_id();
+
+  if (trigger_async_id == -1) {
+    context.trigger_async_id = env->get_init_trigger_id();
+  } else {
+    context.trigger_async_id = trigger_async_id;
+  }
+
+  // Run init hooks
   Local<String> type =
       String::NewFromUtf8(isolate, name, v8::NewStringType::kInternalized)
           .ToLocalChecked();
-  AsyncWrap::EmitAsyncInit(env, resource, type, async_id, trigger_id);
-  return async_id;
+  AsyncWrap::EmitAsyncInit(env, resource, type, context.async_id,
+                           context.trigger_async_id);
+
+  return context;
 }
 
-void EmitAsyncDestroy(Isolate* isolate, async_uid id) {
-  PushBackDestroyId(Environment::GetCurrent(isolate), id);
+void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
+  PushBackDestroyId(Environment::GetCurrent(isolate), asyncContext.async_id);
 }
 
 }  // namespace node
