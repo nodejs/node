@@ -518,10 +518,10 @@ typedef void (*promise_hook_func) (v8::PromiseHookType type,
                                    void* arg);
 
 typedef double async_id;
-typedef struct async_context {
+struct async_context {
   async_id async_id_;
   async_id trigger_async_id_;
-} async_context;
+};
 
 /* Registers an additional v8::PromiseHook wrapper. This API exists because V8
  * itself supports only a single PromiseHook. */
