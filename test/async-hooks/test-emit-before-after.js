@@ -8,17 +8,19 @@ const initHooks = require('./init-hooks');
 
 switch (process.argv[2]) {
   case 'test_invalid_async_id':
-    async_hooks.emitBefore(-1);
-    break;
+    async_hooks.emitBefore(-1, 1);
+    return;
   case 'test_invalid_trigger_id':
     async_hooks.emitBefore(1, -1);
-    break;
+    return;
 }
+assert.ok(!process.argv[2]);
+
 
 const c1 = spawnSync(process.execPath, [__filename, 'test_invalid_async_id']);
 assert.strictEqual(c1.stderr.toString().split(/[\r\n]+/g)[0],
                    'Error: before(): asyncId or triggerAsyncId is less than ' +
-                   'zero (asyncId: -1, triggerAsyncId: -1)');
+                   'zero (asyncId: -1, triggerAsyncId: 1)');
 assert.strictEqual(c1.status, 1);
 
 const c2 = spawnSync(process.execPath, [__filename, 'test_invalid_trigger_id']);
@@ -32,7 +34,7 @@ const expectedTriggerId = async_hooks.newUid();
 const expectedType = 'test_emit_before_after_type';
 
 // Verify that if there is no registered hook, then nothing will happen.
-async_hooks.emitBefore(expectedId);
+async_hooks.emitBefore(expectedId, expectedTriggerId);
 async_hooks.emitAfter(expectedId);
 
 initHooks({
@@ -42,5 +44,5 @@ initHooks({
 }).enable();
 
 async_hooks.emitInit(expectedId, expectedType, expectedTriggerId);
-async_hooks.emitBefore(expectedId);
+async_hooks.emitBefore(expectedId, expectedTriggerId);
 async_hooks.emitAfter(expectedId);
