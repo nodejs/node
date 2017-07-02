@@ -145,7 +145,7 @@ inline v8::Local<v8::Value> UVException(int errorno,
  * These methods need to be called in a HandleScope.
  *
  * It is preferred that you use the `MakeCallback` overloads taking
- * `async_uid` arguments.
+ * `async_id` arguments.
  */
 
 NODE_EXTERN v8::Local<v8::Value> MakeCallback(
@@ -517,10 +517,10 @@ typedef void (*promise_hook_func) (v8::PromiseHookType type,
                                    v8::Local<v8::Value> parent,
                                    void* arg);
 
-typedef double async_uid;
+typedef double async_id;
 typedef struct async_context {
-  async_uid async_id;
-  async_uid trigger_async_id;
+  async_id async_id_;
+  async_id trigger_async_id_;
 } async_context;
 
 /* Registers an additional v8::PromiseHook wrapper. This API exists because V8
@@ -532,17 +532,17 @@ NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
 /* Returns the id of the current execution context. If the return value is
  * zero then no execution has been set. This will happen if the user handles
  * I/O from native code. */
-NODE_EXTERN async_uid AsyncHooksGetExecutionAsyncId(v8::Isolate* isolate);
+NODE_EXTERN async_id AsyncHooksGetExecutionAsyncId(v8::Isolate* isolate);
 /* legacy alias */
 NODE_EXTERN NODE_DEPRECATED("Use AsyncHooksGetExecutionAsyncId(isolate)",
-                async_uid AsyncHooksGetCurrentId(v8::Isolate* isolate));
+                async_id AsyncHooksGetCurrentId(v8::Isolate* isolate));
 
 
 /* Return same value as async_hooks.triggerAsyncId(); */
-NODE_EXTERN async_uid AsyncHooksGetTriggerAsyncId(v8::Isolate* isolate);
+NODE_EXTERN async_id AsyncHooksGetTriggerAsyncId(v8::Isolate* isolate);
 /* legacy alias */
 NODE_EXTERN NODE_DEPRECATED("Use AsyncHooksGetTriggerAsyncId(isolate)",
-                async_uid AsyncHooksGetTriggerId(v8::Isolate* isolate));
+                async_id AsyncHooksGetTriggerId(v8::Isolate* isolate));
 
 
 /* If the native API doesn't inherit from the helper class then the callbacks
@@ -555,7 +555,7 @@ NODE_EXTERN NODE_DEPRECATED("Use AsyncHooksGetTriggerAsyncId(isolate)",
 NODE_EXTERN async_context EmitAsyncInit(v8::Isolate* isolate,
                                         v8::Local<v8::Object> resource,
                                         const char* name,
-                                        async_uid trigger_async_id = -1);
+                                        async_id trigger_async_id = -1);
 
 /* Emit the destroy() callback. */
 NODE_EXTERN void EmitAsyncDestroy(v8::Isolate* isolate,
@@ -601,7 +601,7 @@ class AsyncResource {
     AsyncResource(v8::Isolate* isolate,
                   v8::Local<v8::Object> resource,
                   const char* name,
-                  async_uid trigger_async_id = -1)
+                  async_id trigger_async_id = -1)
         : isolate_(isolate),
           resource_(isolate, resource) {
       async_context_ = EmitAsyncInit(isolate, resource, name,
@@ -643,8 +643,8 @@ class AsyncResource {
       return resource_.Get(isolate_);
     }
 
-    async_uid get_uid() const {
-      return async_context_.async_id;
+    async_id get_uid() const {
+      return async_context_.async_id_;
     }
   private:
     v8::Isolate* isolate_;
