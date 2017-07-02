@@ -14,6 +14,7 @@ prefix parallel
 
 [$arch==arm || $arch==arm64]
 test-fs-readdir-ucs2 : PASS,FLAKY
+test-npm-install:      PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 test-debug-signal-cluster         : PASS,FLAKY
