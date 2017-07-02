@@ -876,7 +876,7 @@ installed.
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`child.kill()`]: child_process.html#child_process_child_kill_signal
 [`child.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
-[`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
+[`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
 [`fs`]: fs.html
