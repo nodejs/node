@@ -766,14 +766,13 @@ async_context EmitAsyncInit(Isolate* isolate,
   Environment* env = Environment::GetCurrent(isolate);
 
   // Initialize async context struct
-  async_context context = {};
-  context.async_id_ = env->new_async_id();
+  if (trigger_async_id == -1)
+    trigger_async_id = env->get_init_trigger_id();
 
-  if (trigger_async_id == -1) {
-    context.trigger_async_id_ = env->get_init_trigger_id();
-  } else {
-    context.trigger_async_id_ = trigger_async_id;
-  }
+  async_context context = {
+    env->new_async_id(), // async_id_
+    trigger_async_id // trigger_async_id_
+  };
 
   // Run init hooks
   Local<String> type =
