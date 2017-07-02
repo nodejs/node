@@ -192,7 +192,7 @@ If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned.
 
-## assert.fail(actual, expected, message, operator)
+## assert.fail(actual, expected[, message[, operator[, stackStartFunction]]])
 <!-- YAML
 added: v0.1.21
 -->
@@ -200,10 +200,13 @@ added: v0.1.21
 * `expected` {any}
 * `message` {any}
 * `operator` {string}
+* `stackStartFunction` {function} (default: `assert.fail`)
 
 Throws an `AssertionError`. If `message` is falsy, the error message is set as
 the values of `actual` and `expected` separated by the provided `operator`.
 Otherwise, the error message is the value of `message`.
+If `stackStartFunction` is provided, all stack frames above that function will
+be removed from stacktrace (see [`Error.captureStackTrace`]).
 
 ```js
 const assert = require('assert');
@@ -211,8 +214,23 @@ const assert = require('assert');
 assert.fail(1, 2, undefined, '>');
 // AssertionError: 1 > 2
 
+assert.fail(1, 2, 'fail');
+// AssertionError: fail
+
 assert.fail(1, 2, 'whoops', '>');
 // AssertionError: whoops
+```
+
+Example use of `stackStartFunction` for truncating the exception's stacktrace:
+```js
+function suppressFrame() {
+  assert.fail('a', 'b', undefined, '!==', suppressFrame);
+}
+suppressFrame();
+// AssertionError: 'a' !== 'b'
+//     at repl:1:1
+//     at ContextifyScript.Script.runInThisContext (vm.js:44:33)
+//     ...
 ```
 
 ## assert.ifError(value)
@@ -492,5 +510,6 @@ assert.throws(myFunction, /missing foo/, 'did not throw with expected message');
 [`assert.ok()`]: #assert_assert_ok_value_message
 [`assert.throws()`]: #assert_assert_throws_block_error_message
 [`Error`]: errors.html#errors_class_error
+[`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
 [`RegExp`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
 [`TypeError`]: errors.html#errors_class_typeerror
