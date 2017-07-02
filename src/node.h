@@ -604,7 +604,7 @@ class AsyncResource {
           resource_(isolate, resource),
           trigger_async_id_(trigger_async_id) {
       if (trigger_async_id_ == -1)
-        trigger_async_id_ = AsyncHooksGetTriggerAsyncId(isolate);
+        trigger_async_id_ = Environment::GetCurrent(isolate)->get_init_trigger_id();
 
       uid_ = EmitAsyncInit(isolate, resource, name, trigger_async_id_);
     }

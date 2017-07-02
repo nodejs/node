@@ -751,7 +751,7 @@ async_uid AsyncHooksGetCurrentId(Isolate* isolate) {
 
 
 async_uid AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
-  return Environment::GetCurrent(isolate)->get_init_trigger_id();
+  return Environment::GetCurrent(isolate)->trigger_id();
 }
 
 async_uid AsyncHooksGetTriggerId(Isolate* isolate) {

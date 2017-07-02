@@ -92,11 +92,6 @@ void GetResource(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(r->get_resource());
 }
 
-void GetCurrentId(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(
-    node::AsyncHooksGetExecutionAsyncId(args.GetIsolate()));
-}
-
 void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "createAsyncResource", CreateAsyncResource);
   NODE_SET_METHOD(exports, "destroyAsyncResource", DestroyAsyncResource);
@@ -105,7 +100,6 @@ void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "callViaUtf8Name", CallViaUtf8Name);
   NODE_SET_METHOD(exports, "getUid", GetUid);
   NODE_SET_METHOD(exports, "getResource", GetResource);
-  NODE_SET_METHOD(exports, "getCurrentId", GetCurrentId);
 }
 
 }  // namespace
