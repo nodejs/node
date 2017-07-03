@@ -2326,7 +2326,7 @@ napi_status napi_instanceof(napi_env env,
   }
 
   if (env->has_instance_available) {
-    napi_value value, js_result, has_instance = nullptr;
+    napi_value value, js_result = nullptr, has_instance = nullptr;
     napi_status status = napi_generic_failure;
     napi_valuetype value_type;
 
