@@ -6,6 +6,10 @@ const async_hooks = require('async_hooks');
 const initHooks = require('./init-hooks');
 
 const arg = process.argv[2];
+if (arg) {
+  process.on('uncaughtException', common.mustNotCall());
+}
+
 switch (arg) {
   case 'test_init_callback':
     initHooks({
@@ -114,7 +118,7 @@ assert.ok(!arg);
     }
     assert.strictEqual(stdout, '');
     const firstLineStderr = stderr.split(/[\r\n]+/g)[0].trim();
-    assert.strictEqual(firstLineStderr, 'Uncaught Error: test_callback_abort');
+    assert.strictEqual(firstLineStderr, 'Error: test_callback_abort');
     console.timeEnd('end case 3');
   });
 }
