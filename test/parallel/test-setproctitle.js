@@ -11,7 +11,10 @@ const { exec, spawn } = require('child_process');
 const path = require('path');
 // The title shouldn't be too long; libuv's uv_set_process_title() out of
 // security considerations no longer overwrites envp, only argv, so the
-// maximum title length is possibly quite short.
+// maximum title length is possibly quite short (probably just 4 chars).
+// We need to use a random shared secret so zombie processes do not cause a
+// false positive.
+// Ref: https://github.com/nodejs/node/pull/12792
 const title = String(Date.now()).substr(-4, 4);
 
 if (process.argv[2] === 'child') {
@@ -19,18 +22,18 @@ if (process.argv[2] === 'child') {
   assert.notStrictEqual(process.title, childTitle);
   process.title = childTitle;
   assert.strictEqual(process.title, childTitle);
-  // Just wait a little bit before exiting
-  setTimeout(() => {}, common.platformTimeout(300));
+  // Just wait a little bit before exiting.
+  setTimeout(() => {}, common.platformTimeout(3000));
   return;
 }
 
-// This should run only in the parent
+// This should run only in the parent.
 assert.strictEqual(process.argv.length, 2);
 let child;
 const cmd = (() => {
   if (common.isWindows) {
-    // For windows we need to spawn a new `window` so it will get the title.
-    // For that we need a `shell`, and to use `start`
+    // On Windows it is the `window` that gets the title and not the actual
+    // process, so we create a new `window` by using `shell: true` and `start`.
     child = spawn(
       'start /MIN /WAIT',
       [process.execPath, __filename, 'child', title],
@@ -40,13 +43,13 @@ const cmd = (() => {
     const winTitle = '$_.mainWindowTitle';
     return `${PSL} "ps | ? {${winTitle} -eq '${title}'} | % {${winTitle}}"`;
   } else {
-    // for non Windows we change our own title
+    // For non Windows we just change this process's own title.
     assert.notStrictEqual(process.title, title);
     process.title = title;
     assert.strictEqual(process.title, title);
 
-    // To pass this test on alpine, since Busybox `ps` does not
-    // support `-p` switch, use `ps -o` and `grep` instead.
+    // Since Busybox's `ps` does not support `-p` switch, to pass this test on
+    // alpine we use `ps -o` and `grep`.
     return common.isLinux ?
       `ps -o pid,args | grep '${process.pid} ${title}' | grep -v grep` :
       `ps -p ${child.pid} -o args=`;
@@ -54,18 +57,18 @@ const cmd = (() => {
 })();
 
 exec(cmd, common.mustCall((error, stdout, stderr) => {
-  // We don't need the child anymore...
+  // Don't need the child process anymore...
   if (child) {
     child.kill();
     child.unref();
   }
   assert.ifError(error);
   assert.strictEqual(stderr, '');
-  const ret = stdout.trim();
+  // We only want the second part (remove the pid).
+  const ret = stdout.trim().replace(/^\d+\s/, '');
 
-  // freeBSD adds ' (procname)' to the process title
-  const bsdSuffix = ` (${path.basename(process.execPath)})`;
-  const expected = title + (common.isFreeBSD ? bsdSuffix : '');
-  assert.strictEqual(ret.endsWith(expected), true);
-  assert.strictEqual(ret.endsWith(expected), true);
+  // `freeBSD` adds ' (procname)' to the process title.
+  const procname = path.basename(process.execPath);
+  const expected = title + (common.isFreeBSD ? ` (${procname})` : '');
+  assert.strictEqual(ret, expected);
 }));
