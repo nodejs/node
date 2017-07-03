@@ -528,7 +528,7 @@ running the `./configure` script.
 
 An example of the possible output looks like:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   target_defaults:
@@ -792,7 +792,7 @@ See environ(7).
 
 An example of this object looks like:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   TERM: 'xterm-256color',
@@ -1224,7 +1224,7 @@ console.log(process.memoryUsage());
 
 Will generate:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   rss: 4935680,
@@ -1396,7 +1396,7 @@ tarball.
 
 For example:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   name: 'node',
@@ -1758,7 +1758,7 @@ console.log(process.versions);
 
 Will generate an object similar to:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   http_parser: '2.3.0',

@@ -40,7 +40,7 @@ The following special commands are supported by all REPL instances:
   `> .load ./file/to/load.js`
 * `.editor` - Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel)
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 > .editor
 // Entering editor mode (^D to finish, ^C to cancel)
@@ -76,7 +76,7 @@ evaluation function when the `repl.REPLServer` instance is created.
 
 The default evaluator supports direct evaluation of JavaScript expressions:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 > 1 + 1
 2
@@ -105,7 +105,7 @@ repl.start('> ').context.m = msg;
 
 Properties in the `context` object appear as local within the REPL:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 $ node repl_test.js
 > m
@@ -135,7 +135,7 @@ REPL environment when used. For instance, unless otherwise declared as a
 global or scoped variable, the input `fs` will be evaluated on-demand as
 `global.fs = require('fs')`.
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 > fs.createReadStream('./some/file');
 ```
@@ -146,7 +146,7 @@ The default evaluator will, by default, assign the result of the most recently
 evaluated expression to the special variable `_` (underscore).
 Explicitly setting `_` to a value will disable this behavior.
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 > [ 'a', 'b', 'c' ]
 [ 'a', 'b', 'c' ]
@@ -293,7 +293,7 @@ r.on('reset', initializeContext);
 When this code is executed, the global `'m'` variable can be modified but then
 reset to its initial value using the `.clear` command:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 $ ./node example.js
 > m
@@ -443,7 +443,7 @@ Node.js itself uses the `repl` module to provide its own interactive interface
 for executing JavaScript. This can be used by executing the Node.js binary
 without passing any arguments (or by passing the `-i` argument):
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 $ node
 > const a = [1, 2, 3];

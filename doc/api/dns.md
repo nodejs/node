@@ -65,7 +65,7 @@ section if a custom port is used.
 
 For example:
 
-<!-- eslint-disable -->
+<!-- eslint-disable semi-->
 ```js
 [
   '4.4.4.4',
@@ -314,7 +314,7 @@ function will contain an array of objects with the following properties:
 
 For example:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   flags: 's',
@@ -374,7 +374,7 @@ be an object with the following properties:
 * `expire`
 * `minttl`
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   nsname: 'ns.example.com',
@@ -405,7 +405,7 @@ be an array of objects with the following properties:
 * `port`
 * `name`
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   priority: 10,
@@ -459,12 +459,12 @@ will be present on the object:
 
 Here is a example of the `ret` object passed to the callback:
 
-<!-- eslint-disable -->
+<!-- eslint-disable semi -->
 ```js
 [ { type: 'A', address: '127.0.0.1', ttl: 299 },
   { type: 'CNAME', value: 'example.com' },
   { type: 'MX', exchange: 'alt4.aspmx.l.example.com', priority: 50 },
-  { type: 'NS', value: 'ns1.example.com', type: 'NS' },
+  { type: 'NS', value: 'ns1.example.com' },
   { type: 'TXT', entries: [ 'v=spf1 include:_spf.example.com ~all' ] },
   { type: 'SOA',
     nsname: 'ns1.example.com',
