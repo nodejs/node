@@ -876,6 +876,30 @@ socket.on('end', () => {
 });
 ```
 
+Note: When using an instance of `net.Socket`, you start the `net.Socket`. You can use `net.Socket` to upgrade an existing socket you don't wrap the `net.Socket` in a `TLSSocket`, then the connect works as expected.
+
+See the example below for usage of upgrading an existing socket with `net.Socket`:
+
+```js
+var Socket = require('net').Socket;
+var tls = require('tls');
+var sock = new Socket();
+var secureSock = tls.connect({ socket: s }, function() {
+  console.log("The tls socket connected. Yay!");
+});
+sock.connect({port: 6697, host: "irc.freenode.net"});
+```
+
+That's typically how you upgrade an existing socket. However, if you're using TLS from the start, then just use tls.connect() to upgrade a socket:
+
+```js
+var tls = require('tls');
+var secureSock = tls.connect({port: 6697, host: "irc.freenode.net"}, function() {
+  console.log("The tls socket connected. Yay!");
+  secureSock.write(...);
+});
+```
+
 ## tls.connect(path[, options][, callback])
 <!-- YAML
 added: v0.11.3
