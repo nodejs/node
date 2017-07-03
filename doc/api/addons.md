@@ -1125,7 +1125,7 @@ Test in JavaScript by running:
 
 ```js
 // test.js
-const addon = require('./build/Release/addon');
+require('./build/Release/addon');
 ```
 
 [Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
