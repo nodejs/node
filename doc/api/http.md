@@ -12,7 +12,7 @@ user is able to stream data.
 
 HTTP message headers are represented by an object like this:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 { 'content-length': '123',
   'content-type': 'text/plain',
