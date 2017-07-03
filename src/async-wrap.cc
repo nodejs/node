@@ -770,8 +770,8 @@ async_context EmitAsyncInit(Isolate* isolate,
     trigger_async_id = env->get_init_trigger_id();
 
   async_context context = {
-    env->new_async_id(), // async_id_
-    trigger_async_id // trigger_async_id_
+    env->new_async_id(),  // async_id_
+    trigger_async_id  // trigger_async_id_
   };
 
   // Run init hooks
