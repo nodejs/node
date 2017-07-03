@@ -334,7 +334,7 @@ added: v6.0.0
 
 Set by calling `.kill()` or `.disconnect()`. Until then, it is `undefined`.
 
-The boolean `worker.exitedAfterDisconnect` allows distinguishing between
+The boolean [`worker.exitedAfterDisconnect`][] allows distinguishing between
 voluntary and accidental exit, the master may choose not to respawn a worker
 based on this value.
 
