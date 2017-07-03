@@ -13,14 +13,14 @@ const throwsObjsAndReportTypes = new Map([
   [Symbol('foo'), 'symbol']
 ]);
 
-for (const [obj, type] of throwsObjsAndReportTypes) {
+for (const [urlObject, type] of throwsObjsAndReportTypes) {
   const error = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "urlObj" argument must be of type object. ' +
+    message: 'The "urlObject" argument must be one of type object or string. ' +
              `Received type ${type}`
   });
-  assert.throws(function() { url.format(obj); }, error);
+  assert.throws(function() { url.format(urlObject); }, error);
 }
 assert.strictEqual(url.format(''), '');
 assert.strictEqual(url.format({}), '');
