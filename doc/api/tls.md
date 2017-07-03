@@ -885,10 +885,9 @@ the socket option:
 const { Socket } = require('net');
 const tls = require('tls');
 const sock = new Socket();
-const secureSock = tls.connect({ socket: s }, () => {
+const secureSock = tls.connect({ port: 6697, host: 'irc.freenode.net' }, () => {
   console.log('The tls socket connected.');
 });
-sock.connect({ port: 6697, host: 'irc.freenode.net' });
 ```
 
 If using TLS as the initial default rather than `net.Socket`, 
