@@ -885,7 +885,7 @@ the socket option:
 const { Socket } = require('net');
 const tls = require('tls');
 const sock = new Socket();
-const secureSock = tls.connect({ port: 6697, host: 'irc.freenode.net' }, () => {
+const secureSock = tls.connect({ socket: sock }, () => {
   console.log('The tls socket connected.');
 });
 ```
@@ -895,7 +895,7 @@ use only `tls.connect()` to upgrade the socket:
 
 ```js
 const tls = require('tls');
-const secureSock = tls.connect({ port: 6697, host: 'irc.freenode.net' }, () => {
+const secureSock = tls.connect({ port: 6697, host: 'https://example.org:443/' }, () => {
   console.log('The tls socket connected.');
 });
 ```
