@@ -1073,7 +1073,6 @@ The following `addon.cc` implements AtExit:
 
 ```cpp
 // addon.cc
-#undef NDEBUG
 #include <assert.h>
 #include <stdlib.h>
 #include <node.h>
