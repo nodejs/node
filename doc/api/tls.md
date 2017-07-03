@@ -888,7 +888,7 @@ var secureSock = tls.connect({ socket: s }, function() {
 sock.connect({port: 6697, host: "irc.freenode.net"});
 ```
 
-If using TLS as your initial default, use tls.connect() to upgrade a socket:
+If using TLS as the initial default rather than net.Socket, use *only* tls.connect() to upgrade the socket:
 
 ```js
 var tls = require('tls');
