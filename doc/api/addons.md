@@ -1104,7 +1104,7 @@ Test in JavaScript by running:
 
 ```js
 // test.js
-const addon = require('./build/Release/addon');
+require('./build/Release/addon');
 ```
 
 [bindings]: https://github.com/TooTallNate/node-bindings
