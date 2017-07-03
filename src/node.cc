@@ -1320,11 +1320,11 @@ MaybeLocal<Value> MakeCallback(Environment* env,
   MaybeLocal<Value> ret;
 
   {
-    AsyncHooks::ExecScope exec_scope(env, asyncContext.async_id_,
-                                     asyncContext.trigger_async_id_);
+    AsyncHooks::ExecScope exec_scope(env, asyncContext.async_id,
+                                     asyncContext.trigger_async_id);
 
-    if (asyncContext.async_id_ != 0) {
-      if (!AsyncWrap::EmitBefore(env, asyncContext.async_id_))
+    if (asyncContext.async_id != 0) {
+      if (!AsyncWrap::EmitBefore(env, asyncContext.async_id))
         return Local<Value>();
     }
 
@@ -1337,8 +1337,8 @@ MaybeLocal<Value> MakeCallback(Environment* env,
           ret : Undefined(env->isolate());
     }
 
-    if (asyncContext.async_id_ != 0) {
-      if (!AsyncWrap::EmitAfter(env, asyncContext.async_id_))
+    if (asyncContext.async_id != 0) {
+      if (!AsyncWrap::EmitAfter(env, asyncContext.async_id))
         return Local<Value>();
     }
   }
@@ -1360,8 +1360,8 @@ MaybeLocal<Value> MakeCallback(Environment* env,
 
   // Make sure the stack unwound properly. If there are nested MakeCallback's
   // then it should return early and not reach this code.
-  CHECK_EQ(env->current_async_id(), asyncContext.async_id_);
-  CHECK_EQ(env->trigger_id(), asyncContext.trigger_async_id_);
+  CHECK_EQ(env->current_async_id(), asyncContext.async_id);
+  CHECK_EQ(env->trigger_id(), asyncContext.trigger_async_id);
 
   Local<Object> process = env->process_object();
 

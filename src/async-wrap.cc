@@ -778,14 +778,14 @@ async_context EmitAsyncInit(Isolate* isolate,
   Local<String> type =
       String::NewFromUtf8(isolate, name, v8::NewStringType::kInternalized)
           .ToLocalChecked();
-  AsyncWrap::EmitAsyncInit(env, resource, type, context.async_id_,
-                           context.trigger_async_id_);
+  AsyncWrap::EmitAsyncInit(env, resource, type, context.async_id,
+                           context.trigger_async_id);
 
   return context;
 }
 
 void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
-  PushBackDestroyId(Environment::GetCurrent(isolate), asyncContext.async_id_);
+  PushBackDestroyId(Environment::GetCurrent(isolate), asyncContext.async_id);
 }
 
 }  // namespace node

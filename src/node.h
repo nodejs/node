@@ -519,8 +519,8 @@ typedef void (*promise_hook_func) (v8::PromiseHookType type,
 
 typedef double async_id;
 struct async_context {
-  async_id async_id_;
-  async_id trigger_async_id_;
+  ::node::async_id async_id;
+  ::node::async_id trigger_async_id;
 };
 
 /* Registers an additional v8::PromiseHook wrapper. This API exists because V8
@@ -644,7 +644,7 @@ class AsyncResource {
     }
 
     async_id get_uid() const {
-      return async_context_.async_id_;
+      return async_context_.async_id;
     }
   private:
     v8::Isolate* isolate_;
