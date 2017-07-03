@@ -895,7 +895,7 @@ use only `tls.connect()` to upgrade the socket:
 
 ```js
 const tls = require('tls');
-const secureSock = tls.connect({ port: 443, host: 'https://example.org' }, () => {
+const secureSock = tls.connect({ port: 443, host: 'example.org' }, () => {
   console.log('The tls socket connected.');
 });
 ```
