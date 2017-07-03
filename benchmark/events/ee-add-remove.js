@@ -16,10 +16,13 @@ function main(conf) {
 
   bench.start();
   for (var i = 0; i < n; i += 1) {
-    for (k = listeners.length; --k >= 0; /* empty */)
-      ee.on('dummy', listeners[k]);
-    for (k = listeners.length; --k >= 0; /* empty */)
-      ee.removeListener('dummy', listeners[k]);
+    var dummy = (i % 2 === 0) ? 'dummy0' : 'dummy1';
+    for (k = listeners.length; --k >= 0; /* empty */) {
+      ee.on(dummy, listeners[k]);
+    }
+    for (k = listeners.length; --k >= 0; /* empty */) {
+      ee.removeListener(dummy, listeners[k]);
+    }
   }
   bench.end(n);
 }

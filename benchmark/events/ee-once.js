@@ -13,8 +13,9 @@ function main(conf) {
 
   bench.start();
   for (var i = 0; i < n; i += 1) {
-    ee.once('dummy', listener);
-    ee.emit('dummy');
+    var dummy = (i % 2 === 0) ? 'dummy0' : 'dummy1';
+    ee.once(dummy, listener);
+    ee.emit(dummy);
   }
   bench.end(n);
 }
