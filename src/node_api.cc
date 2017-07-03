@@ -1045,6 +1045,27 @@ napi_status napi_delete_property(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+NAPI_EXTERN napi_status napi_has_own_property(napi_env env,
+                                              napi_value object,
+                                              napi_value key,
+                                              bool* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, key);
+
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Object> obj;
+
+  CHECK_TO_OBJECT(env, context, obj, object);
+  v8::Local<v8::Value> k = v8impl::V8LocalValueFromJsValue(key);
+  RETURN_STATUS_IF_FALSE(env, k->IsName(), napi_name_expected);
+  v8::Maybe<bool> has_maybe = obj->HasOwnProperty(context, k.As<v8::Name>());
+  CHECK_MAYBE_NOTHING(env, has_maybe, napi_generic_failure);
+  *result = has_maybe.FromMaybe(false);
+
+  return GET_RETURN_STATUS(env);
+}
+
 napi_status napi_set_named_property(napi_env env,
                                     napi_value object,
                                     const char* utf8name,
