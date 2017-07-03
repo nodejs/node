@@ -135,6 +135,7 @@ rules:
   one-var-declaration-per-line: 2
   operator-linebreak: [2, after]
   quotes: [2, single, avoid-escape]
+  quote-props: [2, consistent]
   semi: 2
   semi-spacing: 2
   space-before-blocks: [2, always]
