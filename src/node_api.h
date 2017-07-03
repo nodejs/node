@@ -230,6 +230,10 @@ NAPI_EXTERN napi_status napi_delete_property(napi_env env,
                                              napi_value object,
                                              napi_value key,
                                              bool* result);
+NAPI_EXTERN napi_status napi_has_own_property(napi_env env,
+                                              napi_value object,
+                                              napi_value key,
+                                              bool* result);
 NAPI_EXTERN napi_status napi_set_named_property(napi_env env,
                                           napi_value object,
                                           const char* utf8name,
