@@ -12,12 +12,10 @@ rm -rf eslint
 mkdir eslint-tmp
 cd eslint-tmp
 
-npm install --global-style --no-binlinks --production eslint@latest
+npm install --global-style --no-bin-links --production eslint@latest
 cd node_modules/eslint
 
-# eslint-plugin-markdown is pinned at 1.0.0-beta.4 until there is a release
-# that fixes https://github.com/eslint/eslint-plugin-markdown/issues/69.
-npm install --no-bin-links --production eslint-plugin-markdown@1.0.0-beta.4
+npm install --no-bin-links --production eslint-plugin-markdown@next
 cd ../..
 
 # Install dmn if it is not in path.
