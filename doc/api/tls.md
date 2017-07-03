@@ -876,7 +876,10 @@ socket.on('end', () => {
 });
 ```
 
-When using an instance of `net.Socket`, use `net.Socket` to upgrade an existing socket. Do not wrap the `net.Socket` in a `TLSSocket`. See the example below for usage of upgrading an existing socket:
+When using an instance of `net.Socket`, use `net.Socket` to upgrade an existing socket. 
+Do not wrap the `net.Socket` in a `TLSSocket`. 
+
+See the example below for usage of upgrading an existing socket:
 
 ```js
 const Socket = require('net').Socket;
@@ -888,7 +891,8 @@ const secureSock = tls.connect({ socket: s }, () => {
 sock.connect({ port: 6697, host: 'irc.freenode.net' });
 ```
 
-If using TLS as the initial default rather than net.Socket, use only `tls.connect()` to upgrade the socket:
+If using TLS as the initial default rather than net.Socket, 
+use only `tls.connect()` to upgrade the socket:
 
 ```js
 const tls = require('tls');
