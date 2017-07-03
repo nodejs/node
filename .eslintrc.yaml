@@ -13,39 +13,39 @@ parserOptions:
 rules:
   # Possible Errors
   # http://eslint.org/docs/rules/#possible-errors
-  no-control-regex: 2
-  no-debugger: 2
-  no-dupe-args: 2
-  no-dupe-keys: 2
-  no-duplicate-case: 2
-  no-empty-character-class: 2
-  no-ex-assign: 2
-  no-extra-boolean-cast: 2
-  no-extra-parens: [2, functions]
-  no-extra-semi: 2
-  no-func-assign: 2
-  no-invalid-regexp: 2
-  no-irregular-whitespace: 2
-  no-obj-calls: 2
-  no-template-curly-in-string: 2
-  no-unexpected-multiline: 2
-  no-unreachable: 2
-  no-unsafe-negation: 2
-  use-isnan: 2
-  valid-typeof: 2
+  no-control-regex: error
+  no-debugger: error
+  no-dupe-args: error
+  no-dupe-keys: error
+  no-duplicate-case: error
+  no-empty-character-class: error
+  no-ex-assign: error
+  no-extra-boolean-cast: error
+  no-extra-parens: [error, functions]
+  no-extra-semi: error
+  no-func-assign: error
+  no-invalid-regexp: error
+  no-irregular-whitespace: error
+  no-obj-calls: error
+  no-template-curly-in-string: error
+  no-unexpected-multiline: error
+  no-unreachable: error
+  no-unsafe-negation: error
+  use-isnan: error
+  valid-typeof: error
 
   # Best Practices
   # http://eslint.org/docs/rules/#best-practices
-  dot-location: [2, property]
-  eqeqeq: [2, smart]
-  no-fallthrough: 2
-  no-global-assign: 2
-  no-multi-spaces: [2, {ignoreEOLComments: true}]
-  no-octal: 2
-  no-proto: 2
-  no-redeclare: 2
+  dot-location: [error, property]
+  eqeqeq: [error, smart]
+  no-fallthrough: error
+  no-global-assign: error
+  no-multi-spaces: [error, {ignoreEOLComments: true}]
+  no-octal: error
+  no-proto: error
+  no-redeclare: error
   no-restricted-properties:
-    - 2
+    - error
     - object: assert
       property: deepEqual
       message: Use assert.deepStrictEqual().
@@ -59,71 +59,71 @@ rules:
       message: __defineGetter__ is deprecated.
     - property: __defineSetter__
       message: __defineSetter__ is deprecated.
-  no-self-assign: 2
-  no-throw-literal: 2
-  no-unused-labels: 2
-  no-useless-call: 2
-  no-useless-concat: 2
-  no-useless-escape: 2
-  no-useless-return: 2
-  no-void: 2
-  no-with: 2
+  no-self-assign: error
+  no-throw-literal: error
+  no-unused-labels: error
+  no-useless-call: error
+  no-useless-concat: error
+  no-useless-escape: error
+  no-useless-return: error
+  no-void: error
+  no-with: error
 
   # Strict Mode
   # http://eslint.org/docs/rules/#strict-mode
-  strict: [2, global]
+  strict: [error, global]
 
   # Variables
   # http://eslint.org/docs/rules/#variables
-  no-delete-var: 2
-  no-undef: 2
-  no-unused-vars: [2, {args: none}]
-  no-use-before-define: [2, {classes: true,
-                             functions: false,
-                             variables: false}]
+  no-delete-var: error
+  no-undef: error
+  no-unused-vars: [error, {args: none}]
+  no-use-before-define: [error, {classes: true,
+                                 functions: false,
+                                 variables: false}]
 
   # Node.js and CommonJS
   # http://eslint.org/docs/rules/#nodejs-and-commonjs
-  no-mixed-requires: 2
-  no-new-require: 2
-  no-path-concat: 2
-  no-restricted-modules: [2, sys]
+  no-mixed-requires: error
+  no-new-require: error
+  no-path-concat: error
+  no-restricted-modules: [error, sys]
 
   # Stylistic Issues
   # http://eslint.org/docs/rules/#stylistic-issues
-  block-spacing: 2
-  brace-style: [2, 1tbs, {allowSingleLine: true}]
-  comma-dangle: [2, only-multiline]
-  comma-spacing: 2
-  comma-style: 2
-  computed-property-spacing: 2
-  eol-last: 2
-  func-call-spacing: 2
-  func-name-matching: 2
-  func-style: [2, declaration, {allowArrowFunctions: true}]
-  # indent: [2, 2, {ArrayExpression: first,
+  block-spacing: error
+  brace-style: [error, 1tbs, {allowSingleLine: true}]
+  comma-dangle: [error, only-multiline]
+  comma-spacing: error
+  comma-style: error
+  computed-property-spacing: error
+  eol-last: error
+  func-call-spacing: error
+  func-name-matching: error
+  func-style: [error, declaration, {allowArrowFunctions: true}]
+  # indent: [error, error, {ArrayExpression: first,
   #                 CallExpression: {arguments: first},
   #                 FunctionDeclaration: {parameters: first},
   #                 FunctionExpression: {parameters: first},
   #                 MemberExpression: off,
   #                 ObjectExpression: first,
   #                 SwitchCase: 1}]
-  indent-legacy: [2, 2, {ArrayExpression: first,
+  indent-legacy: [error, 2, {ArrayExpression: first,
                          CallExpression: {arguments: first},
                          MemberExpression: 1,
                          ObjectExpression: first,
                          SwitchCase: 1}]
-  key-spacing: [2, {mode: minimum}]
-  keyword-spacing: 2
-  linebreak-style: [2, unix]
-  max-len: [2, {code: 80,
+  key-spacing: [error, {mode: minimum}]
+  keyword-spacing: error
+  linebreak-style: [error, unix]
+  max-len: [error, {code: 80,
                 ignoreRegExpLiterals: true,
                 ignoreUrls: true,
                 tabWidth: 2}]
-  new-parens: 2
-  no-mixed-spaces-and-tabs: 2
-  no-multiple-empty-lines: [2, {max: 2, maxEOF: 0, maxBOF: 0}]
-  no-restricted-syntax: [2, {
+  new-parens: error
+  no-mixed-spaces-and-tabs: error
+  no-multiple-empty-lines: [error, {max: 2, maxEOF: 0, maxBOF: 0}]
+  no-restricted-syntax: [error, {
     selector: "CallExpression[callee.name='setTimeout'][arguments.length<2]",
     message: "setTimeout() must be invoked with at least two arguments."
   }, {
@@ -133,43 +133,43 @@ rules:
     selector: "ThrowStatement > CallExpression[callee.name=/Error$/]",
     message: "Use new keyword when throwing an Error."
   }]
-  no-tabs: 2
-  no-trailing-spaces: 2
-  one-var-declaration-per-line: 2
-  operator-linebreak: [2, after]
-  quotes: [2, single, avoid-escape]
-  semi: 2
-  semi-spacing: 2
-  space-before-blocks: [2, always]
-  space-before-function-paren: [2, {
+  no-tabs: error
+  no-trailing-spaces: error
+  one-var-declaration-per-line: error
+  operator-linebreak: [error, after]
+  quotes: [error, single, avoid-escape]
+  semi: error
+  semi-spacing: error
+  space-before-blocks: [error, always]
+  space-before-function-paren: [error, {
     "anonymous": "never",
     "named": "never",
     "asyncArrow": "always"
   }]
-  space-in-parens: [2, never]
-  space-infix-ops: 2
-  space-unary-ops: 2
-  unicode-bom: 2
+  space-in-parens: [error, never]
+  space-infix-ops: error
+  space-unary-ops: error
+  unicode-bom: error
 
   # ECMAScript 6
   # http://eslint.org/docs/rules/#ecmascript-6
-  arrow-parens: [2, always]
-  arrow-spacing: [2, {before: true, after: true}]
-  constructor-super: 2
-  no-class-assign: 2
-  no-confusing-arrow: 2
-  no-const-assign: 2
-  no-dupe-class-members: 2
-  no-new-symbol: 2
-  no-this-before-super: 2
-  prefer-const: [2, {ignoreReadBeforeAssign: true}]
-  rest-spread-spacing: 2
-  template-curly-spacing: 2
+  arrow-parens: [error, always]
+  arrow-spacing: [error, {before: true, after: true}]
+  constructor-super: error
+  no-class-assign: error
+  no-confusing-arrow: error
+  no-const-assign: error
+  no-dupe-class-members: error
+  no-new-symbol: error
+  no-this-before-super: error
+  prefer-const: [error, {ignoreReadBeforeAssign: true}]
+  rest-spread-spacing: error
+  template-curly-spacing: error
 
   # Custom rules in tools/eslint-rules
-  align-multiline-assignment: 2
-  assert-throws-arguments: [2, { requireTwo: true }]
-  no-unescaped-regexp-dot: 2
+  align-multiline-assignment: error
+  assert-throws-arguments: [error, { requireTwo: true }]
+  no-unescaped-regexp-dot: error
 
 # Global scoped method and vars
 globals:
