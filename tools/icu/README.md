@@ -28,7 +28,7 @@ Also running
 
 <!-- eslint-disable strict -->
 ```js
- new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(9E8));
+new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(9E8));
 ```
 
 …Should return `January` not `enero`.
