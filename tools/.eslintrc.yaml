@@ -3,11 +3,11 @@
 rules:
   # Stylistic Issues
   # http://eslint.org/docs/rules/#stylistic-issues
-  indent: [2, 2, {ArrayExpression: first,
-                  CallExpression: {arguments: first},
-                  FunctionDeclaration: {parameters: first},
-                  FunctionExpression: {parameters: first},
-                  MemberExpression: off,
-                  ObjectExpression: first,
-                  SwitchCase: 1}]
-  indent-legacy: 0
+  indent: [error, 2, {ArrayExpression: first,
+                      CallExpression: {arguments: first},
+                      FunctionDeclaration: {parameters: first},
+                      FunctionExpression: {parameters: first},
+                      MemberExpression: off,
+                      ObjectExpression: first,
+                      SwitchCase: 1}]
+  indent-legacy: off

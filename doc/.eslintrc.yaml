@@ -1,25 +1,25 @@
 ## Docs-specific linter rules
 
 rules:
-  object-curly-spacing: [2, always]
+  object-curly-spacing: [error, always]
 
   # ease some restrictions in doc examples
-  no-restricted-properties: 0
-  no-undef: 0
-  no-unused-vars: 0
-  strict: 0
+  no-restricted-properties: off
+  no-undef: off
+  no-unused-vars: off
+  strict: off
 
   # add new ECMAScript features gradually
-  no-var: 2
-  prefer-const: 2
-  prefer-rest-params: 2
+  no-var: error
+  prefer-const: error
+  prefer-rest-params: error
 
   # use stricter indent over indent-legacy
-  indent-legacy: 0
-  indent: [2, 2, {ArrayExpression: first,
-                  CallExpression: {arguments: first},
-                  FunctionDeclaration: {parameters: first},
-                  FunctionExpression: {parameters: first},
-                  MemberExpression: off,
-                  ObjectExpression: first,
-                  SwitchCase: 1}]
+  indent-legacy: off
+  indent: [error, 2, {ArrayExpression: first,
+                      CallExpression: {arguments: first},
+                      FunctionDeclaration: {parameters: first},
+                      FunctionExpression: {parameters: first},
+                      MemberExpression: off,
+                      ObjectExpression: first,
+                      SwitchCase: 1}]

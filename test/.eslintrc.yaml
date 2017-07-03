@@ -3,12 +3,12 @@
 rules:
   # ECMAScript 6
   # http://eslint.org/docs/rules/#ecmascript-6
-  no-var: 2
-  prefer-const: 2
+  no-var: error
+  prefer-const: error
 
   # Custom rules in tools/eslint-rules
-  prefer-assert-iferror: 2
-  prefer-assert-methods: 2
-  prefer-common-mustnotcall: 2
+  prefer-assert-iferror: error
+  prefer-assert-methods: error
+  prefer-common-mustnotcall: error
   ## common module is mandatory in tests
-  required-modules: [2, common]
+  required-modules: [error, common]
