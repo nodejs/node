@@ -882,7 +882,7 @@ Do not wrap the `net.Socket` in a `TLSSocket`.
 See the example below for usage of upgrading an existing socket:
 
 ```js
-const Socket = require('net').Socket;
+const { Socket } = require('net');
 const tls = require('tls');
 const sock = new Socket();
 const secureSock = tls.connect({ socket: s }, () => {
