@@ -696,24 +696,43 @@ Object.defineProperty(exports, 'hasSmallICU', {
 });
 
 // Useful for testing expected internal/error objects
-exports.expectsError = function expectsError(fn, options, exact) {
+exports.expectsError = function expectsError(fn, settings, exact) {
   if (typeof fn !== 'function') {
-    exact = options;
-    options = fn;
+    exact = settings;
+    settings = fn;
     fn = undefined;
   }
-  const { code, type, message } = options;
   const innerFn = exports.mustCall(function(error) {
-    assert.strictEqual(error.code, code);
-    if (type !== undefined) {
+    assert.strictEqual(error.code, settings.code);
+    if ('type' in settings) {
+      const type = settings.type;
+      if (type !== Error && !Error.isPrototypeOf(type)) {
+        throw new TypeError('`settings.type` must inherit from `Error`');
+      }
       assert(error instanceof type,
-             `${error} is not the expected type ${type}`);
+             `${error.name} is not instance of ${type.name}`);
     }
-    if (message instanceof RegExp) {
-      assert(message.test(error.message),
-             `${error.message} does not match ${message}`);
-    } else if (typeof message === 'string') {
-      assert.strictEqual(error.message, message);
+    if ('message' in settings) {
+      const message = settings.message;
+      if (typeof message === 'string') {
+        assert.strictEqual(error.message, message);
+      } else {
+        assert(message.test(error.message),
+               `${error.message} does not match ${message}`);
+      }
+    }
+    if ('name' in settings) {
+      assert.strictEqual(error.name, settings.name);
+    }
+    if (error.constructor.name === 'AssertionError') {
+      ['generatedMessage', 'actual', 'expected', 'operator'].forEach((key) => {
+        if (key in settings) {
+          const actual = error[key];
+          const expected = settings[key];
+          assert.strictEqual(actual, expected,
+                             `${key}: expected ${expected}, not ${actual}`);
+        }
+      });
     }
     return true;
   }, exact);
