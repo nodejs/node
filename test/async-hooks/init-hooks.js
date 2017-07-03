@@ -34,13 +34,13 @@ class ActivityCollector {
     this._logid = logid;
     this._logtype = logtype;
 
-    // register event handlers if provided
+    // Register event handlers if provided
     this.oninit = typeof oninit === 'function' ? oninit : noop;
     this.onbefore = typeof onbefore === 'function' ? onbefore : noop;
     this.onafter = typeof onafter === 'function' ? onafter : noop;
     this.ondestroy = typeof ondestroy === 'function' ? ondestroy : noop;
 
-    // create the hook with which we'll collect activity data
+    // Create the hook with which we'll collect activity data
     this._asyncHook = async_hooks.createHook({
       init: this._init.bind(this),
       before: this._before.bind(this),
@@ -148,7 +148,7 @@ class ActivityCollector {
   _getActivity(uid, hook) {
     const h = this._activities.get(uid);
     if (!h) {
-      // if we allowed handles without init we ignore any further life time
+      // If we allowed handles without init we ignore any further life time
       // events this makes sense for a few tests in which we enable some hooks
       // later
       if (this._allowNoInit) {
@@ -172,7 +172,7 @@ class ActivityCollector {
       uid,
       type,
       triggerAsyncId,
-      // in some cases (Timeout) the handle is a function, thus the usual
+      // In some cases (e.g. Timeout) the handle is a function, thus the usual
       // `typeof handle === 'object' && handle !== null` check can't be used.
       handleIsObject: handle instanceof Object
     };
