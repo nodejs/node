@@ -1,5 +1,8 @@
 root: true
 
+plugins:
+  - markdown
+
 env:
   node: true
   es6: true
