@@ -1587,6 +1587,29 @@ fs.open('<directory>', 'a+', (err, fd) => {
 });
 ```
 
+Some characters are reserved under Windows which documented by
+[Naming Files, Paths, and Namespaces][].
+
++ `<` (less than)
++ `>` (greater than)
++ `:` (colon)
++ `"` (double quote)
++ `/` (forward slash)
++ `\` (backslash)
++ `|` (vertical bar or pipe)
++ `?` (question mark)
++ `*` (asterisk)
+
+Node.js would get an error while opening any file path containes characters
+above except colon (`:`).
+
+If file path contains colon which not indicates a disk drive and you're
+under NTFS, Node.js will lead to a NTFS file system stream. This is
+documented by [this MSDN page][MSDN-Using-Streams].
+
+Functions based on `fs.open` contain this behavior too. eg. `fs.writeFile()`,
+`fs.readFile()`, etc.
+
 ## fs.openSync(path, flags[, mode])
 <!-- YAML
 added: v0.1.21
@@ -2864,3 +2887,5 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
 [inode]: https://en.wikipedia.org/wiki/Inode
+[Naming Files, Paths, and Namespaces]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
+[MSDN-Using-Streams]: https://msdn.microsoft.com/en-us/library/windows/desktop/bb540537.aspx
