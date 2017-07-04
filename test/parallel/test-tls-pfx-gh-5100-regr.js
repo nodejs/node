@@ -2,10 +2,8 @@
 
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('node compiled without crypto.');
-  return;
-}
 
 const assert = require('assert');
 const tls = require('tls');

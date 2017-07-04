@@ -1,14 +1,12 @@
 'use strict';
 const common = require('../common');
+if ((process.config.variables.arm_version === '6') ||
+    (process.config.variables.arm_version === '7'))
+  common.skip('Too slow for armv6 and armv7 bots');
+
 const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
-
-if ((process.config.variables.arm_version === '6') ||
-    (process.config.variables.arm_version === '7')) {
-  common.skip('Too slow for armv6 and armv7 bots');
-  return;
-}
 
 const N = 80;
 

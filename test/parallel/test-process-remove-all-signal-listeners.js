@@ -1,14 +1,11 @@
 'use strict';
 
 const common = require('../common');
+if (common.isWindows)
+  common.skip('Win32 does not support signals.');
+
 const assert = require('assert');
 const spawn = require('child_process').spawn;
-
-if (common.isWindows) {
-  common.skip('Win32 doesn\'t have signals, just a kind of ' +
-              'emulation, insufficient for this test to apply.');
-  return;
-}
 
 if (process.argv[2] !== '--do-test') {
   // We are the master, fork a child so we can verify it exits with correct

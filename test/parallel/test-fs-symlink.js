@@ -21,17 +21,15 @@
 
 'use strict';
 const common = require('../common');
+if (!common.canCreateSymLink())
+  common.skip('insufficient privileges');
+
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
 let linkTime;
 let fileTime;
-
-if (!common.canCreateSymLink()) {
-  common.skip('insufficient privileges');
-  return;
-}
 
 common.refreshTmpDir();
 

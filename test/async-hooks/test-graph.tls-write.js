@@ -1,21 +1,17 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
+if (!common.hasIPv6)
+  common.skip('IPv6 support required');
+
 const initHooks = require('./init-hooks');
 const verifyGraph = require('./verify-graph');
 const fs = require('fs');
-
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
-
-if (!common.hasIPv6) {
-  common.skip('IPv6 support required');
-  return;
-}
-
 const tls = require('tls');
+
 const hooks = initHooks();
 hooks.enable();
 

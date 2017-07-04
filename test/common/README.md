@@ -264,6 +264,11 @@ Path to the test sock.
 
 Port tests are running on.
 
+### printSkipMessage(msg)
+* `msg` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+
+Logs '1..0 # Skipped: ' + `msg`
+
 ### refreshTmpDir
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 
@@ -285,7 +290,7 @@ Path to the 'root' directory. either `/` or `c:\\` (windows)
 ### skip(msg)
 * `msg` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 
-Logs '1..0 # Skipped: ' + `msg`
+Logs '1..0 # Skipped: ' + `msg` and exits with exit code `0`.
 
 ### spawnPwd(options)
 * `options` [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)

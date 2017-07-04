@@ -3,9 +3,8 @@
 const common = require('../common');
 
 // FIXME add sunos support
-if (common.isSunOS) {
-  return common.skip(`Unsupported platform [${process.platform}]`);
-}
+if (common.isSunOS)
+  common.skip(`Unsupported platform [${process.platform}]`);
 
 const assert = require('assert');
 const exec = require('child_process').exec;
@@ -21,9 +20,8 @@ process.title = title;
 assert.strictEqual(process.title, title);
 
 // Test setting the title but do not try to run `ps` on Windows.
-if (common.isWindows) {
-  return common.skip('Windows does not have "ps" utility');
-}
+if (common.isWindows)
+  common.skip('Windows does not have "ps" utility');
 
 // To pass this test on alpine, since Busybox `ps` does not
 // support `-p` switch, use `ps -o` and `grep` instead.
