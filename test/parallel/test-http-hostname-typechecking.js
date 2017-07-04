@@ -18,10 +18,12 @@ vals.forEach((v) => {
   assert.throws(() => http.request({host: v}), errHost);
 });
 
-// These values are OK and should not throw synchronously
+// These values are OK and should not throw synchronously.
+// Only testing for 'hostname' validation so ignore connection errors.
+const dontCare = () => {};
 ['', undefined, null].forEach((v) => {
   assert.doesNotThrow(() => {
-    http.request({hostname: v}).on('error', () => {}).end();
-    http.request({host: v}).on('error', () => {}).end();
+    http.request({hostname: v}).on('error', dontCare).end();
+    http.request({host: v}).on('error', dontCare).end();
   });
 });
