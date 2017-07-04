@@ -202,6 +202,8 @@ added: v2.3.0
 
 The `os.homedir()` method returns the home directory of the current user as a
 string.
+Calling this might rarely result in an exception due to e.g. `ENOENT` and other
+error codes. Therefore exceptions should be handled by using `try`/`catch`.
 
 ## os.hostname()
 <!-- YAML
