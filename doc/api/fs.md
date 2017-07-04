@@ -1268,6 +1268,14 @@ fs.open('<directory>', 'a+', (err, fd) => {
 });
 ```
 
+Some characters (`< > : " / \ | ? *`) are reserved under Windows as documented
+by [Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
+a colon, Node.js will open a file system stream, as described by
+[this MSDN page][MSDN-Using-Streams].
+
+Functions based on `fs.open()` exhibit this behavior as well. eg.
+`fs.writeFile()`, `fs.readFile()`, etc.
+
 ## fs.openSync(path, flags[, mode])
 <!-- YAML
 added: v0.1.21
@@ -2264,3 +2272,5 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`ReadDirectoryChangesW`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365465%28v=vs.85%29.aspx
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
 [Common System Errors]: errors.html#errors_common_system_errors
+[Naming Files, Paths, and Namespaces]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
+[MSDN-Using-Streams]: https://msdn.microsoft.com/en-us/library/windows/desktop/bb540537.aspx
