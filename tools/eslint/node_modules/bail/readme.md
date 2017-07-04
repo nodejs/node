@@ -1,0 +1,73 @@
+# bail [![Build Status][travis-badge]][travis] [![Coverage Status][codecov-badge]][codecov]
+
+<!--lint disable heading-increment list-item-spacing-->
+
+:warning: Throw a given error.
+
+## Installation
+
+[npm][npm-install]:
+
+```bash
+npm install bail
+```
+
+## Usage
+
+```js
+var bail = require('bail');
+
+bail();
+
+bail(new Error('failure'));
+// Error: failure
+//     at repl:1:6
+//     at REPLServer.defaultEval (repl.js:154:27)
+//     ...
+```
+
+## API
+
+### `bail([err])`
+
+Throw a given error.
+
+###### Parameters
+
+*   `err` (`Error?`) — Optional error.
+
+###### Throws
+
+*   `Error` — Given error, if any.
+
+## Related
+
+*   [`noop`][noop];
+*   [`noop2`][noop2];
+*   [`noop3`][noop3];
+
+## License
+
+[MIT][license] © [Titus Wormer][author]
+
+<!-- Definitions -->
+
+[travis-badge]: https://img.shields.io/travis/wooorm/bail.svg
+
+[travis]: https://travis-ci.org/wooorm/bail
+
+[codecov-badge]: https://img.shields.io/codecov/c/github/wooorm/bail.svg
+
+[codecov]: https://codecov.io/github/wooorm/bail
+
+[npm-install]: https://docs.npmjs.com/cli/install
+
+[license]: LICENSE
+
+[author]: http://wooorm.com
+
+[noop]: https://www.npmjs.com/package/noop
+
+[noop2]: https://www.npmjs.com/package/noop2
+
+[noop3]: https://www.npmjs.com/package/noop3
