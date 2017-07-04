@@ -3459,7 +3459,7 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   ssize_t key_len = Buffer::Length(args[1]);
   const char* key_buf = Buffer::Data(args[1]);
 
-  if (args[2]->IsNull()) {
+  if (args.Length() < 3 || args[2]->IsNull()) {
     cipher->InitIv(*cipher_type, key_buf, key_len, nullptr, 0);
   } else {
     ssize_t iv_len = Buffer::Length(args[2]);
