@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Added to help for removal of node on OSX
+# Remove Node.js installed from tarballs or installer on macOS.
 # Referencing issue: https://github.com/nodejs/node/issues/7371
 # Using gist from rvagg: https://github.com/rvagg/io.js/blob/fhemberger-refactor-mac-installer-rebase/tools/osx-pkg/scripts/uninstall.sh
 
