@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 
 const assert = require('assert');
 const http = require('http');
@@ -21,7 +21,7 @@ vals.forEach((v) => {
 // These values are OK and should not throw synchronously
 ['', undefined, null].forEach((v) => {
   assert.doesNotThrow(() => {
-    http.request({hostname: v}).on('error', common.mustCall()).end();
-    http.request({host: v}).on('error', common.mustCall()).end();
+    http.request({hostname: v}).on('error', () => {}).end();
+    http.request({host: v}).on('error', () => {}).end();
   });
 });
