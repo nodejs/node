@@ -3786,14 +3786,33 @@ static void PrintHelp() {
 }
 
 
+static bool ArgIsAllowed(const char* arg, const char* allowed) {
+  for (; *arg && *allowed; arg++, allowed++) {
+    // Like normal strcmp(), except that a '_' in `allowed` matches either a '-'
+    // or '_' in `arg`.
+    if (*allowed == '_') {
+      if (!(*arg == '_' || *arg == '-'))
+        return false;
+    } else {
+      if (*arg != *allowed)
+        return false;
+    }
+  }
+
+  // "--some-arg=val" is allowed for "--some-arg"
+  if (*arg == '=')
+    return true;
+
+  // Both must be null, or one string is just a prefix of the other, not a
+  // match.
+  return !*arg && !*allowed;
+}
+
+
 static void CheckIfAllowedInEnv(const char* exe, bool is_env,
                                 const char* arg) {
   if (!is_env)
     return;
-
-  // Find the arg prefix when its --some_arg=val
-  const char* eq = strchr(arg, '=');
-  size_t arglen = eq ? eq - arg : strlen(arg);
 
   static const char* whitelist[] = {
     // Node options, sorted in `node --help` order for ease of comparison.
@@ -3820,14 +3839,14 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--openssl-config",
     "--icu-data-dir",
 
-    // V8 options
-    "--abort-on-uncaught-exception",
+    // V8 options (define with '_', which allows '-' or '_')
+    "--abort_on_uncaught_exception",
     "--max_old_space_size",
   };
 
   for (unsigned i = 0; i < arraysize(whitelist); i++) {
     const char* allowed = whitelist[i];
-    if (strlen(allowed) == arglen && strncmp(allowed, arg, arglen) == 0)
+    if (ArgIsAllowed(arg, allowed))
       return;
   }
 
