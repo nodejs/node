@@ -167,7 +167,6 @@ rules:
   template-curly-spacing: error
 
   # Custom rules in tools/eslint-rules
-  align-multiline-assignment: error
   assert-throws-arguments: [error, { requireTwo: true }]
   no-unescaped-regexp-dot: error
 
