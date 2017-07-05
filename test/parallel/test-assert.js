@@ -153,11 +153,7 @@ assert.throws(makeBlock(a.deepEqual, /a/igm, /a/im),
 {
   const re1 = /a/g;
   re1.lastIndex = 3;
-  assert.doesNotThrow(makeBlock(a.deepEqual, re1, /a/g),
-                      common.expectsError({
-                        code: 'ERR_ASSERTION',
-                        message: /^\/a\/g deepEqual \/a\/g$/
-                      }));
+  assert.doesNotThrow(makeBlock(a.deepEqual, re1, /a/g));
 }
 
 assert.doesNotThrow(makeBlock(a.deepEqual, 4, '4'), 'deepEqual(4, \'4\')');

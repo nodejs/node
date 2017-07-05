@@ -488,7 +488,7 @@ exports.mustCallAtLeast = function(fn, minimum) {
   return _mustCallInner(fn, minimum, 'minimum');
 };
 
-function _mustCallInner(fn, criteria, field) {
+function _mustCallInner(fn, criteria = 1, field) {
   if (typeof fn === 'number') {
     criteria = fn;
     fn = noop;
@@ -496,9 +496,7 @@ function _mustCallInner(fn, criteria, field) {
     fn = noop;
   }
 
-  if (criteria === undefined)
-    criteria = 1;
-  else if (typeof criteria !== 'number')
+  if (typeof criteria !== 'number')
     throw new TypeError(`Invalid ${field} value: ${criteria}`);
 
   const context = {
@@ -702,13 +700,14 @@ Object.defineProperty(exports, 'hasSmallICU', {
 });
 
 // Useful for testing expected internal/error objects
-exports.expectsError = function expectsError(fn, options) {
+exports.expectsError = function expectsError(fn, options, exact) {
   if (typeof fn !== 'function') {
+    exact = options;
     options = fn;
     fn = undefined;
   }
   const { code, type, message } = options;
-  function innerFn(error) {
+  const innerFn = exports.mustCall(function(error) {
     assert.strictEqual(error.code, code);
     if (type !== undefined) {
       assert(error instanceof type,
@@ -721,7 +720,7 @@ exports.expectsError = function expectsError(fn, options) {
       assert.strictEqual(error.message, message);
     }
     return true;
-  }
+  }, exact);
   if (fn) {
     assert.throws(fn, innerFn);
     return;

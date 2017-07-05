@@ -209,7 +209,7 @@ function makeIterableFunc(array) {
     code: 'ERR_INVALID_TUPLE',
     type: TypeError,
     message: 'Each query pair must be an iterable [name, value] tuple'
-  });
+  }, 6);
 
   let params;
   params = new URLSearchParams(undefined);

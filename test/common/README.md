@@ -50,7 +50,7 @@ Platform normalizes the `dd` command
 
 Check if there is more than 1gb of total memory.
 
-### expectsError([fn, ]settings)
+### expectsError([fn, ]settings[, exact])
 * `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
 * `settings` [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
   with the following optional properties:
@@ -63,9 +63,12 @@ Check if there is more than 1gb of total memory.
     if a string is provided for `message`, expected error must have it for its
     `message` property; if a regular expression is provided for `message`, the
     regular expression must match the `message` property of the expected error
+* `exact` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
 
 * return function suitable for use as a validation function passed as the second
-  argument to `assert.throws()`
+  argument to e.g. `assert.throws()`. If the returned function has not been called
+  exactly `exact` number of times when the test is complete, then the test will
+  fail.
 
 If `fn` is provided, it will be passed to `assert.throws` as first argument.
 
@@ -217,7 +220,7 @@ Array of IPV6 hosts.
 * return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
 
 Returns a function that calls `fn`. If the returned function has not been called
-exactly `expected` number of times when the test is complete, then the test will
+exactly `exact` number of times when the test is complete, then the test will
 fail.
 
 If `fn` is not provided, an empty function will be used.

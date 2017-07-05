@@ -91,7 +91,7 @@ const unixSpecialCaseFormatTests = [
 const expectedMessage = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError
-});
+}, 18);
 
 const errors = [
   {method: 'parse', input: [null], message: expectedMessage},

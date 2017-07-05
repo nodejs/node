@@ -35,13 +35,13 @@ const invalidUserArgument = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "preValue.user" property must be of type Number'
-});
+}, 8);
 
 const invalidSystemArgument = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "preValue.system" property must be of type Number'
-});
+}, 2);
 
 
 // Ensure that an invalid shape for the previous value argument throws an error.
