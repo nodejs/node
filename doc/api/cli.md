@@ -372,7 +372,7 @@ Node options that are allowed are:
 
 V8 options that are allowed are:
 - `--abort-on-uncaught-exception`
-- `--max_old_space_size`
+- `--max-old-space-size`
 
 
 ### `NODE_REPL_HISTORY=file`

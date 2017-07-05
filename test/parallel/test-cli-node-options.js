@@ -26,6 +26,7 @@ disallow('--interactive');
 disallow('-i');
 disallow('--v8-options');
 disallow('--');
+disallow('--no_warnings'); // Node options don't allow '_' instead of '-'.
 
 function disallow(opt) {
   const options = {env: {NODE_OPTIONS: opt}};
@@ -43,6 +44,7 @@ const printA = require.resolve('../fixtures/printA.js');
 
 expect(`-r ${printA}`, 'A\nB\n');
 expect('--abort-on-uncaught-exception', 'B\n');
+expect('--abort_on_uncaught_exception', 'B\n');
 expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
 expect('--trace-warnings', 'B\n');
@@ -61,6 +63,8 @@ expect('--icu-data-dir=_d', 'B\n');
 
 // V8 options
 expect('--max_old_space_size=0', 'B\n');
+expect('--max-old_space-size=0', 'B\n');
+expect('--max-old-space-size=0', 'B\n');
 
 function expect(opt, want) {
   const printB = require.resolve('../fixtures/printB.js');
