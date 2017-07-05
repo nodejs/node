@@ -11,6 +11,8 @@ const assert = require('assert');
 //
 // Refs: https://github.com/nodejs/node/issues/13343
 
+// This following check should be replaced by common.skipIfInspectorDisabled()
+// if moved out of the known_issues directory.
 if (process.config.variables.v8_enable_inspector === 0) {
   // When the V8 inspector is disabled, using either --without-inspector or
   // --without-ssl, this test will not fail which it is expected to do.
