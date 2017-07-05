@@ -46,4 +46,4 @@ initHooks({
   })
 }).enable();
 
-async_hooks.emitInit(expectedId, expectedType, expectedResource);
+async_hooks.emitInit(expectedId, expectedType, null, expectedResource);
