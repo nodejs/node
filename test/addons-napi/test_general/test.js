@@ -44,9 +44,9 @@ assert.strictEqual(test_general.testGetVersion(), 1);
   undefined,
   Symbol()
 ].forEach((val) => {
-  assert.strictEqual(typeof val, test_general.testNapiTypeof(val));
+  assert.strictEqual(test_general.testNapiTypeof(val), typeof val);
 });
 
 // since typeof in js return object need to validate specific case
 // for null
-assert.strictEqual('null', test_general.testNapiTypeof(null));
+assert.strictEqual(test_general.testNapiTypeof(null), 'null');
