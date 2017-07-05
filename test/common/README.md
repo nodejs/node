@@ -50,7 +50,8 @@ Platform normalizes the `dd` command
 
 Check if there is more than 1gb of total memory.
 
-### expectsError(settings)
+### expectsError([fn, ]settings)
+* `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
 * `settings` [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
   with the following optional properties:
   * `code` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
@@ -65,6 +66,8 @@ Check if there is more than 1gb of total memory.
 
 * return function suitable for use as a validation function passed as the second
   argument to `assert.throws()`
+
+If `fn` is provided, it will be passed to `assert.throws` as first argument.
 
 The expected error should be [subclassed by the `internal/errors` module](https://github.com/nodejs/node/blob/master/doc/guides/using-internal-errors.md#api).
 
