@@ -65,7 +65,7 @@ for (const call of [binding.callViaFunction,
     const ret = call(resource);
     assert.strictEqual(ret, 'baz');
     assert.strictEqual(binding.getResource(resource), object);
-    assert.strictEqual(binding.getUid(resource), uid);
+    assert.strictEqual(binding.getAsyncId(resource), uid);
 
     binding.destroyAsyncResource(resource);
   }

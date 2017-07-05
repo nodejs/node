@@ -643,7 +643,13 @@ class AsyncResource {
       return resource_.Get(isolate_);
     }
 
-    async_id get_uid() const {
+    NODE_DEPRECATED("Use AsyncResource::get_async_id()",
+      async_id get_uid() const {
+        return get_async_id();
+      }
+    )
+
+    async_id get_async_id() const {
       return async_context_.async_id;
     }
   private:

@@ -80,10 +80,10 @@ void CallViaUtf8Name(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret.FromMaybe(Local<Value>()));
 }
 
-void GetUid(const FunctionCallbackInfo<Value>& args) {
+void GetAsyncId(const FunctionCallbackInfo<Value>& args) {
   assert(args[0]->IsExternal());
   auto r = static_cast<AsyncResource*>(args[0].As<External>()->Value());
-  args.GetReturnValue().Set(r->get_uid());
+  args.GetReturnValue().Set(r->get_async_id());
 }
 
 void GetResource(const FunctionCallbackInfo<Value>& args) {
@@ -98,7 +98,7 @@ void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "callViaFunction", CallViaFunction);
   NODE_SET_METHOD(exports, "callViaString", CallViaString);
   NODE_SET_METHOD(exports, "callViaUtf8Name", CallViaUtf8Name);
-  NODE_SET_METHOD(exports, "getUid", GetUid);
+  NODE_SET_METHOD(exports, "getAsyncId", GetAsyncId);
   NODE_SET_METHOD(exports, "getResource", GetResource);
 }
 
