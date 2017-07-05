@@ -147,10 +147,10 @@ module.exports = function(context) {
   }
 
   return {
-    TemplateLiteral: checkLiteral,
-    Literal: checkLiteral,
-    CallExpression: checkRegExpStart,
-    NewExpression: checkRegExpStart,
+    'TemplateLiteral': checkLiteral,
+    'Literal': checkLiteral,
+    'CallExpression': checkRegExpStart,
+    'NewExpression': checkRegExpStart,
     'CallExpression:exit': checkRegExpEnd,
     'NewExpression:exit': checkRegExpEnd
   };
