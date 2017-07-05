@@ -828,7 +828,7 @@ the socket option:
 ```js
 const { Socket } = require('net');
 const tls = require('tls');
-const sock = new Socket();
+const socket = new Socket();
 const secureSock = tls.connect({ socket }, () => {
   console.log('The TLS socket has been connected.');
 });
