@@ -868,10 +868,15 @@ int GetPrototypeCheckCount(Isolate* isolate, Handle<Map> receiver_map,
                                     Handle<FixedArray>(), 0);
 }
 
+enum class HolderCellRequest {
+  kGlobalPropertyCell,
+  kHolder,
+};
+
 Handle<WeakCell> HolderCell(Isolate* isolate, Handle<JSObject> holder,
-                            Handle<Name> name, Handle<Smi> smi_handler) {
-  if (holder->IsJSGlobalObject() &&
-      *smi_handler != *LoadHandler::LoadInterceptor(isolate)) {
+                            Handle<Name> name, HolderCellRequest request) {
+  if (request == HolderCellRequest::kGlobalPropertyCell) {
+    DCHECK(holder->IsJSGlobalObject());
     Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(holder);
     GlobalDictionary* dict = global->global_dictionary();
     int number = dict->FindEntry(name);
@@ -908,8 +913,14 @@ Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   DCHECK(!validity_cell.is_null());
 
-  Handle<WeakCell> holder_cell =
-      HolderCell(isolate(), holder, name, smi_handler);
+  // LoadIC dispatcher expects PropertyCell as a "holder" in case of kGlobal
+  // handler kind.
+  HolderCellRequest request =
+      LoadHandler::GetHandlerKind(*smi_handler) == LoadHandler::kGlobal
+          ? HolderCellRequest::kGlobalPropertyCell
+          : HolderCellRequest::kHolder;
+
+  Handle<WeakCell> holder_cell = HolderCell(isolate(), holder, name, request);
 
   if (checks_count == 0) {
     return isolate()->factory()->NewTuple3(holder_cell, smi_handler,
