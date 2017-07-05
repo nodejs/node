@@ -166,7 +166,6 @@ rules:
   template-curly-spacing: 2
 
   # Custom rules in tools/eslint-rules
-  align-multiline-assignment: 2
   assert-throws-arguments: [2, { requireTwo: true }]
 
 # Global scoped method and vars
