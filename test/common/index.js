@@ -702,8 +702,13 @@ Object.defineProperty(exports, 'hasSmallICU', {
 });
 
 // Useful for testing expected internal/error objects
-exports.expectsError = function expectsError({code, type, message}) {
-  return function(error) {
+exports.expectsError = function expectsError(fn, options) {
+  if (typeof fn !== 'function') {
+    options = fn;
+    fn = undefined;
+  }
+  const { code, type, message } = options;
+  function innerFn(error) {
     assert.strictEqual(error.code, code);
     if (type !== undefined) {
       assert(error instanceof type,
@@ -716,7 +721,12 @@ exports.expectsError = function expectsError({code, type, message}) {
       assert.strictEqual(error.message, message);
     }
     return true;
-  };
+  }
+  if (fn) {
+    assert.throws(fn, innerFn);
+    return;
+  }
+  return innerFn;
 };
 
 exports.skipIfInspectorDisabled = function skipIfInspectorDisabled() {

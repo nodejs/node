@@ -114,12 +114,12 @@ for (const a of similar) {
   }
 }
 
-assert.throws(
-  () => { assert.deepEqual(new Set([{a: 0}]), new Set([{a: 1}])); },
-  common.expectsError({
-    code: 'ERR_ASSERTION',
-    message: /^Set { { a: 0 } } deepEqual Set { { a: 1 } }$/
-  }));
+common.expectsError(() => {
+  assert.deepEqual(new Set([{a: 0}]), new Set([{a: 1}]));
+}, {
+  code: 'ERR_ASSERTION',
+  message: /^Set { { a: 0 } } deepEqual Set { { a: 1 } }$/
+});
 
 function assertDeepAndStrictEqual(a, b) {
   assert.deepEqual(a, b);
