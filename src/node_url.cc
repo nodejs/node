@@ -2085,7 +2085,6 @@ static void DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
 const Local<Value> URL::ToObject(Environment* env) const {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
 
   const Local<Value> undef = Undefined(isolate);
