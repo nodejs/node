@@ -66,6 +66,7 @@ for (const call of [binding.callViaFunction,
     assert.strictEqual(ret, 'baz');
     assert.strictEqual(binding.getResource(resource), object);
     assert.strictEqual(binding.getAsyncId(resource), uid);
+    assert.strictEqual(binding.getTriggerAsyncId(resource), expectedTriggerId);
 
     binding.destroyAsyncResource(resource);
   }

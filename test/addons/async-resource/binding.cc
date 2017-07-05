@@ -86,6 +86,12 @@ void GetAsyncId(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(r->get_async_id());
 }
 
+void GetTriggerAsyncId(const FunctionCallbackInfo<Value>& args) {
+  assert(args[0]->IsExternal());
+  auto r = static_cast<AsyncResource*>(args[0].As<External>()->Value());
+  args.GetReturnValue().Set(r->get_trigger_async_id());
+}
+
 void GetResource(const FunctionCallbackInfo<Value>& args) {
   assert(args[0]->IsExternal());
   auto r = static_cast<AsyncResource*>(args[0].As<External>()->Value());
@@ -99,6 +105,7 @@ void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "callViaString", CallViaString);
   NODE_SET_METHOD(exports, "callViaUtf8Name", CallViaUtf8Name);
   NODE_SET_METHOD(exports, "getAsyncId", GetAsyncId);
+  NODE_SET_METHOD(exports, "getTriggerAsyncId", GetTriggerAsyncId);
   NODE_SET_METHOD(exports, "getResource", GetResource);
 }
 

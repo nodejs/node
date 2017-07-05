@@ -652,6 +652,10 @@ class AsyncResource {
     async_id get_async_id() const {
       return async_context_.async_id;
     }
+
+    async_id get_trigger_async_id() const {
+      return async_context_.trigger_async_id;
+    }
   private:
     v8::Isolate* isolate_;
     v8::Persistent<v8::Object> resource_;
