@@ -821,6 +821,28 @@ The `callback` function, if specified, will be added as a listener for the
 
 `tls.connect()` returns a [`tls.TLSSocket`][] object.
 
+To upgrade an existing instance of `net.Socket` to a 
+`tls.TLSSocket`, pass it to `tls.connect()` as 
+the socket option:
+
+```js
+const { Socket } = require('net');
+const tls = require('tls');
+const sock = new Socket();
+const secureSock = tls.connect({ socket }, () => {
+  console.log('The TLS socket has been connected.');
+});
+```
+
+If no socket is provided, this function will create a new TLS socket:
+
+```js
+const tls = require('tls');
+const secureSock = tls.connect({ port: 443, host: 'example.org' }, () => {
+  console.log('The TLS socket has been connected.');
+});
+```
+
 The following implements a simple "echo server" example:
 
 ```js
@@ -873,30 +895,6 @@ socket.on('data', (data) => {
 });
 socket.on('end', () => {
   server.close();
-});
-```
-
-Passing in `net.Socket` will start a new instance.
-To upgrade an existing instance of `net.Socket` to a 
-`tls.TLSSocket`, pass it to `tls.connect()` as 
-the socket option: 
-
-```js
-const { Socket } = require('net');
-const tls = require('tls');
-const sock = new Socket();
-const secureSock = tls.connect({ socket: sock }, () => {
-  console.log('The tls socket connected.');
-});
-```
-
-If using TLS as the initial default rather than `net.Socket`, 
-use only `tls.connect()` to upgrade the socket:
-
-```js
-const tls = require('tls');
-const secureSock = tls.connect({ port: 443, host: 'example.org' }, () => {
-  console.log('The tls socket connected.');
 });
 ```
 
