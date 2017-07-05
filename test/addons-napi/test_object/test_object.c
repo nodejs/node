@@ -53,7 +53,7 @@ napi_value Set(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_set_property(env, args[0], args[1], args[2]));
 
   napi_value valuetrue;
-  NAPI_CALL(env, napi_get_boolean(env, true, &valuetrue))
+  NAPI_CALL(env, napi_get_boolean(env, true, &valuetrue));
 
   return valuetrue;
 }
