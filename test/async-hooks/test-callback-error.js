@@ -6,6 +6,10 @@ const async_hooks = require('async_hooks');
 const initHooks = require('./init-hooks');
 
 const arg = process.argv[2];
+if (arg) {
+  process.on('uncaughtException', common.mustNotCall());
+}
+
 switch (arg) {
   case 'test_init_callback':
     initHooks({
@@ -50,7 +54,7 @@ assert.ok(!arg);
   console.time('end case 1');
   const child = spawnSync(process.execPath, [__filename, 'test_init_callback']);
   assert.ifError(child.error);
-  const test_init_first_line = child.stderr.toString().split(/[\r\n]+/g)[0];
+  const test_init_first_line = child.stderr.toString().split(/[\r\n]+/g)[3];
   assert.strictEqual(test_init_first_line, 'Error: test_init_callback');
   assert.strictEqual(child.status, 1);
   console.timeEnd('end case 1');
@@ -61,7 +65,7 @@ assert.ok(!arg);
   console.time('end case 2');
   const child = spawnSync(process.execPath, [__filename, 'test_callback']);
   assert.ifError(child.error);
-  const test_callback_first_line = child.stderr.toString().split(/[\r\n]+/g)[0];
+  const test_callback_first_line = child.stderr.toString().split(/[\r\n]+/g)[3];
   assert.strictEqual(test_callback_first_line, 'Error: test_callback');
   assert.strictEqual(child.status, 1);
   console.timeEnd('end case 2');
@@ -115,6 +119,6 @@ assert.ok(!arg);
     assert.strictEqual(stdout, '');
     const firstLineStderr = stderr.split(/[\r\n]+/g)[0].trim();
     assert.strictEqual(firstLineStderr, 'Error: test_callback_abort');
+    console.timeEnd('end case 3');
   });
-  console.timeEnd('end case 3');
 }
