@@ -1,6 +1,7 @@
 // Flags: --inspect=0
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 
 // With the current behavior of Node.js (at least as late as 8.1.0), this
 // test fails with the following error:
@@ -10,9 +11,15 @@ const common = require('../common');
 //
 // Refs: https://github.com/nodejs/node/issues/13343
 
-common.skipIfInspectorDisabled();
+// This following check should be replaced by common.skipIfInspectorDisabled()
+// if moved out of the known_issues directory.
+if (process.config.variables.v8_enable_inspector === 0) {
+  // When the V8 inspector is disabled, using either --without-inspector or
+  // --without-ssl, this test will not fail which it is expected to do.
+  // The following fail will allow this test to be skipped by failing it.
+  assert.fail('skipping as V8 inspector is disabled');
+}
 
-const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
