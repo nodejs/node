@@ -5,10 +5,8 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-if (!common.isWindows) {
+if (!common.isWindows)
   common.skip('This test is for Windows only.');
-  return;
-}
 
 common.refreshTmpDir();
 
@@ -32,9 +30,16 @@ Array.prototype.forEach.call(REVERSED_CHARACTERS, (ch) => {
 // Refs: https://msdn.microsoft.com/en-us/library/windows/desktop/bb540537.aspx
 const pathname = path.join(common.tmpDir, 'foo:bar');
 fs.writeFileSync(pathname, DATA_VALUE);
+
+let content = '';
 const fileDataStream = fs.createReadStream(pathname, {
   encoding: 'utf8'
 });
-fileDataStream.on('data', common.mustCall((data) => {
-  assert.strictEqual(data.toString(), DATA_VALUE);
+
+fileDataStream.on('data', (data) => {
+  content += data.toString();
+});
+
+fileDataStream.on('end', common.mustCall(() => {
+  assert.strictEqual(content, DATA_VALUE);
 }));

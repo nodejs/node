@@ -1587,8 +1587,12 @@ fs.open('<directory>', 'a+', (err, fd) => {
 });
 ```
 
-Some characters are reserved under Windows which documented by
-[Naming Files, Paths, and Namespaces][].
+Some characters are reserved under Windows as documented by
+[Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
+colon, Node.js will open a file system stream, as described by
+[this MSDN page][MSDN-Using-Streams].
+
+The reserved characters are list below.
 
 + `<` (less than)
 + `>` (greater than)
@@ -1600,15 +1604,8 @@ Some characters are reserved under Windows which documented by
 + `?` (question mark)
 + `*` (asterisk)
 
-Node.js would get an error while opening any file path containes characters
-above except colon (`:`).
-
-If file path contains colon which not indicates a disk drive and you're
-under NTFS, Node.js will lead to a NTFS file system stream. This is
-documented by [this MSDN page][MSDN-Using-Streams].
-
-Functions based on `fs.open` contain this behavior too. eg. `fs.writeFile()`,
-`fs.readFile()`, etc.
+Functions based on `fs.open()` exhibit this behavior as well. eg.
+`fs.writeFile()`, `fs.readFile()`, etc.
 
 ## fs.openSync(path, flags[, mode])
 <!-- YAML
