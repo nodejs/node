@@ -6,7 +6,7 @@ const assert = require('assert');
 const _validateStdio = require('internal/child_process')._validateStdio;
 
 const expectedError =
-  common.expectsError({code: 'ERR_INVALID_OPT_VALUE', type: TypeError});
+  common.expectsError({code: 'ERR_INVALID_OPT_VALUE', type: TypeError}, 2);
 
 // should throw if string and not ignore, pipe, or inherit
 assert.throws(() => _validateStdio('foo'), expectedError);

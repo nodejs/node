@@ -42,7 +42,7 @@ const invalidPidArgument = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "pid" argument must be of type Number'
-});
+}, 6);
 
 assert.throws(function() { process.kill('SIGTERM'); },
               invalidPidArgument);
