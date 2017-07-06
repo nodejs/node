@@ -61,12 +61,14 @@ int platform_init(int argc, char **argv) {
 /* Make sure that all stdio output of the processes is buffered up. */
 int process_start(char* name, char* part, process_info_t* p, int is_helper) {
   FILE* stdout_file;
+  int stdout_fd;
   const char* arg;
   char* args[16];
   int n;
   pid_t pid;
 
   stdout_file = tmpfile();
+  stdout_fd = fileno(stdout_file);
   if (!stdout_file) {
     perror("tmpfile");
     return -1;
@@ -103,8 +105,8 @@ int process_start(char* name, char* part, process_info_t* p, int is_helper) {
     args[n++] = part;
     args[n++] = NULL;
 
-    dup2(fileno(stdout_file), STDOUT_FILENO);
-    dup2(fileno(stdout_file), STDERR_FILENO);
+    dup2(stdout_fd, STDOUT_FILENO);
+    dup2(stdout_fd, STDERR_FILENO);
     execvp(args[0], args);
     perror("execvp()");
     _exit(127);

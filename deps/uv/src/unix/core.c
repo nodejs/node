@@ -28,7 +28,6 @@
 #include <errno.h>
 #include <assert.h>
 #include <unistd.h>
-#include <sys/param.h> /* MAXHOSTNAMELEN on Linux and the BSDs */
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -80,6 +79,10 @@
 
 #if defined(__MVS__)
 #include <sys/ioctl.h>
+#endif
+
+#if !defined(__MVS__)
+#include <sys/param.h> /* MAXHOSTNAMELEN on Linux and the BSDs */
 #endif
 
 /* Fallback for the maximum hostname length */
