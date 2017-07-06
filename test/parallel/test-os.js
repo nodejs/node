@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+
 const common = require('../common');
 const assert = require('assert');
 const os = require('os');
@@ -27,9 +28,9 @@ const path = require('path');
 const { inspect } = require('util');
 
 const is = {
-  string: (value) => { assert.strictEqual(typeof value, 'string'); },
-  number: (value) => { assert.strictEqual(typeof value, 'number'); },
-  array: (value) => { assert.ok(Array.isArray(value)); },
+  string: (value) => assert.strictEqual(typeof value, 'string'),
+  number: (value) => assert.strictEqual(typeof value, 'number'),
+  array: (value) => assert.ok(Array.isArray(value)),
   object: (value) => {
     assert.strictEqual(typeof value, 'object');
     assert.notStrictEqual(value, null);
@@ -96,6 +97,7 @@ assert.ok(release.length > 0);
 //TODO: Check format on more than just AIX
 if (common.isAIX)
   assert.ok(/^\d+\.\d+$/.test(release));
+}
 
 const platform = os.platform();
 is.string(platform);
@@ -111,7 +113,6 @@ if (!common.isSunOS) {
   assert.ok(os.freemem() > 0);
   assert.ok(os.totalmem() > 0);
 }
-
 
 const interfaces = os.networkInterfaces();
 switch (platform) {
@@ -161,9 +162,13 @@ flatten(Object.values(interfaces))
 const EOL = os.EOL;
 assert.ok(EOL.length > 0);
 
+if (common.isWindows) {
+  assert.strictEqual(EOL, '\r\n');
+} else {
+  assert.strictEqual(EOL, '\n');
+}
 
 const home = os.homedir();
-
 is.string(home);
 assert.ok(home.includes(path.sep));
 
@@ -206,9 +211,15 @@ assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));
 
 // Test that the Symbol.toPrimitive functions work correctly
 [
+  [+os.freemem, os.freemem()],
+  [+os.totalmem, os.totalmem()],
+  [+os.uptime, os.uptime()],
   [`${os.hostname}`, os.hostname()],
   [`${os.homedir}`, os.homedir()],
   [`${os.release}`, os.release()],
   [`${os.type}`, os.type()],
-  [`${os.endianness}`, os.endianness()]
+  [`${os.endianness}`, os.endianness()],
+  [`${os.tmpdir}`, os.tmpdir()],
+  [`${os.arch}`, os.arch()],
+  [`${os.platform}`, os.platform()]
 ].forEach((set) => assert.strictEqual(set[0], set[1]));
