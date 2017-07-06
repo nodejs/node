@@ -163,8 +163,6 @@ class URL {
     return ret;
   }
 
-  const Local<Value> ToObject(Environment* env) const;
-
  private:
   struct url_data context_;
 };
