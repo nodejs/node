@@ -929,8 +929,29 @@ TEST_IMPL(kill) {
 
   init_process_options("spawn_helper4", kill_cb);
 
+  /* Verify that uv_spawn() resets the signal disposition. */
+#ifndef _WIN32
+  {
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGTERM);
+    ASSERT(0 == pthread_sigmask(SIG_BLOCK, &set, NULL));
+  }
+  ASSERT(SIG_ERR != signal(SIGTERM, SIG_IGN));
+#endif
+
   r = uv_spawn(uv_default_loop(), &process, &options);
   ASSERT(r == 0);
+
+#ifndef _WIN32
+  {
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGTERM);
+    ASSERT(0 == pthread_sigmask(SIG_UNBLOCK, &set, NULL));
+  }
+  ASSERT(SIG_ERR != signal(SIGTERM, SIG_DFL));
+#endif
 
   /* Sending signum == 0 should check if the
    * child process is still alive, not kill it.
