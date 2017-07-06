@@ -855,6 +855,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   uv__io_init(&handle->event_watcher, uv__ahafs_event, fd);
   handle->path = uv__strdup(filename);
   handle->cb = cb;
+  handle->dir_filename = NULL;
 
   uv__io_start(handle->loop, &handle->event_watcher, POLLIN);
 
