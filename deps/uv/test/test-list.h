@@ -63,6 +63,9 @@ TEST_DECLARE   (ipc_send_recv_pipe_inprocess)
 TEST_DECLARE   (ipc_send_recv_tcp)
 TEST_DECLARE   (ipc_send_recv_tcp_inprocess)
 TEST_DECLARE   (ipc_tcp_connection)
+#ifndef _WIN32
+TEST_DECLARE   (ipc_closed_handle)
+#endif
 TEST_DECLARE   (tcp_alloc_cb_fail)
 TEST_DECLARE   (tcp_ping_pong)
 TEST_DECLARE   (tcp_ping_pong_v6)
@@ -308,6 +311,7 @@ TEST_DECLARE   (fs_read_write_null_arguments)
 TEST_DECLARE   (get_osfhandle_valid_handle)
 TEST_DECLARE   (fs_write_alotof_bufs)
 TEST_DECLARE   (fs_write_alotof_bufs_with_offset)
+TEST_DECLARE   (fs_file_pos_after_op_with_offset)
 TEST_DECLARE   (threadpool_queue_work_simple)
 TEST_DECLARE   (threadpool_queue_work_einval)
 TEST_DECLARE   (threadpool_multiple_event_loops)
@@ -443,6 +447,9 @@ TASK_LIST_START
   TEST_ENTRY  (ipc_send_recv_tcp)
   TEST_ENTRY  (ipc_send_recv_tcp_inprocess)
   TEST_ENTRY  (ipc_tcp_connection)
+#ifndef _WIN32
+  TEST_ENTRY  (ipc_closed_handle)
+#endif
 
   TEST_ENTRY  (tcp_alloc_cb_fail)
 
@@ -793,6 +800,7 @@ TASK_LIST_START
   TEST_ENTRY  (fs_write_alotof_bufs)
   TEST_ENTRY  (fs_write_alotof_bufs_with_offset)
   TEST_ENTRY  (fs_read_write_null_arguments)
+  TEST_ENTRY  (fs_file_pos_after_op_with_offset)
   TEST_ENTRY  (get_osfhandle_valid_handle)
   TEST_ENTRY  (threadpool_queue_work_simple)
   TEST_ENTRY  (threadpool_queue_work_einval)

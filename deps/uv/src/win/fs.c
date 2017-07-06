@@ -556,9 +556,14 @@ void fs__read(uv_fs_t* req) {
   DWORD error;
   int result;
   unsigned int index;
+  LARGE_INTEGER original_position;
+  LARGE_INTEGER zero_offset;
+  int restore_position;
 
   VERIFY_FD(fd, req);
 
+  zero_offset.QuadPart = 0;
+  restore_position = 0;
   handle = uv__get_osfhandle(fd);
 
   if (handle == INVALID_HANDLE_VALUE) {
@@ -569,6 +574,10 @@ void fs__read(uv_fs_t* req) {
   if (offset != -1) {
     memset(&overlapped, 0, sizeof overlapped);
     overlapped_ptr = &overlapped;
+    if (SetFilePointerEx(handle, zero_offset, &original_position,
+                         FILE_CURRENT)) {
+      restore_position = 1;
+    }
   } else {
     overlapped_ptr = NULL;
   }
@@ -593,6 +602,9 @@ void fs__read(uv_fs_t* req) {
     ++index;
   } while (result && index < req->fs.info.nbufs);
 
+  if (restore_position)
+    SetFilePointerEx(handle, original_position, NULL, FILE_BEGIN);
+
   if (result || bytes > 0) {
     SET_REQ_RESULT(req, bytes);
   } else {
@@ -615,9 +627,14 @@ void fs__write(uv_fs_t* req) {
   DWORD bytes;
   int result;
   unsigned int index;
+  LARGE_INTEGER original_position;
+  LARGE_INTEGER zero_offset;
+  int restore_position;
 
   VERIFY_FD(fd, req);
 
+  zero_offset.QuadPart = 0;
+  restore_position = 0;
   handle = uv__get_osfhandle(fd);
   if (handle == INVALID_HANDLE_VALUE) {
     SET_REQ_WIN32_ERROR(req, ERROR_INVALID_HANDLE);
@@ -627,6 +644,10 @@ void fs__write(uv_fs_t* req) {
   if (offset != -1) {
     memset(&overlapped, 0, sizeof overlapped);
     overlapped_ptr = &overlapped;
+    if (SetFilePointerEx(handle, zero_offset, &original_position,
+                         FILE_CURRENT)) {
+      restore_position = 1;
+    }
   } else {
     overlapped_ptr = NULL;
   }
@@ -650,6 +671,9 @@ void fs__write(uv_fs_t* req) {
     bytes += incremental_bytes;
     ++index;
   } while (result && index < req->fs.info.nbufs);
+
+  if (restore_position)
+    SetFilePointerEx(handle, original_position, NULL, FILE_BEGIN);
 
   if (result || bytes > 0) {
     SET_REQ_RESULT(req, bytes);
