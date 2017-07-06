@@ -741,40 +741,51 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 /* Public C++ embedder API */
 
 
-async_uid AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
+async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
   return Environment::GetCurrent(isolate)->current_async_id();
 }
 
-async_uid AsyncHooksGetCurrentId(Isolate* isolate) {
+async_id AsyncHooksGetCurrentId(Isolate* isolate) {
   return AsyncHooksGetExecutionAsyncId(isolate);
 }
 
 
-async_uid AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
-  return Environment::GetCurrent(isolate)->get_init_trigger_id();
+async_id AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
+  return Environment::GetCurrent(isolate)->trigger_id();
 }
 
-async_uid AsyncHooksGetTriggerId(Isolate* isolate) {
+async_id AsyncHooksGetTriggerId(Isolate* isolate) {
   return AsyncHooksGetTriggerAsyncId(isolate);
 }
 
 
-async_uid EmitAsyncInit(Isolate* isolate,
-                     Local<Object> resource,
-                     const char* name,
-                     async_uid trigger_id) {
+async_context EmitAsyncInit(Isolate* isolate,
+                            Local<Object> resource,
+                            const char* name,
+                            async_id trigger_async_id) {
   Environment* env = Environment::GetCurrent(isolate);
-  async_uid async_id = env->new_async_id();
 
+  // Initialize async context struct
+  if (trigger_async_id == -1)
+    trigger_async_id = env->get_init_trigger_id();
+
+  async_context context = {
+    env->new_async_id(),  // async_id_
+    trigger_async_id  // trigger_async_id_
+  };
+
+  // Run init hooks
   Local<String> type =
       String::NewFromUtf8(isolate, name, v8::NewStringType::kInternalized)
           .ToLocalChecked();
-  AsyncWrap::EmitAsyncInit(env, resource, type, async_id, trigger_id);
-  return async_id;
+  AsyncWrap::EmitAsyncInit(env, resource, type, context.async_id,
+                           context.trigger_async_id);
+
+  return context;
 }
 
-void EmitAsyncDestroy(Isolate* isolate, async_uid id) {
-  PushBackDestroyId(Environment::GetCurrent(isolate), id);
+void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
+  PushBackDestroyId(Environment::GetCurrent(isolate), asyncContext.async_id);
 }
 
 }  // namespace node

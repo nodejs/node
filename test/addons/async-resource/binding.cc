@@ -80,10 +80,16 @@ void CallViaUtf8Name(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret.FromMaybe(Local<Value>()));
 }
 
-void GetUid(const FunctionCallbackInfo<Value>& args) {
+void GetAsyncId(const FunctionCallbackInfo<Value>& args) {
   assert(args[0]->IsExternal());
   auto r = static_cast<AsyncResource*>(args[0].As<External>()->Value());
-  args.GetReturnValue().Set(r->get_uid());
+  args.GetReturnValue().Set(r->get_async_id());
+}
+
+void GetTriggerAsyncId(const FunctionCallbackInfo<Value>& args) {
+  assert(args[0]->IsExternal());
+  auto r = static_cast<AsyncResource*>(args[0].As<External>()->Value());
+  args.GetReturnValue().Set(r->get_trigger_async_id());
 }
 
 void GetResource(const FunctionCallbackInfo<Value>& args) {
@@ -92,20 +98,15 @@ void GetResource(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(r->get_resource());
 }
 
-void GetCurrentId(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(
-    node::AsyncHooksGetExecutionAsyncId(args.GetIsolate()));
-}
-
 void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "createAsyncResource", CreateAsyncResource);
   NODE_SET_METHOD(exports, "destroyAsyncResource", DestroyAsyncResource);
   NODE_SET_METHOD(exports, "callViaFunction", CallViaFunction);
   NODE_SET_METHOD(exports, "callViaString", CallViaString);
   NODE_SET_METHOD(exports, "callViaUtf8Name", CallViaUtf8Name);
-  NODE_SET_METHOD(exports, "getUid", GetUid);
+  NODE_SET_METHOD(exports, "getAsyncId", GetAsyncId);
+  NODE_SET_METHOD(exports, "getTriggerAsyncId", GetTriggerAsyncId);
   NODE_SET_METHOD(exports, "getResource", GetResource);
-  NODE_SET_METHOD(exports, "getCurrentId", GetCurrentId);
 }
 
 }  // namespace
