@@ -253,7 +253,7 @@
             'src/unix/linux-syscalls.h',
             'src/unix/pthread-fixes.c',
             'src/unix/android-ifaddrs.c',
-            'src/unix/pthread-barrier.c'
+            'src/unix/pthread-barrier.c',
             'src/unix/procfs-exepath.c',
             'src/unix/sysinfo-loadavg.c',
             'src/unix/sysinfo-memory.c',
@@ -302,12 +302,12 @@
           'sources': [ 'src/unix/openbsd.c' ],
         }],
         [ 'OS=="netbsd"', {
-          'sources': [ 'src/unix/netbsd.c' ],
-        }],
-        [ 'OS in "freebsd dragonflybsd openbsd netbsd".split()', {
           'link_settings': {
             'libraries': [ '-lkvm' ],
           },
+          'sources': [ 'src/unix/netbsd.c' ],
+        }],
+        [ 'OS in "freebsd dragonflybsd openbsd netbsd".split()', {
           'sources': [ 'src/unix/posix-hrtime.c' ],
         }],
         [ 'OS in "ios mac freebsd dragonflybsd openbsd netbsd".split()', {

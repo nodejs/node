@@ -514,7 +514,7 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   int err;
 
   stream = container_of(w, uv_stream_t, io_watcher);
-  assert(events == POLLIN);
+  assert(events & POLLIN);
   assert(stream->accepted_fd == -1);
   assert(!(stream->flags & UV_CLOSING));
 
@@ -750,6 +750,7 @@ static void uv__write(uv_stream_t* stream) {
   int iovmax;
   int iovcnt;
   ssize_t n;
+  int err;
 
 start:
 
@@ -782,13 +783,20 @@ start:
    */
 
   if (req->send_handle) {
+    int fd_to_send;
     struct msghdr msg;
     struct cmsghdr *cmsg;
-    int fd_to_send = uv__handle_fd((uv_handle_t*) req->send_handle);
     union {
       char data[64];
       struct cmsghdr alias;
     } scratch;
+
+    if (uv__is_closing(req->send_handle)) {
+      err = -EBADF;
+      goto error;
+    }
+
+    fd_to_send = uv__handle_fd((uv_handle_t*) req->send_handle);
 
     memset(&scratch, 0, sizeof(scratch));
 
@@ -852,14 +860,8 @@ start:
 
   if (n < 0) {
     if (errno != EAGAIN && errno != EWOULDBLOCK) {
-      /* Error */
-      req->error = -errno;
-      uv__write_req_finish(req);
-      uv__io_stop(stream->loop, &stream->io_watcher, POLLOUT);
-      if (!uv__io_active(&stream->io_watcher, POLLIN))
-        uv__handle_stop(stream);
-      uv__stream_osx_interrupt_select(stream);
-      return;
+      err = -errno;
+      goto error;
     } else if (stream->flags & UV_STREAM_BLOCKING) {
       /* If this is a blocking stream, try again. */
       goto start;
@@ -922,6 +924,16 @@ start:
   uv__io_start(stream->loop, &stream->io_watcher, POLLOUT);
 
   /* Notify select() thread about state change */
+  uv__stream_osx_interrupt_select(stream);
+
+  return;
+
+error:
+  req->error = err;
+  uv__write_req_finish(req);
+  uv__io_stop(stream->loop, &stream->io_watcher, POLLOUT);
+  if (!uv__io_active(&stream->io_watcher, POLLIN))
+    uv__handle_stop(stream);
   uv__stream_osx_interrupt_select(stream);
 }
 
