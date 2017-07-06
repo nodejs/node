@@ -621,7 +621,7 @@ TEST_F(InspectorSocketServerTest, BindsToIpV6) {
   ASSERT_TRUE(server->Start());
 
   SocketWrapper socket1(&loop);
-  socket1.Connect("::", server.port(), true);
+  socket1.Connect("::1", server.port(), true);
   socket1.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   socket1.Expect(WS_HANDSHAKE_RESPONSE);
   server->Stop(ServerHolder::CloseCallback);
