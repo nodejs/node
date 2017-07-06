@@ -747,7 +747,8 @@ static int uv__ifaddr_exclude(struct ifaddrs *ent) {
     return 1;
   if (ent->ifa_addr == NULL)
     return 1;
-  if (ent->ifa_addr->sa_family == PF_PACKET)
+  if (ent->ifa_addr->sa_family != AF_INET &&
+      ent->ifa_addr->sa_family != AF_INET6)
     return 1;
   return 0;
 }

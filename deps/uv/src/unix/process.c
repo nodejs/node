@@ -279,9 +279,12 @@ static void uv__process_child_init(const uv_process_options_t* options,
                                    int stdio_count,
                                    int (*pipes)[2],
                                    int error_fd) {
+  sigset_t set;
   int close_fd;
   int use_fd;
+  int err;
   int fd;
+  int n;
 
   if (options->flags & UV_PROCESS_DETACHED)
     setsid();
@@ -374,6 +377,31 @@ static void uv__process_child_init(const uv_process_options_t* options,
 
   if (options->env != NULL) {
     environ = options->env;
+  }
+
+  /* Reset signal disposition.  Use a hard-coded limit because NSIG
+   * is not fixed on Linux: it's either 32, 34 or 64, depending on
+   * whether RT signals are enabled.  We are not allowed to touch
+   * RT signal handlers, glibc uses them internally.
+   */
+  for (n = 1; n < 32; n += 1) {
+    if (n == SIGKILL || n == SIGSTOP)
+      continue;  /* Can't be changed. */
+
+    if (SIG_ERR != signal(n, SIG_DFL))
+      continue;
+
+    uv__write_int(error_fd, -errno);
+    _exit(127);
+  }
+
+  /* Reset signal mask. */
+  sigemptyset(&set);
+  err = pthread_sigmask(SIG_SETMASK, &set, NULL);
+
+  if (err != 0) {
+    uv__write_int(error_fd, -err);
+    _exit(127);
   }
 
   execvp(options->file, options->args);

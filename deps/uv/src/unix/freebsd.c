@@ -25,7 +25,6 @@
 #include <string.h>
 #include <errno.h>
 
-#include <kvm.h>
 #include <paths.h>
 #include <sys/user.h>
 #include <sys/types.h>
@@ -203,35 +202,31 @@ int uv_get_process_title(char* buffer, size_t size) {
   return 0;
 }
 
-
 int uv_resident_set_memory(size_t* rss) {
-  kvm_t *kd = NULL;
-  struct kinfo_proc *kinfo = NULL;
-  pid_t pid;
-  int nprocs;
-  size_t page_size = getpagesize();
+  struct kinfo_proc kinfo;
+  size_t page_size;
+  size_t kinfo_size;
+  int mib[4];
 
-  pid = getpid();
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC;
+  mib[2] = KERN_PROC_PID;
+  mib[3] = getpid();
 
-  kd = kvm_open(NULL, _PATH_DEVNULL, NULL, O_RDONLY, "kvm_open");
-  if (kd == NULL) goto error;
+  kinfo_size = sizeof(kinfo);
 
-  kinfo = kvm_getprocs(kd, KERN_PROC_PID, pid, &nprocs);
-  if (kinfo == NULL) goto error;
+  if (sysctl(mib, 4, &kinfo, &kinfo_size, NULL, 0))
+    return -errno;
+
+  page_size = getpagesize();
 
 #ifdef __DragonFly__
-  *rss = kinfo->kp_vm_rssize * page_size;
+  *rss = kinfo.kp_vm_rssize * page_size;
 #else
-  *rss = kinfo->ki_rssize * page_size;
+  *rss = kinfo.ki_rssize * page_size;
 #endif
 
-  kvm_close(kd);
-
   return 0;
-
-error:
-  if (kd) kvm_close(kd);
-  return -EPERM;
 }
 
 
