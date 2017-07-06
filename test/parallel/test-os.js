@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-
 const common = require('../common');
 const assert = require('assert');
 const os = require('os');
@@ -28,9 +27,9 @@ const path = require('path');
 const { inspect } = require('util');
 
 const is = {
-  string: (value) => assert.strictEqual(typeof value, 'string'),
-  number: (value) => assert.strictEqual(typeof value, 'number'),
-  array: (value) => assert.ok(Array.isArray(value)),
+  string: (value) => { assert.strictEqual(typeof value, 'string'); },
+  number: (value) => { assert.strictEqual(typeof value, 'number'); },
+  array: (value) => { assert.ok(Array.isArray(value)); },
   object: (value) => {
     assert.strictEqual(typeof value, 'object');
     assert.notStrictEqual(value, null);
@@ -95,7 +94,7 @@ const release = os.release();
 is.string(release);
 assert.ok(release.length > 0);
 //TODO: Check format on more than just AIX
-if (common.isAIX)
+if (common.isAIX) {
   assert.ok(/^\d+\.\d+$/.test(release));
 }
 
@@ -115,8 +114,10 @@ if (!common.isSunOS) {
 }
 
 const interfaces = os.networkInterfaces();
+const local = (e) => e.address === '127.0.0.1';
 switch (platform) {
   case 'linux':
+<<<<<<< HEAD
   {
     const filter =
       (e) => e.address === '127.0.0.1' && e.netmask === '255.0.0.0';
@@ -143,6 +144,50 @@ function flatten(arr) {
     (acc, c) => acc.concat(Array.isArray(c) ? flatten(c) : c),
     []
   );
+=======
+    {
+      const actual = interfaces.lo.filter(local);
+      const expected = [{
+        address: '127.0.0.1',
+        netmask: '255.0.0.0',
+        mac: '00:00:00:00:00:00',
+        family: 'IPv4',
+        internal: true
+      }];
+      assert.deepStrictEqual(actual, expected);
+      break;
+    }
+  case 'win32':
+    {
+      const actual = interfaces['Loopback Pseudo-Interface 1'].filter(local);
+      const expected = [{
+        address: '127.0.0.1',
+        netmask: '255.0.0.0',
+        mac: '00:00:00:00:00:00',
+        family: 'IPv4',
+        internal: true
+      }];
+      assert.deepStrictEqual(actual, expected);
+      break;
+    }
+  case 'aix':
+    {
+      const lo0 = interfaces.lo0;
+      // There might not be a lo0 entry configured
+      if (!lo0) break;
+      const actual = lo0.filter(local);
+      // We cannot test mac field because it is non-zero
+      delete actual[0].mac;
+      const expected = [{
+        address: '127.0.0.1',
+        netmask: '0.0.0.1',
+        family: 'IPv4',
+        internal: true
+      }];
+      assert.deepStrictEqual(actual, expected);
+      break;
+    }
+>>>>>>> test: add os.networkInterfaces test case for aix
 }
 const netmaskToCIDRSuffixMap = new Map(Object.entries({
   '255.0.0.0': 8,
@@ -209,7 +254,7 @@ assert.ok(pwd.homedir.includes(path.sep));
 assert.strictEqual(pwd.username, pwdBuf.username.toString('utf8'));
 assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));
 
-// Test that the Symbol.toPrimitive functions work correctly
+// Test Symbol.toPrimitive on these functions
 [
   [+os.freemem, os.freemem()],
   [+os.totalmem, os.totalmem()],
