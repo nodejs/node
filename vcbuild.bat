@@ -435,12 +435,16 @@ goto cpplint
 
 :cpplint
 if not defined cpplint goto jslint
-echo running cpplint
+call :run-cpplint src\*.c src\*.cc src\*.h test\addons\*.cc test\addons\*.h test\cctest\*.cc test\cctest\*.h test\gc\binding.cc tools\icu\*.cc tools\icu\*.h
+call :run-python tools/check-imports.py
+goto jslint
+
+:run-cpplint
+if "%*"=="" goto exit
+echo running cpplint '%*'
 set cppfilelist=
 setlocal enabledelayedexpansion
-for /f "tokens=*" %%G in ('dir /b /s /a src\*.c src\*.cc src\*.h ^
-test\addons\*.cc test\addons\*.h test\cctest\*.cc test\cctest\*.h ^
-test\gc\binding.cc tools\icu\*.cc tools\icu\*.h') do (
+for /f "tokens=*" %%G in ('dir /b /s /a %*') do (
   set relpath=%%G
   set relpath=!relpath:*%~dp0=!
   call :add-to-list !relpath!
@@ -449,8 +453,7 @@ test\gc\binding.cc tools\icu\*.cc tools\icu\*.h') do (
   set cppfilelist=%localcppfilelist%
 )
 call :run-python tools/cpplint.py %cppfilelist%
-call :run-python tools/check-imports.py
-goto jslint
+goto exit
 
 :add-to-list
 echo %1 | findstr /c:"src\node_root_certs.h"
