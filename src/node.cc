@@ -360,7 +360,7 @@ static void CheckImmediate(uv_check_t* handle) {
                env->immediate_callback_string(),
                0,
                nullptr,
-               0, 0).ToLocalChecked();
+               {0, 0}).ToLocalChecked();
 }
 
 
@@ -1295,8 +1295,7 @@ MaybeLocal<Value> MakeCallback(Environment* env,
                                const Local<Function> callback,
                                int argc,
                                Local<Value> argv[],
-                               double async_id,
-                               double trigger_id) {
+                               async_context asyncContext) {
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
@@ -1318,10 +1317,12 @@ MaybeLocal<Value> MakeCallback(Environment* env,
   MaybeLocal<Value> ret;
 
   {
-    AsyncHooks::ExecScope exec_scope(env, async_id, trigger_id);
+    AsyncHooks::ExecScope exec_scope(env, asyncContext.async_id,
+                                     asyncContext.trigger_async_id);
 
-    if (async_id != 0) {
-      if (!AsyncWrap::EmitBefore(env, async_id)) return Local<Value>();
+    if (asyncContext.async_id != 0) {
+      if (!AsyncWrap::EmitBefore(env, asyncContext.async_id))
+        return Local<Value>();
     }
 
     ret = callback->Call(env->context(), recv, argc, argv);
@@ -1333,8 +1334,9 @@ MaybeLocal<Value> MakeCallback(Environment* env,
           ret : Undefined(env->isolate());
     }
 
-    if (async_id != 0) {
-      if (!AsyncWrap::EmitAfter(env, async_id)) return Local<Value>();
+    if (asyncContext.async_id != 0) {
+      if (!AsyncWrap::EmitAfter(env, asyncContext.async_id))
+        return Local<Value>();
     }
   }
 
@@ -1355,8 +1357,8 @@ MaybeLocal<Value> MakeCallback(Environment* env,
 
   // Make sure the stack unwound properly. If there are nested MakeCallback's
   // then it should return early and not reach this code.
-  CHECK_EQ(env->current_async_id(), async_id);
-  CHECK_EQ(env->trigger_id(), trigger_id);
+  CHECK_EQ(env->current_async_id(), asyncContext.async_id);
+  CHECK_EQ(env->trigger_id(), asyncContext.trigger_async_id);
 
   Local<Object> process = env->process_object();
 
@@ -1381,13 +1383,11 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                const char* method,
                                int argc,
                                Local<Value> argv[],
-                               async_uid async_id,
-                               async_uid trigger_id) {
+                               async_context asyncContext) {
   Local<String> method_string =
       String::NewFromUtf8(isolate, method, v8::NewStringType::kNormal)
           .ToLocalChecked();
-  return MakeCallback(isolate, recv, method_string, argc, argv,
-                      async_id, trigger_id);
+  return MakeCallback(isolate, recv, method_string, argc, argv, asyncContext);
 }
 
 
@@ -1396,14 +1396,12 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                Local<String> symbol,
                                int argc,
                                Local<Value> argv[],
-                               async_uid async_id,
-                               async_uid trigger_id) {
+                               async_context asyncContext) {
   Local<Value> callback_v = recv->Get(symbol);
   if (callback_v.IsEmpty()) return Local<Value>();
   if (!callback_v->IsFunction()) return Local<Value>();
   Local<Function> callback = callback_v.As<Function>();
-  return MakeCallback(isolate, recv, callback, argc, argv,
-                      async_id, trigger_id);
+  return MakeCallback(isolate, recv, callback, argc, argv, asyncContext);
 }
 
 
@@ -1412,8 +1410,7 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                Local<Function> callback,
                                int argc,
                                Local<Value> argv[],
-                               async_uid async_id,
-                               async_uid trigger_id) {
+                               async_context asyncContext) {
   // Observe the following two subtleties:
   //
   // 1. The environment is retrieved from the callback function's context.
@@ -1424,7 +1421,7 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   Environment* env = Environment::GetCurrent(callback->CreationContext());
   Context::Scope context_scope(env->context());
   return MakeCallback(env, recv.As<Value>(), callback, argc, argv,
-                      async_id, trigger_id);
+                      asyncContext);
 }
 
 
@@ -1437,7 +1434,7 @@ Local<Value> MakeCallback(Isolate* isolate,
                           Local<Value>* argv) {
   EscapableHandleScope handle_scope(isolate);
   return handle_scope.Escape(
-      MakeCallback(isolate, recv, method, argc, argv, 0, 0)
+      MakeCallback(isolate, recv, method, argc, argv, {0, 0})
           .FromMaybe(Local<Value>()));
 }
 
@@ -1449,7 +1446,7 @@ Local<Value> MakeCallback(Isolate* isolate,
     Local<Value>* argv) {
   EscapableHandleScope handle_scope(isolate);
   return handle_scope.Escape(
-      MakeCallback(isolate, recv, symbol, argc, argv, 0, 0)
+      MakeCallback(isolate, recv, symbol, argc, argv, {0, 0})
           .FromMaybe(Local<Value>()));
 }
 
@@ -1461,7 +1458,7 @@ Local<Value> MakeCallback(Isolate* isolate,
     Local<Value>* argv) {
   EscapableHandleScope handle_scope(isolate);
   return handle_scope.Escape(
-      MakeCallback(isolate, recv, callback, argc, argv, 0, 0)
+      MakeCallback(isolate, recv, callback, argc, argv, {0, 0})
           .FromMaybe(Local<Value>()));
 }
 
@@ -4445,7 +4442,7 @@ void EmitBeforeExit(Environment* env) {
   };
   MakeCallback(env->isolate(),
                process_object, "emit", arraysize(args), args,
-               0, 0).ToLocalChecked();
+               {0, 0}).ToLocalChecked();
 }
 
 
@@ -4466,7 +4463,7 @@ int EmitExit(Environment* env) {
 
   MakeCallback(env->isolate(),
                process_object, "emit", arraysize(args), args,
-               0, 0).ToLocalChecked();
+               {0, 0}).ToLocalChecked();
 
   // Reload exit code, it may be changed by `emit('exit')`
   return process_object->Get(exitCode)->Int32Value();

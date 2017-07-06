@@ -6,6 +6,7 @@ const binding = require(`./build/${common.buildType}/binding`);
 const async_hooks = require('async_hooks');
 
 const kObjectTag = Symbol('kObjectTag');
+const rootAsyncId = async_hooks.executionAsyncId();
 
 const bindingUids = [];
 let expectedTriggerId;
@@ -38,8 +39,6 @@ async_hooks.createHook({
   }
 }).enable();
 
-assert.strictEqual(binding.getCurrentId(), 1);
-
 for (const call of [binding.callViaFunction,
                     binding.callViaString,
                     binding.callViaUtf8Name]) {
@@ -49,14 +48,14 @@ for (const call of [binding.callViaFunction,
       methöd(arg) {
         assert.strictEqual(this, object);
         assert.strictEqual(arg, 42);
-        assert.strictEqual(binding.getCurrentId(), uid);
+        assert.strictEqual(async_hooks.executionAsyncId(), uid);
         return 'baz';
       },
       kObjectTag
     };
 
     if (passedTriggerId === undefined)
-      expectedTriggerId = 1;
+      expectedTriggerId = rootAsyncId;
     else
       expectedTriggerId = passedTriggerId;
 
@@ -66,7 +65,8 @@ for (const call of [binding.callViaFunction,
     const ret = call(resource);
     assert.strictEqual(ret, 'baz');
     assert.strictEqual(binding.getResource(resource), object);
-    assert.strictEqual(binding.getUid(resource), uid);
+    assert.strictEqual(binding.getAsyncId(resource), uid);
+    assert.strictEqual(binding.getTriggerAsyncId(resource), expectedTriggerId);
 
     binding.destroyAsyncResource(resource);
   }
