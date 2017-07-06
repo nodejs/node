@@ -27,14 +27,21 @@ const path = require('path');
 const { inspect } = require('util');
 
 const is = {
+  number: (value, key) => {
+    assert(!isNaN(value), `${key} should not be NaN`);
+    assert.strictEqual(typeof value, 'number');
+  },
   string: (value) => { assert.strictEqual(typeof value, 'string'); },
-  number: (value) => { assert.strictEqual(typeof value, 'number'); },
   array: (value) => { assert.ok(Array.isArray(value)); },
   object: (value) => {
     assert.strictEqual(typeof value, 'object');
     assert.notStrictEqual(value, null);
   }
 };
+
+const flatten = (arr) =>
+  arr.reduce((acc, c) =>
+    acc.concat(Array.isArray(c) ? flatten(c) : c), []);
 
 process.env.TMPDIR = '/tmpdir';
 process.env.TMP = '/tmp';
@@ -112,36 +119,41 @@ if (!common.isSunOS) {
   assert.ok(os.totalmem() > 0);
 }
 
-
 const interfaces = os.networkInterfaces();
 switch (platform) {
-  case 'linux':
-  {
-    const filter =
-      (e) => e.address === '127.0.0.1' && e.netmask === '255.0.0.0';
+  case 'linux': {
+    const filter = (e) =>
+      e.address === '127.0.0.1' &&
+      e.netmask === '255.0.0.0';
+
     const actual = interfaces.lo.filter(filter);
-    const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                        mac: '00:00:00:00:00:00', family: 'IPv4',
-                        internal: true, cidr: '127.0.0.1/8' }];
+    const expected = [{
+      address: '127.0.0.1',
+      netmask: '255.0.0.0',
+      mac: '00:00:00:00:00:00',
+      family: 'IPv4',
+      internal: true,
+      cidr: '127.0.0.1/8'
+    }];
     assert.deepStrictEqual(actual, expected);
     break;
   }
-  case 'win32':
-  {
-    const filter = (e) => e.address === '127.0.0.1';
+  case 'win32': {
+    const filter = (e) =>
+      e.address === '127.0.0.1';
+
     const actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
-    const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                        mac: '00:00:00:00:00:00', family: 'IPv4',
-                        internal: true, cidr: '127.0.0.1/8' }];
+    const expected = [{
+      address: '127.0.0.1',
+      netmask: '255.0.0.0',
+      mac: '00:00:00:00:00:00',
+      family: 'IPv4',
+      internal: true,
+      cidr: '127.0.0.1/8'
+    }];
     assert.deepStrictEqual(actual, expected);
     break;
   }
-}
-function flatten(arr) {
-  return arr.reduce(
-    (acc, c) => acc.concat(Array.isArray(c) ? flatten(c) : c),
-    []
-  );
 }
 const netmaskToCIDRSuffixMap = new Map(Object.entries({
   '255.0.0.0': 8,
@@ -149,6 +161,7 @@ const netmaskToCIDRSuffixMap = new Map(Object.entries({
   'ffff:ffff:ffff:ffff::': 64,
   'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff': 128
 }));
+
 flatten(Object.values(interfaces))
   .map((v) => ({ v, mask: netmaskToCIDRSuffixMap.get(v.netmask) }))
   .forEach(({ v, mask }) => {
@@ -159,11 +172,13 @@ flatten(Object.values(interfaces))
   });
 
 const EOL = os.EOL;
-assert.ok(EOL.length > 0);
-
+if (common.isWindows) {
+  assert.strictEqual(EOL, '\r\n');
+} else {
+  assert.strictEqual(EOL, '\n');
+}
 
 const home = os.homedir();
-
 is.string(home);
 assert.ok(home.includes(path.sep));
 
@@ -204,11 +219,20 @@ assert.ok(pwd.homedir.includes(path.sep));
 assert.strictEqual(pwd.username, pwdBuf.username.toString('utf8'));
 assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));
 
-// Test that the Symbol.toPrimitive functions work correctly
-[
-  [`${os.hostname}`, os.hostname()],
-  [`${os.homedir}`, os.homedir()],
-  [`${os.release}`, os.release()],
-  [`${os.type}`, os.type()],
-  [`${os.endianness}`, os.endianness()]
-].forEach((set) => assert.strictEqual(set[0], set[1]));
+assert.strictEqual(`${os.hostname}`, os.hostname());
+assert.strictEqual(`${os.homedir}`, os.homedir());
+assert.strictEqual(`${os.release}`, os.release());
+assert.strictEqual(`${os.type}`, os.type());
+assert.strictEqual(`${os.endianness}`, os.endianness());
+assert.strictEqual(`${os.tmpdir}`, os.tmpdir());
+assert.strictEqual(`${os.arch}`, os.arch());
+assert.strictEqual(`${os.platform}`, os.platform());
+
+assert.strictEqual(+os.totalmem, os.totalmem());
+
+// Assert that the following values are coercible to numbers.
+is.number(+os.uptime, 'uptime');
+is.number(os.uptime(), 'uptime');
+
+is.number(+os.freemem, 'freemem');
+is.number(os.freemem(), 'freemem');
