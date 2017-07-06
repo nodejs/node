@@ -72,6 +72,7 @@ if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel messag
 if /i "%1"=="test-known-issues" set test_args=%test_args% known_issues&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="jslint-ci"     set jslint_ci=1&goto arg-ok
+if /i "%1"=="cpplint"       set cpplint=1&goto arg-ok
 if /i "%1"=="lint"          set cpplint=1&set jslint=1&goto arg-ok
 if /i "%1"=="lint-ci"       set cpplint=1&set jslint_ci=1&goto arg-ok
 if /i "%1"=="package"       set package=1&goto arg-ok
@@ -347,12 +348,16 @@ goto cpplint
 
 :cpplint
 if not defined cpplint goto jslint
-echo running cpplint
+call :run-cpplint src\*.c src\*.cc src\*.h test\addons\*.cc test\addons\*.h test\cctest\*.cc test\cctest\*.h tools\icu\*.cc tools\icu\*.h
+call :run-python tools/check-imports.py
+goto jslint
+
+:run-cpplint
+if "%*"=="" goto exit
+echo running cpplint '%*'
 set cppfilelist=
 setlocal enabledelayedexpansion
-for /f "tokens=*" %%G in ('dir /b /s /a src\*.c src\*.cc src\*.h ^
-test\addons\*.cc test\addons\*.h test\cctest\*.cc test\cctest\*.h ^
-test\gc\binding.cc tools\icu\*.cc tools\icu\*.h') do (
+for /f "tokens=*" %%G in ('dir /b /s /a %*') do (
   set relpath=%%G
   set relpath=!relpath:*%~dp0=!
   call :add-to-list !relpath!
@@ -360,9 +365,8 @@ test\gc\binding.cc tools\icu\*.cc tools\icu\*.h') do (
 ( endlocal
   set cppfilelist=%localcppfilelist%
 )
-python tools/cpplint.py %cppfilelist%
-python tools/check-imports.py
-goto jslint
+call :run-python tools/cpplint.py %cppfilelist%
+goto exit
 
 :add-to-list
 echo %1 | findstr /c:"src\node_root_certs.h"
