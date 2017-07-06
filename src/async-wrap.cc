@@ -634,9 +634,10 @@ void AsyncWrap::AsyncReset(bool silent) {
 
   if (silent) return;
 
-  EmitAsyncInit(env(), object(),
-                env()->async_hooks()->provider_string(provider_type()),
-                async_id_, trigger_id_);
+  AsyncWrap::EmitAsyncInit(
+      env(), object(),
+      env()->async_hooks()->provider_string(provider_type()),
+      async_id_, trigger_id_);
 }
 
 
@@ -791,3 +792,56 @@ void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(async_wrap, node::AsyncWrap::Initialize)
+
+
+// Only legacy public API below this line.
+
+namespace node {
+
+MaybeLocal<Value> MakeCallback(Isolate* isolate,
+                               Local<Object> recv,
+                               Local<Function> callback,
+                               int argc,
+                               Local<Value>* argv,
+                               async_id asyncId,
+                               async_id triggerAsyncId) {
+  return MakeCallback(isolate, recv, callback, argc, argv,
+                      {asyncId, triggerAsyncId});
+}
+
+MaybeLocal<Value> MakeCallback(Isolate* isolate,
+                               Local<Object> recv,
+                               const char* method,
+                               int argc,
+                               Local<Value>* argv,
+                               async_id asyncId,
+                               async_id triggerAsyncId) {
+  return MakeCallback(isolate, recv, method, argc, argv,
+                      {asyncId, triggerAsyncId});
+}
+
+MaybeLocal<Value> MakeCallback(Isolate* isolate,
+                               Local<Object> recv,
+                               Local<String> symbol,
+                               int argc,
+                               Local<Value>* argv,
+                               async_id asyncId,
+                               async_id triggerAsyncId) {
+  return MakeCallback(isolate, recv, symbol, argc, argv,
+                      {asyncId, triggerAsyncId});
+}
+
+// Undo the Node-8.x-only alias from node.h
+#undef EmitAsyncInit
+
+async_uid EmitAsyncInit(Isolate* isolate,
+                        Local<Object> resource,
+                        const char* name,
+                        async_id trigger_async_id) {
+  return EmitAsyncInit__New(isolate,
+                            resource,
+                            name,
+                            trigger_async_id).async_id;
+}
+
+}  // namespace node

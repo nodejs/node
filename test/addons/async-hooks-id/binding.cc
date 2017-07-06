@@ -17,9 +17,17 @@ void GetTriggerAsyncId(const FunctionCallbackInfo<Value>& args) {
     node::AsyncHooksGetTriggerAsyncId(args.GetIsolate()));
 }
 
+void EmitAsyncInit(const FunctionCallbackInfo<Value>& args) {
+  assert(args[0]->IsObject());
+  node::async_uid uid =
+      node::EmitAsyncInit(args.GetIsolate(), args[0].As<Object>(), "foobar");
+  args.GetReturnValue().Set(uid);
+}
+
 void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "getExecutionAsyncId", GetExecutionAsyncId);
   NODE_SET_METHOD(exports, "getTriggerAsyncId", GetTriggerAsyncId);
+  NODE_SET_METHOD(exports, "emitAsyncInit", EmitAsyncInit);
 }
 
 }  // namespace
