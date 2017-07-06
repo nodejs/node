@@ -98,7 +98,7 @@ napi_value testNapiTypeof(napi_env env, napi_callback_info info) {
   napi_valuetype argument_type;
   NAPI_CALL(env, napi_typeof(env, args[0], &argument_type));
 
-  napi_value result;
+  napi_value result = NULL;
   if (argument_type == napi_number) {
     NAPI_CALL(env, napi_create_string_utf8(env, "number", -1, &result));
   } else if (argument_type == napi_string) {
