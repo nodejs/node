@@ -88,9 +88,16 @@ process.stdout.on('resize', () => {
 });
 ```
 
-*Note:* Terminal window resize events are unreliable on Windows. The event 
-handler is only executed for changes in the width of the window and the 
-console must be in raw mode.
+*Note:* On Windows resize events will be emitted only if stdin is unpaused 
+(by a call to resume() or by adding data listener) and in raw mode. It can be 
+also triggered if terminal control sequence that moves the cursor is written to 
+the screen.
+
+*Note:* On Windows when changing console height the resize event will be 
+signaled only if console screen buffer height was also changed. For example 
+shrinking the console window height will not cause the resize event to be 
+emitted. Increasing the console window height will only be registered when new 
+console window height is greater than current console buffer size.
 
 ### writeStream.columns
 <!-- YAML
