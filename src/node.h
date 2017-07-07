@@ -613,29 +613,32 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
 // Legacy, Node 8.x only.
 
 NODE_EXTERN
-v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
-                                       v8::Local<v8::Object> recv,
-                                       v8::Local<v8::Function> callback,
-                                       int argc,
-                                       v8::Local<v8::Value>* argv,
-                                       async_id asyncId,
-                                       async_id triggerAsyncId);
+NODE_DEPRECATED("Use MakeCallback(..., async_context asyncContext) instead",
+    v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
+                                           v8::Local<v8::Object> recv,
+                                           v8::Local<v8::Function> callback,
+                                           int argc,
+                                           v8::Local<v8::Value>* argv,
+                                           async_id asyncId,
+                                           async_id triggerAsyncId));
 NODE_EXTERN
-v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
-                                       v8::Local<v8::Object> recv,
-                                       const char* method,
-                                       int argc,
-                                       v8::Local<v8::Value>* argv,
-                                       async_id asyncId,
-                                       async_id triggerAsyncId);
+NODE_DEPRECATED("Use MakeCallback(..., async_context asyncContext) instead",
+    v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
+                                           v8::Local<v8::Object> recv,
+                                           const char* method,
+                                           int argc,
+                                           v8::Local<v8::Value>* argv,
+                                           async_id asyncId,
+                                           async_id triggerAsyncId));
 NODE_EXTERN
-v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
-                                       v8::Local<v8::Object> recv,
-                                       v8::Local<v8::String> symbol,
-                                       int argc,
-                                       v8::Local<v8::Value>* argv,
-                                       async_id asyncId,
-                                       async_id triggerAsyncId);
+NODE_DEPRECATED("Use MakeCallback(..., async_context asyncContext) instead",
+    v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
+                                           v8::Local<v8::Object> recv,
+                                           v8::Local<v8::String> symbol,
+                                           int argc,
+                                           v8::Local<v8::Value>* argv,
+                                           async_id asyncId,
+                                           async_id triggerAsyncId));
 
 /* Helper class users can optionally inherit from. If
  * `AsyncResource::MakeCallback()` is used, then all four callbacks will be
