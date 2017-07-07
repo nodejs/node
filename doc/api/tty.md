@@ -89,7 +89,7 @@ process.stdout.on('resize', () => {
 ```
 
 *Note:* On Windows resize events will be emitted only if stdin is unpaused 
-(by a call to `\resume()` or by adding a data listener) and in raw mode. It can 
+(by a call to `resume()` or by adding a data listener) and in raw mode. It can 
 also be triggered if a terminal control sequence that moves the cursor is written 
 to the screen.
 
