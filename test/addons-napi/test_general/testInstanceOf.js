@@ -9,6 +9,11 @@ const assert = require('assert');
 const addon = require(`./build/${common.buildType}/test_general`);
 const path = require('path');
 
+// This test depends on a number of V8 tests.
+const v8TestsDir = path.resolve(__dirname, '..', '..', '..', 'deps', 'v8',
+                                'test', 'mjsunit');
+const v8TestsDirExists = fs.existsSync(v8TestsDir);
+
 // The following assert functions are referenced by v8's unit tests
 // See for instance deps/v8/test/mjsunit/instanceof.js
 // eslint-disable-next-line no-unused-vars
@@ -34,19 +39,22 @@ function assertThrows(statement) {
 }
 
 function testFile(fileName) {
-  const contents = fs.readFileSync(fileName, { encoding: 'utf8' });
-  eval(contents.replace(/[(]([^\s(]+)\s+instanceof\s+([^)]+)[)]/g,
-                        '(addon.doInstanceOf($1, $2))'));
+  try {
+    const contents = fs.readFileSync(fileName, { encoding: 'utf8' });
+    eval(contents.replace(/[(]([^\s(]+)\s+instanceof\s+([^)]+)[)]/g,
+                          '(addon.doInstanceOf($1, $2))'));
+  } catch (err) {
+    // This test depends on V8 test files, which may not exist in downloaded
+    // archives. Emit a warning if the tests cannot be found instead of failing.
+    if (err.code === 'ENOENT' && !v8TestsDirExists)
+      process.emitWarning(`test file ${fileName} does not exist.`);
+    else
+      throw err;
+  }
 }
 
-testFile(
-    path.join(path.resolve(__dirname, '..', '..', '..',
-                           'deps', 'v8', 'test', 'mjsunit'),
-              'instanceof.js'));
-testFile(
-    path.join(path.resolve(__dirname, '..', '..', '..',
-                           'deps', 'v8', 'test', 'mjsunit'),
-              'instanceof-2.js'));
+testFile(path.join(v8TestsDir, 'instanceof.js'));
+testFile(path.join(v8TestsDir, 'instanceof-2.js'));
 
 // We can only perform this test if we have a working Symbol.hasInstance
 if (typeof Symbol !== 'undefined' && 'hasInstance' in Symbol &&
@@ -54,7 +62,7 @@ if (typeof Symbol !== 'undefined' && 'hasInstance' in Symbol &&
 
   function compareToNative(theObject, theConstructor) {
     assert.strictEqual(addon.doInstanceOf(theObject, theConstructor),
-      (theObject instanceof theConstructor));
+                       (theObject instanceof theConstructor));
   }
 
   function MyClass() {}
