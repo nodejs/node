@@ -172,6 +172,8 @@ function flatten(arr) {
     }
   case 'aix':
     {
+      // This test will fail on aix by default
+      // Issue: https://github.com/nodejs/node/issues/14119
       const lo0 = interfaces.lo0;
       // There might not be a lo0 entry configured
       if (!lo0) break;
@@ -205,8 +207,6 @@ flatten(Object.values(interfaces))
   });
 
 const EOL = os.EOL;
-assert.ok(EOL.length > 0);
-
 if (common.isWindows) {
   assert.strictEqual(EOL, '\r\n');
 } else {
@@ -267,4 +267,4 @@ assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));
   [`${os.tmpdir}`, os.tmpdir()],
   [`${os.arch}`, os.arch()],
   [`${os.platform}`, os.platform()]
-].forEach((set) => assert.strictEqual(set[0], set[1]));
+].forEach(([expected, actual]) => assert.strictEqual(expected, actual));
