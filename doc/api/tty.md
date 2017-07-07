@@ -89,15 +89,15 @@ process.stdout.on('resize', () => {
 ```
 
 *Note:* On Windows resize events will be emitted only if stdin is unpaused 
-(by a call to resume() or by adding data listener) and in raw mode. It can be 
-also triggered if terminal control sequence that moves the cursor is written to 
-the screen.
+(by a call to \resume()`` or by adding a data listener) and in raw mode. It can 
+also be triggered if a terminal control sequence that moves the cursor is written 
+to the screen.
 
 *Note:* On Windows when changing console height the resize event will be 
-signaled only if console screen buffer height was also changed. For example 
+signaled only if the console screen buffer height was also changed. For example 
 shrinking the console window height will not cause the resize event to be 
-emitted. Increasing the console window height will only be registered when new 
-console window height is greater than current console buffer size.
+emitted. Increasing the console window height will only be registered when the 
+new console window height is greater than the current console buffer size.
 
 ### writeStream.columns
 <!-- YAML
