@@ -16,7 +16,7 @@ const DATA_VALUE = 'hello';
 // Ignore '/', '\\' and ':'
 const REVERSED_CHARACTERS = '<>"|?*';
 
-Array.prototype.forEach.call(REVERSED_CHARACTERS, (ch) => {
+[...REVERSED_CHARACTERS].forEach((ch) => {
   const pathname = path.join(common.tmpDir, `somefile_${ch}`);
   assert.throws(
     () => {
@@ -37,7 +37,7 @@ const fileDataStream = fs.createReadStream(pathname, {
 });
 
 fileDataStream.on('data', (data) => {
-  content += data.toString();
+  content += data;
 });
 
 fileDataStream.on('end', common.mustCall(() => {

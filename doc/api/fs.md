@@ -1588,7 +1588,7 @@ fs.open('<directory>', 'a+', (err, fd) => {
 ```
 
 Some characters are reserved under Windows as documented by
-[Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
+[Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains a
 colon, Node.js will open a file system stream, as described by
 [this MSDN page][MSDN-Using-Streams].
 
