@@ -1587,22 +1587,10 @@ fs.open('<directory>', 'a+', (err, fd) => {
 });
 ```
 
-Some characters are reserved under Windows as documented by
-[Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains a
-colon, Node.js will open a file system stream, as described by
+Some characters (`< > : " / \ | ? *`) are reserved under Windows as documented
+by [Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
+a colon, Node.js will open a file system stream, as described by
 [this MSDN page][MSDN-Using-Streams].
-
-The reserved characters are list below.
-
-+ `<` (less than)
-+ `>` (greater than)
-+ `:` (colon)
-+ `"` (double quote)
-+ `/` (forward slash)
-+ `\` (backslash)
-+ `|` (vertical bar or pipe)
-+ `?` (question mark)
-+ `*` (asterisk)
 
 Functions based on `fs.open()` exhibit this behavior as well. eg.
 `fs.writeFile()`, `fs.readFile()`, etc.
