@@ -474,7 +474,7 @@ unsent, it will flush them to the stream. If the request is
 chunked, this will send the terminating `'0\r\n\r\n'`.
 
 If `data` is specified, it is equivalent to calling
-[`response.write(data, encoding)`][] followed by `request.end(callback)`.
+[`request.write(data, encoding)`][] followed by `request.end(callback)`.
 
 If `callback` is specified, it will be called when the request stream
 is finished.
@@ -1670,6 +1670,7 @@ There are a few special headers that should be noted.
 [`net.Server.listen(port)`]: net.html#net_server_listen_port_hostname_backlog_callback
 [`net.Socket`]: net.html#net_class_net_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
+[`request.write(data, encoding)`]: #http_request_write_chunk_encoding_callback
 [`response.end()`]: #http_response_end_data_encoding_callback
 [`response.setHeader()`]: #http_response_setheader_name_value
 [`response.write()`]: #http_response_write_chunk_encoding_callback
