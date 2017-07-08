@@ -36,9 +36,10 @@ function run() {
 test(function serverTimeout(cb) {
   const server = https.createServer(
     serverOptions,
-    common.mustCall((req, res) => {
-      // just do nothing, we should get a timeout event.
-    }));
+    (req, res) => {
+      // Do nothing. We should get a timeout event.
+      // Might not be invoked. Do not wrap in common.mustCall().
+    });
   server.listen(common.mustCall(() => {
     const s = server.setTimeout(50, common.mustCall((socket) => {
       socket.destroy();
