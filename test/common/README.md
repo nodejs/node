@@ -13,8 +13,8 @@ The `common` module is used by tests for consistency across repeated
 tasks.
 
 ### allowGlobals(...whitelist)
-* `whitelist` [&lt;Array>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array) Array of Globals
-* return [&lt;Array>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)
+* `whitelist` [&lt;Array>] Array of Globals
+* return [&lt;Array>]
 
 Takes `whitelist` and concats that with predefined `knownGlobals`.
 
@@ -22,7 +22,7 @@ Takes `whitelist` and concats that with predefined `knownGlobals`.
 A stream to push an array into a REPL
 
 ### busyLoop(time)
-* `time` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type)
+* `time` [&lt;Number>]
 
 Blocks for `time` amount of time.
 
@@ -41,99 +41,100 @@ no unexpected rejections occur, because currently they result in silent
 failures.
 
 ### ddCommand(filename, kilobytes)
-* return [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+* return [&lt;Object>]
 
 Platform normalizes the `dd` command
 
 ### enoughTestMem
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Check if there is more than 1gb of total memory.
 
 ### expectsError([fn, ]settings[, exact])
-* `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
-* `settings` [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+* `fn` [&lt;Function>]
+* `settings` [&lt;Object>]
   with the following optional properties:
-  * `code` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+  * `code` [&lt;String>]
     expected error must have this value for its `code` property
-  * `type` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
+  * `type` [&lt;Function>]
     expected error must be an instance of `type`
-  * `message` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
-    or [&lt;RegExp>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp)
+  * `message` [&lt;String>]
+    or [&lt;RegExp>]
     if a string is provided for `message`, expected error must have it for its
     `message` property; if a regular expression is provided for `message`, the
     regular expression must match the `message` property of the expected error
-* `exact` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
+* `exact` [&lt;Number>] default = 1
 
 * return function suitable for use as a validation function passed as the second
-  argument to e.g. `assert.throws()`. If the returned function has not been called
-  exactly `exact` number of times when the test is complete, then the test will
-  fail.
+  argument to e.g. `assert.throws()`. If the returned function has not been
+  called exactly `exact` number of times when the test is complete, then the
+  test will fail.
 
 If `fn` is provided, it will be passed to `assert.throws` as first argument.
 
 The expected error should be [subclassed by the `internal/errors` module](https://github.com/nodejs/node/blob/master/doc/guides/using-internal-errors.md#api).
 
 ### expectWarning(name, expected)
-* `name` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
-* `expected` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) | [&lt;Array>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)
+* `name` [&lt;String>]
+* `expected` [&lt;String>] | [&lt;Array>]
 
 Tests whether `name` and `expected` are part of a raised warning.
 
 ### fileExists(pathname)
-* pathname [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* pathname [&lt;String>]
+* return [&lt;Boolean>]
 
 Checks if `pathname` exists
 
 ### fixturesDir
-* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+* return [&lt;String>]
 
 Path to the 'fixtures' directory.
 
 ### getArrayBufferViews(buf)
-* `buf` [&lt;Buffer>](https://nodejs.org/api/buffer.html#buffer_class_buffer)
-* return [&lt;ArrayBufferView&#91;&#93;>](https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView)
+* `buf` [&lt;Buffer>]
+* return [&lt;ArrayBufferView&#91;&#93;>]
 
 Returns an instance of all possible `ArrayBufferView`s of the provided Buffer.
 
 ### globalCheck
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Turn this off if the test should not check for global leaks.
 
 ### hasCrypto
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Checks for 'openssl'.
 
 ### hasFipsCrypto
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Checks `hasCrypto` and `crypto` with fips.
 
 ### hasIntl
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Checks if [internationalization] is supported.
 
 ### hasSmallICU
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Checks `hasIntl` and `small-icu` is supported.
 
 ### hasIPv6
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Checks whether `IPv6` is supported on this platform.
 
 ### hasMultiLocalhost
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Checks if there are multiple localhosts available.
 
 ### hijackStderr(listener)
-* `listener` [&lt;Function>][MDN-Function]: a listener with a single parameter called `data`.
+* `listener` [&lt;Function>]: a listener with a single parameter
+  called `data`.
 
 Eavesdrop to `process.stderr.write` calls. Once `process.stderr.write` is
 called, `listener` will also be called and the `data` of `write` function will
@@ -141,7 +142,8 @@ be passed to `listener`. What's more, `process.stderr.writeTimes` is a count of
 the number of calls.
 
 ### hijackStdout(listener)
-* `listener` [&lt;Function>][MDN-Function]: a listener with a single parameter called `data`.
+* `listener` [&lt;Function>]: a listener with a single parameter
+  called `data`.
 
 Eavesdrop to `process.stdout.write` calls. Once `process.stdout.write` is
 called, `listener` will also be called and the `data` of `write` function will
@@ -149,75 +151,75 @@ be passed to `listener`. What's more, `process.stdout.writeTimes` is a count of
 the number of calls.
 
 ### inFreeBSDJail
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Checks whether free BSD Jail is true or false.
 
 ### isAix
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Platform check for Advanced Interactive eXecutive (AIX).
 
 ### isAlive(pid)
-* `pid` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type)
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* `pid` [&lt;Number>]
+* return [&lt;Boolean>]
 
 Attempts to 'kill' `pid`
 
 ### isFreeBSD
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Platform check for Free BSD.
 
 ### isLinux
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Platform check for Linux.
 
 ### isLinuxPPCBE
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Platform check for Linux on PowerPC.
 
 ### isOSX
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Platform check for macOS.
 
 ### isSunOS
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Platform check for SunOS.
 
 ### isWindows
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Platform check for Windows.
 
 ### isWOW64
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Platform check for Windows 32-bit on Windows 64-bit.
 
 ### leakedGlobals
-* return [&lt;Array>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)
+* return [&lt;Array>]
 
 Checks whether any globals are not on the `knownGlobals` list.
 
 ### localhostIPv4
-* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+* return [&lt;String>]
 
 Gets IP of localhost
 
 ### localIPv6Hosts
-* return [&lt;Array>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)
+* return [&lt;Array>]
 
 Array of IPV6 hosts.
 
 ### mustCall([fn][, exact])
-* `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) default = () => {}
-* `exact` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
-* return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
+* `fn` [&lt;Function>] default = () => {}
+* `exact` [&lt;Number>] default = 1
+* return [&lt;Function>]
 
 Returns a function that calls `fn`. If the returned function has not been called
 exactly `exact` number of times when the test is complete, then the test will
@@ -226,9 +228,9 @@ fail.
 If `fn` is not provided, an empty function will be used.
 
 ### mustCallAtLeast([fn][, minimum])
-* `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) default = () => {}
-* `minimum` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
-* return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
+* `fn` [&lt;Function>] default = () => {}
+* `minimum` [&lt;Number>] default = 1
+* return [&lt;Function>]
 
 Returns a function that calls `fn`. If the returned function has not been called
 at least `minimum` number of times when the test is complete, then the test will
@@ -237,46 +239,49 @@ fail.
 If `fn` is not provided, an empty function will be used.
 
 ### mustNotCall([msg])
-* `msg` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) default = 'function should not have been called'
-* return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
+* `msg` [&lt;String>] default = 'function should not have been called'
+* return [&lt;Function>]
 
-Returns a function that triggers an `AssertionError` if it is invoked. `msg` is used as the error message for the `AssertionError`.
+Returns a function that triggers an `AssertionError` if it is invoked. `msg` is
+used as the error message for the `AssertionError`.
 
 ### nodeProcessAborted(exitCode, signal)
-* `exitCode` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type)
-* `signal` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* `exitCode` [&lt;Number>]
+* `signal` [&lt;String>]
+* return [&lt;Boolean>]
 
-Returns `true` if the exit code `exitCode` and/or signal name `signal` represent the exit code and/or signal name of a node process that aborted, `false` otherwise.
+Returns `true` if the exit code `exitCode` and/or signal name `signal` represent
+the exit code and/or signal name of a node process that aborted, `false`
+otherwise.
 
 ### opensslCli
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+* return [&lt;Boolean>]
 
 Checks whether 'opensslCli' is supported.
 
 ### platformTimeout(ms)
-* `ms` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type)
-* return [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type)
+* `ms` [&lt;Number>]
+* return [&lt;Number>]
 
 Platform normalizes timeout.
 
 ### PIPE
-* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+* return [&lt;String>]
 
 Path to the test sock.
 
 ### PORT
-* return [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = `12346`
+* return [&lt;Number>] default = `12346`
 
 Port tests are running on.
 
 ### printSkipMessage(msg)
-* `msg` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+* `msg` [&lt;String>]
 
 Logs '1..0 # Skipped: ' + `msg`
 
 ### refreshTmpDir
-* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+* return [&lt;String>]
 
 Deletes the 'tmp' dir and recreates it
 
@@ -289,34 +294,34 @@ Restore the original `process.stderr.write`.
 Restore the original `process.stdout.write`.
 
 ### rootDir
-* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+* return [&lt;String>]
 
 Path to the 'root' directory. either `/` or `c:\\` (windows)
 
 ### skip(msg)
-* `msg` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+* `msg` [&lt;String>]
 
 Logs '1..0 # Skipped: ' + `msg` and exits with exit code `0`.
 
 ### spawnPwd(options)
-* `options` [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
-* return [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+* `options` [&lt;Object>]
+* return [&lt;Object>]
 
 Platform normalizes the `pwd` command.
 
 ### spawnSyncPwd(options)
-* `options` [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
-* return [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+* `options` [&lt;Object>]
+* return [&lt;Object>]
 
 Synchronous version of `spawnPwd`.
 
 ### tmpDir
-* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+* return [&lt;String>]
 
 The realpath of the 'tmp' directory.
 
 ### tmpDirName
-* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+* return [&lt;String>]
 
 Name of the temp directory used by tests.
 
@@ -329,5 +334,13 @@ Node.js
 implementation with tests from
 [W3C Web Platform Tests](https://github.com/w3c/web-platform-tests).
 
-[MDN-Function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Normal_objects_and_functions
+[&lt;Array>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
+[&lt;ArrayBufferView&#91;&#93;>]: https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView
+[&lt;Boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
+[&lt;Buffer>]: https://nodejs.org/api/buffer.html#buffer_class_buffer
+[&lt;Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
+[&lt;Number>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
+[&lt;Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
+[&lt;RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
+[&lt;String>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
 [internationalization]: https://github.com/nodejs/node/wiki/Intl
