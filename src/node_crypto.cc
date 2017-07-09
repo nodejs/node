@@ -3424,7 +3424,7 @@ void CipherBase::Init(const char* cipher_type,
   }
 
   unsigned char key[EVP_MAX_KEY_LENGTH];
-  unsigned char iv[EVP_MAX_KEY_LENGTH];
+  unsigned char iv[EVP_MAX_IV_LENGTH];
 
   int key_len = EVP_BytesToKey(cipher_,
                                EVP_md5(),
