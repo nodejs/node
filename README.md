@@ -3,9 +3,6 @@
     <img alt="Node.js" src="https://nodejs.org/static/images/logo-light.svg" width="400"/>
   </a>
 </p>
-<p align="center">
-  <a title="CII Best Practices" href="https://bestpractices.coreinfrastructure.org/projects/29"><img src="https://bestpractices.coreinfrastructure.org/projects/29/badge"></a>
-</p>
 
 Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. Node.js
 uses an event-driven, non-blocking I/O model that makes it lightweight and
@@ -21,6 +18,10 @@ policies, and releases are managed under an
 
 If you need help using or installing Node.js, please use the
 [nodejs/help](https://github.com/nodejs/help) issue tracker.
+
+<p align="center">
+  <a title="CII Best Practices" href="https://bestpractices.coreinfrastructure.org/projects/29"><img src="https://bestpractices.coreinfrastructure.org/projects/29/badge"></a>
+</p>
 
 
 # Table of Contents
