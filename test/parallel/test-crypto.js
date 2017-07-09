@@ -137,7 +137,7 @@ testImmutability(crypto.getCurves);
 // throw, not assert in C++ land.
 assert.throws(function() {
   crypto.createCipher('aes192', 'test').update('0', 'hex');
-}, common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/);
+}, /no longer supported with ciphers that require initialization vectors/);
 
 assert.throws(function() {
   crypto.createDecipher('aes192', 'test').update('0', 'hex');

@@ -332,6 +332,7 @@ const errMessages = {
   auth: / auth/,
   state: / state/,
   FIPS: /not supported in FIPS mode/,
+  IV: /no longer supported with ciphers that require initialization vectors/,
   length: /Invalid IV length/,
 };
 
@@ -390,9 +391,9 @@ for (const i in TEST_CASES) {
   }
 
   if (test.password) {
-    if (common.hasFipsCrypto) {
+    if (!test.algo.endsWith('ecb')) {
       assert.throws(() => { crypto.createCipher(test.algo, test.password); },
-                    errMessages.FIPS);
+                    errMessages.IV);
     } else {
       const encrypt = crypto.createCipher(test.algo, test.password);
       if (test.aad)

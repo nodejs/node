@@ -456,9 +456,12 @@ assert.strictEqual(s3Verified, true, 'sign and verify (buffer)');
 
 
 function testCipher1(key) {
+  const derived_key = crypto.generateLegacyKey('aes-192-cbc', key);
+  const iv = crypto.generateLegacyIV('aes-192-cbc', key);
+
   // Test encryption and decryption
   const plaintext = 'Keep this a secret? No! Tell everyone about node.js!';
-  const cipher = crypto.createCipher('aes192', key);
+  const cipher = crypto.createCipheriv('aes-192-cbc', derived_key, iv);
 
   // encrypt plaintext which is in utf8 format
   // to a ciphertext which will be in hex
@@ -466,7 +469,8 @@ function testCipher1(key) {
   // Only use binary or hex, not base64.
   ciph += cipher.final('hex');
 
-  const decipher = crypto.createDecipher('aes192', key);
+  const decipher = crypto.createDecipheriv('aes-192-cbc', derived_key, iv);
+
   let txt = decipher.update(ciph, 'hex', 'utf8');
   txt += decipher.final('utf8');
 
@@ -481,14 +485,18 @@ function testCipher2(key) {
       '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
       'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
       'jAfaFg**';
-  const cipher = crypto.createCipher('aes256', key);
+
+  const derived_key = crypto.generateLegacyKey('aes-256-cbc', key);
+  const iv = crypto.generateLegacyIV('aes-256-cbc', key);
+
+  const cipher = crypto.createCipheriv('aes-256-cbc', derived_key, iv);
 
   // encrypt plaintext which is in utf8 format
   // to a ciphertext which will be in Base64
   let ciph = cipher.update(plaintext, 'utf8', 'base64');
   ciph += cipher.final('base64');
 
-  const decipher = crypto.createDecipher('aes256', key);
+  const decipher = crypto.createDecipheriv('aes-256-cbc', derived_key, iv);
   let txt = decipher.update(ciph, 'base64', 'utf8');
   txt += decipher.final('utf8');
 

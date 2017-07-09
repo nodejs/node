@@ -3301,7 +3301,7 @@ void GenerateLegacyKey(const FunctionCallbackInfo<Value>& args) {
   }
 
   THROW_AND_RETURN_IF_NOT_STRING(args[0], "Cipher");
-  THROW_AND_RETURN_IF_NOT_STRING(args[1], "Key");
+  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[1], "Key");
 
   const node::Utf8Value cipher_type(env->isolate(), args[0]);
   const node::Utf8Value key_value(env->isolate(), args[1]);
@@ -3324,8 +3324,12 @@ void GenerateLegacyKey(const FunctionCallbackInfo<Value>& args) {
                                1,
                                key,
                                nullptr);
-  
-  Local<Object> buf = Buffer::New(env, (char *) key, (unsigned) key_len).ToLocalChecked();
+
+  Local<Object> buf = Buffer::New(env,
+    reinterpret_cast<char *>(key),
+    (unsigned) key_len)
+    .ToLocalChecked();
+
   args.GetReturnValue().Set(buf);
 }
 
@@ -3337,7 +3341,7 @@ void GenerateLegacyIV(const FunctionCallbackInfo<Value>& args) {
   }
 
   THROW_AND_RETURN_IF_NOT_STRING(args[0], "Cipher");
-  THROW_AND_RETURN_IF_NOT_STRING(args[1], "Key");
+  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[1], "Key");
 
   const node::Utf8Value cipher_type(env->isolate(), args[0]);
   const node::Utf8Value key_value(env->isolate(), args[1]);
@@ -3366,7 +3370,11 @@ void GenerateLegacyIV(const FunctionCallbackInfo<Value>& args) {
                   nullptr,
                   iv);
 
-  Local<Object> buf = Buffer::New(env, (char *) iv, (unsigned) expected_iv_len).ToLocalChecked();
+  Local<Object> buf = Buffer::New(env,
+    reinterpret_cast<char *>(iv),
+    (unsigned) expected_iv_len)
+    .ToLocalChecked();
+
   args.GetReturnValue().Set(buf);
 }
 
@@ -3416,6 +3424,7 @@ void CipherBase::Init(const char* cipher_type,
   }
 
   unsigned char key[EVP_MAX_KEY_LENGTH];
+  unsigned char iv[EVP_MAX_KEY_LENGTH];
 
   int key_len = EVP_BytesToKey(cipher_,
                                EVP_md5(),
@@ -3424,7 +3433,7 @@ void CipherBase::Init(const char* cipher_type,
                                key_buf_len,
                                1,
                                key,
-                               nullptr);
+                               iv);
 
   EVP_CIPHER_CTX_init(&ctx_);
   const bool encrypt = (kind_ == kCipher);
@@ -3434,7 +3443,9 @@ void CipherBase::Init(const char* cipher_type,
   const int iv_len = EVP_CIPHER_iv_length(cipher_);
 
   if (encrypt && iv_len != 0) {
-    return env()->ThrowError("crypto.createCipher() is no longer supported with ciphers that require initialization vectors. Generate a random IV and pass it to crypto.createCipheriv().");
+    return env()->ThrowError("crypto.createCipher() is no longer supported"
+      " with ciphers that require initialization vectors. "
+      " Generate a random IV and pass it to crypto.createCipheriv().");
   }
 
   if (!EVP_CIPHER_CTX_set_key_length(&ctx_, key_len)) {
@@ -3446,7 +3457,7 @@ void CipherBase::Init(const char* cipher_type,
                     nullptr,
                     nullptr,
                     reinterpret_cast<unsigned char*>(key),
-                    nullptr,
+                    reinterpret_cast<unsigned char*>(iv),
                     kind_ == kCipher);
   initialised_ = true;
 }
