@@ -221,8 +221,7 @@ Error.captureStackTrace(myObject);
 myObject.stack;  // similar to `new Error().stack`
 ```
 
-The first line of the trace, instead of being prefixed with `ErrorType:
-message`, will be the result of calling `targetObject.toString()`.
+The first line of the trace will be prefixed with `${myObject.name}: ${myObject.message}`.
 
 The optional `constructorOpt` argument accepts a function. If given, all frames
 above `constructorOpt`, including `constructorOpt`, will be omitted from the
