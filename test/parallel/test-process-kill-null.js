@@ -20,23 +20,29 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
-const child = common.isWindows ? spawn('cmd.exe') : spawn('cat');
+const cat = spawn('cat');
+let called;
 
-assert.ok(process.kill(child.pid, 0));
+assert.ok(process.kill(cat.pid, 0));
 
-child.on('exit', common.mustCall(function() {
+cat.on('exit', function() {
   assert.throws(function() {
-    process.kill(child.pid, 0);
+    process.kill(cat.pid, 0);
   }, Error);
-}));
+});
 
-child.stdout.on('data', common.mustCall(function() {
-  process.kill(child.pid, 'SIGKILL');
-}));
+cat.stdout.on('data', function() {
+  called = true;
+  process.kill(cat.pid, 'SIGKILL');
+});
 
 // EPIPE when null sig fails
-child.stdin.write('test');
+cat.stdin.write('test');
+
+process.on('exit', function() {
+  assert.ok(called);
+});
