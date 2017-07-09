@@ -14,9 +14,9 @@ const DATA_VALUE = 'hello';
 
 // Refs: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
 // Ignore '/', '\\' and ':'
-const REVERSED_CHARACTERS = '<>"|?*';
+const RESERVED_CHARACTERS = '<>"|?*';
 
-[...REVERSED_CHARACTERS].forEach((ch) => {
+[...RESERVED_CHARACTERS].forEach((ch) => {
   const pathname = path.join(common.tmpDir, `somefile_${ch}`);
   assert.throws(
     () => {
