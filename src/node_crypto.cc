@@ -3445,7 +3445,7 @@ void CipherBase::Init(const char* cipher_type,
   if (encrypt && iv_len != 0) {
     return env()->ThrowError("crypto.createCipher() is no longer supported"
       " with ciphers that require initialization vectors. "
-      " Generate a random IV and pass it to crypto.createCipheriv().");
+      "Generate a random IV and pass it to crypto.createCipheriv().");
   }
 
   if (!EVP_CIPHER_CTX_set_key_length(&ctx_, key_len)) {
