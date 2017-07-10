@@ -494,7 +494,6 @@ class Hmac : public BaseObject {
  protected:
   void HmacInit(const char* hash_type, const char* key, int key_len);
   bool HmacUpdate(const char* data, int len);
-  bool HmacDigest(unsigned char** md_value, unsigned int* md_len);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void HmacInit(const v8::FunctionCallbackInfo<v8::Value>& args);

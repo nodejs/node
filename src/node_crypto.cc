@@ -3767,17 +3767,6 @@ void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-bool Hmac::HmacDigest(unsigned char** md_value, unsigned int* md_len) {
-  if (!initialised_)
-    return false;
-  *md_value = new unsigned char[EVP_MAX_MD_SIZE];
-  HMAC_Final(&ctx_, *md_value, md_len);
-  HMAC_CTX_cleanup(&ctx_);
-  initialised_ = false;
-  return true;
-}
-
-
 void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -3794,13 +3783,13 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("hmac.digest() does not support UTF-16");
   }
 
-  unsigned char* md_value = nullptr;
+  unsigned char md_value[EVP_MAX_MD_SIZE];
   unsigned int md_len = 0;
 
-  bool r = hmac->HmacDigest(&md_value, &md_len);
-  if (!r) {
-    md_value = nullptr;
-    md_len = 0;
+  if (hmac->initialised_) {
+    HMAC_Final(&hmac->ctx_, md_value, &md_len);
+    HMAC_CTX_cleanup(&hmac->ctx_);
+    hmac->initialised_ = false;
   }
 
   Local<Value> error;
@@ -3810,7 +3799,6 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
                           md_len,
                           encoding,
                           &error);
-  delete[] md_value;
   if (rc.IsEmpty()) {
     CHECK(!error.IsEmpty());
     env->isolate()->ThrowException(error);
