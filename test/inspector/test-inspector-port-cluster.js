@@ -23,7 +23,7 @@ function testRunnerMain() {
     workers: [{expectedPort: 9230}]
   });
 
-  let port = debuggerPort + offset++ * 10;
+  let port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: [`--inspect=${port}`],
@@ -34,28 +34,28 @@ function testRunnerMain() {
     ]
   });
 
-  port = debuggerPort + offset++ * 10;
+  port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: ['--inspect', `--inspect-port=${port}`],
     workers: [{expectedPort: port + 1}]
   });
 
-  port = debuggerPort + offset++ * 10;
+  port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: ['--inspect', `--debug-port=${port}`],
     workers: [{expectedPort: port + 1}]
   });
 
-  port = debuggerPort + offset++ * 10;
+  port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: [`--inspect=0.0.0.0:${port}`],
     workers: [{expectedPort: port + 1, expectedHost: '0.0.0.0'}]
   });
 
-  port = debuggerPort + offset++ * 10;
+  port = debuggerPort + offset++ * 5;
 
   spawnMaster({
     execArgv: [`--inspect=127.0.0.1:${port}`],
@@ -63,14 +63,14 @@ function testRunnerMain() {
   });
 
   if (common.hasIPv6) {
-    port = debuggerPort + offset++ * 10;
+    port = debuggerPort + offset++ * 5;
 
     spawnMaster({
       execArgv: [`--inspect=[::]:${port}`],
       workers: [{expectedPort: port + 1, expectedHost: '::'}]
     });
 
-    port = debuggerPort + offset++ * 10;
+    port = debuggerPort + offset++ * 5;
 
     spawnMaster({
       execArgv: [`--inspect=[::1]:${port}`],
