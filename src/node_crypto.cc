@@ -5355,8 +5355,9 @@ void PBKDF2Request::Work(uv_work_t* work_req) {
 void PBKDF2Request::After(Local<Value> (*argv)[2]) {
   if (error()) {
     (*argv)[0] = Undefined(env()->isolate());
-    (*argv)[1] = Encode(env()->isolate(), key(), keylen(), BUFFER);
-    OPENSSL_cleanse(key(), keylen());
+    (*argv)[1] = Buffer::New(env(), key(), keylen()).ToLocalChecked();
+    key_ = nullptr;
+    keylen_ = 0;
   } else {
     (*argv)[0] = Exception::Error(env()->pbkdf2_error_string());
     (*argv)[1] = Undefined(env()->isolate());
