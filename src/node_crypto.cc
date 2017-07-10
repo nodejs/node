@@ -4147,7 +4147,7 @@ static int Node_SignFinal(EVP_MD_CTX* mdctx, unsigned char* md,
 SignBase::Error Sign::SignFinal(const char* key_pem,
                                 int key_pem_len,
                                 const char* passphrase,
-                                unsigned char** sig,
+                                unsigned char* sig,
                                 unsigned int* sig_len,
                                 int padding,
                                 int salt_len) {
@@ -4196,7 +4196,7 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
   }
 #endif  // NODE_FIPS_MODE
 
-  if (Node_SignFinal(&mdctx_, *sig, sig_len, pkey, padding, salt_len))
+  if (Node_SignFinal(&mdctx_, sig, sig_len, pkey, padding, salt_len))
     fatal = false;
 
   initialised_ = false;
@@ -4222,9 +4222,6 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   Sign* sign;
   ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
 
-  unsigned char* md_value;
-  unsigned int md_len;
-
   unsigned int len = args.Length();
 
   node::Utf8Value passphrase(env->isolate(), args[1]);
@@ -4243,30 +4240,24 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   CHECK(maybe_salt_len.IsJust());
   int salt_len = maybe_salt_len.ToChecked();
 
-  md_len = 8192;  // Maximum key size is 8192 bits
-  md_value = new unsigned char[md_len];
-
   ClearErrorOnReturn clear_error_on_return;
+  unsigned char md_value[8192];
+  unsigned int md_len = sizeof(md_value);
 
   Error err = sign->SignFinal(
       buf,
       buf_len,
       len >= 2 && !args[1]->IsNull() ? *passphrase : nullptr,
-      &md_value,
+      md_value,
       &md_len,
       padding,
       salt_len);
-  if (err != kSignOk) {
-    delete[] md_value;
-    md_value = nullptr;
-    md_len = 0;
+  if (err != kSignOk)
     return sign->CheckThrow(err);
-  }
 
-  Local<Object> rc = Buffer::Copy(env->isolate(),
-                                  reinterpret_cast<const char*>(md_value),
-                                  md_len).ToLocalChecked();
-  delete[] md_value;
+  Local<Object> rc =
+      Buffer::Copy(env, reinterpret_cast<char*>(md_value), md_len)
+      .ToLocalChecked();
   args.GetReturnValue().Set(rc);
 }
 
