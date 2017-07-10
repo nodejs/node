@@ -587,7 +587,7 @@ class Sign : public SignBase {
   Error SignFinal(const char* key_pem,
                   int key_pem_len,
                   const char* passphrase,
-                  unsigned char** sig,
+                  unsigned char* sig,
                   unsigned int *sig_len,
                   int padding,
                   int saltlen);
