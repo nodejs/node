@@ -467,7 +467,6 @@ class CipherBase : public BaseObject {
              v8::Local<v8::Object> wrap,
              CipherKind kind)
       : BaseObject(env, wrap),
-        cipher_(nullptr),
         initialised_(false),
         kind_(kind),
         auth_tag_len_(0) {
@@ -476,7 +475,6 @@ class CipherBase : public BaseObject {
 
  private:
   EVP_CIPHER_CTX ctx_; /* coverity[member_decl] */
-  const EVP_CIPHER* cipher_; /* coverity[member_decl] */
   bool initialised_;
   CipherKind kind_;
   unsigned int auth_tag_len_;

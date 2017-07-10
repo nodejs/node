@@ -3332,16 +3332,16 @@ void CipherBase::Init(const char* cipher_type,
   }
 #endif  // NODE_FIPS_MODE
 
-  CHECK_EQ(cipher_, nullptr);
-  cipher_ = EVP_get_cipherbyname(cipher_type);
-  if (cipher_ == nullptr) {
+  CHECK_EQ(initialised_, false);
+  const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
+  if (cipher == nullptr) {
     return env()->ThrowError("Unknown cipher");
   }
 
   unsigned char key[EVP_MAX_KEY_LENGTH];
   unsigned char iv[EVP_MAX_IV_LENGTH];
 
-  int key_len = EVP_BytesToKey(cipher_,
+  int key_len = EVP_BytesToKey(cipher,
                                EVP_md5(),
                                nullptr,
                                reinterpret_cast<const unsigned char*>(key_buf),
@@ -3352,7 +3352,7 @@ void CipherBase::Init(const char* cipher_type,
 
   EVP_CIPHER_CTX_init(&ctx_);
   const bool encrypt = (kind_ == kCipher);
-  EVP_CipherInit_ex(&ctx_, cipher_, nullptr, nullptr, nullptr, encrypt);
+  EVP_CipherInit_ex(&ctx_, cipher, nullptr, nullptr, nullptr, encrypt);
   if (!EVP_CIPHER_CTX_set_key_length(&ctx_, key_len)) {
     EVP_CIPHER_CTX_cleanup(&ctx_);
     return env()->ThrowError("Invalid key length");
@@ -3394,13 +3394,13 @@ void CipherBase::InitIv(const char* cipher_type,
                         int iv_len) {
   HandleScope scope(env()->isolate());
 
-  cipher_ = EVP_get_cipherbyname(cipher_type);
-  if (cipher_ == nullptr) {
+  const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
+  if (cipher == nullptr) {
     return env()->ThrowError("Unknown cipher");
   }
 
-  const int expected_iv_len = EVP_CIPHER_iv_length(cipher_);
-  const bool is_gcm_mode = (EVP_CIPH_GCM_MODE == EVP_CIPHER_mode(cipher_));
+  const int expected_iv_len = EVP_CIPHER_iv_length(cipher);
+  const bool is_gcm_mode = (EVP_CIPH_GCM_MODE == EVP_CIPHER_mode(cipher));
 
   if (is_gcm_mode == false && iv_len != expected_iv_len) {
     return env()->ThrowError("Invalid IV length");
@@ -3408,7 +3408,7 @@ void CipherBase::InitIv(const char* cipher_type,
 
   EVP_CIPHER_CTX_init(&ctx_);
   const bool encrypt = (kind_ == kCipher);
-  EVP_CipherInit_ex(&ctx_, cipher_, nullptr, nullptr, nullptr, encrypt);
+  EVP_CipherInit_ex(&ctx_, cipher, nullptr, nullptr, nullptr, encrypt);
 
   if (is_gcm_mode &&
       !EVP_CIPHER_CTX_ctrl(&ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
@@ -3454,10 +3454,10 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
 
 
 bool CipherBase::IsAuthenticatedMode() const {
-  // check if this cipher operates in an AEAD mode that we support.
-  if (!cipher_)
-    return false;
-  int mode = EVP_CIPHER_mode(cipher_);
+  // Check if this cipher operates in an AEAD mode that we support.
+  CHECK_EQ(initialised_, true);
+  const EVP_CIPHER* const cipher = EVP_CIPHER_CTX_cipher(&ctx_);
+  int mode = EVP_CIPHER_mode(cipher);
   return mode == EVP_CIPH_GCM_MODE;
 }
 
@@ -3644,11 +3644,14 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
 
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
+  if (!cipher->initialised_) return env->ThrowError("Unsupported state");
 
   unsigned char* out_value = nullptr;
   int out_len = -1;
   Local<Value> outString;
 
+  // Check IsAuthenticatedMode() first, Final() destroys the EVP_CIPHER_CTX.
+  const bool is_auth_mode = cipher->IsAuthenticatedMode();
   bool r = cipher->Final(&out_value, &out_len);
 
   if (out_len <= 0 || !r) {
@@ -3656,7 +3659,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
     out_value = nullptr;
     out_len = 0;
     if (!r) {
-      const char* msg = cipher->IsAuthenticatedMode() ?
+      const char* msg = is_auth_mode ?
           "Unsupported state or unable to authenticate data" :
           "Unsupported state";
 
