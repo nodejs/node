@@ -5310,9 +5310,15 @@ class PBKDF2Request : public AsyncWrap {
 
   size_t self_size() const override { return sizeof(*this); }
 
-  uv_work_t work_req_;
+  static void Work(uv_work_t* work_req);
+  void Work();
+
+  static void After(uv_work_t* work_req, int status);
+  void After(Local<Value> argv[2]);
+  void After();
 
  private:
+  uv_work_t work_req_;
   const EVP_MD* digest_;
   int error_;
   int passlen_;
@@ -5325,48 +5331,52 @@ class PBKDF2Request : public AsyncWrap {
 };
 
 
-void EIO_PBKDF2(PBKDF2Request* req) {
-  req->set_error(PKCS5_PBKDF2_HMAC(
-    req->pass(),
-    req->passlen(),
-    reinterpret_cast<unsigned char*>(req->salt()),
-    req->saltlen(),
-    req->iter(),
-    req->digest(),
-    req->keylen(),
-    reinterpret_cast<unsigned char*>(req->key())));
-  OPENSSL_cleanse(req->pass(), req->passlen());
-  OPENSSL_cleanse(req->salt(), req->saltlen());
+void PBKDF2Request::Work() {
+  set_error(PKCS5_PBKDF2_HMAC(
+    pass(),
+    passlen(),
+    reinterpret_cast<unsigned char*>(salt()),
+    saltlen(),
+    iter(),
+    digest(),
+    keylen(),
+    reinterpret_cast<unsigned char*>(key())));
+  OPENSSL_cleanse(pass(), passlen());
+  OPENSSL_cleanse(salt(), saltlen());
 }
 
 
-void EIO_PBKDF2(uv_work_t* work_req) {
+void PBKDF2Request::Work(uv_work_t* work_req) {
   PBKDF2Request* req = ContainerOf(&PBKDF2Request::work_req_, work_req);
-  EIO_PBKDF2(req);
+  req->Work();
 }
 
 
-void EIO_PBKDF2After(PBKDF2Request* req, Local<Value> argv[2]) {
-  if (req->error()) {
-    argv[0] = Undefined(req->env()->isolate());
-    argv[1] = Encode(req->env()->isolate(), req->key(), req->keylen(), BUFFER);
-    OPENSSL_cleanse(req->key(), req->keylen());
+void PBKDF2Request::After(Local<Value> argv[2]) {
+  if (error()) {
+    argv[0] = Undefined(env()->isolate());
+    argv[1] = Encode(env()->isolate(), key(), keylen(), BUFFER);
+    OPENSSL_cleanse(key(), keylen());
   } else {
-    argv[0] = Exception::Error(req->env()->pbkdf2_error_string());
-    argv[1] = Undefined(req->env()->isolate());
+    argv[0] = Exception::Error(env()->pbkdf2_error_string());
+    argv[1] = Undefined(env()->isolate());
   }
 }
 
 
-void EIO_PBKDF2After(uv_work_t* work_req, int status) {
+void PBKDF2Request::After() {
+  HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
+  Local<Value> argv[2];
+  After(argv);
+  MakeCallback(env()->ondone_string(), arraysize(argv), argv);
+}
+
+
+void PBKDF2Request::After(uv_work_t* work_req, int status) {
   CHECK_EQ(status, 0);
   PBKDF2Request* req = ContainerOf(&PBKDF2Request::work_req_, work_req);
-  Environment* env = req->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-  Local<Value> argv[2];
-  EIO_PBKDF2After(req, argv);
-  req->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+  req->After();
   delete req;
 }
 
@@ -5469,14 +5479,13 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
       obj->Set(env->domain_string(), env->domain_array()->Get(0));
     uv_queue_work(env->event_loop(),
                   req->work_req(),
-                  EIO_PBKDF2,
-                  EIO_PBKDF2After);
+                  PBKDF2Request::Work,
+                  PBKDF2Request::After);
   } else {
     env->PrintSyncTrace();
+    req->Work();
     Local<Value> argv[2];
-    EIO_PBKDF2(req);
-    EIO_PBKDF2After(req, argv);
-
+    req->After(argv);
     delete req;
 
     if (argv[0]->IsObject())
