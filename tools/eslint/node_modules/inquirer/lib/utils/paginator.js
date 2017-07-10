@@ -4,7 +4,7 @@ var _ = require('lodash');
 var chalk = require('chalk');
 
 /**
- * The paginator keep trakcs of a pointer index in a list and return
+ * The paginator keeps track of a pointer index in a list and returns
  * a subset of the choices if the list is too long.
  */
 

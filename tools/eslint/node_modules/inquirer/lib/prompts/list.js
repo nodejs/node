@@ -34,13 +34,10 @@ function Prompt() {
 
   var def = this.opt.default;
 
-  // Default being a Number
+  // If def is a Number, then use as index. Otherwise, check for value.
   if (_.isNumber(def) && def >= 0 && def < this.opt.choices.realLength) {
     this.selected = def;
-  }
-
-  // Default being a String
-  if (_.isString(def)) {
+  } else if (!_.isNumber(def) && def != null) {
     this.selected = this.opt.choices.pluck('value').indexOf(def);
   }
 

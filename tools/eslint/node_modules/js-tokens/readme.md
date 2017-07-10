@@ -78,9 +78,9 @@ The intention is to always support the latest stable ECMAScript version.
 If adding support for a newer version requires changes, a new version with a
 major verion bump will be released.
 
-Currently, [ECMAScript 2016] is supported.
+Currently, [ECMAScript 2017] is supported.
 
-[ECMAScript 2016]: http://www.ecma-international.org/ecma-262/7.0/index.html
+[ECMAScript 2017]: https://www.ecma-international.org/ecma-262/8.0/index.html
 
 
 Invalid code handling

@@ -1197,6 +1197,7 @@ class Linter extends EventEmitter {
      * @param {string} options.filename The filename from which the text was read.
      * @param {boolean} options.allowInlineConfig Flag indicating if inline comments
      *      should be allowed.
+     * @param {boolean|Function} options.fix Determines whether fixes should be applied
      * @returns {Object} The result of the fix operation as returned from the
      *      SourceCodeFixer.
      */
@@ -1205,6 +1206,8 @@ class Linter extends EventEmitter {
             fixedResult,
             fixed = false,
             passNumber = 0;
+        const debugTextDescription = options && options.filename || `${text.slice(0, 10)}...`;
+        const shouldFix = options && options.fix || true;
 
         /**
          * This loop continues until one of the following is true:
@@ -1218,11 +1221,11 @@ class Linter extends EventEmitter {
         do {
             passNumber++;
 
-            debug(`Linting code for ${options.filename} (pass ${passNumber})`);
+            debug(`Linting code for ${debugTextDescription} (pass ${passNumber})`);
             messages = this.verify(text, config, options);
 
-            debug(`Generating fixed text for ${options.filename} (pass ${passNumber})`);
-            fixedResult = SourceCodeFixer.applyFixes(this.getSourceCode(), messages);
+            debug(`Generating fixed text for ${debugTextDescription} (pass ${passNumber})`);
+            fixedResult = SourceCodeFixer.applyFixes(this.getSourceCode(), messages, shouldFix);
 
             // stop if there are any syntax errors.
             // 'fixedResult.output' is a empty string.
