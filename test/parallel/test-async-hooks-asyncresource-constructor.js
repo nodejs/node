@@ -4,7 +4,13 @@ require('../common');
 // This tests that AsyncResource throws an error if bad parameters are passed
 
 const assert = require('assert');
-const AsyncResource = require('async_hooks').AsyncResource;
+const async_hooks = require('async_hooks');
+const { AsyncResource } = async_hooks;
+
+// Setup init hook such parameters are validated
+async_hooks.createHook({
+  init() {}
+}).enable();
 
 assert.throws(() => {
   return new AsyncResource();
