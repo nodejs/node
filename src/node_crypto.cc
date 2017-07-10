@@ -5498,6 +5498,7 @@ class RandomBytesRequest : public AsyncWrap {
     size_ = 0;
     if (free_mode_ == FREE_DATA) {
       free(data_);
+      data_ = nullptr;
     }
   }
 
