@@ -116,6 +116,15 @@ module.exports = {
                                 return null;
                             }
 
+                            if (node.object.type === "Identifier" && node.object.name === "let") {
+
+                                /*
+                                 * A statement that starts with `let[` is parsed as a destructuring variable declaration, not
+                                 * a MemberExpression.
+                                 */
+                                return null;
+                            }
+
                             return fixer.replaceTextRange(
                                 [dot.range[0], node.property.range[1]],
                                 `[${textAfterDot}"${node.property.name}"]`

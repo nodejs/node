@@ -1,5 +1,5 @@
 'use strict';
-module.exports = function generate_properties(it, $keyword) {
+module.exports = function generate_properties(it, $keyword, $ruleType) {
   var out = ' ';
   var $lvl = it.level;
   var $dataLvl = it.dataLevel;
@@ -15,8 +15,10 @@ module.exports = function generate_properties(it, $keyword) {
   $it.level++;
   var $nextValid = 'valid' + $it.level;
   var $key = 'key' + $lvl,
+    $idx = 'idx' + $lvl,
     $dataNxt = $it.dataLevel = it.dataLevel + 1,
-    $nextData = 'data' + $dataNxt;
+    $nextData = 'data' + $dataNxt,
+    $dataProperties = 'dataProperties' + $lvl;
   var $schemaKeys = Object.keys($schema || {}),
     $pProperties = it.schema.patternProperties || {},
     $pPropertyKeys = Object.keys($pProperties),
@@ -30,15 +32,19 @@ module.exports = function generate_properties(it, $keyword) {
     $currentBaseId = it.baseId;
   var $required = it.schema.required;
   if ($required && !(it.opts.v5 && $required.$data) && $required.length < it.opts.loopRequired) var $requiredHash = it.util.toHash($required);
-  if (it.opts.v5) {
+  if (it.opts.patternGroups) {
     var $pgProperties = it.schema.patternGroups || {},
       $pgPropertyKeys = Object.keys($pgProperties);
   }
   out += 'var ' + ($errs) + ' = errors;var ' + ($nextValid) + ' = true;';
+  if ($ownProperties) {
+    out += ' var ' + ($dataProperties) + ' = undefined;';
+  }
   if ($checkAdditional) {
-    out += ' for (var ' + ($key) + ' in ' + ($data) + ') {  ';
     if ($ownProperties) {
-      out += ' if (!Object.prototype.hasOwnProperty.call(' + ($data) + ', ' + ($key) + ')) continue; ';
+      out += ' ' + ($dataProperties) + ' = ' + ($dataProperties) + ' || Object.keys(' + ($data) + '); for (var ' + ($idx) + '=0; ' + ($idx) + '<' + ($dataProperties) + '.length; ' + ($idx) + '++) { var ' + ($key) + ' = ' + ($dataProperties) + '[' + ($idx) + ']; ';
+    } else {
+      out += ' for (var ' + ($key) + ' in ' + ($data) + ') { ';
     }
     if ($someProperties) {
       out += ' var isAdditional' + ($lvl) + ' = !(false ';
@@ -68,7 +74,7 @@ module.exports = function generate_properties(it, $keyword) {
           }
         }
       }
-      if (it.opts.v5 && $pgPropertyKeys && $pgPropertyKeys.length) {
+      if (it.opts.patternGroups && $pgPropertyKeys.length) {
         var arr3 = $pgPropertyKeys;
         if (arr3) {
           var $pgProperty, $i = -1,
@@ -208,7 +214,11 @@ module.exports = function generate_properties(it, $keyword) {
             out += ' ' + ($code) + ' ';
           } else {
             if ($requiredHash && $requiredHash[$propertyKey]) {
-              out += ' if (' + ($useData) + ' === undefined) { ' + ($nextValid) + ' = false; ';
+              out += ' if ( ' + ($useData) + ' === undefined ';
+              if ($ownProperties) {
+                out += ' || ! Object.prototype.hasOwnProperty.call(' + ($data) + ', \'' + (it.util.escapeQuotes($propertyKey)) + '\') ';
+              }
+              out += ') { ' + ($nextValid) + ' = false; ';
               var $currentErrorPath = it.errorPath,
                 $currErrSchemaPath = $errSchemaPath,
                 $missingProperty = it.util.escapeQuotes($propertyKey);
@@ -253,9 +263,17 @@ module.exports = function generate_properties(it, $keyword) {
               out += ' } else { ';
             } else {
               if ($breakOnError) {
-                out += ' if (' + ($useData) + ' === undefined) { ' + ($nextValid) + ' = true; } else { ';
+                out += ' if ( ' + ($useData) + ' === undefined ';
+                if ($ownProperties) {
+                  out += ' || ! Object.prototype.hasOwnProperty.call(' + ($data) + ', \'' + (it.util.escapeQuotes($propertyKey)) + '\') ';
+                }
+                out += ') { ' + ($nextValid) + ' = true; } else { ';
               } else {
-                out += ' if (' + ($useData) + ' !== undefined) { ';
+                out += ' if (' + ($useData) + ' !== undefined ';
+                if ($ownProperties) {
+                  out += ' &&   Object.prototype.hasOwnProperty.call(' + ($data) + ', \'' + (it.util.escapeQuotes($propertyKey)) + '\') ';
+                }
+                out += ' ) { ';
               }
             }
             out += ' ' + ($code) + ' } ';
@@ -268,48 +286,51 @@ module.exports = function generate_properties(it, $keyword) {
       }
     }
   }
-  var arr5 = $pPropertyKeys;
-  if (arr5) {
-    var $pProperty, i5 = -1,
-      l5 = arr5.length - 1;
-    while (i5 < l5) {
-      $pProperty = arr5[i5 += 1];
-      var $sch = $pProperties[$pProperty];
-      if (it.util.schemaHasRules($sch, it.RULES.all)) {
-        $it.schema = $sch;
-        $it.schemaPath = it.schemaPath + '.patternProperties' + it.util.getProperty($pProperty);
-        $it.errSchemaPath = it.errSchemaPath + '/patternProperties/' + it.util.escapeFragment($pProperty);
-        out += ' for (var ' + ($key) + ' in ' + ($data) + ') {  ';
-        if ($ownProperties) {
-          out += ' if (!Object.prototype.hasOwnProperty.call(' + ($data) + ', ' + ($key) + ')) continue; ';
-        }
-        out += ' if (' + (it.usePattern($pProperty)) + '.test(' + ($key) + ')) { ';
-        $it.errorPath = it.util.getPathExpr(it.errorPath, $key, it.opts.jsonPointers);
-        var $passData = $data + '[' + $key + ']';
-        $it.dataPathArr[$dataNxt] = $key;
-        var $code = it.validate($it);
-        $it.baseId = $currentBaseId;
-        if (it.util.varOccurences($code, $nextData) < 2) {
-          out += ' ' + (it.util.varReplace($code, $nextData, $passData)) + ' ';
-        } else {
-          out += ' var ' + ($nextData) + ' = ' + ($passData) + '; ' + ($code) + ' ';
-        }
-        if ($breakOnError) {
-          out += ' if (!' + ($nextValid) + ') break; ';
-        }
-        out += ' } ';
-        if ($breakOnError) {
-          out += ' else ' + ($nextValid) + ' = true; ';
-        }
-        out += ' }  ';
-        if ($breakOnError) {
-          out += ' if (' + ($nextValid) + ') { ';
-          $closingBraces += '}';
+  if ($pPropertyKeys.length) {
+    var arr5 = $pPropertyKeys;
+    if (arr5) {
+      var $pProperty, i5 = -1,
+        l5 = arr5.length - 1;
+      while (i5 < l5) {
+        $pProperty = arr5[i5 += 1];
+        var $sch = $pProperties[$pProperty];
+        if (it.util.schemaHasRules($sch, it.RULES.all)) {
+          $it.schema = $sch;
+          $it.schemaPath = it.schemaPath + '.patternProperties' + it.util.getProperty($pProperty);
+          $it.errSchemaPath = it.errSchemaPath + '/patternProperties/' + it.util.escapeFragment($pProperty);
+          if ($ownProperties) {
+            out += ' ' + ($dataProperties) + ' = ' + ($dataProperties) + ' || Object.keys(' + ($data) + '); for (var ' + ($idx) + '=0; ' + ($idx) + '<' + ($dataProperties) + '.length; ' + ($idx) + '++) { var ' + ($key) + ' = ' + ($dataProperties) + '[' + ($idx) + ']; ';
+          } else {
+            out += ' for (var ' + ($key) + ' in ' + ($data) + ') { ';
+          }
+          out += ' if (' + (it.usePattern($pProperty)) + '.test(' + ($key) + ')) { ';
+          $it.errorPath = it.util.getPathExpr(it.errorPath, $key, it.opts.jsonPointers);
+          var $passData = $data + '[' + $key + ']';
+          $it.dataPathArr[$dataNxt] = $key;
+          var $code = it.validate($it);
+          $it.baseId = $currentBaseId;
+          if (it.util.varOccurences($code, $nextData) < 2) {
+            out += ' ' + (it.util.varReplace($code, $nextData, $passData)) + ' ';
+          } else {
+            out += ' var ' + ($nextData) + ' = ' + ($passData) + '; ' + ($code) + ' ';
+          }
+          if ($breakOnError) {
+            out += ' if (!' + ($nextValid) + ') break; ';
+          }
+          out += ' } ';
+          if ($breakOnError) {
+            out += ' else ' + ($nextValid) + ' = true; ';
+          }
+          out += ' }  ';
+          if ($breakOnError) {
+            out += ' if (' + ($nextValid) + ') { ';
+            $closingBraces += '}';
+          }
         }
       }
     }
   }
-  if (it.opts.v5) {
+  if (it.opts.patternGroups && $pgPropertyKeys.length) {
     var arr6 = $pgPropertyKeys;
     if (arr6) {
       var $pgProperty, i6 = -1,
@@ -322,9 +343,11 @@ module.exports = function generate_properties(it, $keyword) {
           $it.schema = $sch;
           $it.schemaPath = it.schemaPath + '.patternGroups' + it.util.getProperty($pgProperty) + '.schema';
           $it.errSchemaPath = it.errSchemaPath + '/patternGroups/' + it.util.escapeFragment($pgProperty) + '/schema';
-          out += ' var pgPropCount' + ($lvl) + ' = 0; for (var ' + ($key) + ' in ' + ($data) + ') {  ';
+          out += ' var pgPropCount' + ($lvl) + ' = 0;  ';
           if ($ownProperties) {
-            out += ' if (!Object.prototype.hasOwnProperty.call(' + ($data) + ', ' + ($key) + ')) continue; ';
+            out += ' ' + ($dataProperties) + ' = ' + ($dataProperties) + ' || Object.keys(' + ($data) + '); for (var ' + ($idx) + '=0; ' + ($idx) + '<' + ($dataProperties) + '.length; ' + ($idx) + '++) { var ' + ($key) + ' = ' + ($dataProperties) + '[' + ($idx) + ']; ';
+          } else {
+            out += ' for (var ' + ($key) + ' in ' + ($data) + ') { ';
           }
           out += ' if (' + (it.usePattern($pgProperty)) + '.test(' + ($key) + ')) { pgPropCount' + ($lvl) + '++; ';
           $it.errorPath = it.util.getPathExpr(it.errorPath, $key, it.opts.jsonPointers);
