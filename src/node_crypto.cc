@@ -5245,7 +5245,18 @@ class PBKDF2Request : public AsyncWrap {
   }
 
   ~PBKDF2Request() override {
-    release();
+    free(pass_);
+    pass_ = nullptr;
+    passlen_ = 0;
+
+    free(salt_);
+    salt_ = nullptr;
+    saltlen_ = 0;
+
+    free(key_);
+    key_ = nullptr;
+    keylen_ = 0;
+
     ClearWrap(object());
     persistent().Reset();
   }
@@ -5284,20 +5295,6 @@ class PBKDF2Request : public AsyncWrap {
 
   inline int iter() const {
     return iter_;
-  }
-
-  inline void release() {
-    free(pass_);
-    pass_ = nullptr;
-    passlen_ = 0;
-
-    free(salt_);
-    salt_ = nullptr;
-    saltlen_ = 0;
-
-    free(key_);
-    key_ = nullptr;
-    keylen_ = 0;
   }
 
   inline int error() const {
