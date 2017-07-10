@@ -4881,44 +4881,40 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void DiffieHellman::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-  Environment* env = diffieHellman->env();
+void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
+                           BIGNUM* (DH::*field), const char* what) {
+  Environment* env = Environment::GetCurrent(args);
 
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
+  DiffieHellman* dh;
+  ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
+  if (!dh->initialised_) return env->ThrowError("Not initialized");
+
+  BIGNUM** num = &((dh->dh)->*field);
+  char errmsg[64];
 
   if (args.Length() == 0) {
-    return env->ThrowError("Public key argument is mandatory");
-  } else {
-    THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Public key");
-    diffieHellman->dh->pub_key = BN_bin2bn(
-        reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
-        Buffer::Length(args[0]), 0);
+    snprintf(errmsg, sizeof(errmsg), "%s argument is mandatory", what);
+    return env->ThrowError(errmsg);
   }
+
+  if (!Buffer::HasInstance(args[0])) {
+    snprintf(errmsg, sizeof(errmsg), "%s must be a buffer", what);
+    return env->ThrowTypeError(errmsg);
+  }
+
+  *num = BN_bin2bn(reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
+                   Buffer::Length(args[0]), *num);
+  CHECK_NE(*num, nullptr);
+}
+
+
+void DiffieHellman::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
+  SetKey(args, &DH::pub_key, "Public key");
 }
 
 
 void DiffieHellman::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-  Environment* env = diffieHellman->env();
-
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
-
-  if (args.Length() == 0) {
-    return env->ThrowError("Private key argument is mandatory");
-  } else {
-    THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Private key");
-    diffieHellman->dh->priv_key = BN_bin2bn(
-        reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
-        Buffer::Length(args[0]),
-        0);
-  }
+  SetKey(args, &DH::priv_key, "Private key");
 }
 
 
