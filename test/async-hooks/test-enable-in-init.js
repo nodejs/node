@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const async_hooks = require('async_hooks');
-const crypto = require('crypto');
+const fs = require('fs');
 
 const nestedHook = async_hooks.createHook({
   init: common.mustNotCall()
@@ -14,9 +14,9 @@ async_hooks.createHook({
     nestedHook.enable();
     if (!nestedCall) {
       nestedCall = true;
-      crypto.randomBytes(1, common.mustCall());
+      fs.access(__filename, common.mustCall());
     }
   }, 2)
 }).enable();
 
-crypto.randomBytes(1, common.mustCall());
+fs.access(__filename, common.mustCall());
