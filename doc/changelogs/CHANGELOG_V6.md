@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.11.1">6.11.1</a><br/>
 <a href="#6.11.0">6.11.0</a><br/>
 <a href="#6.10.3">6.10.3</a><br/>
 <a href="#6.10.2">6.10.2</a><br/>
@@ -48,6 +49,25 @@
 **Note:** Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.11.1"></a>
+## 2017-07-11, Version 6.11.1 'Boron' (LTS), @MylesBorins
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/july-2017-security-releases/ for details on patched vulnerabilities.
+
+### Notable Changes
+
+* **build**:
+  - Disable V8 snapshots - The hashseed embedded in the snapshot is currently the same for all runs of the binary. This opens node up to collision attacks which could result in a Denial of Service. We have temporarily disabled snapshots until a more robust solution is found (Ali Ijaz Sheikh)
+* **deps**:
+  - CVE-2017-1000381 - The c-ares function ares_parse_naptr_reply(), which is used for parsing NAPTR responses, could be triggered to read memory outside of the given input buffer if the passed in DNS response packet was crafted in a particular way. This patch checks that there is enough data for the required elements of an NAPTR record (2 int16, 3 bytes for string lengths) before processing a record. (David Drysdale)
+
+### Commits
+
+* [[`86c0eae524`](https://github.com/nodejs/node/commit/86c0eae524)] - **build**: disable V8 snapshots (Ali Ijaz Sheikh) [nodejs/node-private#84](https://github.com/nodejs/node-private/pull/84)
+* [[`75bc33d16f`](https://github.com/nodejs/node/commit/75bc33d16f)] - **deps**: cherry-pick 9478908a49 from cares upstream (David Drysdale) [nodejs/node-private#88](https://github.com/nodejs/node-private/pull/88)
+* [[`a92d4ca460`](https://github.com/nodejs/node/commit/a92d4ca460)] - **deps**: Debug code requires bigger buffer on s390 (Michael Dawson) [nodejs/node-private#93](https://github.com/nodejs/node-private/pull/93)
+* [[`6e247b8a4e`](https://github.com/nodejs/node/commit/6e247b8a4e)] - **test**: verify hash seed uniqueness (Ali Ijaz Sheikh) [nodejs/node-private#84](https://github.com/nodejs/node-private/pull/84)
 
 <a id="6.11.0"></a>
 ## 2017-06-06, Version 6.11.0 'Boron' (LTS), @MylesBorins
