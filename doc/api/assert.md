@@ -93,10 +93,10 @@ Second, object comparisons include a strict equality check of their prototypes.
 ```js
 const assert = require('assert');
 
-assert.deepEqual({a:1}, {a:'1'});
+assert.deepEqual({ a: 1 }, { a: '1' });
 // OK, because 1 == '1'
 
-assert.deepStrictEqual({a:1}, {a:'1'});
+assert.deepStrictEqual({ a: 1 }, { a: '1' });
 // AssertionError: { a: 1 } deepStrictEqual { a: '1' }
 // because 1 !== '1' using strict equality
 ```
@@ -478,6 +478,7 @@ Note that `error` can not be a string. If a string is provided as the second
 argument, then `error` is assumed to be omitted and the string will be used for
 `message` instead. This can lead to easy-to-miss mistakes:
 
+<!-- eslint-disable assert-throws-arguments -->
 ```js
 // THIS IS A MISTAKE! DO NOT DO THIS!
 assert.throws(myFunction, 'missing foo', 'did not throw with expected message');

@@ -71,6 +71,7 @@ The properties included on each object include:
 
 For example:
 
+<!-- eslint-disable semi -->
 ```js
 [
   {
@@ -253,6 +254,7 @@ The properties available on the assigned network address object include:
 * `scopeid` {number} The numeric IPv6 scope ID (only specified when `family`
   is `IPv6`)
 
+<!-- eslint-skip -->
 ```js
 {
   lo: [

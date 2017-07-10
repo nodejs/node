@@ -237,7 +237,7 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
   let i = 1000000;
   write();
   function write() {
-    var ok = true;
+    let ok = true;
     do {
       i--;
       if (i === 0) {
@@ -280,7 +280,7 @@ has been called, and all data has been flushed to the underlying system.
 
 ```js
 const writer = getWritableStreamSomehow();
-for (var i = 0; i < 100; i++) {
+for (let i = 0; i < 100; i++) {
   writer.write(`hello, #${i}!\n`);
 }
 writer.end('This is the end\n');
@@ -875,7 +875,7 @@ the internal buffer is fully drained.
 ```js
 const readable = getReadableStreamSomehow();
 readable.on('readable', () => {
-  var chunk;
+  let chunk;
   while (null !== (chunk = readable.read())) {
     console.log(`Received ${chunk.length} bytes of data.`);
   }
@@ -1007,14 +1007,14 @@ function parseHeader(stream, callback) {
   stream.on('error', callback);
   stream.on('readable', onReadable);
   const decoder = new StringDecoder('utf8');
-  var header = '';
+  let header = '';
   function onReadable() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = stream.read())) {
-      var str = decoder.write(chunk);
+      const str = decoder.write(chunk);
       if (str.match(/\n\n/)) {
         // found the header boundary
-        var split = str.split(/\n\n/);
+        const split = str.split(/\n\n/);
         header += split.shift();
         const remaining = split.join('\n\n');
         const buf = Buffer.from(remaining, 'utf8');
@@ -1597,12 +1597,12 @@ class Counter extends Readable {
   }
 
   _read() {
-    var i = this._index++;
+    const i = this._index++;
     if (i > this._max)
       this.push(null);
     else {
-      var str = '' + i;
-      var buf = Buffer.from(str, 'ascii');
+      const str = '' + i;
+      const buf = Buffer.from(str, 'ascii');
       this.push(buf);
     }
   }

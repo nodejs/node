@@ -268,6 +268,7 @@ will contain an array of objects with the following properties:
 
 For example:
 
+<!-- eslint-skip -->
 ```js
 {
   flags: 's',
@@ -306,6 +307,7 @@ be an object with the following properties:
 * `expire`
 * `minttl`
 
+<!-- eslint-skip -->
 ```js
 {
   nsname: 'ns.example.com',
@@ -332,6 +334,7 @@ be an array of objects with the following properties:
 * `port`
 * `name`
 
+<!-- eslint-skip -->
 ```js
 {
   priority: 10,

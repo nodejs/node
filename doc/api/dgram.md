@@ -20,7 +20,7 @@ server.on('message', (msg, rinfo) => {
 });
 
 server.on('listening', () => {
-  var address = server.address();
+  const address = server.address();
   console.log(`server listening ${address.address}:${address.port}`);
 });
 
@@ -146,7 +146,7 @@ server.on('message', (msg, rinfo) => {
 });
 
 server.on('listening', () => {
-  var address = server.address();
+  const address = server.address();
   console.log(`server listening ${address.address}:${address.port}`);
 });
 

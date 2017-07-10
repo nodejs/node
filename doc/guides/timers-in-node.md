@@ -35,7 +35,7 @@ arguments may also be included and these will be passed on to the function. Here
 is an example of that:
 
 ```js
-function myFunc (arg) {
+function myFunc(arg) {
   console.log('arg was => ' + arg);
 }
 
@@ -111,7 +111,7 @@ that may hold on to the event loop, and therefore should be treated as an
 approximate delay. See the below example:
 
 ```js
-function intervalFunc () {
+function intervalFunc() {
   console.log('Cant stop me now!');
 }
 
@@ -134,15 +134,15 @@ that object will be halted completely. The respective functions are
 below for an example of each:
 
 ```js
-let timeoutObj = setTimeout(() => {
+const timeoutObj = setTimeout(() => {
   console.log('timeout beyond time');
 }, 1500);
 
-let immediateObj = setImmediate(() => {
+const immediateObj = setImmediate(() => {
   console.log('immediately executing immediate');
 });
 
-let intervalObj = setInterval(() => {
+const intervalObj = setInterval(() => {
   console.log('interviewing the interval');
 }, 500);
 
@@ -168,9 +168,9 @@ not *exactly* restore the initial behavior for performance reasons. See
 below for examples of both:
 
 ```js
-let timerObj = setTimeout(() => {
+const timerObj = setTimeout(() => {
   console.log('will i run?');
-});
+}, 1);
 
 // if left alone, this statement will keep the above
 // timeout from running, since the timeout will be the only

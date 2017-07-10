@@ -127,11 +127,11 @@ d1.run(() => setTimeout(() => {
     setTimeout(() => {
       setTimeout(() => {
         throw new Error('outer');
-      });
-      throw new Error('inner')
-    });
+      }, 1);
+      throw new Error('inner');
+    }, 1);
   });
-}));
+}, 1));
 ```
 
 Even in the case that the domain instances are being used for local storage so
@@ -216,7 +216,7 @@ const server = net.createServer((c) => {
   // for demonstration purposes.
   const ds = new DataStream(dataTransformed);
   c.on('data', (chunk) => ds.data(chunk));
-}).listen(8080, () => console.log(`listening on 8080`));
+}).listen(8080, () => console.log('listening on 8080'));
 
 function dataTransformed(chunk) {
   // FAIL! Because the DataStream instance also created a
@@ -241,12 +241,12 @@ DataStream.prototype.data = function data(chunk) {
   this.domain.run(function() {
     // Simulate an async operation that does the data transform.
     setImmediate(() => {
-      for (var i = 0; i < chunk.length; i++)
+      for (let i = 0; i < chunk.length; i++)
         chunk[i] = ((chunk[i] + Math.random() * 100) % 96) + 33;
       // Grab the instance from the active domain and use that
       // to call the user's callback.
       const self = domain.active.data.inst;
-      self.cb.call(self, chunk);
+      self.cb(chunk);
     });
   });
 };
