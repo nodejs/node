@@ -1804,11 +1804,10 @@ void SSLWrap<Base>::GetSession(const FunctionCallbackInfo<Value>& args) {
   int slen = i2d_SSL_SESSION(sess, nullptr);
   CHECK_GT(slen, 0);
 
-  char* sbuf = new char[slen];
+  char* sbuf = Malloc(slen);
   unsigned char* p = reinterpret_cast<unsigned char*>(sbuf);
   i2d_SSL_SESSION(sess, &p);
-  args.GetReturnValue().Set(Encode(env->isolate(), sbuf, slen, BUFFER));
-  delete[] sbuf;
+  args.GetReturnValue().Set(Buffer::New(env, sbuf, slen).ToLocalChecked());
 }
 
 
