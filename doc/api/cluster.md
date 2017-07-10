@@ -700,12 +700,12 @@ changes:
 -->
 
 * {Object}
-  * `execArgv` {Array} list of string arguments passed to the Node.js
+  * `execArgv` {Array} List of string arguments passed to the Node.js
     executable. (Default=`process.execArgv`)
-  * `exec` {string} file path to worker file.  (Default=`process.argv[1]`)
-  * `args` {Array} string arguments passed to worker.
+  * `exec` {string} File path to worker file.  (Default=`process.argv[1]`)
+  * `args` {Array} String arguments passed to worker.
     (Default=`process.argv.slice(2)`)
-  * `silent` {boolean} whether or not to send output to parent's stdio.
+  * `silent` {boolean} Whether or not to send output to parent's stdio.
     (Default=`false`)
   * `stdio` {Array} Configures the stdio of forked processes. Because the
     cluster module relies on IPC to function, this configuration must contain an
@@ -727,26 +727,19 @@ changes:
     description: The `stdio` option is supported now.
 -->
 
-* `settings` {Object}
-  * `exec` {string} file path to worker file.  (Default=`process.argv[1]`)
-  * `args` {Array} string arguments passed to worker.
-    (Default=`process.argv.slice(2)`)
-  * `silent` {boolean} whether or not to send output to parent's stdio.
-    (Default=`false`)
-  * `stdio` {Array} Configures the stdio of forked processes. When this option
-    is provided, it overrides `silent`.
+* `settings` {Object} see [`cluster.settings`][]
 
 `setupMaster` is used to change the default 'fork' behavior. Once called,
 the settings will be present in `cluster.settings`.
 
 Note that:
 
-* any settings changes only affect future calls to `.fork()` and have no
-  effect on workers that are already running
+* Any settings changes only affect future calls to `.fork()` and have no
+  effect on workers that are already running.
 * The *only* attribute of a worker that cannot be set via `.setupMaster()` is
-  the `env` passed to `.fork()`
-* the defaults above apply to the first call only, the defaults for later
-  calls is the current value at the time of `cluster.setupMaster()` is called
+  the `env` passed to `.fork()`.
+* The defaults above apply to the first call only, the defaults for later
+  calls is the current value at the time of `cluster.setupMaster()` is called.
 
 Example:
 
@@ -834,3 +827,4 @@ socket.on('data', (id) => {
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
 [child_process event: 'exit']: child_process.html#child_process_event_exit
 [child_process event: 'message']: child_process.html#child_process_event_message
+[`cluster.settings`]: #clustersettings
