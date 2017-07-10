@@ -4916,6 +4916,8 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
 
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
   EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0]),
                                       Buffer::Length(args[0]));
   if (pub == nullptr)
@@ -5037,6 +5039,8 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0].As<Object>()),
                                       Buffer::Length(args[0].As<Object>()));
