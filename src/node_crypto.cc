@@ -5835,7 +5835,7 @@ void VerifySpkac(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-const char* ExportPublicKey(const char* data, int len) {
+char* ExportPublicKey(const char* data, int len, size_t* size) {
   char* buf = nullptr;
   EVP_PKEY* pkey = nullptr;
   NETSCAPE_SPKI* spki = nullptr;
@@ -5855,12 +5855,12 @@ const char* ExportPublicKey(const char* data, int len) {
   if (PEM_write_bio_PUBKEY(bio, pkey) <= 0)
     goto exit;
 
-  BIO_write(bio, "\0", 1);
   BUF_MEM* ptr;
   BIO_get_mem_ptr(bio, &ptr);
 
-  buf = new char[ptr->length];
-  memcpy(buf, ptr->data, ptr->length);
+  *size = ptr->length;
+  buf = Malloc(*size);
+  memcpy(buf, ptr->data, *size);
 
  exit:
   if (pkey != nullptr)
@@ -5891,14 +5891,12 @@ void ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
   char* data = Buffer::Data(args[0]);
   CHECK_NE(data, nullptr);
 
-  const char* pkey = ExportPublicKey(data, length);
+  size_t pkey_size;
+  char* pkey = ExportPublicKey(data, length, &pkey_size);
   if (pkey == nullptr)
     return args.GetReturnValue().SetEmptyString();
 
-  Local<Value> out = Encode(env->isolate(), pkey, strlen(pkey), BUFFER);
-
-  delete[] pkey;
-
+  Local<Value> out = Buffer::New(env, pkey, pkey_size).ToLocalChecked();
   args.GetReturnValue().Set(out);
 }
 
