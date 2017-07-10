@@ -476,7 +476,7 @@ class CipherBase : public BaseObject {
  private:
   EVP_CIPHER_CTX ctx_; /* coverity[member_decl] */
   bool initialised_;
-  CipherKind kind_;
+  const CipherKind kind_;
   unsigned int auth_tag_len_;
   char auth_tag_[EVP_GCM_TLS_TAG_LEN];
 };
