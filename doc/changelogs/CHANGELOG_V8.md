@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td>
+<a href="#8.1.4">8.1.4</a><br/>
 <a href="#8.1.3">8.1.3</a><br/>
 <a href="#8.1.2">8.1.2</a><br/>
 <a href="#8.1.1">8.1.1</a><br/>
@@ -24,6 +25,24 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="8.1.4"></a>
+## 2017-07-11, Version 8.1.4 (Current), @evanlucas
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/july-2017-security-releases/ for details on patched vulnerabilities.
+
+### Notable changes
+
+* **build**:
+  - Disable V8 snapshots - The hashseed embedded in the snapshot is currently the same for all runs of the binary. This opens node up to collision attacks which could result in a Denial of Service. We have temporarily disabled snapshots until a more robust solution is found (Ali Ijaz Sheikh)
+* **deps**:
+  - CVE-2017-1000381 - The c-ares function ares_parse_naptr_reply(), which is used for parsing NAPTR responses, could be triggered to read memory outside of the given input buffer if the passed in DNS response packet was crafted in a particular way. This patch checks that there is enough data for the required elements of an NAPTR record (2 int16, 3 bytes for string lengths) before processing a record. (David Drysdale)
+
+### Commits
+
+* [[`51d69d2bec`](https://github.com/nodejs/node/commit/51d69d2bec)] - **build**: disable V8 snapshots (Ali Ijaz Sheikh) [nodejs/node-private#84](https://github.com/nodejs/node-private/pull/84)
+* [[`d70fac47af`](https://github.com/nodejs/node/commit/d70fac47af)] - **deps**: cherry-pick 9478908a49 from cares upstream (David Drysdale) [nodejs/node-private#88](https://github.com/nodejs/node-private/pull/88)
+* [[`803d689873`](https://github.com/nodejs/node/commit/803d689873)] - **test**: verify hash seed uniqueness (Ali Ijaz Sheikh) [nodejs/node-private#84](https://github.com/nodejs/node-private/pull/84)
 
 <a id="8.1.3"></a>
 ## 2017-06-29, Version 8.1.3 (Current), @addaleax
