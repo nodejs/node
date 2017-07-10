@@ -66,7 +66,10 @@ module.exports = {
              */
             function fixParamsWithParenthesis(fixer) {
                 const paramToken = sourceCode.getTokenAfter(firstTokenOfParam);
-                const closingParenToken = sourceCode.getTokenAfter(paramToken);
+
+                // ES8 allows Trailing commas in function parameter lists and calls
+                // https://github.com/eslint/eslint/issues/8834
+                const closingParenToken = sourceCode.getTokenAfter(paramToken, astUtils.isClosingParenToken);
                 const asyncToken = isAsync ? sourceCode.getTokenBefore(firstTokenOfParam) : null;
                 const shouldAddSpaceForAsync = asyncToken && (asyncToken.end === firstTokenOfParam.start);
 

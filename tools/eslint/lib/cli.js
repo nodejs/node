@@ -29,6 +29,17 @@ const debug = require("debug")("eslint:cli");
 //------------------------------------------------------------------------------
 
 /**
+ * Predicate function for whether or not to apply fixes in quiet mode.
+ * If a message is a warning, do not apply a fix.
+ * @param {LintResult} lintResult The lint result.
+ * @returns {boolean} True if the lint message is an error (and thus should be
+ * autofixed), false otherwise.
+ */
+function quietFixPredicate(lintResult) {
+    return lintResult.severity === 2;
+}
+
+/**
  * Translates the CLI options into the options expected by the CLIEngine.
  * @param {Object} cliOptions The CLI options to translate.
  * @returns {CLIEngineOptions} The options object for the CLIEngine.
@@ -52,7 +63,7 @@ function translateOptions(cliOptions) {
         cache: cliOptions.cache,
         cacheFile: cliOptions.cacheFile,
         cacheLocation: cliOptions.cacheLocation,
-        fix: cliOptions.fix,
+        fix: cliOptions.fix && (cliOptions.quiet ? quietFixPredicate : true),
         allowInlineConfig: cliOptions.inlineConfig
     };
 }
