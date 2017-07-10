@@ -23,8 +23,10 @@
 
 {{
   var $key = 'key' + $lvl
+    , $idx = 'idx' + $lvl
     , $dataNxt = $it.dataLevel = it.dataLevel + 1
-    , $nextData = 'data' + $dataNxt;
+    , $nextData = 'data' + $dataNxt
+    , $dataProperties = 'dataProperties' + $lvl;
 
   var $schemaKeys = Object.keys($schema || {})
     , $pProperties = it.schema.patternProperties || {}
@@ -43,7 +45,7 @@
   if ($required && !(it.opts.v5 && $required.$data) && $required.length < it.opts.loopRequired)
     var $requiredHash = it.util.toHash($required);
 
-  if (it.opts.v5) {
+  if (it.opts.patternGroups) {
     var $pgProperties = it.schema.patternGroups || {}
       , $pgPropertyKeys = Object.keys($pgProperties);
   }
@@ -52,10 +54,12 @@
 
 var {{=$errs}} = errors;
 var {{=$nextValid}} = true;
+{{? $ownProperties }}
+  var {{=$dataProperties}} = undefined;
+{{?}}
 
 {{? $checkAdditional }}
-  for (var {{=$key}} in {{=$data}}) {
-    {{# def.checkOwnProperty }}
+  {{# def.iterateProperties }}
     {{? $someProperties }}
       var isAdditional{{=$lvl}} = !(false
         {{? $schemaKeys.length }}
@@ -72,7 +76,7 @@ var {{=$nextValid}} = true;
             || {{= it.usePattern($pProperty) }}.test({{=$key}})
           {{~}}
         {{?}}
-        {{? it.opts.v5 && $pgPropertyKeys && $pgPropertyKeys.length }}
+        {{? it.opts.patternGroups && $pgPropertyKeys.length }}
           {{~ $pgPropertyKeys:$pgProperty:$i }}
             || {{= it.usePattern($pgProperty) }}.test({{=$key}})
           {{~}}
@@ -170,7 +174,7 @@ var {{=$nextValid}} = true;
         {{= $code }}
       {{??}}
         {{? $requiredHash && $requiredHash[$propertyKey] }}
-          if ({{=$useData}} === undefined) {
+          if ({{# def.noPropertyInData }}) {
             {{=$nextValid}} = false;
             {{
               var $currentErrorPath = it.errorPath
@@ -187,11 +191,15 @@ var {{=$nextValid}} = true;
           } else {
         {{??}}
           {{? $breakOnError }}
-            if ({{=$useData}} === undefined) {
+            if ({{# def.noPropertyInData }}) {
               {{=$nextValid}} = true;
             } else {
           {{??}}
-            if ({{=$useData}} !== undefined) {
+            if ({{=$useData}} !== undefined
+              {{? $ownProperties }}
+                && {{# def.isOwnProperty }}
+              {{?}}
+            ) {
           {{?}}
         {{?}}
 
@@ -204,40 +212,41 @@ var {{=$nextValid}} = true;
   {{~}}
 {{?}}
 
-{{~ $pPropertyKeys:$pProperty }}
-  {{ var $sch = $pProperties[$pProperty]; }}
+{{? $pPropertyKeys.length }}
+  {{~ $pPropertyKeys:$pProperty }}
+    {{ var $sch = $pProperties[$pProperty]; }}
 
-  {{? {{# def.nonEmptySchema:$sch}} }}
-    {{
-      $it.schema = $sch;
-      $it.schemaPath = it.schemaPath + '.patternProperties' + it.util.getProperty($pProperty);
-      $it.errSchemaPath = it.errSchemaPath + '/patternProperties/'
-                                           + it.util.escapeFragment($pProperty);
-    }}
+    {{? {{# def.nonEmptySchema:$sch}} }}
+      {{
+        $it.schema = $sch;
+        $it.schemaPath = it.schemaPath + '.patternProperties' + it.util.getProperty($pProperty);
+        $it.errSchemaPath = it.errSchemaPath + '/patternProperties/'
+                                             + it.util.escapeFragment($pProperty);
+      }}
 
-    for (var {{=$key}} in {{=$data}}) {
-      {{# def.checkOwnProperty }}
-      if ({{= it.usePattern($pProperty) }}.test({{=$key}})) {
-        {{
-          $it.errorPath = it.util.getPathExpr(it.errorPath, $key, it.opts.jsonPointers);
-          var $passData = $data + '[' + $key + ']';
-          $it.dataPathArr[$dataNxt] = $key;
-        }}
+      {{# def.iterateProperties }}
+        if ({{= it.usePattern($pProperty) }}.test({{=$key}})) {
+          {{
+            $it.errorPath = it.util.getPathExpr(it.errorPath, $key, it.opts.jsonPointers);
+            var $passData = $data + '[' + $key + ']';
+            $it.dataPathArr[$dataNxt] = $key;
+          }}
 
-        {{# def.generateSubschemaCode }}
-        {{# def.optimizeValidate }}
+          {{# def.generateSubschemaCode }}
+          {{# def.optimizeValidate }}
 
-        {{? $breakOnError }} if (!{{=$nextValid}}) break; {{?}}
+          {{? $breakOnError }} if (!{{=$nextValid}}) break; {{?}}
+        }
+        {{? $breakOnError }} else {{=$nextValid}} = true; {{?}}
       }
-      {{? $breakOnError }} else {{=$nextValid}} = true; {{?}}
-    }
 
-    {{# def.ifResultValid }}
-  {{?}} {{ /* def.nonEmptySchema */ }}
-{{~}}
+      {{# def.ifResultValid }}
+    {{?}} {{ /* def.nonEmptySchema */ }}
+  {{~}}
+{{?}}
 
 
-{{? it.opts.v5 }}
+{{? it.opts.patternGroups && $pgPropertyKeys.length }}
   {{~ $pgPropertyKeys:$pgProperty }}
     {{
       var $pgSchema = $pgProperties[$pgProperty]
@@ -255,8 +264,7 @@ var {{=$nextValid}} = true;
 
       var pgPropCount{{=$lvl}} = 0;
 
-      for (var {{=$key}} in {{=$data}}) {
-        {{# def.checkOwnProperty }}
+      {{# def.iterateProperties }}
         if ({{= it.usePattern($pgProperty) }}.test({{=$key}})) {
           pgPropCount{{=$lvl}}++;
 

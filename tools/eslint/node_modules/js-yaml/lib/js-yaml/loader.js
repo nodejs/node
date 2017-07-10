@@ -86,6 +86,7 @@ function fromDecimalCode(c) {
 }
 
 function simpleEscapeSequence(c) {
+  /* eslint-disable indent */
   return (c === 0x30/* 0 */) ? '\x00' :
         (c === 0x61/* a */) ? '\x07' :
         (c === 0x62/* b */) ? '\x08' :
@@ -112,8 +113,10 @@ function charFromCodepoint(c) {
   }
   // Encode UTF-16 surrogate pair
   // https://en.wikipedia.org/wiki/UTF-16#Code_points_U.2B010000_to_U.2B10FFFF
-  return String.fromCharCode(((c - 0x010000) >> 10) + 0xD800,
-                             ((c - 0x010000) & 0x03FF) + 0xDC00);
+  return String.fromCharCode(
+    ((c - 0x010000) >> 10) + 0xD800,
+    ((c - 0x010000) & 0x03FF) + 0xDC00
+  );
 }
 
 var simpleEscapeCheck = new Array(256); // integer, for fast access
@@ -245,9 +248,7 @@ function captureSegment(state, start, end, checkJson) {
     _result = state.input.slice(start, end);
 
     if (checkJson) {
-      for (_position = 0, _length = _result.length;
-           _position < _length;
-           _position += 1) {
+      for (_position = 0, _length = _result.length; _position < _length; _position += 1) {
         _character = _result.charCodeAt(_position);
         if (!(_character === 0x09 ||
               (0x20 <= _character && _character <= 0x10FFFF))) {
@@ -1365,9 +1366,7 @@ function composeNode(state, parentIndent, nodeContext, allowToSeek, allowCompact
 
   if (state.tag !== null && state.tag !== '!') {
     if (state.tag === '?') {
-      for (typeIndex = 0, typeQuantity = state.implicitTypes.length;
-           typeIndex < typeQuantity;
-           typeIndex += 1) {
+      for (typeIndex = 0, typeQuantity = state.implicitTypes.length; typeIndex < typeQuantity; typeIndex += 1) {
         type = state.implicitTypes[typeIndex];
 
         // Implicit resolving is not allowed for non-scalar types, and '?'
@@ -1556,6 +1555,10 @@ function loadDocuments(input, options) {
 function loadAll(input, iterator, options) {
   var documents = loadDocuments(input, options), index, length;
 
+  if (typeof iterator !== 'function') {
+    return documents;
+  }
+
   for (index = 0, length = documents.length; index < length; index += 1) {
     iterator(documents[index]);
   }
@@ -1576,7 +1579,11 @@ function load(input, options) {
 
 
 function safeLoadAll(input, output, options) {
-  loadAll(input, output, common.extend({ schema: DEFAULT_SAFE_SCHEMA }, options));
+  if (typeof output === 'function') {
+    loadAll(input, output, common.extend({ schema: DEFAULT_SAFE_SCHEMA }, options));
+  } else {
+    return loadAll(input, common.extend({ schema: DEFAULT_SAFE_SCHEMA }, options));
+  }
 }
 
 
