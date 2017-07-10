@@ -19,14 +19,26 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    allowAtRootLevel: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
     },
 
     create(context) {
+        const selector = context.options[0] && context.options[0].allowAtRootLevel
+            ? ":function MemberExpression[property.name=/.*Sync$/]"
+            : "MemberExpression[property.name=/.*Sync$/]";
 
         return {
-
-            "MemberExpression[property.name=/.*Sync$/]"(node) {
+            [selector](node) {
                 context.report({
                     node,
                     message: "Unexpected sync method: '{{propertyName}}'.",

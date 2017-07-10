@@ -194,7 +194,7 @@ function run(fname, content) {
             console.log(' </testcase>');
             console.log('</testsuite>');
         } else {
-            console.log('Error: ' + e.message);
+            console.log(fname + ':' + e.lineNumber + ': ' + e.message.replace(/^Line\ [0-9]*\:\ /, ''));
         }
     }
 }

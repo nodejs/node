@@ -44,10 +44,9 @@ const lodash = require("lodash"),
     assert = require("assert"),
     util = require("util"),
     validator = require("../config/config-validator"),
-    validate = require("is-my-json-valid"),
+    ajv = require("../util/ajv"),
     Linter = require("../linter"),
     Environments = require("../config/environments"),
-    metaSchema = require("../../conf/json-schema-schema.json"),
     SourceCodeFixer = require("../util/source-code-fixer");
 
 //------------------------------------------------------------------------------
@@ -72,8 +71,6 @@ const RuleTesterParameters = [
     "errors",
     "output"
 ];
-
-const validateSchema = validate(metaSchema, { verbose: true });
 
 const hasOwnProperty = Function.call.bind(Object.hasOwnProperty);
 
@@ -318,12 +315,16 @@ class RuleTester {
             const schema = validator.getRuleOptionsSchema(ruleName, linter.rules);
 
             if (schema) {
-                validateSchema(schema);
+                ajv.validateSchema(schema);
 
-                if (validateSchema.errors) {
-                    throw new Error([
-                        `Schema for rule ${ruleName} is invalid:`
-                    ].concat(validateSchema.errors.map(error => `\t${error.field}: ${error.message}`)).join("\n"));
+                if (ajv.errors) {
+                    const errors = ajv.errors.map(error => {
+                        const field = error.dataPath[0] === "." ? error.dataPath.slice(1) : error.dataPath;
+
+                        return `\t${field}: ${error.message}`;
+                    }).join("\n");
+
+                    throw new Error([`Schema for rule ${ruleName} is invalid:`, errors]);
                 }
             }
 
