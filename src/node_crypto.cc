@@ -2373,10 +2373,9 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
     if (resp == nullptr) {
       arg = Null(env->isolate());
     } else {
-      arg = Buffer::Copy(
-          env,
-          reinterpret_cast<char*>(const_cast<unsigned char*>(resp)),
-          len).ToLocalChecked();
+      arg =
+          Buffer::Copy(env, reinterpret_cast<const char*>(resp), len)
+          .ToLocalChecked();
     }
 
     w->MakeCallback(env->onocspresponse_string(), 1, &arg);
