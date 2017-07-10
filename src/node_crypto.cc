@@ -5233,7 +5233,7 @@ class PBKDF2Request : public AsyncWrap {
                 int keylen)
       : AsyncWrap(env, object, AsyncWrap::PROVIDER_PBKDF2REQUEST),
         digest_(digest),
-        error_(0),
+        success_(false),
         passlen_(passlen),
         pass_(pass),
         saltlen_(saltlen),
@@ -5265,46 +5265,6 @@ class PBKDF2Request : public AsyncWrap {
     return &work_req_;
   }
 
-  inline const EVP_MD* digest() const {
-    return digest_;
-  }
-
-  inline int passlen() const {
-    return passlen_;
-  }
-
-  inline char* pass() const {
-    return pass_;
-  }
-
-  inline int saltlen() const {
-    return saltlen_;
-  }
-
-  inline char* salt() const {
-    return salt_;
-  }
-
-  inline int keylen() const {
-    return keylen_;
-  }
-
-  inline char* key() const {
-    return key_;
-  }
-
-  inline int iter() const {
-    return iter_;
-  }
-
-  inline int error() const {
-    return error_;
-  }
-
-  inline void set_error(int err) {
-    error_ = err;
-  }
-
   size_t self_size() const override { return sizeof(*this); }
 
   static void Work(uv_work_t* work_req);
@@ -5317,7 +5277,7 @@ class PBKDF2Request : public AsyncWrap {
  private:
   uv_work_t work_req_;
   const EVP_MD* digest_;
-  int error_;
+  bool success_;
   int passlen_;
   char* pass_;
   int saltlen_;
@@ -5329,17 +5289,12 @@ class PBKDF2Request : public AsyncWrap {
 
 
 void PBKDF2Request::Work() {
-  set_error(PKCS5_PBKDF2_HMAC(
-    pass(),
-    passlen(),
-    reinterpret_cast<unsigned char*>(salt()),
-    saltlen(),
-    iter(),
-    digest(),
-    keylen(),
-    reinterpret_cast<unsigned char*>(key())));
-  OPENSSL_cleanse(pass(), passlen());
-  OPENSSL_cleanse(salt(), saltlen());
+  success_ =
+      PKCS5_PBKDF2_HMAC(
+          pass_, passlen_, reinterpret_cast<unsigned char*>(salt_), saltlen_,
+          iter_, digest_, keylen_, reinterpret_cast<unsigned char*>(key_));
+  OPENSSL_cleanse(pass_, passlen_);
+  OPENSSL_cleanse(salt_, saltlen_);
 }
 
 
@@ -5350,9 +5305,9 @@ void PBKDF2Request::Work(uv_work_t* work_req) {
 
 
 void PBKDF2Request::After(Local<Value> (*argv)[2]) {
-  if (error()) {
+  if (success_) {
     (*argv)[0] = Undefined(env()->isolate());
-    (*argv)[1] = Buffer::New(env(), key(), keylen()).ToLocalChecked();
+    (*argv)[1] = Buffer::New(env(), key_, keylen_).ToLocalChecked();
     key_ = nullptr;
     keylen_ = 0;
   } else {
