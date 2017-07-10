@@ -1,14 +1,13 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
 const async_hooks = require('async_hooks');
 const crypto = require('crypto');
 
 let nestedCall = false;
 
-const rootHook = async_hooks.createHook({
-  init: common.mustCall(function (id, type) {
+async_hooks.createHook({
+  init: common.mustCall(function(id, type) {
     nestedHook.disable();
     if (!nestedCall) {
       nestedCall = true;
