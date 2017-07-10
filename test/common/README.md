@@ -66,9 +66,9 @@ Check if there is more than 1gb of total memory.
 * `exact` [&lt;Number>] default = 1
 
 * return function suitable for use as a validation function passed as the second
-  argument to e.g. `assert.throws()`. If the returned function has not been called
-  exactly `exact` number of times when the test is complete, then the test will
-  fail.
+  argument to e.g. `assert.throws()`. If the returned function has not been
+  called exactly `exact` number of times when the test is complete, then the
+  test will fail.
 
 If `fn` is provided, it will be passed to `assert.throws` as first argument.
 
@@ -334,7 +334,6 @@ Node.js
 implementation with tests from
 [W3C Web Platform Tests](https://github.com/w3c/web-platform-tests).
 
-[internationalization]: https://github.com/nodejs/node/wiki/Intl
 [&lt;Array>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
 [&lt;ArrayBufferView&#91;&#93;>]: https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView
 [&lt;Boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
@@ -344,3 +343,4 @@ implementation with tests from
 [&lt;Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 [&lt;RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
 [&lt;String>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
+[internationalization]: https://github.com/nodejs/node/wiki/Intl
