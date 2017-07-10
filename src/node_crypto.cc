@@ -3648,7 +3648,6 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
 
   unsigned char* out_value = nullptr;
   int out_len = -1;
-  Local<Value> outString;
 
   // Check IsAuthenticatedMode() first, Final() destroys the EVP_CIPHER_CTX.
   const bool is_auth_mode = cipher->IsAuthenticatedMode();
