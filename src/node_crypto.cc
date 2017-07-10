@@ -5314,7 +5314,7 @@ class PBKDF2Request : public AsyncWrap {
   void Work();
 
   static void After(uv_work_t* work_req, int status);
-  void After(Local<Value> argv[2]);
+  void After(Local<Value> (*argv)[2]);
   void After();
 
  private:
@@ -5352,14 +5352,14 @@ void PBKDF2Request::Work(uv_work_t* work_req) {
 }
 
 
-void PBKDF2Request::After(Local<Value> argv[2]) {
+void PBKDF2Request::After(Local<Value> (*argv)[2]) {
   if (error()) {
-    argv[0] = Undefined(env()->isolate());
-    argv[1] = Encode(env()->isolate(), key(), keylen(), BUFFER);
+    (*argv)[0] = Undefined(env()->isolate());
+    (*argv)[1] = Encode(env()->isolate(), key(), keylen(), BUFFER);
     OPENSSL_cleanse(key(), keylen());
   } else {
-    argv[0] = Exception::Error(env()->pbkdf2_error_string());
-    argv[1] = Undefined(env()->isolate());
+    (*argv)[0] = Exception::Error(env()->pbkdf2_error_string());
+    (*argv)[1] = Undefined(env()->isolate());
   }
 }
 
@@ -5368,7 +5368,7 @@ void PBKDF2Request::After() {
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
   Local<Value> argv[2];
-  After(argv);
+  After(&argv);
   MakeCallback(env()->ondone_string(), arraysize(argv), argv);
 }
 
@@ -5485,7 +5485,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     env->PrintSyncTrace();
     req->Work();
     Local<Value> argv[2];
-    req->After(argv);
+    req->After(&argv);
     delete req;
 
     if (argv[0]->IsObject())
@@ -5595,21 +5595,21 @@ void RandomBytesWork(uv_work_t* work_req) {
 
 
 // don't call this function without a valid HandleScope
-void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
+void RandomBytesCheck(RandomBytesRequest* req, Local<Value> (*argv)[2]) {
   if (req->error()) {
     char errmsg[256] = "Operation not supported";
 
     if (req->error() != static_cast<unsigned long>(-1))  // NOLINT(runtime/int)
       ERR_error_string_n(req->error(), errmsg, sizeof errmsg);
 
-    argv[0] = Exception::Error(OneByteString(req->env()->isolate(), errmsg));
-    argv[1] = Null(req->env()->isolate());
+    (*argv)[0] = Exception::Error(OneByteString(req->env()->isolate(), errmsg));
+    (*argv)[1] = Null(req->env()->isolate());
     req->release();
   } else {
     char* data = nullptr;
     size_t size;
     req->return_memory(&data, &size);
-    argv[0] = Null(req->env()->isolate());
+    (*argv)[0] = Null(req->env()->isolate());
     Local<Value> buffer =
         req->object()->Get(req->env()->context(),
                            req->env()->buffer_string()).ToLocalChecked();
@@ -5618,9 +5618,9 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
       CHECK_LE(req->size(), Buffer::Length(buffer));
       char* buf = Buffer::Data(buffer);
       memcpy(buf, data, req->size());
-      argv[1] = buffer;
+      (*argv)[1] = buffer;
     } else {
-      argv[1] = Buffer::New(req->env(), data, size).ToLocalChecked();
+      (*argv)[1] = Buffer::New(req->env(), data, size).ToLocalChecked();
     }
   }
 }
@@ -5634,7 +5634,7 @@ void RandomBytesAfter(uv_work_t* work_req, int status) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Value> argv[2];
-  RandomBytesCheck(req, argv);
+  RandomBytesCheck(req, &argv);
   req->MakeCallback(env->ondone_string(), arraysize(argv), argv);
   delete req;
 }
@@ -5642,14 +5642,14 @@ void RandomBytesAfter(uv_work_t* work_req, int status) {
 
 void RandomBytesProcessSync(Environment* env,
                             RandomBytesRequest* req,
-                            Local<Value> argv[2]) {
+                            Local<Value> (*argv)[2]) {
   env->PrintSyncTrace();
   RandomBytesWork(req->work_req());
   RandomBytesCheck(req, argv);
   delete req;
 
-  if (!argv[0]->IsNull())
-    env->isolate()->ThrowException(argv[0]);
+  if (!(*argv)[0]->IsNull())
+    env->isolate()->ThrowException((*argv)[0]);
 }
 
 
@@ -5686,7 +5686,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(obj);
   } else {
     Local<Value> argv[2];
-    RandomBytesProcessSync(env, req, argv);
+    RandomBytesProcessSync(env, req, &argv);
     if (argv[0]->IsNull())
       args.GetReturnValue().Set(argv[1]);
   }
@@ -5733,7 +5733,7 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(obj);
   } else {
     Local<Value> argv[2];
-    RandomBytesProcessSync(env, req, argv);
+    RandomBytesProcessSync(env, req, &argv);
     if (argv[0]->IsNull())
       args.GetReturnValue().Set(argv[1]);
   }
