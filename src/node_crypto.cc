@@ -3561,7 +3561,7 @@ bool CipherBase::Update(const char* data,
   }
 
   *out_len = len + EVP_CIPHER_CTX_block_size(&ctx_);
-  *out = new unsigned char[*out_len];
+  *out = Malloc<unsigned char>(static_cast<size_t>(*out_len));
   return EVP_CipherUpdate(&ctx_,
                           *out,
                           out_len,
@@ -3595,7 +3595,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (!r) {
-    delete[] out;
+    free(out);
     return ThrowCryptoError(env,
                             ERR_get_error(),
                             "Trying to add data in unsupported state");
@@ -3603,9 +3603,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(out != nullptr || out_len == 0);
   Local<Object> buf =
-      Buffer::Copy(env, reinterpret_cast<char*>(out), out_len).ToLocalChecked();
-  if (out)
-    delete[] out;
+      Buffer::New(env, reinterpret_cast<char*>(out), out_len).ToLocalChecked();
 
   args.GetReturnValue().Set(buf);
 }
@@ -3633,7 +3631,8 @@ bool CipherBase::Final(unsigned char** out, int *out_len) {
   if (!initialised_)
     return false;
 
-  *out = new unsigned char[EVP_CIPHER_CTX_block_size(&ctx_)];
+  *out = Malloc<unsigned char>(
+      static_cast<size_t>(EVP_CIPHER_CTX_block_size(&ctx_)));
   int r = EVP_CipherFinal_ex(&ctx_, *out, out_len);
 
   if (r && kind_ == kCipher) {
@@ -3670,7 +3669,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
   bool r = cipher->Final(&out_value, &out_len);
 
   if (out_len <= 0 || !r) {
-    delete[] out_value;
+    free(out_value);
     out_value = nullptr;
     out_len = 0;
     if (!r) {
@@ -3684,12 +3683,11 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  Local<Object> buf = Buffer::Copy(
+  Local<Object> buf = Buffer::New(
       env,
       reinterpret_cast<char*>(out_value),
       out_len).ToLocalChecked();
   args.GetReturnValue().Set(buf);
-  delete[] out_value;
 }
 
 
@@ -4560,7 +4558,7 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
   if (EVP_PKEY_cipher(ctx, nullptr, out_len, data, len) <= 0)
     goto exit;
 
-  *out = new unsigned char[*out_len];
+  *out = Malloc<unsigned char>(*out_len);
 
   if (EVP_PKEY_cipher(ctx, *out, out_len, data, len) <= 0)
     goto exit;
@@ -4615,7 +4613,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       &out_len);
 
   if (out_len == 0 || !r) {
-    delete[] out_value;
+    free(out_value);
     out_value = nullptr;
     out_len = 0;
     if (!r) {
@@ -4624,12 +4622,10 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  Local<Object> vbuf = Buffer::Copy(
-      env,
-      reinterpret_cast<char*>(out_value),
-      out_len).ToLocalChecked();
+  Local<Object> vbuf =
+      Buffer::New(env, reinterpret_cast<char*>(out_value), out_len)
+      .ToLocalChecked();
   args.GetReturnValue().Set(vbuf);
-  delete[] out_value;
 }
 
 
