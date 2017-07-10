@@ -1744,8 +1744,8 @@ constructor and implement *both* the `readable._read()` and
 * `options` {Object} Passed to both Writable and Readable
   constructors. Also has the following fields:
   * `allowHalfOpen` {boolean} Defaults to `true`. If set to `false`, then
-    the stream will automatically end the readable side when the
-    writable side ends and vice versa.
+    the stream will automatically end the writable side when the
+    readable side ends.
   * `readableObjectMode` {boolean} Defaults to `false`. Sets `objectMode`
     for readable side of the stream. Has no effect if `objectMode`
     is `true`.
