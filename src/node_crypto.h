@@ -428,7 +428,6 @@ class CipherBase : public BaseObject {
   ~CipherBase() override {
     if (!initialised_)
       return;
-    delete[] auth_tag_;
     EVP_CIPHER_CTX_cleanup(&ctx_);
   }
 
@@ -451,8 +450,6 @@ class CipherBase : public BaseObject {
   bool SetAutoPadding(bool auto_padding);
 
   bool IsAuthenticatedMode() const;
-  bool GetAuthTag(char** out, unsigned int* out_len) const;
-  bool SetAuthTag(const char* data, unsigned int len);
   bool SetAAD(const char* data, unsigned int len);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -473,7 +470,6 @@ class CipherBase : public BaseObject {
         cipher_(nullptr),
         initialised_(false),
         kind_(kind),
-        auth_tag_(nullptr),
         auth_tag_len_(0) {
     MakeWeak<CipherBase>(this);
   }
@@ -483,8 +479,8 @@ class CipherBase : public BaseObject {
   const EVP_CIPHER* cipher_; /* coverity[member_decl] */
   bool initialised_;
   CipherKind kind_;
-  char* auth_tag_;
   unsigned int auth_tag_len_;
+  char auth_tag_[EVP_GCM_TLS_TAG_LEN];
 };
 
 class Hmac : public BaseObject {
