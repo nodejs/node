@@ -690,6 +690,8 @@ class DiffieHellman : public BaseObject {
   }
 
  private:
+  static void GetField(const v8::FunctionCallbackInfo<v8::Value>& args,
+                       BIGNUM* (DH::*field), const char* err_if_null);
   bool VerifyContext();
 
   bool initialised_;

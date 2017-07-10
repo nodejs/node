@@ -4762,99 +4762,49 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, ERR_get_error(), "Key generation failed");
   }
 
-  int dataSize = BN_num_bytes(diffieHellman->dh->pub_key);
-  char* data = new char[dataSize];
-  BN_bn2bin(diffieHellman->dh->pub_key,
-            reinterpret_cast<unsigned char*>(data));
-
-  args.GetReturnValue().Set(Encode(env->isolate(), data, dataSize, BUFFER));
-  delete[] data;
+  size_t size = BN_num_bytes(diffieHellman->dh->pub_key);
+  char* data = Malloc(size);
+  BN_bn2bin(diffieHellman->dh->pub_key, reinterpret_cast<unsigned char*>(data));
+  args.GetReturnValue().Set(Buffer::New(env, data, size).ToLocalChecked());
 }
 
 
-void DiffieHellman::GetPrime(const FunctionCallbackInfo<Value>& args) {
+void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
+                             BIGNUM* (DH::*field), const char* err_if_null) {
   Environment* env = Environment::GetCurrent(args);
 
-  DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
+  DiffieHellman* dh;
+  ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
+  if (!dh->initialised_) return env->ThrowError("Not initialized");
 
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
+  const BIGNUM* num = (dh->dh)->*field;
+  if (num == nullptr) return env->ThrowError(err_if_null);
 
-  int dataSize = BN_num_bytes(diffieHellman->dh->p);
-  char* data = new char[dataSize];
-  BN_bn2bin(diffieHellman->dh->p, reinterpret_cast<unsigned char*>(data));
+  size_t size = BN_num_bytes(num);
+  char* data = Malloc(size);
+  BN_bn2bin(num, reinterpret_cast<unsigned char*>(data));
+  args.GetReturnValue().Set(Buffer::New(env, data, size).ToLocalChecked());
+}
 
-  args.GetReturnValue().Set(Encode(env->isolate(), data, dataSize, BUFFER));
-  delete[] data;
+void DiffieHellman::GetPrime(const FunctionCallbackInfo<Value>& args) {
+  GetField(args, &DH::p, "p is null");
 }
 
 
 void DiffieHellman::GetGenerator(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
-
-  int dataSize = BN_num_bytes(diffieHellman->dh->g);
-  char* data = new char[dataSize];
-  BN_bn2bin(diffieHellman->dh->g, reinterpret_cast<unsigned char*>(data));
-
-  args.GetReturnValue().Set(Encode(env->isolate(), data, dataSize, BUFFER));
-  delete[] data;
+  GetField(args, &DH::g, "g is null");
 }
 
 
 void DiffieHellman::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
-
-  if (diffieHellman->dh->pub_key == nullptr) {
-    return env->ThrowError("No public key - did you forget to generate one?");
-  }
-
-  int dataSize = BN_num_bytes(diffieHellman->dh->pub_key);
-  char* data = new char[dataSize];
-  BN_bn2bin(diffieHellman->dh->pub_key,
-            reinterpret_cast<unsigned char*>(data));
-
-  args.GetReturnValue().Set(Encode(env->isolate(), data, dataSize, BUFFER));
-  delete[] data;
+  GetField(args, &DH::pub_key,
+           "No public key - did you forget to generate one?");
 }
 
 
 void DiffieHellman::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
-
-  if (diffieHellman->dh->priv_key == nullptr) {
-    return env->ThrowError("No private key - did you forget to generate one?");
-  }
-
-  int dataSize = BN_num_bytes(diffieHellman->dh->priv_key);
-  char* data = new char[dataSize];
-  BN_bn2bin(diffieHellman->dh->priv_key,
-            reinterpret_cast<unsigned char*>(data));
-
-  args.GetReturnValue().Set(Encode(env->isolate(), data, dataSize, BUFFER));
-  delete[] data;
+  GetField(args, &DH::priv_key,
+           "No private key - did you forget to generate one?");
 }
 
 
@@ -4882,7 +4832,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   }
 
   int dataSize = DH_size(diffieHellman->dh);
-  char* data = new char[dataSize];
+  char* data = Malloc(dataSize);
 
   int size = DH_compute_key(reinterpret_cast<unsigned char*>(data),
                             key,
@@ -4894,7 +4844,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
 
     checked = DH_check_pub_key(diffieHellman->dh, key, &checkResult);
     BN_free(key);
-    delete[] data;
+    free(data);
 
     if (!checked) {
       return ThrowCryptoError(env, ERR_get_error(), "Invalid Key");
@@ -4909,6 +4859,8 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
     } else {
       return env->ThrowError("Invalid key");
     }
+
+    UNREACHABLE();
   }
 
   BN_free(key);
@@ -4924,8 +4876,8 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
     memset(data, 0, dataSize - size);
   }
 
-  args.GetReturnValue().Set(Encode(env->isolate(), data, dataSize, BUFFER));
-  delete[] data;
+  auto rc = Buffer::New(env->isolate(), data, dataSize).ToLocalChecked();
+  args.GetReturnValue().Set(rc);
 }
 
 
