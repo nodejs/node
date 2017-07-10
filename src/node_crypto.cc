@@ -3462,42 +3462,22 @@ bool CipherBase::IsAuthenticatedMode() const {
 }
 
 
-bool CipherBase::GetAuthTag(char** out, unsigned int* out_len) const {
-  // only callable after Final and if encrypting.
-  if (initialised_ || kind_ != kCipher || !auth_tag_)
-    return false;
-  *out_len = auth_tag_len_;
-  *out = node::Malloc(auth_tag_len_);
-  memcpy(*out, auth_tag_, auth_tag_len_);
-  return true;
-}
-
-
 void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
-  char* out = nullptr;
-  unsigned int out_len = 0;
-
-  if (cipher->GetAuthTag(&out, &out_len)) {
-    Local<Object> buf = Buffer::New(env, out, out_len).ToLocalChecked();
-    args.GetReturnValue().Set(buf);
-  } else {
-    env->ThrowError("Attempting to get auth tag in unsupported state");
+  // Only callable after Final and if encrypting.
+  if (cipher->initialised_ ||
+      cipher->kind_ != kCipher ||
+      cipher->auth_tag_len_ == 0) {
+    return env->ThrowError("Attempting to get auth tag in unsupported state");
   }
-}
 
-
-bool CipherBase::SetAuthTag(const char* data, unsigned int len) {
-  if (!initialised_ || !IsAuthenticatedMode() || kind_ != kDecipher)
-    return false;
-  delete[] auth_tag_;
-  auth_tag_len_ = len;
-  auth_tag_ = new char[len];
-  memcpy(auth_tag_, data, len);
-  return true;
+  Local<Object> buf =
+      Buffer::Copy(env, cipher->auth_tag_, cipher->auth_tag_len_)
+      .ToLocalChecked();
+  args.GetReturnValue().Set(buf);
 }
 
 
@@ -3509,8 +3489,20 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
-  if (!cipher->SetAuthTag(Buffer::Data(args[0]), Buffer::Length(args[0])))
-    env->ThrowError("Attempting to set auth tag in unsupported state");
+  if (!cipher->initialised_ ||
+      !cipher->IsAuthenticatedMode() ||
+      cipher->kind_ != kDecipher) {
+    return env->ThrowError("Attempting to set auth tag in unsupported state");
+  }
+
+  // FIXME(bnoordhuis) Throw when buffer length is not a valid tag size.
+  // Note: we don't use std::max() here to work around a header conflict.
+  cipher->auth_tag_len_ = Buffer::Length(args[0]);
+  if (cipher->auth_tag_len_ > sizeof(cipher->auth_tag_))
+    cipher->auth_tag_len_ = sizeof(cipher->auth_tag_);
+
+  memset(cipher->auth_tag_, 0, sizeof(cipher->auth_tag_));
+  memcpy(cipher->auth_tag_, Buffer::Data(args[0]), cipher->auth_tag_len_);
 }
 
 
@@ -3550,13 +3542,12 @@ bool CipherBase::Update(const char* data,
     return 0;
 
   // on first update:
-  if (kind_ == kDecipher && IsAuthenticatedMode() && auth_tag_ != nullptr) {
+  if (kind_ == kDecipher && IsAuthenticatedMode() && auth_tag_len_ > 0) {
     EVP_CIPHER_CTX_ctrl(&ctx_,
                         EVP_CTRL_GCM_SET_TAG,
                         auth_tag_len_,
                         reinterpret_cast<unsigned char*>(auth_tag_));
-    delete[] auth_tag_;
-    auth_tag_ = nullptr;
+    auth_tag_len_ = 0;
   }
 
   *out_len = len + EVP_CIPHER_CTX_block_size(&ctx_);
@@ -3634,18 +3625,11 @@ bool CipherBase::Final(unsigned char** out, int *out_len) {
       static_cast<size_t>(EVP_CIPHER_CTX_block_size(&ctx_)));
   int r = EVP_CipherFinal_ex(&ctx_, *out, out_len);
 
-  if (r && kind_ == kCipher) {
-    delete[] auth_tag_;
-    auth_tag_ = nullptr;
-    if (IsAuthenticatedMode()) {
-      auth_tag_len_ = EVP_GCM_TLS_TAG_LEN;  // use default tag length
-      auth_tag_ = new char[auth_tag_len_];
-      memset(auth_tag_, 0, auth_tag_len_);
-      EVP_CIPHER_CTX_ctrl(&ctx_,
-                          EVP_CTRL_GCM_GET_TAG,
-                          auth_tag_len_,
-                          reinterpret_cast<unsigned char*>(auth_tag_));
-    }
+  if (r == 1 && kind_ == kCipher && IsAuthenticatedMode()) {
+    auth_tag_len_ = sizeof(auth_tag_);
+    r = EVP_CIPHER_CTX_ctrl(&ctx_, EVP_CTRL_GCM_GET_TAG, auth_tag_len_,
+                            reinterpret_cast<unsigned char*>(auth_tag_));
+    CHECK_EQ(r, 1);
   }
 
   EVP_CIPHER_CTX_cleanup(&ctx_);
