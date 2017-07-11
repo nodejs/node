@@ -246,8 +246,8 @@ function runClient(prefix, port, options, cb) {
         `${prefix}${options.name} rejected, but should NOT have been`);
       assert.strictEqual(
         options.shouldAuth, authed,
-        `${prefix}${options.name} authed is ${authed} but should have been ${
-        options.shouldAuth}`);
+        `${prefix}${options.name} authed is ${authed} but should have been ${options.shouldAuth}`
+      );
     }
 
     cb();
@@ -312,8 +312,6 @@ function runTest(port, testIndex) {
     }
 
     if (c.authorized) {
-      console.error(`${prefix}- authed connection: ${
-                    c.getPeerCertificate().subject.CN}`);
       c.write('\n_authed\n');
     } else {
       console.error(`${prefix}- unauthed connection: %s`, c.authorizationError);
