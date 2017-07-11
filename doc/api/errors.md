@@ -573,8 +573,8 @@ with `for...of` loops) is required, but not provided to a Node.js API.
 <a id="ERR_FALSY_VALUE_REJECTION"></a>
 ### ERR_FALSY_VALUE_REJECTION
 
-The `ERR_FALSY_VALUE_REJECTION` error code is used by the `util.callbackify()`
-API when a callbackified `Promise` is rejected with a falsy value (e.g. `null`).
+Used by the `util.callbackify()` API when a callbackified `Promise` is rejected
+with a falsy value (e.g. `null`).
 
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
