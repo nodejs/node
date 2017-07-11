@@ -75,6 +75,14 @@ var exitCode = {
   }
 }
 
+var shell = {
+  name: 'scripted',
+  version: '1.2.3',
+  scripts: {
+    'start': 'echo foo'
+  }
+}
+
 function testOutput (t, command, er, code, stdout, stderr) {
   var lines
 
@@ -306,6 +314,12 @@ test('npm run-script no-params (direct only)', function (t) {
     t.equal(stdout, expected, 'got expected output')
     t.end()
   })
+})
+
+test('npm run-script script-shell config', function (t) {
+  writeMetadata(shell)
+
+  common.npm(['run-script', 'start', '--script-shell', 'echo'], opts, testOutput.bind(null, t, '-c echo foo'))
 })
 
 test('npm run-script no-params (direct only)', function (t) {

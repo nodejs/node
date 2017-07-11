@@ -1,5 +1,3 @@
-var extend = Object.assign || require('util')._extend
-
 // short names for common things
 var shorthands = {
   'un': 'uninstall',
@@ -29,6 +27,7 @@ var affordances = {
   'apihelp': 'help',
   'find-dupes': 'dedupe',
   'upgrade': 'update',
+  'udpate': 'update',
   'login': 'adduser',
   'add-user': 'adduser',
   'author': 'owner',
@@ -41,7 +40,8 @@ var affordances = {
   'unlink': 'uninstall',
   'remove': 'uninstall',
   'rm': 'uninstall',
-  'r': 'uninstall'
+  'r': 'uninstall',
+  'rum': 'run-script'
 }
 
 // these are filenames in .
@@ -110,7 +110,7 @@ var plumbing = [
   'substack',
   'visnup'
 ]
-module.exports.aliases = extend(extend({}, shorthands), affordances)
+module.exports.aliases = Object.assign({}, shorthands, affordances)
 module.exports.shorthands = shorthands
 module.exports.affordances = affordances
 module.exports.cmdList = cmdList

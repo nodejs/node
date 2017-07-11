@@ -86,7 +86,6 @@ var shrinkwrap = {
   dependencies: {
     '@scoped/underscore': {
       resolved: tarballURL,
-      from: '>=1.3.1 <2',
       version: '1.3.1'
     }
   }

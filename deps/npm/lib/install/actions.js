@@ -64,6 +64,8 @@ Object.keys(actions).forEach(function (actionName) {
       })
     })
   }
+  actions[actionName].init = action.init || (() => BB.resolve())
+  actions[actionName].teardown = action.teardown || (() => BB.resolve())
 })
 exports.actions = actions
 
@@ -106,7 +108,10 @@ function handleOptionalDepErrors (pkg, err) {
 exports.doOne = doOne
 function doOne (cmd, staging, pkg, log, next) {
   validate('SSOOF', arguments)
-  execAction(prepareAction([cmd, pkg], staging, log)).then(() => next(), next)
+  const prepped = prepareAction([cmd, pkg], staging, log)
+  return withInit(actions[cmd], () => {
+    return execAction(prepped)
+  }).nodeify(next)
 }
 
 exports.doParallel = doParallel
@@ -120,8 +125,11 @@ function doParallel (type, staging, actionsToRun, log, next) {
   }, [])
   log.silly('doParallel', type + ' ' + actionsToRun.length)
   time(log)
-  BB.map(acts, execAction, {
-    concurrency: npm.limit.action
+  if (!acts.length) { return next() }
+  return withInit(actions[type], () => {
+    return BB.map(acts, execAction, {
+      concurrency: npm.limit.action
+    })
   }).nodeify((err) => {
     log.finish()
     timeEnd(log)
@@ -151,7 +159,10 @@ function runSerial (type, staging, actionsToRun, log, next) {
     return acc
   }, [])
   time(log)
-  BB.each(acts, execAction).nodeify((err) => {
+  if (!acts.length) { return next() }
+  return withInit(actions[type], () => {
+    return BB.each(acts, execAction)
+  }).nodeify((err) => {
     log.finish()
     timeEnd(log)
     next(err)
@@ -163,6 +174,13 @@ function time (log) {
 }
 function timeEnd (log) {
   process.emit('timeEnd', 'action:' + log.name)
+}
+
+function withInit (action, body) {
+  return BB.using(
+    action.init().disposer(() => action.teardown()),
+    body
+  )
 }
 
 function prepareAction (action, staging, log) {

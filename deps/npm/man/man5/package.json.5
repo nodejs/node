@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "June 2017" "" ""
+.TH "PACKAGE\.JSON" "5" "July 2017" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -854,12 +854,11 @@ Like the \fBos\fP option, you can also blacklist architectures:
 The host architecture is determined by \fBprocess\.arch\fP
 .SH preferGlobal
 .P
-If your package is primarily a command\-line application that should be
-installed globally, then set this value to \fBtrue\fP to provide a warning
-if it is installed locally\.
+\fBDEPRECATED\fR
 .P
-It doesn't actually prevent users from installing it locally, but it
-does help prevent some confusion if it doesn't work as expected\.
+This option used to trigger an npm warning, but it will no longer warn\. It is
+purely there for informational purposes\. It is now recommended that you install
+any binaries as local devDependencies wherever possible\.
 .SH private
 .P
 If you set \fB"private": true\fP in your package\.json, then npm will refuse

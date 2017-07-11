@@ -1,4 +1,9 @@
 
+# 0.4.18 / 2017-06-13
+
+  * Fixed CESU-8 regression in Node v8.
+
+
 # 0.4.17 / 2017-04-22
 
  * Updated typescript definition file to support Angular 2 AoT mode (#153 by @larssn)

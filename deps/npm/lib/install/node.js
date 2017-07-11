@@ -27,6 +27,9 @@ var defaultTemplate = {
 function isLink (node) {
   return node && node.isLink
 }
+function isInLink (node) {
+  return node && (node.isInLink || node.isLink)
+}
 
 var create = exports.create = function (node, template, isNotTop) {
   if (!template) template = defaultTemplate
@@ -41,16 +44,9 @@ var create = exports.create = function (node, template, isNotTop) {
   if (!isNotTop) {
     // isLink is true for the symlink and everything inside it.
     // by contrast, isInLink is true for only the things inside a link
-    if (node.isLink == null && isLink(node.parent)) {
-      node.isLink = true
-      node.isInLink = true
-    } else if (node.isLink == null) {
-      node.isLink = false
-      node.isInLink = false
-    }
-    if (node.fromBundle == null && node.package) {
-      node.fromBundle = node.package._inBundle
-    } else if (node.fromBundle == null) {
+    if (node.isLink == null) node.isLink = isLink(node.parent)
+    if (node.isInLink == null) node.isInLink = isInLink(node.parent)
+    if (node.fromBundle == null) {
       node.fromBundle = false
     }
   }
@@ -58,12 +54,12 @@ var create = exports.create = function (node, template, isNotTop) {
 }
 
 exports.reset = function (node) {
-  reset(node, {})
+  reset(node, new Set())
 }
 
 function reset (node, seen) {
-  if (seen[node.path]) return
-  seen[node.path] = true
+  if (seen.has(node)) return
+  seen.add(node)
   var child = create(node)
 
   // FIXME: cleaning up after read-package-json's mess =(
