@@ -7,8 +7,10 @@
     "node": ">=6"
   },
   "dependencies": {
+    "js-yaml": "^3.5.2",
     "marked": "^0.3.5",
-    "js-yaml": "^3.5.2"
+    "remark": "^7.0.1",
+    "remark-man": "^5.0.1"
   },
   "devDependencies": {},
   "optionalDependencies": {},

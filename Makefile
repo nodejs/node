@@ -476,12 +476,13 @@ DOCS_ANALYTICS ?=
 apidoc_sources = $(wildcard doc/api/*.md)
 apidocs_html = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.html))
 apidocs_json = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.json))
+apidocs_man = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.3))
 
 apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
-doc-only: $(apidocs_html) $(apidocs_json)
+doc-only: $(apidocs_html) $(apidocs_json) $(apidocs_man)
 doc: $(NODE_EXE) doc-only
 
 $(apidoc_dirs):
@@ -514,6 +515,18 @@ out/doc/api/%.json: doc/api/%.md
 # check if ./node is actually set, else use user pre-installed binary
 out/doc/api/%.html: doc/api/%.md
 	$(call gen-doc, $(gen-html))
+
+# check if ./node is actually set, else use user pre-installed binary
+gen-man = tools/doc/generate.js --format=man $< > $@
+out/doc/api/%.3: doc/api/%.md
+	@[ -e tools/doc/node_modules/js-yaml/package.json ] || \
+		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
+		if [ -x $(NODE) ]; then \
+			cd tools/doc && ../../$(NODE) ../../$(NPM) install; \
+		else \
+			cd tools/doc && node ../../$(NPM) install; \
+		fi
+	[ -x $(NODE) ] && $(NODE) $(gen-man) || node $(gen-man)
 
 docopen: $(apidocs_html)
 	@$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html
