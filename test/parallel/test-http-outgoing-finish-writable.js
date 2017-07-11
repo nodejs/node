@@ -3,14 +3,15 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
+// Verify that after calling end() on an `OutgoingMessage` (or a type that
+// inherits from `OutgoingMessage`), its `writable` property is set to false.
+
 const server = http.createServer(common.mustCall(function(req, res) {
-  assert(res.writable, 'Res should be writable when it is received \
-                          and opened.');
-  assert(!res.finished, 'Res shouldn\'t be finished when it is received \
-                          and opened.');
+  assert.strictEqual(res.writable, true);
+  assert.strictEqual(res.finished, false);
   res.end();
-  assert(!res.writable, 'Res shouldn\'t be writable after it was closed.');
-  assert(res.finished, 'Res should be finished after it was closed.');
+  assert.strictEqual(res.writable, false);
+  assert.strictEqual(res.finished, true);
 
   server.close();
 }));
@@ -24,9 +25,7 @@ server.on('listening', common.mustCall(function() {
     path: '/'
   });
 
-  assert(clientRequest.writable, 'ClientRequest should be writable when \
-                            it is created.');
+  assert.strictEqual(clientRequest.writable, true);
   clientRequest.end();
-  assert(!clientRequest.writable, 'ClientRequest shouldn\'t be writable \
-                            after it was closed.');
+  assert.strictEqual(clientRequest.writable, false);
 }));
