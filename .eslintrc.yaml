@@ -141,6 +141,7 @@ rules:
   }]
   no-tabs: error
   no-trailing-spaces: error
+  object-curly-spacing: [error, always]
   one-var-declaration-per-line: error
   operator-linebreak: [error, after]
   quotes: [error, single, avoid-escape]
@@ -148,9 +149,9 @@ rules:
   semi-spacing: error
   space-before-blocks: [error, always]
   space-before-function-paren: [error, {
-    "anonymous": "never",
-    "named": "never",
-    "asyncArrow": "always"
+    anonymous: never,
+    named: never,
+    asyncArrow: always
   }]
   space-in-parens: [error, never]
   space-infix-ops: error
