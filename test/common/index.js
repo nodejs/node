@@ -243,7 +243,7 @@ Object.defineProperty(exports, 'opensslCli', {get: function() {
 
 Object.defineProperty(exports, 'hasCrypto', {
   get: function() {
-    return process.versions.openssl ? true : false;
+    return Boolean(process.versions.openssl);
   }
 });
 
@@ -253,22 +253,21 @@ Object.defineProperty(exports, 'hasFipsCrypto', {
   }
 });
 
-if (exports.isWindows) {
-  exports.PIPE = '\\\\.\\pipe\\libuv-test';
-  if (process.env.TEST_THREAD_ID) {
-    exports.PIPE += `.${process.env.TEST_THREAD_ID}`;
-  }
-} else {
-  exports.PIPE = `${exports.tmpDir}/test.sock`;
+{
+  const pipePrefix = exports.isWindows ? '\\\\.\\pipe\\' : `${exports.tmpDir}/`;
+  const pipeName = `node-test.${process.pid}.sock`;
+  exports.PIPE = pipePrefix + pipeName;
 }
 
-const ifaces = os.networkInterfaces();
-const re = /lo/;
-exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
-  return re.test(name) && ifaces[name].some(function(info) {
-    return info.family === 'IPv6';
+{
+  const iFaces = os.networkInterfaces();
+  const re = /lo/;
+  exports.hasIPv6 = Object.keys(iFaces).some(function(name) {
+    return re.test(name) && iFaces[name].some(function(info) {
+      return info.family === 'IPv6';
+    });
   });
-});
+}
 
 /*
  * Check that when running a test with

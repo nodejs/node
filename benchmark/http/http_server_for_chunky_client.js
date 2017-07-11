@@ -1,24 +1,22 @@
 'use strict';
 
 var assert = require('assert');
-var path = require('path');
 var http = require('http');
 var fs = require('fs');
-var fork = require('child_process').fork;
+var { fork } = require('child_process');
 var common = require('../common.js');
-var test = require('../../test/common');
-var pep = `${path.dirname(process.argv[1])}/_chunky_http_client.js`;
-var PIPE = test.PIPE;
+const { PIPE, tmpDir } = require('../../test/common');
+process.env.PIPE_NAME = PIPE;
 
 try {
-  fs.accessSync(test.tmpDir, fs.F_OK);
+  fs.accessSync(tmpDir, fs.F_OK);
 } catch (e) {
-  fs.mkdirSync(test.tmpDir);
+  fs.mkdirSync(tmpDir);
 }
 
 var server;
 try {
-  fs.unlinkSync(PIPE);
+  fs.unlinkSync(process.env.PIPE_NAME);
 } catch (e) { /* ignore */ }
 
 server = http.createServer(function(req, res) {
@@ -33,10 +31,12 @@ server = http.createServer(function(req, res) {
 server.on('error', function(err) {
   throw new Error(`server error: ${err}`);
 });
-
 server.listen(PIPE);
 
-var child = fork(pep, process.argv.slice(2));
+const child = fork(
+  `${__dirname}/_chunky_http_client.js`,
+  process.argv.slice(2)
+);
 child.on('message', common.sendResult);
 child.on('close', function(code) {
   server.close();
