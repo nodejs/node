@@ -24,9 +24,9 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-net.createServer(common.mustNotCall()).listen({fd: 2})
+net.createServer(common.mustNotCall()).listen({ fd: 2 })
   .on('error', common.mustCall(onError));
-net.createServer(common.mustNotCall()).listen({fd: 42})
+net.createServer(common.mustNotCall()).listen({ fd: 42 })
   .on('error', common.mustCall(onError));
 
 function onError(ex) {

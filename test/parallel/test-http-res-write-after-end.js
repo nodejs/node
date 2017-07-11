@@ -37,7 +37,7 @@ const server = http.Server(common.mustCall(function(req, res) {
 }));
 
 server.listen(0, function() {
-  http.get({port: this.address().port}, function(res) {
+  http.get({ port: this.address().port }, function(res) {
     server.close();
   });
 });

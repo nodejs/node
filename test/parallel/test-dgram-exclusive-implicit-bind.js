@@ -70,15 +70,15 @@ if (cluster.isMaster) {
   });
 
   target.on('listening', function() {
-    cluster.fork({PORT: target.address().port});
-    cluster.fork({PORT: target.address().port});
+    cluster.fork({ PORT: target.address().port });
+    cluster.fork({ PORT: target.address().port });
     if (!common.isWindows) {
-      cluster.fork({BOUND: 'y', PORT: target.address().port});
-      cluster.fork({BOUND: 'y', PORT: target.address().port});
+      cluster.fork({ BOUND: 'y', PORT: target.address().port });
+      cluster.fork({ BOUND: 'y', PORT: target.address().port });
     }
   });
 
-  target.bind({port: 0, exclusive: true});
+  target.bind({ port: 0, exclusive: true });
 
   return;
 }

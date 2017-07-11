@@ -58,7 +58,7 @@ warningThrowToString.toString = function() {
 process.emitWarning(warningThrowToString);
 
 const expectedError =
-  common.expectsError({code: 'ERR_INVALID_ARG_TYPE', type: TypeError}, 11);
+  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 11);
 
 // TypeError is thrown on invalid input
 assert.throws(() => process.emitWarning(1), expectedError);

@@ -30,7 +30,7 @@ const server = net.createServer(common.mustCall(function(c) {
     });
   }), 200);
 })).listen(0, function() {
-  const c = net.connect({port: this.address().port}, function() {
+  const c = net.connect({ port: this.address().port }, function() {
     c.write(bonkers);
   });
 });

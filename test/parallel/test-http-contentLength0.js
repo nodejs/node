@@ -29,7 +29,7 @@ const http = require('http');
 
 
 const s = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Length': '0 '});
+  res.writeHead(200, { 'Content-Length': '0 ' });
   res.end();
 });
 s.listen(0, function() {

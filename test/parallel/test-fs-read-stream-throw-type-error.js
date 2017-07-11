@@ -16,7 +16,7 @@ assert.doesNotThrow(function() {
   fs.createReadStream(example, 'utf8');
 });
 assert.doesNotThrow(function() {
-  fs.createReadStream(example, {encoding: 'utf8'});
+  fs.createReadStream(example, { encoding: 'utf8' });
 });
 
 const errMessage = /"options" must be a string or an object/;

@@ -103,14 +103,14 @@ function testBreakpointOnStart(session) {
     { 'method': 'Runtime.enable' },
     { 'method': 'Debugger.enable' },
     { 'method': 'Debugger.setPauseOnExceptions',
-      'params': {'state': 'none'} },
+      'params': { 'state': 'none' } },
     { 'method': 'Debugger.setAsyncCallStackDepth',
-      'params': {'maxDepth': 0} },
+      'params': { 'maxDepth': 0 } },
     { 'method': 'Profiler.enable' },
     { 'method': 'Profiler.setSamplingInterval',
-      'params': {'interval': 100} },
+      'params': { 'interval': 100 } },
     { 'method': 'Debugger.setBlackboxPatterns',
-      'params': {'patterns': []} },
+      'params': { 'patterns': [] } },
     { 'method': 'Runtime.runIfWaitingForDebugger' }
   ];
 
@@ -129,7 +129,7 @@ function testSetBreakpointAndResume(session) {
                     'condition': ''
         }
       },
-      { 'method': 'Debugger.resume'},
+      { 'method': 'Debugger.resume' },
       [ { 'method': 'Debugger.getScriptSource',
           'params': { 'scriptId': session.mainScriptId } },
         expectMainScriptSource ],
@@ -155,7 +155,7 @@ function testInspectScope(session) {
           'accessorPropertiesOnly': false,
           'generatePreview': true
         }
-      }, setupExpectScopeValues({t: 1001, k: 1})
+      }, setupExpectScopeValues({ t: 1001, k: 1 })
     ],
     [
       {
@@ -211,7 +211,7 @@ function testI18NCharacters(session) {
 
 function testWaitsForFrontendDisconnect(session, harness) {
   console.log('[test]', 'Verify node waits for the frontend to disconnect');
-  session.sendInspectorCommands({ 'method': 'Debugger.resume'})
+  session.sendInspectorCommands({ 'method': 'Debugger.resume' })
     .expectMessages(setupExpectContextDestroyed(1))
     .expectStderrOutput('Waiting for the debugger to disconnect...')
     .disconnect(true);

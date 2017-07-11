@@ -220,7 +220,7 @@ Object.defineProperty(exports, 'localhostIPv4', {
 });
 
 // opensslCli defined lazily to reduce overhead of spawnSync
-Object.defineProperty(exports, 'opensslCli', {get: function() {
+Object.defineProperty(exports, 'opensslCli', { get: function() {
   if (opensslCli !== null) return opensslCli;
 
   if (process.config.variables.node_shared_openssl) {
@@ -239,7 +239,7 @@ Object.defineProperty(exports, 'opensslCli', {get: function() {
     opensslCli = false;
   }
   return opensslCli;
-}, enumerable: true});
+}, enumerable: true });
 
 Object.defineProperty(exports, 'hasCrypto', {
   get: function() {

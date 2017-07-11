@@ -10,5 +10,5 @@ assert.throws(() => {
 }, /^Error: Unhandled "error" event\. \(Accepts a string\)$/);
 
 assert.throws(() => {
-  EE.emit('error', {message: 'Error!'});
+  EE.emit('error', { message: 'Error!' });
 }, /^Error: Unhandled "error" event\. \(\[object Object\]\)$/);

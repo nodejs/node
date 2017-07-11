@@ -42,7 +42,7 @@ assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
 {
   // Test the cwd option
   const cwd = common.rootDir;
-  const response = common.spawnSyncPwd({cwd});
+  const response = common.spawnSyncPwd({ cwd });
 
   assert.strictEqual(response.stdout.toString().trim(), cwd);
 }
@@ -50,8 +50,8 @@ assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
 {
   // Test the encoding option
   const noEncoding = common.spawnSyncPwd();
-  const bufferEncoding = common.spawnSyncPwd({encoding: 'buffer'});
-  const utf8Encoding = common.spawnSyncPwd({encoding: 'utf8'});
+  const bufferEncoding = common.spawnSyncPwd({ encoding: 'buffer' });
+  const utf8Encoding = common.spawnSyncPwd({ encoding: 'utf8' });
 
   assert.deepStrictEqual(noEncoding.output, bufferEncoding.output);
   assert.deepStrictEqual([

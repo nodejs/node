@@ -20,7 +20,7 @@ if (process.argv[2] === 'child') {
     }
     const child = cp.spawnSync(process.execPath,
                                [__filename, 'child'],
-                               {killSignal, timeout: 100});
+                               { killSignal, timeout: 100 });
     if (beforeSpawn)
       internalCp.spawnSync = oldSpawnSync;
     assert.strictEqual(child.status, null);

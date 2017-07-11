@@ -23,7 +23,7 @@ if (process.argv[2] === 'child') {
     // server.connections should start as 0
     assert.strictEqual(server.connections, 0);
     server.on('connection', (socket) => {
-      child.send({what: 'socket'}, socket);
+      child.send({ what: 'socket' }, socket);
     });
     server.on('close', () => {
       child.kill();

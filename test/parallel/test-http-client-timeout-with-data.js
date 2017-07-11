@@ -34,7 +34,7 @@ const options = {
 };
 
 const server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Length': '2'});
+  res.writeHead(200, { 'Content-Length': '2' });
   res.write('*');
   server.once('timeout', common.mustCall(function() { res.end('*'); }));
 });

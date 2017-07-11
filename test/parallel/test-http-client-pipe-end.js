@@ -39,7 +39,7 @@ common.refreshTmpDir();
 server.listen(common.PIPE, function() {
   const req = http.request({
     socketPath: common.PIPE,
-    headers: {'Content-Length': '1'},
+    headers: { 'Content-Length': '1' },
     method: 'POST',
     path: '/'
   });

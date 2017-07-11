@@ -33,7 +33,7 @@ let testIdx = 0;
 
 const s = http.createServer(function(req, res) {
   const t = tests[testIdx];
-  res.writeHead(t, {'Content-Type': 'text/plain'});
+  res.writeHead(t, { 'Content-Type': 'text/plain' });
   console.log(`--\nserver: statusCode after writeHead: ${res.statusCode}`);
   assert.strictEqual(res.statusCode, t);
   res.end('hello world\n');

@@ -20,7 +20,7 @@ if (process.argv[2] === 'child') {
   });
 } else {
   assert.throws(() => {
-    cp.fork(__filename, {stdio: ['pipe', 'pipe', 'pipe', 'pipe']});
+    cp.fork(__filename, { stdio: ['pipe', 'pipe', 'pipe', 'pipe'] });
   }, /Forked processes must have an IPC channel/);
 
   let ipc = '';

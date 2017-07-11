@@ -18,7 +18,7 @@ const testsubdir = fs.mkdtempSync(testDir + path.sep);
 const relativePathOne = path.join(path.basename(testsubdir), filenameOne);
 const filepathOne = path.join(testsubdir, filenameOne);
 
-const watcher = fs.watch(testDir, {recursive: true});
+const watcher = fs.watch(testDir, { recursive: true });
 
 let watcherClosed = false;
 watcher.on('change', function(event, filename) {

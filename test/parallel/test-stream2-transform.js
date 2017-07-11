@@ -77,7 +77,7 @@ const Transform = require('_stream_transform');
   pt.write(0);
   pt.write('foo');
   pt.write('');
-  pt.write({ a: 'b'});
+  pt.write({ a: 'b' });
   pt.end();
 
   assert.strictEqual(pt.read(), 1);
@@ -86,7 +86,7 @@ const Transform = require('_stream_transform');
   assert.strictEqual(pt.read(), 0);
   assert.strictEqual(pt.read(), 'foo');
   assert.strictEqual(pt.read(), '');
-  assert.deepStrictEqual(pt.read(), { a: 'b'});
+  assert.deepStrictEqual(pt.read(), { a: 'b' });
 }
 
 {
@@ -131,7 +131,7 @@ const Transform = require('_stream_transform');
   pt.write(0);
   pt.write('foo');
   pt.write('');
-  pt.write({ a: 'b'});
+  pt.write({ a: 'b' });
   pt.end();
 
   assert.strictEqual(pt.read(), '1');
@@ -258,7 +258,7 @@ const Transform = require('_stream_transform');
   // Verify compex transform behavior
   let count = 0;
   let saved = null;
-  const pt = new Transform({highWaterMark: 3});
+  const pt = new Transform({ highWaterMark: 3 });
   pt._transform = function(c, e, cb) {
     if (count++ === 1)
       saved = c;

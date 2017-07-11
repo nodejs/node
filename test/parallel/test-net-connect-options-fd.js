@@ -69,7 +69,7 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
     console.error(err);
     assert.fail(null, null, `[Pipe server]${err}`);
   })
-  .listen({path: serverPath}, common.mustCall(function serverOnListen() {
+  .listen({ path: serverPath }, common.mustCall(function serverOnListen() {
     const getSocketOpt = (index) => {
       const handle = new Pipe();
       const err = handle.bind(`${prefix}-client-${socketCounter++}`);

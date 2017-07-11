@@ -13,7 +13,7 @@ requiresArgument('--debug-port=');
 requiresArgument('--eval');
 
 function requiresArgument(option) {
-  const r = spawn(process.execPath, [option], {encoding: 'utf8'});
+  const r = spawn(process.execPath, [option], { encoding: 'utf8' });
 
   assert.strictEqual(r.status, 9);
 

@@ -42,7 +42,7 @@ const options = {
 const server = https.createServer(options, common.mustCall((req, res) => {
   assert.strictEqual('GET', req.method);
   assert.strictEqual('/foo?bar', req.url);
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.write('hello\n');
   res.end();
 }, 3));

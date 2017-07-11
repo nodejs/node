@@ -92,12 +92,12 @@ assert.strictEqual(newObject.test_string, 'test string');
     z: 10
   };
 
-  assert.deepStrictEqual(test_object.Inflate(cube), {x: 11, y: 11, z: 11});
-  assert.deepStrictEqual(test_object.Inflate(cube), {x: 12, y: 12, z: 12});
-  assert.deepStrictEqual(test_object.Inflate(cube), {x: 13, y: 13, z: 13});
+  assert.deepStrictEqual(test_object.Inflate(cube), { x: 11, y: 11, z: 11 });
+  assert.deepStrictEqual(test_object.Inflate(cube), { x: 12, y: 12, z: 12 });
+  assert.deepStrictEqual(test_object.Inflate(cube), { x: 13, y: 13, z: 13 });
   cube.t = 13;
   assert.deepStrictEqual(
-    test_object.Inflate(cube), {x: 14, y: 14, z: 14, t: 14});
+    test_object.Inflate(cube), { x: 14, y: 14, z: 14, t: 14 });
 
   const sym1 = Symbol('1');
   const sym2 = Symbol('2');

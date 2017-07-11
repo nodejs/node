@@ -37,7 +37,7 @@ if (process.argv[2] === 'child') {
   });
 
 } else {
-  const child = fork(__filename, ['child'], {silent: true});
+  const child = fork(__filename, ['child'], { silent: true });
 
   const ipc = [];
   let stdout = '';

@@ -14,7 +14,7 @@ if (cluster.isMaster) {
     assert.ifError(error);
     assert(worker);
 
-    worker.send({port: server.address().port});
+    worker.send({ port: server.address().port });
   }));
 
   worker = cluster.fork();

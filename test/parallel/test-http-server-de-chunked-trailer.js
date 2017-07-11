@@ -14,7 +14,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
     message: 'Trailers are invalid with this transfer encoding',
     type: Error
   };
-  assert.throws(() => res.writeHead(200, {'Content-Length': '2'}),
+  assert.throws(() => res.writeHead(200, { 'Content-Length': '2' }),
                 common.expectsError(trailerInvalidErr));
   res.removeHeader('Trailer');
   res.end('ok');

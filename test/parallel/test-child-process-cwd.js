@@ -57,26 +57,27 @@ function testCwd(options, forCode, forData) {
 }
 
 // Assume these exist, and 'pwd' gives us the right directory back
-testCwd({cwd: common.rootDir}, 0, common.rootDir);
+testCwd({ cwd: common.rootDir }, 0, common.rootDir);
 if (common.isWindows) {
-  testCwd({cwd: process.env.windir}, 0, process.env.windir);
+  testCwd({ cwd: process.env.windir }, 0, process.env.windir);
 } else {
-  testCwd({cwd: '/dev'}, 0, '/dev');
+  testCwd({ cwd: '/dev' }, 0, '/dev');
 }
 
 // Assume does-not-exist doesn't exist, expect exitCode=-1 and errno=ENOENT
 {
-  testCwd({cwd: 'does-not-exist'}, -1).on('error', common.mustCall(function(e) {
-    assert.strictEqual(e.code, 'ENOENT');
-  }));
+  testCwd({ cwd: 'does-not-exist' }, -1)
+    .on('error', common.mustCall(function(e) {
+      assert.strictEqual(e.code, 'ENOENT');
+    }));
 }
 
 // Spawn() shouldn't try to chdir() so this should just work
 testCwd(undefined, 0);
 testCwd({}, 0);
-testCwd({cwd: ''}, 0);
-testCwd({cwd: undefined}, 0);
-testCwd({cwd: null}, 0);
+testCwd({ cwd: '' }, 0);
+testCwd({ cwd: undefined }, 0);
+testCwd({ cwd: null }, 0);
 
 // Check whether all tests actually returned
 assert.notStrictEqual(returns, 0);

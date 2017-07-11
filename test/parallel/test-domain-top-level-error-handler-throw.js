@@ -29,7 +29,7 @@ if (process.argv[2] === 'child') {
   const fork = require('child_process').fork;
   const assert = require('assert');
 
-  const child = fork(process.argv[1], ['child'], {silent: true});
+  const child = fork(process.argv[1], ['child'], { silent: true });
   let stderrOutput = '';
   if (child) {
     child.stderr.on('data', function onStderrData(data) {

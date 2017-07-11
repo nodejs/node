@@ -14,8 +14,8 @@ const errHost =
   /^TypeError: "options\.host" must either be a string, undefined or null$/;
 
 vals.forEach((v) => {
-  assert.throws(() => http.request({hostname: v}), errHostname);
-  assert.throws(() => http.request({host: v}), errHost);
+  assert.throws(() => http.request({ hostname: v }), errHostname);
+  assert.throws(() => http.request({ host: v }), errHost);
 });
 
 // These values are OK and should not throw synchronously.
@@ -23,7 +23,7 @@ vals.forEach((v) => {
 const dontCare = () => {};
 ['', undefined, null].forEach((v) => {
   assert.doesNotThrow(() => {
-    http.request({hostname: v}).on('error', dontCare).end();
-    http.request({host: v}).on('error', dontCare).end();
+    http.request({ hostname: v }).on('error', dontCare).end();
+    http.request({ host: v }).on('error', dontCare).end();
   });
 });

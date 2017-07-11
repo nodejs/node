@@ -2,7 +2,7 @@
 var common = require('../common.js');
 var events = require('events');
 
-var bench = common.createBenchmark(main, {n: [25e4]});
+var bench = common.createBenchmark(main, { n: [25e4] });
 
 function main(conf) {
   var n = conf.n | 0;

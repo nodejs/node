@@ -30,9 +30,9 @@ const cookies = [
   'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT'
 ];
 
-const headers = {'content-type': 'text/plain',
-                 'set-cookie': cookies,
-                 'hello': 'world' };
+const headers = { 'content-type': 'text/plain',
+                  'set-cookie': cookies,
+                  'hello': 'world' };
 
 const backend = http.createServer(function(req, res) {
   console.error('backend request');

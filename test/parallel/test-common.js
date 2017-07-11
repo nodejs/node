@@ -22,8 +22,8 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const {join} = require('path');
-const {execFile} = require('child_process');
+const { join } = require('path');
+const { execFile } = require('child_process');
 
 // test for leaked global detection
 global.gc = 42;  // Not a valid global unless --expose_gc is set.

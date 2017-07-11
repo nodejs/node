@@ -33,7 +33,7 @@ module.exports = {
           context.report({
             node: firstStatement,
             message: 'Use assert.ifError({{argument}}) instead.',
-            data: {argument: sourceCode.getText(node.test)}
+            data: { argument: sourceCode.getText(node.test) }
           });
         }
       }

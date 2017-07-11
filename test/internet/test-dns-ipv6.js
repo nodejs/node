@@ -154,7 +154,7 @@ TEST(function test_lookup_ip_ipv6(done) {
 TEST(function test_lookup_all_ipv6(done) {
   const req = dns.lookup(
     'www.google.com',
-    {all: true, family: 6},
+    { all: true, family: 6 },
     common.mustCall((err, ips) => {
       assert.ifError(err);
       assert.ok(Array.isArray(ips));

@@ -22,12 +22,12 @@ server.listen(0, common.mustCall(() => {
     maxSockets: 1
   });
 
-  http.get({agent, port}, (res) => res.resume());
+  http.get({ agent, port }, (res) => res.resume());
 
-  const req = http.get({agent, port}, common.mustNotCall());
+  const req = http.get({ agent, port }, common.mustNotCall());
   req.abort();
 
-  http.get({agent, port}, common.mustCall((res) => {
+  http.get({ agent, port }, common.mustCall((res) => {
     res.resume();
     assert.strictEqual(socketsCreated, 1);
     agent.destroy();

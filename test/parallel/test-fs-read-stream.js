@@ -86,7 +86,7 @@ const rangeFile = path.join(common.fixturesDir, 'x.txt');
 }
 
 {
-  const file = fs.createReadStream(fn, {encoding: 'utf8'});
+  const file = fs.createReadStream(fn, { encoding: 'utf8' });
   file.length = 0;
   file.on('data', function(data) {
     assert.strictEqual('string', typeof data);
@@ -107,7 +107,7 @@ const rangeFile = path.join(common.fixturesDir, 'x.txt');
 
 {
   const file =
-    fs.createReadStream(rangeFile, {bufferSize: 1, start: 1, end: 2});
+    fs.createReadStream(rangeFile, { bufferSize: 1, start: 1, end: 2 });
   let contentRead = '';
   file.on('data', function(data) {
     contentRead += data.toString('utf-8');
@@ -118,7 +118,7 @@ const rangeFile = path.join(common.fixturesDir, 'x.txt');
 }
 
 {
-  const file = fs.createReadStream(rangeFile, {bufferSize: 1, start: 1});
+  const file = fs.createReadStream(rangeFile, { bufferSize: 1, start: 1 });
   file.data = '';
   file.on('data', function(data) {
     file.data += data.toString('utf-8');
@@ -130,7 +130,7 @@ const rangeFile = path.join(common.fixturesDir, 'x.txt');
 
 {
   // Ref: https://github.com/nodejs/node-v0.x-archive/issues/2320
-  const file = fs.createReadStream(rangeFile, {bufferSize: 1.23, start: 1});
+  const file = fs.createReadStream(rangeFile, { bufferSize: 1.23, start: 1 });
   file.data = '';
   file.on('data', function(data) {
     file.data += data.toString('utf-8');
@@ -141,7 +141,7 @@ const rangeFile = path.join(common.fixturesDir, 'x.txt');
 }
 
 assert.throws(function() {
-  fs.createReadStream(rangeFile, {start: 10, end: 2});
+  fs.createReadStream(rangeFile, { start: 10, end: 2 });
 }, /"start" option must be <= "end" option/);
 
 {
@@ -165,7 +165,7 @@ assert.throws(function() {
 }
 
 {
-  let file = fs.createReadStream(rangeFile, {autoClose: false });
+  let file = fs.createReadStream(rangeFile, { autoClose: false });
   let data = '';
   file.on('data', function(chunk) { data += chunk; });
   file.on('end', common.mustCall(function() {
@@ -179,7 +179,7 @@ assert.throws(function() {
 
   function fileNext() {
     // This will tell us if the fd is usable again or not.
-    file = fs.createReadStream(null, {fd: file.fd, start: 0 });
+    file = fs.createReadStream(null, { fd: file.fd, start: 0 });
     file.data = '';
     file.on('data', function(data) {
       file.data += data;
@@ -196,7 +196,7 @@ assert.throws(function() {
 
 {
   // Just to make sure autoClose won't close the stream because of error.
-  const file = fs.createReadStream(null, {fd: 13337, autoClose: false });
+  const file = fs.createReadStream(null, { fd: 13337, autoClose: false });
   file.on('data', common.mustNotCall());
   file.on('error', common.mustCall());
   process.on('exit', function() {

@@ -59,7 +59,7 @@ function setupDebugger(session) {
     { 'method': 'Runtime.enable' },
     { 'method': 'Debugger.enable' },
     { 'method': 'Debugger.setAsyncCallStackDepth',
-      'params': {'maxDepth': 0} },
+      'params': { 'maxDepth': 0 } },
     { 'method': 'Runtime.runIfWaitingForDebugger' },
   ];
 
@@ -106,7 +106,7 @@ function stepOverConsoleStatement(session) {
 
 function testWaitsForFrontendDisconnect(session, harness) {
   console.log('[test]', 'Verify node waits for the frontend to disconnect');
-  session.sendInspectorCommands({ 'method': 'Debugger.resume'})
+  session.sendInspectorCommands({ 'method': 'Debugger.resume' })
     .expectMessages(setupExpectContextDestroyed(1))
     .expectStderrOutput('Waiting for the debugger to disconnect...')
     .disconnect(true);

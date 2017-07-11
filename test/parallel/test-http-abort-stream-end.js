@@ -31,7 +31,7 @@ let size = 0;
 const s = http.createServer(function(req, res) {
   this.close();
 
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   for (let i = 0; i < maxSize; i++) {
     res.write('x' + i);
   }

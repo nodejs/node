@@ -32,7 +32,7 @@ assert.throws(() => {
 
 assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage.setHeader.call({_header: 'test'}, 'test', 'value');
+  outgoingMessage.setHeader.call({ _header: 'test' }, 'test', 'value');
 }, /^Error: Can't set headers after they are sent\.$/);
 
 assert.throws(() => {
@@ -46,16 +46,16 @@ assert.throws(() => {
   outgoingMessage.write();
 }, /^Error: _implicitHeader\(\) method is not implemented$/);
 
-assert(OutgoingMessage.prototype.write.call({_header: 'test'}));
+assert(OutgoingMessage.prototype.write.call({ _header: 'test' }));
 
 assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage.write.call({_header: 'test', _hasBody: 'test'});
+  outgoingMessage.write.call({ _header: 'test', _hasBody: 'test' });
 }, /^TypeError: First argument must be a string or Buffer$/);
 
 assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage.write.call({_header: 'test', _hasBody: 'test'}, 1);
+  outgoingMessage.write.call({ _header: 'test', _hasBody: 'test' }, 1);
 }, /^TypeError: First argument must be a string or Buffer$/);
 
 // addTrailers
@@ -66,10 +66,10 @@ assert.throws(() => {
 
 assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage.addTrailers({'あ': 'value'});
+  outgoingMessage.addTrailers({ 'あ': 'value' });
 }, /^TypeError: Trailer name must be a valid HTTP Token \["あ"\]$/);
 
 assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage.addTrailers({404: 'あ'});
+  outgoingMessage.addTrailers({ 404: 'あ' });
 }, /^TypeError: The trailer content contains invalid characters$/);

@@ -68,7 +68,7 @@ childProcess.exec(
 const stdinProc = childProcess.spawn(
   nodeBinary,
   ['--require', fixtureA],
-  {stdio: 'pipe'}
+  { stdio: 'pipe' }
 );
 stdinProc.stdin.end("console.log('hello');");
 let stdinStdout = '';
@@ -84,7 +84,7 @@ stdinProc.on('close', function(code) {
 const replProc = childProcess.spawn(
   nodeBinary,
   ['-i', '--require', fixtureA],
-  {stdio: 'pipe'}
+  { stdio: 'pipe' }
 );
 replProc.stdin.end('.exit\n');
 let replStdout = '';

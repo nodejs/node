@@ -40,14 +40,14 @@ const CLIENT_VARIANTS = 12;
     new net.Socket().connect(serverPath, getConnectCb());
     new net.Socket().connect(serverPath)
       .on('connect', getConnectCb());
-    net.connect({path: serverPath}, getConnectCb());
-    net.connect({path: serverPath})
+    net.connect({ path: serverPath }, getConnectCb());
+    net.connect({ path: serverPath })
       .on('connect', getConnectCb());
-    net.createConnection({path: serverPath}, getConnectCb());
-    net.createConnection({path: serverPath})
+    net.createConnection({ path: serverPath }, getConnectCb());
+    net.createConnection({ path: serverPath })
       .on('connect', getConnectCb());
-    new net.Socket().connect({path: serverPath}, getConnectCb());
-    new net.Socket().connect({path: serverPath})
+    new net.Socket().connect({ path: serverPath }, getConnectCb());
+    new net.Socket().connect({ path: serverPath })
       .on('connect', getConnectCb());
   }));
 }

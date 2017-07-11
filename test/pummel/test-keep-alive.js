@@ -58,7 +58,7 @@ function runAb(opts, callback) {
   }
 
   args.push(url.format({ hostname: '127.0.0.1',
-                         port: common.PORT, protocol: 'http'}));
+                         port: common.PORT, protocol: 'http' }));
 
   const child = spawn('wrk', args);
   child.stderr.pipe(process.stderr);

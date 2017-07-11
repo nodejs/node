@@ -16,8 +16,8 @@ const server = http.createServer(function(serverReq, serverRes) {
 
   // normally the use case would be to call an external site
   // does not require connecting locally or to itself to fail
-  const r = http.request({hostname: 'localhost',
-                          port: this.address().port}, function(res) {
+  const r = http.request({ hostname: 'localhost',
+                           port: this.address().port }, function(res) {
     // required, just needs to be in the client response somewhere
     serverRes.end();
 

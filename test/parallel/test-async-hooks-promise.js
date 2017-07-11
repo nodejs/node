@@ -8,7 +8,7 @@ const initCalls = [];
 async_hooks.createHook({
   init: common.mustCall((id, type, triggerId, resource) => {
     assert.strictEqual(type, 'PROMISE');
-    initCalls.push({id, triggerId, resource});
+    initCalls.push({ id, triggerId, resource });
   }, 2)
 }).enable();
 

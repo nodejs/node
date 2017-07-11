@@ -17,7 +17,7 @@ const bench = common.createBenchmark(main, {
 const inputs = {
   'string': ['Hello, my name is %s', 'fred'],
   'number': ['Hi, I was born in %d', 1942],
-  'object': ['An error occurred %j', {msg: 'This is an error', code: 'ERR'}],
+  'object': ['An error occurred %j', { msg: 'This is an error', code: 'ERR' }],
   'unknown': ['hello %a', 'test'],
   'no-replace': [1, 2]
 };

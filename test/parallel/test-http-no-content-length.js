@@ -29,7 +29,7 @@ const server = net.createServer(function(socket) {
   // Neither Content-Length nor Connection
   socket.end('HTTP/1.1 200 ok\r\n\r\nHello');
 }).listen(0, common.mustCall(function() {
-  http.get({port: this.address().port}, common.mustCall(function(res) {
+  http.get({ port: this.address().port }, common.mustCall(function(res) {
     let body = '';
 
     res.setEncoding('utf8');

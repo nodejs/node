@@ -33,7 +33,7 @@ let result = script.runInContext(context);
 assert.strictEqual('passed', result);
 
 console.error('create a new pre-populated context');
-context = vm.createContext({'foo': 'bar', 'thing': 'lala'});
+context = vm.createContext({ 'foo': 'bar', 'thing': 'lala' });
 assert.strictEqual('bar', context.foo);
 assert.strictEqual('lala', context.thing);
 

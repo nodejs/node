@@ -35,7 +35,7 @@ const path = require('path');
   const cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
   const key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
 
-  const options = {cert: cert, key: key, port: common.PORT};
+  const options = { cert: cert, key: key, port: common.PORT };
   const conn = tls.connect(options, common.mustNotCall());
 
   conn.on('error', common.mustCall());

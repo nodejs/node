@@ -50,7 +50,7 @@ const server = net.createServer(function(socket) {
   ++requests;
 }).listen(0, function() {
   function makeRequest() {
-    const req = http.get({port: server.address().port}, function(res) {
+    const req = http.get({ port: server.address().port }, function(res) {
       assert.strictEqual(
         req.shouldKeepAlive, SHOULD_KEEP_ALIVE[responses],
         `${SERVER_RESPONSES[responses]} should ${

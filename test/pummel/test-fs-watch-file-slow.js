@@ -36,7 +36,7 @@ try {
   // swallow
 }
 
-fs.watchFile(FILENAME, {interval: TIMEOUT - 250}, function(curr, prev) {
+fs.watchFile(FILENAME, { interval: TIMEOUT - 250 }, function(curr, prev) {
   console.log([curr, prev]);
   switch (++nevents) {
     case 1:

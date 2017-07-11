@@ -12,7 +12,7 @@ const vm = require('vm');
 
 function main(conf) {
   const n = +conf.n;
-  const options = conf.breakOnSigint ? {breakOnSigint: true} : {};
+  const options = conf.breakOnSigint ? { breakOnSigint: true } : {};
   const withSigintListener = !!conf.withSigintListener;
 
   process.removeAllListeners('SIGINT');

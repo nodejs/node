@@ -27,7 +27,7 @@ server.listen(0, common.mustCall(() => {
   https.get({
     host: server.address().host,
     port: server.address().port,
-    headers: {host: 'agent1'},
+    headers: { host: 'agent1' },
     rejectUnauthorized: true,
     ca: options.ca,
     agent: agent

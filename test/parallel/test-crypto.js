@@ -41,7 +41,7 @@ const keyPem = fs.readFileSync(`${common.fixturesDir}/test_key.pem`, 'ascii');
 // 'this' safety
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {
-  const options = {key: keyPem, cert: certPem, ca: caPem};
+  const options = { key: keyPem, cert: certPem, ca: caPem };
   const credentials = tls.createSecureContext(options);
   const context = credentials.context;
   const notcontext = { setOptions: context.setOptions, setKey: context.setKey };
@@ -50,25 +50,25 @@ assert.throws(function() {
 
 // PFX tests
 assert.doesNotThrow(function() {
-  tls.createSecureContext({pfx: certPfx, passphrase: 'sample'});
+  tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
 });
 
 assert.throws(function() {
-  tls.createSecureContext({pfx: certPfx});
+  tls.createSecureContext({ pfx: certPfx });
 }, /^Error: mac verify failure$/);
 
 assert.throws(function() {
-  tls.createSecureContext({pfx: certPfx, passphrase: 'test'});
+  tls.createSecureContext({ pfx: certPfx, passphrase: 'test' });
 }, /^Error: mac verify failure$/);
 
 assert.throws(function() {
-  tls.createSecureContext({pfx: 'sample', passphrase: 'test'});
+  tls.createSecureContext({ pfx: 'sample', passphrase: 'test' });
 }, /^Error: not enough data$/);
 
 
 // update() should only take buffers / strings
 assert.throws(function() {
-  crypto.createHash('sha1').update({foo: 'bar'});
+  crypto.createHash('sha1').update({ foo: 'bar' });
 }, /^TypeError: Data must be a string or a buffer$/);
 
 

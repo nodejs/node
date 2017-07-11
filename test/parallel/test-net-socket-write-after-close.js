@@ -8,7 +8,7 @@ const net = require('net');
 
   server.listen(common.mustCall(() => {
     const port = server.address().port;
-    const client = net.connect({port}, common.mustCall(() => {
+    const client = net.connect({ port }, common.mustCall(() => {
       client.on('error', common.mustCall((err) => {
         server.close();
         assert.strictEqual(err.constructor, Error);
@@ -25,7 +25,7 @@ const net = require('net');
 
   server.listen(common.mustCall(() => {
     const port = server.address().port;
-    const client = net.connect({port}, common.mustCall(() => {
+    const client = net.connect({ port }, common.mustCall(() => {
       client.on('error', common.mustCall((err) => {
         server.close();
         assert.strictEqual(err.constructor, Error);

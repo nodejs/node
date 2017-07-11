@@ -101,11 +101,11 @@ function checkDomains() {
     const d2 = domain.create();
     const d3 = domain.create();
 
-    makeCallback({domain: d1}, common.mustCall(function() {
+    makeCallback({ domain: d1 }, common.mustCall(function() {
       assert.strictEqual(d1, process.domain);
-      makeCallback({domain: d2}, common.mustCall(function() {
+      makeCallback({ domain: d2 }, common.mustCall(function() {
         assert.strictEqual(d2, process.domain);
-        makeCallback({domain: d3}, common.mustCall(function() {
+        makeCallback({ domain: d3 }, common.mustCall(function() {
           assert.strictEqual(d3, process.domain);
         }));
         assert.strictEqual(d2, process.domain);
@@ -119,11 +119,11 @@ function checkDomains() {
     const d2 = domain.create();
     const d3 = domain.create();
 
-    makeCallback({domain: d1}, common.mustCall(function() {
+    makeCallback({ domain: d1 }, common.mustCall(function() {
       assert.strictEqual(d1, process.domain);
-      makeCallback({domain: d2}, common.mustCall(function() {
+      makeCallback({ domain: d2 }, common.mustCall(function() {
         assert.strictEqual(d2, process.domain);
-        makeCallback({domain: d3}, common.mustCall(function() {
+        makeCallback({ domain: d3 }, common.mustCall(function() {
           assert.strictEqual(d3, process.domain);
         }));
         assert.strictEqual(d2, process.domain);
@@ -139,7 +139,7 @@ function checkDomains() {
     d.on('error', common.mustCall(function(e) {
       assert.strictEqual(e.message, `throw from domain ${id}`);
     }));
-    makeCallback({domain: d}, function() {
+    makeCallback({ domain: d }, function() {
       throw new Error(`throw from domain ${id}`);
     });
     throw new Error('UNREACHABLE');

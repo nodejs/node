@@ -43,7 +43,7 @@ const server = http.createServer(function(req, res) {
 server.listen(0, function() {
   console.log('listen', server.address().port);
 
-  const agent = new http.Agent({maxSockets: 1});
+  const agent = new http.Agent({ maxSockets: 1 });
   assert.strictEqual(Object.keys(agent.sockets).length, 0);
 
   const options = {

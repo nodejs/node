@@ -16,7 +16,7 @@ common.refreshTmpDir();
 const warnmod = require.resolve(`${common.fixturesDir}/warnings.js`);
 const warnpath = path.join(common.tmpDir, 'warnings.txt');
 
-fork(warnmod, {env: {NODE_REDIRECT_WARNINGS: warnpath}})
+fork(warnmod, { env: { NODE_REDIRECT_WARNINGS: warnpath } })
   .on('exit', common.mustCall(() => {
     fs.readFile(warnpath, 'utf8', common.mustCall((err, data) => {
       assert.ifError(err);

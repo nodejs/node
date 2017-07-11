@@ -20,7 +20,7 @@ const child = fork(runjs,
                     '--set', 'len=1024',
                     '--set', 'type=buf',
                     'net'],
-                   {env: {NODEJS_BENCHMARK_ZERO_ALLOWED: 1}});
+                   { env: { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 } });
 child.on('exit', (code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);

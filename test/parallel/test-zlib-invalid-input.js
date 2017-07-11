@@ -26,7 +26,7 @@ require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
-const nonStringInputs = [1, true, {a: 1}, ['a']];
+const nonStringInputs = [1, true, { a: 1 }, ['a']];
 
 console.error('Doing the non-strings');
 nonStringInputs.forEach(function(input) {

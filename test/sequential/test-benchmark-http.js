@@ -32,7 +32,7 @@ const child = fork(runjs, ['--set', 'benchmarker=test-double',
                            '--set', 'n=1',
                            '--set', 'res=normal',
                            'http'],
-                   {env});
+                   { env });
 child.on('exit', (code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);

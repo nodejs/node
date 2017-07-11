@@ -25,13 +25,13 @@ function listenError(literals, ...values) {
   // Test listen(port)
   net.createServer().listen(0).on('listening', common.mustCall(close));
   // Test listen({port})
-  net.createServer().listen({port: 0})
+  net.createServer().listen({ port: 0 })
     .on('listening', common.mustCall(close));
 }
 
 // Test listen(port, cb) and listen({port: port}, cb) combinations
 const listenOnPort = [
-  (port, cb) => net.createServer().listen({port}, cb),
+  (port, cb) => net.createServer().listen({ port }, cb),
   (port, cb) => net.createServer().listen(port, cb)
 ];
 
