@@ -429,8 +429,6 @@ changes:
     is no longer accessible via `_`.
     * This also means assigning to `_` will not cause warnings.
 
-
-
 The `repl.start()` method creates and starts a `repl.REPLServer` instance.
 
 If `options` is a string, then it specifies the input prompt:
@@ -476,7 +474,8 @@ environment variables:
    history will be persisted if history is available. Must be a positive number.
  - `NODE_REPL_MODE` - May be any of `sloppy`, `strict`, or `magic`. Defaults
    to `sloppy`, which will allow non-strict mode code to be run. `magic` is
-   **deprecated** and treated as an alias of `sloppy`.
+   **deprecated** and treated as an alias of `sloppy`. It is possible to
+   activate `noUnderscore` mode by appending `;noUnderscore` to the mode.
 
 ### Persistent History
 
