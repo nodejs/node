@@ -39,7 +39,7 @@ const server = http.createServer(function(req, res) {
 server.listen(0, function() {
   console.log(`Server running at http://127.0.0.1:${this.address().port}/`);
 
-  const request = http.get({port: this.address().port, path: '/'});
+  const request = http.get({ port: this.address().port, path: '/' });
   request.on('error', common.mustCall(function() {
     console.log('HTTP REQUEST COMPLETE (this is good)');
   }));

@@ -56,7 +56,7 @@ assert.strictEqual(stringToFlags('ax+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
 assert.strictEqual(stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
 
 const expectedError =
-  common.expectsError({code: 'ERR_INVALID_OPT_VALUE', type: TypeError}, 23);
+  common.expectsError({ code: 'ERR_INVALID_OPT_VALUE', type: TypeError }, 23);
 
 ('+ +a +r +w rw wa war raw r++ a++ w++ x +x x+ rx rx+ wxx wax xwx xxx')
   .split(' ')

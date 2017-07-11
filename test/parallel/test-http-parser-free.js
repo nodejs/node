@@ -35,7 +35,7 @@ server.listen(0, function() {
   let parser;
   for (let i = 0; i < N; ++i) {
     (function makeRequest(i) {
-      const req = http.get({port: server.address().port}, function(res) {
+      const req = http.get({ port: server.address().port }, function(res) {
         if (!parser) {
           parser = req.parser;
         } else {

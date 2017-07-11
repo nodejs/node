@@ -1,7 +1,7 @@
 'use strict';
 var common = require('../common.js');
 var crypto = require('crypto');
-var keylen = {'aes-128-gcm': 16, 'aes-192-gcm': 24, 'aes-256-gcm': 32};
+var keylen = { 'aes-128-gcm': 16, 'aes-192-gcm': 24, 'aes-256-gcm': 32 };
 var bench = common.createBenchmark(main, {
   n: [500],
   cipher: ['aes-128-gcm', 'aes-192-gcm', 'aes-256-gcm'],

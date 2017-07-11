@@ -57,7 +57,7 @@ function isWarned(emitter) {
 {
   // Minimum crlfDelay is 100ms
   const fi = new FakeInput();
-  const rli = new readline.Interface({ input: fi, output: fi, crlfDelay: 0});
+  const rli = new readline.Interface({ input: fi, output: fi, crlfDelay: 0 });
   assert.strictEqual(rli.crlfDelay, 100);
   rli.close();
 }
@@ -91,7 +91,7 @@ function isWarned(emitter) {
 
   // default history size 30
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal});
+  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
   assert.strictEqual(rli.historySize, 30);
 
   fi.emit('data', 'asdf\n');
@@ -515,7 +515,7 @@ function isWarned(emitter) {
 
   //can create a new readline Interface with a null output arugument
   fi = new FakeInput();
-  rli = new readline.Interface({input: fi, output: null, terminal: terminal });
+  rli = new readline.Interface({ input: fi, output: null, terminal: terminal });
 
   called = false;
   rli.on('line', function(line) {

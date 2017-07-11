@@ -10,7 +10,7 @@ const repl = require('repl');
 const terminalCode = '\u001b[1G\u001b[0J> \u001b[3G';
 const terminalCodeRegex = new RegExp(terminalCode.replace(/\[/g, '\\['), 'g');
 
-function run({input, output, event, checkTerminalCodes = true}) {
+function run({ input, output, event, checkTerminalCodes = true }) {
   const stream = new common.ArrayStream();
   let found = '';
 
@@ -45,22 +45,22 @@ const tests = [
   {
     input: '',
     output: '\n(To exit, press ^C again or type .exit)',
-    event: {ctrl: true, name: 'c'}
+    event: { ctrl: true, name: 'c' }
   },
   {
     input: 'var i = 1;',
     output: '',
-    event: {ctrl: true, name: 'c'}
+    event: { ctrl: true, name: 'c' }
   },
   {
     input: 'var i = 1;\ni + 3',
     output: '\n4',
-    event: {ctrl: true, name: 'd'}
+    event: { ctrl: true, name: 'd' }
   },
   {
     input: '  var i = 1;\ni + 3',
     output: '\n4',
-    event: {ctrl: true, name: 'd'}
+    event: { ctrl: true, name: 'd' }
   },
   {
     input: '',
@@ -73,7 +73,7 @@ const tests = [
 tests.forEach(run);
 
 // Auto code alignment for .editor mode
-function testCodeAligment({input, cursor = 0, line = ''}) {
+function testCodeAligment({ input, cursor = 0, line = '' }) {
   const stream = new common.ArrayStream();
   const outputStream = new common.ArrayStream();
 
@@ -93,7 +93,7 @@ function testCodeAligment({input, cursor = 0, line = ''}) {
   assert.strictEqual(line, replServer.line);
   assert.strictEqual(cursor, replServer.cursor);
 
-  replServer.write('', {ctrl: true, name: 'd'});
+  replServer.write('', { ctrl: true, name: 'd' });
   replServer.close();
   // Ensure that empty lines are not saved in history
   assert.notStrictEqual(replServer.history[0].trim(), '');

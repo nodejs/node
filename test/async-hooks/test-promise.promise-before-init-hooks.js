@@ -10,7 +10,7 @@ const p = new Promise(common.mustCall(function executor(resolve, reject) {
 }));
 
 // init hooks after promise was created
-const hooks = initHooks({allowNoInit: true});
+const hooks = initHooks({ allowNoInit: true });
 hooks.enable();
 
 p.then(function afterresolution(val) {

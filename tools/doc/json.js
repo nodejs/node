@@ -39,7 +39,7 @@ marked.setOptions({
 });
 
 function doJSON(input, filename, cb) {
-  const root = {source: filename};
+  const root = { source: filename };
   const stack = [root];
   var depth = 0;
   var current = root;
@@ -329,7 +329,7 @@ function parseSignature(text, sig) {
   params = params[1];
   params = params.split(/,/);
   var optionalLevel = 0;
-  const optionalCharDict = {'[': 1, ' ': 0, ']': -1};
+  const optionalCharDict = { '[': 1, ' ': 0, ']': -1 };
   params.forEach(function(p, i) {
     p = p.trim();
     if (!p) return;

@@ -56,7 +56,7 @@ server.listen(0, common.mustCall(function() {
     // value should be reported for the header fields listed
     // in the norepeat array.
     http.get(
-      {port: this.address().port, headers: {'x-num': n}},
+      { port: this.address().port, headers: { 'x-num': n } },
       common.mustCall(function(res) {
         if (++count === 2) server.close();
         for (const name of norepeat) {

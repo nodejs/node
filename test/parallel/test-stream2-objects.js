@@ -53,7 +53,7 @@ function fromArray(list) {
 
 {
   // Verify that objects can be read from the stream
-  const r = fromArray([{ one: '1'}, { two: '2' }]);
+  const r = fromArray([{ one: '1' }, { two: '2' }]);
 
   const v1 = r.read();
   const v2 = r.read();
@@ -66,7 +66,7 @@ function fromArray(list) {
 
 {
   // Verify that objects can be piped into the stream
-  const r = fromArray([{ one: '1'}, { two: '2' }]);
+  const r = fromArray([{ one: '1' }, { two: '2' }]);
 
   r.pipe(toArray(common.mustCall(function(list) {
     assert.deepStrictEqual(list, [
@@ -78,7 +78,7 @@ function fromArray(list) {
 
 {
   // Verify that read(n) is ignored
-  const r = fromArray([{ one: '1'}, { two: '2' }]);
+  const r = fromArray([{ one: '1' }, { two: '2' }]);
   const value = r.read(2);
 
   assert.deepStrictEqual(value, { one: '1' });
@@ -87,7 +87,7 @@ function fromArray(list) {
 {
   // Verify that objects can be synchronously read
   const r = new Readable({ objectMode: true });
-  const list = [{ one: '1'}, { two: '2' }];
+  const list = [{ one: '1' }, { two: '2' }];
   r._read = function(n) {
     const item = list.shift();
     r.push(item || null);
@@ -104,7 +104,7 @@ function fromArray(list) {
 {
   // Verify that objects can be asynchronously read
   const r = new Readable({ objectMode: true });
-  const list = [{ one: '1'}, { two: '2' }];
+  const list = [{ one: '1' }, { two: '2' }];
   r._read = function(n) {
     const item = list.shift();
     process.nextTick(function() {

@@ -30,5 +30,5 @@ bogusTimers.forEach(function(bogus) {
   const savedTimeout = bogus._idleTimeout;
   active(bogus);
   // active() should not mutate these objects
-  assert.deepStrictEqual(bogus, {_idleTimeout: savedTimeout});
+  assert.deepStrictEqual(bogus, { _idleTimeout: savedTimeout });
 });

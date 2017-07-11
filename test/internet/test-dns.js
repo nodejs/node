@@ -403,22 +403,26 @@ TEST(function test_lookup_failure(done) {
 
 
 TEST(function test_lookup_ip_all(done) {
-  const req = dns.lookup('127.0.0.1', {all: true}, function(err, ips, family) {
-    assert.ifError(err);
-    assert.ok(Array.isArray(ips));
-    assert.ok(ips.length > 0);
-    assert.strictEqual(ips[0].address, '127.0.0.1');
-    assert.strictEqual(ips[0].family, 4);
+  const req = dns.lookup(
+    '127.0.0.1',
+    { all: true },
+    function(err, ips, family) {
+      assert.ifError(err);
+      assert.ok(Array.isArray(ips));
+      assert.ok(ips.length > 0);
+      assert.strictEqual(ips[0].address, '127.0.0.1');
+      assert.strictEqual(ips[0].family, 4);
 
-    done();
-  });
+      done();
+    }
+  );
 
   checkWrap(req);
 });
 
 
 TEST(function test_lookup_ip_all_promise(done) {
-  const req = util.promisify(dns.lookup)('127.0.0.1', {all: true})
+  const req = util.promisify(dns.lookup)('127.0.0.1', { all: true })
     .then(function(ips) {
       assert.ok(Array.isArray(ips));
       assert.ok(ips.length > 0);
@@ -444,7 +448,7 @@ TEST(function test_lookup_ip_promise(done) {
 
 
 TEST(function test_lookup_null_all(done) {
-  const req = dns.lookup(null, {all: true}, function(err, ips, family) {
+  const req = dns.lookup(null, { all: true }, function(err, ips, family) {
     assert.ifError(err);
     assert.ok(Array.isArray(ips));
     assert.strictEqual(ips.length, 0);
@@ -457,7 +461,7 @@ TEST(function test_lookup_null_all(done) {
 
 
 TEST(function test_lookup_all_mixed(done) {
-  const req = dns.lookup('www.google.com', {all: true}, function(err, ips) {
+  const req = dns.lookup('www.google.com', { all: true }, function(err, ips) {
     assert.ifError(err);
     assert.ok(Array.isArray(ips));
     assert.ok(ips.length > 0);

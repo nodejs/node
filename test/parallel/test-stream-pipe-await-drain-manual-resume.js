@@ -15,7 +15,7 @@ const queue = [];
 
 writable._write = (chunk, encoding, cb) => {
   if (isCurrentlyBufferingWrites)
-    queue.push({chunk, cb});
+    queue.push({ chunk, cb });
   else
     cb();
 };

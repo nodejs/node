@@ -30,7 +30,7 @@ let clientRequests = 0;
 
 const server = http.createServer(function(req, res) {
   serverRequests++;
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('OK');
 });
 

@@ -167,7 +167,7 @@ function error_test() {
       expect: '0.2' },
     // Can parse valid JSON
     { client: client_unix, send: 'JSON.parse(\'{"valid": "json"}\');',
-      expect: '{ valid: \'json\' }'},
+      expect: '{ valid: \'json\' }' },
     // invalid input to JSON.parse error is special case of syntax error,
     // should throw
     { client: client_unix, send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
