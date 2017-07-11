@@ -1,27 +1,27 @@
 'use strict';
 const common = require('../common');
 const http = require('http');
-const OutgoingMessage = require('_http_outgoing').OutgoingMessage;
+const util = require('util');
+const stream = require('stream');
+
+function MyStream() {
+  stream.call(this);
+}
+util.inherits(MyStream, stream);
 
 const server = http.createServer(common.mustCall(function(req, res) {
-  console.log('Got a request, piping an OutgoingMessage to it.');
-  const outgointMessage = new OutgoingMessage();
-  outgointMessage.pipe(res);
+  console.log('Got a request, piping a stream to it.');
+  const myStream = new MyStream();
+  myStream.pipe(res);
 
-  setTimeout(() => {
+  process.nextTick(() => {
     console.log('Closing response.');
     res.end();
-    outgointMessage.emit('data', 'some data');
+    myStream.emit('data', 'some data');
 
     // If we got here - 'write after end' wasn't raised and the test passed.
-    setTimeout(() => server.close(), 10);
-  }, 10);
-
-  setInterval(() => {
-    console.log('Emitting some data to outgointMessage');
-    outgointMessage.emit('data', 'some data');
-  }, 1).unref();
-
+    process.nextTick(() => server.close());
+  });
 }));
 
 server.listen(0);

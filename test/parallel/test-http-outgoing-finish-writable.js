@@ -18,9 +18,15 @@ const server = http.createServer(common.mustCall(function(req, res) {
 server.listen(0);
 
 server.on('listening', common.mustCall(function() {
-  http.request({
+  const clientRequest = http.request({
     port: server.address().port,
     method: 'GET',
     path: '/'
-  }).end();
+  });
+
+  assert(clientRequest.writable, 'ClientRequest should be writable when \
+                            it is created.');
+  clientRequest.end();
+  assert(!clientRequest.writable, 'ClientRequest shouldn\'t be writable \
+                            after it was closed.');
 }));
