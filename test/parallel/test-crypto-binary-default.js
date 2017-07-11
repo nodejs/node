@@ -48,19 +48,19 @@ const rsaKeyPem = fs.readFileSync(`${fixtDir}/test_rsa_privkey.pem`, 'ascii');
 
 // PFX tests
 assert.doesNotThrow(function() {
-  tls.createSecureContext({pfx: certPfx, passphrase: 'sample'});
+  tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
 });
 
 assert.throws(function() {
-  tls.createSecureContext({pfx: certPfx});
+  tls.createSecureContext({ pfx: certPfx });
 }, /^Error: mac verify failure$/);
 
 assert.throws(function() {
-  tls.createSecureContext({pfx: certPfx, passphrase: 'test'});
+  tls.createSecureContext({ pfx: certPfx, passphrase: 'test' });
 }, /^Error: mac verify failure$/);
 
 assert.throws(function() {
-  tls.createSecureContext({pfx: 'sample', passphrase: 'test'});
+  tls.createSecureContext({ pfx: 'sample', passphrase: 'test' });
 }, /^Error: not enough data$/);
 
 // Test HMAC
@@ -549,7 +549,7 @@ testCipher4(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
 
 // update() should only take buffers / strings
 assert.throws(function() {
-  crypto.createHash('sha1').update({foo: 'bar'});
+  crypto.createHash('sha1').update({ foo: 'bar' });
 }, /^TypeError: Data must be a string or a buffer$/);
 
 

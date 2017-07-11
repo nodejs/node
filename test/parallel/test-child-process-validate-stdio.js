@@ -6,7 +6,7 @@ const assert = require('assert');
 const _validateStdio = require('internal/child_process')._validateStdio;
 
 const expectedError =
-  common.expectsError({code: 'ERR_INVALID_OPT_VALUE', type: TypeError}, 2);
+  common.expectsError({ code: 'ERR_INVALID_OPT_VALUE', type: TypeError }, 2);
 
 // should throw if string and not ignore, pipe, or inherit
 assert.throws(() => _validateStdio('foo'), expectedError);
@@ -27,7 +27,7 @@ assert.throws(() => _validateStdio(600), expectedError);
 // should throw if stdio has ipc and sync is true
 const stdio2 = ['ipc', 'ipc', 'ipc'];
 assert.throws(() => _validateStdio(stdio2, true),
-              common.expectsError({code: 'ERR_IPC_SYNC_FORK', type: Error}));
+              common.expectsError({ code: 'ERR_IPC_SYNC_FORK', type: Error }));
 
 {
   const stdio3 = [process.stdin, process.stdout, process.stderr];

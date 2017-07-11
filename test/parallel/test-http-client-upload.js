@@ -38,7 +38,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
   req.on('end', common.mustCall(function() {
     assert.strictEqual('1\n2\n3\n', sent_body);
     console.log('request complete from server');
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('hello\n');
     res.end();
   }));

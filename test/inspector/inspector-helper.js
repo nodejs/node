@@ -90,7 +90,7 @@ function tearDown(child, err) {
 }
 
 function checkHttpResponse(host, port, path, callback, errorcb) {
-  const req = http.get({host, port, path}, function(res) {
+  const req = http.get({ host, port, path }, function(res) {
     let response = '';
     res.setEncoding('utf8');
     res
@@ -377,7 +377,7 @@ function Harness(port, childProcess) {
     this.stderrFilters_ = pending;
   }));
   childProcess.on('exit', (code, signal) => {
-    this.result_ = {code, signal};
+    this.result_ = { code, signal };
     this.running_ = false;
   });
 }
@@ -483,7 +483,7 @@ Harness.prototype.expectShutDown = function(errorCode) {
       const timeoutId = timeout('Have not terminated');
       this.process_.on('exit', (code, signal) => {
         clearTimeout(timeoutId);
-        assert.strictEqual(errorCode, code, JSON.stringify({code, signal}));
+        assert.strictEqual(errorCode, code, JSON.stringify({ code, signal }));
         callback();
       });
     } else {

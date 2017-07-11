@@ -53,7 +53,7 @@ const server = http.Server(common.mustCall(function(req, res) {
     this.close();
 
   req.on('end', function() {
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write(`The path was ${url.parse(req.url).pathname}`);
     res.end();
   });

@@ -35,7 +35,7 @@ const UTF8_STRING = '南越国是前203年至前111年存在于岭南地区的�
                     '有效的改善了岭南地区落后的政治、经济现状。';
 
 const server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/plain; charset=utf8'});
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf8' });
   res.end(UTF8_STRING, 'utf8');
 });
 server.listen(0, function() {

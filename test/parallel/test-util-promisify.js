@@ -55,7 +55,7 @@ const stat = promisify(fs.stat);
   fn[customPromisifyArgs] = ['first', 'second'];
 
   promisify(fn)().then(common.mustCall((obj) => {
-    assert.deepStrictEqual(obj, {first: firstValue, second: secondValue});
+    assert.deepStrictEqual(obj, { first: firstValue, second: secondValue });
   }));
 }
 
