@@ -1149,6 +1149,37 @@ For example:
 console.log(tls.getCiphers()); // ['AES128-SHA', 'AES256-SHA', ...]
 ```
 
+## tls.parseCertString(str)
+<!-- YAML
+added: v0.3.3
+-->
+
+* `str` {string} A Cert string that joins each key-value pair with `'\n'`.
+
+Returns the parsed object. eg.
+
+```js
+tls.parseCertString(`C=US
+ST=CA
+L=SF
+O=Joyent
+OU=Node.js
+CN=ca1
+emailAddress=ry@clouds.org`);
+```
+
+This will return
+
+```js
+{ C: 'US',
+  ST: 'CA',
+  L: 'SF',
+  O: 'Joyent',
+  OU: 'Node.js',
+  CN: 'ca1',
+  emailAddress: 'ry@clouds.org' }
+```
+
 ## tls.DEFAULT_ECDH_CURVE
 <!-- YAML
 added: v0.11.13
