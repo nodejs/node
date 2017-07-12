@@ -14,9 +14,9 @@ child.on('close', common.mustCall((code, signal) => {
     type: Error,
     message: 'Channel closed',
     code: 'ERR_IPC_CHANNEL_CLOSED'
-  }, 2);
+  });
 
-  child.on('error', testError);
+  child.on('error', common.mustCall(testError));
 
   {
     const result = child.send('ping');
@@ -24,7 +24,7 @@ child.on('close', common.mustCall((code, signal) => {
   }
 
   {
-    const result = child.send('pong', testError);
+    const result = child.send('pong', common.mustCall(testError));
     assert.strictEqual(result, false);
   }
 }));
