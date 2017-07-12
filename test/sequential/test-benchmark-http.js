@@ -23,11 +23,14 @@ const env = Object.assign({}, process.env,
 
 const child = fork(runjs, ['--set', 'benchmarker=test-double',
                            '--set', 'c=1',
+                           '--set', 'chunkedEnc=true',
                            '--set', 'chunks=0',
                            '--set', 'dur=0.1',
                            '--set', 'key=""',
                            '--set', 'len=1',
+                           '--set', 'method=write',
                            '--set', 'n=1',
+                           '--set', 'res=normal',
                            'http'],
                    {env});
 child.on('exit', (code, signal) => {
