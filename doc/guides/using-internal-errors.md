@@ -69,6 +69,53 @@ for the error code should be added to the `doc/api/errors.md` file. This will
 give users a place to go to easily look up the meaning of individual error
 codes.
 
+## Testing new errors
+
+When adding a new error, corresponding test(s) for the error message
+formatting may also be required. If the messasge for the error is a
+constant string then no test is required for the error message formatting
+as we can trust the error helper implementation. An example of this kind of
+error would be:
+
+```js
+E('ERR_SOCKET_ALREADY_BOUND', 'Socket is already bound');
+```
+
+If the error message is not a constant string then tests to validate
+the formatting of the message based on the parameters used when
+creating the error should be added to
+`test/parallel/test-internal-errors.js`.  These tests should validate
+all of the different ways parameters can be used to generate the final
+message string. A simple example is:
+
+```js
+// Test ERR_TLS_CERT_ALTNAME_INVALID
+assert.strictEqual(
+  errors.message('ERR_TLS_CERT_ALTNAME_INVALID', ['altname']),
+  'Hostname/IP does not match certificate\'s altnames: altname');
+```
+
+In addition, there should also be tests which validate the use of the
+error based on where it is used in the codebase.  For these tests, except in
+special cases, they should only validate that the expected code is received
+and NOT validate the message.  This will reduce the amount of test change
+required when the message for an error changes.
+
+For example:
+
+```js
+assert.throws(() => {
+  socket.bind();
+}, common.expectsError({
+  code: 'ERR_SOCKET_ALREADY_BOUND',
+  type: Error
+}));
+```
+
+Avoid changing the format of the message after the error has been created.
+If it does make sense to do this for some reason, then additional tests
+validating the formatting of the error message for those cases will
+likely be required.
 
 ## API
 
