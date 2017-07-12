@@ -565,7 +565,8 @@ $(PKG): release-only
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
-	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
+	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)/usr/local" bash \
+		tools/osx-codesign.sh
 	cat tools/osx-pkg.pmdoc/index.xml.tmpl \
 		| sed -E "s/\\{nodeversion\\}/$(FULLVERSION)/g" \
 		| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g" \
