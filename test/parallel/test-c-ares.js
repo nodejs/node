@@ -46,11 +46,21 @@ dns.lookup('::1', common.mustCall((error, result, addressType) => {
   assert.strictEqual(6, addressType);
 }));
 
-// Try calling resolve with an unsupported type.
-assert.throws(() => dns.resolve('www.google.com', 'HI'), /Unknown type/);
-
-// Try calling resolve with an unsupported type that's an object key
-assert.throws(() => dns.resolve('www.google.com', 'toString'), /Unknown type/);
+[
+  // Try calling resolve with an unsupported type.
+  'HI',
+  // Try calling resolve with an unsupported type that's an object key
+  'toString'
+].forEach((val) => {
+  common.expectsError(
+    () => dns.resolve('www.google.com', val),
+    {
+      code: 'ERR_INVALID_OPT_VALUE',
+      type: TypeError,
+      message: `The value "${val}" is invalid for option "rrtype"`
+    }
+  );
+});
 
 // Windows doesn't usually have an entry for localhost 127.0.0.1 in
 // C:\Windows\System32\drivers\etc\hosts
