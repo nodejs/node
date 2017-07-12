@@ -617,6 +617,9 @@ $(BINARYTAR): release-only
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
 	cp CHANGELOG.md $(BINARYNAME)
+ifeq ($(OSTYPE),darwin)
+	SIGN="$(CODESIGN_CERT)" PKGDIR="$(BINARYNAME)" bash tools/osx-codesign.sh
+endif
 	tar -cf $(BINARYNAME).tar $(BINARYNAME)
 	rm -rf $(BINARYNAME)
 	gzip -c -f -9 $(BINARYNAME).tar > $(BINARYNAME).tar.gz
