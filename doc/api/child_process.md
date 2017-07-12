@@ -134,9 +134,10 @@ added: v0.1.90
   * `encoding` {string} (Default: `'utf8'`)
   * `shell` {string} Shell to execute the command with
     (Default: `'/bin/sh'` on UNIX, `'process.env.ComSpec'` on Windows. If
-    `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows instead.
-    The shell should understand the `-c` switch on UNIX or `/d /s /c` on Windows.
-    On Windows, command line parsing should be compatible with `cmd.exe`.)
+    `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows
+    instead. The shell should understand the `-c` switch on UNIX or 
+    `/d /s /c` on Windows. On Windows, command line parsing should be 
+    compatible with `cmd.exe`.)
   * `timeout` {number} (Default: `0`)
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
     stderr. (Default: `200*1024`) If exceeded, the child process is terminated.
@@ -384,9 +385,10 @@ changes:
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `'process.env.ComSpec'` on Windows. If
-    `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows instead.
-    A different shell can be specified as a string. The shell should understand the
-    `-c` switch on UNIX, or `/d /s /c` on Windows. Defaults to `false` (no shell).
+    `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows 
+    instead. A different shell can be specified as a string. The shell should 
+    understand the `-c` switch on UNIX, or `/d /s /c` on Windows. Defaults 
+    to `false` (no shell).
 * Returns: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
@@ -710,9 +712,10 @@ changes:
   * `env` {Object} Environment key-value pairs
   * `shell` {string} Shell to execute the command with
     (Default: `'/bin/sh'` on UNIX, `'process.env.ComSpec'` on Windows.
-    If `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows instead.
-    The shell should understand the `-c` switch on UNIX or `/d /s /c` on Windows.
-    On Windows, command line parsing should be compatible with `cmd.exe`.)
+    If `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows
+    instead. The shell should understand the `-c` switch on UNIX or 
+    `/d /s /c` on Windows. On Windows, command line parsing should be 
+    compatible with `cmd.exe`.)
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {number} In milliseconds the maximum amount of time the process
@@ -779,9 +782,10 @@ changes:
     (Default: `'buffer'`)
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `'process.env.ComSpec'` on Windows. If
-    `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows instead.
-    A different shell can be specified as a string. The shell should understand the
-    `-c` switch on UNIX, or `/d /s /c` on Windows. Defaults to `false` (no shell).
+    `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows 
+    instead. A different shell can be specified as a string. The shell should 
+    understand the `-c` switch on UNIX, or `/d /s /c` on Windows. Defaults 
+    to `false` (no shell).
 * Returns: {Object}
   * `pid` {number} Pid of the child process
   * `output` {Array} Array of results from stdio output
