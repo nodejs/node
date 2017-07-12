@@ -1,9 +1,9 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
-const spawnSync = require('child_process').spawnSync;
 const fixtures = require('../common/fixtures');
+const exec = require('child_process').exec;
 
 const node = process.execPath;
 
@@ -29,12 +29,13 @@ const notFoundRE = /^Error: Cannot find module/m;
   // loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
     const _args = args.concat(file);
-    const c = spawnSync(node, _args, {encoding: 'utf8'});
 
-    // no output should be produced
-    assert.strictEqual(c.stdout, '', 'stdout produced');
-    assert.strictEqual(c.stderr, '', 'stderr produced');
-    assert.strictEqual(c.status, 0, `code == ${c.status}`);
+    const cmd = [node, ..._args].join(' ');
+    exec(cmd, common.mustCall((err, stdout, stderr) => {
+      assert.ifError(err);
+      assert.strictEqual(stdout, '', 'stdout produced');
+      assert.strictEqual(stderr, '', 'stderr produced');
+    }));
   });
 });
 
@@ -50,15 +51,20 @@ const notFoundRE = /^Error: Cannot find module/m;
   // loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
     const _args = args.concat(file);
-    const c = spawnSync(node, _args, {encoding: 'utf8'});
+    const cmd = [node, ..._args].join(' ');
+    exec(cmd, common.mustCall((err, stdout, stderr) => {
+      assert.strictEqual(err instanceof Error, true);
+      assert.strictEqual(err.code, 1, `code === ${err.code}`);
 
-    // no stdout should be produced
-    assert.strictEqual(c.stdout, '', 'stdout produced');
+      // no stdout should be produced
+      assert.strictEqual(stdout, '', 'stdout produced');
 
-    // stderr should have a syntax error message
-    assert(syntaxErrorRE.test(c.stderr), 'stderr incorrect');
+      // stderr should have a syntax error message
+      assert(syntaxErrorRE.test(stderr), 'stderr incorrect');
 
-    assert.strictEqual(c.status, 1, `code == ${c.status}`);
+      // stderr should include the filename
+      assert(stderr.startsWith(file), "stderr doesn't start with the filename");
+    }));
   });
 });
 
@@ -72,14 +78,15 @@ const notFoundRE = /^Error: Cannot find module/m;
   // loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
     const _args = args.concat(file);
-    const c = spawnSync(node, _args, {encoding: 'utf8'});
+    const cmd = [node, ..._args].join(' ');
+    exec(cmd, common.mustCall((err, stdout, stderr) => {
+      // no stdout should be produced
+      assert.strictEqual(stdout, '', 'stdout produced');
 
-    // no stdout should be produced
-    assert.strictEqual(c.stdout, '', 'stdout produced');
+      // stderr should have a module not found error message
+      assert(notFoundRE.test(stderr), 'stderr incorrect');
 
-    // stderr should have a module not found error message
-    assert(notFoundRE.test(c.stderr), 'stderr incorrect');
-
-    assert.strictEqual(c.status, 1, `code == ${c.status}`);
+      assert.strictEqual(err.code, 1, `code === ${err.code}`);
+    }));
   });
 });
