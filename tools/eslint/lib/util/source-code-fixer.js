@@ -55,10 +55,10 @@ function SourceCodeFixer() {
  * smart about the fixes and won't apply fixes over the same area in the text.
  * @param {SourceCode} sourceCode The source code to apply the changes to.
  * @param {Message[]} messages The array of messages reported by ESLint.
+ * @param {boolean|Function} [shouldFix=true] Determines whether each message should be fixed
  * @returns {Object} An object containing the fixed text and any unfixed messages.
  */
-SourceCodeFixer.applyFixes = function(sourceCode, messages) {
-
+SourceCodeFixer.applyFixes = function(sourceCode, messages, shouldFix) {
     debug("Applying fixes");
 
     if (!sourceCode) {
@@ -70,6 +70,15 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
         };
     }
 
+    if (shouldFix === false) {
+        debug("shouldFix parameter was false, not attempting fixes");
+        return {
+            fixed: false,
+            messages,
+            output: sourceCode.text
+        };
+    }
+
     // clone the array
     const remainingMessages = [],
         fixes = [],
@@ -77,6 +86,34 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
         text = sourceCode.text;
     let lastPos = Number.NEGATIVE_INFINITY,
         output = bom;
+
+    /**
+     * Try to use the 'fix' from a problem.
+     * @param   {Message} problem The message object to apply fixes from
+     * @returns {boolean}         Whether fix was successfully applied
+     */
+    function attemptFix(problem) {
+        const fix = problem.fix;
+        const start = fix.range[0];
+        const end = fix.range[1];
+
+        // Remain it as a problem if it's overlapped or it's a negative range
+        if (lastPos >= start || start > end) {
+            remainingMessages.push(problem);
+            return false;
+        }
+
+        // Remove BOM.
+        if ((start < 0 && end >= 0) || (start === 0 && fix.text.startsWith(BOM))) {
+            output = "";
+        }
+
+        // Make output to this fix.
+        output += text.slice(Math.max(0, lastPos), Math.max(0, start));
+        output += fix.text;
+        lastPos = end;
+        return true;
+    }
 
     messages.forEach(problem => {
         if (problem.hasOwnProperty("fix")) {
@@ -88,32 +125,23 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
 
     if (fixes.length) {
         debug("Found fixes to apply");
+        let fixesWereApplied = false;
 
         for (const problem of fixes.sort(compareMessagesByFixRange)) {
-            const fix = problem.fix;
-            const start = fix.range[0];
-            const end = fix.range[1];
+            if (typeof shouldFix !== "function" || shouldFix(problem)) {
+                attemptFix(problem);
 
-            // Remain it as a problem if it's overlapped or it's a negative range
-            if (lastPos >= start || start > end) {
+                // The only time attemptFix will fail is if a previous fix was
+                // applied which conflicts with it.  So we can mark this as true.
+                fixesWereApplied = true;
+            } else {
                 remainingMessages.push(problem);
-                continue;
             }
-
-            // Remove BOM.
-            if ((start < 0 && end >= 0) || (start === 0 && fix.text.startsWith(BOM))) {
-                output = "";
-            }
-
-            // Make output to this fix.
-            output += text.slice(Math.max(0, lastPos), Math.max(0, start));
-            output += fix.text;
-            lastPos = end;
         }
         output += text.slice(Math.max(0, lastPos));
 
         return {
-            fixed: true,
+            fixed: fixesWereApplied,
             messages: remainingMessages.sort(compareMessagesByLocation),
             output
         };

@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const schemaValidator = require("is-my-json-valid"),
+const ajv = require("../util/ajv"),
     configSchema = require("../../conf/config-schema.js"),
     util = require("util");
 
@@ -20,6 +20,7 @@ const validators = {
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
+let validateSchema;
 
 /**
  * Gets a complete options schema for a rule.
@@ -79,7 +80,7 @@ function validateRuleSchema(id, localOptions, rulesContext) {
     const schema = getRuleOptionsSchema(id, rulesContext);
 
     if (!validators.rules[id] && schema) {
-        validators.rules[id] = schemaValidator(schema, { verbose: true });
+        validators.rules[id] = ajv.compile(schema);
     }
 
     const validateRule = validators.rules[id];
@@ -87,7 +88,7 @@ function validateRuleSchema(id, localOptions, rulesContext) {
     if (validateRule) {
         validateRule(localOptions);
         if (validateRule.errors) {
-            throw new Error(validateRule.errors.map(error => `\tValue "${error.value}" ${error.message}.\n`).join(""));
+            throw new Error(validateRule.errors.map(error => `\tValue "${error.data}" ${error.message}.\n`).join(""));
         }
     }
 }
@@ -158,19 +159,23 @@ function validateRules(rulesConfig, source, rulesContext) {
  * @returns {string} Formatted error message
  */
 function formatErrors(errors) {
-
     return errors.map(error => {
-        if (error.message === "has additional properties") {
-            return `Unexpected top-level property "${error.value.replace(/^data\./, "")}"`;
+        if (error.keyword === "additionalProperties") {
+            const formattedPropertyPath = error.dataPath.length ? `${error.dataPath.slice(1)}.${error.params.additionalProperty}` : error.params.additionalProperty;
+
+            return `Unexpected top-level property "${formattedPropertyPath}"`;
         }
-        if (error.message === "is the wrong type") {
-            const formattedField = error.field.replace(/^data\./, "");
-            const formattedExpectedType = typeof error.type === "string" ? error.type : error.type.join("/");
-            const formattedValue = JSON.stringify(error.value);
+        if (error.keyword === "type") {
+            const formattedField = error.dataPath.slice(1);
+            const formattedExpectedType = Array.isArray(error.schema) ? error.schema.join("/") : error.schema;
+            const formattedValue = JSON.stringify(error.data);
 
             return `Property "${formattedField}" is the wrong type (expected ${formattedExpectedType} but got \`${formattedValue}\`)`;
         }
-        return `"${error.field.replace(/^(data\.)/, "")}" ${error.message}. Value: ${JSON.stringify(error.value)}`;
+
+        const field = error.dataPath[0] === "." ? error.dataPath.slice(1) : error.dataPath;
+
+        return `"${field}" ${error.message}. Value: ${JSON.stringify(error.data)}`;
     }).map(message => `\t- ${message}.\n`).join("");
 }
 
@@ -181,10 +186,10 @@ function formatErrors(errors) {
  * @returns {void}
  */
 function validateConfigSchema(config, source) {
-    const validator = schemaValidator(configSchema, { verbose: true });
+    validateSchema = validateSchema || ajv.compile(configSchema);
 
-    if (!validator(config)) {
-        throw new Error(`${source}:\n\tESLint configuration is invalid:\n${formatErrors(validator.errors)}`);
+    if (!validateSchema(config)) {
+        throw new Error(`${source}:\n\tESLint configuration is invalid:\n${formatErrors(validateSchema.errors)}`);
     }
 }
 

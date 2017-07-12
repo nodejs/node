@@ -63,9 +63,9 @@ object referring to that same position.
 [estree]: https://github.com/estree/estree
 
 - **ecmaVersion**: Indicates the ECMAScript version to parse. Must be
-  either 3, 5, 6 (2015), 7 (2016), or 8 (2017). This influences support for strict
-  mode, the set of reserved words, and support for new syntax features.
-  Default is 7.
+  either 3, 5, 6 (2015), 7 (2016), 8 (2017), or 9 (2018, partial
+  support). This influences support for strict mode, the set of
+  reserved words, and support for new syntax features. Default is 7.
 
   **NOTE**: Only 'stage 4' (finalized) ECMAScript features are being
   implemented by Acorn.
@@ -268,9 +268,32 @@ simply visit all statements and expressions and not produce a
 meaningful state. (An example of a use of state is to track scope at
 each point in the tree.)
 
+```js
+const acorn = require("acorn")
+const walk = require("acorn/dist/walk")
+
+walk.simple(acorn.parse("let x = 10"), {
+  Literal(node) {
+    console.log(`Found a literal: ${node.value}`)
+  }
+})
+```
+
 **ancestor**`(node, visitors, base, state)` does a 'simple' walk over
 a tree, building up an array of ancestor nodes (including the current node)
 and passing the array to the callbacks as a third parameter.
+
+```js
+const acorn = require("acorn")
+const walk = require("acorn/dist/walk")
+
+walk.ancestor(acorn.parse("foo('hi')"), {
+  Literal(_, ancestors) {
+    console.log("This literal's ancestors are:",
+                ancestors.map(n => n.type))
+  }
+})
+```
 
 **recursive**`(node, state, functions, base)` does a 'recursive'
 walk, where the walker functions are responsible for continuing the
@@ -286,6 +309,23 @@ default walkers will be used.
 **make**`(functions, base)` builds a new walker object by using the
 walker functions in `functions` and filling in the missing ones by
 taking defaults from `base`.
+
+**full**`(node, callback, base, state)` does a 'full'
+walk over a tree, calling the callback with the arguments (node, state, type)
+for each node
+
+**fullAncestor**`(node, callback, base, state)` does a 'full' walk over
+a tree, building up an array of ancestor nodes (including the current node)
+and passing the array to the callbacks as a third parameter.
+
+```js
+const acorn = require("acorn")
+const walk = require("acorn/dist/walk")
+
+walk.full(acorn.parse("1 + 1"), node => {
+  console.log(`There's a ${node.type} node at ${node.ch}`)
+})
+```
 
 **findNodeAt**`(node, start, end, test, base, state)` tries to
 locate a node in a tree at the given start and/or end offsets, which
@@ -407,3 +447,6 @@ looseParser.extend("readToken", function(nextMethod) {
  - [`acorn-object-spread`](https://github.com/UXtemple/acorn-object-spread): Parse [object spread syntax proposal](https://github.com/sebmarkbage/ecmascript-rest-spread)
  - [`acorn-es7`](https://www.npmjs.com/package/acorn-es7): Parse [decorator syntax proposal](https://github.com/wycats/javascript-decorators)
  - [`acorn-objj`](https://www.npmjs.com/package/acorn-objj): [Objective-J](http://www.cappuccino-project.org/learn/objective-j.html) language parser built as Acorn plugin
+ - [`acorn-object-rest-spread`](https://github.com/victor-homyakov/acorn-object-rest-spread) Parse [Object Rest/Spread Properties proposal](https://github.com/tc39/proposal-object-rest-spread), works with latest Acorn version (5.0.3)
+ - [`acorn-static-class-property-initializer`](https://github.com/victor-homyakov/acorn-static-class-property-initializer) Partial support for static class properties from [ES Class Fields & Static Properties Proposal](https://github.com/tc39/proposal-class-public-fields) to support static property initializers in [React components written as ES6+ classes](https://babeljs.io/blog/2015/06/07/react-on-es6-plus)
+ 
