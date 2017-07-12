@@ -6,7 +6,14 @@ const { ChildProcess } = require('child_process');
 assert.strictEqual(typeof ChildProcess, 'function');
 
 function typeName(value) {
-  return value === null ? 'null' : typeof value;
+  if (value == null) {
+    return value;
+  }
+  const type = typeof value;
+  if (type !== 'object') {
+    return `type ${type}`;
+  }
+  return `instance of ${value.constructor.name}`;
 }
 
 {
@@ -19,7 +26,7 @@ function typeName(value) {
     }, common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "options" argument must be of type object. Received type ' +
+      message: 'The "options" argument must be of type object. Received ' +
                typeName(options)
     }));
   });
@@ -36,7 +43,7 @@ function typeName(value) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "options.file" property must be of type string. Received ' +
-               'type ' + typeName(file)
+               typeName(file)
     }));
   });
 }
@@ -51,8 +58,8 @@ function typeName(value) {
     }, common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "options.envPairs" property must be of type array. ' +
-               'Received type ' + typeName(envPairs)
+      message: 'The "options.envPairs" property must be instance of Array. ' +
+               'Received ' + typeName(envPairs)
     }));
   });
 }
@@ -67,8 +74,8 @@ function typeName(value) {
     }, common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "options.args" property must be of type array. Received ' +
-               'type ' + typeName(args)
+      message: 'The "options.args" property must be instance of Array. ' +
+               'Received ' + typeName(args)
     }));
   });
 }

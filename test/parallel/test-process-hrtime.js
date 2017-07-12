@@ -38,7 +38,8 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "time" argument must be of type Array. Received type number'
+  message: 'The "time" argument must be instance of Array. ' +
+    'Received type number'
 }));
 assert.throws(() => {
   process.hrtime([]);

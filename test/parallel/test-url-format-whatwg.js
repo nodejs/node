@@ -24,7 +24,7 @@ assert.strictEqual(
   const expectedErr = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type object'
+    message: /^The "options" argument must be of type object\. Received /
   }, 4);
   assert.throws(() => url.format(myURL, true), expectedErr);
   assert.throws(() => url.format(myURL, 1), expectedErr);

@@ -34,13 +34,13 @@ for (let i = 0; i < 10; i++) {
 const invalidUserArgument = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "preValue.user" property must be of type Number'
+  message: /^The "prevValue\.user" property must be of type number\. Received /
 }, 8);
 
 const invalidSystemArgument = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "preValue.system" property must be of type Number'
+  message: /^The "prevValue\.system" property must be of type number\./
 }, 2);
 
 
