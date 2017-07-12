@@ -17,6 +17,7 @@ const runjs = path.join(__dirname, '..', '..', 'benchmark', 'run.js');
 
 const child = fork(runjs,
                    ['--set', 'dur=0',
+                    '--set', 'len=1024',
                     '--set', 'type=buf',
                     'net'],
                    {env: {NODEJS_BENCHMARK_ZERO_ALLOWED: 1}});
