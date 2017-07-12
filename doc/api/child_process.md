@@ -385,8 +385,8 @@ changes:
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `'process.env.ComSpec'` on Windows. If
     `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows instead.
-    A different shell can be specified as a string. The shell should understand
-    the `-c` switch on UNIX, or `/d /s /c` on Windows. Defaults to `false` (no shell).
+    A different shell can be specified as a string. The shell should understand the
+    `-c` switch on UNIX, or `/d /s /c` on Windows. Defaults to `false` (no shell).
 * Returns: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
@@ -780,8 +780,8 @@ changes:
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `'process.env.ComSpec'` on Windows. If
     `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows instead.
-    A different shell can be specified as a string. The shell should understand
-    the `-c` switch on UNIX, or `/d /s /c` on Windows. Defaults to `false` (no shell).
+    A different shell can be specified as a string. The shell should understand the
+    `-c` switch on UNIX, or `/d /s /c` on Windows. Defaults to `false` (no shell).
 * Returns: {Object}
   * `pid` {number} Pid of the child process
   * `output` {Array} Array of results from stdio output
