@@ -596,6 +596,10 @@ Used when `Console` is instantiated without `stdout` stream or when `stdout` or
 
 Used when the native call from `process.cpuUsage` cannot be processed properly.
 
+<a id="ERR_DNS_SET_SERVERS_FAILED"></a>
+
+Used when `c-ares` failed to set the DNS server.
+
 <a id="ERR_FALSY_VALUE_REJECTION"></a>
 ### ERR_FALSY_VALUE_REJECTION
 
@@ -684,6 +688,10 @@ platform-dependent.
 Used when an attempt is made to send an unsupported "handle" over an IPC
 communication channel to a child process. See [`child.send()`] and
 [`process.send()`] for more information.
+
+<a id="ERR_INVALID_IP_ADDRESS"></a>
+
+Used when an IP address is not valid.
 
 <a id="ERR_INVALID_OPT_VALUE"></a>
 ### ERR_INVALID_OPT_VALUE
