@@ -133,9 +133,8 @@ added: v0.1.90
   * `env` {Object} Environment key-value pairs
   * `encoding` {string} (Default: `'utf8'`)
   * `shell` {string} Shell to execute the command with
-    (Default: `'/bin/sh'` on UNIX, `'cmd.exe'` on Windows, The shell should
-     understand the `-c` switch on UNIX or `/d /s /c` on Windows. On Windows,
-     command line parsing should be compatible with `cmd.exe`.)
+    (Default: `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows. See
+    [Shell Requirements][] and [Default Windows Shell][].)
   * `timeout` {number} (Default: `0`)
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
     stderr. (Default: `200*1024`) If exceeded, the child process is terminated.
@@ -382,9 +381,9 @@ changes:
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on UNIX, and `'cmd.exe'` on Windows. A different shell can be
-    specified as a string. The shell should understand the `-c` switch on UNIX,
-    or `/d /s /c` on Windows. Defaults to `false` (no shell).
+    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. Defaults to `false` (no shell).
 * Returns: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
@@ -707,9 +706,8 @@ changes:
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
   * `shell` {string} Shell to execute the command with
-    (Default: `'/bin/sh'` on UNIX, `'cmd.exe'` on Windows, The shell should
-     understand the `-c` switch on UNIX or `/d /s /c` on Windows. On Windows,
-     command line parsing should be compatible with `cmd.exe`.)
+    (Default: `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows. See
+    [Shell Requirements][] and [Default Windows Shell][].)
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {number} In milliseconds the maximum amount of time the process
@@ -775,9 +773,9 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     (Default: `'buffer'`)
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on UNIX, and `'cmd.exe'` on Windows. A different shell can be
-    specified as a string. The shell should understand the `-c` switch on UNIX,
-    or `/d /s /c` on Windows. Defaults to `false` (no shell).
+    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. Defaults to `false` (no shell).
 * Returns: {Object}
   * `pid` {number} Pid of the child process
   * `output` {Array} Array of results from stdio output
@@ -1281,6 +1279,19 @@ This impacts output that includes multibyte character encodings such as UTF-8 or
 UTF-16. For instance, `console.log('中文测试')` will send 13 UTF-8 encoded bytes
 to `stdout` although there are only 4 characters.
 
+## Shell Requirements
+
+The shell should understand the `-c` switch on UNIX or `/d /s /c` on Windows.
+On Windows, command line parsing should be compatible with `'cmd.exe'`.
+
+## Default Windows Shell
+
+Although Microsoft specifies `%COMSPEC%` must contain the path to
+`'cmd.exe'` in the root environment, child processes are not always subject to
+the same requirement. Thus, in `child_process` functions where a shell can be
+spawned, `'cmd.exe'` is used as a fallback if `process.env.ComSpec` is
+unavailable.
+
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
 [`'message'`]: #child_process_event_message
@@ -1314,4 +1325,6 @@ to `stdout` although there are only 4 characters.
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`stdio`]: #child_process_options_stdio
 [`util.promisify()`]: util.html#util_util_promisify_original
+[Default Windows Shell]: #child_process_default_windows_shell
+[Shell Requirements]: #child_process_shell_requirements
 [synchronous counterparts]: #child_process_synchronous_process_creation
