@@ -16,13 +16,15 @@ const fork = require('child_process').fork;
 const path = require('path');
 
 const runjs = path.join(__dirname, '..', '..', 'benchmark', 'run.js');
-const argv = ['--set', 'n=1',
-              '--set', 'writes=1',
-              '--set', 'len=1',
+const argv = ['--set', 'algo=sha256',
               '--set', 'api=stream',
-              '--set', 'out=buffer',
               '--set', 'keylen=1024',
+              '--set', 'len=1',
+              '--set', 'n=1',
+              '--set', 'out=buffer',
               '--set', 'type=buf',
+              '--set', 'v=crypto',
+              '--set', 'writes=1',
               'crypto'];
 
 const child = fork(runjs, argv, {env: {NODEJS_BENCHMARK_ZERO_ALLOWED: 1}});
