@@ -634,6 +634,13 @@ Type: Runtime
 
 *Note*: change was made while `async_hooks` was an experimental API.
 
+<a id="DEP0073"></a>
+### DEP0073: tls.parseCertString()
+
+Type: Runtime
+
+`tls.parseCertString()` was move to `internal/tls.js`.
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
