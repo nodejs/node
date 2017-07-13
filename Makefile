@@ -259,13 +259,15 @@ test-timers:
 test-timers-clean:
 	$(MAKE) --directory=tools clean
 
-test-v8: v8 test-hash-seed
+test-v8: v8
 #	note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) $(V8_TEST_NO_I18N) $(QUICKCHECK_ARG) \
         --no-presubmit \
         --shell-dir=$(PWD)/deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) \
 	 $(TAP_V8)
+	 @echo Testing hash seed
+	 $(MAKE) test-hash-seed
 
 test-v8-intl: v8
 #	note: performs full test unless QUICKCHECK is specified
