@@ -5,7 +5,7 @@ require('../common');
 
 const assert = require('assert');
 const async_hooks = require('async_hooks');
-const AsyncResource = require('async_hooks').AsyncResource;
+const { AsyncResource } = async_hooks;
 
 // Setup init hook such parameters are validated
 async_hooks.createHook({
