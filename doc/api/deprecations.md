@@ -639,7 +639,23 @@ Type: Runtime
 
 Type: Runtime
 
-`tls.parseCertString()` was move to `internal/tls.js`.
+`tls.parseCertString()` is a trivial parsing helper that was made public by
+mistake. This function can usually be replaced with
+
+```js
+const querystring = require('querystring');
+querystring.parse(str, '\n', '=')`;
+```
+
+*Note*: This function is not 100% same as `querystring.parse()`. One difference
+is that `querystring.parse()` does URLDecoding, e.g.:
+
+```js
+> querystring.parse("%E5%A5%BD=1", "\n", "=");
+{ '好': '1' }
+> tls.parseCertString("%E5%A5%BD=1");
+{ '%E5%A5%BD': '1' }
+```
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
