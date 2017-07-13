@@ -968,8 +968,11 @@ def configure_openssl(o):
     o['variables']['openssl_fips'] = options.openssl_fips
     fips_dir = os.path.join(root_dir, 'deps', 'openssl', 'fips')
     fips_ld = os.path.abspath(os.path.join(fips_dir, 'fipsld'))
+    # LINK is for Makefiles, LD/LDXX is for ninja
     o['make_fips_settings'] = [
       ['LINK', fips_ld + ' <(openssl_fips)/bin/fipsld'],
+      ['LD', fips_ld + ' <(openssl_fips)/bin/fipsld'],
+      ['LDXX', fips_ld + ' <(openssl_fips)/bin/fipsld'],
     ]
   else:
     o['variables']['openssl_fips'] = ''
