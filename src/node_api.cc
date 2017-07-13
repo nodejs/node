@@ -712,6 +712,45 @@ bool FindWrapper(v8::Local<v8::Object> obj,
   return true;
 }
 
+static void DeleteEnv(napi_env env, void* data, void* hint) {
+  delete env;
+}
+
+napi_env GetEnv(v8::Local<v8::Context> context) {
+  napi_env result;
+
+  auto isolate = context->GetIsolate();
+  auto global = context->Global();
+
+  // In the case of the string for which we grab the private and the value of
+  // the private on the global object we can call .ToLocalChecked() directly
+  // because we need to stop hard if either of them is empty.
+  //
+  // Re https://github.com/nodejs/node/pull/14217#discussion_r128775149
+  auto key = v8::Private::ForApi(isolate,
+      v8::String::NewFromOneByte(isolate,
+          reinterpret_cast<const uint8_t*>("N-API Environment"),
+          v8::NewStringType::kInternalized).ToLocalChecked());
+  auto value = global->GetPrivate(context, key).ToLocalChecked();
+
+  if (value->IsExternal()) {
+    result = static_cast<napi_env>(value.As<v8::External>()->Value());
+  } else {
+    result = new napi_env__(isolate);
+    auto external = v8::External::New(isolate, result);
+
+    // We must also stop hard if the result of assigning the env to the global
+    // is either nothing or false.
+    CHECK(global->SetPrivate(context, key, external).FromJust());
+
+    // Create a self-destructing reference to external that will get rid of the
+    // napi_env when external goes out of scope.
+    Reference::New(result, external, 0, true, DeleteEnv, nullptr, nullptr);
+  }
+
+  return result;
+}
+
 }  // end of namespace v8impl
 
 // Intercepts the Node-V8 module registration callback. Converts parameters
@@ -723,9 +762,9 @@ void napi_module_register_cb(v8::Local<v8::Object> exports,
                              void* priv) {
   napi_module* mod = static_cast<napi_module*>(priv);
 
-  // Create a new napi_env for this module. Once module unloading is supported
-  // we shall have to call delete on this object from there.
-  napi_env env = new napi_env__(context->GetIsolate());
+  // Create a new napi_env for this module or reference one if a pre-existing
+  // one is found.
+  napi_env env = v8impl::GetEnv(context);
 
   mod->nm_register_func(
     env,
