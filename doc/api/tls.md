@@ -1149,6 +1149,40 @@ For example:
 console.log(tls.getCiphers()); // ['AES128-SHA', 'AES256-SHA', ...]
 ```
 
+## tls.parseCertString(str)
+<!-- YAML
+added: v0.3.3
+deprecated: v6.0.0
+-->
+
+* `str` {string} A Cert in [`ini`][] format.
+
+Returns the parsed object.
+
+For example:
+
+```js
+tls.parseCertString(`C=US
+ST=CA
+L=SF
+O=Joyent
+OU=Node.js
+CN=ca1
+emailAddress=ry@clouds.org`);
+```
+
+This will return &mdash;
+
+```js
+{ C: 'US',
+  ST: 'CA',
+  L: 'SF',
+  O: 'Joyent',
+  OU: 'Node.js',
+  CN: 'ca1',
+  emailAddress: 'ry@clouds.org' }
+```
+
 ## tls.DEFAULT_ECDH_CURVE
 <!-- YAML
 added: v0.11.13
@@ -1303,3 +1337,4 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [tls.Server]: #tls_class_tls_server
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
+[`ini`]: https://en.wikipedia.org/wiki/INI_file
