@@ -4,6 +4,12 @@ const http = require('http');
 const util = require('util');
 const stream = require('stream');
 
+// Verify that when piping a stream to an `OutgoingMessage` (or a type that
+// inherits from `OutgoingMessage`), if data is emitted after the
+// `OutgoingMessage` was closed - no `write after end` error is raised (this
+// should be the case when piping - when writing data directly to the
+// `OutgoingMessage` this error should be raised).
+
 function MyStream() {
   stream.call(this);
 }
