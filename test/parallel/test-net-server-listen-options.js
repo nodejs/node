@@ -42,6 +42,7 @@ const listenOnPort = [
     listen('0', common.mustCall(close));
     listen(0, common.mustCall(close));
     listen(undefined, common.mustCall(close));
+    listen(null, common.mustCall(close));
     // Test invalid ports
     assert.throws(() => listen(-1, common.mustNotCall()), portError);
     assert.throws(() => listen(NaN, common.mustNotCall()), portError);
@@ -71,8 +72,6 @@ const listenOnPort = [
                   `expect listen(${util.inspect(options)}) to throw`);
   }
 
-  shouldFailToListen(null, { port: null });
-  shouldFailToListen({ port: null });
   shouldFailToListen(false, { port: false });
   shouldFailToListen({ port: false });
   shouldFailToListen(true, { port: true });
