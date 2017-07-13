@@ -653,6 +653,14 @@ Type: Runtime
 The `REPLServer.bufferedCommand` property was deprecated in favor of
 [`REPLServer.clearBufferedCommand()`][].
 
+<a id="DEP0075"></a>
+### DEP0075: REPLServer.parseREPLKeyword()
+
+Type: Runtime
+
+`REPLServer.parseREPLKeyword()` was removed from userland visibility.
+
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
