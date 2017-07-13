@@ -58,7 +58,8 @@ struct napi_env__ {
       (destination)->SetInternalFieldCount((field_count));         \
       (env)->prefix ## _template.Reset(isolate, (destination));    \
     } else {                                                       \
-      (destination) = env->prefix ## _template.Get(isolate);       \
+      (destination) = v8::Local<v8::ObjectTemplate>::New(          \
+          isolate, env->prefix ## _template);                      \
     }                                                              \
   } while (0)
 
