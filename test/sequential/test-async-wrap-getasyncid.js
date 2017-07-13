@@ -273,3 +273,10 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
   handle.send(req, [Buffer.alloc(1)], 1, req.port, req.address, true);
   testInitialized(req, 'SendWrap');
 }
+
+if (process.config.variables.v8_enable_inspector !== 0) {
+  const binding = process.binding('inspector');
+  const handle = new binding.Connection(() => {});
+  testInitialized(handle, 'Connection');
+  handle.disconnect();
+}
