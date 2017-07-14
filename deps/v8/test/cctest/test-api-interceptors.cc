@@ -1383,6 +1383,41 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
   CHECK(value->BooleanValue(context.local()).FromJust());
 }
 
+// Test load of a non-existing global through prototype chain when a global
+// object has an interceptor.
+THREADED_TEST(InterceptorLoadICGlobalWithInterceptor) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> templ_global = v8::ObjectTemplate::New(isolate);
+  templ_global->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      GenericInterceptorGetter, GenericInterceptorSetter));
+
+  LocalContext context(nullptr, templ_global);
+  i::Handle<i::JSReceiver> global_proxy =
+      v8::Utils::OpenHandle<Object, i::JSReceiver>(context->Global());
+  CHECK(global_proxy->IsJSGlobalProxy());
+  i::Handle<i::JSGlobalObject> global(
+      i::JSGlobalObject::cast(global_proxy->map()->prototype()));
+  CHECK(global->map()->has_named_interceptor());
+
+  ExpectInt32(
+      "(function() {"
+      "  var f = function(obj) { "
+      "    return obj.foo;"
+      "  };"
+      "  var obj = { __proto__: this, _str_foo: 42 };"
+      "  for (var i = 0; i < 1500; i++) obj['p' + i] = 0;"
+      "  /* Ensure that |obj| is in dictionary mode. */"
+      "  if (%HasFastProperties(obj)) return -1;"
+      "  for (var i = 0; i < 3; i++) {"
+      "    f(obj);"
+      "  };"
+      "  return f(obj);"
+      "})();",
+      42);
+}
+
 static void InterceptorLoadICGetter0(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
