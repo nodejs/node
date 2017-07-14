@@ -13,12 +13,11 @@ var archy = require('archy')
 var semver = require('semver')
 var color = require('ansicolors')
 var npa = require('npm-package-arg')
-var iferr = require('iferr')
 var sortedObject = require('sorted-object')
-var extend = Object.assign || require('util')._extend
 var npm = require('./npm.js')
 var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
 var computeMetadata = require('./install/deps.js').computeMetadata
+var readShrinkwrap = require('./install/read-shrinkwrap.js')
 var packageId = require('./utils/package-id.js')
 var usage = require('./utils/usage')
 var output = require('./utils/output.js')
@@ -36,15 +35,13 @@ function ls (args, silent, cb) {
     silent = false
   }
   var dir = path.resolve(npm.dir, '..')
-  readPackageTree(dir, andComputeMetadata(iferr(cb, function (physicalTree) {
-    lsFromTree(dir, physicalTree, args, silent, cb)
-  })))
-}
-
-function andComputeMetadata (next) {
-  return function (er, tree) {
-    next(null, computeMetadata(tree || {}))
-  }
+  readPackageTree(dir, function (_, physicalTree) {
+    if (!physicalTree) physicalTree = {package: {}, path: dir}
+    physicalTree.isTop = true
+    readShrinkwrap.andInflate(physicalTree, function () {
+      lsFromTree(dir, computeMetadata(physicalTree), args, silent, cb)
+    })
+  })
 }
 
 function inList (list, value) {
@@ -81,6 +78,8 @@ var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
 
   pruneNestedExtraneous(data)
   filterByEnv(data)
+  filterByLink(data)
+
   var unlooped = filterFound(unloop(data), args)
   var lite = getLite(unlooped)
 
@@ -90,13 +89,13 @@ var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
   var json = npm.config.get('json')
   var out
   if (json) {
-    var seen = []
+    var seen = new Set()
     var d = long ? unlooped : lite
     // the raw data can be circular
     out = JSON.stringify(d, function (k, o) {
       if (typeof o === 'object') {
-        if (inList(seen, o)) return '[Circular]'
-        seen.push(o)
+        if (seen.has(o)) return '[Circular]'
+        seen.add(o)
       }
       return o
     }, 2)
@@ -147,6 +146,19 @@ function filterByEnv (data) {
     }
   })
   data.dependencies = dependencies
+}
+
+function filterByLink (data) {
+  if (npm.config.get('link')) {
+    var dependencies = {}
+    Object.keys(data.dependencies).forEach(function (name) {
+      var dependency = data.dependencies[name]
+      if (dependency.link) {
+        dependencies[name] = dependency
+      }
+    })
+    data.dependencies = dependencies
+  }
 }
 
 function alphasort (a, b) {
@@ -224,7 +236,11 @@ function getLite (data, noname, depth) {
             ', required by ' +
             packageId(data)
         lite.problems.push(p)
-        return [d, { required: dep.requiredBy, missing: true }]
+        if (dep.dependencies) {
+          return [d, getLite(dep, true)]
+        } else {
+          return [d, { required: dep.requiredBy, missing: true }]
+        }
       } else if (dep.peerMissing) {
         lite.problems = lite.problems || []
         dep.peerMissing.forEach(function (missing) {
@@ -254,22 +270,22 @@ function getLite (data, noname, depth) {
 
 function unloop (root) {
   var queue = [root]
-  var seen = {}
-  seen[root.path] = true
+  var seen = new Set()
+  seen.add(root)
 
   while (queue.length) {
     var current = queue.shift()
     var deps = current.dependencies = current.dependencies || {}
     Object.keys(deps).forEach(function (d) {
       var dep = deps[d]
-      if (dep.missing) return
-      if (dep.path && seen[dep.path]) {
-        dep = deps[d] = extend({}, dep)
+      if (dep.missing && !dep.dependencies) return
+      if (dep.path && seen.has(dep)) {
+        dep = deps[d] = Object.assign({}, dep)
         dep.dependencies = {}
         dep._deduped = path.relative(root.path, dep.path).replace(/node_modules\//g, '')
         return
       }
-      seen[dep.path] = true
+      seen.add(dep)
       queue.push(dep)
     })
   }
@@ -353,11 +369,26 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
           unmet = color.bgBlack(color.red(unmet))
         }
       }
-      data = unmet + ' ' + d + '@' + data.requiredBy
+      var label = data._id || (d + '@' + data.requiredBy)
+      if (data._found === 'explicit' && data._id) {
+        if (npm.color) {
+          label = color.bgBlack(color.yellow(label.trim())) + ' '
+        } else {
+          label = label.trim() + ' '
+        }
+      }
+      return {
+        label: unmet + ' ' + label,
+        nodes: Object.keys(data.dependencies || {})
+          .sort(alphasort).filter(function (d) {
+            return !isCruft(data.dependencies[d])
+          }).map(function (d) {
+            return makeArchy_(sortedObject(data.dependencies[d]), long, dir, depth + 1, data, d)
+          })
+      }
     } else {
-      data = d + '@' + data.requiredBy
+      return {label: d + '@' + data.requiredBy}
     }
-    return data
   }
 
   var out = {}

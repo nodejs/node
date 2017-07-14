@@ -1,0 +1,43 @@
+{
+  "_from": "decamelize@^1.1.1",
+  "_id": "decamelize@1.2.0",
+  "_inBundle": false,
+  "_integrity": "sha1-9lNNFRSCabIDUue+4m9QH5oZEpA=",
+  "_location": "/libnpx/yargs/decamelize",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "decamelize@^1.1.1",
+    "name": "decamelize",
+    "escapedName": "decamelize",
+    "rawSpec": "^1.1.1",
+    "saveSpec": null,
+    "fetchSpec": "^1.1.1"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs"
+  ],
+  "_resolved": "https://registry.npmjs.org/decamelize/-/decamelize-1.2.0.tgz",
+  "_shasum": "f6534d15148269b20352e7bee26f501f9a191290",
+  "_shrinkwrap": null,
+  "_spec": "decamelize@^1.1.1",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "> Convert a camelized string into a lowercased one with a custom separator<br> > Example: `unicornRainbow` → `unicorn_rainbow`",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "name": "decamelize",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "1.2.0"
+}

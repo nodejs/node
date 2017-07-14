@@ -185,11 +185,11 @@ function pack_ (tarball, folder, tree, pkg, cb) {
     var pkg = tree.children.filter(nameMatch(name))[0]
     if (!pkg) return false
     var requiredBy = [].concat(pkg.requiredBy)
-    var seen = {}
+    var seen = new Set()
     while (requiredBy.length) {
       var reqPkg = requiredBy.shift()
-      if (seen[reqPkg.path]) continue
-      seen[reqPkg.path] = true
+      if (seen.has(reqPkg)) continue
+      seen.add(reqPkg)
       if (!reqPkg) continue
       if (reqPkg.parent === tree && bd.indexOf(moduleName(reqPkg)) !== -1) {
         return true

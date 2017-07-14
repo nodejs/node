@@ -74,10 +74,6 @@ event has been introduced, <code>prepare</code>, that preserves this existing be
 allow users to avoid the confusing behavior of existing npm versions and only
 run on <code>npm publish</code> (for instance, running the tests one last time to ensure
 they&#39;re in good shape).</p>
-<p><strong>IMPORTANT:</strong> As of <code>npm@5</code>, <code>prepublish</code> will <em>only</em> be run for <code>npm
-publish</code>.  This will make its behavior identical to <code>prepublishOnly</code>, so
-<code>npm@6</code> or later may drop support for the use of <code>prepublishOnly</code>, and then
-maybe we can all forget this embarrassing thing ever happened.</p>
 <p>See <a href="https://github.com/npm/npm/issues/10074">https://github.com/npm/npm/issues/10074</a> for a much lengthier
 justification, with further reading, for this change.</p>
 <h3 id="use-cases">USE CASES</h3>
@@ -243,5 +239,5 @@ scripts is for compilation which must be done on the target architecture.</li>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scripts &mdash; npm@5.0.3</p>
+<p id="footer">npm-scripts &mdash; npm@5.3.0</p>
 
