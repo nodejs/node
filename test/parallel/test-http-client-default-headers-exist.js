@@ -20,9 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
+const Countdown = require('../common/countdown');
 
 const expectedHeaders = {
   'DELETE': ['host', 'connection'],
@@ -35,17 +36,18 @@ const expectedHeaders = {
 
 const expectedMethods = Object.keys(expectedHeaders);
 
-let requestCount = 0;
+const countdown =
+  new Countdown(expectedMethods.length,
+                common.mustCall(() => server.close()));
 
-const server = http.createServer(function(req, res) {
-  requestCount++;
+const server = http.createServer(common.mustCall((req, res) => {
   res.end();
 
   assert(expectedHeaders.hasOwnProperty(req.method),
          `${req.method} was an unexpected method`);
 
   const requestHeaders = Object.keys(req.headers);
-  requestHeaders.forEach(function(header) {
+  requestHeaders.forEach((header) => {
     assert.strictEqual(
       expectedHeaders[req.method].includes(header.toLowerCase()),
       true,
@@ -59,15 +61,14 @@ const server = http.createServer(function(req, res) {
     `some headers were missing for method: ${req.method}`
   );
 
-  if (expectedMethods.length === requestCount)
-    server.close();
-});
+  countdown.dec();
+}, expectedMethods.length));
 
-server.listen(0, function() {
-  expectedMethods.forEach(function(method) {
+server.listen(0, common.mustCall(() => {
+  expectedMethods.forEach((method) => {
     http.request({
       method: method,
       port: server.address().port
     }).end();
   });
-});
+}));
