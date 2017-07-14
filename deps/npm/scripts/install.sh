@@ -257,7 +257,7 @@ cd "$TMP" \
       fi
       if [ "$make" = "NOMAKE" ]; then
         "$node" bin/npm-cli.js rm npm -gf
-        "$node" bin/npm-cli.js install -gf
+        "$node" bin/npm-cli.js install -gf $("$node" bin/npm-cli.js pack | tail -1)
       fi) \
   && cd "$BACK" \
   && rm -rf "$TMP" \

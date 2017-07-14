@@ -67,7 +67,7 @@ test("shrinkwrap doesn't strip out the shared dependency", function (t) {
   }).spread((code) => {
     t.is(code, 0, 'shrinkwrap')
     var results = JSON.parse(fs.readFileSync(`${pkg}/npm-shrinkwrap.json`))
-    t.deepEqual(results.dependencies, desired.dependencies)
+    t.like(results.dependencies, desired.dependencies)
     t.end()
   })
 })

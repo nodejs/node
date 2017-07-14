@@ -158,8 +158,9 @@ When you find issues, please report them:
 Be sure to include *all* of the output from the npm command that didn't work
 as expected.  The `npm-debug.log` file is also helpful to provide.
 
-You can also look for isaacs in #node.js on irc://irc.freenode.net.  She
-will no doubt tell you to put the output in a gist or email.
+You can also find npm people in `#npm` on https://package.community/ or
+[on Twitter](https://twitter.com/npm_support).  Whoever responds will no
+doubt tell you to put the output in a gist or email.
 
 ## SEE ALSO
 

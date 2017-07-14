@@ -26,7 +26,7 @@ function removeLink (pkg, next) {
 function removeDir (pkg, log, next) {
   var modpath = path.join(path.dirname(pkg.path), '.' + path.basename(pkg.path) + '.MODULES')
 
-  move(path.join(pkg.path, 'node_modules'), modpath, unbuildPackage)
+  move(path.join(pkg.path, 'node_modules'), modpath).then(unbuildPackage, unbuildPackage)
 
   function unbuildPackage (moveEr) {
     npm.commands.unbuild(pkg.path, true, function () {
@@ -58,7 +58,7 @@ function removeDir (pkg, log, next) {
       var to = path.join(pkg.path, 'node_modules', file)
       // we ignore errors here, because they can legitimately happen, for instance,
       // bundled modules will be in both node_modules folders
-      move(from, to, andIgnoreErrors(done))
+      move(from, to).then(andIgnoreErrors(done), andIgnoreErrors(done))
     }, cleanup)
   }
 

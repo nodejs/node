@@ -109,8 +109,13 @@ function revs (repo, opts) {
       env: gitEnv()
     }, opts).then(child => {
       let stdout = ''
+      let stderr = ''
       child.stdout.on('data', d => { stdout += d })
-      return finished(child).then(() => {
+      child.stderr.on('data', d => { stderr += d })
+      return finished(child).catch(err => {
+        err.message = `Error while executing:\n${GITPATH} ls-remote -h -t ${repo}\n\n${stderr}\n${err.message}`
+        throw err
+      }).then(() => {
         return stdout.split('\n').reduce((revs, line) => {
           const split = line.split(/\s+/, 2)
           if (split.length < 2) { return revs }

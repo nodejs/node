@@ -14,7 +14,7 @@ const realizeShrinkwrapSpecifier = require('./realize-shrinkwrap-specifier.js')
 const validate = require('aproba')
 const path = require('path')
 
-module.exports = function (tree, swdeps, opts, finishInflating) {
+module.exports = function (tree, sw, opts, finishInflating) {
   if (!fetchPackageMetadata) {
     fetchPackageMetadata = BB.promisify(require('../fetch-package-metadata.js'))
     addBundled = BB.promisify(fetchPackageMetadata.addBundled)
@@ -26,36 +26,32 @@ module.exports = function (tree, swdeps, opts, finishInflating) {
   if (!npm.config.get('shrinkwrap') || !npm.config.get('package-lock')) {
     return finishInflating()
   }
-  tree.loaded = true
-  return inflateShrinkwrap(tree.path, tree, swdeps, opts).then(
+  tree.loaded = false
+  tree.hasRequiresFromLock = sw.requires
+  return inflateShrinkwrap(tree.path, tree, sw.dependencies, opts).then(
     () => finishInflating(),
     finishInflating
   )
 }
 
 function inflateShrinkwrap (topPath, tree, swdeps, opts) {
-  validate('SOO|SOOO', arguments)
+  if (!swdeps) return Promise.resolve()
   if (!opts) opts = {}
   const onDisk = {}
   tree.children.forEach((child) => {
     onDisk[moduleName(child)] = child
   })
-  const dev = npm.config.get('dev') || (!/^prod(uction)?$/.test(npm.config.get('only')) && !npm.config.get('production')) || /^dev(elopment)?$/.test(npm.config.get('only'))
-  const prod = !/^dev(elopment)?$/.test(npm.config.get('only'))
 
   tree.children = []
 
   return BB.each(Object.keys(swdeps), (name) => {
     const sw = swdeps[name]
-    if (
-      (!prod && !sw.dev) ||
-      (!dev && sw.dev)
-    ) { return null }
     const dependencies = sw.dependencies || {}
     const requested = realizeShrinkwrapSpecifier(name, sw, topPath)
     return inflatableChild(
       onDisk[name], name, topPath, tree, sw, requested, opts
     ).then((child) => {
+      child.hasRequiresFromLock = tree.hasRequiresFromLock
       return inflateShrinkwrap(topPath, child, dependencies)
     })
   })
@@ -74,11 +70,13 @@ function inflatableChild (onDiskChild, name, topPath, tree, sw, requested, opts)
   if (onDiskChild && childIsEquivalent(sw, requested, onDiskChild)) {
     // The version on disk matches the shrinkwrap entry.
     if (!onDiskChild.fromShrinkwrap) onDiskChild.fromShrinkwrap = true
-    if (sw.dev) onDiskChild.shrinkwrapDev = true
     onDiskChild.package._requested = requested
     onDiskChild.package._spec = requested.rawSpec
     onDiskChild.package._where = topPath
-    onDiskChild.fromBundle = sw.bundled ? tree.fromBundle || tree : null
+    onDiskChild.package._optional = sw.optional
+    onDiskChild.package._development = sw.dev
+    onDiskChild.package._inBundle = sw.bundled
+    onDiskChild.fromBundle = (sw.bundled || onDiskChild.package._inBundle) ? tree.fromBundle || tree : null
     if (!onDiskChild.package._args) onDiskChild.package._args = []
     onDiskChild.package._args.push([String(requested), topPath])
     // non-npm registries can and will return unnormalized data, plus
@@ -86,9 +84,10 @@ function inflatableChild (onDiskChild, name, topPath, tree, sw, requested, opts)
     // normalization rules. This ensures we get package data in a consistent,
     // stable format.
     normalizePackageDataNoErrors(onDiskChild.package)
+    onDiskChild.swRequires = sw.requires
     tree.children.push(onDiskChild)
     return BB.resolve(onDiskChild)
-  } else if (opts.fakeChildren !== false && sw.version && sw.integrity) {
+  } else if ((sw.version && sw.integrity) || sw.bundled) {
     // The shrinkwrap entry has an integrity field. We can fake a pkg to get
     // the installer to do a content-address fetch from the cache, if possible.
     return BB.resolve(makeFakeChild(name, topPath, tree, sw, requested))
@@ -105,43 +104,43 @@ function makeFakeChild (name, topPath, tree, sw, requested) {
   const pkg = {
     name: name,
     version: sw.version,
+    _id: name + '@' + sw.version,
     _resolved: adaptResolved(requested, sw.resolved),
     _requested: requested,
     _optional: sw.optional,
+    _development: sw.dev,
+    _inBundle: sw.bundled,
     _integrity: sw.integrity,
     _from: from,
     _spec: requested.rawSpec,
     _where: topPath,
-    _args: [[requested.toString(), topPath]]
+    _args: [[requested.toString(), topPath]],
+    dependencies: sw.requires
   }
-  let bundleAdded = BB.resolve()
-  if (Object.keys(sw.dependencies || {}).some((d) => {
-    return sw.dependencies[d].bundled
-  })) {
-    pkg.bundleDependencies = []
-    bundleAdded = addBundled(pkg)
-  }
-  return bundleAdded.then(() => {
-    const child = createChild({
-      package: pkg,
-      loaded: true,
-      parent: tree,
-      children: pkg._bundled || [],
-      fromShrinkwrap: true,
-      fakeChild: sw,
-      fromBundle: sw.bundled ? tree.fromBundle || tree : null,
-      path: childPath(tree.path, pkg),
-      realpath: childPath(tree.realpath, pkg),
-      location: tree.location + '/' + pkg.name,
-      isInLink: tree.isLink
-    })
-    tree.children.push(child)
-    if (pkg._bundled) {
-      delete pkg._bundled
-      inflateBundled(child, child, child.children)
+
+  if (!sw.bundled) {
+    const bundleDependencies = Object.keys(sw.dependencies || {}).filter((d) => sw.dependencies[d].bundled)
+    if (bundleDependencies.length === 0) {
+      pkg.bundleDependencies = bundleDependencies
     }
-    return child
+  }
+  const child = createChild({
+    package: pkg,
+    loaded: true,
+    parent: tree,
+    children: [],
+    fromShrinkwrap: true,
+    fakeChild: sw,
+    fromBundle: sw.bundled ? tree.fromBundle || tree : null,
+    path: childPath(tree.path, pkg),
+    realpath: childPath(tree.realpath, pkg),
+    location: tree.location + '/' + pkg.name,
+    isLink: requested.type === 'directory',
+    isInLink: tree.isLink,
+    swRequires: sw.requires
   })
+  tree.children.push(child)
+  return child
 }
 
 function adaptResolved (requested, resolved) {
@@ -162,25 +161,27 @@ function adaptResolved (requested, resolved) {
 }
 
 function fetchChild (topPath, tree, sw, requested) {
-  const from = sw.from || requested.raw
-  const optional = sw.optional
   return fetchPackageMetadata(requested, topPath).then((pkg) => {
-    pkg._from = from
-    pkg._optional = optional
+    pkg._from = sw.from || requested.raw
+    pkg._optional = sw.optional
+    pkg._development = sw.dev
+    pkg._inBundle = false
     return addBundled(pkg).then(() => pkg)
   }).then((pkg) => {
     var isLink = pkg._requested.type === 'directory'
     const child = createChild({
       package: pkg,
-      loaded: true,
+      loaded: false,
       parent: tree,
       fromShrinkwrap: requested,
       path: childPath(tree.path, pkg),
       realpath: isLink ? requested.fetchSpec : childPath(tree.realpath, pkg),
       children: pkg._bundled || [],
       location: tree.location + '/' + pkg.name,
+      fromBundle: null,
       isLink: isLink,
-      isInLink: tree.isLink
+      isInLink: tree.isLink,
+      swRequires: sw.requires
     })
     tree.children.push(child)
     if (pkg._bundled) {

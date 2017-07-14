@@ -700,12 +700,11 @@ The host architecture is determined by `process.arch`
 
 ## preferGlobal
 
-If your package is primarily a command-line application that should be
-installed globally, then set this value to `true` to provide a warning
-if it is installed locally.
+**DEPRECATED**
 
-It doesn't actually prevent users from installing it locally, but it
-does help prevent some confusion if it doesn't work as expected.
+This option used to trigger an npm warning, but it will no longer warn. It is
+purely there for informational purposes. It is now recommended that you install
+any binaries as local devDependencies wherever possible.
 
 ## private
 

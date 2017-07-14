@@ -38,21 +38,19 @@ var long = npm.config.get('long')
 var mapToRegistry = require('./utils/map-to-registry.js')
 var isExtraneous = require('./install/is-extraneous.js')
 var computeMetadata = require('./install/deps.js').computeMetadata
+var computeVersionSpec = require('./install/deps.js').computeVersionSpec
 var moduleName = require('./utils/module-name.js')
 var output = require('./utils/output.js')
 var ansiTrim = require('./utils/ansi-trim')
 
-function uniqName (item) {
-  return item[0].path + '|' + item[1] + '|' + item[7]
-}
-
 function uniq (list) {
+  // we maintain the array because we need an array, not iterator, return
+  // value.
   var uniqed = []
-  var seen = {}
+  var seen = new Set()
   list.forEach(function (item) {
-    var name = uniqName(item)
-    if (seen[name]) return
-    seen[name] = true
+    if (seen.has(item)) return
+    seen.add(item)
     uniqed.push(item)
   })
   return uniqed
@@ -204,7 +202,7 @@ function outdated_ (args, path, tree, parentHas, depth, cb) {
   var types = {}
   var pkg = tree.package
 
-  var deps = tree.children.filter(function (child) { return !isExtraneous(child) }) || []
+  var deps = tree.error ? tree.children : tree.children.filter((child) => !isExtraneous(child))
 
   deps.forEach(function (dep) {
     types[moduleName(dep)] = 'dependencies'
@@ -291,7 +289,7 @@ function outdated_ (args, path, tree, parentHas, depth, cb) {
     var required = (tree.package.dependencies)[name] ||
                    (tree.package.optionalDependencies)[name] ||
                    (tree.package.devDependencies)[name] ||
-                   dep.package._requested && dep.package._requested.fetchSpec ||
+                   computeVersionSpec(tree, dep) ||
                    '*'
     if (!long) return shouldUpdate(args, dep, name, has, required, depth, path, cb)
 
