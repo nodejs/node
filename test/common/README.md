@@ -338,6 +338,42 @@ The realpath of the 'tmp' directory.
 
 Name of the temp directory used by tests.
 
+## Countdown Module
+
+The `Countdown` module provides a simple countdown mechanism for tests that
+require a particular action to be taken after a given number of completed
+tasks (for instance, shutting down an HTTP server after a specific number of
+requests).
+
+<!-- eslint-disable strict, required-modules -->
+```js
+const Countdown = require('../common/countdown');
+
+function doSomething() {
+  console.log('.');
+}
+
+const countdown = new Countdown(2, doSomething);
+countdown.dec();
+countdown.dec();
+```
+
+### new Countdown(limit, callback)
+
+* `limit` {number}
+* `callback` {function}
+
+Creates a new `Countdown` instance.
+
+### Countdown.prototype.dec()
+
+Decrements the `Countdown` counter.
+
+### Coutndown.prototype.remaining
+
+Specifies the remaining number of times `Countdown.prototype.dec()` must be
+called before the callback is invoked.
+
 ## WPT Module
 
 The wpt.js module is a port of parts of
