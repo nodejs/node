@@ -1,11 +1,11 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
 let complete;
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   // We should not see the queued /thatotherone request within the server
   // as it should be aborted before it is sent.
   assert.strictEqual(req.url, '/');
@@ -19,10 +19,8 @@ const server = http.createServer(function(req, res) {
 });
 
 
-server.listen(0, function() {
-  console.log('listen', server.address().port);
-
-  const agent = new http.Agent({maxSockets: 1});
+server.listen(0, () => {
+  const agent = new http.Agent({ maxSockets: 1 });
   assert.strictEqual(Object.keys(agent.sockets).length, 0);
 
   const options = {
@@ -34,7 +32,7 @@ server.listen(0, function() {
   };
 
   const req1 = http.request(options);
-  req1.on('response', function(res1) {
+  req1.on('response', (res1) => {
     assert.strictEqual(Object.keys(agent.sockets).length, 1);
     assert.strictEqual(Object.keys(agent.requests).length, 0);
 
@@ -48,7 +46,9 @@ server.listen(0, function() {
     assert.strictEqual(Object.keys(agent.sockets).length, 1);
     assert.strictEqual(Object.keys(agent.requests).length, 1);
 
-    req2.on('error', function(err) {
+    // TODO(jasnell): This event does not appear to currently be triggered.
+    // is this handler actually required?
+    req2.on('error', (err) => {
       // This is expected in response to our explicit abort call
       assert.strictEqual(err.code, 'ECONNRESET');
     });
@@ -59,25 +59,16 @@ server.listen(0, function() {
     assert.strictEqual(Object.keys(agent.sockets).length, 1);
     assert.strictEqual(Object.keys(agent.requests).length, 1);
 
-    console.log(`Got res: ${res1.statusCode}`);
-    console.dir(res1.headers);
+    res1.on('data', (chunk) => complete());
 
-    res1.on('data', function(chunk) {
-      console.log(`Read ${chunk.length} bytes`);
-      console.log(' chunk=%j', chunk.toString());
-      complete();
-    });
-
-    res1.on('end', function() {
-      console.log('Response ended.');
-
-      setTimeout(function() {
+    res1.on('end', common.mustCall(() => {
+      setTimeout(common.mustCall(() => {
         assert.strictEqual(Object.keys(agent.sockets).length, 0);
         assert.strictEqual(Object.keys(agent.requests).length, 0);
 
         server.close();
-      }, 100);
-    });
+      }), 100);
+    }));
   });
 
   req1.end();
