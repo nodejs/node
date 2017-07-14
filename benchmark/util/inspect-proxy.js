@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function twoDifferentProxies(n) {
-  // This one should be slower between we're looking up multiple proxies.
+  // This one should be slower because we're looking up multiple proxies.
   const proxyA = new Proxy({}, {get: () => {}});
   const proxyB = new Proxy({}, {get: () => {}});
   bench.start();
