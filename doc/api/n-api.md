@@ -181,6 +181,12 @@ must provide a function satisfying the following signature which would get
 called upon the object's collection. Currently, `napi_finalize` can be used for
 finding out when objects that have external data are collected.
 
+```C
+typedef void (*napi_finalize)(napi_env env,
+                              void* finalize_data,
+                              void* finalize_hint);
+```
+
 
 #### napi_async_execute_callback
 Function pointer used with functions that support asynchronous
