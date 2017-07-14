@@ -237,8 +237,7 @@ TestSession.prototype.sendInspectorCommands = function(commands) {
     };
     this.sendAll_(commands, () => {
       timeoutId = setTimeout(() => {
-        assert.fail(`Messages without response: ${
-                    Object.keys(this.messages_).join(', ')}`);
+        assert.fail(`Messages without response: ${Object.keys(this.messages_).join(', ')}`);
       }, TIMEOUT);
     });
   });

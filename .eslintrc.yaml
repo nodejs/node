@@ -109,17 +109,18 @@ rules:
   #                 ObjectExpression: first,
   #                 SwitchCase: 1}]
   indent-legacy: [error, 2, {ArrayExpression: first,
-                         CallExpression: {arguments: first},
-                         MemberExpression: 1,
-                         ObjectExpression: first,
-                         SwitchCase: 1}]
+                             CallExpression: {arguments: first},
+                             MemberExpression: 1,
+                             ObjectExpression: first,
+                             SwitchCase: 1}]
   key-spacing: [error, {mode: minimum}]
   keyword-spacing: error
   linebreak-style: [error, unix]
   max-len: [error, {code: 80,
-                ignoreRegExpLiterals: true,
-                ignoreUrls: true,
-                tabWidth: 2}]
+                    ignoreRegExpLiterals: true,
+                    ignoreTemplateLiterals: true,
+                    ignoreUrls: true,
+                    tabWidth: 2}]
   new-parens: error
   no-mixed-spaces-and-tabs: error
   no-multiple-empty-lines: [error, {max: 2, maxEOF: 0, maxBOF: 0}]

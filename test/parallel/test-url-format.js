@@ -253,6 +253,5 @@ for (const u in formatTests) {
   assert.strictEqual(actual, expect,
                      `wonky format(${u}) == ${expect}\nactual:${actual}`);
   assert.strictEqual(actualObj, expect,
-                     `wonky format(${JSON.stringify(formatTests[u])}) == ${
-                     expect}\nactual: ${actualObj}`);
+                     `wonky format(${JSON.stringify(formatTests[u])}) == ${expect}\nactual: ${actualObj}`);
 }

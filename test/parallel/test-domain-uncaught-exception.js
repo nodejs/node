@@ -184,16 +184,18 @@ if (process.argv[2] === 'child') {
       test.expectedMessages.forEach(function(expectedMessage) {
         const msgs = test.messagesReceived;
         if (msgs === undefined || !msgs.includes(expectedMessage)) {
-          assert.fail(`test ${test.fn.name} should have sent message: ${
-                      expectedMessage} but didn't`);
+          assert.fail(
+            `test ${test.fn.name} should have sent message: ${expectedMessage} but didn't`
+          );
         }
       });
 
       if (test.messagesReceived) {
         test.messagesReceived.forEach(function(receivedMessage) {
           if (!test.expectedMessages.includes(receivedMessage)) {
-            assert.fail(`test ${test.fn.name} should not have sent message: ${
-                        receivedMessage} but did`);
+            assert.fail(
+              `test ${test.fn.name} should not have sent message: ${receivedMessage} but did`
+            );
           }
         });
       }

@@ -149,8 +149,10 @@ trailingTests.forEach(function(test) {
   test[1].forEach(function(test) {
     const actual = parse(test[0]);
     const expected = test[1];
-    const message = `path.${os}.parse(${JSON.stringify(test[0])})\n  expect=${
-      JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
+    const message =
+      `path.${os}.parse(${JSON.stringify(test[0])})\n` +
+      `  expect=${JSON.stringify(expected)}\n` +
+      `  actual=${JSON.stringify(actual)}`;
     const actualKeys = Object.keys(actual);
     const expectedKeys = Object.keys(expected);
     let failed = (actualKeys.length !== expectedKeys.length);
