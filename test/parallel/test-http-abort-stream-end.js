@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const http = require('http');
@@ -28,20 +28,21 @@ const http = require('http');
 const maxSize = 1024;
 let size = 0;
 
-const s = http.createServer(function(req, res) {
-  this.close();
+const server = http.createServer(common.mustCall((req, res) => {
+  server.close();
 
   res.writeHead(200, {'Content-Type': 'text/plain'});
   for (let i = 0; i < maxSize; i++) {
-    res.write('x' + i);
+    res.write(`x${i}`);
   }
   res.end();
-});
+}));
 
 let aborted = false;
-s.listen(0, function() {
-  const req = http.get('http://localhost:' + s.address().port, function(res) {
-    res.on('data', function(chunk) {
+server.listen(0, () => {
+
+  const res = common.mustCall((res) => {
+    res.on('data', (chunk) => {
       size += chunk.length;
       assert(!aborted, 'got data after abort');
       if (size > maxSize) {
@@ -50,11 +51,9 @@ s.listen(0, function() {
         size = maxSize;
       }
     });
-  });
-});
 
-process.on('exit', function() {
-  assert(aborted);
-  assert.strictEqual(size, maxSize);
-  console.log('ok');
+    req.on('abort', common.mustCall(() => assert.strictEqual(size, maxSize)));
+  });
+
+  const req = http.get(`http://localhost:${server.address().port}`, res);
 });

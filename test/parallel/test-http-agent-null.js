@@ -23,14 +23,14 @@
 const common = require('../common');
 const http = require('http');
 
-const server = http.createServer(common.mustCall(function(req, res) {
+const server = http.createServer(common.mustCall((req, res) => {
   res.end();
-})).listen(0, common.mustCall(function() {
+})).listen(0, common.mustCall(() => {
   const options = {
     agent: null,
-    port: this.address().port
+    port: server.address().port
   };
-  http.get(options, common.mustCall(function(res) {
+  http.get(options, common.mustCall((res) => {
     res.resume();
     server.close();
   }));
