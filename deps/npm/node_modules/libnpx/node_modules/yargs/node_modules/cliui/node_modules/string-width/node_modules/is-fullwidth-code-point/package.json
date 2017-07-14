@@ -1,0 +1,45 @@
+{
+  "_from": "is-fullwidth-code-point@^1.0.0",
+  "_id": "is-fullwidth-code-point@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-754xOG8DGn8NZDr4L95QxFfvAMs=",
+  "_location": "/libnpx/yargs/cliui/string-width/is-fullwidth-code-point",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "is-fullwidth-code-point@^1.0.0",
+    "name": "is-fullwidth-code-point",
+    "escapedName": "is-fullwidth-code-point",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/cliui/string-width"
+  ],
+  "_resolved": "https://registry.npmjs.org/is-fullwidth-code-point/-/is-fullwidth-code-point-1.0.0.tgz",
+  "_shasum": "ef9e31386f031a7f0d643af82fde50c457ef00cb",
+  "_shrinkwrap": null,
+  "_spec": "is-fullwidth-code-point@^1.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/cliui/node_modules/string-width",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {
+    "number-is-nan": "^1.0.0"
+  },
+  "deprecated": false,
+  "description": "> Check if the character represented by a given [Unicode code point](https://en.wikipedia.org/wiki/Code_point) is [fullwidth](https://en.wikipedia.org/wiki/Halfwidth_and_fullwidth_forms)",
+  "devDependencies": {
+    "ava": "0.0.4",
+    "code-point-at": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "name": "is-fullwidth-code-point",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "1.0.0"
+}

@@ -43,14 +43,23 @@ function build (args, global, didPre, didRB, cb) {
     global = npm.config.get('global')
   }
 
-  // it'd be nice to asyncMap these, but actually, doing them
-  // in parallel generally munges up the output from node-waf
-  var builder = build_(global, didPre, didRB)
-  chain(args.map(function (arg) {
-    return function (cb) {
-      builder(arg, cb)
-    }
-  }), cb)
+  if (!args.length) {
+    readJson(path.resolve(npm.localPrefix, 'package.json'), function (er, pkg) {
+      if (!args.length && pkg && pkg.scripts && pkg.scripts.build) {
+        log.warn('build', '`npm build` called with no arguments. Did you mean to `npm run-script build`?')
+      }
+      cb()
+    })
+  } else {
+    // it'd be nice to asyncMap these, but actually, doing them
+    // in parallel generally munges up the output from node-waf
+    var builder = build_(global, didPre, didRB)
+    chain(args.map(function (arg) {
+      return function (cb) {
+        builder(arg, cb)
+      }
+    }), cb)
+  }
 }
 
 function build_ (global, didPre, didRB) {
@@ -108,44 +117,15 @@ var linkStuff = build.linkStuff = function (pkg, folder, global, didRB, cb) {
   if (gnm) log.silly('linkStuff', packageId(pkg), 'is installed into a global node_modules')
   if (gtop) log.silly('linkStuff', packageId(pkg), 'is installed into the top-level global node_modules')
 
-  shouldWarn(pkg, folder, global, function () {
-    asyncMap(
-      [linkBins, linkMans, !didRB && rebuildBundles],
-      function (fn, cb) {
-        if (!fn) return cb()
-        log.verbose(fn.name, packageId(pkg))
-        fn(pkg, folder, parent, gtop, cb)
-      },
-      cb
-    )
-  })
-}
-
-function shouldWarn (pkg, folder, global, cb) {
-  var parent = path.dirname(folder)
-  var top = parent === npm.dir
-  var cwd = npm.localPrefix
-
-  readJson(path.resolve(cwd, 'package.json'), function (er, topPkg) {
-    if (er) return cb(er)
-
-    var linkedPkg = path.basename(cwd)
-    var currentPkg = path.basename(folder)
-
-    // current searched package is the linked package on first call
-    if (linkedPkg !== currentPkg) {
-      // don't generate a warning if it's listed in dependencies
-      if (Object.keys(topPkg.dependencies || {})
-          .concat(Object.keys(topPkg.devDependencies || {}))
-          .indexOf(currentPkg) === -1) {
-        if (top && pkg.preferGlobal && !global) {
-          log.warn('prefer global', packageId(pkg) + ' should be installed with -g')
-        }
-      }
-    }
-
-    cb()
-  })
+  asyncMap(
+    [linkBins, linkMans, !didRB && rebuildBundles],
+    function (fn, cb) {
+      if (!fn) return cb()
+      log.verbose(fn.name, packageId(pkg))
+      fn(pkg, folder, parent, gtop, cb)
+    },
+    cb
+  )
 }
 
 function rebuildBundles (pkg, folder, parent, gtop, cb) {

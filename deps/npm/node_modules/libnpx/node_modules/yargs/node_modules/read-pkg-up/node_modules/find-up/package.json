@@ -1,0 +1,46 @@
+{
+  "_from": "find-up@^2.0.0",
+  "_id": "find-up@2.1.0",
+  "_inBundle": false,
+  "_integrity": "sha1-RdG35QbHF93UgndaK3eSCjwMV6c=",
+  "_location": "/libnpx/yargs/read-pkg-up/find-up",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "find-up@^2.0.0",
+    "name": "find-up",
+    "escapedName": "find-up",
+    "rawSpec": "^2.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^2.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/read-pkg-up"
+  ],
+  "_resolved": "https://registry.npmjs.org/find-up/-/find-up-2.1.0.tgz",
+  "_shasum": "45d1b7e506c717ddd482775a2b77920a3c0c57a7",
+  "_shrinkwrap": null,
+  "_spec": "find-up@^2.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/read-pkg-up",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {
+    "locate-path": "^2.0.0"
+  },
+  "deprecated": false,
+  "description": "> Find a file by walking up parent directories",
+  "devDependencies": {
+    "ava": "*",
+    "tempfile": "^1.1.1",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "name": "find-up",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "2.1.0"
+}

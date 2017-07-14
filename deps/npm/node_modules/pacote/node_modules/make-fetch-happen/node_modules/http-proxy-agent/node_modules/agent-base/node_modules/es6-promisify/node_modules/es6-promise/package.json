@@ -1,0 +1,96 @@
+{
+  "_from": "es6-promise@^4.0.3",
+  "_id": "es6-promise@4.1.1",
+  "_inBundle": false,
+  "_integrity": "sha512-OaU1hHjgJf+b0NzsxCg7NdIYERD6Hy/PEmFLTjw+b65scuisG3Kt4QoTvJ66BBkPZ581gr0kpoVzKnxniM8nng==",
+  "_location": "/pacote/make-fetch-happen/http-proxy-agent/agent-base/es6-promisify/es6-promise",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "es6-promise@^4.0.3",
+    "name": "es6-promise",
+    "escapedName": "es6-promise",
+    "rawSpec": "^4.0.3",
+    "saveSpec": null,
+    "fetchSpec": "^4.0.3"
+  },
+  "_requiredBy": [
+    "/pacote/make-fetch-happen/http-proxy-agent/agent-base/es6-promisify"
+  ],
+  "_resolved": "https://registry.npmjs.org/es6-promise/-/es6-promise-4.1.1.tgz",
+  "_shasum": "8811e90915d9a0dba36274f0b242dbda78f9c92a",
+  "_spec": "es6-promise@^4.0.3",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/pacote/node_modules/make-fetch-happen/node_modules/http-proxy-agent/node_modules/agent-base/node_modules/es6-promisify",
+  "author": {
+    "name": "Yehuda Katz, Tom Dale, Stefan Penner and contributors",
+    "url": "Conversion to ES6 API by Jake Archibald"
+  },
+  "browser": {
+    "vertx": false
+  },
+  "bugs": {
+    "url": "https://github.com/stefanpenner/es6-promise/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "A lightweight library that provides tools for organizing asynchronous code",
+  "devDependencies": {
+    "broccoli-babel-transpiler": "^5.6.1",
+    "broccoli-concat": "^3.1.0",
+    "broccoli-merge-trees": "^1.2.3",
+    "broccoli-rollup": "^1.0.2",
+    "broccoli-stew": "^1.2.0",
+    "broccoli-uglify-js": "^0.2.0",
+    "broccoli-watchify": "^1.0.1",
+    "ember-cli": "2.12.2",
+    "ember-cli-dependency-checker": "^1.3.0",
+    "ember-publisher": "0.0.7",
+    "git-repo-version": "0.4.1",
+    "json3": "^3.3.2",
+    "mocha": "^3.1.0",
+    "promises-aplus-tests-phantom": "^2.1.0-revise",
+    "release-it": "2.7.1"
+  },
+  "directories": {
+    "lib": "lib"
+  },
+  "files": [
+    "dist",
+    "lib",
+    "es6-promise.d.ts",
+    "auto.js",
+    "!dist/test"
+  ],
+  "homepage": "https://github.com/stefanpenner/es6-promise#readme",
+  "keywords": [
+    "promises",
+    "promise",
+    "polyfill",
+    "futures"
+  ],
+  "license": "MIT",
+  "main": "dist/es6-promise.js",
+  "name": "es6-promise",
+  "namespace": "es6-promise",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/stefanpenner/es6-promise.git"
+  },
+  "scripts": {
+    "build": "ember build --environment production",
+    "build:production": "ember build --env production",
+    "dry-run-release": "ember build --environment production && release-it --dry-run --non-interactive",
+    "lint": "jshint lib",
+    "prepublish": "ember build --environment production",
+    "start": "ember s",
+    "test": "ember test",
+    "test:node": "ember build && mocha ./dist/test/browserify",
+    "test:server": "ember test --server"
+  },
+  "spm": {
+    "main": "dist/es6-promise.js"
+  },
+  "typings": "es6-promise.d.ts",
+  "version": "4.1.1"
+}

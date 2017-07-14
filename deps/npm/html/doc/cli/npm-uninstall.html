@@ -11,7 +11,7 @@
 
 <h1><a href="../cli/npm-uninstall.html">npm-uninstall</a></h1> <p>Remove a package</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm uninstall [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;]... [-S|--save|-D|--save-dev|-O|--save-optional]
+<pre><code>npm uninstall [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;]... [-S|--save|-D|--save-dev|-O|--save-optional|--no-save]
 
 aliases: remove, rm, r, un, unlink
 </code></pre><h2 id="description">DESCRIPTION</h2>
@@ -30,6 +30,8 @@ the package version in your main package.json:</p>
 </li>
 <li><p><code>-O, --save-optional</code>: Package will be removed from your <code>optionalDependencies</code>.</p>
 </li>
+<li><p><code>--no-save</code>: Package will not be removed from your <code>package.json</code> file.</p>
+</li>
 </ul>
 <p>Further, if you have an <code>npm-shrinkwrap.json</code> then it will be updated as
 well.</p>
@@ -39,6 +41,7 @@ well.</p>
 npm uninstall @myorg/privatepackage --save
 npm uninstall node-tap --save-dev
 npm uninstall dtrace-provider --save-optional
+npm uninstall lodash --no-save
 </code></pre><h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-prune.html">npm-prune(1)</a></li>
@@ -60,5 +63,5 @@ npm uninstall dtrace-provider --save-optional
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-uninstall &mdash; npm@5.0.3</p>
+<p id="footer">npm-uninstall &mdash; npm@5.3.0</p>
 

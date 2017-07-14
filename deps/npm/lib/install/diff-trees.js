@@ -1,7 +1,11 @@
 'use strict'
+var npm = require('../npm.js')
 var validate = require('aproba')
 var npa = require('npm-package-arg')
 var flattenTree = require('./flatten-tree.js')
+var isOnlyDev = require('./is-only-dev.js')
+var log = require('npmlog')
+var path = require('path')
 
 function nonRegistrySource (pkg) {
   validate('O', arguments)
@@ -119,6 +123,8 @@ var diffTrees = module.exports._diffTrees = function (oldTree, newTree) {
   Object.keys(flatOldTree).forEach(function (flatname) {
     if (flatNewTree[flatname]) return
     var pkg = flatOldTree[flatname]
+    if (pkg.isInLink && /^[.][.][/\\]/.test(path.relative(newTree.realpath, pkg.realpath))) return
+
     toRemove[flatname] = pkg
     var pkgunique = getUniqueId(pkg.package)
     if (!toRemoveByUniqueId[pkgunique]) toRemoveByUniqueId[pkgunique] = []
@@ -146,9 +152,21 @@ var diffTrees = module.exports._diffTrees = function (oldTree, newTree) {
   })
   Object
     .keys(toRemove)
-    .map(function (path) { return toRemove[path] })
-    .forEach(function (pkg) {
-      setAction(differences, 'remove', pkg)
+    .map((path) => toRemove[path])
+    .forEach((pkg) => setAction(differences, 'remove', pkg))
+
+  const includeDev = npm.config.get('dev') ||
+    (!/^prod(uction)?$/.test(npm.config.get('only')) && !npm.config.get('production')) ||
+    /^dev(elopment)?$/.test(npm.config.get('only')) ||
+    /^dev(elopment)?$/.test(npm.config.get('also'))
+  const includeProd = !/^dev(elopment)?$/.test(npm.config.get('only'))
+  if (!includeProd || !includeDev) {
+    log.silly('diff-trees', 'filtering actions:', 'includeDev', includeDev, 'includeProd', includeProd)
+    differences = differences.filter((diff) => {
+      const pkg = diff[1]
+      const pkgIsOnlyDev = isOnlyDev(pkg)
+      return (!includeProd && pkgIsOnlyDev) || (includeDev && pkgIsOnlyDev) || (includeProd && !pkgIsOnlyDev)
     })
+  }
   return differences
 }
