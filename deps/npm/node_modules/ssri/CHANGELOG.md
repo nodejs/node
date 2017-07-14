@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="4.1.6"></a>
+## [4.1.6](https://github.com/zkat/ssri/compare/v4.1.5...v4.1.6) (2017-06-07)
+
+
+### Bug Fixes
+
+* **checkStream:** make sure to pass all opts through ([0b1bcbe](https://github.com/zkat/ssri/commit/0b1bcbe))
+
+
+
 <a name="4.1.5"></a>
 ## [4.1.5](https://github.com/zkat/ssri/compare/v4.1.4...v4.1.5) (2017-06-05)
 

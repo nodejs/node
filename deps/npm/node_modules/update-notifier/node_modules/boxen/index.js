@@ -118,8 +118,7 @@ module.exports = (text, opts) => {
 		const padWidth = (columns - contentWidth) / 2;
 		marginLeft = PAD.repeat(padWidth);
 	} else if (opts.float === 'right') {
-		let padWidth = Math.max(columns - contentWidth - 2, 0);
-		padWidth = padWidth < 0 ? 0 : padWidth;
+		const padWidth = Math.max(columns - contentWidth - 2, 0);
 		marginLeft = PAD.repeat(padWidth);
 	}
 

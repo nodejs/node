@@ -46,7 +46,7 @@ function moveModuleOnly (from, to, log, done) {
 
   log.silly('move', 'move existing destination node_modules away', toModules)
 
-  move(toModules, tempToModules, removeDestination(done))
+  move(toModules, tempToModules).then(removeDestination(done), removeDestination(done))
 
   function removeDestination (next) {
     return function (er) {
@@ -62,7 +62,7 @@ function moveModuleOnly (from, to, log, done) {
   function moveToModulesBack (next) {
     return function () {
       log.silly('move', 'move existing destination node_modules back', toModules)
-      move(tempToModules, toModules, iferr(done, next))
+      move(tempToModules, toModules).then(next, done)
     }
   }
 
@@ -76,14 +76,14 @@ function moveModuleOnly (from, to, log, done) {
   function moveNodeModules (next) {
     return function () {
       log.silly('move', 'move source node_modules away', fromModules)
-      move(fromModules, tempFromModules, iferr(doMove(next), doMove(moveNodeModulesBack(next))))
+      move(fromModules, tempFromModules).then(doMove(moveNodeModulesBack(next)), doMove(next))
     }
   }
 
   function doMove (next) {
     return function () {
       log.silly('move', 'move module dir to final dest', from, to)
-      move(from, to, iferr(done, next))
+      move(from, to).then(next, done)
     }
   }
 
@@ -91,7 +91,7 @@ function moveModuleOnly (from, to, log, done) {
     return function () {
       mkdirp(from, iferr(done, function () {
         log.silly('move', 'put source node_modules back', fromModules)
-        move(tempFromModules, fromModules, iferr(done, next))
+        move(tempFromModules, fromModules).then(next, done)
       }))
     }
   }

@@ -88,7 +88,7 @@ function fetchPackument (uri, spec, registry, opts) {
     // Force integrity to null: we never check integrity hashes for manifests
     integrity: null
   })).then(res => res.json().then(packument => {
-    packument._cached = res.headers.has('x-local-cache')
+    packument._cached = decodeURIComponent(res.headers.has('x-local-cache'))
     packument._contentLength = +res.headers.get('content-length')
     // NOTE - we need to call pickMem again because proxy
     //        objects get reused!
