@@ -23,7 +23,19 @@ var authProtocols = {
   'git+http:': true
 }
 
+var cache = {}
+
 module.exports.fromUrl = function (giturl, opts) {
+  var key = giturl + JSON.stringify(opts || {})
+
+  if (!(key in cache)) {
+    cache[key] = fromUrl(giturl, opts)
+  }
+
+  return cache[key]
+}
+
+function fromUrl (giturl, opts) {
   if (giturl == null || giturl === '') return
   var url = fixupUnqualifiedGist(
     isGitHubShorthand(giturl) ? 'github:' + giturl : giturl

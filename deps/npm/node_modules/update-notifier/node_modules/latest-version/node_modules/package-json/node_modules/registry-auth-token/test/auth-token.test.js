@@ -36,25 +36,27 @@ describe('auth-token', function () {
     })
   })
 
-  describe('bearer token', function () {
-    it('should return auth token if registry is defined', function (done) {
+  describe('legacy auth token', function () {
+    it('should return auth token if it is defined in the legacy way via the `_auth` key', function (done) {
       var content = [
-        'registry=http://registry.foobar.eu/',
-        '//registry.foobar.eu/:_authToken=foobar', ''
+        '_auth=foobar',
+        'registry=http://registry.foobar.eu/'
       ].join('\n')
 
       fs.writeFile(npmRcPath, content, function (err) {
         var getAuthToken = requireUncached('../index')
         assert(!err, err)
-        assert.deepEqual(getAuthToken(), {token: 'foobar', type: 'Bearer'})
+        assert.deepEqual(getAuthToken(), {token: 'foobar', type: 'Basic'})
         done()
       })
     })
+  })
 
-    it('should return auth token if it is defined in the legacy way via the `_auth` key', function (done) {
+  describe('bearer token', function () {
+    it('should return auth token if registry is defined', function (done) {
       var content = [
-        '_auth=foobar',
-        'registry=http://registry.foobar.eu/'
+        'registry=http://registry.foobar.eu/',
+        '//registry.foobar.eu/:_authToken=foobar', ''
       ].join('\n')
 
       fs.writeFile(npmRcPath, content, function (err) {

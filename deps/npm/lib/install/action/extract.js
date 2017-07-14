@@ -2,19 +2,36 @@
 
 const BB = require('bluebird')
 
-const fs = BB.promisifyAll(require('graceful-fs'))
+const stat = BB.promisify(require('graceful-fs').stat)
 const gentlyRm = BB.promisify(require('../../utils/gently-rm.js'))
 const log = require('npmlog')
 const mkdirp = BB.promisify(require('mkdirp'))
 const moduleName = require('../../utils/module-name.js')
 const moduleStagingPath = require('../module-staging-path.js')
-const move = BB.promisify(require('../../utils/move.js'))
+const move = require('../../utils/move.js')
 const npa = require('npm-package-arg')
+const npm = require('../../npm.js')
 const packageId = require('../../utils/package-id.js')
-const pacote = require('pacote')
 let pacoteOpts
 const path = require('path')
+const localWorker = require('./extract-worker.js')
+const workerFarm = require('worker-farm')
 
+const WORKER_PATH = require.resolve('./extract-worker.js')
+let workers
+
+extract.init = () => {
+  workers = workerFarm({
+    maxConcurrentCallsPerWorker: npm.limit.fetch,
+    maxRetries: 1
+  }, WORKER_PATH)
+  return BB.resolve()
+}
+extract.teardown = () => {
+  workerFarm.end(workers)
+  workers = null
+  return BB.resolve()
+}
 module.exports = extract
 function extract (staging, pkg, log) {
   log.silly('extract', packageId(pkg))
@@ -25,14 +42,34 @@ function extract (staging, pkg, log) {
   const opts = pacoteOpts({
     integrity: pkg.package._integrity
   })
-  return pacote.extract(
+  const args = [
     pkg.package._resolved
     ? npa.resolve(pkg.package.name, pkg.package._resolved)
     : pkg.package._requested,
     extractTo,
     opts
-  ).then(() => {
-    if (pkg.package.bundleDependencies) {
+  ]
+  return BB.fromNode((cb) => {
+    let launcher = localWorker
+    let msg = args
+    const spec = typeof args[0] === 'string' ? npa(args[0]) : args[0]
+    args[0] = spec.raw
+    if (spec.registry || spec.type === 'remote') {
+      // We can't serialize these options
+      opts.loglevel = opts.log.level
+      opts.log = null
+      opts.dirPacker = null
+      // workers will run things in parallel!
+      launcher = workers
+      try {
+        msg = JSON.stringify(msg)
+      } catch (e) {
+        return cb(e)
+      }
+    }
+    launcher(msg, cb)
+  }).then(() => {
+    if (pkg.package.bundleDependencies || anyBundled(pkg)) {
       return readBundled(pkg, staging, extractTo)
     }
   }).then(() => {
@@ -40,8 +77,14 @@ function extract (staging, pkg, log) {
   })
 }
 
+function anyBundled (top, pkg) {
+  if (!pkg) pkg = top
+  return pkg.children.some((child) => child.fromBundle === top || anyBundled(top, child))
+}
+
 function readBundled (pkg, staging, extractTo) {
   return BB.map(pkg.children, (child) => {
+    if (!child.fromBundle) return
     if (child.error) {
       throw child.error
     } else {
@@ -84,7 +127,7 @@ function finishModule (bundler, child, stageTo, stageFrom) {
       return move(stageFrom, stageTo)
     })
   } else {
-    return fs.statAsync(stageFrom).then(() => {
+    return stat(stageFrom).then(() => {
       const bundlerId = packageId(bundler)
       if (!getTree(bundler).warnings.some((w) => {
         return w.code === 'EBUNDLEOVERRIDE'

@@ -4,7 +4,8 @@ const BB = require('bluebird')
 const assert = require('assert')
 const chain = require('slide').chain
 const detectIndent = require('detect-indent')
-const fs = BB.promisifyAll(require('graceful-fs'))
+const fs = require('graceful-fs')
+const readFile = BB.promisify(require('graceful-fs').readFile)
 const git = require('./utils/git.js')
 const lifecycle = require('./utils/lifecycle.js')
 const log = require('npmlog')
@@ -151,7 +152,7 @@ const SHRINKWRAP = 'npm-shrinkwrap.json'
 const PKGLOCK = 'package-lock.json'
 
 function readLockfile (name) {
-  return fs.readFileAsync(
+  return readFile(
     path.join(npm.localPrefix, name), 'utf8'
   ).catch({code: 'ENOENT'}, () => null)
 }
@@ -278,26 +279,38 @@ function checkGit (localData, cb) {
 }
 
 function _commit (version, localData, cb) {
-  var packagePath = path.join(npm.localPrefix, 'package.json')
-  var options = { env: process.env }
-  var message = npm.config.get('message').replace(/%s/g, version)
-  var sign = npm.config.get('sign-git-tag')
-  var flag = sign ? '-sm' : '-am'
-  chain(
-    [
-      git.chainableExec([ 'add', packagePath ], options),
-      localData.hasShrinkwrap && git.chainableExec([ 'add', path.join(npm.localPrefix, 'npm-shrinkwrap.json') ], options),
-      localData.hasPackageLock && git.chainableExec([ 'add', path.join(npm.localPrefix, 'package-lock.json') ], options),
-      git.chainableExec([ 'commit', '-m', message ], options),
-      !localData.existingTag && git.chainableExec([
-        'tag',
-        npm.config.get('tag-version-prefix') + version,
-        flag,
-        message
+  const options = { env: process.env }
+  const message = npm.config.get('message').replace(/%s/g, version)
+  const sign = npm.config.get('sign-git-tag')
+  const flagForTag = sign ? '-sm' : '-am'
+
+  stagePackageFiles(localData, options).then(() => {
+    return git.exec([ 'commit', '-m', message ], options)
+  }).then(() => {
+    if (!localData.existingTag) {
+      return git.exec([
+        'tag', npm.config.get('tag-version-prefix') + version,
+        flagForTag, message
       ], options)
-    ],
-    cb
-  )
+    }
+  }).nodeify(cb)
+}
+
+function stagePackageFiles (localData, options) {
+  return addLocalFile('package.json', options, false).then(() => {
+    if (localData.hasShrinkwrap) {
+      return addLocalFile('npm-shrinkwrap.json', options, false)
+    } else if (localData.hasPackageLock) {
+      return addLocalFile('package-lock.json', options, false)
+    }
+  })
+}
+
+function addLocalFile (file, options, ignoreFailure) {
+  const p = git.exec(['add', path.join(npm.localPrefix, file)], options)
+  return ignoreFailure
+  ? p.catch(() => {})
+  : p
 }
 
 function write (data, file, indent, cb) {

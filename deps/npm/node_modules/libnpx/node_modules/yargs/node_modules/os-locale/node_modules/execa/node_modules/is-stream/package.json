@@ -1,0 +1,44 @@
+{
+  "_from": "is-stream@^1.1.0",
+  "_id": "is-stream@1.1.0",
+  "_inBundle": false,
+  "_integrity": "sha1-EtSj3U5o4Lec6428hBc66A2RykQ=",
+  "_location": "/libnpx/yargs/os-locale/execa/is-stream",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "is-stream@^1.1.0",
+    "name": "is-stream",
+    "escapedName": "is-stream",
+    "rawSpec": "^1.1.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.1.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/os-locale/execa"
+  ],
+  "_resolved": "https://registry.npmjs.org/is-stream/-/is-stream-1.1.0.tgz",
+  "_shasum": "12d4a3dd4e68e0b79ceb8dbc84173ae80d91ca44",
+  "_shrinkwrap": null,
+  "_spec": "is-stream@^1.1.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/os-locale/node_modules/execa",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "> Check if something is a [Node.js stream](https://nodejs.org/api/stream.html)",
+  "devDependencies": {
+    "ava": "*",
+    "tempfile": "^1.1.0",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "name": "is-stream",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "1.1.0"
+}

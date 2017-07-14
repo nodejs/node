@@ -43,10 +43,10 @@ function cleanBuild (folders, set, cb) {
 
 function filter (data, args, set, seen) {
   if (!set) set = {}
-  if (!seen) seen = {}
+  if (!seen) seen = new Set()
   if (set.hasOwnProperty(data.path)) return set
-  if (seen.hasOwnProperty(data.path)) return set
-  seen[data.path] = true
+  if (seen.has(data)) return set
+  seen.add(data)
   var pass
   if (!args.length) pass = true // rebuild everything
   else if (data.name && data._id) {
