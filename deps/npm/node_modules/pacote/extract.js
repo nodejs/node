@@ -36,7 +36,7 @@ function extract (spec, dest, opts) {
     })
   } else {
     opts.log.silly('pacote', 'no tarball hash provided for', spec.name, '- extracting by manifest')
-    return retry((tryAgain, attemptNum) => {
+    return BB.resolve(retry((tryAgain, attemptNum) => {
       return extractByManifest(
         startTime, spec, dest, opts
       ).catch(err => {
@@ -54,7 +54,7 @@ function extract (spec, dest, opts) {
           throw err
         }
       })
-    }, {retries: 1})
+    }, {retries: 1}))
   }
 }
 

@@ -2,7 +2,7 @@
 const path = require('path');
 const os = require('os');
 const fs = require('graceful-fs');
-const mkdirp = require('mkdirp');
+const makeDir = require('make-dir');
 const xdgBasedir = require('xdg-basedir');
 const writeFileAtomic = require('write-file-atomic');
 const dotProp = require('dot-prop');
@@ -30,7 +30,7 @@ class Configstore {
 		} catch (err) {
 			// Create dir if it doesn't exist
 			if (err.code === 'ENOENT') {
-				mkdirp.sync(path.dirname(this.path), defaultPathMode);
+				makeDir.sync(path.dirname(this.path), defaultPathMode);
 				return {};
 			}
 
@@ -51,7 +51,7 @@ class Configstore {
 	set all(val) {
 		try {
 			// Make sure the folder exists as it could have been deleted in the meantime
-			mkdirp.sync(path.dirname(this.path), defaultPathMode);
+			makeDir.sync(path.dirname(this.path), defaultPathMode);
 
 			writeFileAtomic.sync(this.path, JSON.stringify(val, null, '\t'), writeFileOptions);
 		} catch (err) {

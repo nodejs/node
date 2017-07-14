@@ -22,6 +22,9 @@ matrix:
       # then master
     - node_js: "8"
       env: DEPLOY_VERSION=testing
+      script:
+       - "standard"
+       - "node . run tap -- \"test/tap/*.js\" \"test/broken-under-nyc/*.js\""
 before_install:
   # required by test/tap/registry.js
   - "mkdir -p /var/run/couchdb"
@@ -29,25 +32,8 @@ notifications:
     slack: npm-inc:kRqQjto7YbINqHPb1X6nS3g8
 cache:
   directories:
-  - $HOME/.npm
-  - html/doc
-  - man
-  - node_modules/.bin
   - node_modules/.cache
-  - node_modules/deep-equal
-  - node_modules/marked
-  - node_modules/marked-man
-  - node_modules/npm-registry-couchapp
-  - node_modules/npm-registry-mock
-  - node_modules/require-inject
-  - node_modules/sprintf-js
-  - node_modules/standard
-  - node_modules/tacks
-  - node_modules/tap
 install:
-  - "node . rebuild --depth=0"
-  - "node . install --ignore-scripts"
-  - "node . prune"
-  - "make -j4 doc"
+  - "node . install"
 script:
   - "node . run tap -- \"test/tap/*.js\" \"test/broken-under-nyc/*.js\""

@@ -1,0 +1,44 @@
+{
+  "_from": "lcid@^1.0.0",
+  "_id": "lcid@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-MIrMr6C8SDo4Z7S28rlQYlHRuDU=",
+  "_location": "/libnpx/yargs/os-locale/lcid",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "lcid@^1.0.0",
+    "name": "lcid",
+    "escapedName": "lcid",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/os-locale"
+  ],
+  "_resolved": "https://registry.npmjs.org/lcid/-/lcid-1.0.0.tgz",
+  "_shasum": "308accafa0bc483a3867b4b6f2b9506251d1b835",
+  "_shrinkwrap": null,
+  "_spec": "lcid@^1.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/os-locale",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {
+    "invert-kv": "^1.0.0"
+  },
+  "deprecated": false,
+  "description": "> Mapping between [standard locale identifiers](http://en.wikipedia.org/wiki/Locale) and [Windows locale identifiers (LCID)](http://en.wikipedia.org/wiki/Locale#Specifics_for_Microsoft_platforms)",
+  "devDependencies": {
+    "ava": "0.0.4"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "name": "lcid",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "1.0.0"
+}

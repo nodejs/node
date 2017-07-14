@@ -96,8 +96,8 @@ var deepExtend = module.exports = function (/*obj_1, [obj_2], [obj_N]*/) {
 	var val, src, clone;
 
 	args.forEach(function (obj) {
-		// skip argument if it is array or isn't object
-		if (typeof obj !== 'object' || Array.isArray(obj)) {
+		// skip argument if isn't an object, is null, or is an array
+		if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
 			return;
 		}
 

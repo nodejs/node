@@ -214,12 +214,9 @@ module.exports.checkStream = checkStream
 function checkStream (stream, sri, opts) {
   opts = opts || {}
   const P = opts.Promise || Promise
-  const checker = integrityStream({
-    integrity: sri,
-    size: opts.size,
-    strict: opts.strict,
-    pickAlgorithm: opts.pickAlgorithm
-  })
+  const checker = integrityStream(Object.assign({}, opts, {
+    integrity: sri
+  }))
   return new P((resolve, reject) => {
     stream.pipe(checker)
     stream.on('error', reject)

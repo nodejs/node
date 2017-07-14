@@ -1,11 +1,9 @@
 'use strict'
 
-const BB = require('bluebird')
-
 const createShrinkwrap = require('../shrinkwrap.js').createShrinkwrap
 const deepSortObject = require('../utils/deep-sort-object.js')
 const detectIndent = require('detect-indent')
-const fs = BB.promisifyAll(require('graceful-fs'))
+const fs = require('graceful-fs')
 const iferr = require('iferr')
 const log = require('npmlog')
 const moduleName = require('../utils/module-name.js')
@@ -77,8 +75,8 @@ function savePackageJson (tree, next) {
     var toSave = getThingsToSave(tree)
     var toRemove = getThingsToRemove(tree)
     var savingTo = {}
-    toSave.forEach(function (pkg) { savingTo[pkg.save] = true })
-    toRemove.forEach(function (pkg) { savingTo[pkg.save] = true })
+    toSave.forEach(function (pkg) { if (pkg.save) savingTo[pkg.save] = true })
+    toRemove.forEach(function (pkg) { if (pkg.save) savingTo[pkg.save] = true })
 
     Object.keys(savingTo).forEach(function (save) {
       if (!tree.package[save]) tree.package[save] = {}
@@ -87,7 +85,7 @@ function savePackageJson (tree, next) {
     log.verbose('saving', toSave)
     const types = ['dependencies', 'devDependencies', 'optionalDependencies']
     toSave.forEach(function (pkg) {
-      tree.package[pkg.save][pkg.name] = pkg.spec
+      if (pkg.save) tree.package[pkg.save][pkg.name] = pkg.spec
       const movedFrom = []
       for (let saveType of types) {
         if (
@@ -109,7 +107,7 @@ function savePackageJson (tree, next) {
     })
 
     toRemove.forEach(function (pkg) {
-      delete tree.package[pkg.save][pkg.name]
+      if (pkg.save) delete tree.package[pkg.save][pkg.name]
       if (saveBundle) {
         bundle = without(bundle, pkg.name)
       }
@@ -123,7 +121,12 @@ function savePackageJson (tree, next) {
     }
 
     var json = JSON.stringify(tree.package, null, indent) + '\n'
-    writeFileAtomic(saveTarget, json, next)
+    if (json === packagejson) {
+      log.verbose('shrinkwrap', 'skipping write for package.json because there were no changes.')
+      next()
+    } else {
+      writeFileAtomic(saveTarget, json, next)
+    }
   }))
 }
 

@@ -1,0 +1,49 @@
+{
+  "_from": "read-pkg-up@^2.0.0",
+  "_id": "read-pkg-up@2.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-a3KoBImE4MQeeVEP1en6mbO1Sb4=",
+  "_location": "/libnpx/yargs/read-pkg-up",
+  "_phantomChildren": {
+    "graceful-fs": "4.1.11",
+    "normalize-package-data": "2.4.0"
+  },
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "read-pkg-up@^2.0.0",
+    "name": "read-pkg-up",
+    "escapedName": "read-pkg-up",
+    "rawSpec": "^2.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^2.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs"
+  ],
+  "_resolved": "https://registry.npmjs.org/read-pkg-up/-/read-pkg-up-2.0.0.tgz",
+  "_shasum": "6b72a8048984e0c41e79510fd5e9fa99b3b549be",
+  "_shrinkwrap": null,
+  "_spec": "read-pkg-up@^2.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {
+    "find-up": "^2.0.0",
+    "read-pkg": "^2.0.0"
+  },
+  "deprecated": false,
+  "description": "> Read the closest package.json file",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "name": "read-pkg-up",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "2.0.0"
+}

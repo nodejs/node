@@ -1,0 +1,43 @@
+{
+  "_from": "strip-eof@^1.0.0",
+  "_id": "strip-eof@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-u0P/VZim6wXYm1n80SnJgzE2Br8=",
+  "_location": "/libnpx/yargs/os-locale/execa/strip-eof",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "strip-eof@^1.0.0",
+    "name": "strip-eof",
+    "escapedName": "strip-eof",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/os-locale/execa"
+  ],
+  "_resolved": "https://registry.npmjs.org/strip-eof/-/strip-eof-1.0.0.tgz",
+  "_shasum": "bb43ff5598a6eb05d89b59fcd129c983313606bf",
+  "_shrinkwrap": null,
+  "_spec": "strip-eof@^1.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/os-locale/node_modules/execa",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "> Strip the [End-Of-File](https://en.wikipedia.org/wiki/End-of-file) (EOF) character from a string/buffer",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "name": "strip-eof",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "1.0.0"
+}
