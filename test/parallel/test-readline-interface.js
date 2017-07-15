@@ -27,8 +27,7 @@ const readline = require('readline');
 const internalReadline = require('internal/readline');
 const EventEmitter = require('events').EventEmitter;
 const inherits = require('util').inherits;
-const Writable = require('stream').Writable;
-const Readable = require('stream').Readable;
+const { Writable, Readable } = require('stream');
 
 function FakeInput() {
   EventEmitter.call(this);
