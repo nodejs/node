@@ -126,9 +126,13 @@ function localBinPath (cwd) {
 module.exports._getEnv = getEnv
 function getEnv (opts) {
   const args = ['run', 'env', '--parseable']
-  return which(opts.npm).catch(() => {
-    args.unshift(opts.npm)
-    return process.argv[0]
+  return findNodeScript(opts.npm, {isLocal: true}).then(npmPath => {
+    if (npmPath) {
+      args.unshift(opts.npm)
+      return process.argv[0]
+    } else {
+      return opts.npm
+    }
   }).then(npmPath => {
     return child.exec(npmPath, args)
   }).then(require('dotenv').parse)
@@ -188,9 +192,13 @@ function getNpmCache (opts) {
   if (opts.userconfig) {
     args.push('--userconfig', child.escapeArg(opts.userconfig, true))
   }
-  return which(opts.npm).catch(() => {
-    args.unshift(opts.npm)
-    return process.argv[0]
+  return findNodeScript(opts.npm, {isLocal: true}).then(npmPath => {
+    if (npmPath) {
+      args.unshift(opts.npm)
+      return process.argv[0]
+    } else {
+      return opts.npm
+    }
   }).then(npmPath => {
     return child.exec(npmPath, args)
   }).then(cache => cache.trim())
@@ -210,9 +218,13 @@ function buildArgs (specs, prefix, opts) {
 module.exports._installPackages = installPackages
 function installPackages (specs, prefix, opts) {
   const args = buildArgs(specs, prefix, opts)
-  return which(opts.npm).catch(() => {
-    args.unshift(opts.npm)
-    return process.argv[0]
+  return findNodeScript(opts.npm, {isLocal: true}).then(npmPath => {
+    if (npmPath) {
+      args.unshift(opts.npm)
+      return process.argv[0]
+    } else {
+      return opts.npm
+    }
   }).then(npmPath => {
     return child.escapeArg(npmPath, true)
   }).then(npmPath => {
