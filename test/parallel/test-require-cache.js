@@ -42,3 +42,14 @@ const assert = require('assert');
 
   assert.strictEqual(require(relativePath), fakeModule);
 }
+
+
+{
+  const relativePath = '../fixtures/semicolon';
+  const mod = require(relativePath);
+  mod.extraProperty = {};
+
+  assert.strictEqual(require(relativePath).extraProperty, mod.extraProperty);
+  require.cache = {};
+  assert.strictEqual(require(relativePath).extraProperty, undefined);
+}
