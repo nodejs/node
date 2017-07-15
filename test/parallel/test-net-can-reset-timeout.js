@@ -21,6 +21,9 @@
 
 'use strict';
 const common = require('../common');
+
+// Ref: https://github.com/nodejs/node-v0.x-archive/issues/481
+
 const net = require('net');
 
 const server = net.createServer(common.mustCall(function(stream) {
@@ -28,7 +31,7 @@ const server = net.createServer(common.mustCall(function(stream) {
 
   stream.resume();
 
-  stream.on('timeout', common.mustCall(function() {
+  stream.once('timeout', common.mustCall(function() {
     console.log('timeout');
     // try to reset the timeout.
     stream.write('WHAT.');
