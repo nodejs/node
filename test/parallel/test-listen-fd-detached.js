@@ -85,7 +85,6 @@ function parent() {
   }).listen(0, function() {
     console.error('server listening on %d', this.address().port);
 
-    const spawn = require('child_process').spawn;
     const child = spawn(process.execPath, [__filename, 'child'], {
       stdio: [ 'ignore', 'ignore', 'ignore', server._handle ],
       detached: true
