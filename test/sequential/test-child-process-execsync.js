@@ -23,8 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-const execSync = require('child_process').execSync;
-const execFileSync = require('child_process').execFileSync;
+const { execFileSync, execSync } = require('child_process');
 
 const TIMER = 200;
 const SLEEP = 2000;

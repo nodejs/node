@@ -40,27 +40,27 @@ const server = net.createServer(function(conn) {
 
 server.listen(0, function() {
   // Client 1
-  conn = require('net').createConnection(this.address().port, 'localhost');
+  conn = net.createConnection(this.address().port, 'localhost');
   conn.resume();
   conn.on('data', onDataOk);
 
 
   // Client 2
-  conn = require('net').createConnection(this.address().port, 'localhost');
+  conn = net.createConnection(this.address().port, 'localhost');
   conn.pause();
   conn.resume();
   conn.on('data', onDataOk);
 
 
   // Client 3
-  conn = require('net').createConnection(this.address().port, 'localhost');
+  conn = net.createConnection(this.address().port, 'localhost');
   conn.pause();
   conn.on('data', common.mustNotCall());
   scheduleTearDown(conn);
 
 
   // Client 4
-  conn = require('net').createConnection(this.address().port, 'localhost');
+  conn = net.createConnection(this.address().port, 'localhost');
   conn.resume();
   conn.pause();
   conn.resume();
@@ -68,7 +68,7 @@ server.listen(0, function() {
 
 
   // Client 5
-  conn = require('net').createConnection(this.address().port, 'localhost');
+  conn = net.createConnection(this.address().port, 'localhost');
   conn.resume();
   conn.resume();
   conn.pause();

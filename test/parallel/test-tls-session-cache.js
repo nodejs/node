@@ -28,6 +28,15 @@ if (!common.opensslCli)
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
+const tls = require('tls');
+const fs = require('fs');
+const { join } = require('path');
+const { spawn } = require('child_process');
+
+const keyFile = join(common.fixturesDir, 'agent.key');
+const certFile = join(common.fixturesDir, 'agent.crt');
+
 doTest({ tickets: false }, function() {
   doTest({ tickets: true }, function() {
     doTest({ tickets: false, invalidSession: true }, function() {
@@ -37,14 +46,6 @@ doTest({ tickets: false }, function() {
 });
 
 function doTest(testOptions, callback) {
-  const assert = require('assert');
-  const tls = require('tls');
-  const fs = require('fs');
-  const join = require('path').join;
-  const spawn = require('child_process').spawn;
-
-  const keyFile = join(common.fixturesDir, 'agent.key');
-  const certFile = join(common.fixturesDir, 'agent.crt');
   const key = fs.readFileSync(keyFile);
   const cert = fs.readFileSync(certFile);
   const options = {

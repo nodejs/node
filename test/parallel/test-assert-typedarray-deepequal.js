@@ -2,7 +2,6 @@
 
 require('../common');
 const assert = require('assert');
-const a = require('assert');
 
 function makeBlock(f) {
   const args = Array.prototype.slice.call(arguments, 1);
@@ -51,7 +50,8 @@ equalArrayPairs.forEach((arrayPair) => {
 
 notEqualArrayPairs.forEach((arrayPair) => {
   assert.throws(
-    makeBlock(a.deepEqual, arrayPair[0], arrayPair[1]),
-    a.AssertionError
+    // eslint-disable-next-line no-restricted-properties
+    makeBlock(assert.deepEqual, arrayPair[0], arrayPair[1]),
+    assert.AssertionError
   );
 });

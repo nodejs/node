@@ -148,6 +148,8 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     bufferTooSmall: /^RangeError: buffer too small$/,
   };
 
+  const max = require('buffer').kMaxLength + 1;
+
   for (const buf of bufs) {
     const len = Buffer.byteLength(buf);
     assert.strictEqual(len, 10, `Expected byteLength of 10, got ${len}`);
@@ -167,8 +169,6 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     assert.throws(() => {
       crypto.randomFill(buf, NaN, common.mustNotCall());
     }, errMessages.offsetNotNumber);
-
-    const max = require('buffer').kMaxLength + 1;
 
     assert.throws(() => {
       crypto.randomFillSync(buf, 11);

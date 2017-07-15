@@ -3,8 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const net = require('net');
-const fork = require('child_process').fork;
-const spawn = require('child_process').spawn;
+const { fork, spawn } = require('child_process');
 
 const emptyFile = path.join(common.fixturesDir, 'empty.js');
 

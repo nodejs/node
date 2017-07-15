@@ -24,9 +24,10 @@ const strictEqual = require('assert').strictEqual;
 }
 
 
+const dgram = require('dgram');
+
 // dgram ipv4
 {
-  const dgram = require('dgram');
   const sock4 = dgram.createSocket('udp4');
   strictEqual(Object.getPrototypeOf(sock4._handle).hasOwnProperty('hasRef'),
               true, 'udp_wrap: ipv4: hasRef() missing');
@@ -46,7 +47,6 @@ const strictEqual = require('assert').strictEqual;
 
 // dgram ipv6
 {
-  const dgram = require('dgram');
   const sock6 = dgram.createSocket('udp6');
   strictEqual(Object.getPrototypeOf(sock6._handle).hasOwnProperty('hasRef'),
               true, 'udp_wrap: ipv6: hasRef() missing');

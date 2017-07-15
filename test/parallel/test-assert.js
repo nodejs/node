@@ -22,7 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const a = require('assert');
+const a = assert;
 
 function makeBlock(f) {
   const args = Array.prototype.slice.call(arguments, 1);
