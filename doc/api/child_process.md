@@ -1136,8 +1136,9 @@ socket to the child process. The example below spawns two children that each
 handle connections with "normal" or "special" priority:
 
 ```js
-const normal = require('child_process').fork('child.js', ['normal']);
-const special = require('child_process').fork('child.js', ['special']);
+const { fork } = require('child_process');
+const normal = fork('child.js', ['normal']);
+const special = fork('child.js', ['special']);
 
 // Open up the server and send sockets to child. Use pauseOnConnect to prevent
 // the sockets from being read before they are sent to the child process.

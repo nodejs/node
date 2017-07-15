@@ -21,9 +21,8 @@
 
 'use strict';
 require('../common');
-const Readable = require('stream').Readable;
-const Writable = require('stream').Writable;
 const assert = require('assert');
+const { Readable, Writable } = require('stream');
 
 const EE = require('events').EventEmitter;
 
