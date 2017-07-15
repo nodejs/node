@@ -19,4 +19,3 @@ function testParseREPLKeyword() {
   assert.ok(!server.parseREPLKeyword('tacos'));
   server.close();
 }
-

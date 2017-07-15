@@ -388,7 +388,7 @@ called from within the action function for commands registered using the
 ### replServer.parseREPLKeyword(keyword, [rest])
 <!-- YAML
 added: v0.8.9
-deprecated: XXXX
+deprecated: REPLACEME
 -->
 
 * `keyword` {string} the potential keyword to parse and execute
