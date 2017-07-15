@@ -172,6 +172,10 @@ assertDeepAndStrictEqual(
 assertDeepAndStrictEqual(new Map([[1, 1], [2, 2]]), new Map([[1, 1], [2, 2]]));
 assertDeepAndStrictEqual(new Map([[1, 1], [2, 2]]), new Map([[2, 2], [1, 1]]));
 assertNotDeepOrStrict(new Map([[1, 1], [2, 2]]), new Map([[1, 2], [2, 1]]));
+assertNotDeepOrStrict(
+  new Map([[[1], 1], [{}, 2]]),
+  new Map([[[1], 2], [{}, 1]])
+);
 
 assertNotDeepOrStrict(new Set([1]), [1]);
 assertNotDeepOrStrict(new Set(), []);
@@ -185,6 +189,7 @@ assertOnlyDeepEqual(new Set(['1']), new Set([1]));
 
 assertOnlyDeepEqual(new Map([['1', 'a']]), new Map([[1, 'a']]));
 assertOnlyDeepEqual(new Map([['a', '1']]), new Map([['a', 1]]));
+assertNotDeepOrStrict(new Map([['a', '1']]), new Map([['a', 2]]));
 
 assertDeepAndStrictEqual(new Set([{}]), new Set([{}]));
 
@@ -210,14 +215,92 @@ assertNotDeepOrStrict(
   new Set([{a: 1}, {a: 2}, {a: 2}])
 );
 
+// Mixed primitive and object keys
+assertDeepAndStrictEqual(
+  new Map([[1, 'a'], [{}, 'a']]),
+  new Map([[1, 'a'], [{}, 'a']])
+);
+assertDeepAndStrictEqual(
+  new Set([1, 'a', [{}, 'a']]),
+  new Set([1, 'a', [{}, 'a']])
+);
+
 // This is an awful case, where a map contains multiple equivalent keys:
 assertOnlyDeepEqual(
   new Map([[1, 'a'], ['1', 'b']]),
-  new Map([['1', 'a'], [1, 'b']])
+  new Map([['1', 'a'], [true, 'b']])
+);
+assertNotDeepOrStrict(
+  new Set(['a']),
+  new Set(['b'])
 );
 assertDeepAndStrictEqual(
   new Map([[{}, 'a'], [{}, 'b']]),
   new Map([[{}, 'b'], [{}, 'a']])
+);
+assertOnlyDeepEqual(
+  new Map([[true, 'a'], ['1', 'b'], [1, 'a']]),
+  new Map([['1', 'a'], [1, 'b'], [true, 'a']])
+);
+assertNotDeepOrStrict(
+  new Map([[true, 'a'], ['1', 'b'], [1, 'c']]),
+  new Map([['1', 'a'], [1, 'b'], [true, 'a']])
+);
+
+// Similar object keys
+assertNotDeepOrStrict(
+  new Set([{}, {}]),
+  new Set([{}, 1])
+);
+assertNotDeepOrStrict(
+  new Set([[{}, 1], [{}, 1]]),
+  new Set([[{}, 1], [1, 1]])
+);
+assertNotDeepOrStrict(
+  new Map([[{}, 1], [{}, 1]]),
+  new Map([[{}, 1], [1, 1]])
+);
+assertOnlyDeepEqual(
+  new Map([[{}, 1], [true, 1]]),
+  new Map([[{}, 1], [1, 1]])
+);
+
+// Similar primitive key / values
+assertNotDeepOrStrict(
+  new Set([1, true, false]),
+  new Set(['1', 0, '0'])
+);
+assertNotDeepOrStrict(
+  new Map([[1, 5], [true, 5], [false, 5]]),
+  new Map([['1', 5], [0, 5], ['0', 5]])
+);
+
+// undefined value in Map
+assertDeepAndStrictEqual(
+  new Map([[1, undefined]]),
+  new Map([[1, undefined]])
+);
+assertOnlyDeepEqual(
+  new Map([[1, null]]),
+  new Map([['1', undefined]])
+);
+assertNotDeepOrStrict(
+  new Map([[1, undefined]]),
+  new Map([[2, undefined]])
+);
+
+// null as key
+assertDeepAndStrictEqual(
+  new Map([[null, 3]]),
+  new Map([[null, 3]])
+);
+assertOnlyDeepEqual(
+  new Map([[null, undefined]]),
+  new Map([[undefined, null]])
+);
+assertOnlyDeepEqual(
+  new Set([null]),
+  new Set([undefined])
 );
 
 {
