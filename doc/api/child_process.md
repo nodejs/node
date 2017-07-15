@@ -1046,8 +1046,9 @@ socket to the child process. The example below spawns two children that each
 handle connections with "normal" or "special" priority:
 
 ```js
-const normal = require('child_process').fork('subprocess.js', ['normal']);
-const special = require('child_process').fork('subprocess.js', ['special']);
+const { fork } = require('child_process');
+const normal = fork('subprocess.js', ['normal']);
+const special = fork('subprocess.js', ['special']);
 
 // Open up the server and send sockets to child
 const server = require('net').createServer();
