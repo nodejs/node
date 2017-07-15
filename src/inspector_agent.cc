@@ -418,6 +418,7 @@ void AttachContext(const v8::FunctionCallbackInfo<v8::Value>& args) {
   auto info = new node::inspector::ContextInfo(
       contextify_context->context(), group_id, name, origin,
       "{\"isDefault\":false}");
+  // Ignore error.
   env->inspector_agent()->ContextCreated(info);
 }
 
@@ -620,9 +621,19 @@ Agent::Agent(Environment* env) : parent_env_(env),
 Agent::~Agent() {
 }
 
-void Agent::ContextCreated(const node::inspector::ContextInfo* info) {
+bool Agent::ContextCreated(const node::inspector::ContextInfo* info) {
+  auto isolate = parent_env_->isolate();
+  auto it = std::find_if(
+      contexts_.begin(), contexts_.end(),
+      [&] (const node::inspector::ContextInfo*& cur) {
+        return cur->context(isolate) == info->context(isolate);
+      });
+  if (it != contexts_.end()) {
+    return false;
+  }
   contexts_.push_back(info);
   client_->contextCreated(info);
+  return true;
 }
 
 void Agent::ContextDestroyed(Local<Context> context) {
@@ -646,10 +657,10 @@ bool Agent::Start(v8::Platform* platform, const char* path,
   client_ =
       std::unique_ptr<NodeInspectorClient>(
           new NodeInspectorClient(parent_env_, platform));
-  ContextCreated(
+  CHECK(ContextCreated(
       new node::inspector::ContextInfo(
           parent_env_->context(), CONTEXT_GROUP_ID, "Node.js Main Context",
-          nullptr, "{\"isDefault\":true}"));
+          nullptr, "{\"isDefault\":true}")));
   platform_ = platform;
   CHECK_EQ(0, uv_async_init(uv_default_loop(),
                             &start_io_thread_async,

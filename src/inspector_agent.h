@@ -88,7 +88,7 @@ class Agent {
   // Stop and destroy io_
   void Stop();
 
-  void ContextCreated(const node::inspector::ContextInfo* info);
+  bool ContextCreated(const node::inspector::ContextInfo* info);
   void ContextDestroyed(v8::Local<v8::Context> context);
 
   bool IsStarted() { return !!client_; }
