@@ -85,21 +85,23 @@ TEST_F(EnvironmentTest, AtExitWithArgument) {
   EXPECT_EQ(arg, cb_1_arg);
 }
 
-//TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
-//  const v8::HandleScope handle_scope(isolate_);
-//  const Argv argv;
-//  Env env1 {handle_scope, isolate_, argv};
-//  Env env2 {handle_scope, isolate_, argv};
-//
-//  AtExit(*env1, at_exit_callback1);
-//  AtExit(*env2, at_exit_callback2);
-//  RunAtExit(*env1);
-//  EXPECT_TRUE(called_cb_1);
-//  EXPECT_FALSE(called_cb_2);
-//
-//  RunAtExit(*env2);
-//  EXPECT_TRUE(called_cb_2);
-//}
+/*
+TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env1 {handle_scope, isolate_, argv};
+  Env env2 {handle_scope, isolate_, argv};
+
+  AtExit(*env1, at_exit_callback1);
+  AtExit(*env2, at_exit_callback2);
+  RunAtExit(*env1);
+  EXPECT_TRUE(called_cb_1);
+  EXPECT_FALSE(called_cb_2);
+
+  RunAtExit(*env2);
+  EXPECT_TRUE(called_cb_2);
+}
+*/
 
 static void at_exit_callback1(void* arg) {
   called_cb_1 = true;
