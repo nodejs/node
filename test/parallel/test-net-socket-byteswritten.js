@@ -3,14 +3,13 @@
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
-const Buffer = require('buffer').Buffer;
 
 const server = net.createServer(function(socket) {
   socket.end();
 });
 
-server.listen(common.PORT, common.mustCall(function() {
-  const socket = net.connect(common.PORT);
+server.listen(0, common.mustCall(function() {
+  const socket = net.connect(server.address().port);
 
   // Cork the socket, then write twice; this should cause a writev, which
   // previously caused an err in the bytesWritten count.
