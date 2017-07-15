@@ -120,7 +120,7 @@ if (cluster.isMaster) {
 
   if (showProgress) {
     // Start the progress display update timer when the first worker is ready
-    cluster.once('online', function(worker) {
+    cluster.once('online', function() {
       startTime = process.hrtime();
       setInterval(printProgress, 1000).unref();
       printProgress();
