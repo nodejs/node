@@ -26,7 +26,7 @@ const vm = require('vm');
 
 assert.throws(function() {
   vm.createContext('string is not supported');
-}, TypeError);
+}, /^TypeError: sandbox must be an object$/);
 
 assert.doesNotThrow(function() {
   vm.createContext({ a: 1 });
