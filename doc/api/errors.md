@@ -366,8 +366,8 @@ commonly indicate inequality of actual and expected parameters.
 For example:
 
 ```js
-assert.equal(1, 2);
-// AssertionError [ERR_ASSERTION]: 1 == 2
+assert.strictEqual(1, 2);
+// AssertionError [ERR_ASSERTION]: 1 === 2
 ```
 
 ## Class: RangeError
