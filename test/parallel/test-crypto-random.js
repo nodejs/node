@@ -264,4 +264,4 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
 // length exceeds max acceptable value"
 assert.throws(function() {
   crypto.randomBytes((-1 >>> 0) + 1);
-}, TypeError);
+}, /^TypeError: size must be a number >= 0$/);
