@@ -16,20 +16,20 @@ hooks.enable();
 process.on('SIGUSR2', common.mustCall(onsigusr2, 2));
 
 let count = 0;
-exec('kill -USR2 ' + process.pid);
+exec(`kill -USR2 ${process.pid}`);
 
 function onsigusr2() {
   count++;
 
   if (count === 1) {
     // trigger same signal handler again
-    exec('kill -USR2 ' + process.pid);
+    exec(`kill -USR2 ${process.pid}`);
   } else {
     // install another signal handler
     process.removeAllListeners('SIGUSR2');
     process.on('SIGUSR2', common.mustCall(onsigusr2Again));
 
-    exec('kill -USR2 ' + process.pid);
+    exec(`kill -USR2 ${process.pid}`);
   }
 }
 
