@@ -218,8 +218,8 @@ function checkFormat(path, testCases) {
     }, common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "pathObject" argument must be of type Object. Received ' +
-               'type ' + typeName(pathObject)
+      message: 'The "pathObject" argument must be of type Object. ' +
+               `Received type ${typeName(pathObject)}`
     }));
   });
 }
