@@ -39,7 +39,7 @@ const { test, assert_array_equals } = require('../common/wpt');
       assert_array_equals(param, val.output[i])
       i++
     }
-  }, "Parse and sort: " + val.input)
+  }, `Parse and sort: ${val.input}`)
 
   test(() => {
     let url = new URL("?" + val.input, "https://example/")
@@ -50,7 +50,7 @@ const { test, assert_array_equals } = require('../common/wpt');
       assert_array_equals(param, val.output[i])
       i++
     }
-  }, "URL parse and sort: " + val.input)
+  }, `URL parse and sort: ${val.input}`)
 })
 /* eslint-enable */
 
@@ -82,7 +82,7 @@ tests.forEach((val) => {
       assert_array_equals(param, val.output[i]);
       i++;
     }
-  }, 'Parse and sort: ' + val.input);
+  }, `Parse and sort: ${val.input}`);
 
   test(() => {
     const url = new URL(`?${val.input}`, 'https://example/');
@@ -93,5 +93,5 @@ tests.forEach((val) => {
       assert_array_equals(param, val.output[i]);
       i++;
     }
-  }, 'URL parse and sort: ' + val.input);
+  }, `URL parse and sort: ${val.input}`);
 });
