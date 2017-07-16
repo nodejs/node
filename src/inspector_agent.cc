@@ -422,6 +422,28 @@ void AttachContext(const v8::FunctionCallbackInfo<v8::Value>& args) {
   env->inspector_agent()->ContextCreated(info);
 }
 
+void ContextAttached(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsObject()) {
+    env->ThrowTypeError("sandbox must be an object");
+    return;
+  }
+  Local<Object> sandbox = args[0].As<Object>();
+  ContextifyContext* contextify_context =
+      ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
+  if (contextify_context == nullptr) {
+    return env->ThrowTypeError(
+        "sandbox argument must have been converted to a context.");
+  }
+
+  if (contextify_context->context().IsEmpty())
+    return;
+
+  args.GetReturnValue().Set(
+      env->inspector_agent()->ContextRegistered(
+          contextify_context->context()));
+}
+
 void DetachContext(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (!args[0]->IsObject()) {
@@ -621,14 +643,18 @@ Agent::Agent(Environment* env) : parent_env_(env),
 Agent::~Agent() {
 }
 
-bool Agent::ContextCreated(const node::inspector::ContextInfo* info) {
-  auto isolate = parent_env_->isolate();
+bool Agent::ContextRegistered(Local<Context> context) {
   auto it = std::find_if(
       contexts_.begin(), contexts_.end(),
-      [&] (const node::inspector::ContextInfo*& cur) {
-        return cur->context(isolate) == info->context(isolate);
+      [&] (const node::inspector::ContextInfo*& info) {
+        return info->context(parent_env_->isolate()) == context;
       });
-  if (it != contexts_.end()) {
+  return it != contexts_.end();
+}
+
+bool Agent::ContextCreated(const node::inspector::ContextInfo* info) {
+  auto isolate = parent_env_->isolate();
+  if (ContextRegistered(info->context(isolate))) {
     return false;
   }
   contexts_.push_back(info);
@@ -822,6 +848,7 @@ void Agent::InitInspector(Local<Object> target, Local<Value> unused,
   Environment* env = Environment::GetCurrent(context);
   Agent* agent = env->inspector_agent();
   env->SetMethod(target, "consoleCall", InspectorConsoleCall);
+  env->SetMethod(target, "contextAttached", ContextAttached);
   env->SetMethod(target, "attachContext", AttachContext);
   env->SetMethod(target, "detachContext", DetachContext);
   if (agent->debug_options_.wait_for_connect())
