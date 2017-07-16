@@ -22,7 +22,7 @@ function runTests(i, title, tests) {
       try {
         tests[i]();
       } catch (e) {
-        console.error('Test failed: ' + title);
+        console.error(`Test failed: ${title}`);
         throw e;
       }
       setImmediate(() => {
