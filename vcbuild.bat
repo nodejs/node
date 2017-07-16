@@ -176,6 +176,8 @@ if "_%VisualStudioVersion%_" == "_15.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_
 set "VSINSTALLDIR="
 call tools\msvs\vswhere_usability_wrapper.cmd
 if "_%VCINSTALLDIR%_" == "__" goto vs-set-2015
+@rem prevent VsDevCmd.bat from changing the current working directory
+set "VSCMD_START_DIR=%CD%"
 set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
 echo calling: %vcvars_call%
 call %vcvars_call%
