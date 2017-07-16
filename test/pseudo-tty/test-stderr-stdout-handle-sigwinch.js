@@ -31,4 +31,4 @@ process.stdout._refreshSize = wrap(originalRefreshSizeStdout,
 // can setup the readloop. Provide a reasonable delay.
 setTimeout(function() {
   process.emit('SIGWINCH');
-}, common.isAix ? 200 : 0);
+}, common.isAIX ? 200 : 0);

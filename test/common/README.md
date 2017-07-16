@@ -155,7 +155,7 @@ the number of calls.
 
 Checks whether free BSD Jail is true or false.
 
-### isAix
+### isAIX
 * return [&lt;Boolean>]
 
 Platform check for Advanced Interactive eXecutive (AIX).
