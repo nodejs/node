@@ -19,7 +19,7 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
 assert.throws(() => {
   const m = new MyWritable({objectMode: true});
   m.write(null, (err) => assert.ok(err));
-}, TypeError, 'May not write null values to stream');
+}, /^TypeError: May not write null values to stream$/);
 assert.doesNotThrow(() => {
   const m = new MyWritable({objectMode: true}).on('error', (e) => {
     assert.ok(e);
