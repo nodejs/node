@@ -24,6 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const os = require('os');
 const path = require('path');
+const { inspect } = require('util');
 
 const is = {
   string: (value) => { assert.strictEqual(typeof value, 'string'); },
@@ -121,7 +122,7 @@ switch (platform) {
     const actual = interfaces.lo.filter(filter);
     const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
                         mac: '00:00:00:00:00:00', family: 'IPv4',
-                        internal: true }];
+                        internal: true, cidr: '127.0.0.1/8' }];
     assert.deepStrictEqual(actual, expected);
     break;
   }
@@ -131,11 +132,31 @@ switch (platform) {
     const actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
     const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
                         mac: '00:00:00:00:00:00', family: 'IPv4',
-                        internal: true }];
+                        internal: true, cidr: '127.0.0.1/8' }];
     assert.deepStrictEqual(actual, expected);
     break;
   }
 }
+function flatten(arr) {
+  return arr.reduce(
+    (acc, c) => acc.concat(Array.isArray(c) ? flatten(c) : c),
+    []
+  );
+}
+const netmaskToCIDRSuffixMap = new Map(Object.entries({
+  '255.0.0.0': 8,
+  '255.255.255.0': 24,
+  'ffff:ffff:ffff:ffff::': 64,
+  'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff': 128
+}));
+flatten(Object.values(interfaces))
+  .map((v) => ({ v, mask: netmaskToCIDRSuffixMap.get(v.netmask) }))
+  .forEach(({ v, mask }) => {
+    assert.ok('cidr' in v, `"cidr" prop not found in ${inspect(v)}`);
+    if (mask) {
+      assert.strictEqual(v.cidr, `${v.address}/${mask}`);
+    }
+  });
 
 const EOL = os.EOL;
 assert.ok(EOL.length > 0);
