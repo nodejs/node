@@ -61,7 +61,7 @@ assert.throws(function changeDefaultEncodingToInvalidValue() {
   m.setDefaultEncoding({});
   m.write('bar');
   m.end();
-}, TypeError);
+}, /^TypeError: Unknown encoding: \[object Object\]$/);
 
 (function checkVairableCaseEncoding() {
   const m = new MyWritable(function(isBuffer, type, enc) {
