@@ -6,9 +6,9 @@ const child_process = require('child_process');
 
 const testScript = path.join(common.fixturesDir, 'catch-stdout-error.js');
 
-const cmd = JSON.stringify(process.execPath) + ' ' +
-            JSON.stringify(testScript) + ' | ' +
-            JSON.stringify(process.execPath) + ' ' +
+const cmd = `${JSON.stringify(process.execPath)} ` +
+            `${JSON.stringify(testScript)} | ` +
+            `${JSON.stringify(process.execPath)} ` +
             '-pe "process.stdin.on(\'data\' , () => process.exit(1))"';
 
 const child = child_process.exec(cmd);
