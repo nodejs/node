@@ -140,12 +140,12 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     new Uint8Array(new Array(10).fill(0))
   ];
   const errMessages = {
-    offsetNotNumber: /offset must be a number/,
-    offsetOutOfRange: /offset out of range/,
-    offsetNotUInt32: /offset must be a uint32/,
-    sizeNotNumber: /size must be a number/,
-    sizeNotUInt32: /size must be a uint32/,
-    bufferTooSmall: /buffer too small/,
+    offsetNotNumber: /^TypeError: offset must be a number$/,
+    offsetOutOfRange: /^RangeError: offset out of range$/,
+    offsetNotUInt32: /^TypeError: offset must be a uint32$/,
+    sizeNotNumber: /^TypeError: size must be a number$/,
+    sizeNotUInt32: /^TypeError: size must be a uint32$/,
+    bufferTooSmall: /^RangeError: buffer too small$/,
   };
 
   for (const buf of bufs) {
