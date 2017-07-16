@@ -32,7 +32,7 @@ const server = net.createServer(function(conn) {
   const response =
       'HTTP/1.1 200 OK\r\n' +
       'Connection: close\r\n' +
-      'Content-Length: ' + body.length + '\r\n' +
+      `Content-Length: ${body.length}\r\n` +
       'Content-Type: text/plain;\r\n' +
       ' x-unix-mode=0600;\r\n' +
       ' name="hello.txt"\r\n' +
