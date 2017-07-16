@@ -3,7 +3,12 @@ const common = require('../common');
 const { fires, neverFires } = common;
 common.skipIfInspectorDisabled();
 const assert = require('assert');
-const { Session, attachContext, detachContext } = require('inspector');
+const {
+  Session,
+  attachContext,
+  detachContext,
+  contextAttached
+} = require('inspector');
 const { promisify } = require('util');
 const { createContext } = require('vm');
 
@@ -49,6 +54,7 @@ async function main() {
       assert.strictEqual(vmContext.name, VM_CONTEXT_NAME);
       assert.strictEqual(vmContext.origin, VM_CONTEXT_ORIGIN);
       assert.strictEqual(vmContext.auxData.isDefault, false);
+      assert.strictEqual(contextAttached(sandbox), true);
     }
 
     // Evaluating expressions in the specified context.
@@ -71,6 +77,7 @@ async function main() {
         origin: VM_CONTEXT_ORIGIN
       });
       await eventPromise;
+      assert.strictEqual(contextAttached(sandbox), true);
     }
 
     // Detach context.
@@ -79,6 +86,7 @@ async function main() {
       detachContext(sandbox);
       const destroyedId = (await eventPromise).params.executionContextId;
       assert.strictEqual(destroyedId, vmContext.id);
+      assert.strictEqual(contextAttached(sandbox), false);
     }
 
     // Trying to detach multiple times.
@@ -87,6 +95,7 @@ async function main() {
           neverFires(once('Runtime.executionContextDestroyed'));
       detachContext(sandbox);
       await eventPromise;
+      assert.strictEqual(contextAttached(sandbox), false);
     }
   }
 
