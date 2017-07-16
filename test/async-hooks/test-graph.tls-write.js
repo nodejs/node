@@ -11,6 +11,7 @@ const initHooks = require('./init-hooks');
 const verifyGraph = require('./verify-graph');
 const fs = require('fs');
 const tls = require('tls');
+const path = require('path');
 
 const hooks = initHooks();
 hooks.enable();
@@ -20,8 +21,8 @@ hooks.enable();
 //
 const server = tls
   .createServer({
-    cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem'),
-    key: fs.readFileSync(common.fixturesDir + '/test_key.pem')
+    cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem')),
+    key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'))
   })
   .on('listening', common.mustCall(onlistening))
   .on('secureConnection', common.mustCall(onsecureConnection))
