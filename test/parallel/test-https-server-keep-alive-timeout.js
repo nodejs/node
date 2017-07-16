@@ -30,13 +30,15 @@ function run() {
 
 test(function serverKeepAliveTimeoutWithPipeline(cb) {
   let requestCount = 0;
-  process.on('exit', function() {
-    assert.strictEqual(requestCount, 3);
-  });
   const server = https.createServer(serverOptions, (req, res) => {
     requestCount++;
     res.end();
   });
+  server.listen(0, common.mustCall(() => {
+    process.on('exit', function() {
+      assert.strictEqual(requestCount, 3);
+    });
+  }));
   server.setTimeout(500, common.mustCall((socket) => {
     // End this test and call `run()` for the next test (if any).
     socket.destroy();
@@ -60,12 +62,14 @@ test(function serverKeepAliveTimeoutWithPipeline(cb) {
 
 test(function serverNoEndKeepAliveTimeoutWithPipeline(cb) {
   let requestCount = 0;
-  process.on('exit', () => {
-    assert.strictEqual(requestCount, 3);
-  });
   const server = https.createServer(serverOptions, (req, res) => {
     requestCount++;
   });
+  server.listen(0, common.mustCall(() => {
+    process.on('exit', function() {
+      assert.strictEqual(requestCount, 3);
+    });
+  }));
   server.setTimeout(500, common.mustCall((socket) => {
     // End this test and call `run()` for the next test (if any).
     socket.destroy();
