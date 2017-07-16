@@ -67,7 +67,7 @@ fs.watchFile(enoentFile, {interval: 0}, common.mustCall(function(curr, prev) {
 // Watch events should callback with a filename on supported systems.
 // Omitting AIX. It works but not reliably.
 if (common.isLinux || common.isOSX || common.isWindows) {
-  const dir = common.tmpDir + '/watch';
+  const dir = `${common.tmpDir}/watch'`;
 
   fs.mkdir(dir, common.mustCall(function(err) {
     if (err) assert.fail(err);
