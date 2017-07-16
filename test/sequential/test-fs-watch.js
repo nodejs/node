@@ -28,7 +28,7 @@ const fs = require('fs');
 const expectFilePath = common.isWindows ||
                        common.isLinux ||
                        common.isOSX ||
-                       common.isAix;
+                       common.isAIX;
 
 let watchSeenOne = 0;
 let watchSeenTwo = 0;
@@ -102,7 +102,7 @@ const filepathThree = path.join(testsubdir, filenameThree);
 assert.doesNotThrow(
     function() {
       const watcher = fs.watch(testsubdir, function(event, filename) {
-        const renameEv = common.isSunOS || common.isAix ? 'change' : 'rename';
+        const renameEv = common.isSunOS || common.isAIX ? 'change' : 'rename';
         assert.strictEqual(event, renameEv);
         if (expectFilePath) {
           assert.strictEqual(filename, 'newfile.txt');

@@ -18,4 +18,4 @@ const err = '__This is some stderr__';
 setTimeout(function() {
   process.stdout.write(out);
   process.stderr.write(err);
-}, common.isAix ? 200 : 0);
+}, common.isAIX ? 200 : 0);
