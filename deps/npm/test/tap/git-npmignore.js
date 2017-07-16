@@ -82,7 +82,7 @@ test('npm pack via git', function (t) {
   var urlPath = dep
     .replace(/\\/g, '/') // fixup slashes for Windows
     .replace(/^\/+/, '') // remove any leading slashes
-  packInstallTest('git+file:///' + urlPath, t)
+  packInstallTest(`git+file:///${urlPath}`, t)
 })
 
 test('cleanup', function (t) {
@@ -146,54 +146,54 @@ function setup (cb) {
     NPM_OPTS,
     function (er, code, _, stderr) {
       if (er) return cb(er)
-      if (stderr) return cb(new Error('npm cache clean error: ' + stderr))
-      if (code) return cb(new Error('npm cache nonzero exit: ' + code))
+      if (stderr) return cb(new Error(`npm cache clean error: ${stderr}`))
+      if (code) return cb(new Error(`npm cache nonzero exit: ${code}`))
 
       which('git', function found (er, gitPath) {
         if (er) return cb(er)
 
         var git = escapeArg(gitPath)
 
-        exec(git + ' init', {cwd: dep}, init)
+        exec(`${git} init`, {cwd: dep}, init)
 
         function init (er, _, stderr) {
           if (er) return cb(er)
-          if (stderr) return cb(new Error('git init error: ' + stderr))
+          if (stderr) return cb(new Error(`git init error: ${stderr}`))
 
-          exec(git + " config user.name 'Phantom Faker'", {cwd: dep}, user)
+          exec(`${git} config user.name 'Phantom Faker'`, {cwd: dep}, user)
         }
 
         function user (er, _, stderr) {
           if (er) return cb(er)
-          if (stderr) return cb(new Error('git config error: ' + stderr))
+          if (stderr) return cb(new Error(`git config error: ${stderr}`))
 
-          exec(git + ' config user.email nope@not.real', {cwd: dep}, email)
+          exec(`${git} config user.email nope@not.real'`, {cwd: dep}, email)
         }
 
         function email (er, _, stderr) {
           if (er) return cb(er)
-          if (stderr) return cb(new Error('git config error: ' + stderr))
+          if (stderr) return cb(new Error(`git config error: ${stderr}`))
 
-          exec(git + ' config core.autocrlf input', {cwd: dep}, autocrlf)
+          exec(`${git} config core.autocrlf input`, {cwd: dep}, autocrlf)
         }
 
         function autocrlf (er, _, stderr) {
           if (er) return cb(er)
-          if (stderr) return cb(new Error('git config error: ' + stderr))
+          if (stderr) return cb(new Error(`git init error: ${stderr}`))
 
-          exec(git + ' add .', {cwd: dep}, addAll)
+          exec(`${git} add .`, {cwd: dep}, addAll)
         }
 
         function addAll (er, _, stderr) {
           if (er) return cb(er)
-          if (stderr) return cb(new Error('git add . error: ' + stderr))
+          if (stderr) return cb(new Error(`git add . error: ${stderr}`))
 
-          exec(git + ' commit -m boot', {cwd: dep}, commit)
+          exec(`${git} commit -m boot`, {cwd: dep}, commit)
         }
 
         function commit (er, _, stderr) {
           if (er) return cb(er)
-          if (stderr) return cb(new Error('git commit error: ' + stderr))
+          if (stderr) return cb(new Error(`git commit error: ${stderr}`))
           cb()
         }
       })
