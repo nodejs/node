@@ -16,4 +16,4 @@ out += `${'o'.repeat(24)}O`;
 setTimeout(function() {
   process.stdout.write(out);
   process.exit(0);
-}, common.isAix ? 200 : 0);
+}, common.isAIX ? 200 : 0);

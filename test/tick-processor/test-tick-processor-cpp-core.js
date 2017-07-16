@@ -6,7 +6,7 @@ if (!common.enoughTestCpu)
 
 if (common.isWindows ||
     common.isSunOS ||
-    common.isAix ||
+    common.isAIX ||
     common.isLinuxPPCBE ||
     common.isFreeBSD)
   common.skip('C++ symbols are not mapped for this os.');
