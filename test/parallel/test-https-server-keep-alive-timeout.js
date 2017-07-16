@@ -4,7 +4,6 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const assert = require('assert');
 const https = require('https');
 const tls = require('tls');
 const fs = require('fs');
@@ -29,16 +28,11 @@ function run() {
 }
 
 test(function serverKeepAliveTimeoutWithPipeline(cb) {
-  let requestCount = 0;
-  const server = https.createServer(serverOptions, (req, res) => {
-    requestCount++;
-    res.end();
-  });
-  server.listen(0, common.mustCall(() => {
-    process.on('exit', function() {
-      assert.strictEqual(requestCount, 3);
-    });
-  }));
+  const server = https.createServer(
+    serverOptions,
+    common.mustCall((req, res) => {
+      res.end();
+    }, 3));
   server.setTimeout(500, common.mustCall((socket) => {
     // End this test and call `run()` for the next test (if any).
     socket.destroy();
@@ -61,15 +55,9 @@ test(function serverKeepAliveTimeoutWithPipeline(cb) {
 });
 
 test(function serverNoEndKeepAliveTimeoutWithPipeline(cb) {
-  let requestCount = 0;
-  const server = https.createServer(serverOptions, (req, res) => {
-    requestCount++;
-  });
-  server.listen(0, common.mustCall(() => {
-    process.on('exit', function() {
-      assert.strictEqual(requestCount, 3);
-    });
-  }));
+  const server = https.createServer(
+    serverOptions,
+    common.mustCall((req, res) => {}, 3));
   server.setTimeout(500, common.mustCall((socket) => {
     // End this test and call `run()` for the next test (if any).
     socket.destroy();
