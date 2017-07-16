@@ -106,7 +106,7 @@ module.exports.printGraph = function printGraph(hooks) {
   function procesNode(x) {
     const key = x.type.replace(/WRAP/, '').toLowerCase();
     if (!ids[key]) ids[key] = 1;
-    const id = key + ':' + ids[key]++;
+    const id = `${key}:${ids[key]++}`;
     uidtoid[x.uid] = id;
     const triggerAsyncId = uidtoid[x.triggerAsyncId] || null;
     graph.push({ type: x.type, id, triggerAsyncId });
