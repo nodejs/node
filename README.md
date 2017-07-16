@@ -81,11 +81,12 @@ The Node.js project maintains multiple types of releases:
   ordered codenames, beginning with v4 Argon. LTS releases are less frequent
   and will attempt to maintain consistent major and minor version numbers,
   only incrementing patch version numbers. There are no breaking changes or
-  feature additions, except in some special circumstances. More information
-  can be found in the [LTS README](https://github.com/nodejs/LTS/).
+  feature additions, except in some special circumstances.
 * **Nightly**: Versions of code in this repository on the current Current
   branch, automatically built every 24-hours where changes exist. Use with
   caution.
+
+More information can be found in the [LTS README](https://github.com/nodejs/LTS/).
 
 ## Download
 
