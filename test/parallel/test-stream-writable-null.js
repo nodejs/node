@@ -32,7 +32,7 @@ assert.doesNotThrow(() => {
 assert.throws(() => {
   const m = new MyWritable();
   m.write(false, (err) => assert.ok(err));
-}, TypeError, 'Invalid non-string/buffer chunk');
+}, /^TypeError: Invalid non-string\/buffer chunk$/);
 assert.doesNotThrow(() => {
   const m = new MyWritable().on('error', (e) => {
     assert.ok(e);
