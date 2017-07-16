@@ -393,7 +393,7 @@ Harness.prototype.addStderrFilter = function(regexp, callback) {
 
 Harness.prototype.assertStillAlive = function() {
   assert.strictEqual(this.running_, true,
-                     'Child died: ' + JSON.stringify(this.result_));
+                     `Child died: ${JSON.stringify(this.result_)}`);
 };
 
 Harness.prototype.run_ = function() {
