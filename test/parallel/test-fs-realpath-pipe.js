@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-if (common.isWindows || common.isAix)
+if (common.isWindows || common.isAIX)
   common.skip(`No /dev/stdin on ${process.platform}.`);
 
 const assert = require('assert');

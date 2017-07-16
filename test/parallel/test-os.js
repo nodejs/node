@@ -93,7 +93,7 @@ const release = os.release();
 is.string(release);
 assert.ok(release.length > 0);
 //TODO: Check format on more than just AIX
-if (common.isAix)
+if (common.isAIX)
   assert.ok(/^\d+\.\d+$/.test(release));
 
 const platform = os.platform();

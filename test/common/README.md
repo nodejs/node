@@ -147,7 +147,7 @@ the number of calls.
 
 Checks whether free BSD Jail is true or false.
 
-### isAix
+### isAIX
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
 
 Platform check for Advanced Interactive eXecutive (AIX).

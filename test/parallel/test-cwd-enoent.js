@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 // Fails with EINVAL on SmartOS, EBUSY on Windows, EBUSY on AIX.
-if (common.isSunOS || common.isWindows || common.isAix)
+if (common.isSunOS || common.isWindows || common.isAIX)
   common.skip('cannot rmdir current working directory');
 
 const assert = require('assert');

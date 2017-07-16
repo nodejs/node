@@ -44,7 +44,7 @@ exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
 exports.isWOW64 = exports.isWindows &&
                   (process.env.PROCESSOR_ARCHITEW6432 !== undefined);
-exports.isAix = process.platform === 'aix';
+exports.isAIX = process.platform === 'aix';
 exports.isLinuxPPCBE = (process.platform === 'linux') &&
                        (process.arch === 'ppc64') &&
                        (os.endianness() === 'BE');
@@ -333,7 +333,7 @@ exports.platformTimeout = function(ms) {
   if (global.__coverage__)
     ms = 4 * ms;
 
-  if (exports.isAix)
+  if (exports.isAIX)
     return 2 * ms; // default localhost speed is slower on AIX
 
   if (process.arch !== 'arm')
