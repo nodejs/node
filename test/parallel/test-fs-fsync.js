@@ -22,11 +22,11 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const fixtures = require('../common/fixtures');
 
-const path = require('path');
 const fs = require('fs');
 
-const file = path.join(common.fixturesDir, 'a.js');
+const file = fixtures.path('a.js');
 
 fs.open(file, 'a', 0o777, common.mustCall(function(err, fd) {
   assert.ifError(err);

@@ -28,11 +28,11 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
 const server = tls.createServer({
-  key: fs.readFileSync(`${common.fixturesDir}/0-dns/0-dns-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/0-dns/0-dns-cert.pem`)
+  key: fixtures.readSync(['0-dns', '0-dns-key.pem']),
+  cert: fixtures.readSync(['0-dns', '0-dns-cert.pem'])
 }, function(c) {
   c.once('data', function() {
     c.destroy();

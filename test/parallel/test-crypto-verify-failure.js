@@ -27,16 +27,15 @@ if (!common.hasCrypto)
 
 const crypto = require('crypto');
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
 crypto.DEFAULT_ENCODING = 'buffer';
 
-const fs = require('fs');
-
-const certPem = fs.readFileSync(`${common.fixturesDir}/test_cert.pem`, 'ascii');
+const certPem = fixtures.readSync('test_cert.pem', 'ascii');
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
 const server = tls.Server(options, (socket) => {

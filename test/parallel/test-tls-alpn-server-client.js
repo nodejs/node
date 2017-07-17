@@ -10,16 +10,11 @@ if (!process.features.tls_alpn || !process.features.tls_npn) {
 }
 
 const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
 const tls = require('tls');
-
-function filenamePEM(n) {
-  return path.join(common.fixturesDir, 'keys', `${n}.pem`);
-}
+const fixtures = require('../common/fixtures');
 
 function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
+  return fixtures.readKey(`${n}.pem`);
 }
 
 const serverIP = common.localhostIPv4;

@@ -7,10 +7,10 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const fs = require('fs');
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-const fork = require('child_process').fork;
+const { fork } = require('child_process');
 
 if (process.env.CHILD) {
   const copts = {
@@ -24,8 +24,8 @@ if (process.env.CHILD) {
 }
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`),
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = tls.createServer(options, common.mustCall(function(s) {
@@ -35,7 +35,7 @@ const server = tls.createServer(options, common.mustCall(function(s) {
   const env = {
     CHILD: 'yes',
     PORT: this.address().port,
-    NODE_EXTRA_CA_CERTS: `${common.fixturesDir}/keys/ca1-cert.pem`,
+    NODE_EXTRA_CA_CERTS: fixtures.path('keys', 'ca1-cert.pem')
   };
 
   fork(__filename, { env: env }).on('exit', common.mustCall(function(status) {

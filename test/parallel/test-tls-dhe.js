@@ -31,10 +31,10 @@ if (!common.opensslCli)
 const assert = require('assert');
 const tls = require('tls');
 const spawn = require('child_process').spawn;
-const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
-const key = fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`);
-const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`);
+const key = fixtures.readKey('agent2-key.pem');
+const cert = fixtures.readKey('agent2-cert.pem');
 let nsuccess = 0;
 let ntests = 0;
 const ciphers = 'DHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
@@ -44,9 +44,10 @@ common.expectWarning('SecurityWarning',
                      'DH parameter is less than 2048 bits');
 
 function loadDHParam(n) {
-  let path = common.fixturesDir;
-  if (n !== 'error') path += '/keys';
-  return fs.readFileSync(`${path}/dh${n}.pem`);
+  const params = [`dh${n}.pem`];
+  if (n !== 'error')
+    params.unshift('keys');
+  return fixtures.readSync(params);
 }
 
 function test(keylen, expectedCipher, cb) {

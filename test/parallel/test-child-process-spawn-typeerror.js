@@ -22,17 +22,16 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const child_process = require('child_process');
-const spawn = child_process.spawn;
-const fork = child_process.fork;
-const execFile = child_process.execFile;
+const { spawn, fork, execFile } = require('child_process');
+const fixtures = require('../common/fixtures');
 const cmd = common.isWindows ? 'rundll32' : 'ls';
 const invalidcmd = 'hopefully_you_dont_have_this_on_your_machine';
 const invalidArgsMsg = /Incorrect value of args option/;
 const invalidOptionsMsg = /"options" argument must be an object/;
 const invalidFileMsg =
   /^TypeError: "file" argument must be a non-empty string$/;
-const empty = `${common.fixturesDir}/empty.js`;
+
+const empty = fixtures.path('empty.js');
 
 assert.throws(function() {
   const child = spawn(invalidcmd, 'this is not an array');

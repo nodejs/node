@@ -23,8 +23,9 @@
 const common = require('../common');
 const assert = require('assert');
 const fork = require('child_process').fork;
+const fixtures = require('../common/fixtures');
 
-const cp = fork(`${common.fixturesDir}/child-process-message-and-exit.js`);
+const cp = fork(fixtures.path('child-process-message-and-exit.js'));
 
 let gotMessage = false;
 let gotExit = false;

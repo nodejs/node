@@ -6,15 +6,14 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-
-const fs = require('fs');
 const net = require('net');
+const fixtures = require('../common/fixtures');
 
 let out = '';
 
 const server = tls.createServer({
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 }, function(c) {
   c.end('hello');
 }).listen(0, function() {
