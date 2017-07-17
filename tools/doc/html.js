@@ -215,13 +215,13 @@ function altDocs(filename) {
   const a = (v) => `<a href="${href(v)}">v${v}</a>`;
   const as = (vs) => vs.filter(lte).map(a).join(' / ');
 
-  html += 'View another version of this page <b>Latest:</b> ' + a('7.x');
+  html += 'View another version of this page <b>Latest:</b> ' + a('8.x');
 
-  const lts = as(['4.x', '6.x']);
+  const lts = as(['6.x', '4.x']);
   if (lts.length)
     html += ' <b>LTS:</b> ' + lts;
 
-  const unsupported = as(['0.10.x', '0.12.x', '5.x']);
+  const unsupported = as(['7.x', '5.x', '0.12.x', '0.10.x']);
   if (unsupported.length)
     html += ' <b>Unsupported:</b> ' + unsupported;
 
