@@ -40,6 +40,8 @@ namespace node {
   V(FSREQWRAP)                                                                \
   V(GETADDRINFOREQWRAP)                                                       \
   V(GETNAMEINFOREQWRAP)                                                       \
+  V(HTTP2SESSION)                                                             \
+  V(HTTP2SESSIONSHUTDOWNWRAP)                                                 \
   V(HTTPPARSER)                                                               \
   V(JSSTREAM)                                                                 \
   V(PIPECONNECTWRAP)                                                          \

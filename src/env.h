@@ -104,6 +104,7 @@ namespace node {
   V(configurable_string, "configurable")                                      \
   V(cwd_string, "cwd")                                                        \
   V(dest_string, "dest")                                                      \
+  V(destroy_string, "destroy")                                                \
   V(detached_string, "detached")                                              \
   V(disposed_string, "_disposed")                                             \
   V(dns_a_string, "A")                                                        \
@@ -117,11 +118,13 @@ namespace node {
   V(dns_srv_string, "SRV")                                                    \
   V(dns_txt_string, "TXT")                                                    \
   V(domain_string, "domain")                                                  \
+  V(emit_string, "emit")                                                      \
   V(emitting_top_level_domain_error_string, "_emittingTopLevelDomainError")   \
   V(exchange_string, "exchange")                                              \
   V(enumerable_string, "enumerable")                                          \
   V(idle_string, "idle")                                                      \
   V(irq_string, "irq")                                                        \
+  V(enablepush_string, "enablePush")                                          \
   V(encoding_string, "encoding")                                              \
   V(enter_string, "enter")                                                    \
   V(entries_string, "entries")                                                \
@@ -148,8 +151,11 @@ namespace node {
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")             \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
+  V(heap_total_string, "heapTotal")                                           \
+  V(heap_used_string, "heapUsed")                                             \
   V(homedir_string, "homedir")                                                \
   V(hostmaster_string, "hostmaster")                                          \
+  V(id_string, "id")                                                          \
   V(ignore_string, "ignore")                                                  \
   V(immediate_callback_string, "_immediateCallback")                          \
   V(infoaccess_string, "infoAccess")                                          \
@@ -174,6 +180,7 @@ namespace node {
   V(netmask_string, "netmask")                                                \
   V(nice_string, "nice")                                                      \
   V(nsname_string, "nsname")                                                  \
+  V(nexttick_string, "nextTick")                                              \
   V(ocsp_request_string, "OCSPRequest")                                       \
   V(onchange_string, "onchange")                                              \
   V(onclienthello_string, "onclienthello")                                    \
@@ -182,19 +189,27 @@ namespace node {
   V(ondone_string, "ondone")                                                  \
   V(onerror_string, "onerror")                                                \
   V(onexit_string, "onexit")                                                  \
+  V(onframeerror_string, "onframeerror")                                      \
+  V(ongetpadding_string, "ongetpadding")                                      \
   V(onhandshakedone_string, "onhandshakedone")                                \
   V(onhandshakestart_string, "onhandshakestart")                              \
+  V(onheaders_string, "onheaders")                                            \
   V(onmessage_string, "onmessage")                                            \
   V(onnewsession_string, "onnewsession")                                      \
   V(onnewsessiondone_string, "onnewsessiondone")                              \
   V(onocspresponse_string, "onocspresponse")                                  \
+  V(ongoawaydata_string, "ongoawaydata")                                      \
+  V(onpriority_string, "onpriority")                                          \
   V(onread_string, "onread")                                                  \
   V(onreadstart_string, "onreadstart")                                        \
   V(onreadstop_string, "onreadstop")                                          \
   V(onselect_string, "onselect")                                              \
+  V(onsettings_string, "onsettings")                                          \
   V(onshutdown_string, "onshutdown")                                          \
   V(onsignal_string, "onsignal")                                              \
   V(onstop_string, "onstop")                                                  \
+  V(onstreamclose_string, "onstreamclose")                                    \
+  V(ontrailers_string, "ontrailers")                                          \
   V(onwrite_string, "onwrite")                                                \
   V(output_string, "output")                                                  \
   V(order_string, "order")                                                    \
@@ -234,6 +249,7 @@ namespace node {
   V(stack_string, "stack")                                                    \
   V(status_string, "status")                                                  \
   V(stdio_string, "stdio")                                                    \
+  V(stream_string, "stream")                                                  \
   V(subject_string, "subject")                                                \
   V(subjectaltname_string, "subjectaltname")                                  \
   V(sys_string, "sys")                                                        \
@@ -262,7 +278,7 @@ namespace node {
   V(write_host_object_string, "_writeHostObject")                             \
   V(write_queue_size_string, "writeQueueSize")                                \
   V(x_forwarded_string, "x-forwarded-for")                                    \
-  V(zero_return_string, "ZERO_RETURN")                                        \
+  V(zero_return_string, "ZERO_RETURN")
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
   V(as_external, v8::External)                                                \
@@ -579,8 +595,25 @@ class Environment {
   inline double* heap_space_statistics_buffer() const;
   inline void set_heap_space_statistics_buffer(double* pointer);
 
+  inline uint32_t* http2_settings_buffer() const;
+  inline void set_http2_settings_buffer(uint32_t* pointer);
+
+  inline uint32_t* http2_options_buffer() const;
+  inline void set_http2_options_buffer(uint32_t* pointer);
+
+  inline double* http2_session_state_buffer() const;
+  inline void set_http2_session_state_buffer(double* pointer);
+
+  inline double* http2_stream_state_buffer() const;
+  inline void set_http2_stream_state_buffer(double* pointer);
+
+  inline uint32_t* http2_padding_buffer() const;
+  inline void set_http2_padding_buffer(uint32_t* pointer);
+
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
+  inline char* http2_socket_buffer() const;
+  inline void set_http2_socket_buffer(char* buffer);
 
   inline double* fs_stats_field_array() const;
   inline void set_fs_stats_field_array(double* fields);
@@ -686,8 +719,14 @@ class Environment {
 
   double* heap_statistics_buffer_ = nullptr;
   double* heap_space_statistics_buffer_ = nullptr;
+  uint32_t* http2_settings_buffer_ = nullptr;
+  uint32_t* http2_options_buffer_ = nullptr;
+  double* http2_session_state_buffer_ = nullptr;
+  double* http2_stream_state_buffer_ = nullptr;
+  uint32_t* http2_padding_buffer_ = nullptr;
 
   char* http_parser_buffer_;
+  char* http2_socket_buffer_;
 
   double* fs_stats_field_array_;
 

@@ -52,6 +52,10 @@
         'NODE_RELEASE_URLBASE="<(node_release_urlbase)"',
       ]
     }],
+    [
+      'debug_http2==1', {
+      'defines': [ 'NODE_DEBUG_HTTP2=1' ]
+    }],
     [ 'v8_enable_i18n_support==1', {
       'defines': [ 'NODE_HAVE_I18N_SUPPORT=1' ],
       'dependencies': [
