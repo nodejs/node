@@ -45,7 +45,7 @@ benchmarker to be used should be specified by providing it as an argument:
 
 To run the `http2` benchmarks, the `h2load` benchmarker must be used. The
 `h2load` tool is a component of the `nghttp2` project and may be installed
-from [nghttp.org][] or built from source.
+from [nghttp2.org][] or built from source.
 
 `node benchmark/http2/simple.js benchmarker=autocannon`
 
