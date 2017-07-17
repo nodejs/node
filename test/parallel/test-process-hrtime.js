@@ -45,21 +45,21 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_INVALID_ARRAY_LENGTH',
   type: TypeError,
-  message: 'The "time" array must have a length of 2. Received length 0'
+  message: 'The array "time" (length 0) must be of length 2.'
 }));
 assert.throws(() => {
   process.hrtime([1]);
 }, common.expectsError({
   code: 'ERR_INVALID_ARRAY_LENGTH',
   type: TypeError,
-  message: 'The "time" array must have a length of 2. Received length 1'
+  message: 'The array "time" (length 1) must be of length 2.'
 }));
 assert.throws(() => {
   process.hrtime([1, 2, 3]);
 }, common.expectsError({
   code: 'ERR_INVALID_ARRAY_LENGTH',
   type: TypeError,
-  message: 'The "time" array must have a length of 2. Received length 3'
+  message: 'The array "time" (length 3) must be of length 2.'
 }));
 
 function validateTuple(tuple) {
