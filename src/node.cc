@@ -59,6 +59,7 @@
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "http_parser.h"
+#include "nghttp2/nghttp2ver.h"
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "string_bytes.h"
@@ -231,6 +232,9 @@ std::string config_warning_file;  // NOLINT(runtime/string)
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/internal/bootstrap_node.js
 bool config_expose_internals = false;
+
+// Set in node.cc by ParseArgs when --expose-http2 is used.
+bool config_expose_http2 = false;
 
 bool v8_initialized = false;
 
@@ -3210,6 +3214,10 @@ void SetupProcessObject(Environment* env,
       "modules",
       FIXED_ONE_BYTE_STRING(env->isolate(), node_modules_version));
 
+  READONLY_PROPERTY(versions,
+                    "nghttp2",
+                    FIXED_ONE_BYTE_STRING(env->isolate(), NGHTTP2_VERSION));
+
   // process._promiseRejectEvent
   Local<Object> promiseRejectEvent = Object::New(env->isolate());
   READONLY_DONT_ENUM_PROPERTY(process,
@@ -3648,6 +3656,7 @@ static void PrintHelp() {
          "  --abort-on-uncaught-exception\n"
          "                             aborting instead of exiting causes a\n"
          "                             core file to be generated for analysis\n"
+         "  --expose-http2             enable experimental HTTP2 support\n"
          "  --trace-warnings           show stack traces on process warnings\n"
          "  --redirect-warnings=file\n"
          "                             write warnings to file instead of\n"
@@ -3768,6 +3777,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--throw-deprecation",
     "--no-warnings",
     "--napi-modules",
+    "--expose-http2",
     "--trace-warnings",
     "--redirect-warnings",
     "--trace-sync-io",
@@ -3965,6 +3975,9 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       config_expose_internals = true;
+    } else if (strcmp(arg, "--expose-http2") == 0 ||
+               strcmp(arg, "--expose_http2") == 0) {
+      config_expose_http2 = true;
     } else if (strcmp(arg, "-") == 0) {
       break;
     } else if (strcmp(arg, "--") == 0) {
