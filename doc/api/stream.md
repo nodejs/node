@@ -1920,6 +1920,10 @@ The `transform._transform()` method is prefixed with an underscore because it
 is internal to the class that defines it, and should never be called directly by
 user programs.
 
+`transform._transform()` is never called in  parallel; streams implement a
+queue mechanism, and to receive the next chunk, `callback` must be
+called, either synchronously or asychronously.
+
 #### Class: stream.PassThrough
 
 The `stream.PassThrough` class is a trivial implementation of a [Transform][]
