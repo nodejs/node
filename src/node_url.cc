@@ -2079,52 +2079,6 @@ static void DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
                           v8::NewStringType::kNormal).ToLocalChecked());
 }
 
-// This function works by calling out to a JS function that creates and
-// returns the JS URL object. Be mindful of the JS<->Native boundary
-// crossing that is required.
-const Local<Value> URL::ToObject(Environment* env) const {
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
-  HandleScope handle_scope(isolate);
-  Context::Scope context_scope(context);
-
-  const Local<Value> undef = Undefined(isolate);
-  const Local<Value> null = Null(isolate);
-
-  if (context_.flags & URL_FLAGS_FAILED)
-    return Local<Value>();
-
-  Local<Value> argv[9] = {
-    undef,
-    undef,
-    undef,
-    undef,
-    null,  // host defaults to null
-    null,  // port defaults to null
-    undef,
-    null,  // query defaults to null
-    null,  // fragment defaults to null
-  };
-  SetArgs(env, argv, &context_);
-
-  TryCatch try_catch(isolate);
-
-  // The SetURLConstructor method must have been called already to
-  // set the constructor function used below. SetURLConstructor is
-  // called automatically when the internal/url.js module is loaded
-  // during the internal/bootstrap_node.js processing.
-  MaybeLocal<Value> ret =
-      env->url_constructor_function()
-          ->Call(env->context(), undef, 9, argv);
-
-  if (ret.IsEmpty()) {
-    ClearFatalExceptionHandlers(env);
-    FatalException(isolate, try_catch);
-  }
-
-  return ret.ToLocalChecked();
-}
-
 static void SetURLConstructor(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
