@@ -24,8 +24,9 @@ const common = require('../common');
 const assert = require('assert');
 const fork = require('child_process').fork;
 const args = ['foo', 'bar'];
+const fixtures = require('../common/fixtures');
 
-const n = fork(`${common.fixturesDir}/child-process-spawn-node.js`, args);
+const n = fork(fixtures.path('child-process-spawn-node.js'), args);
 
 assert.strictEqual(n.channel, n._channel);
 assert.deepStrictEqual(args, ['foo', 'bar']);

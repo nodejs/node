@@ -4,15 +4,13 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const fs = require('fs');
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-const keydir = `${common.fixturesDir}/keys`;
-
-const ca1 = fs.readFileSync(`${keydir}/ca1-cert.pem`, 'utf8');
-const ca2 = fs.readFileSync(`${keydir}/ca2-cert.pem`, 'utf8');
-const cert = fs.readFileSync(`${keydir}/agent3-cert.pem`, 'utf8');
-const key = fs.readFileSync(`${keydir}/agent3-key.pem`, 'utf8');
+const ca1 = fixtures.readKey('ca1-cert.pem', 'utf8');
+const ca2 = fixtures.readKey('ca2-cert.pem', 'utf8');
+const cert = fixtures.readKey('agent3-cert.pem', 'utf8');
+const key = fixtures.readKey('agent3-key.pem', 'utf8');
 
 function test(ca, next) {
   const server = tls.createServer({ ca, cert, key }, function(conn) {

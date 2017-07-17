@@ -20,11 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const dirName = path.resolve(common.fixturesDir, 'test-readfile-unlink');
+const fixtures = require('../common/fixtures');
+
+const dirName = fixtures.path('test-readfile-unlink');
 const fileName = path.resolve(dirName, 'test.bin');
 const buf = Buffer.alloc(512 * 1024, 42);
 

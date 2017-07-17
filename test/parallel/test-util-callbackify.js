@@ -6,9 +6,9 @@ const common = require('../common');
 
 const assert = require('assert');
 const { callbackify } = require('util');
-const { join } = require('path');
 const { execFile } = require('child_process');
-const fixtureDir = join(common.fixturesDir, 'uncaught-exceptions');
+const fixtures = require('../common/fixtures');
+
 const values = [
   'hello world',
   null,
@@ -197,7 +197,7 @@ const values = [
 
 {
   // Test that callback that throws emits an `uncaughtException` event
-  const fixture = join(fixtureDir, 'callbackify1.js');
+  const fixture = fixtures.path('uncaught-exceptions', 'callbackify1.js');
   execFile(
     process.execPath,
     [fixture],
@@ -214,7 +214,7 @@ const values = [
 
 {
   // Test that handled `uncaughtException` works and passes rejection reason
-  const fixture = join(fixtureDir, 'callbackify2.js');
+  const fixture = fixtures.path('uncaught-exceptions', 'callbackify2.js');
   execFile(
     process.execPath,
     [fixture],

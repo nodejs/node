@@ -7,14 +7,15 @@ if (!common.hasIntl) {
 }
 
 const assert = require('assert');
-const path = require('path');
 const URL = require('url').URL;
 const { test, assert_equals } = require('../common/wpt');
-const additionalTestCases = require(
-  path.join(common.fixturesDir, 'url-setter-tests-additional.js'));
+const fixtures = require('../common/fixtures');
+
+const additionalTestCases =
+  require(fixtures.path('url-setter-tests-additional.js'));
 
 const request = {
-  response: require(path.join(common.fixturesDir, 'url-setter-tests'))
+  response: require(fixtures.path('url-setter-tests'))
 };
 
 /* The following tests are copied from WPT. Modifications to them should be

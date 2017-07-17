@@ -22,9 +22,10 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const spawn = require('child_process').spawn;
-const sub = path.join(common.fixturesDir, 'print-chars.js');
+const fixtures = require('../common/fixtures');
+
+const sub = fixtures.path('print-chars.js');
 
 const n = 500000;
 

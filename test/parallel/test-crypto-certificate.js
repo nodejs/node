@@ -26,15 +26,14 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const fixtures = require('../common/fixtures');
 
 crypto.DEFAULT_ENCODING = 'buffer';
 
-const fs = require('fs');
-
 // Test Certificates
-const spkacValid = fs.readFileSync(`${common.fixturesDir}/spkac.valid`);
-const spkacFail = fs.readFileSync(`${common.fixturesDir}/spkac.fail`);
-const spkacPem = fs.readFileSync(`${common.fixturesDir}/spkac.pem`);
+const spkacValid = fixtures.readSync('spkac.valid');
+const spkacFail = fixtures.readSync('spkac.fail');
+const spkacPem = fixtures.readSync('spkac.pem');
 
 const certificate = new crypto.Certificate();
 

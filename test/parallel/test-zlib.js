@@ -23,9 +23,8 @@
 const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
-const path = require('path');
-const fs = require('fs');
 const stream = require('stream');
+const fixtures = require('../common/fixtures');
 
 let zlibPairs = [
   [zlib.Deflate, zlib.Inflate],
@@ -69,7 +68,7 @@ if (process.env.FAST) {
 
 const tests = {};
 testFiles.forEach(common.mustCall((file) => {
-  tests[file] = fs.readFileSync(path.resolve(common.fixturesDir, file));
+  tests[file] = fixtures.readSync(file);
 }, testFiles.length));
 
 
