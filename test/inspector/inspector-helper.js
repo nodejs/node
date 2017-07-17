@@ -9,7 +9,7 @@ const url = require('url');
 
 const _MAINSCRIPT = path.join(common.fixturesDir, 'loop.js');
 const DEBUG = false;
-const TIMEOUT = 15 * 1000;
+const TIMEOUT = common.platformTimeout(15 * 1000);
 
 function spawnChildProcess(inspectorFlags, scriptContents, scriptFile) {
   const args = [].concat(inspectorFlags);
@@ -253,9 +253,7 @@ class InspectorSession {
       .waitForNotification(
         (notification) =>
           this._isBreakOnLineNotification(notification, line, url),
-        `break on ${url}:${line}`)
-      .then((notification) =>
-        notification.params.callFrames[0].scopeChain[0].object.objectId);
+        `break on ${url}:${line}`);
   }
 
   _matchesConsoleOutputNotification(notification, type, values) {
@@ -319,6 +317,16 @@ class NodeInstance {
         this._running = false;
       });
     });
+  }
+
+  static async startViaSignal(scriptContents) {
+    const instance = new NodeInstance(
+      [], `${scriptContents}\nprocess._rawDebug('started');`, undefined);
+    const msg = 'Timed out waiting for process to start';
+    while (await common.fires(instance.nextStderrString(), msg, TIMEOUT) !==
+             'started') {}
+    process._debugProcess(instance._process.pid);
+    return instance;
   }
 
   onStderrLine(line) {
