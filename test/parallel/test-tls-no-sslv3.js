@@ -8,11 +8,11 @@ if (common.opensslCli === false)
 
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
 const spawn = require('child_process').spawn;
+const fixtures = require('../common/fixtures');
 
-const cert = fs.readFileSync(`${common.fixturesDir}/test_cert.pem`);
-const key = fs.readFileSync(`${common.fixturesDir}/test_key.pem`);
+const cert = fixtures.readSync('test_cert.pem');
+const key = fixtures.readSync('test_key.pem');
 const server = tls.createServer({ cert: cert, key: key }, common.mustNotCall());
 const errors = [];
 let stderr = '';

@@ -5,8 +5,8 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
+const fixtures = require('../common/fixtures');
 
 // Test hashing
 const a1 = crypto.createHash('sha1').update('Test123').digest('hex');
@@ -74,7 +74,7 @@ const h2 = crypto.createHash('sha1').update('Test').update('123').digest('hex');
 assert.strictEqual(h1, h2, 'multipled updates');
 
 // Test hashing for binary files
-const fn = path.join(common.fixturesDir, 'sample.png');
+const fn = fixtures.path('sample.png');
 const sha1Hash = crypto.createHash('sha1');
 const fileStream = fs.createReadStream(fn);
 fileStream.on('data', function(data) {

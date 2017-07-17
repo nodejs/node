@@ -2,10 +2,10 @@
 const common = require('../common');
 const assert = require('assert');
 
-const path = require('path');
+const fixtures = require('../common/fixtures');
 const fs = require('fs');
-const fn = path.join(common.fixturesDir, 'elipses.txt');
-const rangeFile = path.join(common.fixturesDir, 'x.txt');
+const fn = fixtures.path('elipses.txt');
+const rangeFile = fixtures.path('x.txt');
 
 const callbacks = { open: 0, end: 0, close: 0 };
 

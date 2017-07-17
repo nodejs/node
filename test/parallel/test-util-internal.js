@@ -1,9 +1,9 @@
 'use strict';
 // Flags: --expose_internals
 
-const common = require('../common');
-const path = require('path');
+require('../common');
 const assert = require('assert');
+const fixtures = require('../common/fixtures');
 const internalUtil = require('internal/util');
 const spawnSync = require('child_process').spawnSync;
 
@@ -47,7 +47,7 @@ assert.strictEqual(internalUtil.getHiddenValue(obj, 'foo'), 'bar');
 let arrowMessage;
 
 try {
-  require(path.join(common.fixturesDir, 'syntax', 'bad_syntax'));
+  require(fixtures.path('syntax', 'bad_syntax'));
 } catch (err) {
   arrowMessage = internalUtil.getHiddenValue(err, 'node:arrowMessage');
 }

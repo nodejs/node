@@ -1,11 +1,11 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const net = require('net');
 const { fork, spawn } = require('child_process');
+const fixtures = require('../common/fixtures');
 
-const emptyFile = path.join(common.fixturesDir, 'empty.js');
+const emptyFile = fixtures.path('empty.js');
 
 const n = fork(emptyFile);
 
