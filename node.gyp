@@ -88,6 +88,7 @@
       'lib/internal/freelist.js',
       'lib/internal/fs.js',
       'lib/internal/http.js',
+      'lib/internal/inspector_async_hook.js',
       'lib/internal/linkedlist.js',
       'lib/internal/net.js',
       'lib/internal/module.js',
