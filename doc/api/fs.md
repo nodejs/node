@@ -1546,6 +1546,9 @@ added: v0.0.2
 Asynchronous rmdir(2). No arguments other than a possible exception are given
 to the completion callback.
 
+*Note*: Using `fs.rmdir()` on a file (not a directory) results in an `ENOENT`
+error on Windows and an `ENOTDIR` error on POSIX.
+
 ## fs.rmdirSync(path)
 <!-- YAML
 added: v0.1.21
@@ -1554,6 +1557,9 @@ added: v0.1.21
 * `path` {string|Buffer}
 
 Synchronous rmdir(2). Returns `undefined`.
+
+*Note*: Using `fs.rmdirSync()` on a file (not a directory) results in an `ENOENT`
+error on Windows and an `ENOTDIR` error on POSIX.
 
 ## fs.stat(path, callback)
 <!-- YAML
