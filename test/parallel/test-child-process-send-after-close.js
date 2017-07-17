@@ -2,8 +2,9 @@
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
-const path = require('path');
-const fixture = path.join(common.fixturesDir, 'empty.js');
+const fixtures = require('../common/fixtures');
+
+const fixture = fixtures.path('empty.js');
 const child = cp.fork(fixture);
 
 child.on('close', common.mustCall((code, signal) => {

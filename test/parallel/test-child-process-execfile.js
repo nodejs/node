@@ -2,10 +2,10 @@
 const common = require('../common');
 const assert = require('assert');
 const execFile = require('child_process').execFile;
-const path = require('path');
 const uv = process.binding('uv');
+const fixtures = require('../common/fixtures');
 
-const fixture = path.join(common.fixturesDir, 'exit.js');
+const fixture = fixtures.path('exit.js');
 
 {
   execFile(

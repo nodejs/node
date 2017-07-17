@@ -2,12 +2,12 @@
 
 const common = require('../common');
 const assert = require('assert');
-const fs = require('fs');
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
 const sslcontext = tls.createSecureContext({
-  cert: fs.readFileSync(`${common.fixturesDir}/test_cert.pem`),
-  key: fs.readFileSync(`${common.fixturesDir}/test_key.pem`)
+  cert: fixtures.readSync('test_cert.pem'),
+  key: fixtures.readSync('test_key.pem')
 });
 
 let catchedServername;
@@ -18,7 +18,7 @@ const pair = tls.createSecurePair(sslcontext, true, false, false, {
 });
 
 // captured traffic from browser's request to https://www.google.com
-const sslHello = fs.readFileSync(`${common.fixturesDir}/google_ssl_hello.bin`);
+const sslHello = fixtures.readSync('google_ssl_hello.bin');
 
 pair.encrypted.write(sslHello);
 

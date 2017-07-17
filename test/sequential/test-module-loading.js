@@ -202,7 +202,9 @@ const children = module.children.reduce(function red(set, child) {
 }, {});
 
 assert.deepStrictEqual(children, {
-  'common/index.js': {},
+  'common/index.js': {
+    'common/fixtures.js': {}
+  },
   'fixtures/not-main-module.js': {},
   'fixtures/a.js': {
     'fixtures/b/c.js': {

@@ -1,13 +1,12 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
+const fixtures = require('../common/fixtures');
 
-const path = require('path');
-
-const sub = path.join(common.fixturesDir, 'echo.js');
+const sub = fixtures.path('echo.js');
 
 let gotHelloWorld = false;
 let gotEcho = false;

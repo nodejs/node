@@ -13,10 +13,11 @@ if (!common.hasCrypto) {
   return;
 }
 const crypto = require('crypto');
+const fixtures = require('../common/fixtures');
 
 // Test certificates
-const certPem = fs.readFileSync(`${common.fixturesDir}/test_cert.pem`, 'ascii');
-const keyPem = fs.readFileSync(`${common.fixturesDir}/test_key.pem`, 'ascii');
+const certPem = fixtures.readSync('test_cert.pem', 'ascii');
+const keyPem = fixtures.readSync('test_key.pem', 'ascii');
 const modSize = 1024;
 
 // Test signing and verifying
@@ -189,10 +190,7 @@ const modSize = 1024;
     assert.strictEqual(verified, true, 'verify (PSS)');
   }
 
-  const vectorfile = path.join(common.fixturesDir, 'pss-vectors.json');
-  const examples = JSON.parse(fs.readFileSync(vectorfile, {
-    encoding: 'utf8'
-  }));
+  const examples = JSON.parse(fixtures.readSync('pss-vectors.json', 'utf8'));
 
   for (const key in examples) {
     const example = examples[key];
@@ -249,9 +247,8 @@ const modSize = 1024;
     return;
   }
 
-  const pubfile = path.join(common.fixturesDir, 'keys/rsa_public_2048.pem');
-  const privfile = path.join(common.fixturesDir, 'keys/rsa_private_2048.pem');
-  const privkey = fs.readFileSync(privfile);
+  const pubfile = fixtures.path('keys', 'rsa_public_2048.pem');
+  const privkey = fixtures.readKey('rsa_private_2048.pem');
 
   const msg = 'Test123';
   const s5 = crypto.createSign('SHA256')

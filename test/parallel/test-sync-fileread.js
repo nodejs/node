@@ -1,9 +1,7 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
-const fixture = path.join(common.fixturesDir, 'x.txt');
-
-assert.strictEqual(fs.readFileSync(fixture).toString(), 'xyz\n');
+assert.strictEqual(fs.readFileSync(fixtures.path('x.txt')).toString(), 'xyz\n');
