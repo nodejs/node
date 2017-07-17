@@ -3293,6 +3293,90 @@ void Connection::SetSNICallback(const FunctionCallbackInfo<Value>& args) {
 }
 #endif
 
+void GenerateLegacyKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (args.Length() != 2) {
+    return env->ThrowError("Cipher and key must be supplied.");
+  }
+
+  THROW_AND_RETURN_IF_NOT_STRING(args[0], "Cipher");
+  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[1], "Key");
+
+  const node::Utf8Value cipher_type(env->isolate(), args[0]);
+  const node::Utf8Value key_value(env->isolate(), args[1]);
+
+  const EVP_CIPHER * cipher = EVP_get_cipherbyname(*cipher_type);
+  if (cipher == nullptr) {
+    return env->ThrowError("Unknown cipher");
+  }
+
+  const char* key_buf = *key_value;
+  ssize_t key_buf_len = key_value.length();
+
+  unsigned char * key = (unsigned char *) node::Malloc(EVP_MAX_KEY_LENGTH);
+
+  int key_len = EVP_BytesToKey(cipher,
+                               EVP_md5(),
+                               nullptr,
+                               reinterpret_cast<const unsigned char*>(key_buf),
+                               key_buf_len,
+                               1,
+                               key,
+                               nullptr);
+
+  Local<Object> buf = Buffer::New(env,
+    reinterpret_cast<char *>(key),
+    (unsigned) key_len)
+    .ToLocalChecked();
+
+  args.GetReturnValue().Set(buf);
+}
+
+void GenerateLegacyIV(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (args.Length() != 2) {
+    return env->ThrowError("Cipher and key must be supplied.");
+  }
+
+  THROW_AND_RETURN_IF_NOT_STRING(args[0], "Cipher");
+  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[1], "Key");
+
+  const node::Utf8Value cipher_type(env->isolate(), args[0]);
+  const node::Utf8Value key_value(env->isolate(), args[1]);
+
+  const EVP_CIPHER * cipher = EVP_get_cipherbyname(*cipher_type);
+  if (cipher == nullptr) {
+    return env->ThrowError("Unknown cipher");
+  }
+
+  const int expected_iv_len = EVP_CIPHER_iv_length(cipher);
+  if (expected_iv_len == 0) {
+    return env->ThrowError("Cipher has no IV");
+  }
+
+  const char* key_buf = *key_value;
+  ssize_t key_buf_len = key_value.length();
+
+  unsigned char * iv = (unsigned char *) node::Malloc(EVP_MAX_IV_LENGTH);
+
+  EVP_BytesToKey(cipher,
+                  EVP_md5(),
+                  nullptr,
+                  reinterpret_cast<const unsigned char*>(key_buf),
+                  key_buf_len,
+                  1,
+                  nullptr,
+                  iv);
+
+  Local<Object> buf = Buffer::New(env,
+    reinterpret_cast<char *>(iv),
+    (unsigned) expected_iv_len)
+    .ToLocalChecked();
+
+  args.GetReturnValue().Set(buf);
+}
 
 void CipherBase::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -3353,7 +3437,17 @@ void CipherBase::Init(const char* cipher_type,
 
   EVP_CIPHER_CTX_init(&ctx_);
   const bool encrypt = (kind_ == kCipher);
+
   EVP_CipherInit_ex(&ctx_, cipher_, nullptr, nullptr, nullptr, encrypt);
+
+  const int iv_len = EVP_CIPHER_iv_length(cipher_);
+
+  if (encrypt && iv_len != 0) {
+    return env()->ThrowError("crypto.createCipher() is no longer supported"
+      " with ciphers that require initialization vectors. "
+      "Generate a random IV and pass it to crypto.createCipheriv().");
+  }
+
   if (!EVP_CIPHER_CTX_set_key_length(&ctx_, key_len)) {
     EVP_CIPHER_CTX_cleanup(&ctx_);
     return env()->ThrowError("Invalid key length");
@@ -3443,14 +3537,22 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_STRING(args[0], "Cipher type");
   THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Key");
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[2], "IV");
+
+  if (!Buffer::HasInstance(args[2]) && !args[2]->IsNull()) {
+    return env->ThrowTypeError("IV must be a buffer or null");
+  }
 
   const node::Utf8Value cipher_type(env->isolate(), args[0]);
   ssize_t key_len = Buffer::Length(args[1]);
   const char* key_buf = Buffer::Data(args[1]);
-  ssize_t iv_len = Buffer::Length(args[2]);
-  const char* iv_buf = Buffer::Data(args[2]);
-  cipher->InitIv(*cipher_type, key_buf, key_len, iv_buf, iv_len);
+
+  if (args.Length() < 3 || args[2]->IsNull()) {
+    cipher->InitIv(*cipher_type, key_buf, key_len, nullptr, 0);
+  } else {
+    ssize_t iv_len = Buffer::Length(args[2]);
+    const char* iv_buf = Buffer::Data(args[2]);
+    cipher->InitIv(*cipher_type, key_buf, key_len, iv_buf, iv_len);
+  }
 }
 
 
@@ -6231,6 +6333,8 @@ void InitCrypto(Local<Object> target,
   env->SetMethod(target, "certVerifySpkac", VerifySpkac);
   env->SetMethod(target, "certExportPublicKey", ExportPublicKey);
   env->SetMethod(target, "certExportChallenge", ExportChallenge);
+  env->SetMethod(target, "generateLegacyKey", GenerateLegacyKey);
+  env->SetMethod(target, "generateLegacyIV", GenerateLegacyIV);
 #ifndef OPENSSL_NO_ENGINE
   env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE

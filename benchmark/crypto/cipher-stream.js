@@ -33,8 +33,11 @@ function main(conf) {
   // alice_secret and bob_secret should be the same
   assert(alice_secret === bob_secret);
 
-  var alice_cipher = crypto.createCipher(conf.cipher, alice_secret);
-  var bob_cipher = crypto.createDecipher(conf.cipher, bob_secret);
+  const key = crypto.generateLegacyKey(conf.cipher, alice_secret);
+  const iv = crypto.generateLegacyIV(conf.cipher, alice_secret);
+
+  var alice_cipher = crypto.createCipheriv(conf.cipher, key, iv);
+  var bob_cipher = crypto.createDecipheriv(conf.cipher, key, iv);
 
   var message;
   var encoding;

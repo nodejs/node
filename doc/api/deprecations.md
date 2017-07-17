@@ -634,6 +634,19 @@ Type: Runtime
 
 *Note*: change was made while `async_hooks` was an experimental API.
 
+<a id="DEP00XX"></a>
+### DEP00XX: crypto.createCipher()
+
+Type: End-of-Life
+
+[`crypto.createCipher()`][] generates keys from strings in an insecure manner, and, when used with a cipher that utilizes an initialization vector, will dangerously re-use initialization vectors. As such, it is immediately marked as End-of-Life when used with ciphers that require initialization vectors, and will be fully removed in a later version.
+
+[`crypto.createCipheriv()`][] should be used in place of [`crypto.createCipher()`][]. Since [`crypto.createCipheriv()`][] will no longer attempt to derive a proper encryption key from a string, you must use a key-derivation function such as [`crypto.pbkdf2()`][] to obtain a valid key if you normally supply a string to [`crypto.createCipher()`][].
+
+Additionally, for ciphers that require an initialization vector, you must generate a proper-length initialization vector to pass to [`crypto.createCipheriv()`][]. Initialization vectors must never be re-used, especially in modes such as AES-CTR, where encryption is effectively removed upon reuse. Your application will need to store this initialization vector along with the encrypted data, as it is required for decryption. 
+
+If an initialization vector is not needed by the cipher, you may pass `null` or omit the argument.
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
@@ -647,6 +660,8 @@ Type: Runtime
 [`child_process`]: child_process.html
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`crypto.createCipher()`]: crypto.html#crypto_crypto_createcipher_algorithm_password
+[`crypto.createCipheriv()`]: crypto.html#crypto_crypto_createcipheriv_algorithm_key_iv
 [`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
 [`domain`]: domain.html
