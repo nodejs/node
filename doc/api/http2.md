@@ -559,7 +559,7 @@ when:
 * A new HTTP/2 `HEADERS` frame with a previously unused stream ID is received;
 * The `http2stream.pushStream()` method is called.
 
-On the client side, instances of [`ClientHttp2Stream`[] are created when the
+On the client side, instances of [`ClientHttp2Stream`][] are created when the
 `http2session.request()` method is called.
 
 *Note*: On the client, the `Http2Stream` instance returned by
@@ -1451,7 +1451,7 @@ added: REPLACEME
 * `settings` {[Settings Object][]}
 * Returns: {Buffer}
 
-Returns a [Buffer][] instance containing serialized representation of the given
+Returns a `Buffer` instance containing serialized representation of the given
 HTTP/2 settings as specified in the [HTTP/2][] specification. This is intended
 for use with the `HTTP2-Settings` header field.
 
@@ -1691,13 +1691,13 @@ TBD
 [`net.Socket`]: net.html
 [`tls.TLSSocket`]: tls.html
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
-[ClientHttp2Stream]: #http2_class_clienthttp2stream
-[Compatibility API: #http2_compatibility_api
+[`ClientHttp2Stream`]: #http2_class_clienthttp2stream
+[Compatibility API]: #http2_compatibility_api
 [`Duplex`]: stream.html#stream_class_stream_duplex
 [Headers Object]: #http2_headers_object
-[Http2Stream]: #http2_class_http2stream
+[`Http2Stream`]: #http2_class_http2stream
 [Http2Session and Sockets]: #http2_http2sesion_and_sockets
-[ServerHttp2Stream]: #http2_class_serverhttp2stream
+[`ServerHttp2Stream`]: #http2_class_serverhttp2stream
 [Settings Object]: #http2_settings_object
 [Using options.selectPadding]: #http2_using_options_selectpadding
 [error code]: #error_codes
