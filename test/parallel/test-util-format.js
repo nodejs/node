@@ -46,7 +46,7 @@ assert.strictEqual(util.format('%s', symbol), 'Symbol(foo)');
 assert.strictEqual(util.format('%j', symbol), 'undefined');
 assert.throws(function() {
   util.format('%d', symbol);
-}, TypeError);
+}, /^TypeError: Cannot convert a Symbol value to a number$/);
 
 // Number format specifier
 assert.strictEqual(util.format('%d'), '%d');
