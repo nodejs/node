@@ -133,11 +133,8 @@ added: v0.1.90
   * `env` {Object} Environment key-value pairs
   * `encoding` {string} (Default: `'utf8'`)
   * `shell` {string} Shell to execute the command with
-    (Default: `'/bin/sh'` on UNIX, `'process.env.ComSpec'` on Windows. If
-    `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows
-    instead. The shell should understand the `-c` switch on UNIX or 
-    `/d /s /c` on Windows. On Windows, command line parsing should be 
-    compatible with `cmd.exe`.)
+    (Default: `'/bin/sh'` on UNIX, `'process.env.ComSpec'` on Windows. See 
+    [Shell Requirements][] and [Default Windows Shell][].)
   * `timeout` {number} (Default: `0`)
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
     stderr. (Default: `200*1024`) If exceeded, the child process is terminated.
@@ -384,11 +381,9 @@ changes:
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on UNIX, and `'process.env.ComSpec'` on Windows. If
-    `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows 
-    instead. A different shell can be specified as a string. The shell should 
-    understand the `-c` switch on UNIX, or `/d /s /c` on Windows. Defaults 
-    to `false` (no shell).
+    `'/bin/sh'` on UNIX, and `'process.env.ComSpec'` on Windows. A different 
+    shell can be specified as a string. See [Shell Requirements][] and 
+    [Default Windows Shell][]. Defaults to `false` (no shell).
 * Returns: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
@@ -711,11 +706,8 @@ changes:
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
   * `shell` {string} Shell to execute the command with
-    (Default: `'/bin/sh'` on UNIX, `'process.env.ComSpec'` on Windows.
-    If `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows
-    instead. The shell should understand the `-c` switch on UNIX or 
-    `/d /s /c` on Windows. On Windows, command line parsing should be 
-    compatible with `cmd.exe`.)
+    (Default: `'/bin/sh'` on UNIX, `'process.env.ComSpec'` on Windows. See 
+    [Shell Requirements][] and [Default Windows Shell][].)
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {number} In milliseconds the maximum amount of time the process
@@ -781,11 +773,9 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     (Default: `'buffer'`)
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on UNIX, and `'process.env.ComSpec'` on Windows. If
-    `'process.env.ComSpec'` is unavailable, uses `'cmd.exe'` on Windows 
-    instead. A different shell can be specified as a string. The shell should 
-    understand the `-c` switch on UNIX, or `/d /s /c` on Windows. Defaults 
-    to `false` (no shell).
+    `'/bin/sh'` on UNIX, and `'process.env.ComSpec'` on Windows. See 
+    [Shell Requirements][] and [Default Windows Shell][]. A different shell can 
+    be specified as a string. Defaults to `false` (no shell).
 * Returns: {Object}
   * `pid` {number} Pid of the child process
   * `output` {Array} Array of results from stdio output
@@ -1289,6 +1279,19 @@ This impacts output that includes multibyte character encodings such as UTF-8 or
 UTF-16. For instance, `console.log('中文测试')` will send 13 UTF-8 encoded bytes
 to `stdout` although there are only 4 characters.
 
+## Shell Requirements
+
+The shell should understand the `-c` switch on UNIX or `/d /s /c` on Windows. 
+On Windows, command line parsing should be compatible with `'cmd.exe'`.
+
+## Default Windows Shell
+
+Although Microsoft specifies `'process.env.ComSpec'` must contain the path to
+`'cmd.exe'` in the root environment, child processes are not always subject to
+the same requirement. Thus, in `child_process` functions where a shell can be 
+spawned, `'cmd.exe'` is used as a fallback if `'process.env.ComSpec'` is 
+unavailable.
+
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
 [`'message'`]: #child_process_event_message
@@ -1311,6 +1314,8 @@ to `stdout` although there are only 4 characters.
 [`child_process.spawn()`]: #child_process_child_process_spawn_command_args_options
 [`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
 [`maxBuffer` and Unicode]: #child_process_maxbuffer_and_unicode
+[Shell Requirements]: #child_process_shell_requirements
+[Default Windows Shell]: #child_process_default_windows_shell
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`options.detached`]: #child_process_options_detached
