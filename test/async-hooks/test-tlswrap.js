@@ -4,13 +4,14 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const path = require('path');
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const tls = require('tls');
+
 const tick = require('./tick');
 const initHooks = require('./init-hooks');
-const fs = require('fs');
 const { checkInvocations } = require('./hook-checks');
-const tls = require('tls');
 
 const hooks = initHooks();
 hooks.enable();
