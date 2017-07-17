@@ -325,6 +325,16 @@ Path to the 'root' directory. either `/` or `c:\\` (windows)
 
 Logs '1..0 # Skipped: ' + `msg` and exits with exit code `0`.
 
+### skipIfInspectorDisabled()
+
+Skip the rest of the tests in the current file when the Inspector
+was disabled at compile time.
+
+### skipIf32Bits()
+
+Skip the rest of the tests in the current file when the Node.js executable
+was compiled with a pointer size smaller than 64 bits.
+
 ### spawnPwd(options)
 * `options` [&lt;Object>]
 * return [&lt;Object>]

@@ -12,6 +12,7 @@ using v8::Boolean;
 using v8::Context;
 using v8::Integer;
 using v8::Local;
+using v8::Number;
 using v8::Object;
 using v8::ReadOnly;
 using v8::String;
@@ -28,6 +29,15 @@ using v8::Value;
                               OneByteString(env->isolate(), str),             \
                               True(env->isolate()), ReadOnly).FromJust();     \
   } while (0)
+
+#define READONLY_PROPERTY(obj, name, value)                                   \
+  do {                                                                        \
+    obj->DefineOwnProperty(env->context(),                                    \
+                           OneByteString(env->isolate(), name),               \
+                           value,                                             \
+                           ReadOnly).FromJust();                              \
+  } while (0)
+
 
 static void InitConfig(Local<Object> target,
                        Local<Value> unused,
@@ -90,6 +100,10 @@ static void InitConfig(Local<Object> target,
 
   if (config_expose_http2)
     READONLY_BOOLEAN_PROPERTY("exposeHTTP2");
+
+  READONLY_PROPERTY(target,
+                    "bits",
+                    Number::New(env->isolate(), 8 * sizeof(intptr_t)));
 }  // InitConfig
 
 }  // namespace node
