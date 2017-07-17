@@ -451,18 +451,28 @@ install time.
 
 ### Git URLs as Dependencies
 
-Git urls can be of the form:
+Git urls are of the form:
 
-    git://github.com/user/project.git#commit-ish
-    git+ssh://user@hostname:project.git#commit-ish
-    git+ssh://user@hostname/project.git#commit-ish
-    git+http://user@hostname/project/blah.git#commit-ish
-    git+https://user@hostname/project/blah.git#commit-ish
+    <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit-ish> | #semver:<semver>]
 
-The `commit-ish` can be any tag, sha, or branch which can be supplied as
-an argument to `git checkout`.  The default is `master`.
+`<protocol>` is one of `git`, `git+ssh`, `git+http`, `git+https`, or
+`git+file`.
 
-## GitHub URLs
+If `#<commit-ish>` is provided, it will be used to clone exactly that
+commit. If the commit-ish has the format `#semver:<semver>`, `<semver>` can
+be any valid semver range or exact version, and npm will look for any tags
+or refs matching that range in the remote repository, much as it would for a
+registry dependency. If neither `#<commit-ish>` or `#semver:<semver>` is
+specified, then `master` is used.
+
+Examples:
+
+    git+ssh://git@github.com:npm/npm.git#v1.0.27
+    git+ssh://git@github.com:npm/npm#semver:^5.0
+    git+https://isaacs@github.com/npm/npm.git
+    git://github.com/npm/npm.git#v1.0.27
+
+### GitHub URLs
 
 As of version 1.1.65, you can refer to GitHub urls as just "foo":
 "user/foo-project".  Just as with git URLs, a `commit-ish` suffix can be
@@ -478,7 +488,7 @@ included.  For example:
       }
     }
 
-## Local Paths
+### Local Paths
 
 As of version 2.0.0 you can provide a path to a local directory that contains a
 package. Local paths can be saved using `npm install -S` or
@@ -700,12 +710,11 @@ The host architecture is determined by `process.arch`
 
 ## preferGlobal
 
-If your package is primarily a command-line application that should be
-installed globally, then set this value to `true` to provide a warning
-if it is installed locally.
+**DEPRECATED**
 
-It doesn't actually prevent users from installing it locally, but it
-does help prevent some confusion if it doesn't work as expected.
+This option used to trigger an npm warning, but it will no longer warn. It is
+purely there for informational purposes. It is now recommended that you install
+any binaries as local devDependencies wherever possible.
 
 ## private
 

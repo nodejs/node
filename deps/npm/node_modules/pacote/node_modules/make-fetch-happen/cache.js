@@ -250,8 +250,8 @@ function matchDetails (req, cached) {
 }
 
 function addCacheHeaders (resHeaders, path, key, hash, time) {
-  resHeaders.set('X-Local-Cache', path)
-  resHeaders.set('X-Local-Cache-Key', key)
-  resHeaders.set('X-Local-Cache-Hash', hash)
+  resHeaders.set('X-Local-Cache', encodeURIComponent(path))
+  resHeaders.set('X-Local-Cache-Key', encodeURIComponent(key))
+  resHeaders.set('X-Local-Cache-Hash', encodeURIComponent(hash))
   resHeaders.set('X-Local-Cache-Time', new Date(time).toUTCString())
 }

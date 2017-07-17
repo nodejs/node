@@ -21,6 +21,7 @@ actions.postinstall = require('./action/postinstall.js')
 actions.prepare = require('./action/prepare.js')
 actions.finalize = require('./action/finalize.js')
 actions.remove = require('./action/remove.js')
+actions.unbuild = require('./action/unbuild.js')
 actions.move = require('./action/move.js')
 actions['global-install'] = require('./action/global-install.js')
 actions['global-link'] = require('./action/global-link.js')
@@ -64,6 +65,8 @@ Object.keys(actions).forEach(function (actionName) {
       })
     })
   }
+  actions[actionName].init = action.init || (() => BB.resolve())
+  actions[actionName].teardown = action.teardown || (() => BB.resolve())
 })
 exports.actions = actions
 
@@ -106,7 +109,10 @@ function handleOptionalDepErrors (pkg, err) {
 exports.doOne = doOne
 function doOne (cmd, staging, pkg, log, next) {
   validate('SSOOF', arguments)
-  execAction(prepareAction([cmd, pkg], staging, log)).then(() => next(), next)
+  const prepped = prepareAction([cmd, pkg], staging, log)
+  return withInit(actions[cmd], () => {
+    return execAction(prepped)
+  }).nodeify(next)
 }
 
 exports.doParallel = doParallel
@@ -120,8 +126,11 @@ function doParallel (type, staging, actionsToRun, log, next) {
   }, [])
   log.silly('doParallel', type + ' ' + actionsToRun.length)
   time(log)
-  BB.map(acts, execAction, {
-    concurrency: npm.limit.action
+  if (!acts.length) { return next() }
+  return withInit(actions[type], () => {
+    return BB.map(acts, execAction, {
+      concurrency: npm.limit.action
+    })
   }).nodeify((err) => {
     log.finish()
     timeEnd(log)
@@ -140,7 +149,7 @@ exports.doReverseSerial = doReverseSerial
 function doReverseSerial (type, staging, actionsToRun, log, next) {
   validate('SSAOF', arguments)
   log.silly('doReverseSerial', '%s %d', type, actionsToRun.length)
-  runSerial(type, staging, actionsToRun.reverse(), log, next)
+  runSerial(type, staging, [].concat(actionsToRun).reverse(), log, next)
 }
 
 function runSerial (type, staging, actionsToRun, log, next) {
@@ -151,7 +160,10 @@ function runSerial (type, staging, actionsToRun, log, next) {
     return acc
   }, [])
   time(log)
-  BB.each(acts, execAction).nodeify((err) => {
+  if (!acts.length) { return next() }
+  return withInit(actions[type], () => {
+    return BB.each(acts, execAction)
+  }).nodeify((err) => {
     log.finish()
     timeEnd(log)
     next(err)
@@ -163,6 +175,13 @@ function time (log) {
 }
 function timeEnd (log) {
   process.emit('timeEnd', 'action:' + log.name)
+}
+
+function withInit (action, body) {
+  return BB.using(
+    action.init().disposer(() => action.teardown()),
+    body
+  )
 }
 
 function prepareAction (action, staging, log) {

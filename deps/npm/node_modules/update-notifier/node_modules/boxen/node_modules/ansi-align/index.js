@@ -1,35 +1,35 @@
 'use strict'
 
-var stringWidth = require('string-width')
+const stringWidth = require('string-width')
 
 function ansiAlign (text, opts) {
   if (!text) return text
 
   opts = opts || {}
-  var align = opts.align || 'center'
+  const align = opts.align || 'center'
 
   // short-circuit `align: 'left'` as no-op
   if (align === 'left') return text
 
-  var split = opts.split || '\n'
-  var pad = opts.pad || ' '
-  var widthDiffFn = align !== 'right' ? halfDiff : fullDiff
+  const split = opts.split || '\n'
+  const pad = opts.pad || ' '
+  const widthDiffFn = align !== 'right' ? halfDiff : fullDiff
 
-  var returnString = false
+  let returnString = false
   if (!Array.isArray(text)) {
     returnString = true
     text = String(text).split(split)
   }
 
-  var width
-  var maxWidth = 0
+  let width
+  let maxWidth = 0
   text = text.map(function (str) {
     str = String(str)
     width = stringWidth(str)
     maxWidth = Math.max(width, maxWidth)
     return {
-      str: str,
-      width: width
+      str,
+      width
     }
   }).map(function (obj) {
     return new Array(widthDiffFn(maxWidth, obj.width) + 1).join(pad) + obj.str

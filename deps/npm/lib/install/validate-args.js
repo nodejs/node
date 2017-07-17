@@ -14,10 +14,21 @@ module.exports = function (idealTree, args, next) {
 
   asyncMap(args, function (pkg, done) {
     chain([
+      [hasMinimumFields, pkg],
       [checkSelf, idealTree, pkg, force],
       [isInstallable, pkg]
     ], done)
   }, next)
+}
+
+function hasMinimumFields (pkg, cb) {
+  if (pkg.name === '' || pkg.name == null) {
+    return cb(new Error(`Can't install ${pkg._resolved}: Missing package name`))
+  } else if (pkg.version === '' || pkg.version == null) {
+    return cb(new Error(`Can't install ${pkg._resolved}: Missing package version`))
+  } else {
+    return cb()
+  }
 }
 
 function getWarnings (pkg) {

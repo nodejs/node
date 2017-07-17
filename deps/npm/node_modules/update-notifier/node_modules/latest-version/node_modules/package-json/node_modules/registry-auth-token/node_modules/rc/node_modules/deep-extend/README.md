@@ -56,7 +56,7 @@ console.log(obj1);
    { a: 1,
      b: { first: 'one', second: 'two' },
      c: { test1: 123, test2: 222 } },
-  f: null,
+  f: [],
   g: undefined,
   c: 5,
   e: { one: 1, two: 2 },
