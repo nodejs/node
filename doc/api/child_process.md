@@ -773,9 +773,9 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     (Default: `'buffer'`)
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on UNIX, and `'process.env.ComSpec'` on Windows. See 
-    [Shell Requirements][] and [Default Windows Shell][]. A different shell can 
-    be specified as a string. Defaults to `false` (no shell).
+    `'/bin/sh'` on UNIX, and `'process.env.ComSpec'` on Windows. A different 
+    shell can be specified as a string. See [Shell Requirements][] and 
+    [Default Windows Shell][]. Defaults to `false` (no shell).
 * Returns: {Object}
   * `pid` {number} Pid of the child process
   * `output` {Array} Array of results from stdio output
@@ -1314,8 +1314,6 @@ unavailable.
 [`child_process.spawn()`]: #child_process_child_process_spawn_command_args_options
 [`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
 [`maxBuffer` and Unicode]: #child_process_maxbuffer_and_unicode
-[Shell Requirements]: #child_process_shell_requirements
-[Default Windows Shell]: #child_process_default_windows_shell
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`options.detached`]: #child_process_options_detached
@@ -1327,4 +1325,6 @@ unavailable.
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`stdio`]: #child_process_options_stdio
 [`util.promisify()`]: util.html#util_util_promisify_original
+[Default Windows Shell]: #child_process_default_windows_shell
+[Shell Requirements]: #child_process_shell_requirements
 [synchronous counterparts]: #child_process_synchronous_process_creation
