@@ -160,6 +160,7 @@ if (common.hasCrypto) {
   const stream_wrap = process.binding('stream_wrap');
   const tcp_wrap = process.binding('tcp_wrap');
   const server = net.createServer(common.mustCall((socket) => {
+    server.close();
     socket.on('data', (x) => {
       socket.end();
       socket.destroy();
@@ -176,7 +177,6 @@ if (common.hasCrypto) {
 
     sreq.oncomplete = common.mustCall(() => {
       handle.close();
-      server.close();
     });
 
     wreq.handle = handle;
