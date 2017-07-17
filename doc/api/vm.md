@@ -59,6 +59,11 @@ changes:
     `cachedData` property of the returned `vm.Script` instance.
     The `cachedDataProduced` value will be set to either `true` or `false`
     depending on whether code cache data is produced successfully.
+  * `contextifiedSandbox` {Object} A [contextified][] sandbox to associate with
+    the current script. This does not bind the created script to this context
+    (i.e. `runInContext` still works with all contexts), but merely informs V8
+    (and V8 inspector) that the script is associated with the context. Defaults
+    to the current context.
 
 Creating a new `vm.Script` object compiles `code` but does not run it. The
 compiled `vm.Script` can be run later multiple times. It is important to note
