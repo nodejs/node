@@ -1,9 +1,10 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
-const filepath = path.join(common.fixturesDir, 'x.txt');
+const fixtures = require('../common/fixtures');
+
+const filepath = fixtures.path('x.txt');
 const fd = fs.openSync(filepath, 'r');
 const expected = 'xyz\n';
 

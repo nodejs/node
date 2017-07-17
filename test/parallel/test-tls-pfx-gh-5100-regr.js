@@ -7,11 +7,9 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
-const path = require('path');
+const fixtures = require('../common/fixtures');
 
-const pfx = fs.readFileSync(
-  path.join(common.fixturesDir, 'keys', 'agent1-pfx.pem'));
+const pfx = fixtures.readKey('agent1-pfx.pem');
 
 const server = tls.createServer({
   pfx: pfx,

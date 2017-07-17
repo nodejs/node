@@ -27,8 +27,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 const cluster = require('cluster');
-const fs = require('fs');
-const join = require('path').join;
+const fixtures = require('../common/fixtures');
 
 const workerCount = 4;
 const expectedReqCount = 16;
@@ -87,14 +86,10 @@ if (cluster.isMaster) {
   return;
 }
 
-const keyFile = join(common.fixturesDir, 'agent.key');
-const certFile = join(common.fixturesDir, 'agent.crt');
-const key = fs.readFileSync(keyFile);
-const cert = fs.readFileSync(certFile);
-const options = {
-  key: key,
-  cert: cert
-};
+const key = fixtures.readSync('agent.key');
+const cert = fixtures.readSync('agent.crt');
+
+const options = { key, cert };
 
 const server = tls.createServer(options, function(c) {
   if (c.isSessionReused()) {

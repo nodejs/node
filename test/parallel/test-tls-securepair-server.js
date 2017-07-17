@@ -29,13 +29,12 @@ if (!common.opensslCli)
 
 const assert = require('assert');
 const tls = require('tls');
-const join = require('path').join;
 const net = require('net');
-const fs = require('fs');
 const spawn = require('child_process').spawn;
+const fixtures = require('../common/fixtures');
 
-const key = fs.readFileSync(join(common.fixturesDir, 'agent.key')).toString();
-const cert = fs.readFileSync(join(common.fixturesDir, 'agent.crt')).toString();
+const key = fixtures.readSync('agent.key').toString();
+const cert = fixtures.readSync('agent.crt').toString();
 
 function log(a) {
   console.error(`***server*** ${a}`);

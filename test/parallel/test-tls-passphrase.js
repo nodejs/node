@@ -26,12 +26,11 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
-const path = require('path');
+const fixtures = require('../common/fixtures');
 
-const passKey = fs.readFileSync(path.join(common.fixturesDir, 'pass-key.pem'));
-const rawKey = fs.readFileSync(path.join(common.fixturesDir, 'raw-key.pem'));
-const cert = fs.readFileSync(path.join(common.fixturesDir, 'pass-cert.pem'));
+const passKey = fixtures.readSync('pass-key.pem');
+const rawKey = fixtures.readSync('raw-key.pem');
+const cert = fixtures.readSync('pass-cert.pem');
 
 assert(Buffer.isBuffer(passKey));
 assert(Buffer.isBuffer(cert));

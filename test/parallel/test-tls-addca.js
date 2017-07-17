@@ -1,14 +1,14 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 
 // Adding a CA certificate to contextWithCert should not also add it to
 // contextWithoutCert. This is tested by trying to connect to a server that
 // depends on that CA using contextWithoutCert.
 
-const join = require('path').join;
 const {
   assert, connect, keys, tls
-} = require(join(common.fixturesDir, 'tls-connect'));
+} = require(fixtures.path('tls-connect'));
 
 const contextWithoutCert = tls.createSecureContext({});
 const contextWithCert = tls.createSecureContext({});

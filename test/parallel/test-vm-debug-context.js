@@ -24,7 +24,8 @@
 const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
+const fixtures = require('../common/fixtures');
 
 assert.throws(function() {
   vm.runInDebugContext('*');
@@ -77,7 +78,7 @@ assert.strictEqual(vm.runInDebugContext(undefined), undefined);
 // Can set listeners and breakpoints on a single line file
 {
   const Debug = vm.runInDebugContext('Debug');
-  const fn = require(`${common.fixturesDir}/exports-function-with-param`);
+  const fn = require(fixtures.path('exports-function-with-param'));
   let called = false;
 
   Debug.setListener(function(event, state, data) {
@@ -94,7 +95,7 @@ assert.strictEqual(vm.runInDebugContext(undefined), undefined);
 
 // See https://github.com/nodejs/node/issues/1190, fatal errors should not
 // crash the process.
-const script = `${common.fixturesDir}/vm-run-in-debug-context.js`;
+const script = fixtures.path('vm-run-in-debug-context.js');
 let proc = spawn(process.execPath, [script]);
 const data = [];
 proc.stdout.on('data', common.mustNotCall());

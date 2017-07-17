@@ -27,16 +27,16 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const fs = require('fs');
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
 crypto.DEFAULT_ENCODING = 'buffer';
 
 // Test Certificates
-const caPem = fs.readFileSync(`${common.fixturesDir}/test_ca.pem`, 'ascii');
-const certPem = fs.readFileSync(`${common.fixturesDir}/test_cert.pem`, 'ascii');
-const certPfx = fs.readFileSync(`${common.fixturesDir}/test_cert.pfx`);
-const keyPem = fs.readFileSync(`${common.fixturesDir}/test_key.pem`, 'ascii');
+const caPem = fixtures.readSync('test_ca.pem', 'ascii');
+const certPem = fixtures.readSync('test_cert.pem', 'ascii');
+const certPfx = fixtures.readSync('test_cert.pfx');
+const keyPem = fixtures.readSync('test_key.pem', 'ascii');
 
 // 'this' safety
 // https://github.com/joyent/node/issues/6690
@@ -176,8 +176,8 @@ assert.throws(function() {
   //   $ openssl pkcs8 -topk8 -inform PEM -outform PEM -in mykey.pem \
   //     -out private_key.pem -nocrypt;
   //   Then open private_key.pem and change its header and footer.
-  const sha1_privateKey = fs.readFileSync(
-    `${common.fixturesDir}/test_bad_rsa_privkey.pem`, 'ascii');
+  const sha1_privateKey = fixtures.readSync('test_bad_rsa_privkey.pem',
+                                            'ascii');
   // this would inject errors onto OpenSSL's error stack
   crypto.createSign('sha1').sign(sha1_privateKey);
 }, /asn1 encoding routines:ASN1_CHECK_TLEN:wrong tag/);

@@ -2,8 +2,8 @@
 
 const common = require('../common');
 const assert = require('assert');
-const {exec, spawnSync} = require('child_process');
-const path = require('path');
+const { exec, spawnSync } = require('child_process');
+const fixtures = require('../common/fixtures');
 
 const node = process.execPath;
 
@@ -24,7 +24,7 @@ const notFoundRE = /^Error: Cannot find module/m;
   'syntax/good_syntax_shebang',
   'syntax/illegal_if_not_wrapped.js'
 ].forEach(function(file) {
-  file = path.join(common.fixturesDir, file);
+  file = fixtures.path(file);
 
   // loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
@@ -46,7 +46,7 @@ const notFoundRE = /^Error: Cannot find module/m;
   'syntax/bad_syntax_shebang.js',
   'syntax/bad_syntax_shebang'
 ].forEach(function(file) {
-  file = path.join(common.fixturesDir, file);
+  file = fixtures.path(file);
 
   // loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
@@ -73,7 +73,7 @@ const notFoundRE = /^Error: Cannot find module/m;
   'syntax/file_not_found.js',
   'syntax/file_not_found'
 ].forEach(function(file) {
-  file = path.join(common.fixturesDir, file);
+  file = fixtures.path(file);
 
   // loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {

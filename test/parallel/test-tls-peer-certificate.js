@@ -20,14 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 
 // Verify that detailed getPeerCertificate() return value has all certs.
 
-const join = require('path').join;
 const {
   assert, connect, debug, keys
-} = require(join(common.fixturesDir, 'tls-connect'));
+} = require(fixtures.path('tls-connect'));
 
 connect({
   client: {rejectUnauthorized: false},

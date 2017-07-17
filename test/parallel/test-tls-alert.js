@@ -29,18 +29,13 @@ if (!common.opensslCli)
 
 const assert = require('assert');
 const { spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
 let success = false;
 
-function filenamePEM(n) {
-  return path.join(common.fixturesDir, 'keys', `${n}.pem`);
-}
-
 function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
+  return fixtures.readKey(`${n}.pem`);
 }
 
 const server = tls.Server({
