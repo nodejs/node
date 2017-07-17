@@ -21,21 +21,16 @@
 
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
+const assert = require('assert');
+const tls = require('tls');
+const { spawn } = require('child_process');
 
 if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
-
-const assert = require('assert');
-const tls = require('tls');
-const fs = require('fs');
-const { join } = require('path');
-const { spawn } = require('child_process');
-
-const keyFile = join(common.fixturesDir, 'agent.key');
-const certFile = join(common.fixturesDir, 'agent.crt');
 
 doTest({ tickets: false }, function() {
   doTest({ tickets: true }, function() {
@@ -46,11 +41,11 @@ doTest({ tickets: false }, function() {
 });
 
 function doTest(testOptions, callback) {
-  const key = fs.readFileSync(keyFile);
-  const cert = fs.readFileSync(certFile);
+  const key = fixtures.readSync('agent.key');
+  const cert = fixtures.readSync('agent.crt');
   const options = {
-    key: key,
-    cert: cert,
+    key,
+    cert,
     ca: [cert],
     requestCert: true,
     rejectUnauthorized: false
@@ -108,8 +103,8 @@ function doTest(testOptions, callback) {
       '-tls1',
       '-connect', `localhost:${this.address().port}`,
       '-servername', 'ohgod',
-      '-key', join(common.fixturesDir, 'agent.key'),
-      '-cert', join(common.fixturesDir, 'agent.crt'),
+      '-key', fixtures.path('agent.key'),
+      '-cert', fixtures.path('agent.crt'),
       '-reconnect'
     ].concat(testOptions.tickets ? [] : '-no_ticket');
 

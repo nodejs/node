@@ -1,9 +1,9 @@
 'use strict';
 // Flags: --expose_internals
 
-const common = require('../common');
-const path = require('path');
+require('../common');
 const assert = require('assert');
+const fixtures = require('../common/fixtures');
 
 const binding = process.binding('util');
 const kArrowMessagePrivateSymbolIndex = binding['arrow_message_private_symbol'];
@@ -54,7 +54,7 @@ assert.strictEqual(
 let arrowMessage;
 
 try {
-  require(path.join(common.fixturesDir, 'syntax', 'bad_syntax'));
+  require(fixtures.path('syntax', 'bad_syntax'));
 } catch (err) {
   arrowMessage =
       binding.getHiddenValue(err, kArrowMessagePrivateSymbolIndex);

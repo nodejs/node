@@ -4,23 +4,23 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const fs = require('fs');
 const crypto = require('crypto');
 
 const constants = crypto.constants;
-const fixtDir = common.fixturesDir;
+
+const fixtures = require('../common/fixtures');
 
 // Test certificates
-const certPem = fs.readFileSync(`${fixtDir}/test_cert.pem`, 'ascii');
-const keyPem = fs.readFileSync(`${fixtDir}/test_key.pem`, 'ascii');
-const rsaPubPem = fs.readFileSync(`${fixtDir}/test_rsa_pubkey.pem`, 'ascii');
-const rsaKeyPem = fs.readFileSync(`${fixtDir}/test_rsa_privkey.pem`, 'ascii');
-const rsaKeyPemEncrypted = fs.readFileSync(
-  `${fixtDir}/test_rsa_privkey_encrypted.pem`, 'ascii');
-const dsaPubPem = fs.readFileSync(`${fixtDir}/test_dsa_pubkey.pem`, 'ascii');
-const dsaKeyPem = fs.readFileSync(`${fixtDir}/test_dsa_privkey.pem`, 'ascii');
-const dsaKeyPemEncrypted = fs.readFileSync(
-  `${fixtDir}/test_dsa_privkey_encrypted.pem`, 'ascii');
+const certPem = fixtures.readSync('test_cert.pem', 'ascii');
+const keyPem = fixtures.readSync('test_key.pem', 'ascii');
+const rsaPubPem = fixtures.readSync('test_rsa_pubkey.pem', 'ascii');
+const rsaKeyPem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
+const rsaKeyPemEncrypted = fixtures.readSync('test_rsa_privkey_encrypted.pem',
+                                             'ascii');
+const dsaPubPem = fixtures.readSync('test_dsa_pubkey.pem', 'ascii');
+const dsaKeyPem = fixtures.readSync('test_dsa_privkey.pem', 'ascii');
+const dsaKeyPemEncrypted = fixtures.readSync('test_dsa_privkey_encrypted.pem',
+                                             'ascii');
 
 const decryptError =
   /^Error: error:06065064:digital envelope routines:EVP_DecryptFinal_ex:bad decrypt$/;
@@ -174,9 +174,8 @@ assert.throws(() => {
 // Test RSA signing and verification
 //
 {
-  const privateKey = fs.readFileSync(`${fixtDir}/test_rsa_privkey_2.pem`);
-
-  const publicKey = fs.readFileSync(`${fixtDir}/test_rsa_pubkey_2.pem`);
+  const privateKey = fixtures.readSync('test_rsa_privkey_2.pem');
+  const publicKey = fixtures.readSync('test_rsa_pubkey_2.pem');
 
   const input = 'I AM THE WALRUS';
 

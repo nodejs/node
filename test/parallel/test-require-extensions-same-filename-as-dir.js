@@ -20,19 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
-const path = require('path');
+const fixtures = require('../common/fixtures');
 
-const filePath = path.join(
-  common.fixturesDir,
-  'json-with-directory-name-module',
-  'module-stub',
-  'one',
-  'two',
-  'three.js'
-);
-const content = require(filePath);
+const content = require(fixtures.path('json-with-directory-name-module',
+                                      'module-stub', 'one', 'two',
+                                      'three.js'));
 
 assert.notStrictEqual(content.rocko, 'artischocko');
 assert.strictEqual(content, 'hello from module-stub!');

@@ -4,15 +4,14 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const fs = require('fs');
 const tls = require('tls');
 const stream = require('stream');
 const net = require('net');
+const fixtures = require('../common/fixtures');
 
-const cert_dir = common.fixturesDir;
-const options = { key: fs.readFileSync(`${cert_dir}/test_key.pem`),
-                  cert: fs.readFileSync(`${cert_dir}/test_cert.pem`),
-                  ca: [ fs.readFileSync(`${cert_dir}/test_ca.pem`) ],
+const options = { key: fixtures.readSync('test_key.pem'),
+                  cert: fixtures.readSync('test_cert.pem'),
+                  ca: [ fixtures.readSync('test_ca.pem') ],
                   ciphers: 'AES256-GCM-SHA384' };
 const content = 'hello world';
 const recv_bufs = [];

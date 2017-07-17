@@ -26,11 +26,11 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/ec-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/ec-cert.pem`)
+  key: fixtures.readKey('/ec-key.pem'),
+  cert: fixtures.readKey('ec-cert.pem')
 };
 
 const server = tls.createServer(options, function(conn) {

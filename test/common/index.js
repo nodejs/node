@@ -29,13 +29,15 @@ const { exec, execSync, spawn, spawnSync } = require('child_process');
 const stream = require('stream');
 const util = require('util');
 const Timer = process.binding('timer_wrap').Timer;
+const { fixturesDir } = require('./fixtures');
 
 const testRoot = process.env.NODE_TEST_DIR ?
   fs.realpathSync(process.env.NODE_TEST_DIR) : path.resolve(__dirname, '..');
 
 const noop = () => {};
 
-exports.fixturesDir = path.join(__dirname, '..', 'fixtures');
+exports.fixturesDir = fixturesDir;
+
 exports.tmpDirName = 'tmp';
 // PORT should match the definition in test/testpy/__init__.py.
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;

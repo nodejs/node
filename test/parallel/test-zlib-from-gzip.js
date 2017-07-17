@@ -27,6 +27,7 @@ const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 const path = require('path');
+const fixtures = require('../common/fixtures');
 
 common.refreshTmpDir();
 
@@ -34,8 +35,8 @@ const gunzip = zlib.createGunzip();
 
 const fs = require('fs');
 
-const fixture = path.resolve(common.fixturesDir, 'person.jpg.gz');
-const unzippedFixture = path.resolve(common.fixturesDir, 'person.jpg');
+const fixture = fixtures.path('person.jpg.gz');
+const unzippedFixture = fixtures.path('person.jpg');
 const outputFile = path.resolve(common.tmpDir, 'person.jpg');
 const expect = fs.readFileSync(unzippedFixture);
 const inp = fs.createReadStream(fixture);

@@ -1,10 +1,10 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const child_process = require('child_process');
+const fixtures = require('../common/fixtures');
 
-const testScript = path.join(common.fixturesDir, 'catch-stdout-error.js');
+const testScript = fixtures.path('catch-stdout-error.js');
 
 const cmd = `${JSON.stringify(process.execPath)} ` +
             `${JSON.stringify(testScript)} | ` +

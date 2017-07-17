@@ -32,26 +32,22 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
-const fs = require('fs');
-const join = require('path').join;
 
 const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
-const pfx = fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-pfx.pem'));
+const pfx = fixtures.readKey('agent1-pfx.pem');
 
 function test(testOptions, cb) {
 
-  const keyFile = join(common.fixturesDir, 'keys', 'agent1-key.pem');
-  const certFile = join(common.fixturesDir, 'keys', 'agent1-cert.pem');
-  const caFile = join(common.fixturesDir, 'keys', 'ca1-cert.pem');
-  const key = fs.readFileSync(keyFile);
-  const cert = fs.readFileSync(certFile);
-  const ca = fs.readFileSync(caFile);
+  const key = fixtures.readKey('agent1-key.pem');
+  const cert = fixtures.readKey('agent1-cert.pem');
+  const ca = fixtures.readKey('ca1-cert.pem');
   const options = {
-    key: key,
-    cert: cert,
+    key,
+    cert,
     ca: [ca]
   };
   let requestCount = 0;
