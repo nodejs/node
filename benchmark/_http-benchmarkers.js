@@ -111,10 +111,63 @@ class TestDoubleBenchmarker {
   }
 }
 
+/**
+ * HTTP/2 Benchmarker
+ */
+class H2LoadBenchmarker {
+  constructor() {
+    this.name = 'h2load';
+    this.executable = 'h2load';
+    const result = child_process.spawnSync(this.executable, ['-h']);
+    this.present = !(result.error && result.error.code === 'ENOENT');
+  }
+
+  create(options) {
+    const args = [];
+    if (typeof options.requests === 'number')
+      args.push('-n', options.requests);
+    if (typeof options.clients === 'number')
+      args.push('-c', options.clients);
+    if (typeof options.threads === 'number')
+      args.push('-t', options.threads);
+    if (typeof options.maxConcurrentStreams === 'number')
+      args.push('-m', options.maxConcurrentStreams);
+    if (typeof options.initialWindowSize === 'number')
+      args.push('-w', options.initialWindowSize);
+    if (typeof options.sessionInitialWindowSize === 'number')
+      args.push('-W', options.sessionInitialWindowSize);
+    if (typeof options.rate === 'number')
+      args.push('-r', options.rate);
+    if (typeof options.ratePeriod === 'number')
+      args.push(`--rate-period=${options.ratePeriod}`);
+    if (typeof options.duration === 'number')
+      args.push('-T', options.duration);
+    if (typeof options.timeout === 'number')
+      args.push('-N', options.timeout);
+    if (typeof options.headerTableSize === 'number')
+      args.push(`--header-table-size=${options.headerTableSize}`);
+    if (typeof options.encoderHeaderTableSize === 'number') {
+      args.push(
+        `--encoder-header-table-size=${options.encoderHeaderTableSize}`);
+    }
+    const scheme = options.scheme || 'http';
+    const host = options.host || '127.0.0.1';
+    args.push(`${scheme}://${host}:${options.port}${options.path}`);
+    const child = child_process.spawn(this.executable, args);
+    return child;
+  }
+
+  processResults(output) {
+    const rex = /(\d+(?:\.\d+)) req\/s/;
+    return rex.exec(output)[1];
+  }
+}
+
 const http_benchmarkers = [
   new WrkBenchmarker(),
   new AutocannonBenchmarker(),
-  new TestDoubleBenchmarker()
+  new TestDoubleBenchmarker(),
+  new H2LoadBenchmarker()
 ];
 
 const benchmarkers = {};

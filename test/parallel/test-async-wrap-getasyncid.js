@@ -19,6 +19,11 @@ const providers = Object.assign({}, process.binding('async_wrap').Providers);
     process.removeAllListeners('uncaughtException');
     hooks.disable();
     delete providers.NONE;  // Should never be used.
+
+    // TODO(jasnell): Test for these
+    delete providers.HTTP2SESSION;
+    delete providers.HTTP2SESSIONSHUTDOWNWRAP;
+
     const obj_keys = Object.keys(providers);
     if (obj_keys.length > 0)
       process._rawDebug(obj_keys);
