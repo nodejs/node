@@ -68,7 +68,6 @@ function tryToCloseWhenClosed(msg) {
 function reopenAfterClose(msg) {
   assert.strictEqual(msg.cmd, 'url');
   const port = url.parse(msg.url).port;
-  assert.notStrictEqual(port, firstPort);
   ping(port, (err) => {
     assert.ifError(err);
     process.exit();
