@@ -1,5 +1,6 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const child_process = require('child_process');
+const fixtures = require('../common/fixtures');
 
-child_process.fork(`${common.fixturesDir}/empty.js`); // should not hang
+child_process.fork(fixtures.path('empty.js')); // should not hang
