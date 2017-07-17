@@ -4,6 +4,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const path = require('path');
 const assert = require('assert');
 const tick = require('./tick');
 const initHooks = require('./init-hooks');
@@ -19,8 +20,8 @@ hooks.enable();
 //
 const server = tls
   .createServer({
-    cert: fs.readFileSync(`${common.fixturesDir}/test_cert.pem`),
-    key: fs.readFileSync(`${common.fixturesDir}/test_key.pem`)
+    cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem')),
+    key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'))
   })
   .on('listening', common.mustCall(onlistening))
   .on('secureConnection', common.mustCall(onsecureConnection))
