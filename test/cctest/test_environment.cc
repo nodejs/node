@@ -85,8 +85,7 @@ TEST_F(EnvironmentTest, AtExitWithArgument) {
   EXPECT_EQ(arg, cb_1_arg);
 }
 
-/*
-TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
+TEST_F(EnvironmentTest, DISABLED_MultipleEnvironmentsPerIsolate) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
   Env env1 {handle_scope, isolate_, argv};
@@ -101,7 +100,6 @@ TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   RunAtExit(*env2);
   EXPECT_TRUE(called_cb_2);
 }
-*/
 
 static void at_exit_callback1(void* arg) {
   called_cb_1 = true;
