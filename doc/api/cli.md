@@ -170,6 +170,13 @@ added: v6.0.0
 
 Silence all process warnings (including deprecations).
 
+### `--expose-http2`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable the experimental `'http2'` module.
+
 ### `--napi-modules`
 <!-- YAML
 added: v8.0.0

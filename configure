@@ -64,6 +64,8 @@ shared_optgroup = optparse.OptionGroup(parser, "Shared libraries",
 intl_optgroup = optparse.OptionGroup(parser, "Internationalization",
     "Flags that lets you enable i18n features in Node.js as well as which "
     "library you want to build against.")
+http2_optgroup = optparse.OptionGroup(parser, "HTTP2",
+    "Flags that allows you to control HTTP2 features in Node.js")
 
 # Options should be in alphabetical order but keep --prefix at the top,
 # that's arguably the one people will be looking for most.
@@ -396,6 +398,16 @@ intl_optgroup.add_option('--download-path',
     help='Download directory [default: %default]')
 
 parser.add_option_group(intl_optgroup)
+
+http2_optgroup.add_option('--debug-http2',
+    action='store_true',
+    dest='debug_http2',
+    help='build with http2 debug statements on (default is false)')
+
+http2_optgroup.add_option('--debug-nghttp2',
+    action='store_true',
+    dest='debug_nghttp2',
+    help='build nghttp2 with DEBUGBUILD (default is false)')
 
 parser.add_option('--with-perfctr',
     action='store_true',
@@ -897,6 +909,16 @@ def configure_node(o):
 
   if options.enable_static:
     o['variables']['node_target_type'] = 'static_library'
+
+  if options.debug_http2:
+    o['variables']['debug_http2'] = 1
+  else:
+    o['variables']['debug_http2'] = 'false'
+
+  if options.debug_nghttp2:
+    o['variables']['debug_nghttp2'] = 1
+  else:
+    o['variables']['debug_nghttp2'] = 'false'
 
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
   o['variables']['node_shared'] = b(options.shared)

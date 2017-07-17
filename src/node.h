@@ -253,6 +253,25 @@ NODE_EXTERN void RunAtExit(Environment* env);
   }                                                                           \
   while (0)
 
+#define NODE_DEFINE_HIDDEN_CONSTANT(target, constant)                         \
+  do {                                                                        \
+    v8::Isolate* isolate = target->GetIsolate();                              \
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();            \
+    v8::Local<v8::String> constant_name =                                     \
+        v8::String::NewFromUtf8(isolate, #constant);                          \
+    v8::Local<v8::Number> constant_value =                                    \
+        v8::Number::New(isolate, static_cast<double>(constant));              \
+    v8::PropertyAttribute constant_attributes =                               \
+        static_cast<v8::PropertyAttribute>(v8::ReadOnly |                     \
+                                           v8::DontDelete |                   \
+                                           v8::DontEnum);                     \
+    (target)->DefineOwnProperty(context,                                      \
+                                constant_name,                                \
+                                constant_value,                               \
+                                constant_attributes).FromJust();              \
+  }                                                                           \
+  while (0)
+
 // Used to be a macro, hence the uppercase name.
 inline void NODE_SET_METHOD(v8::Local<v8::Template> recv,
                             const char* name,
