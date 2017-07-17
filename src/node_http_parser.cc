@@ -399,6 +399,18 @@ class Parser : public AsyncWrap {
   }
 
 
+  static void Free(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+
+    // Since the Parser destructor isn't going to run the destroy() callbacks
+    // it needs to be triggered manually.
+    parser->EmitTraceEventDestroy();
+    parser->EmitDestroy(env, parser->get_async_id());
+  }
+
+
   void Save() {
     url_.Save();
     status_message_.Save();
@@ -794,6 +806,7 @@ void InitHttpParser(Local<Object> target,
 
   AsyncWrap::AddWrapMethods(env, t);
   env->SetProtoMethod(t, "close", Parser::Close);
+  env->SetProtoMethod(t, "free", Parser::Free);
   env->SetProtoMethod(t, "execute", Parser::Execute);
   env->SetProtoMethod(t, "finish", Parser::Finish);
   env->SetProtoMethod(t, "reinitialize", Parser::Reinitialize);

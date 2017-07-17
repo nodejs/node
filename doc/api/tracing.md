@@ -10,10 +10,10 @@ Node.js application.
 
 The set of categories for which traces are recorded can be specified using the
 `--trace-event-categories` flag followed by a list of comma separated category names.
-By default the `node` and `v8` categories are enabled.
+By default the `node`, `node.async_hooks`, and `v8` categories are enabled.
 
 ```txt
-node --trace-events-enabled --trace-event-categories v8,node server.js
+node --trace-events-enabled --trace-event-categories v8,node,node.async_hooks server.js
 ```
 
 Running Node.js with tracing enabled will produce log files that can be opened

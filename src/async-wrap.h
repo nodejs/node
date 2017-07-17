@@ -130,12 +130,18 @@ class AsyncWrap : public BaseObject {
   static void EmitAsyncInit(Environment* env,
                             v8::Local<v8::Object> object,
                             v8::Local<v8::String> type,
-                            double id,
+                            double async_id,
                             double trigger_async_id);
 
-  static void EmitBefore(Environment* env, double id);
-  static void EmitAfter(Environment* env, double id);
-  static void EmitPromiseResolve(Environment* env, double id);
+  static void EmitDestroy(Environment* env, double async_id);
+  static void EmitBefore(Environment* env, double async_id);
+  static void EmitAfter(Environment* env, double async_id);
+  static void EmitPromiseResolve(Environment* env, double async_id);
+
+  void EmitTraceEventBefore();
+  void EmitTraceEventAfter();
+  void EmitTraceEventDestroy();
+
 
   inline ProviderType provider_type() const;
 
