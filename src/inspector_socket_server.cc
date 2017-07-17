@@ -9,6 +9,8 @@
 #include <set>
 #include <sstream>
 
+#define DEBUG_TRANSACTION 0
+
 namespace node {
 namespace inspector {
 
@@ -566,8 +568,11 @@ void SocketSession::ReadCallback(uv_stream_t* stream, ssize_t read,
   InspectorSocket* socket = inspector_from_stream(stream);
   SocketSession* session = SocketSession::From(socket);
   if (read > 0) {
-    session->server_->MessageReceived(session->id_,
-                                      std::string(buf->base, read));
+    std::string str(buf->base, read);
+#if DEBUG_TRANSACTION
+    printf(">>> %s\n", str.c_str());
+#endif // DEBUG_TRANSACTION
+    session->server_->MessageReceived(session->id_, str);
   } else {
     session->Close();
   }
@@ -576,6 +581,9 @@ void SocketSession::ReadCallback(uv_stream_t* stream, ssize_t read,
 }
 
 void SocketSession::Send(const std::string& message) {
+#if DEBUG_TRANSACTION
+  printf("<<< %s\n", message.c_str());
+#endif // DEBUG_TRANSACTION
   inspector_write(&socket_, message.data(), message.length());
 }
 
