@@ -61,6 +61,7 @@ using v8::Script;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
+using v8::Symbol;
 using v8::TryCatch;
 using v8::Uint8Array;
 using v8::UnboundScript;
@@ -531,6 +532,16 @@ class ContextifyScript : public BaseObject {
 
     target->Set(class_name, script_tmpl->GetFunction());
     env->set_script_context_constructor_template(script_tmpl);
+
+    Local<Symbol> parsing_context_symbol =
+        Symbol::New(env->isolate(),
+                    FIXED_ONE_BYTE_STRING(env->isolate(),
+                                          "script parsing context"));
+    env->set_vm_parsing_context_symbol(parsing_context_symbol);
+    target->Set(env->context(),
+                FIXED_ONE_BYTE_STRING(env->isolate(), "kParsingContext"),
+                parsing_context_symbol)
+        .FromJust();
   }
 
 
@@ -555,6 +566,7 @@ class ContextifyScript : public BaseObject {
     Maybe<bool> maybe_display_errors = GetDisplayErrorsArg(env, options);
     MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, options);
     Maybe<bool> maybe_produce_cached_data = GetProduceCachedData(env, options);
+    MaybeLocal<Context> maybe_context = GetContext(env, options);
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
       return;
@@ -582,6 +594,8 @@ class ContextifyScript : public BaseObject {
       compile_options = ScriptCompiler::kConsumeCodeCache;
     else if (produce_cached_data)
       compile_options = ScriptCompiler::kProduceCodeCache;
+
+    Context::Scope scope(maybe_context.FromMaybe(env->context()));
 
     MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
         env->isolate(),
@@ -933,6 +947,41 @@ class ContextifyScript : public BaseObject {
       return defaultColumnOffset;
 
     return value->ToInteger(env->context());
+  }
+
+  static MaybeLocal<Context> GetContext(Environment* env,
+                                        Local<Value> options) {
+    if (!options->IsObject())
+      return MaybeLocal<Context>();
+
+    MaybeLocal<Value> maybe_value =
+        options.As<Object>()->Get(env->context(),
+                                  env->vm_parsing_context_symbol());
+    Local<Value> value;
+    if (!maybe_value.ToLocal(&value))
+      return MaybeLocal<Context>();
+
+    if (!value->IsObject()) {
+      if (!value->IsNullOrUndefined()) {
+        env->ThrowTypeError(
+            "contextifiedSandbox argument must be an object.");
+      }
+      return MaybeLocal<Context>();
+    }
+
+    ContextifyContext* sandbox =
+        ContextifyContext::ContextFromContextifiedSandbox(
+            env, value.As<Object>());
+    if (!sandbox) {
+      env->ThrowTypeError(
+          "sandbox argument must have been converted to a context.");
+      return MaybeLocal<Context>();
+    }
+
+    Local<Context> context = sandbox->context();
+    if (context.IsEmpty())
+      return MaybeLocal<Context>();
+    return context;
   }
 
 
