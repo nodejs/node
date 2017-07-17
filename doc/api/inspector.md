@@ -10,6 +10,45 @@ It can be accessed using:
 const inspector = require('inspector');
 ```
 
+## inspector.attachContext(contextifiedSandbox[, options])
+
+* `contextifiedSandbox` {Object} The [contextified][] object to attach to the
+  inspector.
+* `options` {Object}
+  * `name` {string} Name of the context. If not specified, a default name `vm
+    Module Context ${idx}` where `idx` is the incrementing index corresponding
+    to this call will be used.
+  * `origin` {string} URL of the webpage this context corresponds to. Defaults
+    to `false`.
+<!--
+  TODO
+  * `console` {string} Controls whether the V8 console will be available.
+    Defaults to `'merge'`.
+-->
+
+Make inspector aware of the specified context. This allows code running in that
+context to be debugged, including support for [`debugger` statement][]. If the
+context is already being tracked by inspector, this function is a no-op.
+
+*Note:* Calling this function will prevent `contextifiedSandbox` from being
+garbage collected. To prevent memory leaks, [`inspector.detachContext()`][]
+*must* be called after work on the context has been completed.
+
+## inspector.contextAttached(contextifiedSandbox)
+
+* `contextifiedSandbox` {Object} A [contextified][] object
+* Returns: {boolean}
+
+Check if the specified context is attached to V8 inspector.
+
+## inspector.detachContext(contextifiedSandbox)
+
+* `contextifiedSandbox` {Object} The [contextified][] object to detach from
+  inspector
+
+Inform the V8 inspector that the context has been destroyed. If the context is
+not being tracked by inspector, this function is a no-op.
+
 ## inspector.open([port[, host[, wait]]])
 
 * port {number} Port to listen on for inspector connections. Optional,
@@ -135,6 +174,8 @@ messages again. Reconnected session will lose all inspector state, such as
 enabled agents or configured breakpoints.
 
 
+[contextified]: vm.html#vm_what_does_it_mean_to_contextify_an_object
+[`debugger` statement]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/debugger
 [`session.connect()`]: #inspector_session_connect
 [`Debugger.paused`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger/#event-paused
 [`EventEmitter`]: events.html#events_class_eventemitter
