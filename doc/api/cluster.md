@@ -191,7 +191,7 @@ added: v0.7.0
 
 Similar to the `cluster.on('message')` event, but specific to this worker.
 
-Within a worker, `process.on('message)` may also be used.
+Within a worker, `process.on('message')` may also be used.
 
 See [`process` event: `'message'`][].
 
