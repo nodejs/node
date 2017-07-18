@@ -5679,14 +5679,7 @@ bool Heap::SetUp() {
 
   // Set up the seed that is used to randomize the string hash function.
   DCHECK(hash_seed() == 0);
-  if (FLAG_randomize_hashes) {
-    if (FLAG_hash_seed == 0) {
-      int rnd = isolate()->random_number_generator()->NextInt();
-      set_hash_seed(Smi::FromInt(rnd & Name::kHashBitMask));
-    } else {
-      set_hash_seed(Smi::FromInt(FLAG_hash_seed));
-    }
-  }
+  if (FLAG_randomize_hashes) InitializeHashSeed();
 
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
        i++) {
@@ -5731,6 +5724,14 @@ bool Heap::SetUp() {
   return true;
 }
 
+void Heap::InitializeHashSeed() {
+  if (FLAG_hash_seed == 0) {
+    int rnd = isolate()->random_number_generator()->NextInt();
+    set_hash_seed(Smi::FromInt(rnd & Name::kHashBitMask));
+  } else {
+    set_hash_seed(Smi::FromInt(FLAG_hash_seed));
+  }
+}
 
 bool Heap::CreateHeapObjects() {
   // Create initial maps.
