@@ -93,6 +93,8 @@ More Developer Tools...`. This step will install `clang`, `clang++`, and
 * You may want to setup [firewall rules](tools/macosx-firewall.sh)
 to avoid popups asking to accept incoming network connections when running tests:
 
+If the path to your build directory contains a space, the build will likely fail.
+
 ```console
 $ sudo ./tools/macosx-firewall.sh
 ```
@@ -174,6 +176,8 @@ Prerequisites:
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
+
+If the path to your build directory contains a space, the build will likely fail.
 
 ```console
 > .\vcbuild
