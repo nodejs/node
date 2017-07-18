@@ -32,13 +32,21 @@ fs.readFile(loc, common.mustCall((err, data) => {
 
   server.listen(0, common.mustCall(() => {
     const client = http2.connect(`http://localhost:${server.address().port}`);
+
+    let remaining = 2;
+    function maybeClose() {
+      if (--remaining === 0) {
+        server.close();
+        client.destroy();
+      }
+    }
+
     const req = client.request({ ':method': 'POST' });
     req.on('response', common.mustCall());
     req.resume();
-    req.on('end', common.mustCall(() => {
-      server.close();
-      client.destroy();
-    }));
-    fs.createReadStream(loc).pipe(req);
+    req.on('end', common.mustCall(maybeClose));
+    const str = fs.createReadStream(loc);
+    str.on('end', common.mustCall(maybeClose));
+    str.pipe(req);
   }));
 }));
