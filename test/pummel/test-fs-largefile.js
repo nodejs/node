@@ -35,9 +35,9 @@ const message = 'Large File';
 
 fs.truncateSync(fd, offset);
 assert.strictEqual(fs.statSync(filepath).size, offset);
-var writeBuf = Buffer.from(message);
+const writeBuf = Buffer.from(message);
 fs.writeSync(fd, writeBuf, 0, writeBuf.length, offset);
-var readBuf = Buffer.allocUnsafe(writeBuf.length);
+const readBuf = Buffer.allocUnsafe(writeBuf.length);
 fs.readSync(fd, readBuf, 0, readBuf.length, offset);
 assert.strictEqual(readBuf.toString(), message);
 fs.readSync(fd, readBuf, 0, 1, 0);
