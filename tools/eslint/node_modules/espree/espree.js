@@ -72,6 +72,26 @@ var lookahead,
     lastToken;
 
 /**
+ * Object.assign polyfill for Node < 4
+ * @param {Object} target The target object
+ * @param {...Object} sources Sources for the object
+ * @returns {Object} `target` after being mutated
+ */
+var assign = Object.assign || function assign(target) {
+    for (var argIndex = 1; argIndex < arguments.length; argIndex++) {
+        if (arguments[argIndex] !== null && typeof arguments[argIndex] === "object") {
+            var keys = Object.keys(arguments[argIndex]);
+
+            for (var keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+                target[keys[keyIndex]] = arguments[argIndex][keys[keyIndex]];
+            }
+        }
+    }
+
+    return target;
+};
+
+/**
  * Resets the extra object to its default.
  * @returns {void}
  * @private
@@ -515,7 +535,7 @@ function tokenize(code, options) {
     lookahead = null;
 
     // Options matching.
-    options = options || {};
+    options = assign({}, options);
 
     var acornOptions = {
         ecmaVersion: DEFAULT_ECMA_VERSION,
@@ -551,7 +571,7 @@ function tokenize(code, options) {
 
     // apply parsing flags
     if (options.ecmaFeatures && typeof options.ecmaFeatures === "object") {
-        extra.ecmaFeatures = options.ecmaFeatures;
+        extra.ecmaFeatures = assign({}, options.ecmaFeatures);
         impliedStrict = extra.ecmaFeatures.impliedStrict;
         extra.ecmaFeatures.impliedStrict = typeof impliedStrict === "boolean" && impliedStrict;
     }
@@ -687,7 +707,7 @@ function parse(code, options) {
 
         // apply parsing flags after sourceType to allow overriding
         if (options.ecmaFeatures && typeof options.ecmaFeatures === "object") {
-            extra.ecmaFeatures = options.ecmaFeatures;
+            extra.ecmaFeatures = assign({}, options.ecmaFeatures);
             impliedStrict = extra.ecmaFeatures.impliedStrict;
             extra.ecmaFeatures.impliedStrict = typeof impliedStrict === "boolean" && impliedStrict;
             if (options.ecmaFeatures.globalReturn) {

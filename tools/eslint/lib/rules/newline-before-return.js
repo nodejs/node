@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to require newlines before `return` statement
  * @author Kai Cataldo
+ * @deprecated
  */
 "use strict";
 
@@ -13,10 +14,12 @@ module.exports = {
         docs: {
             description: "require an empty line before `return` statements",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            replacedBy: ["padding-line-between-statements"]
         },
         fixable: "whitespace",
-        schema: []
+        schema: [],
+        deprecated: true
     },
 
     create(context) {
@@ -50,8 +53,8 @@ module.exports = {
 
             if (node.parent.body) {
                 return Array.isArray(node.parent.body)
-                  ? node.parent.body[0] === node
-                  : node.parent.body === node;
+                    ? node.parent.body[0] === node
+                    : node.parent.body === node;
             }
 
             if (parentType === "IfStatement") {
@@ -73,7 +76,7 @@ module.exports = {
          * @private
          */
         function calcCommentLines(node, lineNumTokenBefore) {
-            const comments = sourceCode.getComments(node).leading;
+            const comments = sourceCode.getCommentsBefore(node);
             let numLinesComments = 0;
 
             if (!comments.length) {
@@ -121,7 +124,7 @@ module.exports = {
             if (tokenBefore) {
                 lineNumTokenBefore = tokenBefore.loc.end.line;
             } else {
-                lineNumTokenBefore = 0;     // global return at beginning of script
+                lineNumTokenBefore = 0; // global return at beginning of script
             }
 
             return lineNumTokenBefore;
@@ -153,7 +156,7 @@ module.exports = {
          * @private
          */
         function canFix(node) {
-            const leadingComments = sourceCode.getComments(node).leading;
+            const leadingComments = sourceCode.getCommentsBefore(node);
             const lastLeadingComment = leadingComments[leadingComments.length - 1];
             const tokenBefore = sourceCode.getTokenBefore(node);
 

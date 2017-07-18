@@ -17,7 +17,6 @@
 
 const fs = require("fs"),
     path = require("path"),
-    shell = require("shelljs"),
     options = require("./options"),
     CLIEngine = require("./cli-engine"),
     mkdirp = require("mkdirp"),
@@ -83,7 +82,7 @@ function printResults(engine, results, format, outputFile) {
         if (outputFile) {
             const filePath = path.resolve(process.cwd(), outputFile);
 
-            if (shell.test("-d", filePath)) {
+            if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
                 log.error("Cannot write to output file path, it is a directory: %s", outputFile);
                 return false;
             }

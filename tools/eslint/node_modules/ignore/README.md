@@ -35,7 +35,7 @@
 
 # ignore
 
-`ignore` is a manager and filter which implemented in pure JavaScript according to the .gitignore [spec](http://git-scm.com/docs/gitignore).
+`ignore` is a manager, filter and parser which implemented in pure JavaScript according to the .gitignore [spec](http://git-scm.com/docs/gitignore).
 
 Pay attention that [`minimatch`](https://www.npmjs.org/package/minimatch) does not work in the gitignore way. To filter filenames according to .gitignore file, I recommend this module.
 
@@ -51,6 +51,7 @@ Actually, `ignore` does not rely on any versions of node specially.
 - [Usage](#usage)
 - [Guide for 2.x -> 3.x](#upgrade-2x---3x)
 - [Contributing](#contributing)
+- [Related Packages](#related)
 
 ## Usage
 
@@ -87,17 +88,17 @@ ig.filter(['.abc\\a.js', '.abc\\d\\e.js'])
 
 ## Why another ignore?
 
-1. `ignore` is a standalone module, and is much simpler so that it could easy work with other programs, unlike [isaacs](https://npmjs.org/~isaacs)'s [fstream-ignore](https://npmjs.org/package/fstream-ignore) which must work with the modules of the fstream family.
+- `ignore` is a standalone module, and is much simpler so that it could easy work with other programs, unlike [isaacs](https://npmjs.org/~isaacs)'s [fstream-ignore](https://npmjs.org/package/fstream-ignore) which must work with the modules of the fstream family.
 
-2. `ignore` only contains utility methods to filter paths according to the specified ignore rules, so
+- `ignore` only contains utility methods to filter paths according to the specified ignore rules, so
   - `ignore` never try to find out ignore rules by traversing directories or fetching from git configurations.
   - `ignore` don't cares about sub-modules of git projects.
 
-3. Exactly according to [gitignore man page](http://git-scm.com/docs/gitignore), fixes some known matching issues of fstream-ignore, such as:
+- Exactly according to [gitignore man page](http://git-scm.com/docs/gitignore), fixes some known matching issues of fstream-ignore, such as:
   - '`/*.js`' should only match '`a.js`', but not '`abc/a.js`'.
   - '`**/foo`' should match '`foo`' anywhere.
-  - prevent re-including a file if a parent directory of that file is excluded.
-  - handle trailing whitespaces:
+  - Prevent re-including a file if a parent directory of that file is excluded.
+  - Handle trailing whitespaces:
     - `'a '`(one space) should not match `'a  '`(two spaces).
     - `'a \ '` matches `'a  '`
 
@@ -116,14 +117,16 @@ Returns `this`
 Notice that a line starting with `'#'`(hash) is treated as a comment. Put a backslash (`'\'`) in front of the first hash for patterns that begin with a hash, if you want to ignore a file with a hash at the beginning of the filename.
 
 ```js
-ignore().add('#abc').filter(['#abc'])   // ['#abc']
-ignore().add('\#abc').filter(['#abc'])  // []
+ignore().add('#abc').ignores('#abc')    // false
+ignore().add('\#abc').ignores('#abc')   // true
 ```
 
 `pattern` could either be a line of ignore pattern or a string of multiple ignore patterns, which means we could just `ignore().add()` the content of a ignore file:
 
 ```js
-ignore().add(fs.readFileSync(filenameOfGitignore).toString()).filter(filenames)
+ignore()
+.add(fs.readFileSync(filenameOfGitignore).toString())
+.filter(filenames)
 ```
 
 `pattern` could also be an `ignore` instance, so that we could easily inherit the rules of another `Ignore` instance.
@@ -230,3 +233,7 @@ So use `bash install.sh` to install dependencies and `bash test.sh` to run test 
 - [azproduction](https://github.com/azproduction) *Mikhail Davydov*
 - [TrySound](https://github.com/TrySound) *Bogdan Chadkin*
 - [JanMattner](https://github.com/JanMattner) *Jan Mattner*
+
+## Related
+
+- [`glob-gitignore`](https://www.npmjs.com/package/glob-gitignore) matches files using patterns and filters them according to gitignore rules.

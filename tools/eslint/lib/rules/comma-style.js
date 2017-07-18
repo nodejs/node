@@ -202,7 +202,7 @@ module.exports = {
                      */
                     if (astUtils.isCommaToken(commaToken)) {
                         validateCommaItemSpacing(previousItemToken, commaToken,
-                                currentItemToken, reportItem);
+                            currentItemToken, reportItem);
                     }
 
                     if (item) {

@@ -39,7 +39,6 @@
   },
   "_requiredBy": [
     "/has-ansi",
-    "/inquirer",
     "/strip-ansi"
   ],
   "_resolved": "https://registry.npmjs.org/ansi-regex/-/ansi-regex-2.1.1.tgz",

@@ -50,14 +50,31 @@ module.exports = {
 
         const sourceCode = context.getSourceCode();
 
-
         /**
          * Determines whether a arrow function argument end with `)`
          * @param {ASTNode} node The arrow function node.
          * @returns {void}
          */
         function parens(node) {
-            const token = sourceCode.getFirstToken(node, node.async ? 1 : 0);
+            const isAsync = node.async;
+            const firstTokenOfParam = sourceCode.getFirstToken(node, isAsync ? 1 : 0);
+
+            /**
+             * Remove the parenthesis around a parameter
+             * @param {Fixer} fixer Fixer
+             * @returns {string} fixed parameter
+             */
+            function fixParamsWithParenthesis(fixer) {
+                const paramToken = sourceCode.getTokenAfter(firstTokenOfParam);
+                const closingParenToken = sourceCode.getTokenAfter(paramToken);
+                const asyncToken = isAsync ? sourceCode.getTokenBefore(firstTokenOfParam) : null;
+                const shouldAddSpaceForAsync = asyncToken && (asyncToken.end === firstTokenOfParam.start);
+
+                return fixer.replaceTextRange([
+                    firstTokenOfParam.range[0],
+                    closingParenToken.range[1]
+                ], `${shouldAddSpaceForAsync ? " " : ""}${paramToken.value}`);
+            }
 
             // "as-needed", { "requireForBlockBody": true }: x => x
             if (
@@ -68,19 +85,11 @@ module.exports = {
                 node.body.type !== "BlockStatement" &&
                 !node.returnType
             ) {
-                if (astUtils.isOpeningParenToken(token)) {
+                if (astUtils.isOpeningParenToken(firstTokenOfParam)) {
                     context.report({
                         node,
                         message: requireForBlockBodyMessage,
-                        fix(fixer) {
-                            const paramToken = context.getTokenAfter(token);
-                            const closingParenToken = context.getTokenAfter(paramToken);
-
-                            return fixer.replaceTextRange([
-                                token.range[0],
-                                closingParenToken.range[1]
-                            ], paramToken.value);
-                        }
+                        fix: fixParamsWithParenthesis
                     });
                 }
                 return;
@@ -90,12 +99,12 @@ module.exports = {
                 requireForBlockBody &&
                 node.body.type === "BlockStatement"
             ) {
-                if (!astUtils.isOpeningParenToken(token)) {
+                if (!astUtils.isOpeningParenToken(firstTokenOfParam)) {
                     context.report({
                         node,
                         message: requireForBlockBodyNoParensMessage,
                         fix(fixer) {
-                            return fixer.replaceText(token, `(${token.value})`);
+                            return fixer.replaceText(firstTokenOfParam, `(${firstTokenOfParam.value})`);
                         }
                     });
                 }
@@ -109,26 +118,18 @@ module.exports = {
                 !node.params[0].typeAnnotation &&
                 !node.returnType
             ) {
-                if (astUtils.isOpeningParenToken(token)) {
+                if (astUtils.isOpeningParenToken(firstTokenOfParam)) {
                     context.report({
                         node,
                         message: asNeededMessage,
-                        fix(fixer) {
-                            const paramToken = context.getTokenAfter(token);
-                            const closingParenToken = context.getTokenAfter(paramToken);
-
-                            return fixer.replaceTextRange([
-                                token.range[0],
-                                closingParenToken.range[1]
-                            ], paramToken.value);
-                        }
+                        fix: fixParamsWithParenthesis
                     });
                 }
                 return;
             }
 
-            if (token.type === "Identifier") {
-                const after = sourceCode.getTokenAfter(token);
+            if (firstTokenOfParam.type === "Identifier") {
+                const after = sourceCode.getTokenAfter(firstTokenOfParam);
 
                 // (x) => x
                 if (after.value !== ")") {
@@ -136,7 +137,7 @@ module.exports = {
                         node,
                         message,
                         fix(fixer) {
-                            return fixer.replaceText(token, `(${token.value})`);
+                            return fixer.replaceText(firstTokenOfParam, `(${firstTokenOfParam.value})`);
                         }
                     });
                 }
