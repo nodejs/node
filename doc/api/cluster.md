@@ -694,6 +694,9 @@ values are `"rr"` and `"none"`.
 <!-- YAML
 added: v0.7.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/14140
+    description: The `inspectPort` option is supported now.
   - version: v6.4.0
     pr-url: https://github.com/nodejs/node/pull/7838
     description: The `stdio` option is supported now.
@@ -713,8 +716,9 @@ changes:
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
   * `inspectPort` {number|function} Sets inspector port of worker.
-  Accepts number, or function that evaluates to number. By default
-  each worker gets port, incremented from master's `process.debugPort`.
+    This can be a number, or a function that takes no arguments and returns a
+    number. By default each worker gets its own port, incremented from the
+    master's `process.debugPort`.
 
 After calling `.setupMaster()` (or `.fork()`) this settings object will contain
 the settings, including the default values.
