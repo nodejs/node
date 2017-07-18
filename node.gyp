@@ -83,6 +83,7 @@
       'lib/internal/cluster/utils.js',
       'lib/internal/cluster/worker.js',
       'lib/internal/errors.js',
+      'lib/internal/errors/codes.js',
       'lib/internal/freelist.js',
       'lib/internal/fs.js',
       'lib/internal/http.js',
