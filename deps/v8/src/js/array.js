@@ -1334,6 +1334,8 @@ var unscopables = {
   keys: true,
 };
 
+%ToFastProperties(unscopables);
+
 %AddNamedProperty(GlobalArray.prototype, unscopablesSymbol, unscopables,
                   DONT_ENUM | READ_ONLY);
 
