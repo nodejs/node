@@ -174,7 +174,7 @@ Prerequisites:
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
-* NOTE: If the path to your home directory contains a space, the build will likely fail.
+* NOTE: If the path to your build directory contains a space, the build will likely fail.
 
 ```console
 > .\vcbuild
