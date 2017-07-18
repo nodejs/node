@@ -3394,13 +3394,15 @@ support it:
 * If the function is not available, provide an alternate implementation
   that does not use the function.
 
+## Garbage Collection
+
 ### napi_adjust_external_memory
 <!-- YAML
 added: REPLACEME
 -->
 ```C
 NAPI_EXTERN int64_t napi_adjust_external_memory(napi_env env,
-                                         int64_t change_in_bytes);
+                                                int64_t change_in_bytes);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -3570,7 +3572,6 @@ object - that is, a promise object created by the underlying engine.
 [Working with JavaScript Values]: #n_api_working_with_javascript_values
 [Working with JavaScript Values - Abstract Operations]: #n_api_working_with_javascript_values_abstract_operations
 
-[`napi_adjust_external_memory`]: #n_api_napi_adjust_external_memory
 [`napi_cancel_async_work`]: #n_api_napi_cancel_async_work
 [`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
 [`napi_close_handle_scope`]: #n_api_napi_close_handle_scope
