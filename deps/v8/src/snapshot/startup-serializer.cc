@@ -16,7 +16,8 @@ StartupSerializer::StartupSerializer(
     : Serializer(isolate),
       clear_function_code_(function_code_handling ==
                            v8::SnapshotCreator::FunctionCodeHandling::kClear),
-      serializing_builtins_(false) {
+      serializing_builtins_(false),
+      can_be_rehashed_(true) {
   InitializeCodeAddressMap();
 }
 
@@ -74,6 +75,8 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     Foreign::cast(info->js_getter())->set_foreign_address(original_address);
     accessor_infos_.Add(info);
   }
+
+  if (obj->IsHashTable()) CheckRehashability(obj);
 
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer object_serializer(this, obj, &sink_, how_to_code,
@@ -182,6 +185,18 @@ bool StartupSerializer::RootShouldBeSkipped(int root_index) {
   }
   return Heap::RootIsImmortalImmovable(root_index) !=
          serializing_immortal_immovables_roots_;
+}
+
+void StartupSerializer::CheckRehashability(HeapObject* table) {
+  DCHECK(table->IsHashTable());
+  if (!can_be_rehashed_) return;
+  // We can only correctly rehash if the four hash tables below are the only
+  // ones that we deserialize.
+  if (table == isolate_->heap()->empty_slow_element_dictionary()) return;
+  if (table == isolate_->heap()->empty_properties_dictionary()) return;
+  if (table == isolate_->heap()->weak_object_to_code_table()) return;
+  if (table == isolate_->heap()->string_table()) return;
+  can_be_rehashed_ = false;
 }
 
 }  // namespace internal
