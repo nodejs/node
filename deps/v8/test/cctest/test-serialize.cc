@@ -2547,6 +2547,51 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
   delete[] blob.data;
 }
 
+UNINITIALIZED_TEST(ReinitializeStringHashSeedNotRehashable) {
+  DisableAlwaysOpt();
+  i::FLAG_rehash_snapshot = true;
+  i::FLAG_hash_seed = 42;
+  i::FLAG_allow_natives_syntax = true;
+  v8::StartupData blob;
+  {
+    v8::SnapshotCreator creator;
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      // Create dictionary mode object.
+      CompileRun(
+          "var a = {};"
+          "a.b = 1;"
+          "a.c = 2;"
+          "delete a.b;");
+      ExpectInt32("a.c", 2);
+      creator.SetDefaultContext(context);
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  i::FLAG_hash_seed = 1337;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.snapshot_blob = &blob;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    // Check that no rehashing has been performed.
+    CHECK_EQ(42, reinterpret_cast<i::Isolate*>(isolate)->heap()->HashSeed());
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    CHECK(!context.IsEmpty());
+    v8::Context::Scope context_scope(context);
+    ExpectInt32("a.c", 2);
+  }
+  isolate->Dispose();
+  delete[] blob.data;
+}
+
 TEST(SerializationMemoryStats) {
   FLAG_profile_deserialization = true;
   FLAG_always_opt = false;
