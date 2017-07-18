@@ -15,7 +15,6 @@ function testParseREPLKeyword() {
 
   common.expectWarning('DeprecationWarning', warn);
   assert.ok(server.parseREPLKeyword('clear'));
-  common.expectWarning('DeprecationWarning', warn);
   assert.ok(!server.parseREPLKeyword('tacos'));
   server.close();
 }
