@@ -13,7 +13,7 @@ const count = 32;
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
-  let remaining = count;
+  let remaining = count + 1;
   function maybeClose() {
     if (--remaining === 0) {
       server.close();
