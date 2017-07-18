@@ -12,6 +12,7 @@
 #include "libplatform/libplatform.h"
 
 #include <string.h>
+#include <unordered_map>
 #include <vector>
 
 #ifdef __POSIX__
@@ -39,6 +40,7 @@ using v8::Value;
 using v8_inspector::StringBuffer;
 using v8_inspector::StringView;
 using v8_inspector::V8Inspector;
+using v8_inspector::V8InspectorClient;
 
 static uv_sem_t start_io_thread_semaphore;
 static uv_async_t start_io_thread_async;
@@ -429,9 +431,66 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
 };
 
+class InspectorTimer {
+ public:
+  InspectorTimer(uv_loop_t* loop,
+                 double interval_s,
+                 V8InspectorClient::TimerCallback callback,
+                 void* data) : timer_(),
+                               callback_(callback),
+                               data_(data) {
+    uv_timer_init(loop, &timer_);
+    int64_t interval_ms = 1000 * interval_s;
+    uv_timer_start(&timer_, OnTimer, interval_ms, interval_ms);
+  }
+
+  InspectorTimer(const InspectorTimer&) = delete;
+
+  void Stop() {
+    uv_timer_stop(&timer_);
+    uv_close(reinterpret_cast<uv_handle_t*>(&timer_), TimerClosedCb);
+  }
+
+ private:
+  static void OnTimer(uv_timer_t* uvtimer) {
+    InspectorTimer* timer = node::ContainerOf(&InspectorTimer::timer_, uvtimer);
+    timer->callback_(timer->data_);
+  }
+
+  static void TimerClosedCb(uv_handle_t* uvtimer) {
+    InspectorTimer* timer =
+        node::ContainerOf(&InspectorTimer::timer_,
+                          reinterpret_cast<uv_timer_t*>(uvtimer));
+    delete timer;
+  }
+
+  ~InspectorTimer() {}
+
+  uv_timer_t timer_;
+  V8InspectorClient::TimerCallback callback_;
+  void* data_;
+};
+
+class InspectorTimerHandle {
+ public:
+  InspectorTimerHandle(uv_loop_t* loop, double interval_s,
+                       V8InspectorClient::TimerCallback callback, void* data) {
+    timer_ = new InspectorTimer(loop, interval_s, callback, data);
+  }
+
+  InspectorTimerHandle(const InspectorTimerHandle&) = delete;
+
+  ~InspectorTimerHandle() {
+    CHECK_NE(timer_, nullptr);
+    timer_->Stop();
+    timer_ = nullptr;
+  }
+ private:
+  InspectorTimer* timer_;
+};
 }  // namespace
 
-class NodeInspectorClient : public v8_inspector::V8InspectorClient {
+class NodeInspectorClient : public V8InspectorClient {
  public:
   NodeInspectorClient(node::Environment* env,
                       v8::Platform* platform) : env_(env),
@@ -527,6 +586,18 @@ class NodeInspectorClient : public v8_inspector::V8InspectorClient {
     return channel_.get();
   }
 
+  void startRepeatingTimer(double interval_s,
+                           TimerCallback callback,
+                           void* data) override {
+    timers_.emplace(std::piecewise_construct, std::make_tuple(data),
+                    std::make_tuple(env_->event_loop(), interval_s, callback,
+                                    data));
+  }
+
+  void cancelTimer(void* data) override {
+    timers_.erase(data);
+  }
+
  private:
   node::Environment* env_;
   v8::Platform* platform_;
@@ -534,6 +605,7 @@ class NodeInspectorClient : public v8_inspector::V8InspectorClient {
   bool running_nested_loop_;
   std::unique_ptr<V8Inspector> client_;
   std::unique_ptr<ChannelImpl> channel_;
+  std::unordered_map<void*, InspectorTimerHandle> timers_;
 };
 
 Agent::Agent(Environment* env) : parent_env_(env),
