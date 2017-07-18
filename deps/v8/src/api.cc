@@ -601,6 +601,9 @@ StartupData SnapshotCreator::CreateBlob(
     isolate->heap()->SetSerializedGlobalProxySizes(*global_proxy_sizes);
   }
 
+  // We might rehash strings and re-sort descriptors. Clear the lookup cache.
+  isolate->descriptor_lookup_cache()->Clear();
+
   // If we don't do this then we end up with a stray root pointing at the
   // context even after we have disposed of the context.
   isolate->heap()->CollectAllAvailableGarbage(
@@ -642,11 +645,15 @@ StartupData SnapshotCreator::CreateBlob(
   // Serialize each context with a new partial serializer.
   i::List<i::SnapshotData*> context_snapshots(num_additional_contexts + 1);
 
+  // TODO(6593): generalize rehashing, and remove this flag.
+  bool can_be_rehashed = true;
+
   {
     // The default snapshot does not support embedder fields.
     i::PartialSerializer partial_serializer(
         isolate, &startup_serializer, v8::SerializeInternalFieldsCallback());
     partial_serializer.Serialize(&default_context, false);
+    can_be_rehashed = can_be_rehashed && partial_serializer.can_be_rehashed();
     context_snapshots.Add(new i::SnapshotData(&partial_serializer));
   }
 
@@ -654,10 +661,12 @@ StartupData SnapshotCreator::CreateBlob(
     i::PartialSerializer partial_serializer(
         isolate, &startup_serializer, data->embedder_fields_serializers_[i]);
     partial_serializer.Serialize(&contexts[i], true);
+    can_be_rehashed = can_be_rehashed && partial_serializer.can_be_rehashed();
     context_snapshots.Add(new i::SnapshotData(&partial_serializer));
   }
 
   startup_serializer.SerializeWeakReferencesAndDeferred();
+  can_be_rehashed = can_be_rehashed && startup_serializer.can_be_rehashed();
 
 #ifdef DEBUG
   if (i::FLAG_external_reference_stats) {
@@ -666,8 +675,8 @@ StartupData SnapshotCreator::CreateBlob(
 #endif  // DEBUG
 
   i::SnapshotData startup_snapshot(&startup_serializer);
-  StartupData result =
-      i::Snapshot::CreateSnapshotBlob(&startup_snapshot, &context_snapshots);
+  StartupData result = i::Snapshot::CreateSnapshotBlob(
+      &startup_snapshot, &context_snapshots, can_be_rehashed);
 
   // Delete heap-allocated context snapshot instances.
   for (const auto& context_snapshot : context_snapshots) {

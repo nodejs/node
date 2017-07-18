@@ -987,6 +987,8 @@ DEFINE_BOOL(abort_on_stack_overflow, false,
 DEFINE_BOOL(randomize_hashes, true,
             "randomize hashes to avoid predictable hash collisions "
             "(with snapshots this option cannot override the baked-in seed)")
+DEFINE_BOOL(rehash_snapshot, true,
+            "rehash strings from the snapshot to override the baked-in seed")
 DEFINE_INT(hash_seed, 0,
            "Fixed seed to use to hash property keys (0 means random)"
            "(with snapshots this option cannot override the baked-in seed)")
