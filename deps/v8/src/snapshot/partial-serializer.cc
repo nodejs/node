@@ -15,7 +15,9 @@ PartialSerializer::PartialSerializer(
     v8::SerializeEmbedderFieldsCallback callback)
     : Serializer(isolate),
       startup_serializer_(startup_serializer),
-      serialize_embedder_fields_(callback) {
+      serialize_embedder_fields_(callback),
+      rehashable_global_dictionary_(nullptr),
+      can_be_rehashed_(true) {
   InitializeCodeAddressMap();
 }
 
@@ -24,7 +26,7 @@ PartialSerializer::~PartialSerializer() {
 }
 
 void PartialSerializer::Serialize(Object** o, bool include_global_proxy) {
-  if ((*o)->IsContext()) {
+  if ((*o)->IsNativeContext()) {
     Context* context = Context::cast(*o);
     reference_map()->AddAttachedReference(context->global_proxy());
     // The bootstrap snapshot has a code-stub context. When serializing the
@@ -32,14 +34,18 @@ void PartialSerializer::Serialize(Object** o, bool include_global_proxy) {
     // and it's next context pointer may point to the code-stub context.  Clear
     // it before serializing, it will get re-added to the context list
     // explicitly when it's loaded.
-    if (context->IsNativeContext()) {
-      context->set(Context::NEXT_CONTEXT_LINK,
-                   isolate_->heap()->undefined_value());
-      DCHECK(!context->global_object()->IsUndefined(context->GetIsolate()));
-      // Reset math random cache to get fresh random numbers.
-      context->set_math_random_index(Smi::kZero);
-      context->set_math_random_cache(isolate_->heap()->undefined_value());
-    }
+    context->set(Context::NEXT_CONTEXT_LINK,
+                 isolate_->heap()->undefined_value());
+    DCHECK(!context->global_object()->IsUndefined(context->GetIsolate()));
+    // Reset math random cache to get fresh random numbers.
+    context->set_math_random_index(Smi::kZero);
+    context->set_math_random_cache(isolate_->heap()->undefined_value());
+    DCHECK_NULL(rehashable_global_dictionary_);
+    rehashable_global_dictionary_ =
+        context->global_object()->global_dictionary();
+  } else {
+    // We only do rehashing for native contexts.
+    can_be_rehashed_ = false;
   }
   VisitRootPointer(Root::kPartialSnapshotCache, o);
   SerializeDeferredObjects();
@@ -104,6 +110,8 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     }
   }
 
+  if (obj->IsHashTable()) CheckRehashability(obj);
+
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, &sink_, how_to_code, where_to_point);
   serializer.Serialize();
@@ -150,6 +158,15 @@ void PartialSerializer::SerializeEmbedderFields() {
     }
   }
   sink_.Put(kSynchronize, "Finished with embedder fields data");
+}
+
+void PartialSerializer::CheckRehashability(HeapObject* table) {
+  DCHECK(table->IsHashTable());
+  if (!can_be_rehashed_) return;
+  // We can only correctly rehash if the global dictionary is the only hash
+  // table that we deserialize.
+  if (table == rehashable_global_dictionary_) return;
+  can_be_rehashed_ = false;
 }
 
 }  // namespace internal
