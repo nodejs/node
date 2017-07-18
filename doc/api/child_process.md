@@ -133,7 +133,7 @@ added: v0.1.90
   * `env` {Object} Environment key-value pairs
   * `encoding` {string} (Default: `'utf8'`)
   * `shell` {string} Shell to execute the command with
-    (Default: `'/bin/sh'` on UNIX, `'process.env.ComSpec'` on Windows. See 
+    (Default: `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows. See 
     [Shell Requirements][] and [Default Windows Shell][].)
   * `timeout` {number} (Default: `0`)
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
@@ -381,7 +381,7 @@ changes:
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on UNIX, and `'process.env.ComSpec'` on Windows. A different 
+    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different 
     shell can be specified as a string. See [Shell Requirements][] and 
     [Default Windows Shell][]. Defaults to `false` (no shell).
 * Returns: {ChildProcess}
@@ -706,7 +706,7 @@ changes:
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
   * `shell` {string} Shell to execute the command with
-    (Default: `'/bin/sh'` on UNIX, `'process.env.ComSpec'` on Windows. See 
+    (Default: `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows. See 
     [Shell Requirements][] and [Default Windows Shell][].)
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
@@ -773,7 +773,7 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     (Default: `'buffer'`)
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
-    `'/bin/sh'` on UNIX, and `'process.env.ComSpec'` on Windows. A different 
+    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different 
     shell can be specified as a string. See [Shell Requirements][] and 
     [Default Windows Shell][]. Defaults to `false` (no shell).
 * Returns: {Object}
@@ -1286,10 +1286,10 @@ On Windows, command line parsing should be compatible with `'cmd.exe'`.
 
 ## Default Windows Shell
 
-Although Microsoft specifies `'process.env.ComSpec'` must contain the path to
+Although Microsoft specifies `%COMSPEC` must contain the path to
 `'cmd.exe'` in the root environment, child processes are not always subject to
 the same requirement. Thus, in `child_process` functions where a shell can be 
-spawned, `'cmd.exe'` is used as a fallback if `'process.env.ComSpec'` is 
+spawned, `'cmd.exe'` is used as a fallback if `process.env.ComSpec` is 
 unavailable.
 
 [`'error'`]: #child_process_event_error
