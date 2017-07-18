@@ -1,3 +1,4 @@
+// whatwg test should not be modified.
 // Flags: --expose-internals
 'use strict';
 
