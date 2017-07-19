@@ -20,7 +20,7 @@ function typeName(value) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "options" argument must be of type object. ' +
-      `Received type ${typeName(options)}`
+               `Received type ${typeName(options)}`
     }));
   });
 }
@@ -36,7 +36,7 @@ function typeName(value) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "options.file" property must be of type string. ' +
-      `Received type ${typeName(file)}`
+               `Received type ${typeName(file)}`
     }));
   });
 }
@@ -52,7 +52,7 @@ function typeName(value) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "options.envPairs" property must be of type array. ' +
-      `Received type ${typeName(envPairs)}`
+               `Received type ${typeName(envPairs)}`
     }));
   });
 }
@@ -68,7 +68,7 @@ function typeName(value) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "options.args" property must be of type array. ' +
-      `Received type ${typeName(args)}`
+               `Received type ${typeName(args)}`
     }));
   });
 }
