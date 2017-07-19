@@ -1372,12 +1372,81 @@ JavaScript DataView Objects are described in
 [Section 24.3][] of the ECMAScript Language Specification.
 
 ### Functions to convert from C types to N-API
-#### *napi_create_number*
+#### *napi_create_int32*
 <!-- YAML
-added: v8.0.0
+added: REPLACEME
 -->
 ```C
-napi_status napi_create_number(napi_env env, double value, napi_value* result)
+napi_status napi_create_int32(napi_env env, int32_t value, napi_value* result)
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] value`: Integer value to be represented in JavaScript.
+- `[out] result`: A `napi_value` representing a JavaScript Number.
+
+Returns `napi_ok` if the API succeeded.
+
+This API is used to convert from the C `int32_t` type to the JavaScript
+Number type.
+
+The JavaScript Number type is described in
+[Section 6.1.6](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type)
+of the ECMAScript Language Specification.
+
+#### *napi_create_uint32*
+<!-- YAML
+added: REPLACEME
+-->
+```C
+napi_status napi_create_uint32(napi_env env, uint32_t value, napi_value* result)
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] value`: Unsigned integer value to be represented in JavaScript.
+- `[out] result`: A `napi_value` representing a JavaScript Number.
+
+Returns `napi_ok` if the API succeeded.
+
+This API is used to convert from the C `uint32_t` type to the JavaScript
+Number type.
+
+The JavaScript Number type is described in
+[Section 6.1.6](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type)
+of the ECMAScript Language Specification.
+
+#### *napi_create_int64*
+<!-- YAML
+added: REPLACEME
+-->
+```C
+napi_status napi_create_int64(napi_env env, int64_t value, napi_value* result)
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] value`: Integer value to be represented in JavaScript.
+- `[out] result`: A `napi_value` representing a JavaScript Number.
+
+Returns `napi_ok` if the API succeeded.
+
+This API is used to convert from the C `int64_t` type to the JavaScript
+Number type.
+
+The JavaScript Number type is described in
+[Section 6.1.6](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type)
+of the ECMAScript Language Specification. Note the complete range of `int64_t`
+cannot be represented with full precision in JavaScript. Integer values
+outside the range of
+[`Number.MIN_SAFE_INTEGER`](https://tc39.github.io/ecma262/#sec-number.min_safe_integer)
+-(2^53 - 1) -
+[`Number.MAX_SAFE_INTEGER`](https://tc39.github.io/ecma262/#sec-number.max_safe_integer)
+(2^53 - 1) will lose precision.
+
+#### *napi_create_double*
+<!-- YAML
+added: REPLACEME
+-->
+```C
+napi_status napi_create_double(napi_env env, double value, napi_value* result)
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -1386,7 +1455,7 @@ napi_status napi_create_number(napi_env env, double value, napi_value* result)
 
 Returns `napi_ok` if the API succeeded.
 
-This API is used to convert from the C double type to the JavaScript
+This API is used to convert from the C `double` type to the JavaScript
 Number type.
 
 The JavaScript Number type is described in
@@ -2170,7 +2239,7 @@ status = napi_create_object(env, &obj);
 if (status != napi_ok) return status;
 
 // Create a napi_value for 123
-status = napi_create_number(env, 123, &value);
+status = napi_create_int32(env, 123, &value);
 if (status != napi_ok) return status;
 
 // obj.myProp = 123
@@ -2244,9 +2313,9 @@ if (status != napi_ok) return status;
 
 // Create napi_values for 123 and 456
 napi_value fooValue, barValue;
-status = napi_create_number(env, 123, &fooValue);
+status = napi_create_int32(env, 123, &fooValue);
 if (status != napi_ok) return status;
-status = napi_create_number(env, 456, &barValue);
+status = napi_create_int32(env, 456, &barValue);
 if (status != napi_ok) return status;
 
 // Set the properties
@@ -2707,7 +2776,7 @@ status = napi_get_named_property(env, global, "AddTwo", &add_two);
 if (status != napi_ok) return;
 
 // const arg = 1337
-status = napi_create_number(env, 1337, &arg);
+status = napi_create_int32(env, 1337, &arg);
 if (status != napi_ok) return;
 
 napi_value* argv = &arg;
