@@ -1331,6 +1331,41 @@ JavaScript TypedArray Objects are described in
 [Section 22.2](https://tc39.github.io/ecma262/#sec-typedarray-objects)
 of the ECMAScript Language Specification.
 
+
+#### *napi_create_typedarray*
+<!-- YAML
+added: v8.0.0
+-->
+```C
+napi_status napi_create_dataview(napi_env env,
+                                   size_t length,
+                                   napi_value arraybuffer,
+                                   size_t byte_offset,
+                                   napi_value* result) {
+
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] length`: Number of elements in the DataView.
+- `[in] arraybuffer`: ArrayBuffer underlying the DataView.
+- `[in] byte_offset`: The byte offset within the ArrayBuffer from which to
+start projecting the DataVIew.
+- `[out] result`: A `napi_value` representing a JavaScript DataView.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates a JavaScript DataView object over an existing ArrayBuffer.
+Dataview objects provide an array-like view over an underlying data buffer,
+but one which allows items of different size and type in the ArrayBuffer.
+
+It's required that (length * size_of_element) + byte_offset should
+be <= the size in bytes of the array passed in. If not, a RangeError exception is
+raised.
+
+JavaScript DataView Objects are described in
+[Section 22.2](https://tc39.github.io/ecma262/#sec-dataview-objects)
+of the ECMAScript Language Specification.
+
 ### Functions to convert from C types to N-API
 #### *napi_create_number*
 <!-- YAML
@@ -1548,6 +1583,37 @@ to start projecting the TypedArray.
 Returns `napi_ok` if the API succeeded.
 
 This API returns various properties of a typed array.
+
+*Warning*: Use caution while using this API since the underlying data buffer
+is managed by the VM
+
+
+
+#### *napi_get_typedarray_info*
+<!-- YAML
+added: v8.0.0
+-->
+napi_status napi_get_dataview_info(napi_env env,
+                                     napi_value dataview,
+                                     size_t* bytelength,
+                                     void** data,
+                                     napi_value* arraybuffer,
+                                     size_t* byte_offset)
+```C
+
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] dataview`: `napi_value` representing the DataView whose
+properties to query.
+- `[out] length`: Number of elements in the DataView.
+- `[out] data`: The data buffer underlying the DataView.
+- `[out] byte_offset`: The byte offset within the data buffer from which
+to start projecting the DataView.
+
+Returns `napi_ok` if the API succeeded.
+
+This API returns various properties of a DataView.
 
 *Warning*: Use caution while using this API since the underlying data buffer
 is managed by the VM
@@ -2018,6 +2084,24 @@ napi_status napi_is_typedarray(napi_env env, napi_value value, bool* result)
 Returns `napi_ok` if the API succeeded.
 
 This API checks if the Object passsed in is a typed array.
+
+
+
+### *napi_is_dataview*
+<!-- YAML
+added: v8.0.0
+-->
+```C
+napi_status napi_is_dataview(napi_env env, napi_value value, bool* result)
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] value`: The JavaScript value to check.
+- `[out] result`: Whether the given `napi_value` represents a DataView.
+
+Returns `napi_ok` if the API succeeded.
+
+This API checks if the Object passsed in is a dataview.
 
 ### *napi_strict_equals*
 <!-- YAML
