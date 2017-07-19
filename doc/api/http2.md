@@ -254,9 +254,9 @@ The `'socketError'` event is emitted when an `'error'` is emitted on the
 `Socket` instance bound to the `Http2Session`. If this event is not handled,
 the `'error'` event will be re-emitted on the `Socket`.
 
-Likewise, when an `'error'` event is emitted on the `Http2Session`, a
-`'sessionError'` event will be emitted on the `Socket`. If that event is
-not handled, the `'error'` event will be re-emitted on the `Http2Session`.
+For `ServerHttp2Session` instances, a `'socketError'` event listener is always
+registered that will, by default, forward the event on to the owning
+`Http2Server` instance if no additional handlers are registered.
 
 #### Event: 'timeout'
 <!-- YAML
@@ -1117,9 +1117,8 @@ an `Http2Session` object. If no listener is registered for this event, an
 added: REPLACEME
 -->
 
-The `'socketError'` event is emitted when an `'error'` event is emitted by
-a `Socket` associated with the server. If no listener is registered for this
-event, an `'error'` event is emitted.
+The `'socketError'` event is emitted when a `'socketError'` event is emitted by
+an `Http2Session` associated with the server.
 
 #### Event: 'stream'
 <!-- YAML
@@ -1181,9 +1180,8 @@ an `Http2Session` object. If no listener is registered for this event, an
 added: REPLACEME
 -->
 
-The `'socketError'` event is emitted when an `'error'` event is emitted by
-a `Socket` associated with the server. If no listener is registered for this
-event, an `'error'` event is emitted on the `Socket` instance instead.
+The `'socketError'` event is emitted when a `'socketError'` event is emitted by
+an `Http2Session` associated with the server.
 
 #### Event: 'unknownProtocol'
 <!-- YAML
