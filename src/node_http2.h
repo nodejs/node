@@ -429,6 +429,7 @@ class Http2Session : public AsyncWrap,
   static void New(const FunctionCallbackInfo<Value>& args);
   static void Consume(const FunctionCallbackInfo<Value>& args);
   static void Unconsume(const FunctionCallbackInfo<Value>& args);
+  static void Destroying(const FunctionCallbackInfo<Value>& args);
   static void Destroy(const FunctionCallbackInfo<Value>& args);
   static void SubmitSettings(const FunctionCallbackInfo<Value>& args);
   static void SubmitRstStream(const FunctionCallbackInfo<Value>& args);
