@@ -9,8 +9,8 @@ const URL = require('url').URL;
 const { test, assert_equals, assert_throws } = require('../common/wpt');
 
 /* eslint-disable */
-/* The following tests are copied from WPT, modifications to them should be upstreamed first.
-   Refs:
+/* The following tests are copied from WPT, modifications to them should be
+   upstreamed first. Refs:
    https://github.com/w3c/web-platform-tests/blob/8791bed/url/historical.html
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
