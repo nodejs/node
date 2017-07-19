@@ -17,7 +17,7 @@ const request = {
   response: require(path.join(common.fixturesDir, 'url-setter-tests'))
 };
 
-/* The following tests are copied from WPT, modifications to them should be
+/* The following tests are copied from WPT. Modifications to them should be
    upstreamed first. Refs:
    https://github.com/w3c/web-platform-tests/blob/8791bed/url/url-setters.html
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html

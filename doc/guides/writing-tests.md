@@ -263,7 +263,7 @@ Some of the tests for the WHATWG URL implementation (named
 These imported tests will be wrapped like this:
 
 ```js
-/* The following tests are copied from WPT, modifications to them should be
+/* The following tests are copied from WPT. Modifications to them should be
    upstreamed first. Refs:
    https://github.com/w3c/web-platform-tests/blob/8791bed/url/urlsearchparams-stringifier.html
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html

@@ -4,7 +4,7 @@ require('../common');
 const URL = require('url').URL;
 const { test, assert_equals } = require('../common/wpt');
 
-/* The following tests are copied from WPT, modifications to them should be
+/* The following tests are copied from WPT. Modifications to them should be
    upstreamed first. Refs:
    https://github.com/w3c/web-platform-tests/blob/02585db/url/url-tojson.html
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
