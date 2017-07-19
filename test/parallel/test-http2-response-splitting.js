@@ -65,7 +65,8 @@ server.listen(0, common.mustCall(() => {
       assert.strictEqual(headers.location, undefined);
     }));
     req.resume();
-    req.on('end', common.mustCall(maybeClose));
+    req.on('end', common.mustCall());
+    req.on('streamClosed', common.mustCall(maybeClose));
   }
 
   doTest(str, 'location', str);

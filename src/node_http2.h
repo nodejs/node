@@ -329,7 +329,6 @@ class Http2Session : public AsyncWrap,
     padding_strategy_ = opts.GetPaddingStrategy();
 
     Init(env->event_loop(), type, *opts);
-    stream_buf_.AllocateSufficientStorage(kAllocBufferSize);
   }
 
   ~Http2Session() override {
@@ -456,7 +455,7 @@ class Http2Session : public AsyncWrap,
   }
 
   char* stream_alloc() {
-    return *stream_buf_;
+    return stream_buf_;
   }
 
  private:
@@ -464,7 +463,8 @@ class Http2Session : public AsyncWrap,
   StreamResource::Callback<StreamResource::AllocCb> prev_alloc_cb_;
   StreamResource::Callback<StreamResource::ReadCb> prev_read_cb_;
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
-  MaybeStackBuffer<char, kAllocBufferSize> stream_buf_;
+
+  char stream_buf_[kAllocBufferSize];
 };
 
 class ExternalHeader :
