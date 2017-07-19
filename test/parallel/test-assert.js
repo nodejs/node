@@ -468,6 +468,34 @@ assert.throws(() => {
 }, /Got unwanted exception: user message/,
               'a.doesNotThrow ignores user message');
 
+{
+  let threw = false;
+  try {
+    assert.doesNotThrow(makeBlock(thrower, Error), 'user message');
+  } catch (e) {
+    threw = true;
+    common.expectsError({
+      code: 'ERR_ASSERTION',
+      message: /Got unwanted exception: user message\n\[object Object\]/
+    })(e);
+  }
+  assert.ok(threw);
+}
+
+{
+  let threw = false;
+  try {
+    assert.doesNotThrow(makeBlock(thrower, Error));
+  } catch (e) {
+    threw = true;
+    common.expectsError({
+      code: 'ERR_ASSERTION',
+      message: /Got unwanted exception\.\n\[object Object\]/
+    })(e);
+  }
+  assert.ok(threw);
+}
+
 // make sure that validating using constructor really works
 {
   let threw = false;
