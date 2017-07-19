@@ -24,7 +24,7 @@ napi_value AsInt32(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_get_value_int32(env, args[0], &value));
 
   napi_value output;
-  NAPI_CALL(env, napi_create_number(env, value, &output));
+  NAPI_CALL(env, napi_create_int32(env, value, &output));
 
   return output;
 }
@@ -38,7 +38,7 @@ napi_value AsUInt32(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_get_value_uint32(env, args[0], &value));
 
   napi_value output;
-  NAPI_CALL(env, napi_create_number(env, value, &output));
+  NAPI_CALL(env, napi_create_uint32(env, value, &output));
 
   return output;
 }
@@ -52,7 +52,7 @@ napi_value AsInt64(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_get_value_int64(env, args[0], &value));
 
   napi_value output;
-  NAPI_CALL(env, napi_create_number(env, (double)value, &output));
+  NAPI_CALL(env, napi_create_int64(env, (double)value, &output));
 
   return output;
 }
@@ -66,7 +66,7 @@ napi_value AsDouble(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_get_value_double(env, args[0], &value));
 
   napi_value output;
-  NAPI_CALL(env, napi_create_number(env, value, &output));
+  NAPI_CALL(env, napi_create_double(env, value, &output));
 
   return output;
 }
