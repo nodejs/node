@@ -52,7 +52,7 @@ void Complete(napi_env env, napi_status status, void* data) {
   napi_value argv[2];
 
   NAPI_CALL_RETURN_VOID(env, napi_get_null(env, &argv[0]));
-  NAPI_CALL_RETURN_VOID(env, napi_create_number(env, c->_output, &argv[1]));
+  NAPI_CALL_RETURN_VOID(env, napi_create_int32(env, c->_output, &argv[1]));
   napi_value callback;
   NAPI_CALL_RETURN_VOID(env,
     napi_get_reference_value(env, c->_callback, &callback));
