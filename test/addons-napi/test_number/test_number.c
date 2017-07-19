@@ -18,7 +18,7 @@ napi_value Test(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_get_value_double(env, args[0], &input));
 
   napi_value output;
-  NAPI_CALL(env, napi_create_number(env, input, &output));
+  NAPI_CALL(env, napi_create_double(env, input, &output));
 
   return output;
 }
@@ -40,7 +40,7 @@ napi_value TestInt32Truncation(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_get_value_int32(env, args[0], &input));
 
   napi_value output;
-  NAPI_CALL(env, napi_create_number(env, input, &output));
+  NAPI_CALL(env, napi_create_int32(env, input, &output));
 
   return output;
 }

@@ -174,7 +174,7 @@ napi_value Utf16Length(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_get_value_string_utf16(env, args[0], NULL, 0, &length));
 
   napi_value output;
-  NAPI_CALL(env, napi_create_number(env, (double)length, &output));
+  NAPI_CALL(env, napi_create_uint32(env, (uint32_t)length, &output));
 
   return output;
 }
@@ -196,7 +196,7 @@ napi_value Utf8Length(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_get_value_string_utf8(env, args[0], NULL, 0, &length));
 
   napi_value output;
-  NAPI_CALL(env, napi_create_number(env, (double)length, &output));
+  NAPI_CALL(env, napi_create_uint32(env, (uint32_t)length, &output));
 
   return output;
 }

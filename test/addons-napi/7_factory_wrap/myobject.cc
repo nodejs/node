@@ -45,7 +45,7 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
   if (valuetype == napi_undefined) {
     obj->counter_ = 0;
   } else {
-    NAPI_CALL(env, napi_get_value_double(env, args[0], &obj->counter_));
+    NAPI_CALL(env, napi_get_value_uint32(env, args[0], &obj->counter_));
   }
 
   obj->env_ = env;
@@ -88,7 +88,7 @@ napi_value MyObject::PlusOne(napi_env env, napi_callback_info info) {
   obj->counter_ += 1;
 
   napi_value num;
-  NAPI_CALL(env, napi_create_number(env, obj->counter_, &num));
+  NAPI_CALL(env, napi_create_uint32(env, obj->counter_, &num));
 
   return num;
 }

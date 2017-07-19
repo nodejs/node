@@ -12,7 +12,7 @@ napi_value GetValue(napi_env env, napi_callback_info info) {
   NAPI_ASSERT(env, argc == 0, "Wrong number of arguments");
 
   napi_value number;
-  NAPI_CALL(env, napi_create_number(env, value_, &number));
+  NAPI_CALL(env, napi_create_double(env, value_, &number));
 
   return number;
 }
@@ -53,7 +53,7 @@ napi_value GetStaticValue(napi_env env, napi_callback_info info) {
   NAPI_ASSERT(env, argc == 0, "Wrong number of arguments");
 
   napi_value number;
-  NAPI_CALL(env, napi_create_number(env, static_value_, &number));
+  NAPI_CALL(env, napi_create_double(env, static_value_, &number));
 
   return number;
 }
@@ -61,7 +61,7 @@ napi_value GetStaticValue(napi_env env, napi_callback_info info) {
 
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_value number;
-  NAPI_CALL_RETURN_VOID(env, napi_create_number(env, value_, &number));
+  NAPI_CALL_RETURN_VOID(env, napi_create_double(env, value_, &number));
 
   napi_property_descriptor properties[] = {
     { "echo", 0, Echo, 0, 0, 0, napi_enumerable, 0 },

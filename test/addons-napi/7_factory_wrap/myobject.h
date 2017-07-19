@@ -18,7 +18,7 @@ class MyObject {
   static napi_ref constructor;
   static napi_value New(napi_env env, napi_callback_info info);
   static napi_value PlusOne(napi_env env, napi_callback_info info);
-  double counter_;
+  uint32_t counter_;
   napi_env env_;
   napi_ref wrapper_;
 };
