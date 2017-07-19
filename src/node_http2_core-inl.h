@@ -221,10 +221,7 @@ inline int Nghttp2Session::Free() {
     Nghttp2Session* session =
         ContainerOf(&Nghttp2Session::prep_,
                     reinterpret_cast<uv_prepare_t*>(handle));
-
     session->OnFreeSession();
-    DEBUG_HTTP2("Nghttp2Session %d: session is free\n",
-            session->session_type_);
   };
   uv_close(reinterpret_cast<uv_handle_t*>(&prep_), PrepClose);
 
@@ -302,9 +299,9 @@ inline void Nghttp2Stream::ResetState(
 inline void Nghttp2Stream::Destroy() {
   DEBUG_HTTP2("Nghttp2Stream %d: destroying stream\n", id_);
   // Do nothing if this stream instance is already destroyed
-  if (IsDestroyed() || IsDestroying())
+  if (IsDestroyed())
     return;
-  flags_ |= NGHTTP2_STREAM_DESTROYING;
+  flags_ |= NGHTTP2_STREAM_DESTROYED;
   Nghttp2Session* session = this->session_;
 
   if (session != nullptr) {
