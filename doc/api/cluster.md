@@ -694,7 +694,7 @@ values are `"rr"` and `"none"`.
 <!-- YAML
 added: v0.7.1
 changes:
-  - version: REPLACEME
+  - version: 8.2.0
     pr-url: https://github.com/nodejs/node/pull/14140
     description: The `inspectPort` option is supported now.
   - version: v6.4.0
