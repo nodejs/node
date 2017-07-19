@@ -51,6 +51,14 @@ server.on('listening', common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`,
                             options);
 
+  let remaining = 2;
+  function maybeClose() {
+    if (--remaining === 0) {
+      server.close();
+      client.destroy();
+    }
+  }
+
   const req = client.request({ ':path': '/' });
 
   // Because maxReservedRemoteStream is 1, the stream event
@@ -59,15 +67,12 @@ server.on('listening', common.mustCall(() => {
   client.on('stream', common.mustCall((stream) => {
     stream.resume();
     stream.on('end', common.mustCall());
+    stream.on('streamClosed', common.mustCall(maybeClose));
   }));
 
   req.on('response', common.mustCall());
 
   req.resume();
-  req.on('end', common.mustCall(() => {
-    server.close();
-    client.destroy();
-  }));
-  req.end();
-
+  req.on('end', common.mustCall());
+  req.on('streamClosed', common.mustCall(maybeClose));
 }));

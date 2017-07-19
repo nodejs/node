@@ -36,7 +36,9 @@ function onStream(stream) {
 
   assert.notStrictEqual(stream.session, undefined);
   socket.destroy();
-  assert.strictEqual(stream.session, undefined);
+  stream.on('destroy', common.mustCall(() => {
+    assert.strictEqual(stream.session, undefined);
+  }));
 }
 
 server.listen(0);
@@ -49,9 +51,8 @@ server.on('listening', common.mustCall(() => {
     [HTTP2_HEADER_METHOD]: HTTP2_METHOD_POST });
 
   req.on('aborted', common.mustCall());
+  req.resume();
   req.on('end', common.mustCall());
-  req.on('response', common.mustCall());
-  req.on('data', common.mustCall());
 
   client.on('close', common.mustCall());
 }));
