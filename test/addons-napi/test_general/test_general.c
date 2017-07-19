@@ -29,7 +29,7 @@ napi_value testGetVersion(napi_env env, napi_callback_info info) {
   uint32_t version;
   napi_value result;
   NAPI_CALL(env, napi_get_version(env, &version));
-  NAPI_CALL(env, napi_create_number(env, version, &result));
+  NAPI_CALL(env, napi_create_uint32(env, version, &result));
   return result;
 }
 

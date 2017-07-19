@@ -55,7 +55,7 @@ napi_value newExternalBuffer(napi_env env, napi_callback_info info) {
 
 napi_value getDeleterCallCount(napi_env env, napi_callback_info info) {
   napi_value callCount;
-  NAPI_CALL(env, napi_create_number(env, deleterCallCount, &callCount));
+  NAPI_CALL(env, napi_create_int32(env, deleterCallCount, &callCount));
   return callCount;
 }
 

@@ -24,7 +24,7 @@ napi_value Add(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_get_value_double(env, args[1], &value1));
 
   napi_value sum;
-  NAPI_CALL(env, napi_create_number(env, value0 + value1, &sum));
+  NAPI_CALL(env, napi_create_double(env, value0 + value1, &sum));
 
   return sum;
 }
