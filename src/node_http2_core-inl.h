@@ -136,6 +136,12 @@ inline void Nghttp2Session::HandleGoawayFrame(const nghttp2_frame* frame) {
 
 // Prompts nghttp2 to flush the queue of pending data frames
 inline void Nghttp2Session::SendPendingData() {
+  DEBUG_HTTP2("Nghttp2Session %d: Sending pending data\n", session_type_);
+  // Do not attempt to send data on the socket if the destroying flag has
+  // been set. That means everything is shutting down and the socket
+  // will not be usable.
+  if (IsDestroying())
+    return;
   const uint8_t* data;
   ssize_t len = 0;
   size_t ncopy = 0;
@@ -167,6 +173,7 @@ inline int Nghttp2Session::Init(uv_loop_t* loop,
   DEBUG_HTTP2("Nghttp2Session %d: initializing session\n", type);
   loop_ = loop;
   session_type_ = type;
+  destroying_ = false;
   int ret = 0;
 
   nghttp2_session_callbacks* callbacks
@@ -211,6 +218,9 @@ inline int Nghttp2Session::Init(uv_loop_t* loop,
   return ret;
 }
 
+inline void Nghttp2Session::MarkDestroying() {
+  destroying_ = true;
+}
 
 inline int Nghttp2Session::Free() {
   assert(session_ != nullptr);
@@ -224,11 +234,11 @@ inline int Nghttp2Session::Free() {
     session->OnFreeSession();
   };
   uv_close(reinterpret_cast<uv_handle_t*>(&prep_), PrepClose);
-
   nghttp2_session_terminate_session(session_, NGHTTP2_NO_ERROR);
   nghttp2_session_del(session_);
   session_ = nullptr;
   loop_ = nullptr;
+  DEBUG_HTTP2("Nghttp2Session %d: session freed\n", session_type_);
   return 1;
 }
 
