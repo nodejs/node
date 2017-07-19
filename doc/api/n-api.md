@@ -540,7 +540,7 @@ thrown to immediately terminate the process.
 
 #### napi_fatal_error
 <!-- YAML
-added: REPLACEME
+added: v8.2.0
 -->
 ```C
 NAPI_EXTERN NAPI_NO_RETURN void napi_fatal_error(const char* location, const char* message);
@@ -2338,7 +2338,7 @@ This API checks if the Object passed in has the named property.
 
 #### *napi_delete_property*
 <!-- YAML
-added: REPLACEME
+added: v8.2.0
 -->
 ```C
 napi_status napi_delete_property(napi_env env,
@@ -2360,7 +2360,7 @@ This API attempts to delete the `key` own property from `object`.
 
 #### *napi_has_own_property*
 <!-- YAML
-added: REPLACEME
+added: v8.2.0
 -->
 ```C
 napi_status napi_has_own_property(napi_env env,
@@ -2507,7 +2507,7 @@ requested index.
 
 #### *napi_delete_element*
 <!-- YAML
-added: REPLACEME
+added: v8.2.0
 -->
 ```C
 napi_status napi_delete_element(napi_env env,
