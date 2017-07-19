@@ -24,7 +24,7 @@ napi_value Add(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_unwrap(env, args[1], reinterpret_cast<void**>(&obj2)));
 
   napi_value sum;
-  NAPI_CALL(env, napi_create_number(env, obj1->Val() + obj2->Val(), &sum));
+  NAPI_CALL(env, napi_create_double(env, obj1->Val() + obj2->Val(), &sum));
 
   return sum;
 }

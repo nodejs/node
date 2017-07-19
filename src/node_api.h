@@ -127,9 +127,18 @@ NAPI_EXTERN napi_status napi_create_array(napi_env env, napi_value* result);
 NAPI_EXTERN napi_status napi_create_array_with_length(napi_env env,
                                                       size_t length,
                                                       napi_value* result);
-NAPI_EXTERN napi_status napi_create_number(napi_env env,
+NAPI_EXTERN napi_status napi_create_double(napi_env env,
                                            double value,
                                            napi_value* result);
+NAPI_EXTERN napi_status napi_create_int32(napi_env env,
+                                          int32_t value,
+                                          napi_value* result);
+NAPI_EXTERN napi_status napi_create_uint32(napi_env env,
+                                           uint32_t value,
+                                           napi_value* result);
+NAPI_EXTERN napi_status napi_create_int64(napi_env env,
+                                          int64_t value,
+                                          napi_value* result);
 NAPI_EXTERN napi_status napi_create_string_latin1(napi_env env,
                                                   const char* str,
                                                   size_t length,
