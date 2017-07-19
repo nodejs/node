@@ -2035,7 +2035,7 @@ user programs.
 
 `transform._transform()` is never called in  parallel; streams implement a
 queue mechanism, and to receive the next chunk, `callback` must be
-called, either synchronously or asychronously.
+called, either synchronously or asynchronously.
 
 #### Class: stream.PassThrough
 
