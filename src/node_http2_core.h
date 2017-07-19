@@ -100,6 +100,10 @@ class Nghttp2Session {
 
   // Frees this session instance
   inline int Free();
+  inline void MarkDestroying();
+  bool IsDestroying() {
+    return destroying_;
+  }
 
   // Returns the pointer to the identified stream, or nullptr if
   // the stream does not exist
@@ -127,6 +131,10 @@ class Nghttp2Session {
 
   // Returns the nghttp2 library session
   inline nghttp2_session* session() { return session_; }
+
+  nghttp2_session_type type() {
+    return session_type_;
+  }
 
  protected:
   // Adds a stream instance to this session
@@ -240,6 +248,7 @@ class Nghttp2Session {
   uv_prepare_t prep_;
   nghttp2_session_type session_type_;
   std::unordered_map<int32_t, Nghttp2Stream*> streams_;
+  bool destroying_ = false;
 
   friend class Nghttp2Stream;
 };

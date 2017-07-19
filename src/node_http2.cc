@@ -401,11 +401,19 @@ void Http2Session::Consume(const FunctionCallbackInfo<Value>& args) {
 }
 
 void Http2Session::Destroy(const FunctionCallbackInfo<Value>& args) {
-  DEBUG_HTTP2("Http2Session: destroying session\n");
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  DEBUG_HTTP2("Http2Session: destroying session %d\n", session->type());
   session->Unconsume();
   session->Free();
+}
+
+void Http2Session::Destroying(const FunctionCallbackInfo<Value>& args) {
+  Http2Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  DEBUG_HTTP2("Http2Session: preparing to destroy session %d\n",
+              session->type());
+  session->MarkDestroying();
 }
 
 void Http2Session::SubmitPriority(const FunctionCallbackInfo<Value>& args) {
@@ -816,11 +824,11 @@ void Http2Session::AllocateSend(size_t recommended, uv_buf_t* buf) {
 }
 
 void Http2Session::Send(uv_buf_t* buf, size_t length) {
+  DEBUG_HTTP2("Http2Session: Attempting to send data\n");
   if (stream_ == nullptr || !stream_->IsAlive() || stream_->IsClosing()) {
     return;
   }
   HandleScope scope(env()->isolate());
-
   auto AfterWrite = [](WriteWrap* req_wrap, int status) {
     req_wrap->Dispose();
   };
@@ -1191,6 +1199,8 @@ void Initialize(Local<Object> target,
                       Http2Session::Consume);
   env->SetProtoMethod(session, "destroy",
                       Http2Session::Destroy);
+  env->SetProtoMethod(session, "destroying",
+                      Http2Session::Destroying);
   env->SetProtoMethod(session, "sendHeaders",
                       Http2Session::SendHeaders);
   env->SetProtoMethod(session, "submitShutdownNotice",
