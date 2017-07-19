@@ -634,6 +634,29 @@ Type: Runtime
 
 *Note*: change was made while `async_hooks` was an experimental API.
 
+<a id="DEP0073"></a>
+### DEP0073: tls.parseCertString()
+
+Type: Runtime
+
+`tls.parseCertString()` is a trivial parsing helper that was made public by
+mistake. This function can usually be replaced with
+
+```js
+const querystring = require('querystring');
+querystring.parse(str, '\n', '=')`;
+```
+
+*Note*: This function is not 100% same as `querystring.parse()`. One difference
+is that `querystring.parse()` does URLDecoding, e.g.:
+
+```js
+> querystring.parse("%E5%A5%BD=1", "\n", "=");
+{ '好': '1' }
+> tls.parseCertString("%E5%A5%BD=1");
+{ '%E5%A5%BD': '1' }
+```
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer

@@ -1,10 +1,12 @@
 'use strict';
+
+// Flags: --expose_internals
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const tls = require('tls');
+const tls = require('internal/tls');
 
 {
   const singles = 'C=US\nST=CA\nL=SF\nO=Node.js Foundation\nOU=Node.js\n' +
@@ -35,4 +37,18 @@ const tls = require('tls');
   const invalid = 'fhqwhgads';
   const invalidOut = tls.parseCertString(invalid);
   assert.deepStrictEqual(invalidOut, {});
+}
+
+{
+  const regexp = new RegExp('^\\(node:\\d+\\) [DEP0073] DeprecationWarning: ' +
+                            'tls\\.parseCertString is deprecated$');
+
+  // test for deprecate message
+  common.hijackStderr(common.mustCall(function(data) {
+    assert.ok(regexp.test(data));
+    common.restoreStderr();
+  }));
+
+  const ret = require('tls').parseCertString('foo=bar');
+  assert.deepStrictEqual(ret, { foo: 'bar' });
 }
