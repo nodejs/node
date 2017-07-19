@@ -3019,6 +3019,72 @@ napi_status napi_get_typedarray_info(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status napi_create_dataview(napi_env env,
+                                 size_t byte_length,
+                                 napi_value arraybuffer,
+                                 size_t byte_offset,
+                                 napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, arraybuffer);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
+  RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
+
+  v8::Local<v8::ArrayBuffer> buffer = value.As<v8::ArrayBuffer>();
+  v8::Local<v8::DataView> DataView = v8::DataView::New(buffer, byte_offset,
+                                                       byte_length);
+
+  *result = v8impl::JsValueFromV8LocalValue(DataView);
+  return GET_RETURN_STATUS(env);
+}
+
+napi_status napi_is_dataview(napi_env env, napi_value value, bool* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, value);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+  *result = val->IsDataView();
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_get_dataview_info(napi_env env,
+                                   napi_value dataview,
+                                   size_t* byte_length,
+                                   void** data,
+                                   napi_value* arraybuffer,
+                                   size_t* byte_offset) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, dataview);
+
+  v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(dataview);
+  RETURN_STATUS_IF_FALSE(env, value->IsDataView(), napi_invalid_arg);
+
+  v8::Local<v8::DataView> array = value.As<v8::DataView>();
+
+  if (byte_length != nullptr) {
+    *byte_length = array->ByteLength();
+  }
+
+  v8::Local<v8::ArrayBuffer> buffer = array->Buffer();
+  if (data != nullptr) {
+    *data = static_cast<uint8_t*>(buffer->GetContents().Data()) +
+            array->ByteOffset();
+  }
+
+  if (arraybuffer != nullptr) {
+    *arraybuffer = v8impl::JsValueFromV8LocalValue(buffer);
+  }
+
+  if (byte_offset != nullptr) {
+    *byte_offset = array->ByteOffset();
+  }
+
+  return napi_clear_last_error(env);
+}
+
 napi_status napi_get_version(napi_env env, uint32_t* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
