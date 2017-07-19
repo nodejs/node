@@ -65,9 +65,7 @@ enum nghttp2_stream_flags {
   // Stream is closed
   NGHTTP2_STREAM_CLOSED = 0x8,
   // Stream is destroyed
-  NGHTTP2_STREAM_DESTROYED = 0x10,
-  // Stream is being destroyed
-  NGHTTP2_STREAM_DESTROYING = 0x20
+  NGHTTP2_STREAM_DESTROYED = 0x10
 };
 
 
@@ -288,10 +286,6 @@ class Nghttp2Stream {
   // Returns true if this stream has been destroyed
   inline bool IsDestroyed() const {
     return (flags_ & NGHTTP2_STREAM_DESTROYED) == NGHTTP2_STREAM_DESTROYED;
-  }
-
-  inline bool IsDestroying() const {
-    return (flags_ & NGHTTP2_STREAM_DESTROYING) == NGHTTP2_STREAM_DESTROYING;
   }
 
   // Queue outbound chunks of data to be sent on this stream
