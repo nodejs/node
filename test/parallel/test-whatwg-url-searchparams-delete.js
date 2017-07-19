@@ -6,11 +6,12 @@ const { URL, URLSearchParams } = require('url');
 const { test, assert_equals, assert_true, assert_false } =
   require('../common/wpt');
 
-/* eslint-disable */
-/* WPT Refs:
+/* The following tests are copied from WPT. Modifications to them should be
+   upstreamed first. Refs:
    https://github.com/w3c/web-platform-tests/blob/8791bed/url/urlsearchparams-delete.html
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
+/* eslint-disable */
 test(function() {
     var params = new URLSearchParams('a=b&c=d');
     params.delete('a');
