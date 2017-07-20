@@ -175,7 +175,7 @@ added: v0.1.27
 - `rrtype` {string} Resource record type. Default: `'A'`.
 - `callback` {Function}
   - `err` {Error}
-  - `records` {string[] | Object[] | string[][] | Object}
+  - `records` {string[] | Object[] | Object}
 
 Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an array
 of the resource records. The `callback` function has arguments
@@ -362,7 +362,7 @@ added: v0.1.27
 - `hostname` {string}
 - `callback` {Function}
   - `err` {Error}
-  - `records` {string[][]}
+  - `records` {string[]}
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `records` argument passed to the `callback` function is a

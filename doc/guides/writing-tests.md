@@ -92,7 +92,7 @@ The test checks functionality in the `http` module.
 Most tests use the `assert` module to confirm expectations of the test.
 
 The require statements are sorted in
-[ASCII](http://man7.org/linux/man-pages/man7/ascii.7.html) order (digits, upper
+[ASCII][] order (digits, upper
 case, `_`, lower case).
 
 ### **Lines 10-21**
@@ -252,9 +252,9 @@ assert.throws(
 For performance considerations, we only use a selected subset of ES.Next
 features in JavaScript code in the `lib` directory. However, when writing
 tests, for the ease of backporting, it is encouraged to use those ES.Next
-features that can be used directly without a flag in [all maintained branches]
-(https://github.com/nodejs/lts). [node.green](http://node.green/) lists
-available features in each release.
+features that can be used directly without a flag in
+[all maintained branches][]. [node.green][] lists available features
+in each release.
 
 For example:
 
@@ -279,8 +279,7 @@ functions worked correctly with the `beforeExit` event, then it might be named
 ### Web Platform Tests
 
 Some of the tests for the WHATWG URL implementation (named
-`test-whatwg-url-*.js`) are imported from the
-[Web Platform Tests Project](https://github.com/w3c/web-platform-tests/tree/master/url).
+`test-whatwg-url-*.js`) are imported from the [Web Platform Tests Project][].
 These imported tests will be wrapped like this:
 
 ```js
