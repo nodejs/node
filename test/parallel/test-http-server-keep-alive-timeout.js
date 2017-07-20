@@ -43,7 +43,7 @@ test(function serverEndKeepAliveTimeoutWithPipeline(cb) {
 });
 
 test(function serverNoEndKeepAliveTimeoutWithPipeline(cb) {
-  const server = http.createServer(common.mustCall((req, res) => {}, 3));
+  const server = http.createServer(common.mustCall(3));
   server.setTimeout(500, common.mustCall((socket) => {
     // End this test and call `run()` for the next test (if any).
     socket.destroy();
