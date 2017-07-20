@@ -655,6 +655,8 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
     DCHECK(false);
   }
 
+  JSObject::MigrateSlowToFast(function, 0, "Bootstrapping");
+
   return function;
 }
 
@@ -1133,6 +1135,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     sloppy_function_map_writable_prototype_->SetConstructor(*function_fun);
     strict_function_map_writable_prototype_->SetConstructor(*function_fun);
+
+    JSObject::MigrateSlowToFast(function_fun, 0, "Bootstrapping");
   }
 
   {  // --- A r r a y ---

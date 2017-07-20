@@ -21,6 +21,8 @@ class PartialSerializer : public Serializer {
   // Serialize the objects reachable from a single object pointer.
   void Serialize(Object** o);
 
+  bool can_be_rehashed() const { return can_be_rehashed_; }
+
  private:
   class PartialCacheIndexMap : public AddressMapBase {
    public:
@@ -49,10 +51,16 @@ class PartialSerializer : public Serializer {
   int PartialSnapshotCacheIndex(HeapObject* o);
   bool ShouldBeInThePartialSnapshotCache(HeapObject* o);
 
+  void CheckRehashability(HeapObject* table);
+
   Serializer* startup_serializer_;
   Object* global_object_;
   PartialCacheIndexMap partial_cache_index_map_;
   int next_partial_cache_index_;
+  Context* rehashable_context_;
+  // Indicates whether we only serialized hash tables that we can rehash.
+  // TODO(yangguo): generalize rehashing, and remove this flag.
+  bool can_be_rehashed_;
   DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
 };
 

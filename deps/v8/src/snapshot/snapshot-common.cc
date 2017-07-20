@@ -58,6 +58,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
   Vector<const byte> startup_data = ExtractStartupData(blob);
   SnapshotData snapshot_data(startup_data);
   Deserializer deserializer(&snapshot_data);
+  deserializer.SetRehashability(ExtractMetadata(blob).can_rehash());
   bool success = isolate->Init(&deserializer);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -78,6 +79,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   Vector<const byte> context_data = ExtractContextData(blob);
   SnapshotData snapshot_data(context_data);
   Deserializer deserializer(&snapshot_data);
+  deserializer.SetRehashability(ExtractMetadata(blob).can_rehash());
 
   MaybeHandle<Object> maybe_context =
       deserializer.DeserializePartial(isolate, global_proxy);
