@@ -3251,6 +3251,7 @@ support it:
 [Working with JavaScript Properties]: #n_api_working_with_javascript_properties
 [Working with JavaScript Values]: #n_api_working_with_javascript_values
 [Working with JavaScript Values - Abstract Operations]: #n_api_working_with_javascript_values_abstract_operations
+[Section 24.3]: https://tc39.github.io/ecma262/#sec-dataview-objects
 
 [`napi_cancel_async_work`]: #n_api_napi_cancel_async_work
 [`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
