@@ -189,15 +189,17 @@ class TransitionArray: public FixedArray {
   void TransitionArrayVerify();
 #endif
 
+  void Sort();
+
 #ifdef DEBUG
   bool IsSortedNoDuplicates(int valid_entries = -1);
   static bool IsSortedNoDuplicates(Map* map);
   static bool IsConsistentWithBackPointers(Map* map);
+#endif
 
   // Returns true for a non-property transitions like elements kind, observed
   // or frozen transitions.
   static inline bool IsSpecialTransition(Name* name);
-#endif
 
   // Constant for denoting key was not found.
   static const int kNotFound = -1;

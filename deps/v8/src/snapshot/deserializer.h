@@ -37,7 +37,8 @@ class Deserializer : public SerializerDeserializer {
         external_reference_table_(NULL),
         deserialized_large_objects_(0),
         deserializing_user_code_(false),
-        next_alignment_(kWordAligned) {
+        next_alignment_(kWordAligned),
+        can_rehash_(false) {
     DecodeReservation(data->Reservations());
   }
 
@@ -58,6 +59,8 @@ class Deserializer : public SerializerDeserializer {
   void SetAttachedObjects(Vector<Handle<Object> > attached_objects) {
     attached_objects_ = attached_objects;
   }
+
+  void SetRehashability(bool v) { can_rehash_ = v; }
 
  private:
   void VisitPointers(Object** start, Object** end) override;
@@ -113,6 +116,15 @@ class Deserializer : public SerializerDeserializer {
   Object** CopyInNativesSource(Vector<const char> source_vector,
                                Object** current);
 
+  // Rehash after deserializing an isolate.
+  void Rehash();
+
+  // Rehash after deserializing a context.
+  void RehashContext(Context* context);
+
+  // Sort descriptors of deserialized maps using new string hashes.
+  void SortMapDescriptors();
+
   // Cached current isolate.
   Isolate* isolate_;
 
@@ -136,10 +148,15 @@ class Deserializer : public SerializerDeserializer {
   List<Code*> new_code_objects_;
   List<Handle<String> > new_internalized_strings_;
   List<Handle<Script> > new_scripts_;
+  List<Map*> maps_;
+  List<TransitionArray*> transition_arrays_;
 
   bool deserializing_user_code_;
 
   AllocationAlignment next_alignment_;
+
+  // TODO(6593): generalize rehashing, and remove this flag.
+  bool can_rehash_;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
 };

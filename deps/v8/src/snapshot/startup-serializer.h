@@ -28,6 +28,8 @@ class StartupSerializer : public Serializer {
   void SerializeStrongReferences();
   void SerializeWeakReferencesAndDeferred();
 
+  bool can_be_rehashed() const { return can_be_rehashed_; }
+
  private:
   // The StartupSerializer has to serialize the root array, which is slightly
   // different.
@@ -42,10 +44,17 @@ class StartupSerializer : public Serializer {
   // roots. In the second pass, we serialize the rest.
   bool RootShouldBeSkipped(int root_index);
 
+  void CheckRehashability(HeapObject* hashtable);
+
   FunctionCodeHandling function_code_handling_;
   bool serializing_builtins_;
   bool serializing_immortal_immovables_roots_;
   std::bitset<Heap::kStrongRootListLength> root_has_been_serialized_;
+
+  // Indicates whether we only serialized hash tables that we can rehash.
+  // TODO(yangguo): generalize rehashing, and remove this flag.
+  bool can_be_rehashed_;
+
   DISALLOW_COPY_AND_ASSIGN(StartupSerializer);
 };
 

@@ -864,6 +864,9 @@ class Heap {
   // without actually creating any objects.
   bool SetUp();
 
+  // (Re-)Initialize hash seed from flag or RNG.
+  void InitializeHashSeed();
+
   // Bootstraps the object heap with the core set of objects required to run.
   // Returns whether it succeeded.
   bool CreateHeapObjects();

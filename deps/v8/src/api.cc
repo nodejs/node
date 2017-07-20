@@ -391,6 +391,9 @@ StartupData SerializeIsolateAndContext(
 
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
+  // We might rehash strings and re-sort descriptors. Clear the lookup cache.
+  internal_isolate->descriptor_lookup_cache()->Clear();
+
   // If we don't do this then we end up with a stray root pointing at the
   // context even after we have disposed of the context.
   internal_isolate->heap()->CollectAllAvailableGarbage("mksnapshot");
@@ -427,6 +430,9 @@ StartupData SerializeIsolateAndContext(
   i::PartialSerializer context_ser(internal_isolate, &ser, &context_sink);
   context_ser.Serialize(&raw_context);
   ser.SerializeWeakReferencesAndDeferred();
+
+  metadata.set_can_rehash(ser.can_be_rehashed() &&
+                          context_ser.can_be_rehashed());
 
   return i::Snapshot::CreateSnapshotBlob(ser, context_ser, metadata);
 }

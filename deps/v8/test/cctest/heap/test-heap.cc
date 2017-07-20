@@ -6617,5 +6617,26 @@ TEST(Regress609761) {
   CHECK_EQ(size_after, size_before + array->Size());
 }
 
+UNINITIALIZED_TEST(ReinitializeStringHashSeed) {
+  // Enable rehashing and create an isolate and context.
+  i::FLAG_rehash_snapshot = true;
+  for (int i = 1; i < 3; i++) {
+    i::FLAG_hash_seed = 1337 * i;
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      CHECK_EQ(1337 * i,
+               reinterpret_cast<i::Isolate*>(isolate)->heap()->HashSeed());
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      CHECK(!context.IsEmpty());
+      v8::Context::Scope context_scope(context);
+    }
+    isolate->Dispose();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

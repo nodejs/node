@@ -15,7 +15,9 @@ PartialSerializer::PartialSerializer(Isolate* isolate,
     : Serializer(isolate, sink),
       startup_serializer_(startup_snapshot_serializer),
       global_object_(NULL),
-      next_partial_cache_index_(0) {
+      next_partial_cache_index_(0),
+      rehashable_context_(nullptr),
+      can_be_rehashed_(true) {
   InitializeCodeAddressMap();
 }
 
@@ -24,7 +26,7 @@ PartialSerializer::~PartialSerializer() {
 }
 
 void PartialSerializer::Serialize(Object** o) {
-  if ((*o)->IsContext()) {
+  if ((*o)->IsNativeContext()) {
     Context* context = Context::cast(*o);
     global_object_ = context->global_object();
     back_reference_map()->AddGlobalProxy(context->global_proxy());
@@ -33,11 +35,14 @@ void PartialSerializer::Serialize(Object** o) {
     // and it's next context pointer may point to the code-stub context.  Clear
     // it before serializing, it will get re-added to the context list
     // explicitly when it's loaded.
-    if (context->IsNativeContext()) {
-      context->set(Context::NEXT_CONTEXT_LINK,
-                   isolate_->heap()->undefined_value());
-      DCHECK(!context->global_object()->IsUndefined());
-    }
+    context->set(Context::NEXT_CONTEXT_LINK,
+                 isolate_->heap()->undefined_value());
+    DCHECK(!context->global_object()->IsUndefined());
+    DCHECK_NULL(rehashable_context_);
+    rehashable_context_ = context;
+  } else {
+    // We only do rehashing for native contexts.
+    can_be_rehashed_ = false;
   }
   VisitPointer(o);
   SerializeDeferredObjects();
@@ -89,6 +94,8 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     for (int i = 0; i < literals->length(); i++) literals->set_undefined(i);
   }
 
+  if (obj->IsHashTable()) CheckRehashability(obj);
+
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, sink_, how_to_code, where_to_point);
   serializer.Serialize();
@@ -117,6 +124,18 @@ bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {
          o->IsCode() || o->IsScopeInfo() || o->IsAccessorInfo() ||
          o->map() ==
              startup_serializer_->isolate()->heap()->fixed_cow_array_map();
+}
+
+void PartialSerializer::CheckRehashability(HeapObject* table) {
+  DCHECK(table->IsHashTable());
+  if (!can_be_rehashed_) return;
+  // We can only correctly rehash if the global dictionary is the only hash
+  // table that we deserialize.
+  if (table == rehashable_context_->global_object()->global_dictionary()) {
+    return;
+  }
+  if (table == rehashable_context_->template_instantiations_cache()) return;
+  can_be_rehashed_ = false;
 }
 
 }  // namespace internal
