@@ -1,4 +1,13 @@
 rules:
+  indent: [error, 2, {ArrayExpression: first,
+                      CallExpression: {arguments: first},
+                      FunctionDeclaration: {parameters: first},
+                      FunctionExpression: {parameters: first},
+                      MemberExpression: off,
+                      ObjectExpression: first,
+                      SwitchCase: 1}]
+  indent-legacy: 0
+
   # Custom rules in tools/eslint-rules
   require-buffer: error
   buffer-constructor: error
