@@ -26,10 +26,16 @@ class Snapshot : public AllStatic {
       data_ = EmbedsScriptBits::update(data_, v);
     }
 
+    bool can_rehash() { return RehashabilityBits::decode(data_); }
+    void set_can_rehash(bool v) {
+      data_ = RehashabilityBits::update(data_, v);
+    }
+
     uint32_t& RawValue() { return data_; }
 
    private:
     class EmbedsScriptBits : public BitField<bool, 0, 1> {};
+    class RehashabilityBits : public BitField<bool, 1, 1> {};
     uint32_t data_;
   };
 
