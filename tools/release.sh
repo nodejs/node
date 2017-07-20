@@ -13,7 +13,28 @@ webuser=dist
 promotablecmd=dist-promotable
 promotecmd=dist-promote
 signcmd=dist-sign
+customsshkey="" # let ssh and scp use default key
+signversion=""
 
+while getopts ":i:s:" option; do
+    case "${option}" in
+        i)
+            customsshkey="-i ${OPTARG}"
+            ;;
+        s)
+            signversion="${OPTARG}"
+            ;;
+        \?)
+            echo "Invalid option -$OPTARG."
+            exit 1
+            ;;
+        :)
+            echo "Option -$OPTARG takes a parameter."
+            exit 1
+            ;;
+    esac
+done
+shift $((OPTIND-1))
 
 ################################################################################
 ## Select a GPG key to use
@@ -81,7 +102,7 @@ function sign {
     exit 1
   fi
 
-  shapath=$(ssh ${webuser}@${webhost} $signcmd nodejs $version)
+  shapath=$(ssh ${customsshkey} ${webuser}@${webhost} $signcmd nodejs $version)
 
   if ! [[ ${shapath} =~ ^/.+/SHASUMS256.txt$ ]]; then
     echo 'Error: No SHASUMS file returned by sign!'
@@ -96,7 +117,7 @@ function sign {
 
   mkdir -p $tmpdir
 
-  scp ${webuser}@${webhost}:${shapath} ${tmpdir}/${shafile}
+  scp ${customsshkey} ${webuser}@${webhost}:${shapath} ${tmpdir}/${shafile}
 
   gpg --default-key $gpgkey --clearsign --digest-algo SHA256 ${tmpdir}/${shafile}
   gpg --default-key $gpgkey --detach-sign --digest-algo SHA256 ${tmpdir}/${shafile}
@@ -119,7 +140,7 @@ function sign {
     fi
 
     if [ "X${yorn}" == "Xy" ]; then
-      scp ${tmpdir}/${shafile} ${tmpdir}/${shafile}.asc ${tmpdir}/${shafile}.sig ${webuser}@${webhost}:${shadir}/
+      scp ${customsshkey} ${tmpdir}/${shafile} ${tmpdir}/${shafile}.asc ${tmpdir}/${shafile}.sig ${webuser}@${webhost}:${shadir}/
       break
     fi
   done
@@ -128,16 +149,10 @@ function sign {
 }
 
 
-if [ "X${1}" == "X-s" ]; then
-  if [ "X${2}" == "X" ]; then
-    echo "Please supply a version string to sign"
-    exit 1
-  fi
-
-  sign $2
-  exit 0
+if [ -n "${signversion}" ]; then
+    sign ${signversion}
+    exit 0
 fi
-
 
 # else: do a normal release & promote
 
@@ -146,7 +161,7 @@ fi
 
 echo -e "\n# Checking for releases ..."
 
-promotable=$(ssh ${webuser}@${webhost} $promotablecmd nodejs)
+promotable=$(ssh ${customsshkey} ${webuser}@${webhost} $promotablecmd nodejs)
 
 if [ "X${promotable}" == "X" ]; then
   echo "No releases to promote!"
@@ -179,7 +194,7 @@ for version in $versions; do
 
     echo -e "\n# Promoting ${version}..."
 
-    ssh ${webuser}@${webhost} $promotecmd nodejs $version
+    ssh ${customsshkey} ${webuser}@${webhost} $promotecmd nodejs $version
 
     sign $version
 
