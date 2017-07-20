@@ -6,11 +6,8 @@ const assert = require('assert');
 const test_dataview = require(`./build/${common.buildType}/test_dataview`);
 
 //create dataview
-const buffer3 = new ArrayBuffer(128);
-console.log(buffer3 instanceof ArrayBuffer);
-const template = Reflect.construct(DataView, [buffer3]);
-console.log(template);
-console.log(template instanceof DataView);
+const buffer = new ArrayBuffer(128);
+const template = Reflect.construct(DataView, [buffer]);
 
 const theDataview = test_dataview.CreateDataView(template);
 assert.ok(theDataview instanceof DataView,

@@ -2086,7 +2086,7 @@ This API checks if the Object passsed in is a typed array.
 
 ### *napi_is_dataview*
 <!-- YAML
-added: v8.0.0
+added: REPLACEME
 -->
 
 ```C
