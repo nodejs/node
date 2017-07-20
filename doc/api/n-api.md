@@ -1586,18 +1586,17 @@ is managed by the VM
 
 
 
-#### *napi_get_typedarray_info*
+#### *napi_get_dataview_info*
 <!-- YAML
 added: v8.0.0
 -->
+```C
 napi_status napi_get_dataview_info(napi_env env,
                                      napi_value dataview,
                                      size_t* bytelength,
                                      void** data,
                                      napi_value* arraybuffer,
                                      size_t* byte_offset)
-```C
-
 ```
 
 - `[in] env`: The environment that the API is invoked under.
