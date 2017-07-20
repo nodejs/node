@@ -1822,6 +1822,12 @@ napi_status napi_get_value_int32(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+
+  if (val->IsInt32()) {
+    *result = val.As<v8::Int32>()->Value();
+    return napi_clear_last_error(env);
+  }
+
   RETURN_STATUS_IF_FALSE(env, val->IsNumber(), napi_number_expected);
 
   v8::Isolate* isolate = env->isolate;
@@ -1841,6 +1847,12 @@ napi_status napi_get_value_uint32(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+
+  if (val->IsUint32()) {
+    *result = val.As<v8::Uint32>()->Value();
+    return napi_clear_last_error(env);
+  }
+
   RETURN_STATUS_IF_FALSE(env, val->IsNumber(), napi_number_expected);
 
   v8::Isolate* isolate = env->isolate;
@@ -1860,6 +1872,13 @@ napi_status napi_get_value_int64(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+
+  // This is still a fast path very likely to be taken.
+  if (val->IsInt32()) {
+    *result = val.As<v8::Int32>()->Value();
+    return napi_clear_last_error(env);
+  }
+
   RETURN_STATUS_IF_FALSE(env, val->IsNumber(), napi_number_expected);
 
   // v8::Value::IntegerValue() converts NaN to INT64_MIN, inconsistent with
