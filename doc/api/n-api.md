@@ -1334,14 +1334,15 @@ of the ECMAScript Language Specification.
 
 #### *napi_create_dataview*
 <!-- YAML
-added: v8.0.0
+added: REPLACEME
 -->
+
 ```C
 napi_status napi_create_dataview(napi_env env,
-                                   size_t length,
-                                   napi_value arraybuffer,
-                                   size_t byte_offset,
-                                   napi_value* result)
+                                 size_t length,
+                                 napi_value arraybuffer,
+                                 size_t byte_offset,
+                                 napi_value* result)
 
 ```
 
@@ -1349,7 +1350,7 @@ napi_status napi_create_dataview(napi_env env,
 - `[in] length`: Number of elements in the DataView.
 - `[in] arraybuffer`: ArrayBuffer underlying the DataView.
 - `[in] byte_offset`: The byte offset within the ArrayBuffer from which to
-start projecting the DataVIew.
+  start projecting the DataView.
 - `[out] result`: A `napi_value` representing a JavaScript DataView.
 
 Returns `napi_ok` if the API succeeded.
@@ -1588,31 +1589,31 @@ is managed by the VM
 
 #### *napi_get_dataview_info*
 <!-- YAML
-added: v8.0.0
+added: REPLACEME
 -->
+
 ```C
 napi_status napi_get_dataview_info(napi_env env,
-                                     napi_value dataview,
-                                     size_t* bytelength,
-                                     void** data,
-                                     napi_value* arraybuffer,
-                                     size_t* byte_offset)
+                                   napi_value dataview,
+                                   size_t* bytelength,
+                                   void** data,
+                                   napi_value* arraybuffer,
+                                   size_t* byte_offset)
 ```
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] dataview`: `napi_value` representing the DataView whose
-properties to query.
-- `[out] length`: Number of elements in the DataView.
+  properties to query.
+- `[out] bytelength`: Number of bytes in the DataView.
 - `[out] data`: The data buffer underlying the DataView.
+- `[out] arraybuffer`: ArrayBuffer underlying the DataView.
 - `[out] byte_offset`: The byte offset within the data buffer from which
-to start projecting the DataView.
+  to start projecting the DataView.
 
 Returns `napi_ok` if the API succeeded.
 
 This API returns various properties of a DataView.
 
-*Warning*: Use caution while using this API since the underlying data buffer
-is managed by the VM
 
 #### *napi_get_value_bool*
 <!-- YAML
@@ -2087,6 +2088,7 @@ This API checks if the Object passsed in is a typed array.
 <!-- YAML
 added: v8.0.0
 -->
+
 ```C
 napi_status napi_is_dataview(napi_env env, napi_value value, bool* result)
 ```
@@ -2097,7 +2099,7 @@ napi_status napi_is_dataview(napi_env env, napi_value value, bool* result)
 
 Returns `napi_ok` if the API succeeded.
 
-This API checks if the Object passsed in is a dataview.
+This API checks if the Object passsed in is a DataView.
 
 ### *napi_strict_equals*
 <!-- YAML
