@@ -1332,7 +1332,7 @@ JavaScript TypedArray Objects are described in
 of the ECMAScript Language Specification.
 
 
-#### *napi_create_typedarray*
+#### *napi_create_dataview*
 <!-- YAML
 added: v8.0.0
 -->
@@ -1341,7 +1341,7 @@ napi_status napi_create_dataview(napi_env env,
                                    size_t length,
                                    napi_value arraybuffer,
                                    size_t byte_offset,
-                                   napi_value* result) {
+                                   napi_value* result)
 
 ```
 
@@ -1358,12 +1358,9 @@ This API creates a JavaScript DataView object over an existing ArrayBuffer.
 Dataview objects provide an array-like view over an underlying data buffer,
 but one which allows items of different size and type in the ArrayBuffer.
 
-It's required that (length * size_of_element) + byte_offset should
-be <= the size in bytes of the array passed in. If not, a RangeError exception is
-raised.
 
 JavaScript DataView Objects are described in
-[Section 22.2](https://tc39.github.io/ecma262/#sec-dataview-objects)
+[Section 24.3](https://tc39.github.io/ecma262/#sec-dataview-objects)
 of the ECMAScript Language Specification.
 
 ### Functions to convert from C types to N-API
