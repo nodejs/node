@@ -42,10 +42,7 @@ function run() {
 }
 
 test(function serverTimeout(cb) {
-  const server = http.createServer((req, res) => {
-    // Do nothing. We should get a timeout event.
-    // Might not be invoked. Do not wrap in common.mustCall().
-  });
+  const server = http.createServer();
   server.listen(common.mustCall(() => {
     const s = server.setTimeout(50, common.mustCall((socket) => {
       socket.destroy();
@@ -125,11 +122,14 @@ test(function serverResponseTimeoutWithPipeline(cb) {
   const server = http.createServer((req, res) => {
     if (req.url === '/2')
       secReceived = true;
+    if (req.url === '/1') {
+      res.end();
+      return;
+    }
     const s = res.setTimeout(50, () => {
       caughtTimeout += req.url;
     });
     assert.ok(s instanceof http.OutgoingMessage);
-    if (req.url === '/1') res.end();
   });
   server.on('timeout', common.mustCall((socket) => {
     if (secReceived) {
@@ -152,15 +152,54 @@ test(function serverResponseTimeoutWithPipeline(cb) {
 });
 
 test(function idleTimeout(cb) {
-  const server = http.createServer(common.mustCall((req, res) => {
-    req.on('timeout', common.mustNotCall());
-    res.on('timeout', common.mustNotCall());
-    res.end();
-  }));
+  // Test that the an idle connection invokes the timeout callback.
+  const server = http.createServer();
   const s = server.setTimeout(50, common.mustCall((socket) => {
     socket.destroy();
     server.close();
     cb();
+  }));
+  assert.ok(s instanceof http.Server);
+  server.listen(common.mustCall(() => {
+    const options = {
+      port: server.address().port,
+      allowHalfOpen: true,
+    };
+    const c = net.connect(options, () => {
+      // ECONNRESET could happen on a heavily-loaded server.
+      c.on('error', (e) => {
+        if (e.message !== 'read ECONNRESET')
+          throw e;
+      });
+      c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
+      // Keep-Alive
+    });
+  }));
+});
+
+test(function fastTimeout(cb) {
+  let connectionHandlerInvoked = false;
+  let timeoutHandlerInvoked = false;
+  let connectionSocket;
+
+  function invokeCallbackIfDone() {
+    if (connectionHandlerInvoked && timeoutHandlerInvoked) {
+      connectionSocket.destroy();
+      server.close();
+      cb();
+    }
+  }
+
+  const server = http.createServer(common.mustCall((req, res) => {
+    req.on('timeout', common.mustNotCall());
+    res.end();
+    connectionHandlerInvoked = true;
+    invokeCallbackIfDone();
+  }));
+  const s = server.setTimeout(1, common.mustCall((socket) => {
+    connectionSocket = socket;
+    timeoutHandlerInvoked = true;
+    invokeCallbackIfDone();
   }));
   assert.ok(s instanceof http.Server);
   server.listen(common.mustCall(() => {
