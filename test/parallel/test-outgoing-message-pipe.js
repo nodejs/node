@@ -7,9 +7,9 @@ const OutgoingMessage = require('_http_outgoing').OutgoingMessage;
 
 const outgoingMessage = new OutgoingMessage();
 assert.throws(
-  () => { outgoingMessage.pipe(outgoingMessage); },
+  common.mustCall(() => { outgoingMessage.pipe(outgoingMessage); }),
   (err) => {
-    return ((err instanceof Error) && /Pipe from a write-only stream/.test(err));
+    return ((err instanceof Error) && /Cannot pipe, not readable/.test(err));
   },
-  "OutgoingMessage.pipe should throw an error"
+  'OutgoingMessage.pipe should throw an error'
 );
