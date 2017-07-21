@@ -19,11 +19,11 @@ server.on('upgrade', common.mustCall((request, socket, head) => {
 }));
 
 server.listen(0, common.mustCall(() => {
-  http.request({
+  http.get({
     port: server.address().port,
     headers: {
       'Connection': 'Upgrade',
       'Upgrade': 'websocket'
     }
-  }).on('error', () => {}).end();
+  }).on('error', () => {});
 }));
