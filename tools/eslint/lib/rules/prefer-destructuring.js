@@ -15,19 +15,55 @@ module.exports = {
             category: "ECMAScript 6",
             recommended: false
         },
-
         schema: [
             {
-                type: "object",
-                properties: {
-                    array: {
-                        type: "boolean"
+
+                // old support {array: Boolean, object: Boolean}
+                // new support {VariableDeclarator: {}, AssignmentExpression: {}}
+                oneOf: [
+                    {
+                        type: "object",
+                        properties: {
+                            VariableDeclarator: {
+                                type: "object",
+                                properties: {
+                                    array: {
+                                        type: "boolean"
+                                    },
+                                    object: {
+                                        type: "boolean"
+                                    }
+                                },
+                                additionalProperties: false
+                            },
+                            AssignmentExpression: {
+                                type: "object",
+                                properties: {
+                                    array: {
+                                        type: "boolean"
+                                    },
+                                    object: {
+                                        type: "boolean"
+                                    }
+                                },
+                                additionalProperties: false
+                            }
+                        },
+                        additionalProperties: false
                     },
-                    object: {
-                        type: "boolean"
+                    {
+                        type: "object",
+                        properties: {
+                            array: {
+                                type: "boolean"
+                            },
+                            object: {
+                                type: "boolean"
+                            }
+                        },
+                        additionalProperties: false
                     }
-                },
-                additionalProperties: false
+                ]
             },
             {
                 type: "object",
@@ -42,26 +78,17 @@ module.exports = {
     },
     create(context) {
 
-        let checkArrays = true;
-        let checkObjects = true;
-        let enforceForRenamedProperties = false;
         const enabledTypes = context.options[0];
-        const additionalOptions = context.options[1];
+        const enforceForRenamedProperties = context.options[1] && context.options[1].enforceForRenamedProperties;
+        let normalizedOptions = {
+            VariableDeclarator: { array: true, object: true },
+            AssignmentExpression: { array: true, object: true }
+        };
 
         if (enabledTypes) {
-            if (typeof enabledTypes.array !== "undefined") {
-                checkArrays = enabledTypes.array;
-            }
-
-            if (typeof enabledTypes.object !== "undefined") {
-                checkObjects = enabledTypes.object;
-            }
-        }
-
-        if (additionalOptions) {
-            if (typeof additionalOptions.enforceForRenamedProperties !== "undefined") {
-                enforceForRenamedProperties = additionalOptions.enforceForRenamedProperties;
-            }
+            normalizedOptions = typeof enabledTypes.array !== "undefined" || typeof enabledTypes.object !== "undefined"
+                ? { VariableDeclarator: enabledTypes, AssignmentExpression: enabledTypes }
+                : enabledTypes;
         }
 
         //--------------------------------------------------------------------------
@@ -69,7 +96,18 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         /**
-         * Determines if the given node node is accessing an array index
+         * @param {string} nodeType "AssignmentExpression" or "VariableDeclarator"
+         * @param {string} destructuringType "array" or "object"
+         * @returns {boolean} `true` if the destructuring type should be checked for the given node
+         */
+        function shouldCheck(nodeType, destructuringType) {
+            return normalizedOptions &&
+                normalizedOptions[nodeType] &&
+                normalizedOptions[nodeType][destructuringType];
+        }
+
+        /**
+         * Determines if the given node is accessing an array index
          *
          * This is used to differentiate array index access from object property
          * access.
@@ -110,22 +148,22 @@ module.exports = {
             }
 
             if (isArrayIndexAccess(rightNode)) {
-                if (checkArrays) {
+                if (shouldCheck(reportNode.type, "array")) {
                     report(reportNode, "array");
                 }
                 return;
             }
 
-            if (checkObjects && enforceForRenamedProperties) {
+            if (shouldCheck(reportNode.type, "object") && enforceForRenamedProperties) {
                 report(reportNode, "object");
                 return;
             }
 
-            if (checkObjects) {
+            if (shouldCheck(reportNode.type, "object")) {
                 const property = rightNode.property;
 
-                if ((property.type === "Literal" && leftNode.name === property.value) ||
-                    (property.type === "Identifier" && leftNode.name === property.name)) {
+                if ((property.type === "Literal" && leftNode.name === property.value) || (property.type === "Identifier" &&
+                    leftNode.name === property.name)) {
                     report(reportNode, "object");
                 }
             }

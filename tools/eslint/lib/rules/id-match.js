@@ -75,10 +75,14 @@ module.exports = {
          * @private
          */
         function report(node) {
-            context.report({ node, message: "Identifier '{{name}}' does not match the pattern '{{pattern}}'.", data: {
-                name: node.name,
-                pattern
-            } });
+            context.report({
+                node,
+                message: "Identifier '{{name}}' does not match the pattern '{{pattern}}'.",
+                data: {
+                    name: node.name,
+                    pattern
+                }
+            });
         }
 
         return {

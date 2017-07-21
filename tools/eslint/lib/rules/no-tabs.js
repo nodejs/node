@@ -31,10 +31,14 @@ module.exports = {
                     const match = regex.exec(line);
 
                     if (match) {
-                        context.report({ node, loc: {
-                            line: index + 1,
-                            column: match.index + 1
-                        }, message: "Unexpected tab character." });
+                        context.report({
+                            node,
+                            loc: {
+                                line: index + 1,
+                                column: match.index + 1
+                            },
+                            message: "Unexpected tab character."
+                        });
                     }
                 });
             }

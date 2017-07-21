@@ -174,7 +174,7 @@ module.exports = {
                     options.arraysInObjectsException && astUtils.isClosingBracketToken(penultimate) ||
                     options.objectsInObjectsException && astUtils.isClosingBraceToken(penultimate)
                 );
-                const penultimateType = shouldCheckPenultimate && sourceCode.getNodeByRangeIndex(penultimate.start).type;
+                const penultimateType = shouldCheckPenultimate && sourceCode.getNodeByRangeIndex(penultimate.range[0]).type;
 
                 const closingCurlyBraceMustBeSpaced = (
                     options.arraysInObjectsException && penultimateType === "ArrayExpression" ||

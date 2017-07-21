@@ -33,7 +33,10 @@ module.exports = {
 
     create(context) {
         const options = context.options[0] || {},
-            checkLoops = options.checkLoops !== false;
+            checkLoops = options.checkLoops !== false,
+            loopSetStack = [];
+
+        let loopsInCurrentScope = new Set();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -115,15 +118,61 @@ module.exports = {
         }
 
         /**
+         * Tracks when the given node contains a constant condition.
+         * @param {ASTNode} node The AST node to check.
+         * @returns {void}
+         * @private
+         */
+        function trackConstantConditionLoop(node) {
+            if (node.test && isConstant(node.test, true)) {
+                loopsInCurrentScope.add(node);
+            }
+        }
+
+        /**
+         * Reports when the set contains the given constant condition node
+         * @param {ASTNode} node The AST node to check.
+         * @returns {void}
+         * @private
+         */
+        function checkConstantConditionLoopInSet(node) {
+            if (loopsInCurrentScope.has(node)) {
+                loopsInCurrentScope.delete(node);
+                context.report({ node, message: "Unexpected constant condition." });
+            }
+        }
+
+        /**
          * Reports when the given node contains a constant condition.
          * @param {ASTNode} node The AST node to check.
          * @returns {void}
          * @private
          */
-        function checkConstantCondition(node) {
+        function reportIfConstant(node) {
             if (node.test && isConstant(node.test, true)) {
                 context.report({ node, message: "Unexpected constant condition." });
             }
+        }
+
+        /**
+         * Stores current set of constant loops in loopSetStack temporarily
+         * and uses a new set to track constant loops
+         * @returns {void}
+         * @private
+         */
+        function enterFunction() {
+            loopSetStack.push(loopsInCurrentScope);
+            loopsInCurrentScope = new Set();
+        }
+
+        /**
+         * Reports when the set still contains stored constant conditions
+         * @param {ASTNode} node The AST node to check.
+         * @returns {void}
+         * @private
+         */
+        function exitFunction() {
+            loopsInCurrentScope = loopSetStack.pop();
         }
 
         /**
@@ -134,7 +183,7 @@ module.exports = {
          */
         function checkLoop(node) {
             if (checkLoops) {
-                checkConstantCondition(node);
+                trackConstantConditionLoop(node);
             }
         }
 
@@ -143,11 +192,18 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            ConditionalExpression: checkConstantCondition,
-            IfStatement: checkConstantCondition,
+            ConditionalExpression: reportIfConstant,
+            IfStatement: reportIfConstant,
             WhileStatement: checkLoop,
+            "WhileStatement:exit": checkConstantConditionLoopInSet,
             DoWhileStatement: checkLoop,
-            ForStatement: checkLoop
+            "DoWhileStatement:exit": checkConstantConditionLoopInSet,
+            ForStatement: checkLoop,
+            "ForStatement > .test": node => checkLoop(node.parent),
+            "ForStatement:exit": checkConstantConditionLoopInSet,
+            FunctionDeclaration: enterFunction,
+            "FunctionDeclaration:exit": exitFunction,
+            YieldExpression: () => loopsInCurrentScope.clear()
         };
 
     }

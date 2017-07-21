@@ -99,7 +99,7 @@ module.exports = {
                     // https://github.com/eslint/eslint/issues/8026
                     return new FixTracker(fixer, sourceCode)
                         .retainEnclosingFunction(node)
-                        .replaceTextRange([elseToken.start, node.end], fixedSource);
+                        .replaceTextRange([elseToken.range[0], node.range[1]], fixedSource);
                 }
             });
         }

@@ -93,7 +93,7 @@ function isBlockLikeStatement(sourceCode, node) {
 
     // Checks the last token is a closing brace of blocks.
     const lastToken = sourceCode.getLastToken(node, astUtils.isNotSemicolonToken);
-    const belongingNode = astUtils.isClosingBraceToken(lastToken)
+    const belongingNode = lastToken && astUtils.isClosingBraceToken(lastToken)
         ? sourceCode.getNodeByRangeIndex(lastToken.range[0])
         : null;
 
