@@ -21,18 +21,31 @@
 
 'use strict';
 const common = require('../common');
+
+// This test ensures that `net.connect` with an unfindable host will emit
+// an error, and we assert the structure of the error.
+
 const assert = require('assert');
 const net = require('net');
 
-const client = net.connect({host: '***', port: common.PORT});
+// Since this test should fail with `ENOTFOUND` becuase of the unfindable host
+// we don't care about the port, so we just pick an arbitrary but valid port.
+const arbitrary_port = common.PORT
+const unfindable_host = '***';
+const client = net.connect({host: unfindable_host, port: arbitrary_port});
 
 client.once('error', common.mustCall((err) => {
-  assert(err);
+  assert.ok(err);
   assert.strictEqual(err.code, err.errno);
   assert.strictEqual(err.code, 'ENOTFOUND');
   assert.strictEqual(err.host, err.hostname);
-  assert.strictEqual(err.host, '***');
+  assert.strictEqual(err.host, unfindable_host);
   assert.strictEqual(err.syscall, 'getaddrinfo');
+  assert.strictEqual(
+    err.message,
+    `getaddrinfo ENOTFOUND ${unfindable_host} ${unfindable_host}:${err.port}`
+  );
 }));
+client.on('connect', common.mustNotCall())
 
 client.end();
