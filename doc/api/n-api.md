@@ -1359,7 +1359,7 @@ This API creates a JavaScript DataView object over an existing ArrayBuffer.
 Dataview objects provide an array-like view over an underlying data buffer,
 but one which allows items of different size and type in the ArrayBuffer.
 
-It's required that (byte_length * size_of_element) + byte_offset
+It's required that byte_length + byte_offset
 should be <= the size in bytes of the array passed in. If not, a RangeError
 exception is raised.
 

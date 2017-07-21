@@ -15,7 +15,7 @@ napi_value CreateDataView(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, input_dataview, &valuetype));
   NAPI_ASSERT(env, valuetype == napi_object,
               "Wrong type of argments. Expects a dataview  as the first"
-               "argument.");
+              "argument.");
 
   bool is_dataview;
   NAPI_CALL(env, napi_is_dataview(env, input_dataview, &is_dataview));
