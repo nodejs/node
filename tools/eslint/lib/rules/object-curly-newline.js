@@ -143,6 +143,8 @@ module.exports = {
                     first.loc.start.line !== last.loc.end.line
                 )
             );
+            const hasCommentsFirstToken = astUtils.isCommentToken(first);
+            const hasCommentsLastToken = astUtils.isCommentToken(last);
 
             /*
              * Use tokens or comments to check multiline or not.
@@ -162,6 +164,10 @@ module.exports = {
                         node,
                         loc: openBrace.loc.start,
                         fix(fixer) {
+                            if (hasCommentsFirstToken) {
+                                return null;
+                            }
+
                             return fixer.insertTextAfter(openBrace, "\n");
                         }
                     });
@@ -172,6 +178,10 @@ module.exports = {
                         node,
                         loc: closeBrace.loc.start,
                         fix(fixer) {
+                            if (hasCommentsLastToken) {
+                                return null;
+                            }
+
                             return fixer.insertTextBefore(closeBrace, "\n");
                         }
                     });
@@ -190,6 +200,10 @@ module.exports = {
                         node,
                         loc: openBrace.loc.start,
                         fix(fixer) {
+                            if (hasCommentsFirstToken) {
+                                return null;
+                            }
+
                             return fixer.removeRange([
                                 openBrace.range[1],
                                 first.range[0]
@@ -206,6 +220,10 @@ module.exports = {
                         node,
                         loc: closeBrace.loc.start,
                         fix(fixer) {
+                            if (hasCommentsLastToken) {
+                                return null;
+                            }
+
                             return fixer.removeRange([
                                 last.range[1],
                                 closeBrace.range[0]

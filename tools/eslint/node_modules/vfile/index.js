@@ -12,6 +12,7 @@ var proto = VFile.prototype;
 
 proto.toString = toString;
 proto.message = message;
+proto.info = info;
 proto.fail = fail;
 
 /* Slight backwards compatibility.  Remove in the future. */
@@ -153,8 +154,7 @@ function toString(encoding) {
 }
 
 /* Create a message with `reason` at `position`.
- * When an error is passed in as `reason`, copies the
- * stack.  This does not add a message to `messages`. */
+ * When an error is passed in as `reason`, copies the stack. */
 function message(reason, position, ruleId) {
   var filePath = this.path;
   var range = stringify(position) || '1:1';
@@ -210,6 +210,16 @@ function fail() {
   message.fatal = true;
 
   throw message;
+}
+
+/* Info. Creates a vmessage, associates it with the file,
+ * and marks the fatality as null. */
+function info() {
+  var message = this.message.apply(this, arguments);
+
+  message.fatal = null;
+
+  return message;
 }
 
 /* Inherit from `Error#`. */

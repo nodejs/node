@@ -1,25 +1,9 @@
-/**
- * @author Titus Wormer
- * @copyright 2016 Titus Wormer
- * @license MIT
- * @module is-hexadecimal
- * @fileoverview Check if a character is hexadecimal.
- */
-
 'use strict';
 
-/* eslint-env commonjs */
-
-/* Expose. */
 module.exports = hexadecimal;
 
-/**
- * Check whether the given character code, or the character
- * code at the first character, is hexadecimal.
- *
- * @param {string|number} character
- * @return {boolean} - Whether `character` is hexadecimal.
- */
+/* Check if the given character code, or the character
+ * code at the first character, is hexadecimal. */
 function hexadecimal(character) {
   var code = typeof character === 'string' ?
     character.charCodeAt(0) : character;
