@@ -1339,7 +1339,7 @@ added: REPLACEME
 
 ```C
 napi_status napi_create_dataview(napi_env env,
-                                 size_t length,
+                                 size_t byte_length,
                                  napi_value arraybuffer,
                                  size_t byte_offset,
                                  napi_value* result)
@@ -1359,6 +1359,9 @@ This API creates a JavaScript DataView object over an existing ArrayBuffer.
 Dataview objects provide an array-like view over an underlying data buffer,
 but one which allows items of different size and type in the ArrayBuffer.
 
+It's required that (byte_length * size_of_element) + byte_offset
+should be <= the size in bytes of the array passed in. If not, a RangeError
+exception is raised.
 
 JavaScript DataView Objects are described in
 [Section 24.3][] of the ECMAScript Language Specification.
@@ -1594,7 +1597,7 @@ added: REPLACEME
 ```C
 napi_status napi_get_dataview_info(napi_env env,
                                    napi_value dataview,
-                                   size_t* bytelength,
+                                   size_t* byte_length,
                                    void** data,
                                    napi_value* arraybuffer,
                                    size_t* byte_offset)
@@ -1603,7 +1606,7 @@ napi_status napi_get_dataview_info(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[in] dataview`: `napi_value` representing the DataView whose
   properties to query.
-- `[out] bytelength`: Number of bytes in the DataView.
+- `[out] byte_length`: Number of bytes in the DataView.
 - `[out] data`: The data buffer underlying the DataView.
 - `[out] arraybuffer`: ArrayBuffer underlying the DataView.
 - `[out] byte_offset`: The byte offset within the data buffer from which

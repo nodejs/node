@@ -2958,7 +2958,7 @@ napi_status napi_get_typedarray_info(napi_env env,
 }
 
 napi_status napi_create_dataview(napi_env env,
-                                 size_t length,
+                                 size_t byte_length,
                                  napi_value arraybuffer,
                                  size_t byte_offset,
                                  napi_value* result) {
@@ -2971,7 +2971,7 @@ napi_status napi_create_dataview(napi_env env,
 
   v8::Local<v8::ArrayBuffer> buffer = value.As<v8::ArrayBuffer>();
   v8::Local<v8::DataView> DataView = v8::DataView::New(buffer, byte_offset,
-                                                       length);
+                                                       byte_length);
 
   *result = v8impl::JsValueFromV8LocalValue(DataView);
   return GET_RETURN_STATUS(env);
@@ -2990,7 +2990,7 @@ napi_status napi_is_dataview(napi_env env, napi_value value, bool* result) {
 
 napi_status napi_get_dataview_info(napi_env env,
                                    napi_value dataview,
-                                   size_t* bytelength,
+                                   size_t* byte_length,
                                    void** data,
                                    napi_value* arraybuffer,
                                    size_t* byte_offset) {
@@ -3003,8 +3003,8 @@ napi_status napi_get_dataview_info(napi_env env,
   v8::Local<v8::DataView> array = value.As<v8::DataView>();
 
 
-  if (bytelength != nullptr) {
-    *bytelength = array->ByteLength();
+  if (byte_length != nullptr) {
+    *byte_length = array->ByteLength();
   }
 
   v8::Local<v8::ArrayBuffer> buffer = array->Buffer();

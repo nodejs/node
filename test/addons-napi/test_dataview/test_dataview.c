@@ -14,21 +14,24 @@ napi_value CreateDataView(napi_env env, napi_callback_info info) {
 
   NAPI_CALL(env, napi_typeof(env, input_dataview, &valuetype));
   NAPI_ASSERT(env, valuetype == napi_object,
-   "Wrong type of argments. Expects a dataview  as the first argument.");
+              "Wrong type of argments. Expects a dataview  as the first"
+               "argument.");
 
   bool is_dataview;
   NAPI_CALL(env, napi_is_dataview(env, input_dataview, &is_dataview));
   NAPI_ASSERT(env,is_dataview,
-    "Wrong type of arugments. Expects a dataview as first argument.");
+              "Wrong type of arugments. Expects a dataview as first argument.");
   size_t byte_offset = 0;
   size_t length = 0;
   napi_value buffer;
-  NAPI_CALL(env, napi_get_dataview_info(
-              env, input_dataview, &length, NULL, &buffer, &byte_offset));
+  NAPI_CALL(env,
+            napi_get_dataview_info(env, input_dataview, &length, NULL,
+                                   &buffer, &byte_offset));
 
   napi_value output_dataview;
-  NAPI_CALL(env, napi_create_dataview(
-      env, length, buffer, byte_offset, &output_dataview));
+  NAPI_CALL(env,
+            napi_create_dataview(env, length, buffer,
+                                 byte_offset, &output_dataview));
 
   return output_dataview;
 }
@@ -38,8 +41,8 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("CreateDataView", CreateDataView)
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
-    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+  NAPI_CALL_RETURN_VOID(env,napi_define_properties(
+      env, exports,sizeof(descriptors) / sizeof(*descriptors), descriptors));
 }
 
 NAPI_MODULE(addon, Init)
