@@ -580,6 +580,11 @@ by the `assert` module.
 
 Used when attempting to perform an operation outside the bounds of a `Buffer`.
 
+<a id="ERR_CHILD_CLOSED_BEFORE_REPLY"></a>
+### ERR_CHILD_CLOSED_BEFORE_REPLY
+
+Used when a child process is closed before the parent received a reply.
+
 <a id="ERR_CONSOLE_WRITABLE_STREAM"></a>
 ### ERR_CONSOLE_WRITABLE_STREAM
 
