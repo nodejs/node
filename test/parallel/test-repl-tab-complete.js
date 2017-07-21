@@ -212,6 +212,56 @@ testMe.complete('require(\'n', common.mustCall(function(error, data) {
   }));
 }
 
+// Test tab completion for require() relative to the current directory
+{
+  putIn.run(['.clear']);
+
+  const cwd = process.cwd();
+  process.chdir(__dirname);
+
+  ['require(\'.', 'require(".'].forEach((input) => {
+    testMe.complete(input, common.mustCall((err, data) => {
+      assert.strictEqual(err, null);
+      assert.strictEqual(data.length, 2);
+      assert.strictEqual(data[1], '.');
+      assert.strictEqual(data[0].length, 2);
+      assert.ok(data[0].includes('./'));
+      assert.ok(data[0].includes('../'));
+    }));
+  });
+
+  ['require(\'..', 'require("..'].forEach((input) => {
+    testMe.complete(input, common.mustCall((err, data) => {
+      assert.strictEqual(err, null);
+      assert.deepStrictEqual(data, [['../'], '..']);
+    }));
+  });
+
+  ['./', './test-'].forEach((path) => {
+    [`require('${path}`, `require("${path}`].forEach((input) => {
+      testMe.complete(input, common.mustCall((err, data) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(data.length, 2);
+        assert.strictEqual(data[1], path);
+        assert.ok(data[0].includes('./test-repl-tab-complete'));
+      }));
+    });
+  });
+
+  ['../parallel/', '../parallel/test-'].forEach((path) => {
+    [`require('${path}`, `require("${path}`].forEach((input) => {
+      testMe.complete(input, common.mustCall((err, data) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(data.length, 2);
+        assert.strictEqual(data[1], path);
+        assert.ok(data[0].includes('../parallel/test-repl-tab-complete'));
+      }));
+    });
+  });
+
+  process.chdir(cwd);
+}
+
 // Make sure tab completion works on context properties
 putIn.run(['.clear']);
 
