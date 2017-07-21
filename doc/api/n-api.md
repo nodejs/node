@@ -1361,8 +1361,7 @@ but one which allows items of different size and type in the ArrayBuffer.
 
 
 JavaScript DataView Objects are described in
-[Section 24.3](https://tc39.github.io/ecma262/#sec-dataview-objects)
-of the ECMAScript Language Specification.
+[Section 24.3][] of the ECMAScript Language Specification.
 
 ### Functions to convert from C types to N-API
 #### *napi_create_number*
@@ -3247,11 +3246,11 @@ support it:
 [Object Wrap]: #n_api_object_wrap
 [Section 9.1.6]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
 [Section 12.5.5]: https://tc39.github.io/ecma262/#sec-typeof-operator
+[Section 24.3]: https://tc39.github.io/ecma262/#sec-dataview-objects
 [Working with JavaScript Functions]: #n_api_working_with_javascript_functions
 [Working with JavaScript Properties]: #n_api_working_with_javascript_properties
 [Working with JavaScript Values]: #n_api_working_with_javascript_values
 [Working with JavaScript Values - Abstract Operations]: #n_api_working_with_javascript_values_abstract_operations
-[Section 24.3]: https://tc39.github.io/ecma262/#sec-dataview-objects
 
 [`napi_cancel_async_work`]: #n_api_napi_cancel_async_work
 [`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
