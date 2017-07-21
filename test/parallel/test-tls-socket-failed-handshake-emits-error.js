@@ -31,7 +31,7 @@ const server = net.createServer(function(c) {
     });
   }, common.platformTimeout(200));
 }).listen(0, function() {
-  const c = net.connect({port: this.address().port}, function() {
+  const c = net.connect({ port: this.address().port }, function() {
     c.write(bonkers);
   });
 });

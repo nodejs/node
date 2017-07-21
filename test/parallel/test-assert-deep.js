@@ -86,8 +86,8 @@ assert.throws(() => assert.deepStrictEqual(re1, re2),
 // For these weird cases, deepEqual should pass (at least for now),
 // but deepStrictEqual should throw.
 const similar = new Set([
-  {0: '1'},  // Object
-  {0: 1},  // Object
+  { 0: '1' },  // Object
+  { 0: 1 },  // Object
   new String('1'),  // Object
   ['1'],  // Array
   [1],  // Array
@@ -115,7 +115,7 @@ for (const a of similar) {
 }
 
 common.expectsError(() => {
-  assert.deepEqual(new Set([{a: 0}]), new Set([{a: 1}]));
+  assert.deepEqual(new Set([{ a: 0 }]), new Set([{ a: 1 }]));
 }, {
   code: 'ERR_ASSERTION',
   message: /^Set { { a: 0 } } deepEqual Set { { a: 1 } }$/
@@ -181,7 +181,7 @@ assertNotDeepOrStrict(new Set([1]), [1]);
 assertNotDeepOrStrict(new Set(), []);
 assertNotDeepOrStrict(new Set(), {});
 
-assertNotDeepOrStrict(new Map([['a', 1]]), {a: 1});
+assertNotDeepOrStrict(new Map([['a', 1]]), { a: 1 });
 assertNotDeepOrStrict(new Map(), []);
 assertNotDeepOrStrict(new Map(), {});
 
@@ -195,24 +195,24 @@ assertDeepAndStrictEqual(new Set([{}]), new Set([{}]));
 
 // Ref: https://github.com/nodejs/node/issues/13347
 assertNotDeepOrStrict(
-  new Set([{a: 1}, {a: 1}]),
-  new Set([{a: 1}, {a: 2}])
+  new Set([{ a: 1 }, { a: 1 }]),
+  new Set([{ a: 1 }, { a: 2 }])
 );
 assertNotDeepOrStrict(
-  new Set([{a: 1}, {a: 1}, {a: 2}]),
-  new Set([{a: 1}, {a: 2}, {a: 2}])
+  new Set([{ a: 1 }, { a: 1 }, { a: 2 }]),
+  new Set([{ a: 1 }, { a: 2 }, { a: 2 }])
 );
 assertNotDeepOrStrict(
-  new Map([[{x: 1}, 5], [{x: 1}, 5]]),
-  new Map([[{x: 1}, 5], [{x: 2}, 5]])
+  new Map([[{ x: 1 }, 5], [{ x: 1 }, 5]]),
+  new Map([[{ x: 1 }, 5], [{ x: 2 }, 5]])
 );
 
 assertNotDeepOrStrict(new Set([3, '3']), new Set([3, 4]));
 assertNotDeepOrStrict(new Map([[3, 0], ['3', 0]]), new Map([[3, 0], [4, 0]]));
 
 assertNotDeepOrStrict(
-  new Set([{a: 1}, {a: 1}, {a: 2}]),
-  new Set([{a: 1}, {a: 2}, {a: 2}])
+  new Set([{ a: 1 }, { a: 1 }, { a: 2 }]),
+  new Set([{ a: 1 }, { a: 2 }, { a: 2 }])
 );
 
 // Mixed primitive and object keys
@@ -319,7 +319,7 @@ assertOnlyDeepEqual(
   assertDeepAndStrictEqual(new Set(values), new Set(values));
   assertDeepAndStrictEqual(new Set(values), new Set(values.reverse()));
 
-  const mapValues = values.map((v) => [v, {a: 5}]);
+  const mapValues = values.map((v) => [v, { a: 5 }]);
   assertDeepAndStrictEqual(new Map(mapValues), new Map(mapValues));
   assertDeepAndStrictEqual(new Map(mapValues), new Map(mapValues.reverse()));
 }
@@ -337,7 +337,7 @@ assertOnlyDeepEqual(
 {
   const m1 = new Map();
   const m2 = new Map();
-  const obj = {a: 5, b: 6};
+  const obj = { a: 5, b: 6 };
   m1.set(1, obj);
   m1.set(2, 'hi');
   m1.set(3, [1, 2, 3]);

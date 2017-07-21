@@ -25,7 +25,7 @@ const R = require('_stream_readable');
 const W = require('_stream_writable');
 const assert = require('assert');
 
-const src = new R({encoding: 'base64'});
+const src = new R({ encoding: 'base64' });
 const dst = new W();
 let hasRead = false;
 const accum = [];

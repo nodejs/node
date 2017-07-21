@@ -32,7 +32,7 @@ const server = http.createServer((req, res) => {
 let numberOfResponses = 0;
 
 function createRequest(agent) {
-  const options = Object.assign(baseOptions, {agent});
+  const options = Object.assign(baseOptions, { agent });
   const request = http.request(options);
   request.end();
   request.on('response', common.mustCall(() => {

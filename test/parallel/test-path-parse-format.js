@@ -42,16 +42,16 @@ const winPaths = [
 ];
 
 const winSpecialCaseParseTests = [
-  ['/foo/bar', {root: '/'}]
+  ['/foo/bar', { root: '/' }]
 ];
 
 const winSpecialCaseFormatTests = [
-  [{dir: 'some\\dir'}, 'some\\dir\\'],
-  [{base: 'index.html'}, 'index.html'],
-  [{root: 'C:\\'}, 'C:\\'],
-  [{name: 'index', ext: '.html'}, 'index.html'],
-  [{dir: 'some\\dir', name: 'index', ext: '.html'}, 'some\\dir\\index.html'],
-  [{root: 'C:\\', name: 'index', ext: '.html'}, 'C:\\index.html'],
+  [{ dir: 'some\\dir' }, 'some\\dir\\'],
+  [{ base: 'index.html' }, 'index.html'],
+  [{ root: 'C:\\' }, 'C:\\'],
+  [{ name: 'index', ext: '.html' }, 'index.html'],
+  [{ dir: 'some\\dir', name: 'index', ext: '.html' }, 'some\\dir\\index.html'],
+  [{ root: 'C:\\', name: 'index', ext: '.html' }, 'C:\\index.html'],
   [{}, '']
 ];
 
@@ -79,12 +79,12 @@ const unixPaths = [
 ];
 
 const unixSpecialCaseFormatTests = [
-  [{dir: 'some/dir'}, 'some/dir/'],
-  [{base: 'index.html'}, 'index.html'],
-  [{root: '/'}, '/'],
-  [{name: 'index', ext: '.html'}, 'index.html'],
-  [{dir: 'some/dir', name: 'index', ext: '.html'}, 'some/dir/index.html'],
-  [{root: '/', name: 'index', ext: '.html'}, '/index.html'],
+  [{ dir: 'some/dir' }, 'some/dir/'],
+  [{ base: 'index.html' }, 'index.html'],
+  [{ root: '/' }, '/'],
+  [{ name: 'index', ext: '.html' }, 'index.html'],
+  [{ dir: 'some/dir', name: 'index', ext: '.html' }, 'some/dir/index.html'],
+  [{ root: '/', name: 'index', ext: '.html' }, '/index.html'],
   [{}, '']
 ];
 
@@ -94,15 +94,15 @@ const expectedMessage = common.expectsError({
 }, 18);
 
 const errors = [
-  {method: 'parse', input: [null], message: expectedMessage},
-  {method: 'parse', input: [{}], message: expectedMessage},
-  {method: 'parse', input: [true], message: expectedMessage},
-  {method: 'parse', input: [1], message: expectedMessage},
-  {method: 'parse', input: [], message: expectedMessage},
-  {method: 'format', input: [null], message: expectedMessage},
-  {method: 'format', input: [''], message: expectedMessage},
-  {method: 'format', input: [true], message: expectedMessage},
-  {method: 'format', input: [1], message: expectedMessage},
+  { method: 'parse', input: [null], message: expectedMessage },
+  { method: 'parse', input: [{}], message: expectedMessage },
+  { method: 'parse', input: [true], message: expectedMessage },
+  { method: 'parse', input: [1], message: expectedMessage },
+  { method: 'parse', input: [], message: expectedMessage },
+  { method: 'format', input: [null], message: expectedMessage },
+  { method: 'format', input: [''], message: expectedMessage },
+  { method: 'format', input: [true], message: expectedMessage },
+  { method: 'format', input: [1], message: expectedMessage },
 ];
 
 checkParseFormat(path.win32, winPaths);

@@ -45,7 +45,7 @@ function testServer() {
   });
 
   this.on('request', function(req, res) {
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('okay');
     res.end();
   });

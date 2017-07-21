@@ -43,7 +43,7 @@ function unregisterWatcher(watcher) {
 
 const watcher1 = fs.watch(
   common.tmpDir,
-  {encoding: 'hex'},
+  { encoding: 'hex' },
   (event, filename) => {
     if (['e696b0e5bbbae69687e5a4b9e4bbb62e747874', null].includes(filename))
       done(watcher1);
@@ -62,7 +62,7 @@ registerWatcher(watcher2);
 
 const watcher3 = fs.watch(
   common.tmpDir,
-  {encoding: 'buffer'},
+  { encoding: 'buffer' },
   (event, filename) => {
     if (filename instanceof Buffer && filename.toString('utf8') === fn)
       done(watcher3);
