@@ -42,6 +42,7 @@ npm install vfile
     *   [vfile.data](#vfiledata)
     *   [VFile#toString(\[encoding\])](#vfiletostringencoding)
     *   [VFile#message(reason\[, position\[, ruleId\]\])](#vfilemessagereason-position-ruleid)
+    *   [VFile#info(reason\[, position\[, ruleId\]\])](#vfileinforeason-position-ruleid)
     *   [VFile#fail(reason\[, position\[, ruleId\]\])](#vfilefailreason-position-ruleid)
     *   [VFileMessage](#vfilemessage)
 *   [License](#license)
@@ -206,7 +207,8 @@ Convert contents of `vfile` to string.  If `contents` is a buffer,
 ### `VFile#message(reason[, position[, ruleId]])`
 
 Associates a message with the file for `reason` at `position`.  When an
-error is passed in as `reason`, copies the stack.
+error is passed in as `reason`, copies the stack.  Each message has a `fatal`
+property which by default is set to `false` (ie. `warning`).
 
 ###### Parameters
 
@@ -215,7 +217,16 @@ error is passed in as `reason`, copies the stack.
 *   `position` (`Node`, `Location`, or `Position`, optional)
     — Place at which the message occurred in `vfile`
 *   `ruleId` (`string`, optional)
-    — Category of warning
+    — Category of message
+
+###### Returns
+
+[`VFileMessage`][message].
+
+### `VFile#info(reason[, position[, ruleId]])`
+
+Associates an informational message with the file, where `fatal` is set to
+`null`.  Calls [`#message()`][messages] internally.
 
 ###### Returns
 
