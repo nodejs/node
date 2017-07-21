@@ -1,14 +1,12 @@
 # is-whitespace-character [![Build Status][travis-badge]][travis] [![Coverage Status][codecov-badge]][codecov]
 
-<!--lint disable heading-increment list-item-spacing-->
-
 Check if a character is a whitespace character: `\s`, which equals
 all Unicode Space Separators (including `[ \t\v\f]`), the BOM
 (`\uFEFF`), and line terminator (`[\n\r\u2028\u2029]`).
 
 ## Installation
 
-[npm][npm-install]:
+[npm][]:
 
 ```bash
 npm install is-whitespace-character
@@ -29,7 +27,7 @@ whitespace('💩'); // false
 
 ## API
 
-### `whitespaceCharacter(character)`
+### `whitespaceCharacter(character|code)`
 
 Check whether the given character code (`number`), or the character
 code at the first position (`string`), is a whitespace character.
@@ -56,7 +54,7 @@ code at the first position (`string`), is a whitespace character.
 
 [codecov]: https://codecov.io/github/wooorm/is-whitespace-character
 
-[npm-install]: https://docs.npmjs.com/cli/install
+[npm]: https://docs.npmjs.com/cli/install
 
 [license]: LICENSE
 
