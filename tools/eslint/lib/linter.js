@@ -70,8 +70,8 @@ function parseBooleanConfig(string, comment) {
         let value;
 
         if (pos !== -1) {
-            value = name.substring(pos + 1, name.length);
-            name = name.substring(0, pos);
+            value = name.slice(pos + 1);
+            name = name.slice(0, pos);
         }
 
         items[name] = {
@@ -338,7 +338,7 @@ function modifyConfigsFromComments(filename, ast, config, linterContext) {
         const match = /^(eslint(-\w+){0,3}|exported|globals?)(\s|$)/.exec(value);
 
         if (match) {
-            value = value.substring(match.index + match[1].length);
+            value = value.slice(match.index + match[1].length);
 
             if (comment.type === "Block") {
                 switch (match[1]) {
@@ -519,8 +519,11 @@ function createStubRule(message) {
      */
     function createRuleModule(context) {
         return {
-            Program(node) {
-                context.report(node, message);
+            Program() {
+                context.report({
+                    loc: { line: 1, column: 0 },
+                    message
+                });
             }
         };
     }
@@ -1288,13 +1291,18 @@ const externalMethods = {
 Object.keys(externalMethods).forEach(methodName => {
     const exMethodName = externalMethods[methodName];
 
-    // All functions expected to have less arguments than 5.
-    Linter.prototype[methodName] = function(a, b, c, d, e) {
-        if (this.sourceCode) {
-            return this.sourceCode[exMethodName](a, b, c, d, e);
-        }
-        return null;
-    };
+    // Applies the SourceCode methods to the Linter prototype
+    Object.defineProperty(Linter.prototype, methodName, {
+        value() {
+            if (this.sourceCode) {
+                return this.sourceCode[exMethodName].apply(this.sourceCode, arguments);
+            }
+            return null;
+        },
+        configurable: true,
+        writable: true,
+        enumerable: false
+    });
 });
 
 module.exports = Linter;

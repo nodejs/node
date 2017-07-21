@@ -20,6 +20,7 @@ const PASSTHROUGHS = [
     "getDeclaredVariables",
     "getFilename",
     "getScope",
+    "getSourceCode",
     "markVariableAsUsed",
 
     // DEPRECATED
@@ -58,7 +59,7 @@ const PASSTHROUGHS = [
  */
 
 //------------------------------------------------------------------------------
-// Rule Definition
+// Module Definition
 //------------------------------------------------------------------------------
 
 /**
@@ -132,13 +133,13 @@ function getFix(descriptor, sourceCode) {
 
 /**
  * Rule context class
- * Acts as an abstraction layer between rules and the main eslint object.
+ * Acts as an abstraction layer between rules and the main linter object.
  */
 class RuleContext {
 
     /**
      * @param {string} ruleId The ID of the rule using this object.
-     * @param {eslint} eslint The eslint object.
+     * @param {Linter} linter The linter object.
      * @param {number} severity The configured severity level of the rule.
      * @param {Array} options The configuration information to be added to the rule.
      * @param {Object} settings The configuration settings passed from the config file.
@@ -147,7 +148,7 @@ class RuleContext {
      * @param {Object} meta The metadata of the rule
      * @param {Object} parserServices The parser services for the rule.
      */
-    constructor(ruleId, eslint, severity, options, settings, parserOptions, parserPath, meta, parserServices) {
+    constructor(ruleId, linter, severity, options, settings, parserOptions, parserPath, meta, parserServices) {
 
         // public.
         this.id = ruleId;
@@ -161,22 +162,14 @@ class RuleContext {
         this.parserServices = Object.freeze(Object.assign({}, parserServices));
 
         // private.
-        this.eslint = eslint;
-        this.severity = severity;
+        this._linter = linter;
+        this._severity = severity;
 
         Object.freeze(this);
     }
 
     /**
-     * Passthrough to eslint.getSourceCode().
-     * @returns {SourceCode} The SourceCode object for the code.
-     */
-    getSourceCode() {
-        return this.eslint.getSourceCode();
-    }
-
-    /**
-     * Passthrough to eslint.report() that automatically assigns the rule ID and severity.
+     * Passthrough to Linter#report() that automatically assigns the rule ID and severity.
      * @param {ASTNode|MessageDescriptor} nodeOrDescriptor The AST node related to the message or a message
      *      descriptor.
      * @param {Object=} location The location of the error.
@@ -192,38 +185,57 @@ class RuleContext {
             const descriptor = nodeOrDescriptor;
             const fix = getFix(descriptor, this.getSourceCode());
 
-            this.eslint.report(
+            if (descriptor.loc) {
+                this._linter.report(
+                    this.id,
+                    this._severity,
+                    descriptor.node,
+                    descriptor.loc,
+                    descriptor.message,
+                    descriptor.data,
+                    fix,
+                    this.meta
+                );
+            } else {
+                this._linter.report(
+                    this.id,
+                    this._severity,
+                    descriptor.node,
+
+                    /* loc not provided */
+                    descriptor.message,
+                    descriptor.data,
+                    fix,
+                    this.meta
+                );
+            }
+
+        } else {
+
+            // old style call
+            this._linter.report(
                 this.id,
-                this.severity,
-                descriptor.node,
-                descriptor.loc || descriptor.node.loc.start,
-                descriptor.message,
-                descriptor.data,
-                fix,
+                this._severity,
+                nodeOrDescriptor,
+                location,
+                message,
+                opts,
                 this.meta
             );
-
-            return;
         }
-
-        // old style call
-        this.eslint.report(
-            this.id,
-            this.severity,
-            nodeOrDescriptor,
-            location,
-            message,
-            opts,
-            this.meta
-        );
     }
 }
 
-// Copy over passthrough methods. All functions will have 5 or fewer parameters.
-PASSTHROUGHS.forEach(function(name) {
-    this[name] = function(a, b, c, d, e) {
-        return this.eslint[name](a, b, c, d, e);
-    };
-}, RuleContext.prototype);
+// Copy over passthrough methods.
+PASSTHROUGHS.forEach(name => {
+    Object.defineProperty(RuleContext.prototype, name, {
+        value() {
+            return this._linter[name].apply(this._linter, arguments);
+        },
+        configurable: true,
+        writable: true,
+        enumerable: false
+    });
+});
 
 module.exports = RuleContext;

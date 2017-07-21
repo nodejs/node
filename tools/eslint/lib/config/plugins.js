@@ -43,7 +43,7 @@ class Plugins {
      * @returns {string} The name of the plugin without prefix.
      */
     static removePrefix(pluginName) {
-        return pluginName.startsWith(PLUGIN_NAME_PREFIX) ? pluginName.substring(PLUGIN_NAME_PREFIX.length) : pluginName;
+        return pluginName.startsWith(PLUGIN_NAME_PREFIX) ? pluginName.slice(PLUGIN_NAME_PREFIX.length) : pluginName;
     }
 
     /**
@@ -156,8 +156,20 @@ class Plugins {
      * @param {string[]} pluginNames An array of plugins names.
      * @returns {void}
      * @throws {Error} If a plugin cannot be loaded.
+     * @throws {Error} If "plugins" in config is not an array
      */
     loadAll(pluginNames) {
+
+        // if "plugins" in config is not an array, throw an error so user can fix their config.
+        if (!Array.isArray(pluginNames)) {
+            const pluginNotArrayMessage = "ESLint configuration error: \"plugins\" value must be an array";
+
+            debug(`${pluginNotArrayMessage}: ${JSON.stringify(pluginNames)}`);
+
+            throw new Error(pluginNotArrayMessage);
+        }
+
+        // load each plugin by name
         pluginNames.forEach(this.load, this);
     }
 }

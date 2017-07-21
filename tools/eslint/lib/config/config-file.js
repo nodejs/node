@@ -3,8 +3,6 @@
  * @author Nicholas C. Zakas
  */
 
-/* eslint no-use-before-define: 0 */
-
 "use strict";
 
 //------------------------------------------------------------------------------
@@ -418,6 +416,8 @@ function applyExtends(config, configContext, filePath, relativeTo) {
                 );
             }
             debug(`Loading ${parentPath}`);
+
+            // eslint-disable-next-line no-use-before-define
             return ConfigOps.merge(load(parentPath, configContext, relativeTo), previousValue);
         } catch (e) {
 
@@ -502,8 +502,8 @@ function resolve(filePath, relativeTo) {
 
     if (filePath.startsWith("plugin:")) {
         const configFullName = filePath;
-        const pluginName = filePath.substr(7, filePath.lastIndexOf("/") - 7);
-        const configName = filePath.substr(filePath.lastIndexOf("/") + 1, filePath.length - filePath.lastIndexOf("/") - 1);
+        const pluginName = filePath.slice(7, filePath.lastIndexOf("/"));
+        const configName = filePath.slice(filePath.lastIndexOf("/") + 1);
 
         normalizedPackageName = normalizePackageName(pluginName, "eslint-plugin");
         debug(`Attempting to resolve ${normalizedPackageName}`);
@@ -546,7 +546,7 @@ function loadFromDisk(resolvedPath, configContext) {
         }
 
         // validate the configuration before continuing
-        validator.validate(config, resolvedPath, configContext.linterContext.rules, configContext.linterContext.environments);
+        validator.validate(config, resolvedPath.configFullName, configContext.linterContext.rules, configContext.linterContext.environments);
 
         /*
          * If an `extends` property is defined, it represents a configuration file to use as

@@ -14,6 +14,7 @@ const astUtils = require("../ast-utils");
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
+const TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/;
 
 /**
  * Checks a given code path segment is reachable.
@@ -101,22 +102,45 @@ module.exports = {
             }
         }
 
+        /** Checks whether a node means a getter function.
+         * @param {ASTNode} node - a node to check.
+         * @returns {boolean} if node means a getter, return true; else return false.
+         */
+        function isGetter(node) {
+            const parent = node.parent;
+
+            if (TARGET_NODE_TYPE.test(node.type) && node.body.type === "BlockStatement") {
+                if (parent.kind === "get") {
+                    return true;
+                }
+                if (parent.type === "Property" && astUtils.getStaticPropertyName(parent) === "get" && parent.parent.type === "ObjectExpression") {
+
+                    // Object.defineProperty()
+                    if (parent.parent.parent.type === "CallExpression" &&
+                        astUtils.getStaticPropertyName(parent.parent.parent.callee) === "defineProperty") {
+                        return true;
+                    }
+
+                    // Object.defineProperties()
+                    if (parent.parent.parent.type === "Property" &&
+                        parent.parent.parent.parent.type === "ObjectExpression" &&
+                        parent.parent.parent.parent.parent.type === "CallExpression" &&
+                        astUtils.getStaticPropertyName(parent.parent.parent.parent.parent.callee) === "defineProperties") {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
         return {
 
             // Stacks this function's information.
             onCodePathStart(codePath, node) {
-                const parent = node.parent;
-
                 funcInfo = {
                     upper: funcInfo,
                     codePath,
                     hasReturn: false,
-                    shouldCheck:
-                        node.type === "FunctionExpression" &&
-                        node.body.type === "BlockStatement" &&
-
-                        // check if it is a "getter", or a method named "get".
-                        (parent.kind === "get" || astUtils.getStaticPropertyName(parent) === "get"),
+                    shouldCheck: isGetter(node),
                     node
                 };
             },
@@ -145,7 +169,8 @@ module.exports = {
             },
 
             // Reports a given function if the last path is reachable.
-            "FunctionExpression:exit": checkLastSegment
+            "FunctionExpression:exit": checkLastSegment,
+            "ArrowFunctionExpression:exit": checkLastSegment
         };
     }
 };
