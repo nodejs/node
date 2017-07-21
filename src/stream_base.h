@@ -234,6 +234,11 @@ class StreamBase : public StreamResource {
     consumed_ = true;
   }
 
+  inline void Unconsume() {
+    CHECK_EQ(consumed_, true);
+    consumed_ = false;
+  }
+
   template <class Outer>
   inline Outer* Cast() { return static_cast<Outer*>(Cast()); }
 
