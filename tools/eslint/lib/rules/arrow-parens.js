@@ -71,7 +71,7 @@ module.exports = {
                 // https://github.com/eslint/eslint/issues/8834
                 const closingParenToken = sourceCode.getTokenAfter(paramToken, astUtils.isClosingParenToken);
                 const asyncToken = isAsync ? sourceCode.getTokenBefore(firstTokenOfParam) : null;
-                const shouldAddSpaceForAsync = asyncToken && (asyncToken.end === firstTokenOfParam.start);
+                const shouldAddSpaceForAsync = asyncToken && (asyncToken.range[1] === firstTokenOfParam.range[0]);
 
                 return fixer.replaceTextRange([
                     firstTokenOfParam.range[0],

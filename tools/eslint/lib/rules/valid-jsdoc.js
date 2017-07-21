@@ -362,14 +362,22 @@ module.exports = {
                         // TODO(nzakas): Figure out logical things to do with destructured, default, rest params
                         if (param.type === "Identifier") {
                             if (jsdocParams[i] && (name !== jsdocParams[i])) {
-                                context.report({ node: jsdocNode, message: "Expected JSDoc for '{{name}}' but found '{{jsdocName}}'.", data: {
-                                    name,
-                                    jsdocName: jsdocParams[i]
-                                } });
+                                context.report({
+                                    node: jsdocNode,
+                                    message: "Expected JSDoc for '{{name}}' but found '{{jsdocName}}'.",
+                                    data: {
+                                        name,
+                                        jsdocName: jsdocParams[i]
+                                    }
+                                });
                             } else if (!params[name] && !isOverride) {
-                                context.report({ node: jsdocNode, message: "Missing JSDoc for parameter '{{name}}'.", data: {
-                                    name
-                                } });
+                                context.report({
+                                    node: jsdocNode,
+                                    message: "Missing JSDoc for parameter '{{name}}'.",
+                                    data: {
+                                        name
+                                    }
+                                });
                             }
                         }
                     });

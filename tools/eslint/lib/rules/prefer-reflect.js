@@ -83,10 +83,14 @@ module.exports = {
          * @returns {void}
          */
         function report(node, existing, substitute) {
-            context.report({ node, message: "Avoid using {{existing}}, instead use {{substitute}}.", data: {
-                existing,
-                substitute
-            } });
+            context.report({
+                node,
+                message: "Avoid using {{existing}}, instead use {{substitute}}.",
+                data: {
+                    existing,
+                    substitute
+                }
+            });
         }
 
         return {

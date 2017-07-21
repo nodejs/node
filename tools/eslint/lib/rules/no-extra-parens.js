@@ -418,6 +418,7 @@ module.exports = {
         function checkExpressionOrExportStatement(node) {
             const firstToken = isParenthesised(node) ? sourceCode.getTokenBefore(node) : sourceCode.getFirstToken(node);
             const secondToken = sourceCode.getTokenAfter(firstToken, astUtils.isNotOpeningParenToken);
+            const thirdToken = secondToken ? sourceCode.getTokenAfter(secondToken) : null;
 
             if (
                 astUtils.isOpeningParenToken(firstToken) &&
@@ -427,7 +428,8 @@ module.exports = {
                         secondToken.value === "function" ||
                         secondToken.value === "class" ||
                         secondToken.value === "let" && astUtils.isOpeningBracketToken(sourceCode.getTokenAfter(secondToken, astUtils.isNotClosingParenToken))
-                    )
+                    ) ||
+                    secondToken && secondToken.type === "Identifier" && secondToken.value === "async" && thirdToken && thirdToken.type === "Keyword" && thirdToken.value === "function"
                 )
             ) {
                 tokensToIgnore.add(secondToken);

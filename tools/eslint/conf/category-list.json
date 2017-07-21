@@ -10,12 +10,12 @@
     ],
     "deprecated": {
         "name": "Deprecated",
-        "description": "These rules have been deprecated and replaced by newer rules:",
+        "description": "These rules have been deprecated in accordance with the [deprecation policy](/docs/user-guide/rule-deprecation), and replaced by newer rules:",
         "rules": []
     },
     "removed": {
         "name": "Removed",
-        "description": "These rules from older versions of ESLint have been replaced by newer rules:",
+        "description": "These rules from older versions of ESLint (before the [deprecation policy](/docs/user-guide/rule-deprecation) existed) have been replaced by newer rules:",
         "rules": [
             { "removed": "generator-star", "replacedBy": ["generator-star-spacing"] },
             { "removed": "global-strict", "replacedBy": ["strict"] },

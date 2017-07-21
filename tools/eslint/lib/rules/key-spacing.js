@@ -433,9 +433,9 @@ module.exports = {
 
                     // Remove whitespace
                     if (isKeySide) {
-                        range = [tokenBeforeColon.end, tokenBeforeColon.end + diffAbs];
+                        range = [tokenBeforeColon.range[1], tokenBeforeColon.range[1] + diffAbs];
                     } else {
-                        range = [tokenAfterColon.start - diffAbs, tokenAfterColon.start];
+                        range = [tokenAfterColon.range[0] - diffAbs, tokenAfterColon.range[0]];
                     }
                     fix = function(fixer) {
                         return fixer.removeRange(range);

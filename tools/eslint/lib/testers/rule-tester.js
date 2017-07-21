@@ -9,7 +9,7 @@
 /*
  * This is a wrapper around mocha to allow for DRY unittests for eslint
  * Format:
- * RuleTester.add("{ruleName}", {
+ * RuleTester.run("{ruleName}", {
  *      valid: [
  *          "{code}",
  *          { code: "{code}", options: {options}, globals: {globals}, parser: "{parser}", settings: {settings} }
@@ -250,7 +250,6 @@ class RuleTester {
         const testerConfig = this.testerConfig,
             requiredScenarios = ["valid", "invalid"],
             scenarioErrors = [],
-            result = {},
             linter = this.linter;
 
         if (lodash.isNil(test) || typeof test !== "object") {
@@ -269,16 +268,13 @@ class RuleTester {
             ].concat(scenarioErrors).join("\n"));
         }
 
-        /* eslint-disable no-shadow */
-
         /**
          * Run the rule for the given item
-         * @param {string} ruleName name of the rule
          * @param {string|Object} item Item to run the rule against
          * @returns {Object} Eslint run result
          * @private
          */
-        function runRuleForItem(ruleName, item) {
+        function runRuleForItem(item) {
             let config = lodash.cloneDeep(testerConfig),
                 code, filename, beforeAST, afterAST;
 
@@ -350,27 +346,27 @@ class RuleTester {
 
             try {
                 linter.rules.get = function(ruleId) {
-                    const rule = originalGet.call(linter.rules, ruleId);
+                    const originalRule = originalGet.call(linter.rules, ruleId);
 
-                    if (typeof rule === "function") {
+                    if (typeof originalRule === "function") {
                         return function(context) {
                             Object.freeze(context);
                             freezeDeeply(context.options);
                             freezeDeeply(context.settings);
                             freezeDeeply(context.parserOptions);
 
-                            return rule(context);
+                            return originalRule(context);
                         };
                     }
                     return {
-                        meta: rule.meta,
+                        meta: originalRule.meta,
                         create(context) {
                             Object.freeze(context);
                             freezeDeeply(context.options);
                             freezeDeeply(context.settings);
                             freezeDeeply(context.parserOptions);
 
-                            return rule.create(context);
+                            return originalRule.create(context);
                         }
                     };
 
@@ -404,13 +400,12 @@ class RuleTester {
         /**
          * Check if the template is valid or not
          * all valid cases go through this
-         * @param {string} ruleName name of the rule
          * @param {string|Object} item Item to run the rule against
          * @returns {void}
          * @private
          */
-        function testValidTemplate(ruleName, item) {
-            const result = runRuleForItem(ruleName, item);
+        function testValidTemplate(item) {
+            const result = runRuleForItem(item);
             const messages = result.messages;
 
             assert.equal(messages.length, 0, util.format("Should have no errors but had %d: %s",
@@ -444,16 +439,15 @@ class RuleTester {
         /**
          * Check if the template is invalid or not
          * all invalid cases go through this.
-         * @param {string} ruleName name of the rule
          * @param {string|Object} item Item to run the rule against
          * @returns {void}
          * @private
          */
-        function testInvalidTemplate(ruleName, item) {
+        function testInvalidTemplate(item) {
             assert.ok(item.errors || item.errors === 0,
                 `Did not specify errors for an invalid test of ${ruleName}`);
 
-            const result = runRuleForItem(ruleName, item);
+            const result = runRuleForItem(item);
             const messages = result.messages;
 
 
@@ -543,7 +537,7 @@ class RuleTester {
                 test.valid.forEach(valid => {
                     RuleTester.it(typeof valid === "object" ? valid.code : valid, () => {
                         linter.defineRules(this.rules);
-                        testValidTemplate(ruleName, valid);
+                        testValidTemplate(valid);
                     });
                 });
             });
@@ -552,13 +546,11 @@ class RuleTester {
                 test.invalid.forEach(invalid => {
                     RuleTester.it(invalid.code, () => {
                         linter.defineRules(this.rules);
-                        testInvalidTemplate(ruleName, invalid);
+                        testInvalidTemplate(invalid);
                     });
                 });
             });
         });
-
-        return result.suite;
     }
 }
 
