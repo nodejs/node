@@ -527,6 +527,7 @@ class Parser : public AsyncWrap {
 
       stream->set_alloc_cb(parser->prev_alloc_cb_);
       stream->set_read_cb(parser->prev_read_cb_);
+      stream->Unconsume();
     }
 
     parser->prev_alloc_cb_.clear();
