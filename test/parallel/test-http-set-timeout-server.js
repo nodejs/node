@@ -42,10 +42,7 @@ function run() {
 }
 
 test(function serverTimeout(cb) {
-  const server = http.createServer((req, res) => {
-    // Do nothing. We should get a timeout event.
-    // Might not be invoked. Do not wrap in common.mustCall().
-  });
+  const server = http.createServer();
   server.listen(common.mustCall(() => {
     const s = server.setTimeout(50, common.mustCall((socket) => {
       socket.destroy();
@@ -152,12 +149,7 @@ test(function serverResponseTimeoutWithPipeline(cb) {
 });
 
 test(function idleTimeout(cb) {
-  // Do not wrap the callback in common.mustCall(). It might not be invoked.
-  const server = http.createServer((req, res) => {
-    req.on('timeout', common.mustNotCall());
-    res.on('timeout', common.mustNotCall());
-    res.end();
-  });
+  const server = http.createServer();
   const s = server.setTimeout(50, common.mustCall((socket) => {
     socket.destroy();
     server.close();
