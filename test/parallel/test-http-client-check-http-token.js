@@ -20,7 +20,12 @@ server.listen(0, common.mustCall(() => {
   expectedFails.forEach((method) => {
     assert.throws(() => {
       http.request({ method, path: '/' }, common.mustNotCall());
-    }, /^TypeError: Method must be a string$/);
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "method" argument must be of type string. ' +
+               `Received type ${typeof method}`
+    }));
   });
 
   expectedSuccesses.forEach((method) => {

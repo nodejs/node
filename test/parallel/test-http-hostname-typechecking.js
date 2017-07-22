@@ -1,6 +1,6 @@
 'use strict';
-require('../common');
 
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -8,14 +8,28 @@ const http = require('http');
 // when passed as the value of either options.hostname or options.host
 const vals = [{}, [], NaN, Infinity, -Infinity, true, false, 1, 0, new Date()];
 
-const errHostname =
-  /^TypeError: "options\.hostname" must either be a string, undefined or null$/;
-const errHost =
-  /^TypeError: "options\.host" must either be a string, undefined or null$/;
-
 vals.forEach((v) => {
-  assert.throws(() => http.request({ hostname: v }), errHostname);
-  assert.throws(() => http.request({ host: v }), errHost);
+  assert.throws(
+    () => http.request({ hostname: v }),
+    common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "options.hostname" property must be one of ' +
+               'type string, undefined, or null. ' +
+               `Received type ${typeof v}`
+    })
+  );
+
+  assert.throws(
+    () => http.request({ host: v }),
+    common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "options.host" property must be one of ' +
+               'type string, undefined, or null. ' +
+               `Received type ${typeof v}`
+    })
+  );
 });
 
 // These values are OK and should not throw synchronously.

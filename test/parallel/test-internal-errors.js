@@ -235,3 +235,28 @@ assert.throws(
 assert.strictEqual(
   errors.message('ERR_TLS_CERT_ALTNAME_INVALID', ['altname']),
   'Hostname/IP does not match certificate\'s altnames: altname');
+
+assert.strictEqual(
+  errors.message('ERR_INVALID_PROTOCOL', ['bad protocol', 'http']),
+  'Protocol "bad protocol" not supported. Expected "http"'
+);
+
+assert.strictEqual(
+  errors.message('ERR_HTTP_HEADERS_SENT'),
+  'Cannot render headers after they are sent to the client'
+);
+
+assert.strictEqual(
+  errors.message('ERR_INVALID_DOMAIN_NAME'),
+  'Unable to determine the domain name'
+);
+
+assert.strictEqual(
+  errors.message('ERR_INVALID_HTTP_TOKEN', ['Method']),
+  'Method must be a valid HTTP token'
+);
+
+assert.strictEqual(
+  errors.message('ERR_UNESCAPED_CHARACTERS', ['Request path']),
+  'Request path contains unescaped characters'
+);
