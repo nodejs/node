@@ -70,7 +70,7 @@ codes.
 ## Testing new errors
 
 When adding a new error, corresponding test(s) for the error message
-formatting may also be required. If the messasge for the error is a
+formatting may also be required. If the message for the error is a
 constant string then no test is required for the error message formatting
 as we can trust the error helper implementation. An example of this kind of
 error would be:
