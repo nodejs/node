@@ -122,11 +122,14 @@ test(function serverResponseTimeoutWithPipeline(cb) {
   const server = http.createServer((req, res) => {
     if (req.url === '/2')
       secReceived = true;
+    if (req.url === '/1') {
+      res.end();
+      return;
+    }
     const s = res.setTimeout(50, () => {
       caughtTimeout += req.url;
     });
     assert.ok(s instanceof http.OutgoingMessage);
-    if (req.url === '/1') res.end();
   });
   server.on('timeout', common.mustCall((socket) => {
     if (secReceived) {
