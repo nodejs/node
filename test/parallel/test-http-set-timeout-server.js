@@ -162,6 +162,10 @@ test(function idleTimeout(cb) {
       allowHalfOpen: true,
     };
     const c = net.connect(options, () => {
+      c.on('error', (e) => {
+        if (e.message !== 'read ECONNRESET')
+          throw e;
+      });
       c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
       // Keep-Alive
     });
