@@ -310,7 +310,10 @@ class Nghttp2Stream {
                             bool emptyPayload = false);
 
   // Send data read from a file descriptor as the response on this stream.
-  inline int SubmitFile(int fd, nghttp2_nv* nva, size_t len);
+  inline int SubmitFile(int fd,
+                        nghttp2_nv* nva, size_t len,
+                        int64_t offset,
+                        int64_t length);
 
   // Submit informational headers for this stream
   inline int SubmitInfo(nghttp2_nv* nva, size_t len);
@@ -420,7 +423,8 @@ class Nghttp2Stream {
   nghttp2_stream_write_queue* queue_tail_ = nullptr;
   unsigned int queue_head_index_ = 0;
   size_t queue_head_offset_ = 0;
-  size_t fd_offset_ = 0;
+  int64_t fd_offset_ = 0;
+  int64_t fd_length_ = -1;
 
   // The Current Headers block... As headers are received for this stream,
   // they are temporarily stored here until the OnFrameReceived is called

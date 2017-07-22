@@ -13,7 +13,7 @@ server.listen(0, common.mustCall(function() {
   server.once('request', common.mustCall(function(request, response) {
     response.flushHeaders();
     response.flushHeaders(); // Idempotent
-    response.writeHead(400, {'foo-bar': 'abc123'}); // Ignored
+    response.writeHead(400, { 'foo-bar': 'abc123' }); // Ignored
 
     response.on('finish', common.mustCall(function() {
       server.close();

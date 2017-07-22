@@ -27,7 +27,7 @@ function onStream(stream, headers) {
 }
 
 function verifySecureSession(key, cert, ca, opts) {
-  const server = h2.createSecureServer({cert, key});
+  const server = h2.createSecureServer({ cert, key });
   server.on('stream', common.mustCall(onStream));
   server.listen(0);
   server.on('listening', common.mustCall(function() {
@@ -35,7 +35,7 @@ function verifySecureSession(key, cert, ca, opts) {
     if (!opts) {
       opts = {};
     }
-    opts.secureContext = tls.createSecureContext({ca});
+    opts.secureContext = tls.createSecureContext({ ca });
     const client = h2.connect(`https://localhost:${this.address().port}`, opts, function() {
       const req = client.request(headers);
 
@@ -72,4 +72,4 @@ verifySecureSession(
     loadKey('agent1-key.pem'),
     loadKey('agent1-cert.pem'),
     loadKey('ca1-cert.pem'),
-    {servername: 'agent1'});
+    { servername: 'agent1' });

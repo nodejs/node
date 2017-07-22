@@ -18,7 +18,7 @@ function onStream(stream, headers, flags) {
     ':method',
     ':scheme'
   ].forEach((i) => {
-    assert.throws(() => stream.respond({[i]: '/'}),
+    assert.throws(() => stream.respond({ [i]: '/' }),
                   common.expectsError({
                     code: 'ERR_HTTP2_INVALID_PSEUDOHEADER'
                   }));
