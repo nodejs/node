@@ -53,7 +53,7 @@ server.listen(0, common.mustCall(function() {
     response.setHeader(real, expectedValue);
     const expectedHeaderNames = [real];
     assert.deepStrictEqual(response.getHeaderNames(), expectedHeaderNames);
-    const expectedHeaders = {[real]: expectedValue};
+    const expectedHeaders = { [real]: expectedValue };
     assert.deepStrictEqual(response.getHeaders(), expectedHeaders);
 
     response.getHeaders()[fake] = fake;

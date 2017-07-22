@@ -122,7 +122,7 @@ assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: false }));
   const packed = Buffer.from([0x00, 0x03, 0xFF, 0xFF, 0xFF, 0xFF]);
 
   assert.throws(() => {
-    http2.getUnpackedSettings(packed, {validate: true});
+    http2.getUnpackedSettings(packed, { validate: true });
   }, common.expectsError({
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     type: RangeError,

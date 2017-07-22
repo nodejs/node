@@ -24,28 +24,28 @@ server.on('listening', common.mustCall(() => {
 
   const client = h2.connect(`http://localhost:${server.address().port}`);
 
-  assert.throws(() => client.settings({headerTableSize: -1}),
+  assert.throws(() => client.settings({ headerTableSize: -1 }),
                 RangeError);
-  assert.throws(() => client.settings({headerTableSize: 2 ** 32}),
+  assert.throws(() => client.settings({ headerTableSize: 2 ** 32 }),
                 RangeError);
-  assert.throws(() => client.settings({initialWindowSize: -1}),
+  assert.throws(() => client.settings({ initialWindowSize: -1 }),
                 RangeError);
-  assert.throws(() => client.settings({initialWindowSize: 2 ** 32}),
+  assert.throws(() => client.settings({ initialWindowSize: 2 ** 32 }),
                 RangeError);
-  assert.throws(() => client.settings({maxFrameSize: 1}),
+  assert.throws(() => client.settings({ maxFrameSize: 1 }),
                 RangeError);
-  assert.throws(() => client.settings({maxFrameSize: 2 ** 24}),
+  assert.throws(() => client.settings({ maxFrameSize: 2 ** 24 }),
                 RangeError);
-  assert.throws(() => client.settings({maxConcurrentStreams: -1}),
+  assert.throws(() => client.settings({ maxConcurrentStreams: -1 }),
                 RangeError);
-  assert.throws(() => client.settings({maxConcurrentStreams: 2 ** 31}),
+  assert.throws(() => client.settings({ maxConcurrentStreams: 2 ** 31 }),
                 RangeError);
-  assert.throws(() => client.settings({maxHeaderListSize: -1}),
+  assert.throws(() => client.settings({ maxHeaderListSize: -1 }),
                 RangeError);
-  assert.throws(() => client.settings({maxHeaderListSize: 2 ** 32}),
+  assert.throws(() => client.settings({ maxHeaderListSize: 2 ** 32 }),
                 RangeError);
   ['a', 1, 0, null, {}].forEach((i) => {
-    assert.throws(() => client.settings({enablePush: i}), TypeError);
+    assert.throws(() => client.settings({ enablePush: i }), TypeError);
   });
 
   client.settings({ maxFrameSize: 1234567 });
