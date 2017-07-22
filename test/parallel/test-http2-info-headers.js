@@ -56,7 +56,7 @@ server.on('listening', common.mustCall(() => {
 
   const client = h2.connect(`http://localhost:${server.address().port}`);
 
-  const req = client.request({ ':path': '/'});
+  const req = client.request({ ':path': '/' });
 
   // The additionalHeaders method does not exist on client stream
   assert.strictEqual(req.additionalHeaders, undefined);

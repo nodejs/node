@@ -11,7 +11,7 @@ server.on('stream', common.mustCall(onStream));
 
 function onStream(stream, headers, flags) {
   const session = stream.session;
-  stream.session.shutdown({graceful: true}, common.mustCall(() => {
+  stream.session.shutdown({ graceful: true }, common.mustCall(() => {
     session.destroy();
   }));
   stream.respond({});

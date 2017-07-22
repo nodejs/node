@@ -21,8 +21,8 @@ const URL = url.URL;
       [`http://localhost:${port}`],
       [new URL(`http://localhost:${port}`)],
       [url.parse(`http://localhost:${port}`)],
-      [{port: port}, {protocol: 'http:'}],
-      [{port: port, hostname: '127.0.0.1'}, {protocol: 'http:'}]
+      [{ port: port }, { protocol: 'http:' }],
+      [{ port: port, hostname: '127.0.0.1' }, { protocol: 'http:' }]
     ];
 
     let count = items.length;
@@ -41,7 +41,7 @@ const URL = url.URL;
     });
 
     // Will fail because protocol does not match the server.
-    h2.connect({port: port, protocol: 'https:'})
+    h2.connect({ port: port, protocol: 'https:' })
       .on('socketError', common.mustCall());
   }));
 }
@@ -60,14 +60,14 @@ const URL = url.URL;
   server.on('listening', common.mustCall(function() {
     const port = this.address().port;
 
-    const opts = {rejectUnauthorized: false};
+    const opts = { rejectUnauthorized: false };
 
     const items = [
       [`https://localhost:${port}`, opts],
       [new URL(`https://localhost:${port}`), opts],
       [url.parse(`https://localhost:${port}`), opts],
-      [{port: port, protocol: 'https:'}, opts],
-      [{port: port, hostname: '127.0.0.1', protocol: 'https:'}, opts]
+      [{ port: port, protocol: 'https:' }, opts],
+      [{ port: port, hostname: '127.0.0.1', protocol: 'https:' }, opts]
     ];
 
     let count = items.length;

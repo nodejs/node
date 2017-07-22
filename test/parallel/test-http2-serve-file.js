@@ -25,7 +25,7 @@ const key = loadKey('agent8-key.pem');
 const cert = loadKey('agent8-cert.pem');
 const ca = loadKey('fake-startcom-root-cert.pem');
 
-const server = http2.createSecureServer({key, cert});
+const server = http2.createSecureServer({ key, cert });
 
 server.on('stream', (stream, headers) => {
   const name = headers[HTTP2_HEADER_PATH].slice(1);
@@ -44,7 +44,7 @@ server.on('stream', (stream, headers) => {
 
 server.listen(8000, () => {
 
-  const secureContext = tls.createSecureContext({ca});
+  const secureContext = tls.createSecureContext({ ca });
   const client = http2.connect(`https://localhost:${server.address().port}`,
                                { secureContext });
 
