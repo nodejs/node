@@ -88,7 +88,7 @@ size_t base64_decode_fast(char* const dst, const size_t dstlen,
                           const size_t decoded_size) {
   const size_t available = dstlen < decoded_size ? dstlen : decoded_size;
   const size_t max_k = available / 3 * 3;
-  size_t max_i = srclen / 4 * 4;
+  size_t max_i = srclen & ~0x03;
   size_t i = 0;
   size_t k = 0;
   while (i < max_i && k < max_k) {
@@ -101,7 +101,7 @@ size_t base64_decode_fast(char* const dst, const size_t dstlen,
     if (v & 0x80808080) {
       if (!base64_decode_group_slow(dst, dstlen, src, srclen, &i, &k))
         return k;
-      max_i = i + (srclen - i) / 4 * 4;  // Align max_i again.
+      max_i = i + (srclen - i) & ~0x03;  // Align max_i again.
     } else {
       dst[k + 0] = ((v >> 22) & 0xFC) | ((v >> 20) & 0x03);
       dst[k + 1] = ((v >> 12) & 0xF0) | ((v >> 10) & 0x0F);
