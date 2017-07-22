@@ -37,7 +37,7 @@ server.on('priority', common.mustCall(onPriority));
 server.on('listening', common.mustCall(() => {
 
   const client = h2.connect(`http://localhost:${server.address().port}`);
-  const req = client.request({ ':path': '/'});
+  const req = client.request({ ':path': '/' });
 
   client.on('connect', () => {
     req.priority({

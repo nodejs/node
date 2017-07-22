@@ -191,7 +191,7 @@ const {
   common.expectsError({
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
     message: msg
-  })(mapToHeaders({[name]: [1, 2, 3]}));
+  })(mapToHeaders({ [name]: [1, 2, 3] }));
 });
 
 [
@@ -217,7 +217,7 @@ const {
   HTTP2_HEADER_VIA,
   HTTP2_HEADER_WWW_AUTHENTICATE
 ].forEach((name) => {
-  assert(!(mapToHeaders({[name]: [1, 2, 3]}) instanceof Error), name);
+  assert(!(mapToHeaders({ [name]: [1, 2, 3] }) instanceof Error), name);
 });
 
 const regex =
@@ -242,7 +242,7 @@ const regex =
   common.expectsError({
     code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
     message: regex
-  })(mapToHeaders({[name]: 'abc'}));
+  })(mapToHeaders({ [name]: 'abc' }));
 });
 
 assert(!(mapToHeaders({ te: 'trailers' }) instanceof Error));

@@ -429,7 +429,10 @@ inline int Nghttp2Stream::SubmitResponse(nghttp2_nv* nva,
 }
 
 // Initiate a response that contains data read from a file descriptor.
-inline int Nghttp2Stream::SubmitFile(int fd, nghttp2_nv* nva, size_t len) {
+inline int Nghttp2Stream::SubmitFile(int fd,
+                                     nghttp2_nv* nva, size_t len,
+                                     int64_t offset,
+                                     int64_t length) {
   CHECK_GT(len, 0);
   CHECK_GT(fd, 0);
   DEBUG_HTTP2("Nghttp2Stream %d: submitting file\n", id_);
@@ -437,6 +440,9 @@ inline int Nghttp2Stream::SubmitFile(int fd, nghttp2_nv* nva, size_t len) {
   prov.source.ptr = this;
   prov.source.fd = fd;
   prov.read_callback = Nghttp2Session::OnStreamReadFD;
+
+  if (offset > 0) fd_offset_ = offset;
+  if (length > -1) fd_length_ = length;
 
   return nghttp2_submit_response(session_->session(), id_,
                                  nva, len, &prov);

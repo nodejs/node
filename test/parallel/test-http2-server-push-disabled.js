@@ -36,7 +36,7 @@ server.on('stream', common.mustCall((stream) => {
 }));
 
 server.listen(0, common.mustCall(() => {
-  const options = {settings: { enablePush: false }};
+  const options = { settings: { enablePush: false } };
   const client = http2.connect(`http://localhost:${server.address().port}`,
                                options);
   const req = client.request({ ':path': '/' });

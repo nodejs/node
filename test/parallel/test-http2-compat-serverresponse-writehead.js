@@ -13,7 +13,7 @@ server.listen(0, common.mustCall(function() {
   server.once('request', common.mustCall(function(request, response) {
     response.setHeader('foo-bar', 'def456');
     response.writeHead(500);
-    response.writeHead(418, {'foo-bar': 'abc123'}); // Override
+    response.writeHead(418, { 'foo-bar': 'abc123' }); // Override
 
     response.on('finish', common.mustCall(function() {
       assert.doesNotThrow(() => { response.writeHead(300); });

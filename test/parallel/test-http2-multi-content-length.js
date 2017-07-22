@@ -47,7 +47,7 @@ server.listen(0, common.mustCall(() => {
 
   // Request 3 will fail because  nghttp2 does not allow the content-length
   // header to be set for non-payload bearing requests...
-  const req3 = client.request({ 'content-length': 1});
+  const req3 = client.request({ 'content-length': 1 });
   req3.resume();
   req3.on('end', common.mustCall(maybeClose));
   req3.on('error', common.expectsError({

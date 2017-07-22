@@ -29,7 +29,7 @@ server.listen(0);
 
 server.on('listening', common.mustCall(function() {
   const client = h2.connect(`http://localhost:${this.address().port}`);
-  const req = client.request({':path': '/'});
+  const req = client.request({ ':path': '/' });
   req.on('data', common.mustCall());
   req.on('trailers', common.mustCall((headers) => {
     assert.strictEqual(headers[trailerKey], trailerValue);

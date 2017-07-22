@@ -998,13 +998,17 @@ server.on('stream', (stream) => {
 });
 ```
 
-#### http2stream.respondWithFD(fd[, headers])
+#### http2stream.respondWithFD(fd[, headers[, options]])
 <!-- YAML
 added: REPLACEME
 -->
 
 * `fd` {number} A readable file descriptor
 * `headers` {[Headers Object][]}
+* `options` {Object}
+  * `statCheck` {Function}
+  * `offset` {number} The offset position at which to begin reading
+  * `length` {number} The amount of data from the fd to send
 
 Initiates a response whose data is read from the given file descriptor. No
 validation is performed on the given file descriptor. If an error occurs while
@@ -1034,6 +1038,16 @@ server.on('stream', (stream) => {
 server.on('close', () => fs.closeSync(fd));
 ```
 
+The optional `options.statCheck` function may be specified to give user code
+an opportunity to set additional content headers based on the `fs.Stat` details
+of the given fd. If the `statCheck` function is provided, the
+`http2stream.respondWithFD()` method will perform an `fs.fstat()` call to
+collect details on the provided file descriptor.
+
+The `offset` and `length` options may be used to limit the response to a
+specific range subset. This can be used, for instance, to support HTTP Range
+requests.
+
 #### http2stream.respondWithFile(path[, headers[, options]])
 <!-- YAML
 added: REPLACEME
@@ -1043,6 +1057,8 @@ added: REPLACEME
 * `headers` {[Headers Object][]}
 * `options` {Object}
   * `statCheck` {Function}
+  * `offset` {number} The offset position at which to begin reading
+  * `length` {number} The amount of data from the fd to send
 
 Sends a regular file as the response. The `path` must specify a regular file
 or an `'error'` event will be emitted on the `Http2Stream` object.
@@ -1095,6 +1111,10 @@ server.on('stream', (stream) => {
 ```
 
 The `content-length` header field will be automatically set.
+
+The `offset` and `length` options may be used to limit the response to a
+specific range subset. This can be used, for instance, to support HTTP Range
+requests.
 
 ### Class: Http2Server
 <!-- YAML

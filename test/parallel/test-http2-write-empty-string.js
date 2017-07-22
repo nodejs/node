@@ -6,7 +6,7 @@ const assert = require('assert');
 const http2 = require('http2');
 
 const server = http2.createServer(function(request, response) {
-  response.writeHead(200, {'Content-Type': 'text/plain'});
+  response.writeHead(200, { 'Content-Type': 'text/plain' });
   response.write('1\n');
   response.write('');
   response.write('2\n');

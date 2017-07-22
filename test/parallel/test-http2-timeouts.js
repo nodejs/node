@@ -9,7 +9,7 @@ const server = h2.createServer();
 // we use the lower-level API here
 server.on('stream', common.mustCall((stream) => {
   stream.setTimeout(1, common.mustCall(() => {
-    stream.respond({':status': 200});
+    stream.respond({ ':status': 200 });
     stream.end('hello world');
   }));
 }));
