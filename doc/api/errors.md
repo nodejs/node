@@ -597,6 +597,7 @@ Used when `Console` is instantiated without `stdout` stream or when `stdout` or
 Used when the native call from `process.cpuUsage` cannot be processed properly.
 
 <a id="ERR_DNS_SET_SERVERS_FAILED"></a>
+### ERR_DNS_SET_SERVERS_FAILED
 
 Used when `c-ares` failed to set the DNS server.
 
@@ -661,6 +662,11 @@ Used when invalid characters are detected in headers.
 The `'ERR_INVALID_CURSOR_POS'` is thrown specifically when a cursor on a given
 stream is attempted to move to a specified row without a specified column.
 
+<a id="ERR_INVALID_DOMAIN_NAME"></a>
+### ERR_INVALID_DOMAIN_NAME
+
+Used when `hostname` can not be parsed from a provided URL.
+
 <a id="ERR_INVALID_FD"></a>
 ### ERR_INVALID_FD
 
@@ -689,7 +695,13 @@ Used when an attempt is made to send an unsupported "handle" over an IPC
 communication channel to a child process. See [`child.send()`] and
 [`process.send()`] for more information.
 
+<a id="ERR_INVALID_HTTP_TOKEN"></a>
+### ERR_INVALID_HTTP_TOKEN
+
+Used when `options.method` received an invalid HTTP token.
+
 <a id="ERR_INVALID_IP_ADDRESS"></a>
+### ERR_INVALID_IP_ADDRESS
 
 Used when an IP address is not valid.
 
@@ -703,6 +715,11 @@ passed in an options object.
 ### ERR_INVALID_OPT_VALUE_ENCODING
 
 Used when an invalid or unknown file encoding is passed.
+
+<a id="ERR_INVALID_PROTOCOL"></a>
+### ERR_INVALID_PROTOCOL
+
+Used when an invalid `options.protocol` is passed.
 
 <a id="ERR_INVALID_REPL_EVAL_CONFIG"></a>
 ### ERR_INVALID_REPL_EVAL_CONFIG
@@ -878,6 +895,11 @@ instance.setEncoding('utf-8');
 Used to identify a specific kind of internal Node.js error that should not
 typically be triggered by user code. Instances of this error point to an
 internal bug within the Node.js binary itself.
+
+<a id="ERR_UNESCAPED_CHARACTERS"></a>
+### ERR_UNESCAPED_CHARACTERS
+
+Used when a string that contains unescaped characters was received.
 
 <a id="ERR_UNKNOWN_ENCODING"></a>
 ### ERR_UNKNOWN_ENCODING
