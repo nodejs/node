@@ -604,7 +604,9 @@ void Http2Session::SubmitResponse(const FunctionCallbackInfo<Value>& args) {
 void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsNumber());  // Stream ID
   CHECK(args[1]->IsNumber());  // File Descriptor
-  CHECK(args[2]->IsArray());  // Headers
+  CHECK(args[2]->IsArray());   // Headers
+  CHECK(args[3]->IsNumber());  // Offset
+  CHECK(args[4]->IsNumber());  // Length
 
   Http2Session* session;
   Nghttp2Stream* stream;
@@ -618,6 +620,11 @@ void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
   int fd = args[1]->Int32Value(context).ToChecked();
   Local<Array> headers = args[2].As<Array>();
 
+  int64_t offset = args[3]->IntegerValue(context).ToChecked();
+  int64_t length = args[4]->IntegerValue(context).ToChecked();
+
+  CHECK_GE(offset, 0);
+
   DEBUG_HTTP2("Http2Session: submitting file %d for stream %d: headers: %d, "
               "end-stream: %d\n", fd, id, headers->Length());
 
@@ -627,7 +634,8 @@ void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
 
   Headers list(isolate, context, headers);
 
-  args.GetReturnValue().Set(stream->SubmitFile(fd, *list, list.length()));
+  args.GetReturnValue().Set(stream->SubmitFile(fd, *list, list.length(),
+                                               offset, length));
 }
 
 void Http2Session::SendHeaders(const FunctionCallbackInfo<Value>& args) {

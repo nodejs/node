@@ -90,7 +90,7 @@ server.on('listening', common.mustCall(() => {
                     }));
     });
     [1, {}, 'test', [], null, Infinity, NaN].forEach((i) => {
-      assert.throws(() => client.settings({enablePush: i}),
+      assert.throws(() => client.settings({ enablePush: i }),
                     common.expectsError({
                       code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
                       type: TypeError

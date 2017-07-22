@@ -13,7 +13,7 @@ const {
 } = h2.constants;
 
 // Only allow one stream to be open at a time
-const server = h2.createServer({ settings: { maxConcurrentStreams: 1 }});
+const server = h2.createServer({ settings: { maxConcurrentStreams: 1 } });
 
 // The stream handler must be called only once
 server.on('stream', common.mustCall((stream) => {

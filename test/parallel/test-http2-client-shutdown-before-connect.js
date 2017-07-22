@@ -15,7 +15,7 @@ server.on('listening', common.mustCall(() => {
 
   const client = h2.connect(`http://localhost:${server.address().port}`);
 
-  client.shutdown({graceful: true}, common.mustCall(() => {
+  client.shutdown({ graceful: true }, common.mustCall(() => {
     server.close();
     client.destroy();
   }));

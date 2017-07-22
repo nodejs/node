@@ -180,18 +180,25 @@ ssize_t Nghttp2Session::OnStreamReadFD(nghttp2_session* session,
 
   int fd = source->fd;
   int64_t offset = stream->fd_offset_;
-  ssize_t numchars;
+  ssize_t numchars = 0;
+
+  if (stream->fd_length_ >= 0 &&
+      stream->fd_length_ < static_cast<int64_t>(length))
+    length = stream->fd_length_;
 
   uv_buf_t data;
   data.base = reinterpret_cast<char*>(buf);
   data.len = length;
 
   uv_fs_t read_req;
-  numchars = uv_fs_read(handle->loop_,
-                        &read_req,
-                        fd, &data, 1,
-                        offset, nullptr);
-  uv_fs_req_cleanup(&read_req);
+
+  if (length > 0) {
+    numchars = uv_fs_read(handle->loop_,
+                          &read_req,
+                          fd, &data, 1,
+                          offset, nullptr);
+    uv_fs_req_cleanup(&read_req);
+  }
 
   // Close the stream with an error if reading fails
   if (numchars < 0)
@@ -199,9 +206,10 @@ ssize_t Nghttp2Session::OnStreamReadFD(nghttp2_session* session,
 
   // Update the read offset for the next read
   stream->fd_offset_ += numchars;
+  stream->fd_length_ -= numchars;
 
   // if numchars < length, assume that we are done.
-  if (static_cast<size_t>(numchars) < length) {
+  if (static_cast<size_t>(numchars) < length || length <= 0) {
     DEBUG_HTTP2("Nghttp2Session %d: no more data for stream %d\n",
                 handle->session_type_, id);
     *flags |= NGHTTP2_DATA_FLAG_EOF;

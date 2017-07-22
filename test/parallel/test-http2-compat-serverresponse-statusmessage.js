@@ -8,7 +8,7 @@ const h2 = require('http2');
 // Http2ServerResponse.writeHead should accept an optional status message
 
 const unsupportedWarned = common.mustCall(1);
-process.on('warning', ({name, message}) => {
+process.on('warning', ({ name, message }) => {
   const expectedMessage =
     'Status message is not supported by HTTP/2 (RFC7540 8.1.2.4)';
   if (name === 'UnsupportedWarning' && message === expectedMessage)
@@ -21,7 +21,7 @@ server.listen(0, common.mustCall(function() {
   server.once('request', common.mustCall(function(request, response) {
     const statusCode = 200;
     const statusMessage = 'OK';
-    const headers = {'foo-bar': 'abc123'};
+    const headers = { 'foo-bar': 'abc123' };
     response.writeHead(statusCode, statusMessage, headers);
 
     response.on('finish', common.mustCall(function() {

@@ -39,13 +39,17 @@ const server = tls.Server(options, common.mustCall((socket) => {
 
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;
+  const options = {
+    rejectUnauthorized: false,
+    port
+  };
   const client =
-    tls.connect({rejectUnauthorized: false, port: port}, common.mustCall(() => {
+    tls.connect(options, common.mustCall(() => {
       client.write('');
       // Negotiation is still permitted for this first
       // attempt. This should succeed.
       client.renegotiate(
-        {rejectUnauthorized: false},
+        { rejectUnauthorized: false },
         common.mustCall(() => {
           // Once renegotiation completes, we write some
           // data to the socket, which triggers the on
@@ -58,7 +62,7 @@ server.listen(0, common.mustCall(() => {
             // server will simply drop the connection after
             // emitting the error.
             client.renegotiate(
-              {rejectUnauthorized: false},
+              { rejectUnauthorized: false },
               common.mustNotCall());
           }));
         }));
