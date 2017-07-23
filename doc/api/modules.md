@@ -768,6 +768,15 @@ added: v0.1.16
 
 The module that first required this one.
 
+### module.paths
+<!-- YAML
+added: v0.4.0
+-->
+
+* {string[]}
+
+The search paths for the module.
+
 ### module.require(id)
 <!-- YAML
 added: v0.5.1
