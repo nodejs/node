@@ -3394,22 +3394,24 @@ support it:
 * If the function is not available, provide an alternate implementation
   that does not use the function.
 
-## Garbage Collection
+## Memory Management
 
 ### napi_adjust_external_memory
 <!-- YAML
 added: REPLACEME
 -->
 ```C
-NAPI_EXTERN int64_t napi_adjust_external_memory(napi_env env,
-                                                int64_t change_in_bytes);
+NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
+                                                    int64_t change_in_bytes,
+                                                    int64_t* result);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] change_in_bytes`: The change in externally allocated memory that is
 kept alive by JavaScript objects.
+- `[out] result`: The adjusted value
 
-Returns `int64_t` the adjusted value.
+Returns `napi_ok` if the API succeeded.
 
 This function gives V8 an indication of the amount of externally allocated 
 memory that is kept alive by JavaScript objects (i.e. a JavaScript object
