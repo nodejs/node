@@ -54,14 +54,15 @@ const gtocPath = path.resolve(path.join(
 var gtocLoading = null;
 var gtocData = null;
 var docCreated = null;
+var nodeVersion = null;
 
 /**
  * opts: input, filename, template, nodeVersion.
  */
 function toHTML(opts, cb) {
   const template = opts.template;
-  const nodeVersion = opts.nodeVersion || process.version;
 
+  nodeVersion = opts.nodeVersion || process.version;
   docCreated = opts.input.match(DOC_CREATED_REG_EXP);
 
   if (gtocData) {
@@ -203,29 +204,38 @@ function altDocs(filename) {
   }
 
   function lte(v) {
-    if (docCreated[1] > v[0])
+    if (docCreated[1] > v.num[0])
       return false;
-    if (docCreated[1] < v[0])
+    if (docCreated[1] < v.num[0])
       return true;
-    return docCreated[2] <= v.substr(2, 2);
+    return docCreated[2] <= v.num.substr(2, 2);
   }
 
+  const versions = [
+    { num: '8.x' },
+    { num: '7.x' },
+    { num: '6.x', lts: true },
+    { num: '5.x' },
+    { num: '4.x', lts: true },
+    { num: '0.12.x' },
+    { num: '0.10.x' },
+  ];
+
   const host = 'https://nodejs.org';
-  const href = (v) => `${host}/docs/latest-v${v}/api/${filename}.html`;
-  const a = (v) => `<a href="${href(v)}">v${v}</a>`;
-  const as = (vs) => vs.filter(lte).map(a).join(' / ');
+  const href = (v) => `${host}/docs/latest-v${v.num}/api/${filename}.html`;
 
-  html += 'View another version of this page <b>Latest:</b> ' + a('8.x');
+  function li(v, i) {
+    let html = `<li><a href="${href(v)}">${v.num}`;
 
-  const lts = as(['6.x', '4.x']);
-  if (lts.length)
-    html += ' <b>LTS:</b> ' + lts;
+    if (v.lts)
+      html += ' <b>LTS</b>';
 
-  const unsupported = as(['7.x', '5.x', '0.12.x', '0.10.x']);
-  if (unsupported.length)
-    html += ' <b>Unsupported:</b> ' + unsupported;
+    return html + '</a></li>';
+  }
 
-  return html;
+  const lis = (vs) => vs.filter(lte).map(li).join('\n');
+
+  return `<ol class="version-picker">${lis(versions)}</ol>`;
 }
 
 // handle general body-text replacements
