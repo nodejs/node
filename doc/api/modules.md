@@ -792,3 +792,13 @@ be explicitly exported in order to be used.
 [exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together
 [native addons]: addons.html
+
+### module.paths
+<!-- YAML
+added: v0.4.0
+-->
+
+* {array}
+
+The search paths for the module. 
+
