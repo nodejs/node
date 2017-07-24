@@ -38,9 +38,11 @@ assert.throws(
 );
 
 zlib.gunzip(data, common.mustCall((err, result) => {
-  assert(err instanceof Error);
-  assert.strictEqual(err.code, 'Z_DATA_ERROR');
-  assert.strictEqual(err.message, 'unknown compression method');
+  common.expectsError({
+    code: 'Z_DATA_ERROR',
+    type: Error,
+    message: 'unknown compression method'
+  })(err);
   assert.strictEqual(result, undefined);
 }));
 
