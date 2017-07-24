@@ -1,3 +1,4 @@
+/* eslint-disable no-proto */
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto)
@@ -11,6 +12,7 @@ const tls = require('tls');
                   'CN=ca1\nemailAddress=ry@clouds.org';
   const singlesOut = tls.parseCertString(singles);
   assert.deepStrictEqual(singlesOut, {
+    __proto__: null,
     C: 'US',
     ST: 'CA',
     L: 'SF',
@@ -26,6 +28,7 @@ const tls = require('tls');
                   'CN=*.nodejs.org';
   const doublesOut = tls.parseCertString(doubles);
   assert.deepStrictEqual(doublesOut, {
+    __proto__: null,
     OU: [ 'Domain Control Validated', 'PositiveSSL Wildcard' ],
     CN: '*.nodejs.org'
   });
@@ -34,5 +37,13 @@ const tls = require('tls');
 {
   const invalid = 'fhqwhgads';
   const invalidOut = tls.parseCertString(invalid);
-  assert.deepStrictEqual(invalidOut, {});
+  assert.deepStrictEqual(invalidOut, { __proto__: null });
+}
+
+{
+  const input = '__proto__=mostly harmless\nhasOwnProperty=not a function';
+  const expected = Object.create(null);
+  expected.__proto__ = 'mostly harmless';
+  expected.hasOwnProperty = 'not a function';
+  assert.deepStrictEqual(tls.parseCertString(input), expected);
 }
