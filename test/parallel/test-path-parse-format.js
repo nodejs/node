@@ -32,6 +32,8 @@ const winPaths = [
   'file',
   '.\\file',
   'C:\\',
+  'C:',
+  '\\',
   '',
 
   // unc
