@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../../common');
 const assert = require('assert');
+const readonlyErrorRE = /^TypeError: Cannot assign to read only property '.*' of object '#<Object>'$/;
 
 // Testing api calls for defining properties
 const test_object = require(`./build/${common.buildType}/test_properties`);
@@ -12,7 +13,7 @@ assert.strictEqual(test_object.readwriteValue, 1);
 test_object.readwriteValue = 2;
 assert.strictEqual(test_object.readwriteValue, 2);
 
-assert.throws(() => { test_object.readonlyValue = 3; }, TypeError);
+assert.throws(() => { test_object.readonlyValue = 3; }, readonlyErrorRE);
 
 assert.ok(test_object.hiddenValue);
 
@@ -42,11 +43,11 @@ assert.strictEqual(symbolDescription, 'NameKeySymbol');
 test_object.readwriteAccessor1 = 1;
 assert.strictEqual(test_object.readwriteAccessor1, 1);
 assert.strictEqual(test_object.readonlyAccessor1, 1);
-assert.throws(() => { test_object.readonlyAccessor1 = 3; }, TypeError);
+assert.throws(() => { test_object.readonlyAccessor1 = 3; }, readonlyErrorRE);
 test_object.readwriteAccessor2 = 2;
 assert.strictEqual(test_object.readwriteAccessor2, 2);
 assert.strictEqual(test_object.readonlyAccessor2, 2);
-assert.throws(() => { test_object.readonlyAccessor2 = 3; }, TypeError);
+assert.throws(() => { test_object.readonlyAccessor2 = 3; }, readonlyErrorRE);
 
 assert.strictEqual(test_object.hasNamedProperty(test_object, 'echo'), true);
 assert.strictEqual(test_object.hasNamedProperty(test_object, 'hiddenValue'),
