@@ -1,4 +1,4 @@
-// Flags: --expose-gc
+// Flags: --expose-gc --nocrankshaft --noconcurrent_recompilation
 'use strict';
 
 const common = require('../common');
