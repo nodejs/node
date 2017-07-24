@@ -17,10 +17,13 @@ const assert = require('assert');
     assert.strictEqual(Buffer.isEncoding(enc), true);
   });
 
-[ 'utf9',
+[ '',
+  'utf9',
   'utf-7',
   'Unicode-FTW',
   'new gnu gun',
+  undefined,
+  null,
   false,
   NaN,
   {},
