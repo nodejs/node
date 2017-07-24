@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="9.2.9"></a>
+## [9.2.9](https://github.com/zkat/cacache/compare/v9.2.8...v9.2.9) (2017-06-17)
+
+
+
 <a name="9.2.8"></a>
 ## [9.2.8](https://github.com/zkat/cacache/compare/v9.2.7...v9.2.8) (2017-06-05)
 

@@ -65,7 +65,7 @@ Fetcher.impl(fetchGit, {
         return withTmp(opts, tmp => {
           if (streamError) { throw streamError }
           return cloneRepo(
-            manifest._repo, manifest._ref, manifest._rawRef, tmp, opts
+            spec, manifest._repo, manifest._ref, manifest._rawRef, tmp, opts
           ).then(HEAD => {
             if (streamError) { throw streamError }
             manifest._resolved = spec.saveSpec.replace(/(:?#.*)?$/, `#${HEAD}`)
@@ -158,8 +158,10 @@ function withTmp (opts, cb) {
   }
 }
 
-function cloneRepo (repo, resolvedRef, rawRef, tmp, opts) {
-  if (resolvedRef) {
+// Only certain whitelisted hosted gits support shadow cloning
+const SHALLOW_HOSTS = new Set(['github', 'gist', 'gitlab', 'bitbucket'])
+function cloneRepo (spec, repo, resolvedRef, rawRef, tmp, opts) {
+  if (resolvedRef && spec.hosted && SHALLOW_HOSTS.has(spec.hosted.type)) {
     return git.shallow(repo, resolvedRef.ref, tmp, opts)
   } else {
     return git.clone(repo, rawRef, tmp, opts)

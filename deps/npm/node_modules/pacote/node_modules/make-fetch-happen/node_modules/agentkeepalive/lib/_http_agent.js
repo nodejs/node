@@ -68,6 +68,8 @@ function Agent(options) {
   self.freeSocketKeepAliveTimeout = self.options.freeSocketKeepAliveTimeout || 0;
   // working socket timeout. By default working socket do not have a timeout.
   self.timeout = self.options.timeout || 0;
+  // the socket active time to live, even if it's in use
+  this.socketActiveTTL = this.options.socketActiveTTL || null;
   // [patch end]
 
   self.on('free', function(socket, options) {
@@ -163,6 +165,20 @@ Agent.prototype.getName = function getName(options) {
   return name;
 };
 
+// [patch start]
+function handleSocketCreation(req) {
+  return function(err, newSocket) {
+    if (err) {
+      process.nextTick(function() {
+        req.emit('error', err);
+      });
+      return;
+    }
+    req.onSocket(newSocket);
+  }
+}
+// [patch end]
+
 Agent.prototype.addRequest = function addRequest(req, options) {
   // Legacy API: addRequest(req, host, port, localAddress)
   if (typeof options === 'string') {
@@ -202,6 +218,12 @@ Agent.prototype.addRequest = function addRequest(req, options) {
     socket.removeListener('error', freeSocketErrorListener);
     // restart the default timer
     socket.setTimeout(this.timeout);
+
+    if (this.socketActiveTTL && Date.now() - socket.createdTime > this.socketActiveTTL) {
+      debug(`socket ${socket.createdTime} expired`);
+      socket.destroy();
+      return this.createSocket(req, options, handleSocketCreation(req));
+    }
     // [patch end]
 
     // don't leak
@@ -214,15 +236,9 @@ Agent.prototype.addRequest = function addRequest(req, options) {
   } else if (sockLen < this.maxSockets) {
     debug('call onSocket', sockLen, freeLen);
     // If we are under maxSockets create a new one.
-    this.createSocket(req, options, function(err, newSocket) {
-      if (err) {
-        process.nextTick(function() {
-          req.emit('error', err);
-        });
-        return;
-      }
-      req.onSocket(newSocket);
-    });
+    // [patch start]
+    this.createSocket(req, options, handleSocketCreation(req));
+    // [patch end]
   } else {
     debug('wait for socket');
     // We are over limit so we'll add it to the queue.
@@ -253,8 +269,11 @@ Agent.prototype.createSocket = function createSocket(req, options, cb) {
   options.encoding = null;
   var called = false;
   const newSocket = self.createConnection(options, oncreate);
-  if (newSocket)
-    oncreate(null, newSocket);
+  // [patch start]
+  if (newSocket) {
+    oncreate(null, Object.assign(newSocket, { createdTime: Date.now() }));
+  }
+  // [patch end]
   function oncreate(err, s) {
     if (called)
       return;

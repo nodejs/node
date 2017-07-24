@@ -70,18 +70,23 @@ module.exports.asReadInstalled = function (tree) {
 }
 
 function translateTree (tree) {
-  return translateTree_(tree, {})
+  return translateTree_(tree, new Set())
 }
 
 function translateTree_ (tree, seen) {
   var pkg = tree.package
-  if (seen[tree.path]) return pkg
-  seen[tree.path] = pkg
+  if (seen.has(tree)) return pkg
+  seen.add(tree)
   if (pkg._dependencies) return pkg
   pkg._dependencies = pkg.dependencies
   pkg.dependencies = {}
   tree.children.forEach(function (child) {
-    pkg.dependencies[moduleName(child)] = translateTree_(child, seen)
+    const dep = pkg.dependencies[moduleName(child)] = translateTree_(child, seen)
+    if (child.fakeChild) {
+      dep.missing = true
+      dep.optional = child.package._optional
+      dep.requiredBy = child.package._spec
+    }
   })
 
   function markMissing (name, requiredBy) {

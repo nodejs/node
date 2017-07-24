@@ -64,6 +64,7 @@ var fixture = new Tacks(Dir({
               directUrl: 'https://raw.githubusercontent.com/npm/example-gitdep/da39a3ee5e6b4b0d3255bfef95601890afd80709/package.json'
             }
           },
+          _resolved: 'github:npm/example-gitdep#da39a3ee5e6b4b0d3255bfef95601890afd80709',
           name: 'gitdep',
           version: '1.0.0'
         })
@@ -72,6 +73,7 @@ var fixture = new Tacks(Dir({
         'package.json': File({
           _from: 'tagdep@latest',
           _id: 'tagdep@1.0.0',
+          _integrity: 'sha1-0EJSKmsdk39848LlrRg/hZQo2B8=',
           _requested: {
             raw: 'tagdep@https://registry.example.com/tagdep/-/tagdep-1.0.0.tgz',
             scope: null,
@@ -89,20 +91,23 @@ var fixture = new Tacks(Dir({
     'npm-shrinkwrap.json': File({
       name: 'tagged-version-matching',
       version: '1.0.0',
+      lockfileVersion: 1,
+      requires: true,
       dependencies: {
         tagdep: {
           version: '1.0.0',
-          from: 'tagdep@latest',
-          resolved: 'https://registry.example.com/tagdep/-/tagdep-1.0.0.tgz'
+          resolved: 'https://registry.example.com/tagdep/-/tagdep-1.0.0.tgz',
+          integrity: 'sha1-0EJSKmsdk39848LlrRg/hZQo2B8='
         },
         example: {
-          version: '1.0.0',
-          from: 'example'
+          version: 'file:example',
+          requires: {
+            tagdep: '1.0.0',
+            gitdep: 'github:npm/example-gitdep#da39a3ee5e6b4b0d3255bfef95601890afd80709'
+          }
         },
         gitdep: {
-          version: '1.0.0',
-          from: 'npm/example-gitdep',
-          resolved: 'git://github.com/npm/example-gitdep.git#da39a3ee5e6b4b0d3255bfef95601890afd80709'
+          version: 'github:npm/example-gitdep#da39a3ee5e6b4b0d3255bfef95601890afd80709'
         }
       }
     }),

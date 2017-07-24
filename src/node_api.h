@@ -37,6 +37,12 @@
 # define NAPI_MODULE_EXPORT __attribute__((visibility("default")))
 #endif
 
+#ifdef __GNUC__
+#define NAPI_NO_RETURN __attribute__((noreturn))
+#else
+#define NAPI_NO_RETURN
+#endif
+
 
 typedef void (*napi_addon_register_func)(napi_env env,
                                          napi_value exports,
@@ -104,6 +110,9 @@ NAPI_EXTERN napi_status
 napi_get_last_error_info(napi_env env,
                          const napi_extended_error_info** result);
 
+NAPI_EXTERN NAPI_NO_RETURN void napi_fatal_error(const char* location,
+                                                 const char* message);
+
 // Getters for defined singletons
 NAPI_EXTERN napi_status napi_get_undefined(napi_env env, napi_value* result);
 NAPI_EXTERN napi_status napi_get_null(napi_env env, napi_value* result);
@@ -142,12 +151,15 @@ NAPI_EXTERN napi_status napi_create_function(napi_env env,
                                              void* data,
                                              napi_value* result);
 NAPI_EXTERN napi_status napi_create_error(napi_env env,
+                                          napi_value code,
                                           napi_value msg,
                                           napi_value* result);
 NAPI_EXTERN napi_status napi_create_type_error(napi_env env,
+                                               napi_value code,
                                                napi_value msg,
                                                napi_value* result);
 NAPI_EXTERN napi_status napi_create_range_error(napi_env env,
+                                                napi_value code,
                                                 napi_value msg,
                                                 napi_value* result);
 
@@ -404,9 +416,15 @@ NAPI_EXTERN napi_status napi_escape_handle(napi_env env,
 
 // Methods to support error handling
 NAPI_EXTERN napi_status napi_throw(napi_env env, napi_value error);
-NAPI_EXTERN napi_status napi_throw_error(napi_env env, const char* msg);
-NAPI_EXTERN napi_status napi_throw_type_error(napi_env env, const char* msg);
-NAPI_EXTERN napi_status napi_throw_range_error(napi_env env, const char* msg);
+NAPI_EXTERN napi_status napi_throw_error(napi_env env,
+                                         const char* code,
+                                         const char* msg);
+NAPI_EXTERN napi_status napi_throw_type_error(napi_env env,
+                                         const char* code,
+                                         const char* msg);
+NAPI_EXTERN napi_status napi_throw_range_error(napi_env env,
+                                         const char* code,
+                                         const char* msg);
 NAPI_EXTERN napi_status napi_is_error(napi_env env,
                                       napi_value value,
                                       bool* result);

@@ -9,21 +9,21 @@ const bench = common.createBenchmark(main, {
 });
 
 function twoDifferentProxies(n) {
-  // This one should be slower between we're looking up multiple proxies.
-  const proxyA = new Proxy({}, {get: () => {}});
-  const proxyB = new Proxy({}, {get: () => {}});
+  // This one should be slower because we're looking up multiple proxies.
+  const proxyA = new Proxy({}, { get: () => {} });
+  const proxyB = new Proxy({}, { get: () => {} });
   bench.start();
   for (var i = 0; i < n; i += 1)
-    util.inspect({a: proxyA, b: proxyB}, {showProxy: true});
+    util.inspect({ a: proxyA, b: proxyB }, { showProxy: true });
   bench.end(n);
 }
 
 function oneProxy(n) {
   // This one should be a bit faster because of the internal caching.
-  const proxy = new Proxy({}, {get: () => {}});
+  const proxy = new Proxy({}, { get: () => {} });
   bench.start();
   for (var i = 0; i < n; i += 1)
-    util.inspect({a: proxy, b: proxy}, {showProxy: true});
+    util.inspect({ a: proxy, b: proxy }, { showProxy: true });
   bench.end(n);
 }
 

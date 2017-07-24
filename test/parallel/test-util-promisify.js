@@ -37,11 +37,10 @@ const stat = promisify(fs.stat);
 {
   function fn() {}
   fn[promisify.custom] = 42;
-  assert.throws(
-      () => promisify(fn),
-      (err) => err instanceof TypeError &&
-                err.message === 'The [util.promisify.custom] property must ' +
-                                'be a function');
+  common.expectsError(
+    () => promisify(fn),
+    { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }
+  );
 }
 
 {
@@ -55,7 +54,7 @@ const stat = promisify(fs.stat);
   fn[customPromisifyArgs] = ['first', 'second'];
 
   promisify(fn)().then(common.mustCall((obj) => {
-    assert.deepStrictEqual(obj, {first: firstValue, second: secondValue});
+    assert.deepStrictEqual(obj, { first: firstValue, second: secondValue });
   }));
 }
 

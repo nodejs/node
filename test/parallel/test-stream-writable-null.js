@@ -17,11 +17,11 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
 };
 
 assert.throws(() => {
-  const m = new MyWritable({objectMode: true});
+  const m = new MyWritable({ objectMode: true });
   m.write(null, (err) => assert.ok(err));
-}, TypeError, 'May not write null values to stream');
+}, /^TypeError: May not write null values to stream$/);
 assert.doesNotThrow(() => {
-  const m = new MyWritable({objectMode: true}).on('error', (e) => {
+  const m = new MyWritable({ objectMode: true }).on('error', (e) => {
     assert.ok(e);
   });
   m.write(null, (err) => {
@@ -32,7 +32,7 @@ assert.doesNotThrow(() => {
 assert.throws(() => {
   const m = new MyWritable();
   m.write(false, (err) => assert.ok(err));
-}, TypeError, 'Invalid non-string/buffer chunk');
+}, /^TypeError: Invalid non-string\/buffer chunk$/);
 assert.doesNotThrow(() => {
   const m = new MyWritable().on('error', (e) => {
     assert.ok(e);
@@ -43,11 +43,11 @@ assert.doesNotThrow(() => {
 });
 
 assert.doesNotThrow(() => {
-  const m = new MyWritable({objectMode: true});
+  const m = new MyWritable({ objectMode: true });
   m.write(false, (err) => assert.ifError(err));
 });
 assert.doesNotThrow(() => {
-  const m = new MyWritable({objectMode: true}).on('error', (e) => {
+  const m = new MyWritable({ objectMode: true }).on('error', (e) => {
     assert.ifError(e || new Error('should not get here'));
   });
   m.write(false, (err) => {

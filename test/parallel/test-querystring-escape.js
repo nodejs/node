@@ -17,16 +17,16 @@ assert.throws(() => qs.escape(String.fromCharCode(0xD800 + 1)),
 
 // using toString for objects
 assert.strictEqual(
-  qs.escape({test: 5, toString: () => 'test', valueOf: () => 10 }),
+  qs.escape({ test: 5, toString: () => 'test', valueOf: () => 10 }),
   'test'
 );
 
 // toString is not callable, must throw an error
-assert.throws(() => qs.escape({toString: 5}),
+assert.throws(() => qs.escape({ toString: 5 }),
               /^TypeError: Cannot convert object to primitive value$/);
 
 // should use valueOf instead of non-callable toString
-assert.strictEqual(qs.escape({toString: 5, valueOf: () => 'test'}), 'test');
+assert.strictEqual(qs.escape({ toString: 5, valueOf: () => 'test' }), 'test');
 
 assert.throws(() => qs.escape(Symbol('test')),
               /^TypeError: Cannot convert a Symbol value to a string$/);

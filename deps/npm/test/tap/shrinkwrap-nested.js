@@ -25,12 +25,10 @@ var fixture = new Tacks(Dir({
     dependencies: {
       modA: {
         version: '1.0.0',
-        from: 'modA',
         resolved: 'file://' + modAtgz
       },
       modB: {
         version: '1.0.0',
-        from: 'modB@1',
         resolved: 'file://' + modB1tgz
       }
     }
@@ -74,22 +72,18 @@ var newShrinkwrap = new Tacks(Dir({
     dependencies: {
       modA: {
         version: '1.0.0',
-        from: 'modA',
         resolved: 'file://' + modAtgz
       },
       modB: {
         version: '1.0.0',
-        from: 'modB@1',
         resolved: 'file://' + modB1tgz
       },
       modC: {
         version: '1.0.0',
-        from: 'modC',
         resolved: 'file://' + modCtgz,
         dependencies: {
           modB: {
             version: '1.0.0',
-            from: 'modB@1',
             resolved: 'file://' + modB1tgz
           }
         }

@@ -9,8 +9,14 @@ npm gets its configuration values from the following sources, sorted by priority
 
 Putting `--foo bar` on the command line sets the `foo` configuration
 parameter to `"bar"`.  A `--` argument tells the cli parser to stop
-reading flags.  A `--flag` parameter that is at the *end* of the
-command will be given the value of `true`.
+reading flags.  Using `--flag` without specifying any value will set
+the value to `true`.
+
+Example: `--flag1 --flag2` will set both configuration parameters
+to `true`, while `--flag1 --flag2 bar` will set `flag1` to `true`,
+and `flag2` to `bar`.  Finally, `--flag1 --flag2 -- bar` will set
+both configuration parameters to `true`, and the `bar` is taken
+as a command argument.
 
 ### Environment Variables
 
@@ -21,7 +27,7 @@ configuration parameter to `bar`.  Any environment configurations that
 are not given a value will be given the value of `true`.  Config
 values are case-insensitive, so `NPM_CONFIG_FOO=bar` will work the
 same. However, please note that inside [npm-scripts](/misc/scripts)
-npm will set it's own environment variables and Node will prefer
+npm will set its own environment variables and Node will prefer
 those lowercase versions over any uppercase ones that you might set.
 For details see [this issue](https://github.com/npm/npm/issues/14528).
 
@@ -31,9 +37,9 @@ The four relevant files are:
 
 * per-project configuration file (`/path/to/my/project/.npmrc`)
 * per-user configuration file (defaults to `$HOME/.npmrc`; configurable via CLI
-  option `--userconfig` or environment variable `$NPM_CONF_USERCONFIG`)
+  option `--userconfig` or environment variable `$NPM_CONFIG_USERCONFIG`)
 * global configuration file (defaults to `$PREFIX/etc/npmrc`; configurable via
-  CLI option `--globalconfig` or environment variable `$NPM_CONF_GLOBALCONFIG`)
+  CLI option `--globalconfig` or environment variable `$NPM_CONFIG_GLOBALCONFIG`)
 * npm's built-in configuration file (`/path/to/npm/npmrc`)
 
 See npmrc(5) for more details.
@@ -882,6 +888,13 @@ in to a private registry for the first time:
 `npm login --scope=@organization --registry=registry.organization.com`, which
 will cause `@organization` to be mapped to the registry for future installation
 of packages specified according to the pattern `@organization/package`.
+
+### script-shell
+
+* Default: `null`
+* Type: path
+
+The shell to use for scripts run with the `npm run` command.
 
 ### scripts-prepend-node-path
 

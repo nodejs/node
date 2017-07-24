@@ -90,6 +90,9 @@ class LoadHandler {
   static const int kHolderCellIndex = 2;
   static const int kFirstPrototypeIndex = 3;
 
+  // Decodes kind from Smi-handler.
+  static inline Kind GetHandlerKind(Smi* smi_handler);
+
   // Creates a Smi-handler for loading a property from a slow object.
   static inline Handle<Smi> LoadNormal(Isolate* isolate);
 

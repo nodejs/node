@@ -39,12 +39,24 @@ class Agent extends OriginalAgent {
     super(options);
 
     this.createSocketCount = 0;
+    this.createSocketCountLastCheck = 0;
+
     this.createSocketErrorCount = 0;
+    this.createSocketErrorCountLastCheck = 0;
+
     this.closeSocketCount = 0;
+    this.closeSocketCountLastCheck = 0;
+
     // socket error event count
     this.errorSocketCount = 0;
+    this.errorSocketCountLastCheck = 0;
+
     this.requestCount = 0;
+    this.requestCountLastCheck = 0;
+
     this.timeoutSocketCount = 0;
+    this.timeoutSocketCountLastCheck = 0;
+
     this.on('free', s => {
       this.requestCount++;
       // last enter free queue timestamp
@@ -75,6 +87,24 @@ class Agent extends OriginalAgent {
       this.createSocketCount++;
       cb(null, socket);
     });
+  }
+
+  get statusChanged() {
+    const changed = this.createSocketCount !== this.createSocketCountLastCheck ||
+      this.createSocketErrorCount !== this.createSocketErrorCountLastCheck ||
+      this.closeSocketCount !== this.closeSocketCountLastCheck ||
+      this.errorSocketCount !== this.errorSocketCountLastCheck ||
+      this.timeoutSocketCount !== this.timeoutSocketCountLastCheck ||
+      this.requestCount !== this.requestCountLastCheck;
+    if (changed) {
+      this.createSocketCountLastCheck = this.createSocketCount;
+      this.createSocketErrorCountLastCheck = this.createSocketErrorCount;
+      this.closeSocketCountLastCheck = this.closeSocketCount;
+      this.errorSocketCountLastCheck = this.errorSocketCount;
+      this.timeoutSocketCountLastCheck = this.timeoutSocketCount;
+      this.requestCountLastCheck = this.requestCount;
+    }
+    return changed;
   }
 
   getCurrentStatus() {

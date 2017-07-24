@@ -279,7 +279,13 @@ function requestDone (method, where, cb) {
       var name
       if (!w.match(/^-/)) {
         w = w.split('/')
-        name = decodeURIComponent(w[w.indexOf('_rewrite') + 1])
+        var index = w.indexOf('_rewrite')
+        if (index === -1) {
+          index = w.length - 1
+        } else {
+          index++
+        }
+        name = decodeURIComponent(w[index])
       }
 
       if (!parsed.error) {

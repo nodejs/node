@@ -1804,11 +1804,10 @@ void SSLWrap<Base>::GetSession(const FunctionCallbackInfo<Value>& args) {
   int slen = i2d_SSL_SESSION(sess, nullptr);
   CHECK_GT(slen, 0);
 
-  char* sbuf = new char[slen];
+  char* sbuf = Malloc(slen);
   unsigned char* p = reinterpret_cast<unsigned char*>(sbuf);
   i2d_SSL_SESSION(sess, &p);
-  args.GetReturnValue().Set(Encode(env->isolate(), sbuf, slen, BUFFER));
-  delete[] sbuf;
+  args.GetReturnValue().Set(Buffer::New(env, sbuf, slen).ToLocalChecked());
 }
 
 
@@ -2373,10 +2372,9 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
     if (resp == nullptr) {
       arg = Null(env->isolate());
     } else {
-      arg = Buffer::Copy(
-          env,
-          reinterpret_cast<char*>(const_cast<unsigned char*>(resp)),
-          len).ToLocalChecked();
+      arg =
+          Buffer::Copy(env, reinterpret_cast<const char*>(resp), len)
+          .ToLocalChecked();
     }
 
     w->MakeCallback(env->onocspresponse_string(), 1, &arg);
@@ -3333,16 +3331,16 @@ void CipherBase::Init(const char* cipher_type,
   }
 #endif  // NODE_FIPS_MODE
 
-  CHECK_EQ(cipher_, nullptr);
-  cipher_ = EVP_get_cipherbyname(cipher_type);
-  if (cipher_ == nullptr) {
+  CHECK_EQ(initialised_, false);
+  const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
+  if (cipher == nullptr) {
     return env()->ThrowError("Unknown cipher");
   }
 
   unsigned char key[EVP_MAX_KEY_LENGTH];
   unsigned char iv[EVP_MAX_IV_LENGTH];
 
-  int key_len = EVP_BytesToKey(cipher_,
+  int key_len = EVP_BytesToKey(cipher,
                                EVP_md5(),
                                nullptr,
                                reinterpret_cast<const unsigned char*>(key_buf),
@@ -3353,7 +3351,7 @@ void CipherBase::Init(const char* cipher_type,
 
   EVP_CIPHER_CTX_init(&ctx_);
   const bool encrypt = (kind_ == kCipher);
-  EVP_CipherInit_ex(&ctx_, cipher_, nullptr, nullptr, nullptr, encrypt);
+  EVP_CipherInit_ex(&ctx_, cipher, nullptr, nullptr, nullptr, encrypt);
   if (!EVP_CIPHER_CTX_set_key_length(&ctx_, key_len)) {
     EVP_CIPHER_CTX_cleanup(&ctx_);
     return env()->ThrowError("Invalid key length");
@@ -3395,13 +3393,13 @@ void CipherBase::InitIv(const char* cipher_type,
                         int iv_len) {
   HandleScope scope(env()->isolate());
 
-  cipher_ = EVP_get_cipherbyname(cipher_type);
-  if (cipher_ == nullptr) {
+  const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
+  if (cipher == nullptr) {
     return env()->ThrowError("Unknown cipher");
   }
 
-  const int expected_iv_len = EVP_CIPHER_iv_length(cipher_);
-  const bool is_gcm_mode = (EVP_CIPH_GCM_MODE == EVP_CIPHER_mode(cipher_));
+  const int expected_iv_len = EVP_CIPHER_iv_length(cipher);
+  const bool is_gcm_mode = (EVP_CIPH_GCM_MODE == EVP_CIPHER_mode(cipher));
 
   if (is_gcm_mode == false && iv_len != expected_iv_len) {
     return env()->ThrowError("Invalid IV length");
@@ -3409,7 +3407,7 @@ void CipherBase::InitIv(const char* cipher_type,
 
   EVP_CIPHER_CTX_init(&ctx_);
   const bool encrypt = (kind_ == kCipher);
-  EVP_CipherInit_ex(&ctx_, cipher_, nullptr, nullptr, nullptr, encrypt);
+  EVP_CipherInit_ex(&ctx_, cipher, nullptr, nullptr, nullptr, encrypt);
 
   if (is_gcm_mode &&
       !EVP_CIPHER_CTX_ctrl(&ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
@@ -3455,22 +3453,11 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
 
 
 bool CipherBase::IsAuthenticatedMode() const {
-  // check if this cipher operates in an AEAD mode that we support.
-  if (!cipher_)
-    return false;
-  int mode = EVP_CIPHER_mode(cipher_);
+  // Check if this cipher operates in an AEAD mode that we support.
+  CHECK_EQ(initialised_, true);
+  const EVP_CIPHER* const cipher = EVP_CIPHER_CTX_cipher(&ctx_);
+  int mode = EVP_CIPHER_mode(cipher);
   return mode == EVP_CIPH_GCM_MODE;
-}
-
-
-bool CipherBase::GetAuthTag(char** out, unsigned int* out_len) const {
-  // only callable after Final and if encrypting.
-  if (initialised_ || kind_ != kCipher || !auth_tag_)
-    return false;
-  *out_len = auth_tag_len_;
-  *out = node::Malloc(auth_tag_len_);
-  memcpy(*out, auth_tag_, auth_tag_len_);
-  return true;
 }
 
 
@@ -3479,26 +3466,17 @@ void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
-  char* out = nullptr;
-  unsigned int out_len = 0;
-
-  if (cipher->GetAuthTag(&out, &out_len)) {
-    Local<Object> buf = Buffer::New(env, out, out_len).ToLocalChecked();
-    args.GetReturnValue().Set(buf);
-  } else {
-    env->ThrowError("Attempting to get auth tag in unsupported state");
+  // Only callable after Final and if encrypting.
+  if (cipher->initialised_ ||
+      cipher->kind_ != kCipher ||
+      cipher->auth_tag_len_ == 0) {
+    return env->ThrowError("Attempting to get auth tag in unsupported state");
   }
-}
 
-
-bool CipherBase::SetAuthTag(const char* data, unsigned int len) {
-  if (!initialised_ || !IsAuthenticatedMode() || kind_ != kDecipher)
-    return false;
-  delete[] auth_tag_;
-  auth_tag_len_ = len;
-  auth_tag_ = new char[len];
-  memcpy(auth_tag_, data, len);
-  return true;
+  Local<Object> buf =
+      Buffer::Copy(env, cipher->auth_tag_, cipher->auth_tag_len_)
+      .ToLocalChecked();
+  args.GetReturnValue().Set(buf);
 }
 
 
@@ -3510,8 +3488,20 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
-  if (!cipher->SetAuthTag(Buffer::Data(args[0]), Buffer::Length(args[0])))
-    env->ThrowError("Attempting to set auth tag in unsupported state");
+  if (!cipher->initialised_ ||
+      !cipher->IsAuthenticatedMode() ||
+      cipher->kind_ != kDecipher) {
+    return env->ThrowError("Attempting to set auth tag in unsupported state");
+  }
+
+  // FIXME(bnoordhuis) Throw when buffer length is not a valid tag size.
+  // Note: we don't use std::max() here to work around a header conflict.
+  cipher->auth_tag_len_ = Buffer::Length(args[0]);
+  if (cipher->auth_tag_len_ > sizeof(cipher->auth_tag_))
+    cipher->auth_tag_len_ = sizeof(cipher->auth_tag_);
+
+  memset(cipher->auth_tag_, 0, sizeof(cipher->auth_tag_));
+  memcpy(cipher->auth_tag_, Buffer::Data(args[0]), cipher->auth_tag_len_);
 }
 
 
@@ -3551,17 +3541,16 @@ bool CipherBase::Update(const char* data,
     return 0;
 
   // on first update:
-  if (kind_ == kDecipher && IsAuthenticatedMode() && auth_tag_ != nullptr) {
+  if (kind_ == kDecipher && IsAuthenticatedMode() && auth_tag_len_ > 0) {
     EVP_CIPHER_CTX_ctrl(&ctx_,
                         EVP_CTRL_GCM_SET_TAG,
                         auth_tag_len_,
                         reinterpret_cast<unsigned char*>(auth_tag_));
-    delete[] auth_tag_;
-    auth_tag_ = nullptr;
+    auth_tag_len_ = 0;
   }
 
   *out_len = len + EVP_CIPHER_CTX_block_size(&ctx_);
-  *out = new unsigned char[*out_len];
+  *out = Malloc<unsigned char>(static_cast<size_t>(*out_len));
   return EVP_CipherUpdate(&ctx_,
                           *out,
                           out_len,
@@ -3595,7 +3584,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (!r) {
-    delete[] out;
+    free(out);
     return ThrowCryptoError(env,
                             ERR_get_error(),
                             "Trying to add data in unsupported state");
@@ -3603,9 +3592,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(out != nullptr || out_len == 0);
   Local<Object> buf =
-      Buffer::Copy(env, reinterpret_cast<char*>(out), out_len).ToLocalChecked();
-  if (out)
-    delete[] out;
+      Buffer::New(env, reinterpret_cast<char*>(out), out_len).ToLocalChecked();
 
   args.GetReturnValue().Set(buf);
 }
@@ -3633,21 +3620,15 @@ bool CipherBase::Final(unsigned char** out, int *out_len) {
   if (!initialised_)
     return false;
 
-  *out = new unsigned char[EVP_CIPHER_CTX_block_size(&ctx_)];
+  *out = Malloc<unsigned char>(
+      static_cast<size_t>(EVP_CIPHER_CTX_block_size(&ctx_)));
   int r = EVP_CipherFinal_ex(&ctx_, *out, out_len);
 
-  if (r && kind_ == kCipher) {
-    delete[] auth_tag_;
-    auth_tag_ = nullptr;
-    if (IsAuthenticatedMode()) {
-      auth_tag_len_ = EVP_GCM_TLS_TAG_LEN;  // use default tag length
-      auth_tag_ = new char[auth_tag_len_];
-      memset(auth_tag_, 0, auth_tag_len_);
-      EVP_CIPHER_CTX_ctrl(&ctx_,
-                          EVP_CTRL_GCM_GET_TAG,
-                          auth_tag_len_,
-                          reinterpret_cast<unsigned char*>(auth_tag_));
-    }
+  if (r == 1 && kind_ == kCipher && IsAuthenticatedMode()) {
+    auth_tag_len_ = sizeof(auth_tag_);
+    r = EVP_CIPHER_CTX_ctrl(&ctx_, EVP_CTRL_GCM_GET_TAG, auth_tag_len_,
+                            reinterpret_cast<unsigned char*>(auth_tag_));
+    CHECK_EQ(r, 1);
   }
 
   EVP_CIPHER_CTX_cleanup(&ctx_);
@@ -3662,19 +3643,21 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
 
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
+  if (!cipher->initialised_) return env->ThrowError("Unsupported state");
 
   unsigned char* out_value = nullptr;
   int out_len = -1;
-  Local<Value> outString;
 
+  // Check IsAuthenticatedMode() first, Final() destroys the EVP_CIPHER_CTX.
+  const bool is_auth_mode = cipher->IsAuthenticatedMode();
   bool r = cipher->Final(&out_value, &out_len);
 
   if (out_len <= 0 || !r) {
-    delete[] out_value;
+    free(out_value);
     out_value = nullptr;
     out_len = 0;
     if (!r) {
-      const char* msg = cipher->IsAuthenticatedMode() ?
+      const char* msg = is_auth_mode ?
           "Unsupported state or unable to authenticate data" :
           "Unsupported state";
 
@@ -3684,12 +3667,11 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  Local<Object> buf = Buffer::Copy(
+  Local<Object> buf = Buffer::New(
       env,
       reinterpret_cast<char*>(out_value),
       out_len).ToLocalChecked();
   args.GetReturnValue().Set(buf);
-  delete[] out_value;
 }
 
 
@@ -3785,17 +3767,6 @@ void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-bool Hmac::HmacDigest(unsigned char** md_value, unsigned int* md_len) {
-  if (!initialised_)
-    return false;
-  *md_value = new unsigned char[EVP_MAX_MD_SIZE];
-  HMAC_Final(&ctx_, *md_value, md_len);
-  HMAC_CTX_cleanup(&ctx_);
-  initialised_ = false;
-  return true;
-}
-
-
 void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -3812,13 +3783,13 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("hmac.digest() does not support UTF-16");
   }
 
-  unsigned char* md_value = nullptr;
+  unsigned char md_value[EVP_MAX_MD_SIZE];
   unsigned int md_len = 0;
 
-  bool r = hmac->HmacDigest(&md_value, &md_len);
-  if (!r) {
-    md_value = nullptr;
-    md_len = 0;
+  if (hmac->initialised_) {
+    HMAC_Final(&hmac->ctx_, md_value, &md_len);
+    HMAC_CTX_cleanup(&hmac->ctx_);
+    hmac->initialised_ = false;
   }
 
   Local<Value> error;
@@ -3828,7 +3799,6 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
                           md_len,
                           encoding,
                           &error);
-  delete[] md_value;
   if (rc.IsEmpty()) {
     CHECK(!error.IsEmpty());
     env->isolate()->ThrowException(error);
@@ -4150,7 +4120,7 @@ static int Node_SignFinal(EVP_MD_CTX* mdctx, unsigned char* md,
 SignBase::Error Sign::SignFinal(const char* key_pem,
                                 int key_pem_len,
                                 const char* passphrase,
-                                unsigned char** sig,
+                                unsigned char* sig,
                                 unsigned int* sig_len,
                                 int padding,
                                 int salt_len) {
@@ -4199,7 +4169,7 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
   }
 #endif  // NODE_FIPS_MODE
 
-  if (Node_SignFinal(&mdctx_, *sig, sig_len, pkey, padding, salt_len))
+  if (Node_SignFinal(&mdctx_, sig, sig_len, pkey, padding, salt_len))
     fatal = false;
 
   initialised_ = false;
@@ -4225,9 +4195,6 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   Sign* sign;
   ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
 
-  unsigned char* md_value;
-  unsigned int md_len;
-
   unsigned int len = args.Length();
 
   node::Utf8Value passphrase(env->isolate(), args[1]);
@@ -4246,30 +4213,24 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   CHECK(maybe_salt_len.IsJust());
   int salt_len = maybe_salt_len.ToChecked();
 
-  md_len = 8192;  // Maximum key size is 8192 bits
-  md_value = new unsigned char[md_len];
-
   ClearErrorOnReturn clear_error_on_return;
+  unsigned char md_value[8192];
+  unsigned int md_len = sizeof(md_value);
 
   Error err = sign->SignFinal(
       buf,
       buf_len,
       len >= 2 && !args[1]->IsNull() ? *passphrase : nullptr,
-      &md_value,
+      md_value,
       &md_len,
       padding,
       salt_len);
-  if (err != kSignOk) {
-    delete[] md_value;
-    md_value = nullptr;
-    md_len = 0;
+  if (err != kSignOk)
     return sign->CheckThrow(err);
-  }
 
-  Local<Object> rc = Buffer::Copy(env->isolate(),
-                                  reinterpret_cast<const char*>(md_value),
-                                  md_len).ToLocalChecked();
-  delete[] md_value;
+  Local<Object> rc =
+      Buffer::Copy(env, reinterpret_cast<char*>(md_value), md_len)
+      .ToLocalChecked();
   args.GetReturnValue().Set(rc);
 }
 
@@ -4560,7 +4521,7 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
   if (EVP_PKEY_cipher(ctx, nullptr, out_len, data, len) <= 0)
     goto exit;
 
-  *out = new unsigned char[*out_len];
+  *out = Malloc<unsigned char>(*out_len);
 
   if (EVP_PKEY_cipher(ctx, *out, out_len, data, len) <= 0)
     goto exit;
@@ -4615,7 +4576,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       &out_len);
 
   if (out_len == 0 || !r) {
-    delete[] out_value;
+    free(out_value);
     out_value = nullptr;
     out_len = 0;
     if (!r) {
@@ -4624,12 +4585,10 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  Local<Object> vbuf = Buffer::Copy(
-      env,
-      reinterpret_cast<char*>(out_value),
-      out_len).ToLocalChecked();
+  Local<Object> vbuf =
+      Buffer::New(env, reinterpret_cast<char*>(out_value), out_len)
+      .ToLocalChecked();
   args.GetReturnValue().Set(vbuf);
-  delete[] out_value;
 }
 
 
@@ -4803,99 +4762,49 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, ERR_get_error(), "Key generation failed");
   }
 
-  int dataSize = BN_num_bytes(diffieHellman->dh->pub_key);
-  char* data = new char[dataSize];
-  BN_bn2bin(diffieHellman->dh->pub_key,
-            reinterpret_cast<unsigned char*>(data));
-
-  args.GetReturnValue().Set(Encode(env->isolate(), data, dataSize, BUFFER));
-  delete[] data;
+  size_t size = BN_num_bytes(diffieHellman->dh->pub_key);
+  char* data = Malloc(size);
+  BN_bn2bin(diffieHellman->dh->pub_key, reinterpret_cast<unsigned char*>(data));
+  args.GetReturnValue().Set(Buffer::New(env, data, size).ToLocalChecked());
 }
 
 
-void DiffieHellman::GetPrime(const FunctionCallbackInfo<Value>& args) {
+void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
+                             BIGNUM* (DH::*field), const char* err_if_null) {
   Environment* env = Environment::GetCurrent(args);
 
-  DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
+  DiffieHellman* dh;
+  ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
+  if (!dh->initialised_) return env->ThrowError("Not initialized");
 
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
+  const BIGNUM* num = (dh->dh)->*field;
+  if (num == nullptr) return env->ThrowError(err_if_null);
 
-  int dataSize = BN_num_bytes(diffieHellman->dh->p);
-  char* data = new char[dataSize];
-  BN_bn2bin(diffieHellman->dh->p, reinterpret_cast<unsigned char*>(data));
+  size_t size = BN_num_bytes(num);
+  char* data = Malloc(size);
+  BN_bn2bin(num, reinterpret_cast<unsigned char*>(data));
+  args.GetReturnValue().Set(Buffer::New(env, data, size).ToLocalChecked());
+}
 
-  args.GetReturnValue().Set(Encode(env->isolate(), data, dataSize, BUFFER));
-  delete[] data;
+void DiffieHellman::GetPrime(const FunctionCallbackInfo<Value>& args) {
+  GetField(args, &DH::p, "p is null");
 }
 
 
 void DiffieHellman::GetGenerator(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
-
-  int dataSize = BN_num_bytes(diffieHellman->dh->g);
-  char* data = new char[dataSize];
-  BN_bn2bin(diffieHellman->dh->g, reinterpret_cast<unsigned char*>(data));
-
-  args.GetReturnValue().Set(Encode(env->isolate(), data, dataSize, BUFFER));
-  delete[] data;
+  GetField(args, &DH::g, "g is null");
 }
 
 
 void DiffieHellman::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
-
-  if (diffieHellman->dh->pub_key == nullptr) {
-    return env->ThrowError("No public key - did you forget to generate one?");
-  }
-
-  int dataSize = BN_num_bytes(diffieHellman->dh->pub_key);
-  char* data = new char[dataSize];
-  BN_bn2bin(diffieHellman->dh->pub_key,
-            reinterpret_cast<unsigned char*>(data));
-
-  args.GetReturnValue().Set(Encode(env->isolate(), data, dataSize, BUFFER));
-  delete[] data;
+  GetField(args, &DH::pub_key,
+           "No public key - did you forget to generate one?");
 }
 
 
 void DiffieHellman::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
-
-  if (diffieHellman->dh->priv_key == nullptr) {
-    return env->ThrowError("No private key - did you forget to generate one?");
-  }
-
-  int dataSize = BN_num_bytes(diffieHellman->dh->priv_key);
-  char* data = new char[dataSize];
-  BN_bn2bin(diffieHellman->dh->priv_key,
-            reinterpret_cast<unsigned char*>(data));
-
-  args.GetReturnValue().Set(Encode(env->isolate(), data, dataSize, BUFFER));
-  delete[] data;
+  GetField(args, &DH::priv_key,
+           "No private key - did you forget to generate one?");
 }
 
 
@@ -4923,7 +4832,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   }
 
   int dataSize = DH_size(diffieHellman->dh);
-  char* data = new char[dataSize];
+  char* data = Malloc(dataSize);
 
   int size = DH_compute_key(reinterpret_cast<unsigned char*>(data),
                             key,
@@ -4935,7 +4844,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
 
     checked = DH_check_pub_key(diffieHellman->dh, key, &checkResult);
     BN_free(key);
-    delete[] data;
+    free(data);
 
     if (!checked) {
       return ThrowCryptoError(env, ERR_get_error(), "Invalid Key");
@@ -4950,6 +4859,8 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
     } else {
       return env->ThrowError("Invalid key");
     }
+
+    UNREACHABLE();
   }
 
   BN_free(key);
@@ -4965,49 +4876,45 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
     memset(data, 0, dataSize - size);
   }
 
-  args.GetReturnValue().Set(Encode(env->isolate(), data, dataSize, BUFFER));
-  delete[] data;
+  auto rc = Buffer::New(env->isolate(), data, dataSize).ToLocalChecked();
+  args.GetReturnValue().Set(rc);
+}
+
+
+void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
+                           BIGNUM* (DH::*field), const char* what) {
+  Environment* env = Environment::GetCurrent(args);
+
+  DiffieHellman* dh;
+  ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
+  if (!dh->initialised_) return env->ThrowError("Not initialized");
+
+  BIGNUM** num = &((dh->dh)->*field);
+  char errmsg[64];
+
+  if (args.Length() == 0) {
+    snprintf(errmsg, sizeof(errmsg), "%s argument is mandatory", what);
+    return env->ThrowError(errmsg);
+  }
+
+  if (!Buffer::HasInstance(args[0])) {
+    snprintf(errmsg, sizeof(errmsg), "%s must be a buffer", what);
+    return env->ThrowTypeError(errmsg);
+  }
+
+  *num = BN_bin2bn(reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
+                   Buffer::Length(args[0]), *num);
+  CHECK_NE(*num, nullptr);
 }
 
 
 void DiffieHellman::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-  Environment* env = diffieHellman->env();
-
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
-
-  if (args.Length() == 0) {
-    return env->ThrowError("Public key argument is mandatory");
-  } else {
-    THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Public key");
-    diffieHellman->dh->pub_key = BN_bin2bn(
-        reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
-        Buffer::Length(args[0]), 0);
-  }
+  SetKey(args, &DH::pub_key, "Public key");
 }
 
 
 void DiffieHellman::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-  Environment* env = diffieHellman->env();
-
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
-
-  if (args.Length() == 0) {
-    return env->ThrowError("Private key argument is mandatory");
-  } else {
-    THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Private key");
-    diffieHellman->dh->priv_key = BN_bin2bn(
-        reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
-        Buffer::Length(args[0]),
-        0);
-  }
+  SetKey(args, &DH::priv_key, "Private key");
 }
 
 
@@ -5322,7 +5229,7 @@ class PBKDF2Request : public AsyncWrap {
                 int keylen)
       : AsyncWrap(env, object, AsyncWrap::PROVIDER_PBKDF2REQUEST),
         digest_(digest),
-        error_(0),
+        success_(false),
         passlen_(passlen),
         pass_(pass),
         saltlen_(saltlen),
@@ -5334,48 +5241,6 @@ class PBKDF2Request : public AsyncWrap {
   }
 
   ~PBKDF2Request() override {
-    release();
-    ClearWrap(object());
-    persistent().Reset();
-  }
-
-  uv_work_t* work_req() {
-    return &work_req_;
-  }
-
-  inline const EVP_MD* digest() const {
-    return digest_;
-  }
-
-  inline int passlen() const {
-    return passlen_;
-  }
-
-  inline char* pass() const {
-    return pass_;
-  }
-
-  inline int saltlen() const {
-    return saltlen_;
-  }
-
-  inline char* salt() const {
-    return salt_;
-  }
-
-  inline int keylen() const {
-    return keylen_;
-  }
-
-  inline char* key() const {
-    return key_;
-  }
-
-  inline int iter() const {
-    return iter_;
-  }
-
-  inline void release() {
     free(pass_);
     pass_ = nullptr;
     passlen_ = 0;
@@ -5387,23 +5252,28 @@ class PBKDF2Request : public AsyncWrap {
     free(key_);
     key_ = nullptr;
     keylen_ = 0;
+
+    ClearWrap(object());
+    persistent().Reset();
   }
 
-  inline int error() const {
-    return error_;
-  }
-
-  inline void set_error(int err) {
-    error_ = err;
+  uv_work_t* work_req() {
+    return &work_req_;
   }
 
   size_t self_size() const override { return sizeof(*this); }
 
-  uv_work_t work_req_;
+  static void Work(uv_work_t* work_req);
+  void Work();
+
+  static void After(uv_work_t* work_req, int status);
+  void After(Local<Value> (*argv)[2]);
+  void After();
 
  private:
+  uv_work_t work_req_;
   const EVP_MD* digest_;
-  int error_;
+  bool success_;
   int passlen_;
   char* pass_;
   int saltlen_;
@@ -5414,48 +5284,48 @@ class PBKDF2Request : public AsyncWrap {
 };
 
 
-void EIO_PBKDF2(PBKDF2Request* req) {
-  req->set_error(PKCS5_PBKDF2_HMAC(
-    req->pass(),
-    req->passlen(),
-    reinterpret_cast<unsigned char*>(req->salt()),
-    req->saltlen(),
-    req->iter(),
-    req->digest(),
-    req->keylen(),
-    reinterpret_cast<unsigned char*>(req->key())));
-  OPENSSL_cleanse(req->pass(), req->passlen());
-  OPENSSL_cleanse(req->salt(), req->saltlen());
+void PBKDF2Request::Work() {
+  success_ =
+      PKCS5_PBKDF2_HMAC(
+          pass_, passlen_, reinterpret_cast<unsigned char*>(salt_), saltlen_,
+          iter_, digest_, keylen_, reinterpret_cast<unsigned char*>(key_));
+  OPENSSL_cleanse(pass_, passlen_);
+  OPENSSL_cleanse(salt_, saltlen_);
 }
 
 
-void EIO_PBKDF2(uv_work_t* work_req) {
+void PBKDF2Request::Work(uv_work_t* work_req) {
   PBKDF2Request* req = ContainerOf(&PBKDF2Request::work_req_, work_req);
-  EIO_PBKDF2(req);
+  req->Work();
 }
 
 
-void EIO_PBKDF2After(PBKDF2Request* req, Local<Value> argv[2]) {
-  if (req->error()) {
-    argv[0] = Undefined(req->env()->isolate());
-    argv[1] = Encode(req->env()->isolate(), req->key(), req->keylen(), BUFFER);
-    OPENSSL_cleanse(req->key(), req->keylen());
+void PBKDF2Request::After(Local<Value> (*argv)[2]) {
+  if (success_) {
+    (*argv)[0] = Undefined(env()->isolate());
+    (*argv)[1] = Buffer::New(env(), key_, keylen_).ToLocalChecked();
+    key_ = nullptr;
+    keylen_ = 0;
   } else {
-    argv[0] = Exception::Error(req->env()->pbkdf2_error_string());
-    argv[1] = Undefined(req->env()->isolate());
+    (*argv)[0] = Exception::Error(env()->pbkdf2_error_string());
+    (*argv)[1] = Undefined(env()->isolate());
   }
 }
 
 
-void EIO_PBKDF2After(uv_work_t* work_req, int status) {
+void PBKDF2Request::After() {
+  HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
+  Local<Value> argv[2];
+  After(&argv);
+  MakeCallback(env()->ondone_string(), arraysize(argv), argv);
+}
+
+
+void PBKDF2Request::After(uv_work_t* work_req, int status) {
   CHECK_EQ(status, 0);
   PBKDF2Request* req = ContainerOf(&PBKDF2Request::work_req_, work_req);
-  Environment* env = req->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-  Local<Value> argv[2];
-  EIO_PBKDF2After(req, argv);
-  req->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+  req->After();
   delete req;
 }
 
@@ -5558,14 +5428,13 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
       obj->Set(env->domain_string(), env->domain_array()->Get(0));
     uv_queue_work(env->event_loop(),
                   req->work_req(),
-                  EIO_PBKDF2,
-                  EIO_PBKDF2After);
+                  PBKDF2Request::Work,
+                  PBKDF2Request::After);
   } else {
     env->PrintSyncTrace();
+    req->Work();
     Local<Value> argv[2];
-    EIO_PBKDF2(req);
-    EIO_PBKDF2After(req, argv);
-
+    req->After(&argv);
     delete req;
 
     if (argv[0]->IsObject())
@@ -5625,6 +5494,7 @@ class RandomBytesRequest : public AsyncWrap {
     size_ = 0;
     if (free_mode_ == FREE_DATA) {
       free(data_);
+      data_ = nullptr;
     }
   }
 
@@ -5675,21 +5545,21 @@ void RandomBytesWork(uv_work_t* work_req) {
 
 
 // don't call this function without a valid HandleScope
-void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
+void RandomBytesCheck(RandomBytesRequest* req, Local<Value> (*argv)[2]) {
   if (req->error()) {
     char errmsg[256] = "Operation not supported";
 
     if (req->error() != static_cast<unsigned long>(-1))  // NOLINT(runtime/int)
       ERR_error_string_n(req->error(), errmsg, sizeof errmsg);
 
-    argv[0] = Exception::Error(OneByteString(req->env()->isolate(), errmsg));
-    argv[1] = Null(req->env()->isolate());
+    (*argv)[0] = Exception::Error(OneByteString(req->env()->isolate(), errmsg));
+    (*argv)[1] = Null(req->env()->isolate());
     req->release();
   } else {
     char* data = nullptr;
     size_t size;
     req->return_memory(&data, &size);
-    argv[0] = Null(req->env()->isolate());
+    (*argv)[0] = Null(req->env()->isolate());
     Local<Value> buffer =
         req->object()->Get(req->env()->context(),
                            req->env()->buffer_string()).ToLocalChecked();
@@ -5698,9 +5568,9 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
       CHECK_LE(req->size(), Buffer::Length(buffer));
       char* buf = Buffer::Data(buffer);
       memcpy(buf, data, req->size());
-      argv[1] = buffer;
+      (*argv)[1] = buffer;
     } else {
-      argv[1] = Buffer::New(req->env(), data, size).ToLocalChecked();
+      (*argv)[1] = Buffer::New(req->env(), data, size).ToLocalChecked();
     }
   }
 }
@@ -5714,7 +5584,7 @@ void RandomBytesAfter(uv_work_t* work_req, int status) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Value> argv[2];
-  RandomBytesCheck(req, argv);
+  RandomBytesCheck(req, &argv);
   req->MakeCallback(env->ondone_string(), arraysize(argv), argv);
   delete req;
 }
@@ -5722,14 +5592,14 @@ void RandomBytesAfter(uv_work_t* work_req, int status) {
 
 void RandomBytesProcessSync(Environment* env,
                             RandomBytesRequest* req,
-                            Local<Value> argv[2]) {
+                            Local<Value> (*argv)[2]) {
   env->PrintSyncTrace();
   RandomBytesWork(req->work_req());
   RandomBytesCheck(req, argv);
   delete req;
 
-  if (!argv[0]->IsNull())
-    env->isolate()->ThrowException(argv[0]);
+  if (!(*argv)[0]->IsNull())
+    env->isolate()->ThrowException((*argv)[0]);
 }
 
 
@@ -5766,7 +5636,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(obj);
   } else {
     Local<Value> argv[2];
-    RandomBytesProcessSync(env, req, argv);
+    RandomBytesProcessSync(env, req, &argv);
     if (argv[0]->IsNull())
       args.GetReturnValue().Set(argv[1]);
   }
@@ -5813,7 +5683,7 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(obj);
   } else {
     Local<Value> argv[2];
-    RandomBytesProcessSync(env, req, argv);
+    RandomBytesProcessSync(env, req, &argv);
     if (argv[0]->IsNull())
       args.GetReturnValue().Set(argv[1]);
   }
@@ -5961,7 +5831,7 @@ void VerifySpkac(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-const char* ExportPublicKey(const char* data, int len) {
+char* ExportPublicKey(const char* data, int len, size_t* size) {
   char* buf = nullptr;
   EVP_PKEY* pkey = nullptr;
   NETSCAPE_SPKI* spki = nullptr;
@@ -5981,12 +5851,12 @@ const char* ExportPublicKey(const char* data, int len) {
   if (PEM_write_bio_PUBKEY(bio, pkey) <= 0)
     goto exit;
 
-  BIO_write(bio, "\0", 1);
   BUF_MEM* ptr;
   BIO_get_mem_ptr(bio, &ptr);
 
-  buf = new char[ptr->length];
-  memcpy(buf, ptr->data, ptr->length);
+  *size = ptr->length;
+  buf = Malloc(*size);
+  memcpy(buf, ptr->data, *size);
 
  exit:
   if (pkey != nullptr)
@@ -6017,14 +5887,12 @@ void ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
   char* data = Buffer::Data(args[0]);
   CHECK_NE(data, nullptr);
 
-  const char* pkey = ExportPublicKey(data, length);
+  size_t pkey_size;
+  char* pkey = ExportPublicKey(data, length, &pkey_size);
   if (pkey == nullptr)
     return args.GetReturnValue().SetEmptyString();
 
-  Local<Value> out = Encode(env->isolate(), pkey, strlen(pkey), BUFFER);
-
-  delete[] pkey;
-
+  Local<Value> out = Buffer::New(env, pkey, pkey_size).ToLocalChecked();
   args.GetReturnValue().Set(out);
 }
 

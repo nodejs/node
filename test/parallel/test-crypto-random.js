@@ -140,13 +140,15 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     new Uint8Array(new Array(10).fill(0))
   ];
   const errMessages = {
-    offsetNotNumber: /offset must be a number/,
-    offsetOutOfRange: /offset out of range/,
-    offsetNotUInt32: /offset must be a uint32/,
-    sizeNotNumber: /size must be a number/,
-    sizeNotUInt32: /size must be a uint32/,
-    bufferTooSmall: /buffer too small/,
+    offsetNotNumber: /^TypeError: offset must be a number$/,
+    offsetOutOfRange: /^RangeError: offset out of range$/,
+    offsetNotUInt32: /^TypeError: offset must be a uint32$/,
+    sizeNotNumber: /^TypeError: size must be a number$/,
+    sizeNotUInt32: /^TypeError: size must be a uint32$/,
+    bufferTooSmall: /^RangeError: buffer too small$/,
   };
+
+  const max = require('buffer').kMaxLength + 1;
 
   for (const buf of bufs) {
     const len = Buffer.byteLength(buf);
@@ -167,8 +169,6 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     assert.throws(() => {
       crypto.randomFill(buf, NaN, common.mustNotCall());
     }, errMessages.offsetNotNumber);
-
-    const max = require('buffer').kMaxLength + 1;
 
     assert.throws(() => {
       crypto.randomFillSync(buf, 11);
@@ -264,4 +264,4 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
 // length exceeds max acceptable value"
 assert.throws(function() {
   crypto.randomBytes((-1 >>> 0) + 1);
-}, TypeError);
+}, /^TypeError: size must be a number >= 0$/);

@@ -58,7 +58,7 @@ const replDisabled = '\nPersistent history support disabled. Set the ' +
                      'user-writable path to enable.\n';
 const convertMsg = '\nConverted old JSON repl history to line-separated ' +
                    'history.\nThe new repl history file can be found at ' +
-                   path.join(common.tmpDir, '.node_repl_history') + '.\n';
+                   `${path.join(common.tmpDir, '.node_repl_history')}.\n`;
 const homedirErr = '\nError: Could not get the home directory.\n' +
                    'REPL session history will not be persisted.\n';
 const replFailedRead = '\nError: Could not open history file.\n' +

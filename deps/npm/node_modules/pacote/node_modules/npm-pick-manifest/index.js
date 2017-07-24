@@ -9,10 +9,10 @@ function pickManifest (packument, wanted, opts) {
   const spec = npa.resolve(packument.name, wanted)
   const type = spec.type
   if (type === 'version' || type === 'range') {
-    wanted = semver.clean(wanted) || wanted
+    wanted = semver.clean(wanted, true) || wanted
   }
   const distTags = packument['dist-tags'] || {}
-  const versions = Object.keys(packument.versions || {}).filter(v => semver.valid(v))
+  const versions = Object.keys(packument.versions || {}).filter(v => semver.valid(v, true))
   let err
 
   if (!versions.length) {

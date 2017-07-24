@@ -166,7 +166,7 @@ assert.throws(() => {
   }, common.expectsError({ code: 'TEST_ERROR_1', type: RangeError }));
 }, common.expectsError({
   code: 'ERR_ASSERTION',
-  message: /^.+ is not the expected type \S/
+  message: /^.+ is not instance of \S/
 }));
 
 assert.throws(() => {
@@ -229,3 +229,9 @@ assert.throws(
     code: 'ERR_ASSERTION',
     message: /^At least one arg needs to be specified$/
   }));
+
+
+// Test ERR_TLS_CERT_ALTNAME_INVALID
+assert.strictEqual(
+    errors.message('ERR_TLS_CERT_ALTNAME_INVALID', ['altname']),
+    'Hostname/IP does not match certificate\'s altnames: altname');

@@ -6,7 +6,7 @@ const http = require('http');
 const server = http.createServer();
 
 server.on('request', function(req, res) {
-  res.writeHead(200, {'foo': 'bar'});
+  res.writeHead(200, { 'foo': 'bar' });
   res.flushHeaders();
   res.flushHeaders(); // Should be idempotent.
 });

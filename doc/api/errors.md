@@ -580,6 +580,11 @@ by the `assert` module.
 
 Used when attempting to perform an operation outside the bounds of a `Buffer`.
 
+<a id="ERR_CHILD_CLOSED_BEFORE_REPLY"></a>
+### ERR_CHILD_CLOSED_BEFORE_REPLY
+
+Used when a child process is closed before the parent received a reply.
+
 <a id="ERR_CONSOLE_WRITABLE_STREAM"></a>
 ### ERR_CONSOLE_WRITABLE_STREAM
 
@@ -685,6 +690,11 @@ communication channel to a child process. See [`child.send()`] and
 
 Used generically to identify when an invalid or unexpected value has been
 passed in an options object.
+
+<a id="ERR_INVALID_OPT_VALUE_ENCODING"></a>
+### ERR_INVALID_OPT_VALUE_ENCODING
+
+Used when an invalid or unknown file encoding is passed.
 
 <a id="ERR_INVALID_REPL_EVAL_CONFIG"></a>
 ### ERR_INVALID_REPL_EVAL_CONFIG

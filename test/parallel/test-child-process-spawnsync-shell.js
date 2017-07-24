@@ -7,7 +7,7 @@ const internalCp = require('internal/child_process');
 const oldSpawnSync = internalCp.spawnSync;
 
 // Verify that a shell is, in fact, executed
-const doesNotExist = cp.spawnSync('does-not-exist', {shell: true});
+const doesNotExist = cp.spawnSync('does-not-exist', { shell: true });
 
 assert.notStrictEqual(doesNotExist.file, 'does-not-exist');
 assert.strictEqual(doesNotExist.error, undefined);
@@ -24,20 +24,20 @@ internalCp.spawnSync = common.mustCall(function(opts) {
                      'echo foo');
   return oldSpawnSync(opts);
 });
-const echo = cp.spawnSync('echo', ['foo'], {shell: true});
+const echo = cp.spawnSync('echo', ['foo'], { shell: true });
 internalCp.spawnSync = oldSpawnSync;
 
 assert.strictEqual(echo.stdout.toString().trim(), 'foo');
 
 // Verify that shell features can be used
 const cmd = 'echo bar | cat';
-const command = cp.spawnSync(cmd, {shell: true});
+const command = cp.spawnSync(cmd, { shell: true });
 
 assert.strictEqual(command.stdout.toString().trim(), 'bar');
 
 // Verify that the environment is properly inherited
 const env = cp.spawnSync(`"${process.execPath}" -pe process.env.BAZ`, {
-  env: Object.assign({}, process.env, {BAZ: 'buzz'}),
+  env: Object.assign({}, process.env, { BAZ: 'buzz' }),
   shell: true
 });
 

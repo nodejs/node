@@ -14,14 +14,14 @@ function typeName(value) {
   const child = new ChildProcess();
 
   [undefined, null, 'foo', 0, 1, NaN, true, false].forEach((options) => {
-    assert.throws(() => {
+    common.expectsError(() => {
       child.spawn(options);
-    }, common.expectsError({
+    }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "options" argument must be of type object. Received type ' +
-               typeName(options)
-    }));
+      message: 'The "options" argument must be of type object. ' +
+               `Received type ${typeName(options)}`
+    });
   });
 }
 
@@ -30,14 +30,14 @@ function typeName(value) {
   const child = new ChildProcess();
 
   [undefined, null, 0, 1, NaN, true, false, {}].forEach((file) => {
-    assert.throws(() => {
+    common.expectsError(() => {
       child.spawn({ file });
-    }, common.expectsError({
+    }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "options.file" property must be of type string. Received ' +
-               'type ' + typeName(file)
-    }));
+      message: 'The "options.file" property must be of type string. ' +
+               `Received type ${typeName(file)}`
+    });
   });
 }
 
@@ -46,14 +46,14 @@ function typeName(value) {
   const child = new ChildProcess();
 
   [null, 0, 1, NaN, true, false, {}, 'foo'].forEach((envPairs) => {
-    assert.throws(() => {
+    common.expectsError(() => {
       child.spawn({ envPairs, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
-    }, common.expectsError({
+    }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "options.envPairs" property must be of type array. ' +
-               'Received type ' + typeName(envPairs)
-    }));
+      message: 'The "options.envPairs" property must be of type Array. ' +
+               `Received type ${typeName(envPairs)}`
+    });
   });
 }
 
@@ -62,14 +62,14 @@ function typeName(value) {
   const child = new ChildProcess();
 
   [null, 0, 1, NaN, true, false, {}, 'foo'].forEach((args) => {
-    assert.throws(() => {
+    common.expectsError(() => {
       child.spawn({ file: 'foo', args });
-    }, common.expectsError({
+    }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "options.args" property must be of type array. Received ' +
-               'type ' + typeName(args)
-    }));
+      message: 'The "options.args" property must be of type Array. ' +
+               `Received type ${typeName(args)}`
+    });
   });
 }
 
@@ -86,8 +86,9 @@ assert.strictEqual(child.hasOwnProperty('pid'), true);
 assert(Number.isInteger(child.pid));
 
 // try killing with invalid signal
-assert.throws(() => {
-  child.kill('foo');
-}, common.expectsError({ code: 'ERR_UNKNOWN_SIGNAL', type: TypeError }));
+common.expectsError(
+  () => { child.kill('foo'); },
+  { code: 'ERR_UNKNOWN_SIGNAL', type: TypeError }
+);
 
 assert.strictEqual(child.kill(), true);

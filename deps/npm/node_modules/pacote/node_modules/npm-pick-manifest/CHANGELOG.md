@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="1.0.4"></a>
+## [1.0.4](https://github.com/zkat/npm-pick-manifest/compare/v1.0.3...v1.0.4) (2017-06-29)
+
+
+### Bug Fixes
+
+* **npa:** bump npa version for bugfixes ([7cdaca7](https://github.com/zkat/npm-pick-manifest/commit/7cdaca7))
+* **semver:** use loose semver parsing for *all* ops ([bbc0daa](https://github.com/zkat/npm-pick-manifest/commit/bbc0daa))
+
+
+
 <a name="1.0.3"></a>
 ## [1.0.3](https://github.com/zkat/npm-pick-manifest/compare/v1.0.2...v1.0.3) (2017-05-04)
 

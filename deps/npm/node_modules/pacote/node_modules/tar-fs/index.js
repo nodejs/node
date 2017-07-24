@@ -15,7 +15,7 @@ var echo = function (name) {
 }
 
 var normalize = !win32 ? echo : function (name) {
-  return name.replace(/\\/g, '/').replace(/:/g, '_')
+  return name.replace(/\\/g, '/').replace(/[:?<>|]/g, '_')
 }
 
 var statAll = function (fs, stat, cwd, ignore, entries, sort) {

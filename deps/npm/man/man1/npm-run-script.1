@@ -1,11 +1,11 @@
-.TH "NPM\-RUN\-SCRIPT" "1" "June 2017" "" ""
+.TH "NPM\-RUN\-SCRIPT" "1" "July 2017" "" ""
 .SH "NAME"
 \fBnpm-run-script\fR \- Run arbitrary package scripts
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm run\-script <command> [\-\- <args>\.\.\.]
+npm run\-script <command> [\-\-silent] [\-\- <args>\.\.\.]
 
 alias: npm run
 .fi
@@ -60,6 +60,8 @@ not found in the \fBPATH\fP\|\.
 .P
 If you try to run a script without having a \fBnode_modules\fP directory and it fails,
 you will be given a warning to run \fBnpm install\fP, just in case you've forgotten\.
+.P
+You can use the \fB\-\-silent\fP flag to prevent showing \fBnpm ERR!\fP output on error\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

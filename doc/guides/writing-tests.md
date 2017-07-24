@@ -92,7 +92,7 @@ The test checks functionality in the `http` module.
 Most tests use the `assert` module to confirm expectations of the test.
 
 The require statements are sorted in
-[ASCII](http://man7.org/linux/man-pages/man7/ascii.7.html) order (digits, upper
+[ASCII][] order (digits, upper
 case, `_`, lower case).
 
 ### **Lines 10-21**
@@ -231,9 +231,9 @@ assert.throws(
 For performance considerations, we only use a selected subset of ES.Next
 features in JavaScript code in the `lib` directory. However, when writing
 tests, for the ease of backporting, it is encouraged to use those ES.Next
-features that can be used directly without a flag in [all maintained branches]
-(https://github.com/nodejs/lts). [node.green](http://node.green/) lists
-available features in each release.
+features that can be used directly without a flag in
+[all maintained branches][]. [node.green][] lists available features
+in each release.
 
 For example:
 
@@ -258,16 +258,16 @@ functions worked correctly with the `beforeExit` event, then it might be named
 ### Web Platform Tests
 
 Some of the tests for the WHATWG URL implementation (named
-`test-whatwg-url-*.js`) are imported from the
-[Web Platform Tests Project](https://github.com/w3c/web-platform-tests/tree/master/url).
+`test-whatwg-url-*.js`) are imported from the [Web Platform Tests Project][].
 These imported tests will be wrapped like this:
 
 ```js
-/* eslint-disable */
-/* WPT Refs:
+/* The following tests are copied from WPT. Modifications to them should be
+   upstreamed first. Refs:
    https://github.com/w3c/web-platform-tests/blob/8791bed/url/urlsearchparams-stringifier.html
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
+/* eslint-disable */
 
 // Test code
 
@@ -331,13 +331,17 @@ $ make cctest
 ```
 
 ### Node test fixture
-There is a [test fixture] named `node_test_fixture.h` which can be included by
+There is a [test fixture][] named `node_test_fixture.h` which can be included by
 unit tests. The fixture takes care of setting up the Node.js environment
 and tearing it down after the tests have finished.
 
 It also contains a helper to create arguments to be passed into Node.js. It
 will depend on what is being tested if this is required or not.
 
+[ASCII]: http://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
-[Test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests
+[Web Platform Tests Project]: https://github.com/w3c/web-platform-tests/tree/master/url
 [`common` module]: https://github.com/nodejs/node/blob/master/test/common/README.md
+[all maintained branches]: https://github.com/nodejs/lts
+[node.green]: http://node.green/
+[test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests

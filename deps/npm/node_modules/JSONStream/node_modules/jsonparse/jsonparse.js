@@ -59,6 +59,7 @@ function Parser() {
   this.stringBuffer = Buffer.alloc ? Buffer.alloc(STRING_BUFFER_SIZE) : new Buffer(STRING_BUFFER_SIZE);
   this.stringBufferOffset = 0;
   this.unicode = undefined; // unicode escapes
+  this.highSurrogate = undefined;
 
   this.key = undefined;
   this.mode = undefined;
@@ -217,8 +218,20 @@ proto.write = function (buffer) {
       if ((n >= 0x30 && n < 0x40) || (n > 0x40 && n <= 0x46) || (n > 0x60 && n <= 0x66)) {
         this.unicode += String.fromCharCode(n);
         if (this.tState++ === STRING6) {
-          this.appendStringBuf(Buffer(String.fromCharCode(parseInt(this.unicode, 16))));
+          var intVal = parseInt(this.unicode, 16);
           this.unicode = undefined;
+          if (this.highSurrogate !== undefined && intVal >= 0xDC00 && intVal < (0xDFFF + 1)) { //<56320,57343> - lowSurrogate
+            this.appendStringBuf(new Buffer(String.fromCharCode(this.highSurrogate, intVal)));
+            this.highSurrogate = undefined;
+          } else if (this.highSurrogate === undefined && intVal >= 0xD800 && intVal < (0xDBFF + 1)) { //<55296,56319> - highSurrogate
+            this.highSurrogate = intVal;
+          } else {
+            if (this.highSurrogate !== undefined) {
+              this.appendStringBuf(new Buffer(String.fromCharCode(this.highSurrogate)));
+              this.highSurrogate = undefined;
+            }
+            this.appendStringBuf(new Buffer(String.fromCharCode(intVal)));
+          }
           this.tState = STRING1;
         }
       } else {

@@ -52,7 +52,6 @@ class Uninstaller extends Installer {
   constructor (where, dryrun, args) {
     super(where, dryrun, args)
     this.remove = []
-    this.fakeChildren = false
   }
 
   loadArgMetadata (next) {

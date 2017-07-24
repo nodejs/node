@@ -201,10 +201,10 @@ function matchGitScp (spec) {
   // git+ssh://git@my.custom.git.com:username/project.git#deadbeef
   //
   // ...and various combinations. The username in the beginning is *required*.
-  const matched = spec.match(/^git\+ssh:\/\/([^:]+:[^#]+(?:\.git)?)(?:#(.*))$/i)
+  const matched = spec.match(/^git\+ssh:\/\/([^:#]+:[^#]+(?:\.git)?)(?:#(.*))?$/i)
   return matched && !matched[1].match(/:[0-9]+\/?.*$/i) && {
     fetchSpec: matched[1],
-    gitCommittish: matched[2]
+    gitCommittish: matched[2] || 'master'
   }
 }
 

@@ -1,3 +1,59 @@
+2017.07.07, Version 1.13.1 (Stable), 2bb4b68758f07cd8617838e68c44c125bc567ba6
+
+Changes since version 1.13.0:
+
+* Now working on version 1.13.1 (cjihrig)
+
+* build: workaround AppVeyor quirk (Refael Ackermann)
+
+
+2017.07.06, Version 1.13.0 (Stable), 8342fcaab815f33b988c1910ea988f28dfe27edb
+
+Changes since version 1.12.0:
+
+* Now working on version 1.12.1 (cjihrig)
+
+* unix: avoid segfault in uv_get_process_title (Michele Caini)
+
+* build: add a comma to uv.gyp (Gemini Wen)
+
+* win: restore file pos after positional read/write (Bartosz Sosnowski)
+
+* unix,stream: return error on closed handle passing (Santiago Gimeno)
+
+* unix,benchmark: use fd instead of FILE* after fork (jBarz)
+
+* zos: avoid compiler warnings (jBarz)
+
+* win,pipe: race condition canceling readfile thread (Jameson Nash)
+
+* sunos: filter out non-IPv4/IPv6 interfaces (Sebastian Wiedenroth)
+
+* sunos: fix cmpxchgi and cmpxchgl type error (Sai Ke WANG)
+
+* unix: reset signal disposition before execve() (Ben Noordhuis)
+
+* unix: reset signal mask before execve() (Ben Noordhuis)
+
+* unix: fix POLLIN assertion on server read (jBarz)
+
+* zos: use stckf builtin for high-res timer (jBarz)
+
+* win,udp: implements uv_udp_try_send (Barnabas Gema)
+
+* win,udp: return UV_EINVAL instead of aborting (Romain Caire)
+
+* freebsd: replace kvm with sysctl (Robert Ayrapetyan)
+
+* aix: fix un-initialized pointer field in fs handle (Gireesh Punathil)
+
+* win,build: support building with VS2017 (Refael Ackermann)
+
+* doc: add instructions for building on Windows (Refael Ackermann)
+
+* doc: format README (Refael Ackermann)
+
+
 2017.05.31, Version 1.12.0 (Stable), d6ac141ac674657049598c36604f26e031fae917
 
 Changes since version 1.11.0:

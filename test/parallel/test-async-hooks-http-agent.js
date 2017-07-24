@@ -17,7 +17,7 @@ const agent = new http.Agent({
 
 const server = http.createServer(common.mustCall((req, res) => {
   req.once('data', common.mustCallAtLeast(() => {
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('foo');
   }));
   req.on('end', common.mustCall(() => {

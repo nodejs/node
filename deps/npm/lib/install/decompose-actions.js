@@ -19,6 +19,8 @@ module.exports = function (differences, decomposed, next) {
         moveSteps(decomposed, pkg, done)
         break
       case 'remove':
+        removeSteps(decomposed, pkg, done)
+        break
       default:
         defaultSteps(decomposed, cmd, pkg, done)
     }
@@ -44,8 +46,15 @@ function addSteps (decomposed, pkg, done) {
 }
 
 function updateSteps (decomposed, pkg, done) {
+  removeSteps(decomposed, pkg.oldPkg, () => {
+    addSteps(decomposed, pkg, done)
+  })
+}
+
+function removeSteps (decomposed, pkg, done) {
+  decomposed.push(['unbuild', pkg])
   decomposed.push(['remove', pkg])
-  addSteps(decomposed, pkg, done)
+  done()
 }
 
 function moveSteps (decomposed, pkg, done) {

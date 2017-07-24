@@ -47,40 +47,63 @@ function pacoteOpts (moreOpts) {
     },
     scope: npm.config.get('scope'),
     strictSSL: npm.config.get('strict-ssl'),
-    userAgent: npm.config.get('user-agent')
+    userAgent: npm.config.get('user-agent'),
+
+    dmode: npm.modes.exec,
+    fmode: npm.modes.file,
+    umask: npm.modes.umask
   }
 
-  if (ownerStats.uid || ownerStats.gid) {
+  if (ownerStats.uid != null || ownerStats.gid != null) {
     Object.assign(opts, ownerStats)
   }
 
   npm.config.keys.forEach(function (k) {
-    const authMatch = k[0] === '/' && k.match(
-      /(.*):(_authToken|username|_password|password|email|always-auth)$/
+    const authMatchGlobal = k.match(
+      /^(_authToken|username|_password|password|email|always-auth|_auth)$/
     )
-    if (authMatch) {
-      const nerfDart = authMatch[1]
-      const key = authMatch[2]
-      const val = npm.config.get(k)
+    const authMatchScoped = k[0] === '/' && k.match(
+      /(.*):(_authToken|username|_password|password|email|always-auth|_auth)$/
+    )
+
+    // if it matches scoped it will also match global
+    if (authMatchGlobal || authMatchScoped) {
+      let nerfDart = null
+      let key = null
+      let val = null
+
       if (!opts.auth) { opts.auth = {} }
-      if (!opts.auth[nerfDart]) {
-        opts.auth[nerfDart] = {
-          alwaysAuth: !!npm.config.get('always-auth')
+
+      if (authMatchScoped) {
+        nerfDart = authMatchScoped[1]
+        key = authMatchScoped[2]
+        val = npm.config.get(k)
+        if (!opts.auth[nerfDart]) {
+          opts.auth[nerfDart] = {
+            alwaysAuth: !!npm.config.get('always-auth')
+          }
         }
+      } else {
+        key = authMatchGlobal[1]
+        val = npm.config.get(k)
+        opts.auth.alwaysAuth = !!npm.config.get('always-auth')
       }
+
+      const auth = authMatchScoped ? opts.auth[nerfDart] : opts.auth
       if (key === '_authToken') {
-        opts.auth[nerfDart].token = val
+        auth.token = val
       } else if (key.match(/password$/i)) {
-        opts.auth[nerfDart].password =
+        auth.password =
         // the config file stores password auth already-encoded. pacote expects
         // the actual username/password pair.
         Buffer.from(val, 'base64').toString('utf8')
       } else if (key === 'always-auth') {
-        opts.auth[nerfDart].alwaysAuth = val === 'false' ? false : !!val
+        auth.alwaysAuth = val === 'false' ? false : !!val
       } else {
-        opts.auth[nerfDart][key] = val
+        auth[key] = val
       }
     }
+
     if (k[0] === '@') {
       if (!opts.scopeTargets) { opts.scopeTargets = {} }
       opts.scopeTargets[k.replace(/:registry$/, '')] = npm.config.get(k)

@@ -1,0 +1,45 @@
+{
+  "_from": "parse-json@^2.2.0",
+  "_id": "parse-json@2.2.0",
+  "_inBundle": false,
+  "_integrity": "sha1-9ID0BDTvgHQfhGkJn43qGPVaTck=",
+  "_location": "/libnpx/yargs/read-pkg-up/read-pkg/load-json-file/parse-json",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "parse-json@^2.2.0",
+    "name": "parse-json",
+    "escapedName": "parse-json",
+    "rawSpec": "^2.2.0",
+    "saveSpec": null,
+    "fetchSpec": "^2.2.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/read-pkg-up/read-pkg/load-json-file"
+  ],
+  "_resolved": "https://registry.npmjs.org/parse-json/-/parse-json-2.2.0.tgz",
+  "_shasum": "f480f40434ef80741f8469099f8dea18f55a4dc9",
+  "_shrinkwrap": null,
+  "_spec": "parse-json@^2.2.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/read-pkg-up/node_modules/read-pkg/node_modules/load-json-file",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {
+    "error-ex": "^1.2.0"
+  },
+  "deprecated": false,
+  "description": "> Parse JSON with more helpful errors",
+  "devDependencies": {
+    "ava": "0.0.4",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "name": "parse-json",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "2.2.0"
+}

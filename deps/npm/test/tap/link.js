@@ -160,6 +160,18 @@ test('link-install the scoped package', function (t) {
   })
 })
 
+test('ls the linked packages', function (t) {
+  process.chdir(linkInstall)
+  common.npm(['ls', '--link'], OPTS, function (err, c, out) {
+    t.ifError(err, 'ls --link did not have an error')
+    t.equal(c, 1)
+    t.has(out, /@scope\/foo@1\.0\.0 ->/, 'output contains scoped link')
+    t.has(out, /foo@1\.0\.0 ->/, 'output contains link')
+    t.doesNotHave(out, /inside@1\.0\.0/, 'output does not contain unlinked dependency')
+    t.end()
+  })
+})
+
 test('cleanup', function (t) {
   process.chdir(osenv.tmpdir())
   common.npm(['rm', 'foo'], OPTS, function (err, code) {

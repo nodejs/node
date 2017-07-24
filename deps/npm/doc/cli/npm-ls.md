@@ -91,6 +91,13 @@ When "dev" or "development", is an alias to `dev`.
 
 When "prod" or "production", is an alias to `production`.
 
+### link
+
+* Type: Boolean
+* Default: false
+
+Display only dependencies which are linked
+
 ## SEE ALSO
 
 * npm-config(1)

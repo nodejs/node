@@ -16,7 +16,7 @@ assert.throws(function() {
 
 assert.throws(function() {
   fs.watchFile(new Object(), common.mustNotCall());
-}, common.expectsError({code: 'ERR_INVALID_ARG_TYPE', type: TypeError}));
+}, common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }));
 
 const enoentFile = path.join(common.tmpDir, 'non-existent-file');
 const expectedStatObject = new fs.Stats(
@@ -42,7 +42,7 @@ common.refreshTmpDir();
 // time, the callback should be invoked again with proper values in stat object
 let fileExists = false;
 
-fs.watchFile(enoentFile, {interval: 0}, common.mustCall(function(curr, prev) {
+fs.watchFile(enoentFile, { interval: 0 }, common.mustCall(function(curr, prev) {
   if (!fileExists) {
     // If the file does not exist, all the fields should be zero and the date
     // fields should be UNIX EPOCH time
@@ -67,7 +67,7 @@ fs.watchFile(enoentFile, {interval: 0}, common.mustCall(function(curr, prev) {
 // Watch events should callback with a filename on supported systems.
 // Omitting AIX. It works but not reliably.
 if (common.isLinux || common.isOSX || common.isWindows) {
-  const dir = common.tmpDir + '/watch';
+  const dir = path.join(common.tmpDir, 'watch');
 
   fs.mkdir(dir, common.mustCall(function(err) {
     if (err) assert.fail(err);
@@ -79,7 +79,7 @@ if (common.isLinux || common.isOSX || common.isWindows) {
     }));
 
     const interval = setInterval(() => {
-      fs.writeFile(`${dir}/foo.txt`, 'foo', common.mustCall(function(err) {
+      fs.writeFile(path.join(dir, 'foo.txt'), 'foo', common.mustCall((err) => {
         if (err) assert.fail(err);
       }));
     }, 1);

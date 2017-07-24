@@ -51,7 +51,10 @@ function fromManifest (manifest, spec, opts) {
     ],
     spec
   }, opts)).then(res => {
-    stream.emit('integrity', res.headers.get('x-local-cache-hash'))
+    const hash = res.headers.get('x-local-cache-hash')
+    if (hash) {
+      stream.emit('integrity', decodeURIComponent(hash))
+    }
     res.body.on('error', err => stream.emit('error', err))
     res.body.pipe(stream)
   }).catch(err => stream.emit('error', err))

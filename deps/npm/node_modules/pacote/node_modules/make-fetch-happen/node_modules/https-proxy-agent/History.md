@@ -1,4 +1,19 @@
 
+2.0.0 / 2017-06-26
+==================
+
+  * rename https-proxy-agent.js to index.js
+  * update dependencies and remove semver-specific test case
+  * update `agent-base` to v4
+  * remove `extend` dependency
+  * :arrow_up: update minimum version of debug dependency
+  * opts/options
+  * drop Node versions < v4 from Travis-CI
+  * test Node.js 5, 6, 7 and 8 on Travis-CI
+  * README: remove outdated `secureEndpoint` reference
+  * README: remove `secureEndpoint` docs, add `headers`
+  * https-proxy-agent: add support for proxy "headers"
+
 1.0.0 / 2015-07-10
 ==================
 

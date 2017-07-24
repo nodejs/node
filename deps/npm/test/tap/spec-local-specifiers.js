@@ -609,11 +609,133 @@ test('save behavior', function (t) {
   })
 })
 
+var rmdir = testdir + '/remove-behavior'
+testdirContent['remove-behavior'] = Dir({
+  'rmsymlink': Dir({
+    'package.json': File({
+      name: 'remove-behavior',
+      version: '1.0.0',
+      dependencies: {
+        dep1: 'file:dep1'
+      }
+    }),
+    'package-lock.json': File({
+      name: 'remove-behavior',
+      version: '1.0.0',
+      lockfileVersion: 1,
+      requires: true,
+      dependencies: {
+        dep1: {
+          version: 'file:dep1',
+          requires: {
+            dep2: 'file:dep2'
+          },
+          dependencies: {
+            dep2: {
+              version: 'file:dep2',
+              bundled: true
+            }
+          }
+        }
+      }
+    }),
+    dep1: Dir({
+      'package.json': File({
+        name: 'dep1',
+        version: '1.0.0',
+        dependencies: {
+          dep2: 'file:../dep2'
+        }
+      }),
+      'node_modules': Dir({
+        dep2: Symlink('../../dep2')
+      })
+    }),
+    dep2: Dir({
+      'package.json': File({
+        name: 'dep2',
+        version: '1.0.0'
+      })
+    }),
+    'node_modules': Dir({
+      dep1: Symlink('../dep1')
+    })
+  }),
+  'rmesymlink': Dir({
+    'package.json': File({
+      name: 'remove-behavior',
+      version: '1.0.0',
+      dependencies: {
+        edep1: 'file:../edep1'
+      }
+    }),
+    'package-lock.json': File({
+      name: 'remove-behavior',
+      version: '1.0.0',
+      lockfileVersion: 1,
+      requires: true,
+      dependencies: {
+        edep1: {
+          version: 'file:../edep1',
+          requires: {
+            edep2: 'file:../edep2'
+          },
+          dependencies: {
+            edep2: {
+              version: 'file:../edep2',
+              bundled: true
+            }
+          }
+        }
+      }
+    }),
+    'node_modules': Dir({
+      edep1: Symlink('../../edep1')
+    })
+  }),
+  edep1: Dir({
+    'package.json': File({
+      name: 'edep1',
+      version: '1.0.0',
+      dependencies: {
+        edep2: 'file:../edep2'
+      }
+    }),
+    'node_modules': Dir({
+      edep2: Symlink('../../edep2')
+    })
+  }),
+  edep2: Dir({
+    'package.json': File({
+      name: 'edep2',
+      version: '1.0.0'
+    })
+  })
+})
+
 test('removal', function (t) {
-  t.plan(3)
-  t.test('should remove the symlink')
-  t.test('should not remove the transitive deps if it was not a `link:` type specifier.')
-  t.test("should not remove transitive deps if it's outside the package and --preserver-symlinks isn't set")
+  t.plan(2)
+
+  t.test('should remove the symlink', (t) => {
+    const rmconf = {cwd: `${rmdir}/rmsymlink`, env: conf.env, stdio: conf.stdio}
+    return common.npm(['uninstall', 'dep1'], rmconf).spread((code, stdout) => {
+      t.is(code, 0, 'uninstall ran ok')
+      t.comment(stdout)
+      noFileExists(t, `${rmdir}/rmsymlink/node_modules/dep1`, 'removed symlink')
+      noFileExists(t, `${rmdir}/rmsymlink/dep1/node_modules/dep2`, 'removed transitive dep')
+      fileExists(t, `${rmdir}/rmsymlink/dep2`, 'original transitive dep still exists')
+    })
+  })
+  t.test("should not remove transitive deps if it's outside the package and --preserver-symlinks isn't set", (t) => {
+    const rmconf = {cwd: `${rmdir}/rmesymlink`, env: conf.env, stdio: conf.stdio}
+    return common.npm(['uninstall', 'edep1'], rmconf).spread((code, stdout) => {
+      t.is(code, 0, 'uninstall ran ok')
+      t.comment(stdout)
+      noFileExists(t, `${rmdir}/rmsymlink/node_modules/edep1`, 'removed symlink')
+      fileExists(t, `${rmdir}/edep1/node_modules/edep2`, 'did NOT remove transitive dep')
+      fileExists(t, `${rmdir}/edep2`, 'original transitive dep still exists')
+    })
+  })
 })
 
 test('misc', function (t) {

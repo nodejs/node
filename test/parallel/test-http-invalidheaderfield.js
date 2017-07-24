@@ -19,7 +19,7 @@ const server = http.createServer(function(req, res) {
 });
 server.listen(0, function() {
 
-  http.get({port: this.address().port}, function() {
+  http.get({ port: this.address().port }, function() {
     ee.emit('done');
   });
 
@@ -27,7 +27,7 @@ server.listen(0, function() {
     function() {
       const options = {
         port: server.address().port,
-        headers: {'testing 123': 123}
+        headers: { 'testing 123': 123 }
       };
       http.get(options, common.mustNotCall());
     },
@@ -41,7 +41,7 @@ server.listen(0, function() {
     function() {
       const options = {
         port: server.address().port,
-        headers: {'testing_123': 123}
+        headers: { 'testing_123': 123 }
       };
       http.get(options, function() {
         ee.emit('done');

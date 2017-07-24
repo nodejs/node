@@ -640,12 +640,14 @@ def check_compiler(o):
     # to a version that is not completely ancient.
     warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s)' % CC)
 
-  # Need llvm_version or gas_version when openssl asm files are compiled
+  if is_clang:
+    o['variables']['llvm_version'] = get_llvm_version(CC)
+
+  # Need xcode_version or gas_version when openssl asm files are compiled.
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
     return
 
   if is_clang:
-    o['variables']['llvm_version'] = get_llvm_version(CC)
     if sys.platform == 'darwin':
       o['variables']['xcode_version'] = get_xcode_version(CC)
   else:
@@ -985,8 +987,11 @@ def configure_openssl(o):
     o['variables']['openssl_fips'] = options.openssl_fips
     fips_dir = os.path.join(root_dir, 'deps', 'openssl', 'fips')
     fips_ld = os.path.abspath(os.path.join(fips_dir, 'fipsld'))
+    # LINK is for Makefiles, LD/LDXX is for ninja
     o['make_fips_settings'] = [
       ['LINK', fips_ld + ' <(openssl_fips)/bin/fipsld'],
+      ['LD', fips_ld + ' <(openssl_fips)/bin/fipsld'],
+      ['LDXX', fips_ld + ' <(openssl_fips)/bin/fipsld'],
     ]
   else:
     o['variables']['openssl_fips'] = ''

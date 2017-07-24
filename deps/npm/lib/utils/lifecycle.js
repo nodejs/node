@@ -60,6 +60,8 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
     delete pkg.scripts.prepublish
   }
 
+  if (!pkg.scripts[stage]) return cb()
+
   validWd(wd || path.resolve(npm.dir, pkg.name), function (er, wd) {
     if (er) return cb(er)
 
@@ -262,7 +264,11 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
   var sh = 'sh'
   var shFlag = '-c'
 
-  if (process.platform === 'win32') {
+  var customShell = npm.config.get('script-shell')
+
+  if (customShell) {
+    sh = customShell
+  } else if (process.platform === 'win32') {
     sh = process.env.comspec || 'cmd'
     shFlag = '/d /s /c'
     conf.windowsVerbatimArguments = true

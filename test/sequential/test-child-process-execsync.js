@@ -23,8 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-const execSync = require('child_process').execSync;
-const execFileSync = require('child_process').execFileSync;
+const { execFileSync, execSync } = require('child_process');
 
 const TIMER = 200;
 const SLEEP = 2000;
@@ -35,12 +34,12 @@ let caught = false;
 
 // Verify that stderr is not accessed when a bad shell is used
 assert.throws(
-  function() { execSync('exit -1', {shell: 'bad_shell'}); },
+  function() { execSync('exit -1', { shell: 'bad_shell' }); },
   /spawnSync bad_shell ENOENT/,
   'execSync did not throw the expected exception!'
 );
 assert.throws(
-  function() { execFileSync('exit -1', {shell: 'bad_shell'}); },
+  function() { execFileSync('exit -1', { shell: 'bad_shell' }); },
   /spawnSync bad_shell ENOENT/,
   'execFileSync did not throw the expected exception!'
 );
@@ -48,7 +47,7 @@ assert.throws(
 let cmd, ret;
 try {
   cmd = `"${process.execPath}" -e "setTimeout(function(){}, ${SLEEP});"`;
-  ret = execSync(cmd, {timeout: TIMER});
+  ret = execSync(cmd, { timeout: TIMER });
 } catch (e) {
   caught = true;
   assert.strictEqual(e.errno, 'ETIMEDOUT');
@@ -98,7 +97,7 @@ assert.strictEqual(ret, `${msg}\n`,
 {
   const cwd = common.rootDir;
   const cmd = common.isWindows ? 'echo %cd%' : 'pwd';
-  const response = execSync(cmd, {cwd});
+  const response = execSync(cmd, { cwd });
 
   assert.strictEqual(response.toString().trim(), cwd);
 }
@@ -106,7 +105,7 @@ assert.strictEqual(ret, `${msg}\n`,
 // Verify that stderr is not accessed when stdio = 'ignore' - GH #7966
 {
   assert.throws(function() {
-    execSync('exit -1', {stdio: 'ignore'});
+    execSync('exit -1', { stdio: 'ignore' });
   }, /Command failed: exit -1/);
 }
 

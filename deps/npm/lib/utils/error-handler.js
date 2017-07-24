@@ -135,7 +135,9 @@ function exit (code, noLog) {
     // for whatever reason gets thrown away, instead of leaving the CLI open
     //
     // Commands that expect long-running actions should just delay `cb()`
-    process.exit(code)
+    process.stdout.write('', () => {
+      process.exit(code)
+    })
   }
 }
 

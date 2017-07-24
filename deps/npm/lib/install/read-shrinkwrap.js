@@ -47,14 +47,10 @@ function maybeReadFile (name, child) {
   ).catch({code: 'ENOENT'}, () => null)
 }
 
-module.exports.andInflate = function (child, opts, next) {
-  if (arguments.length === 2) {
-    next = opts
-    opts = {}
-  }
+module.exports.andInflate = function (child, next) {
   readShrinkwrap(child, iferr(next, function () {
     if (child.package._shrinkwrap) {
-      return inflateShrinkwrap(child, child.package._shrinkwrap.dependencies || {}, opts, next)
+      return inflateShrinkwrap(child, child.package._shrinkwrap || {}, next)
     } else {
       return next()
     }

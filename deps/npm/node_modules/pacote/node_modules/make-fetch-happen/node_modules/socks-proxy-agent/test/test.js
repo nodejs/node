@@ -9,6 +9,7 @@ var http = require('http');
 var https = require('https');
 var assert = require('assert');
 var socks = require('socksv5');
+var getRawBody = require('raw-body');
 var SocksProxyAgent = require('../');
 
 describe('SocksProxyAgent', function () {
@@ -102,13 +103,9 @@ describe('SocksProxyAgent', function () {
       opts.headers = { foo: 'bar' };
       var req = http.get(opts, function (res) {
         assert.equal(404, res.statusCode);
-        var data = '';
-        res.setEncoding('utf8');
-        res.on('data', function (b) {
-          data += b;
-        });
-        res.on('end', function () {
-          data = JSON.parse(data);
+        getRawBody(res, 'utf8', function (err, buf) {
+          if (err) return done(err);
+          var data = JSON.parse(buf);
           assert.equal('bar', data.foo);
           done();
         });
@@ -133,13 +130,9 @@ describe('SocksProxyAgent', function () {
       opts.headers = { foo: 'bar' };
       var req = https.get(opts, function (res) {
         assert.equal(404, res.statusCode);
-        var data = '';
-        res.setEncoding('utf8');
-        res.on('data', function (b) {
-          data += b;
-        });
-        res.on('end', function () {
-          data = JSON.parse(data);
+        getRawBody(res, 'utf8', function (err, buf) {
+          if (err) return done(err);
+          var data = JSON.parse(buf);
           assert.equal('bar', data.foo);
           done();
         });

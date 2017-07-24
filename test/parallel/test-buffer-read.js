@@ -10,7 +10,7 @@ function read(buff, funx, args, expected) {
   assert.strictEqual(buff[funx](...args), expected);
   assert.throws(
     () => buff[funx](-1),
-    common.expectsError({code: 'ERR_INDEX_OUT_OF_RANGE'})
+    common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' })
   );
 
   assert.doesNotThrow(

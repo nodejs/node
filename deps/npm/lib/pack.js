@@ -163,6 +163,8 @@ function packGitDep (manifest, dir) {
       const child = cp.spawn(process.env.NODE || process.execPath, [
         require.main.filename,
         'install',
+        '--dev',
+        '--prod',
         '--ignore-prepublish',
         '--no-progress',
         '--no-save'

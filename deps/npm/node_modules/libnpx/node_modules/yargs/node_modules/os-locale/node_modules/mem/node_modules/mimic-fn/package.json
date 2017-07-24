@@ -1,0 +1,43 @@
+{
+  "_from": "mimic-fn@^1.0.0",
+  "_id": "mimic-fn@1.1.0",
+  "_inBundle": false,
+  "_integrity": "sha1-5md4PZLonb00KBi1IwudYqZyrRg=",
+  "_location": "/libnpx/yargs/os-locale/mem/mimic-fn",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "mimic-fn@^1.0.0",
+    "name": "mimic-fn",
+    "escapedName": "mimic-fn",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/os-locale/mem"
+  ],
+  "_resolved": "https://registry.npmjs.org/mimic-fn/-/mimic-fn-1.1.0.tgz",
+  "_shasum": "e667783d92e89dbd342818b5230b9d62a672ad18",
+  "_shrinkwrap": null,
+  "_spec": "mimic-fn@^1.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/os-locale/node_modules/mem",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "> Make a function mimic another one",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "name": "mimic-fn",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "1.1.0"
+}

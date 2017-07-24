@@ -208,7 +208,6 @@ function Installer (where, dryrun, args) {
   // the only exist when the tree does not match the lockfile
   // this is fine when doing full tree installs/updates but not ok when modifying only
   // a few deps via `npm install` or `npm uninstall`.
-  this.fakeChildren = true
   this.currentTree = null
   this.idealTree = null
   this.differences = []
@@ -296,6 +295,7 @@ Installer.prototype.run = function (_cb) {
         // this is necessary as we don't fill in `dependencies` and `devDependencies` in deps loaded from shrinkwrap
         // until after we extract them
         [this, (next) => { computeMetadata(this.idealTree); next() }],
+        [this, this.pruneIdealTree],
         [this, this.saveToDependencies])
     }
   }
@@ -324,7 +324,6 @@ Installer.prototype.run = function (_cb) {
 Installer.prototype.loadArgMetadata = function (next) {
   getAllMetadata(this.args, this.currentTree, process.cwd(), iferr(next, (args) => {
     this.args = args
-    if (args.length) this.fakeChildren = false
     next()
   }))
 }
@@ -371,12 +370,16 @@ Installer.prototype.normalizeCurrentTree = function (cb) {
       }
     }
   }
+  computeMetadata(this.currentTree)
   return cb()
 
-  function normalizeTree (tree) {
+  function normalizeTree (tree, seen) {
+    if (!seen) seen = new Set()
+    if (seen.has(tree)) return
+    seen.add(tree)
     createNode(tree)
     tree.location = flatNameFromTree(tree)
-    tree.children.forEach(normalizeTree)
+    tree.children.forEach((child) => normalizeTree(child, seen))
   }
 }
 
@@ -402,8 +405,12 @@ Installer.prototype.loadIdealTree = function (cb) {
 }
 
 Installer.prototype.pruneIdealTree = function (cb) {
+  if (!this.idealTree) return cb()
+  // if our lock file didn't have the requires field and there
+  // are any fake children then forgo pruning until we have more info.
+  if (!this.idealTree.hasRequiresFromLock && this.idealTree.children.some((n) => n.fakeChild)) return cb()
   var toPrune = this.idealTree.children
-    .filter((n) => !n.fakeChild && isExtraneous(n))
+    .filter(isExtraneous)
     .map((n) => ({name: moduleName(n)}))
   return removeExtraneous(toPrune, this.idealTree, cb)
 }
@@ -417,14 +424,14 @@ Installer.prototype.loadAllDepsIntoIdealTree = function (cb) {
   var installNewModules = !!this.args.length
   var steps = []
 
-  const depsToPreload = Object.assign({},
-    this.dev ? this.idealTree.package.devDependencies : {},
-    this.prod ? this.idealTree.package.dependencies : {}
-  )
   if (installNewModules) {
     steps.push([validateArgs, this.idealTree, this.args])
     steps.push([loadRequestedDeps, this.args, this.idealTree, saveDeps, cg.newGroup('loadRequestedDeps')])
   } else {
+    const depsToPreload = Object.assign({},
+      this.dev ? this.idealTree.package.devDependencies : {},
+      this.prod ? this.idealTree.package.dependencies : {}
+    )
     if (this.prod || this.dev) {
       steps.push(
         [prefetchDeps, this.idealTree, depsToPreload, cg.newGroup('prefetchDeps')])
@@ -513,7 +520,8 @@ Installer.prototype.executeActions = function (cb) {
     [lock, node_modules, '.staging'],
     [rimraf, staging],
     [doParallelActions, 'extract', staging, todo, cg.newGroup('extract', 100)],
-    [doReverseSerialActions, 'remove', staging, todo, cg.newGroup('remove')],
+    [doReverseSerialActions, 'unbuild', staging, todo, cg.newGroup('unbuild')],
+    [doSerialActions, 'remove', staging, todo, cg.newGroup('remove')],
     [doSerialActions, 'move', staging, todo, cg.newGroup('move')],
     [doSerialActions, 'finalize', staging, todo, cg.newGroup('finalize')],
     [doParallelActions, 'refresh-package-json', staging, todo, cg.newGroup('refresh-package-json')],
@@ -675,7 +683,7 @@ function isLink (child) {
 Installer.prototype.loadShrinkwrap = function (cb) {
   validate('F', arguments)
   log.silly('install', 'loadShrinkwrap')
-  readShrinkwrap.andInflate(this.idealTree, {fakeChildren: this.fakeChildren}, cb)
+  readShrinkwrap.andInflate(this.idealTree, cb)
 }
 
 Installer.prototype.getInstalledModules = function () {
@@ -713,7 +721,16 @@ Installer.prototype.printInstalled = function (cb) {
   validate('F', arguments)
   if (this.failing) return cb()
   log.silly('install', 'printInstalled')
-  const diffs = this.differences.concat((this.idealTree.removedChildren || []).map((r) => ['remove', r]))
+  const diffs = this.differences
+  if (!this.idealTree.error && this.idealTree.removedChildren) {
+    const deps = this.currentTree.package.dependencies || {}
+    const dev = this.currentTree.package.devDependencies || {}
+    this.idealTree.removedChildren.forEach((r) => {
+      if (diffs.some((d) => d[0] === 'remove' && d[1].path === r.path)) return
+      if (!deps[moduleName(r)] && !dev[moduleName(r)]) return
+      diffs.push(['remove', r])
+    })
+  }
   if (npm.config.get('json')) {
     return this.printInstalledForJSON(diffs, cb)
   } else if (npm.config.get('parseable')) {
@@ -874,15 +891,15 @@ Installer.prototype.debugTree = function (name, treeName, cb) {
 
 Installer.prototype.prettify = function (tree) {
   validate('O', arguments)
-  var seen = {}
+  var seen = new Set()
   function byName (aa, bb) {
     return packageId(aa).localeCompare(packageId(bb))
   }
   function expandTree (tree) {
-    seen[tree.path] = true
+    seen.add(tree)
     return {
       label: packageId(tree),
-      nodes: tree.children.filter((tree) => { return !seen[tree.path] && !tree.removed && !tree.failed }).sort(byName).map(expandTree)
+      nodes: tree.children.filter((tree) => { return !seen.has(tree) && !tree.removed && !tree.failed }).sort(byName).map(expandTree)
     }
   }
   return archy(expandTree(tree), '', { unicode: npm.config.get('unicode') })

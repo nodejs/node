@@ -28,7 +28,7 @@ const fs = require('fs');
 const expectFilePath = common.isWindows ||
                        common.isLinux ||
                        common.isOSX ||
-                       common.isAix;
+                       common.isAIX;
 
 let watchSeenOne = 0;
 let watchSeenTwo = 0;
@@ -102,7 +102,7 @@ const filepathThree = path.join(testsubdir, filenameThree);
 assert.doesNotThrow(
     function() {
       const watcher = fs.watch(testsubdir, function(event, filename) {
-        const renameEv = common.isSunOS || common.isAix ? 'change' : 'rename';
+        const renameEv = common.isSunOS || common.isAIX ? 'change' : 'rename';
         assert.strictEqual(event, renameEv);
         if (expectFilePath) {
           assert.strictEqual(filename, 'newfile.txt');
@@ -122,7 +122,7 @@ setImmediate(function() {
 
 // https://github.com/joyent/node/issues/2293 - non-persistent watcher should
 // not block the event loop
-fs.watch(__filename, {persistent: false}, function() {
+fs.watch(__filename, { persistent: false }, function() {
   assert(0);
 });
 
@@ -138,7 +138,8 @@ assert.throws(function() {
 oldhandle.close(); // clean up
 
 assert.throws(function() {
-  const w = fs.watchFile(__filename, {persistent: false}, common.mustNotCall());
+  const w = fs.watchFile(__filename, { persistent: false },
+                         common.mustNotCall());
   oldhandle = w._handle;
   w._handle = { stop: w._handle.stop };
   w.stop();

@@ -18,8 +18,8 @@ hooks.enable();
 //
 const server = tls
   .createServer({
-    cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem'),
-    key: fs.readFileSync(common.fixturesDir + '/test_key.pem')
+    cert: fs.readFileSync(`${common.fixturesDir}/test_cert.pem`),
+    key: fs.readFileSync(`${common.fixturesDir}/test_key.pem`)
   })
   .on('listening', common.mustCall(onlistening))
   .on('secureConnection', common.mustCall(onsecureConnection))

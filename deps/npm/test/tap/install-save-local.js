@@ -53,7 +53,7 @@ test('\'npm install --save ../local/path\' should save to package.json', functio
       var pkgJson = JSON.parse(fs.readFileSync(pkg + '/package.json', 'utf8'))
       t.is(Object.keys(pkgJson.dependencies).length, 1, 'only one dep')
       t.ok(
-        /file:.*?[/\\]package-local-dependency$/.test(pkgJson.dependencies['package-local-dependency']),
+        /file:.*?[/]package-local-dependency$/.test(pkgJson.dependencies['package-local-dependency']),
         'local package saved correctly'
       )
       t.end()

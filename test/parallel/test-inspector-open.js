@@ -13,12 +13,12 @@ const url = require('url');
 if (process.env.BE_CHILD)
   return beChild();
 
-const child = fork(__filename, {env: {BE_CHILD: 1}});
+const child = fork(__filename, { env: { BE_CHILD: 1 } });
 
 child.once('message', common.mustCall((msg) => {
   assert.strictEqual(msg.cmd, 'started');
 
-  child.send({cmd: 'open', args: [0]});
+  child.send({ cmd: 'open', args: [0] });
   child.once('message', common.mustCall(firstOpen));
 }));
 
@@ -30,7 +30,7 @@ function firstOpen(msg) {
   ping(port, (err) => {
     assert.ifError(err);
     // Inspector is already open, and won't be reopened, so args don't matter.
-    child.send({cmd: 'open', args: []});
+    child.send({ cmd: 'open', args: [] });
     child.once('message', common.mustCall(tryToOpenWhenOpen));
     firstPort = port;
   });
@@ -43,7 +43,7 @@ function tryToOpenWhenOpen(msg) {
   assert.strictEqual(port, firstPort);
   ping(port, (err) => {
     assert.ifError(err);
-    child.send({cmd: 'close'});
+    child.send({ cmd: 'close' });
     child.once('message', common.mustCall(closeWhenOpen));
   });
 }
@@ -53,7 +53,7 @@ function closeWhenOpen(msg) {
   assert.strictEqual(msg.url, undefined);
   ping(firstPort, (err) => {
     assert(err);
-    child.send({cmd: 'close'});
+    child.send({ cmd: 'close' });
     child.once('message', common.mustCall(tryToCloseWhenClosed));
   });
 }
@@ -61,7 +61,7 @@ function closeWhenOpen(msg) {
 function tryToCloseWhenClosed(msg) {
   assert.strictEqual(msg.cmd, 'url');
   assert.strictEqual(msg.url, undefined);
-  child.send({cmd: 'open', args: []});
+  child.send({ cmd: 'open', args: [] });
   child.once('message', common.mustCall(reopenAfterClose));
 }
 
@@ -89,7 +89,7 @@ function ping(port, callback) {
 function beChild() {
   const inspector = require('inspector');
 
-  process.send({cmd: 'started'});
+  process.send({ cmd: 'started' });
 
   process.on('message', (msg) => {
     if (msg.cmd === 'open') {
@@ -98,6 +98,6 @@ function beChild() {
     if (msg.cmd === 'close') {
       inspector.close();
     }
-    process.send({cmd: 'url', url: inspector.url()});
+    process.send({ cmd: 'url', url: inspector.url() });
   });
 }

@@ -84,7 +84,7 @@ if (cluster.isWorker) {
   const workers = [];
 
   // Spawn a cluster process
-  const master = fork(process.argv[1], ['cluster'], {silent: true});
+  const master = fork(process.argv[1], ['cluster'], { silent: true });
 
   // Handle messages from the cluster
   master.on('message', common.mustCall((data) => {

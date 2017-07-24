@@ -112,12 +112,12 @@ function moveRemainingChildren (node, diff) {
 }
 
 function remove (child, diff, done) {
-  remove_(child, diff, {}, done)
+  remove_(child, diff, new Set(), done)
 }
 
 function remove_ (child, diff, seen, done) {
-  if (seen[child.path]) return done()
-  seen[child.path] = true
+  if (seen.has(child)) return done()
+  seen.add(child)
   diff.push(['remove', child])
   child.parent.children = without(child.parent.children, child)
   asyncMap(child.children, function (child, next) {
@@ -126,13 +126,13 @@ function remove_ (child, diff, seen, done) {
 }
 
 function hoistChildren (tree, diff, next) {
-  hoistChildren_(tree, diff, {}, next)
+  hoistChildren_(tree, diff, new Set(), next)
 }
 
 function hoistChildren_ (tree, diff, seen, next) {
   validate('OAOF', arguments)
-  if (seen[tree.path]) return next()
-  seen[tree.path] = true
+  if (seen.has(tree)) return next()
+  seen.add(tree)
   asyncMap(tree.children, function (child, done) {
     if (!tree.parent) return hoistChildren_(child, diff, seen, done)
     var better = findRequirement(tree.parent, moduleName(child), getRequested(child) || npa(packageId(child)))

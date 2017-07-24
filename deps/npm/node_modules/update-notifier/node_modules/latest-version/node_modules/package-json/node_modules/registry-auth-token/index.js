@@ -53,7 +53,7 @@ function getRegistryAuthInfo (checkUrl, options) {
 
 function getLegacyAuthInfo (npmrc) {
   if (npmrc._auth) {
-    return getBearerToken(npmrc._auth)
+    return {token: npmrc._auth, type: 'Basic'}
   }
   return undefined
 }

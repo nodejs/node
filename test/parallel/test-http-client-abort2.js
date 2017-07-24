@@ -28,7 +28,7 @@ const server = http.createServer(function(req, res) {
 });
 
 server.listen(0, function() {
-  const req = http.get({port: this.address().port}, function(res) {
+  const req = http.get({ port: this.address().port }, function(res) {
     res.on('data', function(data) {
       req.abort();
       server.close();

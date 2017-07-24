@@ -29,7 +29,6 @@ const fs = require('fs');
 const path = require('path');
 const tls = require('tls');
 
-const hosterr = /Hostname\/IP doesn't match certificate's altnames/;
 const testCases =
   [{ ca: ['ca1-cert'],
      key: 'agent2-key',
@@ -101,7 +100,7 @@ function testServers(index, servers, clientOptions, cb) {
     clientOptions.port = this.address().port;
     const client = tls.connect(clientOptions, common.mustCall(function() {
       const authorized = client.authorized ||
-                         hosterr.test(client.authorizationError);
+          (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID');
 
       console.error(`expected: ${ok} authed: ${authorized}`);
 

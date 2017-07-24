@@ -16,7 +16,7 @@ server.on('clientError', common.mustCall((err) => {
   server.close();
 }));
 server.listen(0, () => {
-  const client = net.connect({port: server.address().port}, () => {
+  const client = net.connect({ port: server.address().port }, () => {
     client.write(reqstr);
     client.end();
   });

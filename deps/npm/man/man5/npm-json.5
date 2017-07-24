@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "June 2017" "" ""
+.TH "PACKAGE\.JSON" "5" "July 2017" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -557,21 +557,35 @@ This tarball will be downloaded and installed locally to your package at
 install time\.
 .SS Git URLs as Dependencies
 .P
-Git urls can be of the form:
+Git urls are of the form:
 .P
 .RS 2
 .nf
-git://github\.com/user/project\.git#commit\-ish
-git+ssh://user@hostname:project\.git#commit\-ish
-git+ssh://user@hostname/project\.git#commit\-ish
-git+http://user@hostname/project/blah\.git#commit\-ish
-git+https://user@hostname/project/blah\.git#commit\-ish
+<protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit\-ish> | #semver:<semver>]
 .fi
 .RE
 .P
-The \fBcommit\-ish\fP can be any tag, sha, or branch which can be supplied as
-an argument to \fBgit checkout\fP\|\.  The default is \fBmaster\fP\|\.
-.SH GitHub URLs
+\fB<protocol>\fP is one of \fBgit\fP, \fBgit+ssh\fP, \fBgit+http\fP, \fBgit+https\fP, or
+\fBgit+file\fP\|\.
+.P
+If \fB#<commit\-ish>\fP is provided, it will be used to clone exactly that
+commit\. If the commit\-ish has the format \fB#semver:<semver>\fP, \fB<semver>\fP can
+be any valid semver range or exact version, and npm will look for any tags
+or refs matching that range in the remote repository, much as it would for a
+registry dependency\. If neither \fB#<commit\-ish>\fP or \fB#semver:<semver>\fP is
+specified, then \fBmaster\fP is used\.
+.P
+Examples:
+.P
+.RS 2
+.nf
+git+ssh://git@github\.com:npm/npm\.git#v1\.0\.27
+git+ssh://git@github\.com:npm/npm#semver:^5\.0
+git+https://isaacs@github\.com/npm/npm\.git
+git://github\.com/npm/npm\.git#v1\.0\.27
+.fi
+.RE
+.SS GitHub URLs
 .P
 As of version 1\.1\.65, you can refer to GitHub urls as just "foo":
 "user/foo\-project"\.  Just as with git URLs, a \fBcommit\-ish\fP suffix can be
@@ -590,7 +604,7 @@ included\.  For example:
 }
 .fi
 .RE
-.SH Local Paths
+.SS Local Paths
 .P
 As of version 2\.0\.0 you can provide a path to a local directory that contains a
 package\. Local paths can be saved using \fBnpm install \-S\fP or
@@ -854,12 +868,11 @@ Like the \fBos\fP option, you can also blacklist architectures:
 The host architecture is determined by \fBprocess\.arch\fP
 .SH preferGlobal
 .P
-If your package is primarily a command\-line application that should be
-installed globally, then set this value to \fBtrue\fP to provide a warning
-if it is installed locally\.
+\fBDEPRECATED\fR
 .P
-It doesn't actually prevent users from installing it locally, but it
-does help prevent some confusion if it doesn't work as expected\.
+This option used to trigger an npm warning, but it will no longer warn\. It is
+purely there for informational purposes\. It is now recommended that you install
+any binaries as local devDependencies wherever possible\.
 .SH private
 .P
 If you set \fB"private": true\fP in your package\.json, then npm will refuse

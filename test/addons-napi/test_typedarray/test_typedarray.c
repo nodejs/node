@@ -65,7 +65,7 @@ napi_value Multiply(napi_env env, napi_callback_info info) {
       output_doubles[i] = input_doubles[i] * multiplier;
     }
   } else {
-    napi_throw_error(env, "Typed array was of a type not expected by test.");
+    napi_throw_error(env, NULL, "Typed array was of a type not expected by test.");
     return NULL;
   }
 

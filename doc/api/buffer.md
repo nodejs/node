@@ -910,7 +910,7 @@ A `TypeError` will be thrown if `str` is not a string.
 
 ### Class Method: Buffer.from(object[, offsetOrEncoding[, length]])
 <!-- YAML
-added: REPLACEME
+added: v8.2.0
 -->
 
 * `object` {Object} An object supporting `Symbol.toPrimitive` or `valueOf()`
@@ -2665,7 +2665,7 @@ console.log(buf);
 
 ## Buffer Constants
 <!-- YAML
-added: REPLACEME
+added: 8.2.0
 -->
 
 Note that `buffer.constants` is a property on the `buffer` module returned by
@@ -2673,7 +2673,7 @@ Note that `buffer.constants` is a property on the `buffer` module returned by
 
 ### buffer.constants.MAX_LENGTH
 <!-- YAML
-added: REPLACEME
+added: 8.2.0
 -->
 
 * {integer} The largest size allowed for a single `Buffer` instance
@@ -2685,7 +2685,7 @@ This value is also available as [`buffer.kMaxLength`][].
 
 ### buffer.constants.MAX_STRING_LENGTH
 <!-- YAML
-added: REPLACEME
+added: 8.2.0
 -->
 
 * {integer} The largest length allowed for a single `string` instance

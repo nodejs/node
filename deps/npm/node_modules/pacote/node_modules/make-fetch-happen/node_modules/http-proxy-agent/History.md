@@ -1,4 +1,14 @@
 
+2.0.0 / 2017-06-27
+==================
+
+  * drop support for Node.js < v4
+  * update "mocha" to v3
+  * update to "agent-base" v4
+  * rename http-proxy-agent.js to index.js
+  * remove `extend` dependency
+  * test Node.js 4, 5, 6, 7 and 8 on Travis-CI
+
 1.0.0 / 2015-07-10
 ==================
 

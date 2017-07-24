@@ -161,6 +161,7 @@ The idea for this module came from the desire to apply the browser update strate
 
 There are a bunch projects using it:
 
+- [npm](https://github.com/npm/npm) - Package manager for JavaScript
 - [Yeoman](http://yeoman.io) - Modern workflows for modern webapps
 - [AVA](https://ava.li) - Simple concurrent test runner
 - [XO](https://github.com/sindresorhus/xo) - JavaScript happiness style linter

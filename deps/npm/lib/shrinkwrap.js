@@ -4,13 +4,12 @@ const BB = require('bluebird')
 
 const chain = require('slide').chain
 const detectIndent = require('detect-indent')
-const fs = BB.promisifyAll(require('graceful-fs'))
+const readFile = BB.promisify(require('graceful-fs').readFile)
 const getRequested = require('./install/get-requested.js')
 const id = require('./install/deps.js')
 const iferr = require('iferr')
-const isDevDep = require('./install/is-dev-dep.js')
-const isOptDep = require('./install/is-opt-dep.js')
-const isProdDep = require('./install/is-prod-dep.js')
+const isOnlyOptional = require('./install/is-only-optional.js')
+const isOnlyDev = require('./install/is-only-dev.js')
 const lifecycle = require('./utils/lifecycle.js')
 const log = require('npmlog')
 const moduleName = require('./utils/module-name.js')
@@ -21,6 +20,7 @@ const readPackageTree = BB.promisify(require('read-package-tree'))
 const ssri = require('ssri')
 const validate = require('aproba')
 const writeFileAtomic = require('write-file-atomic')
+const unixFormatPath = require('./utils/unix-format-path.js')
 
 const PKGLOCK = 'package-lock.json'
 const SHRINKWRAP = 'npm-shrinkwrap.json'
@@ -47,7 +47,7 @@ function shrinkwrap (args, silent, cb) {
     { Promise: BB }
   ).then(() => {
     log.notice('', `${PKGLOCK} has been renamed to ${SHRINKWRAP}. ${SHRINKWRAP} will be used for future installations.`)
-    return fs.readFileAsync(path.resolve(npm.prefix, SHRINKWRAP)).then((d) => {
+    return readFile(path.resolve(npm.prefix, SHRINKWRAP)).then((d) => {
       return JSON.parse(d)
     })
   }, (err) => {
@@ -90,6 +90,7 @@ function treeToShrinkwrap (tree) {
   if (tree.package.name) pkginfo.name = tree.package.name
   if (tree.package.version) pkginfo.version = tree.package.version
   if (tree.children.length) {
+    pkginfo.requires = true
     shrinkwrapDeps(pkginfo.dependencies = {}, tree, tree)
   }
   return pkginfo
@@ -97,34 +98,28 @@ function treeToShrinkwrap (tree) {
 
 function shrinkwrapDeps (deps, top, tree, seen) {
   validate('OOO', [deps, top, tree])
-  if (!seen) seen = {}
-  if (seen[tree.path]) return
-  seen[tree.path] = true
+  if (!seen) seen = new Set()
+  if (seen.has(tree)) return
+  seen.add(tree)
   tree.children.sort(function (aa, bb) { return moduleName(aa).localeCompare(moduleName(bb)) }).forEach(function (child) {
-    var childIsOnlyDev = isOnlyDev(child)
     if (child.fakeChild) {
       deps[moduleName(child)] = child.fakeChild
       return
     }
+    var childIsOnlyDev = isOnlyDev(child)
     var pkginfo = deps[moduleName(child)] = {}
-    var req = child.package._requested || getRequested(child)
-    if (req.type === 'directory' || req.type === 'file') {
-      pkginfo.version = 'file:' + path.relative(top.path, child.package._resolved || req.fetchSpec)
-    } else if (!req.registry && !child.fromBundle) {
-      pkginfo.version = child.package._resolved || req.saveSpec || req.rawSpec
-    } else {
-      pkginfo.version = child.package.version
-    }
+    var requested = child.package._requested || getRequested(child) || {}
+    pkginfo.version = childVersion(top, child, requested)
     if (child.fromBundle || child.isInLink) {
       pkginfo.bundled = true
     } else {
-      if (req.registry) {
+      if (requested.registry) {
         pkginfo.resolved = child.package._resolved
       }
       // no integrity for git deps as integirty hashes are based on the
       // tarball and we can't (yet) create consistent tarballs from a stable
       // source.
-      if (req.type !== 'git') {
+      if (requested.type !== 'git') {
         pkginfo.integrity = child.package._integrity
         if (!pkginfo.integrity && child.package._shasum) {
           pkginfo.integrity = ssri.fromHex(child.package._shasum, 'sha1')
@@ -132,12 +127,29 @@ function shrinkwrapDeps (deps, top, tree, seen) {
       }
     }
     if (childIsOnlyDev) pkginfo.dev = true
-    if (isOptional(child)) pkginfo.optional = true
+    if (isOnlyOptional(child)) pkginfo.optional = true
+    if (child.requires.length) {
+      pkginfo.requires = {}
+      child.requires.sort((a, b) => moduleName(a).localeCompare(moduleName(b))).forEach((required) => {
+        var requested = required.package._requested || getRequested(required) || {}
+        pkginfo.requires[moduleName(required)] = childVersion(top, required, requested)
+      })
+    }
     if (child.children.length) {
       pkginfo.dependencies = {}
       shrinkwrapDeps(pkginfo.dependencies, top, child, seen)
     }
   })
+}
+
+function childVersion (top, child, req) {
+  if (req.type === 'directory' || req.type === 'file') {
+    return 'file:' + unixFormatPath(path.relative(top.path, child.package._resolved || req.fetchSpec))
+  } else if (!req.registry && !child.fromBundle) {
+    return child.package._resolved || req.saveSpec || req.rawSpec
+  } else {
+    return child.package.version
+  }
 }
 
 function shrinkwrap_ (dir, pkginfo, opts, cb) {
@@ -163,14 +175,20 @@ function save (dir, pkginfo, opts, cb) {
       )
       const updated = updateLockfileMetadata(pkginfo, pkg && pkg.data)
       const swdata = JSON.stringify(updated, null, info.indent) + '\n'
-      writeFileAtomic(info.path, swdata, (err) => {
-        if (err) return cb(err)
-        if (opts.silent) return cb(null, pkginfo)
-        if (!shrinkwrap && !lockfile) {
-          log.notice('', `created a lockfile as ${path.basename(info.path)}. You should commit this file.`)
-        }
+      if (swdata === info.raw) {
+        // skip writing if file is identical
+        log.verbose('shrinkwrap', `skipping write for ${path.basename(info.path)} because there were no changes.`)
         cb(null, pkginfo)
-      })
+      } else {
+        writeFileAtomic(info.path, swdata, (err) => {
+          if (err) return cb(err)
+          if (opts.silent) return cb(null, pkginfo)
+          if (!shrinkwrap && !lockfile) {
+            log.notice('', `created a lockfile as ${path.basename(info.path)}. You should commit this file.`)
+          }
+          cb(null, pkginfo)
+        })
+      }
     }
   ).then((file) => {
   }, cb)
@@ -211,56 +229,15 @@ function updateLockfileMetadata (pkginfo, pkgJson) {
 
 function checkPackageFile (dir, name) {
   const file = path.resolve(dir, name)
-  return fs.readFileAsync(
+  return readFile(
     file, 'utf8'
   ).then((data) => {
     return {
       path: file,
+      raw: data,
       data: JSON.parse(data),
       indent: detectIndent(data).indent || 2
     }
   }).catch({code: 'ENOENT'}, () => {})
 }
 
-// Returns true if the module `node` is only required direcctly as a dev
-// dependency of the top level or transitively _from_ top level dev
-// dependencies.
-// Dual mode modules (that are both dev AND prod) should return false.
-function isOnlyDev (node, seen) {
-  if (!seen) seen = {}
-  return node.requiredBy.length && node.requiredBy.every(andIsOnlyDev(moduleName(node), seen))
-}
-
-// There is a known limitation with this implementation: If a dependency is
-// ONLY required by cycles that are detached from the top level then it will
-// ultimately return true.
-//
-// This is ok though: We don't allow shrinkwraps with extraneous deps and
-// these situation is caught by the extraneous checker before we get here.
-function andIsOnlyDev (name, seen) {
-  return function (req) {
-    var isDev = isDevDep(req, name)
-    var isProd = isProdDep(req, name)
-    if (req.isTop) {
-      return isDev && !isProd
-    } else {
-      if (seen[req.path]) return true
-      seen[req.path] = true
-      return isOnlyDev(req, seen)
-    }
-  }
-}
-
-function isOptional (node, seen) {
-  if (!seen) seen = {}
-  // If a node is not required by anything, then we've reached
-  // the top level package.
-  if (seen[node.path] || node.requiredBy.length === 0) {
-    return false
-  }
-  seen[node.path] = true
-
-  return node.requiredBy.every(function (req) {
-    return isOptDep(req, node.package.name) || isOptional(req, seen)
-  })
-}

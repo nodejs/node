@@ -342,15 +342,22 @@ tarball or git URL.</p>
 <p>This tarball will be downloaded and installed locally to your package at
 install time.</p>
 <h3 id="git-urls-as-dependencies">Git URLs as Dependencies</h3>
-<p>Git urls can be of the form:</p>
-<pre><code>git://github.com/user/project.git#commit-ish
-git+ssh://user@hostname:project.git#commit-ish
-git+ssh://user@hostname/project.git#commit-ish
-git+http://user@hostname/project/blah.git#commit-ish
-git+https://user@hostname/project/blah.git#commit-ish
-</code></pre><p>The <code>commit-ish</code> can be any tag, sha, or branch which can be supplied as
-an argument to <code>git checkout</code>.  The default is <code>master</code>.</p>
-<h2 id="github-urls">GitHub URLs</h2>
+<p>Git urls are of the form:</p>
+<pre><code>&lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:][/]&lt;path&gt;[#&lt;commit-ish&gt; | #semver:&lt;semver&gt;]
+</code></pre><p><code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, <code>git+https</code>, or
+<code>git+file</code>.</p>
+<p>If <code>#&lt;commit-ish&gt;</code> is provided, it will be used to clone exactly that
+commit. If the commit-ish has the format <code>#semver:&lt;semver&gt;</code>, <code>&lt;semver&gt;</code> can
+be any valid semver range or exact version, and npm will look for any tags
+or refs matching that range in the remote repository, much as it would for a
+registry dependency. If neither <code>#&lt;commit-ish&gt;</code> or <code>#semver:&lt;semver&gt;</code> is
+specified, then <code>master</code> is used.</p>
+<p>Examples:</p>
+<pre><code>git+ssh://git@github.com:npm/npm.git#v1.0.27
+git+ssh://git@github.com:npm/npm#semver:^5.0
+git+https://isaacs@github.com/npm/npm.git
+git://github.com/npm/npm.git#v1.0.27
+</code></pre><h3 id="github-urls">GitHub URLs</h3>
 <p>As of version 1.1.65, you can refer to GitHub urls as just &quot;foo&quot;:
 &quot;user/foo-project&quot;.  Just as with git URLs, a <code>commit-ish</code> suffix can be
 included.  For example:</p>
@@ -363,7 +370,7 @@ included.  For example:</p>
     &quot;module&quot;: &quot;user/repo#feature\/branch&quot;
   }
 }
-</code></pre><h2 id="local-paths">Local Paths</h2>
+</code></pre><h3 id="local-paths">Local Paths</h3>
 <p>As of version 2.0.0 you can provide a path to a local directory that contains a
 package. Local paths can be saved using <code>npm install -S</code> or
 <code>npm install --save</code>, using any of these forms:</p>
@@ -523,11 +530,10 @@ you can specify which ones.</p>
 <pre><code>&quot;cpu&quot; : [ &quot;!arm&quot;, &quot;!mips&quot; ]
 </code></pre><p>The host architecture is determined by <code>process.arch</code></p>
 <h2 id="preferglobal">preferGlobal</h2>
-<p>If your package is primarily a command-line application that should be
-installed globally, then set this value to <code>true</code> to provide a warning
-if it is installed locally.</p>
-<p>It doesn&#39;t actually prevent users from installing it locally, but it
-does help prevent some confusion if it doesn&#39;t work as expected.</p>
+<p><strong>DEPRECATED</strong></p>
+<p>This option used to trigger an npm warning, but it will no longer warn. It is
+purely there for informational purposes. It is now recommended that you install
+any binaries as local devDependencies wherever possible.</p>
 <h2 id="private">private</h2>
 <p>If you set <code>&quot;private&quot;: true</code> in your package.json, then npm will refuse
 to publish it.</p>
@@ -587,5 +593,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@5.0.3</p>
+<p id="footer">package.json &mdash; npm@5.3.0</p>
 
