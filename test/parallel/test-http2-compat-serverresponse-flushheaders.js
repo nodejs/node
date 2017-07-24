@@ -7,18 +7,24 @@ const h2 = require('http2');
 
 // Http2ServerResponse.flushHeaders
 
+let serverResponse;
+
 const server = h2.createServer();
 server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
     response.flushHeaders();
     response.flushHeaders(); // Idempotent
-    response.writeHead(400, { 'foo-bar': 'abc123' }); // Ignored
+    common.expectsError(() => {
+      response.writeHead(400, { 'foo-bar': 'abc123' });
+    }, {
+      code: 'ERR_HTTP2_INFO_HEADERS_AFTER_RESPOND'
+    });
 
     response.on('finish', common.mustCall(function() {
       server.close();
     }));
-    response.end();
+    serverResponse = response;
   }));
 
   const url = `http://localhost:${port}`;
@@ -33,6 +39,7 @@ server.listen(0, common.mustCall(function() {
     request.on('response', common.mustCall(function(headers, flags) {
       assert.strictEqual(headers['foo-bar'], undefined);
       assert.strictEqual(headers[':status'], 200);
+      serverResponse.end();
     }, 1));
     request.on('end', common.mustCall(function() {
       client.destroy();
