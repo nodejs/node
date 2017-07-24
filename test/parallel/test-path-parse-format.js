@@ -44,7 +44,9 @@ const winPaths = [
 ];
 
 const winSpecialCaseParseTests = [
-  ['/foo/bar', { root: '/' }]
+  ['/foo/bar', { root: '/' }],
+  ['C:', { root: 'C:', dir: 'C:', base: '' }],
+  ['C:\\', { root: 'C:\\', dir: 'C:\\', base: '' }]
 ];
 
 const winSpecialCaseFormatTests = [
