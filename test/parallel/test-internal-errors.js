@@ -166,7 +166,7 @@ assert.throws(() => {
   }, common.expectsError({ code: 'TEST_ERROR_1', type: RangeError }));
 }, common.expectsError({
   code: 'ERR_ASSERTION',
-  message: /^.+ is not the expected type \S/
+  message: /^.+ is not instance of \S/
 }));
 
 assert.throws(() => {

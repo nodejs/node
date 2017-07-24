@@ -23,7 +23,7 @@ assert.throws(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     operator: undefined,
-    actual: undefined,
+    actual: 'custom message',
     expected: undefined,
     message: 'custom message'
   })
