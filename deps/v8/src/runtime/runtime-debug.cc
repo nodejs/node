@@ -310,6 +310,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
 
   DCHECK(args.length() == 2);
 
+  if (args[0]->IsJSProxy()) return isolate->heap()->undefined_value();
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
@@ -382,6 +383,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetProperty) {
 
   DCHECK(args.length() == 2);
 
+  if (args[0]->IsJSProxy()) return isolate->heap()->undefined_value();
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
@@ -1318,6 +1320,7 @@ static bool HasInPrototypeChainIgnoringProxies(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
+  if (!args[0]->IsJSObject()) return *isolate->factory()->NewJSArray(0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, filter, 1);
   RUNTIME_ASSERT(filter->IsUndefined() || filter->IsJSObject());
@@ -1408,6 +1411,7 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
 RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
   HandleScope shs(isolate);
   DCHECK(args.length() == 1);
+  if (args[0]->IsJSProxy()) return isolate->heap()->undefined_value();
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   Handle<Object> prototype;
   // TODO(1543): Come up with a solution for clients to handle potential errors
