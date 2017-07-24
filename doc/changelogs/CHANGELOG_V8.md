@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td>
+<a href="#8.3.0">8.3.0</a><br/>
 <a href="#8.2.1">8.2.1</a><br/>
 <a href="#8.2.0">8.2.0</a><br/>
 <a href="#8.1.4">8.1.4</a><br/>
@@ -27,6 +28,82 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="8.3.0"></a>
+## 2017-07-??, Version 8.3.0 (Current), @addaleax
+
+### Notable changes
+
+* **V8**
+    * The V8 engine has been upgraded to version 5.9, which has a significantly
+    changed performance profile.
+    [#13515](https://github.com/nodejs/node/pull/13515)
+
+### Commits
+
+* [[`9b104b4ea8`](https://github.com/nodejs/node/commit/9b104b4ea8)] - **benchmark**: add assert map and set benchmarks (Ruben Bridgewater) [#14258](https://github.com/nodejs/node/pull/14258)
+* [[`0ebb4dff17`](https://github.com/nodejs/node/commit/0ebb4dff17)] - **build**: codesign tarball binary on macOS (Evan Lucas) [#14179](https://github.com/nodejs/node/pull/14179)
+* [[`5ab4471d72`](https://github.com/nodejs/node/commit/5ab4471d72)] - **build,tools**: do not force codesign prefix (Evan Lucas) [#14179](https://github.com/nodejs/node/pull/14179)
+* [[`577b4f75f6`](https://github.com/nodejs/node/commit/577b4f75f6)] - **deps**: cherry-pick 6cb999b97b from V8 upstream (Igor Sheludko) [#14188](https://github.com/nodejs/node/pull/14188)
+* [[`da1913c5e7`](https://github.com/nodejs/node/commit/da1913c5e7)] - **deps**: cherry-pick 3f4536894ac from V8 upstream (ochang) [#13985](https://github.com/nodejs/node/pull/13985)
+* [[`da9304607c`](https://github.com/nodejs/node/commit/da9304607c)] - **deps**: update V8 to 5.9.211.37 (Michaël Zasso) [#13790](https://github.com/nodejs/node/pull/13790)
+* [[`06d419f8a4`](https://github.com/nodejs/node/commit/06d419f8a4)] - **(SEMVER-MINOR)** **deps**: cherry-pick 866ee63 from upstream V8 (Michaël Zasso) [#13515](https://github.com/nodejs/node/pull/13515)
+* [[`8e967299e7`](https://github.com/nodejs/node/commit/8e967299e7)] - **(SEMVER-MINOR)** **deps**: cherry-pick a16c3c9 from upstream V8 (jbroman) [#13515](https://github.com/nodejs/node/pull/13515)
+* [[`83636a4cbe`](https://github.com/nodejs/node/commit/83636a4cbe)] - **deps**: backport 4fdf9fd4813 from upstream v8 (Jochen Eisinger) [#12875](https://github.com/nodejs/node/pull/12875)
+* [[`65956e6e84`](https://github.com/nodejs/node/commit/65956e6e84)] - **(SEMVER-MINOR)** **deps**: cherry-pick 6d38f89 from upstream V8 (Michaël Zasso) [#13263](https://github.com/nodejs/node/pull/13263)
+* [[`4c4f647420`](https://github.com/nodejs/node/commit/4c4f647420)] - **deps**: cherry-pick f5fad6d from upstream v8 (daniel.bevenius) [#12826](https://github.com/nodejs/node/pull/12826)
+* [[`6204fadc19`](https://github.com/nodejs/node/commit/6204fadc19)] - **deps**: cherry-pick bfae9db from upstream v8 (Ben Noordhuis) [#12722](https://github.com/nodejs/node/pull/12722)
+* [[`5fb7a0bceb`](https://github.com/nodejs/node/commit/5fb7a0bceb)] - **(SEMVER-MINOR)** **deps**: fix addons compilation with VS2013 (Bartosz Sosnowski) [#13263](https://github.com/nodejs/node/pull/13263)
+* [[`ad928c070b`](https://github.com/nodejs/node/commit/ad928c070b)] - **(SEMVER-MINOR)** **deps**: add missing include to V8 i18n.cc (Michaël Zasso) [#13263](https://github.com/nodejs/node/pull/13263)
+* [[`fae03e6e5b`](https://github.com/nodejs/node/commit/fae03e6e5b)] - **(SEMVER-MINOR)** **deps**: run memory hungry V8 test in exclusive mode (Michaël Zasso) [#13263](https://github.com/nodejs/node/pull/13263)
+* [[`613c81e408`](https://github.com/nodejs/node/commit/613c81e408)] - **deps**: limit regress/regress-crbug-514081 v8 test (Michael Dawson) [#6678](https://github.com/nodejs/node/pull/6678)
+* [[`272f4945cc`](https://github.com/nodejs/node/commit/272f4945cc)] - **(SEMVER-MINOR)** **deps**: update V8 to 5.9.211.35 (Michaël Zasso) [#13515](https://github.com/nodejs/node/pull/13515)
+* [[`d9273ed5ed`](https://github.com/nodejs/node/commit/d9273ed5ed)] - **deps**: cherry-pick 18ea996 from c-ares upstream (Anna Henningsen) [#13883](https://github.com/nodejs/node/pull/13883)
+* [[`6c6da38518`](https://github.com/nodejs/node/commit/6c6da38518)] - **doc**: fix some links (Vse Mozhet Byt) [#14400](https://github.com/nodejs/node/pull/14400)
+* [[`83c8e5c517`](https://github.com/nodejs/node/commit/83c8e5c517)] - **doc**: describe labelling process for backports (Anna Henningsen) [#12431](https://github.com/nodejs/node/pull/12431)
+* [[`592787ef4d`](https://github.com/nodejs/node/commit/592787ef4d)] - **doc**: error message are still major (Refael Ackermann) [#14375](https://github.com/nodejs/node/pull/14375)
+* [[`f1b09c0a44`](https://github.com/nodejs/node/commit/f1b09c0a44)] - **doc**: fix typo in stream.md (Marc Hernández Cabot) [#14364](https://github.com/nodejs/node/pull/14364)
+* [[`4be373bc4b`](https://github.com/nodejs/node/commit/4be373bc4b)] - **doc**: fixes default shell in child_process.md (Henry) [#14203](https://github.com/nodejs/node/pull/14203)
+* [[`b12924d894`](https://github.com/nodejs/node/commit/b12924d894)] - **doc**: add XadillaX to collaborators (XadillaX) [#14388](https://github.com/nodejs/node/pull/14388)
+* [[`dc0a26f254`](https://github.com/nodejs/node/commit/dc0a26f254)] - **doc**: replace dead link in v8 module (Devin Boyer) [#14372](https://github.com/nodejs/node/pull/14372)
+* [[`d2121ab768`](https://github.com/nodejs/node/commit/d2121ab768)] - **doc**: fix minor typo in cluster.md (Lance Ball) [#14353](https://github.com/nodejs/node/pull/14353)
+* [[`53ad91c3b1`](https://github.com/nodejs/node/commit/53ad91c3b1)] - **doc,stream**: \_transform happens one at a time (Matteo Collina) [#14321](https://github.com/nodejs/node/pull/14321)
+* [[`f6a03439d8`](https://github.com/nodejs/node/commit/f6a03439d8)] - **docs**: add note about fs.rmdir() (Oleksandr Kushchak) [#14323](https://github.com/nodejs/node/pull/14323)
+* [[`28f0693796`](https://github.com/nodejs/node/commit/28f0693796)] - **lib**: include cached modules in module.children (Ben Noordhuis) [#14132](https://github.com/nodejs/node/pull/14132)
+* [[`fa134dd60c`](https://github.com/nodejs/node/commit/fa134dd60c)] - **n-api**: add fast paths for integer getters (Anna Henningsen) [#14393](https://github.com/nodejs/node/pull/14393)
+* [[`e54f75b831`](https://github.com/nodejs/node/commit/e54f75b831)] - **readline**: remove the caching variable (Lyall Sun) [#14275](https://github.com/nodejs/node/pull/14275)
+* [[`34821f6400`](https://github.com/nodejs/node/commit/34821f6400)] - **repl**: don't terminate on null thrown (Benjamin Gruenbaum) [#14306](https://github.com/nodejs/node/pull/14306)
+* [[`32ba8aea0b`](https://github.com/nodejs/node/commit/32ba8aea0b)] - **repl**: fix old history error handling (Ruben Bridgewater) [#13733](https://github.com/nodejs/node/pull/13733)
+* [[`89961baf70`](https://github.com/nodejs/node/commit/89961baf70)] - **src**: fix process.abort() interaction with V8 (Anna Henningsen) [#13985](https://github.com/nodejs/node/pull/13985)
+* [[`552d2be625`](https://github.com/nodejs/node/commit/552d2be625)] - **test**: improve test-util-inspect (Peter Marshall) [#14003](https://github.com/nodejs/node/pull/14003)
+* [[`0418a70d7c`](https://github.com/nodejs/node/commit/0418a70d7c)] - **test**: add non-internet resolveAny tests (Anna Henningsen) [#13883](https://github.com/nodejs/node/pull/13883)
+* [[`265f159881`](https://github.com/nodejs/node/commit/265f159881)] - **test**: replace concatenation with template literals (Song, Bintao Garfield) [#14295](https://github.com/nodejs/node/pull/14295)
+* [[`3414e42127`](https://github.com/nodejs/node/commit/3414e42127)] - **test**: replace concatenation with template literals (Zongmin Lei) [#14298](https://github.com/nodejs/node/pull/14298)
+* [[`953736cdde`](https://github.com/nodejs/node/commit/953736cdde)] - **test**: move timing-dependent tests to sequential (Alexey Orlenko) [#14377](https://github.com/nodejs/node/pull/14377)
+* [[`9b22acc29e`](https://github.com/nodejs/node/commit/9b22acc29e)] - **test**: fix flaky test-net-write-after-close (Rich Trott) [#14361](https://github.com/nodejs/node/pull/14361)
+* [[`11ae8c33bd`](https://github.com/nodejs/node/commit/11ae8c33bd)] - **test**: delete obsolete test-sendfd.js (decareano) [#14334](https://github.com/nodejs/node/pull/14334)
+* [[`99104e1b58`](https://github.com/nodejs/node/commit/99104e1b58)] - **test**: improve fs.exists coverage (jkzing) [#14301](https://github.com/nodejs/node/pull/14301)
+* [[`e237720537`](https://github.com/nodejs/node/commit/e237720537)] - **test**: replace string concatenation with template (ziyun) [#14286](https://github.com/nodejs/node/pull/14286)
+* [[`3c92b787d7`](https://github.com/nodejs/node/commit/3c92b787d7)] - **test**: use path.join in async-hooks/test-tlswrap.js (Vincent Xue) [#14319](https://github.com/nodejs/node/pull/14319)
+* [[`0197ba00a5`](https://github.com/nodejs/node/commit/0197ba00a5)] - **test**: add comments for whatwg-url tests (Gautam Arora) [#14355](https://github.com/nodejs/node/pull/14355)
+* [[`956a473107`](https://github.com/nodejs/node/commit/956a473107)] - **test**: move test-fs-largefile to pummel (Rich Trott) [#14338](https://github.com/nodejs/node/pull/14338)
+* [[`c866c9078b`](https://github.com/nodejs/node/commit/c866c9078b)] - **test**: use path.join for long path concatenation (zzz) [#14280](https://github.com/nodejs/node/pull/14280)
+* [[`94c7331277`](https://github.com/nodejs/node/commit/94c7331277)] - **test**: replace string concatenation with path.join (jkzing) [#14272](https://github.com/nodejs/node/pull/14272)
+* [[`def98c6959`](https://github.com/nodejs/node/commit/def98c6959)] - **test**: replace string concatenation with template (Nathan Jiang) [#14342](https://github.com/nodejs/node/pull/14342)
+* [[`3bc7d2a5ea`](https://github.com/nodejs/node/commit/3bc7d2a5ea)] - **test**: replace string concat in test-fs-watchfile.js (Helianthus21) [#14287](https://github.com/nodejs/node/pull/14287)
+* [[`72febfd3b6`](https://github.com/nodejs/node/commit/72febfd3b6)] - **test**: replace concatenation with template literals (SkyAo) [#14296](https://github.com/nodejs/node/pull/14296)
+* [[`b5d0a03a9e`](https://github.com/nodejs/node/commit/b5d0a03a9e)] - **test**: fix error handling test-http-full-response (Rich Trott) [#14252](https://github.com/nodejs/node/pull/14252)
+* [[`ebb90900af`](https://github.com/nodejs/node/commit/ebb90900af)] - **tools**: skip workaround for newer llvm (nanaya) [#14077](https://github.com/nodejs/node/pull/14077)
+* [[`c0ea5d8ce5`](https://github.com/nodejs/node/commit/c0ea5d8ce5)] - **tools**: always include llvm_version in config (nanaya) [#14077](https://github.com/nodejs/node/pull/14077)
+* [[`55a1231d81`](https://github.com/nodejs/node/commit/55a1231d81)] - **v8**: fix debug builds on Windows (Bartosz Sosnowski) [#13634](https://github.com/nodejs/node/pull/13634)
+* [[`e3fcdeffcb`](https://github.com/nodejs/node/commit/e3fcdeffcb)] - **v8**: backport pieces from 18a26cfe174 from upstream v8 (Peter Marshall) [#13217](https://github.com/nodejs/node/pull/13217)
+* [[`9c7af15a8c`](https://github.com/nodejs/node/commit/9c7af15a8c)] - **v8**: backport 4f82f1d948c from upstream v8 (hpayer) [#13217](https://github.com/nodejs/node/pull/13217)
+* [[`61a1f9cfe2`](https://github.com/nodejs/node/commit/61a1f9cfe2)] - **v8**: backport 4f82f1d948c from upstream v8 (hpayer) [#13217](https://github.com/nodejs/node/pull/13217)
+* [[`e3c1119174`](https://github.com/nodejs/node/commit/e3c1119174)] - **v8**: backport a9e56f4f36d from upstream v8 (Peter Marshall) [#13217](https://github.com/nodejs/node/pull/13217)
+* [[`da35ac3bb9`](https://github.com/nodejs/node/commit/da35ac3bb9)] - **v8**: backport bd59e7452be from upstream v8 (Michael Achenbach) [#13217](https://github.com/nodejs/node/pull/13217)
+* [[`1e93589e8c`](https://github.com/nodejs/node/commit/1e93589e8c)] - **v8**: do not test v8 with -Werror (Anna Henningsen) [#12875](https://github.com/nodejs/node/pull/12875)
+* [[`0be4d17cd4`](https://github.com/nodejs/node/commit/0be4d17cd4)] - **(SEMVER-MINOR)** **v8**: fix gcc 7 build errors (Michaël Zasso) [#13515](https://github.com/nodejs/node/pull/13515)
+* [[`1906077ee8`](https://github.com/nodejs/node/commit/1906077ee8)] - **v8**: fix stack overflow in recursive method (Ben Noordhuis) [#12460](https://github.com/nodejs/node/pull/12460)
 
 <a id="8.2.1"></a>
 ## 2017-07-20, Version 8.2.1 (Current), @fishrock123
