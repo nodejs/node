@@ -60,6 +60,7 @@ utils.Import(function(from) {
 //   - FrameMirror
 //   - ScriptMirror
 //   - ScopeMirror
+//   - ProxyMirror
 
 // Type names of the different mirrors.
 var MirrorType = {
@@ -84,6 +85,7 @@ var MirrorType = {
   SET_TYPE : 'set',
   ITERATOR_TYPE : 'iterator',
   GENERATOR_TYPE : 'generator',
+  PROXY_TYPE : 'proxy',
 }
 
 
@@ -157,6 +159,8 @@ function MakeMirror(value, opt_transient) {
     mirror = new StringMirror(value);
   } else if (IS_SYMBOL(value)) {
     mirror = new SymbolMirror(value);
+  } else if (IS_PROXY(value)) {
+    mirror = new ProxyMirror(value);
   } else if (IS_ARRAY(value)) {
     mirror = new ArrayMirror(value);
   } else if (IS_DATE(value)) {
@@ -339,6 +343,15 @@ Mirror.prototype.isString = function() {
  */
 Mirror.prototype.isSymbol = function() {
   return this instanceof SymbolMirror;
+};
+
+
+/**
+ * Check whether the mirror reflects a proxy object.
+ * @returns {boolean} True if the mirror reflects a proxy object.
+ */
+Mirror.prototype.isProxy = function() {
+  return this instanceof ProxyMirror;
 };
 
 
@@ -2436,6 +2449,29 @@ inherits(ContextMirror, Mirror);
 
 ContextMirror.prototype.data = function() {
   return this.data_;
+};
+
+
+/**
+ * Mirror object for proxies.
+ * @param {value} value The value reflected by this mirror.
+ * @constructor
+ * @extends Mirror
+ */
+function ProxyMirror(value) {
+  %_Call(Mirror, this, MirrorType.PROXY_TYPE);
+  this.value_ = value;
+}
+inherits(ProxyMirror, Mirror);
+
+
+ProxyMirror.prototype.value = function() {
+  return this.value_;
+};
+
+
+ProxyMirror.prototype.toText = function() {
+  return '#<Proxy>';
 };
 
 
