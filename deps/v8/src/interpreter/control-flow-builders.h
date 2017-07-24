@@ -44,8 +44,12 @@ class V8_EXPORT_PRIVATE BreakableControlFlowBuilder
   // Inserts a jump to an unbound label that is patched when the corresponding
   // BindBreakTarget is called.
   void Break() { EmitJump(&break_labels_); }
-  void BreakIfTrue() { EmitJumpIfTrue(&break_labels_); }
-  void BreakIfFalse() { EmitJumpIfFalse(&break_labels_); }
+  void BreakIfTrue(BytecodeArrayBuilder::ToBooleanMode mode) {
+    EmitJumpIfTrue(mode, &break_labels_);
+  }
+  void BreakIfFalse(BytecodeArrayBuilder::ToBooleanMode mode) {
+    EmitJumpIfFalse(mode, &break_labels_);
+  }
   void BreakIfUndefined() { EmitJumpIfUndefined(&break_labels_); }
   void BreakIfNull() { EmitJumpIfNull(&break_labels_); }
 
@@ -53,8 +57,10 @@ class V8_EXPORT_PRIVATE BreakableControlFlowBuilder
 
  protected:
   void EmitJump(BytecodeLabels* labels);
-  void EmitJumpIfTrue(BytecodeLabels* labels);
-  void EmitJumpIfFalse(BytecodeLabels* labels);
+  void EmitJumpIfTrue(BytecodeArrayBuilder::ToBooleanMode mode,
+                      BytecodeLabels* labels);
+  void EmitJumpIfFalse(BytecodeArrayBuilder::ToBooleanMode mode,
+                       BytecodeLabels* labels);
   void EmitJumpIfUndefined(BytecodeLabels* labels);
   void EmitJumpIfNull(BytecodeLabels* labels);
 
@@ -96,7 +102,6 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
   // Inserts a jump to an unbound label that is patched when BindContinueTarget
   // is called.
   void Continue() { EmitJump(&continue_labels_); }
-  void ContinueIfTrue() { EmitJumpIfTrue(&continue_labels_); }
   void ContinueIfUndefined() { EmitJumpIfUndefined(&continue_labels_); }
   void ContinueIfNull() { EmitJumpIfNull(&continue_labels_); }
 
@@ -126,9 +131,11 @@ class V8_EXPORT_PRIVATE SwitchBuilder final
   void SetCaseTarget(int index);
 
   // This method is called when visiting case comparison operation for |index|.
-  // Inserts a JumpIfTrue to a unbound label that is patched when the
-  // corresponding SetCaseTarget is called.
-  void Case(int index) { builder()->JumpIfTrue(&case_sites_.at(index)); }
+  // Inserts a JumpIfTrue with ToBooleanMode |mode| to a unbound label that is
+  // patched when the corresponding SetCaseTarget is called.
+  void Case(BytecodeArrayBuilder::ToBooleanMode mode, int index) {
+    builder()->JumpIfTrue(mode, &case_sites_.at(index));
+  }
 
   // This method is called when all cases comparisons have been emitted if there
   // is a default case statement. Inserts a Jump to a unbound label that is

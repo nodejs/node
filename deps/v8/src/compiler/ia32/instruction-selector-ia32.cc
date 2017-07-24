@@ -39,6 +39,11 @@ class IA32OperandGenerator final : public OperandGenerator {
     MachineRepresentation rep =
         LoadRepresentationOf(input->op()).representation();
     switch (opcode) {
+      case kIA32And:
+      case kIA32Or:
+      case kIA32Xor:
+      case kIA32Add:
+      case kIA32Sub:
       case kIA32Cmp:
       case kIA32Test:
         return rep == MachineRepresentation::kWord32 ||
@@ -533,7 +538,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   Int32BinopMatcher m(node);
   Node* left = m.left().node();
   Node* right = m.right().node();
-  InstructionOperand inputs[4];
+  InstructionOperand inputs[6];
   size_t input_count = 0;
   InstructionOperand outputs[2];
   size_t output_count = 0;
@@ -554,12 +559,26 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.UseRegister(left);
     inputs[input_count++] = g.UseImmediate(right);
   } else {
+    int effect_level = selector->GetEffectLevel(node);
+    if (cont->IsBranch()) {
+      effect_level = selector->GetEffectLevel(
+          cont->true_block()->PredecessorAt(0)->control_input());
+    }
     if (node->op()->HasProperty(Operator::kCommutative) &&
-        g.CanBeBetterLeftOperand(right)) {
+        g.CanBeBetterLeftOperand(right) &&
+        (!g.CanBeBetterLeftOperand(left) ||
+         !g.CanBeMemoryOperand(opcode, node, right, effect_level))) {
       std::swap(left, right);
     }
-    inputs[input_count++] = g.UseRegister(left);
-    inputs[input_count++] = g.Use(right);
+    if (g.CanBeMemoryOperand(opcode, node, right, effect_level)) {
+      inputs[input_count++] = g.UseRegister(left);
+      AddressingMode addressing_mode =
+          g.GetEffectiveAddressMemoryOperand(right, inputs, &input_count);
+      opcode |= AddressingModeField::encode(addressing_mode);
+    } else {
+      inputs[input_count++] = g.UseRegister(left);
+      inputs[input_count++] = g.Use(right);
+    }
   }
 
   if (cont->IsBranch()) {
@@ -873,7 +892,9 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(Float32Mul, kAVXFloat32Mul, kSSEFloat32Mul) \
   V(Float64Mul, kAVXFloat64Mul, kSSEFloat64Mul) \
   V(Float32Div, kAVXFloat32Div, kSSEFloat32Div) \
-  V(Float64Div, kAVXFloat64Div, kSSEFloat64Div)
+  V(Float64Div, kAVXFloat64Div, kSSEFloat64Div) \
+  V(I32x4Add, kAVXI32x4Add, kSSEI32x4Add)       \
+  V(I32x4Sub, kAVXI32x4Sub, kSSEI32x4Sub)
 
 #define FLOAT_UNOP_LIST(V)                      \
   V(Float32Abs, kAVXFloat32Abs, kSSEFloat32Abs) \
@@ -1688,13 +1709,13 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   ArchOpcode opcode = kArchNop;
   switch (rep) {
     case MachineRepresentation::kWord8:
-      opcode = kIA32Xchgb;
+      opcode = kAtomicExchangeInt8;
       break;
     case MachineRepresentation::kWord16:
-      opcode = kIA32Xchgw;
+      opcode = kAtomicExchangeInt16;
       break;
     case MachineRepresentation::kWord32:
-      opcode = kIA32Xchgl;
+      opcode = kAtomicExchangeWord32;
       break;
     default:
       UNREACHABLE();
@@ -1703,6 +1724,11 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   AddressingMode addressing_mode;
   InstructionOperand inputs[4];
   size_t input_count = 0;
+  if (rep == MachineRepresentation::kWord8) {
+    inputs[input_count++] = g.UseByteRegister(value);
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(value);
+  }
   inputs[input_count++] = g.UseUniqueRegister(base);
   if (g.CanBeImmediate(index)) {
     inputs[input_count++] = g.UseImmediate(index);
@@ -1711,9 +1737,191 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
     inputs[input_count++] = g.UseUniqueRegister(index);
     addressing_mode = kMode_MR1;
   }
-  inputs[input_count++] = g.UseUniqueRegister(value);
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
   Emit(code, 0, nullptr, input_count, inputs);
+}
+
+void InstructionSelector::VisitAtomicExchange(Node* node) {
+  IA32OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  MachineType type = AtomicOpRepresentationOf(node->op());
+  ArchOpcode opcode = kArchNop;
+  if (type == MachineType::Int8()) {
+    opcode = kAtomicExchangeInt8;
+  } else if (type == MachineType::Uint8()) {
+    opcode = kAtomicExchangeUint8;
+  } else if (type == MachineType::Int16()) {
+    opcode = kAtomicExchangeInt16;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kAtomicExchangeUint16;
+  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+    opcode = kAtomicExchangeWord32;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  InstructionOperand outputs[1];
+  AddressingMode addressing_mode;
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  if (type == MachineType::Int8() || type == MachineType::Uint8()) {
+    inputs[input_count++] = g.UseFixed(value, edx);
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(value);
+  }
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  if (g.CanBeImmediate(index)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  if (type == MachineType::Int8() || type == MachineType::Uint8()) {
+    // Using DefineSameAsFirst requires the register to be unallocated.
+    outputs[0] = g.DefineAsFixed(node, edx);
+  } else {
+    outputs[0] = g.DefineSameAsFirst(node);
+  }
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs);
+}
+
+void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
+  IA32OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* old_value = node->InputAt(2);
+  Node* new_value = node->InputAt(3);
+
+  MachineType type = AtomicOpRepresentationOf(node->op());
+  ArchOpcode opcode = kArchNop;
+  if (type == MachineType::Int8()) {
+    opcode = kAtomicCompareExchangeInt8;
+  } else if (type == MachineType::Uint8()) {
+    opcode = kAtomicCompareExchangeUint8;
+  } else if (type == MachineType::Int16()) {
+    opcode = kAtomicCompareExchangeInt16;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kAtomicCompareExchangeUint16;
+  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+    opcode = kAtomicCompareExchangeWord32;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  InstructionOperand outputs[1];
+  AddressingMode addressing_mode;
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseFixed(old_value, eax);
+  if (type == MachineType::Int8() || type == MachineType::Uint8()) {
+    inputs[input_count++] = g.UseByteRegister(new_value);
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(new_value);
+  }
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  if (g.CanBeImmediate(index)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  outputs[0] = g.DefineAsFixed(node, eax);
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs);
+}
+
+void InstructionSelector::VisitAtomicBinaryOperation(
+    Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
+    ArchOpcode uint16_op, ArchOpcode word32_op) {
+  IA32OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  MachineType type = AtomicOpRepresentationOf(node->op());
+  ArchOpcode opcode = kArchNop;
+  if (type == MachineType::Int8()) {
+    opcode = int8_op;
+  } else if (type == MachineType::Uint8()) {
+    opcode = uint8_op;
+  } else if (type == MachineType::Int16()) {
+    opcode = int16_op;
+  } else if (type == MachineType::Uint16()) {
+    opcode = uint16_op;
+  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+    opcode = word32_op;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  InstructionOperand outputs[1];
+  AddressingMode addressing_mode;
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  if (type == MachineType::Int8() || type == MachineType::Uint8()) {
+    inputs[input_count++] = g.UseByteRegister(value);
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(value);
+  }
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  if (g.CanBeImmediate(index)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  outputs[0] = g.DefineAsFixed(node, eax);
+  InstructionOperand temp[1];
+  temp[0] = g.TempRegister();
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs, 1, temp);
+}
+
+#define VISIT_ATOMIC_BINOP(op)                                              \
+  void InstructionSelector::VisitAtomic##op(Node* node) {                   \
+    VisitAtomicBinaryOperation(node, kAtomic##op##Int8, kAtomic##op##Uint8, \
+                               kAtomic##op##Int16, kAtomic##op##Uint16,     \
+                               kAtomic##op##Word32);                        \
+  }
+VISIT_ATOMIC_BINOP(Add)
+VISIT_ATOMIC_BINOP(Sub)
+VISIT_ATOMIC_BINOP(And)
+VISIT_ATOMIC_BINOP(Or)
+VISIT_ATOMIC_BINOP(Xor)
+#undef VISIT_ATOMIC_BINOP
+
+void InstructionSelector::VisitI32x4Splat(Node* node) {
+  VisitRO(this, node, kIA32I32x4Splat);
+}
+
+void InstructionSelector::VisitI32x4ExtractLane(Node* node) {
+  IA32OperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kIA32I32x4ExtractLane, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));
+}
+
+void InstructionSelector::VisitI32x4ReplaceLane(Node* node) {
+  IA32OperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kIA32I32x4ReplaceLane, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
+       g.Use(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
+  UNREACHABLE();
+}
+
+void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
+  UNREACHABLE();
 }
 
 // static

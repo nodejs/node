@@ -5,12 +5,14 @@
 #include "src/compiler/code-generator.h"
 
 #include "src/address-map.h"
+#include "src/assembler-inl.h"
 #include "src/base/adapters.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
 #include "src/frames-inl.h"
+#include "src/macro-assembler-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -207,7 +209,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
     }
   }
 
-  FinishCode(masm());
+  FinishCode();
 
   // Emit the jump tables.
   if (jump_tables_) {
@@ -218,9 +220,12 @@ Handle<Code> CodeGenerator::GenerateCode() {
     }
   }
 
-  safepoints()->Emit(masm(), frame()->GetTotalFrameSlotCount());
-
+  // The PerfJitLogger logs code up until here, excluding the safepoint
+  // table. Resolve the unwinding info now so it is aware of the same code size
+  // as reported by perf.
   unwinding_info_writer_.Finish(masm()->pc_offset());
+
+  safepoints()->Emit(masm(), frame()->GetTotalFrameSlotCount());
 
   Handle<Code> result = v8::internal::CodeGenerator::MakeCodeEpilogue(
       masm(), unwinding_info_writer_.eh_frame_writer(), info, Handle<Object>());
@@ -698,9 +703,13 @@ void CodeGenerator::TranslateStateValueDescriptor(
       TranslateStateValueDescriptor(field.desc, field.nested, translation,
                                     iter);
     }
-  } else if (desc->IsArguments()) {
+  } else if (desc->IsArgumentsElements()) {
     if (translation != nullptr) {
-      translation->BeginArgumentsObject(0);
+      translation->ArgumentsElements(desc->is_rest());
+    }
+  } else if (desc->IsArgumentsLength()) {
+    if (translation != nullptr) {
+      translation->ArgumentsLength(desc->is_rest());
     }
   } else if (desc->IsDuplicate()) {
     if (translation != nullptr) {

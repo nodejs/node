@@ -1,0 +1,19 @@
+Checks that stepping is cleared after breakProgram.
+paused at:
+function callBreakProgram() {
+  #debugger;
+  breakProgram('reason', '');
+
+paused at:
+  debugger;
+  #breakProgram('reason', '');
+}
+
+paused at:
+  debugger;
+  #breakProgram('reason', '');
+}
+
+paused at:
+#debugger;
+

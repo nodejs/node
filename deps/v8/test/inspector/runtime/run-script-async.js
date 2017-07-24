@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Tests that Runtime.compileScript and Runtime.runScript work with awaitPromise flag.");
+InspectorTest.log("Tests that Runtime.compileScript and Runtime.runScript work with awaitPromise flag.");
 
 InspectorTest.runTestSuite([
   function testRunAndCompileWithoutAgentEnable(next)

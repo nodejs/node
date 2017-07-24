@@ -96,7 +96,7 @@ def run_foozzie(first_d8, second_d8):
     '--first-d8', os.path.join(TEST_DATA, first_d8),
     '--second-d8', os.path.join(TEST_DATA, second_d8),
     '--first-config', 'ignition',
-    '--second-config', 'ignition_staging',
+    '--second-config', 'ignition_turbo',
     os.path.join(TEST_DATA, 'fuzz-123.js'),
   ])
 

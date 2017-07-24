@@ -2,8 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Checks that inspector reports script compiled in Runtime.evaluate," +
+InspectorTest.log("Checks that inspector reports script compiled in Runtime.evaluate, " +
   "Runtime.callFunctionOn and  Runtime.compileScript");
+
+InspectorTest.addScript(`
+function fooTop() {
+  eval(\`
+    function foo() {
+      eval("({})")
+    }
+    foo() //# sourceURL=second-frame.js\`);
+}
+//# sourceURL=top-frame.js`, 8, 26);
+
+InspectorTest.addScript(`
+function fooTopFail() {
+  eval(\`
+    function fooFail() {
+      eval("({}")
+    }
+    fooFail() //# sourceURL=second-frame-fail.js\`);
+}
+//# sourceURL=top-frame-fail.js`, 18, 26);
 
 Promise.prototype.thenLog = function log(message) {
   return this.then(() => InspectorTest.log(message));
@@ -45,5 +65,15 @@ Protocol.Debugger.enable()
     sourceURL: "compile-script-syntax-error.js", persistScript: false }))
   .then(() => Protocol.Runtime.compileScript({ expression: "}",
     sourceURL: "compile-script-syntax-error.js", persistScript: false }))
+
+  .thenLog('Runtime.evaluate compiled script with stack trace')
+  .then(() => Protocol.Runtime.evaluate({
+    expression: "fooTop()"}))
+  .then(msg => objectId = msg.result.result.objectId)
+
+  .thenLog('Runtime.evaluate compile script error with stack trace')
+  .then(() => Protocol.Runtime.evaluate({
+    expression: "fooTopFail()"}))
+  .then(msg => objectId = msg.result.result.objectId)
 
   .then(InspectorTest.completeTest);

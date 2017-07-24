@@ -72,13 +72,13 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 21
+bytecode array length: 20
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
   /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(1),
-  /*   69 E> */ B(AddSmi), I8(1), R(0), U8(2),
+  /*   69 E> */ B(AddSmi), I8(1), U8(2),
                 B(StaNamedOwnProperty), R(1), U8(1), U8(4),
                 B(Ldar), R(1),
   /*   76 S> */ B(Return),
@@ -382,7 +382,7 @@ bytecodes: [
                 B(Star), R(3),
                 B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(5),
                 B(LdaConstant), U8(3),
-                B(ToName), R(3),
+                B(Star), R(3),
                 B(CreateClosure), U8(4), U8(2), U8(2),
                 B(Star), R(4),
                 B(LdaZero),
@@ -390,7 +390,7 @@ bytecodes: [
                 B(Mov), R(1), R(2),
                 B(CallRuntime), U16(Runtime::kDefineGetterPropertyUnchecked), R(2), U8(4),
                 B(LdaConstant), U8(3),
-                B(ToName), R(3),
+                B(Star), R(3),
                 B(CreateClosure), U8(5), U8(3), U8(2),
                 B(Star), R(4),
                 B(LdaZero),

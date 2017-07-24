@@ -10,7 +10,6 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
-#include "src/builtins/builtins.h"
 #include "src/globals.h"
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -486,21 +485,29 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
 
 class RuntimeCallCounter final {
  public:
-  explicit RuntimeCallCounter(const char* name) : name_(name) {}
+  explicit RuntimeCallCounter(const char* name)
+      : name_(name), count_(0), time_(0) {}
   V8_NOINLINE void Reset();
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
   void Add(RuntimeCallCounter* other);
 
   const char* name() const { return name_; }
   int64_t count() const { return count_; }
-  base::TimeDelta time() const { return time_; }
+  base::TimeDelta time() const {
+    return base::TimeDelta::FromMicroseconds(time_);
+  }
   void Increment() { count_++; }
-  void Add(base::TimeDelta delta) { time_ += delta; }
+  void Add(base::TimeDelta delta) { time_ += delta.InMicroseconds(); }
 
  private:
+  RuntimeCallCounter() {}
+
   const char* name_;
-  int64_t count_ = 0;
-  base::TimeDelta time_;
+  int64_t count_;
+  // Stored as int64_t so that its initialization can be deferred.
+  int64_t time_;
+
+  friend class RuntimeCallStats;
 };
 
 // RuntimeCallTimer is used to keep track of the stack of currently active
@@ -574,6 +581,8 @@ class RuntimeCallTimer final {
   V(Message_GetLineNumber)                                 \
   V(Message_GetSourceLine)                                 \
   V(Message_GetStartColumn)                                \
+  V(Module_FinishDynamicImportSuccess)                     \
+  V(Module_FinishDynamicImportFailure)                     \
   V(Module_Evaluate)                                       \
   V(Module_Instantiate)                                    \
   V(NumberObject_New)                                      \
@@ -754,7 +763,6 @@ class RuntimeCallTimer final {
   V(UnexpectedStubMiss)
 
 #define FOR_EACH_HANDLER_COUNTER(V)              \
-  V(IC_HandlerCacheHit)                          \
   V(KeyedLoadIC_LoadIndexedStringStub)           \
   V(KeyedLoadIC_LoadIndexedInterceptorStub)      \
   V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)    \
@@ -766,82 +774,64 @@ class RuntimeCallTimer final {
   V(KeyedStoreIC_StoreFastElementStub)           \
   V(KeyedStoreIC_StoreElementStub)               \
   V(LoadIC_FunctionPrototypeStub)                \
-  V(LoadIC_HandlerCacheHit_AccessCheck)          \
-  V(LoadIC_HandlerCacheHit_Exotic)               \
-  V(LoadIC_HandlerCacheHit_Interceptor)          \
-  V(LoadIC_HandlerCacheHit_JSProxy)              \
-  V(LoadIC_HandlerCacheHit_NonExistent)          \
   V(LoadIC_HandlerCacheHit_Accessor)             \
-  V(LoadIC_HandlerCacheHit_Data)                 \
-  V(LoadIC_HandlerCacheHit_Transition)           \
+  V(LoadIC_LoadAccessorDH)                       \
+  V(LoadIC_LoadAccessorFromPrototypeDH)          \
   V(LoadIC_LoadApiGetterDH)                      \
   V(LoadIC_LoadApiGetterFromPrototypeDH)         \
-  V(LoadIC_LoadApiGetterStub)                    \
   V(LoadIC_LoadCallback)                         \
   V(LoadIC_LoadConstantDH)                       \
   V(LoadIC_LoadConstantFromPrototypeDH)          \
-  V(LoadIC_LoadConstant)                         \
-  V(LoadIC_LoadConstantStub)                     \
   V(LoadIC_LoadFieldDH)                          \
   V(LoadIC_LoadFieldFromPrototypeDH)             \
-  V(LoadIC_LoadField)                            \
-  V(LoadIC_LoadGlobal)                           \
-  V(LoadIC_LoadInterceptor)                      \
+  V(LoadIC_LoadGlobalDH)                         \
+  V(LoadIC_LoadGlobalFromPrototypeDH)            \
+  V(LoadIC_LoadIntegerIndexedExoticDH)           \
+  V(LoadIC_LoadInterceptorDH)                    \
+  V(LoadIC_LoadNonMaskingInterceptorDH)          \
+  V(LoadIC_LoadInterceptorFromPrototypeDH)       \
   V(LoadIC_LoadNonexistentDH)                    \
-  V(LoadIC_LoadNonexistent)                      \
-  V(LoadIC_LoadNormal)                           \
+  V(LoadIC_LoadNormalDH)                         \
+  V(LoadIC_LoadNormalFromPrototypeDH)            \
   V(LoadIC_LoadScriptContextFieldStub)           \
   V(LoadIC_LoadViaGetter)                        \
   V(LoadIC_NonReceiver)                          \
   V(LoadIC_Premonomorphic)                       \
   V(LoadIC_SlowStub)                             \
   V(LoadIC_StringLengthStub)                     \
-  V(StoreIC_HandlerCacheHit_AccessCheck)         \
-  V(StoreIC_HandlerCacheHit_Exotic)              \
-  V(StoreIC_HandlerCacheHit_Interceptor)         \
-  V(StoreIC_HandlerCacheHit_JSProxy)             \
-  V(StoreIC_HandlerCacheHit_NonExistent)         \
   V(StoreIC_HandlerCacheHit_Accessor)            \
-  V(StoreIC_HandlerCacheHit_Data)                \
-  V(StoreIC_HandlerCacheHit_Transition)          \
   V(StoreIC_NonReceiver)                         \
   V(StoreIC_Premonomorphic)                      \
   V(StoreIC_SlowStub)                            \
   V(StoreIC_StoreCallback)                       \
-  V(StoreIC_StoreField)                          \
   V(StoreIC_StoreFieldDH)                        \
-  V(StoreIC_StoreFieldStub)                      \
-  V(StoreIC_StoreGlobal)                         \
-  V(StoreIC_StoreGlobalTransition)               \
+  V(StoreIC_StoreGlobalDH)                       \
+  V(StoreIC_StoreGlobalTransitionDH)             \
   V(StoreIC_StoreInterceptorStub)                \
-  V(StoreIC_StoreNormal)                         \
+  V(StoreIC_StoreNormalDH)                       \
   V(StoreIC_StoreScriptContextFieldStub)         \
-  V(StoreIC_StoreTransition)                     \
   V(StoreIC_StoreTransitionDH)                   \
   V(StoreIC_StoreViaSetter)
 
 class RuntimeCallStats final : public ZoneObject {
  public:
   typedef RuntimeCallCounter RuntimeCallStats::*CounterId;
+  V8_EXPORT_PRIVATE RuntimeCallStats();
 
-#define CALL_RUNTIME_COUNTER(name) \
-  RuntimeCallCounter name = RuntimeCallCounter(#name);
+#define CALL_RUNTIME_COUNTER(name) RuntimeCallCounter name;
   FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
 #define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
-  RuntimeCallCounter Runtime_##name = RuntimeCallCounter(#name);
+  RuntimeCallCounter Runtime_##name;
   FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name) \
-  RuntimeCallCounter Builtin_##name = RuntimeCallCounter(#name);
+#define CALL_BUILTIN_COUNTER(name) RuntimeCallCounter Builtin_##name;
   BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) \
-  RuntimeCallCounter API_##name = RuntimeCallCounter("API_" #name);
+#define CALL_BUILTIN_COUNTER(name) RuntimeCallCounter API_##name;
   FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) \
-  RuntimeCallCounter Handler_##name = RuntimeCallCounter(#name);
+#define CALL_BUILTIN_COUNTER(name) RuntimeCallCounter Handler_##name;
   FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
 
@@ -871,17 +861,15 @@ class RuntimeCallStats final : public ZoneObject {
   V8_EXPORT_PRIVATE void Print(std::ostream& os);
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
 
-  RuntimeCallStats() {
-    Reset();
-    in_use_ = false;
-  }
-
   RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
+  RuntimeCallCounter* current_counter() { return current_counter_.Value(); }
   bool InUse() { return in_use_; }
 
  private:
-  // Counter to track recursive time events.
+  // Top of a stack of active timers.
   base::AtomicValue<RuntimeCallTimer*> current_timer_;
+  // Active counter object associated with current timer.
+  base::AtomicValue<RuntimeCallCounter*> current_counter_;
   // Used to track nested tracing scopes.
   bool in_use_;
 };
@@ -943,7 +931,12 @@ class RuntimeCallTimerScope {
   HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                         \
   HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)        \
   /* Asm/Wasm. */                                                             \
-  HR(wasm_functions_per_module, V8.WasmFunctionsPerModule, 1, 10000, 51)
+  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 100000, \
+     51)                                                                      \
+  HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1,       \
+     100000, 51)                                                              \
+  HR(array_buffer_big_allocations, V8.ArrayBufferBigAllocations, 0, 4096, 13) \
+  HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096, 13)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
@@ -974,17 +967,27 @@ class RuntimeCallTimerScope {
   /* Total JavaScript execution time (including callbacks and runtime calls */ \
   HT(execute, V8.Execute, 1000000, MICROSECOND)                                \
   /* Asm/Wasm */                                                               \
-  HT(wasm_instantiate_module_time, V8.WasmInstantiateModuleMicroSeconds,       \
+  HT(wasm_instantiate_asm_module_time,                                         \
+     V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
+  HT(wasm_instantiate_wasm_module_time,                                        \
+     V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
+  HT(wasm_decode_asm_module_time, V8.WasmDecodeModuleMicroSeconds.asm,         \
      1000000, MICROSECOND)                                                     \
-  HT(wasm_decode_module_time, V8.WasmDecodeModuleMicroSeconds, 1000000,        \
-     MICROSECOND)                                                              \
-  HT(wasm_decode_function_time, V8.WasmDecodeFunctionMicroSeconds, 1000000,    \
-     MICROSECOND)                                                              \
-  HT(wasm_compile_module_time, V8.WasmCompileModuleMicroSeconds, 1000000,      \
-     MICROSECOND)                                                              \
+  HT(wasm_decode_wasm_module_time, V8.WasmDecodeModuleMicroSeconds.wasm,       \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_decode_asm_function_time, V8.WasmDecodeFunctionMicroSeconds.asm,     \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_decode_wasm_function_time, V8.WasmDecodeFunctionMicroSeconds.wasm,   \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_compile_asm_module_time, V8.WasmCompileModuleMicroSeconds.asm,       \
+     10000000, MICROSECOND)                                                    \
+  HT(wasm_compile_wasm_module_time, V8.WasmCompileModuleMicroSeconds.wasm,     \
+     10000000, MICROSECOND)                                                    \
   HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000,  \
      MICROSECOND)                                                              \
   HT(asm_wasm_translation_time, V8.AsmWasmTranslationMicroSeconds, 1000000,    \
+     MICROSECOND)                                                              \
+  HT(wasm_lazy_compilation_time, V8.WasmLazyCompilationMicroSeconds, 1000000,  \
      MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
@@ -1012,63 +1015,70 @@ class RuntimeCallTimerScope {
   HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
   HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
 
-#define HISTOGRAM_MEMORY_LIST(HM)                                              \
-  HM(memory_heap_committed, V8.MemoryHeapCommitted)                            \
-  HM(memory_heap_used, V8.MemoryHeapUsed)                                      \
-  /* Asm/Wasm */                                                               \
-  HM(wasm_decode_module_peak_memory_bytes, V8.WasmDecodeModulePeakMemoryBytes) \
-  HM(wasm_compile_function_peak_memory_bytes,                                  \
-     V8.WasmCompileFunctionPeakMemoryBytes)                                    \
-  HM(wasm_min_mem_pages_count, V8.WasmMinMemPagesCount)                        \
-  HM(wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount)                        \
-  HM(wasm_function_size_bytes, V8.WasmFunctionSizeBytes)                       \
-  HM(wasm_module_size_bytes, V8.WasmModuleSizeBytes)
+#define HISTOGRAM_MEMORY_LIST(HM)                                        \
+  HM(memory_heap_committed, V8.MemoryHeapCommitted)                      \
+  HM(memory_heap_used, V8.MemoryHeapUsed)                                \
+  /* Asm/Wasm */                                                         \
+  HM(wasm_decode_asm_module_peak_memory_bytes,                           \
+     V8.WasmDecodeModulePeakMemoryBytes.asm)                             \
+  HM(wasm_decode_wasm_module_peak_memory_bytes,                          \
+     V8.WasmDecodeModulePeakMemoryBytes.wasm)                            \
+  HM(wasm_compile_function_peak_memory_bytes,                            \
+     V8.WasmCompileFunctionPeakMemoryBytes)                              \
+  HM(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm)          \
+  HM(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm)        \
+  HM(wasm_asm_max_mem_pages_count, V8.WasmMaxMemPagesCount.asm)          \
+  HM(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm)        \
+  HM(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm)         \
+  HM(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm)       \
+  HM(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm)             \
+  HM(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm)
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
 // Intellisense to crash.  It was broken into two macros (each of length 40
 // lines) rather than one macro (of length about 80 lines) to work around
 // this problem.  Please avoid using recursive macros of this length when
 // possible.
-#define STATS_COUNTER_LIST_1(SC)                                      \
-  /* Global Handle Count*/                                            \
-  SC(global_handles, V8.GlobalHandles)                                \
-  /* OS Memory allocated */                                           \
-  SC(memory_allocated, V8.OsMemoryAllocated)                          \
+#define STATS_COUNTER_LIST_1(SC)                                    \
+  /* Global Handle Count*/                                          \
+  SC(global_handles, V8.GlobalHandles)                              \
+  /* OS Memory allocated */                                         \
+  SC(memory_allocated, V8.OsMemoryAllocated)                        \
   SC(maps_normalized, V8.MapsNormalized)                            \
   SC(maps_created, V8.MapsCreated)                                  \
   SC(elements_transitions, V8.ObjectElementsTransitions)            \
-  SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)            \
-  SC(elements_to_dictionary, V8.ObjectElementsToDictionary)           \
-  SC(alive_after_last_gc, V8.AliveAfterLastGC)                        \
-  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                    \
-  SC(objs_since_last_full, V8.ObjsSinceLastFull)                      \
-  SC(string_table_capacity, V8.StringTableCapacity)                   \
-  SC(number_of_symbols, V8.NumberOfSymbols)                           \
-  SC(script_wrappers, V8.ScriptWrappers)                              \
-  SC(inlined_copied_elements, V8.InlinedCopiedElements)               \
-  SC(arguments_adaptors, V8.ArgumentsAdaptors)                        \
-  SC(compilation_cache_hits, V8.CompilationCacheHits)                 \
-  SC(compilation_cache_misses, V8.CompilationCacheMisses)             \
-  /* Amount of evaled source code. */                                 \
-  SC(total_eval_size, V8.TotalEvalSize)                               \
-  /* Amount of loaded source code. */                                 \
-  SC(total_load_size, V8.TotalLoadSize)                               \
-  /* Amount of parsed source code. */                                 \
-  SC(total_parse_size, V8.TotalParseSize)                             \
-  /* Amount of source code skipped over using preparsing. */          \
-  SC(total_preparse_skipped, V8.TotalPreparseSkipped)                 \
-  /* Amount of compiled source code. */                               \
-  SC(total_compile_size, V8.TotalCompileSize)                         \
-  /* Amount of source code compiled with the full codegen. */         \
-  SC(total_full_codegen_source_size, V8.TotalFullCodegenSourceSize)   \
-  /* Number of contexts created from scratch. */                      \
-  SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)    \
-  /* Number of contexts created by partial snapshot. */               \
-  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)      \
-  /* Number of code objects found from pc. */                         \
-  SC(pc_to_code, V8.PcToCode)                                         \
-  SC(pc_to_code_cached, V8.PcToCodeCached)                            \
-  /* The store-buffer implementation of the write barrier. */         \
+  SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)          \
+  SC(elements_to_dictionary, V8.ObjectElementsToDictionary)         \
+  SC(alive_after_last_gc, V8.AliveAfterLastGC)                      \
+  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                  \
+  SC(objs_since_last_full, V8.ObjsSinceLastFull)                    \
+  SC(string_table_capacity, V8.StringTableCapacity)                 \
+  SC(number_of_symbols, V8.NumberOfSymbols)                         \
+  SC(script_wrappers, V8.ScriptWrappers)                            \
+  SC(inlined_copied_elements, V8.InlinedCopiedElements)             \
+  SC(arguments_adaptors, V8.ArgumentsAdaptors)                      \
+  SC(compilation_cache_hits, V8.CompilationCacheHits)               \
+  SC(compilation_cache_misses, V8.CompilationCacheMisses)           \
+  /* Amount of evaled source code. */                               \
+  SC(total_eval_size, V8.TotalEvalSize)                             \
+  /* Amount of loaded source code. */                               \
+  SC(total_load_size, V8.TotalLoadSize)                             \
+  /* Amount of parsed source code. */                               \
+  SC(total_parse_size, V8.TotalParseSize)                           \
+  /* Amount of source code skipped over using preparsing. */        \
+  SC(total_preparse_skipped, V8.TotalPreparseSkipped)               \
+  /* Amount of compiled source code. */                             \
+  SC(total_compile_size, V8.TotalCompileSize)                       \
+  /* Amount of source code compiled with the full codegen. */       \
+  SC(total_full_codegen_source_size, V8.TotalFullCodegenSourceSize) \
+  /* Number of contexts created from scratch. */                    \
+  SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)  \
+  /* Number of contexts created by partial snapshot. */             \
+  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)    \
+  /* Number of code objects found from pc. */                       \
+  SC(pc_to_code, V8.PcToCode)                                       \
+  SC(pc_to_code_cached, V8.PcToCodeCached)                          \
+  /* The store-buffer implementation of the write barrier. */       \
   SC(store_buffer_overflows, V8.StoreBufferOverflows)
 
 #define STATS_COUNTER_LIST_2(SC)                                               \
@@ -1153,7 +1163,8 @@ class RuntimeCallTimerScope {
   /* Total count of functions compiled using the baseline compiler. */         \
   SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)               \
   SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)                      \
-  SC(wasm_reloc_size, V8.WasmRelocBytes)
+  SC(wasm_reloc_size, V8.WasmRelocBytes)                                       \
+  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
 
 // This file contains all the v8 counters that are in use.
 class Counters {
@@ -1265,6 +1276,8 @@ class Counters {
 
   void ResetCounters();
   void ResetHistograms();
+  void InitializeHistograms();
+
   RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
 
  private:

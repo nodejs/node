@@ -20,18 +20,9 @@ class LCodeGen;
 //    pending instruction).
 class DelayedMasm BASE_EMBEDDED {
  public:
-  DelayedMasm(LCodeGen* owner,
-              MacroAssembler* masm,
-              const Register& scratch_register)
-    : cgen_(owner), masm_(masm), scratch_register_(scratch_register),
-      scratch_register_used_(false), pending_(kNone), saved_value_(0) {
-#ifdef DEBUG
-    pending_register_ = no_reg;
-    pending_value_ = 0;
-    pending_pc_ = 0;
-    scratch_register_acquired_ = false;
-#endif
-  }
+  inline DelayedMasm(LCodeGen* owner, MacroAssembler* masm,
+                     const Register& scratch_register);
+
   ~DelayedMasm() {
     DCHECK(!scratch_register_acquired_);
     DCHECK(!scratch_register_used_);
@@ -93,9 +84,7 @@ class DelayedMasm BASE_EMBEDDED {
     pending_pc_ = 0;
 #endif
   }
-  void InitializeRootRegister() {
-    masm_->InitializeRootRegister();
-  }
+  inline void InitializeRootRegister();
 
  private:
   // Set the saved value and load the ScratchRegister with it.

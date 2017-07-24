@@ -184,11 +184,18 @@ class RegExpParser BASE_EMBEDDED {
   // can be reparsed.
   bool ParseBackReferenceIndex(int* index_out);
 
+  // The default behavior is to combine surrogate pairs in unicode mode and
+  // don't combine them otherwise (a quantifier after a surrogate pair would
+  // then apply only to the trailing surrogate). Forcing combination is required
+  // when parsing capture names since they can always legally contain surrogate
+  // pairs.
+  enum class ScanMode { DEFAULT, FORCE_COMBINE_SURROGATE_PAIRS };
+
   bool ParseClassProperty(ZoneList<CharacterRange>* result);
   CharacterRange ParseClassAtom(uc16* char_class);
   RegExpTree* ReportError(Vector<const char> message);
-  void Advance();
-  void Advance(int dist);
+  void Advance(ScanMode mode = ScanMode::DEFAULT);
+  void Advance(int dist, ScanMode mode = ScanMode::DEFAULT);
   void Reset(int pos);
 
   // Reports whether the pattern might be used as a literal search string.
@@ -199,6 +206,7 @@ class RegExpParser BASE_EMBEDDED {
   int captures_started() { return captures_started_; }
   int position() { return next_pos_ - 1; }
   bool failed() { return failed_; }
+  bool dotall() const { return dotall_; }
   bool ignore_case() const { return ignore_case_; }
   bool multiline() const { return multiline_; }
   bool unicode() const { return unicode_; }
@@ -292,6 +300,10 @@ class RegExpParser BASE_EMBEDDED {
 
   Handle<FixedArray> CreateCaptureNameMap();
 
+  // Returns true iff the pattern contains named captures. May call
+  // ScanForCaptures to look ahead at the remaining pattern.
+  bool HasNamedCaptures();
+
   Isolate* isolate() { return isolate_; }
   Zone* zone() const { return zone_; }
 
@@ -299,8 +311,7 @@ class RegExpParser BASE_EMBEDDED {
   bool has_more() { return has_more_; }
   bool has_next() { return next_pos_ < in()->length(); }
   uc32 Next();
-  template <bool update_position>
-  uc32 ReadNext();
+  uc32 ReadNext(bool update_position, ScanMode mode);
   FlatStringReader* in() { return in_; }
   void ScanForCaptures();
 
@@ -312,17 +323,18 @@ class RegExpParser BASE_EMBEDDED {
   ZoneList<RegExpBackReference*>* named_back_references_;
   FlatStringReader* in_;
   uc32 current_;
+  bool dotall_;
   bool ignore_case_;
   bool multiline_;
   bool unicode_;
   int next_pos_;
   int captures_started_;
-  // The capture count is only valid after we have scanned for captures.
-  int capture_count_;
+  int capture_count_;  // Only valid after we have scanned for captures.
   bool has_more_;
   bool simple_;
   bool contains_anchor_;
   bool is_scanned_for_captures_;
+  bool has_named_captures_;  // Only valid after we have scanned for captures.
   bool failed_;
 };
 

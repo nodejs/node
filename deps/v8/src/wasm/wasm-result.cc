@@ -15,34 +15,29 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-std::ostream& operator<<(std::ostream& os, const ErrorCode& error_code) {
-  switch (error_code) {
-    case kSuccess:
-      os << "Success";
-      break;
-    default:  // TODO(titzer): render error codes
-      os << "Error";
-      break;
-  }
-  return os;
-}
-
 void ErrorThrower::Format(i::Handle<i::JSFunction> constructor,
                           const char* format, va_list args) {
   // Only report the first error.
   if (error()) return;
 
-  char buffer[256];
-  base::OS::VSNPrintF(buffer, 255, format, args);
+  constexpr int kMaxErrorMessageLength = 256;
+  EmbeddedVector<char, kMaxErrorMessageLength> buffer;
 
-  std::ostringstream str;
-  if (context_ != nullptr) {
-    str << context_ << ": ";
+  int context_len = 0;
+  if (context_) {
+    context_len = SNPrintF(buffer, "%s: ", context_);
+    CHECK_LE(0, context_len);  // check for overflow.
   }
-  str << buffer;
 
+  int message_len =
+      VSNPrintF(buffer.SubVector(context_len, buffer.length()), format, args);
+  CHECK_LE(0, message_len);  // check for overflow.
+
+  Vector<char> whole_message = buffer.SubVector(0, context_len + message_len);
   i::Handle<i::String> message =
-      isolate_->factory()->NewStringFromAsciiChecked(str.str().c_str());
+      isolate_->factory()
+          ->NewStringFromOneByte(Vector<uint8_t>::cast(whole_message))
+          .ToHandleChecked();
   exception_ = isolate_->factory()->NewError(constructor, message);
 }
 

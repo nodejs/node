@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Test that profiling can only be started when Profiler was enabled and that Profiler.disable command will stop recording all profiles.");
+InspectorTest.log("Test that profiling can only be started when Profiler was enabled and that Profiler.disable command will stop recording all profiles.");
 
 Protocol.Profiler.start().then(didFailToStartWhenDisabled);
 disallowConsoleProfiles();

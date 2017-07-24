@@ -63,10 +63,10 @@ class PageParallelJob {
     ++num_items_;
   }
 
-  int NumberOfPages() { return num_items_; }
+  int NumberOfPages() const { return num_items_; }
 
   // Returns the number of tasks that were spawned when running the job.
-  int NumberOfTasks() { return num_tasks_; }
+  int NumberOfTasks() const { return num_tasks_; }
 
   // Runs the given number of tasks in parallel and processes the previously
   // added pages. This function blocks until all tasks finish.

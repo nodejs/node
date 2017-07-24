@@ -13,6 +13,7 @@ from testrunner.objects import testcase
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 PROTOCOL_TEST_JS = "protocol-test.js"
 EXPECTED_SUFFIX = "-expected.txt"
+RESOURCES_FOLDER = "resources"
 
 class InspectorProtocolTestSuite(testsuite.TestSuite):
 
@@ -24,6 +25,8 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
     for dirname, dirs, files in os.walk(os.path.join(self.root), followlinks=True):
       for dotted in [x for x in dirs if x.startswith('.')]:
         dirs.remove(dotted)
+      if dirname.endswith(os.path.sep + RESOURCES_FOLDER):
+        continue
       dirs.sort()
       files.sort()
       for filename in files:
@@ -37,14 +40,14 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
+    flags = [] + context.mode_flags
     flags_match = re.findall(FLAGS_PATTERN, source)
-    flags = []
     for match in flags_match:
       flags += match.strip().split()
     testname = testcase.path.split(os.path.sep)[-1]
     testfilename = os.path.join(self.root, testcase.path + self.suffix())
     protocoltestfilename = os.path.join(self.root, PROTOCOL_TEST_JS)
-    return [ protocoltestfilename, testfilename ] + flags
+    return testcase.flags + flags + [ protocoltestfilename, testfilename ]
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())

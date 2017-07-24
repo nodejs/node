@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "include/libplatform/libplatform-export.h"
+#include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
 #include "include/v8-platform.h"
 #include "src/base/compiler-specific.h"
@@ -32,7 +33,8 @@ class TracingController;
 
 class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
  public:
-  DefaultPlatform();
+  explicit DefaultPlatform(
+      IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled);
   virtual ~DefaultPlatform();
 
   void SetThreadPoolSize(int thread_pool_size);
@@ -70,6 +72,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
 
   void AddTraceStateObserver(TraceStateObserver* observer) override;
   void RemoveTraceStateObserver(TraceStateObserver* observer) override;
+  StackTracePrinter GetStackTracePrinter() override;
 
  private:
   static const int kMaxThreadPoolSize;
@@ -81,6 +84,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   base::Mutex lock_;
   bool initialized_;
   int thread_pool_size_;
+  IdleTaskSupport idle_task_support_;
   std::vector<WorkerThread*> thread_pool_;
   TaskQueue queue_;
   std::map<v8::Isolate*, std::queue<Task*>> main_thread_queue_;

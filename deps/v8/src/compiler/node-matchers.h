@@ -252,6 +252,9 @@ struct BinopMatcher : public NodeMatcher {
  protected:
   void SwapInputs() {
     std::swap(left_, right_);
+    // TODO(tebbi): This modification should notify the reducers using
+    // BinopMatcher. Alternatively, all reducers (especially value numbering)
+    // could ignore the ordering for commutative binops.
     node()->ReplaceInput(0, left().node());
     node()->ReplaceInput(1, right().node());
   }

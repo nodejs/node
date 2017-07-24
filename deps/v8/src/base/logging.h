@@ -37,6 +37,9 @@ extern "C" PRINTF_FORMAT(3, 4) V8_NORETURN V8_BASE_EXPORT
 namespace v8 {
 namespace base {
 
+// Overwrite the default function that prints a stack trace.
+V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
+
 // CHECK dies with a fatal error if condition is not true.  It is *not*
 // controlled by DEBUG, so the check will be executed regardless of
 // compilation mode.

@@ -12,19 +12,13 @@
           'dependencies': [
             'cctest/cctest.gyp:cctest_run',
             'fuzzer/fuzzer.gyp:fuzzer_run',
+            'inspector/inspector.gyp:inspector-test_run',
             'intl/intl.gyp:intl_run',
             'message/message.gyp:message_run',
             'mjsunit/mjsunit.gyp:mjsunit_run',
             'preparser/preparser.gyp:preparser_run',
             'unittests/unittests.gyp:unittests_run',
             'webkit/webkit.gyp:webkit_run',
-          ],
-          'conditions': [
-            ['v8_enable_inspector==1', {
-              'dependencies': [
-                'inspector/inspector.gyp:inspector-test_run',
-              ],
-            }],
           ],
           'includes': [
             '../gypfiles/features.gypi',

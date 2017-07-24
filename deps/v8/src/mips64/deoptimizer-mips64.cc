@@ -114,8 +114,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   RegList saved_regs = restored_regs | sp.bit() | ra.bit();
 
   const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kMaxNumRegisters;
+  const int kFloatRegsSize = kFloatSize * FloatRegister::kMaxNumRegisters;
 
-  // Save all FPU registers before messing with them.
+  // Save all double FPU registers before messing with them.
   __ Dsubu(sp, sp, Operand(kDoubleRegsSize));
   const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
@@ -123,6 +124,15 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
     int offset = code * kDoubleSize;
     __ sdc1(fpu_reg, MemOperand(sp, offset));
+  }
+
+  // Save all float FPU registers before messing with them.
+  __ Dsubu(sp, sp, Operand(kFloatRegsSize));
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    const FloatRegister fpu_reg = FloatRegister::from_code(code);
+    int offset = code * kFloatSize;
+    __ swc1(fpu_reg, MemOperand(sp, offset));
   }
 
   // Push saved_regs (needed to populate FrameDescription::registers_).
@@ -138,7 +148,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ sd(fp, MemOperand(a2));
 
   const int kSavedRegistersAreaSize =
-      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize;
+      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
 
   // Get the bailout id from the stack.
   __ ld(a2, MemOperand(sp, kSavedRegistersAreaSize));
@@ -198,9 +208,21 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
-    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    int src_offset =
+        code * kDoubleSize + kNumberOfRegisters * kPointerSize + kFloatRegsSize;
     __ ldc1(f0, MemOperand(sp, src_offset));
     __ sdc1(f0, MemOperand(a1, dst_offset));
+  }
+
+  int float_regs_offset = FrameDescription::float_registers_offset();
+  // Copy FPU registers to
+  // float_registers_[FloatRegister::kNumAllocatableRegisters]
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    int dst_offset = code * kFloatSize + float_regs_offset;
+    int src_offset = code * kFloatSize + kNumberOfRegisters * kPointerSize;
+    __ lwc1(f0, MemOperand(sp, src_offset));
+    __ swc1(f0, MemOperand(a1, dst_offset));
   }
 
   // Remove the bailout id and the saved registers from the stack.

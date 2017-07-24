@@ -10,6 +10,7 @@ group("gn_all") {
 
   deps = [
     ":default_tests",
+    "inspector:inspector-test",
   ]
 
   if (host_os != "mac" || !is_android) {
@@ -19,10 +20,6 @@ group("gn_all") {
       "cctest:generate-bytecode-expectations",
       "unittests:unittests",
     ]
-  }
-
-  if (v8_enable_inspector) {
-    deps += [ "inspector:inspector-test" ]
   }
 
   if (v8_test_isolation_mode != "noop") {
@@ -136,10 +133,9 @@ v8_isolate_run("fuzzer") {
 }
 
 v8_isolate_run("inspector-test") {
-  deps = []
-  if (v8_enable_inspector) {
-    deps += [ "inspector:inspector-test" ]
-  }
+  deps = [
+    "inspector:inspector-test",
+  ]
 
   isolate = "inspector/inspector.isolate"
 }

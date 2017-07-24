@@ -990,10 +990,6 @@
   'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
 }],  # 'arch == arm64 and simulator_run == True'
 
-['variant == asm_wasm', {
-  '*': [SKIP],
-}],  # variant == asm_wasm
-
 ['variant == wasm_traps', {
   '*': [SKIP],
 }],  # variant == wasm_traps

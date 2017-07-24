@@ -465,7 +465,7 @@ TEST_F(LoadEliminationTest, AliasAnalysisForFinishRegion) {
   load_elimination.Reduce(effect);
 
   Node* object0 = effect =
-      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+      graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
                        jsgraph()->Constant(16), effect, control);
   load_elimination.Reduce(effect);
 
@@ -478,7 +478,7 @@ TEST_F(LoadEliminationTest, AliasAnalysisForFinishRegion) {
   load_elimination.Reduce(effect);
 
   Node* object1 = effect =
-      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+      graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
                        jsgraph()->Constant(16), effect, control);
   load_elimination.Reduce(effect);
 

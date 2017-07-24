@@ -4,7 +4,7 @@
 
 #include "src/compiler/linkage.h"
 
-#include "src/ast/scopes.h"
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"

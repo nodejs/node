@@ -266,6 +266,7 @@ TEST(DisasmX64) {
   __ xorq(rdx, Immediate(12345));
   __ xorq(rdx, Operand(rbx, rcx, times_8, 10000));
   __ bts(Operand(rbx, rcx, times_8, 10000), rdx);
+  __ pshufw(xmm5, xmm1, 3);
   __ hlt();
   __ int3();
   __ ret(0);
@@ -519,6 +520,7 @@ TEST(DisasmX64) {
       CpuFeatureScope scope(&assm, SSE4_1);
       __ insertps(xmm5, xmm1, 123);
       __ extractps(rax, xmm1, 0);
+      __ pextrw(rbx, xmm2, 1);
       __ pextrd(rbx, xmm15, 0);
       __ pextrd(r12, xmm0, 1);
       __ pinsrd(xmm9, r9, 0);

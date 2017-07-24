@@ -186,7 +186,6 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
       if (map == heap->boolean_map()) return kBoolean;
       if (map == heap->the_hole_map()) return kHole;
       DCHECK(map == heap->uninitialized_map() ||
-             map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map() ||
              map == heap->optimized_out_map() ||
@@ -209,6 +208,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
@@ -287,6 +287,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case PROPERTY_CELL_TYPE:
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
+    case ASYNC_GENERATOR_REQUEST_TYPE:
       return kOtherInternal & kTaggedPointer;
 
     // Remaining instance types are unsupported for now. If any of them do
@@ -311,6 +312,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
     case DEBUG_INFO_TYPE:
     case BREAK_POINT_INFO_TYPE:
+    case STACK_FRAME_INFO_TYPE:
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:

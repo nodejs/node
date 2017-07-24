@@ -37,7 +37,6 @@ namespace internal {
 // are specified by inline comments
 
 #define FOR_EACH_INTRINSIC_ARRAY(F)  \
-  F(FinishArrayPrototypeSetup, 1, 1) \
   F(SpecialArrayFunctions, 0, 1)     \
   F(TransitionElementsKind, 2, 1)    \
   F(RemoveArrayHoles, 2, 1)          \
@@ -63,16 +62,13 @@ namespace internal {
   F(ThrowNotIntegerSharedTypedArrayError, 1, 1) \
   F(ThrowNotInt32SharedTypedArrayError, 1, 1)   \
   F(ThrowInvalidAtomicAccessIndexError, 0, 1)   \
+  F(AtomicsExchange, 3, 1)                      \
   F(AtomicsCompareExchange, 4, 1)               \
   F(AtomicsAdd, 3, 1)                           \
   F(AtomicsSub, 3, 1)                           \
   F(AtomicsAnd, 3, 1)                           \
   F(AtomicsOr, 3, 1)                            \
   F(AtomicsXor, 3, 1)                           \
-  F(AtomicsExchange, 3, 1)                      \
-  F(AtomicsIsLockFree, 1, 1)                    \
-  F(AtomicsWait, 4, 1)                          \
-  F(AtomicsWake, 3, 1)                          \
   F(AtomicsNumWaitersForTesting, 2, 1)          \
   F(SetAllowAtomicsWait, 1, 1)
 
@@ -81,6 +77,7 @@ namespace internal {
   F(ThrowConstructorNonCallableError, 1, 1)  \
   F(ThrowStaticPrototypeError, 0, 1)         \
   F(ThrowSuperAlreadyCalledError, 0, 1)      \
+  F(ThrowSuperNotCalled, 0, 1)               \
   F(ThrowNotSuperConstructor, 2, 1)          \
   F(HomeObjectSymbol, 0, 1)                  \
   F(DefineClass, 4, 1)                       \
@@ -125,7 +122,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_COMPILER(F)    \
   F(CompileLazy, 1, 1)                    \
-  F(CompileBaseline, 1, 1)                \
   F(CompileOptimized_Concurrent, 1, 1)    \
   F(CompileOptimized_NotConcurrent, 1, 1) \
   F(NotifyStubFailure, 0, 1)              \
@@ -241,15 +237,18 @@ namespace internal {
   F(IsFunction, 1, 1)                      \
   F(FunctionToString, 1, 1)
 
-#define FOR_EACH_INTRINSIC_GENERATOR(F) \
-  F(CreateJSGeneratorObject, 2, 1)      \
-  F(GeneratorClose, 1, 1)               \
-  F(GeneratorGetFunction, 1, 1)         \
-  F(GeneratorGetReceiver, 1, 1)         \
-  F(GeneratorGetContext, 1, 1)          \
-  F(GeneratorGetInputOrDebugPos, 1, 1)  \
-  F(GeneratorGetContinuation, 1, 1)     \
-  F(GeneratorGetSourcePosition, 1, 1)   \
+#define FOR_EACH_INTRINSIC_GENERATOR(F)          \
+  F(CreateJSGeneratorObject, 2, 1)               \
+  F(GeneratorClose, 1, 1)                        \
+  F(GeneratorGetFunction, 1, 1)                  \
+  F(GeneratorGetReceiver, 1, 1)                  \
+  F(GeneratorGetContext, 1, 1)                   \
+  F(GeneratorGetInputOrDebugPos, 1, 1)           \
+  F(AsyncGeneratorGetAwaitInputOrDebugPos, 1, 1) \
+  F(AsyncGeneratorResolve, 3, 1)                 \
+  F(AsyncGeneratorReject, 2, 1)                  \
+  F(GeneratorGetContinuation, 1, 1)              \
+  F(GeneratorGetSourcePosition, 1, 1)            \
   F(GeneratorGetResumeMode, 1, 1)
 
 #ifdef V8_I18N_SUPPORT
@@ -266,9 +265,9 @@ namespace internal {
   F(InternalDateFormatToParts, 2, 1)         \
   F(CreateNumberFormat, 3, 1)                \
   F(InternalNumberFormat, 2, 1)              \
+  F(CurrencyDigits, 1, 1)                    \
   F(CreateCollator, 3, 1)                    \
   F(InternalCompare, 3, 1)                   \
-  F(StringNormalize, 2, 1)                   \
   F(CreateBreakIterator, 3, 1)               \
   F(BreakIteratorAdoptText, 2, 1)            \
   F(BreakIteratorFirst, 1, 1)                \
@@ -317,12 +316,14 @@ namespace internal {
   F(ThrowIncompatibleMethodReceiver, 2, 1)          \
   F(ThrowInvalidHint, 1, 1)                         \
   F(ThrowInvalidStringLength, 0, 1)                 \
+  F(ThrowInvalidTypedArrayAlignment, 2, 1)          \
   F(ThrowIteratorResultNotAnObject, 1, 1)           \
   F(ThrowSymbolIteratorInvalid, 0, 1)               \
   F(ThrowNonCallableInInstanceOfCheck, 0, 1)        \
   F(ThrowNonObjectInInstanceOfCheck, 0, 1)          \
   F(ThrowNotConstructor, 1, 1)                      \
   F(ThrowNotGeneric, 1, 1)                          \
+  F(ThrowRangeError, -1 /* >= 1 */, 1)              \
   F(ThrowReferenceError, 1, 1)                      \
   F(ThrowStackOverflow, 0, 1)                       \
   F(ThrowSymbolAsyncIteratorInvalid, 0, 1)          \
@@ -355,7 +356,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_MATHS(F) F(GenerateRandomNumbers, 0, 1)
 
 #define FOR_EACH_INTRINSIC_MODULE(F) \
-  F(DynamicImportCall, 1, 1)         \
+  F(DynamicImportCall, 2, 1)         \
   F(GetModuleNamespace, 1, 1)        \
   F(LoadModuleVariable, 1, 1)        \
   F(StoreModuleVariable, 2, 1)
@@ -371,11 +372,11 @@ namespace internal {
   F(SmiLexicographicCompare, 2, 1)     \
   F(MaxSmi, 0, 1)                      \
   F(IsSmi, 1, 1)                       \
-  F(GetRootNaN, 0, 1)                  \
   F(GetHoleNaNUpper, 0, 1)             \
   F(GetHoleNaNLower, 0, 1)
 
 #define FOR_EACH_INTRINSIC_OBJECT(F)                            \
+  F(AddDictionaryProperty, 3, 1)                                \
   F(GetPrototype, 1, 1)                                         \
   F(ObjectHasOwnProperty, 2, 1)                                 \
   F(ObjectCreate, 2, 1)                                         \
@@ -401,6 +402,7 @@ namespace internal {
   F(IsJSGlobalProxy, 1, 1)                                      \
   F(DefineAccessorPropertyUnchecked, 5, 1)                      \
   F(DefineDataPropertyInLiteral, 6, 1)                          \
+  F(CollectTypeProfile, 3, 1)                                   \
   F(GetDataProperty, 2, 1)                                      \
   F(GetConstructorName, 1, 1)                                   \
   F(HasFastPackedElements, 1, 1)                                \
@@ -426,7 +428,8 @@ namespace internal {
   F(CreateIterResultObject, 2, 1)                               \
   F(CreateKeyValueArray, 2, 1)                                  \
   F(IsAccessCheckNeeded, 1, 1)                                  \
-  F(CreateDataProperty, 3, 1)
+  F(CreateDataProperty, 3, 1)                                   \
+  F(IterableToListCanBeElided, 1, 1)
 
 #define FOR_EACH_INTRINSIC_OPERATORS(F) \
   F(Multiply, 2, 1)                     \
@@ -463,7 +466,9 @@ namespace internal {
   F(PromiseRevokeReject, 1, 1)              \
   F(PromiseResult, 1, 1)                    \
   F(PromiseStatus, 1, 1)                    \
-  F(ReportPromiseReject, 2, 1)
+  F(ReportPromiseReject, 2, 1)              \
+  F(IncrementWaitCount, 0, 1)               \
+  F(DecrementWaitCount, 0, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F)     \
   F(IsJSProxy, 1, 1)                    \
@@ -478,7 +483,7 @@ namespace internal {
   F(RegExpCreate, 1, 1)                             \
   F(RegExpExec, 4, 1)                               \
   F(RegExpExecMultiple, 4, 1)                       \
-  F(RegExpExecReThrow, 4, 1)                        \
+  F(RegExpExecReThrow, 0, 1)                        \
   F(RegExpInitializeAndCompile, 3, 1)               \
   F(RegExpInternalReplace, 3, 1)                    \
   F(RegExpReplace, 3, 1)                            \
@@ -548,18 +553,19 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_TEST(F)            \
   F(ConstructDouble, 2, 1)                    \
+  F(ConstructConsString, 2, 1)                \
   F(DeoptimizeFunction, 1, 1)                 \
   F(DeoptimizeNow, 0, 1)                      \
   F(RunningInSimulator, 0, 1)                 \
   F(IsConcurrentRecompilationSupported, 0, 1) \
   F(OptimizeFunctionOnNextCall, -1, 1)        \
-  F(InterpretFunctionOnNextCall, 1, 1)        \
-  F(BaselineFunctionOnNextCall, 1, 1)         \
+  F(TypeProfile, 1, 1)                        \
   F(OptimizeOsr, -1, 1)                       \
   F(NeverOptimizeFunction, 1, 1)              \
   F(GetOptimizationStatus, -1, 1)             \
   F(UnblockConcurrentRecompilation, 0, 1)     \
   F(GetOptimizationCount, 1, 1)               \
+  F(GetDeoptCount, 1, 1)                      \
   F(GetUndetectable, 0, 1)                    \
   F(GetCallable, 0, 1)                        \
   F(ClearFunctionFeedback, 1, 1)              \
@@ -611,14 +617,13 @@ namespace internal {
   F(ValidateWasmOrphanedInstance, 1, 1)       \
   F(SetWasmCompileControls, 2, 1)             \
   F(SetWasmInstantiateControls, 0, 1)         \
-  F(Verify, 1, 1)
+  F(HeapObjectVerify, 1, 1)                   \
+  F(WasmNumInterpretedCalls, 1, 1)            \
+  F(RedirectToWasmInterpreter, 2, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
   F(ArrayBufferGetByteLength, 1, 1)          \
-  F(ArrayBufferSliceImpl, 4, 1)              \
   F(ArrayBufferNeuter, 1, 1)                 \
-  F(TypedArrayInitialize, 6, 1)              \
-  F(TypedArrayInitializeFromArrayLike, 4, 1) \
   F(ArrayBufferViewGetByteLength, 1, 1)      \
   F(ArrayBufferViewGetByteOffset, 1, 1)      \
   F(TypedArrayGetLength, 1, 1)               \
@@ -636,11 +641,15 @@ namespace internal {
   F(WasmMemorySize, 0, 1)              \
   F(ThrowWasmError, 2, 1)              \
   F(ThrowWasmErrorFromTrapIf, 1, 1)    \
+  F(ThrowWasmStackOverflow, 0, 1)      \
   F(WasmThrowTypeError, 0, 1)          \
   F(WasmThrow, 2, 1)                   \
   F(WasmGetCaughtExceptionValue, 1, 1) \
   F(WasmRunInterpreter, 3, 1)          \
-  F(WasmStackGuard, 0, 1)
+  F(WasmStackGuard, 0, 1)              \
+  F(SetThreadInWasm, 0, 1)             \
+  F(ClearThreadInWasm, 0, 1)           \
+  F(WasmCompileLazy, 0, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)
@@ -663,7 +672,6 @@ namespace internal {
   F(LoadGlobalIC_Slow, 3, 1)                 \
   F(LoadIC_Miss, 4, 1)                       \
   F(LoadPropertyWithInterceptor, 5, 1)       \
-  F(LoadPropertyWithInterceptorOnly, 3, 1)   \
   F(StoreCallbackProperty, 6, 1)             \
   F(StoreIC_Miss, 5, 1)                      \
   F(StorePropertyWithInterceptor, 5, 1)      \
@@ -777,27 +785,8 @@ class Runtime : public AllStatic {
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
       bool* is_found_out = nullptr);
 
-  enum TypedArrayId {
-    // arrayIds below should be synchronized with typedarray.js natives.
-    ARRAY_ID_UINT8 = 1,
-    ARRAY_ID_INT8 = 2,
-    ARRAY_ID_UINT16 = 3,
-    ARRAY_ID_INT16 = 4,
-    ARRAY_ID_UINT32 = 5,
-    ARRAY_ID_INT32 = 6,
-    ARRAY_ID_FLOAT32 = 7,
-    ARRAY_ID_FLOAT64 = 8,
-    ARRAY_ID_UINT8_CLAMPED = 9,
-    ARRAY_ID_FIRST = ARRAY_ID_UINT8,
-    ARRAY_ID_LAST = ARRAY_ID_UINT8_CLAMPED
-  };
-
-  static void ArrayIdToTypeAndSize(int array_id, ExternalArrayType* type,
-                                   ElementsKind* fixed_elements_kind,
-                                   size_t* element_size);
-
-  static MaybeHandle<JSArray> GetInternalProperties(Isolate* isolate,
-                                                    Handle<Object>);
+  MUST_USE_RESULT static MaybeHandle<JSArray> GetInternalProperties(
+      Isolate* isolate, Handle<Object>);
 };
 
 

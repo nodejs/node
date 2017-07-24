@@ -9,6 +9,7 @@
       'type': 'none',
       'dependencies': [
         '../src/d8.gyp:d8',
+        '../test/inspector/inspector.gyp:*',
       ],
       'conditions': [
         ['component!="shared_library"', {
@@ -25,20 +26,11 @@
             '../test/unittests/unittests.gyp:*',
           ],
         }],
-        ['v8_enable_inspector==1', {
-          'dependencies': [
-            '../test/inspector/inspector.gyp:*',
-          ],
-        }],
-        ['v8_enable_inspector==1 and test_isolation_mode != "noop"', {
-          'dependencies': [
-            '../test/debugger/debugger.gyp:*',
-          ],
-        }],
         ['test_isolation_mode != "noop"', {
           'dependencies': [
             '../test/bot_default.gyp:*',
             '../test/benchmarks/benchmarks.gyp:*',
+            '../test/debugger/debugger.gyp:*',
             '../test/default.gyp:*',
             '../test/intl/intl.gyp:*',
             '../test/message/message.gyp:*',

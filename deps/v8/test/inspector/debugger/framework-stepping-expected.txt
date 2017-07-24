@@ -59,7 +59,9 @@ testStepFromUser (user.js:31:2)
 (anonymous) (expr.js:0:0)
 
 Executing stepOut...
-testStepFromUser (user.js:32:0)
+userBoo (user.js:27:2)
+frameworkCall (framework.js:10:23)
+testStepFromUser (user.js:31:2)
 (anonymous) (expr.js:0:0)
 
 Executing resume...

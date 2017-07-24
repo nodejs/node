@@ -4,6 +4,8 @@
 
 #include "src/heap/gc-tracer.h"
 
+#include <cstdarg>
+
 #include "src/counters.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
@@ -451,6 +453,12 @@ void GCTracer::PrintNVP() const {
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
+          "heap.prologue=%.2f "
+          "heap.epilogue=%.2f "
+          "heap.epilogue.reduce_new_space=%.2f "
+          "heap.external.prologue=%.2f "
+          "heap.external.epilogue=%.2f "
+          "heap.external_weak_global_handles=%.2f "
           "scavenge=%.2f "
           "evacuate=%.2f "
           "old_new=%.2f "
@@ -458,9 +466,6 @@ void GCTracer::PrintNVP() const {
           "roots=%.2f "
           "code=%.2f "
           "semispace=%.2f "
-          "external.prologue=%.2f "
-          "external.epilogue=%.2f "
-          "external_weak_global_handles=%.2f "
           "steps_count=%d "
           "steps_took=%.1f "
           "scavenge_throughput=%.f "
@@ -488,16 +493,19 @@ void GCTracer::PrintNVP() const {
           "new_space_allocation_throughput=%.1f "
           "context_disposal_rate=%.1f\n",
           duration, spent_in_mutator, current_.TypeName(true),
-          current_.reduce_memory, current_.scopes[Scope::SCAVENGER_SCAVENGE],
+          current_.reduce_memory, current_.scopes[Scope::HEAP_PROLOGUE],
+          current_.scopes[Scope::HEAP_EPILOGUE],
+          current_.scopes[Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE],
+          current_.scopes[Scope::HEAP_EXTERNAL_PROLOGUE],
+          current_.scopes[Scope::HEAP_EXTERNAL_EPILOGUE],
+          current_.scopes[Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES],
+          current_.scopes[Scope::SCAVENGER_SCAVENGE],
           current_.scopes[Scope::SCAVENGER_EVACUATE],
           current_.scopes[Scope::SCAVENGER_OLD_TO_NEW_POINTERS],
           current_.scopes[Scope::SCAVENGER_WEAK],
           current_.scopes[Scope::SCAVENGER_ROOTS],
           current_.scopes[Scope::SCAVENGER_CODE_FLUSH_CANDIDATES],
           current_.scopes[Scope::SCAVENGER_SEMISPACE],
-          current_.scopes[Scope::EXTERNAL_PROLOGUE],
-          current_.scopes[Scope::EXTERNAL_EPILOGUE],
-          current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES],
           current_.incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL]
               .steps,
           current_.scopes[Scope::MC_INCREMENTAL],
@@ -534,6 +542,12 @@ void GCTracer::PrintNVP() const {
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
+          "heap.prologue=%.2f "
+          "heap.epilogue=%.2f "
+          "heap.epilogue.reduce_new_space=%.2f "
+          "heap.external.prologue=%.1f "
+          "heap.external.epilogue=%.1f "
+          "heap.external.weak_global_handles=%.1f "
           "clear=%1.f "
           "clear.code_flush=%.1f "
           "clear.dependent_code=%.1f "
@@ -556,9 +570,6 @@ void GCTracer::PrintNVP() const {
           "evacuate.update_pointers.to_evacuated=%.1f "
           "evacuate.update_pointers.to_new=%.1f "
           "evacuate.update_pointers.weak=%.1f "
-          "external.prologue=%.1f "
-          "external.epilogue=%.1f "
-          "external.weak_global_handles=%.1f "
           "finish=%.1f "
           "mark=%.1f "
           "mark.finish_incremental=%.1f "
@@ -617,7 +628,13 @@ void GCTracer::PrintNVP() const {
           "context_disposal_rate=%.1f "
           "compaction_speed=%.f\n",
           duration, spent_in_mutator, current_.TypeName(true),
-          current_.reduce_memory, current_.scopes[Scope::MC_CLEAR],
+          current_.reduce_memory, current_.scopes[Scope::HEAP_PROLOGUE],
+          current_.scopes[Scope::HEAP_EPILOGUE],
+          current_.scopes[Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE],
+          current_.scopes[Scope::HEAP_EXTERNAL_PROLOGUE],
+          current_.scopes[Scope::HEAP_EXTERNAL_EPILOGUE],
+          current_.scopes[Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES],
+          current_.scopes[Scope::MC_CLEAR],
           current_.scopes[Scope::MC_CLEAR_CODE_FLUSH],
           current_.scopes[Scope::MC_CLEAR_DEPENDENT_CODE],
           current_.scopes[Scope::MC_CLEAR_MAPS],
@@ -639,9 +656,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK],
-          current_.scopes[Scope::EXTERNAL_PROLOGUE],
-          current_.scopes[Scope::EXTERNAL_EPILOGUE],
-          current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES],
           current_.scopes[Scope::MC_FINISH], current_.scopes[Scope::MC_MARK],
           current_.scopes[Scope::MC_MARK_FINISH_INCREMENTAL],
           current_.scopes[Scope::MC_MARK_PREPARE_CODE_FLUSH],

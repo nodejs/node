@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Check that console.log is reported through Console domain as well.");
+InspectorTest.log("Check that console.log is reported through Console domain as well.");
 
 var expectedMessages = 4;
 var messages = [];

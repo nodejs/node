@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks that console message storage doesn\'t exceed limits');
+InspectorTest.log('Checks that console message storage doesn\'t exceed limits');
 
 InspectorTest.addScript(`
 function generateEmptyMessages(n) {

@@ -125,6 +125,16 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ Movsd(Operand(rsp, offset), xmm_reg);
   }
 
+  const int kFloatRegsSize = kFloatSize * XMMRegister::kMaxNumRegisters;
+  __ subp(rsp, Immediate(kFloatRegsSize));
+
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    XMMRegister xmm_reg = XMMRegister::from_code(code);
+    int offset = code * kFloatSize;
+    __ Movss(Operand(rsp, offset), xmm_reg);
+  }
+
   // We push all registers onto the stack, even though we do not need
   // to restore all later.
   for (int i = 0; i < kNumberOfRegisters; i++) {
@@ -132,8 +142,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ pushq(r);
   }
 
-  const int kSavedRegistersAreaSize = kNumberOfRegisters * kRegisterSize +
-                                      kDoubleRegsSize;
+  const int kSavedRegistersAreaSize =
+      kNumberOfRegisters * kRegisterSize + kDoubleRegsSize + kFloatRegsSize;
 
   __ Store(ExternalReference(Isolate::kCEntryFPAddress, isolate()), rbp);
 
@@ -189,6 +199,16 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ PopQuad(Operand(rbx, offset));
   }
+
+  // Fill in the float input registers.
+  int float_regs_offset = FrameDescription::float_registers_offset();
+  for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    int src_offset = i * kFloatSize;
+    int dst_offset = i * kFloatSize + float_regs_offset;
+    __ movl(rcx, Operand(rsp, src_offset));
+    __ movl(Operand(rbx, dst_offset), rcx);
+  }
+  __ addp(rsp, Immediate(kFloatRegsSize));
 
   // Fill in the double input registers.
   int double_regs_offset = FrameDescription::double_registers_offset();

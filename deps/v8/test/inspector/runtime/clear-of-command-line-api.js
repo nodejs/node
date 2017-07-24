@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Tests that CommandLineAPI is presented only while evaluation.");
+InspectorTest.log("Tests that CommandLineAPI is presented only while evaluation.");
 
 InspectorTest.addScript(
 `

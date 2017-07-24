@@ -16,11 +16,13 @@
         {
           "name": "ES5",
           "main": "run.js",
+          "resources": ["array_destructuring/es5.js"],
           "test_flags": ["array_destructuring/es5"]
         },
         {
           "name": "ES6",
           "main": "run.js",
+          "resources": ["array_destructuring/es6.js"],
           "test_flags": ["array_destructuring/es6"]
         }
       ]
@@ -33,11 +35,13 @@
         {
           "name": "ES5",
           "main": "run.js",
+          "resources": ["object_literals/es5.js"],
           "test_flags": ["object_literals/es5"]
         },
         {
           "name": "ES6",
           "main": "run.js",
+          "resources": ["object_literals/es6.js"],
           "test_flags": ["object_literals/es6"]
         }
       ]
@@ -50,11 +54,13 @@
         {
           "name": "ES5",
           "main": "run.js",
+          "resources": ["defaults/es5.js"],
           "test_flags": ["defaults/es5"]
         },
         {
           "name": "ES6",
           "main": "run.js",
+          "resources": ["defaults/es6.js"],
           "test_flags": ["defaults/es6"]
         }
       ]
@@ -68,16 +74,19 @@
         {
           "name": "ES5",
           "main": "run.js",
+          "resources": ["spread/es5.js"],
           "test_flags": ["spread/es5"]
         },
         {
           "name": "Babel",
           "main": "run.js",
+          "resources": ["spread/babel.js"],
           "test_flags": ["spread/babel"]
         },
         {
           "name": "ES6",
           "main": "run.js",
+          "resources": ["spread/es6.js"],
           "test_flags": ["spread/es6"]
         }
       ]
@@ -91,16 +100,19 @@
         {
           "name": "ES5",
           "main": "run.js",
+          "resources": ["super_spread/es5.js"],
           "test_flags": ["super_spread/es5"]
         },
         {
           "name": "Babel",
           "main": "run.js",
+          "resources": ["super_spread/babel.js"],
           "test_flags": ["super_spread/babel"]
         },
         {
           "name": "ES6",
           "main": "run.js",
+          "resources": ["super_spread/es6.js"],
           "test_flags": ["super_spread/es6"]
         }
       ]
@@ -114,16 +126,19 @@
         {
           "name": "ES5",
           "main": "run.js",
+          "resources": ["spread_literal/es5.js"],
           "test_flags": ["spread_literal/es5"]
         },
         {
           "name": "Babel",
           "main": "run.js",
+          "resources": ["spread_literal/babel.js"],
           "test_flags": ["spread_literal/babel"]
         },
         {
           "name": "ES6",
           "main": "run.js",
+          "resources": ["spread_literal/es6.js"],
           "test_flags": ["spread_literal/es6"]
         }
       ]

@@ -46,7 +46,6 @@
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.7',
     'release_extra_cflags%': '',
-    'v8_enable_inspector%': 0,
     'variables': {
       'variables': {
         'variables': {
@@ -93,16 +92,16 @@
           ['OS=="linux" and use_sysroot==1', {
             'conditions': [
               ['target_arch=="arm"', {
-                'sysroot%': '<!(cd <(DEPTH) && pwd -P)/build/linux/debian_wheezy_arm-sysroot',
+                'sysroot%': '<!(cd <(DEPTH) && pwd -P)/build/linux/debian_jessie_arm-sysroot',
               }],
               ['target_arch=="x64"', {
-                'sysroot%': '<!(cd <(DEPTH) && pwd -P)/build/linux/debian_wheezy_amd64-sysroot',
+                'sysroot%': '<!(cd <(DEPTH) && pwd -P)/build/linux/debian_jessie_amd64-sysroot',
               }],
               ['target_arch=="ia32"', {
-                'sysroot%': '<!(cd <(DEPTH) && pwd -P)/build/linux/debian_wheezy_i386-sysroot',
+                'sysroot%': '<!(cd <(DEPTH) && pwd -P)/build/linux/debian_jessie_i386-sysroot',
               }],
               ['target_arch=="mipsel"', {
-                'sysroot%': '<!(cd <(DEPTH) && pwd -P)/build/linux/debian_wheezy_mips-sysroot',
+                'sysroot%': '<!(cd <(DEPTH) && pwd -P)/build/linux/debian_jessie_mips-sysroot',
               }],
             ],
           }], # OS=="linux" and use_sysroot==1
@@ -243,9 +242,6 @@
     # Relative path to icu.gyp from this file.
     'icu_gyp_path': '../third_party/icu/icu.gyp',
 
-    # Relative path to inspector.gyp from this file.
-    'inspector_gyp_path': '../src/v8-inspector/inspector.gyp',
-
     'conditions': [
       ['(v8_target_arch=="arm" and host_arch!="arm") or \
         (v8_target_arch=="arm64" and host_arch!="arm64") or \
@@ -256,18 +252,6 @@
         'want_separate_host_toolset': 1,
       }, {
         'want_separate_host_toolset': 0,
-      }],
-      ['(v8_target_arch=="arm" and host_arch!="arm") or \
-        (v8_target_arch=="arm64" and host_arch!="arm64") or \
-        (v8_target_arch=="mipsel" and host_arch!="mipsel") or \
-        (v8_target_arch=="mips64el" and host_arch!="mips64el") or \
-        (v8_target_arch=="mips" and host_arch!="mips") or \
-        (v8_target_arch=="mips64" and host_arch!="mips64") or \
-        (v8_target_arch=="x64" and host_arch!="x64") or \
-        (OS=="android" or OS=="qnx")', {
-        'want_separate_host_toolset_mkpeephole': 1,
-      }, {
-        'want_separate_host_toolset_mkpeephole': 0,
       }],
       ['OS == "win"', {
         'os_posix%': 0,
@@ -870,6 +854,7 @@
             ],
           }],
         ],
+        'msvs_cygwin_shell': 0,
         'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
         'msvs_disabled_warnings': [
           # C4091: 'typedef ': ignored on left of 'X' when no variable is

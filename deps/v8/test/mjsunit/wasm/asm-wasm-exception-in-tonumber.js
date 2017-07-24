@@ -33,7 +33,7 @@ function sym(return_sym) {
   throw Error("user-thrown");
 }
 
-function generateAsmJs(stdlib, foreign) {
+function generateAsmJsInteger(stdlib, foreign) {
   'use asm';
   var sym = foreign.sym;
   function callSym(i) {
@@ -43,14 +43,24 @@ function generateAsmJs(stdlib, foreign) {
   return callSym;
 }
 
-function testHelper(use_asm_js, check_detailed, expected, input) {
+function generateAsmJsDouble(stdlib, foreign) {
+  'use asm';
+  var sym = foreign.sym;
+  function callSym(i) {
+    i=i|0;
+    return +sym(i|0);
+  }
+  return callSym;
+}
+
+function testHelper(use_asm_js, check_detailed, expected, input, source) {
   if (check_detailed) {
     Error.prepareStackTrace = (error, frames) => frames;
   } else {
     delete Error.prepareStackTrace;
   }
 
-  var fn_code = '(' + generateAsmJs.toString() + ')({}, {sym: sym})';
+  var fn_code = '(' + source.toString() + ')({}, {sym: sym})';
   if (!use_asm_js) fn_code = fn_code.replace('use asm', '');
   //print('executing:\n' + fn_code);
   var asm_js_fn = eval(fn_code);
@@ -65,18 +75,18 @@ function testHelper(use_asm_js, check_detailed, expected, input) {
   }
 }
 
-function testAll(expected_stack, expected_frames, input) {
+function testAll(expected_stack, expected_frames, input, source) {
   for (use_asm_js = 0; use_asm_js <= 1; ++use_asm_js) {
     for (test_detailed = 0; test_detailed <= 1; ++test_detailed) {
       print('\nConfig: asm ' + use_asm_js + '; detailed ' + test_detailed);
       testHelper(
           use_asm_js, test_detailed,
-          test_detailed ? expected_frames : expected_stack, input);
+          test_detailed ? expected_frames : expected_stack, input, source);
     }
   }
 }
 
-(function testStackForThrowAtCall() {
+(function testStackForThrowAtIntegerCall() {
   var expected_stack = [
     '^Error: user-thrown$',
     '^ *at sym \\(' + filename + ':\\d+:9\\)$',
@@ -89,10 +99,10 @@ function testAll(expected_stack, expected_frames, input) {
       [  "callSym",   12],
   ];
 
-  testAll(expected_stack, expected_frames, 0);
+  testAll(expected_stack, expected_frames, 0, generateAsmJsInteger);
 })();
 
-(function testStackForThrowAtConversion() {
+(function testStackForThrowAtIntegerConversion() {
   var expected_stack = [
     '^TypeError: Cannot convert a Symbol value to a number$',
     '^ *at callSym \\(eval at testHelper \\(' + filename +
@@ -103,5 +113,35 @@ function testAll(expected_stack, expected_frames, input) {
       [  "callSym",   21],
   ];
 
-  testAll(expected_stack, expected_frames, 1);
+  testAll(expected_stack, expected_frames, 1, generateAsmJsInteger);
+})();
+
+(function testStackForThrowAtDoubleCall() {
+  var expected_stack = [
+    '^Error: user-thrown$',
+    '^ *at sym \\(' + filename + ':\\d+:9\\)$',
+    '^ *at callSym \\(eval at testHelper \\(' + filename +
+        ':\\d+:19\\), <anonymous>:\\d+:13\\)$',
+  ];
+  var expected_frames = [
+      //  function   pos
+      [      "sym",    9],
+      [  "callSym",   13],
+  ];
+
+  testAll(expected_stack, expected_frames, 0, generateAsmJsDouble);
+})();
+
+(function testStackForThrowAtDoubleConversion() {
+  var expected_stack = [
+    '^TypeError: Cannot convert a Symbol value to a number$',
+    '^ *at callSym \\(eval at testHelper \\(' + filename +
+        ':\\d+:19\\), <anonymous>:\\d+:12\\)$',
+  ];
+  var expected_frames = [
+      //  function   pos
+      [  "callSym",   12],
+  ];
+
+  testAll(expected_stack, expected_frames, 1, generateAsmJsDouble);
 })();
