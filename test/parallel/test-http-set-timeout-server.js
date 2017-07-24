@@ -152,6 +152,7 @@ test(function serverResponseTimeoutWithPipeline(cb) {
 });
 
 test(function idleTimeout(cb) {
+  // Test that the an idle connection invokes the timeout callback.
   const server = http.createServer();
   const s = server.setTimeout(50, common.mustCall((socket) => {
     socket.destroy();
@@ -165,6 +166,7 @@ test(function idleTimeout(cb) {
       allowHalfOpen: true,
     };
     const c = net.connect(options, () => {
+      // ECONNRESET could happen on a heavily-loaded server.
       c.on('error', (e) => {
         if (e.message !== 'read ECONNRESET')
           throw e;

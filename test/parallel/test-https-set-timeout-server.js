@@ -173,6 +173,7 @@ test(function serverResponseTimeoutWithPipeline(cb) {
 });
 
 test(function idleTimeout(cb) {
+  // Test that the an idle connection invokes the timeout callback.
   const server = https.createServer(serverOptions);
   const s = server.setTimeout(50, common.mustCall((socket) => {
     socket.destroy();
@@ -187,6 +188,7 @@ test(function idleTimeout(cb) {
       rejectUnauthorized: false
     };
     const c = tls.connect(options, () => {
+      // ECONNRESET could happen on a heavily-loaded server.
       c.on('error', (e) => {
         if (e.message !== 'read ECONNRESET')
           throw e;
@@ -198,6 +200,7 @@ test(function idleTimeout(cb) {
 });
 
 test(function fastTimeout(cb) {
+  // Test that the socket timeout fires but no timeout fires for the request.
   let connectionHandlerInvoked = false;
   let timeoutHandlerInvoked = false;
   let connectionSocket;
