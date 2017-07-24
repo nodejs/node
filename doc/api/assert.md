@@ -257,7 +257,7 @@ property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned.
 
 ## assert.fail(message)
-## assert.fail(actual, expected, message, operator)
+## assert.fail(actual, expected[, message[, operator[, stackStartFunction]]])
 <!-- YAML
 added: v0.1.21
 -->
@@ -265,25 +265,53 @@ added: v0.1.21
 * `expected` {any}
 * `message` {any}
 * `operator` {string} (default: '!=')
+* `stackStartFunction` {function} (default: `assert.fail`)
 
 Throws an `AssertionError`. If `message` is falsy, the error message is set as
 the values of `actual` and `expected` separated by the provided `operator`.
-Otherwise, the error message is the value of `message`.
+If just the two `actual` and `expected` arguments are provided, `operator` will
+default to `'!='`. If `message` is provided only it will be used as the error
+message, the other arguments will be stored as properties on the thrown object.
+If `stackStartFunction` is provided, all stack frames above that function will
+be removed from stacktrace (see [`Error.captureStackTrace`]).
 
 ```js
 const assert = require('assert');
 
 assert.fail(1, 2, undefined, '>');
-// AssertionError: 1 > 2
+// AssertionError [ERR_ASSERTION]: 1 > 2
+
+assert.fail(1, 2, 'fail');
+// AssertionError [ERR_ASSERTION]: fail
 
 assert.fail(1, 2, 'whoops', '>');
-// AssertionError: whoops
+// AssertionError [ERR_ASSERTION]: whoops
+```
+
+*Note*: Is the last two cases `actual`, `expected`, and `operator` have no
+influence on the error message.
+
+```js
+assert.fail();
+// AssertionError [ERR_ASSERTION]: Failed
 
 assert.fail('boom');
-// AssertionError: boom
+// AssertionError [ERR_ASSERTION]: boom
 
 assert.fail('a', 'b');
-// AssertionError: 'a' != 'b'
+// AssertionError [ERR_ASSERTION]: 'a' != 'b'
+```
+
+Example use of `stackStartFunction` for truncating the exception's stacktrace:
+```js
+function suppressFrame() {
+  assert.fail('a', 'b', undefined, '!==', suppressFrame);
+}
+suppressFrame();
+// AssertionError [ERR_ASSERTION]: 'a' !== 'b'
+//     at repl:1:1
+//     at ContextifyScript.Script.runInThisContext (vm.js:44:33)
+//     ...
 ```
 
 ## assert.ifError(value)
@@ -590,6 +618,7 @@ For more information, see
 [MDN's guide on equality comparisons and sameness][mdn-equality-guide].
 
 [`Error`]: errors.html#errors_class_error
+[`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
 [`Map`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
 [`RegExp`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
