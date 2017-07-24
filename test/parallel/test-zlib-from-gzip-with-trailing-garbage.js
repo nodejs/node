@@ -37,10 +37,13 @@ assert.throws(
   /^Error: unknown compression method$/
 );
 
-zlib.gunzip(data, common.expectsError({
-  code: 'Z_DATA_ERROR',
-  type: Error,
-  message: 'unknown compression method'
+zlib.gunzip(data, common.mustCall((err, result) => {
+  common.expectsError({
+    code: 'Z_DATA_ERROR',
+    type: Error,
+    message: 'unknown compression method'
+  })(err);
+  assert.strictEqual(result, undefined);
 }));
 
 // In this case the trailing junk is too short to be a gzip segment

@@ -150,9 +150,6 @@ const gunz = zlib.createGunzip();
 
 inp.pipe(gzip).pipe(gunz).pipe(out);
 
-inp.on('data', common.mustCall(4));
-gzip.on('data', common.mustCall(2));
-gunz.on('data', common.mustCall());
 out.on('data', common.mustCall((c) => {
   assert.strictEqual(c, inp._hash, 'hashes should match');
 }));
