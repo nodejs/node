@@ -864,6 +864,7 @@ Debug.debuggerFlags = function() {
 };
 
 Debug.MakeMirror = MakeMirror;
+Debug.MakeMirrorSerializer = MakeMirrorSerializer;
 
 function MakeExecutionState(break_id) {
   return new ExecutionState(break_id);
