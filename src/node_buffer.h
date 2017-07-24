@@ -34,7 +34,7 @@ namespace Buffer {
 static const unsigned int kMaxLength =
     sizeof(int32_t) == sizeof(intptr_t) ? 0x3fffffff : 0x7fffffff;
 
-NODE_EXTERN typedef void (*FreeCallback)(char* data, void* hint);
+typedef void (*FreeCallback)(char* data, void* hint);
 
 NODE_EXTERN bool HasInstance(v8::Local<v8::Value> val);
 NODE_EXTERN bool HasInstance(v8::Local<v8::Object> val);
