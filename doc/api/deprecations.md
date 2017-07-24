@@ -634,6 +634,17 @@ Type: Runtime
 
 *Note*: change was made while `async_hooks` was an experimental API.
 
+<a id="DEP00XX"></a>
+### DEP00XX: Several internal properties of net.Server
+
+Type: Runtime
+
+Accessing several internal, undocumented properties of `net.Server` instances
+with inappropriate names has been deprecated.
+
+*Note*: As the original API was undocumented and not generally useful for
+non-internal code, no replacement API is provided.
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
