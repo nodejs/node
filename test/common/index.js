@@ -25,12 +25,10 @@ const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 const os = require('os');
-const child_process = require('child_process');
+const { exec, execSync, spawn, spawnSync } = require('child_process');
 const stream = require('stream');
-const buffer = require('buffer');
 const util = require('util');
 const Timer = process.binding('timer_wrap').Timer;
-const execSync = require('child_process').execSync;
 
 const testRoot = process.env.NODE_TEST_DIR ?
   fs.realpathSync(process.env.NODE_TEST_DIR) : path.resolve(__dirname, '..');
@@ -54,8 +52,6 @@ exports.isLinux = process.platform === 'linux';
 exports.isOSX = process.platform === 'darwin';
 
 exports.enoughTestMem = os.totalmem() > 0x40000000; /* 1 Gb */
-exports.bufferMaxSizeMsg = new RegExp(
-  `^RangeError: "size" argument must not be larger than ${buffer.kMaxLength}$`);
 const cpus = os.cpus();
 exports.enoughTestCpu = Array.isArray(cpus) &&
                         (cpus.length > 1 || cpus[0].speed > 999);
@@ -189,7 +185,7 @@ Object.defineProperty(exports, 'inFreeBSDJail', {
     if (inFreeBSDJail !== null) return inFreeBSDJail;
 
     if (exports.isFreeBSD &&
-      child_process.execSync('sysctl -n security.jail.jailed').toString() ===
+      execSync('sysctl -n security.jail.jailed').toString() ===
       '1\n') {
       inFreeBSDJail = true;
     } else {
@@ -223,7 +219,7 @@ Object.defineProperty(exports, 'localhostIPv4', {
 });
 
 // opensslCli defined lazily to reduce overhead of spawnSync
-Object.defineProperty(exports, 'opensslCli', {get: function() {
+Object.defineProperty(exports, 'opensslCli', { get: function() {
   if (opensslCli !== null) return opensslCli;
 
   if (process.config.variables.node_shared_openssl) {
@@ -236,13 +232,13 @@ Object.defineProperty(exports, 'opensslCli', {get: function() {
 
   if (exports.isWindows) opensslCli += '.exe';
 
-  const opensslCmd = child_process.spawnSync(opensslCli, ['version']);
+  const opensslCmd = spawnSync(opensslCli, ['version']);
   if (opensslCmd.status !== 0 || opensslCmd.error !== undefined) {
     // openssl command cannot be executed
     opensslCli = false;
   }
   return opensslCli;
-}, enumerable: true});
+}, enumerable: true });
 
 Object.defineProperty(exports, 'hasCrypto', {
   get: function() {
@@ -286,7 +282,7 @@ exports.childShouldThrowAndAbort = function() {
   }
   testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception `;
   testCmd += `"${process.argv[1]}" child`;
-  const child = child_process.exec(testCmd);
+  const child = exec(testCmd);
   child.on('exit', function onExit(exitCode, signal) {
     const errMsg = 'Test should have aborted ' +
                    `but instead exited with exit code ${exitCode}` +
@@ -306,8 +302,6 @@ exports.ddCommand = function(filename, kilobytes) {
 
 
 exports.spawnPwd = function(options) {
-  const spawn = require('child_process').spawn;
-
   if (exports.isWindows) {
     return spawn('cmd.exe', ['/d', '/c', 'cd'], options);
   } else {
@@ -317,8 +311,6 @@ exports.spawnPwd = function(options) {
 
 
 exports.spawnSyncPwd = function(options) {
-  const spawnSync = require('child_process').spawnSync;
-
   if (exports.isWindows) {
     return spawnSync('cmd.exe', ['/d', '/c', 'cd'], options);
   } else {
@@ -487,7 +479,7 @@ exports.mustCallAtLeast = function(fn, minimum) {
   return _mustCallInner(fn, minimum, 'minimum');
 };
 
-function _mustCallInner(fn, criteria, field) {
+function _mustCallInner(fn, criteria = 1, field) {
   if (typeof fn === 'number') {
     criteria = fn;
     fn = noop;
@@ -495,9 +487,7 @@ function _mustCallInner(fn, criteria, field) {
     fn = noop;
   }
 
-  if (criteria === undefined)
-    criteria = 1;
-  else if (typeof criteria !== 'number')
+  if (typeof criteria !== 'number')
     throw new TypeError(`Invalid ${field} value: ${criteria}`);
 
   const context = {
@@ -701,21 +691,51 @@ Object.defineProperty(exports, 'hasSmallICU', {
 });
 
 // Useful for testing expected internal/error objects
-exports.expectsError = function expectsError({code, type, message}) {
-  return function(error) {
-    assert.strictEqual(error.code, code);
-    if (type !== undefined) {
+exports.expectsError = function expectsError(fn, settings, exact) {
+  if (typeof fn !== 'function') {
+    exact = settings;
+    settings = fn;
+    fn = undefined;
+  }
+  const innerFn = exports.mustCall(function(error) {
+    assert.strictEqual(error.code, settings.code);
+    if ('type' in settings) {
+      const type = settings.type;
+      if (type !== Error && !Error.isPrototypeOf(type)) {
+        throw new TypeError('`settings.type` must inherit from `Error`');
+      }
       assert(error instanceof type,
-             `${error} is not the expected type ${type}`);
+             `${error.name} is not instance of ${type.name}`);
     }
-    if (message instanceof RegExp) {
-      assert(message.test(error.message),
-             `${error.message} does not match ${message}`);
-    } else if (typeof message === 'string') {
-      assert.strictEqual(error.message, message);
+    if ('message' in settings) {
+      const message = settings.message;
+      if (typeof message === 'string') {
+        assert.strictEqual(error.message, message);
+      } else {
+        assert(message.test(error.message),
+               `${error.message} does not match ${message}`);
+      }
+    }
+    if ('name' in settings) {
+      assert.strictEqual(error.name, settings.name);
+    }
+    if (error.constructor.name === 'AssertionError') {
+      ['generatedMessage', 'actual', 'expected', 'operator'].forEach((key) => {
+        if (key in settings) {
+          const actual = error[key];
+          const expected = settings[key];
+          assert.strictEqual(actual, expected,
+                             `${key}: expected ${expected}, not ${actual}`);
+        }
+      });
     }
     return true;
-  };
+  }, exact);
+  if (fn) {
+    assert.throws(fn, innerFn);
+    return;
+  }
+  return innerFn;
 };
 
 exports.skipIfInspectorDisabled = function skipIfInspectorDisabled() {
@@ -764,7 +784,7 @@ exports.getTTYfd = function getTTYfd() {
   else if (!tty.isatty(tty_fd)) tty_fd++;
   else {
     try {
-      tty_fd = require('fs').openSync('/dev/tty');
+      tty_fd = fs.openSync('/dev/tty');
     } catch (e) {
       // There aren't any tty fd's available to use.
       return -1;
