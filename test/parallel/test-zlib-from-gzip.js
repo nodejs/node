@@ -42,10 +42,10 @@ const inp = fs.createReadStream(fixture);
 const out = fs.createWriteStream(outputFile);
 
 inp.pipe(gunzip).pipe(out);
-out.on('close', function() {
+out.on('close', common.mustCall(() => {
   const actual = fs.readFileSync(outputFile);
   assert.strictEqual(actual.length, expect.length, 'length should match');
   for (let i = 0, l = actual.length; i < l; i++) {
     assert.strictEqual(actual[i], expect[i], `byte[${i}]`);
   }
-});
+}));
