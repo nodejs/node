@@ -46,7 +46,6 @@ const {
   const server = createServer(mustCall((request, response) => {
     strictEqual(response.finished, true);
     response.writeHead(HTTP_STATUS_OK, { foo: 'bar' });
-    response.flushHeaders();
     response.end(mustNotCall());
   }));
   server.listen(0, mustCall(() => {

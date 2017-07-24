@@ -12,11 +12,13 @@ server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
     response.setHeader('foo-bar', 'def456');
-    response.writeHead(500);
     response.writeHead(418, { 'foo-bar': 'abc123' }); // Override
 
+    common.expectsError(() => { response.writeHead(300); }, {
+      code: 'ERR_HTTP2_INFO_HEADERS_AFTER_RESPOND'
+    });
+
     response.on('finish', common.mustCall(function() {
-      assert.doesNotThrow(() => { response.writeHead(300); });
       server.close();
     }));
     response.end();
