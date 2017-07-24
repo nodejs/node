@@ -31,12 +31,12 @@ assert.strictEqual(typeof global.gc, 'function',
 
 common.globalCheck = false;
 
-console.error('run a string');
+// Run a string
 const result = vm.runInNewContext('\'passed\';');
 assert.strictEqual('passed', result);
 
-console.error('thrown error');
-assert.throws(function() {
+// Thrown error
+assert.throws(() => {
   vm.runInNewContext('throw new Error(\'test\');');
 }, /^Error: test$/);
 
@@ -45,7 +45,7 @@ vm.runInNewContext('hello = 2');
 assert.strictEqual(5, global.hello);
 
 
-console.error('pass values in and out');
+// Pass values in and out
 global.code = 'foo = 1;' +
               'bar = 2;' +
               'if (baz !== 3) throw new Error(\'test fail\');';
@@ -58,17 +58,17 @@ assert.strictEqual(1, global.obj.foo);
 assert.strictEqual(2, global.obj.bar);
 assert.strictEqual(2, global.foo);
 
-console.error('call a function by reference');
+// Call a function by reference
 function changeFoo() { global.foo = 100; }
 vm.runInNewContext('f()', { f: changeFoo });
 assert.strictEqual(global.foo, 100);
 
-console.error('modify an object by reference');
+// Modify an object by reference
 const f = { a: 1 };
 vm.runInNewContext('f.a = 2', { f: f });
 assert.strictEqual(f.a, 2);
 
-console.error('use function in context without referencing context');
+// Use function in context without referencing context
 const fn = vm.runInNewContext('(function() { obj.p = {}; })', { obj: {} });
 global.gc();
 fn();
