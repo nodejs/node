@@ -429,8 +429,6 @@ void InspectorIo::MainThreadReqAsyncCb(uv_async_t* req) {
 
 void InspectorIo::Write(TransportAction action, int session_id,
                         const StringView& inspector_message) {
-  if (state_ == State::kShutDown)
-    return;
   AppendMessage(&outgoing_message_queue_, action, session_id,
                 StringBuffer::create(inspector_message));
   int err = uv_async_send(&thread_req_);
