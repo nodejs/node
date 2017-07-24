@@ -139,6 +139,10 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void AddAsmWasmOffset(int call_position, int to_number_position);
   void SetAsmFunctionStartPosition(int position);
 
+  size_t GetPosition() const { return body_.size(); }
+  void FixupByte(size_t position, byte value) { body_[position] = value; }
+  void StashCode(std::vector<byte>* dst, size_t position);
+
   void WriteSignature(ZoneBuffer& buffer) const;
   void WriteExports(ZoneBuffer& buffer) const;
   void WriteBody(ZoneBuffer& buffer) const;
@@ -223,12 +227,13 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   // Building methods.
   uint32_t AddImport(const char* name, int name_length, FunctionSig* sig);
   void SetImportName(uint32_t index, const char* name, int name_length) {
-    imports_[index].name = name;
-    imports_[index].name_length = name_length;
+    function_imports_[index].name = name;
+    function_imports_[index].name_length = name_length;
   }
   WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
   uint32_t AddGlobal(ValueType type, bool exported, bool mutability = true,
                      const WasmInitExpr& init = WasmInitExpr());
+  uint32_t AddGlobalImport(const char* name, int name_length, ValueType type);
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
   uint32_t AllocateIndirectFunctions(uint32_t count);
@@ -257,6 +262,12 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     int name_length;
   };
 
+  struct WasmGlobalImport {
+    ValueTypeCode type_code;
+    const char* name;
+    int name_length;
+  };
+
   struct WasmGlobal {
     ValueType type;
     bool exported;
@@ -272,7 +283,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   friend class WasmFunctionBuilder;
   Zone* zone_;
   ZoneVector<FunctionSig*> signatures_;
-  ZoneVector<WasmFunctionImport> imports_;
+  ZoneVector<WasmFunctionImport> function_imports_;
+  ZoneVector<WasmGlobalImport> global_imports_;
   ZoneVector<WasmFunctionBuilder*> functions_;
   ZoneVector<WasmDataSegment> data_segments_;
   ZoneVector<uint32_t> indirect_functions_;

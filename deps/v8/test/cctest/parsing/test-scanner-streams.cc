@@ -311,10 +311,10 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
   }
 
   // 1-byte external string
-  i::Vector<const char> one_byte_vector(one_byte_source,
-                                        static_cast<int>(length));
+  i::Vector<const uint8_t> one_byte_vector =
+      i::OneByteVector(one_byte_source, static_cast<int>(length));
   i::Handle<i::String> one_byte_string =
-      factory->NewStringFromAscii(one_byte_vector).ToHandleChecked();
+      factory->NewStringFromOneByte(one_byte_vector).ToHandleChecked();
   {
     TestExternalOneByteResource one_byte_resource(one_byte_source, length);
     i::Handle<i::String> ext_one_byte_string(
@@ -350,10 +350,8 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
 
   // 1-byte streaming stream, single + many chunks.
   {
-    const uint8_t* data =
-        reinterpret_cast<const uint8_t*>(one_byte_vector.begin());
-    const uint8_t* data_end =
-        reinterpret_cast<const uint8_t*>(one_byte_vector.end());
+    const uint8_t* data = one_byte_vector.begin();
+    const uint8_t* data_end = one_byte_vector.end();
 
     ChunkSource single_chunk(data, data_end - data, false);
     std::unique_ptr<i::Utf16CharacterStream> one_byte_streaming_stream(
@@ -372,10 +370,8 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
 
   // UTF-8 streaming stream, single + many chunks.
   {
-    const uint8_t* data =
-        reinterpret_cast<const uint8_t*>(one_byte_vector.begin());
-    const uint8_t* data_end =
-        reinterpret_cast<const uint8_t*>(one_byte_vector.end());
+    const uint8_t* data = one_byte_vector.begin();
+    const uint8_t* data_end = one_byte_vector.end();
     ChunkSource chunks(data, data_end - data, false);
     std::unique_ptr<i::Utf16CharacterStream> utf8_streaming_stream(
         i::ScannerStream::For(&chunks, v8::ScriptCompiler::StreamedSource::UTF8,

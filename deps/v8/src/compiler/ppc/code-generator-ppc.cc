@@ -792,6 +792,16 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ sync();                                               \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                     \
   } while (0)
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr)       \
+  do {                                                                  \
+    Label exchange;                                                     \
+    __ bind(&exchange);                                                 \
+    __ load_instr(i.OutputRegister(0),                                  \
+                  MemOperand(i.InputRegister(0), i.InputRegister(1)));  \
+    __ store_instr(i.InputRegister(2),                                  \
+                   MemOperand(i.InputRegister(0), i.InputRegister(1))); \
+    __ bne(&exchange, cr0);                                             \
+  } while (0)
 
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
@@ -1579,12 +1589,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_FLOAT_UNOP_RC(fneg, 0);
       break;
     case kPPC_Cntlz32:
-      __ cntlzw_(i.OutputRegister(), i.InputRegister(0));
+      __ cntlzw(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_Cntlz64:
-      __ cntlzd_(i.OutputRegister(), i.InputRegister(0));
+      __ cntlzd(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
 #endif
@@ -1978,6 +1988,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(stw, stwx);
       break;
+    case kAtomicExchangeInt8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
+      __ extsb(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicExchangeUint8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
+      break;
+    case kAtomicExchangeInt16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
+      __ extsh(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicExchangeUint16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
+      break;
+    case kAtomicExchangeWord32:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lwarx, stwcx);
+      break;
     default:
       UNREACHABLE();
       break;
@@ -2194,7 +2221,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   // actual final call site and just bl'ing to it here, similar to what we do
   // in the lithium backend.
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
+  if (isolate()->NeedsSourcePositionsForProfiling()) {
+    __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
+  }
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   return kSuccess;
 }
@@ -2337,6 +2366,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   __ Ret();
 }
 
+void CodeGenerator::FinishCode() {}
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
@@ -2423,21 +2453,30 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
       double value;
-// bit_cast of snan is converted to qnan on ia32/x64
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
-      intptr_t valueInt = (src.type() == Constant::kFloat32)
-                              ? src.ToFloat32AsInt()
-                              : src.ToFloat64AsInt();
-      if (valueInt == ((src.type() == Constant::kFloat32)
-                           ? 0x7fa00000
-                           : 0x7fa0000000000000)) {
-        value = bit_cast<double, int64_t>(0x7ff4000000000000L);
+      // casting double precision snan to single precision
+      // converts it to qnan on ia32/x64
+      if (src.type() == Constant::kFloat32) {
+        int32_t val = src.ToFloat32AsInt();
+        if ((val & 0x7f800000) == 0x7f800000) {
+          int64_t dval = static_cast<int64_t>(val);
+          dval = ((dval & 0xc0000000) << 32) | ((dval & 0x40000000) << 31) |
+                 ((dval & 0x40000000) << 30) | ((dval & 0x7fffffff) << 29);
+          value = bit_cast<double, int64_t>(dval);
+        } else {
+          value = src.ToFloat32();
+        }
       } else {
-#endif
-        value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
-                                                   : src.ToFloat64();
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+        int64_t val = src.ToFloat64AsInt();
+        if ((val & 0x7f80000000000000) == 0x7f80000000000000) {
+          value = bit_cast<double, int64_t>(val);
+        } else {
+          value = src.ToFloat64();
+        }
       }
+#else
+      value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
+                                                   : src.ToFloat64();
 #endif
       __ LoadDoubleLiteral(dst, value, kScratchReg);
       if (destination->IsFPStackSlot()) {

@@ -77,7 +77,7 @@ PASS +lf is 0
 PASS +ls is 0
 PASS +ps is 0
 PASS +oghamSpaceMark is 0
-PASS +mongolianVowelSeparator is 0
+FAIL +mongolianVowelSeparator should be 0. Was NaN.
 PASS +enQuad is 0
 PASS +emQuad is 0
 PASS +enSpace is 0
@@ -101,7 +101,7 @@ PASS +(lf + '1') is 1
 PASS +(ls + '1') is 1
 PASS +(ps + '1') is 1
 PASS +(oghamSpaceMark + '1') is 1
-PASS +(mongolianVowelSeparator + '1') is 1
+FAIL +(mongolianVowelSeparator + '1') should be 1. Was NaN.
 PASS +(enQuad + '1') is 1
 PASS +(emQuad + '1') is 1
 PASS +(enSpace + '1') is 1
@@ -125,7 +125,7 @@ PASS +('1' + lf) is 1
 PASS +('1' + ls) is 1
 PASS +('1' + ps) is 1
 PASS +('1' + oghamSpaceMark) is 1
-PASS +('1' + mongolianVowelSeparator) is 1
+FAIL +('1' + mongolianVowelSeparator) should be 1. Was NaN.
 PASS +('1' + enQuad) is 1
 PASS +('1' + emQuad) is 1
 PASS +('1' + enSpace) is 1

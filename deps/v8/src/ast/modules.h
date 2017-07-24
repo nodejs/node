@@ -214,8 +214,9 @@ class ModuleDescriptor : public ZoneObject {
 
   int AddModuleRequest(const AstRawString* specifier) {
     DCHECK_NOT_NULL(specifier);
+    int module_requests_count = static_cast<int>(module_requests_.size());
     auto it = module_requests_
-                  .insert(std::make_pair(specifier, module_requests_.size()))
+                  .insert(std::make_pair(specifier, module_requests_count))
                   .first;
     return it->second;
   }

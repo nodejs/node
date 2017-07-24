@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Checks breakProgram,(schedule|cancel)PauseOnNextStatement test API");
+InspectorTest.log("Checks breakProgram,(schedule|cancel)PauseOnNextStatement test API");
 
 InspectorTest.addScript(`
 function callBreakProgram() {
@@ -33,17 +33,17 @@ InspectorTest.runTestSuite([
   },
 
   function testSchedulePauseOnNextStatement(next) {
-    schedulePauseOnNextStatement('reason', JSON.stringify({a: 42}));
+    utils.schedulePauseOnNextStatement('reason', JSON.stringify({a: 42}));
     Protocol.Runtime.evaluate({ expression: 'foo()//# sourceURL=expr1.js'})
       .then(() => Protocol.Runtime.evaluate({
         expression: 'foo()//# sourceURL=expr2.js'}))
-      .then(() => cancelPauseOnNextStatement())
+      .then(() => utils.cancelPauseOnNextStatement())
       .then(next);
   },
 
   function testCancelPauseOnNextStatement(next) {
-    schedulePauseOnNextStatement('reason', JSON.stringify({a: 42}));
-    cancelPauseOnNextStatement();
+    utils.schedulePauseOnNextStatement('reason', JSON.stringify({a: 42}));
+    utils.cancelPauseOnNextStatement();
     Protocol.Runtime.evaluate({ expression: 'foo()'})
       .then(next);
   }

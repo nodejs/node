@@ -7,6 +7,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-marker.h"
 #include "src/zone/zone-containers.h"
@@ -17,8 +18,7 @@ namespace compiler {
 
 class SimdScalarLowering {
  public:
-  SimdScalarLowering(Graph* graph, MachineOperatorBuilder* machine,
-                     CommonOperatorBuilder* common, Zone* zone,
+  SimdScalarLowering(JSGraph* jsgraph,
                      Signature<MachineRepresentation>* signature);
 
   void LowerGraph();
@@ -28,7 +28,7 @@ class SimdScalarLowering {
  private:
   enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
 
-  enum class SimdType : uint8_t { kInt32, kFloat32 };
+  enum class SimdType : uint8_t { kInt32, kFloat32, kSimd1x4 };
 
   static const int kMaxLanes = 4;
   static const int kLaneWidth = 16 / kMaxLanes;
@@ -38,10 +38,15 @@ class SimdScalarLowering {
     SimdType type;  // represents what input type is expected
   };
 
-  Zone* zone() const { return zone_; }
-  Graph* graph() const { return graph_; }
-  MachineOperatorBuilder* machine() const { return machine_; }
-  CommonOperatorBuilder* common() const { return common_; }
+  struct NodeState {
+    Node* node;
+    int input_index;
+  };
+
+  Zone* zone() const { return jsgraph_->zone(); }
+  Graph* graph() const { return jsgraph_->graph(); }
+  MachineOperatorBuilder* machine() const { return jsgraph_->machine(); }
+  CommonOperatorBuilder* common() const { return jsgraph_->common(); }
   Signature<MachineRepresentation>* signature() const { return signature_; }
 
   void LowerNode(Node* node);
@@ -59,17 +64,16 @@ class SimdScalarLowering {
                    const Operator* load_op);
   void LowerStoreOp(MachineRepresentation rep, Node* node,
                     const Operator* store_op, SimdType rep_type);
-  void LowerBinaryOp(Node* node, SimdType rep_type, const Operator* op);
+  void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op,
+                     bool invert_inputs = false);
+  void LowerUnaryOp(Node* node, SimdType input_rep_type, const Operator* op);
+  void LowerIntMinMax(Node* node, const Operator* op, bool is_max);
+  void LowerConvertFromFloat(Node* node, bool is_signed);
+  void LowerShiftOp(Node* node, const Operator* op);
+  Node* BuildF64Trunc(Node* input);
+  void LowerNotEqual(Node* node, SimdType input_rep_type, const Operator* op);
 
-  struct NodeState {
-    Node* node;
-    int input_index;
-  };
-
-  Zone* zone_;
-  Graph* const graph_;
-  MachineOperatorBuilder* machine_;
-  CommonOperatorBuilder* common_;
+  JSGraph* const jsgraph_;
   NodeMarker<State> state_;
   ZoneDeque<NodeState> stack_;
   Replacement* replacements_;

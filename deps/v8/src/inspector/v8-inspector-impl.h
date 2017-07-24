@@ -41,6 +41,7 @@
 namespace v8_inspector {
 
 class InspectedContext;
+class V8Console;
 class V8ConsoleMessageStorage;
 class V8Debugger;
 class V8DebuggerAgentImpl;
@@ -60,19 +61,8 @@ class V8InspectorImpl : public V8Inspector {
   int contextGroupId(v8::Local<v8::Context>);
   int contextGroupId(int contextId);
 
-  v8::MaybeLocal<v8::Value> runCompiledScript(v8::Local<v8::Context>,
-                                              v8::Local<v8::Script>);
-  v8::MaybeLocal<v8::Value> callFunction(v8::Local<v8::Function>,
-                                         v8::Local<v8::Context>,
-                                         v8::Local<v8::Value> receiver,
-                                         int argc, v8::Local<v8::Value> info[]);
   v8::MaybeLocal<v8::Value> compileAndRunInternalScript(v8::Local<v8::Context>,
                                                         v8::Local<v8::String>);
-  v8::MaybeLocal<v8::Value> callInternalFunction(v8::Local<v8::Function>,
-                                                 v8::Local<v8::Context>,
-                                                 v8::Local<v8::Value> receiver,
-                                                 int argc,
-                                                 v8::Local<v8::Value> info[]);
   v8::MaybeLocal<v8::Script> compileScript(v8::Local<v8::Context>,
                                            const String16& code,
                                            const String16& fileName);
@@ -122,13 +112,9 @@ class V8InspectorImpl : public V8Inspector {
   V8DebuggerAgentImpl* enabledDebuggerAgentForGroup(int contextGroupId);
   V8RuntimeAgentImpl* enabledRuntimeAgentForGroup(int contextGroupId);
   V8ProfilerAgentImpl* enabledProfilerAgentForGroup(int contextGroupId);
+  V8Console* console();
 
  private:
-  v8::MaybeLocal<v8::Value> callFunction(
-      v8::Local<v8::Function>, v8::Local<v8::Context>,
-      v8::Local<v8::Value> receiver, int argc, v8::Local<v8::Value> info[],
-      v8::MicrotasksScope::Type runMicrotasks);
-
   v8::Isolate* m_isolate;
   V8InspectorClient* m_client;
   std::unique_ptr<V8Debugger> m_debugger;
@@ -152,6 +138,8 @@ class V8InspectorImpl : public V8Inspector {
   ConsoleStorageMap m_consoleStorageMap;
 
   protocol::HashMap<int, int> m_contextIdToGroupIdMap;
+
+  std::unique_ptr<V8Console> m_console;
 
   DISALLOW_COPY_AND_ASSIGN(V8InspectorImpl);
 };

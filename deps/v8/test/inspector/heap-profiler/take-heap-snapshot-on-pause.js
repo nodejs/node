@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks that takeHeapSnapshot uses empty accessing_context for access \
+InspectorTest.log('Checks that takeHeapSnapshot uses empty accessing_context for access \
 checks.');
 
 InspectorTest.addScript(`

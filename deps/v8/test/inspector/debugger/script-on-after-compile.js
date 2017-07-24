@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Checks that inspector correctly process compiled scripts");
+InspectorTest.log("Checks that inspector correctly process compiled scripts");
 
 function addScripts() {
   // sourceURL in the same line
@@ -65,29 +65,9 @@ function requestSourceAndDump(scriptParsedMessage, scriptParsed) {
 }
 
 function dumpScriptParsed(scriptParsedMessage, sourceMessage, scriptParsed) {
-  var params = scriptParsedMessage.params;
-  var re = /[A-Z0-9]{40,40}/;
-  if (!params.hash || !matchExact(re, params.hash))
-    params.hash = "Invalid hash: " + params.hash;
-  else
-    params.hash = "<hash>";
-  if (params.executionContextId <= 0)
-    params.executionContextId = "Invalid executionContextId: " + params.executionContextId;
-  else
-    params.executionContextId = "<executionContextId>";
-  if (params.scriptId * 1 <= 0)
-    params.scriptId = "Invalid scriptId: " + params.scriptId;
-  else
-    params.scriptId = "<scriptId>";
-
   var sourceResult = sourceMessage.result;
   sourceResult.scriptSource = sourceResult.scriptSource.replace(/\n/g, "<nl>");
   InspectorTest.log(scriptParsed ? "scriptParsed" : "scriptFailedToParse");
   InspectorTest.logObject(sourceResult);
-  InspectorTest.logObject(params);
-}
-
-function matchExact(re, str) {
-  var match = str.match(re);
-  return match !== null && str === match[0];
+  InspectorTest.logMessage(scriptParsedMessage.params);
 }

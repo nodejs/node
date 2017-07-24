@@ -15,9 +15,7 @@ to be breaking changes. By providing a permanent identifier for a specific
 error, we reduce the need for userland code to inspect error messages.
 
 *Note*: Switching an existing error to use the `internal/errors` module must be
-considered a `semver-major` change. However, once using `internal/errors`,
-changes to `internal/errors` error messages will be handled as `semver-minor`
-or `semver-patch`.
+considered a `semver-major` change.
 
 ## Using internal/errors.js
 

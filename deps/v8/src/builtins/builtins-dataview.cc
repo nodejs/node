@@ -90,8 +90,8 @@ BUILTIN(DataViewConstructor_ConstructStub) {
   Handle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSObject::New(target, new_target));
-  for (int i = 0; i < ArrayBufferView::kInternalFieldCount; ++i) {
-    Handle<JSDataView>::cast(result)->SetInternalField(i, Smi::kZero);
+  for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
+    Handle<JSDataView>::cast(result)->SetEmbedderField(i, Smi::kZero);
   }
 
   // 12. Set O's [[ViewedArrayBuffer]] internal slot to buffer.

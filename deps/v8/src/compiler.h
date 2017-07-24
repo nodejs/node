@@ -41,7 +41,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
  public:
   enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
   enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
-  enum CompilationTier { INTERPRETED, BASELINE, OPTIMIZED };
 
   // ===========================================================================
   // The following family of methods ensures a given function is compiled. The
@@ -50,7 +49,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // given function holds (except for live-edit, which compiles the world).
 
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag);
-  static bool CompileBaseline(Handle<JSFunction> function);
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
@@ -71,19 +69,20 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       EagerInnerFunctionLiterals;
 
   // Parser::Parse, then Compiler::Analyze.
-  static bool ParseAndAnalyze(ParseInfo* info);
+  static bool ParseAndAnalyze(ParseInfo* info, Isolate* isolate);
+  // Convenience function
+  static bool ParseAndAnalyze(CompilationInfo* info);
   // Rewrite, analyze scopes, and renumber. If |eager_literals| is non-null, it
   // is appended with inner function literals which should be eagerly compiled.
-  static bool Analyze(ParseInfo* info,
+  static bool Analyze(ParseInfo* info, Isolate* isolate,
+                      EagerInnerFunctionLiterals* eager_literals = nullptr);
+  // Convenience function
+  static bool Analyze(CompilationInfo* info,
                       EagerInnerFunctionLiterals* eager_literals = nullptr);
   // Adds deoptimization support, requires ParseAndAnalyze.
   static bool EnsureDeoptimizationSupport(CompilationInfo* info);
   // Ensures that bytecode is generated, calls ParseAndAnalyze internally.
   static bool EnsureBytecode(CompilationInfo* info);
-
-  // The next compilation tier which the function should  be compiled to for
-  // optimization. This is used as a hint by the runtime profiler.
-  static CompilationTier NextCompilationTier(JSFunction* function);
 
   // ===========================================================================
   // The following family of methods instantiates new functions for scripts or

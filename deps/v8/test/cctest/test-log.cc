@@ -376,7 +376,7 @@ TEST(LogCallbacks) {
     ObjMethod1_entry = *FUNCTION_ENTRYPOINT_ADDRESS(ObjMethod1_entry);
 #endif
     i::EmbeddedVector<char, 100> ref_data;
-    i::SNPrintF(ref_data, "code-creation,Callback,-2,%p,1,\"method1\"",
+    i::SNPrintF(ref_data, "code-creation,Callback,-2,-1,%p,1,\"method1\"",
                 static_cast<void*>(ObjMethod1_entry));
 
     CHECK(StrNStr(log.start(), ref_data.start(), log.length()));
@@ -429,7 +429,7 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop1_getter_record;
     i::SNPrintF(prop1_getter_record,
-                "code-creation,Callback,-2,%p,1,\"get prop1\"",
+                "code-creation,Callback,-2,-1,%p,1,\"get prop1\"",
                 static_cast<void*>(Prop1Getter_entry));
     CHECK(StrNStr(log.start(), prop1_getter_record.start(), log.length()));
 
@@ -439,7 +439,7 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop1_setter_record;
     i::SNPrintF(prop1_setter_record,
-                "code-creation,Callback,-2,%p,1,\"set prop1\"",
+                "code-creation,Callback,-2,-1,%p,1,\"set prop1\"",
                 static_cast<void*>(Prop1Setter_entry));
     CHECK(StrNStr(log.start(), prop1_setter_record.start(), log.length()));
 
@@ -449,7 +449,7 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop2_getter_record;
     i::SNPrintF(prop2_getter_record,
-                "code-creation,Callback,-2,%p,1,\"get prop2\"",
+                "code-creation,Callback,-2,-1,%p,1,\"get prop2\"",
                 static_cast<void*>(Prop2Getter_entry));
     CHECK(StrNStr(log.start(), prop2_getter_record.start(), log.length()));
     log.Dispose();

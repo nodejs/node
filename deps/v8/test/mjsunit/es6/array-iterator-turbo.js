@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --turbo --turbo-escape --allow-natives-syntax --no-always-opt
+// Flags: --crankshaft --turbo-filter=*
 
 "use strict";
 

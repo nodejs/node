@@ -4,11 +4,12 @@ require('../common');
 const { URL, URLSearchParams } = require('url');
 const { test, assert_array_equals } = require('../common/wpt');
 
-/* eslint-disable */
-/* WPT Refs:
+/* The following tests are copied from WPT. Modifications to them should be
+   upstreamed first. Refs:
    https://github.com/w3c/web-platform-tests/blob/5903e00e77e85f8bcb21c73d1d7819fcd04763bd/url/urlsearchparams-sort.html
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
+/* eslint-disable */
 [
   {
     "input": "z=b&a=b&z=a&a=a",

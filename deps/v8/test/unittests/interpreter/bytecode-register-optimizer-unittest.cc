@@ -6,6 +6,7 @@
 
 #include "src/factory.h"
 #include "src/interpreter/bytecode-label.h"
+#include "src/interpreter/bytecode-pipeline.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
@@ -15,9 +16,16 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class BytecodeRegisterOptimizerTest : public BytecodePipelineStage,
-                                      public TestWithIsolateAndZone {
+class BytecodeRegisterOptimizerTest
+    : public BytecodeRegisterOptimizer::BytecodeWriter,
+      public TestWithIsolateAndZone {
  public:
+  struct RegisterTransfer {
+    Bytecode bytecode;
+    Register input;
+    Register output;
+  };
+
   BytecodeRegisterOptimizerTest() {}
   ~BytecodeRegisterOptimizerTest() override { delete register_allocator_; }
 
@@ -28,16 +36,14 @@ class BytecodeRegisterOptimizerTest : public BytecodePipelineStage,
                                   number_of_parameters, this);
   }
 
-  void Write(BytecodeNode* node) override { output_.push_back(*node); }
-  void WriteJump(BytecodeNode* node, BytecodeLabel* label) override {
-    output_.push_back(*node);
+  void EmitLdar(Register input) override {
+    output_.push_back({Bytecode::kLdar, input, Register()});
   }
-  void BindLabel(BytecodeLabel* label) override {}
-  void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) override {}
-  Handle<BytecodeArray> ToBytecodeArray(
-      Isolate* isolate, int fixed_register_count, int parameter_count,
-      Handle<FixedArray> handle_table) override {
-    return Handle<BytecodeArray>();
+  void EmitStar(Register output) override {
+    output_.push_back({Bytecode::kStar, Register(), output});
+  }
+  void EmitMov(Register input, Register output) override {
+    output_.push_back({Bytecode::kMov, input, output});
   }
 
   BytecodeRegisterAllocator* allocator() { return register_allocator_; }
@@ -50,14 +56,14 @@ class BytecodeRegisterOptimizerTest : public BytecodePipelineStage,
   }
 
   size_t write_count() const { return output_.size(); }
-  const BytecodeNode& last_written() const { return output_.back(); }
-  const std::vector<BytecodeNode>* output() { return &output_; }
+  const RegisterTransfer& last_written() const { return output_.back(); }
+  const std::vector<RegisterTransfer>* output() { return &output_; }
 
  private:
   BytecodeRegisterAllocator* register_allocator_;
   BytecodeRegisterOptimizer* register_optimizer_;
 
-  std::vector<BytecodeNode> output_;
+  std::vector<RegisterTransfer> output_;
 };
 
 // Sanity tests.
@@ -65,23 +71,23 @@ class BytecodeRegisterOptimizerTest : public BytecodePipelineStage,
 TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForFlush) {
   Initialize(1, 1);
   Register temp = NewTemporary();
-  optimizer()->DoStar(temp, BytecodeSourceInfo());
+  optimizer()->DoStar(temp);
   CHECK_EQ(write_count(), 0u);
   optimizer()->Flush();
   CHECK_EQ(write_count(), 1u);
-  CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
-  CHECK_EQ(output()->at(0).operand(0), static_cast<uint32_t>(temp.ToOperand()));
+  CHECK_EQ(output()->at(0).bytecode, Bytecode::kStar);
+  CHECK_EQ(output()->at(0).output.index(), temp.index());
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForJump) {
   Initialize(1, 1);
   Register temp = NewTemporary();
-  optimizer()->DoStar(temp, BytecodeSourceInfo());
+  optimizer()->DoStar(temp);
   CHECK_EQ(write_count(), 0u);
   optimizer()->PrepareForBytecode<Bytecode::kJump, AccumulatorUse::kNone>();
   CHECK_EQ(write_count(), 1u);
-  CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
-  CHECK_EQ(output()->at(0).operand(0), static_cast<uint32_t>(temp.ToOperand()));
+  CHECK_EQ(output()->at(0).bytecode, Bytecode::kStar);
+  CHECK_EQ(output()->at(0).output.index(), temp.index());
 }
 
 // Basic Register Optimizations
@@ -89,17 +95,16 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForJump) {
 TEST_F(BytecodeRegisterOptimizerTest, TemporaryNotEmitted) {
   Initialize(3, 1);
   Register parameter = Register::FromParameterIndex(1, 3);
-  optimizer()->DoLdar(parameter, BytecodeSourceInfo());
+  optimizer()->DoLdar(parameter);
   CHECK_EQ(write_count(), 0u);
   Register temp = NewTemporary();
-  optimizer()->DoStar(temp, BytecodeSourceInfo());
+  optimizer()->DoStar(temp);
   BytecodeNode node1(Bytecode::kStar, NewTemporary().ToOperand());
   ReleaseTemporaries(temp);
   CHECK_EQ(write_count(), 0u);
   optimizer()->PrepareForBytecode<Bytecode::kReturn, AccumulatorUse::kRead>();
-  CHECK_EQ(output()->at(0).bytecode(), Bytecode::kLdar);
-  CHECK_EQ(output()->at(0).operand(0),
-           static_cast<uint32_t>(parameter.ToOperand()));
+  CHECK_EQ(output()->at(0).bytecode, Bytecode::kLdar);
+  CHECK_EQ(output()->at(0).input.index(), parameter.index());
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterUsed) {
@@ -107,24 +112,22 @@ TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterUsed) {
   optimizer()->PrepareForBytecode<Bytecode::kLdaSmi, AccumulatorUse::kWrite>();
   Register temp0 = NewTemporary();
   Register temp1 = NewTemporary();
-  optimizer()->DoStar(temp1, BytecodeSourceInfo());
+  optimizer()->DoStar(temp1);
   CHECK_EQ(write_count(), 0u);
   optimizer()->PrepareForBytecode<Bytecode::kLdaSmi, AccumulatorUse::kWrite>();
   CHECK_EQ(write_count(), 1u);
-  CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
-  CHECK_EQ(output()->at(0).operand(0),
-           static_cast<uint32_t>(temp1.ToOperand()));
-  optimizer()->DoMov(temp1, temp0, BytecodeSourceInfo());
+  CHECK_EQ(output()->at(0).bytecode, Bytecode::kStar);
+  CHECK_EQ(output()->at(0).output.index(), temp1.index());
+  optimizer()->DoMov(temp1, temp0);
   CHECK_EQ(write_count(), 1u);
   ReleaseTemporaries(temp1);
   CHECK_EQ(write_count(), 1u);
-  optimizer()->DoLdar(temp0, BytecodeSourceInfo());
+  optimizer()->DoLdar(temp0);
   CHECK_EQ(write_count(), 1u);
   optimizer()->PrepareForBytecode<Bytecode::kReturn, AccumulatorUse::kRead>();
   CHECK_EQ(write_count(), 2u);
-  CHECK_EQ(output()->at(1).bytecode(), Bytecode::kLdar);
-  CHECK_EQ(output()->at(1).operand(0),
-           static_cast<uint32_t>(temp1.ToOperand()));
+  CHECK_EQ(output()->at(1).bytecode, Bytecode::kLdar);
+  CHECK_EQ(output()->at(1).input.index(), temp1.index());
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterNotFlushed) {
@@ -132,37 +135,33 @@ TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterNotFlushed) {
   optimizer()->PrepareForBytecode<Bytecode::kLdaSmi, AccumulatorUse::kWrite>();
   Register temp0 = NewTemporary();
   Register temp1 = NewTemporary();
-  optimizer()->DoStar(temp0, BytecodeSourceInfo());
+  optimizer()->DoStar(temp0);
   CHECK_EQ(write_count(), 0u);
-  optimizer()->DoStar(temp1, BytecodeSourceInfo());
+  optimizer()->DoStar(temp1);
   CHECK_EQ(write_count(), 0u);
   ReleaseTemporaries(temp1);
   optimizer()->Flush();
   CHECK_EQ(write_count(), 1u);
-  CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
-  CHECK_EQ(output()->at(0).operand(0),
-           static_cast<uint32_t>(temp0.ToOperand()));
+  CHECK_EQ(output()->at(0).bytecode, Bytecode::kStar);
+  CHECK_EQ(output()->at(0).output.index(), temp0.index());
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, StoresToLocalsImmediate) {
   Initialize(3, 1);
   Register parameter = Register::FromParameterIndex(1, 3);
-  optimizer()->DoLdar(parameter, BytecodeSourceInfo());
+  optimizer()->DoLdar(parameter);
   CHECK_EQ(write_count(), 0u);
   Register local = Register(0);
-  optimizer()->DoStar(local, BytecodeSourceInfo());
+  optimizer()->DoStar(local);
   CHECK_EQ(write_count(), 1u);
-  CHECK_EQ(output()->at(0).bytecode(), Bytecode::kMov);
-  CHECK_EQ(output()->at(0).operand(0),
-           static_cast<uint32_t>(parameter.ToOperand()));
-  CHECK_EQ(output()->at(0).operand(1),
-           static_cast<uint32_t>(local.ToOperand()));
+  CHECK_EQ(output()->at(0).bytecode, Bytecode::kMov);
+  CHECK_EQ(output()->at(0).input.index(), parameter.index());
+  CHECK_EQ(output()->at(0).output.index(), local.index());
 
   optimizer()->PrepareForBytecode<Bytecode::kReturn, AccumulatorUse::kRead>();
   CHECK_EQ(write_count(), 2u);
-  CHECK_EQ(output()->at(1).bytecode(), Bytecode::kLdar);
-  CHECK_EQ(output()->at(1).operand(0),
-           static_cast<uint32_t>(local.ToOperand()));
+  CHECK_EQ(output()->at(1).bytecode, Bytecode::kLdar);
+  CHECK_EQ(output()->at(1).input.index(), local.index());
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, SingleTemporaryNotMaterializedForInput) {
@@ -170,8 +169,8 @@ TEST_F(BytecodeRegisterOptimizerTest, SingleTemporaryNotMaterializedForInput) {
   Register parameter = Register::FromParameterIndex(1, 3);
   Register temp0 = NewTemporary();
   Register temp1 = NewTemporary();
-  optimizer()->DoMov(parameter, temp0, BytecodeSourceInfo());
-  optimizer()->DoMov(parameter, temp1, BytecodeSourceInfo());
+  optimizer()->DoMov(parameter, temp0);
+  optimizer()->DoMov(parameter, temp1);
   CHECK_EQ(write_count(), 0u);
 
   Register reg = optimizer()->GetInputRegister(temp0);
@@ -189,8 +188,8 @@ TEST_F(BytecodeRegisterOptimizerTest, RangeOfTemporariesMaterializedForInput) {
   Register temp0 = NewTemporary();
   Register temp1 = NewTemporary();
   optimizer()->PrepareForBytecode<Bytecode::kLdaSmi, AccumulatorUse::kWrite>();
-  optimizer()->DoStar(temp0, BytecodeSourceInfo());
-  optimizer()->DoMov(parameter, temp1, BytecodeSourceInfo());
+  optimizer()->DoStar(temp0);
+  optimizer()->DoMov(parameter, temp1);
   CHECK_EQ(write_count(), 0u);
 
   optimizer()
@@ -200,14 +199,11 @@ TEST_F(BytecodeRegisterOptimizerTest, RangeOfTemporariesMaterializedForInput) {
   CHECK_EQ(temp0.index(), reg_list.first_register().index());
   CHECK_EQ(2, reg_list.register_count());
   CHECK_EQ(write_count(), 2u);
-  CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
-  CHECK_EQ(output()->at(0).operand(0),
-           static_cast<uint32_t>(temp0.ToOperand()));
-  CHECK_EQ(output()->at(1).bytecode(), Bytecode::kMov);
-  CHECK_EQ(output()->at(1).operand(0),
-           static_cast<uint32_t>(parameter.ToOperand()));
-  CHECK_EQ(output()->at(1).operand(1),
-           static_cast<uint32_t>(temp1.ToOperand()));
+  CHECK_EQ(output()->at(0).bytecode, Bytecode::kStar);
+  CHECK_EQ(output()->at(0).output.index(), temp0.index());
+  CHECK_EQ(output()->at(1).bytecode, Bytecode::kMov);
+  CHECK_EQ(output()->at(1).input.index(), parameter.index());
+  CHECK_EQ(output()->at(1).output.index(), temp1.index());
 }
 
 }  // namespace interpreter

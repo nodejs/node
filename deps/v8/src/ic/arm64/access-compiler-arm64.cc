@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/ic/access-compiler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

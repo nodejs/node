@@ -8,6 +8,7 @@
 #include <queue>
 
 #include "include/libplatform/libplatform.h"
+#include "src/base/debug/stack_trace.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
@@ -17,9 +18,24 @@
 namespace v8 {
 namespace platform {
 
-v8::Platform* CreateDefaultPlatform(int thread_pool_size,
-                                    IdleTaskSupport idle_task_support) {
-  DefaultPlatform* platform = new DefaultPlatform();
+namespace {
+
+void PrintStackTrace() {
+  v8::base::debug::StackTrace trace;
+  trace.Print();
+  // Avoid dumping duplicate stack trace on abort signal.
+  v8::base::debug::DisableSignalStackDump();
+}
+
+}  // namespace
+
+v8::Platform* CreateDefaultPlatform(
+    int thread_pool_size, IdleTaskSupport idle_task_support,
+    InProcessStackDumping in_process_stack_dumping) {
+  if (in_process_stack_dumping == InProcessStackDumping::kEnabled) {
+    v8::base::debug::EnableInProcessStackDumping();
+  }
+  DefaultPlatform* platform = new DefaultPlatform(idle_task_support);
   platform->SetThreadPoolSize(thread_pool_size);
   platform->EnsureInitialized();
   return platform;
@@ -45,8 +61,10 @@ void SetTracingController(
 
 const int DefaultPlatform::kMaxThreadPoolSize = 8;
 
-DefaultPlatform::DefaultPlatform()
-    : initialized_(false), thread_pool_size_(0) {}
+DefaultPlatform::DefaultPlatform(IdleTaskSupport idle_task_support)
+    : initialized_(false),
+      thread_pool_size_(0),
+      idle_task_support_(idle_task_support) {}
 
 DefaultPlatform::~DefaultPlatform() {
   if (tracing_controller_) {
@@ -165,6 +183,7 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate) {
 
 void DefaultPlatform::RunIdleTasks(v8::Isolate* isolate,
                                    double idle_time_in_seconds) {
+  DCHECK(IdleTaskSupport::kEnabled == idle_task_support_);
   double deadline_in_seconds =
       MonotonicallyIncreasingTime() + idle_time_in_seconds;
   while (deadline_in_seconds > MonotonicallyIncreasingTime()) {
@@ -208,7 +227,9 @@ void DefaultPlatform::CallIdleOnForegroundThread(Isolate* isolate,
   main_thread_idle_queue_[isolate].push(task);
 }
 
-bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) { return true; }
+bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) {
+  return idle_task_support_ == IdleTaskSupport::kEnabled;
+}
 
 double DefaultPlatform::MonotonicallyIncreasingTime() {
   return base::TimeTicks::HighResolutionNow().ToInternalValue() /
@@ -271,6 +292,10 @@ void DefaultPlatform::AddTraceStateObserver(TraceStateObserver* observer) {
 void DefaultPlatform::RemoveTraceStateObserver(TraceStateObserver* observer) {
   if (!tracing_controller_) return;
   tracing_controller_->RemoveTraceStateObserver(observer);
+}
+
+Platform::StackTracePrinter DefaultPlatform::GetStackTracePrinter() {
+  return PrintStackTrace;
 }
 
 }  // namespace platform

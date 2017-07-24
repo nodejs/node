@@ -75,8 +75,9 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   }
 
   // Determines whether exceptions thrown by the given node are handled locally
-  // within the graph (i.e. an IfException projection is present).
-  static bool IsExceptionalCall(Node* node);
+  // within the graph (i.e. an IfException projection is present). Optionally
+  // the present IfException projection is returned via {out_exception}.
+  static bool IsExceptionalCall(Node* node, Node** out_exception = nullptr);
 
   // ---------------------------------------------------------------------------
   // Miscellaneous mutators.

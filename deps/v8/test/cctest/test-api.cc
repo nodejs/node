@@ -2624,7 +2624,6 @@ THREADED_TEST(FunctionPrototype) {
   CHECK_EQ(v8_run_int32value(script), 321);
 }
 
-
 THREADED_TEST(InternalFields) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -2642,7 +2641,6 @@ THREADED_TEST(InternalFields) {
   obj->SetInternalField(0, v8_num(17));
   CHECK_EQ(17, obj->GetInternalField(0)->Int32Value(env.local()).FromJust());
 }
-
 
 THREADED_TEST(GlobalObjectInternalFields) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -2668,7 +2666,6 @@ THREADED_TEST(GlobalObjectHasRealIndexedProperty) {
   CHECK(global->HasRealIndexedProperty(env.local(), 0).FromJust());
 }
 
-
 static void CheckAlignedPointerInInternalField(Local<v8::Object> obj,
                                                void* value) {
   CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
@@ -2676,7 +2673,6 @@ static void CheckAlignedPointerInInternalField(Local<v8::Object> obj,
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   CHECK_EQ(value, obj->GetAlignedPointerFromInternalField(0));
 }
-
 
 THREADED_TEST(InternalFieldsAlignedPointers) {
   LocalContext env;
@@ -7547,7 +7543,6 @@ class Trivial2 {
   int x_;
 };
 
-
 void CheckInternalFields(
     const v8::WeakCallbackInfo<v8::Persistent<v8::Object>>& data) {
   v8::Persistent<v8::Object>* handle = data.GetParameter();
@@ -7559,7 +7554,6 @@ void CheckInternalFields(
   t1->set_x(1729);
   t2->set_x(33550336);
 }
-
 
 void InternalFieldCallback(bool global_gc) {
   LocalContext env;
@@ -7611,7 +7605,6 @@ void InternalFieldCallback(bool global_gc) {
   delete t1;
   delete t2;
 }
-
 
 THREADED_TEST(InternalFieldCallback) {
   InternalFieldCallback(false);
@@ -14253,7 +14246,7 @@ void SetFunctionEntryHookTest::RunTest() {
       CHECK_EQ(2, CountInvocations(NULL, "bar"));
       CHECK_EQ(200, CountInvocations("bar", "foo"));
       CHECK_EQ(200, CountInvocations(NULL, "foo"));
-    } else if (i::FLAG_crankshaft || i::FLAG_turbo) {
+    } else if (i::FLAG_crankshaft) {
       // For ignition we don't see the actual functions being called, instead
       // we see the InterpreterEntryTrampoline at least 102 times
       // (100 unoptimized calls to foo, and 2 calls to bar).
@@ -14599,9 +14592,8 @@ TEST(Regress51719) {
   isolate->AdjustAmountOfExternalAllocatedMemory(kTriggerGCSize);
 }
 
-
-// Regression test for issue 54, object templates with internal fields
-// but no accessors or interceptors did not get their internal field
+// Regression test for issue 54, object templates with embedder fields
+// but no accessors or interceptors did not get their embedder field
 // count set on instances.
 THREADED_TEST(Regress54) {
   LocalContext context;
@@ -16683,7 +16675,6 @@ THREADED_TEST(SharedDataView) {
   CHECK(ab->Equals(env.local(), dv->Buffer()).FromJust());
 }
 
-
 #define IS_ARRAY_BUFFER_VIEW_TEST(View)                                     \
   THREADED_TEST(Is##View) {                                                 \
     LocalContext env;                                                       \
@@ -16823,14 +16814,11 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
     CHECK_EQ(4, stackTrace->GetFrameCount());
     checkStackFrame(origin, "bar", 2, 10, false, false,
                     stackTrace->GetFrame(0));
-    checkStackFrame(origin, "foo", 6, 3, false, false,
-                    stackTrace->GetFrame(1));
+    checkStackFrame(origin, "foo", 6, 3, false, true, stackTrace->GetFrame(1));
     // This is the source string inside the eval which has the call to foo.
-    checkStackFrame(NULL, "", 1, 1, false, false, stackTrace->GetFrame(2));
+    checkStackFrame(NULL, "", 1, 1, true, false, stackTrace->GetFrame(2));
     // The last frame is an anonymous function which has the initial eval call.
     checkStackFrame(origin, "", 8, 7, false, false, stackTrace->GetFrame(3));
-
-    CHECK(stackTrace->AsArray()->IsArray());
   } else if (testGroup == kDetailedTest) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 10, v8::StackTrace::kDetailed);
@@ -16844,8 +16832,6 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
     checkStackFrame(NULL, "", 1, 1, is_eval, false, stackTrace->GetFrame(2));
     // The last frame is an anonymous function which has the initial eval call.
     checkStackFrame(origin, "", 10, 1, false, false, stackTrace->GetFrame(3));
-
-    CHECK(stackTrace->AsArray()->IsArray());
   } else if (testGroup == kFunctionName) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 5, v8::StackTrace::kOverview);
@@ -17038,6 +17024,7 @@ static void AsmJsWarningListener(v8::Local<v8::Message> message,
 
 TEST(AsmJsWarning) {
   i::FLAG_validate_asm = true;
+  if (i::FLAG_suppress_asm_messages) return;
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -25503,6 +25490,23 @@ TEST(ExtrasUtilsObject) {
           .ToLocalChecked()
           .As<v8::Promise>();
   CHECK(rejected_but_handled_promise->HasHandler());
+
+  auto promise_states = result->Get(env.local(), v8_str("promiseStates"))
+                            .ToLocalChecked()
+                            .As<v8::String>();
+  String::Utf8Value promise_states_string(promise_states);
+  CHECK_EQ(0, strcmp(*promise_states_string, "pending fulfilled rejected"));
+
+  auto promise_is_promise = result->Get(env.local(), v8_str("promiseIsPromise"))
+                                .ToLocalChecked()
+                                .As<v8::Boolean>();
+  CHECK_EQ(true, promise_is_promise->Value());
+
+  auto thenable_is_promise =
+      result->Get(env.local(), v8_str("thenableIsPromise"))
+          .ToLocalChecked()
+          .As<v8::Boolean>();
+  CHECK_EQ(false, thenable_is_promise->Value());
 }
 
 
@@ -25795,14 +25799,6 @@ TEST(FutexInterruption) {
 }
 
 
-TEST(EstimatedContextSize) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  LocalContext env;
-  CHECK(50000 < env->EstimatedSize());
-}
-
-
 static int nb_uncaught_exception_callback_calls = 0;
 
 
@@ -25907,6 +25903,78 @@ TEST(AccessCheckedToStringTag) {
   String::Utf8Value result_denied(
       object->ObjectProtoToString(env.local()).ToLocalChecked());
   CHECK_EQ(0, strcmp(*result_denied, "[object Object]"));
+}
+
+TEST(TemplateIteratorPrototypeIntrinsics) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+
+  // Object templates.
+  {
+    Local<ObjectTemplate> object_template = v8::ObjectTemplate::New(isolate);
+    object_template->SetIntrinsicDataProperty(v8_str("iter_proto"),
+                                              v8::kIteratorPrototype);
+    Local<Object> object =
+        object_template->NewInstance(env.local()).ToLocalChecked();
+    CHECK(env->Global()->Set(env.local(), v8_str("obj"), object).FromJust());
+    ExpectTrue("obj.iter_proto === [][Symbol.iterator]().__proto__.__proto__");
+  }
+  // Setting %IteratorProto% on the function object's prototype template.
+  {
+    Local<FunctionTemplate> func_template = v8::FunctionTemplate::New(isolate);
+    func_template->PrototypeTemplate()->SetIntrinsicDataProperty(
+        v8_str("iter_proto"), v8::kIteratorPrototype);
+    Local<Function> func1 =
+        func_template->GetFunction(env.local()).ToLocalChecked();
+    CHECK(env->Global()->Set(env.local(), v8_str("func1"), func1).FromJust());
+    Local<Function> func2 =
+        func_template->GetFunction(env.local()).ToLocalChecked();
+    CHECK(env->Global()->Set(env.local(), v8_str("func2"), func2).FromJust());
+    ExpectTrue(
+        "func1.prototype.iter_proto === "
+        "[][Symbol.iterator]().__proto__.__proto__");
+    ExpectTrue(
+        "func2.prototype.iter_proto === "
+        "[][Symbol.iterator]().__proto__.__proto__");
+    ExpectTrue("func1.prototype.iter_proto === func2.prototype.iter_proto");
+
+    Local<Object> instance1 = func1->NewInstance(env.local()).ToLocalChecked();
+    CHECK(env->Global()
+              ->Set(env.local(), v8_str("instance1"), instance1)
+              .FromJust());
+    ExpectFalse("instance1.hasOwnProperty('iter_proto')");
+    ExpectTrue("'iter_proto' in instance1.__proto__");
+    ExpectTrue(
+        "instance1.iter_proto === [][Symbol.iterator]().__proto__.__proto__");
+  }
+  // Put %IteratorProto% in a function object's inheritance chain.
+  {
+    Local<FunctionTemplate> parent_template =
+        v8::FunctionTemplate::New(isolate);
+    parent_template->RemovePrototype();  // Remove so there is no name clash.
+    parent_template->SetIntrinsicDataProperty(v8_str("prototype"),
+                                              v8::kIteratorPrototype);
+    Local<FunctionTemplate> func_template = v8::FunctionTemplate::New(isolate);
+    func_template->Inherit(parent_template);
+
+    Local<Function> func =
+        func_template->GetFunction(env.local()).ToLocalChecked();
+    CHECK(env->Global()->Set(env.local(), v8_str("func"), func).FromJust());
+    ExpectTrue(
+        "func.prototype.__proto__ === "
+        "[][Symbol.iterator]().__proto__.__proto__");
+
+    Local<Object> func_instance =
+        func->NewInstance(env.local()).ToLocalChecked();
+    CHECK(env->Global()
+              ->Set(env.local(), v8_str("instance"), func_instance)
+              .FromJust());
+    ExpectTrue(
+        "instance.__proto__.__proto__ === "
+        "[][Symbol.iterator]().__proto__.__proto__");
+    ExpectTrue("instance.__proto__.__proto__.__proto__ === Object.prototype");
+  }
 }
 
 TEST(ObjectTemplateArrayProtoIntrinsics) {
@@ -26386,4 +26454,29 @@ UNINITIALIZED_TEST(IncreaseHeapLimitForDebugging) {
     CHECK_EQ(limit_before, i_isolate->heap()->MaxOldGenerationSize());
   }
   isolate->Dispose();
+}
+
+TEST(DeterministicRandomNumberGeneration) {
+  v8::HandleScope scope(CcTest::isolate());
+
+  int previous_seed = v8::internal::FLAG_random_seed;
+  v8::internal::FLAG_random_seed = 1234;
+
+  double first_value;
+  double second_value;
+  {
+    v8::Local<Context> context = Context::New(CcTest::isolate());
+    Context::Scope context_scope(context);
+    v8::Local<Value> result = CompileRun("Math.random();");
+    first_value = result->ToNumber(context).ToLocalChecked()->Value();
+  }
+  {
+    v8::Local<Context> context = Context::New(CcTest::isolate());
+    Context::Scope context_scope(context);
+    v8::Local<Value> result = CompileRun("Math.random();");
+    second_value = result->ToNumber(context).ToLocalChecked()->Value();
+  }
+  CHECK_EQ(first_value, second_value);
+
+  v8::internal::FLAG_random_seed = previous_seed;
 }

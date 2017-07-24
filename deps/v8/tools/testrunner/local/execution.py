@@ -49,11 +49,12 @@ TEST_DIR = os.path.join(BASE_DIR, "test")
 
 
 class Instructions(object):
-  def __init__(self, command, test_id, timeout, verbose):
+  def __init__(self, command, test_id, timeout, verbose, env):
     self.command = command
     self.id = test_id
     self.timeout = timeout
     self.verbose = verbose
+    self.env = env
 
 
 # Structure that keeps global information per worker process.
@@ -111,7 +112,7 @@ def _GetInstructions(test, context):
   # the like.
   if statusfile.IsSlow(test.outcomes or [statusfile.PASS]):
     timeout *= 2
-  return Instructions(command, test.id, timeout, context.verbose)
+  return Instructions(command, test.id, timeout, context.verbose, test.env)
 
 
 class Job(object):
@@ -178,7 +179,8 @@ class TestJob(Job):
       return SetupProblem(e, self.test)
 
     start_time = time.time()
-    output = commands.Execute(instr.command, instr.verbose, instr.timeout)
+    output = commands.Execute(instr.command, instr.verbose, instr.timeout,
+                              instr.env)
     self._rename_coverage_data(output, process_context.context)
     return (instr.id, output, time.time() - start_time)
 

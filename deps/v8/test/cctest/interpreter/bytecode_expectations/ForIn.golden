@@ -147,23 +147,24 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 85
+bytecode array length: 87
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(2), U8(1), R(1),
                 B(Mov), R(1), R(0),
   /*   77 S> */ B(CreateArrayLiteral), U8(1), U8(3), U8(9),
-                B(JumpIfUndefined), U8(70),
-                B(JumpIfNull), U8(68),
+                B(JumpIfUndefined), U8(72),
+                B(JumpIfNull), U8(70),
                 B(ToObject), R(1),
                 B(ForInPrepare), R(1), R(2),
                 B(LdaZero),
                 B(Star), R(5),
   /*   68 S> */ B(ForInContinue), R(5), R(4),
-                B(JumpIfFalse), U8(55),
+                B(JumpIfFalse), U8(57),
                 B(ForInNext), R(1), R(5), R(2), U8(14),
-                B(JumpIfUndefined), U8(41),
+                B(JumpIfUndefined), U8(43),
                 B(Star), R(6),
+                B(Ldar), R(6),
   /*   67 E> */ B(StaNamedPropertySloppy), R(0), U8(2), U8(12),
   /*   62 E> */ B(StackCheck),
   /*   95 S> */ B(Nop),
@@ -182,7 +183,7 @@ bytecodes: [
   /*  143 S> */ B(Jump), U8(9),
                 B(ForInStep), R(5),
                 B(Star), R(5),
-                B(JumpLoop), U8(55), I8(0),
+                B(JumpLoop), U8(57), I8(0),
                 B(LdaUndefined),
   /*  152 S> */ B(Return),
 ]

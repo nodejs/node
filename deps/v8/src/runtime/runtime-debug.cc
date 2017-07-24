@@ -68,7 +68,7 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
   if (isolate->debug()->break_points_active()) {
-    isolate->debug()->HandleDebugBreak();
+    isolate->debug()->HandleDebugBreak(kIgnoreIfTopFrameBlackboxed);
   }
   return isolate->heap()->undefined_value();
 }
@@ -1312,7 +1312,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
     // Get the constructor function for context extension and arguments array.
     Object* arguments_fun = isolate->sloppy_arguments_map()->GetConstructor();
     HeapObject* heap_obj;
-    while ((heap_obj = iterator.next())) {
+    while ((heap_obj = iterator.next()) != nullptr) {
       if (!heap_obj->IsJSObject()) continue;
       JSObject* obj = JSObject::cast(heap_obj);
       if (obj->IsJSContextExtensionObject()) continue;
@@ -1365,7 +1365,7 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
   {
     HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
     HeapObject* heap_obj;
-    while ((heap_obj = iterator.next())) {
+    while ((heap_obj = iterator.next()) != nullptr) {
       if (!heap_obj->IsJSObject()) continue;
       JSObject* obj = JSObject::cast(heap_obj);
       if (obj->map()->GetConstructor() != *constructor) continue;
@@ -1904,7 +1904,12 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   // Collect coverage data.
-  std::unique_ptr<Coverage> coverage(Coverage::Collect(isolate, false));
+  std::unique_ptr<Coverage> coverage;
+  if (isolate->is_best_effort_code_coverage()) {
+    coverage.reset(Coverage::CollectBestEffort(isolate));
+  } else {
+    coverage.reset(Coverage::CollectPrecise(isolate));
+  }
   Factory* factory = isolate->factory();
   // Turn the returned data structure into JavaScript.
   // Create an array of scripts.
@@ -1945,7 +1950,8 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
 RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   SealHandleScope shs(isolate);
   CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
-  Coverage::TogglePrecise(isolate, enable);
+  Coverage::SelectMode(isolate, enable ? debug::Coverage::kPreciseCount
+                                       : debug::Coverage::kBestEffort);
   return isolate->heap()->undefined_value();
 }
 

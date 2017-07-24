@@ -180,6 +180,10 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
   Page* page = static_cast<Page*>(chunk);
   heap->incremental_marking()->SetNewSpacePageFlags(page);
   page->AllocateLocalTracker();
+  if (FLAG_minor_mc) {
+    page->AllocateYoungGenerationBitmap();
+    MarkingState::External(page).ClearLiveness();
+  }
   return page;
 }
 
@@ -212,7 +216,7 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   DCHECK(old_page->InNewSpace());
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
-  old_page->SetFlags(0, ~0);
+  old_page->SetFlags(0, static_cast<uintptr_t>(~0));
   old_space->AccountCommitted(old_page->size());
   Page* new_page = Page::Initialize<kDoNotFreeMemory>(
       old_page->heap(), old_page, NOT_EXECUTABLE, old_space);
@@ -224,29 +228,6 @@ void Page::InitializeFreeListCategories() {
   for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
     categories_[i].Initialize(static_cast<FreeListCategoryType>(i));
   }
-}
-
-void MemoryChunk::IncrementLiveBytes(HeapObject* object, int by) {
-  MemoryChunk::FromAddress(object->address())->IncrementLiveBytes(by);
-}
-
-void MemoryChunk::ResetLiveBytes() {
-  if (FLAG_trace_live_bytes) {
-    PrintIsolate(heap()->isolate(), "live-bytes: reset page=%p %d->0\n",
-                 static_cast<void*>(this), live_byte_count_);
-  }
-  live_byte_count_ = 0;
-}
-
-void MemoryChunk::IncrementLiveBytes(int by) {
-  if (FLAG_trace_live_bytes) {
-    PrintIsolate(
-        heap()->isolate(), "live-bytes: update page=%p delta=%d %d->%d\n",
-        static_cast<void*>(this), by, live_byte_count_, live_byte_count_ + by);
-  }
-  live_byte_count_ += by;
-  DCHECK_GE(live_byte_count_, 0);
-  DCHECK_LE(static_cast<size_t>(live_byte_count_), size_);
 }
 
 bool PagedSpace::Contains(Address addr) {
@@ -301,16 +282,16 @@ void Page::MarkNeverAllocateForTesting() {
 
 void Page::MarkEvacuationCandidate() {
   DCHECK(!IsFlagSet(NEVER_EVACUATE));
-  DCHECK_NULL(old_to_old_slots_);
-  DCHECK_NULL(typed_old_to_old_slots_);
+  DCHECK_NULL(slot_set<OLD_TO_OLD>());
+  DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
   SetFlag(EVACUATION_CANDIDATE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 
 void Page::ClearEvacuationCandidate() {
   if (!IsFlagSet(COMPACTION_WAS_ABORTED)) {
-    DCHECK_NULL(old_to_old_slots_);
-    DCHECK_NULL(typed_old_to_old_slots_);
+    DCHECK_NULL(slot_set<OLD_TO_OLD>());
+    DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
   }
   ClearFlag(EVACUATION_CANDIDATE);
   InitializeFreeListCategories();

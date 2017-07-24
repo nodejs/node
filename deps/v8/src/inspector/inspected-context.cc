@@ -14,23 +14,6 @@
 
 namespace v8_inspector {
 
-namespace {
-
-void clearContext(const v8::WeakCallbackInfo<v8::Global<v8::Context>>& data) {
-  // Inspected context is created in V8InspectorImpl::contextCreated method
-  // and destroyed in V8InspectorImpl::contextDestroyed.
-  // Both methods takes valid v8::Local<v8::Context> handle to the same context,
-  // it means that context is created before InspectedContext constructor and is
-  // always destroyed after InspectedContext destructor therefore this callback
-  // should be never called.
-  // It's possible only if inspector client doesn't call contextDestroyed which
-  // is considered an error.
-  CHECK(false);
-  data.GetParameter()->Reset();
-}
-
-}  // namespace
-
 InspectedContext::InspectedContext(V8InspectorImpl* inspector,
                                    const V8ContextInfo& info, int contextId)
     : m_inspector(inspector),
@@ -44,27 +27,21 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
   v8::Isolate* isolate = m_inspector->isolate();
   info.context->SetEmbedderData(static_cast<int>(v8::Context::kDebugIdIndex),
                                 v8::Int32::New(isolate, contextId));
-  m_context.SetWeak(&m_context, &clearContext,
-                    v8::WeakCallbackType::kParameter);
-
   v8::Local<v8::Object> global = info.context->Global();
   v8::Local<v8::Object> console =
-      V8Console::createConsole(this, info.hasMemoryOnConsole);
+      m_inspector->console()->createConsole(info.context);
+  if (info.hasMemoryOnConsole) {
+    m_inspector->console()->installMemoryGetter(info.context, console);
+  }
   if (!global
            ->Set(info.context, toV8StringInternalized(isolate, "console"),
                  console)
-           .FromMaybe(false))
+           .FromMaybe(false)) {
     return;
-  m_console.Reset(isolate, console);
-  m_console.SetWeak();
+  }
 }
 
 InspectedContext::~InspectedContext() {
-  if (!m_console.IsEmpty()) {
-    v8::HandleScope scope(isolate());
-    V8Console::clearInspectedContextIfNeeded(context(),
-                                             m_console.Get(isolate()));
-  }
 }
 
 // static

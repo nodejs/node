@@ -52,6 +52,10 @@ class TaskRunner : public v8::base::Thread {
 
   static TaskRunner* FromContext(v8::Local<v8::Context>);
 
+  v8::Local<v8::Context> NewContextGroup();
+  v8::Local<v8::Context> GetContext(int context_group_id);
+  static int GetContextGroupId(v8::Local<v8::Context> context);
+
   void Terminate();
 
   void RegisterModule(v8::internal::Vector<uint16_t> name,
@@ -61,7 +65,7 @@ class TaskRunner : public v8::base::Thread {
       v8::Local<v8::Module> referrer);
 
  private:
-  void InitializeContext();
+  void InitializeIsolate();
   Task* GetNext(bool only_protocol);
 
   v8::ExtensionConfiguration* extensions_;
@@ -69,7 +73,8 @@ class TaskRunner : public v8::base::Thread {
   v8::base::Semaphore* ready_semaphore_;
 
   v8::Isolate* isolate_;
-  v8::Global<v8::Context> context_;
+  intptr_t last_context_group_id_ = 0;
+  std::map<intptr_t, v8::Global<v8::Context>> contexts_;
 
   // deferred_queue_ combined with queue_ (in this order) have all tasks in the
   // correct order. Sometimes we skip non-protocol tasks by moving them from

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("setTimeout(console.count, 0) doesn't crash with enabled async stacks.")
+InspectorTest.log("setTimeout(console.count, 0) doesn't crash with enabled async stacks.")
 
 Protocol.Debugger.enable();
 Protocol.Debugger.setAsyncCallStackDepth({ maxDepth: 1 });

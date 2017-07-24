@@ -34,6 +34,7 @@ class Deserializer : public SerializerDeserializer {
       : isolate_(NULL),
         source_(data->Payload()),
         magic_number_(data->GetMagicNumber()),
+        num_extra_references_(data->GetExtraReferences()),
         next_map_index_(0),
         external_reference_table_(NULL),
         deserialized_large_objects_(0),
@@ -50,7 +51,7 @@ class Deserializer : public SerializerDeserializer {
   // Deserialize a single object and the objects reachable from it.
   MaybeHandle<Object> DeserializePartial(
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
-      v8::DeserializeInternalFieldsCallback internal_fields_deserializer);
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
   // Deserialize an object graph. Fail gracefully.
   MaybeHandle<HeapObject> DeserializeObject(Isolate* isolate);
@@ -89,13 +90,15 @@ class Deserializer : public SerializerDeserializer {
   }
 
   void DeserializeDeferredObjects();
-  void DeserializeInternalFields(
-      v8::DeserializeInternalFieldsCallback internal_fields_deserializer);
+  void DeserializeEmbedderFields(
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
   void FlushICacheForNewIsolate();
   void FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
 
   void CommitPostProcessedObjects(Isolate* isolate);
+
+  void PrintDisassembledCodeObjects();
 
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
@@ -114,9 +117,6 @@ class Deserializer : public SerializerDeserializer {
   // snapshot by chunk index and offset.
   HeapObject* GetBackReferencedObject(int space);
 
-  Object** CopyInNativesSource(Vector<const char> source_vector,
-                               Object** current);
-
   // Cached current isolate.
   Isolate* isolate_;
 
@@ -125,6 +125,7 @@ class Deserializer : public SerializerDeserializer {
 
   SnapshotByteSource source_;
   uint32_t magic_number_;
+  uint32_t num_extra_references_;
 
   // The address of the next object that will be allocated in each space.
   // Each space has a number of chunks reserved by the GC, with each chunk

@@ -14,14 +14,15 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(2), U8(1), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
-  /*   67 S> */ B(TestUndetectable), R(0),
+  /*   67 S> */ B(Ldar), R(0),
+                B(TestUndetectable),
                 B(JumpIfFalse), U8(6),
   /*   88 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
@@ -43,14 +44,15 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(2), U8(1), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
-  /*   67 S> */ B(TestUndetectable), R(0),
+  /*   67 S> */ B(Ldar), R(0),
+                B(TestUndetectable),
                 B(JumpIfFalse), U8(6),
   /*   93 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
@@ -72,14 +74,15 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(2), U8(1), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
-  /*   67 S> */ B(TestUndetectable), R(0),
+  /*   67 S> */ B(Ldar), R(0),
+                B(TestUndetectable),
                 B(JumpIfTrue), U8(6),
   /*   88 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
@@ -101,14 +104,15 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(2), U8(1), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
-  /*   67 S> */ B(TestUndetectable), R(0),
+  /*   67 S> */ B(Ldar), R(0),
+                B(TestUndetectable),
                 B(JumpIfTrue), U8(6),
   /*   93 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
@@ -137,8 +141,8 @@ bytecodes: [
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
-  /*   67 S> */ B(TestNull), R(0),
-                B(JumpIfFalse), U8(6),
+  /*   67 S> */ B(Ldar), R(0),
+                B(JumpIfNotNull), U8(6),
   /*   89 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
   /*   98 S> */ B(Ldar), R(1),
@@ -166,8 +170,8 @@ bytecodes: [
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
-  /*   67 S> */ B(TestUndefined), R(0),
-                B(JumpIfFalse), U8(6),
+  /*   67 S> */ B(Ldar), R(0),
+                B(JumpIfNotUndefined), U8(6),
   /*   94 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
   /*  103 S> */ B(Ldar), R(1),
@@ -195,8 +199,8 @@ bytecodes: [
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
-  /*   67 S> */ B(TestNull), R(0),
-                B(JumpIfTrue), U8(6),
+  /*   67 S> */ B(Ldar), R(0),
+                B(JumpIfNull), U8(6),
   /*   89 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
   /*   98 S> */ B(Ldar), R(1),
@@ -224,8 +228,8 @@ bytecodes: [
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
-  /*   67 S> */ B(TestUndefined), R(0),
-                B(JumpIfTrue), U8(6),
+  /*   67 S> */ B(Ldar), R(0),
+                B(JumpIfUndefined), U8(6),
   /*   94 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
   /*  103 S> */ B(Ldar), R(1),

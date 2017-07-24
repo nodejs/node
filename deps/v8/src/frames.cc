@@ -413,13 +413,12 @@ void StackFrame::IteratePc(ObjectVisitor* v, Address* pc_address,
   unsigned pc_offset = static_cast<unsigned>(pc - holder->instruction_start());
   Object* code = holder;
   v->VisitPointer(&code);
-  if (code != holder) {
-    holder = reinterpret_cast<Code*>(code);
-    pc = holder->instruction_start() + pc_offset;
-    *pc_address = pc;
-    if (FLAG_enable_embedded_constant_pool && constant_pool_address) {
-      *constant_pool_address = holder->constant_pool();
-    }
+  if (code == holder) return;
+  holder = reinterpret_cast<Code*>(code);
+  pc = holder->instruction_start() + pc_offset;
+  *pc_address = pc;
+  if (FLAG_enable_embedded_constant_pool && constant_pool_address) {
+    *constant_pool_address = holder->constant_pool();
   }
 }
 
@@ -873,9 +872,8 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   uint8_t* safepoint_bits = safepoint_entry.bits();
   safepoint_bits += kNumSafepointRegisters >> kBitsPerByteLog2;
 
-  // Visit the rest of the parameters.
-  if (!is_js_to_wasm() && !is_wasm()) {
-    // Non-WASM frames have tagged values as parameters.
+  // Visit the rest of the parameters if they are tagged.
+  if (code->has_tagged_params()) {
     v->VisitPointers(parameters_base, parameters_limit);
   }
 
@@ -892,8 +890,8 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   IteratePc(v, pc_address(), constant_pool_address(), code);
 
   if (!is_wasm() && !is_wasm_to_js()) {
-    // Visit the context in stub frame and JavaScript frame.
-    // Visit the function in JavaScript frame.
+    // If this frame has JavaScript ABI, visit the context (in stub and JS
+    // frames) and the function (in JS frames).
     v->VisitPointers(frame_header_base, frame_header_limit);
   }
 }
@@ -918,6 +916,15 @@ int StubFrame::GetNumberOfIncomingArguments() const {
   return 0;
 }
 
+int StubFrame::LookupExceptionHandlerInTable(int* stack_slots) {
+  Code* code = LookupCode();
+  DCHECK(code->is_turbofanned());
+  DCHECK_EQ(code->kind(), Code::BUILTIN);
+  HandlerTable* table = HandlerTable::cast(code->handler_table());
+  int pc_offset = static_cast<int>(pc() - code->entry());
+  *stack_slots = code->stack_slots();
+  return table->LookupReturn(pc_offset);
+}
 
 void OptimizedFrame::Iterate(ObjectVisitor* v) const {
   IterateCompiledFrame(v);
@@ -2042,10 +2049,15 @@ void JavaScriptFrame::Iterate(ObjectVisitor* v) const {
 }
 
 void InternalFrame::Iterate(ObjectVisitor* v) const {
-  // Internal frames only have object pointers on the expression stack
-  // as they never have any arguments.
-  IterateExpressions(v);
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
+  Code* code = LookupCode();
+  IteratePc(v, pc_address(), constant_pool_address(), code);
+  // Internal frames typically do not receive any arguments, hence their stack
+  // only contains tagged pointers.
+  // We are misusing the has_tagged_params flag here to tell us whether
+  // the full stack frame contains only tagged pointers or only raw values.
+  // This is used for the WasmCompileLazy builtin, where we actually pass
+  // untagged arguments and also store untagged values on the stack.
+  if (code->has_tagged_params()) IterateExpressions(v);
 }
 
 

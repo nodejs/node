@@ -53,11 +53,16 @@ class UtilsExtension : public v8::Extension {
                       "native function print();"
                       "native function quit();"
                       "native function setlocale();"
+                      "native function read();"
                       "native function load();"
                       "native function compileAndRunWithOrigin();"
                       "native function setCurrentTimeMSForTest();"
+                      "native function setMemoryInfoForTest();"
                       "native function schedulePauseOnNextStatement();"
-                      "native function cancelPauseOnNextStatement();") {}
+                      "native function cancelPauseOnNextStatement();"
+                      "native function reconnect();"
+                      "native function disconnect();"
+                      "native function createContextGroup();") {}
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -79,6 +84,12 @@ class UtilsExtension : public v8::Extension {
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate, UtilsExtension::SetLocale);
     } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(isolate, "read",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate, UtilsExtension::Read);
+    } else if (name->Equals(context,
                             v8::String::NewFromUtf8(isolate, "load",
                                                     v8::NewStringType::kNormal)
                                 .ToLocalChecked())
@@ -98,6 +109,13 @@ class UtilsExtension : public v8::Extension {
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate,
                                        UtilsExtension::SetCurrentTimeMSForTest);
+    } else if (name->Equals(context, v8::String::NewFromUtf8(
+                                         isolate, "setMemoryInfoForTest",
+                                         v8::NewStringType::kNormal)
+                                         .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate,
+                                       UtilsExtension::SetMemoryInfoForTest);
     } else if (name->Equals(context,
                             v8::String::NewFromUtf8(
                                 isolate, "schedulePauseOnNextStatement",
@@ -113,6 +131,25 @@ class UtilsExtension : public v8::Extension {
                    .FromJust()) {
       return v8::FunctionTemplate::New(
           isolate, UtilsExtension::CancelPauseOnNextStatement);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(isolate, "reconnect",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate, UtilsExtension::Reconnect);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(isolate, "disconnect",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate, UtilsExtension::Disconnect);
+    } else if (name->Equals(context, v8::String::NewFromUtf8(
+                                         isolate, "createContextGroup",
+                                         v8::NewStringType::kNormal)
+                                         .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate,
+                                       UtilsExtension::CreateContextGroup);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -173,27 +210,49 @@ class UtilsExtension : public v8::Extension {
     setlocale(LC_NUMERIC, *str);
   }
 
+  static bool ReadFile(v8::Isolate* isolate, v8::Local<v8::Value> name,
+                       v8::internal::Vector<const char>* chars) {
+    v8::String::Utf8Value str(name);
+    bool exists = false;
+    std::string filename(*str, str.length());
+    *chars = v8::internal::ReadFile(filename.c_str(), &exists);
+    if (!exists) {
+      isolate->ThrowException(
+          v8::String::NewFromUtf8(isolate, "Error reading file",
+                                  v8::NewStringType::kNormal)
+              .ToLocalChecked());
+      return false;
+    }
+    return true;
+  }
+
+  static void Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsString()) {
+      fprintf(stderr, "Internal error: read gets one string argument.");
+      Exit();
+    }
+    v8::internal::Vector<const char> chars;
+    v8::Isolate* isolate = args.GetIsolate();
+    if (ReadFile(isolate, args[0], &chars)) {
+      args.GetReturnValue().Set(
+          v8::String::NewFromUtf8(isolate, chars.start(),
+                                  v8::NewStringType::kNormal, chars.length())
+              .ToLocalChecked());
+    }
+  }
+
   static void Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (args.Length() != 1 || !args[0]->IsString()) {
       fprintf(stderr, "Internal error: load gets one string argument.");
       Exit();
     }
-    v8::String::Utf8Value str(args[0]);
+    v8::internal::Vector<const char> chars;
     v8::Isolate* isolate = args.GetIsolate();
-    bool exists = false;
-    std::string filename(*str, str.length());
-    v8::internal::Vector<const char> chars =
-        v8::internal::ReadFile(filename.c_str(), &exists);
-    if (!exists) {
-      isolate->ThrowException(
-          v8::String::NewFromUtf8(isolate, "Error loading file",
-                                  v8::NewStringType::kNormal)
-              .ToLocalChecked());
-      return;
+    if (ReadFile(isolate, args[0], &chars)) {
+      ExecuteStringTask task(chars);
+      v8::Global<v8::Context> context(isolate, isolate->GetCurrentContext());
+      task.Run(isolate, context);
     }
-    ExecuteStringTask task(chars);
-    v8::Global<v8::Context> context(isolate, isolate->GetCurrentContext());
-    task.Run(isolate, context);
   }
 
   static void CompileAndRunWithOrigin(
@@ -222,6 +281,15 @@ class UtilsExtension : public v8::Extension {
         args[0].As<v8::Number>()->Value());
   }
 
+  static void SetMemoryInfoForTest(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1) {
+      fprintf(stderr, "Internal error: setMemoryInfoForTest(value).");
+      Exit();
+    }
+    inspector_client_->setMemoryInfoForTest(args[0]);
+  }
+
   static void SchedulePauseOnNextStatement(
       const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (args.Length() != 2 || !args[0]->IsString() || !args[1]->IsString()) {
@@ -245,6 +313,45 @@ class UtilsExtension : public v8::Extension {
       Exit();
     }
     inspector_client_->session()->cancelPauseOnNextStatement();
+  }
+
+  static void Reconnect(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 0) {
+      fprintf(stderr, "Internal error: reconnect().");
+      Exit();
+    }
+    v8::base::Semaphore ready_semaphore(0);
+    inspector_client_->scheduleReconnect(&ready_semaphore);
+    ready_semaphore.Wait();
+  }
+
+  static void Disconnect(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 0) {
+      fprintf(stderr, "Internal error: disconnect().");
+      Exit();
+    }
+    v8::base::Semaphore ready_semaphore(0);
+    inspector_client_->scheduleDisconnect(&ready_semaphore);
+    ready_semaphore.Wait();
+  }
+
+  static void CreateContextGroup(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 0) {
+      fprintf(stderr, "Internal error: createContextGroup().");
+      Exit();
+    }
+    const char* backend_extensions[] = {"v8_inspector/setTimeout",
+                                        "v8_inspector/inspector"};
+    v8::ExtensionConfiguration backend_configuration(
+        arraysize(backend_extensions), backend_extensions);
+    v8::base::Semaphore ready_semaphore(0);
+    int context_group_id = 0;
+    inspector_client_->scheduleCreateContextGroup(
+        &backend_configuration, &ready_semaphore, &context_group_id);
+    ready_semaphore.Wait();
+    args.GetReturnValue().Set(
+        v8::Int32::New(args.GetIsolate(), context_group_id));
   }
 };
 
@@ -270,11 +377,7 @@ class SetTimeoutTask : public AsyncTask {
 
     v8::Local<v8::Function> function = function_.Get(isolate);
     v8::MaybeLocal<v8::Value> result;
-    v8_inspector::V8Inspector* inspector =
-        InspectorClientImpl::InspectorFromContext(context);
-    if (inspector) inspector->willExecuteScript(context, function->ScriptId());
     result = function->Call(context, context->Global(), 0, nullptr);
-    if (inspector) inspector->didExecuteScript(context);
   }
 
  private:
@@ -336,7 +439,8 @@ class InspectorExtension : public v8::Extension {
                       "native function setMaxAsyncTaskStacks();"
                       "native function breakProgram();"
                       "native function createObjectWithStrictCheck();"
-                      "native function callWithScheduledBreak();") {}
+                      "native function callWithScheduledBreak();"
+                      "native function allowAccessorFormatting();") {}
 
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
@@ -381,6 +485,13 @@ class InspectorExtension : public v8::Extension {
                    .FromJust()) {
       return v8::FunctionTemplate::New(
           isolate, InspectorExtension::CallWithScheduledBreak);
+    } else if (name->Equals(context, v8::String::NewFromUtf8(
+                                         isolate, "allowAccessorFormatting",
+                                         v8::NewStringType::kNormal)
+                                         .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(
+          isolate, InspectorExtension::AllowAccessorFormatting);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -479,6 +590,24 @@ class InspectorExtension : public v8::Extension {
                                               nullptr);
     session->cancelPauseOnNextStatement();
   }
+
+  static void AllowAccessorFormatting(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsObject()) {
+      fprintf(stderr, "Internal error: allowAccessorFormatting('object').");
+      Exit();
+    }
+    v8::Local<v8::Object> object = args[0].As<v8::Object>();
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Private> shouldFormatAccessorsPrivate = v8::Private::ForApi(
+        isolate, v8::String::NewFromUtf8(isolate, "allowAccessorFormatting",
+                                         v8::NewStringType::kNormal)
+                     .ToLocalChecked());
+    object
+        ->SetPrivate(isolate->GetCurrentContext(), shouldFormatAccessorsPrivate,
+                     v8::Null(isolate))
+        .ToChecked();
+  }
 };
 
 v8::Local<v8::String> ToString(v8::Isolate* isolate,
@@ -574,7 +703,8 @@ int main(int argc, char* argv[]) {
   task_runners.push_back(&backend_runner);
 
   for (int i = 1; i < argc; ++i) {
-    if (argv[i][0] == '-') break;
+    // Ignore unknown flags.
+    if (argv[i][0] == '-') continue;
 
     bool exists = false;
     v8::internal::Vector<const char> chars =

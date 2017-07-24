@@ -5,6 +5,8 @@
 #ifndef V8_GLOBAL_HANDLES_H_
 #define V8_GLOBAL_HANDLES_H_
 
+#include <type_traits>
+
 #include "include/v8.h"
 #include "include/v8-profiler.h"
 
@@ -28,12 +30,12 @@ enum WeaknessType {
   // Embedder gets a handle to the dying object.
   FINALIZER_WEAK,
   // In the following cases, the embedder gets the parameter they passed in
-  // earlier, and 0 or 2 first internal fields. Note that the internal
+  // earlier, and 0 or 2 first embedder fields. Note that the internal
   // fields must contain aligned non-V8 pointers.  Getting pointers to V8
   // objects through this interface would be GC unsafe so in that case the
   // embedder gets a null pointer instead.
   PHANTOM_WEAK,
-  PHANTOM_WEAK_2_INTERNAL_FIELDS,
+  PHANTOM_WEAK_2_EMBEDDER_FIELDS,
   // The handle is automatically reset by the garbage collector when
   // the object is no longer reachable.
   PHANTOM_WEAK_RESET_HANDLE
@@ -51,6 +53,14 @@ class GlobalHandles {
 
   // Creates a new global handle that is alive until Destroy is called.
   Handle<Object> Create(Object* value);
+
+  template <typename T>
+  Handle<T> Create(T* value) {
+    static_assert(std::is_base_of<Object, T>::value, "static type violation");
+    // The compiler should only pick this method if T is not Object.
+    static_assert(!std::is_same<Object, T>::value, "compiler error");
+    return Handle<T>::cast(Create(static_cast<Object*>(value)));
+  }
 
   // Copy a global handle
   static Handle<Object> CopyGlobal(Object** location);
@@ -121,15 +131,15 @@ class GlobalHandles {
   void IterateAllRoots(ObjectVisitor* v);
 
   // Iterates over all handles that have embedder-assigned class ID.
-  void IterateAllRootsWithClassIds(ObjectVisitor* v);
+  void IterateAllRootsWithClassIds(v8::PersistentHandleVisitor* v);
 
   // Iterates over all handles in the new space that have embedder-assigned
   // class ID.
-  void IterateAllRootsInNewSpaceWithClassIds(ObjectVisitor* v);
+  void IterateAllRootsInNewSpaceWithClassIds(v8::PersistentHandleVisitor* v);
 
   // Iterate over all handles in the new space that are weak, unmodified
   // and have class IDs
-  void IterateWeakRootsInNewSpaceWithClassIds(ObjectVisitor* v);
+  void IterateWeakRootsInNewSpaceWithClassIds(v8::PersistentHandleVisitor* v);
 
   // Iterates over all weak roots in heap.
   void IterateWeakRoots(ObjectVisitor* v);
@@ -179,9 +189,14 @@ class GlobalHandles {
 #endif  // DEBUG
 
  private:
-  explicit GlobalHandles(Isolate* isolate);
-
+  // Internal node structures.
+  class Node;
+  class NodeBlock;
+  class NodeIterator;
   class PendingPhantomCallback;
+  class PendingPhantomCallbacksSecondPassTask;
+
+  explicit GlobalHandles(Isolate* isolate);
 
   // Helpers for PostGarbageCollectionProcessing.
   static void InvokeSecondPassPhantomCallbacks(
@@ -190,12 +205,8 @@ class GlobalHandles {
   int PostMarkSweepProcessing(int initial_post_gc_processing_count);
   int DispatchPendingPhantomCallbacks(bool synchronous_second_pass);
   void UpdateListOfNewSpaceNodes();
-
-  // Internal node structures.
-  class Node;
-  class NodeBlock;
-  class NodeIterator;
-  class PendingPhantomCallbacksSecondPassTask;
+  void ApplyPersistentHandleVisitor(v8::PersistentHandleVisitor* visitor,
+                                    Node* node);
 
   Isolate* isolate_;
 
@@ -232,10 +243,10 @@ class GlobalHandles::PendingPhantomCallback {
   typedef v8::WeakCallbackInfo<void> Data;
   PendingPhantomCallback(
       Node* node, Data::Callback callback, void* parameter,
-      void* internal_fields[v8::kInternalFieldsInWeakCallback])
+      void* embedder_fields[v8::kEmbedderFieldsInWeakCallback])
       : node_(node), callback_(callback), parameter_(parameter) {
-    for (int i = 0; i < v8::kInternalFieldsInWeakCallback; ++i) {
-      internal_fields_[i] = internal_fields[i];
+    for (int i = 0; i < v8::kEmbedderFieldsInWeakCallback; ++i) {
+      embedder_fields_[i] = embedder_fields[i];
     }
   }
 
@@ -248,7 +259,7 @@ class GlobalHandles::PendingPhantomCallback {
   Node* node_;
   Data::Callback callback_;
   void* parameter_;
-  void* internal_fields_[v8::kInternalFieldsInWeakCallback];
+  void* embedder_fields_[v8::kEmbedderFieldsInWeakCallback];
 };
 
 

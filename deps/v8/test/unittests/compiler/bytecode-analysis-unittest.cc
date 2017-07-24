@@ -17,16 +17,17 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+using ToBooleanMode = interpreter::BytecodeArrayBuilder::ToBooleanMode;
+
 class BytecodeAnalysisTest : public TestWithIsolateAndZone {
  public:
   BytecodeAnalysisTest() {}
   ~BytecodeAnalysisTest() override {}
 
   static void SetUpTestCase() {
-    old_FLAG_ignition_peephole_ = i::FLAG_ignition_peephole;
-    i::FLAG_ignition_peephole = false;
-
-    old_FLAG_ignition_reo_ = i::FLAG_ignition_reo;
+    CHECK_NULL(save_flags_);
+    save_flags_ = new SaveFlags();
+    i::FLAG_ignition_elide_noneffectful_bytecodes = false;
     i::FLAG_ignition_reo = false;
 
     TestWithIsolateAndZone::SetUpTestCase();
@@ -34,8 +35,8 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
 
   static void TearDownTestCase() {
     TestWithIsolateAndZone::TearDownTestCase();
-    i::FLAG_ignition_peephole = old_FLAG_ignition_peephole_;
-    i::FLAG_ignition_reo = old_FLAG_ignition_reo_;
+    delete save_flags_;
+    save_flags_ = nullptr;
   }
 
   std::string ToLivenessString(const BytecodeLivenessState* liveness) const {
@@ -81,14 +82,12 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
   }
 
  private:
-  static bool old_FLAG_ignition_peephole_;
-  static bool old_FLAG_ignition_reo_;
+  static SaveFlags* save_flags_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeAnalysisTest);
 };
 
-bool BytecodeAnalysisTest::old_FLAG_ignition_peephole_;
-bool BytecodeAnalysisTest::old_FLAG_ignition_reo_;
+SaveFlags* BytecodeAnalysisTest::save_flags_ = nullptr;
 
 TEST_F(BytecodeAnalysisTest, EmptyBlock) {
   interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 0, 3);
@@ -130,9 +129,6 @@ TEST_F(BytecodeAnalysisTest, StoreThenLoad) {
   builder.StoreAccumulatorInRegister(reg_0);
   expected_liveness.emplace_back("...L", "L...");
 
-  builder.LoadNull();
-  expected_liveness.emplace_back("L...", "L...");
-
   builder.LoadAccumulatorWithRegister(reg_0);
   expected_liveness.emplace_back("L...", "...L");
 
@@ -155,7 +151,7 @@ TEST_F(BytecodeAnalysisTest, DiamondLoad) {
   interpreter::BytecodeLabel ld1_label;
   interpreter::BytecodeLabel end_label;
 
-  builder.JumpIfTrue(&ld1_label);
+  builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean, &ld1_label);
   expected_liveness.emplace_back("LLLL", "LLL.");
 
   builder.LoadAccumulatorWithRegister(reg_0);
@@ -195,7 +191,7 @@ TEST_F(BytecodeAnalysisTest, DiamondLookupsAndBinds) {
   builder.StoreAccumulatorInRegister(reg_0);
   expected_liveness.emplace_back(".LLL", "LLLL");
 
-  builder.JumpIfTrue(&ld1_label);
+  builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean, &ld1_label);
   expected_liveness.emplace_back("LLLL", "LLL.");
 
   {
@@ -242,7 +238,8 @@ TEST_F(BytecodeAnalysisTest, SimpleLoop) {
   interpreter::LoopBuilder loop_builder(&builder);
   loop_builder.LoopHeader();
   {
-    builder.JumpIfTrue(loop_builder.break_labels()->New());
+    builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean,
+                       loop_builder.break_labels()->New());
     expected_liveness.emplace_back("L.LL", "L.L.");
 
     builder.LoadAccumulatorWithRegister(reg_0);
@@ -327,12 +324,13 @@ TEST_F(BytecodeAnalysisTest, DiamondInLoop) {
   interpreter::LoopBuilder loop_builder(&builder);
   loop_builder.LoopHeader();
   {
-    builder.JumpIfTrue(loop_builder.break_labels()->New());
+    builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean,
+                       loop_builder.break_labels()->New());
     expected_liveness.emplace_back("L..L", "L..L");
 
     interpreter::BytecodeLabel ld1_label;
     interpreter::BytecodeLabel end_label;
-    builder.JumpIfTrue(&ld1_label);
+    builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean, &ld1_label);
     expected_liveness.emplace_back("L..L", "L..L");
 
     {
@@ -381,7 +379,8 @@ TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
     builder.LoadAccumulatorWithRegister(reg_1);
     expected_liveness.emplace_back(".L..", ".L.L");
 
-    builder.JumpIfTrue(loop_builder.break_labels()->New());
+    builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean,
+                       loop_builder.break_labels()->New());
     expected_liveness.emplace_back(".L.L", ".L.L");
 
     interpreter::LoopBuilder inner_loop_builder(&builder);
@@ -390,7 +389,8 @@ TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
       builder.StoreAccumulatorInRegister(reg_0);
       expected_liveness.emplace_back(".L.L", "LL.L");
 
-      builder.JumpIfTrue(inner_loop_builder.break_labels()->New());
+      builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean,
+                         inner_loop_builder.break_labels()->New());
       expected_liveness.emplace_back("LL.L", "LL.L");
 
       inner_loop_builder.BindContinueTarget();

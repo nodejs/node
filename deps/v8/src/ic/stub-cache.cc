@@ -42,9 +42,9 @@ bool CommonStubCacheChecks(StubCache* stub_cache, Name* name, Map* map,
     DCHECK(IC::IsHandler(handler));
     if (handler->IsCode()) {
       Code* code = Code::cast(handler);
-      Code::Flags expected_flags = Code::RemoveHolderFromFlags(
-          Code::ComputeHandlerFlags(stub_cache->ic_kind()));
-      Code::Flags flags = Code::RemoveHolderFromFlags(code->flags());
+      Code::Flags expected_flags =
+          Code::ComputeHandlerFlags(stub_cache->ic_kind());
+      Code::Flags flags = code->flags();
       DCHECK_EQ(expected_flags, flags);
       DCHECK_EQ(Code::HANDLER, Code::ExtractKindFromFlags(code->flags()));
     }

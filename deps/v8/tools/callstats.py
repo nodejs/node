@@ -508,8 +508,15 @@ def create_total_page_stats(domains, args):
         sums.extend([0] * (i - len(sums) + 1))
       if item is not None:
         sums[i] += item
-  # Sum up all the entries/metrics from all domains
+  # Exclude adwords and speedometer pages from aggrigate total, since adwords
+  # dominates execution time and speedometer is measured elsewhere.
+  excluded_domains = ['adwords.google.com', 'speedometer-angular',
+                      'speedometer-jquery', 'speedometer-backbone',
+                      'speedometer-ember', 'speedometer-vanilla'];
+  # Sum up all the entries/metrics from all non-excluded domains
   for domain, entries in domains.items():
+    if domain in excluded_domains:
+      continue;
     for key, domain_stats in entries.items():
       if key not in total:
         total[key] = {}

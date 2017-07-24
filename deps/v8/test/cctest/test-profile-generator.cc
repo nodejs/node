@@ -714,8 +714,9 @@ TEST(BailoutReason) {
                                          .As<v8::Function>();
   i::Handle<i::JSFunction> i_function =
       i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
-  // Set a high opt count to trigger bail out.
-  i_function->shared()->set_opt_count(10000);
+  // Set a high deopt count to trigger bail out.
+  i_function->shared()->set_opt_count(i::FLAG_max_deopt_count + 1);
+  i_function->shared()->set_deopt_count(i::FLAG_max_deopt_count + 1);
 
   CompileRun(
       "%OptimizeFunctionOnNextCall(Debugger);"

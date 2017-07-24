@@ -6,6 +6,7 @@
 #define V8_FIELD_INDEX_INL_H_
 
 #include "src/field-index.h"
+#include "src/objects/descriptor-array.h"
 
 namespace v8 {
 namespace internal {
@@ -43,7 +44,7 @@ inline FieldIndex FieldIndex::ForPropertyIndex(Map* map,
 // FieldIndex object from it.
 inline FieldIndex FieldIndex::ForLoadByFieldIndex(Map* map, int orig_index) {
   int field_index = orig_index;
-  int is_inobject = true;
+  bool is_inobject = true;
   bool is_double = field_index & 1;
   int first_inobject_offset = 0;
   field_index >>= 1;

@@ -6,6 +6,8 @@
 
 #include "test/unittests/compiler/instruction-selector-unittest.h"
 
+#include "src/objects-inl.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {

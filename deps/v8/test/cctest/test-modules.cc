@@ -98,4 +98,79 @@ TEST(ModuleEvaluation) {
   ExpectInt32("Object.expando", 10);
 }
 
+TEST(ModuleEvaluationCompletion1) {
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+
+  const char* sources[] = {
+      "",
+      "var a = 1",
+      "import '42'",
+      "export * from '42'",
+      "export {} from '42'",
+      "export {}",
+      "var a = 1; export {a}",
+      "export function foo() {}",
+      "export class C extends null {}",
+      "export let a = 1",
+      "export default 1",
+      "export default function foo() {}",
+      "export default function () {}",
+      "export default (function () {})",
+      "export default class C extends null {}",
+      "export default (class C extends null {})",
+      "for (var i = 0; i < 5; ++i) {}",
+  };
+
+  for (auto src : sources) {
+    Local<String> source_text = v8_str(src);
+    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK(module->Instantiate(env.local(),
+                              CompileSpecifierAsModuleResolveCallback));
+    CHECK(module->Evaluate(env.local()).ToLocalChecked()->IsUndefined());
+  }
+}
+
+TEST(ModuleEvaluationCompletion2) {
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+
+  const char* sources[] = {
+      "'gaga'; ",
+      "'gaga'; var a = 1",
+      "'gaga'; import '42'",
+      "'gaga'; export * from '42'",
+      "'gaga'; export {} from '42'",
+      "'gaga'; export {}",
+      "'gaga'; var a = 1; export {a}",
+      "'gaga'; export function foo() {}",
+      "'gaga'; export class C extends null {}",
+      "'gaga'; export let a = 1",
+      "'gaga'; export default 1",
+      "'gaga'; export default function foo() {}",
+      "'gaga'; export default function () {}",
+      "'gaga'; export default (function () {})",
+      "'gaga'; export default class C extends null {}",
+      "'gaga'; export default (class C extends null {})",
+  };
+
+  for (auto src : sources) {
+    Local<String> source_text = v8_str(src);
+    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK(module->Instantiate(env.local(),
+                              CompileSpecifierAsModuleResolveCallback));
+    CHECK(module->Evaluate(env.local())
+              .ToLocalChecked()
+              ->StrictEquals(v8_str("gaga")));
+  }
+}
+
 }  // anonymous namespace

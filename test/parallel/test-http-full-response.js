@@ -46,8 +46,7 @@ function runAb(opts, callback) {
         common.printSkipMessage(`problem spawning \`ab\`.\n${stderr}`);
         process.reallyExit(0);
       }
-      process.exit();
-      return;
+      throw err;
     }
 
     let m = /Document Length:\s*(\d+) bytes/i.exec(stdout);

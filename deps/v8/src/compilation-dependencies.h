@@ -63,7 +63,7 @@ class CompilationDependencies {
   bool aborted_;
   ZoneList<Handle<HeapObject> >* groups_[DependentCode::kGroupCount];
 
-  DependentCode* Get(Handle<Object> object);
+  DependentCode* Get(Handle<Object> object) const;
   void Set(Handle<Object> object, Handle<DependentCode> dep);
 };
 }  // namespace internal

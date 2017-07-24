@@ -59,7 +59,7 @@ void PropertyDetails::PrintAsSlowTo(std::ostream& os) {
   os << "(";
   if (constness() == kConst) os << "const ";
   os << (kind() == kData ? "data" : "accessor");
-  os << ", dictionary_index: " << dictionary_index();
+  os << ", dict_index: " << dictionary_index();
   os << ", attrs: " << attributes() << ")";
 }
 

@@ -365,7 +365,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitDeoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
                        Node* value);
   void VisitReturn(Node* ret);
-  void VisitThrow(Node* value);
+  void VisitThrow(Node* node);
   void VisitRetain(Node* node);
 
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
@@ -389,6 +389,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   void MarkPairProjectionsAsWord32(Node* node);
   bool IsSourcePositionUsed(Node* node);
+  void VisitAtomicBinaryOperation(Node* node, ArchOpcode int8_op,
+                                  ArchOpcode uint8_op, ArchOpcode int16_op,
+                                  ArchOpcode uint16_op, ArchOpcode word32_op);
 
   // ===========================================================================
 

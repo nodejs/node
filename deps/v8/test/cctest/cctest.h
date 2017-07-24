@@ -318,6 +318,9 @@ static inline v8::Local<v8::Value> v8_num(double x) {
   return v8::Number::New(v8::Isolate::GetCurrent(), x);
 }
 
+static inline v8::Local<v8::Integer> v8_int(int32_t x) {
+  return v8::Integer::New(v8::Isolate::GetCurrent(), x);
+}
 
 static inline v8::Local<v8::String> v8_str(const char* x) {
   return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x,

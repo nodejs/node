@@ -628,7 +628,7 @@ function assertAccessorDescriptor(object, name) {
 (function TestConstructorCall(){
   var realmIndex = Realm.create();
   var otherTypeError = Realm.eval(realmIndex, "TypeError");
-  var A = Realm.eval(realmIndex, '"use strict"; class A {}');
+  var A = Realm.eval(realmIndex, '"use strict"; class A {}; A');
   var instance = new A();
   var constructor = instance.constructor;
   var otherTypeError = Realm.eval(realmIndex, 'TypeError');

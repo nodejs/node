@@ -126,11 +126,14 @@ bool NodeProperties::IsControlEdge(Edge edge) {
 
 
 // static
-bool NodeProperties::IsExceptionalCall(Node* node) {
+bool NodeProperties::IsExceptionalCall(Node* node, Node** out_exception) {
   if (node->op()->HasProperty(Operator::kNoThrow)) return false;
   for (Edge const edge : node->use_edges()) {
     if (!NodeProperties::IsControlEdge(edge)) continue;
-    if (edge.from()->opcode() == IrOpcode::kIfException) return true;
+    if (edge.from()->opcode() == IrOpcode::kIfException) {
+      if (out_exception != nullptr) *out_exception = edge.from();
+      return true;
+    }
   }
   return false;
 }

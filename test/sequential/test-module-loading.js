@@ -237,7 +237,10 @@ try {
   // modules that we've required, and that all of them contain
   // the appropriate children, and so on.
 
+  const visited = new Set();
   const children = module.children.reduce(function red(set, child) {
+    if (visited.has(child)) return set;
+    visited.add(child);
     let id = path.relative(path.dirname(__dirname), child.id);
     id = id.replace(backslash, '/');
     set[id] = child.children.reduce(red, {});

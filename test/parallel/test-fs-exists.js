@@ -23,6 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const { URL } = require('url');
 const f = __filename;
 
 fs.exists(f, common.mustCall(function(y) {
@@ -30,6 +31,10 @@ fs.exists(f, common.mustCall(function(y) {
 }));
 
 fs.exists(`${f}-NO`, common.mustCall(function(y) {
+  assert.strictEqual(y, false);
+}));
+
+fs.exists(new URL('https://foo'), common.mustCall(function(y) {
   assert.strictEqual(y, false);
 }));
 

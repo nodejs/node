@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/crankshaft/arm/lithium-codegen-arm.h"
 #include "src/crankshaft/arm/lithium-gap-resolver-arm.h"
+#include "src/assembler-inl.h"
+#include "src/crankshaft/arm/lithium-codegen-arm.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
