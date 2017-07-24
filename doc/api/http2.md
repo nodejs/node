@@ -2402,7 +2402,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 added: REPLACEME
 -->
 
-Does nothing. Added for parity with [HTTP/1]().
+Throws an error as the `'continue'` flow is not current implemented. Added for parity with [HTTP/1]().
 
 ### response.writeHead(statusCode[, statusMessage][, headers])
 <!-- YAML
