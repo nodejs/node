@@ -42,5 +42,3 @@ assert.strictEqual(res.name, 'b', 'res should be named b');
 assert.strictEqual(typeof o.a, 'function', 'a should be function');
 assert.strictEqual(typeof o.b, 'function', 'b should be function');
 assert.strictEqual(res, o.b, 'result should be global b function');
-
-console.log('ok');
