@@ -22,7 +22,7 @@
 'use strict';
 // test compressing and uncompressing a string with zlib
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
@@ -54,32 +54,32 @@ const expectedBase64Gzip = 'H4sIAAAAAAAAA11RS05DMQy8yhzg6d2BPSAkJPZu4laWkjiN4' +
                            'mHo33kJO8xfkckmLjE5XMKBQ4gxIsfvCZ44doUThF2mcZq8q2' +
                            'sHnHNzRtagj5AQAA';
 
-zlib.deflate(inputString, function(err, buffer) {
+zlib.deflate(inputString, common.mustCall((err, buffer) => {
   assert.strictEqual(buffer.toString('base64'), expectedBase64Deflate,
                      'deflate encoded string should match');
-});
+}));
 
-zlib.gzip(inputString, function(err, buffer) {
+zlib.gzip(inputString, common.mustCall((err, buffer) => {
   // Can't actually guarantee that we'll get exactly the same
   // deflated bytes when we compress a string, since the header
   // depends on stuff other than the input string itself.
   // However, decrypting it should definitely yield the same
   // result that we're expecting, and this should match what we get
   // from inflating the known valid deflate data.
-  zlib.gunzip(buffer, function(err, gunzipped) {
+  zlib.gunzip(buffer, common.mustCall((err, gunzipped) => {
     assert.strictEqual(gunzipped.toString(), inputString,
                        'Should get original string after gzip/gunzip');
-  });
-});
+  }));
+}));
 
 let buffer = Buffer.from(expectedBase64Deflate, 'base64');
-zlib.unzip(buffer, function(err, buffer) {
+zlib.unzip(buffer, common.mustCall((err, buffer) => {
   assert.strictEqual(buffer.toString(), inputString,
                      'decoded inflated string should match');
-});
+}));
 
 buffer = Buffer.from(expectedBase64Gzip, 'base64');
-zlib.unzip(buffer, function(err, buffer) {
+zlib.unzip(buffer, common.mustCall((err, buffer) => {
   assert.strictEqual(buffer.toString(), inputString,
                      'decoded gunzipped string should match');
-});
+}));
