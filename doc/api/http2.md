@@ -16,9 +16,10 @@ in order to use the `'http2'` module.
 
 The Core API provides a low-level interface designed specifically around
 support for HTTP/2 protocol features. It is specifically *not* designed for
-compatibility with the existing [HTTP/1][] module API.
+compatibility with the existing [HTTP/1][] module API. However, the [Compatibility API][] is.
 
-The following illustrates a simple, plain-text HTTP/2 server:
+The following illustrates a simple, plain-text HTTP/2 server using the
+Core API:
 
 ```js
 const http2 = require('http2');
@@ -27,6 +28,7 @@ const http2 = require('http2');
 const server = http2.createServer();
 
 server.on('stream', (stream, headers) => {
+  // stream is a Duplex
   stream.respond({
     'content-type': 'text/html',
     ':status': 200
@@ -44,6 +46,7 @@ const http2 = require('http2');
 
 const client = http2.connect('http://localhost:80');
 
+// req is a Duplex
 const req = client.request({ ':path': '/' });
 
 req.on('response', (headers) => {
@@ -1171,6 +1174,17 @@ server.on('stream', (stream, headers, flags) => {
 });
 ```
 
+#### Event: 'request'
+<!-- YAML
+added: REPLACEME
+-->
+
+* `request` {http2.Http2ServerRequest}
+* `response` {http2.Http2ServerResponse}
+
+Emitted each time there is a request. Note that there may be multiple requests
+per session. See the [Compatibility API](compatiblity-api).
+
 #### Event: 'timeout'
 <!-- YAML
 added: REPLACEME
@@ -1246,6 +1260,17 @@ server.on('stream', (stream, headers, flags) => {
 });
 ```
 
+#### Event: 'request'
+<!-- YAML
+added: REPLACEME
+-->
+
+* `request` {http2.Http2ServerRequest}
+* `response` {http2.Http2ServerResponse}
+
+Emitted each time there is a request. Note that there may be multiple requests
+per session. See the [Compatibility API](compatiblity-api).
+
 #### Event: 'timeout'
 <!-- YAML
 added: REPLACEME
@@ -1314,7 +1339,8 @@ added: REPLACEME
 * `options` {Object}
   * `allowHTTP1` {boolean} Incoming client connections that do not support
     HTTP/2 will be downgraded to HTTP/1.x when set to `true`. The default value
-    is `false`. See the [`'unknownProtocol'`][] event.
+    is `false`. See the [`'unknownProtocol'`][] event. See [ALPN
+    negotiation](#alpn-negotiation).
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. Defaults to 4Kib.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
@@ -1701,16 +1727,755 @@ req.end('Jane');
 
 ## Compatibility API
 
-TBD
+The Compatibility API has the goal of providing a similar developer experience of
+HTTP/1 when using HTTP/2, making it possible to develop applications
+that supports both [HTTP/1](HTTP/1) and HTTP/2. This API targets only the **public
+API** of the [HTTP/1](HTTP/1), however many modules uses internal
+methods or state, and those _are not supported_ as it is a completely
+different implementation.
 
+The following example creates an HTTP/2 server using the compatibility
+API:
+
+```js
+const http2 = require('http2');
+const server = http2.createServer((req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('X-Foo', 'bar');
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('ok');
+});
+```
+
+In order to create a mixed [HTTPs](https) and HTTP/2 server, refer to the
+[ALPN negotiation](alpn-negotiation) section.
+Upgrading from non-tls HTTP/1 servers is not supported.
+
+The HTTP2 compatibility API is composed of [`Http2ServerRequest`]() and
+[`Http2ServerResponse`](). They aim at API compatibility with HTTP/1, but
+they do not hide the differences between the protocols. As an example,
+the status message for HTTP codes is ignored.
+
+### ALPN negotiation
+
+ALPN negotiation allows to support both [HTTPs](https) and HTTP/2 over
+the same socket. the `req` and `res` object could be either HTTP/1 or
+HTTP/2, and an application **must** restrict itself to the public API of
+[HTTP/1](), and detect if it is possible to use the more advanced
+features of HTTP/2.
+
+The following example creates a server that supports both protocols:
+
+```js
+const { createSecureServer } = require('http2');
+const { readFileSync } = require('fs');
+
+const cert = fs.readFileSync('./cert.pem');
+const key = fs.readFileSync('./key.pem');
+
+const server = createSecureServer(
+  { cert, key, allowHTTP1: true },
+  onRequest
+).listen(4443);
+
+function onRequest(req, res) {
+  // detects if it is a HTTPs request or HTTP/2
+  const { socket: { alpnProtocol } } = request.httpVersion === '2.0' ?
+    request.stream.session : request;
+  response.writeHead(200, { 'content-type': 'application/json' });
+  response.end(JSON.stringify({
+    alpnProtocol,
+    httpVersion: request.httpVersion
+  }));
+}
+```
+
+The `'request'` event works identically on both [HTTPs](https) and
+HTTP/2.
+
+### Class: http2.Http2ServerRequest
+<!-- YAML
+added: REPLACEME
+-->
+
+A `Http2ServerRequest` object is created by [`http2.Server`][] or
+[`http2.SecureServer`][] and passed as the first argument to the [`'request'`][] event. It may be used to access a request status,
+headers and data.
+
+It implements the [Readable Stream][] interface, as well as the
+following additional events, methods, and properties.
+
+#### Event: 'aborted'
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'aborted'` event is emitted whenever a `Http2ServerRequest` instance is
+abnormally aborted in mid-communication.
+
+*Note*: The `'aborted'` event will only be emitted if the
+`Http2ServerRequest` writable side has not been ended.
+
+#### Event: 'close'
+<!-- YAML
+added: REPLACEME
+-->
+
+Indicates that the underlying [`Http2Stream`]() was closed.
+Just like `'end'`, this event occurs only once per response.
+
+#### request.destroy([error])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `error` {Error}
+
+Calls `destroy()` on the [Http2Stream]() that received the `ServerRequest`. If `error`
+is provided, an `'error'` event is emitted and `error` is passed as an argument
+to any listeners on the event.
+
+It does nothing if the stream was already destroyed.
+
+#### request.headers
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
+
+The request/response headers object.
+
+Key-value pairs of header names and values. Header names are lower-cased.
+Example:
+
+```js
+// Prints something like:
+//
+// { 'user-agent': 'curl/7.22.0',
+//   host: '127.0.0.1:8000',
+//   accept: '*/*' }
+console.log(request.headers);
+```
+
+See [Headers Object][].
+
+### request.httpVersion
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+In case of server request, the HTTP version sent by the client. In the case of
+client response, the HTTP version of the connected-to server. Returns
+`'2.0'`.
+
+Also `message.httpVersionMajor` is the first integer and
+`message.httpVersionMinor` is the second.
+
+#### request.method
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The request method as a string. Read only. Example:
+`'GET'`, `'DELETE'`.
+
+#### request.rawHeaders
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Array}
+
+The raw request/response headers list exactly as they were received.
+
+Note that the keys and values are in the same list.  It is *not* a
+list of tuples.  So, the even-numbered offsets are key values, and the
+odd-numbered offsets are the associated values.
+
+Header names are not lowercased, and duplicates are not merged.
+
+```js
+// Prints something like:
+//
+// [ 'user-agent',
+//   'this is invalid because there can be only one',
+//   'User-Agent',
+//   'curl/7.22.0',
+//   'Host',
+//   '127.0.0.1:8000',
+//   'ACCEPT',
+//   '*/*' ]
+console.log(request.rawHeaders);
+```
+
+#### request.rawTrailers
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Array}
+
+The raw request/response trailer keys and values exactly as they were
+received.  Only populated at the `'end'` event.
+
+#### request.setTimeout(msecs, callback)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `msecs` {number}
+* `callback` {Function}
+
+Calls `request.connection.setTimeout(msecs, callback)`.
+
+Returns `request`.
+
+#### request.socket
+<!-- YAML
+added: REPLACEME
+-->
+
+* {net.Socket}
+
+The [`net.Socket`][] object associated with the connection.
+
+With TLS support, use [`request.socket.getPeerCertificate()`][] to obtain the
+client's authentication details.
+
+*Note*: do not use this socket object to send or receive any data. All
+data transfers are managed by HTTP/2 and data might be lost.
+
+#### request.stream
+<!-- YAML
+added: REPLACEME
+-->
+
+* {http2.Http2Stream}
+
+The [`Http2Stream`][] object backing the request.
+
+#### request.trailers
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
+
+The request/response trailers object. Only populated at the `'end'` event.
+
+#### request.url
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+Request URL string. This contains only the URL that is
+present in the actual HTTP request. If the request is:
+
+```txt
+GET /status?name=ryan HTTP/1.1\r\n
+Accept: text/plain\r\n
+\r\n
+```
+
+Then `request.url` will be:
+
+<!-- eslint-disable semi -->
+```js
+'/status?name=ryan'
+```
+
+To parse the url into its parts `require('url').parse(request.url)`
+can be used.  Example:
+
+```txt
+$ node
+> require('url').parse('/status?name=ryan')
+Url {
+  protocol: null,
+  slashes: null,
+  auth: null,
+  host: null,
+  port: null,
+  hostname: null,
+  hash: null,
+  search: '?name=ryan',
+  query: 'name=ryan',
+  pathname: '/status',
+  path: '/status?name=ryan',
+  href: '/status?name=ryan' }
+```
+
+To extract the parameters from the query string, the
+`require('querystring').parse` function can be used, or
+`true` can be passed as the second argument to `require('url').parse`.
+Example:
+
+```txt
+$ node
+> require('url').parse('/status?name=ryan', true)
+Url {
+  protocol: null,
+  slashes: null,
+  auth: null,
+  host: null,
+  port: null,
+  hostname: null,
+  hash: null,
+  search: '?name=ryan',
+  query: { name: 'ryan' },
+  pathname: '/status',
+  path: '/status?name=ryan',
+  href: '/status?name=ryan' }
+```
+
+### Class: http2.Http2ServerResponse
+<!-- YAML
+added: REPLACEME
+-->
+
+This object is created internally by an HTTP server--not by the user. It is
+passed as the second parameter to the [`'request'`][] event.
+
+The response implements, but does not inherit from, the [Writable Stream][]
+interface. This is an [`EventEmitter`][] with the following events:
+
+### Event: 'close'
+<!-- YAML
+added: REPLACEME
+-->
+
+Indicates that the underlying [`Http2Stream`]() was terminated before
+[`response.end()`][] was called or able to flush.
+
+### Event: 'finish'
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted when the response has been sent. More specifically, this event is
+emitted when the last segment of the response headers and body have been
+handed off to the HTTP/2 multiplexing for transmission over the network. It
+does not imply that the client has received anything yet.
+
+After this event, no more events will be emitted on the response object.
+
+### response.addTrailers(headers)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `headers` {Object}
+
+This method adds HTTP trailing headers (a header but at the end of the
+message) to the response.
+
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
+
+### response.connection
+<!-- YAML
+added: REPLACEME
+-->
+
+* {net.Socket}
+
+See [`response.socket`][].
+
+### response.end([data][, encoding][, callback])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {string|Buffer}
+* `encoding` {string}
+* `callback` {Function}
+
+This method signals to the server that all of the response headers and body
+have been sent; that server should consider this message complete.
+The method, `response.end()`, MUST be called on each response.
+
+If `data` is specified, it is equivalent to calling
+[`response.write(data, encoding)`][] followed by `response.end(callback)`.
+
+If `callback` is specified, it will be called when the response stream
+is finished.
+
+### response.finished
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Boolean value that indicates whether the response has completed. Starts
+as `false`. After [`response.end()`][] executes, the value will be `true`.
+
+### response.getHeader(name)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string}
+* Returns: {string}
+
+Reads out a header that's already been queued but not sent to the client.
+Note that the name is case insensitive.
+
+Example:
+
+```js
+const contentType = response.getHeader('content-type');
+```
+
+### response.getHeaderNames()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Array}
+
+Returns an array containing the unique names of the current outgoing headers.
+All header names are lowercase.
+
+Example:
+
+```js
+response.setHeader('Foo', 'bar');
+response.setHeader('Set-Cookie', ['foo=bar', 'bar=baz']);
+
+const headerNames = response.getHeaderNames();
+// headerNames === ['foo', 'set-cookie']
+```
+
+### response.getHeaders()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+
+Returns a shallow copy of the current outgoing headers. Since a shallow copy
+is used, array values may be mutated without additional calls to various
+header-related http module methods. The keys of the returned object are the
+header names and the values are the respective header values. All header names
+are lowercase.
+
+*Note*: The object returned by the `response.getHeaders()` method _does not_
+prototypically inherit from the JavaScript `Object`. This means that typical
+`Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`, and others
+are not defined and *will not work*.
+
+Example:
+
+```js
+response.setHeader('Foo', 'bar');
+response.setHeader('Set-Cookie', ['foo=bar', 'bar=baz']);
+
+const headers = response.getHeaders();
+// headers === { foo: 'bar', 'set-cookie': ['foo=bar', 'bar=baz'] }
+```
+
+### response.hasHeader(name)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string}
+* Returns: {boolean}
+
+Returns `true` if the header identified by `name` is currently set in the
+outgoing headers. Note that the header name matching is case-insensitive.
+
+Example:
+
+```js
+const hasContentType = response.hasHeader('content-type');
+```
+
+### response.headersSent
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Boolean (read-only). True if headers were sent, false otherwise.
+
+### response.removeHeader(name)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string}
+
+Removes a header that's queued for implicit sending.
+
+Example:
+
+```js
+response.removeHeader('Content-Encoding');
+```
+
+### response.sendDate
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+When true, the Date header will be automatically generated and sent in
+the response if it is not already present in the headers. Defaults to true.
+
+This should only be disabled for testing; HTTP requires the Date header
+in responses.
+
+### response.setHeader(name, value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string}
+* `value` {string | string[]}
+
+Sets a single header value for implicit headers.  If this header already exists
+in the to-be-sent headers, its value will be replaced.  Use an array of strings
+here to send multiple headers with the same name.
+
+Example:
+
+```js
+response.setHeader('Content-Type', 'text/html');
+```
+
+or
+
+```js
+response.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
+```
+
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
+
+When headers have been set with [`response.setHeader()`][], they will be merged with
+any headers passed to [`response.writeHead()`][], with the headers passed to
+[`response.writeHead()`][] given precedence.
+
+```js
+// returns content-type = text/plain
+const server = http.createServer((req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('X-Foo', 'bar');
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('ok');
+});
+```
+
+### response.setTimeout(msecs[, callback])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `msecs` {number}
+* `callback` {Function}
+
+Sets the [`Http2Stream`]()'s timeout value to `msecs`.  If a callback is
+provided, then it is added as a listener on the `'timeout'` event on
+the response object.
+
+If no `'timeout'` listener is added to the request, the response, or
+the server, then [`Http2Stream`]()s are destroyed when they time out.  If a handler is
+assigned to the request, the response, or the server's `'timeout'` events,
+timed out sockets must be handled explicitly.
+
+Returns `response`.
+
+### response.socket
+<!-- YAML
+added: REPLACEME
+-->
+
+* {net.Socket}
+
+Reference to the underlying socket. Usually users will not want to access
+this property. In particular, the socket will not emit `'readable'` events
+because of how the protocol parser attaches to the socket. After
+`response.end()`, the property is nulled. The `socket` may also be accessed
+via `response.connection`.
+
+Example:
+
+```js
+const http = require('http');
+const server = http.createServer((req, res) => {
+  const ip = req.socket.remoteAddress;
+  const port = req.socket.remotePort;
+  res.end(`Your IP address is ${ip} and your source port is ${port}.`);
+}).listen(3000);
+```
+
+### response.statusCode
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+When using implicit headers (not calling [`response.writeHead()`][] explicitly),
+this property controls the status code that will be sent to the client when
+the headers get flushed.
+
+Example:
+
+```js
+response.statusCode = 404;
+```
+
+After response header was sent to the client, this property indicates the
+status code which was sent out.
+
+### response.statusMessage
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+Status message is not supported by HTTP/2 (RFC7540 8.1.2.4). It returns
+an empty string.
+
+#### response.stream
+<!-- YAML
+added: REPLACEME
+-->
+
+* {http2.Http2Stream}
+
+The [`Http2Stream`][] object backing the response.
+
+### response.write(chunk[, encoding][, callback])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `chunk` {string|Buffer}
+* `encoding` {string}
+* `callback` {Function}
+* Returns: {boolean}
+
+If this method is called and [`response.writeHead()`][] has not been called,
+it will switch to implicit header mode and flush the implicit headers.
+
+This sends a chunk of the response body. This method may
+be called multiple times to provide successive parts of the body.
+
+Note that in the `http` module, the response body is omitted when the
+request is a HEAD request. Similarly, the `204` and `304` responses
+_must not_ include a message body.
+
+`chunk` can be a string or a buffer. If `chunk` is a string,
+the second parameter specifies how to encode it into a byte stream.
+By default the `encoding` is `'utf8'`. `callback` will be called when this chunk
+of data is flushed.
+
+*Note*: This is the raw HTTP body and has nothing to do with
+higher-level multi-part body encodings that may be used.
+
+The first time [`response.write()`][] is called, it will send the buffered
+header information and the first chunk of the body to the client. The second
+time [`response.write()`][] is called, Node.js assumes data will be streamed,
+and sends the new data separately. That is, the response is buffered up to the
+first chunk of the body.
+
+Returns `true` if the entire data was flushed successfully to the kernel
+buffer. Returns `false` if all or part of the data was queued in user memory.
+`'drain'` will be emitted when the buffer is free again.
+
+### response.writeContinue()
+<!-- YAML
+added: REPLACEME
+-->
+
+Does nothing. Added for parity with [HTTP/1]().
+
+### response.writeHead(statusCode[, statusMessage][, headers])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `statusCode` {number}
+* `statusMessage` {string}
+* `headers` {Object}
+
+Sends a response header to the request. The status code is a 3-digit HTTP
+status code, like `404`. The last argument, `headers`, are the response headers.
+For compatibility with [HTTP/1](), one can give a human-readable `statusMessage` as the second argument, which will be silenty ignored and emit a warning.
+
+Example:
+
+```js
+const body = 'hello world';
+response.writeHead(200, {
+  'Content-Length': Buffer.byteLength(body),
+  'Content-Type': 'text/plain' });
+```
+
+This method must only be called once on a message and it must
+be called before [`response.end()`][] is called.
+
+If [`response.write()`][] or [`response.end()`][] are called before calling
+this, the implicit/mutable headers will be calculated and call this function.
+
+When headers have been set with [`response.setHeader()`][], they will be merged with
+any headers passed to [`response.writeHead()`][], with the headers passed to
+[`response.writeHead()`][] given precedence.
+
+```js
+// returns content-type = text/plain
+const server = http2.createServer((req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('X-Foo', 'bar');
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('ok');
+});
+```
+
+Note that Content-Length is given in bytes not characters. The above example
+works because the string `'hello world'` contains only single byte characters.
+If the body contains higher coded characters then `Buffer.byteLength()`
+should be used to determine the number of bytes in a given encoding.
+And Node.js does not check whether Content-Length and the length of the body
+which has been transmitted are equal or not.
+
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
+
+### response.createPushResponse(headers, callback)
+<!-- YAML
+added: REPLACEME
+-->
+
+Call [`stream.pushStream()`]() with the given headers, and wraps the
+given newly created [`Http2Stream`] on `Http2ServerRespose`.
+
+The callback will be called with an error with code `ERR_HTTP2_STREAM_CLOSED`
+if the stream is closed.
 
 [HTTP/2]: https://tools.ietf.org/html/rfc7540
 [HTTP/1]: http.html
+[https]: https.html
 [`net.Socket`]: net.html
 [`tls.TLSSocket`]: tls.html
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [`ClientHttp2Stream`]: #http2_class_clienthttp2stream
 [Compatibility API]: #http2_compatibility_api
+[alpn-negotiation]: #http2_alpn_negotiation
 [`Duplex`]: stream.html#stream_class_stream_duplex
 [Headers Object]: #http2_headers_object
 [`Http2Stream`]: #http2_class_http2stream
@@ -1720,3 +2485,7 @@ TBD
 [Using options.selectPadding]: #http2_using_options_selectpadding
 [error code]: #error_codes
 [`'unknownProtocol'`]: #http2_event_unknownprotocol
+[`'request'`]: #http2_event_request
+[Readable Stream]: stream.html#stream_class_stream_readable
+[`ServerRequest`]: #http2_class_server_request
+[`stream.pushStream()`]: #http2_stream-pushstream
