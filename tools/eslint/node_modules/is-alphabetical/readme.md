@@ -1,20 +1,16 @@
 # is-alphabetical [![Build Status][travis-badge]][travis] [![Coverage Status][codecov-badge]][codecov]
 
-<!--lint disable heading-increment list-item-spacing-->
-
 Check if a character is alphabetical.
 
 ## Installation
 
-[npm][npm-install]:
+[npm][]:
 
 ```bash
 npm install is-alphabetical
 ```
 
 ## Usage
-
-Dependencies:
 
 ```javascript
 var alphabetical = require('is-alphabetical');
@@ -27,7 +23,7 @@ alphabetical('💩'); // false
 
 ## API
 
-### `alphabetical(character)`
+### `alphabetical(character|code)`
 
 Check whether the given character code (`number`), or the character
 code at the first position (`string`), is alphabetical.
@@ -36,6 +32,9 @@ code at the first position (`string`), is alphabetical.
 
 *   [`is-decimal`](https://github.com/wooorm/is-decimal)
 *   [`is-hexadecimal`](https://github.com/wooorm/is-hexadecimal)
+*   [`is-alphanumerical`](https://github.com/wooorm/is-alphanumerical)
+*   [`is-whitespace-character`](https://github.com/wooorm/is-whitespace-character)
+*   [`is-word-character`](https://github.com/wooorm/is-word-character)
 
 ## License
 
@@ -51,7 +50,7 @@ code at the first position (`string`), is alphabetical.
 
 [codecov]: https://codecov.io/github/wooorm/is-alphabetical
 
-[npm-install]: https://docs.npmjs.com/cli/install
+[npm]: https://docs.npmjs.com/cli/install
 
 [license]: LICENSE
 
