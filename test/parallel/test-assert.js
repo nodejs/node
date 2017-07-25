@@ -464,10 +464,10 @@ assert.throws(() => {
   let threw = false;
   try {
     assert.throws(
-        function() {
-          throw ({}); // eslint-disable-line no-throw-literal
-        },
-        Array
+      function() {
+        throw ({}); // eslint-disable-line no-throw-literal
+      },
+      Array
     );
   } catch (e) {
     threw = true;

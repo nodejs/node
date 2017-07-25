@@ -46,8 +46,8 @@ server.bind(0, common.mustCall(() => {
     assert.ifError(err);
     // Compare copies with ttl removed, c-ares fiddles with that value.
     assert.deepStrictEqual(
-        res.map((r) => Object.assign({}, r, { ttl: null })),
-        answers.map((r) => Object.assign({}, r, { ttl: null })));
+      res.map((r) => Object.assign({}, r, { ttl: null })),
+      answers.map((r) => Object.assign({}, r, { ttl: null })));
     server.close();
   }));
 }));

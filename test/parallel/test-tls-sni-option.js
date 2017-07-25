@@ -141,7 +141,7 @@ function startTest() {
     options.port = server.address().port;
     const client = tls.connect(options, function() {
       clientResults.push(
-          /Hostname\/IP doesn't/.test(client.authorizationError || ''));
+        /Hostname\/IP doesn't/.test(client.authorizationError || ''));
       client.destroy();
 
       next();

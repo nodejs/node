@@ -100,53 +100,53 @@ function parseDNSPacket(buffer) {
                                .replace(/(.{4}(?!$))/g, '$1:');
             break;
           case types.TXT:
-            {
-              let position = offset;
-              rr.entries = [];
-              while (position < offset + dataLength) {
-                const txtLength = buffer[offset];
-                rr.entries.push(buffer.toString('utf8',
-                                                position + 1,
-                                                position + 1 + txtLength));
-                position += 1 + txtLength;
-              }
-              assert.strictEqual(position, offset + dataLength);
-              break;
+          {
+            let position = offset;
+            rr.entries = [];
+            while (position < offset + dataLength) {
+              const txtLength = buffer[offset];
+              rr.entries.push(buffer.toString('utf8',
+                                              position + 1,
+                                              position + 1 + txtLength));
+              position += 1 + txtLength;
             }
+            assert.strictEqual(position, offset + dataLength);
+            break;
+          }
           case types.MX:
-            {
-              rr.priority = buffer.readInt16BE(buffer, offset);
-              offset += 2;
-              const { nread, domain } = readDomainFromPacket(buffer, offset);
-              rr.exchange = domain;
-              assert.strictEqual(nread, dataLength);
-              break;
-            }
+          {
+            rr.priority = buffer.readInt16BE(buffer, offset);
+            offset += 2;
+            const { nread, domain } = readDomainFromPacket(buffer, offset);
+            rr.exchange = domain;
+            assert.strictEqual(nread, dataLength);
+            break;
+          }
           case types.NS:
           case types.CNAME:
           case types.PTR:
-            {
-              const { nread, domain } = readDomainFromPacket(buffer, offset);
-              rr.value = domain;
-              assert.strictEqual(nread, dataLength);
-              break;
-            }
+          {
+            const { nread, domain } = readDomainFromPacket(buffer, offset);
+            rr.value = domain;
+            assert.strictEqual(nread, dataLength);
+            break;
+          }
           case types.SOA:
-            {
-              const mname = readDomainFromPacket(buffer, offset);
-              const rname = readDomainFromPacket(buffer, offset + mname.nread);
-              rr.nsname = mname.domain;
-              rr.hostmaster = rname.domain;
-              const trailerOffset = offset + mname.nread + rname.nread;
-              rr.serial = buffer.readUInt32BE(trailerOffset);
-              rr.refresh = buffer.readUInt32BE(trailerOffset + 4);
-              rr.retry = buffer.readUInt32BE(trailerOffset + 8);
-              rr.expire = buffer.readUInt32BE(trailerOffset + 12);
-              rr.minttl = buffer.readUInt32BE(trailerOffset + 16);
+          {
+            const mname = readDomainFromPacket(buffer, offset);
+            const rname = readDomainFromPacket(buffer, offset + mname.nread);
+            rr.nsname = mname.domain;
+            rr.hostmaster = rname.domain;
+            const trailerOffset = offset + mname.nread + rname.nread;
+            rr.serial = buffer.readUInt32BE(trailerOffset);
+            rr.refresh = buffer.readUInt32BE(trailerOffset + 4);
+            rr.retry = buffer.readUInt32BE(trailerOffset + 8);
+            rr.expire = buffer.readUInt32BE(trailerOffset + 12);
+            rr.minttl = buffer.readUInt32BE(trailerOffset + 16);
 
-              assert.strictEqual(trailerOffset + 20, dataLength);
-              break;
-            }
+            assert.strictEqual(trailerOffset + 20, dataLength);
+            break;
+          }
           default:
             throw new Error(`Unknown RR type ${rr.type}`);
         }
@@ -253,23 +253,23 @@ function writeDNSPacket(parsed) {
       case 'NS':
       case 'CNAME':
       case 'PTR':
-        {
-          const domain = writeDomainName(rr.exchange || rr.value);
-          rdLengthBuf[0] += domain.length;
-          buffers.push(domain);
-          break;
-        }
+      {
+        const domain = writeDomainName(rr.exchange || rr.value);
+        rdLengthBuf[0] += domain.length;
+        buffers.push(domain);
+        break;
+      }
       case 'SOA':
-        {
-          const mname = writeDomainName(rr.nsname);
-          const rname = writeDomainName(rr.hostmaster);
-          rdLengthBuf[0] = mname.length + rname.length + 20;
-          buffers.push(mname, rname);
-          buffers.push(new Uint32Array([
-            rr.serial, rr.refresh, rr.retry, rr.expire, rr.minttl
-          ]));
-          break;
-        }
+      {
+        const mname = writeDomainName(rr.nsname);
+        const rname = writeDomainName(rr.hostmaster);
+        rdLengthBuf[0] = mname.length + rname.length + 20;
+        buffers.push(mname, rname);
+        buffers.push(new Uint32Array([
+          rr.serial, rr.refresh, rr.retry, rr.expire, rr.minttl
+        ]));
+        break;
+      }
       default:
         throw new Error(`Unknown RR type ${rr.type}`);
     }

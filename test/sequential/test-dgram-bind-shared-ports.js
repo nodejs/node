@@ -83,19 +83,19 @@ if (cluster.isMaster) {
   // First worker should bind, second should err
   const socket3OnBind =
     isSecondWorker ?
-    common.mustNotCall() :
-    common.mustCall(() => {
-      const port3 = socket3.address().port;
-      assert.strictEqual(typeof port3, 'number');
-      process.send('success');
-    });
+      common.mustNotCall() :
+      common.mustCall(() => {
+        const port3 = socket3.address().port;
+        assert.strictEqual(typeof port3, 'number');
+        process.send('success');
+      });
   // an error is expected only in the second worker
   const socket3OnError =
     !isSecondWorker ?
-    common.mustNotCall() :
-    common.mustCall((err) => {
-      process.send(`socket3:${err.code}`);
-    });
+      common.mustNotCall() :
+      common.mustCall((err) => {
+        process.send(`socket3:${err.code}`);
+      });
   const address = common.localhostIPv4;
   const opt1 = { address, port: 0, exclusive: false };
   const opt2 = { address, port: common.PORT, exclusive: false };

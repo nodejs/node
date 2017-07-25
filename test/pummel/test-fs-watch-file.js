@@ -58,21 +58,21 @@ process.on('exit', function() {
 fs.writeFileSync(filepathOne, 'hello');
 
 assert.throws(
-    function() {
-      fs.watchFile(filepathOne);
-    },
-    function(e) {
-      return e.message === '"watchFile()" requires a listener function';
-    }
+  function() {
+    fs.watchFile(filepathOne);
+  },
+  function(e) {
+    return e.message === '"watchFile()" requires a listener function';
+  }
 );
 
 assert.doesNotThrow(
-    function() {
-      fs.watchFile(filepathOne, function() {
-        fs.unwatchFile(filepathOne);
-        ++watchSeenOne;
-      });
-    }
+  function() {
+    fs.watchFile(filepathOne, function() {
+      fs.unwatchFile(filepathOne);
+      ++watchSeenOne;
+    });
+  }
 );
 
 setTimeout(function() {
@@ -85,27 +85,27 @@ process.chdir(testDir);
 fs.writeFileSync(filepathTwoAbs, 'howdy');
 
 assert.throws(
-    function() {
-      fs.watchFile(filepathTwo);
-    },
-    function(e) {
-      return e.message === '"watchFile()" requires a listener function';
-    }
+  function() {
+    fs.watchFile(filepathTwo);
+  },
+  function(e) {
+    return e.message === '"watchFile()" requires a listener function';
+  }
 );
 
 assert.doesNotThrow(
-    function() {
-      function a() {
-        fs.unwatchFile(filepathTwo, a);
-        ++watchSeenTwo;
-      }
-      function b() {
-        fs.unwatchFile(filepathTwo, b);
-        ++watchSeenTwo;
-      }
-      fs.watchFile(filepathTwo, a);
-      fs.watchFile(filepathTwo, b);
+  function() {
+    function a() {
+      fs.unwatchFile(filepathTwo, a);
+      ++watchSeenTwo;
     }
+    function b() {
+      fs.unwatchFile(filepathTwo, b);
+      ++watchSeenTwo;
+    }
+    fs.watchFile(filepathTwo, a);
+    fs.watchFile(filepathTwo, b);
+  }
 );
 
 setTimeout(function() {
@@ -113,15 +113,15 @@ setTimeout(function() {
 }, 1000);
 
 assert.doesNotThrow(
-    function() {
-      function b() {
-        fs.unwatchFile(filenameThree, b);
-        ++watchSeenThree;
-      }
-      fs.watchFile(filenameThree, common.mustNotCall());
-      fs.watchFile(filenameThree, b);
-      fs.unwatchFile(filenameThree, common.mustNotCall());
+  function() {
+    function b() {
+      fs.unwatchFile(filenameThree, b);
+      ++watchSeenThree;
     }
+    fs.watchFile(filenameThree, common.mustNotCall());
+    fs.watchFile(filenameThree, b);
+    fs.unwatchFile(filenameThree, common.mustNotCall());
+  }
 );
 
 setTimeout(function() {
@@ -137,12 +137,12 @@ setTimeout(function() {
 }, 500);
 
 assert.doesNotThrow(
-    function() {
-      function a() {
-        ++watchSeenFour;
-        assert.strictEqual(1, watchSeenFour);
-        fs.unwatchFile(`.${path.sep}${filenameFour}`, a);
-      }
-      fs.watchFile(filenameFour, a);
+  function() {
+    function a() {
+      ++watchSeenFour;
+      assert.strictEqual(1, watchSeenFour);
+      fs.unwatchFile(`.${path.sep}${filenameFour}`, a);
     }
+    fs.watchFile(filenameFour, a);
+  }
 );

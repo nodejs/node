@@ -14,9 +14,9 @@ function read(buff, funx, args, expected) {
   );
 
   assert.doesNotThrow(
-  () => assert.strictEqual(buff[funx](...args, true), expected),
-  'noAssert does not change return value for valid ranges'
-);
+    () => assert.strictEqual(buff[funx](...args, true), expected),
+    'noAssert does not change return value for valid ranges'
+  );
 
 }
 
