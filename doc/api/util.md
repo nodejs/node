@@ -560,7 +560,8 @@ string += decoder.decode(); // end-of-stream
 Per the [WHATWG Encoding Standard][], the encodings supported by the
 `TextDecoder` API are outlined in the tables below. For each encoding,
 one or more aliases may be used. Support for some encodings is enabled
-only when Node.js is using the full ICU data.
+only when Node.js is using the full ICU data (see [Internationalization][]).
+`util.TextDecoder` is `undefined` when ICU is not enabled during build.
 
 ##### Encodings Supported By Default
 
@@ -1158,18 +1159,19 @@ deprecated: v0.11.3
 
 Deprecated predecessor of `console.log`.
 
+[`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`Error`]: errors.html#errors_class_error
 [`Object.assign()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
-[`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`util.inspect()`]: #util_util_inspect_object_options
 [`util.promisify()`]: #util_util_promisify_original
 [Custom inspection functions on Objects]: #util_custom_inspection_functions_on_objects
-[Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
 [Custom promisified functions]: #util_custom_promisified_functions
+[Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
+[Internationalization]: intl.html
+[WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
-[WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
