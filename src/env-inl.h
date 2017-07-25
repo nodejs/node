@@ -272,14 +272,14 @@ inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
 
 inline Environment* Environment::GetCurrent(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  ASSERT(info.Data()->IsExternal());
+  CHECK(info.Data()->IsExternal());
   return static_cast<Environment*>(info.Data().As<v8::External>()->Value());
 }
 
 template <typename T>
 inline Environment* Environment::GetCurrent(
     const v8::PropertyCallbackInfo<T>& info) {
-  ASSERT(info.Data()->IsExternal());
+  CHECK(info.Data()->IsExternal());
   // XXX(bnoordhuis) Work around a g++ 4.9.2 template type inferrer bug
   // when the expression is written as info.Data().As<v8::External>().
   v8::Local<v8::Value> data = info.Data();

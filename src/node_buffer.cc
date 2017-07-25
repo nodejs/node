@@ -953,9 +953,9 @@ int64_t IndexOfOffset(size_t length,
 }
 
 void IndexOfString(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[1]->IsString());
-  ASSERT(args[2]->IsNumber());
-  ASSERT(args[4]->IsBoolean());
+  CHECK(args[1]->IsString());
+  CHECK(args[2]->IsNumber());
+  CHECK(args[4]->IsBoolean());
 
   enum encoding enc = ParseEncoding(args.GetIsolate(),
                                     args[3],
@@ -1069,9 +1069,9 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 }
 
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[1]->IsObject());
-  ASSERT(args[2]->IsNumber());
-  ASSERT(args[4]->IsBoolean());
+  CHECK(args[1]->IsObject());
+  CHECK(args[2]->IsNumber());
+  CHECK(args[4]->IsBoolean());
 
   enum encoding enc = ParseEncoding(args.GetIsolate(),
                                     args[3],
@@ -1143,9 +1143,9 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[1]->IsNumber());
-  ASSERT(args[2]->IsNumber());
-  ASSERT(args[3]->IsBoolean());
+  CHECK(args[1]->IsNumber());
+  CHECK(args[2]->IsNumber());
+  CHECK(args[3]->IsBoolean());
 
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);

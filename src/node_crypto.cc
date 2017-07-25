@@ -5193,7 +5193,7 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
 
 
 bool ECDH::IsKeyValidForCurve(const BIGNUM* private_key) {
-  ASSERT_NE(group_, nullptr);
+  CHECK_NE(group_, nullptr);
   CHECK_NE(private_key, nullptr);
   // Private keys must be in the range [1, n-1].
   // Ref: Section 3.2.1 - http://www.secg.org/sec1-v2.pdf
