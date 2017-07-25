@@ -321,7 +321,7 @@ size_t StringBytes::WriteUCS2(char* buf,
 
   uint16_t* aligned_dst =
       reinterpret_cast<uint16_t*>(buf + sizeof(*dst) - alignment);
-  ASSERT_EQ(reinterpret_cast<uintptr_t>(aligned_dst) % sizeof(*dst), 0);
+  CHECK_EQ(reinterpret_cast<uintptr_t>(aligned_dst) % sizeof(*dst), 0);
 
   // Write all but the last char
   nchars = str->Write(aligned_dst, 0, max_chars - 1, flags);

@@ -157,7 +157,7 @@ static std::vector<char> encode_frame_hybi17(const char* message,
     }
     frame.insert(frame.end(), extended_payload_length,
                  extended_payload_length + 8);
-    ASSERT_EQ(0, remaining);
+    CHECK_EQ(0, remaining);
   }
   frame.insert(frame.end(), message, message + data_length);
   return frame;
@@ -361,8 +361,8 @@ static void websockets_data_cb(uv_stream_t* stream, ssize_t nread,
 
 int inspector_read_start(InspectorSocket* inspector,
                          uv_alloc_cb alloc_cb, uv_read_cb read_cb) {
-  ASSERT(inspector->ws_mode);
-  ASSERT(!inspector->shutting_down || read_cb == nullptr);
+  CHECK(inspector->ws_mode);
+  CHECK(!inspector->shutting_down || read_cb == nullptr);
   inspector->ws_state->close_sent = false;
   inspector->ws_state->alloc_cb = alloc_cb;
   inspector->ws_state->read_cb = read_cb;
@@ -561,7 +561,7 @@ static void init_handshake(InspectorSocket* socket) {
 
 int inspector_accept(uv_stream_t* server, InspectorSocket* socket,
                      handshake_cb callback) {
-  ASSERT_NE(callback, nullptr);
+  CHECK_NE(callback, nullptr);
   CHECK_EQ(socket->http_parsing_state, nullptr);
 
   socket->http_parsing_state = new http_parsing_state_s();
@@ -597,8 +597,8 @@ void inspector_close(InspectorSocket* inspector,
                      inspector_cb callback) {
   // libuv throws assertions when closing stream that's already closed - we
   // need to do the same.
-  ASSERT(!uv_is_closing(reinterpret_cast<uv_handle_t*>(&inspector->tcp)));
-  ASSERT(!inspector->shutting_down);
+  CHECK(!uv_is_closing(reinterpret_cast<uv_handle_t*>(&inspector->tcp)));
+  CHECK(!inspector->shutting_down);
   inspector->shutting_down = true;
   inspector->ws_state->close_cb = callback;
   if (inspector->connection_eof) {

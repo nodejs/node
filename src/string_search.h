@@ -28,7 +28,7 @@ class Vector {
  public:
   Vector(T* data, size_t length, bool isForward)
       : start_(data), length_(length), is_forward_(isForward) {
-    ASSERT(length > 0 && data != nullptr);
+    CHECK(length > 0 && data != nullptr);
   }
 
   // Returns the start of the memory range.
@@ -44,7 +44,7 @@ class Vector {
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
-    ASSERT(index < length_);
+    CHECK(index < length_);
     return start_[is_forward_ ? index : (length_ - index - 1)];
   }
 
@@ -342,7 +342,7 @@ size_t StringSearch<Char>::LinearSearch(
     i = FindFirstCharacter(pattern, subject, i);
     if (i == subject.length())
       return subject.length();
-    ASSERT_LE(i, n);
+    CHECK_LE(i, n);
 
     bool matches = true;
     for (size_t j = 1; j < pattern_length; j++) {
@@ -591,7 +591,7 @@ size_t StringSearch<Char>::InitialSearch(
       i = FindFirstCharacter(pattern, subject, i);
       if (i == subject.length())
         return subject.length();
-      ASSERT_LE(i, n);
+      CHECK_LE(i, n);
       size_t j = 1;
       do {
         if (pattern[j] != subject[i + j]) {
@@ -644,7 +644,7 @@ size_t SearchString(const Char* haystack,
       needle, needle_length, is_forward);
   Vector<const Char> v_haystack = Vector<const Char>(
       haystack, haystack_length, is_forward);
-  ASSERT(haystack_length >= needle_length);
+  CHECK(haystack_length >= needle_length);
   size_t diff = haystack_length - needle_length;
   size_t relative_start_index;
   if (is_forward) {
