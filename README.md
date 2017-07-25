@@ -172,6 +172,51 @@ Your email will be acknowledged within 24 hours, and you’ll receive a more
 detailed response to your email within 48 hours indicating the next steps in
 handling your report.
 
+There are no hard and fast rules to determine if a bug is worth reporting as
+a security issue. The general rule is any issue worth reporting
+must allow an attacker to compromise the confidentiality, integrity
+or availability of the Node.js application or its system for which the attacker
+does not already have the capability.
+
+To illustrate the point, here are some examples of past issues and what the
+Security Reponse Team thinks of them. When in doubt, however, please do send
+us a report nonetheless.
+
+
+### Public disclosure preferred
+
+- [#14519](https://github.com/nodejs/node/issues/14519): _Internal domain
+  function can be used to cause segfaults_. Causing program termination using
+  either the public Javascript APIs or the private bindings layer APIs requires
+  the ability to execute arbitrary Javascript code, which is already the highest
+  level of privilege possible.
+
+- [#12141](https://github.com/nodejs/node/pull/12141): _buffer: zero fill
+  Buffer(num) by default_. The buffer constructor behaviour was documented,
+  but found to be prone to [mis-use](https://snyk.io/blog/exploiting-buffer/).
+  It has since been changed, but despite much debate, was not considered misuse
+  prone enough to justify fixing in older release lines and breaking our
+  API stability contract.
+
+### Private disclosure preferred
+
+- [CVE-2016-7099](https://nodejs.org/en/blog/vulnerability/september-2016-security-releases/):
+  _Fix invalid wildcard certificate validation check_. This is a high severity
+  defect that would allow a malicious TLS server to serve an invalid wildcard
+  certificate for its hostname and be improperly validated by a Node.js client.
+
+- [#5507](https://github.com/nodejs/node/pull/5507): _Fix a defect that makes
+  the CacheBleed Attack possible_. Many, though not all, OpenSSL vulnerabilities
+  in the TLS/SSL protocols also effect Node.js.
+
+- [CVE-2016-2216](https://nodejs.org/en/blog/vulnerability/february-2016-security-releases/):
+  _Fix defects in HTTP header parsing for requests and responses that can allow
+  response splitting_. While the impact of this vulnerability is application and
+  network dependent, it is remotely exploitable in the HTTP protocol.
+
+When in doubt, please do send us a report.
+
+
 ## Current Project Team Members
 
 The Node.js project team comprises a group of core collaborators and a sub-group
