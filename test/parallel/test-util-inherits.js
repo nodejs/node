@@ -28,7 +28,7 @@ assert.strictEqual(b.a(), 'a');
 assert.strictEqual(b.b(), 'b');
 assert.strictEqual(b.constructor, B);
 
- // two levels of inheritance
+// two levels of inheritance
 function C() {
   B.call(this, 'b');
   this._c = 'c';

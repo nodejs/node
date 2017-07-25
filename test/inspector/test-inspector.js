@@ -112,17 +112,17 @@ function testBreakpointOnStart(session) {
 function testSetBreakpointAndResume(session) {
   console.log('[test]', 'Setting a breakpoint and verifying it is hit');
   const commands = [
-      { 'method': 'Debugger.setBreakpointByUrl',
-        'params': { 'lineNumber': 5,
-                    'url': session.mainScriptPath,
-                    'columnNumber': 0,
-                    'condition': ''
-        }
-      },
-      { 'method': 'Debugger.resume'},
-      [ { 'method': 'Debugger.getScriptSource',
-          'params': { 'scriptId': session.mainScriptId } },
-        expectMainScriptSource ],
+    { 'method': 'Debugger.setBreakpointByUrl',
+      'params': { 'lineNumber': 5,
+                  'url': session.mainScriptPath,
+                  'columnNumber': 0,
+                  'condition': ''
+      }
+    },
+    { 'method': 'Debugger.resume'},
+    [ { 'method': 'Debugger.getScriptSource',
+        'params': { 'scriptId': session.mainScriptId } },
+      expectMainScriptSource ],
   ];
   session
     .sendInspectorCommands(commands)

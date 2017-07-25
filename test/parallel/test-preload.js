@@ -106,7 +106,7 @@ replProc.on('close', function(code) {
 // also test that duplicated preload only gets loaded once
 childProcess.exec(
   `"${nodeBinary}" ${preloadOption([fixtureA])}-e "console.log('hello');" ${
-  preloadOption([fixtureA, fixtureB])}`,
+    preloadOption([fixtureA, fixtureB])}`,
   function(err, stdout, stderr) {
     if (err) throw err;
     assert.strictEqual(stdout, 'A\nB\nhello\n');
@@ -127,7 +127,7 @@ interactive.stdin.write('process.exit()\n');
 
 childProcess.exec(
   `"${nodeBinary}" --require "${fixture('cluster-preload.js')}" "${
-  fixture('cluster-preload-test.js')}"`,
+    fixture('cluster-preload-test.js')}"`,
   function(err, stdout, stderr) {
     if (err) throw err;
     assert.ok(/worker terminated with code 43/.test(stdout));

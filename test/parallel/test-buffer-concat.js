@@ -40,8 +40,8 @@ function assertWrongList(value) {
 }
 
 const random10 = common.hasCrypto
-    ? require('crypto').randomBytes(10)
-    : Buffer.alloc(10, 1);
+  ? require('crypto').randomBytes(10)
+  : Buffer.alloc(10, 1);
 const empty = Buffer.alloc(0);
 
 assert.notDeepStrictEqual(random10, empty);
@@ -58,5 +58,5 @@ assert.deepStrictEqual(Buffer.concat([random10, empty, empty]), random10);
 assert.deepStrictEqual(Buffer.concat([empty], 100), Buffer.alloc(100));
 assert.deepStrictEqual(Buffer.concat([empty], 4096), Buffer.alloc(4096));
 assert.deepStrictEqual(
-    Buffer.concat([random10], 40),
-    Buffer.concat([random10, Buffer.alloc(30)]));
+  Buffer.concat([random10], 40),
+  Buffer.concat([random10, Buffer.alloc(30)]));
