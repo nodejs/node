@@ -4,7 +4,7 @@ common.skipIfInspectorDisabled();
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
-const script = common.fixturesDir + '/empty.js';
+const script = `${common.fixturesDir}/empty.js`;
 
 function test(arg) {
   const child = spawn(process.execPath, ['--inspect', arg, script]);
