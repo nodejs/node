@@ -34,6 +34,11 @@ function checkBadPath(err, response) {
   assert(/WebSockets request was expected/.test(err.response));
 }
 
+function checkException(message) {
+  assert.strictEqual(message['exceptionDetails'], undefined,
+                     'An exception occurred during execution');
+}
+
 function expectMainScriptSource(result) {
   const expected = helper.mainScriptSource();
   const source = result['scriptSource'];
@@ -212,8 +217,10 @@ function testI18NCharacters(session) {
 function testCommandLineAPI(session) {
   const testModulePath = require.resolve('../fixtures/empty.js');
   const testModuleStr = JSON.stringify(testModulePath);
-  const printModulePath = require.resolve('../fixtures/printA.js');
-  const printModuleStr = JSON.stringify(printModulePath);
+  const printAModulePath = require.resolve('../fixtures/printA.js');
+  const printAModuleStr = JSON.stringify(printAModulePath);
+  const printBModulePath = require.resolve('../fixtures/printB.js');
+  const printBModuleStr = JSON.stringify(printBModulePath);
   session.sendInspectorCommands([
     [ // we can use `require` outside of a callframe with require in scope
       {
@@ -221,24 +228,25 @@ function testCommandLineAPI(session) {
           'expression': 'typeof require("fs").readFile === "function"',
           'includeCommandLineAPI': true
         }
-      }, (message) => assert.strictEqual(true, message['result']['value'])
+      }, (message) => {
+        checkException(message);
+        assert.strictEqual(message['result']['value'], true);
+      }
     ],
-    [ // the global require does not have require.cache
+    [ // the global require has the same properties as a normal `require`
       {
         'method': 'Runtime.evaluate', 'params': {
-          'expression': 'require.cache === undefined',
+          'expression': [
+            'typeof require.resolve === "function"',
+            'typeof require.extensions === "object"',
+            'typeof require.cache === "object"'
+          ].join(' && '),
           'includeCommandLineAPI': true
         }
-      }, (message) => assert.strictEqual(true, message['result']['value'])
-    ],
-    [ // the `require` in the module shadows the command line API's `require`
-      {
-        'method': 'Debugger.evaluateOnCallFrame', 'params': {
-          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
-          'expression': 'typeof require.cache',
-          'includeCommandLineAPI': true
-        }
-      }, (message) => assert.strictEqual('object', message['result']['value'])
+      }, (message) => {
+        checkException(message);
+        assert.strictEqual(message['result']['value'], true);
+      }
     ],
     [ // `require` twice returns the same value
       {
@@ -252,74 +260,91 @@ function testCommandLineAPI(session) {
             ) === require(${testModuleStr})`,
           'includeCommandLineAPI': true
         }
-      }, (message) => assert.strictEqual(true, message['result']['value'])
+      }, (message) => {
+        checkException(message);
+        assert.strictEqual(message['result']['value'], true);
+      }
     ],
     [ // after require the module appears in require.cache
       {
-        'method': 'Debugger.evaluateOnCallFrame', 'params': {
-          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
-          'expression': `require.cache[${testModuleStr}].exports`,
-          'generatePreview': true,
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': `JSON.stringify(
+            require.cache[${testModuleStr}].exports
+          )`,
           'includeCommandLineAPI': true
         }
       }, (message) => {
-        const { properties } = message.result.preview;
-        assert.strictEqual('old', properties[0].name);
-        assert.strictEqual('yes', properties[0].value);
+        checkException(message);
+        assert.deepStrictEqual(JSON.parse(message['result']['value']),
+                               { old: 'yes' });
       }
     ],
     [ // remove module from require.cache
       {
-        'method': 'Debugger.evaluateOnCallFrame', 'params': {
-          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+        'method': 'Runtime.evaluate', 'params': {
           'expression': `delete require.cache[${testModuleStr}]`,
           'includeCommandLineAPI': true
         }
-      },
+      }, (message) => {
+        checkException(message);
+        assert.strictEqual(message['result']['value'], true);
+      }
     ],
     [ // require again, should get fresh (empty) exports
       {
         'method': 'Runtime.evaluate', 'params': {
-          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
-          'expression': `require(${testModuleStr})`,
-          'generatePreview': true,
+          'expression': `JSON.stringify(require(${testModuleStr}))`,
           'includeCommandLineAPI': true
         }
       }, (message) => {
-        const { properties } = message.result.preview;
-        assert.strictEqual(0, properties.length);
+        checkException(message);
+        assert.deepStrictEqual(JSON.parse(message['result']['value']), {});
       }
     ],
     [ // require 2nd module, exports an empty object
       {
         'method': 'Runtime.evaluate', 'params': {
-          // 'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
-          'expression': `require(${printModuleStr})`,
-          'generatePreview': true,
+          'expression': `JSON.stringify(require(${printAModuleStr}))`,
           'includeCommandLineAPI': true
         }
       }, (message) => {
-        const { properties } = message.result.preview;
-        assert.strictEqual(0, properties.length);
+        checkException(message);
+        assert.deepStrictEqual(JSON.parse(message['result']['value']), {});
       }
     ],
     [ // both modules end up with the same module.parent
       {
-        'method': 'Debugger.evaluateOnCallFrame', 'params': {
-          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
-          'expression': `({
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': `JSON.stringify({
             parentsEqual:
               require.cache[${testModuleStr}].parent ===
-              require.cache[${printModuleStr}].parent,
+              require.cache[${printAModuleStr}].parent,
             parentId: require.cache[${testModuleStr}].parent.id,
           })`,
-          'generatePreview': true,
           'includeCommandLineAPI': true
         }
       }, (message) => {
-        const { properties } = message.result.preview;
-        assert.strictEqual('[consoleAPI]', properties[1].value);
-        assert.strictEqual('true', properties[0].value);
+        checkException(message);
+        assert.deepStrictEqual(JSON.parse(message['result']['value']), {
+          parentsEqual: true,
+          parentId: '<inspector console>'
+        });
+      }
+    ],
+    [ // the `require` in the module shadows the command line API's `require`
+      {
+        'method': 'Debugger.evaluateOnCallFrame', 'params': {
+          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+          'expression': `(
+            require(${printBModuleStr}),
+            require.cache[${printBModuleStr}].parent.id
+          )`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.notStrictEqual(message['result']['value'],
+                              '<inspector console>');
       }
     ],
   ]);
