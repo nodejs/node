@@ -68,7 +68,7 @@ function test(decode, uncork, multi, next) {
       return {
         encoding: chunk.encoding,
         chunk: Buffer.isBuffer(chunk.chunk) ?
-            Array.prototype.slice.call(chunk.chunk) : chunk.chunk
+          Array.prototype.slice.call(chunk.chunk) : chunk.chunk
       };
     });
     cb();

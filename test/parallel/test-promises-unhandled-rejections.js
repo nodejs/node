@@ -12,8 +12,8 @@ const asyncTest = (function() {
 
   function fail(error) {
     const stack = currentTest
-          ? `${error.stack}\nFrom previous event:\n${currentTest.stack}`
-          : error.stack;
+      ? `${error.stack}\nFrom previous event:\n${currentTest.stack}`
+      : error.stack;
 
     if (currentTest)
       process.stderr.write(`'${currentTest.description}' failed\n\n`);
