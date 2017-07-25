@@ -108,12 +108,12 @@ class TestInspectorServerDelegate : public SocketServerDelegate {
   }
 
   void MessageReceived(int session_id, const std::string& message) override {
-    ASSERT_EQ(session_id_, session_id);
+    CHECK_EQ(session_id_, session_id);
     buffer_.insert(buffer_.end(), message.begin(), message.end());
   }
 
   void EndSession(int session_id) override {
-    ASSERT_EQ(session_id_, session_id);
+    CHECK_EQ(session_id_, session_id);
     disconnected++;
   }
 
@@ -178,9 +178,9 @@ class SocketWrapper {
     } else {
       err = uv_ip4_addr(host.c_str(), port, &addr.v4);
     }
-    ASSERT_EQ(0, err);
+    CHECK_EQ(0, err);
     err = uv_tcp_connect(&connect_, &socket_, &addr.generic, Connected_);
-    ASSERT_EQ(0, err);
+    CHECK_EQ(0, err);
     SPIN_WHILE(!connected_)
     uv_read_start(reinterpret_cast<uv_stream_t*>(&socket_), AllocCallback,
                   ReadCallback);
@@ -195,11 +195,11 @@ class SocketWrapper {
     uv_tcp_init(loop_, &socket_);
     sockaddr_in addr;
     int err = uv_ip4_addr(host.c_str(), port, &addr);
-    ASSERT_EQ(0, err);
+    CHECK_EQ(0, err);
     err = uv_tcp_connect(&connect_, &socket_,
                          reinterpret_cast<const sockaddr*>(&addr),
                          ConnectionMustFail_);
-    ASSERT_EQ(0, err);
+    CHECK_EQ(0, err);
     SPIN_WHILE(!connection_failed_)
     uv_read_start(reinterpret_cast<uv_stream_t*>(&socket_), AllocCallback,
                   ReadCallback);
@@ -244,7 +244,7 @@ class SocketWrapper {
     sending_ = true;
     int err = uv_write(&write_, reinterpret_cast<uv_stream_t*>(&socket_),
                        buf, 1, WriteDone_);
-    ASSERT_EQ(err, 0);
+    CHECK_EQ(err, 0);
     SPIN_WHILE(sending_);
   }
 
@@ -289,7 +289,7 @@ class SocketWrapper {
     delete[] buf->base;
   }
   static void WriteDone_(uv_write_t* req, int err) {
-    ASSERT_EQ(0, err);
+    CHECK_EQ(0, err);
     SocketWrapper* wrapper =
         node::ContainerOf(&SocketWrapper::write_, req);
     ASSERT_TRUE(wrapper->sending_);
