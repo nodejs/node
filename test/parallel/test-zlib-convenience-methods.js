@@ -24,7 +24,7 @@ const opts = {
     zlib[method[1]](result, opts, function(err, result) {
       assert.strictEqual(result.toString(), expect,
                          `Should get original string after ${
-                          method[0]}/${method[1]} with options.`);
+                           method[0]}/${method[1]} with options.`);
       hadRun++;
     });
   });
@@ -33,7 +33,7 @@ const opts = {
     zlib[method[1]](result, function(err, result) {
       assert.strictEqual(result.toString(), expect,
                          `Should get original string after ${
-                          method[0]}/${method[1]} without options.`);
+                           method[0]}/${method[1]} without options.`);
       hadRun++;
     });
   });
@@ -42,14 +42,14 @@ const opts = {
   result = zlib[`${method[1]}Sync`](result, opts);
   assert.strictEqual(result.toString(), expect,
                      `Should get original string after ${
-                      method[0]}/${method[1]} with options.`);
+                       method[0]}/${method[1]} with options.`);
   hadRun++;
 
   result = zlib[`${method[0]}Sync`](expect);
   result = zlib[`${method[1]}Sync`](result);
   assert.strictEqual(result.toString(), expect,
                      `Should get original string after ${
-                      method[0]}/${method[1]} without options.`);
+                       method[0]}/${method[1]} without options.`);
   hadRun++;
 
 });

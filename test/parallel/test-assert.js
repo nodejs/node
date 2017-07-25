@@ -399,10 +399,10 @@ assert.throws(() => {
 threw = false;
 try {
   assert.throws(
-      function() {
-        throw ({});
-      },
-      Array
+    function() {
+      throw ({});
+    },
+    Array
   );
 } catch (e) {
   threw = true;

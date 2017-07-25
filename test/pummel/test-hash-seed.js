@@ -11,7 +11,7 @@ const seeds = [];
 
 for (let i = 0; i < REPETITIONS; ++i) {
   const seed = cp.spawnSync(process.execPath, [targetScript],
-    { encoding: 'utf8' }).stdout.trim();
+                            { encoding: 'utf8' }).stdout.trim();
   seeds.push(seed);
 }
 

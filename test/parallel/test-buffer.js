@@ -1047,15 +1047,15 @@ Buffer(Buffer(0), 0, 0);
   'ucs-2',
   'utf16le',
   'utf-16le' ].forEach(function(enc) {
-    assert.strictEqual(Buffer.isEncoding(enc), true);
-  });
+  assert.strictEqual(Buffer.isEncoding(enc), true);
+});
 
 [ 'utf9',
   'utf-7',
   'Unicode-FTW',
   'new gnu gun' ].forEach(function(enc) {
-    assert.strictEqual(Buffer.isEncoding(enc), false);
-  });
+  assert.strictEqual(Buffer.isEncoding(enc), false);
+});
 
 
 // GH-5110
@@ -1183,16 +1183,16 @@ assert.throws(function() {
   const buf = new Buffer([0xFF, 0xFF, 0xFF, 0xFF]);
 
   assert.strictEqual(buf['readUInt' + bits + 'BE'](0),
-                (0xFFFFFFFF >>> (32 - bits)));
+                     (0xFFFFFFFF >>> (32 - bits)));
 
   assert.strictEqual(buf['readUInt' + bits + 'LE'](0),
-                (0xFFFFFFFF >>> (32 - bits)));
+                     (0xFFFFFFFF >>> (32 - bits)));
 
   assert.strictEqual(buf['readInt' + bits + 'BE'](0),
-                (0xFFFFFFFF >> (32 - bits)));
+                     (0xFFFFFFFF >> (32 - bits)));
 
   assert.strictEqual(buf['readInt' + bits + 'LE'](0),
-                (0xFFFFFFFF >> (32 - bits)));
+                     (0xFFFFFFFF >> (32 - bits)));
 });
 
 // test for common read(U)IntLE/BE

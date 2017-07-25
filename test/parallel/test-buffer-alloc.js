@@ -743,7 +743,7 @@ assert.strictEqual('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
 
 // Call .fill() first, stops valgrind warning about uninitialized memory reads.
 Buffer.allocUnsafe(3.3).fill().toString();
-  // throws bad argument error in commit 43cb4ec
+// throws bad argument error in commit 43cb4ec
 Buffer.alloc(3.3).fill().toString();
 assert.strictEqual(Buffer.allocUnsafe(-1).length, 0);
 assert.strictEqual(Buffer.allocUnsafe(NaN).length, 0);
@@ -782,8 +782,8 @@ Buffer.from(Buffer.allocUnsafe(0), 0, 0);
   'ucs-2',
   'utf16le',
   'utf-16le' ].forEach(function(enc) {
-    assert.strictEqual(Buffer.isEncoding(enc), true);
-  });
+  assert.strictEqual(Buffer.isEncoding(enc), true);
+});
 
 [ 'utf9',
   'utf-7',
@@ -797,8 +797,8 @@ Buffer.from(Buffer.allocUnsafe(0), 0, 0);
   1,
   0,
   -1 ].forEach(function(enc) {
-    assert.strictEqual(Buffer.isEncoding(enc), false);
-  });
+  assert.strictEqual(Buffer.isEncoding(enc), false);
+});
 
 // GH-5110
 {
