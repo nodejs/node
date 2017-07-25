@@ -152,16 +152,21 @@ void uv__run_timers(uv_loop_t* loop) {
   uv_timer_t* handle;
 
   for (;;) {
+    //获取timer的最小节点，如果不存在，表明没有timer
     heap_node = heap_min((struct heap*) &loop->timer_heap);
     if (heap_node == NULL)
       break;
 
     handle = container_of(heap_node, uv_timer_t, heap_node);
+    //超时就退出
     if (handle->timeout > loop->time)
       break;
 
+    //for setTimeout
     uv_timer_stop(handle);
+    //for setInterval
     uv_timer_again(handle);
+    //回调setTimeout的函数
     handle->timer_cb(handle);
   }
 }

@@ -289,6 +289,7 @@ static void uv__run_closing_handles(uv_loop_t* loop) {
   p = loop->closing_handles;
   loop->closing_handles = NULL;
 
+  // 循环一次关闭
   while (p) {
     q = p->next_closing;
     uv__finish_close(p);
@@ -344,23 +345,33 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
   int r;
   int ran_pending;
 
+  //是否还存在活跃的或者引用的句柄，活跃的request，或者正在关闭的句柄，没就返回非零值，存在的话更新时间
   r = uv__loop_alive(loop);
   if (!r)
     uv__update_time(loop);
 
+  // stop_flag由uv_stop函数设置
   while (r != 0 && loop->stop_flag == 0) {
+    //更新时间
     uv__update_time(loop);
+    //循环处理安排接下来要调度的定时器 setTimeout
     uv__run_timers(loop);
+    //上次轮询遗留的callback
     ran_pending = uv__run_pending(loop);
+    //运行idle注册的回调函数
     uv__run_idle(loop);
+    // 转背回调
     uv__run_prepare(loop);
 
     timeout = 0;
+    // 如果mode == UV_RUN_ONCE && ran_pending等于0，或者mode == UV_RUN_DEFAULT，就计算timeout
     if ((mode == UV_RUN_ONCE && !ran_pending) || mode == UV_RUN_DEFAULT)
       timeout = uv_backend_timeout(loop);
 
     uv__io_poll(loop, timeout);
+      //setImmediate
     uv__run_check(loop);
+    // 关闭
     uv__run_closing_handles(loop);
 
     if (mode == UV_RUN_ONCE) {
@@ -372,11 +383,15 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
        * UV_RUN_NOWAIT makes no guarantees about progress so it's omitted from
        * the check.
        */
+        /**
+         * UV_RUN_ONCE是个特殊情况，有时I/O轮询没有回调函数，但有时会有，所以保证多检查并调用一次
+         */
       uv__update_time(loop);
       uv__run_timers(loop);
     }
 
     r = uv__loop_alive(loop);
+    //默认的方式会持续做循环，除非条件不满足，其他两种是只运行一次
     if (mode == UV_RUN_ONCE || mode == UV_RUN_NOWAIT)
       break;
   }
@@ -757,11 +772,14 @@ static int uv__run_pending(uv_loop_t* loop) {
   QUEUE pq;
   uv__io_t* w;
 
+  // 如果为空，退出
   if (QUEUE_EMPTY(&loop->pending_queue))
     return 0;
 
+  // loop中的pending_queue的元素移动到qp
   QUEUE_MOVE(&loop->pending_queue, &pq);
 
+  // 取出执行
   while (!QUEUE_EMPTY(&pq)) {
     q = QUEUE_HEAD(&pq);
     QUEUE_REMOVE(q);

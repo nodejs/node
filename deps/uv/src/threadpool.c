@@ -48,6 +48,7 @@ static void uv__cancelled(struct uv__work* w) {
 
 /* To avoid deadlock with uv_cancel() it's crucial that the worker
  * never holds the global mutex and the loop-local mutex at the same time.
+ * 创建线程后回调函数
  */
 static void worker(void* arg) {
   struct uv__work* w;
@@ -55,15 +56,19 @@ static void worker(void* arg) {
 
   (void) arg;
 
+  //线程开始循环
   for (;;) {
+    //同步阻塞的形式等待获取锁
     uv_mutex_lock(&mutex);
 
+    //队列如果是空线程就持续等待
     while (QUEUE_EMPTY(&wq)) {
       idle_threads += 1;
       uv_cond_wait(&cond, &mutex);
       idle_threads -= 1;
     }
 
+    //取出第一个事件
     q = QUEUE_HEAD(&wq);
 
     if (q == &exit_message)
@@ -74,11 +79,19 @@ static void worker(void* arg) {
                              executing. */
     }
 
+    //当前线程取到可执行的事件，释放锁，让别的线程可以获取锁
     uv_mutex_unlock(&mutex);
 
     if (q == &exit_message)
       break;
 
+    // 取到uv__work类型的数据对象
+    //    struct uv__work {
+    //        void (*work)(struct uv__work *w);
+    //        void (*done)(struct uv__work *w, int status);
+    //        struct uv_loop_s* loop;
+    //        void* wq[2];
+    //    };
     w = QUEUE_DATA(q, struct uv__work, wq);
     w->work(w);
 
@@ -94,7 +107,9 @@ static void worker(void* arg) {
 
 static void post(QUEUE* q) {
   uv_mutex_lock(&mutex);
+  //主线程将wq插入q队尾，等待子线程去执行
   QUEUE_INSERT_TAIL(&wq, q);
+  //如果有空闲子线程存在，手动唤醒子线程去执行
   if (idle_threads > 0)
     uv_cond_signal(&cond);
   uv_mutex_unlock(&mutex);
