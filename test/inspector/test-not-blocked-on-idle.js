@@ -6,8 +6,8 @@ const helper = require('./inspector-helper.js');
 function shouldShutDown(session) {
   session
     .sendInspectorCommands([
-        { 'method': 'Debugger.enable' },
-        { 'method': 'Debugger.pause' },
+      { 'method': 'Debugger.enable' },
+      { 'method': 'Debugger.pause' },
     ])
     .disconnect(true);
 }

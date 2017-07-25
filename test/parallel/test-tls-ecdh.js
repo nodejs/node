@@ -49,7 +49,7 @@ const server = tls.createServer(options, common.mustCall(function(conn) {
 
 server.listen(0, '127.0.0.1', common.mustCall(function() {
   let cmd = `"${common.opensslCli}" s_client -cipher ${
-            options.ciphers} -connect 127.0.0.1:${this.address().port}`;
+    options.ciphers} -connect 127.0.0.1:${this.address().port}`;
 
   // for the performance and stability issue in s_client on Windows
   if (common.isWindows)

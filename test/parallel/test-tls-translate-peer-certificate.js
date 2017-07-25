@@ -37,8 +37,8 @@ deepStrictEqual(translatePeerCertificate({ issuerCertificate: '' }),
 deepStrictEqual(translatePeerCertificate({ issuerCertificate: null }),
                 { issuerCertificate: null });
 deepStrictEqual(
-    translatePeerCertificate({ issuerCertificate: { subject: certString } }),
-    { issuerCertificate: { subject: certObject } });
+  translatePeerCertificate({ issuerCertificate: { subject: certString } }),
+  { issuerCertificate: { subject: certObject } });
 
 {
   const cert = {};
@@ -51,5 +51,5 @@ deepStrictEqual(translatePeerCertificate({ infoAccess: '' }),
 deepStrictEqual(translatePeerCertificate({ infoAccess: null }),
                 { infoAccess: null });
 deepStrictEqual(
-    translatePeerCertificate({ infoAccess: 'OCSP - URI:file:///etc/passwd' }),
-    { infoAccess: { 'OCSP - URI': ['file:///etc/passwd'] } });
+  translatePeerCertificate({ infoAccess: 'OCSP - URI:file:///etc/passwd' }),
+  { infoAccess: { 'OCSP - URI': ['file:///etc/passwd'] } });

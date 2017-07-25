@@ -81,8 +81,8 @@ assert.deepStrictEqual(Buffer.concat([random10, empty, empty]), random10);
 assert.deepStrictEqual(Buffer.concat([empty], 100), Buffer.alloc(100));
 assert.deepStrictEqual(Buffer.concat([empty], 4096), Buffer.alloc(4096));
 assert.deepStrictEqual(
-    Buffer.concat([random10], 40),
-    Buffer.concat([random10, Buffer.alloc(30)]));
+  Buffer.concat([random10], 40),
+  Buffer.concat([random10, Buffer.alloc(30)]));
 
 assert.deepStrictEqual(Buffer.concat([new Uint8Array([0x41, 0x42]),
                                       new Uint8Array([0x43, 0x44])]),

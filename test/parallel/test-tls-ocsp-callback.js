@@ -93,7 +93,7 @@ function test(testOptions, cb) {
       port: this.address().port,
       requestOCSP: testOptions.ocsp !== false,
       secureOptions: testOptions.ocsp === false ?
-          SSL_OP_NO_TICKET : 0,
+        SSL_OP_NO_TICKET : 0,
       rejectUnauthorized: false
     }, function() {
       clientSecure++;

@@ -30,7 +30,7 @@ assert.strictEqual(b.a(), 'a');
 assert.strictEqual(b.b(), 'b');
 assert.strictEqual(b.constructor, B);
 
- // two levels of inheritance
+// two levels of inheritance
 function C() {
   B.call(this, 'b');
   this._c = 'c';
@@ -83,9 +83,9 @@ assert.strictEqual(e.constructor, E);
 assert.throws(function() {
   inherits(A, {});
 }, common.expectsError({
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "superCtor.prototype" property must be of type function'
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "superCtor.prototype" property must be of type function'
 })
 );
 assert.throws(function() {
@@ -94,8 +94,8 @@ assert.throws(function() {
 assert.throws(function() {
   inherits(null, A);
 }, common.expectsError({
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "ctor" argument must be of type function'
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "ctor" argument must be of type function'
 })
 );

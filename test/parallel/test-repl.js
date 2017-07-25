@@ -85,9 +85,9 @@ function error_test() {
     read_buffer += data.toString('ascii', 0, data.length);
     console.error(
       `Unix data: ${JSON.stringify(read_buffer)}, expecting ${
-      client_unix.expect.exec ?
-      client_unix.expect :
-      JSON.stringify(client_unix.expect)}`);
+        client_unix.expect.exec ?
+          client_unix.expect :
+          JSON.stringify(client_unix.expect)}`);
 
     if (read_buffer.includes(prompt_unix)) {
       // if it's an exact match, then don't do the regexp
@@ -268,7 +268,7 @@ function error_test() {
     // do not fail when a String is created with line continuation
     { client: client_unix, send: '\'the\\\nfourth\\\neye\'',
       expect: `${prompt_multiline}${prompt_multiline}'thefourtheye'\n${
-              prompt_unix}` },
+        prompt_unix}` },
     // Don't fail when a partial String is created and line continuation is used
     // with whitespace characters at the end of the string. We are to ignore it.
     // This test is to make sure that we properly remove the whitespace
@@ -278,11 +278,11 @@ function error_test() {
     // multiline strings preserve whitespace characters in them
     { client: client_unix, send: '\'the \\\n   fourth\t\t\\\n  eye  \'',
       expect: `${prompt_multiline}${
-              prompt_multiline}'the    fourth\\t\\t  eye  '\n${prompt_unix}` },
+        prompt_multiline}'the    fourth\\t\\t  eye  '\n${prompt_unix}` },
     // more than one multiline strings also should preserve whitespace chars
     { client: client_unix, send: '\'the \\\n   fourth\' +  \'\t\t\\\n  eye  \'',
       expect: `${prompt_multiline}${
-              prompt_multiline}'the    fourth\\t\\t  eye  '\n${prompt_unix}` },
+        prompt_multiline}'the    fourth\\t\\t  eye  '\n${prompt_unix}` },
     // using REPL commands within a string literal should still work
     { client: client_unix, send: '\'\\\n.break',
       expect: prompt_unix },
@@ -295,7 +295,7 @@ function error_test() {
     // empty lines in the string literals should not affect the string
     { client: client_unix, send: '\'the\\\n\\\nfourtheye\'\n',
       expect: `${prompt_multiline}${
-              prompt_multiline}'thefourtheye'\n${prompt_unix}` },
+        prompt_multiline}'thefourtheye'\n${prompt_unix}` },
     // Regression test for https://github.com/nodejs/node/issues/597
     { client: client_unix,
       send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789\')\n',
@@ -309,24 +309,24 @@ function error_test() {
     // regression tests for https://github.com/nodejs/node/issues/2749
     { client: client_unix, send: 'function x() {\nreturn \'\\n\';\n }',
       expect: `${prompt_multiline}${prompt_multiline}undefined\n${
-              prompt_unix}` },
+        prompt_unix}` },
     { client: client_unix, send: 'function x() {\nreturn \'\\\\\';\n }',
       expect: `${prompt_multiline}${prompt_multiline}undefined\n${
-              prompt_unix}` },
+        prompt_unix}` },
     // regression tests for https://github.com/nodejs/node/issues/3421
     { client: client_unix, send: 'function x() {\n//\'\n }',
       expect: `${prompt_multiline}${prompt_multiline}undefined\n${
-              prompt_unix}` },
+        prompt_unix}` },
     { client: client_unix, send: 'function x() {\n//"\n }',
       expect: `${prompt_multiline}${prompt_multiline}undefined\n${
-              prompt_unix}` },
+        prompt_unix}` },
     { client: client_unix, send: 'function x() {//\'\n }',
       expect: `${prompt_multiline}undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x() {//"\n }',
       expect: `${prompt_multiline}undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x() {\nvar i = "\'";\n }',
       expect: `${prompt_multiline}${prompt_multiline}undefined\n${
-              prompt_unix}` },
+        prompt_unix}` },
     { client: client_unix, send: 'function x(/*optional*/) {}',
       expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x(/* // 5 */) {}',
@@ -454,7 +454,7 @@ function tcp_test() {
     client_tcp.on('data', function(data) {
       read_buffer += data.toString('ascii', 0, data.length);
       console.error(`TCP data: ${JSON.stringify(read_buffer)}, expecting ${
-                    JSON.stringify(client_tcp.expect)}`);
+        JSON.stringify(client_tcp.expect)}`);
       if (read_buffer.includes(prompt_tcp)) {
         assert.strictEqual(client_tcp.expect, read_buffer);
         console.error('match');
@@ -524,7 +524,7 @@ function unix_test() {
     client_unix.on('data', function(data) {
       read_buffer += data.toString('ascii', 0, data.length);
       console.error(`Unix data: ${JSON.stringify(read_buffer)}, expecting ${
-                    JSON.stringify(client_unix.expect)}`);
+        JSON.stringify(client_unix.expect)}`);
       if (read_buffer.includes(prompt_unix)) {
         assert.strictEqual(client_unix.expect, read_buffer);
         console.error('match');
