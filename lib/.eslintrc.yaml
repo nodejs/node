@@ -6,7 +6,7 @@ rules:
                       MemberExpression: off,
                       ObjectExpression: first,
                       SwitchCase: 1}]
-  indent-legacy: 0
+  indent-legacy: off
 
   # Custom rules in tools/eslint-rules
   require-buffer: error

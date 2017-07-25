@@ -212,13 +212,14 @@ class ActivityCollector {
 }
 
 exports = module.exports = function initHooks({
-    oninit,
-    onbefore,
-    onafter,
-    ondestroy,
-    allowNoInit,
-    logid,
-    logtype } = {}) {
+  oninit,
+  onbefore,
+  onafter,
+  ondestroy,
+  allowNoInit,
+  logid,
+  logtype
+} = {}) {
   return new ActivityCollector(process.hrtime(), {
     oninit,
     onbefore,

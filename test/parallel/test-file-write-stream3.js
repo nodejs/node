@@ -177,10 +177,10 @@ function run_test_3() {
 const run_test_4 = common.mustCall(function() {
   //  Error: start must be >= zero
   assert.throws(
-      function() {
-        fs.createWriteStream(filepath, { start: -5, flags: 'r+' });
-      },
-      /"start" must be/
+    function() {
+      fs.createWriteStream(filepath, { start: -5, flags: 'r+' });
+    },
+    /"start" must be/
   );
 });
 

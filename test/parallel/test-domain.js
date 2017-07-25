@@ -81,7 +81,7 @@ d.on('error', function(er) {
       break;
 
     case
-    "ENOENT: no such file or directory, open 'stream for nonexistent file'":
+      "ENOENT: no such file or directory, open 'stream for nonexistent file'":
       assert.strictEqual(typeof er.errno, 'number');
       assert.strictEqual(er.code, 'ENOENT');
       assert.strictEqual(er_path, 'stream for nonexistent file');

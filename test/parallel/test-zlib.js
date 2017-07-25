@@ -185,7 +185,7 @@ Object.keys(tests).forEach(function(file) {
                 // verify that the same exact buffer comes out the other end.
                 buf.on('data', function(c) {
                   const msg = `${file} ${chunkSize} ${
-                              JSON.stringify(opts)} ${Def.name} -> ${Inf.name}`;
+                    JSON.stringify(opts)} ${Def.name} -> ${Inf.name}`;
                   let ok = true;
                   const testNum = ++done;
                   let i;

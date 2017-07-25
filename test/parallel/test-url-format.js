@@ -217,7 +217,7 @@ const formatTests = {
     path: '/node'
   },
 
-   // greater than or equal to 63 characters after `.` in hostname
+  // greater than or equal to 63 characters after `.` in hostname
   [`http://www.${'z'.repeat(63)}example.com/node`]: {
     href: `http://www.${'z'.repeat(63)}example.com/node`,
     protocol: 'http:',
@@ -254,5 +254,5 @@ for (const u in formatTests) {
                      `wonky format(${u}) == ${expect}\nactual:${actual}`);
   assert.strictEqual(actualObj, expect,
                      `wonky format(${JSON.stringify(formatTests[u])}) == ${
-                     expect}\nactual: ${actualObj}`);
+                       expect}\nactual: ${actualObj}`);
 }

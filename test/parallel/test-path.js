@@ -287,51 +287,51 @@ joinTests.push([
   path.win32.join,
   joinTests[0][1].slice(0).concat(
     [// arguments                     result
-     // UNC path expected
-     [['//foo/bar'], '\\\\foo\\bar\\'],
-     [['\\/foo/bar'], '\\\\foo\\bar\\'],
-     [['\\\\foo/bar'], '\\\\foo\\bar\\'],
-     // UNC path expected - server and share separate
-     [['//foo', 'bar'], '\\\\foo\\bar\\'],
-     [['//foo/', 'bar'], '\\\\foo\\bar\\'],
-     [['//foo', '/bar'], '\\\\foo\\bar\\'],
-     // UNC path expected - questionable
-     [['//foo', '', 'bar'], '\\\\foo\\bar\\'],
-     [['//foo/', '', 'bar'], '\\\\foo\\bar\\'],
-     [['//foo/', '', '/bar'], '\\\\foo\\bar\\'],
-     // UNC path expected - even more questionable
-     [['', '//foo', 'bar'], '\\\\foo\\bar\\'],
-     [['', '//foo/', 'bar'], '\\\\foo\\bar\\'],
-     [['', '//foo/', '/bar'], '\\\\foo\\bar\\'],
-     // No UNC path expected (no double slash in first component)
-     [['\\', 'foo/bar'], '\\foo\\bar'],
-     [['\\', '/foo/bar'], '\\foo\\bar'],
-     [['', '/', '/foo/bar'], '\\foo\\bar'],
-     // No UNC path expected (no non-slashes in first component -
-     // questionable)
-     [['//', 'foo/bar'], '\\foo\\bar'],
-     [['//', '/foo/bar'], '\\foo\\bar'],
-     [['\\\\', '/', '/foo/bar'], '\\foo\\bar'],
-     [['//'], '/'],
-     // No UNC path expected (share name missing - questionable).
-     [['//foo'], '\\foo'],
-     [['//foo/'], '\\foo\\'],
-     [['//foo', '/'], '\\foo\\'],
-     [['//foo', '', '/'], '\\foo\\'],
-     // No UNC path expected (too many leading slashes - questionable)
-     [['///foo/bar'], '\\foo\\bar'],
-     [['////foo', 'bar'], '\\foo\\bar'],
-     [['\\\\\\/foo/bar'], '\\foo\\bar'],
-     // Drive-relative vs drive-absolute paths. This merely describes the
-     // status quo, rather than being obviously right
-     [['c:'], 'c:.'],
-     [['c:.'], 'c:.'],
-     [['c:', ''], 'c:.'],
-     [['', 'c:'], 'c:.'],
-     [['c:.', '/'], 'c:.\\'],
-     [['c:.', 'file'], 'c:file'],
-     [['c:', '/'], 'c:\\'],
-     [['c:', 'file'], 'c:\\file']
+      // UNC path expected
+      [['//foo/bar'], '\\\\foo\\bar\\'],
+      [['\\/foo/bar'], '\\\\foo\\bar\\'],
+      [['\\\\foo/bar'], '\\\\foo\\bar\\'],
+      // UNC path expected - server and share separate
+      [['//foo', 'bar'], '\\\\foo\\bar\\'],
+      [['//foo/', 'bar'], '\\\\foo\\bar\\'],
+      [['//foo', '/bar'], '\\\\foo\\bar\\'],
+      // UNC path expected - questionable
+      [['//foo', '', 'bar'], '\\\\foo\\bar\\'],
+      [['//foo/', '', 'bar'], '\\\\foo\\bar\\'],
+      [['//foo/', '', '/bar'], '\\\\foo\\bar\\'],
+      // UNC path expected - even more questionable
+      [['', '//foo', 'bar'], '\\\\foo\\bar\\'],
+      [['', '//foo/', 'bar'], '\\\\foo\\bar\\'],
+      [['', '//foo/', '/bar'], '\\\\foo\\bar\\'],
+      // No UNC path expected (no double slash in first component)
+      [['\\', 'foo/bar'], '\\foo\\bar'],
+      [['\\', '/foo/bar'], '\\foo\\bar'],
+      [['', '/', '/foo/bar'], '\\foo\\bar'],
+      // No UNC path expected (no non-slashes in first component -
+      // questionable)
+      [['//', 'foo/bar'], '\\foo\\bar'],
+      [['//', '/foo/bar'], '\\foo\\bar'],
+      [['\\\\', '/', '/foo/bar'], '\\foo\\bar'],
+      [['//'], '/'],
+      // No UNC path expected (share name missing - questionable).
+      [['//foo'], '\\foo'],
+      [['//foo/'], '\\foo\\'],
+      [['//foo', '/'], '\\foo\\'],
+      [['//foo', '', '/'], '\\foo\\'],
+      // No UNC path expected (too many leading slashes - questionable)
+      [['///foo/bar'], '\\foo\\bar'],
+      [['////foo', 'bar'], '\\foo\\bar'],
+      [['\\\\\\/foo/bar'], '\\foo\\bar'],
+      // Drive-relative vs drive-absolute paths. This merely describes the
+      // status quo, rather than being obviously right
+      [['c:'], 'c:.'],
+      [['c:.'], 'c:.'],
+      [['c:', ''], 'c:.'],
+      [['', 'c:'], 'c:.'],
+      [['c:.', '/'], 'c:.\\'],
+      [['c:.', 'file'], 'c:file'],
+      [['c:', '/'], 'c:\\'],
+      [['c:', 'file'], 'c:\\file']
     ]
   )
 ]);
@@ -461,7 +461,7 @@ resolveTests.forEach((test) => {
     const expected = test[1];
     const message =
       `path.${os}.resolve(${test[0].map(JSON.stringify).join(',')})\n  expect=${
-      JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
+        JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
     if (actual !== expected && actualAlt !== expected)
       failures.push(`\n${message}`);
   });

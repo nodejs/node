@@ -28,7 +28,7 @@ assert.throws(() => tls.createServer({ handshakeTimeout: 'abcd' }),
                 type: TypeError,
                 message: 'The "timeout" argument must be of type number'
               })
-            );
+);
 
 assert.throws(() => tls.createServer({ sessionTimeout: 'abcd' }),
               /TypeError: Session timeout must be a 32-bit integer/);
