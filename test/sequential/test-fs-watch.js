@@ -54,18 +54,18 @@ common.refreshTmpDir();
 fs.writeFileSync(filepathOne, 'hello');
 
 assert.doesNotThrow(
-    function() {
-      const watcher = fs.watch(filepathOne);
-      watcher.on('change', function(event, filename) {
-        assert.strictEqual(event, 'change');
+  function() {
+    const watcher = fs.watch(filepathOne);
+    watcher.on('change', function(event, filename) {
+      assert.strictEqual(event, 'change');
 
-        if (expectFilePath) {
-          assert.strictEqual(filename, 'watch.txt');
-        }
-        watcher.close();
-        ++watchSeenOne;
-      });
-    }
+      if (expectFilePath) {
+        assert.strictEqual(filename, 'watch.txt');
+      }
+      watcher.close();
+      ++watchSeenOne;
+    });
+  }
 );
 
 setImmediate(function() {
@@ -78,17 +78,17 @@ process.chdir(testDir);
 fs.writeFileSync(filepathTwoAbs, 'howdy');
 
 assert.doesNotThrow(
-    function() {
-      const watcher = fs.watch(filepathTwo, function(event, filename) {
-        assert.strictEqual(event, 'change');
+  function() {
+    const watcher = fs.watch(filepathTwo, function(event, filename) {
+      assert.strictEqual(event, 'change');
 
-        if (expectFilePath) {
-          assert.strictEqual(filename, 'hasOwnProperty');
-        }
-        watcher.close();
-        ++watchSeenTwo;
-      });
-    }
+      if (expectFilePath) {
+        assert.strictEqual(filename, 'hasOwnProperty');
+      }
+      watcher.close();
+      ++watchSeenTwo;
+    });
+  }
 );
 
 setImmediate(function() {
@@ -100,19 +100,19 @@ const testsubdir = fs.mkdtempSync(testDir + path.sep);
 const filepathThree = path.join(testsubdir, filenameThree);
 
 assert.doesNotThrow(
-    function() {
-      const watcher = fs.watch(testsubdir, function(event, filename) {
-        const renameEv = common.isSunOS || common.isAIX ? 'change' : 'rename';
-        assert.strictEqual(event, renameEv);
-        if (expectFilePath) {
-          assert.strictEqual(filename, 'newfile.txt');
-        } else {
-          assert.strictEqual(filename, null);
-        }
-        watcher.close();
-        ++watchSeenThree;
-      });
-    }
+  function() {
+    const watcher = fs.watch(testsubdir, function(event, filename) {
+      const renameEv = common.isSunOS || common.isAIX ? 'change' : 'rename';
+      assert.strictEqual(event, renameEv);
+      if (expectFilePath) {
+        assert.strictEqual(filename, 'newfile.txt');
+      } else {
+        assert.strictEqual(filename, null);
+      }
+      watcher.close();
+      ++watchSeenThree;
+    });
+  }
 );
 
 setImmediate(function() {

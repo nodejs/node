@@ -29,9 +29,9 @@ assert.strictEqual(Buffer.compare(Buffer.alloc(0), Buffer.alloc(1)), -1);
 assert.strictEqual(Buffer.compare(Buffer.alloc(1), Buffer.alloc(0)), 1);
 
 const errMsg = common.expectsError({
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "buf1", "buf2" arguments must be one of ' +
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "buf1", "buf2" arguments must be one of ' +
              'type buffer or uint8Array'
 }, 2);
 assert.throws(() => Buffer.compare(Buffer.alloc(1), 'abc'), errMsg);
@@ -39,7 +39,7 @@ assert.throws(() => Buffer.compare(Buffer.alloc(1), 'abc'), errMsg);
 assert.throws(() => Buffer.compare('abc', Buffer.alloc(1)), errMsg);
 
 assert.throws(() => Buffer.alloc(1).compare('abc'), common.expectsError({
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "target" argument must be one of type buffer or uint8Array'
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "target" argument must be one of type buffer or uint8Array'
 }));

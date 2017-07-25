@@ -57,7 +57,7 @@ function test(environ, shouldWrite, section) {
   if (shouldWrite) {
     expectErr =
       `${section.toUpperCase()} ${child.pid}: this { is: 'a' } /debugging/\n${
-         section.toUpperCase()} ${child.pid}: num=1 str=a obj={"foo":"bar"}\n`;
+        section.toUpperCase()} ${child.pid}: num=1 str=a obj={"foo":"bar"}\n`;
   }
 
   let err = '';

@@ -61,8 +61,10 @@ if (typeof Symbol !== 'undefined' && 'hasInstance' in Symbol &&
     typeof Symbol.hasInstance === 'symbol') {
 
   function compareToNative(theObject, theConstructor) {
-    assert.strictEqual(addon.doInstanceOf(theObject, theConstructor),
-      (theObject instanceof theConstructor));
+    assert.strictEqual(
+      addon.doInstanceOf(theObject, theConstructor),
+      (theObject instanceof theConstructor)
+    );
   }
 
   function MyClass() {}

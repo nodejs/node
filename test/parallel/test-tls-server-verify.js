@@ -52,80 +52,80 @@ const testCases =
      CAs: ['ca1-cert'],
      clients:
      [{ name: 'agent1', shouldReject: false, shouldAuth: false },
-        { name: 'agent2', shouldReject: false, shouldAuth: false },
-        { name: 'agent3', shouldReject: false, shouldAuth: false },
-        { name: 'nocert', shouldReject: false, shouldAuth: false }
+      { name: 'agent2', shouldReject: false, shouldAuth: false },
+      { name: 'agent3', shouldReject: false, shouldAuth: false },
+      { name: 'nocert', shouldReject: false, shouldAuth: false }
      ]
   },
 
-  { title: 'Allow both authed and unauthed connections with CA1',
-    requestCert: true,
-    rejectUnauthorized: false,
-    renegotiate: false,
-    CAs: ['ca1-cert'],
-    clients:
+   { title: 'Allow both authed and unauthed connections with CA1',
+     requestCert: true,
+     rejectUnauthorized: false,
+     renegotiate: false,
+     CAs: ['ca1-cert'],
+     clients:
     [{ name: 'agent1', shouldReject: false, shouldAuth: true },
-        { name: 'agent2', shouldReject: false, shouldAuth: false },
-        { name: 'agent3', shouldReject: false, shouldAuth: false },
-        { name: 'nocert', shouldReject: false, shouldAuth: false }
+     { name: 'agent2', shouldReject: false, shouldAuth: false },
+     { name: 'agent3', shouldReject: false, shouldAuth: false },
+     { name: 'nocert', shouldReject: false, shouldAuth: false }
     ]
-  },
+   },
 
-  { title: 'Do not request certs at connection. Do that later',
-    requestCert: false,
-    rejectUnauthorized: false,
-    renegotiate: true,
-    CAs: ['ca1-cert'],
-    clients:
+   { title: 'Do not request certs at connection. Do that later',
+     requestCert: false,
+     rejectUnauthorized: false,
+     renegotiate: true,
+     CAs: ['ca1-cert'],
+     clients:
     [{ name: 'agent1', shouldReject: false, shouldAuth: true },
-        { name: 'agent2', shouldReject: false, shouldAuth: false },
-        { name: 'agent3', shouldReject: false, shouldAuth: false },
-        { name: 'nocert', shouldReject: false, shouldAuth: false }
+     { name: 'agent2', shouldReject: false, shouldAuth: false },
+     { name: 'agent3', shouldReject: false, shouldAuth: false },
+     { name: 'nocert', shouldReject: false, shouldAuth: false }
     ]
-  },
+   },
 
-  { title: 'Allow only authed connections with CA1',
-    requestCert: true,
-    rejectUnauthorized: true,
-    renegotiate: false,
-    CAs: ['ca1-cert'],
-    clients:
+   { title: 'Allow only authed connections with CA1',
+     requestCert: true,
+     rejectUnauthorized: true,
+     renegotiate: false,
+     CAs: ['ca1-cert'],
+     clients:
     [{ name: 'agent1', shouldReject: false, shouldAuth: true },
-        { name: 'agent2', shouldReject: true },
-        { name: 'agent3', shouldReject: true },
-        { name: 'nocert', shouldReject: true }
+     { name: 'agent2', shouldReject: true },
+     { name: 'agent3', shouldReject: true },
+     { name: 'nocert', shouldReject: true }
     ]
-  },
+   },
 
-  { title: 'Allow only authed connections with CA1 and CA2',
-    requestCert: true,
-    rejectUnauthorized: true,
-    renegotiate: false,
-    CAs: ['ca1-cert', 'ca2-cert'],
-    clients:
+   { title: 'Allow only authed connections with CA1 and CA2',
+     requestCert: true,
+     rejectUnauthorized: true,
+     renegotiate: false,
+     CAs: ['ca1-cert', 'ca2-cert'],
+     clients:
     [{ name: 'agent1', shouldReject: false, shouldAuth: true },
-        { name: 'agent2', shouldReject: true },
-        { name: 'agent3', shouldReject: false, shouldAuth: true },
-        { name: 'nocert', shouldReject: true }
+     { name: 'agent2', shouldReject: true },
+     { name: 'agent3', shouldReject: false, shouldAuth: true },
+     { name: 'nocert', shouldReject: true }
     ]
-  },
+   },
 
 
-  { title: 'Allow only certs signed by CA2 but not in the CRL',
-    requestCert: true,
-    rejectUnauthorized: true,
-    renegotiate: false,
-    CAs: ['ca2-cert'],
-    crl: 'ca2-crl',
-    clients: [
-        { name: 'agent1', shouldReject: true, shouldAuth: false },
-        { name: 'agent2', shouldReject: true, shouldAuth: false },
-        { name: 'agent3', shouldReject: false, shouldAuth: true },
-        // Agent4 has a cert in the CRL.
-        { name: 'agent4', shouldReject: true, shouldAuth: false },
-        { name: 'nocert', shouldReject: true }
-    ]
-  }
+   { title: 'Allow only certs signed by CA2 but not in the CRL',
+     requestCert: true,
+     rejectUnauthorized: true,
+     renegotiate: false,
+     CAs: ['ca2-cert'],
+     crl: 'ca2-crl',
+     clients: [
+       { name: 'agent1', shouldReject: true, shouldAuth: false },
+       { name: 'agent2', shouldReject: true, shouldAuth: false },
+       { name: 'agent3', shouldReject: false, shouldAuth: true },
+       // Agent4 has a cert in the CRL.
+       { name: 'agent4', shouldReject: true, shouldAuth: false },
+       { name: 'nocert', shouldReject: true }
+     ]
+   }
   ];
 
 
@@ -247,7 +247,7 @@ function runClient(prefix, port, options, cb) {
       assert.strictEqual(
         options.shouldAuth, authed,
         `${prefix}${options.name} authed is ${authed} but should have been ${
-        options.shouldAuth}`);
+          options.shouldAuth}`);
     }
 
     cb();
@@ -313,7 +313,7 @@ function runTest(port, testIndex) {
 
     if (c.authorized) {
       console.error(`${prefix}- authed connection: ${
-                    c.getPeerCertificate().subject.CN}`);
+        c.getPeerCertificate().subject.CN}`);
       c.write('\n_authed\n');
     } else {
       console.error(`${prefix}- unauthed connection: %s`, c.authorizationError);

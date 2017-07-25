@@ -32,8 +32,8 @@ assert.throws(getHiddenValue({}), errMessageIndex);
 assert.throws(getHiddenValue({}, null), errMessageIndex);
 assert.throws(getHiddenValue({}, []), errMessageIndex);
 assert.deepStrictEqual(
-    binding.getHiddenValue({}, kArrowMessagePrivateSymbolIndex),
-    undefined);
+  binding.getHiddenValue({}, kArrowMessagePrivateSymbolIndex),
+  undefined);
 
 assert.throws(setHiddenValue(), errMessageObj);
 assert.throws(setHiddenValue(null, 'foo'), errMessageObj);
@@ -45,11 +45,11 @@ assert.throws(setHiddenValue({}, null), errMessageIndex);
 assert.throws(setHiddenValue({}, []), errMessageIndex);
 const obj = {};
 assert.strictEqual(
-    binding.setHiddenValue(obj, kArrowMessagePrivateSymbolIndex, 'bar'),
-    true);
+  binding.setHiddenValue(obj, kArrowMessagePrivateSymbolIndex, 'bar'),
+  true);
 assert.strictEqual(
-    binding.getHiddenValue(obj, kArrowMessagePrivateSymbolIndex),
-    'bar');
+  binding.getHiddenValue(obj, kArrowMessagePrivateSymbolIndex),
+  'bar');
 
 let arrowMessage;
 

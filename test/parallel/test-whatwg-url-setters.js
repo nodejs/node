@@ -11,7 +11,7 @@ const path = require('path');
 const URL = require('url').URL;
 const { test, assert_equals } = require('../common/wpt');
 const additionalTestCases = require(
-    path.join(common.fixturesDir, 'url-setter-tests-additional.js'));
+  path.join(common.fixturesDir, 'url-setter-tests-additional.js'));
 
 const request = {
   response: require(path.join(common.fixturesDir, 'url-setter-tests'))

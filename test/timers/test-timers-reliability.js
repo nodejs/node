@@ -33,7 +33,7 @@ let intervalFired = false;
 
 const monoTimer = new Timer();
 monoTimer[Timer.kOnTimeout] = function() {
-    /*
+  /*
      * Make sure that setTimeout's and setInterval's callbacks have
      * already fired, otherwise it means that they are vulnerable to
      * time drifting or inconsistent time changes.

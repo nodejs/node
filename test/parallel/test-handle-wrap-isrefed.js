@@ -19,8 +19,8 @@ const strictEqual = require('assert').strictEqual;
   strictEqual(cp._handle.hasRef(),
               true, 'process_wrap: ref() ineffective');
   cp._handle.close(common.mustCall(() =>
-      strictEqual(cp._handle.hasRef(),
-                  false, 'process_wrap: not unrefed on close')));
+    strictEqual(cp._handle.hasRef(),
+                false, 'process_wrap: not unrefed on close')));
 }
 
 
@@ -40,8 +40,8 @@ const dgram = require('dgram');
   strictEqual(sock4._handle.hasRef(),
               true, 'udp_wrap: ipv4: ref() ineffective');
   sock4._handle.close(common.mustCall(() =>
-      strictEqual(sock4._handle.hasRef(),
-                  false, 'udp_wrap: ipv4: not unrefed on close')));
+    strictEqual(sock4._handle.hasRef(),
+                false, 'udp_wrap: ipv4: not unrefed on close')));
 }
 
 
@@ -59,8 +59,8 @@ const dgram = require('dgram');
   strictEqual(sock6._handle.hasRef(),
               true, 'udp_wrap: ipv6: ref() ineffective');
   sock6._handle.close(common.mustCall(() =>
-      strictEqual(sock6._handle.hasRef(),
-                  false, 'udp_wrap: ipv6: not unrefed on close')));
+    strictEqual(sock6._handle.hasRef(),
+                false, 'udp_wrap: ipv6: not unrefed on close')));
 }
 
 
@@ -79,8 +79,8 @@ const dgram = require('dgram');
   strictEqual(handle.hasRef(),
               true, 'pipe_wrap: ref() ineffective');
   handle.close(common.mustCall(() =>
-      strictEqual(handle.hasRef(),
-                  false, 'pipe_wrap: not unrefed on close')));
+    strictEqual(handle.hasRef(),
+                false, 'pipe_wrap: not unrefed on close')));
 }
 
 
@@ -105,8 +105,8 @@ const dgram = require('dgram');
   strictEqual(server._unref,
               false, 'tcp_wrap: _unref not updated on ref()');
   server._handle.close(common.mustCall(() =>
-      strictEqual(server._handle.hasRef(),
-                  false, 'tcp_wrap: not unrefed on close')));
+    strictEqual(server._handle.hasRef(),
+                false, 'tcp_wrap: not unrefed on close')));
 }
 
 
@@ -122,8 +122,8 @@ const dgram = require('dgram');
   strictEqual(timer._handle.hasRef(),
               true, 'timer_wrap: ref() ineffective');
   timer._handle.close(common.mustCall(() =>
-      strictEqual(timer._handle.hasRef(),
-                  false, 'timer_wrap: not unrefed on close')));
+    strictEqual(timer._handle.hasRef(),
+                false, 'timer_wrap: not unrefed on close')));
 }
 
 

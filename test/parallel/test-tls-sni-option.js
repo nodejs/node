@@ -141,7 +141,7 @@ function startTest() {
     options.port = server.address().port;
     const client = tls.connect(options, function() {
       clientResults.push(
-         client.authorizationError &&
+        client.authorizationError &&
          (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID'));
       client.destroy();
 

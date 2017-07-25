@@ -267,8 +267,8 @@ const modSize = 1024;
 
   const cmd =
     `"${common.opensslCli}" dgst -sha256 -verify "${pubfile}" -signature "${
-    sigfile}" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "${
-    msgfile}"`;
+      sigfile}" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "${
+      msgfile}"`;
 
   exec(cmd, common.mustCall((err, stdout, stderr) => {
     assert(stdout.includes('Verified OK'));

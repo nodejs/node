@@ -19,5 +19,5 @@ tty.ref();
 strictEqual(tty._handle.hasRef(),
             true, 'tty_wrap: ref() ineffective');
 tty._handle.close(common.mustCall(() =>
-    strictEqual(tty._handle.hasRef(),
-                false, 'tty_wrap: not unrefed on close')));
+  strictEqual(tty._handle.hasRef(),
+              false, 'tty_wrap: not unrefed on close')));
