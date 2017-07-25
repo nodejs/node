@@ -34,7 +34,7 @@ domain.create().run(function() {
   domain.create().run(function() {
     domain.create().run(function() {
       domain.create().on('error', function(e) {
-          // Don't need to do anything here
+        // Don't need to do anything here
       }).run(function() {
         throw new Error('died');
       });

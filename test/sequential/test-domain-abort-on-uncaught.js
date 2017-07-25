@@ -248,7 +248,7 @@ if (process.argv[2] === 'child') {
       assert.strictEqual(
         code, 0, `Test at index ${testIndex
         } should have exited with exit code 0 but instead exited with code ${
-        code} and signal ${signal}`);
+          code} and signal ${signal}`);
     });
   });
 }

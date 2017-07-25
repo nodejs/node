@@ -32,8 +32,8 @@ if (process.argv[2] === 'child') {
 
   const script = `process.send('${method}'); while(true) {}`;
   const args = method === 'runInContext' ?
-                          [vm.createContext({ process })] :
-                          [];
+    [vm.createContext({ process })] :
+    [];
   const options = { breakOnSigint: true };
 
   assert.throws(() => { vm[method](script, ...args, options); },

@@ -17,8 +17,8 @@ if (process.argv[2] === 'child') {
 
   const script = `process.send('${method}'); while(true) {}`;
   const args = method === 'runInContext' ?
-                          [vm.createContext({ process })] :
-                          [];
+    [vm.createContext({ process })] :
+    [];
   const options = { breakOnSigint: true };
 
   for (let i = 0; i < listeners; i++)

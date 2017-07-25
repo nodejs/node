@@ -1,6 +1,16 @@
 ## Test-specific linter rules
 
 rules:
+  # Stylistic Issues
+  # http://eslint.org/docs/rules/#stylistic-issues
+  indent: [error, 2, {ArrayExpression: first,
+                      CallExpression: {arguments: first},
+                      FunctionDeclaration: {parameters: first},
+                      FunctionExpression: {parameters: first},
+                      MemberExpression: off,
+                      ObjectExpression: first,
+                      SwitchCase: 1}]
+  indent-legacy: off
   # ECMAScript 6
   # http://eslint.org/docs/rules/#ecmascript-6
   no-var: error

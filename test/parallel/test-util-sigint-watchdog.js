@@ -16,7 +16,7 @@ const binding = process.binding('util');
   next();
 },
  (next) => {
-  // Test with one call to the watchdog, one signal.
+   // Test with one call to the watchdog, one signal.
    binding.startSigintWatchdog();
    process.kill(process.pid, 'SIGINT');
    waitForPendingSignal(common.mustCall(() => {
@@ -26,7 +26,7 @@ const binding = process.binding('util');
    }));
  },
  (next) => {
-  // Nested calls are okay.
+   // Nested calls are okay.
    binding.startSigintWatchdog();
    binding.startSigintWatchdog();
    process.kill(process.pid, 'SIGINT');
@@ -39,7 +39,7 @@ const binding = process.binding('util');
    }));
  },
  () => {
-  // Signal comes in after first call to stop.
+   // Signal comes in after first call to stop.
    binding.startSigintWatchdog();
    binding.startSigintWatchdog();
    const hadPendingSignals1 = binding.stopSigintWatchdog();

@@ -35,31 +35,31 @@ const testCases =
      key: 'agent2-key',
      cert: 'agent2-cert',
      servers: [
-         { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
-         { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-         { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
+      { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
+      { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
+      { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
+    ]
+  },
+
+   { ca: [],
+     key: 'agent2-key',
+     cert: 'agent2-cert',
+     servers: [
+       { ok: false, key: 'agent1-key', cert: 'agent1-cert' },
+       { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
+       { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
      ]
-  },
+   },
 
-  { ca: [],
-    key: 'agent2-key',
-    cert: 'agent2-cert',
-    servers: [
-         { ok: false, key: 'agent1-key', cert: 'agent1-cert' },
-         { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-         { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
-    ]
-  },
-
-  { ca: ['ca1-cert', 'ca2-cert'],
-    key: 'agent2-key',
-    cert: 'agent2-cert',
-    servers: [
-         { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
-         { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-         { ok: true, key: 'agent3-key', cert: 'agent3-cert' }
-    ]
-  }
+   { ca: ['ca1-cert', 'ca2-cert'],
+     key: 'agent2-key',
+     cert: 'agent2-cert',
+     servers: [
+       { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
+       { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
+       { ok: true, key: 'agent3-key', cert: 'agent3-cert' }
+     ]
+   }
   ];
 
 function filenamePEM(n) {

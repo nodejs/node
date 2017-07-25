@@ -185,7 +185,7 @@ if (process.argv[2] === 'child') {
         const msgs = test.messagesReceived;
         if (msgs === undefined || !msgs.includes(expectedMessage)) {
           assert.fail(`test ${test.fn.name} should have sent message: ${
-                      expectedMessage} but didn't`);
+            expectedMessage} but didn't`);
         }
       });
 
@@ -193,7 +193,7 @@ if (process.argv[2] === 'child') {
         test.messagesReceived.forEach(function(receivedMessage) {
           if (!test.expectedMessages.includes(receivedMessage)) {
             assert.fail(`test ${test.fn.name} should not have sent message: ${
-                        receivedMessage} but did`);
+              receivedMessage} but did`);
           }
         });
       }

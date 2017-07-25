@@ -54,7 +54,7 @@ const server = net.createServer(function(socket) {
       assert.strictEqual(
         req.shouldKeepAlive, SHOULD_KEEP_ALIVE[responses],
         `${SERVER_RESPONSES[responses]} should ${
-        SHOULD_KEEP_ALIVE[responses] ? '' : 'not '}Keep-Alive`);
+          SHOULD_KEEP_ALIVE[responses] ? '' : 'not '}Keep-Alive`);
       ++responses;
       if (responses < SHOULD_KEEP_ALIVE.length) {
         makeRequest();

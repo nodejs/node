@@ -38,8 +38,8 @@ const stat = promisify(fs.stat);
   function fn() {}
   fn[promisify.custom] = 42;
   assert.throws(
-      () => promisify(fn),
-      (err) => err instanceof TypeError &&
+    () => promisify(fn),
+    (err) => err instanceof TypeError &&
                 err.message === 'The [util.promisify.custom] property must ' +
                                 'be a function');
 }

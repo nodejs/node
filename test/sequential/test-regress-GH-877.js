@@ -56,11 +56,11 @@ server.listen(common.PORT, '127.0.0.1', function() {
 
     console.log(
       `Socket: ${agent.sockets[addrString].length}/${
-      agent.maxSockets} queued: ${
-      agent.requests[addrString] ? agent.requests[addrString].length : 0}`);
+        agent.maxSockets} queued: ${
+        agent.requests[addrString] ? agent.requests[addrString].length : 0}`);
 
     const agentRequests = agent.requests[addrString] ?
-        agent.requests[addrString].length : 0;
+      agent.requests[addrString].length : 0;
 
     if (maxQueued < agentRequests) {
       maxQueued = agentRequests;

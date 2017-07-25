@@ -41,7 +41,7 @@ function testHelper(stream, args, expectedOutput, cmd, env) {
 
   console.error(
     `Spawned child [pid:${child.pid}] with cmd '${cmd}' expect %j with args '${
-    args}' OPENSSL_CONF=%j`, expectedOutput, env.OPENSSL_CONF);
+      args}' OPENSSL_CONF=%j`, expectedOutput, env.OPENSSL_CONF);
 
   function childOk(child) {
     console.error(`Child #${++num_children_ok} [pid:${child.pid}] OK.`);
