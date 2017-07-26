@@ -67,5 +67,5 @@ common.expectsError(() => {
 // The stackFrameFunction should exclude the foo frame
 assert.throws(
   function foo() { assert.fail('first', 'second', 'message', '!==', foo); },
-  (err) => !/\sat\sfoo/.test(err.stack)
+  (err) => !/\sat\sfoo\b/.test(err.stack)
 );
