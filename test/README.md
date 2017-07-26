@@ -17,7 +17,6 @@ On how to run tests in this directory, see
 |cctest             |Yes            |C++ test that is run as part of the build process.|
 |common             |               |Common modules shared among many tests. [Documentation](./common/README.md)|
 |debugger           |No             |Tests for [debugger](https://nodejs.org/api/debugger.html)functionality along with some tests that require an addon to function properly.|
-|disabled           |No             |Tests that have been disabled from running for various reasons.|
 |fixtures           |               |Test fixtures used in various tests throughout the test suite.|
 |gc                 |No             |Tests for garbage collection related functionality.|
 |inspector          |Yes            |Tests for the V8 inspector integration.|
