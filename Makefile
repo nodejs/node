@@ -896,6 +896,9 @@ CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 	src/*.c \
 	src/*.cc \
 	src/*.h \
+	src/tracing/.c \
+	src/tracing/.cc \
+	src/tracing/.h \
 	test/addons/*/*.cc \
 	test/addons/*/*.h \
 	test/cctest/*.cc \
