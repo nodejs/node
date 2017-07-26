@@ -21,9 +21,13 @@
 typedef void *QUEUE[2];
 
 /* Private macros. */
+// 返回队列的第一个元素的地址
 #define QUEUE_NEXT(q)       (*(QUEUE **) &((*(q))[0]))
+// 返回队列的第二个元素的地址
 #define QUEUE_PREV(q)       (*(QUEUE **) &((*(q))[1]))
+// 返回队列的第二个元素里的第一个元素
 #define QUEUE_PREV_NEXT(q)  (QUEUE_NEXT(QUEUE_PREV(q)))
+// 返回队列的第一个元素里的第二个元素
 #define QUEUE_NEXT_PREV(q)  (QUEUE_PREV(QUEUE_NEXT(q)))
 
 /* Public macros. */
@@ -38,10 +42,11 @@ typedef void *QUEUE[2];
 
 #define QUEUE_EMPTY(q)                                                        \
   ((const QUEUE *) (q) == (const QUEUE *) QUEUE_NEXT(q))
-
+// 从队列头部取出第一个元素
 #define QUEUE_HEAD(q)                                                         \
   (QUEUE_NEXT(q))
 
+// 初始化一个队列
 #define QUEUE_INIT(q)                                                         \
   do {                                                                        \
     QUEUE_NEXT(q) = (q);                                                      \
@@ -98,6 +103,8 @@ typedef void *QUEUE[2];
   }                                                                           \
   while (0)
 
+// 队列的第一个元素赋值给队列的第二个元素里的第一个元素
+// 队列的第二个元素赋值给队列的第一个元素里的第二个元素
 #define QUEUE_REMOVE(q)                                                       \
   do {                                                                        \
     QUEUE_PREV_NEXT(q) = QUEUE_NEXT(q);                                       \
