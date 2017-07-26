@@ -303,6 +303,26 @@ assertOnlyDeepEqual(
   new Set([undefined])
 );
 
+// Circular structures
+{
+  const a = {};
+  const b = {};
+  a.a = a;
+  b.a = {};
+  b.a.a = a;
+  assertDeepAndStrictEqual(a, b);
+}
+
+{
+  const a = new Set();
+  const b = new Set();
+  const c = new Set();
+  a.add(a);
+  b.add(b);
+  c.add(a);
+  assertDeepAndStrictEqual(b, c);
+}
+
 {
   const values = [
     123,
