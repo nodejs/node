@@ -494,6 +494,21 @@ NAPI_EXTERN napi_status napi_get_typedarray_info(napi_env env,
                                                  napi_value* arraybuffer,
                                                  size_t* byte_offset);
 
+NAPI_EXTERN napi_status napi_create_dataview(napi_env env,
+                                             size_t length,
+                                             napi_value arraybuffer,
+                                             size_t byte_offset,
+                                             napi_value* result);
+NAPI_EXTERN napi_status napi_is_dataview(napi_env env,
+                                         napi_value value,
+                                         bool* result);
+NAPI_EXTERN napi_status napi_get_dataview_info(napi_env env,
+                                               napi_value dataview,
+                                               size_t* bytelength,
+                                               void** data,
+                                               napi_value* arraybuffer,
+                                               size_t* byte_offset);
+
 // Methods to manage simple async operations
 NAPI_EXTERN
 napi_status napi_create_async_work(napi_env env,
