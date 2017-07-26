@@ -96,6 +96,12 @@ The event handler function is passed two arguments: `msg` and `rinfo`.
   * `port` {number} The sender port.
   * `size` {number} The message size.
 
+If the source address of the incoming packet is an IPv6 link local
+address, the interface name is added to the `address`.  For
+example, a packet received on the `en0` interface might have the
+address field set to `'fe80::2618:1234:ab11:3b9c%en0'`, where `'%en0'`
+is the interface name as a zone id suffix.
+
 ### `socket.addMembership(multicastAddress[, multicastInterface])`
 <!-- YAML
 added: v0.6.9
