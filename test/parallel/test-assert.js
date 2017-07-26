@@ -550,8 +550,8 @@ a.throws(makeBlock(thrower, TypeError), function(err) {
 
   const h = {ref: g};
 
-  a.throws(makeBlock(a.deepEqual, f, h), /AssertionError/);
-  a.throws(makeBlock(a.deepStrictEqual, f, h), /AssertionError/);
+  a.doesNotThrow(makeBlock(a.deepEqual, f, h));
+  a.doesNotThrow(makeBlock(a.deepStrictEqual, f, h));
 }
 // GH-7178. Ensure reflexivity of deepEqual with `arguments` objects.
 const args = (function() { return arguments; })();
