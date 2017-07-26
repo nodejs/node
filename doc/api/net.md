@@ -155,7 +155,7 @@ The number of concurrent connections on the server.
 
 This becomes `null` when sending a socket to a child with
 [`child_process.fork()`][]. To poll forks and get current number of active
-connections use asynchronous `server.getConnections` instead.
+connections use asynchronous [`server.getConnections()`][] instead.
 
 ### server.getConnections(callback)
 <!-- YAML
@@ -232,7 +232,7 @@ Start a server listening for connections on a given `handle` that has
 already been bound to a port, a UNIX domain socket, or a Windows named pipe.
 
 The `handle` object can be either a server, a socket (anything with an
-underlying `_handle` member), or an object with a `fd` member that is a
+underlying `_handle` member), or an object with an `fd` member that is a
 valid file descriptor.
 
 *Note*: Listening on a file descriptor is not supported on Windows.
@@ -366,7 +366,7 @@ A `net.Socket` can be created by the user and used directly to interact with
 a server. For example, it is returned by [`net.createConnection()`][],
 so the user can use it to talk to the server.
 
-It can also be be created by Node.js and passed to the user when a connection
+It can also be created by Node.js and passed to the user when a connection
 is received. For example, it is passed to the listeners of a
 [`'connection'`][] event emitted on a [`net.Server`][], so the user can use
 it to interact with the client.
@@ -384,9 +384,9 @@ Creates a new socket object.
   * `allowHalfOpen` {boolean} Indicates whether half-opened TCP connections
     are allowed. See [`net.createServer()`][] and the [`'end'`][] event
     for details. Defaults to `false`.
-  * `readable` {boolean} Allow reads on the socket when a `fd` is passed,
+  * `readable` {boolean} Allow reads on the socket when an `fd` is passed,
     otherwise ignored. Defaults to `false`.
-  * `writable` {boolean} Allow reads on the socket when a `fd` is passed,
+  * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
     otherwise ignored. Defaults to `false`.
 * Returns: {net.Socket}
 
