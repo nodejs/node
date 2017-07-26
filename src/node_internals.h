@@ -43,6 +43,11 @@ extern std::string openssl_config;
 // that is used by lib/module.js
 extern bool config_preserve_symlinks;
 
+// Set in node.cc by ParseArgs when --redirect-warnings= is used.
+// Used to redirect warning output to a file rather than sending
+// it to stderr.
+extern const char* config_warning_file;
+
 // Forward declaration
 class Environment;
 

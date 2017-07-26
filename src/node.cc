@@ -199,6 +199,9 @@ bool trace_warnings = false;
 // that is used by lib/module.js
 bool config_preserve_symlinks = false;
 
+// Set in node.cc by ParseArgs when --redirect-warnings= is used.
+const char* config_warning_file;
+
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
 static bool debugger_running;
@@ -3683,6 +3686,8 @@ static void PrintHelp() {
          "function is used\n"
          "  --no-warnings         silence all process warnings\n"
          "  --trace-warnings      show stack traces on process warnings\n"
+         "  --redirect-warnings=path\n"
+         "                        write warnings to path instead of stderr\n"
          "  --trace-sync-io       show stack trace when use of sync IO\n"
          "                        is detected after the first tick\n"
          "  --track-heap-objects  track heap object allocations for heap "
@@ -3747,6 +3752,7 @@ static void PrintHelp() {
          "                        prefixed to the module search path\n"
          "NODE_REPL_HISTORY       path to the persistent REPL history file\n"
          "OPENSSL_CONF            load OpenSSL configuration from file\n"
+         "NODE_REDIRECT_WARNINGS  write warnings to path instead of stderr\n"
          "\n"
          "Documentation can be found at https://nodejs.org/\n");
 }
@@ -3848,6 +3854,8 @@ static void ParseArgs(int* argc,
       no_process_warnings = true;
     } else if (strcmp(arg, "--trace-warnings") == 0) {
       trace_warnings = true;
+    } else if (strncmp(arg, "--redirect-warnings=", 20) == 0) {
+      config_warning_file = arg + 20;
     } else if (strcmp(arg, "--trace-deprecation") == 0) {
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
@@ -4382,6 +4390,10 @@ void Init(int* argc,
 
   if (openssl_config.empty())
     SafeGetenv("OPENSSL_CONF", &openssl_config);
+
+  if (auto redirect_warnings = secure_getenv("NODE_REDIRECT_WARNINGS")) {
+    config_warning_file = redirect_warnings;
+  }
 
   // Parse a few arguments which are specific to Node.
   int v8_argc;
