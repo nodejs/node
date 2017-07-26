@@ -5,6 +5,7 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+test-fs-read-buffer-tostring-fail      : PASS,FLAKY
 
 [$system==win32]
 
