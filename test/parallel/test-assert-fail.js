@@ -71,5 +71,5 @@ assert.throws(
 // The stackFrameFunction should exclude the foo frame
 assert.throws(
   function foo() { assert.fail('first', 'second', 'message', '!==', foo); },
-  (err) => !/foo/m.test(err.stack)
+  (err) => !/^\s*at\sfoo\b/m.test(err.stack)
 );
