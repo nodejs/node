@@ -416,8 +416,8 @@ function error_test() {
     { client: client_unix, send: ' \t  \n',
       expect: prompt_unix },
     //Do not parse `...[]` as a REPL keyword
-    { client: client_unix, send: '...[]',
-      expect: prompt_multiline }
+    { client: client_unix, send: '...[]\n.break',
+      expect: `${prompt_multiline}${prompt_unix}` }
   ]);
 }
 
