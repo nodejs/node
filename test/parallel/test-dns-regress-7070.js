@@ -20,12 +20,19 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const dns = require('dns');
 
 // Should not raise assertion error. Issue #7070
 assert.throws(() => dns.resolveNs([]), // bad name
-              /^Error: "name" argument must be a string$/);
+              common.expectsError({
+                code: 'ERR_INVALID_ARG_TYPE',
+                type: TypeError,
+                message: /^The "name" argument must be of type string/
+              }));
 assert.throws(() => dns.resolveNs(''), // bad callback
-              /^Error: "callback" argument must be a function$/);
+              common.expectsError({
+                code: 'ERR_INVALID_CALLBACK',
+                type: TypeError
+              }));

@@ -196,7 +196,9 @@ function compile(schema, root, localRefs, baseId) {
       }
     }
 
-    if (v !== undefined) {
+    if (v === undefined) {
+      removeLocalRef(ref);
+    } else {
       replaceLocalRef(ref, v);
       return resolvedRef(v, refCode);
     }
@@ -207,6 +209,10 @@ function compile(schema, root, localRefs, baseId) {
     refVal[refId] = v;
     refs[ref] = refId;
     return 'refVal' + refId;
+  }
+
+  function removeLocalRef(ref) {
+    delete refs[ref];
   }
 
   function replaceLocalRef(ref, v) {

@@ -27,9 +27,10 @@ const CRLF = '\r\n';
 
 const server = http.createServer();
 server.on('upgrade', function(req, socket, head) {
-  socket.write('HTTP/1.1 101 Ok' + CRLF +
-               'Connection: Upgrade' + CRLF +
-               'Upgrade: Test' + CRLF + CRLF + 'head');
+  socket.write(`HTTP/1.1 101 Ok${CRLF}` +
+               `Connection: Upgrade${CRLF}` +
+               `Upgrade: Test${CRLF}${CRLF}` +
+               'head');
   socket.on('end', function() {
     socket.end();
   });

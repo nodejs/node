@@ -23,61 +23,51 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
+const Countdown = require('../common/countdown');
 
-let clientResponses = 0;
-
-const server = http.createServer(common.mustCall(function(req, res) {
-  console.error('Server got GET request');
+const server = http.createServer(common.mustCall((req, res) => {
   req.resume();
   res.writeHead(200);
   res.write('');
-  setTimeout(function() {
-    res.end(req.url);
-  }, 50);
+  setTimeout(() => res.end(req.url), 50);
 }, 2));
-server.on('connect', common.mustCall(function(req, socket) {
-  console.error('Server got CONNECT request');
+
+const countdown = new Countdown(2, common.mustCall(() => server.close()));
+
+server.on('connect', common.mustCall((req, socket) => {
   socket.write('HTTP/1.1 200 Connection established\r\n\r\n');
   socket.resume();
-  socket.on('end', function() {
-    socket.end();
-  });
+  socket.on('end', () => socket.end());
 }));
-server.listen(0, function() {
+
+server.listen(0, common.mustCall(() => {
   const req = http.request({
-    port: this.address().port,
+    port: server.address().port,
     method: 'CONNECT',
     path: 'google.com:80'
   });
-  req.on('connect', common.mustCall(function(res, socket) {
-    console.error('Client got CONNECT response');
+  req.on('connect', common.mustCall((res, socket) => {
     socket.end();
-    socket.on('end', function() {
+    socket.on('end', common.mustCall(() => {
       doRequest(0);
       doRequest(1);
-    });
+    }));
     socket.resume();
   }));
   req.end();
-});
+}));
 
 function doRequest(i) {
   http.get({
     port: server.address().port,
     path: `/request${i}`
-  }, common.mustCall(function(res) {
-    console.error('Client got GET response');
+  }, common.mustCall((res) => {
     let data = '';
     res.setEncoding('utf8');
-    res.on('data', function(chunk) {
-      data += chunk;
-    });
-    res.on('end', function() {
+    res.on('data', (chunk) => data += chunk);
+    res.on('end', common.mustCall(() => {
       assert.strictEqual(data, `/request${i}`);
-      ++clientResponses;
-      if (clientResponses === 2) {
-        server.close();
-      }
-    });
+      countdown.dec();
+    }));
   }));
 }

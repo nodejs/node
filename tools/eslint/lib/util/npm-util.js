@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------------
 
 const fs = require("fs"),
-    childProcess = require("child_process"),
+    spawn = require("cross-spawn"),
     path = require("path"),
     log = require("../logging");
 
@@ -50,22 +50,23 @@ function findPackageJson(startDir) {
  * @returns {void}
  */
 function installSyncSaveDev(packages) {
-    if (Array.isArray(packages)) {
-        packages = packages.join(" ");
+    if (!Array.isArray(packages)) {
+        packages = [packages];
     }
-    childProcess.execSync(`npm i --save-dev ${packages}`, { stdio: "inherit", encoding: "utf8" });
+    spawn.sync("npm", ["i", "--save-dev"].concat(packages), { stdio: "inherit" });
 }
 
 /**
  * Fetch `peerDependencies` of the given package by `npm show` command.
  * @param {string} packageName The package name to fetch peerDependencies.
- * @returns {string[]} Gotten peerDependencies.
+ * @returns {Object} Gotten peerDependencies.
  */
 function fetchPeerDependencies(packageName) {
-    const fetchedText = childProcess.execSync(
-        `npm show --json ${packageName} peerDependencies`,
+    const fetchedText = spawn.sync(
+        "npm",
+        ["show", "--json", packageName, "peerDependencies"],
         { encoding: "utf8" }
-    ).trim();
+    ).stdout.trim();
 
     return JSON.parse(fetchedText || "{}");
 }
