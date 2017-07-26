@@ -1,5 +1,5 @@
-#ifndef SRC_NODE_TRACE_WRITER_H_
-#define SRC_NODE_TRACE_WRITER_H_
+#ifndef SRC_TRACING_NODE_TRACE_WRITER_H_
+#define SRC_TRACING_NODE_TRACE_WRITER_H_
 
 #include <sstream>
 #include <queue>
@@ -17,7 +17,7 @@ using v8::platform::tracing::TracingController;
 
 class NodeTraceWriter : public TraceWriter {
  public:
-  NodeTraceWriter(uv_loop_t* tracing_loop);
+  explicit NodeTraceWriter(uv_loop_t* tracing_loop);
   ~NodeTraceWriter();
 
   void AppendTraceEvent(TraceObject* trace_event) override;
@@ -71,4 +71,4 @@ class NodeTraceWriter : public TraceWriter {
 }  // namespace tracing
 }  // namespace node
 
-#endif  // SRC_NODE_TRACE_WRITER_H_
+#endif  // SRC_TRACING_NODE_TRACE_WRITER_H_

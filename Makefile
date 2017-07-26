@@ -891,11 +891,16 @@ CPPLINT_EXCLUDE += src/queue.h
 CPPLINT_EXCLUDE += src/tree.h
 CPPLINT_EXCLUDE += $(wildcard test/addons/??_*/*.cc test/addons/??_*/*.h)
 CPPLINT_EXCLUDE += $(wildcard test/addons-napi/??_*/*.cc test/addons-napi/??_*/*.h)
+# These files were copied more or less verbatim from V8.
+CPPLINT_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
 
 CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 	src/*.c \
 	src/*.cc \
 	src/*.h \
+	src/*/*.c \
+	src/*/*.cc \
+	src/*/*.h \
 	test/addons/*/*.cc \
 	test/addons/*/*.h \
 	test/cctest/*.cc \
