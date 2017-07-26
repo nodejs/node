@@ -337,9 +337,10 @@ Local<Object> AddressToJS(Environment* env,
                           const sockaddr* addr,
                           Local<Object> info) {
   EscapableHandleScope scope(env->isolate());
-  char ip[INET6_ADDRSTRLEN];
+  char ip[INET6_ADDRSTRLEN + UV_IF_NAMESIZE];
   const sockaddr_in* a4;
   const sockaddr_in6* a6;
+
   int port;
 
   if (info.IsEmpty())
@@ -349,6 +350,18 @@ Local<Object> AddressToJS(Environment* env,
   case AF_INET6:
     a6 = reinterpret_cast<const sockaddr_in6*>(addr);
     uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
+    // Add an interface identifier to a link local address.
+    if (IN6_IS_ADDR_LINKLOCAL(&a6->sin6_addr)) {
+        const size_t addrlen = strlen(ip);
+        CHECK_LT(addrlen, sizeof(ip));
+        ip[addrlen] = '%';
+        size_t scopeidlen = sizeof(ip) - addrlen - 1;
+        CHECK_GE(scopeidlen, UV_IF_NAMESIZE);
+        const int r = uv_if_indextoiid(a6->sin6_scope_id,
+                                       ip + addrlen + 1,
+                                       &scopeidlen);
+        CHECK_EQ(r, 0);
+    }
     port = ntohs(a6->sin6_port);
     info->Set(env->context(),
               env->address_string(),
