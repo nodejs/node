@@ -83,6 +83,7 @@ static void uv__pollfds_swap(uv_loop_t* loop, size_t l, size_t r) {
 }
 
 /* Add a watcher's fd to our poll fds array with its pending events.  */
+// 为轮询的句柄添加监听器句柄，等待事件
 static void uv__pollfds_add(uv_loop_t* loop, uv__io_t* w) {
   size_t i;
   struct pollfd* pe;
@@ -135,6 +136,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct pollfd* pe;
   int fd;
 
+  // 如果loop->nfds == 0，并且如果观察者队列为空就返回，表示没有需要监听的I/O事件
   if (loop->nfds == 0) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
     return;
@@ -160,16 +162,20 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   pset = NULL;
   if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
     pset = &set;
+    // 初始化  pset
     sigemptyset(pset);
+    // pset 中插入  SIGPROF（定时信号，包括该进程用的CPU时间以及系统调用的时间） 信号
     sigaddset(pset, SIGPROF);
   }
-
+  // timeout小于-1退出
   assert(timeout >= -1);
   time_base = loop->time;
 
   /* Loop calls to poll() and processing of results.  If we get some
    * results from poll() but they turn out not to be interesting to
    * our caller then we need to loop around and poll() again.
+   *
+   * 循环调用poll()和处理结果。 如果从poll()获得的结果不是我们期望的，那么需要继续循环并poll()。
    */
   for (;;) {
     if (pset != NULL)
