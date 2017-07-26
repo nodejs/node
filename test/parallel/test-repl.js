@@ -414,7 +414,10 @@ function error_test() {
       expect: `${prompt_multiline}'foo \\n'\n${prompt_unix}` },
     // Whitespace is not evaluated.
     { client: client_unix, send: ' \t  \n',
-      expect: prompt_unix }
+      expect: prompt_unix },
+    //Do not parse `...[]` as a REPL keyword
+    { client: client_unix, send: '...[]',
+      expect: prompt_multiline }
   ]);
 }
 
