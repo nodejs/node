@@ -95,6 +95,14 @@ The following methods from the `dns` module are available:
 * [`resolver.resolveTxt()`][`dns.resolveTxt()`]
 * [`resolver.reverse()`][`dns.reverse()`]
 
+### resolver.cancel()
+<!-- YAML
+added: REPLACEME
+-->
+
+Cancel all outstanding DNS queries made by this resolver. The corresponding
+callbacks will be called with an error with code `ECANCELLED`.
+
 ## dns.getServers()
 <!-- YAML
 added: v0.11.3
