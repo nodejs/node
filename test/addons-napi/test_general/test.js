@@ -56,10 +56,17 @@ assert.strictEqual(release, process.release.name);
 // for null
 assert.strictEqual(test_general.testNapiTypeof(null), 'null');
 
-const x = {};
-
 // Assert that wrapping twice fails.
+const x = {};
 test_general.wrap(x, 25);
 assert.throws(function() {
   test_general.wrap(x, 'Blah');
 }, Error);
+
+// Ensure that wrapping, removing the wrap, and then wrapping again works.
+const y = {};
+test_general.wrap(y, -12);
+test_general.removeWrap(y);
+assert.doesNotThrow(function() {
+  test_general.wrap(y, 're-wrap!');
+}, Error, 'Wrapping twice succeeds if a remove_wrap() separates the instances');

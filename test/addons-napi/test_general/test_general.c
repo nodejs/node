@@ -156,6 +156,18 @@ napi_value wrap(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
+napi_value remove_wrap(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value wrapped;
+  void* data;
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &wrapped, NULL, NULL));
+  NAPI_CALL(env, napi_remove_wrap(env, wrapped, &data));
+  NAPI_CALL(env, napi_delete_reference(env, (napi_ref)data));
+
+  return NULL;
+}
+
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("testStrictEquals", testStrictEquals),
@@ -169,6 +181,7 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("testNapiErrorCleanup", testNapiErrorCleanup),
     DECLARE_NAPI_PROPERTY("testNapiTypeof", testNapiTypeof),
     DECLARE_NAPI_PROPERTY("wrap", wrap),
+    DECLARE_NAPI_PROPERTY("removeWrap", remove_wrap),
   };
 
   NAPI_CALL_RETURN_VOID(env, napi_define_properties(
