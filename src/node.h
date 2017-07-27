@@ -533,17 +533,9 @@ NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
  * zero then no execution has been set. This will happen if the user handles
  * I/O from native code. */
 NODE_EXTERN async_id AsyncHooksGetExecutionAsyncId(v8::Isolate* isolate);
-/* legacy alias */
-NODE_EXTERN NODE_DEPRECATED("Use AsyncHooksGetExecutionAsyncId(isolate)",
-                async_id AsyncHooksGetCurrentId(v8::Isolate* isolate));
-
 
 /* Return same value as async_hooks.triggerAsyncId(); */
 NODE_EXTERN async_id AsyncHooksGetTriggerAsyncId(v8::Isolate* isolate);
-/* legacy alias */
-NODE_EXTERN NODE_DEPRECATED("Use AsyncHooksGetTriggerAsyncId(isolate)",
-                async_id AsyncHooksGetTriggerId(v8::Isolate* isolate));
-
 
 /* If the native API doesn't inherit from the helper class then the callbacks
  * must be triggered manually. This triggers the init() callback. The return
@@ -642,12 +634,6 @@ class AsyncResource {
     v8::Local<v8::Object> get_resource() {
       return resource_.Get(isolate_);
     }
-
-    NODE_DEPRECATED("Use AsyncResource::get_async_id()",
-      async_id get_uid() const {
-        return get_async_id();
-      }
-    )
 
     async_id get_async_id() const {
       return async_context_.async_id;

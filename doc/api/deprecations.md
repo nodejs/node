@@ -607,7 +607,7 @@ The DebugContext will be removed in V8 soon and will not be available in Node
 <a id="DEP0070"></a>
 ### DEP0070: async_hooks.currentId()
 
-Type: Runtime
+Type: End-of-Life
 
 `async_hooks.currentId()` was renamed to `async_hooks.executionAsyncId()` for
 clarity.
@@ -617,7 +617,7 @@ clarity.
 <a id="DEP0071"></a>
 ### DEP0071: async_hooks.triggerId()
 
-Type: Runtime
+Type: End-of-Life
 
 `async_hooks.triggerId()` was renamed to `async_hooks.triggerAsyncId()` for
 clarity.
@@ -627,7 +627,7 @@ clarity.
 <a id="DEP0072"></a>
 ### DEP0072: async_hooks.AsyncResource.triggerId()
 
-Type: Runtime
+Type: End-of-Life
 
 `async_hooks.AsyncResource.triggerId()` was renamed to
 `async_hooks.AsyncResource.triggerAsyncId()` for clarity.
