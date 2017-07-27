@@ -11,13 +11,3 @@ rules:
   no-var: error
   prefer-const: error
   prefer-rest-params: error
-
-  # use stricter indent over indent-legacy
-  indent-legacy: off
-  indent: [error, 2, {ArrayExpression: first,
-                      CallExpression: {arguments: first},
-                      FunctionDeclaration: {parameters: first},
-                      FunctionExpression: {parameters: first},
-                      MemberExpression: off,
-                      ObjectExpression: first,
-                      SwitchCase: 1}]
