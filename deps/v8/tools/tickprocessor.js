@@ -243,10 +243,10 @@ TickProcessor.prototype.printError = function(str) {
  */
 TickProcessor.prototype.parseIntAddressFormat = function(s, radix) {
   var re = /^([0-9A-Fa-f]{8}|[0-9A-Fa-f]{16})$/g
-  if(s.match(re)) {
-    return parseInt(s,16)
+  if (s.match(re)) {
+    return parseInt(s, 16)
   } else {
-    return parseInt(s,radix)
+    return parseInt(s, radix)
   }
 }
 
