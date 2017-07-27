@@ -679,6 +679,8 @@ v8::Local<v8::Object> CreateAccessorCallbackData(napi_env env,
   return cbdata;
 }
 
+int kWrapperFields = 3;
+
 // Pointer used to identify items wrapped by N-API. Used by FindWrapper and
 // napi_wrap().
 const char napi_wrap_name[] = "N-API Wrapper";
@@ -687,7 +689,8 @@ const char napi_wrap_name[] = "N-API Wrapper";
 // wrapper would be the first in the chain, but it is OK for other objects to
 // be inserted in the prototype chain.
 bool FindWrapper(v8::Local<v8::Object> obj,
-                 v8::Local<v8::Object>* result = nullptr) {
+                 v8::Local<v8::Object>* result = nullptr,
+                 v8::Local<v8::Object>* parent = nullptr) {
   v8::Local<v8::Object> wrapper = obj;
 
   do {
@@ -695,8 +698,11 @@ bool FindWrapper(v8::Local<v8::Object> obj,
     if (proto.IsEmpty() || !proto->IsObject()) {
       return false;
     }
+    if (parent != nullptr) {
+      *parent = wrapper;
+    }
     wrapper = proto.As<v8::Object>();
-    if (wrapper->InternalFieldCount() == 2) {
+    if (wrapper->InternalFieldCount() == kWrapperFields) {
       v8::Local<v8::Value> external = wrapper->GetInternalField(1);
       if (external->IsExternal() &&
           external.As<v8::External>()->Value() == v8impl::napi_wrap_name) {
@@ -748,6 +754,29 @@ napi_env GetEnv(v8::Local<v8::Context> context) {
   }
 
   return result;
+}
+
+napi_status Unwrap(napi_env env,
+                   napi_value js_object,
+                   void** result,
+                   v8::Local<v8::Object>* wrapper,
+                   v8::Local<v8::Object>* parent = nullptr) {
+  CHECK_ARG(env, js_object);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(js_object);
+  RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
+  v8::Local<v8::Object> obj = value.As<v8::Object>();
+
+  RETURN_STATUS_IF_FALSE(
+    env, v8impl::FindWrapper(obj, wrapper, parent), napi_invalid_arg);
+
+  v8::Local<v8::Value> unwrappedValue = (*wrapper)->GetInternalField(0);
+  RETURN_STATUS_IF_FALSE(env, unwrappedValue->IsExternal(), napi_invalid_arg);
+
+  *result = unwrappedValue.As<v8::External>()->Value();
+
+  return napi_ok;
 }
 
 }  // end of namespace v8impl
@@ -2269,62 +2298,78 @@ napi_status napi_wrap(napi_env env,
   // Create a wrapper object with an internal field to hold the wrapped pointer
   // and a second internal field to identify the owner as N-API.
   v8::Local<v8::ObjectTemplate> wrapper_template;
-  ENV_OBJECT_TEMPLATE(env, wrap, wrapper_template, 2);
+  ENV_OBJECT_TEMPLATE(env, wrap, wrapper_template, v8impl::kWrapperFields);
 
   auto maybe_object = wrapper_template->NewInstance(context);
   CHECK_MAYBE_EMPTY(env, maybe_object, napi_generic_failure);
-
   v8::Local<v8::Object> wrapper = maybe_object.ToLocalChecked();
-  wrapper->SetInternalField(1, v8::External::New(isolate,
-    reinterpret_cast<void*>(const_cast<char*>(v8impl::napi_wrap_name))));
 
   // Store the pointer as an external in the wrapper.
   wrapper->SetInternalField(0, v8::External::New(isolate, native_object));
+  wrapper->SetInternalField(1, v8::External::New(isolate,
+    reinterpret_cast<void*>(const_cast<char*>(v8impl::napi_wrap_name))));
 
   // Insert the wrapper into the object's prototype chain.
   v8::Local<v8::Value> proto = obj->GetPrototype();
   CHECK(wrapper->SetPrototype(context, proto).FromJust());
   CHECK(obj->SetPrototype(context, wrapper).FromJust());
 
+  v8impl::Reference* reference = nullptr;
   if (result != nullptr) {
     // The returned reference should be deleted via napi_delete_reference()
     // ONLY in response to the finalize callback invocation. (If it is deleted
     // before then, then the finalize callback will never be invoked.)
     // Therefore a finalize callback is required when returning a reference.
     CHECK_ARG(env, finalize_cb);
-    v8impl::Reference* reference = v8impl::Reference::New(
+    reference = v8impl::Reference::New(
         env, obj, 0, false, finalize_cb, native_object, finalize_hint);
     *result = reinterpret_cast<napi_ref>(reference);
   } else if (finalize_cb != nullptr) {
     // Create a self-deleting reference just for the finalize callback.
-    v8impl::Reference::New(
+    reference = v8impl::Reference::New(
         env, obj, 0, true, finalize_cb, native_object, finalize_hint);
+  }
+
+  if (reference != nullptr) {
+    wrapper->SetInternalField(2, v8::External::New(isolate, reference));
   }
 
   return GET_RETURN_STATUS(env);
 }
 
-napi_status napi_unwrap(napi_env env, napi_value js_object, void** result) {
+napi_status napi_unwrap(napi_env env, napi_value obj, void** result) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
   // JS exceptions.
   CHECK_ENV(env);
-  CHECK_ARG(env, js_object);
-  CHECK_ARG(env, result);
-
-  v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(js_object);
-  RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
-  v8::Local<v8::Object> obj = value.As<v8::Object>();
-
   v8::Local<v8::Object> wrapper;
-  RETURN_STATUS_IF_FALSE(
-    env, v8impl::FindWrapper(obj, &wrapper), napi_invalid_arg);
+  return napi_set_last_error(env, v8impl::Unwrap(env, obj, result, &wrapper));
+}
 
-  v8::Local<v8::Value> unwrappedValue = wrapper->GetInternalField(0);
-  RETURN_STATUS_IF_FALSE(env, unwrappedValue->IsExternal(), napi_invalid_arg);
+napi_status napi_remove_wrap(napi_env env, napi_value obj, void** result) {
+  NAPI_PREAMBLE(env);
+  v8::Local<v8::Object> wrapper;
+  v8::Local<v8::Object> parent;
+  napi_status status = v8impl::Unwrap(env, obj, result, &wrapper, &parent);
+  if (status != napi_ok) {
+    return napi_set_last_error(env, status);
+  }
 
-  *result = unwrappedValue.As<v8::External>()->Value();
+  v8::Local<v8::Value> external = wrapper->GetInternalField(2);
+  if (external->IsExternal()) {
+    v8impl::Reference::Delete(
+        static_cast<v8impl::Reference*>(external.As<v8::External>()->Value()));
+  }
 
-  return napi_clear_last_error(env);
+  if (!parent.IsEmpty()) {
+    v8::Maybe<bool> maybe = parent->SetPrototype(
+        env->isolate->GetCurrentContext(), wrapper->GetPrototype());
+    CHECK_MAYBE_NOTHING(env, maybe, napi_generic_failure);
+    if (!maybe.FromMaybe(false)) {
+      return napi_set_last_error(env, napi_generic_failure);
+    }
+  }
+
+  return GET_RETURN_STATUS(env);
 }
 
 napi_status napi_create_external(napi_env env,

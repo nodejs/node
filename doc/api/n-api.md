@@ -3152,7 +3152,9 @@ Afterward, additional manipulation of the wrapper's prototype chain may cause
 
 *Note*: Calling `napi_wrap()` a second time on an object that already has a
 native instance associated with it by virtue of a previous call to
-`napi_wrap()` will cause an error to be returned.
+`napi_wrap()` will cause an error to be returned. If you wish to associate
+another native instance with the given object, call `napi_remove_wrap()` on it
+first.
 
 ### *napi_unwrap*
 <!-- YAML
@@ -3165,8 +3167,8 @@ napi_status napi_unwrap(napi_env env,
 ```
 
  - `[in] env`: The environment that the API is invoked under.
- - `[in] js_object`: The object associated with the C++ class instance.
- - `[out] result`: Pointer to the wrapped C++ class instance.
+ - `[in] js_object`: The object associated with the native instance.
+ - `[out] result`: Pointer to the wrapped native instance.
 
 Returns `napi_ok` if the API succeeded.
 
@@ -3178,6 +3180,28 @@ corresponding `napi_callback` is invoked. If the callback is for an instance
 method or accessor, then the `this` argument to the callback is the wrapper
 object; the wrapped C++ instance that is the target of the call can be obtained
 then by calling `napi_unwrap()` on the wrapper object.
+
+### *napi_remove_wrap*
+<!-- YAML
+added: REPLACEME
+-->
+```C
+napi_status napi_remove_wrap(napi_env env,
+                             napi_value js_object,
+                             void** result);
+```
+
+ - `[in] env`: The environment that the API is invoked under.
+ - `[in] js_object`: The object associated with the native instance.
+ - `[out] result`: Pointer to the wrapped native instance.
+
+Returns `napi_ok` if the API succeeded.
+
+Retrieves a native instance that was previously wrapped in the JavaScript
+object `js_object` using `napi_wrap()` and removes the wrapping, thereby
+restoring the JavaScript object's prototype chain. If a finalize callback was
+associated with the wrapping, it will no longer be called when the JavaScript
+object becomes garbage-collected.
 
 ## Asynchronous Operations
 
