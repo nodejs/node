@@ -138,10 +138,20 @@ napi_value testNapiTypeof(napi_env env, napi_callback_info info) {
   return result;
 }
 
+static bool deref_item_called = false;
 static void deref_item(napi_env env, void* data, void* hint) {
   (void) hint;
 
+  deref_item_called = true;
   NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, (napi_ref)data));
+}
+
+napi_value deref_item_was_called(napi_env env, napi_callback_info info) {
+  napi_value it_was_called;
+
+  NAPI_CALL(env, napi_get_boolean(env, deref_item_called, &it_was_called));
+
+  return it_was_called;
 }
 
 napi_value wrap(napi_env env, napi_callback_info info) {
@@ -149,11 +159,50 @@ napi_value wrap(napi_env env, napi_callback_info info) {
   napi_value argv[2];
   napi_ref payload;
 
+  deref_item_called = false;
+
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
   NAPI_CALL(env, napi_create_reference(env, argv[1], 1, &payload));
   NAPI_CALL(env, napi_wrap(env, argv[0], payload, deref_item, NULL, NULL));
 
   return NULL;
+}
+
+napi_value remove_wrap(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value wrapped;
+  void* data;
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &wrapped, NULL, NULL));
+  NAPI_CALL(env, napi_remove_wrap(env, wrapped, &data));
+  if (data != NULL) {
+    NAPI_CALL(env, napi_delete_reference(env, (napi_ref)data));
+  }
+
+  return NULL;
+}
+
+static bool finalize_called = false;
+static void test_finalize(napi_env env, void* data, void* hint) {
+  finalize_called = true;
+}
+
+napi_value test_finalize_wrap(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value js_object;
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &js_object, NULL, NULL));
+  NAPI_CALL(env, napi_wrap(env, js_object, NULL, test_finalize, NULL, NULL));
+
+  return NULL;
+}
+
+napi_value finalize_was_called(napi_env env, napi_callback_info info) {
+  napi_value it_was_called;
+
+  NAPI_CALL(env, napi_get_boolean(env, finalize_called, &it_was_called));
+
+  return it_was_called;
 }
 
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
@@ -169,6 +218,10 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("testNapiErrorCleanup", testNapiErrorCleanup),
     DECLARE_NAPI_PROPERTY("testNapiTypeof", testNapiTypeof),
     DECLARE_NAPI_PROPERTY("wrap", wrap),
+    DECLARE_NAPI_PROPERTY("removeWrap", remove_wrap),
+    DECLARE_NAPI_PROPERTY("testFinalizeWrap", test_finalize_wrap),
+    DECLARE_NAPI_PROPERTY("finalizeWasCalled", finalize_was_called),
+    DECLARE_NAPI_PROPERTY("derefItemWasCalled", deref_item_was_called),
   };
 
   NAPI_CALL_RETURN_VOID(env, napi_define_properties(
