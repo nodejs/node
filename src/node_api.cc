@@ -12,7 +12,6 @@
 #include <node_object_wrap.h>
 #include <string.h>
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <vector>
 #include "uv.h"
@@ -852,7 +851,7 @@ napi_status napi_get_last_error_info(napi_env env,
   static_assert(
       node::arraysize(error_messages) == napi_escape_called_twice + 1,
       "Count of error messages must match count of error values");
-  assert(env->last_error.error_code <= napi_escape_called_twice);
+  CHECK_LE(env->last_error.error_code, napi_escape_called_twice);
 
   // Wait until someone requests the last error information to fetch the error
   // message string
