@@ -121,6 +121,8 @@ void Deserializer::Deserialize(Isolate* isolate) {
   LOG_CODE_EVENT(isolate_, LogCodeObjects());
   LOG_CODE_EVENT(isolate_, LogBytecodeHandlers());
   LOG_CODE_EVENT(isolate_, LogCompiledFunctions());
+
+  if (FLAG_rehash_snapshot && can_rehash_) Rehash();
 }
 
 MaybeHandle<Object> Deserializer::DeserializePartial(
@@ -151,6 +153,9 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
   // changed and logging should be added to notify the profiler et al of the
   // new code, which also has to be flushed from instruction cache.
   CHECK_EQ(start_address, code_space->top());
+
+  if (FLAG_rehash_snapshot && can_rehash_) RehashContext(Context::cast(root));
+
   return Handle<Object>(root, isolate);
 }
 
@@ -174,6 +179,63 @@ MaybeHandle<HeapObject> Deserializer::DeserializeObject(Isolate* isolate) {
     }
     CommitPostProcessedObjects(isolate);
     return scope.CloseAndEscape(result);
+  }
+}
+
+// We only really just need HashForObject here.
+class StringRehashKey : public HashTableKey {
+ public:
+  uint32_t HashForObject(Object* other) override {
+    return String::cast(other)->Hash();
+  }
+
+  static uint32_t StringHash(Object* obj) {
+    UNREACHABLE();
+    return String::cast(obj)->Hash();
+  }
+
+  bool IsMatch(Object* string) override {
+    UNREACHABLE();
+    return false;
+  }
+
+  uint32_t Hash() override {
+    UNREACHABLE();
+    return 0;
+  }
+
+  Handle<Object> AsHandle(Isolate* isolate) override {
+    UNREACHABLE();
+    return isolate->factory()->empty_string();
+  }
+};
+
+void Deserializer::Rehash() {
+  DCHECK(can_rehash_);
+  isolate_->heap()->InitializeHashSeed();
+  if (FLAG_profile_deserialization) {
+    PrintF("Re-initializing hash seed to %x\n",
+           isolate_->heap()->hash_seed()->value());
+  }
+  StringRehashKey string_rehash_key;
+  isolate_->heap()->string_table()->Rehash(&string_rehash_key);
+  SortMapDescriptors();
+}
+
+void Deserializer::RehashContext(Context* context) {
+  DCHECK(can_rehash_);
+  for (const auto& array : transition_arrays_) array->Sort();
+  Handle<Name> dummy = isolate_->factory()->empty_string();
+  context->global_object()->global_dictionary()->Rehash(dummy);
+  SortMapDescriptors();
+}
+
+void Deserializer::SortMapDescriptors() {
+  for (const auto& address : allocated_maps_) {
+    Map* map = Map::cast(HeapObject::FromAddress(address));
+    if (map->instance_descriptors()->number_of_descriptors() > 1) {
+      map->instance_descriptors()->Sort();
+    }
   }
 }
 
@@ -366,6 +428,16 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
         NativesExternalStringResource::DecodeForDeserialization(
             string->resource()));
     isolate_->heap()->RegisterExternalString(string);
+  }
+  if (FLAG_rehash_snapshot && can_rehash_ && !deserializing_user_code()) {
+    if (obj->IsString()) {
+      // Uninitialize hash field as we are going to reinitialize the hash seed.
+      String* string = String::cast(obj);
+      string->set_hash_field(String::kEmptyHashField);
+    } else if (obj->IsTransitionArray() &&
+               TransitionArray::cast(obj)->number_of_entries() > 1) {
+      transition_arrays_.Add(TransitionArray::cast(obj));
+    }
   }
   // Check alignment.
   DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(), obj->RequiredAlignment()));

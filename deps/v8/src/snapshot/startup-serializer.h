@@ -29,6 +29,8 @@ class StartupSerializer : public Serializer {
 
   int PartialSnapshotCacheIndex(HeapObject* o);
 
+  bool can_be_rehashed() const { return can_be_rehashed_; }
+
  private:
   class PartialCacheIndexMap {
    public:
@@ -68,12 +70,18 @@ class StartupSerializer : public Serializer {
   // roots. In the second pass, we serialize the rest.
   bool RootShouldBeSkipped(int root_index);
 
+  void CheckRehashability(HeapObject* hashtable);
+
   bool clear_function_code_;
   bool serializing_builtins_;
   bool serializing_immortal_immovables_roots_;
   std::bitset<Heap::kStrongRootListLength> root_has_been_serialized_;
   PartialCacheIndexMap partial_cache_index_map_;
   List<AccessorInfo*> accessor_infos_;
+  // Indicates whether we only serialized hash tables that we can rehash.
+  // TODO(yangguo): generalize rehashing, and remove this flag.
+  bool can_be_rehashed_;
+
   DISALLOW_COPY_AND_ASSIGN(StartupSerializer);
 };
 
