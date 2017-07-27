@@ -101,18 +101,13 @@ rules:
   func-call-spacing: error
   func-name-matching: error
   func-style: [error, declaration, {allowArrowFunctions: true}]
-  # indent: [error, 2, {ArrayExpression: first,
-  #                     CallExpression: {arguments: first},
-  #                     FunctionDeclaration: {parameters: first},
-  #                     FunctionExpression: {parameters: first},
-  #                     MemberExpression: off,
-  #                     ObjectExpression: first,
-  #                     SwitchCase: 1}]
-  indent-legacy: [error, 2, {ArrayExpression: first,
-                             CallExpression: {arguments: first},
-                             MemberExpression: 1,
-                             ObjectExpression: first,
-                             SwitchCase: 1}]
+  indent: [error, 2, {ArrayExpression: first,
+                      CallExpression: {arguments: first},
+                      FunctionDeclaration: {parameters: first},
+                      FunctionExpression: {parameters: first},
+                      MemberExpression: off,
+                      ObjectExpression: first,
+                      SwitchCase: 1}]
   key-spacing: [error, {mode: minimum}]
   keyword-spacing: error
   linebreak-style: [error, unix]
