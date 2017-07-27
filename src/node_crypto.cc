@@ -2699,18 +2699,6 @@ int Connection::HandleSSLError(const char* func,
 }
 
 
-void Connection::ClearError() {
-#ifndef NDEBUG
-  HandleScope scope(ssl_env()->isolate());
-
-  // We should clear the error in JS-land
-  Local<String> error_key = ssl_env()->error_string();
-  Local<Value> error = object()->Get(error_key);
-  CHECK_EQ(error->BooleanValue(), false);
-#endif  // NDEBUG
-}
-
-
 void Connection::SetShutdownFlags() {
   HandleScope scope(ssl_env()->isolate());
 
