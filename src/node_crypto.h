@@ -390,7 +390,6 @@ class Connection : public AsyncWrap, public SSLWrap<Connection> {
 
   int HandleSSLError(const char* func, int rv, ZeroStatus zs, SyscallStatus ss);
 
-  void ClearError();
   void SetShutdownFlags();
 
   Connection(Environment* env,
