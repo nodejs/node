@@ -64,8 +64,15 @@ function parseWSFrame(buffer, handler) {
   }
   if (buffer.length < bodyOffset + dataLen)
     return 0;
-  const message = JSON.parse(
-    buffer.slice(bodyOffset, bodyOffset + dataLen).toString('utf8'));
+  const jsonPayload =
+    buffer.slice(bodyOffset, bodyOffset + dataLen).toString('utf8');
+  let message;
+  try {
+    message = JSON.parse(jsonPayload);
+  } catch (e) {
+    console.error(`JSON.parse() failed for: ${jsonPayload}`);
+    throw e;
+  }
   if (DEBUG)
     console.log('[received]', JSON.stringify(message));
   handler(message);
