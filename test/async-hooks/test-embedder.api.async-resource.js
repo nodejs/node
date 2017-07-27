@@ -18,8 +18,8 @@ assert.throws(() => new AsyncResource('invalid_trigger_id', null),
               /^RangeError: triggerAsyncId must be an unsigned integer$/);
 
 assert.strictEqual(
-    new AsyncResource('default_trigger_id').triggerAsyncId(),
-    async_hooks.executionAsyncId()
+  new AsyncResource('default_trigger_id').triggerAsyncId(),
+  async_hooks.executionAsyncId()
 );
 
 // create first custom event 'alcazares' with triggerAsyncId derived

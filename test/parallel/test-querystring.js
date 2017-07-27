@@ -328,13 +328,13 @@ check(qs.parse('a', null, []), { '': 'a' });
 
 // Test limiting
 assert.strictEqual(
-    Object.keys(qs.parse('a=1&b=1&c=1', null, null, { maxKeys: 1 })).length,
-    1);
+  Object.keys(qs.parse('a=1&b=1&c=1', null, null, { maxKeys: 1 })).length,
+  1);
 
 // Test limiting with a case that starts from `&`
 assert.strictEqual(
-    Object.keys(qs.parse('&a', null, null, { maxKeys: 1 })).length,
-    0);
+  Object.keys(qs.parse('&a', null, null, { maxKeys: 1 })).length,
+  0);
 
 // Test removing limit
 {
@@ -356,7 +356,7 @@ assert.strictEqual(
 {
   const b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
     '%0d%ac%a2%2f%9d%eb%d8%a2%e6');
-// <Buffer d3 f2 55 67 1f 36 76 24 5e 98 cb 0d ac a2 2f 9d eb d8 a2 e6>
+  // <Buffer d3 f2 55 67 1f 36 76 24 5e 98 cb 0d ac a2 2f 9d eb d8 a2 e6>
   assert.strictEqual(0xd3, b[0]);
   assert.strictEqual(0xf2, b[1]);
   assert.strictEqual(0x55, b[2]);
@@ -411,7 +411,7 @@ check(qs.parse('%\u0100=%\u0101'), { '%Ā': '%ā' });
   }
 
   check(qs.parse('a=a', null, null, { decodeURIComponent: errDecode }),
-    { a: 'a' });
+        { a: 'a' });
 }
 
 // Test custom encode

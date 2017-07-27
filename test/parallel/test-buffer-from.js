@@ -30,9 +30,10 @@ class MyBadPrimitive {
 deepStrictEqual(Buffer.from(new String(checkString)), check);
 deepStrictEqual(Buffer.from(new MyString()), check);
 deepStrictEqual(Buffer.from(new MyPrimitive()), check);
-deepStrictEqual(Buffer.from(
-                  runInNewContext('new String(checkString)', { checkString })),
-                check);
+deepStrictEqual(
+  Buffer.from(runInNewContext('new String(checkString)', { checkString })),
+  check
+);
 
 [
   {},

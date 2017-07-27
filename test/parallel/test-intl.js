@@ -55,7 +55,7 @@ if (!common.hasIntl) {
 } else {
   const erMsg =
     `"Intl" object is present but v8_enable_i18n_support is ${
-    enablei18n}. Is this test out of date?`;
+      enablei18n}. Is this test out of date?`;
   assert.strictEqual(enablei18n, 1, erMsg);
 
   // Construct a new date at the beginning of Unix time

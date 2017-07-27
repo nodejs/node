@@ -76,13 +76,22 @@ assert.strictEqual(util.inspect({ 'a': { 'b': { 'c': 2 } } }, false, 1),
                    '{ a: { b: [Object] } }');
 assert.strictEqual(util.inspect({ 'a': { 'b': ['c'] } }, false, 1),
                    '{ a: { b: [Array] } }');
-assert.strictEqual(util.inspect(Object.create({},
-  { visible: { value: 1, enumerable: true }, hidden: { value: 2 } })),
-                   '{ visible: 1 }'
+assert.strictEqual(
+  util.inspect(
+    Object.create(
+      {},
+      { visible: { value: 1, enumerable: true }, hidden: { value: 2 } }
+    )
+  ),
+  '{ visible: 1 }'
 );
-assert.strictEqual(util.inspect(Object.assign(new String('hello'),
-                   { [Symbol('foo')]: 123 }), { showHidden: true }),
-                   '{ [String: \'hello\'] [length]: 5, [Symbol(foo)]: 123 }');
+assert.strictEqual(
+  util.inspect(
+    Object.assign(new String('hello'), { [Symbol('foo')]: 123 }),
+    { showHidden: true }
+  ),
+  '{ [String: \'hello\'] [length]: 5, [Symbol(foo)]: 123 }'
+);
 
 assert.strictEqual(util.inspect((new JSStream())._externalStream),
                    '[External]');
@@ -177,14 +186,14 @@ for (const showHidden of [true, false]) {
   Uint32Array,
   Uint8Array,
   Uint8ClampedArray ].forEach((constructor) => {
-    const length = 2;
-    const byteLength = length * constructor.BYTES_PER_ELEMENT;
-    const array = new constructor(new ArrayBuffer(byteLength), 0, length);
-    array[0] = 65;
-    array[1] = 97;
-    assert.strictEqual(
-      util.inspect(array, true),
-      `${constructor.name} [\n` +
+  const length = 2;
+  const byteLength = length * constructor.BYTES_PER_ELEMENT;
+  const array = new constructor(new ArrayBuffer(byteLength), 0, length);
+  array[0] = 65;
+  array[1] = 97;
+  assert.strictEqual(
+    util.inspect(array, true),
+    `${constructor.name} [\n` +
       '  65,\n' +
       '  97,\n' +
       `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},\n` +
@@ -192,11 +201,11 @@ for (const showHidden of [true, false]) {
       `  [byteLength]: ${byteLength},\n` +
       '  [byteOffset]: 0,\n' +
       `  [buffer]: ArrayBuffer { byteLength: ${byteLength} } ]`);
-    assert.strictEqual(
-      util.inspect(array, false),
-      `${constructor.name} [ 65, 97 ]`
-    );
-  });
+  assert.strictEqual(
+    util.inspect(array, false),
+    `${constructor.name} [ 65, 97 ]`
+  );
+});
 
 // Now check that declaring a TypedArray in a different context works the same
 [ Float32Array,
@@ -208,17 +217,17 @@ for (const showHidden of [true, false]) {
   Uint32Array,
   Uint8Array,
   Uint8ClampedArray ].forEach((constructor) => {
-    const length = 2;
-    const byteLength = length * constructor.BYTES_PER_ELEMENT;
-    const array = vm.runInNewContext(
-      'new constructor(new ArrayBuffer(byteLength), 0, length)',
-      { constructor, byteLength, length }
-    );
-    array[0] = 65;
-    array[1] = 97;
-    assert.strictEqual(
-      util.inspect(array, true),
-      `${constructor.name} [\n` +
+  const length = 2;
+  const byteLength = length * constructor.BYTES_PER_ELEMENT;
+  const array = vm.runInNewContext(
+    'new constructor(new ArrayBuffer(byteLength), 0, length)',
+    { constructor, byteLength, length }
+  );
+  array[0] = 65;
+  array[1] = 97;
+  assert.strictEqual(
+    util.inspect(array, true),
+    `${constructor.name} [\n` +
       '  65,\n' +
       '  97,\n' +
       `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},\n` +
@@ -226,11 +235,11 @@ for (const showHidden of [true, false]) {
       `  [byteLength]: ${byteLength},\n` +
       '  [byteOffset]: 0,\n' +
       `  [buffer]: ArrayBuffer { byteLength: ${byteLength} } ]`);
-    assert.strictEqual(
-      util.inspect(array, false),
-      `${constructor.name} [ 65, 97 ]`
-    );
-  });
+  assert.strictEqual(
+    util.inspect(array, false),
+    `${constructor.name} [ 65, 97 ]`
+  );
+});
 
 // Due to the hash seed randomization it's not deterministic the order that
 // the following ways this hash is displayed.
@@ -443,9 +452,9 @@ assert.strictEqual(util.inspect(-0), '-0');
   function BadCustomError(msg) {
     Error.call(this);
     Object.defineProperty(this, 'message',
-      { value: msg, enumerable: false });
+                          { value: msg, enumerable: false });
     Object.defineProperty(this, 'name',
-      { value: 'BadCustomError', enumerable: false });
+                          { value: 'BadCustomError', enumerable: false });
   }
   util.inherits(BadCustomError, Error);
   assert.strictEqual(
@@ -1039,18 +1048,18 @@ if (typeof Symbol !== 'undefined') {
   assert.throws(() => {
     util.inspect.defaultOptions = null;
   }, common.expectsError({
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "options" argument must be of type object'
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "options" argument must be of type object'
   })
   );
 
   assert.throws(() => {
     util.inspect.defaultOptions = 'bad';
   }, common.expectsError({
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "options" argument must be of type object'
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "options" argument must be of type object'
   })
   );
 }

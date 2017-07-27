@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 
 const pfx = fs.readFileSync(
-    path.join(common.fixturesDir, 'keys', 'agent1-pfx.pem'));
+  path.join(common.fixturesDir, 'keys', 'agent1-pfx.pem'));
 
 const server = tls.createServer({
   pfx: pfx,
