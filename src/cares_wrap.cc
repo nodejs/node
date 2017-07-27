@@ -2131,6 +2131,13 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+void Cancel(const FunctionCallbackInfo<Value>& args) {
+  ChannelWrap* channel;
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+
+  ares_cancel(channel->cares_channel());
+}
+
 
 void StrError(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -2215,6 +2222,7 @@ void Initialize(Local<Object> target,
 
   env->SetProtoMethod(channel_wrap, "getServers", GetServers);
   env->SetProtoMethod(channel_wrap, "setServers", SetServers);
+  env->SetProtoMethod(channel_wrap, "cancel", Cancel);
 
   channel_wrap->SetClassName(
       FIXED_ONE_BYTE_STRING(env->isolate(), "ChannelWrap"));
