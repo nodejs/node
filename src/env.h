@@ -97,6 +97,7 @@ namespace node {
   V(cached_data_rejected_string, "cachedDataRejected")                        \
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
+  V(channel_string, "channel")                                                \
   V(oncertcb_string, "oncertcb")                                              \
   V(onclose_string, "_onclose")                                               \
   V(code_string, "code")                                                      \
@@ -298,19 +299,10 @@ namespace node {
 
 class Environment;
 
-struct node_ares_task {
-  Environment* env;
-  ares_socket_t sock;
-  uv_poll_t poll_watcher;
-  RB_ENTRY(node_ares_task) node;
-};
-
 struct node_async_ids {
   double async_id;
   double trigger_id;
 };
-
-RB_HEAD(node_ares_task_list, node_ares_task);
 
 class IsolateData {
  public:
@@ -557,15 +549,6 @@ class Environment {
   inline TickInfo* tick_info();
   inline uint64_t timer_base() const;
 
-  static inline Environment* from_cares_timer_handle(uv_timer_t* handle);
-  inline uv_timer_t* cares_timer_handle();
-  inline ares_channel cares_channel();
-  inline ares_channel* cares_channel_ptr();
-  inline bool cares_query_last_ok();
-  inline void set_cares_query_last_ok(bool ok);
-  inline bool cares_is_servers_default();
-  inline void set_cares_is_servers_default(bool is_default);
-  inline node_ares_task_list* cares_task_list();
   inline IsolateData* isolate_data() const;
 
   inline bool using_domains() const;
@@ -685,11 +668,6 @@ class Environment {
   DomainFlag domain_flag_;
   TickInfo tick_info_;
   const uint64_t timer_base_;
-  uv_timer_t cares_timer_handle_;
-  ares_channel cares_channel_;
-  bool cares_query_last_ok_;
-  bool cares_is_servers_default_;
-  node_ares_task_list cares_task_list_;
   bool using_domains_;
   bool printed_error_;
   bool trace_sync_io_;

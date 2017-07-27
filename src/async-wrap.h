@@ -35,6 +35,7 @@ namespace node {
 
 #define NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                               \
   V(NONE)                                                                     \
+  V(DNSCHANNEL)                                                               \
   V(FSEVENTWRAP)                                                              \
   V(FSREQWRAP)                                                                \
   V(GETADDRINFOREQWRAP)                                                       \

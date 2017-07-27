@@ -51,6 +51,7 @@ function testInitialized(req, ctor_name) {
   testInitialized(dns.lookup('www.google.com', () => {}), 'GetAddrInfoReqWrap');
   testInitialized(dns.lookupService('::1', 22, () => {}), 'GetNameInfoReqWrap');
   testInitialized(dns.resolve6('::1', () => {}), 'QueryReqWrap');
+  testInitialized(new cares.ChannelWrap(), 'ChannelWrap');
 }
 
 
