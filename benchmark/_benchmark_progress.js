@@ -65,12 +65,12 @@ class BenchmarkProgress {
     this.updateProgress();
   }
 
-  completeConfig(data) {
+  completeConfig() {
     this.completedConfig++;
     this.updateProgress();
   }
 
-  completeRun(job) {
+  completeRun() {
     this.completedRuns++;
     this.updateProgress();
   }
@@ -108,7 +108,7 @@ class BenchmarkProgress {
            `${caption} `;
   }
 
-  updateProgress(finished) {
+  updateProgress() {
     if (!process.stderr.isTTY || process.stdout.isTTY) {
       return;
     }
