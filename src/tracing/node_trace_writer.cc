@@ -27,7 +27,7 @@ void NodeTraceWriter::WriteSuffix() {
   {
     Mutex::ScopedLock scoped_lock(stream_mutex_);
     if (total_traces_ > 0) {
-      total_traces_ = 0; // so we don't write it again in FlushPrivate
+      total_traces_ = 0;  // so we don't write it again in FlushPrivate
       // Appends "]}" to stream_.
       delete json_trace_writer_;
       should_flush = true;
@@ -49,7 +49,7 @@ NodeTraceWriter::~NodeTraceWriter() {
   }
   uv_async_send(&exit_signal_);
   Mutex::ScopedLock scoped_lock(request_mutex_);
-  while(!exited_) {
+  while (!exited_) {
     exit_cond_.Wait(scoped_lock);
   }
 }
@@ -110,8 +110,8 @@ void NodeTraceWriter::FlushSignalCb(uv_async_t* signal) {
   trace_writer->FlushPrivate();
 }
 
-// TODO: Remove (is it necessary to change the API? Since because of WriteSuffix
-// it no longer matters whether it's true or false)
+// TODO(misterpoe) : Remove (is it necessary to change the API?
+// Since because of WriteSuffix it no longer matters whether it's true or false)
 void NodeTraceWriter::Flush() {
   Flush(true);
 }
@@ -172,9 +172,12 @@ void NodeTraceWriter::WriteCb(uv_fs_t* req) {
 // static
 void NodeTraceWriter::ExitSignalCb(uv_async_t* signal) {
   NodeTraceWriter* trace_writer = static_cast<NodeTraceWriter*>(signal->data);
-  uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->flush_signal_), nullptr);
-  uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->exit_signal_), [](uv_handle_t* signal) {
-      NodeTraceWriter* trace_writer = static_cast<NodeTraceWriter*>(signal->data);
+  uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->flush_signal_),
+           nullptr);
+  uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->exit_signal_),
+           [](uv_handle_t* signal) {
+      NodeTraceWriter* trace_writer =
+                              static_cast<NodeTraceWriter*>(signal->data);
       Mutex::ScopedLock scoped_lock(trace_writer->request_mutex_);
       trace_writer->exited_ = true;
       trace_writer->exit_cond_.Signal(scoped_lock);

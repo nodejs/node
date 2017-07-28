@@ -1,5 +1,5 @@
-#ifndef SRC_NODE_TRACE_BUFFER_H_
-#define SRC_NODE_TRACE_BUFFER_H_
+#ifndef SRC_TRACING_NODE_TRACE_BUFFER_H_
+#define SRC_TRACING_NODE_TRACE_BUFFER_H_
 
 #include "node_mutex.h"
 #include "tracing/node_trace_writer.h"
@@ -75,7 +75,7 @@ class NodeTraceBuffer : public TraceBuffer {
   // Used to wait until async handles have been closed.
   ConditionVariable exit_cond_;
   std::unique_ptr<NodeTraceWriter> trace_writer_;
-  // TODO: Change std::atomic to something less contentious.
+  // TODO(misterpoe) : Change std::atomic to something less contentious.
   std::atomic<InternalTraceBuffer*> current_buf_;
   InternalTraceBuffer buffer1_;
   InternalTraceBuffer buffer2_;
@@ -84,4 +84,4 @@ class NodeTraceBuffer : public TraceBuffer {
 }  // namespace tracing
 }  // namespace node
 
-#endif  // SRC_NODE_TRACING_CONTROLLER_H_
+#endif  // SRC_TRACING_NODE_TRACE_BUFFER_H_

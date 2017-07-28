@@ -94,7 +94,8 @@ NodeTraceBuffer::NodeTraceBuffer(size_t max_chunks,
   current_buf_.store(&buffer1_);
 
   flush_signal_.data = this;
-  int err = uv_async_init(tracing_loop_, &flush_signal_, NonBlockingFlushSignalCb);
+  int err = uv_async_init(tracing_loop_, &flush_signal_,
+                          NonBlockingFlushSignalCb);
   CHECK_EQ(err, 0);
 
   exit_signal_.data = this;
@@ -105,7 +106,7 @@ NodeTraceBuffer::NodeTraceBuffer(size_t max_chunks,
 NodeTraceBuffer::~NodeTraceBuffer() {
   uv_async_send(&exit_signal_);
   Mutex::ScopedLock scoped_lock(exit_mutex_);
-  while(!exited_) {
+  while (!exited_) {
     exit_cond_.Wait(scoped_lock);
   }
 }
@@ -138,7 +139,7 @@ bool NodeTraceBuffer::Flush() {
 bool NodeTraceBuffer::TryLoadAvailableBuffer() {
   InternalTraceBuffer* prev_buf = current_buf_.load();
   if (prev_buf->IsFull()) {
-    uv_async_send(&flush_signal_); // trigger flush on a separate thread
+    uv_async_send(&flush_signal_);  // trigger flush on a separate thread
     InternalTraceBuffer* other_buf = prev_buf == &buffer1_ ?
       &buffer2_ : &buffer1_;
     if (!other_buf->IsFull()) {
@@ -165,8 +166,10 @@ void NodeTraceBuffer::NonBlockingFlushSignalCb(uv_async_t* signal) {
 void NodeTraceBuffer::ExitSignalCb(uv_async_t* signal) {
   NodeTraceBuffer* buffer = reinterpret_cast<NodeTraceBuffer*>(signal->data);
   uv_close(reinterpret_cast<uv_handle_t*>(&buffer->flush_signal_), nullptr);
-  uv_close(reinterpret_cast<uv_handle_t*>(&buffer->exit_signal_), [](uv_handle_t* signal) {
-      NodeTraceBuffer* buffer = reinterpret_cast<NodeTraceBuffer*>(signal->data);
+  uv_close(reinterpret_cast<uv_handle_t*>(&buffer->exit_signal_),
+           [](uv_handle_t* signal) {
+      NodeTraceBuffer* buffer =
+                  reinterpret_cast<NodeTraceBuffer*>(signal->data);
       Mutex::ScopedLock scoped_lock(buffer->exit_mutex_);
       buffer->exited_ = true;
       buffer->exit_cond_.Signal(scoped_lock);
