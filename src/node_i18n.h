@@ -25,7 +25,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include <unicode/ucnv.h>
 #include <string>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
