@@ -310,6 +310,14 @@ assert.strictEqual(
                      '[ 1, 2, 3, growingLength: [Getter], \'-1\': -1 ]');
 }
 
+// Array with inherited number properties
+{
+  class CustomArray extends Array {};
+  CustomArray.prototype[5] = 'foo';
+  const arr = new CustomArray(50);
+  assert.strictEqual(util.inspect(arr), 'CustomArray [ <50 empty items> ]');
+}
+
 // Function with properties
 {
   const value = () => {};
