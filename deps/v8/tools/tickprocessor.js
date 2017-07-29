@@ -105,25 +105,25 @@ function TickProcessor(
       'shared-library': { parsers: [null, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary },
       'code-creation': {
-          parsers: [null, parseInt, parseInt, parseInt, parseInt,
+          parsers: [null, parseInt, parseInt, this.parseIntAddressFormat, parseInt,
                     null, 'var-args'],
           processor: this.processCodeCreation },
       'code-deopt': {
-          parsers: [parseInt, parseInt, parseInt, parseInt, parseInt,
+          parsers: [parseInt, parseInt, this.parseIntAddressFormat, parseInt, parseInt,
                     null, null, null],
           processor: this.processCodeDeopt },
-      'code-move': { parsers: [parseInt, parseInt, ],
+      'code-move': { parsers: [this.parseIntAddressFormat, this.parseIntAddressFormat, ],
           processor: this.processCodeMove },
       'code-delete': { parsers: [parseInt],
           processor: this.processCodeDelete },
-      'sfi-move': { parsers: [parseInt, parseInt],
+      'sfi-move': { parsers: [this.parseIntAddressFormat, this.parseIntAddressFormat],
           processor: this.processFunctionMove },
       'active-runtime-timer': {
         parsers: [null],
         processor: this.processRuntimeTimerEvent },
       'tick': {
-          parsers: [parseInt, parseInt, parseInt,
-                    parseInt, parseInt, 'var-args'],
+          parsers: [this.parseIntAddressFormat, parseInt, parseInt,
+                    this.parseIntAddressFormat, parseInt, 'var-args'],
           processor: this.processTick },
       'heap-sample-begin': { parsers: [null, null, parseInt],
           processor: this.processHeapSampleBegin },
@@ -236,6 +236,20 @@ TickProcessor.prototype.printError = function(str) {
   printErr(str);
 };
 
+/**
+ * A thin wrapper around parseInt to accept the Windows %p pointer format,
+ * which is 8 hexadecimal characters on 32 bits, or 16 hexadecimal characters
+ * on 64 bits.
+ */
+TickProcessor.prototype.parseIntAddressFormat = function(s, radix) {
+  var re = /^([0-9A-Fa-f]{8}|[0-9A-Fa-f]{16})$/g
+  if (s.match(re)) {
+    return parseInt(s, 16)
+  } else {
+    return parseInt(s, radix)
+  }
+}
+
 
 TickProcessor.prototype.setCodeType = function(name, type) {
   this.codeTypes_[name] = TickProcessor.CodeTypes[type];
@@ -292,7 +306,7 @@ TickProcessor.prototype.processCodeCreation = function(
     type, kind, timestamp, start, size, name, maybe_func) {
   name = this.deserializedEntriesNames_[start] || name;
   if (maybe_func.length) {
-    var funcAddr = parseInt(maybe_func[0]);
+    var funcAddr = this.parseIntAddressFormat(maybe_func[0]);
     var state = parseState(maybe_func[1]);
     this.profile_.addFuncCode(type, name, timestamp, start, size, funcAddr, state);
   } else {
