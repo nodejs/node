@@ -120,7 +120,7 @@ Avoid timers unless the test is specifically testing timers. There are multiple
 reasons for this. Mainly, they are a source of flakiness. For a thorough
 explanation go [here](https://github.com/nodejs/testing/issues/27).
 
-In the event a test needs a timer, consider using the
+In the event of a ['flaky tests' situation](https://github.com/nodejs/node/wiki/Flaky-tests), consider using the
 `common.platformTimeout()` method. It allows setting specific timeouts
 depending on the platform. For example:
 
@@ -130,6 +130,8 @@ const timer = setTimeout(fail, common.platformTimeout(4000));
 
 will create a 4-second timeout on most platforms but a longer timeout on slower
 platforms.
+
+Please use this method only in case of 'flaky tests' situation (see [this issue](https://github.com/nodejs/node/issues/11368) for more info).
 
 ### The *common* API
 
