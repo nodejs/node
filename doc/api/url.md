@@ -77,11 +77,18 @@ const myURL =
 added: v7.0.0
 -->
 
-*Note*: Using the `delete` keyword on `URL` objects (e.g.
-`delete myURL.protocol`, `delete myURL.pathname`, etc) has no effect but will
-still return `true`.
-
 ### Class: URL
+
+Browser-compatible `URL` class, implemented by following the WHATWG URL
+Standard. [Examples of parsed URLs][] may be found in the Standard itself.
+
+*Note*: In accordance with browser conventions, all properties of `URL` objects
+are implemented as getters and setters on the class prototype, rather than as
+data properties on the object itself. Thus, unlike [legacy urlObject][]s, using
+the `delete` keyword on any properties of `URL` objects (e.g. `delete
+myURL.protocol`, `delete myURL.pathname`, etc) has no effect but will still
+return `true`.
+
 #### Constructor: new URL(input[, base])
 
 * `input` {string} The input URL to parse
@@ -116,7 +123,8 @@ const myURL = new URL('https://你好你好');
 // https://xn--6qqa088eba/
 ```
 
-Additional [examples of parsed URLs][] may be found in the WHATWG URL Standard.
+*Note*: This feature is only available if the `node` executable was compiled
+with [ICU][] enabled. If not, the domain names are passed through unchanged.
 
 #### url.hash
 
@@ -211,9 +219,7 @@ will be thrown.
 
 * {string}
 
-Gets the read-only serialization of the URL's origin. Unicode characters that
-may be contained within the hostname will be encoded as-is without [Punycode][]
-encoding.
+Gets the read-only serialization of the URL's origin.
 
 ```js
 const { URL } = require('url');
@@ -226,7 +232,7 @@ console.log(myURL.origin);
 const { URL } = require('url');
 const idnURL = new URL('https://你好你好');
 console.log(idnURL.origin);
-// Prints https://你好你好
+// Prints https://xn--6qqa088eba
 
 console.log(idnURL.hostname);
 // Prints xn--6qqa088eba
@@ -1150,3 +1156,5 @@ console.log(myURL.origin);
 [examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
 [percent-encoded]: #whatwg-percent-encoding
 [stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability
+[ICU]: intl.html#intl_options_for_building_node_js
+[legacy urlObject]: #url_legacy_urlobject
