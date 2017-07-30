@@ -5680,7 +5680,7 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
       obj->Set(env->context(),
                env->domain_string(),
                env->domain_array()->Get(env->context(), 0).ToLocalChecked())
-      .FromJust();
+          .FromJust();
     }
 
     uv_queue_work(env->event_loop(),
