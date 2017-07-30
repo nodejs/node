@@ -712,6 +712,12 @@ only used in the [WHATWG URL API][] for strict compliance with the specification
 native Node.js APIs, `func(undefined)` and `func()` are treated identically, and
 the [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
+<a id="ERR_NO_ICU"></a>
+### ERR_NO_ICU
+
+Used when an attempt is made to use features that require [ICU][], while
+Node.js is not compiled with ICU support.
+
 <a id="ERR_SOCKET_ALREADY_BOUND"></a>
 ### ERR_SOCKET_ALREADY_BOUND
 Used when an attempt is made to bind a socket that has already been bound.
@@ -795,6 +801,7 @@ are most likely an indication of a bug within Node.js itself.
 [`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
 [`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
+[ICU]: intl.html#intl_internationalization_support
 [Node.js Error Codes]: #nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [WHATWG URL API]: url.html#url_the_whatwg_url_api
