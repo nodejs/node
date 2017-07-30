@@ -544,7 +544,7 @@ added: v8.0.0
 A Symbol that can be used to declare custom promisified variants of functions,
 see [Custom promisified functions][].
 
-### Class: util.TextDecoder
+## Class: util.TextDecoder
 <!-- YAML
 added: REPLACEME
 -->
@@ -563,23 +563,33 @@ while (buffer = getNextChunkSomehow()) {
 string += decoder.decode(); // end-of-stream
 ```
 
-#### WHATWG Supported Encodings
+### WHATWG Supported Encodings
 
 Per the [WHATWG Encoding Standard][], the encodings supported by the
 `TextDecoder` API are outlined in the tables below. For each encoding,
-one or more aliases may be used. Support for some encodings is enabled
-only when Node.js is using the full ICU data (see [Internationalization][]).
-`util.TextDecoder` is `undefined` when ICU is not enabled during build.
+one or more aliases may be used.
 
-##### Encodings Supported By Default
+Different Node.js build configurations support different sets of encodings.
+While a very basic set of encodings is supported even on Node.js builds without
+ICU enabled, support for some encodings is provided only when Node.js is built
+with ICU and using the full ICU data (see [Internationalization][]).
+
+#### Encodings Supported Without ICU
 
 | Encoding    | Aliases                           |
 | ----------- | --------------------------------- |
-| `'utf8'`    | `'unicode-1-1-utf-8'`, `'utf-8'`  |
-| `'utf-16be'`|                                   |
+| `'utf-8'`   | `'unicode-1-1-utf-8'`, `'utf8'`   |
 | `'utf-16le'`| `'utf-16'`                        |
 
-##### Encodings Requiring Full-ICU
+#### Encodings Supported by Default (With ICU)
+
+| Encoding    | Aliases                           |
+| ----------- | --------------------------------- |
+| `'utf-8'`   | `'unicode-1-1-utf-8'`, `'utf8'`   |
+| `'utf-16le'`| `'utf-16'`                        |
+| `'utf-16be'`|                                   |
+
+#### Encodings Requiring Full ICU Data
 
 | Encoding          | Aliases                          |
 | ----------------- | -------------------------------- |
@@ -621,13 +631,14 @@ only when Node.js is using the full ICU data (see [Internationalization][]).
 *Note*: The `'iso-8859-16'` encoding listed in the [WHATWG Encoding Standard][]
 is not supported.
 
-#### new TextDecoder([encoding[, options]])
+### new TextDecoder([encoding[, options]])
 
 * `encoding` {string} Identifies the `encoding` that this `TextDecoder` instance
   supports. Defaults to `'utf-8'`.
 * `options` {Object}
   * `fatal` {boolean} `true` if decoding failures are fatal. Defaults to
-    `false`.
+    `false`. This option is only supported when ICU is enabled (see
+    [Internationalization][]).
   * `ignoreBOM` {boolean} When `true`, the `TextDecoder` will include the byte
      order mark in the decoded result. When `false`, the byte order mark will
      be removed from the output. This option is only used when `encoding` is
@@ -636,7 +647,7 @@ is not supported.
 Creates an new `TextDecoder` instance. The `encoding` may specify one of the
 supported encodings or an alias.
 
-#### textDecoder.decode([input[, options]])
+### textDecoder.decode([input[, options]])
 
 * `input` {ArrayBuffer|DataView|TypedArray} An `ArrayBuffer`, `DataView` or
   Typed Array instance containing the encoded data.
@@ -652,27 +663,27 @@ internally and emitted after the next call to `textDecoder.decode()`.
 If `textDecoder.fatal` is `true`, decoding errors that occur will result in a
 `TypeError` being thrown.
 
-#### textDecoder.encoding
+### textDecoder.encoding
 
-* Value: {string}
+* {string}
 
 The encoding supported by the `TextDecoder` instance.
 
-#### textDecoder.fatal
+### textDecoder.fatal
 
-* Value: {boolean}
+* {boolean}
 
 The value will be `true` if decoding errors result in a `TypeError` being
 thrown.
 
-#### textDecoder.ignoreBOM
+### textDecoder.ignoreBOM
 
-* Value: {boolean}
+* {boolean}
 
 The value will be `true` if the decoding result will include the byte order
 mark.
 
-### Class: util.TextEncoder
+## Class: util.TextEncoder
 <!-- YAML
 added: REPLACEME
 -->
@@ -680,20 +691,26 @@ added: REPLACEME
 > Stability: 1 - Experimental
 
 An implementation of the [WHATWG Encoding Standard][] `TextEncoder` API. All
-instances of `TextEncoder` only support `UTF-8` encoding.
+instances of `TextEncoder` only support UTF-8 encoding.
 
 ```js
 const encoder = new TextEncoder();
 const uint8array = encoder.encode('this is some data');
 ```
 
-#### textEncoder.encode([input])
+### textEncoder.encode([input])
 
 * `input` {string} The text to encode. Defaults to an empty string.
 * Returns: {Uint8Array}
 
-UTF-8 Encodes the `input` string and returns a `Uint8Array` containing the
+UTF-8 encodes the `input` string and returns a `Uint8Array` containing the
 encoded bytes.
+
+### textDecoder.encoding
+
+* {string}
+
+The encoding supported by the `TextEncoder` instance. Always set to `'utf-8'`.
 
 ## Deprecated APIs
 

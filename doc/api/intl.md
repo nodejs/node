@@ -52,7 +52,7 @@ option:
 | [WHATWG URL Parser][]                   | partial (no IDN support)          | full                         | full                   | full
 | [`require('buffer').transcode()`][]     | none (function does not exist)    | full                         | full                   | full
 | [REPL][]                                | partial (inaccurate line editing) | full                         | full                   | full
-| [`require('util').TextDecoder`][]       | none (class does not exist)       | partial/full (depends on OS) | partial (Unicode-only) | full
+| [`require('util').TextDecoder`][]       | partial (basic encodings support) | partial/full (depends on OS) | partial (Unicode-only) | full
 
 *Note*: The "(not locale-aware)" designation denotes that the function carries
 out its operation just like the non-`Locale` version of the function, if one
