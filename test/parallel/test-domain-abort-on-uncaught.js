@@ -5,19 +5,16 @@
 // setup, the process _does not_ abort.
 
 const common = require('../common');
+
 const assert = require('assert');
 const domain = require('domain');
 const child_process = require('child_process');
-
-let errorHandlerCalled = false;
 
 const tests = [
   function nextTick() {
     const d = domain.create();
 
-    d.once('error', function(err) {
-      errorHandlerCalled = true;
-    });
+    d.once('error', common.mustCall());
 
     d.run(function() {
       process.nextTick(function() {
@@ -29,9 +26,7 @@ const tests = [
   function timer() {
     const d = domain.create();
 
-    d.on('error', function(err) {
-      errorHandlerCalled = true;
-    });
+    d.on('error', common.mustCall());
 
     d.run(function() {
       setTimeout(function() {
@@ -43,9 +38,7 @@ const tests = [
   function immediate() {
     const d = domain.create();
 
-    d.on('error', function errorHandler() {
-      errorHandlerCalled = true;
-    });
+    d.on('error', common.mustCall());
 
     d.run(function() {
       setImmediate(function() {
@@ -57,9 +50,7 @@ const tests = [
   function timerPlusNextTick() {
     const d = domain.create();
 
-    d.on('error', function(err) {
-      errorHandlerCalled = true;
-    });
+    d.on('error', common.mustCall());
 
     d.run(function() {
       setTimeout(function() {
@@ -73,9 +64,7 @@ const tests = [
   function firstRun() {
     const d = domain.create();
 
-    d.on('error', function(err) {
-      errorHandlerCalled = true;
-    });
+    d.on('error', common.mustCall());
 
     d.run(function() {
       throw new Error('exceptional!');
@@ -85,9 +74,7 @@ const tests = [
   function fsAsync() {
     const d = domain.create();
 
-    d.on('error', function errorHandler() {
-      errorHandlerCalled = true;
-    });
+    d.on('error', common.mustCall());
 
     d.run(function() {
       const fs = require('fs');
@@ -101,9 +88,7 @@ const tests = [
     const net = require('net');
     const d = domain.create();
 
-    d.on('error', function(err) {
-      errorHandlerCalled = true;
-    });
+    d.on('error', common.mustCall());
 
     d.run(function() {
       const server = net.createServer(function(conn) {
@@ -124,9 +109,7 @@ const tests = [
     const d = domain.create();
     const d2 = domain.create();
 
-    d.on('error', function errorHandler() {
-      errorHandlerCalled = true;
-    });
+    d.on('error', common.mustCall());
 
     d.run(function() {
       d2.run(function() {
@@ -139,9 +122,7 @@ const tests = [
     const d = domain.create();
     const d2 = domain.create();
 
-    d2.on('error', function errorHandler() {
-      errorHandlerCalled = true;
-    });
+    d2.on('error', common.mustCall());
 
     d.run(function() {
       d2.run(function() {
@@ -154,9 +135,7 @@ const tests = [
     const d = domain.create();
     const d2 = domain.create();
 
-    d2.on('error', function errorHandler() {
-      errorHandlerCalled = true;
-    });
+    d2.on('error', common.mustCall());
 
     d.run(function() {
       d2.run(function() {
@@ -172,9 +151,7 @@ const tests = [
     const d = domain.create();
     const d2 = domain.create();
 
-    d2.on('error', function errorHandler() {
-      errorHandlerCalled = true;
-    });
+    d2.on('error', common.mustCall());
 
     d.run(function() {
       d2.run(function() {
@@ -189,9 +166,7 @@ const tests = [
     const d = domain.create();
     const d2 = domain.create();
 
-    d2.on('error', function errorHandler() {
-      errorHandlerCalled = true;
-    });
+    d2.on('error', common.mustCall());
 
     d.run(function() {
       d2.run(function() {
@@ -206,9 +181,7 @@ const tests = [
     const d = domain.create();
     const d2 = domain.create();
 
-    d2.on('error', function errorHandler() {
-      errorHandlerCalled = true;
-    });
+    d2.on('error', common.mustCall());
 
     d.run(function() {
       d2.run(function() {
@@ -226,9 +199,6 @@ if (process.argv[2] === 'child') {
 
   tests[testIndex]();
 
-  process.on('exit', function onExit() {
-    assert.strictEqual(errorHandlerCalled, true);
-  });
 } else {
 
   tests.forEach(function(test, testIndex) {
@@ -242,13 +212,10 @@ if (process.argv[2] === 'child') {
     testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception ` +
                `"${process.argv[1]}" child ${testIndex}`;
 
-    const child = child_process.exec(testCmd);
-
-    child.on('exit', function onExit(code, signal) {
-      assert.strictEqual(
-        code, 0, `Test at index ${testIndex
-        } should have exited with exit code 0 but instead exited with code ${
-          code} and signal ${signal}`);
-    });
+    try {
+      child_process.execSync(testCmd);
+    } catch (e) {
+      assert.fail(`Test index ${testIndex} failed: ${e}`);
+    }
   });
 }
