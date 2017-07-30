@@ -345,11 +345,11 @@ function thrower(errorConstructor) {
 assert.throws(makeBlock(thrower, a.AssertionError),
               a.AssertionError, 'message');
 assert.throws(makeBlock(thrower, a.AssertionError), a.AssertionError);
-// eslint-disable-next-line assert-throws-arguments
+// eslint-disable-next-line no-restricted-syntax
 assert.throws(makeBlock(thrower, a.AssertionError));
 
 // if not passing an error, catch all.
-// eslint-disable-next-line assert-throws-arguments
+// eslint-disable-next-line no-restricted-syntax
 assert.throws(makeBlock(thrower, TypeError));
 
 // when passing a type, only catch errors of the appropriate type
@@ -524,7 +524,7 @@ testAssertionMessage({a: NaN, b: Infinity, c: -Infinity},
 
 // #2893
 try {
-  // eslint-disable-next-line assert-throws-arguments
+  // eslint-disable-next-line no-restricted-syntax
   assert.throws(function() {
     assert.ifError(null);
   });
