@@ -72,6 +72,16 @@ assert.strictEqual(path.win32.basename('aaa\\bbb', 'bbb'), 'bbb');
 assert.strictEqual(path.win32.basename('aaa\\bbb\\\\\\\\', 'bbb'), 'bbb');
 assert.strictEqual(path.win32.basename('aaa\\bbb', 'bb'), 'b');
 assert.strictEqual(path.win32.basename('aaa\\bbb', 'b'), 'bb');
+assert.strictEqual(path.win32.basename('C:'), '');
+assert.strictEqual(path.win32.basename('C:.'), '.');
+assert.strictEqual(path.win32.basename('C:\\'), '');
+assert.strictEqual(path.win32.basename('C:\\dir\\base.ext'), 'base.ext');
+assert.strictEqual(path.win32.basename('C:\\basename.ext'), 'basename.ext');
+assert.strictEqual(path.win32.basename('C:basename.ext'), 'basename.ext');
+assert.strictEqual(path.win32.basename('C:basename.ext\\'), 'basename.ext');
+assert.strictEqual(path.win32.basename('C:basename.ext\\\\'), 'basename.ext');
+assert.strictEqual(path.win32.basename('C:foo'), 'foo');
+assert.strictEqual(path.win32.basename('file:stream'), 'file:stream');
 
 // On unix a backslash is just treated as any other character.
 assert.strictEqual(path.posix.basename('\\dir\\basename.ext'),
@@ -120,6 +130,8 @@ assert.strictEqual(path.win32.dirname('c:foo\\'), 'c:');
 assert.strictEqual(path.win32.dirname('c:foo\\bar'), 'c:foo');
 assert.strictEqual(path.win32.dirname('c:foo\\bar\\'), 'c:foo');
 assert.strictEqual(path.win32.dirname('c:foo\\bar\\baz'), 'c:foo\\bar');
+assert.strictEqual(path.win32.dirname('file:stream'), '.');
+assert.strictEqual(path.win32.dirname('dir\\file:stream'), 'dir');
 assert.strictEqual(path.win32.dirname('\\\\unc\\share'),
                    '\\\\unc\\share');
 assert.strictEqual(path.win32.dirname('\\\\unc\\share\\foo'),
@@ -187,6 +199,7 @@ assert.strictEqual(path.win32.dirname('foo'), '.');
   ['file./', '.'],
   ['file.//', '.'],
 ].forEach((test) => {
+  const expected = test[1];
   [path.posix.extname, path.win32.extname].forEach((extname) => {
     let input = test[0];
     let os;
@@ -197,12 +210,19 @@ assert.strictEqual(path.win32.dirname('foo'), '.');
       os = 'posix';
     }
     const actual = extname(input);
-    const expected = test[1];
     const message = `path.${os}.extname(${JSON.stringify(input)})\n  expect=${
       JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
     if (actual !== expected)
       failures.push(`\n${message}`);
   });
+  {
+    const input = `C:${test[0].replace(slashRE, '\\')}`;
+    const actual = path.win32.extname(input);
+    const message = `path.win32.extname(${JSON.stringify(input)})\n  expect=${
+      JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
+    if (actual !== expected)
+      failures.push(`\n${message}`);
+  }
 });
 assert.strictEqual(failures.length, 0, failures.join(''));
 
@@ -406,6 +426,12 @@ assert.strictEqual(path.win32.normalize('a//b//.'), 'a\\b');
 assert.strictEqual(path.win32.normalize('//server/share/dir/file.ext'),
                    '\\\\server\\share\\dir\\file.ext');
 assert.strictEqual(path.win32.normalize('/a/b/c/../../../x/y/z'), '\\x\\y\\z');
+assert.strictEqual(path.win32.normalize('C:'), 'C:.');
+assert.strictEqual(path.win32.normalize('C:..\\abc'), 'C:..\\abc');
+assert.strictEqual(path.win32.normalize('C:..\\..\\abc\\..\\def'),
+                   'C:..\\..\\def');
+assert.strictEqual(path.win32.normalize('C:\\.'), 'C:\\');
+assert.strictEqual(path.win32.normalize('file:stream'), 'file:stream');
 
 assert.strictEqual(path.posix.normalize('./fixtures///b/../b/c.js'),
                    'fixtures/b/c.js');
