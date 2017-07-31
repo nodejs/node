@@ -410,9 +410,10 @@ added: REPLACEME
     (No Error).
   * `lastStreamID` {number} The Stream ID of the last successfully processed
     `Http2Stream` on this `Http2Session`.
-  * `opaqueData` {Buffer} A `Buffer` instance containing arbitrary additional
-    data to send to the peer upon disconnection. This is used, typically, to
-    provide additional data for debugging failures, if necessary.
+  * `opaqueData` {Buffer|Uint8Array} A `Buffer` or `Uint8Array` instance
+    containing arbitrary additional data to send to the peer upon disconnection.
+    This is used, typically, to provide additional data for debugging failures,
+    if necessary.
 * `callback` {Function} A callback that is invoked after the session shutdown
   has been completed.
 * Returns: {undefined}
@@ -965,7 +966,7 @@ added: REPLACEME
   initiated.
 * Returns: {undefined}
 
-Initiates a push stream. The callback is invoked with the new `Htt2Stream`
+Initiates a push stream. The callback is invoked with the new `Http2Stream`
 instance created for the push stream.
 
 ```js
@@ -1619,7 +1620,7 @@ passed in. These will always be reported by a synchronous `throw`.
 
 State Errors occur when an action is attempted at an incorrect time (for
 instance, attempting to send data on a stream after it has closed). These will
-be repoorted using either a synchronous `throw` or via an `'error'` event on
+be reported using either a synchronous `throw` or via an `'error'` event on
 the `Http2Stream`, `Http2Session` or HTTP/2 Server objects, depending on where
 and when the error occurs.
 

@@ -6,8 +6,8 @@
 // TODO: This test makes large buffer allocations (128KiB) and should be tested
 // on smaller / IoT platforms in case this poses problems for these targets.
 
-const assert = require('assert');
 const common = require('../common');
+const assert = require('assert');
 const h2 = require('http2');
 
 // Given a list of buffers and an initial window size, have a server write
