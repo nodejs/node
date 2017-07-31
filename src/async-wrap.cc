@@ -674,9 +674,9 @@ void AsyncWrap::EmitAsyncInit(Environment* env,
 }
 
 
-Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
-                                     int argc,
-                                     Local<Value>* argv) {
+MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
+                                          int argc,
+                                          Local<Value>* argv) {
   CHECK(env()->context() == env()->isolate()->GetCurrentContext());
 
   Environment::AsyncCallbackScope callback_scope(env());
@@ -686,15 +686,14 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                                 get_trigger_id());
 
   if (!PreCallbackExecution(this, true)) {
-    return Local<Value>();
+    return MaybeLocal<Value>();
   }
 
   // Finally... Get to running the user's callback.
   MaybeLocal<Value> ret = cb->Call(env()->context(), object(), argc, argv);
 
-  Local<Value> ret_v;
-  if (!ret.ToLocal(&ret_v)) {
-    return Local<Value>();
+  if (ret.IsEmpty()) {
+    return ret;
   }
 
   if (!PostCallbackExecution(this, true)) {
@@ -704,7 +703,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   exec_scope.Dispose();
 
   if (callback_scope.in_makecallback()) {
-    return ret_v;
+    return ret;
   }
 
   Environment::TickInfo* tick_info = env()->tick_info();
@@ -722,7 +721,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
   if (tick_info->length() == 0) {
     tick_info->set_index(0);
-    return ret_v;
+    return ret;
   }
 
   MaybeLocal<Value> rcheck =
@@ -735,7 +734,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   CHECK_EQ(env()->current_async_id(), 0);
   CHECK_EQ(env()->trigger_id(), 0);
 
-  return rcheck.IsEmpty() ? Local<Value>() : ret_v;
+  return rcheck.IsEmpty() ? MaybeLocal<Value>() : ret;
 }
 
 
