@@ -58,3 +58,6 @@ process.stdout.write = stdoutWrite;
 assert.throws(
   () => console.count(Symbol('test')),
   /^TypeError: Cannot convert a Symbol value to a string$/);
+assert.throws(
+  () => console.countReset(Symbol('test')),
+  /^TypeError: Cannot convert a Symbol value to a string$/);
