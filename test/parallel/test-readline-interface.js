@@ -63,6 +63,18 @@ function isWarned(emitter) {
 }
 
 {
+  // set crlfDelay to float 100.5ms
+  const fi = new FakeInput();
+  const rli = new readline.Interface({
+    input: fi,
+    output: fi,
+    crlfDelay: 100.5
+  });
+  assert.strictEqual(rli.crlfDelay, 100.5);
+  rli.close();
+}
+
+{
   // set crlfDelay to 5000ms
   const fi = new FakeInput();
   const rli = new readline.Interface({
