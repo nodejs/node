@@ -110,7 +110,7 @@ void NodeTraceWriter::FlushSignalCb(uv_async_t* signal) {
   trace_writer->FlushPrivate();
 }
 
-// TODO(misterpoe) : Remove (is it necessary to change the API?
+// TODO(matthewloring): Remove (is it necessary to change the API?
 // Since because of WriteSuffix it no longer matters whether it's true or false)
 void NodeTraceWriter::Flush() {
   Flush(true);
@@ -177,7 +177,7 @@ void NodeTraceWriter::ExitSignalCb(uv_async_t* signal) {
   uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->exit_signal_),
            [](uv_handle_t* signal) {
       NodeTraceWriter* trace_writer =
-                              static_cast<NodeTraceWriter*>(signal->data);
+                                static_cast<NodeTraceWriter*>(signal->data);
       Mutex::ScopedLock scoped_lock(trace_writer->request_mutex_);
       trace_writer->exited_ = true;
       trace_writer->exit_cond_.Signal(scoped_lock);

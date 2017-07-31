@@ -455,7 +455,7 @@ INTERNAL_DECLARE_SET_TRACE_VALUE(const TraceStringWithCopy&, as_string,
 
 static inline void SetTraceValue(
                                 v8::ConvertableToTraceFormat* convertable_value,
-                                 unsigned char* type, uint64_t* value) {
+                                unsigned char* type, uint64_t* value) {
   *type = TRACE_VALUE_TYPE_CONVERTABLE;
   *value = static_cast<uint64_t>(reinterpret_cast<intptr_t>(convertable_value));
 }
