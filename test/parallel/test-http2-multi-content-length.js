@@ -22,37 +22,43 @@ server.listen(0, common.mustCall(() => {
     }
   }
 
-  // Request 1 will fail because there are two content-length header values
-  const req = client.request({
-    ':method': 'POST',
-    'content-length': 1,
-    'Content-Length': 2
-  });
-  req.on('error', common.expectsError({
-    code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
-    type: Error,
-    message: 'Header field "content-length" must have only a single value'
-  }));
-  req.on('error', common.mustCall(maybeClose));
-  req.end('a');
+  {
+    // Request 1 will fail because there are two content-length header values
+    const req = client.request({
+      ':method': 'POST',
+      'content-length': 1,
+      'Content-Length': 2
+    });
+    req.on('error', common.expectsError({
+      code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
+      type: Error,
+      message: 'Header field "content-length" must have only a single value'
+    }));
+    req.on('error', common.mustCall(maybeClose));
+    req.end('a');
+  }
 
-  // Request 2 will succeed
-  const req2 = client.request({
-    ':method': 'POST',
-    'content-length': 1
-  });
-  req2.resume();
-  req2.on('end', common.mustCall(maybeClose));
-  req2.end('a');
+  {
+    // Request 2 will succeed
+    const req = client.request({
+      ':method': 'POST',
+      'content-length': 1
+    });
+    req.resume();
+    req.on('end', common.mustCall(maybeClose));
+    req.end('a');
+  }
 
-  // Request 3 will fail because  nghttp2 does not allow the content-length
-  // header to be set for non-payload bearing requests...
-  const req3 = client.request({ 'content-length': 1 });
-  req3.resume();
-  req3.on('end', common.mustCall(maybeClose));
-  req3.on('error', common.expectsError({
-    code: 'ERR_HTTP2_STREAM_ERROR',
-    type: Error,
-    message: 'Stream closed with error code 1'
-  }));
+  {
+    // Request 3 will fail because  nghttp2 does not allow the content-length
+    // header to be set for non-payload bearing requests...
+    const req = client.request({ 'content-length': 1 });
+    req.resume();
+    req.on('end', common.mustCall(maybeClose));
+    req.on('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      type: Error,
+      message: 'Stream closed with error code 1'
+    }));
+  }
 }));

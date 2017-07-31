@@ -1,8 +1,8 @@
 // Flags: --expose-http2
 'use strict';
 
-const { strictEqual } = require('assert');
 const { mustCall, mustNotCall } = require('../common');
+const { strictEqual } = require('assert');
 const {
   createServer,
   connect,
