@@ -51,7 +51,7 @@ inline double AsyncWrap::get_trigger_id() const {
 }
 
 
-inline v8::Local<v8::Value> AsyncWrap::MakeCallback(
+inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
     const v8::Local<v8::String> symbol,
     int argc,
     v8::Local<v8::Value>* argv) {
@@ -61,7 +61,7 @@ inline v8::Local<v8::Value> AsyncWrap::MakeCallback(
 }
 
 
-inline v8::Local<v8::Value> AsyncWrap::MakeCallback(
+inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
     uint32_t index,
     int argc,
     v8::Local<v8::Value>* argv) {
