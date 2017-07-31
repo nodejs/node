@@ -274,10 +274,11 @@ inline void Nghttp2Session::RemoveStream(int32_t id) {
 inline Nghttp2Stream* Nghttp2Stream::Init(
     int32_t id,
     Nghttp2Session* session,
-    nghttp2_headers_category category) {
+    nghttp2_headers_category category,
+    bool getTrailers) {
   DEBUG_HTTP2("Nghttp2Stream %d: initializing stream\n", id);
   Nghttp2Stream* stream = stream_free_list.pop();
-  stream->ResetState(id, session, category);
+  stream->ResetState(id, session, category, getTrailers);
   session->AddStream(stream);
   return stream;
 }
@@ -287,7 +288,8 @@ inline Nghttp2Stream* Nghttp2Stream::Init(
 inline void Nghttp2Stream::ResetState(
     int32_t id,
     Nghttp2Session* session,
-    nghttp2_headers_category category) {
+    nghttp2_headers_category category,
+    bool getTrailers) {
   DEBUG_HTTP2("Nghttp2Stream %d: resetting stream state\n", id);
   session_ = session;
   queue_head_ = nullptr;
@@ -303,6 +305,7 @@ inline void Nghttp2Stream::ResetState(
   prev_local_window_size_ = 65535;
   queue_head_index_ = 0;
   queue_head_offset_ = 0;
+  getTrailers_ = getTrailers;
 }
 
 
@@ -414,9 +417,11 @@ inline int32_t Nghttp2Stream::SubmitPushPromise(
 // be sent.
 inline int Nghttp2Stream::SubmitResponse(nghttp2_nv* nva,
                                          size_t len,
-                                         bool emptyPayload) {
+                                         bool emptyPayload,
+                                         bool getTrailers) {
   CHECK_GT(len, 0);
   DEBUG_HTTP2("Nghttp2Stream %d: submitting response\n", id_);
+  getTrailers_ = getTrailers;
   nghttp2_data_provider* provider = nullptr;
   nghttp2_data_provider prov;
   prov.source.ptr = this;
@@ -432,10 +437,12 @@ inline int Nghttp2Stream::SubmitResponse(nghttp2_nv* nva,
 inline int Nghttp2Stream::SubmitFile(int fd,
                                      nghttp2_nv* nva, size_t len,
                                      int64_t offset,
-                                     int64_t length) {
+                                     int64_t length,
+                                     bool getTrailers) {
   CHECK_GT(len, 0);
   CHECK_GT(fd, 0);
   DEBUG_HTTP2("Nghttp2Stream %d: submitting file\n", id_);
+  getTrailers_ = getTrailers;
   nghttp2_data_provider prov;
   prov.source.ptr = this;
   prov.source.fd = fd;
@@ -456,7 +463,8 @@ inline int32_t Nghttp2Session::SubmitRequest(
     nghttp2_nv* nva,
     size_t len,
     Nghttp2Stream** assigned,
-    bool emptyPayload) {
+    bool emptyPayload,
+    bool getTrailers) {
   CHECK_GT(len, 0);
   DEBUG_HTTP2("Nghttp2Session: submitting request\n");
   nghttp2_data_provider* provider = nullptr;
@@ -470,7 +478,9 @@ inline int32_t Nghttp2Session::SubmitRequest(
                                        provider, nullptr);
   // Assign the Nghttp2Stream handle
   if (ret > 0) {
-    Nghttp2Stream* stream = Nghttp2Stream::Init(ret, this);
+    Nghttp2Stream* stream = Nghttp2Stream::Init(ret, this,
+                                                NGHTTP2_HCAT_HEADERS,
+                                                getTrailers);
     if (emptyPayload) stream->Shutdown();
     if (assigned != nullptr) *assigned = stream;
   }

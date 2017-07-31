@@ -538,6 +538,7 @@ void Http2Session::SubmitRequest(const FunctionCallbackInfo<Value>& args) {
   int32_t parent = args[2]->Int32Value(context).ToChecked();
   int32_t weight = args[3]->Int32Value(context).ToChecked();
   bool exclusive = args[4]->BooleanValue(context).ToChecked();
+  bool getTrailers = args[5]->BooleanValue(context).ToChecked();
 
   DEBUG_HTTP2("Http2Session: submitting request: headers: %d, end-stream: %d, "
               "parent: %d, weight: %d, exclusive: %d\n", headers->Length(),
@@ -550,7 +551,8 @@ void Http2Session::SubmitRequest(const FunctionCallbackInfo<Value>& args) {
 
   int32_t ret = session->Nghttp2Session::SubmitRequest(&prispec,
                                                        *list, list.length(),
-                                                       nullptr, endStream);
+                                                       nullptr, endStream,
+                                                       getTrailers);
   DEBUG_HTTP2("Http2Session: request submitted, response: %d\n", ret);
   args.GetReturnValue().Set(ret);
 }
@@ -570,6 +572,7 @@ void Http2Session::SubmitResponse(const FunctionCallbackInfo<Value>& args) {
   int32_t id = args[0]->Int32Value(context).ToChecked();
   Local<Array> headers = args[1].As<Array>();
   bool endStream = args[2]->BooleanValue(context).ToChecked();
+  bool getTrailers = args[3]->BooleanValue(context).ToChecked();
 
   DEBUG_HTTP2("Http2Session: submitting response for stream %d: headers: %d, "
               "end-stream: %d\n", id, headers->Length(), endStream);
@@ -581,7 +584,7 @@ void Http2Session::SubmitResponse(const FunctionCallbackInfo<Value>& args) {
   Headers list(isolate, context, headers);
 
   args.GetReturnValue().Set(
-      stream->SubmitResponse(*list, list.length(), endStream));
+      stream->SubmitResponse(*list, list.length(), endStream, getTrailers));
 }
 
 void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
@@ -605,6 +608,7 @@ void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
 
   int64_t offset = args[3]->IntegerValue(context).ToChecked();
   int64_t length = args[4]->IntegerValue(context).ToChecked();
+  bool getTrailers = args[5]->BooleanValue(context).ToChecked();
 
   CHECK_GE(offset, 0);
 
@@ -618,7 +622,7 @@ void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
   Headers list(isolate, context, headers);
 
   args.GetReturnValue().Set(stream->SubmitFile(fd, *list, list.length(),
-                                               offset, length));
+                                               offset, length, getTrailers));
 }
 
 void Http2Session::SendHeaders(const FunctionCallbackInfo<Value>& args) {
