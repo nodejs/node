@@ -5425,8 +5425,10 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     obj->Set(env->ondone_string(), args[5]);
 
     if (env->in_domain()) {
-      obj->Set(env->domain_string(),
-               env->domain_array()->Get(env->context(), 0).ToLocalChecked());
+      obj->Set(env->context(),
+               env->domain_string(),
+               env->domain_array()->Get(env->context(), 0).ToLocalChecked())
+          .FromJust();
     }
 
     uv_queue_work(env->event_loop(),
@@ -5631,8 +5633,10 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
     obj->Set(env->ondone_string(), args[1]);
 
     if (env->in_domain()) {
-      obj->Set(env->domain_string(),
-               env->domain_array()->Get(env->context(), 0).ToLocalChecked());
+      obj->Set(env->context(),
+               env->domain_string(),
+               env->domain_array()->Get(env->context(), 0).ToLocalChecked())
+          .FromJust();
     }
 
     uv_queue_work(env->event_loop(),
