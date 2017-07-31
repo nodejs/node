@@ -528,7 +528,7 @@ goto exit
 :run-python
 call tools\msvs\find_python.cmd
 if errorlevel 1 echo Could not find python2 & goto :exit
-set cmd1=%VCBUILD_PYTHON_LOCATION% %*
+set cmd1="%VCBUILD_PYTHON_LOCATION%" %*
 echo %cmd1%
 %cmd1%
 exit /b %ERRORLEVEL%
@@ -547,7 +547,7 @@ set TAG=
 set FULLVERSION=
 :: Call as subroutine for validation of python
 call :run-python tools\getnodeversion.py > nul
-for /F "tokens=*" %%i in ('%VCBUILD_PYTHON_LOCATION% tools\getnodeversion.py') do set NODE_VERSION=%%i
+for /F "tokens=*" %%i in ('"%VCBUILD_PYTHON_LOCATION%" tools\getnodeversion.py') do set NODE_VERSION=%%i
 if not defined NODE_VERSION (
   echo Cannot determine current version of Node.js
   exit /b 1

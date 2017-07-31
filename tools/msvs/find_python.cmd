@@ -41,7 +41,7 @@ EXIT /B 1
 :validate
 IF NOT EXIST "%p%python.exe" EXIT /B 1
 :: Check if %p% is python2
-%p%python.exe -V 2>&1 | findstr /R "^Python.2.*" > NUL
+"%p%python.exe" -V 2>&1 | findstr /R "^Python.2.*" > NUL
 IF ERRORLEVEL 1 EXIT /B %ERRORLEVEL%
 :: We can wrap it up
 ENDLOCAL & SET pt=%p%& SET need_path_ext=%need_path%
