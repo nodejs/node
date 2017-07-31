@@ -117,7 +117,8 @@ class Nghttp2Session {
       nghttp2_nv* nva,
       size_t len,
       Nghttp2Stream** assigned = nullptr,
-      bool emptyPayload = true);
+      bool emptyPayload = true,
+      bool getTrailers = false);
 
   // Submits a notice to the connected peer that the session is in the
   // process of shutting down.
@@ -178,6 +179,11 @@ class Nghttp2Session {
   inline void HandlePriorityFrame(const nghttp2_frame* frame);
   inline void HandleDataFrame(const nghttp2_frame* frame);
   inline void HandleGoawayFrame(const nghttp2_frame* frame);
+
+  static void GetTrailers(nghttp2_session* session,
+                          Nghttp2Session* handle,
+                          Nghttp2Stream* stream,
+                          uint32_t* flags);
 
   /* callbacks for nghttp2 */
 #ifdef NODE_DEBUG_HTTP2
@@ -259,7 +265,8 @@ class Nghttp2Stream {
   static inline Nghttp2Stream* Init(
       int32_t id,
       Nghttp2Session* session,
-      nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS);
+      nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS,
+      bool getTrailers = false);
 
   inline ~Nghttp2Stream() {
     CHECK_EQ(session_, nullptr);
@@ -278,7 +285,8 @@ class Nghttp2Stream {
   inline void ResetState(
       int32_t id,
       Nghttp2Session* session,
-      nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS);
+      nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS,
+      bool getTrailers = false);
 
   // Destroy this stream instance and free all held memory.
   // Note that this will free queued outbound and inbound
@@ -306,13 +314,15 @@ class Nghttp2Stream {
   // Initiate a response on this stream.
   inline int SubmitResponse(nghttp2_nv* nva,
                             size_t len,
-                            bool emptyPayload = false);
+                            bool emptyPayload = false,
+                            bool getTrailers = false);
 
   // Send data read from a file descriptor as the response on this stream.
   inline int SubmitFile(int fd,
                         nghttp2_nv* nva, size_t len,
                         int64_t offset,
-                        int64_t length);
+                        int64_t length,
+                        bool getTrailers = false);
 
   // Submit informational headers for this stream
   inline int SubmitInfo(nghttp2_nv* nva, size_t len);
@@ -352,6 +362,10 @@ class Nghttp2Stream {
   // Returns true if reading is paused
   inline bool IsPaused() const {
     return flags_ & NGHTTP2_STREAM_READ_PAUSED;
+  }
+
+  inline bool GetTrailers() const {
+    return getTrailers_;
   }
 
   // Returns true if this stream is in the reading state, which occurs when
@@ -440,6 +454,9 @@ class Nghttp2Stream {
   int32_t code_ = NGHTTP2_NO_ERROR;
 
   int32_t prev_local_window_size_ = 65535;
+
+  // True if this stream will have outbound trailers
+  bool getTrailers_ = false;
 
   friend class Nghttp2Session;
 };

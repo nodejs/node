@@ -163,6 +163,34 @@ ssize_t Nghttp2Session::OnSelectPadding(nghttp2_session* session,
   return padding;
 }
 
+void Nghttp2Session::GetTrailers(nghttp2_session* session,
+                                 Nghttp2Session* handle,
+                                 Nghttp2Stream* stream,
+                                 uint32_t* flags) {
+  if (stream->GetTrailers()) {
+    // Only when we are done sending the last chunk of data do we check for
+    // any trailing headers that are to be sent. This is the only opportunity
+    // we have to make this check. If there are trailers, then the
+    // NGHTTP2_DATA_FLAG_NO_END_STREAM flag must be set.
+    MaybeStackBuffer<nghttp2_nv> trailers;
+    handle->OnTrailers(stream, &trailers);
+    if (trailers.length() > 0) {
+      DEBUG_HTTP2("Nghttp2Session %d: sending trailers for stream %d, "
+                  "count: %d\n", handle->session_type_, id,
+                  trailers.length());
+      *flags |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
+      nghttp2_submit_trailer(session,
+                             stream->id(),
+                             *trailers,
+                             trailers.length());
+    }
+    for (size_t n = 0; n < trailers.length(); n++) {
+      free(trailers[n].name);
+      free(trailers[n].value);
+    }
+  }
+}
+
 // Called by nghttp2 to collect the data while a file response is sent.
 // The buf is the DATA frame buffer that needs to be filled with at most
 // length bytes. flags is used to control what nghttp2 does next.
@@ -213,7 +241,7 @@ ssize_t Nghttp2Session::OnStreamReadFD(nghttp2_session* session,
     DEBUG_HTTP2("Nghttp2Session %d: no more data for stream %d\n",
                 handle->session_type_, id);
     *flags |= NGHTTP2_DATA_FLAG_EOF;
-    // Sending trailers is not permitted with this provider.
+    GetTrailers(session, handle, stream, flags);
   }
 
   return numchars;
@@ -291,25 +319,7 @@ ssize_t Nghttp2Session::OnStreamRead(nghttp2_session* session,
                 handle->session_type_, id);
     *flags |= NGHTTP2_DATA_FLAG_EOF;
 
-    // Only when we are done sending the last chunk of data do we check for
-    // any trailing headers that are to be sent. This is the only opportunity
-    // we have to make this check. If there are trailers, then the
-    // NGHTTP2_DATA_FLAG_NO_END_STREAM flag must be set.
-    MaybeStackBuffer<nghttp2_nv> trailers;
-    handle->OnTrailers(stream, &trailers);
-    if (trailers.length() > 0) {
-      DEBUG_HTTP2("Nghttp2Session %d: sending trailers for stream %d, "
-                  "count: %d\n", handle->session_type_, id, trailers.length());
-      *flags |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
-      nghttp2_submit_trailer(session,
-                             stream->id(),
-                             *trailers,
-                             trailers.length());
-    }
-    for (size_t n = 0; n < trailers.length(); n++) {
-      free(trailers[n].name);
-      free(trailers[n].value);
-    }
+    GetTrailers(session, handle, stream, flags);
   }
   assert(offset <= length);
   return offset;
