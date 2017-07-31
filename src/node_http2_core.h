@@ -143,8 +143,7 @@ class Nghttp2Session {
   // Removes a stream instance from this session
   inline void RemoveStream(int32_t id);
 
-  virtual void Send(uv_buf_t* buf,
-                    size_t length) {}
+  virtual void Send(uv_buf_t* buf, size_t length) {}
   virtual void OnHeaders(Nghttp2Stream* stream,
                          nghttp2_header_list* headers,
                          nghttp2_headers_category cat,
@@ -294,7 +293,7 @@ class Nghttp2Stream {
 
   // Returns true if this stream has been destroyed
   inline bool IsDestroyed() const {
-    return (flags_ & NGHTTP2_STREAM_DESTROYED) == NGHTTP2_STREAM_DESTROYED;
+    return flags_ & NGHTTP2_STREAM_DESTROYED;
   }
 
   // Queue outbound chunks of data to be sent on this stream
@@ -340,7 +339,7 @@ class Nghttp2Stream {
 
   // Returns true if this stream is writable.
   inline bool IsWritable() const {
-    return (flags_ & NGHTTP2_STREAM_FLAG_SHUT) == 0;
+    return !(flags_ & NGHTTP2_STREAM_FLAG_SHUT);
   }
 
   // Start Reading. If there are queued data chunks, they are pushed into
@@ -352,15 +351,15 @@ class Nghttp2Stream {
 
   // Returns true if reading is paused
   inline bool IsPaused() const {
-    return (flags_ & NGHTTP2_STREAM_READ_PAUSED) == NGHTTP2_STREAM_READ_PAUSED;
+    return flags_ & NGHTTP2_STREAM_READ_PAUSED;
   }
 
   // Returns true if this stream is in the reading state, which occurs when
   // the NGHTTP2_STREAM_READ_START flag has been set and the
   // NGHTTP2_STREAM_READ_PAUSED flag is *not* set.
   inline bool IsReading() const {
-    return ((flags_ & NGHTTP2_STREAM_READ_START) == NGHTTP2_STREAM_READ_START)
-           && ((flags_ & NGHTTP2_STREAM_READ_PAUSED) == 0);
+    return flags_ & NGHTTP2_STREAM_READ_START &&
+           !(flags_ & NGHTTP2_STREAM_READ_PAUSED);
   }
 
   inline void Close(int32_t code) {
@@ -374,7 +373,7 @@ class Nghttp2Stream {
   // Returns true if this stream has been closed either by receiving or
   // sending an RST_STREAM frame.
   inline bool IsClosed() const {
-    return (flags_ & NGHTTP2_STREAM_CLOSED) == NGHTTP2_STREAM_CLOSED;
+    return flags_ & NGHTTP2_STREAM_CLOSED;
   }
 
   // Returns the RST_STREAM code used to close this stream

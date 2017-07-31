@@ -2,6 +2,10 @@
 'use strict';
 
 const common = require('../common');
+
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const assert = require('assert');
 const http2 = require('http2');
 const fs = require('fs');
@@ -42,7 +46,7 @@ server.on('stream', (stream, headers) => {
   });
 });
 
-server.listen(8000, () => {
+server.listen(0, () => {
 
   const secureContext = tls.createSecureContext({ ca });
   const client = http2.connect(`https://localhost:${server.address().port}`,

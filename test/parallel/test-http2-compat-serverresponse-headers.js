@@ -42,13 +42,25 @@ server.listen(0, common.mustCall(function() {
 
     assert.throws(function() {
       response.setHeader(':status', 'foobar');
-    }, Error);
+    }, common.expectsError({
+      code: 'ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED',
+      type: Error,
+      message: 'Cannot set HTTP/2 pseudo-headers'
+    }));
     assert.throws(function() {
       response.setHeader(real, null);
-    }, TypeError);
+    }, common.expectsError({
+      code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
+      type: TypeError,
+      message: 'Value must not be undefined or null'
+    }));
     assert.throws(function() {
       response.setHeader(real, undefined);
-    }, TypeError);
+    }, common.expectsError({
+      code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
+      type: TypeError,
+      message: 'Value must not be undefined or null'
+    }));
 
     response.setHeader(real, expectedValue);
     const expectedHeaderNames = [real];

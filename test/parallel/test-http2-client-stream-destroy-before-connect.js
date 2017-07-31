@@ -16,10 +16,8 @@ server.on('stream', (stream) => {
   // must call). The error may or may not be reported depending on operating
   // system specific timings.
   stream.on('error', (err) => {
-    if (err) {
-      assert.strictEqual(err.code, 'ERR_HTTP2_STREAM_ERROR');
-      assert.strictEqual(err.message, 'Stream closed with error code 2');
-    }
+    assert.strictEqual(err.code, 'ERR_HTTP2_STREAM_ERROR');
+    assert.strictEqual(err.message, 'Stream closed with error code 2');
   });
   stream.respond({});
   stream.end();
