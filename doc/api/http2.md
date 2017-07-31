@@ -346,6 +346,9 @@ added: REPLACEME
   * `weight` {number} Specifies the relative dependency of a stream in relation
     to other streams with the same `parent`. The value is a number between `1`
     and `256` (inclusive).
+  * `getTrailers` {Function} Callback function invoked to collect trailer
+    headers.
+
 * Returns: {ClientHttp2Stream}
 
 For HTTP/2 Client `Http2Session` instances only, the `http2session.request()`
@@ -370,6 +373,16 @@ req.on('response', (headers) => {
   req.on('end', () => { /** .. **/ });
 });
 ```
+
+When set, the `options.getTrailers()` function is called immediately after
+queuing the last chunk of payload data to be sent. The callback is passed a
+single object (with a `null` prototype) that the listener may used to specify
+the trailing header fields to send to the peer.
+
+*Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
+"pseudo-header" fields (e.g. `':method'`, `':path'`, etc). An `'error'` event
+will be emitted if the `getTrailers` callback attempts to set such header
+fields.
 
 #### http2session.rstStream(stream, code)
 <!-- YAML
@@ -616,27 +629,6 @@ added: REPLACEME
 
 The `'error'` event is emitted when an error occurs during the processing of
 an `Http2Stream`.
-
-#### Event: 'fetchTrailers'
-<!-- YAML
-added: REPLACEME
--->
-
-The `'fetchTrailers'` event is emitted by the `Http2Stream` immediately after
-queuing the last chunk of payload data to be sent. The listener callback is
-passed a single object (with a `null` prototype) that the listener may used
-to specify the trailing header fields to send to the peer.
-
-```js
-stream.on('fetchTrailers', (trailers) => {
-  trailers['ABC'] = 'some value to send';
-});
-```
-
-*Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-"pseudo-header" fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
-will be emitted if the `'fetchTrailers'` event handler attempts to set such
-header fields.
 
 #### Event: 'frameError'
 <!-- YAML
@@ -991,6 +983,8 @@ added: REPLACEME
 * `options` {Object}
   * `endStream` {boolean} Set to `true` to indicate that the response will not
     include payload data.
+  * `getTrailers` {function} Callback function invoked to collect trailer
+    headers.
 * Returns: {undefined}
 
 ```js
@@ -1002,6 +996,29 @@ server.on('stream', (stream) => {
 });
 ```
 
+When set, the `options.getTrailers()` function is called immediately after
+queuing the last chunk of payload data to be sent. The callback is passed a
+single object (with a `null` prototype) that the listener may used to specify
+the trailing header fields to send to the peer.
+
+```js
+const http2 = require('http2');
+const server = http2.createServer();
+server.on('stream', (stream) => {
+  stream.respond({ ':status': 200 }, {
+    getTrailers(trailers) {
+      trailers['ABC'] = 'some value to send';
+    }
+  });
+  stream.end('some data');
+});
+```
+
+*Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
+"pseudo-header" fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
+will be emitted if the `getTrailers` callback attempts to set such header
+fields.
+
 #### http2stream.respondWithFD(fd[, headers[, options]])
 <!-- YAML
 added: REPLACEME
@@ -1011,6 +1028,8 @@ added: REPLACEME
 * `headers` {[Headers Object][]}
 * `options` {Object}
   * `statCheck` {Function}
+  * `getTrailers` {Function} Callback function invoked to collect trailer
+    headers.
   * `offset` {number} The offset position at which to begin reading
   * `length` {number} The amount of data from the fd to send
 
@@ -1020,8 +1039,7 @@ attempting to read data using the file descriptor, the `Http2Stream` will be
 closed using an `RST_STREAM` frame using the standard `INTERNAL_ERROR` code.
 
 When used, the `Http2Stream` object's Duplex interface will be closed
-automatically. HTTP trailer fields cannot be sent. The `'fetchTrailers'` event
-will *not* be emitted.
+automatically.
 
 ```js
 const http2 = require('http2');
@@ -1052,6 +1070,39 @@ The `offset` and `length` options may be used to limit the response to a
 specific range subset. This can be used, for instance, to support HTTP Range
 requests.
 
+When set, the `options.getTrailers()` function is called immediately after
+queuing the last chunk of payload data to be sent. The callback is passed a
+single object (with a `null` prototype) that the listener may used to specify
+the trailing header fields to send to the peer.
+
+```js
+const http2 = require('http2');
+const fs = require('fs');
+
+const fd = fs.openSync('/some/file', 'r');
+
+const server = http2.createServer();
+server.on('stream', (stream) => {
+  const stat = fs.fstatSync(fd);
+  const headers = {
+    'content-length': stat.size,
+    'last-modified': stat.mtime.toUTCString(),
+    'content-type': 'text/plain'
+  };
+  stream.respondWithFD(fd, headers, {
+    getTrailers(trailers) {
+      trailers['ABC'] = 'some value to send';
+    }
+  });
+});
+server.on('close', () => fs.closeSync(fd));
+```
+
+*Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
+"pseudo-header" fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
+will be emitted if the `getTrailers` callback attempts to set such header
+fields.
+
 #### http2stream.respondWithFile(path[, headers[, options]])
 <!-- YAML
 added: REPLACEME
@@ -1061,6 +1112,8 @@ added: REPLACEME
 * `headers` {[Headers Object][]}
 * `options` {Object}
   * `statCheck` {Function}
+  * `getTrailers` {Function} Callback function invoked to collect trailer
+    headers.
   * `offset` {number} The offset position at which to begin reading
   * `length` {number} The amount of data from the fd to send
 
@@ -1068,8 +1121,7 @@ Sends a regular file as the response. The `path` must specify a regular file
 or an `'error'` event will be emitted on the `Http2Stream` object.
 
 When used, the `Http2Stream` object's Duplex interface will be closed
-automatically. HTTP trailer fields cannot be sent. The `'fetchTrailers'` event
-will *not* be emitted.
+automatically.
 
 The optional `options.statCheck` function may be specified to give user code
 an opportunity to set additional content headers based on the `fs.Stat` details
@@ -1119,6 +1171,29 @@ The `content-length` header field will be automatically set.
 The `offset` and `length` options may be used to limit the response to a
 specific range subset. This can be used, for instance, to support HTTP Range
 requests.
+
+When set, the `options.getTrailers()` function is called immediately after
+queuing the last chunk of payload data to be sent. The callback is passed a
+single object (with a `null` prototype) that the listener may used to specify
+the trailing header fields to send to the peer.
+
+```js
+const http2 = require('http2');
+const server = http2.createServer();
+server.on('stream', (stream) => {
+  function getTrailers(trailers) {
+    trailers['ABC'] = 'some value to send';
+  }
+  stream.respondWithFile('/some/file',
+                         { 'content-type': 'text/plain' },
+                         { getTrailers });
+});
+```
+
+*Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
+"pseudo-header" fields (e.g. `':status'`, `':path'`, etc). An `'error'` event
+will be emitted if the `getTrailers` callback attempts to set such header
+fields.
 
 ### Class: Http2Server
 <!-- YAML

@@ -27,12 +27,10 @@ function onStream(stream, headers, flags) {
   stream.respond({
     'content-type': 'text/html',
     ':status': 200
-  });
-
-  // This will cause an error to be emitted on the stream because
-  // using a pseudo-header in a trailer is forbidden.
-  stream.on('fetchTrailers', (trailers) => {
-    trailers[':status'] = 'bar';
+  }, {
+    getTrailers: common.mustCall((trailers) => {
+      trailers[':status'] = 'bar';
+    })
   });
 
   stream.on('error', common.expectsError({
