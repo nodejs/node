@@ -1,8 +1,8 @@
 // Flags: --expose-http2
 'use strict';
 
-const { throws } = require('assert');
 const { mustCall, mustNotCall, expectsError } = require('../common');
+const { throws } = require('assert');
 const { createServer, connect } = require('http2');
 
 // Http2ServerResponse.write does not imply there is a callback
@@ -35,7 +35,11 @@ const expectedError = expectsError({
         response.on('error', mustNotCall());
         throws(
           () => { response.write('muahaha'); },
-          /The stream is already closed/
+          expectsError({
+            code: 'ERR_HTTP2_STREAM_CLOSED',
+            type: Error,
+            message: 'The stream is already closed'
+          })
         );
         server.close();
       }));

@@ -6,6 +6,10 @@
 // other than start listening.
 
 const common = require('../common');
+
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const assert = require('assert');
 const http2 = require('http2');
 const path = require('path');
