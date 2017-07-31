@@ -15,12 +15,16 @@ const server = h2.createServer();
 server.on('stream', common.mustCall(onStream));
 
 function onStream(stream, headers, flags) {
+  stream.on('trailers', common.mustCall((headers) => {
+    assert.strictEqual(headers[trailerKey], trailerValue);
+  }));
   stream.respond({
     'content-type': 'text/html',
     ':status': 200
-  });
-  stream.on('fetchTrailers', function(trailers) {
-    trailers[trailerKey] = trailerValue;
+  }, {
+    getTrailers: common.mustCall((trailers) => {
+      trailers[trailerKey] = trailerValue;
+    })
   });
   stream.end(body);
 }
@@ -29,16 +33,19 @@ server.listen(0);
 
 server.on('listening', common.mustCall(function() {
   const client = h2.connect(`http://localhost:${this.address().port}`);
-  const req = client.request({ ':path': '/' });
+  const req = client.request({ ':path': '/', ':method': 'POST' }, {
+    getTrailers: common.mustCall((trailers) => {
+      trailers[trailerKey] = trailerValue;
+    })
+  });
   req.on('data', common.mustCall());
   req.on('trailers', common.mustCall((headers) => {
     assert.strictEqual(headers[trailerKey], trailerValue);
-    req.end();
   }));
   req.on('end', common.mustCall(() => {
     server.close();
     client.destroy();
   }));
-  req.end();
+  req.end('data');
 
 }));
