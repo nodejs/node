@@ -62,6 +62,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -308,7 +309,7 @@ class Parser : public AsyncWrap {
 
     Environment::AsyncCallbackScope callback_scope(env());
 
-    Local<Value> head_response =
+    MaybeLocal<Value> head_response =
         MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (head_response.IsEmpty()) {
@@ -316,7 +317,7 @@ class Parser : public AsyncWrap {
       return -1;
     }
 
-    return head_response->IntegerValue();
+    return head_response.ToLocalChecked()->IntegerValue();
   }
 
 
@@ -344,7 +345,9 @@ class Parser : public AsyncWrap {
       Integer::NewFromUnsigned(env()->isolate(), length)
     };
 
-    Local<Value> r = MakeCallback(cb.As<Function>(), arraysize(argv), argv);
+    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(),
+                                       arraysize(argv),
+                                       argv);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -369,7 +372,7 @@ class Parser : public AsyncWrap {
 
     Environment::AsyncCallbackScope callback_scope(env());
 
-    Local<Value> r = MakeCallback(cb.As<Function>(), 0, nullptr);
+    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(), 0, nullptr);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -702,7 +705,9 @@ class Parser : public AsyncWrap {
       url_.ToString(env())
     };
 
-    Local<Value> r = MakeCallback(cb.As<Function>(), arraysize(argv), argv);
+    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(),
+                                       arraysize(argv),
+                                       argv);
 
     if (r.IsEmpty())
       got_exception_ = true;
