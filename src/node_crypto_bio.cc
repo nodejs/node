@@ -357,6 +357,7 @@ size_t NodeBIO::IndexOf(char delim, size_t limit) {
   return max;
 }
 
+
 void NodeBIO::Write(const char* data, size_t size) {
   size_t offset = 0;
   size_t left = size;

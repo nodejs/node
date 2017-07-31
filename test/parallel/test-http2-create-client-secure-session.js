@@ -2,6 +2,10 @@
 'use strict';
 
 const common = require('../common');
+
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
