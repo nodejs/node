@@ -12,7 +12,7 @@ const p = child_process.spawn(process.execPath, [
   wrong_script
 ]);
 
-p.stdout.on('data', common.mustNotCall);
+p.stdout.on('data', common.mustNotCall());
 
 let output = '';
 

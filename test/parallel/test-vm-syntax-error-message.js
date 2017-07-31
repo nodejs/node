@@ -11,7 +11,7 @@ const p = child_process.spawn(process.execPath, [
       'catch (e) { console.log(e.message); }'
 ]);
 
-p.stderr.on('data', common.mustNotCall);
+p.stderr.on('data', common.mustNotCall());
 
 let output = '';
 
