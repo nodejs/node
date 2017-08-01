@@ -25,34 +25,29 @@ const assert = require('assert');
 const http = require('http');
 const net = require('net');
 
-const server = http.createServer(common.mustCall(function(req, res) {
+const server = http.createServer(common.mustCall((req, res) => {
   assert.strictEqual('GET', req.method);
   assert.strictEqual('/blah', req.url);
   assert.deepStrictEqual({
-    host: 'mapdevel.trolologames.ru:443',
-    origin: 'http://mapdevel.trolologames.ru',
+    host: 'example.org:443',
+    origin: 'http://example.org',
     cookie: ''
   }, req.headers);
 }));
 
 
-server.listen(0, function() {
-  const c = net.createConnection(this.address().port);
+server.listen(0, common.mustCall(() => {
+  const c = net.createConnection(server.address().port);
 
-  c.on('connect', function() {
+  c.on('connect', common.mustCall(() => {
     c.write('GET /blah HTTP/1.1\r\n' +
-            'Host: mapdevel.trolologames.ru:443\r\n' +
+            'Host: example.org:443\r\n' +
             'Cookie:\r\n' +
-            'Origin: http://mapdevel.trolologames.ru\r\n' +
+            'Origin: http://example.org\r\n' +
             '\r\n\r\nhello world'
     );
-  });
+  }));
 
-  c.on('end', function() {
-    c.end();
-  });
-
-  c.on('close', function() {
-    server.close();
-  });
-});
+  c.on('end', common.mustCall(() => c.end()));
+  c.on('close', common.mustCall(() => server.close()));
+}));
