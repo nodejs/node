@@ -686,7 +686,6 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   CHECK_NE(encoding, UCS2);
   CHECK_BUFLEN_IN_RANGE(buflen);
 
-  *error = Local<Value>();
   if (!buflen && encoding != BUFFER) {
     return String::Empty(isolate);
   }
@@ -772,7 +771,6 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
                                       size_t buflen,
                                       Local<Value>* error) {
   CHECK_BUFLEN_IN_RANGE(buflen);
-  *error = Local<Value>();
 
   // Node's "ucs2" encoding expects LE character data inside a
   // Buffer, so we need to reorder on BE platforms.  See
