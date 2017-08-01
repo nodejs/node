@@ -316,7 +316,7 @@
 //   V8_NORETURN void MyAbort() { abort(); }
 #if V8_HAS_ATTRIBUTE_NORETURN
 # define V8_NORETURN __attribute__((noreturn))
-#elif HAS_DECLSPEC_NORETURN
+#elif V8_HAS_DECLSPEC_NORETURN
 # define V8_NORETURN __declspec(noreturn)
 #else
 # define V8_NORETURN /* NOT SUPPORTED */

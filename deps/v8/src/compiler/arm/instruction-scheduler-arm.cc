@@ -118,12 +118,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmF32x4RecipApprox:
     case kArmF32x4RecipSqrtApprox:
     case kArmF32x4Add:
+    case kArmF32x4AddHoriz:
     case kArmF32x4Sub:
     case kArmF32x4Mul:
     case kArmF32x4Min:
     case kArmF32x4Max:
-    case kArmF32x4RecipRefine:
-    case kArmF32x4RecipSqrtRefine:
     case kArmF32x4Eq:
     case kArmF32x4Ne:
     case kArmF32x4Lt:
@@ -138,6 +137,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI32x4Shl:
     case kArmI32x4ShrS:
     case kArmI32x4Add:
+    case kArmI32x4AddHoriz:
     case kArmI32x4Sub:
     case kArmI32x4Mul:
     case kArmI32x4MinS:
@@ -165,6 +165,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI16x8SConvertI32x4:
     case kArmI16x8Add:
     case kArmI16x8AddSaturateS:
+    case kArmI16x8AddHoriz:
     case kArmI16x8Sub:
     case kArmI16x8SubSaturateS:
     case kArmI16x8Mul:
@@ -216,6 +217,34 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmS128Xor:
     case kArmS128Not:
     case kArmS128Select:
+    case kArmS32x4ZipLeft:
+    case kArmS32x4ZipRight:
+    case kArmS32x4UnzipLeft:
+    case kArmS32x4UnzipRight:
+    case kArmS32x4TransposeLeft:
+    case kArmS32x4TransposeRight:
+    case kArmS32x4Shuffle:
+    case kArmS16x8ZipLeft:
+    case kArmS16x8ZipRight:
+    case kArmS16x8UnzipLeft:
+    case kArmS16x8UnzipRight:
+    case kArmS16x8TransposeLeft:
+    case kArmS16x8TransposeRight:
+    case kArmS16x8Shuffle:
+    case kArmS8x16ZipLeft:
+    case kArmS8x16ZipRight:
+    case kArmS8x16UnzipLeft:
+    case kArmS8x16UnzipRight:
+    case kArmS8x16TransposeLeft:
+    case kArmS8x16TransposeRight:
+    case kArmS8x16Concat:
+    case kArmS8x16Shuffle:
+    case kArmS32x2Reverse:
+    case kArmS16x4Reverse:
+    case kArmS16x2Reverse:
+    case kArmS8x8Reverse:
+    case kArmS8x4Reverse:
+    case kArmS8x2Reverse:
     case kArmS1x4AnyTrue:
     case kArmS1x4AllTrue:
     case kArmS1x8AnyTrue:

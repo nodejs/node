@@ -26,6 +26,37 @@ namespace compiler {
 class Operator;
 struct JSOperatorGlobalCache;
 
+// Defines the frequency a given Call/Construct site was executed. For some
+// call sites the frequency is not known.
+class CallFrequency final {
+ public:
+  CallFrequency() : value_(std::numeric_limits<float>::quiet_NaN()) {}
+  explicit CallFrequency(float value) : value_(value) {
+    DCHECK(!std::isnan(value));
+  }
+
+  bool IsKnown() const { return !IsUnknown(); }
+  bool IsUnknown() const { return std::isnan(value_); }
+  float value() const {
+    DCHECK(IsKnown());
+    return value_;
+  }
+
+  bool operator==(CallFrequency const& that) const {
+    return bit_cast<uint32_t>(this->value_) == bit_cast<uint32_t>(that.value_);
+  }
+  bool operator!=(CallFrequency const& that) const { return !(*this == that); }
+
+  friend size_t hash_value(CallFrequency f) {
+    return bit_cast<uint32_t>(f.value_);
+  }
+
+ private:
+  float value_;
+};
+
+std::ostream& operator<<(std::ostream&, CallFrequency);
+
 // Defines a pair of {FeedbackVector} and {FeedbackSlot}, which
 // is used to access the type feedback for a certain {Node}.
 class V8_EXPORT_PRIVATE VectorSlotPair {
@@ -59,22 +90,56 @@ ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
 // The ToBooleanHints are used as parameter by JSToBoolean operators.
 ToBooleanHints ToBooleanHintsOf(Operator const* op);
 
+// Defines the flags for a JavaScript call forwarding parameters. This
+// is used as parameter by JSConstructForwardVarargs operators.
+class ConstructForwardVarargsParameters final {
+ public:
+  ConstructForwardVarargsParameters(size_t arity, uint32_t start_index)
+      : bit_field_(ArityField::encode(arity) |
+                   StartIndexField::encode(start_index)) {}
+
+  size_t arity() const { return ArityField::decode(bit_field_); }
+  uint32_t start_index() const { return StartIndexField::decode(bit_field_); }
+
+  bool operator==(ConstructForwardVarargsParameters const& that) const {
+    return this->bit_field_ == that.bit_field_;
+  }
+  bool operator!=(ConstructForwardVarargsParameters const& that) const {
+    return !(*this == that);
+  }
+
+ private:
+  friend size_t hash_value(ConstructForwardVarargsParameters const& p) {
+    return p.bit_field_;
+  }
+
+  typedef BitField<size_t, 0, 16> ArityField;
+  typedef BitField<uint32_t, 16, 16> StartIndexField;
+
+  uint32_t const bit_field_;
+};
+
+std::ostream& operator<<(std::ostream&,
+                         ConstructForwardVarargsParameters const&);
+
+ConstructForwardVarargsParameters const& ConstructForwardVarargsParametersOf(
+    Operator const*) WARN_UNUSED_RESULT;
 
 // Defines the arity and the feedback for a JavaScript constructor call. This is
 // used as a parameter by JSConstruct operators.
 class ConstructParameters final {
  public:
-  ConstructParameters(uint32_t arity, float frequency,
+  ConstructParameters(uint32_t arity, CallFrequency frequency,
                       VectorSlotPair const& feedback)
       : arity_(arity), frequency_(frequency), feedback_(feedback) {}
 
   uint32_t arity() const { return arity_; }
-  float frequency() const { return frequency_; }
+  CallFrequency frequency() const { return frequency_; }
   VectorSlotPair const& feedback() const { return feedback_; }
 
  private:
   uint32_t const arity_;
-  float const frequency_;
+  CallFrequency const frequency_;
   VectorSlotPair const feedback_;
 };
 
@@ -115,11 +180,13 @@ SpreadWithArityParameter const& SpreadWithArityParameterOf(Operator const*);
 // is used as parameter by JSCallForwardVarargs operators.
 class CallForwardVarargsParameters final {
  public:
-  CallForwardVarargsParameters(uint32_t start_index,
+  CallForwardVarargsParameters(size_t arity, uint32_t start_index,
                                TailCallMode tail_call_mode)
-      : bit_field_(StartIndexField::encode(start_index) |
+      : bit_field_(ArityField::encode(arity) |
+                   StartIndexField::encode(start_index) |
                    TailCallModeField::encode(tail_call_mode)) {}
 
+  size_t arity() const { return ArityField::decode(bit_field_); }
   uint32_t start_index() const { return StartIndexField::decode(bit_field_); }
   TailCallMode tail_call_mode() const {
     return TailCallModeField::decode(bit_field_);
@@ -137,8 +204,9 @@ class CallForwardVarargsParameters final {
     return p.bit_field_;
   }
 
-  typedef BitField<uint32_t, 0, 30> StartIndexField;
-  typedef BitField<TailCallMode, 31, 1> TailCallModeField;
+  typedef BitField<size_t, 0, 15> ArityField;
+  typedef BitField<uint32_t, 15, 15> StartIndexField;
+  typedef BitField<TailCallMode, 30, 1> TailCallModeField;
 
   uint32_t const bit_field_;
 };
@@ -152,8 +220,9 @@ CallForwardVarargsParameters const& CallForwardVarargsParametersOf(
 // used as a parameter by JSCall operators.
 class CallParameters final {
  public:
-  CallParameters(size_t arity, float frequency, VectorSlotPair const& feedback,
-                 TailCallMode tail_call_mode, ConvertReceiverMode convert_mode)
+  CallParameters(size_t arity, CallFrequency frequency,
+                 VectorSlotPair const& feedback, TailCallMode tail_call_mode,
+                 ConvertReceiverMode convert_mode)
       : bit_field_(ArityField::encode(arity) |
                    ConvertReceiverModeField::encode(convert_mode) |
                    TailCallModeField::encode(tail_call_mode)),
@@ -161,7 +230,7 @@ class CallParameters final {
         feedback_(feedback) {}
 
   size_t arity() const { return ArityField::decode(bit_field_); }
-  float frequency() const { return frequency_; }
+  CallFrequency frequency() const { return frequency_; }
   ConvertReceiverMode convert_mode() const {
     return ConvertReceiverModeField::decode(bit_field_);
   }
@@ -187,7 +256,7 @@ class CallParameters final {
   typedef BitField<TailCallMode, 31, 1> TailCallModeField;
 
   uint32_t const bit_field_;
-  float const frequency_;
+  CallFrequency const frequency_;
   VectorSlotPair const feedback_;
 };
 
@@ -633,10 +702,10 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
                                       int literal_flags, int literal_index);
 
-  const Operator* CallForwardVarargs(uint32_t start_index,
+  const Operator* CallForwardVarargs(size_t arity, uint32_t start_index,
                                      TailCallMode tail_call_mode);
   const Operator* Call(
-      size_t arity, float frequency = 0.0f,
+      size_t arity, CallFrequency frequency = CallFrequency(),
       VectorSlotPair const& feedback = VectorSlotPair(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
@@ -644,8 +713,11 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
-  const Operator* Construct(uint32_t arity, float frequency,
-                            VectorSlotPair const& feedback);
+
+  const Operator* ConstructForwardVarargs(size_t arity, uint32_t start_index);
+  const Operator* Construct(uint32_t arity,
+                            CallFrequency frequency = CallFrequency(),
+                            VectorSlotPair const& feedback = VectorSlotPair());
   const Operator* ConstructWithSpread(uint32_t arity);
 
   const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);
@@ -662,11 +734,13 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
                                 VectorSlotPair const& feedback);
   const Operator* StoreDataPropertyInLiteral(const VectorSlotPair& feedback);
 
-  const Operator* DeleteProperty(LanguageMode language_mode);
+  const Operator* DeleteProperty();
 
   const Operator* HasProperty();
 
   const Operator* GetSuperConstructor();
+
+  const Operator* CreateGeneratorObject();
 
   const Operator* LoadGlobal(const Handle<Name>& name,
                              const VectorSlotPair& feedback,

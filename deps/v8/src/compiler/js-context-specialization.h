@@ -15,17 +15,29 @@ namespace compiler {
 class JSGraph;
 class JSOperatorBuilder;
 
+// Pair of a context and its distance from some point of reference.
+struct OuterContext {
+  OuterContext() : context(), distance() {}
+  OuterContext(Handle<Context> context_, size_t distance_)
+      : context(context_), distance(distance_) {}
+  Handle<Context> context;
+  size_t distance;
+};
 
 // Specializes a given JSGraph to a given context, potentially constant folding
 // some {LoadContext} nodes or strength reducing some {StoreContext} nodes.
+// Additionally, constant-folds the function parameter if {closure} is given.
+//
+// The context can be the incoming function context or any outer context
+// thereof, as indicated by {outer}'s {distance}.
 class JSContextSpecialization final : public AdvancedReducer {
  public:
   JSContextSpecialization(Editor* editor, JSGraph* jsgraph,
-                          MaybeHandle<Context> context,
+                          Maybe<OuterContext> outer,
                           MaybeHandle<JSFunction> closure)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
-        context_(context),
+        outer_(outer),
         closure_(closure) {}
 
   Reduction Reduce(Node* node) final;
@@ -43,11 +55,11 @@ class JSContextSpecialization final : public AdvancedReducer {
   Isolate* isolate() const;
   JSOperatorBuilder* javascript() const;
   JSGraph* jsgraph() const { return jsgraph_; }
-  MaybeHandle<Context> context() const { return context_; }
+  Maybe<OuterContext> outer() const { return outer_; }
   MaybeHandle<JSFunction> closure() const { return closure_; }
 
   JSGraph* const jsgraph_;
-  MaybeHandle<Context> context_;
+  Maybe<OuterContext> outer_;
   MaybeHandle<JSFunction> closure_;
 
   DISALLOW_COPY_AND_ASSIGN(JSContextSpecialization);

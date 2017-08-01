@@ -84,6 +84,8 @@
       # Sanitizers.
       'V8 Linux64 ASAN': 'gn_release_x64_asan',
       'V8 Linux64 TSAN': 'gn_release_x64_tsan',
+      'V8 Linux64 TSAN - concurrent marking':
+          'gn_release_x64_tsan_concurrent_marking',
       'V8 Linux - arm64 - sim - MSAN': 'gn_release_simulate_arm64_msan',
       # Clusterfuzz.
       'V8 Linux64 - release builder': 'gn_release_x64_correctness_fuzzer',
@@ -98,6 +100,7 @@
           'gn_debug_simulate_mipsel_asan_edge',
       # Misc.
       'V8 Linux gcc 4.8': 'gn_release_x86_gcc',
+      'V8 Linux64 gcc 4.8 - debug': 'gn_debug_x64_gcc',
       # FYI.
       'V8 Linux - swarming staging': 'gn_release_x64',
       # TODO(machenbach): Figure out if symbolized is still needed. The
@@ -177,6 +180,7 @@
       'v8_linux_nosnap_dbg': 'gn_debug_x86_no_snap_trybot',
       'v8_linux_gcc_compile_rel': 'gn_release_x86_gcc_minimal_symbols',
       'v8_linux_gcc_rel': 'gn_release_x86_gcc_minimal_symbols',
+      'v8_linux64_gcc_compile_dbg': 'gn_debug_x64_gcc',
       'v8_linux64_rel_ng': 'gn_release_x64_valgrind_trybot',
       'v8_linux64_verify_csa_rel_ng': 'gn_release_x64_verify_csa',
       'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
@@ -187,6 +191,8 @@
       'v8_linux64_sanitizer_coverage_rel':
           'gyp_release_x64_asan_minimal_symbols_coverage',
       'v8_linux64_tsan_rel': 'gn_release_x64_tsan_minimal_symbols',
+      'v8_linux64_tsan_concurrent_marking_rel_ng':
+          'gn_release_x64_tsan_concurrent_marking_minimal_symbols',
       'v8_win_dbg': 'gn_debug_x86_trybot',
       'v8_win_compile_dbg': 'gn_debug_x86_trybot',
       'v8_win_rel_ng': 'gn_release_x86_trybot',
@@ -298,7 +304,8 @@
     'gn_debug_simulate_arm64_asan_edge': [
       'gn', 'debug_bot', 'simulate_arm64', 'asan', 'lsan', 'edge'],
     'gn_debug_simulate_arm64_no_snap': [
-      'gn', 'debug_bot', 'simulate_arm64', 'swarming', 'v8_snapshot_none'],
+      'gn', 'debug', 'simulate_arm64', 'shared', 'goma',
+      'v8_optimized_debug', 'swarming', 'v8_snapshot_none'],
     'gn_debug_simulate_mipsel_asan_edge': [
       'gn', 'debug_bot', 'simulate_mipsel', 'asan', 'edge'],
 
@@ -360,6 +367,12 @@
       'gn', 'release_trybot', 'x64', 'swarming'],
     'gn_release_x64_tsan': [
       'gn', 'release_bot', 'x64', 'tsan', 'swarming'],
+    'gn_release_x64_tsan_concurrent_marking': [
+      'gn', 'release_bot', 'x64', 'v8_enable_concurrent_marking', 'tsan',
+      'swarming'],
+    'gn_release_x64_tsan_concurrent_marking_minimal_symbols': [
+      'gn', 'release_bot', 'x64', 'v8_enable_concurrent_marking', 'tsan',
+      'minimal_symbols', 'swarming'],
     'gn_release_x64_tsan_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'tsan', 'minimal_symbols', 'swarming'],
     'gn_release_x64_valgrind': [
@@ -377,6 +390,8 @@
       'gn', 'debug_bot', 'x64', 'asan', 'lsan', 'edge'],
     'gn_debug_x64_custom': [
       'gn', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
+    'gn_debug_x64_gcc': [
+      'gn', 'debug_bot', 'x64', 'gcc'],
     'gn_debug_x64_minimal_symbols': [
       'gn', 'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
     'gn_debug_x64_trybot': [
@@ -498,8 +513,8 @@
     },
 
     'bb': {
-      'gn_args': 'sanitizer_coverage_flags="bb"',
-      'gyp_defines': 'sanitizer_coverage=bb',
+      'gn_args': 'sanitizer_coverage_flags="bb,trace-pc-guard"',
+      'gyp_defines': 'sanitizer_coverage=bb,trace-pc-guard',
     },
 
     'cfi': {
@@ -548,8 +563,8 @@
     },
 
     'edge': {
-      'gn_args': 'sanitizer_coverage_flags="edge"',
-      'gyp_defines': 'sanitizer_coverage=edge',
+      'gn_args': 'sanitizer_coverage_flags="trace-pc-guard"',
+      'gyp_defines': 'sanitizer_coverage=trace-pc-guard',
     },
 
     'gcc': {
@@ -693,6 +708,10 @@
     'v8_no_i18n': {
       'gn_args': 'v8_enable_i18n_support=false icu_use_data_file=false',
       'gyp_defines': 'v8_enable_i18n_support=0 icu_use_data_file_flag=0',
+    },
+
+    'v8_enable_concurrent_marking': {
+      'gn_args': 'v8_enable_concurrent_marking=true',
     },
 
     'v8_correctness_fuzzer': {

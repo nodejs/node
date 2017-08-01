@@ -123,6 +123,9 @@ Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
     new_field_type_ = field_type;
   }
 
+  GeneralizeIfTransitionableFastElementsKind(
+      &new_constness_, &new_representation_, &new_field_type_);
+
   if (TryRecofigureToDataFieldInplace() == kEnd) return result_map_;
   if (FindRootMap() == kEnd) return result_map_;
   if (FindTargetMap() == kEnd) return result_map_;
@@ -134,6 +137,8 @@ Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
 Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
   DCHECK_EQ(kInitialized, state_);
   new_elements_kind_ = elements_kind;
+  is_transitionable_fast_elements_kind_ =
+      IsTransitionableFastElementsKind(new_elements_kind_);
 
   if (FindRootMap() == kEnd) return result_map_;
   if (FindTargetMap() == kEnd) return result_map_;
@@ -151,6 +156,28 @@ Handle<Map> MapUpdater::Update() {
   ConstructNewMap();
   DCHECK_EQ(kEnd, state_);
   return result_map_;
+}
+
+void MapUpdater::GeneralizeIfTransitionableFastElementsKind(
+    PropertyConstness* constness, Representation* representation,
+    Handle<FieldType>* field_type) {
+  DCHECK_EQ(is_transitionable_fast_elements_kind_,
+            IsTransitionableFastElementsKind(new_elements_kind_));
+  if (is_transitionable_fast_elements_kind_ &&
+      Map::IsInplaceGeneralizableField(*constness, *representation,
+                                       **field_type)) {
+    // We don't support propagation of field generalization through elements
+    // kind transitions because they are inserted into the transition tree
+    // before field transitions. In order to avoid complexity of handling
+    // such a case we ensure that all maps with transitionable elements kinds
+    // do not have fields that can be generalized in-place (without creation
+    // of a new map).
+    if (FLAG_track_constant_fields && FLAG_modify_map_inplace) {
+      *constness = kMutable;
+    }
+    DCHECK(representation->IsHeapObject());
+    *field_type = FieldType::Any(isolate_);
+  }
 }
 
 void MapUpdater::GeneralizeField(Handle<Map> map, int modify_index,
@@ -489,6 +516,9 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
           old_details.representation(), old_field_type, next_representation,
           target_field_type, isolate_);
 
+      GeneralizeIfTransitionableFastElementsKind(
+          &next_constness, &next_representation, &next_field_type);
+
       Handle<Object> wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
       if (next_kind == kData) {
@@ -532,10 +562,17 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 
     Descriptor d;
     if (next_location == kField) {
-      Handle<FieldType> old_field_type =
+      Handle<FieldType> next_field_type =
           GetOrComputeFieldType(i, old_details.location(), next_representation);
 
-      Handle<Object> wrapped_type(Map::WrapFieldType(old_field_type));
+      // If the |new_elements_kind_| is still transitionable then the old map's
+      // elements kind is also transitionable and therefore the old descriptors
+      // array must already have non in-place generalizable fields.
+      CHECK_IMPLIES(is_transitionable_fast_elements_kind_,
+                    !Map::IsInplaceGeneralizableField(
+                        next_constness, next_representation, *next_field_type));
+
+      Handle<Object> wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
       if (next_kind == kData) {
         DCHECK_IMPLIES(!FLAG_track_constant_fields, next_constness == kMutable);

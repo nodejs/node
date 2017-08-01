@@ -61,6 +61,16 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
 
 class V8_EXPORT_PRIVATE SourcePositionTableIterator {
  public:
+  // We expose two flavours of the iterator, depending on the argument passed
+  // to the constructor:
+
+  // Handlified iterator allows allocation, but it needs a handle (and thus
+  // a handle scope). This is the preferred version.
+  explicit SourcePositionTableIterator(Handle<ByteArray> byte_array);
+
+  // Non-handlified iterator does not need a handle scope, but it disallows
+  // allocation during its lifetime. This is useful if there is no handle
+  // scope around.
   explicit SourcePositionTableIterator(ByteArray* byte_array);
 
   void Advance();
@@ -82,8 +92,9 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
  private:
   static const int kDone = -1;
 
-  ByteArray* table_;
-  int index_;
+  ByteArray* raw_table_ = nullptr;
+  Handle<ByteArray> table_;
+  int index_ = 0;
   PositionTableEntry current_;
   DisallowHeapAllocation no_gc;
 };

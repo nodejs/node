@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Check that inspector correctly passes caught/uncaught information.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Check that inspector correctly passes caught/uncaught information.");
 
-InspectorTest.addScript(
+contextGroup.addScript(
 `function throwCaught() { try { throw new Error(); } catch (_) {} }
  function throwUncaught() { throw new Error(); }
  function schedule(f) { setTimeout(f, 0); }

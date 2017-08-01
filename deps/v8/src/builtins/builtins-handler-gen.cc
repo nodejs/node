@@ -129,21 +129,8 @@ TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
   Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  Label miss(this);
-
-  Node* proto_or_map =
-      LoadObjectField(receiver, JSFunction::kPrototypeOrInitialMapOffset);
-  GotoIf(IsTheHole(proto_or_map), &miss);
-
-  VARIABLE(var_result, MachineRepresentation::kTagged, proto_or_map);
-  Label done(this, &var_result);
-  GotoIfNot(IsMap(proto_or_map), &done);
-
-  var_result.Bind(LoadMapPrototype(proto_or_map));
-  Goto(&done);
-
-  BIND(&done);
-  Return(var_result.value());
+  Label miss(this, Label::kDeferred);
+  Return(LoadJSFunctionPrototype(receiver, &miss));
 
   BIND(&miss);
   TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name, slot, vector);

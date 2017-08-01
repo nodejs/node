@@ -14,6 +14,8 @@ namespace internal {
 template <typename T>
 class Handle;
 
+class RootVisitor;
+
 // The compilation cache consists of several generational sub-caches which uses
 // this class as a base class. A sub-cache contains a compilation cache tables
 // for each generation of the sub-cache. Since the same source code string has
@@ -49,7 +51,7 @@ class CompilationSubCache {
   void Age();
 
   // GC support.
-  void Iterate(ObjectVisitor* v);
+  void Iterate(RootVisitor* v);
   void IterateFunctions(ObjectVisitor* v);
 
   // Clear this sub-cache evicting all its content.
@@ -197,7 +199,7 @@ class CompilationCache {
   void Remove(Handle<SharedFunctionInfo> function_info);
 
   // GC support.
-  void Iterate(ObjectVisitor* v);
+  void Iterate(RootVisitor* v);
   void IterateFunctions(ObjectVisitor* v);
 
   // Notify the cache that a mark-sweep garbage collection is about to

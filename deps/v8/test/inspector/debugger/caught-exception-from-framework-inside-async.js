@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Async caught exception prediction and blackboxing.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Async caught exception prediction and blackboxing.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function constructorThrow() {
   return new Promise((resolve, reject) =>
     Promise.resolve().then(() =>
@@ -18,7 +18,7 @@ function dotCatch(producer) {
 }
 //# sourceURL=framework.js`);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 (async function test() {
   Protocol.Debugger.enable();
   Protocol.Debugger.setBlackboxPatterns({patterns: ['framework\.js']});
@@ -33,6 +33,6 @@ InspectorTest.setupScriptMap();
 async function waitPauseAndDumpLocation() {
   var message = await Protocol.Debugger.oncePaused();
   InspectorTest.log('paused at:');
-  InspectorTest.logSourceLocation(message.params.callFrames[0].location);
+  session.logSourceLocation(message.params.callFrames[0].location);
   return message;
 }

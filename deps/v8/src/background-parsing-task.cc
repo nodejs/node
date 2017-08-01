@@ -37,6 +37,9 @@ BackgroundParsingTask::BackgroundParsingTask(
   info->set_unicode_cache(&source_->unicode_cache);
   info->set_compile_options(options);
   info->set_allow_lazy_parsing();
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
+    info->set_runtime_call_stats(new (info->zone()) RuntimeCallStats());
+  }
 
   source_->info->set_cached_data(&script_data_);
   // Parser needs to stay alive for finalizing the parsing on the main

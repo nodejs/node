@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks console.memory');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks console.memory');
 
 InspectorTest.runAsyncTestSuite([
   async function testWithoutMemory() {

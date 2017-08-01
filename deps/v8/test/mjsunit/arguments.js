@@ -248,26 +248,107 @@ assertEquals(117, arg_set(0xFFFFFFFF));
     return arguments
   };
   var args = f(1, 2);
+  %HeapObjectVerify(args);
   assertEquals(1, args[0]);
   assertEquals(2, args[1]);
   assertEquals(key, args[key]);
   assertEquals(2, args.length);
 
   delete args[0];
+  %HeapObjectVerify(args);
   assertEquals(undefined, args[0]);
   assertEquals(2, args[1]);
   assertEquals(key, args[key]);
   assertEquals(2, args.length);
 
   delete args[1];
+  %HeapObjectVerify(args);
   assertEquals(undefined, args[0]);
   assertEquals(undefined, args[1]);
   assertEquals(key, args[key]);
   assertEquals(2, args.length);
 
   delete args[key];
+  %HeapObjectVerify(args);
   assertEquals(undefined, args[0]);
   assertEquals(undefined, args[1]);
   assertEquals(undefined, args[key]);
   assertEquals(2, args.length);
+})();
+
+(function testDeleteSlowSloppyArguments2() {
+  function f(a) {
+    return arguments
+  };
+  var args = f(1, 2);
+  %HeapObjectVerify(args);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[1];
+  %HeapObjectVerify(args);
+  assertEquals(1, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(undefined, args[2]);
+  assertEquals(2, args.length);
+
+  delete args[0];
+  %HeapObjectVerify(args);
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(undefined, args[2]);
+  assertEquals(2, args.length);
+})();
+
+(function testSloppyArgumentProperties() {
+  function f(a, b) { return arguments }
+  let args = f(1, 2, 3, 4);
+  %HeapObjectVerify(args);
+  assertEquals(4, args.length);
+  args.foo = "foo";
+  %HeapObjectVerify(args);
+  assertEquals("foo", args.foo);
+  assertEquals(4, args.length);
+
+  delete args.foo;
+  %HeapObjectVerify(args);
+  assertEquals(undefined, args.foo);
+  assertEquals(4, args.length);
+})();
+
+
+(function testSloppyArgumentsLengthMapChange() {
+  function f(a) { return arguments };
+  let args1 = f(1);
+  let args2 = f(1,2);
+  assertTrue(%HaveSameMap(args1, args2));
+  args2.length = 12;
+  assertTrue(%HaveSameMap(args1, args2));
+  args2.length = "aa"
+  assertTrue(%HaveSameMap(args1, args2));
+
+  let args3 = f(1);
+  let args4 = f(1,2);
+  // Creating holes causes map transitions.
+  assertTrue(%HaveSameMap(args1, args3));
+  assertTrue(%HaveSameMap(args1, args4));
+  delete args3[0];
+  assertFalse(%HaveSameMap(args1, args3));
+  delete args4[1];
+  assertFalse(%HaveSameMap(args1, args4));
+})();
+
+(function testSloppyArgumentsLengthMapChange() {
+  function f(a) { return arguments };
+  let args1 = f(1);
+  let args2 = f(1,2);
+  assertTrue(%HaveSameMap(args1, args2));
+  // Changing the length type doesn't causes a map transition.
+  args2.length = 12;
+  assertTrue(%HaveSameMap(args1, args2));
+  args2.length = 12.0;
+  assertTrue(%HaveSameMap(args1, args2));
+  args2.length = "aa"
+  assertTrue(%HaveSameMap(args1, args2));
 })();

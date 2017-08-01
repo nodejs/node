@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks created frame for async call chain');
+// TODO(kozyatinskiy): fix this test.
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks created frame for async call chain');
 
-InspectorTest.addScript(
+contextGroup.addScript(
     `
 function foo1() {
   debugger;
@@ -76,10 +77,10 @@ function setTimeouts() {
 //# sourceURL=test.js`,
     8, 4);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
-  InspectorTest.logCallFrames(message.params.callFrames);
-  InspectorTest.logAsyncStackTrace(message.params.asyncStackTrace);
+  session.logCallFrames(message.params.callFrames);
+  session.logAsyncStackTrace(message.params.asyncStackTrace);
   InspectorTest.log('');
   Protocol.Debugger.resume();
 });

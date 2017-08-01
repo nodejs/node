@@ -711,26 +711,41 @@ TEST(Type0) {
   COMPARE(dsbh(s6, s7), "7c17b0a4       dsbh    s6, s7");
   COMPARE(dsbh(v0, v1), "7c0310a4       dsbh    v0, v1");
 
-  COMPARE(dins_(a0, a1, 31, 1), "7ca4ffc7       dins    a0, a1, 31, 1");
-  COMPARE(dins_(s6, s7, 30, 2), "7ef6ff87       dins    s6, s7, 30, 2");
-  COMPARE(dins_(v0, v1, 0, 32), "7c62f807       dins    v0, v1, 0, 32");
-
   COMPARE(dshd(a0, a1), "7c052164       dshd    a0, a1");
   COMPARE(dshd(s6, s7), "7c17b164       dshd    s6, s7");
   COMPARE(dshd(v0, v1), "7c031164       dshd    v0, v1");
 
-  COMPARE(ins_(a0, a1, 31, 1),
-          "7ca4ffc4       ins     a0, a1, 31, 1");
-  COMPARE(ins_(s6, s7, 30, 2),
-          "7ef6ff84       ins     s6, s7, 30, 2");
-  COMPARE(ins_(v0, v1, 0, 32),
-          "7c62f804       ins     v0, v1, 0, 32");
-  COMPARE(ext_(a0, a1, 31, 1),
-          "7ca407c0       ext     a0, a1, 31, 1");
-  COMPARE(ext_(s6, s7, 30, 2),
-          "7ef60f80       ext     s6, s7, 30, 2");
-  COMPARE(ext_(v0, v1, 0, 32),
-          "7c62f800       ext     v0, v1, 0, 32");
+  COMPARE(ext_(a0, a1, 31, 1), "7ca407c0       ext     a0, a1, 31, 1");
+  COMPARE(ext_(s6, s7, 30, 2), "7ef60f80       ext     s6, s7, 30, 2");
+  COMPARE(ext_(v0, v1, 0, 32), "7c62f800       ext     v0, v1, 0, 32");
+
+  COMPARE(dext_(a0, a1, 31, 1), "7ca407c3       dext    a0, a1, 31, 1");
+  COMPARE(dext_(s6, s7, 30, 2), "7ef60f83       dext    s6, s7, 30, 2");
+  COMPARE(dext_(v0, v1, 0, 32), "7c62f803       dext    v0, v1, 0, 32");
+
+  COMPARE(dextm_(a0, a1, 31, 33), "7ca407c1       dextm   a0, a1, 31, 33");
+  COMPARE(dextm_(s6, s7, 0, 33), "7ef60001       dextm   s6, s7, 0, 33");
+  COMPARE(dextm_(v0, v1, 0, 64), "7c62f801       dextm   v0, v1, 0, 64");
+
+  COMPARE(dextu_(a0, a1, 32, 1), "7ca40002       dextu   a0, a1, 32, 1");
+  COMPARE(dextu_(s6, s7, 63, 1), "7ef607c2       dextu   s6, s7, 63, 1");
+  COMPARE(dextu_(v0, v1, 32, 32), "7c62f802       dextu   v0, v1, 32, 32");
+
+  COMPARE(ins_(a0, a1, 31, 1), "7ca4ffc4       ins     a0, a1, 31, 1");
+  COMPARE(ins_(s6, s7, 30, 2), "7ef6ff84       ins     s6, s7, 30, 2");
+  COMPARE(ins_(v0, v1, 0, 32), "7c62f804       ins     v0, v1, 0, 32");
+
+  COMPARE(dins_(a0, a1, 31, 1), "7ca4ffc7       dins    a0, a1, 31, 1");
+  COMPARE(dins_(s6, s7, 30, 2), "7ef6ff87       dins    s6, s7, 30, 2");
+  COMPARE(dins_(v0, v1, 0, 32), "7c62f807       dins    v0, v1, 0, 32");
+
+  COMPARE(dinsm_(a0, a1, 31, 2), "7ca407c5       dinsm   a0, a1, 31, 2");
+  COMPARE(dinsm_(s6, s7, 0, 33), "7ef60005       dinsm   s6, s7, 0, 33");
+  COMPARE(dinsm_(v0, v1, 0, 64), "7c62f805       dinsm   v0, v1, 0, 64");
+
+  COMPARE(dinsu_(a0, a1, 32, 1), "7ca40006       dinsu   a0, a1, 32, 1");
+  COMPARE(dinsu_(s6, s7, 63, 1), "7ef6ffc6       dinsu   s6, s7, 63, 1");
+  COMPARE(dinsu_(v0, v1, 32, 32), "7c62f806       dinsu   v0, v1, 32, 32");
 
   COMPARE(add_s(f4, f6, f8), "46083100       add.s   f4, f6, f8");
   COMPARE(add_d(f12, f14, f16), "46307300       add.d   f12, f14, f16");

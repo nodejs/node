@@ -1,3 +1,5 @@
+Tests that suspended generators produce scopes
+
 Running test: testScopesPaused
 {
     id : <messageId>

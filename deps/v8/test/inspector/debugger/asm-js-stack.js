@@ -4,6 +4,8 @@
 
 // Flags: --validate-asm
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests that asm-js scripts produce correct stack');
+
 function testFunction() {
   function generateAsmJs(stdlib, foreign, heap) {
     'use asm';
@@ -25,7 +27,7 @@ function testFunction() {
   fun();
 }
 
-InspectorTest.addScript(testFunction.toString());
+contextGroup.addScript(testFunction.toString());
 
 Protocol.Debugger.enable();
 Protocol.Debugger.oncePaused().then(handleDebuggerPaused);

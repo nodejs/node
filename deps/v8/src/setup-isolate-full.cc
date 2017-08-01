@@ -5,6 +5,7 @@
 #include "src/setup-isolate.h"
 
 #include "src/base/logging.h"
+#include "src/interpreter/interpreter.h"
 #include "src/interpreter/setup-interpreter.h"
 #include "src/isolate.h"
 
@@ -13,30 +14,20 @@ namespace internal {
 
 void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate,
                                          bool create_heap_objects) {
-#ifdef V8_GYP_BUILD
-  // Compatibility hack to keep the deprecated GYP build working.
   if (create_heap_objects) {
     SetupBuiltinsInternal(isolate);
   } else {
-    isolate->builtins()->MarkInitialized();
+    DCHECK(isolate->snapshot_available());
   }
-  return;
-#endif
-  DCHECK(create_heap_objects);
-  SetupBuiltinsInternal(isolate);
 }
 
 void SetupIsolateDelegate::SetupInterpreter(
     interpreter::Interpreter* interpreter, bool create_heap_objects) {
-#ifdef V8_GYP_BUILD
-  // Compatibility hack to keep the deprecated GYP build working.
   if (create_heap_objects) {
     interpreter::SetupInterpreter::InstallBytecodeHandlers(interpreter);
+  } else {
+    DCHECK(interpreter->IsDispatchTableInitialized());
   }
-  return;
-#endif
-  DCHECK(create_heap_objects);
-  interpreter::SetupInterpreter::InstallBytecodeHandlers(interpreter);
 }
 
 }  // namespace internal

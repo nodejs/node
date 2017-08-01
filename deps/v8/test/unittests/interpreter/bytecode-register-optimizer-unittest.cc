@@ -4,12 +4,8 @@
 
 #include "src/v8.h"
 
-#include "src/factory.h"
 #include "src/interpreter/bytecode-label.h"
-#include "src/interpreter/bytecode-pipeline.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -99,7 +95,6 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryNotEmitted) {
   CHECK_EQ(write_count(), 0u);
   Register temp = NewTemporary();
   optimizer()->DoStar(temp);
-  BytecodeNode node1(Bytecode::kStar, NewTemporary().ToOperand());
   ReleaseTemporaries(temp);
   CHECK_EQ(write_count(), 0u);
   optimizer()->PrepareForBytecode<Bytecode::kReturn, AccumulatorUse::kRead>();

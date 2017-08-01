@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt --crankshaft
+// Flags: --allow-natives-syntax --no-always-opt --opt
 
 var source =
 `
@@ -50,7 +50,7 @@ var f = (function outer() {
 f()()();
 `;
 
-InspectorTest.log("Test collecting code coverage data with Profiler.collectCoverage.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Test collecting code coverage data with Profiler.collectCoverage.");
 
 function ClearAndGC() {
   return Protocol.Runtime.evaluate({ expression: "fib = g = f = h = is_optimized = null;" })

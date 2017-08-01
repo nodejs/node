@@ -123,5 +123,30 @@ Print stack trace with assertion scopes
 Usage: bta
 end
 
+# Search for a pointer inside all valid pages.
+define space_find
+  set $space = $arg0
+  set $current_page = $space->anchor()->next_page()
+  while ($current_page != $space->anchor())
+    printf "#   Searching in %p - %p\n", $current_page->area_start(), $current_page->area_end()-1
+    find $current_page->area_start(), $current_page->area_end()-1, $arg1
+    set $current_page = $current_page->next_page()
+  end
+end
+
+define heap_find
+  set $heap = v8::internal::Isolate::Current()->heap()
+  printf "# Searching for %p in old_space  ===============================\n", $arg0
+  space_find $heap->old_space() ($arg0)
+  printf "# Searching for %p in map_space  ===============================\n", $arg0
+  space_find $heap->map_space() $arg0
+  printf "# Searching for %p in code_space ===============================\n", $arg0
+  space_find $heap->code_space() $arg0
+end
+document heap_find
+Find the location of a given address in V8 pages.
+Usage: heap_find address
+end
+
 set disassembly-flavor intel
 set disable-randomization off

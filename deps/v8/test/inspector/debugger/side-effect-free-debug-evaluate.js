@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 // Flags: --ignition --turbo
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests side-effect-free evaluation');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function testFunction()
 {
   var o = 0;

@@ -54,11 +54,13 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
   Node* key = Parameter(Descriptor::kKey);
   Node* context = Parameter(Descriptor::kContext);
 
-  Label call_runtime(this), return_true(this), return_false(this);
+  Label call_runtime(this), return_true(this), return_false(this),
+      to_primitive(this);
 
-  // Smi receivers do not have own properties.
+  // Smi receivers do not have own properties, just perform ToPrimitive on the
+  // key.
   Label if_objectisnotsmi(this);
-  Branch(TaggedIsSmi(object), &return_false, &if_objectisnotsmi);
+  Branch(TaggedIsSmi(object), &to_primitive, &if_objectisnotsmi);
   BIND(&if_objectisnotsmi);
 
   Node* map = LoadMap(object);
@@ -68,20 +70,44 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
     VARIABLE(var_index, MachineType::PointerRepresentation());
     VARIABLE(var_unique, MachineRepresentation::kTagged);
 
-    Label keyisindex(this), if_iskeyunique(this);
-    TryToName(key, &keyisindex, &var_index, &if_iskeyunique, &var_unique,
-              &call_runtime);
+    Label if_index(this), if_unique_name(this), if_notunique_name(this);
+    TryToName(key, &if_index, &var_index, &if_unique_name, &var_unique,
+              &call_runtime, &if_notunique_name);
 
-    BIND(&if_iskeyunique);
+    BIND(&if_unique_name);
     TryHasOwnProperty(object, map, instance_type, var_unique.value(),
                       &return_true, &return_false, &call_runtime);
 
-    BIND(&keyisindex);
-    // Handle negative keys in the runtime.
-    GotoIf(IntPtrLessThan(var_index.value(), IntPtrConstant(0)), &call_runtime);
-    TryLookupElement(object, map, instance_type, var_index.value(),
-                     &return_true, &return_false, &return_false, &call_runtime);
+    BIND(&if_index);
+    {
+      // Handle negative keys in the runtime.
+      GotoIf(IntPtrLessThan(var_index.value(), IntPtrConstant(0)),
+             &call_runtime);
+      TryLookupElement(object, map, instance_type, var_index.value(),
+                       &return_true, &return_false, &return_false,
+                       &call_runtime);
+    }
+
+    BIND(&if_notunique_name);
+    {
+      Label not_in_string_table(this);
+      TryInternalizeString(key, &if_index, &var_index, &if_unique_name,
+                           &var_unique, &not_in_string_table, &call_runtime);
+
+      BIND(&not_in_string_table);
+      {
+        // If the string was not found in the string table, then no regular
+        // object can have a property with that name, so return |false|.
+        // "Special API objects" with interceptors must take the slow path.
+        Branch(IsSpecialReceiverInstanceType(instance_type), &call_runtime,
+               &return_false);
+      }
+    }
   }
+  BIND(&to_primitive);
+  GotoIf(IsNumber(key), &return_false);
+  Branch(IsName(key), &return_false, &call_runtime);
+
   BIND(&return_true);
   Return(BooleanConstant(true));
 
@@ -90,6 +116,88 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
 
   BIND(&call_runtime);
   Return(CallRuntime(Runtime::kObjectHasOwnProperty, context, object, key));
+}
+
+// ES #sec-object.keys
+TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
+  Node* object = Parameter(Descriptor::kObject);
+  Node* context = Parameter(Descriptor::kContext);
+
+  VARIABLE(var_length, MachineRepresentation::kTagged);
+  VARIABLE(var_elements, MachineRepresentation::kTagged);
+  Label if_empty(this, Label::kDeferred), if_fast(this),
+      if_slow(this, Label::kDeferred), if_join(this);
+
+  // Check if the {object} has a usable enum cache.
+  GotoIf(TaggedIsSmi(object), &if_slow);
+  Node* object_map = LoadMap(object);
+  Node* object_bit_field3 = LoadMapBitField3(object_map);
+  Node* object_enum_length =
+      DecodeWordFromWord32<Map::EnumLengthBits>(object_bit_field3);
+  GotoIf(
+      WordEqual(object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel)),
+      &if_slow);
+
+  // Ensure that the {object} doesn't have any elements.
+  CSA_ASSERT(this, IsJSObjectMap(object_map));
+  Node* object_elements = LoadObjectField(object, JSObject::kElementsOffset);
+  GotoIfNot(IsEmptyFixedArray(object_elements), &if_slow);
+  Branch(WordEqual(object_enum_length, IntPtrConstant(0)), &if_empty, &if_fast);
+
+  BIND(&if_fast);
+  {
+    // The {object} has a usable enum cache, use that.
+    Node* object_descriptors = LoadMapDescriptors(object_map);
+    Node* object_enum_cache_bridge = LoadObjectField(
+        object_descriptors, DescriptorArray::kEnumCacheBridgeOffset);
+    Node* object_enum_cache = LoadObjectField(
+        object_enum_cache_bridge, DescriptorArray::kEnumCacheBridgeCacheOffset);
+
+    // Allocate a JSArray and copy the elements from the {object_enum_cache}.
+    Node* array = nullptr;
+    Node* elements = nullptr;
+    Node* native_context = LoadNativeContext(context);
+    Node* array_map = LoadJSArrayElementsMap(FAST_ELEMENTS, native_context);
+    Node* array_length = SmiTag(object_enum_length);
+    std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
+        FAST_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
+        INTPTR_PARAMETERS);
+    StoreMapNoWriteBarrier(elements, Heap::kFixedArrayMapRootIndex);
+    StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
+                                   array_length);
+    CopyFixedArrayElements(FAST_ELEMENTS, object_enum_cache, elements,
+                           object_enum_length, SKIP_WRITE_BARRIER);
+    Return(array);
+  }
+
+  BIND(&if_empty);
+  {
+    // The {object} doesn't have any enumerable keys.
+    var_length.Bind(SmiConstant(0));
+    var_elements.Bind(EmptyFixedArrayConstant());
+    Goto(&if_join);
+  }
+
+  BIND(&if_slow);
+  {
+    // Let the runtime compute the elements.
+    Node* elements = CallRuntime(Runtime::kObjectKeys, context, object);
+    var_length.Bind(LoadObjectField(elements, FixedArray::kLengthOffset));
+    var_elements.Bind(elements);
+    Goto(&if_join);
+  }
+
+  BIND(&if_join);
+  {
+    // Wrap the elements into a proper JSArray and return that.
+    Node* native_context = LoadNativeContext(context);
+    Node* array_map = LoadJSArrayElementsMap(FAST_ELEMENTS, native_context);
+    Node* array = AllocateUninitializedJSArrayWithoutElements(
+        FAST_ELEMENTS, array_map, var_length.value(), nullptr);
+    StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
+                                   var_elements.value());
+    Return(array);
+  }
 }
 
 // ES6 #sec-object.prototype.tostring
@@ -398,6 +506,52 @@ TF_BUILTIN(GetSuperConstructor, ObjectBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   Return(GetSuperConstructor(object, context));
+}
+
+TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
+  Node* closure = Parameter(Descriptor::kClosure);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* context = Parameter(Descriptor::kContext);
+
+  // Get the initial map from the function, jumping to the runtime if we don't
+  // have one.
+  Node* maybe_map =
+      LoadObjectField(closure, JSFunction::kPrototypeOrInitialMapOffset);
+  Label runtime(this);
+  GotoIf(DoesntHaveInstanceType(maybe_map, MAP_TYPE), &runtime);
+
+  Node* shared =
+      LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
+  Node* bytecode_array =
+      LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset);
+  Node* frame_size = ChangeInt32ToIntPtr(LoadObjectField(
+      bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
+  Node* size = WordSar(frame_size, IntPtrConstant(kPointerSizeLog2));
+  Node* register_file = AllocateFixedArray(FAST_HOLEY_ELEMENTS, size);
+  FillFixedArrayWithValue(FAST_HOLEY_ELEMENTS, register_file, IntPtrConstant(0),
+                          size, Heap::kUndefinedValueRootIndex);
+
+  Node* const result = AllocateJSObjectFromMap(maybe_map);
+
+  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kFunctionOffset,
+                                 closure);
+  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContextOffset,
+                                 context);
+  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kReceiverOffset,
+                                 receiver);
+  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kRegisterFileOffset,
+                                 register_file);
+  Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
+  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContinuationOffset,
+                                 executing);
+  HandleSlackTracking(context, result, maybe_map, JSGeneratorObject::kSize);
+  Return(result);
+
+  BIND(&runtime);
+  {
+    Return(CallRuntime(Runtime::kCreateJSGeneratorObject, context, closure,
+                       receiver));
+  }
 }
 
 }  // namespace internal

@@ -66,11 +66,47 @@ class Variable final : public ZoneObject {
   bool IsGlobalObjectProperty() const;
 
   bool is_dynamic() const { return IsDynamicVariableMode(mode()); }
+
+  // Returns the InitializationFlag this Variable was created with.
+  // Scope analysis may allow us to relax this initialization
+  // requirement, which will be reflected in the return value of
+  // binding_needs_init().
+  InitializationFlag initialization_flag() const {
+    return InitializationFlagField::decode(bit_field_);
+  }
+
+  // Whether this variable needs to be initialized with the hole at
+  // declaration time. Only returns valid results after scope analysis.
   bool binding_needs_init() const {
-    DCHECK(initialization_flag() != kNeedsInitialization ||
-           IsLexicalVariableMode(mode()));
+    DCHECK_IMPLIES(initialization_flag() == kNeedsInitialization,
+                   IsLexicalVariableMode(mode()));
+    DCHECK_IMPLIES(ForceHoleInitializationField::decode(bit_field_),
+                   initialization_flag() == kNeedsInitialization);
+
+    // Always initialize if hole initialization was forced during
+    // scope analysis.
+    if (ForceHoleInitializationField::decode(bit_field_)) return true;
+
+    // If initialization was not forced, no need for initialization
+    // for stack allocated variables, since UpdateNeedsHoleCheck()
+    // in scopes.cc has proven that no VariableProxy refers to
+    // this variable in such a way that a runtime hole check
+    // would be generated.
+    if (IsStackAllocated()) return false;
+
+    // Otherwise, defer to the flag set when this Variable was constructed.
     return initialization_flag() == kNeedsInitialization;
   }
+
+  // Called during scope analysis when a VariableProxy is found to
+  // reference this Variable in such a way that a hole check will
+  // be required at runtime.
+  void ForceHoleInitialization() {
+    DCHECK_EQ(kNeedsInitialization, initialization_flag());
+    DCHECK(IsLexicalVariableMode(mode()));
+    bit_field_ = ForceHoleInitializationField::update(bit_field_, true);
+  }
+
   bool throw_on_const_assignment(LanguageMode language_mode) const {
     return kind() != SLOPPY_FUNCTION_NAME_VARIABLE || is_strict(language_mode);
   }
@@ -94,9 +130,6 @@ class Variable final : public ZoneObject {
     return LocationField::decode(bit_field_);
   }
   VariableKind kind() const { return VariableKindField::decode(bit_field_); }
-  InitializationFlag initialization_flag() const {
-    return InitializationFlagField::decode(bit_field_);
-  }
 
   int index() const { return index_; }
 
@@ -152,10 +185,12 @@ class Variable final : public ZoneObject {
   class IsUsedField
       : public BitField16<bool, ForceContextAllocationField::kNext, 1> {};
   class InitializationFlagField
-      : public BitField16<InitializationFlag, IsUsedField::kNext, 2> {};
+      : public BitField16<InitializationFlag, IsUsedField::kNext, 1> {};
+  class ForceHoleInitializationField
+      : public BitField16<bool, InitializationFlagField::kNext, 1> {};
   class MaybeAssignedFlagField
-      : public BitField16<MaybeAssignedFlag, InitializationFlagField::kNext,
-                          2> {};
+      : public BitField16<MaybeAssignedFlag,
+                          ForceHoleInitializationField::kNext, 1> {};
   Variable** next() { return &next_; }
   friend List;
 };

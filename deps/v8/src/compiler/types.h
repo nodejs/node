@@ -126,6 +126,7 @@ namespace compiler {
   V(Hole,                1u << 22)  \
   V(OtherInternal,       1u << 23)  \
   V(ExternalPointer,     1u << 24)  \
+  V(Array,               1u << 25)  \
   \
   V(Signed31,                     kUnsigned30 | kNegative31) \
   V(Signed32,                     kSigned31 | kOtherUnsigned31 | \
@@ -166,12 +167,14 @@ namespace compiler {
   V(Primitive,                    kSymbol | kPlainPrimitive) \
   V(OtherUndetectableOrUndefined, kOtherUndetectable | kUndefined) \
   V(Proxy,                        kCallableProxy | kOtherProxy) \
+  V(ArrayOrOtherObject,           kArray | kOtherObject) \
+  V(ArrayOrProxy,                 kArray | kProxy) \
   V(DetectableCallable,           kFunction | kBoundFunction | \
                                   kOtherCallable | kCallableProxy) \
   V(Callable,                     kDetectableCallable | kOtherUndetectable) \
-  V(NonCallable,                  kOtherObject | kOtherProxy) \
+  V(NonCallable,                  kArray | kOtherObject | kOtherProxy) \
   V(NonCallableOrNull,            kNonCallable | kNull) \
-  V(DetectableObject,             kFunction | kBoundFunction | \
+  V(DetectableObject,             kArray | kFunction | kBoundFunction | \
                                   kOtherCallable | kOtherObject) \
   V(DetectableReceiver,           kDetectableObject | kProxy) \
   V(DetectableReceiverOrNull,     kDetectableReceiver | kNull) \

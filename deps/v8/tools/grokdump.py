@@ -1952,9 +1952,12 @@ class InspectionPadawan(object):
     return None
 
   def FrameMarkerName(self, value):
-    if 0 < value <= len(FRAME_MARKERS):
-      return "Possibly %s frame marker" % FRAME_MARKERS[value-1]
-    return ""
+    # The frame marker is Smi-tagged but not Smi encoded and 0 is not a valid
+    # frame type.
+    value = (value >> 1) - 1
+    if 0 <= value < len(FRAME_MARKERS):
+      return "Possibly %s frame marker" % FRAME_MARKERS[value]
+    return None
 
   def IsFrameMarker(self, slot, address):
     if not slot: return False
@@ -1964,18 +1967,17 @@ class InspectionPadawan(object):
     next_address = self.reader.ReadUIntPtr(slot + self.reader.PointerSize())
     return self.reader.IsExceptionStackAddress(next_address)
 
-  def FormatSmi(self, address, slot=None):
+  def FormatSmi(self, address):
     value = self.heap.SmiUntag(address)
-    marker = ""
-    if self.IsFrameMarker(slot, address):
-      marker = self.FrameMarkerName(value)
     # On 32-bit systems almost everything looks like a Smi.
-    if not self.reader.Is64() or value == 0: return marker
-    return "Smi(%d) %s" % (value, marker)
+    if not self.reader.Is64() or value == 0: return None
+    return "Smi(%d)" % value
 
   def SenseObject(self, address, slot=None):
+    if self.IsFrameMarker(slot, address):
+      return self.FrameMarkerName(address)
     if self.heap.IsSmi(address):
-      return self.FormatSmi(address, slot)
+      return self.FormatSmi(address)
     if not self.heap.IsTaggedAddress(address): return None
     tagged_address = address
     if self.IsInKnownOldSpace(tagged_address):

@@ -35,7 +35,6 @@ class FunctionEntry BASE_EMBEDDED {
     kStartPositionIndex,
     kEndPositionIndex,
     kNumParametersIndex,
-    kFunctionLengthIndex,
     kFlagsIndex,
     kNumInnerFunctionsIndex,
     kSize
@@ -49,28 +48,21 @@ class FunctionEntry BASE_EMBEDDED {
   class LanguageModeField : public BitField<LanguageMode, 0, 1> {};
   class UsesSuperPropertyField
       : public BitField<bool, LanguageModeField::kNext, 1> {};
-  class CallsEvalField
-      : public BitField<bool, UsesSuperPropertyField::kNext, 1> {};
 
   static uint32_t EncodeFlags(LanguageMode language_mode,
-                              bool uses_super_property, bool calls_eval) {
+                              bool uses_super_property) {
     return LanguageModeField::encode(language_mode) |
-           UsesSuperPropertyField::encode(uses_super_property) |
-           CallsEvalField::encode(calls_eval);
+           UsesSuperPropertyField::encode(uses_super_property);
   }
 
   int start_pos() const { return backing_[kStartPositionIndex]; }
   int end_pos() const { return backing_[kEndPositionIndex]; }
   int num_parameters() const { return backing_[kNumParametersIndex]; }
-  int function_length() const { return backing_[kFunctionLengthIndex]; }
   LanguageMode language_mode() const {
     return LanguageModeField::decode(backing_[kFlagsIndex]);
   }
   bool uses_super_property() const {
     return UsesSuperPropertyField::decode(backing_[kFlagsIndex]);
-  }
-  bool calls_eval() const {
-    return CallsEvalField::decode(backing_[kFlagsIndex]);
   }
   int num_inner_functions() const { return backing_[kNumInnerFunctionsIndex]; }
 
@@ -274,13 +266,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   FunctionLiteral* ParseProgram(Isolate* isolate, ParseInfo* info);
 
   FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info);
-  FunctionLiteral* DoParseFunction(ParseInfo* info,
-                                   const AstRawString* raw_name);
+  FunctionLiteral* DoParseFunction(ParseInfo* info);
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(ParseInfo* info);
 
   void SetCachedData(ParseInfo* info);
+
+  void StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate);
 
   ScriptCompiler::CompileOptions compile_options() const {
     return compile_options_;
@@ -297,7 +290,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       reusable_preparser_ =
           new PreParser(zone(), &scanner_, stack_limit_, ast_value_factory(),
                         &pending_error_handler_, runtime_call_stats_,
-                        parsing_on_main_thread_);
+                        preparsed_scope_data_, parsing_on_main_thread_);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
       SET_ALLOW(natives);
       SET_ALLOW(tailcalls);
@@ -380,9 +373,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
                                       ClassInfo* class_info, bool* ok);
-  V8_INLINE Expression* RewriteClassLiteral(const AstRawString* name,
+  V8_INLINE Expression* RewriteClassLiteral(Scope* block_scope,
+                                            const AstRawString* name,
                                             ClassInfo* class_info, int pos,
-                                            bool* ok);
+                                            int end_pos, bool* ok);
   V8_INLINE Statement* DeclareNative(const AstRawString* name, int pos,
                                      bool* ok);
 
@@ -561,9 +555,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // in order to force the function to be eagerly parsed, after all.
   LazyParsingResult SkipFunction(FunctionKind kind,
                                  DeclarationScope* function_scope,
-                                 int* num_parameters, int* function_length,
-                                 bool is_inner_function, bool may_abort,
-                                 bool* ok);
+                                 int* num_parameters, bool is_inner_function,
+                                 bool may_abort, bool* ok);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
@@ -733,7 +726,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE static bool IsIdentifier(Expression* expression) {
     DCHECK_NOT_NULL(expression);
     VariableProxy* operand = expression->AsVariableProxy();
-    return operand != nullptr && !operand->is_this();
+    return operand != nullptr && !operand->is_this() &&
+           !operand->is_new_target();
   }
 
   V8_INLINE static const AstRawString* AsIdentifier(Expression* expression) {
@@ -759,7 +753,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE static bool IsBoilerplateProperty(
       ObjectLiteral::Property* property) {
-    return ObjectLiteral::IsBoilerplateProperty(property);
+    return !property->IsPrototype();
   }
 
   V8_INLINE bool IsNative(Expression* expr) const {
@@ -1161,6 +1155,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   PreParser* reusable_preparser_;
   Mode mode_;
 
+  std::vector<FunctionLiteral*> literals_to_stitch_;
+  Handle<String> source_;
+  CompilerDispatcher* compiler_dispatcher_ = nullptr;
+  ParseInfo* main_parse_info_ = nullptr;
+
   friend class ParserTarget;
   friend class ParserTargetScope;
   ParserTarget* target_stack_;  // for break, continue statements
@@ -1177,8 +1176,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool allow_lazy_;
   bool temp_zoned_;
   ParserLogger* log_;
-
-  PreParsedScopeData* preparsed_scope_data_;
 
   // If not kNoSourcePosition, indicates that the first function literal
   // encountered is a dynamic function, see CreateDynamicFunction(). This field

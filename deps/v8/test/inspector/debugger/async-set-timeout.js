@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks that async stack contains setTimeout');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that async stack contains setTimeout');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 var resolveCallback;
 function foo1() {
   function inner1() {
@@ -29,13 +29,13 @@ function foo3() {
 }
 //# sourceURL=test.js`, 7, 26);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
-  InspectorTest.logCallFrames(message.params.callFrames);
+  session.logCallFrames(message.params.callFrames);
   var asyncStackTrace = message.params.asyncStackTrace;
   while (asyncStackTrace) {
     InspectorTest.log(`-- ${asyncStackTrace.description} --`);
-    InspectorTest.logCallFrames(asyncStackTrace.callFrames);
+    session.logCallFrames(asyncStackTrace.callFrames);
     asyncStackTrace = asyncStackTrace.parent;
   }
   InspectorTest.log('');

@@ -75,11 +75,7 @@ Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
                               || rmode_ == EMBEDDED_OBJECT
                               || rmode_ == EXTERNAL_REFERENCE);
-  if (FLAG_enable_embedded_constant_pool ||
-      Assembler::IsMovW(Memory::int32_at(pc_))) {
-    // We return the PC for embedded constant pool since this function is used
-    // by the serializer and expects the address to reside within the code
-    // object.
+  if (Assembler::IsMovW(Memory::int32_at(pc_))) {
     return reinterpret_cast<Address>(pc_);
   } else {
     DCHECK(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc_)));
@@ -238,22 +234,22 @@ template <typename ObjectVisitor>
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    visitor->VisitEmbeddedPointer(this);
+    visitor->VisitEmbeddedPointer(host(), this);
   } else if (RelocInfo::IsCodeTarget(mode)) {
-    visitor->VisitCodeTarget(this);
+    visitor->VisitCodeTarget(host(), this);
   } else if (mode == RelocInfo::CELL) {
-    visitor->VisitCell(this);
+    visitor->VisitCellPointer(host(), this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    visitor->VisitExternalReference(this);
+    visitor->VisitExternalReference(host(), this);
   } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
-    visitor->VisitInternalReference(this);
+    visitor->VisitInternalReference(host(), this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
-    visitor->VisitCodeAgeSequence(this);
+    visitor->VisitCodeAgeSequence(host(), this);
   } else if (RelocInfo::IsDebugBreakSlot(mode) &&
              IsPatchedDebugBreakSlotSequence()) {
-    visitor->VisitDebugTarget(this);
+    visitor->VisitDebugTarget(host(), this);
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
-    visitor->VisitRuntimeEntry(this);
+    visitor->VisitRuntimeEntry(host(), this);
   }
 }
 
@@ -344,32 +340,14 @@ Address Assembler::target_address_from_return_address(Address pc) {
   //                      @ return address
   // In cases that need frequent patching, the address is in the
   // constant pool.  It could be a small constant pool load:
-  //  ldr   ip, [pc / pp, #...] @ call address
-  //  blx   ip
-  //                      @ return address
-  // Or an extended constant pool load (ARMv7):
-  //  movw  ip, #...
-  //  movt  ip, #...
-  //  ldr   ip, [pc, ip]  @ call address
-  //  blx   ip
-  //                      @ return address
-  // Or an extended constant pool load (ARMv6):
-  //  mov  ip, #...
-  //  orr  ip, ip, #...
-  //  orr  ip, ip, #...
-  //  orr  ip, ip, #...
-  //  ldr   ip, [pc, ip]  @ call address
+  //  ldr   ip, [pc, #...] @ call address
   //  blx   ip
   //                      @ return address
   Address candidate = pc - 2 * Assembler::kInstrSize;
   Instr candidate_instr(Memory::int32_at(candidate));
-  if (IsLdrPcImmediateOffset(candidate_instr) |
-      IsLdrPpImmediateOffset(candidate_instr)) {
+  if (IsLdrPcImmediateOffset(candidate_instr)) {
     return candidate;
   } else {
-    if (IsLdrPpRegOffset(candidate_instr)) {
-      candidate -= Assembler::kInstrSize;
-    }
     if (CpuFeatures::IsSupported(ARMv7)) {
       candidate -= 1 * Assembler::kInstrSize;
       DCHECK(IsMovW(Memory::int32_at(candidate)) &&
@@ -388,33 +366,22 @@ Address Assembler::target_address_from_return_address(Address pc) {
 
 
 Address Assembler::return_address_from_call_start(Address pc) {
-  if (IsLdrPcImmediateOffset(Memory::int32_at(pc)) |
-      IsLdrPpImmediateOffset(Memory::int32_at(pc))) {
+  if (IsLdrPcImmediateOffset(Memory::int32_at(pc))) {
     // Load from constant pool, small section.
     return pc + kInstrSize * 2;
   } else {
     if (CpuFeatures::IsSupported(ARMv7)) {
       DCHECK(IsMovW(Memory::int32_at(pc)));
       DCHECK(IsMovT(Memory::int32_at(pc + kInstrSize)));
-      if (IsLdrPpRegOffset(Memory::int32_at(pc + 2 * kInstrSize))) {
-        // Load from constant pool, extended section.
-        return pc + kInstrSize * 4;
-      } else {
-        // A movw / movt load immediate.
-        return pc + kInstrSize * 3;
-      }
+      // A movw / movt load immediate.
+      return pc + kInstrSize * 3;
     } else {
       DCHECK(IsMovImmed(Memory::int32_at(pc)));
       DCHECK(IsOrrImmed(Memory::int32_at(pc + kInstrSize)));
       DCHECK(IsOrrImmed(Memory::int32_at(pc + 2 * kInstrSize)));
       DCHECK(IsOrrImmed(Memory::int32_at(pc + 3 * kInstrSize)));
-      if (IsLdrPpRegOffset(Memory::int32_at(pc + 4 * kInstrSize))) {
-        // Load from constant pool, extended section.
-        return pc + kInstrSize * 6;
-      } else {
-        // A mov / orr load immediate.
-        return pc + kInstrSize * 5;
-      }
+      // A mov / orr load immediate.
+      return pc + kInstrSize * 5;
     }
   }
 }
@@ -422,11 +389,7 @@ Address Assembler::return_address_from_call_start(Address pc) {
 
 void Assembler::deserialization_set_special_target_at(
     Isolate* isolate, Address constant_pool_entry, Code* code, Address target) {
-  if (FLAG_enable_embedded_constant_pool) {
-    set_target_address_at(isolate, constant_pool_entry, code, target);
-  } else {
-    Memory::Address_at(constant_pool_entry) = target;
-  }
+  Memory::Address_at(constant_pool_entry) = target;
 }
 
 
@@ -438,55 +401,18 @@ void Assembler::deserialization_set_target_internal_reference_at(
 
 bool Assembler::is_constant_pool_load(Address pc) {
   if (CpuFeatures::IsSupported(ARMv7)) {
-    return !Assembler::IsMovW(Memory::int32_at(pc)) ||
-           (FLAG_enable_embedded_constant_pool &&
-            Assembler::IsLdrPpRegOffset(
-                Memory::int32_at(pc + 2 * Assembler::kInstrSize)));
+    return !Assembler::IsMovW(Memory::int32_at(pc));
   } else {
-    return !Assembler::IsMovImmed(Memory::int32_at(pc)) ||
-           (FLAG_enable_embedded_constant_pool &&
-            Assembler::IsLdrPpRegOffset(
-                Memory::int32_at(pc + 4 * Assembler::kInstrSize)));
+    return !Assembler::IsMovImmed(Memory::int32_at(pc));
   }
 }
 
 
 Address Assembler::constant_pool_entry_address(Address pc,
                                                Address constant_pool) {
-  if (FLAG_enable_embedded_constant_pool) {
-    DCHECK(constant_pool != NULL);
-    int cp_offset;
-    if (!CpuFeatures::IsSupported(ARMv7) && IsMovImmed(Memory::int32_at(pc))) {
-      DCHECK(IsOrrImmed(Memory::int32_at(pc + kInstrSize)) &&
-             IsOrrImmed(Memory::int32_at(pc + 2 * kInstrSize)) &&
-             IsOrrImmed(Memory::int32_at(pc + 3 * kInstrSize)) &&
-             IsLdrPpRegOffset(Memory::int32_at(pc + 4 * kInstrSize)));
-      // This is an extended constant pool lookup (ARMv6).
-      Instr mov_instr = instr_at(pc);
-      Instr orr_instr_1 = instr_at(pc + kInstrSize);
-      Instr orr_instr_2 = instr_at(pc + 2 * kInstrSize);
-      Instr orr_instr_3 = instr_at(pc + 3 * kInstrSize);
-      cp_offset = DecodeShiftImm(mov_instr) | DecodeShiftImm(orr_instr_1) |
-                  DecodeShiftImm(orr_instr_2) | DecodeShiftImm(orr_instr_3);
-    } else if (IsMovW(Memory::int32_at(pc))) {
-      DCHECK(IsMovT(Memory::int32_at(pc + kInstrSize)) &&
-             IsLdrPpRegOffset(Memory::int32_at(pc + 2 * kInstrSize)));
-      // This is an extended constant pool lookup (ARMv7).
-      Instruction* movw_instr = Instruction::At(pc);
-      Instruction* movt_instr = Instruction::At(pc + kInstrSize);
-      cp_offset = (movt_instr->ImmedMovwMovtValue() << 16) |
-                  movw_instr->ImmedMovwMovtValue();
-    } else {
-      // This is a small constant pool lookup.
-      DCHECK(Assembler::IsLdrPpImmediateOffset(Memory::int32_at(pc)));
-      cp_offset = GetLdrRegisterImmediateOffset(Memory::int32_at(pc));
-    }
-    return constant_pool + cp_offset;
-  } else {
-    DCHECK(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc)));
-    Instr instr = Memory::int32_at(pc);
-    return pc + GetLdrRegisterImmediateOffset(instr) + kPcLoadDelta;
-  }
+  DCHECK(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc)));
+  Instr instr = Memory::int32_at(pc);
+  return pc + GetLdrRegisterImmediateOffset(instr) + kPcLoadDelta;
 }
 
 

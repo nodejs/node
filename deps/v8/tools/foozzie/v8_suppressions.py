@@ -46,23 +46,9 @@ IGNORE_SOURCES = {
     '/v8/test/mjsunit/regress/regress-2989.js',
   ],
 
-  'crbug.com/681088': [
-    '/v8/test/mjsunit/asm/asm-validation.js',
-    '/v8/test/mjsunit/asm/b5528-comma.js',
-    '/v8/test/mjsunit/asm/pointer-masking.js',
-    '/v8/test/mjsunit/compiler/regress-443744.js',
-    '/v8/test/mjsunit/regress/regress-599719.js',
-    '/v8/test/mjsunit/regress/wasm/regression-647649.js',
-    '/v8/test/mjsunit/wasm/asm-wasm.js',
-    '/v8/test/mjsunit/wasm/asm-wasm-deopt.js',
-    '/v8/test/mjsunit/wasm/asm-wasm-heap.js',
-    '/v8/test/mjsunit/wasm/asm-wasm-literals.js',
-    '/v8/test/mjsunit/wasm/asm-wasm-stack.js',
-  ],
-
-  'crbug.com/681241': [
-    '/v8/test/mjsunit/regress/regress-617526.js',
-    '/v8/test/mjsunit/regress/wasm/regression-02862.js',
+  'crbug.com/718739': [
+    '/v8/test/mjsunit/regress/regress-105.js',
+    '/v8/test/mjsunit/regress/regress-crbug-599714.js',
   ],
 
   'crbug.com/688159': [
@@ -81,16 +67,9 @@ IGNORE_SOURCES = {
 }
 
 # Ignore by test case pattern. Map from bug->regexp.
-# Regular expressions are assumed to be compiled. We use regexp.match.
-# Make sure the code doesn't match in the preamble portion of the test case
-# (i.e. in the modified inlined mjsunit.js). You can reference the comment
-# between the two parts like so:
-#  'crbug.com/666308':
-#      re.compile(r'.*End stripped down and modified version.*'
-#                 r'\.prototype.*instanceof.*.*', re.S)
-# TODO(machenbach): Insert a JS sentinel between the two parts, because
-# comments are stripped during minimization.
+# Regular expressions are assumed to be compiled. We use regexp.search.
 IGNORE_TEST_CASES = {
+  'crbug.com/718739': re.compile(r'\.caller'),
 }
 
 # Ignore by output pattern. Map from config->bug->regexp. Config '' is used
@@ -107,16 +86,8 @@ IGNORE_OUTPUT = {
         re.compile(r'RangeError(?!: byte length)', re.S),
     'crbug.com/667678':
         re.compile(r'\[native code\]', re.S),
-    'crbug.com/681806':
-        re.compile(r'WebAssembly\.Instance', re.S),
-    'crbug.com/681088':
-        re.compile(r'TypeError: Cannot read property \w+ of undefined', re.S),
     'crbug.com/689877':
         re.compile(r'^.*SyntaxError: .*Stack overflow$', re.M),
-  },
-  'validate_asm': {
-    'validate_asm':
-        re.compile(r'TypeError'),
   },
 }
 
@@ -142,10 +113,6 @@ ALLOWED_LINE_DIFFS = [
   # Some test cases just print the message.
   r'^.* is not a function(.*)$',
   r'^(.*) is not a .*$',
-
-  # crbug.com/662840
-  r"^.*(?:Trying to access ')?(\w*)(?:(?:' through proxy)|"
-  r"(?: is not defined))$",
 
   # crbug.com/680064. This subsumes one of the above expressions.
   r'^(.*)TypeError: .* function$',
@@ -308,8 +275,17 @@ class V8Suppression(Suppression):
     )
 
   def ignore_by_content(self, testcase):
+    # Strip off test case preamble.
+    try:
+      lines = testcase.splitlines()
+      lines = lines[lines.index('print("js-mutation: start generated test case");'):]
+      content = '\n'.join(lines)
+    except ValueError:
+      # Search the whole test case if preamble can't be found. E.g. older
+      # already minimized test cases might have dropped the delimiter line.
+      content = testcase
     for bug, exp in IGNORE_TEST_CASES.iteritems():
-      if exp.match(testcase):
+      if exp.search(content):
         return bug
     return False
 

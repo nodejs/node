@@ -4,21 +4,17 @@
 
 #include "src/asmjs/asm-parser.h"
 
-// Required to get M_E etc. for MSVC.
-// References from STDLIB_MATH_VALUE_LIST in asm-names.h
-#if defined(_WIN32)
-#define _USE_MATH_DEFINES
-#endif
 #include <math.h>
 #include <string.h>
 
 #include <algorithm>
 
+#include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-types.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/parsing/scanner-character-streams.h"
-#include "src/wasm/wasm-macro-gen.h"
+#include "src/parsing/scanner.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
@@ -29,23 +25,22 @@ namespace wasm {
 #define FAIL_AND_RETURN(ret, msg)                                        \
   failed_ = true;                                                        \
   failure_message_ = msg;                                                \
-  failure_location_ = scanner_.GetPosition();                            \
+  failure_location_ = static_cast<int>(scanner_.Position());             \
   if (FLAG_trace_asm_parser) {                                           \
     PrintF("[asm.js failure: %s, token: '%s', see: %s:%d]\n", msg,       \
            scanner_.Name(scanner_.Token()).c_str(), __FILE__, __LINE__); \
   }                                                                      \
   return ret;
 #else
-#define FAIL_AND_RETURN(ret, msg)             \
-  failed_ = true;                             \
-  failure_message_ = msg;                     \
-  failure_location_ = scanner_.GetPosition(); \
+#define FAIL_AND_RETURN(ret, msg)                            \
+  failed_ = true;                                            \
+  failure_message_ = msg;                                    \
+  failure_location_ = static_cast<int>(scanner_.Position()); \
   return ret;
 #endif
 
 #define FAIL(msg) FAIL_AND_RETURN(, msg)
 #define FAILn(msg) FAIL_AND_RETURN(nullptr, msg)
-#define FAILf(msg) FAIL_AND_RETURN(false, msg)
 
 #define EXPECT_TOKEN_OR_RETURN(ret, token)      \
   do {                                          \
@@ -57,7 +52,6 @@ namespace wasm {
 
 #define EXPECT_TOKEN(token) EXPECT_TOKEN_OR_RETURN(, token)
 #define EXPECT_TOKENn(token) EXPECT_TOKEN_OR_RETURN(nullptr, token)
-#define EXPECT_TOKENf(token) EXPECT_TOKEN_OR_RETURN(false, token)
 
 #define RECURSE_OR_RETURN(ret, call)                                       \
   do {                                                                     \
@@ -71,7 +65,6 @@ namespace wasm {
 
 #define RECURSE(call) RECURSE_OR_RETURN(, call)
 #define RECURSEn(call) RECURSE_OR_RETURN(nullptr, call)
-#define RECURSEf(call) RECURSE_OR_RETURN(false, call)
 
 #define TOK(name) AsmJsScanner::kToken_##name
 
@@ -91,6 +84,8 @@ AsmJsParser::AsmJsParser(Isolate* isolate, Zone* zone, Handle<Script> script,
       inside_heap_assignment_(false),
       heap_access_type_(nullptr),
       block_stack_(zone),
+      call_coercion_(nullptr),
+      call_coercion_deferred_(nullptr),
       pending_label_(0),
       global_imports_(zone) {
   InitializeStdlibTypes();
@@ -161,7 +156,7 @@ FunctionSig* AsmJsParser::ConvertSignature(
     } else if (param->IsA(AsmType::Int())) {
       sig_builder.AddParam(kWasmI32);
     } else {
-      return nullptr;
+      UNREACHABLE();
     }
   }
   if (!return_type->IsA(AsmType::Void())) {
@@ -172,7 +167,7 @@ FunctionSig* AsmJsParser::ConvertSignature(
     } else if (return_type->IsA(AsmType::Signed())) {
       sig_builder.AddReturn(kWasmI32);
     } else {
-      return 0;
+      UNREACHABLE();
     }
   }
   return sig_builder.Build();
@@ -200,16 +195,6 @@ class AsmJsParser::TemporaryVariableScope {
   int local_depth_;
 };
 
-AsmJsParser::VarInfo::VarInfo()
-    : type(AsmType::None()),
-      function_builder(nullptr),
-      import(nullptr),
-      mask(-1),
-      index(0),
-      kind(VarKind::kUnused),
-      mutable_variable(true),
-      function_defined(false) {}
-
 wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
     AsmJsScanner::token_t token) {
   if (AsmJsScanner::IsGlobal(token)) {
@@ -234,52 +219,20 @@ wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
 }
 
 uint32_t AsmJsParser::VarIndex(VarInfo* info) {
-  if (info->import != nullptr) {
-    return info->index;
-  } else {
-    return info->index + static_cast<uint32_t>(global_imports_.size());
-  }
+  DCHECK(info->kind == VarKind::kGlobal);
+  return info->index + static_cast<uint32_t>(global_imports_.size());
 }
 
-void AsmJsParser::AddGlobalImport(std::string name, AsmType* type,
+void AsmJsParser::AddGlobalImport(Vector<const char> name, AsmType* type,
                                   ValueType vtype, bool mutable_variable,
                                   VarInfo* info) {
-  // TODO(bradnelson): Refactor memory management here.
-  // AsmModuleBuilder should really own import names.
-  char* name_data = zone()->NewArray<char>(name.size());
-  memcpy(name_data, name.data(), name.size());
-  if (mutable_variable) {
-    // Allocate a separate variable for the import.
-    DeclareGlobal(info, true, type, vtype);
-    // Record the need to initialize the global from the import.
-    global_imports_.push_back({name_data, name.size(), 0, info->index, true});
-  } else {
-    // Just use the import directly.
-    global_imports_.push_back({name_data, name.size(), 0, info->index, false});
-  }
-  GlobalImport& gi = global_imports_.back();
-  // TODO(bradnelson): Reuse parse buffer memory / make wasm-module-builder
-  // managed the memory for the import name (currently have to keep our
-  // own memory for it).
-  gi.import_index = module_builder_->AddGlobalImport(
-      name_data, static_cast<int>(name.size()), vtype);
-  if (!mutable_variable) {
-    info->DeclareGlobalImport(type, gi.import_index);
-  }
-}
+  // Allocate a separate variable for the import.
+  // TODO(mstarzinger): Consider using the imported global directly instead of
+  // allocating a separate global variable for immutable (i.e. const) imports.
+  DeclareGlobal(info, mutable_variable, type, vtype);
 
-void AsmJsParser::VarInfo::DeclareGlobalImport(AsmType* type, uint32_t index) {
-  kind = VarKind::kGlobal;
-  this->type = type;
-  this->index = index;
-  mutable_variable = false;
-}
-
-void AsmJsParser::VarInfo::DeclareStdlibFunc(VarKind kind, AsmType* type) {
-  this->kind = kind;
-  this->type = type;
-  index = 0;  // unused
-  mutable_variable = false;
+  // Record the need to initialize the global from the import.
+  global_imports_.push_back({name, vtype, info});
 }
 
 void AsmJsParser::DeclareGlobal(VarInfo* info, bool mutable_variable,
@@ -291,11 +244,26 @@ void AsmJsParser::DeclareGlobal(VarInfo* info, bool mutable_variable,
   info->mutable_variable = mutable_variable;
 }
 
+void AsmJsParser::DeclareStdlibFunc(VarInfo* info, VarKind kind,
+                                    AsmType* type) {
+  info->kind = kind;
+  info->type = type;
+  info->index = 0;  // unused
+  info->mutable_variable = false;
+}
+
 uint32_t AsmJsParser::TempVariable(int index) {
   if (index + 1 > function_temp_locals_used_) {
     function_temp_locals_used_ = index + 1;
   }
   return function_temp_locals_offset_ + index;
+}
+
+Vector<const char> AsmJsParser::CopyCurrentIdentifierString() {
+  const std::string& str = scanner_.GetIdentifierString();
+  char* buffer = zone()->NewArray<char>(str.size());
+  str.copy(buffer, str.size());
+  return Vector<const char>(buffer, static_cast<int>(str.size()));
 }
 
 void AsmJsParser::SkipSemicolon() {
@@ -385,13 +353,11 @@ void AsmJsParser::ValidateModule() {
   // Add start function to init things.
   WasmFunctionBuilder* start = module_builder_->AddFunction();
   module_builder_->MarkStartFunction(start);
-  for (auto global_import : global_imports_) {
-    if (global_import.needs_init) {
-      start->EmitWithVarInt(kExprGetGlobal, global_import.import_index);
-      start->EmitWithVarInt(kExprSetGlobal,
-                            static_cast<uint32_t>(global_import.global_index +
-                                                  global_imports_.size()));
-    }
+  for (auto& global_import : global_imports_) {
+    uint32_t import_index = module_builder_->AddGlobalImport(
+        global_import.import_name, global_import.value_type);
+    start->EmitWithI32V(kExprGetGlobal, import_index);
+    start->EmitWithI32V(kExprSetGlobal, VarIndex(global_import.var_info));
   }
   start->Emit(kExprEnd);
   FunctionSig::Builder b(zone(), 0, 0);
@@ -459,7 +425,7 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
   }
   EXPECT_TOKEN('=');
   double dvalue = 0.0;
-  uint64_t uvalue = 0;
+  uint32_t uvalue = 0;
   if (CheckForDouble(&dvalue)) {
     DeclareGlobal(info, mutable_variable, AsmType::Double(), kWasmF64,
                   WasmInitExpr(dvalue));
@@ -489,8 +455,8 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
   } else if (Check(stdlib_name_)) {
     EXPECT_TOKEN('.');
     RECURSE(ValidateModuleVarStdlib(info));
-  } else if (ValidateModuleVarImport(info, mutable_variable)) {
-    // Handled inside.
+  } else if (Peek(foreign_name_) || Peek('+')) {
+    RECURSE(ValidateModuleVarImport(info, mutable_variable));
   } else if (scanner_.IsGlobal()) {
     RECURSE(ValidateModuleVarFromGlobal(info, mutable_variable));
   } else {
@@ -526,7 +492,7 @@ void AsmJsParser::ValidateModuleVarFromGlobal(VarInfo* info,
     negate = true;
   }
   double dvalue = 0.0;
-  uint64_t uvalue = 0;
+  uint32_t uvalue = 0;
   if (CheckForDouble(&dvalue)) {
     if (negate) {
       dvalue = -dvalue;
@@ -547,38 +513,31 @@ void AsmJsParser::ValidateModuleVarFromGlobal(VarInfo* info,
 }
 
 // 6.1 ValidateModule - foreign imports
-bool AsmJsParser::ValidateModuleVarImport(VarInfo* info,
+void AsmJsParser::ValidateModuleVarImport(VarInfo* info,
                                           bool mutable_variable) {
   if (Check('+')) {
-    EXPECT_TOKENf(foreign_name_);
-    EXPECT_TOKENf('.');
-    AddGlobalImport(scanner_.GetIdentifierString(), AsmType::Double(), kWasmF64,
-                    mutable_variable, info);
+    EXPECT_TOKEN(foreign_name_);
+    EXPECT_TOKEN('.');
+    Vector<const char> name = CopyCurrentIdentifierString();
+    AddGlobalImport(name, AsmType::Double(), kWasmF64, mutable_variable, info);
     scanner_.Next();
-    return true;
-  } else if (Check(foreign_name_)) {
-    EXPECT_TOKENf('.');
-    std::string import_name = scanner_.GetIdentifierString();
+  } else {
+    EXPECT_TOKEN(foreign_name_);
+    EXPECT_TOKEN('.');
+    Vector<const char> name = CopyCurrentIdentifierString();
     scanner_.Next();
     if (Check('|')) {
       if (!CheckForZero()) {
-        FAILf("Expected |0 type annotation for foreign integer import");
+        FAIL("Expected |0 type annotation for foreign integer import");
       }
-      AddGlobalImport(import_name, AsmType::Int(), kWasmI32, mutable_variable,
-                      info);
-      return true;
+      AddGlobalImport(name, AsmType::Int(), kWasmI32, mutable_variable, info);
+    } else {
+      info->kind = VarKind::kImportedFunction;
+      info->import = new (zone()->New(sizeof(FunctionImportInfo)))
+          FunctionImportInfo({name, WasmModuleBuilder::SignatureMap(zone())});
+      info->mutable_variable = false;
     }
-    info->kind = VarKind::kImportedFunction;
-    function_import_info_.resize(function_import_info_.size() + 1);
-    info->import = &function_import_info_.back();
-    // TODO(bradnelson): Refactor memory management here.
-    // AsmModuleBuilder should really own import names.
-    info->import->function_name = zone()->NewArray<char>(import_name.size());
-    memcpy(info->import->function_name, import_name.data(), import_name.size());
-    info->import->function_name_size = import_name.size();
-    return true;
   }
-  return false;
 }
 
 // 6.1 ValidateModule - one variable
@@ -589,7 +548,8 @@ void AsmJsParser::ValidateModuleVarNewStdlib(VarInfo* info) {
   switch (Consume()) {
 #define V(name, _junk1, _junk2, _junk3)                          \
   case TOK(name):                                                \
-    info->DeclareStdlibFunc(VarKind::kSpecial, AsmType::name()); \
+    DeclareStdlibFunc(info, VarKind::kSpecial, AsmType::name()); \
+    stdlib_uses_.insert(StandardMember::k##name);                \
     break;
     STDLIB_ARRAY_TYPE_LIST(V)
 #undef V
@@ -608,18 +568,18 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
   if (Check(TOK(Math))) {
     EXPECT_TOKEN('.');
     switch (Consume()) {
-#define V(name)                                             \
+#define V(name, const_value)                                \
   case TOK(name):                                           \
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64, \
-                  WasmInitExpr(M_##name));                  \
-    stdlib_uses_.insert(AsmTyper::kMath##name);             \
+                  WasmInitExpr(const_value));               \
+    stdlib_uses_.insert(StandardMember::kMath##name);       \
     break;
       STDLIB_MATH_VALUE_LIST(V)
 #undef V
 #define V(name, Name, op, sig)                                      \
   case TOK(name):                                                   \
-    info->DeclareStdlibFunc(VarKind::kMath##Name, stdlib_##sig##_); \
-    stdlib_uses_.insert(AsmTyper::kMath##Name);                     \
+    DeclareStdlibFunc(info, VarKind::kMath##Name, stdlib_##sig##_); \
+    stdlib_uses_.insert(StandardMember::kMath##Name);               \
     break;
       STDLIB_MATH_FUNCTION_LIST(V)
 #undef V
@@ -629,11 +589,11 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
   } else if (Check(TOK(Infinity))) {
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64,
                   WasmInitExpr(std::numeric_limits<double>::infinity()));
-    stdlib_uses_.insert(AsmTyper::kInfinity);
+    stdlib_uses_.insert(StandardMember::kInfinity);
   } else if (Check(TOK(NaN))) {
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64,
                   WasmInitExpr(std::numeric_limits<double>::quiet_NaN()));
-    stdlib_uses_.insert(AsmTyper::kNaN);
+    stdlib_uses_.insert(StandardMember::kNaN);
   } else {
     FAIL("Invalid member of stdlib");
   }
@@ -643,10 +603,10 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
 void AsmJsParser::ValidateExport() {
   // clang-format off
   EXPECT_TOKEN(TOK(return));
-  // clang format on
+  // clang-format on
   if (Check('{')) {
     for (;;) {
-      std::string name = scanner_.GetIdentifierString();
+      Vector<const char> name = CopyCurrentIdentifierString();
       if (!scanner_.IsGlobal() && !scanner_.IsLocal()) {
         FAIL("Illegal export name");
       }
@@ -659,8 +619,7 @@ void AsmJsParser::ValidateExport() {
       if (info->kind != VarKind::kFunction) {
         FAIL("Expected function");
       }
-      info->function_builder->ExportAs(
-          {name.c_str(), static_cast<int>(name.size())});
+      module_builder_->AddExport(name, info->function_builder);
       if (Check(',')) {
         if (!Peek('}')) {
           continue;
@@ -677,8 +636,8 @@ void AsmJsParser::ValidateExport() {
     if (info->kind != VarKind::kFunction) {
       FAIL("Single function export must be a function");
     }
-    const char* single_function_name = "__single_function__";
-    info->function_builder->ExportAs(CStrVector(single_function_name));
+    module_builder_->AddExport(CStrVector(AsmJs::kSingleFunctionName),
+                               info->function_builder);
   }
 }
 
@@ -711,7 +670,6 @@ void AsmJsParser::ValidateFunctionTable() {
     // Only store the function into a table if we used the table somewhere
     // (i.e. tables are first seen at their use sites and allocated there).
     if (table_info->kind == VarKind::kTable) {
-      DCHECK_GE(table_info->mask, 0);
       if (count >= static_cast<uint64_t>(table_info->mask) + 1) {
         FAIL("Exceeded function table size");
       }
@@ -744,13 +702,14 @@ void AsmJsParser::ValidateFunction() {
     FAIL("Expected function name");
   }
 
-  std::string function_name_raw = scanner_.GetIdentifierString();
+  Vector<const char> function_name_str = CopyCurrentIdentifierString();
   AsmJsScanner::token_t function_name = Consume();
   VarInfo* function_info = GetVarInfo(function_name);
   if (function_info->kind == VarKind::kUnused) {
     function_info->kind = VarKind::kFunction;
     function_info->function_builder = module_builder_->AddFunction();
     function_info->index = function_info->function_builder->func_index();
+    function_info->mutable_variable = false;
   } else if (function_info->kind != VarKind::kFunction) {
     FAIL("Function name collides with variable");
   } else if (function_info->function_defined) {
@@ -758,12 +717,7 @@ void AsmJsParser::ValidateFunction() {
   }
 
   function_info->function_defined = true;
-  // TODO(bradnelson): Cleanup memory management here.
-  // WasmModuleBuilder should own these.
-  char* function_name_chr = zone()->NewArray<char>(function_name_raw.size());
-  memcpy(function_name_chr, function_name_raw.data(), function_name_raw.size());
-  function_info->function_builder->SetName(
-      {function_name_chr, static_cast<int>(function_name_raw.size())});
+  function_info->function_builder->SetName(function_name_str);
   current_function_builder_ = function_info->function_builder;
   return_type_ = nullptr;
 
@@ -781,21 +735,27 @@ void AsmJsParser::ValidateFunction() {
   function_temp_locals_used_ = 0;
   function_temp_locals_depth_ = 0;
 
+  bool last_statement_is_return = false;
   while (!failed_ && !Peek('}')) {
+    // clang-format off
+    last_statement_is_return = Peek(TOK(return));
+    // clang-format on
     RECURSE(ValidateStatement());
   }
   EXPECT_TOKEN('}');
 
-  if (return_type_ == nullptr) {
-    return_type_ = AsmType::Void();
+  if (!last_statement_is_return) {
+    if (return_type_ == nullptr) {
+      return_type_ = AsmType::Void();
+    } else if (!return_type_->IsA(AsmType::Void())) {
+      FAIL("Expected return at end of non-void function");
+    }
   }
+  DCHECK_NOT_NULL(return_type_);
 
   // TODO(bradnelson): WasmModuleBuilder can't take this in the right order.
   //                   We should fix that so we can use it instead.
   FunctionSig* sig = ConvertSignature(return_type_, params);
-  if (sig == nullptr) {
-    FAIL("Invalid function signature in declaration");
-  }
   current_function_builder_->SetSignature(sig);
   for (auto local : locals) {
     current_function_builder_->AddLocal(local);
@@ -870,7 +830,8 @@ void AsmJsParser::ValidateFunctionParams(std::vector<AsmType*>* params) {
       info->index = static_cast<uint32_t>(params->size());
       params->push_back(AsmType::Double());
     } else {
-      if (!GetVarInfo(Consume())->type->IsA(stdlib_fround_)) {
+      if (!scanner_.IsGlobal() ||
+          !GetVarInfo(Consume())->type->IsA(stdlib_fround_)) {
         FAIL("Expected fround");
       }
       EXPECT_TOKEN('(');
@@ -904,15 +865,14 @@ void AsmJsParser::ValidateFunctionLocals(
       // Store types.
       EXPECT_TOKEN('=');
       double dvalue = 0.0;
-      uint64_t uvalue = 0;
+      uint32_t uvalue = 0;
       if (Check('-')) {
         if (CheckForDouble(&dvalue)) {
           info->kind = VarKind::kLocal;
           info->type = AsmType::Double();
           info->index = static_cast<uint32_t>(param_count + locals->size());
           locals->push_back(kWasmF64);
-          byte code[] = {WASM_F64(-dvalue)};
-          current_function_builder_->EmitCode(code, sizeof(code));
+          current_function_builder_->EmitF64Const(-dvalue);
           current_function_builder_->EmitSetLocal(info->index);
         } else if (CheckForUnsigned(&uvalue)) {
           if (uvalue > 0x7fffffff) {
@@ -946,7 +906,7 @@ void AsmJsParser::ValidateFunctionLocals(
           } else {
             FAIL("Bad local variable definition");
           }
-          current_function_builder_->EmitWithVarInt(kExprGetGlobal,
+          current_function_builder_->EmitWithI32V(kExprGetGlobal,
                                                     VarIndex(sinfo));
           current_function_builder_->EmitSetLocal(info->index);
         } else if (sinfo->type->IsA(stdlib_fround_)) {
@@ -964,8 +924,7 @@ void AsmJsParser::ValidateFunctionLocals(
             if (negate) {
               dvalue = -dvalue;
             }
-            byte code[] = {WASM_F32(dvalue)};
-            current_function_builder_->EmitCode(code, sizeof(code));
+            current_function_builder_->EmitF32Const(dvalue);
             current_function_builder_->EmitSetLocal(info->index);
           } else if (CheckForUnsigned(&uvalue)) {
             if (uvalue > 0x7fffffff) {
@@ -979,9 +938,8 @@ void AsmJsParser::ValidateFunctionLocals(
             if (negate) {
               value = -value;
             }
-            double fvalue = static_cast<double>(value);
-            byte code[] = {WASM_F32(fvalue)};
-            current_function_builder_->EmitCode(code, sizeof(code));
+            float fvalue = static_cast<float>(value);
+            current_function_builder_->EmitF32Const(fvalue);
             current_function_builder_->EmitSetLocal(info->index);
           } else {
             FAIL("Expected variable initial value");
@@ -995,8 +953,7 @@ void AsmJsParser::ValidateFunctionLocals(
         info->type = AsmType::Double();
         info->index = static_cast<uint32_t>(param_count + locals->size());
         locals->push_back(kWasmF64);
-        byte code[] = {WASM_F64(dvalue)};
-        current_function_builder_->EmitCode(code, sizeof(code));
+        current_function_builder_->EmitF64Const(dvalue);
         current_function_builder_->EmitSetLocal(info->index);
       } else if (CheckForUnsigned(&uvalue)) {
         info->kind = VarKind::kLocal;
@@ -1020,7 +977,7 @@ void AsmJsParser::ValidateFunctionLocals(
   }
 }
 
-// ValidateStatement
+// 6.5 ValidateStatement
 void AsmJsParser::ValidateStatement() {
   call_coercion_ = nullptr;
   if (Peek('{')) {
@@ -1106,7 +1063,7 @@ void AsmJsParser::IfStatement() {
 // 6.5.5 ReturnStatement
 void AsmJsParser::ReturnStatement() {
   // clang-format off
-  EXPECT_TOKEN(TOK(return ));
+  EXPECT_TOKEN(TOK(return));
   // clang-format on
   if (!Peek(';') && !Peek('}')) {
     // TODO(bradnelson): See if this can be factored out.
@@ -1121,8 +1078,10 @@ void AsmJsParser::ReturnStatement() {
     } else {
       FAIL("Invalid return type");
     }
-  } else {
+  } else if (return_type_ == nullptr) {
     return_type_ = AsmType::Void();
+  } else if (!return_type_->IsA(AsmType::Void())) {
+    FAIL("Invalid void return type");
   }
   current_function_builder_->Emit(kExprReturn);
   SkipSemicolon();
@@ -1202,7 +1161,11 @@ void AsmJsParser::ForStatement() {
   EXPECT_TOKEN(TOK(for));
   EXPECT_TOKEN('(');
   if (!Peek(';')) {
-    Expression(nullptr);
+    AsmType* ret;
+    RECURSE(ret = Expression(nullptr));
+    if (!ret->IsA(AsmType::Void())) {
+      current_function_builder_->Emit(kExprDrop);
+    }
   }
   EXPECT_TOKEN(';');
   // a: block {
@@ -1217,20 +1180,21 @@ void AsmJsParser::ForStatement() {
     current_function_builder_->EmitWithU8(kExprBrIf, 1);
   }
   EXPECT_TOKEN(';');
-  // Stash away INCREMENT
-  size_t increment_position = current_function_builder_->GetPosition();
-  if (!Peek(')')) {
-    RECURSE(Expression(nullptr));
-  }
-  std::vector<byte> increment_code;
-  current_function_builder_->StashCode(&increment_code, increment_position);
+  // Race past INCREMENT
+  size_t increment_position = scanner_.Position();
+  ScanToClosingParenthesis();
   EXPECT_TOKEN(')');
   //       BODY
   RECURSE(ValidateStatement());
   //       INCREMENT
-  current_function_builder_->EmitCode(
-      increment_code.data(), static_cast<uint32_t>(increment_code.size()));
+  size_t end_position = scanner_.Position();
+  scanner_.Seek(increment_position);
+  if (!Peek(')')) {
+    RECURSE(Expression(nullptr));
+    // NOTE: No explicit drop because below break is an implicit drop.
+  }
   current_function_builder_->EmitWithU8(kExprBr, 0);
+  scanner_.Seek(end_position);
   //   }
   End();
   // }
@@ -1250,7 +1214,7 @@ void AsmJsParser::BreakStatement() {
     FAIL("Illegal break");
   }
   current_function_builder_->Emit(kExprBr);
-  current_function_builder_->EmitVarInt(depth);
+  current_function_builder_->EmitI32V(depth);
   SkipSemicolon();
 }
 
@@ -1266,8 +1230,7 @@ void AsmJsParser::ContinueStatement() {
   if (depth < 0) {
     FAIL("Illegal continue");
   }
-  current_function_builder_->Emit(kExprBr);
-  current_function_builder_->EmitVarInt(depth);
+  current_function_builder_->EmitWithI32V(kExprBr, depth);
   SkipSemicolon();
 }
 
@@ -1300,7 +1263,8 @@ void AsmJsParser::SwitchStatement() {
   pending_label_ = 0;
   // TODO(bradnelson): Make less weird.
   std::vector<int32_t> cases;
-  GatherCases(&cases);  // Skips { implicitly.
+  GatherCases(&cases);
+  EXPECT_TOKEN('{');
   size_t count = cases.size() + 1;
   for (size_t i = 0; i < count; ++i) {
     BareBegin(BlockKind::kOther);
@@ -1311,9 +1275,9 @@ void AsmJsParser::SwitchStatement() {
     current_function_builder_->EmitGetLocal(tmp);
     current_function_builder_->EmitI32Const(c);
     current_function_builder_->Emit(kExprI32Eq);
-    current_function_builder_->EmitWithVarInt(kExprBrIf, table_pos++);
+    current_function_builder_->EmitWithI32V(kExprBrIf, table_pos++);
   }
-  current_function_builder_->EmitWithVarInt(kExprBr, table_pos++);
+  current_function_builder_->EmitWithI32V(kExprBr, table_pos++);
   while (!failed_ && Peek(TOK(case))) {
     current_function_builder_->Emit(kExprEnd);
     BareEnd();
@@ -1335,7 +1299,7 @@ void AsmJsParser::ValidateCase() {
   if (Check('-')) {
     negate = true;
   }
-  uint64_t uvalue;
+  uint32_t uvalue;
   if (!CheckForUnsigned(&uvalue)) {
     FAIL("Expected numeric literal");
   }
@@ -1396,10 +1360,9 @@ AsmType* AsmJsParser::Expression(AsmType* expected) {
 AsmType* AsmJsParser::NumericLiteral() {
   call_coercion_ = nullptr;
   double dvalue = 0.0;
-  uint64_t uvalue = 0;
+  uint32_t uvalue = 0;
   if (CheckForDouble(&dvalue)) {
-    byte code[] = {WASM_F64(dvalue)};
-    current_function_builder_->EmitCode(code, sizeof(code));
+    current_function_builder_->EmitF64Const(dvalue);
     return AsmType::Double();
   } else if (CheckForUnsigned(&uvalue)) {
     if (uvalue <= 0x7fffffff) {
@@ -1431,7 +1394,7 @@ AsmType* AsmJsParser::Identifier() {
     if (info->kind != VarKind::kGlobal) {
       FAILn("Undefined global variable");
     }
-    current_function_builder_->EmitWithVarInt(kExprGetGlobal, VarIndex(info));
+    current_function_builder_->EmitWithI32V(kExprGetGlobal, VarIndex(info));
     return info->type;
   }
   UNREACHABLE();
@@ -1463,7 +1426,8 @@ AsmType* AsmJsParser::CallExpression() {
 // 6.8.5 MemberExpression
 AsmType* AsmJsParser::MemberExpression() {
   call_coercion_ = nullptr;
-  ValidateHeapAccess();
+  RECURSEn(ValidateHeapAccess());
+  DCHECK_NOT_NULL(heap_access_type_);
   if (Peek('=')) {
     inside_heap_assignment_ = true;
     return heap_access_type_->StoreType();
@@ -1490,6 +1454,7 @@ AsmType* AsmJsParser::AssignmentExpression() {
         FAILn("Invalid assignment target");
       }
       inside_heap_assignment_ = false;
+      DCHECK_NOT_NULL(heap_access_type_);
       AsmType* heap_type = heap_access_type_;
       EXPECT_TOKENn('=');
       AsmType* value;
@@ -1523,6 +1488,9 @@ AsmType* AsmJsParser::AssignmentExpression() {
       if (info->kind == VarKind::kUnused) {
         FAILn("Undeclared assignment target");
       }
+      if (!info->mutable_variable) {
+        FAILn("Expected mutable variable in assignment");
+      }
       DCHECK(is_local ? info->kind == VarKind::kLocal
                       : info->kind == VarKind::kGlobal);
       AsmType* value;
@@ -1533,10 +1501,8 @@ AsmType* AsmJsParser::AssignmentExpression() {
       if (info->kind == VarKind::kLocal) {
         current_function_builder_->EmitTeeLocal(info->index);
       } else if (info->kind == VarKind::kGlobal) {
-        current_function_builder_->EmitWithVarUint(kExprSetGlobal,
-                                                   VarIndex(info));
-        current_function_builder_->EmitWithVarUint(kExprGetGlobal,
-                                                   VarIndex(info));
+        current_function_builder_->EmitWithU32V(kExprSetGlobal, VarIndex(info));
+        current_function_builder_->EmitWithU32V(kExprGetGlobal, VarIndex(info));
       } else {
         UNREACHABLE();
       }
@@ -1554,7 +1520,7 @@ AsmType* AsmJsParser::AssignmentExpression() {
 AsmType* AsmJsParser::UnaryExpression() {
   AsmType* ret;
   if (Check('-')) {
-    uint64_t uvalue;
+    uint32_t uvalue;
     if (CheckForUnsigned(&uvalue)) {
       // TODO(bradnelson): was supposed to be 0x7fffffff, check errata.
       if (uvalue <= 0x80000000) {
@@ -1634,9 +1600,9 @@ AsmType* AsmJsParser::UnaryExpression() {
   return ret;
 }
 
-// 6.8.8 MultaplicativeExpression
+// 6.8.8 MultiplicativeExpression
 AsmType* AsmJsParser::MultiplicativeExpression() {
-  uint64_t uvalue;
+  uint32_t uvalue;
   if (CheckForUnsignedBelow(0x100000, &uvalue)) {
     if (Check('*')) {
       AsmType* a;
@@ -1644,14 +1610,16 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
       if (!a->IsA(AsmType::Int())) {
         FAILn("Expected int");
       }
-      current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
+      int32_t value = static_cast<int32_t>(uvalue);
+      current_function_builder_->EmitI32Const(value);
       current_function_builder_->Emit(kExprI32Mul);
       return AsmType::Intish();
     }
     scanner_.Rewind();
   } else if (Check('-')) {
     if (CheckForUnsignedBelow(0x100000, &uvalue)) {
-      current_function_builder_->EmitI32Const(-static_cast<int32_t>(uvalue));
+      int32_t value = -static_cast<int32_t>(uvalue);
+      current_function_builder_->EmitI32Const(value);
       if (Check('*')) {
         AsmType* a;
         RECURSEn(a = UnaryExpression());
@@ -1669,7 +1637,7 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
   RECURSEn(a = UnaryExpression());
   for (;;) {
     if (Check('*')) {
-      uint64_t uvalue;
+      uint32_t uvalue;
       if (Check('-')) {
         if (CheckForUnsigned(&uvalue)) {
           if (uvalue >= 0x100000) {
@@ -1678,7 +1646,8 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
           if (!a->IsA(AsmType::Int())) {
             FAILn("Integer multiply of expects int");
           }
-          current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
+          int32_t value = -static_cast<int32_t>(uvalue);
+          current_function_builder_->EmitI32Const(value);
           current_function_builder_->Emit(kExprI32Mul);
           return AsmType::Intish();
         }
@@ -1690,7 +1659,8 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
         if (!a->IsA(AsmType::Int())) {
           FAILn("Integer multiply of expects int");
         }
-        current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
+        int32_t value = static_cast<int32_t>(uvalue);
+        current_function_builder_->EmitI32Const(value);
         current_function_builder_->Emit(kExprI32Mul);
         return AsmType::Intish();
       }
@@ -1945,25 +1915,35 @@ AsmType* AsmJsParser::BitwiseXORExpression() {
 // 6.8.15 BitwiseORExpression
 AsmType* AsmJsParser::BitwiseORExpression() {
   AsmType* a = nullptr;
+  call_coercion_deferred_position_ = scanner_.Position();
   RECURSEn(a = BitwiseXORExpression());
   while (Check('|')) {
-    // TODO(bradnelson): Make it prettier.
     AsmType* b = nullptr;
+    // Remember whether the first operand to this OR-expression has requested
+    // deferred validation of the |0 annotation.
+    // NOTE: This has to happen here to work recursively.
+    bool requires_zero = call_coercion_deferred_->IsExactly(AsmType::Signed());
+    call_coercion_deferred_ = nullptr;
+    // TODO(bradnelson): Make it prettier.
     bool zero = false;
-    int old_pos;
+    size_t old_pos;
     size_t old_code;
-    if (CheckForZero()) {
-      old_pos = scanner_.GetPosition();
+    if (a->IsA(AsmType::Intish()) && CheckForZero()) {
+      old_pos = scanner_.Position();
       old_code = current_function_builder_->GetPosition();
       scanner_.Rewind();
       zero = true;
     }
     RECURSEn(b = BitwiseXORExpression());
     // Handle |0 specially.
-    if (zero && old_pos == scanner_.GetPosition()) {
-      current_function_builder_->StashCode(nullptr, old_code);
+    if (zero && old_pos == scanner_.Position()) {
+      current_function_builder_->DeleteCodeAfter(old_code);
       a = AsmType::Signed();
       continue;
+    }
+    // Anything not matching |0 breaks the lookahead in {ValidateCall}.
+    if (requires_zero) {
+      FAILn("Expected |0 type annotation for call");
     }
     if (a->IsA(AsmType::Intish()) && b->IsA(AsmType::Intish())) {
       current_function_builder_->Emit(kExprI32Ior);
@@ -1972,6 +1952,7 @@ AsmType* AsmJsParser::BitwiseORExpression() {
       FAILn("Expected intish for operator |.");
     }
   }
+  DCHECK_NULL(call_coercion_deferred_);
   return a;
 }
 
@@ -2026,6 +2007,7 @@ AsmType* AsmJsParser::ValidateCall() {
   call_coercion_ = nullptr;
   int call_pos = static_cast<int>(scanner_.Position());
   int to_number_pos = static_cast<int>(call_coercion_position_);
+  bool allow_peek = (call_coercion_deferred_position_ == scanner_.Position());
   AsmJsScanner::token_t function_name = Consume();
 
   // Distinguish between ordinary function calls and function table calls. In
@@ -2037,30 +2019,31 @@ AsmType* AsmJsParser::ValidateCall() {
   if (Check('[')) {
     RECURSEn(EqualityExpression());
     EXPECT_TOKENn('&');
-    uint64_t mask = 0;
+    uint32_t mask = 0;
     if (!CheckForUnsigned(&mask)) {
       FAILn("Expected mask literal");
     }
-    if (mask > 0x7fffffff) {
+    if (!base::bits::IsPowerOfTwo32(mask + 1)) {
       FAILn("Expected power of 2 mask");
     }
-    if (!base::bits::IsPowerOfTwo32(static_cast<uint32_t>(1 + mask))) {
-      FAILn("Expected power of 2 mask");
-    }
-    current_function_builder_->EmitI32Const(static_cast<uint32_t>(mask));
+    current_function_builder_->EmitI32Const(mask);
     current_function_builder_->Emit(kExprI32And);
     EXPECT_TOKENn(']');
     VarInfo* function_info = GetVarInfo(function_name);
     if (function_info->kind == VarKind::kUnused) {
+      uint32_t index = module_builder_->AllocateIndirectFunctions(mask + 1);
+      if (index == std::numeric_limits<uint32_t>::max()) {
+        FAILn("Exceeded maximum function table size");
+      }
       function_info->kind = VarKind::kTable;
-      function_info->mask = static_cast<int32_t>(mask);
-      function_info->index = module_builder_->AllocateIndirectFunctions(
-          static_cast<uint32_t>(mask + 1));
+      function_info->mask = mask;
+      function_info->index = index;
+      function_info->mutable_variable = false;
     } else {
       if (function_info->kind != VarKind::kTable) {
         FAILn("Expected call table");
       }
-      if (function_info->mask != static_cast<int32_t>(mask)) {
+      if (function_info->mask != mask) {
         FAILn("Mask size mismatch");
       }
     }
@@ -2077,6 +2060,7 @@ AsmType* AsmJsParser::ValidateCall() {
       function_info->kind = VarKind::kFunction;
       function_info->function_builder = module_builder_->AddFunction();
       function_info->index = function_info->function_builder->func_index();
+      function_info->mutable_variable = false;
     } else {
       if (function_info->kind != VarKind::kFunction &&
           function_info->kind < VarKind::kImportedFunction) {
@@ -2100,7 +2084,6 @@ AsmType* AsmJsParser::ValidateCall() {
     } else if (t->IsA(AsmType::Double())) {
       param_types.push_back(AsmType::Double());
     } else {
-      std::string a = t->Name();
       FAILn("Bad function argument type");
     }
     if (!Peek(')')) {
@@ -2109,12 +2092,30 @@ AsmType* AsmJsParser::ValidateCall() {
   }
   EXPECT_TOKENn(')');
 
+  // Reload {VarInfo} after parsing arguments as table might have grown.
+  VarInfo* function_info = GetVarInfo(function_name);
+
   // We potentially use lookahead in order to determine the return type in case
-  // it is not yet clear from the call context.
-  // TODO(mstarzinger,6183): Several issues with look-ahead are known. Fix!
-  // TODO(bradnelson): clarify how this binds, and why only float?
-  if (Peek('|') &&
+  // it is not yet clear from the call context. Special care has to be taken to
+  // ensure the non-contextual lookahead is valid. The following restrictions
+  // substantiate the validity of the lookahead implemented below:
+  //  - All calls (except stdlib calls) require some sort of type annotation.
+  //  - The coercion to "signed" is part of the {BitwiseORExpression}, any
+  //    intermittent expressions like parenthesis in `(callsite(..))|0` are
+  //    syntactically not considered coercions.
+  //  - The coercion to "double" as part of the {UnaryExpression} has higher
+  //    precedence and wins in `+callsite(..)|0` cases. Only "float" return
+  //    types are overridden in `fround(callsite(..)|0)` expressions.
+  //  - Expected coercions to "signed" are flagged via {call_coercion_deferred}
+  //    and later on validated as part of {BitwiseORExpression} to ensure they
+  //    indeed apply to the current call expression.
+  //  - The deferred validation is only allowed if {BitwiseORExpression} did
+  //    promise to fulfill the request via {call_coercion_deferred_position}.
+  if (allow_peek && Peek('|') &&
+      function_info->kind <= VarKind::kImportedFunction &&
       (return_type == nullptr || return_type->IsA(AsmType::Float()))) {
+    DCHECK_NULL(call_coercion_deferred_);
+    call_coercion_deferred_ = AsmType::Signed();
     to_number_pos = static_cast<int>(scanner_.Position());
     return_type = AsmType::Signed();
   } else if (return_type == nullptr) {
@@ -2128,16 +2129,11 @@ AsmType* AsmJsParser::ValidateCall() {
     function_type->AsFunctionType()->AddArgument(t);
   }
   FunctionSig* sig = ConvertSignature(return_type, param_types);
-  if (sig == nullptr) {
-    FAILn("Invalid function signature");
-  }
   uint32_t signature_index = module_builder_->AddSignature(sig);
 
   // Emit actual function invocation depending on the kind. At this point we
   // also determined the complete function type and can perform checking against
   // the expected type or update the expected type in case of first occurrence.
-  // Reload {VarInfo} as table might have grown.
-  VarInfo* function_info = GetVarInfo(function_name);
   if (function_info->kind == VarKind::kImportedFunction) {
     for (auto t : param_specific_types) {
       if (!t->IsA(AsmType::Extern())) {
@@ -2149,20 +2145,17 @@ AsmType* AsmJsParser::ValidateCall() {
     }
     DCHECK(function_info->import != nullptr);
     // TODO(bradnelson): Factor out.
-    uint32_t cache_index = function_info->import->cache.FindOrInsert(sig);
     uint32_t index;
-    if (cache_index >= function_info->import->cache_index.size()) {
-      index = module_builder_->AddImport(
-          function_info->import->function_name,
-          static_cast<uint32_t>(function_info->import->function_name_size),
-          sig);
-      function_info->import->cache_index.push_back(index);
+    auto it = function_info->import->cache.find(sig);
+    if (it != function_info->import->cache.end()) {
+      index = it->second;
     } else {
-      index = function_info->import->cache_index[cache_index];
+      index =
+          module_builder_->AddImport(function_info->import->function_name, sig);
+      function_info->import->cache[sig] = index;
     }
     current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
-    current_function_builder_->Emit(kExprCallFunction);
-    current_function_builder_->EmitVarUint(index);
+    current_function_builder_->EmitWithU32V(kExprCallFunction, index);
   } else if (function_info->kind > VarKind::kImportedFunction) {
     AsmCallableType* callable = function_info->type->AsCallableType();
     if (!callable) {
@@ -2171,16 +2164,13 @@ AsmType* AsmJsParser::ValidateCall() {
     // TODO(bradnelson): Refactor AsmType to not need this.
     if (callable->CanBeInvokedWith(return_type, param_specific_types)) {
       // Return type ok.
-    } else if (return_type->IsA(AsmType::Void()) &&
-               callable->CanBeInvokedWith(AsmType::Float(),
+    } else if (callable->CanBeInvokedWith(AsmType::Float(),
                                           param_specific_types)) {
       return_type = AsmType::Float();
-    } else if (return_type->IsA(AsmType::Void()) &&
-               callable->CanBeInvokedWith(AsmType::Double(),
+    } else if (callable->CanBeInvokedWith(AsmType::Double(),
                                           param_specific_types)) {
       return_type = AsmType::Double();
-    } else if (return_type->IsA(AsmType::Void()) &&
-               callable->CanBeInvokedWith(AsmType::Signed(),
+    } else if (callable->CanBeInvokedWith(AsmType::Signed(),
                                           param_specific_types)) {
       return_type = AsmType::Signed();
     } else {
@@ -2296,8 +2286,8 @@ AsmType* AsmJsParser::ValidateCall() {
       current_function_builder_->EmitGetLocal(tmp.get()->get());
       current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
       current_function_builder_->Emit(kExprCallIndirect);
-      current_function_builder_->EmitVarUint(signature_index);
-      current_function_builder_->EmitVarUint(0);  // table index
+      current_function_builder_->EmitU32V(signature_index);
+      current_function_builder_->EmitU32V(0);  // table index
     } else {
       current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
       current_function_builder_->Emit(kExprCallFunction);
@@ -2336,10 +2326,14 @@ void AsmJsParser::ValidateHeapAccess() {
   VarInfo* info = GetVarInfo(Consume());
   int32_t size = info->type->ElementSizeInBytes();
   EXPECT_TOKEN('[');
-  uint64_t offset;
+  uint32_t offset;
   if (CheckForUnsigned(&offset)) {
     // TODO(bradnelson): Check more things.
-    if (offset > 0x7fffffff || offset * size > 0x7fffffff) {
+    // TODO(mstarzinger): Clarify and explain where this limit is coming from,
+    // as it is not mandated by the spec directly.
+    if (offset > 0x7fffffff ||
+        static_cast<uint64_t>(offset) * static_cast<uint64_t>(size) >
+            0x7fffffff) {
       FAIL("Heap access out of range");
     }
     if (Check(']')) {
@@ -2359,7 +2353,7 @@ void AsmJsParser::ValidateHeapAccess() {
   } else {
     RECURSE(index_type = AdditiveExpression());
     EXPECT_TOKEN(TOK(SAR));
-    uint64_t shift;
+    uint32_t shift;
     if (!CheckForUnsigned(&shift)) {
       FAIL("Expected shift of word size");
     }
@@ -2409,8 +2403,25 @@ void AsmJsParser::ValidateFloatCoercion() {
   EXPECT_TOKEN(')');
 }
 
+void AsmJsParser::ScanToClosingParenthesis() {
+  int depth = 0;
+  for (;;) {
+    if (Peek('(')) {
+      ++depth;
+    } else if (Peek(')')) {
+      --depth;
+      if (depth < 0) {
+        break;
+      }
+    } else if (Peek(AsmJsScanner::kEndOfInput)) {
+      break;
+    }
+    scanner_.Next();
+  }
+}
+
 void AsmJsParser::GatherCases(std::vector<int32_t>* cases) {
-  int start = scanner_.GetPosition();
+  size_t start = scanner_.Position();
   int depth = 0;
   for (;;) {
     if (Peek('{')) {
@@ -2423,7 +2434,7 @@ void AsmJsParser::GatherCases(std::vector<int32_t>* cases) {
     } else if (depth == 1 && Peek(TOK(case))) {
       scanner_.Next();
       int32_t value;
-      uint64_t uvalue;
+      uint32_t uvalue;
       if (Check('-')) {
         if (!CheckForUnsigned(&uvalue)) {
           break;

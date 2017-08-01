@@ -6,7 +6,8 @@
 #define V8_SAFEPOINT_TABLE_H_
 
 #include "src/allocation.h"
-#include "src/heap/heap.h"
+#include "src/assert-scope.h"
+#include "src/utils.h"
 #include "src/v8memory.h"
 #include "src/zone/zone.h"
 

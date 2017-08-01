@@ -70,9 +70,25 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   return OpParameter<CheckedStoreRepresentation>(op);
 }
 
-int StackSlotSizeOf(Operator const* op) {
+bool operator==(StackSlotRepresentation lhs, StackSlotRepresentation rhs) {
+  return lhs.size() == rhs.size() && lhs.alignment() == rhs.alignment();
+}
+
+bool operator!=(StackSlotRepresentation lhs, StackSlotRepresentation rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(StackSlotRepresentation rep) {
+  return base::hash_combine(rep.size(), rep.alignment());
+}
+
+std::ostream& operator<<(std::ostream& os, StackSlotRepresentation rep) {
+  return os << "(" << rep.size() << " : " << rep.alignment() << ")";
+}
+
+StackSlotRepresentation const& StackSlotRepresentationOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kStackSlot, op->opcode());
-  return OpParameter<int>(op);
+  return OpParameter<StackSlotRepresentation>(op);
 }
 
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
@@ -229,19 +245,14 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                 \
   V(F32x4Abs, Operator::kNoProperties, 1, 0, 1)                           \
   V(F32x4Neg, Operator::kNoProperties, 1, 0, 1)                           \
-  V(F32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                          \
   V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                   \
   V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)               \
   V(F32x4Add, Operator::kCommutative, 2, 0, 1)                            \
+  V(F32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                      \
   V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                           \
   V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                            \
-  V(F32x4Div, Operator::kNoProperties, 2, 0, 1)                           \
   V(F32x4Min, Operator::kCommutative, 2, 0, 1)                            \
   V(F32x4Max, Operator::kCommutative, 2, 0, 1)                            \
-  V(F32x4MinNum, Operator::kCommutative, 2, 0, 1)                         \
-  V(F32x4MaxNum, Operator::kCommutative, 2, 0, 1)                         \
-  V(F32x4RecipRefine, Operator::kNoProperties, 2, 0, 1)                   \
-  V(F32x4RecipSqrtRefine, Operator::kNoProperties, 2, 0, 1)               \
   V(F32x4Eq, Operator::kCommutative, 2, 0, 1)                             \
   V(F32x4Ne, Operator::kCommutative, 2, 0, 1)                             \
   V(F32x4Lt, Operator::kNoProperties, 2, 0, 1)                            \
@@ -252,6 +263,7 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(I32x4SConvertI16x8High, Operator::kNoProperties, 1, 0, 1)             \
   V(I32x4Neg, Operator::kNoProperties, 1, 0, 1)                           \
   V(I32x4Add, Operator::kCommutative, 2, 0, 1)                            \
+  V(I32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                      \
   V(I32x4Sub, Operator::kNoProperties, 2, 0, 1)                           \
   V(I32x4Mul, Operator::kCommutative, 2, 0, 1)                            \
   V(I32x4MinS, Operator::kCommutative, 2, 0, 1)                           \
@@ -274,6 +286,7 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)                 \
   V(I16x8Add, Operator::kCommutative, 2, 0, 1)                            \
   V(I16x8AddSaturateS, Operator::kCommutative, 2, 0, 1)                   \
+  V(I16x8AddHoriz, Operator::kNoProperties, 2, 0, 1)                      \
   V(I16x8Sub, Operator::kNoProperties, 2, 0, 1)                           \
   V(I16x8SubSaturateS, Operator::kNoProperties, 2, 0, 1)                  \
   V(I16x8Mul, Operator::kCommutative, 2, 0, 1)                            \
@@ -426,13 +439,15 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(16x8, 16)               \
   V(8x16, 8)
 
-#define STACK_SLOT_CACHED_SIZES_LIST(V) V(4) V(8) V(16)
+#define STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST(V) \
+  V(4, 0) V(8, 0) V(16, 0) V(4, 4) V(8, 8) V(16, 16)
 
-struct StackSlotOperator : public Operator1<int> {
-  explicit StackSlotOperator(int size)
-      : Operator1<int>(IrOpcode::kStackSlot,
-                       Operator::kNoDeopt | Operator::kNoThrow, "StackSlot", 0,
-                       0, 0, 1, 0, 0, size) {}
+struct StackSlotOperator : public Operator1<StackSlotRepresentation> {
+  explicit StackSlotOperator(int size, int alignment)
+      : Operator1<StackSlotRepresentation>(
+            IrOpcode::kStackSlot, Operator::kNoDeopt | Operator::kNoThrow,
+            "StackSlot", 0, 0, 0, 1, 0, 0,
+            StackSlotRepresentation(size, alignment)) {}
 };
 
 struct MachineOperatorGlobalCache {
@@ -499,12 +514,15 @@ struct MachineOperatorGlobalCache {
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
 
-#define STACKSLOT(Size)                                                     \
-  struct StackSlotOfSize##Size##Operator final : public StackSlotOperator { \
-    StackSlotOfSize##Size##Operator() : StackSlotOperator(Size) {}          \
-  };                                                                        \
-  StackSlotOfSize##Size##Operator kStackSlotSize##Size;
-  STACK_SLOT_CACHED_SIZES_LIST(STACKSLOT)
+#define STACKSLOT(Size, Alignment)                                     \
+  struct StackSlotOfSize##Size##OfAlignment##Alignment##Operator final \
+      : public StackSlotOperator {                                     \
+    StackSlotOfSize##Size##OfAlignment##Alignment##Operator()          \
+        : StackSlotOperator(Size, Alignment) {}                        \
+  };                                                                   \
+  StackSlotOfSize##Size##OfAlignment##Alignment##Operator              \
+      kStackSlotOfSize##Size##OfAlignment##Alignment;
+  STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST(STACKSLOT)
 #undef STACKSLOT
 
 #define STORE(Type)                                                            \
@@ -755,21 +773,23 @@ const Operator* MachineOperatorBuilder::ProtectedLoad(LoadRepresentation rep) {
   return nullptr;
 }
 
-const Operator* MachineOperatorBuilder::StackSlot(int size) {
+const Operator* MachineOperatorBuilder::StackSlot(int size, int alignment) {
   DCHECK_LE(0, size);
-#define CASE_CACHED_SIZE(Size) \
-  case Size:                   \
-    return &cache_.kStackSlotSize##Size;
-  switch (size) {
-    STACK_SLOT_CACHED_SIZES_LIST(CASE_CACHED_SIZE);
-    default:
-      return new (zone_) StackSlotOperator(size);
+  DCHECK(alignment == 0 || alignment == 4 || alignment == 8 || alignment == 16);
+#define CASE_CACHED_SIZE(Size, Alignment)                          \
+  if (size == Size && alignment == Alignment) {                    \
+    return &cache_.kStackSlotOfSize##Size##OfAlignment##Alignment; \
   }
+
+  STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST(CASE_CACHED_SIZE)
+
 #undef CASE_CACHED_SIZE
+  return new (zone_) StackSlotOperator(size, alignment);
 }
 
-const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep) {
-  return StackSlot(1 << ElementSizeLog2Of(rep));
+const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep,
+                                                  int alignment) {
+  return StackSlot(1 << ElementSizeLog2Of(rep), alignment);
 }
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
@@ -1007,16 +1027,29 @@ SIMD_LANE_OP_LIST(SIMD_LANE_OPS)
 SIMD_FORMAT_LIST(SIMD_SHIFT_OPS)
 #undef SIMD_SHIFT_OPS
 
-// TODO(bbudge) Add Shuffle, DCHECKs based on format.
-#define SIMD_PERMUTE_OPS(format, bits)                                      \
-  const Operator* MachineOperatorBuilder::S##format##Swizzle(               \
-      uint32_t swizzle) {                                                   \
-    return new (zone_)                                                      \
-        Operator1<uint32_t>(IrOpcode::kS##format##Swizzle, Operator::kPure, \
-                            "Swizzle", 2, 0, 0, 1, 0, 0, swizzle);          \
-  }
-SIMD_FORMAT_LIST(SIMD_PERMUTE_OPS)
-#undef SIMD_PERMUTE_OPS
+const Operator* MachineOperatorBuilder::S32x4Shuffle(uint8_t shuffle[16]) {
+  uint8_t* array = zone_->NewArray<uint8_t>(4);
+  memcpy(array, shuffle, 4);
+  return new (zone_)
+      Operator1<uint8_t*>(IrOpcode::kS32x4Shuffle, Operator::kPure, "Shuffle",
+                          2, 0, 0, 1, 0, 0, array);
+}
+
+const Operator* MachineOperatorBuilder::S16x8Shuffle(uint8_t shuffle[16]) {
+  uint8_t* array = zone_->NewArray<uint8_t>(8);
+  memcpy(array, shuffle, 8);
+  return new (zone_)
+      Operator1<uint8_t*>(IrOpcode::kS16x8Shuffle, Operator::kPure, "Shuffle",
+                          2, 0, 0, 1, 0, 0, array);
+}
+
+const Operator* MachineOperatorBuilder::S8x16Shuffle(uint8_t shuffle[16]) {
+  uint8_t* array = zone_->NewArray<uint8_t>(16);
+  memcpy(array, shuffle, 16);
+  return new (zone_)
+      Operator1<uint8_t*>(IrOpcode::kS8x16Shuffle, Operator::kPure, "Shuffle",
+                          2, 0, 0, 1, 0, 0, array);
+}
 
 }  // namespace compiler
 }  // namespace internal

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks Debugger.getPossibleBreakpoints with ignoreNestedFunctions');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks Debugger.getPossibleBreakpoints with ignoreNestedFunctions');
 
 var source = `
 function test() {
@@ -17,7 +17,7 @@ function test() {
   nested2();
 }
 //# sourceURL=test.js`;
-InspectorTest.addScript(source);
+contextGroup.addScript(source);
 
 var scriptId;
 Protocol.Debugger.onceScriptParsed().then(message => {
@@ -25,7 +25,7 @@ Protocol.Debugger.onceScriptParsed().then(message => {
     scriptId = message.params.scriptId;
 }).then(() => InspectorTest.runTestSuite(tests));
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(dumpBreakLocationInSourceAndResume);
 
 Protocol.Debugger.enable();
@@ -103,7 +103,7 @@ function dumpAllLocations(message) {
 }
 
 function dumpBreakLocationInSourceAndResume(message) {
-  InspectorTest.logCallFrames([ message.params.callFrames[0] ]);
+  session.logCallFrames([ message.params.callFrames[0] ]);
 
   var location = message.params.callFrames[0].location;
   var sourceLines = source.split('\n')

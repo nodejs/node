@@ -8,6 +8,7 @@
 #include "src/base/macros.h"
 
 #include "include/v8.h"
+#include "src/debug/interface-types.h"
 
 namespace v8_inspector {
 
@@ -16,9 +17,8 @@ class V8InspectorImpl;
 
 // Console API
 // https://console.spec.whatwg.org/#console-interface
-class V8Console {
+class V8Console : public v8::debug::ConsoleDelegate {
  public:
-  v8::Local<v8::Object> createConsole(v8::Local<v8::Context> context);
   v8::Local<v8::Object> createCommandLineAPI(v8::Local<v8::Context> context);
   void installMemoryGetter(v8::Local<v8::Context> context,
                            v8::Local<v8::Object> console);
@@ -49,35 +49,42 @@ class V8Console {
   explicit V8Console(V8InspectorImpl* inspector);
 
  private:
-  void debugCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void errorCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void infoCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void logCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void warnCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void dirCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void dirxmlCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void tableCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void traceCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void groupCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void groupCollapsedCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void groupEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void clearCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void countCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void assertCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void markTimelineCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void profileCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void profileEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void timelineCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void timelineEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void timeCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void timeEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  void timeStampCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void Debug(const v8::debug::ConsoleCallArguments&) override;
+  void Error(const v8::debug::ConsoleCallArguments&) override;
+  void Info(const v8::debug::ConsoleCallArguments&) override;
+  void Log(const v8::debug::ConsoleCallArguments&) override;
+  void Warn(const v8::debug::ConsoleCallArguments&) override;
+  void Dir(const v8::debug::ConsoleCallArguments&) override;
+  void DirXml(const v8::debug::ConsoleCallArguments&) override;
+  void Table(const v8::debug::ConsoleCallArguments&) override;
+  void Trace(const v8::debug::ConsoleCallArguments&) override;
+  void Group(const v8::debug::ConsoleCallArguments&) override;
+  void GroupCollapsed(const v8::debug::ConsoleCallArguments&) override;
+  void GroupEnd(const v8::debug::ConsoleCallArguments&) override;
+  void Clear(const v8::debug::ConsoleCallArguments&) override;
+  void Count(const v8::debug::ConsoleCallArguments&) override;
+  void Assert(const v8::debug::ConsoleCallArguments&) override;
+  void MarkTimeline(const v8::debug::ConsoleCallArguments&) override;
+  void Profile(const v8::debug::ConsoleCallArguments&) override;
+  void ProfileEnd(const v8::debug::ConsoleCallArguments&) override;
+  void Timeline(const v8::debug::ConsoleCallArguments&) override;
+  void TimelineEnd(const v8::debug::ConsoleCallArguments&) override;
+  void Time(const v8::debug::ConsoleCallArguments&) override;
+  void TimeEnd(const v8::debug::ConsoleCallArguments&) override;
+  void TimeStamp(const v8::debug::ConsoleCallArguments&) override;
 
   template <void (V8Console::*func)(const v8::FunctionCallbackInfo<v8::Value>&)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
     V8Console* console =
         static_cast<V8Console*>(info.Data().As<v8::External>()->Value());
     (console->*func)(info);
+  }
+  template <void (V8Console::*func)(const v8::debug::ConsoleCallArguments&)>
+  static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    V8Console* console =
+        static_cast<V8Console*>(info.Data().As<v8::External>()->Value());
+    v8::debug::ConsoleCallArguments args(info);
+    (console->*func)(args);
   }
 
   // TODO(foolip): There is no spec for the Memory Info API, see blink-dev:

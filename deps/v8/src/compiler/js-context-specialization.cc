@@ -83,6 +83,45 @@ Reduction JSContextSpecialization::SimplifyJSStoreContext(Node* node,
   return Changed(node);
 }
 
+namespace {
+
+bool IsContextParameter(Node* node) {
+  DCHECK_EQ(IrOpcode::kParameter, node->opcode());
+  Node* const start = NodeProperties::GetValueInput(node, 0);
+  DCHECK_EQ(IrOpcode::kStart, start->opcode());
+  int const index = ParameterIndexOf(node->op());
+  // The context is always the last parameter to a JavaScript function, and
+  // {Parameter} indices start at -1, so value outputs of {Start} look like
+  // this: closure, receiver, param0, ..., paramN, context.
+  return index == start->op()->ValueOutputCount() - 2;
+}
+
+// Given a context {node} and the {distance} from that context to the target
+// context (which we want to read from or store to), try to return a
+// specialization context.  If successful, update {distance} to whatever
+// distance remains from the specialization context.
+MaybeHandle<Context> GetSpecializationContext(Node* node, size_t* distance,
+                                              Maybe<OuterContext> maybe_outer) {
+  switch (node->opcode()) {
+    case IrOpcode::kHeapConstant:
+      return Handle<Context>::cast(OpParameter<Handle<HeapObject>>(node));
+    case IrOpcode::kParameter: {
+      OuterContext outer;
+      if (maybe_outer.To(&outer) && IsContextParameter(node) &&
+          *distance >= outer.distance) {
+        *distance -= outer.distance;
+        return outer.context;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return MaybeHandle<Context>();
+}
+
+}  // anonymous namespace
+
 Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
 
@@ -90,14 +129,13 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   size_t depth = access.depth();
 
   // First walk up the context chain in the graph as far as possible.
-  Node* outer = NodeProperties::GetOuterContext(node, &depth);
+  Node* context = NodeProperties::GetOuterContext(node, &depth);
 
   Handle<Context> concrete;
-  if (!NodeProperties::GetSpecializationContext(outer, context())
-           .ToHandle(&concrete)) {
+  if (!GetSpecializationContext(context, &depth, outer()).ToHandle(&concrete)) {
     // We do not have a concrete context object, so we can only partially reduce
     // the load by folding-in the outer context node.
-    return SimplifyJSLoadContext(node, outer, depth);
+    return SimplifyJSLoadContext(node, context, depth);
   }
 
   // Now walk up the concrete context chain for the remaining depth.
@@ -139,14 +177,13 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
 
   // First walk up the context chain in the graph until we reduce the depth to 0
   // or hit a node that does not have a CreateXYZContext operator.
-  Node* outer = NodeProperties::GetOuterContext(node, &depth);
+  Node* context = NodeProperties::GetOuterContext(node, &depth);
 
   Handle<Context> concrete;
-  if (!NodeProperties::GetSpecializationContext(outer, context())
-           .ToHandle(&concrete)) {
+  if (!GetSpecializationContext(context, &depth, outer()).ToHandle(&concrete)) {
     // We do not have a concrete context object, so we can only partially reduce
     // the load by folding-in the outer context node.
-    return SimplifyJSStoreContext(node, outer, depth);
+    return SimplifyJSStoreContext(node, context, depth);
   }
 
   // Now walk up the concrete context chain for the remaining depth.

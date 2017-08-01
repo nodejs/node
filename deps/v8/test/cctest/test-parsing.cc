@@ -78,7 +78,7 @@ TEST(ScanKeywords) {
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length);
       i::Scanner scanner(&unicode_cache);
-      scanner.Initialize(stream.get());
+      scanner.Initialize(stream.get(), false);
       CHECK_EQ(key_token.token, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -86,7 +86,7 @@ TEST(ScanKeywords) {
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length - 1);
       i::Scanner scanner(&unicode_cache);
-      scanner.Initialize(stream.get());
+      scanner.Initialize(stream.get(), false);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -97,7 +97,7 @@ TEST(ScanKeywords) {
       buffer[length] = chars_to_append[j];
       auto stream = i::ScannerStream::ForTesting(buffer, length + 1);
       i::Scanner scanner(&unicode_cache);
-      scanner.Initialize(stream.get());
+      scanner.Initialize(stream.get(), false);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -107,7 +107,7 @@ TEST(ScanKeywords) {
       buffer[length - 1] = '_';
       auto stream = i::ScannerStream::ForTesting(buffer, length);
       i::Scanner scanner(&unicode_cache);
-      scanner.Initialize(stream.get());
+      scanner.Initialize(stream.get(), false);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -173,7 +173,7 @@ TEST(ScanHTMLEndComments) {
     const char* source = tests[i];
     auto stream = i::ScannerStream::ForTesting(source);
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-    scanner.Initialize(stream.get());
+    scanner.Initialize(stream.get(), false);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->ast_string_constants(),
@@ -192,7 +192,7 @@ TEST(ScanHTMLEndComments) {
     const char* source = fail_tests[i];
     auto stream = i::ScannerStream::ForTesting(source);
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-    scanner.Initialize(stream.get());
+    scanner.Initialize(stream.get(), false);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->ast_string_constants(),
@@ -209,6 +209,28 @@ TEST(ScanHTMLEndComments) {
   }
 }
 
+TEST(ScanHtmlComments) {
+  const char* src = "a <!-- b --> c";
+  i::UnicodeCache unicode_cache;
+
+  // Disallow HTML comments.
+  {
+    auto stream = i::ScannerStream::ForTesting(src);
+    i::Scanner scanner(&unicode_cache);
+    scanner.Initialize(stream.get(), true);
+    CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
+    CHECK_EQ(i::Token::ILLEGAL, scanner.Next());
+  }
+
+  // Skip HTML comments:
+  {
+    auto stream = i::ScannerStream::ForTesting(src);
+    i::Scanner scanner(&unicode_cache);
+    scanner.Initialize(stream.get(), false);
+    CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
+    CHECK_EQ(i::Token::EOS, scanner.Next());
+  }
+}
 
 class ScriptResource : public v8::String::ExternalOneByteStringResource {
  public:
@@ -365,7 +387,7 @@ TEST(StandAlonePreParser) {
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-    scanner.Initialize(stream.get());
+    scanner.Initialize(stream.get(), false);
 
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
@@ -401,7 +423,7 @@ TEST(StandAlonePreParserNoNatives) {
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
     i::Scanner scanner(isolate->unicode_cache());
-    scanner.Initialize(stream.get());
+    scanner.Initialize(stream.get(), false);
 
     // Preparser defaults to disallowing natives syntax.
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
@@ -471,7 +493,7 @@ TEST(RegressChromium62639) {
 
   auto stream = i::ScannerStream::ForTesting(program);
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  scanner.Initialize(stream.get());
+  scanner.Initialize(stream.get(), false);
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(
       &zone, CcTest::i_isolate()->ast_string_constants(),
@@ -548,7 +570,7 @@ TEST(PreParseOverflow) {
 
   auto stream = i::ScannerStream::ForTesting(program.get(), kProgramSize);
   i::Scanner scanner(isolate->unicode_cache());
-  scanner.Initialize(stream.get());
+  scanner.Initialize(stream.get(), false);
 
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(
@@ -568,7 +590,7 @@ void TestStreamScanner(i::Utf16CharacterStream* stream,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  scanner.Initialize(stream);
+  scanner.Initialize(stream, false);
 
   int i = 0;
   do {
@@ -646,7 +668,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   auto stream = i::ScannerStream::ForTesting(re_source);
   i::HandleScope scope(CcTest::i_isolate());
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  scanner.Initialize(stream.get());
+  scanner.Initialize(stream.get(), false);
 
   i::Token::Value start = scanner.peek();
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
@@ -845,8 +867,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
   }
 }
 
-
-static void CheckParsesToNumber(const char* source, bool with_dot) {
+static void CheckParsesToNumber(const char* source) {
   v8::V8::Initialize();
   HandleAndZoneScope handles;
 
@@ -877,40 +898,27 @@ static void CheckParsesToNumber(const char* source, bool with_dot) {
   CHECK(fun->body()->at(0)->IsReturnStatement());
   i::ReturnStatement* ret = fun->body()->at(0)->AsReturnStatement();
   i::Literal* lit = ret->expression()->AsLiteral();
-  if (lit != NULL) {
-    const i::AstValue* val = lit->raw_value();
-    CHECK(with_dot == val->ContainsDot());
-  } else if (with_dot) {
-    i::BinaryOperation* bin = ret->expression()->AsBinaryOperation();
-    CHECK(bin != NULL);
-    CHECK_EQ(i::Token::MUL, bin->op());
-    i::Literal* rlit = bin->right()->AsLiteral();
-    const i::AstValue* val = rlit->raw_value();
-    CHECK(with_dot == val->ContainsDot());
-    CHECK_EQ(1.0, val->AsNumber());
-  }
+  CHECK(lit->IsNumberLiteral());
 }
 
 
 TEST(ParseNumbers) {
-  CheckParsesToNumber("1.", true);
-  CheckParsesToNumber("1.34", true);
-  CheckParsesToNumber("134", false);
-  CheckParsesToNumber("134e44", false);
-  CheckParsesToNumber("134.e44", true);
-  CheckParsesToNumber("134.44e44", true);
-  CheckParsesToNumber(".44", true);
+  CheckParsesToNumber("1.");
+  CheckParsesToNumber("1.34");
+  CheckParsesToNumber("134");
+  CheckParsesToNumber("134e44");
+  CheckParsesToNumber("134.e44");
+  CheckParsesToNumber("134.44e44");
+  CheckParsesToNumber(".44");
 
-  CheckParsesToNumber("-1.", true);
-  CheckParsesToNumber("-1.0", true);
-  CheckParsesToNumber("-1.34", true);
-  CheckParsesToNumber("-134", false);
-  CheckParsesToNumber("-134e44", false);
-  CheckParsesToNumber("-134.e44", true);
-  CheckParsesToNumber("-134.44e44", true);
-  CheckParsesToNumber("-.44", true);
-
-  CheckParsesToNumber("+x", true);
+  CheckParsesToNumber("-1.");
+  CheckParsesToNumber("-1.0");
+  CheckParsesToNumber("-1.34");
+  CheckParsesToNumber("-134");
+  CheckParsesToNumber("-134e44");
+  CheckParsesToNumber("-134.e44");
+  CheckParsesToNumber("-134.44e44");
+  CheckParsesToNumber("-.44");
 }
 
 
@@ -1334,7 +1342,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
                            &pending_error_handler,
                            isolate->counters()->runtime_call_stats());
     SetParserFlags(&preparser, flags);
-    scanner.Initialize(stream.get());
+    scanner.Initialize(stream.get(), is_module);
     i::PreParser::PreParseResult result = preparser.PreParseProgram(is_module);
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
@@ -3521,14 +3529,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
   i::Variable* var;
   {
     // Find the variable.
-    for (auto it = input.location.begin(); it != input.location.end(); ++it) {
-      unsigned n = *it;
-      scope = scope->inner_scope();
-      while (n-- > 0) {
-        scope = scope->sibling();
-      }
-    }
-    CHECK_NOT_NULL(scope);
+    scope = i::ScopeTestHelper::FindScope(scope, input.location);
     const i::AstRawString* var_name =
         info->ast_value_factory()->GetOneByteString(variable);
     var = scope->Lookup(var_name);
@@ -4240,6 +4241,7 @@ TEST(ErrorsArrowFunctions) {
     "(c, a.b) => {}",
     "(a['b'], c) => {}",
     "(c, a['b']) => {}",
+    "(...a = b) => b",
 
     // crbug.com/582626
     "(...rest - a) => b",
@@ -8967,6 +8969,10 @@ TEST(AsyncAwaitErrors) {
     // v8:5148 assert that errors are still thrown for calls that may have been
     // async functions
     "async({ foo33 = 1 })",
+
+    "async(...a = b) => b",
+    "async(...a,) => b",
+    "async(...a, b) => b",
     NULL
   };
 
@@ -10160,4 +10166,189 @@ TEST(AsyncGeneratorErrors) {
   static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
   RunParserSyncTest(context_data, statement_data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
+}
+
+TEST(LexicalLoopVariable) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  typedef std::function<void(const i::ParseInfo& info, i::DeclarationScope*)>
+      TestCB;
+  auto TestProgram = [isolate](const char* program, TestCB test) {
+    i::Factory* const factory = isolate->factory();
+    i::Handle<i::String> source =
+        factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::ParseInfo info(script);
+
+    info.set_allow_lazy_parsing(false);
+    CHECK(i::parsing::ParseProgram(&info, isolate));
+    CHECK(i::Rewriter::Rewrite(&info, isolate));
+    i::DeclarationScope::Analyze(&info, isolate, i::AnalyzeMode::kRegular);
+    CHECK(info.literal() != NULL);
+
+    i::DeclarationScope* script_scope = info.literal()->scope();
+    CHECK(script_scope->is_script_scope());
+
+    test(info, script_scope);
+  };
+
+  // Check `let` loop variables is a stack local when not captured by an eval
+  // or closure within the area of the loop body.
+  const char* local_bindings[] = {
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < 10; ++loop_var) {"
+      "  }"
+      "  eval('0');"
+      "}",
+
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < 10; ++loop_var) {"
+      "  }"
+      "  function foo() {}"
+      "  foo();"
+      "}",
+  };
+  for (const char* source : local_bindings) {
+    TestProgram(source, [=](const i::ParseInfo& info, i::DeclarationScope* s) {
+      i::Scope* fn = s->inner_scope();
+      CHECK(fn->is_function_scope());
+
+      i::Scope* loop_block = fn->inner_scope();
+      if (loop_block->is_function_scope()) loop_block = loop_block->sibling();
+      CHECK(loop_block->is_block_scope());
+
+      const i::AstRawString* var_name =
+          info.ast_value_factory()->GetOneByteString("loop_var");
+      i::Variable* loop_var = loop_block->LookupLocal(var_name);
+      CHECK_NOT_NULL(loop_var);
+      CHECK(loop_var->IsStackLocal());
+      CHECK_EQ(loop_block->ContextLocalCount(), 0);
+      CHECK_EQ(loop_block->inner_scope()->ContextLocalCount(), 0);
+    });
+  }
+
+  // Check `let` loop variable is not a stack local, and is duplicated in the
+  // loop body to ensure capturing can work correctly.
+  // In this version of the test, the inner loop block's duplicate `loop_var`
+  // binding is not captured, and is a local.
+  const char* context_bindings1[] = {
+      "function loop() {"
+      "  for (let loop_var = eval('0'); loop_var < 10; ++loop_var) {"
+      "  }"
+      "}",
+
+      "function loop() {"
+      "  for (let loop_var = (() => (loop_var, 0))(); loop_var < 10;"
+      "       ++loop_var) {"
+      "  }"
+      "}"};
+  for (const char* source : context_bindings1) {
+    TestProgram(source, [=](const i::ParseInfo& info, i::DeclarationScope* s) {
+      i::Scope* fn = s->inner_scope();
+      CHECK(fn->is_function_scope());
+
+      i::Scope* loop_block = fn->inner_scope();
+      CHECK(loop_block->is_block_scope());
+
+      const i::AstRawString* var_name =
+          info.ast_value_factory()->GetOneByteString("loop_var");
+      i::Variable* loop_var = loop_block->LookupLocal(var_name);
+      CHECK_NOT_NULL(loop_var);
+      CHECK(loop_var->IsContextSlot());
+      CHECK_EQ(loop_block->ContextLocalCount(), 1);
+
+      i::Variable* loop_var2 = loop_block->inner_scope()->LookupLocal(var_name);
+      CHECK_NE(loop_var, loop_var2);
+      CHECK(loop_var2->IsStackLocal());
+      CHECK_EQ(loop_block->inner_scope()->ContextLocalCount(), 0);
+    });
+  }
+
+  // Check `let` loop variable is not a stack local, and is duplicated in the
+  // loop body to ensure capturing can work correctly.
+  // In this version of the test, the inner loop block's duplicate `loop_var`
+  // binding is captured, and must be context allocated.
+  const char* context_bindings2[] = {
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < 10; ++loop_var) {"
+      "    eval('0');"
+      "  }"
+      "}",
+
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < eval('10'); ++loop_var) {"
+      "  }"
+      "}",
+
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < 10; eval('++loop_var')) {"
+      "  }"
+      "}",
+  };
+
+  for (const char* source : context_bindings2) {
+    TestProgram(source, [=](const i::ParseInfo& info, i::DeclarationScope* s) {
+      i::Scope* fn = s->inner_scope();
+      CHECK(fn->is_function_scope());
+
+      i::Scope* loop_block = fn->inner_scope();
+      CHECK(loop_block->is_block_scope());
+
+      const i::AstRawString* var_name =
+          info.ast_value_factory()->GetOneByteString("loop_var");
+      i::Variable* loop_var = loop_block->LookupLocal(var_name);
+      CHECK_NOT_NULL(loop_var);
+      CHECK(loop_var->IsContextSlot());
+      CHECK_EQ(loop_block->ContextLocalCount(), 1);
+
+      i::Variable* loop_var2 = loop_block->inner_scope()->LookupLocal(var_name);
+      CHECK_NE(loop_var, loop_var2);
+      CHECK(loop_var2->IsContextSlot());
+      CHECK_EQ(loop_block->inner_scope()->ContextLocalCount(), 1);
+    });
+  }
+
+  // Similar to the above, but the first block scope's variables are not
+  // captured due to the closure occurring in a nested scope.
+  const char* context_bindings3[] = {
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < 10; ++loop_var) {"
+      "    (() => loop_var)();"
+      "  }"
+      "}",
+
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < (() => (loop_var, 10))();"
+      "       ++loop_var) {"
+      "  }"
+      "}",
+
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < 10; (() => ++loop_var)()) {"
+      "  }"
+      "}",
+  };
+
+  for (const char* source : context_bindings3) {
+    TestProgram(source, [=](const i::ParseInfo& info, i::DeclarationScope* s) {
+      i::Scope* fn = s->inner_scope();
+      CHECK(fn->is_function_scope());
+
+      i::Scope* loop_block = fn->inner_scope();
+      CHECK(loop_block->is_block_scope());
+
+      const i::AstRawString* var_name =
+          info.ast_value_factory()->GetOneByteString("loop_var");
+      i::Variable* loop_var = loop_block->LookupLocal(var_name);
+      CHECK_NOT_NULL(loop_var);
+      CHECK(loop_var->IsStackLocal());
+      CHECK_EQ(loop_block->ContextLocalCount(), 0);
+
+      i::Variable* loop_var2 = loop_block->inner_scope()->LookupLocal(var_name);
+      CHECK_NE(loop_var, loop_var2);
+      CHECK(loop_var2->IsContextSlot());
+      CHECK_EQ(loop_block->inner_scope()->ContextLocalCount(), 1);
+    });
+  }
 }

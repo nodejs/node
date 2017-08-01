@@ -192,33 +192,33 @@ test(function() {
 }, "this is not a Date object.", TypeError);
 
 // kNotGeneric
-test(function() {
-  String.prototype.toString.call(1);
-}, "String.prototype.toString is not generic", TypeError);
+test(() => String.prototype.toString.call(1),
+    "String.prototype.toString requires that 'this' be a String",
+    TypeError);
 
-test(function() {
-  String.prototype.valueOf.call(1);
-}, "String.prototype.valueOf is not generic", TypeError);
+test(() => String.prototype.valueOf.call(1),
+    "String.prototype.valueOf requires that 'this' be a String",
+    TypeError);
 
-test(function() {
-  Boolean.prototype.toString.call(1);
-}, "Boolean.prototype.toString is not generic", TypeError);
+test(() => Boolean.prototype.toString.call(1),
+    "Boolean.prototype.toString requires that 'this' be a Boolean",
+    TypeError);
 
-test(function() {
-  Boolean.prototype.valueOf.call(1);
-}, "Boolean.prototype.valueOf is not generic", TypeError);
+test(() => Boolean.prototype.valueOf.call(1),
+    "Boolean.prototype.valueOf requires that 'this' be a Boolean",
+    TypeError);
 
-test(function() {
-  Number.prototype.toString.call({});
-}, "Number.prototype.toString is not generic", TypeError);
+test(() => Number.prototype.toString.call({}),
+    "Number.prototype.toString requires that 'this' be a Number",
+    TypeError);
 
-test(function() {
-  Number.prototype.valueOf.call({});
-}, "Number.prototype.valueOf is not generic", TypeError);
+test(() => Number.prototype.valueOf.call({}),
+    "Number.prototype.valueOf requires that 'this' be a Number",
+    TypeError);
 
-test(function() {
-  Function.prototype.toString.call(1);
-}, "Function.prototype.toString is not generic", TypeError);
+test(() => Function.prototype.toString.call(1),
+    "Function.prototype.toString requires that 'this' be a Function",
+    TypeError);
 
 // kNotTypedArray
 test(function() {

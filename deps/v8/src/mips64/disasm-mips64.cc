@@ -92,6 +92,9 @@ class Decoder {
   void PrintSd(Instruction* instr);
   void PrintSs1(Instruction* instr);
   void PrintSs2(Instruction* instr);
+  void PrintSs3(Instruction* instr);
+  void PrintSs4(Instruction* instr);
+  void PrintSs5(Instruction* instr);
   void PrintBc(Instruction* instr);
   void PrintCc(Instruction* instr);
   void PrintFunction(Instruction* instr);
@@ -289,20 +292,41 @@ void Decoder::PrintSd(Instruction* instr) {
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sd);
 }
 
-
-// Print the integer value of the rd field, when used as 'ext' size.
+// Print the integer value of ext/dext/dextu size from the msbd field.
 void Decoder::PrintSs1(Instruction* instr) {
-  int ss = instr->RdValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", ss + 1);
+  int msbd = instr->RdValue();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msbd + 1);
 }
 
-
-// Print the integer value of the rd field, when used as 'ins' size.
+// Print the integer value of ins/dins/dinsu size from the msb and lsb fields
+// (for dinsu it is msbminus32 and lsbminus32 fields).
 void Decoder::PrintSs2(Instruction* instr) {
-  int ss = instr->RdValue();
-  int pos = instr->SaValue();
+  int msb = instr->RdValue();
+  int lsb = instr->SaValue();
   out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", ss - pos + 1);
+      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msb - lsb + 1);
+}
+
+// Print the integer value of dextm size from the msbdminus32 field.
+void Decoder::PrintSs3(Instruction* instr) {
+  int msbdminus32 = instr->RdValue();
+  out_buffer_pos_ +=
+      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msbdminus32 + 32 + 1);
+}
+
+// Print the integer value of dinsm size from the msbminus32 and lsb fields.
+void Decoder::PrintSs4(Instruction* instr) {
+  int msbminus32 = instr->RdValue();
+  int lsb = instr->SaValue();
+  out_buffer_pos_ +=
+      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msbminus32 + 32 - lsb + 1);
+}
+
+// Print the integer value of dextu/dinsu pos from the lsbminus32 field.
+void Decoder::PrintSs5(Instruction* instr) {
+  int lsbminus32 = instr->SaValue();
+  out_buffer_pos_ +=
+      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", lsbminus32 + 32);
 }
 
 
@@ -954,14 +978,22 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         }
         case 's': {
           if (format[2] == '1') {
-              DCHECK(STRING_STARTS_WITH(format, "ss1"));  /* ext size */
-              PrintSs1(instr);
-              return 3;
+            DCHECK(STRING_STARTS_WITH(format, "ss1"));  // ext, dext, dextu size
+            PrintSs1(instr);
+          } else if (format[2] == '2') {
+            DCHECK(STRING_STARTS_WITH(format, "ss2"));  // ins, dins, dinsu size
+            PrintSs2(instr);
+          } else if (format[2] == '3') {
+            DCHECK(STRING_STARTS_WITH(format, "ss3"));  // dextm size
+            PrintSs3(instr);
+          } else if (format[2] == '4') {
+            DCHECK(STRING_STARTS_WITH(format, "ss4"));  // dinsm size
+            PrintSs4(instr);
           } else {
-              DCHECK(STRING_STARTS_WITH(format, "ss2"));  /* ins size */
-              PrintSs2(instr);
-              return 3;
+            DCHECK(STRING_STARTS_WITH(format, "ss5"));  // dextu, dinsu pos
+            PrintSs5(instr);
           }
+          return 3;
         }
       }
     }
@@ -1694,10 +1726,6 @@ void Decoder::DecodeTypeRegisterSPECIAL2(Instruction* instr) {
 
 void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
   switch (instr->FunctionFieldRaw()) {
-    case INS: {
-      Format(instr, "ins     'rt, 'rs, 'sa, 'ss2");
-      break;
-    }
     case EXT: {
       Format(instr, "ext     'rt, 'rs, 'sa, 'ss1");
       break;
@@ -1707,11 +1735,27 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
       break;
     }
     case DEXTM: {
-      Format(instr, "dextm   'rt, 'rs, 'sa, 'ss1");
+      Format(instr, "dextm   'rt, 'rs, 'sa, 'ss3");
       break;
     }
     case DEXTU: {
-      Format(instr, "dextu   'rt, 'rs, 'sa, 'ss1");
+      Format(instr, "dextu   'rt, 'rs, 'ss5, 'ss1");
+      break;
+    }
+    case INS: {
+      Format(instr, "ins     'rt, 'rs, 'sa, 'ss2");
+      break;
+    }
+    case DINS: {
+      Format(instr, "dins    'rt, 'rs, 'sa, 'ss2");
+      break;
+    }
+    case DINSM: {
+      Format(instr, "dinsm   'rt, 'rs, 'sa, 'ss4");
+      break;
+    }
+    case DINSU: {
+      Format(instr, "dinsu   'rt, 'rs, 'ss5, 'ss2");
       break;
     }
     case BSHFL: {
@@ -1747,10 +1791,6 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
           break;
         }
       }
-      break;
-    }
-    case DINS: {
-      Format(instr, "dins    'rt, 'rs, 'sa, 'ss2");
       break;
     }
     case DBSHFL: {

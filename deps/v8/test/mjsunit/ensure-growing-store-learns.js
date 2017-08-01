@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --noverify-heap --noenable-slow-asserts
-// Flags: --crankshaft --no-always-opt
+// Flags: --opt --no-always-opt
 
 // --noverify-heap and --noenable-slow-asserts are set because the test is too
 // slow with it on.
@@ -65,11 +65,11 @@
   assertTrue(%HasFastSmiElements(a));
 
   // Grow a large array into large object space through the keyed store
-  // without deoptimizing. Grow by 10s. If we set elements too sparsely, the
+  // without deoptimizing. Grow by 9s. If we set elements too sparsely, the
   // array will convert to dictionary mode.
   a = new Array(99999);
   assertTrue(%HasFastSmiElements(a));
-  for (var i = 0; i < 263000; i += 10) {
+  for (var i = 0; i < 263000; i += 9) {
     foo2(a, i);
   }
 

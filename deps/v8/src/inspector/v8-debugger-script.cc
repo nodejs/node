@@ -138,11 +138,7 @@ class ActualScript : public V8DebuggerScript {
       m_endColumn = m_startColumn;
     }
 
-    v8::Local<v8::Value> contextData;
-    if (script->ContextData().ToLocal(&contextData) && contextData->IsInt32()) {
-      m_executionContextId =
-          static_cast<int>(contextData.As<v8::Int32>()->Value());
-    }
+    USE(script->ContextId().To(&m_executionContextId));
 
     if (script->Source().ToLocal(&tmp)) {
       m_source = toProtocolString(tmp);

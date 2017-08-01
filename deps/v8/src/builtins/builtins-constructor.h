@@ -7,6 +7,7 @@
 
 #include "src/contexts.h"
 #include "src/objects.h"
+#include "src/objects/dictionary.h"
 
 namespace v8 {
 namespace internal {
@@ -22,18 +23,11 @@ class ConstructorBuiltins {
   // backed by a double backing store will fit into new-space).
   static const int kMaximumClonedShallowArrayElements =
       JSArray::kInitialMaxFastElementArray * kPointerSize / kDoubleSize;
-
-  // Maximum number of properties in copied objects.
-  static const int kMaximumClonedShallowObjectProperties = 6;
-  static int FastCloneShallowObjectPropertiesCount(int literal_length) {
-    // This heuristic of setting empty literals to have
-    // kInitialGlobalObjectUnusedPropertiesCount must remain in-sync with the
-    // runtime.
-    // TODO(verwaest): Unify this with the heuristic in the runtime.
-    return literal_length == 0
-               ? JSObject::kInitialGlobalObjectUnusedPropertiesCount
-               : literal_length;
-  }
+  // Maximum number of properties in copied object so that the properties store
+  // will fit into new-space. This constant is based on the assumption that
+  // NameDictionaries are 50% over-allocated.
+  static const int kMaximumClonedShallowObjectProperties =
+      NameDictionary::kMaxRegularCapacity / 3 * 2;
 
  private:
   static const int kMaximumSlots = 0x8000;

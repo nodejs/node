@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Checks that inspector reports script compiled in Runtime.evaluate, " +
+let {session, contextGroup, Protocol} = InspectorTest.start("Checks that inspector reports script compiled in Runtime.evaluate, " +
   "Runtime.callFunctionOn and  Runtime.compileScript");
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function fooTop() {
   eval(\`
     function foo() {
@@ -15,7 +15,7 @@ function fooTop() {
 }
 //# sourceURL=top-frame.js`, 8, 26);
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function fooTopFail() {
   eval(\`
     function fooFail() {

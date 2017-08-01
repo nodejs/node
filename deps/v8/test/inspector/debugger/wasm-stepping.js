@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests stepping through wasm scripts');
+
 utils.load('test/mjsunit/wasm/wasm-constants.js');
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -68,6 +70,9 @@ var step_actions = [
   // then just resume.
   'resume'
 ];
+for (var action of step_actions) {
+  InspectorTest.logProtocolCommandCalls('Debugger.' + action)
+}
 var sources = {};
 var urls = {};
 var afterTwoSourcesCallback;
@@ -151,10 +156,48 @@ function printPauseLocation(scriptId, lineNr, columnNr) {
       line);
 }
 
+async function getValueString(value) {
+  if (value.type == 'object') {
+    var msg = await Protocol.Runtime.callFunctionOn({
+      objectId: value.objectId,
+      functionDeclaration: 'function () { return JSON.stringify(this); }'
+    });
+    printFailure(msg);
+    return msg.result.result.value + ' (' + value.description + ')';
+  }
+  return value.value + ' (' + value.type + ')';
+}
+
+async function dumpProperties(message) {
+  printFailure(message);
+  for (var value of message.result.result) {
+    var value_str = await getValueString(value.value);
+    InspectorTest.log('   ' + value.name + ': ' + value_str);
+  }
+}
+
+async function dumpScopeChainsOnPause(message) {
+  for (var frame of message.params.callFrames) {
+    var functionName = frame.functionName || '(anonymous)';
+    var lineNumber = frame.location ? frame.location.lineNumber : frame.lineNumber;
+    var columnNumber = frame.location ? frame.location.columnNumber : frame.columnNumber;
+    InspectorTest.log(`at ${functionName} (${lineNumber}:${columnNumber}):`);
+    for (var scope of frame.scopeChain) {
+      InspectorTest.logObject(' - scope (' + scope.type + '):');
+      if (scope.type == 'global') {
+        InspectorTest.logObject('   -- skipped');
+      } else {
+        var properties = await Protocol.Runtime.getProperties(
+            {'objectId': scope.object.objectId});
+        await dumpProperties(properties);
+      }
+    }
+  }
+}
+
 function handlePaused(msg) {
   var loc = msg.params.callFrames[0].location;
   printPauseLocation(loc.scriptId, loc.lineNumber, loc.columnNumber);
-  var action = step_actions.shift();
-  InspectorTest.log('Step action: ' + action);
-  Protocol.Debugger[action]();
+  dumpScopeChainsOnPause(msg)
+      .then(Protocol.Debugger[step_actions.shift() || 'resume']);
 }

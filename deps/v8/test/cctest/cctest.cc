@@ -43,8 +43,8 @@
 #endif
 #endif
 
-enum InitializationState {kUnset, kUnintialized, kInitialized};
-static InitializationState initialization_state_  = kUnset;
+enum InitializationState { kUnset, kUninitialized, kInitialized };
+static InitializationState initialization_state_ = kUnset;
 static bool disable_automatic_dispose_ = false;
 
 CcTest* CcTest::last_ = NULL;
@@ -83,10 +83,10 @@ CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
 void CcTest::Run() {
   if (!initialize_) {
     CHECK(initialization_state_ != kInitialized);
-    initialization_state_ = kUnintialized;
+    initialization_state_ = kUninitialized;
     CHECK(CcTest::isolate_ == NULL);
   } else {
-    CHECK(initialization_state_ != kUnintialized);
+    CHECK(initialization_state_ != kUninitialized);
     initialization_state_ = kInitialized;
     if (isolate_ == NULL) {
       v8::Isolate::CreateParams create_params;
@@ -111,6 +111,10 @@ i::Heap* CcTest::heap() { return i_isolate()->heap(); }
 
 void CcTest::CollectGarbage(i::AllocationSpace space) {
   heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
+}
+
+void CcTest::CollectAllGarbage() {
+  CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 }
 
 void CcTest::CollectAllGarbage(int flags) {
@@ -157,7 +161,7 @@ v8::Local<v8::Context> CcTest::NewContext(CcTestExtensionFlags extensions,
 
 
 void CcTest::DisableAutomaticDispose() {
-  CHECK_EQ(kUnintialized, initialization_state_);
+  CHECK_EQ(kUninitialized, initialization_state_);
   disable_automatic_dispose_ = true;
 }
 
@@ -210,20 +214,6 @@ static void PrintTestList(CcTest* current) {
 }
 
 
-class CcTestArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
-  virtual void* Allocate(size_t length) {
-    void* data = AllocateUninitialized(length == 0 ? 1 : length);
-    return data == NULL ? data : memset(data, 0, length);
-  }
-  virtual void* AllocateUninitialized(size_t length) {
-    return malloc(length == 0 ? 1 : length);
-  }
-  virtual void Free(void* data, size_t length) { free(data); }
-  // TODO(dslomov): Remove when v8:2823 is fixed.
-  virtual void Free(void* data) { UNREACHABLE(); }
-};
-
-
 static void SuggestTestHarness(int tests) {
   if (tests == 0) return;
   printf("Running multiple tests in sequence is deprecated and may cause "
@@ -273,8 +263,8 @@ int main(int argc, char* argv[]) {
     v8::V8::RegisterDefaultSignalHandler();
   }
 
-  CcTestArrayBufferAllocator array_buffer_allocator;
-  CcTest::set_array_buffer_allocator(&array_buffer_allocator);
+  CcTest::set_array_buffer_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
 
   i::PrintExtension print_extension;
   v8::RegisterExtension(&print_extension);

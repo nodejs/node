@@ -8,14 +8,6 @@
 // exceptions which are swallowed in a then clause.
 failWithMessage = (msg) => %AbortJS(msg);
 
-let decrement = () => { %DecrementWaitCount(); }
-let increment = () => { %IncrementWaitCount(); }
-
-function WaitForPromise(p) {
-  increment();
-  p.then(decrement, decrement);
-}
-
 function newPromise() {
   var outerResolve;
   var outerReject;
@@ -23,7 +15,7 @@ function newPromise() {
     outerResolve = resolve;
     outerReject = reject;
   });
-  WaitForPromise(promise);  // explicitly wait for promise to resolve.
+  Promise.resolve(promise);
   return {
     resolve: outerResolve,
     reject: outerReject,

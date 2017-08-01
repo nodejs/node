@@ -2,44 +2,44 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks nested scheduled break in framework code.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks nested scheduled break in framework code.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function frameworkCall(callback) {
-  callWithScheduledBreak(doFrameworkWork.bind(null, callback),
+  inspector.callWithScheduledBreak(doFrameworkWork.bind(null, callback),
     'top-framework-scheduled-break',
     JSON.stringify({ data: 'data for top-framework-scheduled-break' }));
 }
 
 function doFrameworkWork(callback) {
-  callWithScheduledBreak(doFrameworkBreak, 'should-not-be-a-reason', '');
+  inspector.callWithScheduledBreak(doFrameworkBreak, 'should-not-be-a-reason', '');
   callback();
 }
 
 function doFrameworkBreak() {
-  breakProgram('framework-break', JSON.stringify({ data: 'data for framework-break' }));
+  inspector.breakProgram('framework-break', JSON.stringify({ data: 'data for framework-break' }));
 }
 
 //# sourceURL=framework.js`, 7, 26);
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function testFunction() {
-  callWithScheduledBreak(frameworkCall.bind(null, callback),
+  inspector.callWithScheduledBreak(frameworkCall.bind(null, callback),
     'top-scheduled-break', '');
 }
 
 function callback() {
-  breakProgram('user-break', JSON.stringify({ data: 'data for user-break' }));
+  inspector.breakProgram('user-break', JSON.stringify({ data: 'data for user-break' }));
   return 42;
 }
 
 //# sourceURL=user.js`, 25, 26);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
   InspectorTest.log('break reason: ' + message.params.reason);
   InspectorTest.log('break aux data: ' + JSON.stringify(message.params.data || {}, null, '  '));
-  InspectorTest.logCallFrames(message.params.callFrames);
+  session.logCallFrames(message.params.callFrames);
   InspectorTest.log('');
   Protocol.Debugger.resume();
 });

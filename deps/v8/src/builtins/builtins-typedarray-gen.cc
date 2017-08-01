@@ -25,25 +25,20 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                                   const char* method_name,
                                                   IterationKind iteration_kind);
 
-  void LoadMapAndElementsSize(Node* const array, Variable* typed_map,
-                              Variable* size);
+  void SetupTypedArray(Node* holder, Node* length, Node* byte_offset,
+                       Node* byte_length);
+  void AttachBuffer(Node* holder, Node* buffer, Node* map, Node* length,
+                    Node* byte_offset);
 
-  Node* CalculateExternalPointer(Node* const backing_store,
-                                 Node* const byte_offset);
-  void DoInitialize(Node* const holder, Node* length, Node* const maybe_buffer,
-                    Node* const byte_offset, Node* byte_length,
-                    Node* const initialize, Node* const context);
-  void InitializeBasedOnLength(Node* const holder, Node* const length,
-                               Node* const element_size,
-                               Node* const byte_offset, Node* const initialize,
-                               Node* const context);
+  Node* LoadMapForType(Node* array);
+  Node* CalculateExternalPointer(Node* backing_store, Node* byte_offset);
   Node* LoadDataPtr(Node* typed_array);
   Node* ByteLengthIsValid(Node* byte_length);
 };
 
-void TypedArrayBuiltinsAssembler::LoadMapAndElementsSize(Node* const array,
-                                                         Variable* typed_map,
-                                                         Variable* size) {
+compiler::Node* TypedArrayBuiltinsAssembler::LoadMapForType(Node* array) {
+  CSA_ASSERT(this, IsJSTypedArray(array));
+
   Label unreachable(this), done(this);
   Label uint8_elements(this), uint8_clamped_elements(this), int8_elements(this),
       uint16_elements(this), int16_elements(this), uint32_elements(this),
@@ -62,21 +57,21 @@ void TypedArrayBuiltinsAssembler::LoadMapAndElementsSize(Node* const array,
   DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
   DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
 
+  VARIABLE(var_typed_map, MachineRepresentation::kTagged);
+
   Node* array_map = LoadMap(array);
   Node* elements_kind = LoadMapElementsKind(array_map);
   Switch(elements_kind, &unreachable, elements_kinds, elements_kind_labels,
          kTypedElementsKindCount);
 
   for (int i = 0; i < static_cast<int>(kTypedElementsKindCount); i++) {
-    Bind(elements_kind_labels[i]);
+    BIND(elements_kind_labels[i]);
     {
       ElementsKind kind = static_cast<ElementsKind>(elements_kinds[i]);
       ExternalArrayType type =
           isolate()->factory()->GetArrayTypeFromElementsKind(kind);
       Handle<Map> map(isolate()->heap()->MapForFixedTypedArray(type));
-      typed_map->Bind(HeapConstant(map));
-      size->Bind(SmiConstant(static_cast<int>(
-          isolate()->factory()->GetExternalArrayElementSize(type))));
+      var_typed_map.Bind(HeapConstant(map));
       Goto(&done);
     }
   }
@@ -84,6 +79,7 @@ void TypedArrayBuiltinsAssembler::LoadMapAndElementsSize(Node* const array,
   BIND(&unreachable);
   { Unreachable(); }
   BIND(&done);
+  return var_typed_map.value();
 }
 
 // The byte_offset can be higher than Smi range, in which case to perform the
@@ -94,70 +90,131 @@ void TypedArrayBuiltinsAssembler::LoadMapAndElementsSize(Node* const array,
 // bit platforms could theoretically have an offset up to 2^35 - 1, so we may
 // need to convert the float heap number to an intptr.
 compiler::Node* TypedArrayBuiltinsAssembler::CalculateExternalPointer(
-    Node* const backing_store, Node* const byte_offset) {
+    Node* backing_store, Node* byte_offset) {
   return IntPtrAdd(backing_store, ChangeNumberToIntPtr(byte_offset));
 }
 
-void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
-                                               Node* const maybe_buffer,
-                                               Node* const byte_offset,
-                                               Node* byte_length,
-                                               Node* const initialize,
-                                               Node* const context) {
+// Setup the TypedArray which is under construction.
+//  - Set the length.
+//  - Set the byte_offset.
+//  - Set the byte_length.
+//  - Set EmbedderFields to 0.
+void TypedArrayBuiltinsAssembler::SetupTypedArray(Node* holder, Node* length,
+                                                  Node* byte_offset,
+                                                  Node* byte_length) {
+  CSA_ASSERT(this, IsJSTypedArray(holder));
+  CSA_ASSERT(this, TaggedIsSmi(length));
+  CSA_ASSERT(this, IsNumber(byte_offset));
+  CSA_ASSERT(this, IsNumber(byte_length));
+
+  StoreObjectField(holder, JSTypedArray::kLengthOffset, length);
+  StoreObjectField(holder, JSArrayBufferView::kByteOffsetOffset, byte_offset);
+  StoreObjectField(holder, JSArrayBufferView::kByteLengthOffset, byte_length);
+  for (int offset = JSTypedArray::kSize;
+       offset < JSTypedArray::kSizeWithEmbedderFields; offset += kPointerSize) {
+    StoreObjectField(holder, offset, SmiConstant(Smi::kZero));
+  }
+}
+
+// Attach an off-heap buffer to a TypedArray.
+void TypedArrayBuiltinsAssembler::AttachBuffer(Node* holder, Node* buffer,
+                                               Node* map, Node* length,
+                                               Node* byte_offset) {
+  CSA_ASSERT(this, IsJSTypedArray(holder));
+  CSA_ASSERT(this, IsJSArrayBuffer(buffer));
+  CSA_ASSERT(this, IsMap(map));
+  CSA_ASSERT(this, TaggedIsSmi(length));
+  CSA_ASSERT(this, IsNumber(byte_offset));
+
+  StoreObjectField(holder, JSArrayBufferView::kBufferOffset, buffer);
+
+  Node* elements = Allocate(FixedTypedArrayBase::kHeaderSize);
+  StoreMapNoWriteBarrier(elements, map);
+  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
+  StoreObjectFieldNoWriteBarrier(
+      elements, FixedTypedArrayBase::kBasePointerOffset, SmiConstant(0));
+
+  Node* backing_store = LoadObjectField(
+      buffer, JSArrayBuffer::kBackingStoreOffset, MachineType::Pointer());
+
+  Node* external_pointer = CalculateExternalPointer(backing_store, byte_offset);
+  StoreObjectFieldNoWriteBarrier(
+      elements, FixedTypedArrayBase::kExternalPointerOffset, external_pointer,
+      MachineType::PointerRepresentation());
+
+  StoreObjectField(holder, JSObject::kElementsOffset, elements);
+}
+
+TF_BUILTIN(TypedArrayInitializeWithBuffer, TypedArrayBuiltinsAssembler) {
+  Node* holder = Parameter(Descriptor::kHolder);
+  Node* length = Parameter(Descriptor::kLength);
+  Node* buffer = Parameter(Descriptor::kBuffer);
+  Node* element_size = Parameter(Descriptor::kElementSize);
+  Node* byte_offset = Parameter(Descriptor::kByteOffset);
+
+  CSA_ASSERT(this, IsJSTypedArray(holder));
+  CSA_ASSERT(this, TaggedIsSmi(length));
+  CSA_ASSERT(this, IsJSArrayBuffer(buffer));
+  CSA_ASSERT(this, TaggedIsSmi(element_size));
+  CSA_ASSERT(this, IsNumber(byte_offset));
+
+  Node* fixed_typed_map = LoadMapForType(holder);
+
+  // SmiMul returns a heap number in case of Smi overflow.
+  Node* byte_length = SmiMul(length, element_size);
+  CSA_ASSERT(this, IsNumber(byte_length));
+
+  SetupTypedArray(holder, length, byte_offset, byte_length);
+  AttachBuffer(holder, buffer, fixed_typed_map, length, byte_offset);
+  Return(UndefinedConstant());
+}
+
+TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
+  Node* holder = Parameter(Descriptor::kHolder);
+  Node* length = Parameter(Descriptor::kLength);
+  Node* element_size = Parameter(Descriptor::kElementSize);
+  Node* initialize = Parameter(Descriptor::kInitialize);
+  Node* context = Parameter(Descriptor::kContext);
+
+  CSA_ASSERT(this, IsJSTypedArray(holder));
+  CSA_ASSERT(this, TaggedIsPositiveSmi(length));
+  CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
+  CSA_ASSERT(this, IsBoolean(initialize));
+
+  Node* byte_offset = SmiConstant(0);
+
   static const int32_t fta_base_data_offset =
       FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
 
-  Label setup_holder(this), alloc_array_buffer(this), aligned(this),
-      allocate_elements(this), attach_buffer(this), done(this);
-  VARIABLE(fixed_typed_map, MachineRepresentation::kTagged);
-  VARIABLE(element_size, MachineRepresentation::kTagged);
-  VARIABLE(total_size, MachineType::PointerRepresentation());
+  Label setup_holder(this), allocate_on_heap(this), aligned(this),
+      allocate_elements(this), allocate_off_heap(this),
+      allocate_off_heap_no_init(this), attach_buffer(this), done(this);
+  VARIABLE(var_total_size, MachineType::PointerRepresentation());
 
-  // Make sure length is a Smi. The caller guarantees this is the case.
-  length = ToInteger(context, length, CodeStubAssembler::kTruncateMinusZero);
-  CSA_ASSERT(this, TaggedIsSmi(length));
+  // SmiMul returns a heap number in case of Smi overflow.
+  Node* byte_length = SmiMul(length, element_size);
+  CSA_ASSERT(this, IsNumber(byte_length));
 
-  // byte_length can be -0, get rid of it.
-  byte_length =
-      ToInteger(context, byte_length, CodeStubAssembler::kTruncateMinusZero);
+  SetupTypedArray(holder, length, byte_offset, byte_length);
 
-  GotoIfNot(IsNull(maybe_buffer), &setup_holder);
-  // If the buffer is null, then we need a Smi byte_length. The caller
-  // guarantees this is the case, because when byte_length >
-  // TypedArrayMaxSizeInHeap, a buffer is allocated and passed in here.
-  CSA_ASSERT(this, TaggedIsSmi(byte_length));
-  Goto(&setup_holder);
+  Node* fixed_typed_map = LoadMapForType(holder);
+  GotoIf(TaggedIsNotSmi(byte_length), &allocate_off_heap);
+  GotoIf(SmiGreaterThan(byte_length,
+                        SmiConstant(FLAG_typed_array_max_size_in_heap)),
+         &allocate_off_heap);
+  Goto(&allocate_on_heap);
 
-  BIND(&setup_holder);
+  BIND(&allocate_on_heap);
   {
-    LoadMapAndElementsSize(holder, &fixed_typed_map, &element_size);
-    // Setup the holder (JSArrayBufferView).
-    //  - Set the length.
-    //  - Set the byte_offset.
-    //  - Set the byte_length.
-    //  - Set EmbedderFields to 0.
-    StoreObjectField(holder, JSTypedArray::kLengthOffset, length);
-    StoreObjectField(holder, JSArrayBufferView::kByteOffsetOffset, byte_offset);
-    StoreObjectField(holder, JSArrayBufferView::kByteLengthOffset, byte_length);
-    for (int offset = JSTypedArray::kSize;
-         offset < JSTypedArray::kSizeWithEmbedderFields;
-         offset += kPointerSize) {
-      StoreObjectField(holder, offset, SmiConstant(Smi::kZero));
-    }
-
-    Branch(IsNull(maybe_buffer), &alloc_array_buffer, &attach_buffer);
-  }
-
-  BIND(&alloc_array_buffer);
-  {
+    CSA_ASSERT(this, TaggedIsPositiveSmi(byte_length));
     // Allocate a new ArrayBuffer and initialize it with empty properties and
     // elements.
-    Node* const native_context = LoadNativeContext(context);
-    Node* const map =
+    Node* native_context = LoadNativeContext(context);
+    Node* map =
         LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX);
     Node* empty_fixed_array = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
 
-    Node* const buffer = Allocate(JSArrayBuffer::kSizeWithEmbedderFields);
+    Node* buffer = Allocate(JSArrayBuffer::kSizeWithEmbedderFields);
     StoreMapNoWriteBarrier(buffer, map);
     StoreObjectFieldNoWriteBarrier(buffer, JSArray::kPropertiesOffset,
                                    empty_fixed_array);
@@ -189,7 +246,7 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
     StoreObjectField(holder, JSArrayBufferView::kBufferOffset, buffer);
 
     // Check the alignment.
-    GotoIf(SmiEqual(SmiMod(element_size.value(), SmiConstant(kObjectAlignment)),
+    GotoIf(SmiEqual(SmiMod(element_size, SmiConstant(kObjectAlignment)),
                     SmiConstant(0)),
            &aligned);
 
@@ -198,14 +255,14 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
     Node* aligned_header_size =
         IntPtrConstant(FixedTypedArrayBase::kHeaderSize + kObjectAlignmentMask);
     Node* size = IntPtrAdd(SmiToWord(byte_length), aligned_header_size);
-    total_size.Bind(WordAnd(size, IntPtrConstant(~kObjectAlignmentMask)));
+    var_total_size.Bind(WordAnd(size, IntPtrConstant(~kObjectAlignmentMask)));
     Goto(&allocate_elements);
   }
 
   BIND(&aligned);
   {
     Node* header_size = IntPtrConstant(FixedTypedArrayBase::kHeaderSize);
-    total_size.Bind(IntPtrAdd(SmiToWord(byte_length), header_size));
+    var_total_size.Bind(IntPtrAdd(SmiToWord(byte_length), header_size));
     Goto(&allocate_elements);
   }
 
@@ -213,7 +270,7 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
   {
     // Allocate a FixedTypedArray and set the length, base pointer and external
     // pointer.
-    CSA_ASSERT(this, IsRegularHeapObjectSize(total_size.value()));
+    CSA_ASSERT(this, IsRegularHeapObjectSize(var_total_size.value()));
 
     Node* elements;
     int heap_alignment =
@@ -221,12 +278,12 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
 
     if (UnalignedLoadSupported(MachineType::Float64(), heap_alignment) &&
         UnalignedStoreSupported(MachineType::Float64(), heap_alignment)) {
-      elements = AllocateInNewSpace(total_size.value());
+      elements = AllocateInNewSpace(var_total_size.value());
     } else {
-      elements = AllocateInNewSpace(total_size.value(), kDoubleAlignment);
+      elements = AllocateInNewSpace(var_total_size.value(), kDoubleAlignment);
     }
 
-    StoreMapNoWriteBarrier(elements, fixed_typed_map.value());
+    StoreMapNoWriteBarrier(elements, fixed_typed_map);
     StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
     StoreObjectFieldNoWriteBarrier(
         elements, FixedTypedArrayBase::kBasePointerOffset, elements);
@@ -250,102 +307,50 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
     Goto(&done);
   }
 
+  VARIABLE(var_buffer, MachineRepresentation::kTagged);
+
+  BIND(&allocate_off_heap);
+  {
+    GotoIf(IsFalse(initialize), &allocate_off_heap_no_init);
+
+    Node* buffer_constructor = LoadContextElement(
+        LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX);
+    var_buffer.Bind(ConstructJS(CodeFactory::Construct(isolate()), context,
+                                buffer_constructor, byte_length));
+    Goto(&attach_buffer);
+  }
+
+  BIND(&allocate_off_heap_no_init);
+  {
+    Node* buffer_constructor_noinit = LoadContextElement(
+        LoadNativeContext(context), Context::ARRAY_BUFFER_NOINIT_FUN_INDEX);
+    var_buffer.Bind(CallJS(CodeFactory::Call(isolate()), context,
+                           buffer_constructor_noinit, UndefinedConstant(),
+                           byte_length));
+    Goto(&attach_buffer);
+  }
+
   BIND(&attach_buffer);
   {
-    StoreObjectField(holder, JSArrayBufferView::kBufferOffset, maybe_buffer);
-
-    Node* elements = Allocate(FixedTypedArrayBase::kHeaderSize);
-    StoreMapNoWriteBarrier(elements, fixed_typed_map.value());
-    StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
-    StoreObjectFieldNoWriteBarrier(
-        elements, FixedTypedArrayBase::kBasePointerOffset, SmiConstant(0));
-
-    Node* backing_store =
-        LoadObjectField(maybe_buffer, JSArrayBuffer::kBackingStoreOffset,
-                        MachineType::Pointer());
-
-    Node* external_pointer =
-        CalculateExternalPointer(backing_store, byte_offset);
-    StoreObjectFieldNoWriteBarrier(
-        elements, FixedTypedArrayBase::kExternalPointerOffset, external_pointer,
-        MachineType::PointerRepresentation());
-
-    StoreObjectField(holder, JSObject::kElementsOffset, elements);
+    AttachBuffer(holder, var_buffer.value(), fixed_typed_map, length,
+                 byte_offset);
     Goto(&done);
   }
 
   BIND(&done);
-}
-
-TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
-  Node* const holder = Parameter(Descriptor::kHolder);
-  Node* length = Parameter(Descriptor::kLength);
-  Node* const maybe_buffer = Parameter(Descriptor::kBuffer);
-  Node* const byte_offset = Parameter(Descriptor::kByteOffset);
-  Node* byte_length = Parameter(Descriptor::kByteLength);
-  Node* const initialize = Parameter(Descriptor::kInitialize);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  DoInitialize(holder, length, maybe_buffer, byte_offset, byte_length,
-               initialize, context);
   Return(UndefinedConstant());
-}
-
-// Small buffers with byte_length <= typed_array_max_size_in_heap are allocated
-// on the heap, but larger buffer must be externally allocated with the
-// ArrayBuffer constructor. This helper allocates the buffer externally if
-// necessary, and then calls into DoInitialize, which will allocate small
-// on-heap buffers.
-void TypedArrayBuiltinsAssembler::InitializeBasedOnLength(
-    Node* const holder, Node* const length, Node* const element_size,
-    Node* const byte_offset, Node* const initialize, Node* const context) {
-  Label allocate_buffer(this), allocate_buffer_noinit(this), do_init(this);
-
-  VARIABLE(maybe_buffer, MachineRepresentation::kTagged, NullConstant());
-
-  // SmiMul returns a heap number in case of Smi overflow.
-  Node* byte_length = SmiMul(length, element_size);
-  GotoIf(TaggedIsNotSmi(byte_length), &allocate_buffer);
-  GotoIf(SmiLessThanOrEqual(byte_length,
-                            SmiConstant(FLAG_typed_array_max_size_in_heap)),
-         &do_init);
-  Branch(IsTrue(initialize), &allocate_buffer, &allocate_buffer_noinit);
-
-  BIND(&allocate_buffer);
-  {
-    Node* const buffer_constructor = LoadContextElement(
-        LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX);
-    maybe_buffer.Bind(ConstructJS(CodeFactory::Construct(isolate()), context,
-                                  buffer_constructor, byte_length));
-    Goto(&do_init);
-  }
-
-  Bind(&allocate_buffer_noinit);
-  {
-    Node* const buffer_constructor_noinit = LoadContextElement(
-        LoadNativeContext(context), Context::ARRAY_BUFFER_NOINIT_FUN_INDEX);
-    maybe_buffer.Bind(CallJS(CodeFactory::Call(isolate()), context,
-                             buffer_constructor_noinit, UndefinedConstant(),
-                             byte_length));
-    Goto(&do_init);
-  }
-
-  Bind(&do_init);
-  {
-    DoInitialize(holder, length, maybe_buffer.value(), byte_offset, byte_length,
-                 initialize, context);
-  }
 }
 
 // ES6 #sec-typedarray-length
 TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
-  // We know that holder cannot be an object if this builtin was called.
   Node* holder = Parameter(Descriptor::kHolder);
   Node* length = Parameter(Descriptor::kLength);
   Node* element_size = Parameter(Descriptor::kElementSize);
   Node* context = Parameter(Descriptor::kContext);
 
-  Node* byte_offset = SmiConstant(0);
+  CSA_ASSERT(this, IsJSTypedArray(holder));
+  CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
+
   Node* initialize = BooleanConstant(true);
 
   Label invalid_length(this);
@@ -357,8 +362,8 @@ TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
   GotoIf(TaggedIsNotSmi(length), &invalid_length);
   GotoIf(SmiLessThan(length, SmiConstant(0)), &invalid_length);
 
-  InitializeBasedOnLength(holder, length, element_size, byte_offset, initialize,
-                          context);
+  CallBuiltin(Builtins::kTypedArrayInitialize, context, holder, length,
+              element_size, initialize);
   Return(UndefinedConstant());
 
   BIND(&invalid_length);
@@ -371,14 +376,16 @@ TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
 
 // ES6 #sec-typedarray-buffer-byteoffset-length
 TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
-  Node* const holder = Parameter(Descriptor::kHolder);
-  Node* const buffer = Parameter(Descriptor::kBuffer);
-  Node* const byte_offset = Parameter(Descriptor::kByteOffset);
-  Node* const length = Parameter(Descriptor::kLength);
-  Node* const element_size = Parameter(Descriptor::kElementSize);
-  CSA_ASSERT(this, TaggedIsSmi(element_size));
-  Node* const context = Parameter(Descriptor::kContext);
-  Node* const initialize = BooleanConstant(true);
+  Node* holder = Parameter(Descriptor::kHolder);
+  Node* buffer = Parameter(Descriptor::kBuffer);
+  Node* byte_offset = Parameter(Descriptor::kByteOffset);
+  Node* length = Parameter(Descriptor::kLength);
+  Node* element_size = Parameter(Descriptor::kElementSize);
+  Node* context = Parameter(Descriptor::kContext);
+
+  CSA_ASSERT(this, IsJSTypedArray(holder));
+  CSA_ASSERT(this, IsJSArrayBuffer(buffer));
+  CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
 
   VARIABLE(new_byte_length, MachineRepresentation::kTagged, SmiConstant(0));
   VARIABLE(offset, MachineRepresentation::kTagged, SmiConstant(0));
@@ -467,8 +474,8 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
     // Force the result into a Smi, or throw a range error if it doesn't fit.
     new_length = ToSmiIndex(new_length, context, &invalid_length);
 
-    DoInitialize(holder, new_length, buffer, offset.value(),
-                 new_byte_length.value(), initialize, context);
+    CallBuiltin(Builtins::kTypedArrayInitializeWithBuffer, context, holder,
+                new_length, buffer, element_size, offset.value());
     Return(UndefinedConstant());
   }
 
@@ -543,14 +550,13 @@ compiler::Node* TypedArrayBuiltinsAssembler::ByteLengthIsValid(
 }
 
 TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
-  Node* const holder = Parameter(Descriptor::kHolder);
-  Node* const array_like = Parameter(Descriptor::kArrayLike);
+  Node* holder = Parameter(Descriptor::kHolder);
+  Node* array_like = Parameter(Descriptor::kArrayLike);
   Node* initial_length = Parameter(Descriptor::kLength);
-  Node* const element_size = Parameter(Descriptor::kElementSize);
+  Node* element_size = Parameter(Descriptor::kElementSize);
   CSA_ASSERT(this, TaggedIsSmi(element_size));
-  Node* const context = Parameter(Descriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
 
-  Node* byte_offset = SmiConstant(0);
   Node* initialize = BooleanConstant(false);
 
   Label invalid_length(this), fill(this), fast_copy(this);
@@ -558,8 +564,8 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
   // The caller has looked up length on array_like, which is observable.
   Node* length = ToSmiLength(initial_length, context, &invalid_length);
 
-  InitializeBasedOnLength(holder, length, element_size, byte_offset, initialize,
-                          context);
+  CallBuiltin(Builtins::kTypedArrayInitialize, context, holder, length,
+              element_size, initialize);
   GotoIf(SmiNotEqual(length, SmiConstant(0)), &fill);
   Return(UndefinedConstant());
 
@@ -568,12 +574,9 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
   Node* source_kind = LoadMapElementsKind(LoadMap(array_like));
   GotoIf(Word32Equal(holder_kind, source_kind), &fast_copy);
 
-  // Call to JS to copy the contents of the array in.
-  Callable callable = CodeFactory::Call(isolate());
-  Node* copy_array_contents = LoadContextElement(
-      LoadNativeContext(context), Context::TYPED_ARRAY_SET_FROM_ARRAY_LIKE);
-  CallJS(callable, context, copy_array_contents, UndefinedConstant(), holder,
-         array_like, length, SmiConstant(0));
+  // Copy using the elements accessor.
+  CallRuntime(Runtime::kTypedArrayCopyElements, context, holder, array_like,
+              length);
   Return(UndefinedConstant());
 
   BIND(&fast_copy);

@@ -57,7 +57,10 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Reduction ReduceJSCreateWithContext(Node* node);
   Reduction ReduceJSCreateCatchContext(Node* node);
   Reduction ReduceJSCreateBlockContext(Node* node);
+  Reduction ReduceJSCreateGeneratorObject(Node* node);
   Reduction ReduceNewArray(Node* node, Node* length, int capacity,
+                           Handle<AllocationSite> site);
+  Reduction ReduceNewArray(Node* node, std::vector<Node*> values,
                            Handle<AllocationSite> site);
 
   Node* AllocateArguments(Node* effect, Node* control, Node* frame_state);
@@ -68,6 +71,10 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                                  bool* has_aliased_arguments);
   Node* AllocateElements(Node* effect, Node* control,
                          ElementsKind elements_kind, int capacity,
+                         PretenureFlag pretenure);
+  Node* AllocateElements(Node* effect, Node* control,
+                         ElementsKind elements_kind,
+                         std::vector<Node*> const& values,
                          PretenureFlag pretenure);
   Node* AllocateFastLiteral(Node* effect, Node* control,
                             Handle<JSObject> boilerplate,

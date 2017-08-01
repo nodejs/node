@@ -158,6 +158,14 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(1, 2) void PrintError(const char* format, ...);
   static PRINTF_FORMAT(1, 0) void VPrintError(const char* format, va_list args);
 
+  // Memory access permissions. Only the modes currently used by V8 are listed
+  // here even though most systems support additional modes.
+  enum class MemoryPermission { kNoAccess, kReadWrite, kReadWriteExecute };
+
+  // Allocate/Free memory used by JS heap. Permissions are set according to the
+  // is_* flags. Returns the address of allocated memory, or NULL if failed.
+  static void* Allocate(const size_t requested, size_t* allocated,
+                        MemoryPermission access);
   // Allocate/Free memory used by JS heap. Pages are readable/writable, but
   // they are not guaranteed to be executable unless 'executable' is true.
   // Returns the address of allocated memory, or NULL if failed.
@@ -167,8 +175,8 @@ class V8_BASE_EXPORT OS {
   static void Free(void* address, const size_t size);
 
   // Allocates a region of memory that is inaccessible. On Windows this reserves
-  // but does not commit the memory. On Linux, it is equivalent to a call to
-  // Allocate() followed by Guard().
+  // but does not commit the memory. On POSIX systems it allocates memory as
+  // PROT_NONE, which also prevents it from being committed.
   static void* AllocateGuarded(const size_t requested);
 
   // This is the granularity at which the ProtectCode(...) call can set page

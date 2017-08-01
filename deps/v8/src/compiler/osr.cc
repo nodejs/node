@@ -94,8 +94,7 @@ void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
         continue;
       }
       if (orig->InputCount() == 0 || orig->opcode() == IrOpcode::kParameter ||
-          orig->opcode() == IrOpcode::kOsrValue ||
-          orig->opcode() == IrOpcode::kOsrGuard) {
+          orig->opcode() == IrOpcode::kOsrValue) {
         // No need to copy leaf nodes or parameters.
         mapping->at(orig->id()) = orig;
         continue;
@@ -254,20 +253,6 @@ void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
   }
 }
 
-void SetTypeForOsrValue(Node* osr_value, Node* loop,
-                        CommonOperatorBuilder* common) {
-  Node* osr_guard = nullptr;
-  for (Node* use : osr_value->uses()) {
-    if (use->opcode() == IrOpcode::kOsrGuard) {
-      DCHECK_EQ(use->InputAt(0), osr_value);
-      osr_guard = use;
-      break;
-    }
-  }
-
-  NodeProperties::ChangeOp(osr_guard, common->OsrGuard(OsrGuardType::kAny));
-}
-
 }  // namespace
 
 void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
@@ -296,12 +281,6 @@ void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
   }
 
   CHECK(osr_loop);  // Should have found the OSR loop.
-
-  for (Node* use : osr_loop_entry->uses()) {
-    if (use->opcode() == IrOpcode::kOsrValue) {
-      SetTypeForOsrValue(use, osr_loop, common);
-    }
-  }
 
   // Analyze the graph to determine how deeply nested the OSR loop is.
   LoopTree* loop_tree = LoopFinder::BuildLoopTree(graph, tmp_zone);

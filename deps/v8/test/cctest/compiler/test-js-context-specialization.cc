@@ -21,7 +21,7 @@ namespace compiler {
 
 class ContextSpecializationTester : public HandleAndZoneScope {
  public:
-  explicit ContextSpecializationTester(MaybeHandle<Context> context)
+  explicit ContextSpecializationTester(Maybe<OuterContext> context)
       : graph_(new (main_zone()) Graph(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
@@ -103,7 +103,7 @@ void ContextSpecializationTester::CheckContextInputAndDepthChanges(
 static const int slot_index = Context::NATIVE_CONTEXT_INDEX;
 
 TEST(ReduceJSLoadContext0) {
-  ContextSpecializationTester t((MaybeHandle<Context>()));
+  ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
@@ -174,7 +174,7 @@ TEST(ReduceJSLoadContext1) {
   //
   //   context2 <-- context1 <-- context0 (= Parameter(0))
 
-  ContextSpecializationTester t((MaybeHandle<Context>()));
+  ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
@@ -239,12 +239,12 @@ TEST(ReduceJSLoadContext1) {
 
 TEST(ReduceJSLoadContext2) {
   // The graph's context chain ends in a constant context (context_object1),
-  // which has has another outer context (context_object0).
+  // which has another outer context (context_object0).
   //
   //   context2 <-- context1 <-- context0 (= HeapConstant(context_object1))
   //   context_object1 <~~ context_object0
 
-  ContextSpecializationTester t((MaybeHandle<Context>()));
+  ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
@@ -335,7 +335,7 @@ TEST(ReduceJSLoadContext3) {
   context_object0->set(slot_index, *slot_value0);
   context_object1->set(slot_index, *slot_value1);
 
-  ContextSpecializationTester t(context_object1);
+  ContextSpecializationTester t(Just(OuterContext(context_object1, 0)));
 
   Node* start = t.graph()->NewNode(t.common()->Start(2));
   t.graph()->SetStart(start);
@@ -399,7 +399,7 @@ TEST(ReduceJSLoadContext3) {
 }
 
 TEST(ReduceJSStoreContext0) {
-  ContextSpecializationTester t((MaybeHandle<Context>()));
+  ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
@@ -461,7 +461,7 @@ TEST(ReduceJSStoreContext0) {
 }
 
 TEST(ReduceJSStoreContext1) {
-  ContextSpecializationTester t((MaybeHandle<Context>()));
+  ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
@@ -505,7 +505,7 @@ TEST(ReduceJSStoreContext1) {
 }
 
 TEST(ReduceJSStoreContext2) {
-  ContextSpecializationTester t((MaybeHandle<Context>()));
+  ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
@@ -570,7 +570,7 @@ TEST(ReduceJSStoreContext3) {
   context_object0->set(slot_index, *slot_value0);
   context_object1->set(slot_index, *slot_value1);
 
-  ContextSpecializationTester t(context_object1);
+  ContextSpecializationTester t(Just(OuterContext(context_object1, 0)));
 
   Node* start = t.graph()->NewNode(t.common()->Start(2));
   t.graph()->SetStart(start);

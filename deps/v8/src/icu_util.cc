@@ -8,7 +8,7 @@
 #include <windows.h>
 #endif
 
-#if defined(V8_I18N_SUPPORT)
+#if defined(V8_INTL_SUPPORT)
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -30,7 +30,7 @@ namespace v8 {
 
 namespace internal {
 
-#if defined(V8_I18N_SUPPORT) && (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
+#if defined(V8_INTL_SUPPORT) && (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
 namespace {
 char* g_icu_data_ptr = NULL;
 
@@ -43,7 +43,7 @@ void free_icu_data_ptr() {
 
 bool InitializeICUDefaultLocation(const char* exec_path,
                                   const char* icu_data_file) {
-#if !defined(V8_I18N_SUPPORT)
+#if !defined(V8_INTL_SUPPORT)
   return true;
 #else
 #if ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE
@@ -68,7 +68,7 @@ bool InitializeICUDefaultLocation(const char* exec_path,
 }
 
 bool InitializeICU(const char* icu_data_file) {
-#if !defined(V8_I18N_SUPPORT)
+#if !defined(V8_INTL_SUPPORT)
   return true;
 #else
 #if ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_SHARED

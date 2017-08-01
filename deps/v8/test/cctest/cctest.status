@@ -81,9 +81,13 @@
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
 
   # BUG(v8:5193): Flaky.
+  'test-cpu-profiler/CollectDeoptEvents': [SKIP],
   'test-cpu-profiler/FunctionApplySample': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
+  'test-cpu-profiler/JsNativeJsSample': [SKIP],
+  'test-sampler/LibSamplerCollectSample': [SKIP],
 
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
@@ -140,14 +144,14 @@
   ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
 }],  # 'arch == arm64'
 
-['arch == arm64 and simulator_run == True', {
+['arch == arm64 and simulator_run', {
 
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, TIMEOUT],
   'test-api/Threading*': [PASS, SKIP],
-}],  # 'arch == arm64 and simulator_run == True'
+}],  # 'arch == arm64 and simulator_run'
 
-['arch == arm64 and mode == debug and simulator_run == True', {
+['arch == arm64 and mode == debug and simulator_run', {
 
   # Pass but take too long with the simulator in debug mode.
   'test-api/ExternalDoubleArray': [SKIP],
@@ -159,7 +163,7 @@
 
   # BUG(v8:5193): Flaky crash.
   'test-sampler/LibSamplerCollectSample': [SKIP],
-}],  # 'arch == arm64 and mode == debug and simulator_run == True'
+}],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
 ['asan == True', {
@@ -243,11 +247,29 @@
 }],  # 'system == windows'
 
 ##############################################################################
+['system == windows and arch == x64 and mode == debug', {
+  # BUG(v8:6328).
+  'test-serialize/PartialSerializerCustomContext': [SKIP],
+  'test-serialize/PartialSerializerObject': [SKIP],
+  'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+  'test-serialize/StartupSerializerTwice': [SKIP],
+}],  # 'system == windows and arch == x64 and mode == debug'
+
+##############################################################################
 ['system == macos', {
   # BUG(v8:5193) Flaky failures.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
 }],  # 'system == macos'
+
+##############################################################################
+['arch == arm and simulator_run', {
+
+  # Pass but take too long with the simulator.
+  'test-api/Threading*': [PASS, SKIP],
+}],  # 'arch == arm and simulator_run'
 
 ##############################################################################
 ['arch == arm', {
@@ -291,6 +313,9 @@
   'test-parsing/TooManyArguments': [SKIP],
   'test-api/Threading5': [SKIP],
   'test-api/Threading6': [SKIP],
+
+  # BUG(v8:5193): Flaky timeout.
+  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################
@@ -309,6 +334,16 @@
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
+
+##############################################################################
+['arch == mips or arch == mipsel or arch == mips64 or arch == mips64el', {
+  # For now skip WASM SIMD tests that fail when MSA instr. extension is not
+  # available (currently simd-scalar-lowering mechanism doesn't work properly
+  # for all SIMD operations)
+  'test-run-wasm-simd/RunWasmCompiled_S32x4Select': [SKIP],
+  'test-run-wasm-simd/RunWasmCompiled_F32x4RecipSqrtApprox': [SKIP],
+  'test-run-wasm-simd/RunWasmCompiled_F32x4RecipApprox': [SKIP],
+}],  # 'arch == mips or arch == mipsel or arch == mips64 or arch == mips64el'
 
 ##############################################################################
 ['arch == x87', {
@@ -360,17 +395,19 @@
   'test-run-wasm-module/Run_WasmModule_Return114' : [SKIP],
   'test-run-wasm-module/Run_WasmModule_CallAdd' : [SKIP],
   'test-run-wasm-module/Run_WasmModule_CallMain_recursive' : [SKIP],
+  # TODO(ppc): Implement load/store reverse byte instructions
+  'test-run-wasm-simd/RunWasmCompiled_SimdLoadStoreLoad': [SKIP],
 
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
 ##############################################################################
-['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
+['arch == ppc and simulator_run or arch == ppc64 and simulator_run', {
 
   # Pass but take too long with the simulator.
   'test-api/Threading*': [PASS, SLOW],
   'test-api/ExternalArrays': [PASS, SLOW],
 
-}],  # 'arch == ppc64 and simulator_run == True'
+}],  # 'arch == ppc64 and simulator_run'
 
 ##############################################################################
 ['variant == turbofan_opt', {
@@ -383,6 +420,13 @@
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
 }],  # variant == turbofan
+
+##############################################################################
+['variant == noturbofan and no_snap', {
+  # Too slow for old pipeline and nosnap.
+  'test-lockers/SeparateIsolatesLocksNonexclusive': [SKIP],
+  'test-lockers/ExtensionsRegistration': [SKIP],
+}],  # variant == noturbofan and no_snap
 
 ##############################################################################
 ['variant == wasm_traps', {

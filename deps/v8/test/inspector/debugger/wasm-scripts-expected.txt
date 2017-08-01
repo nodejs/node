@@ -1,3 +1,4 @@
+Tests how wasm scripts are reported
 Check that inspector gets two wasm scripts at module creation time.
 Script #0 parsed. URL: v8://test/testFunction
 Script #1 parsed. URL: v8://test/runTestRunction

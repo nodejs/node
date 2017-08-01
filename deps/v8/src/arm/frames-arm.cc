@@ -20,16 +20,16 @@ namespace internal {
 Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
 Register JavaScriptFrame::context_register() { return cp; }
 Register JavaScriptFrame::constant_pool_pointer_register() {
-  DCHECK(FLAG_enable_embedded_constant_pool);
-  return pp;
+  UNREACHABLE();
+  return no_reg;
 }
 
 
 Register StubFailureTrampolineFrame::fp_register() { return v8::internal::fp; }
 Register StubFailureTrampolineFrame::context_register() { return cp; }
 Register StubFailureTrampolineFrame::constant_pool_pointer_register() {
-  DCHECK(FLAG_enable_embedded_constant_pool);
-  return pp;
+  UNREACHABLE();
+  return no_reg;
 }
 
 

@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 // Flags: --expose_gc
 
-InspectorTest.log("Tests that Runtime.awaitPromise works.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Tests that Runtime.awaitPromise works.");
 
-InspectorTest.addScript(
+contextGroup.addScript(
 `
 var resolveCallback;
 var rejectCallback;

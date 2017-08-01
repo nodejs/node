@@ -66,6 +66,8 @@ int IdentityMapBase::InsertKey(Object* address) {
     for (int index = start; --limit > 0; index = (index + 1) & mask_) {
       if (keys_[index] == address) return index;  // Found.
       if (keys_[index] == not_mapped) {           // Free entry.
+        size_++;
+        DCHECK_LE(size_, capacity_);
         keys_[index] = address;
         return index;
       }
@@ -133,8 +135,6 @@ int IdentityMapBase::LookupOrInsert(Object* key) {
     // Miss; rehash if there was a GC, then insert.
     if (gc_counter_ != heap_->gc_count()) Rehash();
     index = InsertKey(key);
-    size_++;
-    DCHECK_LE(size_, capacity_);
   }
   DCHECK_GE(index, 0);
   return index;
@@ -237,6 +237,7 @@ void IdentityMapBase::Rehash() {
         keys_[i] = not_mapped;
         values_[i] = nullptr;
         last_empty = i;
+        size_--;
       }
     }
   }
@@ -259,6 +260,7 @@ void IdentityMapBase::Resize(int new_capacity) {
   capacity_ = new_capacity;
   mask_ = capacity_ - 1;
   gc_counter_ = heap_->gc_count();
+  size_ = 0;
 
   keys_ = reinterpret_cast<Object**>(NewPointerArray(capacity_));
   Object* not_mapped = heap_->not_mapped_symbol();

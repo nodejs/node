@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Debugger.scriptParsed and Debugger.scriptFailedToParse with ES6 module');
+let {session, contextGroup, Protocol} = InspectorTest.start('Debugger.scriptParsed and Debugger.scriptFailedToParse with ES6 module');
 
 let moduleSource = `
 export function foo() {
   return 42;
 }`;
 
-InspectorTest.addModule(moduleSource, 'module1.js');
-InspectorTest.addModule('}', 'module-with-syntax-error-1.js');
+contextGroup.addModule(moduleSource, 'module1.js');
+contextGroup.addModule('}', 'module-with-syntax-error-1.js');
 
 Protocol.Debugger.onScriptParsed(InspectorTest.logMessage);
 Protocol.Debugger.onScriptFailedToParse(InspectorTest.logMessage);
@@ -21,8 +21,8 @@ InspectorTest.runTestSuite([
   },
 
   function testScriptEventsWhenDebuggerIsEnabled(next) {
-    InspectorTest.addModule(moduleSource, 'module2.js');
-    InspectorTest.addModule('}', 'module-with-syntax-error-2.js');
-    InspectorTest.waitPendingTasks().then(next);
+    contextGroup.addModule(moduleSource, 'module2.js');
+    contextGroup.addModule('}', 'module-with-syntax-error-2.js');
+    InspectorTest.waitForPendingTasks().then(next);
   }
 ]);

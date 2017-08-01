@@ -349,7 +349,7 @@
             {
                 "name": "executionContextCreated",
                 "parameters": [
-                    { "name": "context", "$ref": "ExecutionContextDescription", "description": "A newly created execution contex." }
+                    { "name": "context", "$ref": "ExecutionContextDescription", "description": "A newly created execution context." }
                 ],
                 "description": "Issued when new execution context is created."
             },
@@ -545,7 +545,7 @@
                 "name": "getPossibleBreakpoints",
                 "parameters": [
                     { "name": "start", "$ref": "Location", "description": "Start of range to search possible breakpoint locations in." },
-                    { "name": "end", "$ref": "Location", "optional": true, "description": "End of range to search possible breakpoint locations in (excluding). When not specifed, end of scripts is used as end of range." },
+                    { "name": "end", "$ref": "Location", "optional": true, "description": "End of range to search possible breakpoint locations in (excluding). When not specified, end of scripts is used as end of range." },
                     { "name": "restrictToFunction", "type": "boolean", "optional": true, "description": "Only consider locations which are in the same (non-nested) function as start." }
                 ],
                 "returns": [
@@ -557,7 +557,8 @@
             {
                 "name": "continueToLocation",
                 "parameters": [
-                    { "name": "location", "$ref": "Location", "description": "Location to continue to." }
+                    { "name": "location", "$ref": "Location", "description": "Location to continue to." },
+                    { "name": "targetCallFrames", "type": "string", "enum": ["any", "current"], "optional": true, "experimental": true }
                 ],
                 "description": "Continues execution until specific location is reached."
             },
@@ -938,7 +939,7 @@
                     { "name": "location", "$ref": "Debugger.Location", "description": "Location of console.profile()." },
                     { "name": "title", "type": "string", "optional": true, "description": "Profile title passed as an argument to console.profile()." }
                 ],
-                "description": "Sent when new profile recodring is started using console.profile() call."
+                "description": "Sent when new profile recording is started using console.profile() call."
             },
             {
                 "name": "consoleProfileFinished",
@@ -1067,7 +1068,7 @@
             },
             {
                 "name": "lastSeenObjectId",
-                "description": "If heap objects tracking has been started then backend regulary sends a current value for last seen object id and corresponding timestamp. If the were changes in the heap since last event then one or more heapStatsUpdate events will be sent before a new lastSeenObjectId event.",
+                "description": "If heap objects tracking has been started then backend regularly sends a current value for last seen object id and corresponding timestamp. If the were changes in the heap since last event then one or more heapStatsUpdate events will be sent before a new lastSeenObjectId event.",
                 "parameters": [
                     { "name": "lastSeenObjectId", "type": "integer" },
                     { "name": "timestamp", "type": "number" }

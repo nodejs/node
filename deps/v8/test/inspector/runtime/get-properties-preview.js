@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.setupInjectedScriptEnvironment();
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests generated previews in Runtime.getProperties');
+
+contextGroup.setupInjectedScriptEnvironment();
 
 Protocol.Runtime.evaluate({ "expression": "({p1: {a:1}, p2: {b:'foo', bb:'bar'}})" }).then(callbackEvaluate);
 

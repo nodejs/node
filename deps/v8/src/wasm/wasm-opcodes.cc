@@ -175,16 +175,11 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIMD_OP(Sub, "sub")
     CASE_SIMD_OP(Mul, "mul")
     CASE_F32x4_OP(Abs, "abs")
-    CASE_F32x4_OP(Sqrt, "sqrt")
-    CASE_F32x4_OP(Div, "div")
+    CASE_F32x4_OP(AddHoriz, "add_horizontal")
     CASE_F32x4_OP(RecipApprox, "recip_approx")
-    CASE_F32x4_OP(RecipRefine, "recip_refine")
     CASE_F32x4_OP(RecipSqrtApprox, "recip_sqrt_approx")
-    CASE_F32x4_OP(RecipSqrtRefine, "recip_sqrt_refine")
     CASE_F32x4_OP(Min, "min")
     CASE_F32x4_OP(Max, "max")
-    CASE_F32x4_OP(MinNum, "min_num")
-    CASE_F32x4_OP(MaxNum, "max_num")
     CASE_F32x4_OP(Lt, "lt")
     CASE_F32x4_OP(Le, "le")
     CASE_F32x4_OP(Gt, "gt")
@@ -209,6 +204,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIGN_OP(SIMDI, Ge, "ge")
     CASE_SIGN_OP(SIMDI, Shr, "shr")
     CASE_SIMDI_OP(Shl, "shl")
+    CASE_I32x4_OP(AddHoriz, "add_horizontal")
+    CASE_I16x8_OP(AddHoriz, "add_horizontal")
     CASE_SIGN_OP(I16x8, AddSaturate, "add_saturate")
     CASE_SIGN_OP(I8x16, AddSaturate, "add_saturate")
     CASE_SIGN_OP(I16x8, SubSaturate, "sub_saturate")
@@ -217,15 +214,12 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S128_OP(Or, "or")
     CASE_S128_OP(Xor, "xor")
     CASE_S128_OP(Not, "not")
-    CASE_S32x4_OP(Select, "select")
-    CASE_S32x4_OP(Swizzle, "swizzle")
     CASE_S32x4_OP(Shuffle, "shuffle")
-    CASE_S16x8_OP(Select, "select")
-    CASE_S16x8_OP(Swizzle, "swizzle")
+    CASE_S32x4_OP(Select, "select")
     CASE_S16x8_OP(Shuffle, "shuffle")
-    CASE_S8x16_OP(Select, "select")
-    CASE_S8x16_OP(Swizzle, "swizzle")
+    CASE_S16x8_OP(Select, "select")
     CASE_S8x16_OP(Shuffle, "shuffle")
+    CASE_S8x16_OP(Select, "select")
     CASE_S1x4_OP(And, "and")
     CASE_S1x4_OP(Or, "or")
     CASE_S1x4_OP(Xor, "xor")
@@ -266,6 +260,30 @@ bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
     return true;
     FOREACH_PREFIX(CHECK_PREFIX)
 #undef CHECK_PREFIX
+    default:
+      return false;
+  }
+}
+
+bool WasmOpcodes::IsControlOpcode(WasmOpcode opcode) {
+  switch (opcode) {
+#define CHECK_OPCODE(name, opcode, _) \
+  case kExpr##name:                   \
+    return true;
+    FOREACH_CONTROL_OPCODE(CHECK_OPCODE)
+#undef CHECK_OPCODE
+    default:
+      return false;
+  }
+}
+
+bool WasmOpcodes::IsUnconditionalJump(WasmOpcode opcode) {
+  switch (opcode) {
+    case kExprUnreachable:
+    case kExprBr:
+    case kExprBrTable:
+    case kExprReturn:
+      return true;
     default:
       return false;
   }

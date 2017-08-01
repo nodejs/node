@@ -772,8 +772,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchPrepareCallCFunction:
       // We don't need kArchPrepareCallCFunction on arm64 as the instruction
-      // selector already perform a Claim to reserve space on the stack and
-      // guarantee correct alignment of stack pointer.
+      // selector has already performed a Claim to reserve space on the stack.
+      // Frame alignment is always 16 bytes, and the stack pointer is already
+      // 16-byte aligned, therefore we do not need to align the stack pointer
+      // by an unknown value, and it is safe to continue accessing the frame
+      // via the stack pointer.
       UNREACHABLE();
       break;
     case kArchPrepareTailCall:
@@ -788,9 +791,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters, 0);
       }
-      // CallCFunction only supports register arguments so we never need to call
-      // frame()->ClearOutgoingParameterSlots() here.
-      DCHECK(frame_access_state()->sp_delta() == 0);
+      frame_access_state()->SetFrameAccessToDefault();
+      frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchJmp:
@@ -1228,14 +1230,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register prev = __ StackPointer();
       if (prev.Is(jssp)) {
         // TODO(titzer): make this a macro-assembler method.
-        // Align the CSP and store the previous JSSP on the stack.
+        // Align the CSP and store the previous JSSP on the stack. We do not
+        // need to modify the SP delta here, as we will continue to access the
+        // frame via JSSP.
         UseScratchRegisterScope scope(masm());
         Register tmp = scope.AcquireX();
 
+        // TODO(arm64): Storing JSSP on the stack is redundant when calling a C
+        // function, as JSSP is callee-saved (we still need to do this when
+        // calling a code object that uses the CSP as the stack pointer). See
+        // the code generation for kArchCallCodeObject vs. kArchCallCFunction
+        // (the latter does not restore CSP/JSSP).
+        // MacroAssembler::CallCFunction() (safely) drops this extra slot
+        // anyway.
         int sp_alignment = __ ActivationFrameAlignment();
         __ Sub(tmp, jssp, kPointerSize);
-        __ And(tmp, tmp, Operand(~static_cast<uint64_t>(sp_alignment - 1)));
-        __ Mov(csp, tmp);
+        __ Bic(csp, tmp, sp_alignment - 1);
         __ Str(jssp, MemOperand(csp));
         if (count > 0) {
           __ SetStackPointer(csp);
@@ -1259,7 +1269,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (count > 0) {
           int even = RoundUp(count, 2);
           __ Sub(jssp, csp, count * kPointerSize);
+          // We must also update CSP to maintain stack consistency:
           __ Sub(csp, csp, even * kPointerSize);  // Must always be aligned.
+          __ AssertStackConsistency();
           frame_access_state()->IncreaseSPDelta(even);
         } else {
           __ Mov(jssp, csp);
@@ -1994,6 +2006,53 @@ void CodeGenerator::AssembleConstructFrame() {
       osr_pc_offset_ = __ pc_offset();
       shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
     }
+
+    if (info()->IsWasm() && shrink_slots > 128) {
+      // For WebAssembly functions with big frames we have to do the stack
+      // overflow check before we construct the frame. Otherwise we may not
+      // have enough space on the stack to call the runtime for the stack
+      // overflow.
+      Label done;
+      // If the frame is bigger than the stack, we throw the stack overflow
+      // exception unconditionally. Thereby we can avoid the integer overflow
+      // check in the condition code.
+      if (shrink_slots * kPointerSize < FLAG_stack_size * 1024) {
+        UseScratchRegisterScope scope(masm());
+        Register scratch = scope.AcquireX();
+        __ Mov(
+            scratch,
+            Operand(ExternalReference::address_of_real_stack_limit(isolate())));
+        __ Ldr(scratch, MemOperand(scratch));
+        __ Add(scratch, scratch, Operand(shrink_slots * kPointerSize));
+        __ Cmp(__ StackPointer(), scratch);
+        __ B(cs, &done);
+      }
+
+      if (!frame_access_state()->has_frame()) {
+        __ set_has_frame(true);
+        // There is no need to leave the frame, we will not return from the
+        // runtime call.
+        __ EnterFrame(StackFrame::WASM_COMPILED);
+      }
+      DCHECK(__ StackPointer().Is(csp));
+      __ SetStackPointer(jssp);
+      __ AssertStackConsistency();
+      // Initialize the jssp because it is required for the runtime call.
+      __ Mov(jssp, csp);
+      __ Move(cp, Smi::kZero);
+      __ CallRuntime(Runtime::kThrowWasmStackOverflow);
+      // We come from WebAssembly, there are no references for the GC.
+      ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+      RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                      Safepoint::kNoLazyDeopt);
+      if (FLAG_debug_code) {
+        __ Brk(0);
+      }
+      __ SetStackPointer(csp);
+      __ AssertStackConsistency();
+      __ bind(&done);
+    }
+
     // Build remainder of frame, including accounting for and filling-in
     // frame-specific header information, e.g. claiming the extra slot that
     // other platforms explicitly push for STUB frames and frames recording

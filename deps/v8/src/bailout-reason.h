@@ -120,7 +120,6 @@ namespace internal {
   V(kInvalidLhsInCountOperation, "Invalid lhs in count operation")             \
   V(kInvalidMinLength, "Invalid min_length")                                   \
   V(kInvalidRegisterFileInGenerator, "invalid register file in generator")     \
-  V(kLetBindingReInitialization, "Let binding re-initialization")              \
   V(kLiveEdit, "LiveEdit")                                                     \
   V(kLookupVariableInCountOperation, "Lookup variable in count operation")     \
   V(kMapBecameDeprecated, "Map became deprecated")                             \
@@ -234,7 +233,6 @@ namespace internal {
   V(kUnexpectedStringType, "Unexpected string type")                           \
   V(kUnexpectedTestTypeofLiteralFlag,                                          \
     "Unexpected literal flag for TestTypeof bytecode")                         \
-  V(kUnexpectedRegExpExecCall, "Unexpected call to the RegExpExecStub")        \
   V(kUnexpectedValue, "Unexpected value")                                      \
   V(kUnsupportedDoubleImmediate, "Unsupported double immediate")               \
   V(kUnsupportedLetCompoundAssignment, "Unsupported let compound assignment")  \

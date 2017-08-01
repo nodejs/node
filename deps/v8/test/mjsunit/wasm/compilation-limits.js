@@ -106,8 +106,4 @@ async function TestAll() {
   await FailAsyncInstantiate();
 }
 
-%IncrementWaitCount();
-TestAll().then(
-  () => { %DecrementWaitCount(); },
-  () => { %DecrementWaitCount(); }
-);
+assertPromiseResult(TestAll());

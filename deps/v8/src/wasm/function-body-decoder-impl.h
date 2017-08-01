@@ -322,6 +322,20 @@ struct SimdShiftOperand {
   }
 };
 
+// Operand for SIMD shuffle operations.
+template <bool checked>
+struct SimdShuffleOperand {
+  uint8_t shuffle[16];
+  unsigned lanes;
+
+  inline SimdShuffleOperand(Decoder* decoder, const byte* pc, unsigned lanes_) {
+    lanes = lanes_;
+    for (unsigned i = 0; i < lanes; i++) {
+      shuffle[i] = decoder->read_u8<checked>(pc + 2 + i, "shuffle");
+    }
+  }
+};
+
 #undef CHECKED_COND
 
 }  // namespace wasm

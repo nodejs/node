@@ -599,14 +599,6 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void TypeFeedbackInfo::TypeFeedbackInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "TypeFeedbackInfo");
-  os << "\n - ic_total_count: " << ic_total_count()
-     << ", ic_with_type_info_count: " << ic_with_type_info_count()
-     << ", ic_generic_count: " << ic_generic_count() << "\n";
-}
-
-
 void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
     std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AliasedArgumentsEntry");
@@ -711,6 +703,8 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     os << " (empty)\n";
     return;
   }
+
+  os << "\n Optimized Code: " << Brief(optimized_code());
 
   FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
@@ -1100,7 +1094,6 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
     os << "\n - no debug info";
   }
   os << "\n - length = " << length();
-  os << "\n - optimized_code_map = " << Brief(optimized_code_map());
   os << "\n - feedback_metadata = ";
   feedback_metadata()->FeedbackMetadataPrint(os);
   if (HasBytecodeArray()) {
@@ -1338,14 +1331,6 @@ void ContextExtension::ContextExtensionPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void ConstantElementsPair::ConstantElementsPairPrint(
-    std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "ConstantElementsPair");
-  os << "\n - elements_kind: " << static_cast<ElementsKind>(elements_kind());
-  os << "\n - constant_values: " << Brief(constant_values());
-  os << "\n";
-}
-
 void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AccessorPair");
   os << "\n - getter: " << Brief(getter());
@@ -1371,14 +1356,6 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - query: " << Brief(query());
   os << "\n - deleter: " << Brief(deleter());
   os << "\n - enumerator: " << Brief(enumerator());
-  os << "\n - data: " << Brief(data());
-  os << "\n";
-}
-
-
-void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "CallHandlerInfo");
-  os << "\n - callback: " << Brief(callback());
   os << "\n - data: " << Brief(data());
   os << "\n";
 }
@@ -1485,13 +1462,6 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void BreakPointInfo::BreakPointInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "BreakPointInfo");
-  os << "\n - source_position: " << source_position();
-  os << "\n - break_point_objects: " << Brief(break_point_objects());
-  os << "\n";
-}
-
 void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "StackFrame");
   os << "\n - line_number: " << line_number();
@@ -1553,9 +1523,7 @@ void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
 
 #endif  // OBJECT_PRINT
 
-
-#if TRACE_MAPS
-
+#if V8_TRACE_MAPS
 
 void Name::NameShortPrint() {
   if (this->IsString()) {
@@ -1586,9 +1554,7 @@ int Name::NameShortPrint(Vector<char> str) {
   }
 }
 
-
-#endif  // TRACE_MAPS
-
+#endif  // V8_TRACE_MAPS
 
 #if defined(DEBUG) || defined(OBJECT_PRINT)
 // This method is only meant to be called from gdb for debugging purposes.

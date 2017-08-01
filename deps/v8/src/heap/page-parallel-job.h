@@ -20,16 +20,10 @@ class Isolate;
 // The JobTraits class needs to define:
 // - PerPageData type - state associated with each page.
 // - PerTaskData type - state associated with each task.
-// - static bool ProcessPageInParallel(Heap* heap,
+// - static void ProcessPageInParallel(Heap* heap,
 //                                     PerTaskData task_data,
 //                                     MemoryChunk* page,
 //                                     PerPageData page_data)
-//   The function should return true iff processing succeeded.
-// - static const bool NeedSequentialFinalization
-// - static void FinalizePageSequentially(Heap* heap,
-//                                        bool processing_succeeded,
-//                                        MemoryChunk* page,
-//                                        PerPageData page_data)
 template <typename JobTraits>
 class PageParallelJob {
  public:
@@ -108,21 +102,12 @@ class PageParallelJob {
         pending_tasks_->Wait();
       }
     }
-    if (JobTraits::NeedSequentialFinalization) {
-      Item* item = items_;
-      while (item != nullptr) {
-        bool success = (item->state.Value() == kFinished);
-        JobTraits::FinalizePageSequentially(heap_, item->chunk, success,
-                                            item->data);
-        item = item->next;
-      }
-    }
   }
 
  private:
-  static const int kMaxNumberOfTasks = 10;
+  static const int kMaxNumberOfTasks = 32;
 
-  enum ProcessingState { kAvailable, kProcessing, kFinished, kFailed };
+  enum ProcessingState { kAvailable, kProcessing, kFinished };
 
   struct Item : public Malloced {
     Item(MemoryChunk* chunk, typename JobTraits::PerPageData data, Item* next)
@@ -158,9 +143,9 @@ class PageParallelJob {
       }
       for (int i = 0; i < num_items_; i++) {
         if (current->state.TrySetValue(kAvailable, kProcessing)) {
-          bool success = JobTraits::ProcessPageInParallel(
-              heap_, data_, current->chunk, current->data);
-          current->state.SetValue(success ? kFinished : kFailed);
+          JobTraits::ProcessPageInParallel(heap_, data_, current->chunk,
+                                           current->data);
+          current->state.SetValue(kFinished);
         }
         current = current->next;
         // Wrap around if needed.

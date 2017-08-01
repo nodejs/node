@@ -161,13 +161,6 @@ int Compare(const T& a, const T& b) {
     return 1;
 }
 
-
-template <typename T>
-int PointerValueCompare(const T* a, const T* b) {
-  return Compare<T>(*a, *b);
-}
-
-
 // Compare function to compare the object pointer value of two
 // handlified objects. The handles are passed as pointers to the
 // handles.
@@ -313,7 +306,7 @@ class BitFieldBase {
   static const T kMax = static_cast<T>((kOne << size) - 1);
 
   // Tells whether the provided value fits into the bit field.
-  static bool is_valid(T value) {
+  static constexpr bool is_valid(T value) {
     return (static_cast<U>(value) & ~static_cast<U>(kMax)) == 0;
   }
 
@@ -986,7 +979,7 @@ void PRINTF_FORMAT(2, 3) PrintIsolate(void* isolate, const char* format, ...);
 // Safe formatting print. Ensures that str is always null-terminated.
 // Returns the number of chars written, or -1 if output was truncated.
 int PRINTF_FORMAT(2, 3) SNPrintF(Vector<char> str, const char* format, ...);
-int PRINTF_FORMAT(2, 0)
+V8_EXPORT_PRIVATE int PRINTF_FORMAT(2, 0)
     VSNPrintF(Vector<char> str, const char* format, va_list args);
 
 void StrNCpy(Vector<char> dest, const char* src, size_t n);
@@ -1049,11 +1042,8 @@ int WriteAsCFile(const char* filename, const char* varname,
 template <typename T>
 inline void CopyWords(T* dst, const T* src, size_t num_words) {
   STATIC_ASSERT(sizeof(T) == kPointerSize);
-  // TODO(mvstanton): disabled because mac builds are bogus failing on this
-  // assert. They are doing a signed comparison. Investigate in
-  // the morning.
-  // DCHECK(Min(dst, const_cast<T*>(src)) + num_words <=
-  //       Max(dst, const_cast<T*>(src)));
+  DCHECK(Min(dst, const_cast<T*>(src)) + num_words <=
+         Max(dst, const_cast<T*>(src)));
   DCHECK(num_words > 0);
 
   // Use block copying MemCopy if the segment we're copying is

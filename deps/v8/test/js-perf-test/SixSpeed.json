@@ -28,6 +28,31 @@
       ]
     },
     {
+      "name": "Classes",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "resources": ["classes/es5.js"],
+          "test_flags": ["classes/es5"]
+        },
+        {
+          "name": "Babel",
+          "main": "run.js",
+          "resources": ["classes/babel.js"],
+          "test_flags": ["classes/babel"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "resources": ["classes/es6.js"],
+          "test_flags": ["classes/es6"]
+        }
+      ]
+    },
+    {
       "name": "Computed property names in object literals",
       "path": ["SixSpeed"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
@@ -92,6 +117,31 @@
       ]
     },
     {
+      "name": "Super",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "resources": ["super/es5.js"],
+          "test_flags": ["super/es5"]
+        },
+        {
+          "name": "Babel",
+          "main": "run.js",
+          "resources": ["super/babel.js"],
+          "test_flags": ["super/babel"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "resources": ["super/es6.js"],
+          "test_flags": ["super/es6"]
+        }
+      ]
+    },
+    {
       "name": "SuperSpread",
       "path": ["SixSpeed"],
       "flags": ["--future"],
@@ -140,6 +190,82 @@
           "main": "run.js",
           "resources": ["spread_literal/es6.js"],
           "test_flags": ["spread_literal/es6"]
+        }
+      ]
+    },
+    {
+      "name": "Map-Set has",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "resources": ["map_set_lookup/es5.js"],
+          "test_flags": ["map_set_lookup/es5"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "resources": ["map_set_lookup/es6.js"],
+          "test_flags": ["map_set_lookup/es6"]
+        }
+      ]
+    },
+    {
+      "name": "Map-Set add-set-has",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "resources": ["map_set_add/es5.js"],
+          "test_flags": ["map_set_add/es5"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "resources": ["map_set_add/es6.js"],
+          "test_flags": ["map_set_add/es6"]
+        }
+      ]
+    },
+    {
+      "name": "Map-Set add-set-has object",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "resources": ["map_set_object/es5.js"],
+          "test_flags": ["map_set_object/es5"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "resources": ["map_set_object/es6.js"],
+          "test_flags": ["map_set_object/es6"]
+        }
+      ]
+    },
+    {
+      "name": "Map get string",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "resources": ["map_set_add/es5.js"],
+          "test_flags": ["map_set_add/es5"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "resources": ["map_set_add/es6.js"],
+          "test_flags": ["map_set_add/es6"]
         }
       ]
     }

@@ -287,11 +287,6 @@ Type* TypeGuardTypeOf(Operator const*) WARN_UNUSED_RESULT;
 
 int OsrValueIndexOf(Operator const*);
 
-enum class OsrGuardType { kUninitialized, kSignedSmall, kAny };
-size_t hash_value(OsrGuardType type);
-std::ostream& operator<<(std::ostream&, OsrGuardType);
-OsrGuardType OsrGuardTypeOf(Operator const*);
-
 SparseInputMask SparseInputMaskOf(Operator const*);
 
 ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
@@ -337,7 +332,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* OsrNormalEntry();
   const Operator* OsrLoopEntry();
   const Operator* OsrValue(int index);
-  const Operator* OsrGuard(OsrGuardType type);
 
   const Operator* Int32Constant(int32_t);
   const Operator* Int64Constant(int64_t);

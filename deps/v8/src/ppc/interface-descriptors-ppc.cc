@@ -56,11 +56,6 @@ const Register MathPowIntegerDescriptor::exponent() {
   return MathPowTaggedDescriptor::exponent();
 }
 
-const Register RegExpExecDescriptor::StringRegister() { return r3; }
-const Register RegExpExecDescriptor::LastIndexRegister() { return r4; }
-const Register RegExpExecDescriptor::StringStartRegister() { return r5; }
-const Register RegExpExecDescriptor::StringEndRegister() { return r6; }
-const Register RegExpExecDescriptor::CodeRegister() { return r17; }
 
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return r3; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return r6; }
@@ -160,9 +155,20 @@ void CallTrampolineDescriptor::InitializePlatformSpecific(
 
 void CallForwardVarargsDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
+  // r3 : number of arguments
   // r5 : start index (to support rest parameters)
   // r4 : the target to call
-  Register registers[] = {r4, r5};
+  Register registers[] = {r4, r3, r5};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void ConstructForwardVarargsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r3 : number of arguments
+  // r6 : the new target
+  // r5 : start index (to support rest parameters)
+  // r4 : the target to call
+  Register registers[] = {r4, r6, r3, r5};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

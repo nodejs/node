@@ -22,6 +22,12 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   EXPECT_TRUE(compaction_space != NULL);
   EXPECT_TRUE(compaction_space->SetUp());
 
+  for (Page* p : *old_space) {
+    // Unlink free lists from the main space to avoid reusing the memory for
+    // compaction spaces.
+    old_space->UnlinkFreeListCategories(p);
+  }
+
   // Cannot loop until "Available()" since we initially have 0 bytes available
   // and would thus neither grow, nor be able to allocate an object.
   const int kNumObjects = 10;

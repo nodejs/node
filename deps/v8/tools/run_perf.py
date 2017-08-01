@@ -1000,6 +1000,12 @@ def Main(args):
                     "'powersave' for more stable results, or 'performance' "
                     "for shorter completion time of suite, with potentially "
                     "more noise in results.")
+  parser.add_option("--filter",
+                    help="Only run the benchmarks beginning with this string. "
+                    "For example: "
+                    "--filter=JSTests/TypedArrays/ will run only TypedArray "
+                    "benchmarks from the JSTests suite.",
+                    default="")
 
   (options, args) = parser.parse_args(args)
 
@@ -1092,9 +1098,12 @@ def Main(args):
       def NodeCB(node):
         platform.PreTests(node, path)
 
-      # Traverse graph/trace tree and interate over all runnables.
+      # Traverse graph/trace tree and iterate over all runnables.
       for runnable in FlattenRunnables(root, NodeCB):
-        print ">>> Running suite: %s" % "/".join(runnable.graphs)
+        runnable_name = "/".join(runnable.graphs)
+        if not runnable_name.startswith(options.filter):
+          continue
+        print ">>> Running suite: %s" % runnable_name
 
         def Runner():
           """Output generator that reruns several times."""

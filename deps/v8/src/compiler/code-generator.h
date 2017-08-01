@@ -48,6 +48,31 @@ class InstructionOperandIterator {
   size_t pos_;
 };
 
+// Either a non-null Handle<Object> or a double.
+class DeoptimizationLiteral {
+ public:
+  DeoptimizationLiteral() : object_(), number_(0) {}
+  explicit DeoptimizationLiteral(Handle<Object> object)
+      : object_(object), number_(0) {
+    DCHECK(!object_.is_null());
+  }
+  explicit DeoptimizationLiteral(double number) : object_(), number_(number) {}
+
+  Handle<Object> object() const { return object_; }
+
+  bool operator==(const DeoptimizationLiteral& other) const {
+    return object_.equals(other.object_) &&
+           bit_cast<uint64_t>(number_) == bit_cast<uint64_t>(other.number_);
+  }
+
+  Handle<Object> Reify(Isolate* isolate) const {
+    return object_.is_null() ? isolate->factory()->NewNumber(number_) : object_;
+  }
+
+ private:
+  Handle<Object> object_;
+  double number_;
+};
 
 // Generates native code for a sequence of instructions.
 class CodeGenerator final : public GapResolver::Assembler {
@@ -55,8 +80,11 @@ class CodeGenerator final : public GapResolver::Assembler {
   explicit CodeGenerator(Frame* frame, Linkage* linkage,
                          InstructionSequence* code, CompilationInfo* info);
 
-  // Generate native code.
-  Handle<Code> GenerateCode();
+  // Generate native code. After calling AssembleCode, call FinalizeCode to
+  // produce the actual code object. If an error occurs during either phase,
+  // FinalizeCode returns a null handle.
+  void AssembleCode();
+  Handle<Code> FinalizeCode();
 
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
@@ -208,7 +236,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   void RecordCallPosition(Instruction* instr);
   void PopulateDeoptimizationData(Handle<Code> code);
-  int DefineDeoptimizationLiteral(Handle<Object> literal);
+  int DefineDeoptimizationLiteral(DeoptimizationLiteral literal);
   DeoptimizationEntry const& GetDeoptimizationEntry(Instruction* instr,
                                                     size_t frame_state_offset);
   DeoptimizeKind GetDeoptimizationKind(int deoptimization_id) const;
@@ -283,7 +311,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   ZoneVector<HandlerInfo> handlers_;
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
   ZoneDeque<DeoptimizationState*> deoptimization_states_;
-  ZoneDeque<Handle<Object>> deoptimization_literals_;
+  ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
   size_t inlined_function_count_;
   TranslationBuffer translations_;
   int last_lazy_deopt_pc_;
@@ -292,6 +320,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   int osr_pc_offset_;
   int optimized_out_literal_id_;
   SourcePositionTableBuilder source_position_table_builder_;
+  CodeGenResult result_;
 };
 
 }  // namespace compiler

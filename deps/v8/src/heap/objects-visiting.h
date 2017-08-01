@@ -24,10 +24,6 @@
 namespace v8 {
 namespace internal {
 
-
-// Base class for all static visitors.
-class StaticVisitorBase : public AllStatic {
- public:
 #define VISITOR_ID_LIST(V) \
   V(SeqOneByteString)      \
   V(SeqTwoByteString)      \
@@ -37,7 +33,7 @@ class StaticVisitorBase : public AllStatic {
   V(FreeSpace)             \
   V(FixedArray)            \
   V(FixedDoubleArray)      \
-  V(FixedTypedArray)       \
+  V(FixedTypedArrayBase)   \
   V(FixedFloat64Array)     \
   V(NativeContext)         \
   V(AllocationSite)        \
@@ -63,22 +59,25 @@ class StaticVisitorBase : public AllStatic {
   V(JSArrayBuffer)         \
   V(JSRegExp)
 
-  // For data objects, JS objects and structs along with generic visitor which
-  // can visit object of any size we provide visitors specialized by
-  // object size in words.
-  // Ids of specialized visitors are declared in a linear order (without
-  // holes) starting from the id of visitor specialized for 2 words objects
-  // (base visitor id) and ending with the id of generic visitor.
-  // Method GetVisitorIdForSize depends on this ordering to calculate visitor
-  // id of specialized visitor from given instance size, base visitor id and
-  // generic visitor's id.
-  enum VisitorId {
+// For data objects, JS objects and structs along with generic visitor which
+// can visit object of any size we provide visitors specialized by
+// object size in words.
+// Ids of specialized visitors are declared in a linear order (without
+// holes) starting from the id of visitor specialized for 2 words objects
+// (base visitor id) and ending with the id of generic visitor.
+// Method GetVisitorIdForSize depends on this ordering to calculate visitor
+// id of specialized visitor from given instance size, base visitor id and
+// generic visitor's id.
+enum VisitorId {
 #define VISITOR_ID_ENUM_DECL(id) kVisit##id,
-    VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+  VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
 #undef VISITOR_ID_ENUM_DECL
-        kVisitorIdCount
-  };
+      kVisitorIdCount
+};
 
+// Base class for all static visitors.
+class StaticVisitorBase : public AllStatic {
+ public:
   // Visitor ID should fit in one byte.
   STATIC_ASSERT(kVisitorIdCount <= 256);
 
@@ -99,24 +98,24 @@ class VisitorDispatchTable {
     // We are not using memcpy to guarantee that during update
     // every element of callbacks_ array will remain correct
     // pointer (memcpy might be implemented as a byte copying loop).
-    for (int i = 0; i < StaticVisitorBase::kVisitorIdCount; i++) {
+    for (int i = 0; i < kVisitorIdCount; i++) {
       base::NoBarrier_Store(&callbacks_[i], other->callbacks_[i]);
     }
   }
 
   inline Callback GetVisitor(Map* map);
 
-  inline Callback GetVisitorById(StaticVisitorBase::VisitorId id) {
+  inline Callback GetVisitorById(VisitorId id) {
     return reinterpret_cast<Callback>(callbacks_[id]);
   }
 
-  void Register(StaticVisitorBase::VisitorId id, Callback callback) {
-    DCHECK(id < StaticVisitorBase::kVisitorIdCount);  // id is unsigned.
+  void Register(VisitorId id, Callback callback) {
+    DCHECK(id < kVisitorIdCount);  // id is unsigned.
     callbacks_[id] = reinterpret_cast<base::AtomicWord>(callback);
   }
 
  private:
-  base::AtomicWord callbacks_[StaticVisitorBase::kVisitorIdCount];
+  base::AtomicWord callbacks_[kVisitorIdCount];
 };
 
 
@@ -349,9 +348,76 @@ template <typename StaticVisitor>
 VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
     StaticMarkingVisitor<StaticVisitor>::table_;
 
+#define TYPED_VISITOR_ID_LIST(V) \
+  V(AllocationSite)              \
+  V(ByteArray)                   \
+  V(BytecodeArray)               \
+  V(Cell)                        \
+  V(Code)                        \
+  V(ConsString)                  \
+  V(FixedArray)                  \
+  V(FixedDoubleArray)            \
+  V(FixedFloat64Array)           \
+  V(FixedTypedArrayBase)         \
+  V(JSArrayBuffer)               \
+  V(JSFunction)                  \
+  V(JSObject)                    \
+  V(JSRegExp)                    \
+  V(JSWeakCollection)            \
+  V(Map)                         \
+  V(Oddball)                     \
+  V(PropertyCell)                \
+  V(SeqOneByteString)            \
+  V(SeqTwoByteString)            \
+  V(SharedFunctionInfo)          \
+  V(SlicedString)                \
+  V(Symbol)                      \
+  V(TransitionArray)             \
+  V(ThinString)                  \
+  V(WeakCell)
+
+// The base class for visitors that need to dispatch on object type.
+// It is similar to StaticVisitor except it uses virtual dispatch
+// instead of static dispatch table. The default behavour of all
+// visit functions is to iterate body of the given object using
+// the BodyDescriptor of the object.
+//
+// The visit functions return the size of the object cast to ResultType.
+//
+// This class is intended to be used in the following way:
+//
+//   class SomeVisitor : public HeapVisitor<ResultType, SomeVisitor> {
+//     ...
+//   }
+//
+// This is an example of Curiously recurring template pattern.
+// TODO(ulan): replace static visitors with the HeapVisitor.
+template <typename ResultType, typename ConcreteVisitor>
+class HeapVisitor : public ObjectVisitor {
+ public:
+  ResultType Visit(HeapObject* object);
+
+ protected:
+  // A guard predicate for visiting the object.
+  // If it returns false then the default implementations of the Visit*
+  // functions bailout from iterating the object pointers.
+  virtual bool ShouldVisit(HeapObject* object);
+  // A callback for visiting the map pointer in the object header.
+  virtual void VisitMapPointer(HeapObject* host, HeapObject** map);
+
+#define VISIT(type) virtual ResultType Visit##type(Map* map, type* object);
+  TYPED_VISITOR_ID_LIST(VISIT)
+#undef VISIT
+  virtual ResultType VisitShortcutCandidate(Map* map, ConsString* object);
+  virtual ResultType VisitNativeContext(Map* map, Context* object);
+  virtual ResultType VisitDataObject(Map* map, HeapObject* object);
+  virtual ResultType VisitJSObjectFast(Map* map, JSObject* object);
+  virtual ResultType VisitJSApiObject(Map* map, JSObject* object);
+  virtual ResultType VisitStruct(Map* map, HeapObject* object);
+  virtual ResultType VisitFreeSpace(Map* map, FreeSpace* object);
+};
 
 class WeakObjectRetainer;
-
 
 // A weak list is single linked list where each element has a weak pointer to
 // the next element. Given the head of the list, this function removes dead

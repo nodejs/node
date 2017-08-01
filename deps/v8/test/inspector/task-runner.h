@@ -15,16 +15,7 @@
 #include "src/base/platform/platform.h"
 #include "src/locked-queue-inl.h"
 #include "src/vector.h"
-
-struct VectorCompare {
-  bool operator()(const v8::internal::Vector<uint16_t>& lhs,
-                  const v8::internal::Vector<uint16_t>& rhs) const {
-    for (int i = 0; i < lhs.length() && i < rhs.length(); ++i) {
-      if (lhs[i] != rhs[i]) return lhs[i] < rhs[i];
-    }
-    return false;
-  }
-};
+#include "test/inspector/isolate-data.h"
 
 class TaskRunner : public v8::base::Thread {
  public:
@@ -32,13 +23,27 @@ class TaskRunner : public v8::base::Thread {
    public:
     virtual ~Task() {}
     virtual bool is_inspector_task() = 0;
-    virtual void Run(v8::Isolate* isolate,
-                     const v8::Global<v8::Context>& context) = 0;
+    void RunOnIsolate(IsolateData* data) {
+      data_ = data;
+      Run();
+      data_ = nullptr;
+    }
+
+   protected:
+    virtual void Run() = 0;
+    v8::Isolate* isolate() const { return data_->isolate(); }
+    IsolateData* data() const { return data_; }
+
+   private:
+    IsolateData* data_ = nullptr;
   };
 
-  TaskRunner(v8::ExtensionConfiguration* extensions, bool catch_exceptions,
-             v8::base::Semaphore* ready_semaphore);
+  TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
+             bool catch_exceptions, v8::base::Semaphore* ready_semaphore,
+             v8::StartupData* startup_data,
+             InspectorClientImpl::FrontendChannel* channel);
   virtual ~TaskRunner();
+  IsolateData* data() const { return data_.get(); }
 
   // Thread implementation.
   void Run() override;
@@ -50,31 +55,18 @@ class TaskRunner : public v8::base::Thread {
   // TaskRunner takes ownership.
   void Append(Task* task);
 
-  static TaskRunner* FromContext(v8::Local<v8::Context>);
-
-  v8::Local<v8::Context> NewContextGroup();
-  v8::Local<v8::Context> GetContext(int context_group_id);
-  static int GetContextGroupId(v8::Local<v8::Context> context);
-
   void Terminate();
 
-  void RegisterModule(v8::internal::Vector<uint16_t> name,
-                      v8::Local<v8::Module> module);
-  static v8::MaybeLocal<v8::Module> ModuleResolveCallback(
-      v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
-      v8::Local<v8::Module> referrer);
-
  private:
-  void InitializeIsolate();
   Task* GetNext(bool only_protocol);
+  v8::Isolate* isolate() const { return data_->isolate(); }
 
-  v8::ExtensionConfiguration* extensions_;
+  IsolateData::SetupGlobalTasks setup_global_tasks_;
+  v8::StartupData* startup_data_;
+  InspectorClientImpl::FrontendChannel* channel_;
   bool catch_exceptions_;
   v8::base::Semaphore* ready_semaphore_;
-
-  v8::Isolate* isolate_;
-  intptr_t last_context_group_id_ = 0;
-  std::map<intptr_t, v8::Global<v8::Context>> contexts_;
+  std::unique_ptr<IsolateData> data_;
 
   // deferred_queue_ combined with queue_ (in this order) have all tasks in the
   // correct order. Sometimes we skip non-protocol tasks by moving them from
@@ -82,10 +74,6 @@ class TaskRunner : public v8::base::Thread {
   v8::internal::LockedQueue<Task*> queue_;
   v8::internal::LockedQueue<Task*> deffered_queue_;
   v8::base::Semaphore process_queue_semaphore_;
-
-  std::map<v8::internal::Vector<uint16_t>, v8::Global<v8::Module>,
-           VectorCompare>
-      modules_;
 
   int nested_loop_count_;
 
@@ -96,40 +84,39 @@ class TaskRunner : public v8::base::Thread {
 
 class AsyncTask : public TaskRunner::Task {
  public:
-  AsyncTask(const char* task_name, v8_inspector::V8Inspector* inspector);
+  AsyncTask(IsolateData* data, const char* task_name);
   virtual ~AsyncTask() = default;
 
-  void Run(v8::Isolate* isolate,
-           const v8::Global<v8::Context>& context) override;
-  virtual void AsyncRun(v8::Isolate* isolate,
-                        const v8::Global<v8::Context>& context) = 0;
-
  protected:
-  v8_inspector::V8Inspector* inspector_;
+  virtual void AsyncRun() = 0;
+  void Run() override;
+
+  bool instrumenting_;
 };
 
 class ExecuteStringTask : public AsyncTask {
  public:
-  ExecuteStringTask(const v8::internal::Vector<uint16_t>& expression,
+  ExecuteStringTask(IsolateData* data, int context_group_id,
+                    const char* task_name,
+                    const v8::internal::Vector<uint16_t>& expression,
                     v8::Local<v8::String> name,
                     v8::Local<v8::Integer> line_offset,
                     v8::Local<v8::Integer> column_offset,
-                    v8::Local<v8::Boolean> is_module, const char* task_name,
-                    v8_inspector::V8Inspector* inspector);
-  explicit ExecuteStringTask(
-      const v8::internal::Vector<const char>& expression);
+                    v8::Local<v8::Boolean> is_module);
+  ExecuteStringTask(const v8::internal::Vector<const char>& expression,
+                    int context_group_id);
   bool is_inspector_task() override { return false; }
 
-  void AsyncRun(v8::Isolate* isolate,
-                const v8::Global<v8::Context>& context) override;
-
  private:
+  void AsyncRun() override;
+
   v8::internal::Vector<uint16_t> expression_;
   v8::internal::Vector<const char> expression_utf8_;
   v8::internal::Vector<uint16_t> name_;
   int32_t line_offset_ = 0;
   int32_t column_offset_ = 0;
   bool is_module_ = false;
+  int context_group_id_;
 
   DISALLOW_COPY_AND_ASSIGN(ExecuteStringTask);
 };

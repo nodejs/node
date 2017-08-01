@@ -288,61 +288,61 @@ TEST(MIPS3) {
   Label L, C;
 
   // Double precision floating point instructions.
-  __ ldc1(f4, MemOperand(a0, offsetof(T, a)) );
-  __ ldc1(f6, MemOperand(a0, offsetof(T, b)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
+  __ Ldc1(f6, MemOperand(a0, offsetof(T, b)));
   __ add_d(f8, f4, f6);
-  __ sdc1(f8, MemOperand(a0, offsetof(T, c)) );  // c = a + b.
+  __ Sdc1(f8, MemOperand(a0, offsetof(T, c)));  // c = a + b.
 
   __ mov_d(f10, f8);  // c
   __ neg_d(f12, f6);  // -b
   __ sub_d(f10, f10, f12);
-  __ sdc1(f10, MemOperand(a0, offsetof(T, d)) );  // d = c - (-b).
+  __ Sdc1(f10, MemOperand(a0, offsetof(T, d)));  // d = c - (-b).
 
-  __ sdc1(f4, MemOperand(a0, offsetof(T, b)) );   // b = a.
+  __ Sdc1(f4, MemOperand(a0, offsetof(T, b)));  // b = a.
 
   __ li(a4, 120);
   __ mtc1(a4, f14);
   __ cvt_d_w(f14, f14);   // f14 = 120.0.
   __ mul_d(f10, f10, f14);
-  __ sdc1(f10, MemOperand(a0, offsetof(T, e)) );  // e = d * 120 = 1.8066e16.
+  __ Sdc1(f10, MemOperand(a0, offsetof(T, e)));  // e = d * 120 = 1.8066e16.
 
   __ div_d(f12, f10, f4);
-  __ sdc1(f12, MemOperand(a0, offsetof(T, f)) );  // f = e / a = 120.44.
+  __ Sdc1(f12, MemOperand(a0, offsetof(T, f)));  // f = e / a = 120.44.
 
   __ sqrt_d(f14, f12);
-  __ sdc1(f14, MemOperand(a0, offsetof(T, g)) );
+  __ Sdc1(f14, MemOperand(a0, offsetof(T, g)));
   // g = sqrt(f) = 10.97451593465515908537
 
   if (kArchVariant == kMips64r2) {
-    __ ldc1(f4, MemOperand(a0, offsetof(T, h)) );
-    __ ldc1(f6, MemOperand(a0, offsetof(T, i)) );
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, h)));
+    __ Ldc1(f6, MemOperand(a0, offsetof(T, i)));
     __ madd_d(f14, f6, f4, f6);
-    __ sdc1(f14, MemOperand(a0, offsetof(T, h)) );
+    __ Sdc1(f14, MemOperand(a0, offsetof(T, h)));
   }
 
   // Single precision floating point instructions.
-  __ lwc1(f4, MemOperand(a0, offsetof(T, fa)) );
-  __ lwc1(f6, MemOperand(a0, offsetof(T, fb)) );
+  __ Lwc1(f4, MemOperand(a0, offsetof(T, fa)));
+  __ Lwc1(f6, MemOperand(a0, offsetof(T, fb)));
   __ add_s(f8, f4, f6);
-  __ swc1(f8, MemOperand(a0, offsetof(T, fc)) );  // fc = fa + fb.
+  __ Swc1(f8, MemOperand(a0, offsetof(T, fc)));  // fc = fa + fb.
 
   __ neg_s(f10, f6);  // -fb
   __ sub_s(f10, f8, f10);
-  __ swc1(f10, MemOperand(a0, offsetof(T, fd)) );  // fd = fc - (-fb).
+  __ Swc1(f10, MemOperand(a0, offsetof(T, fd)));  // fd = fc - (-fb).
 
-  __ swc1(f4, MemOperand(a0, offsetof(T, fb)) );   // fb = fa.
+  __ Swc1(f4, MemOperand(a0, offsetof(T, fb)));  // fb = fa.
 
   __ li(t0, 120);
   __ mtc1(t0, f14);
   __ cvt_s_w(f14, f14);   // f14 = 120.0.
   __ mul_s(f10, f10, f14);
-  __ swc1(f10, MemOperand(a0, offsetof(T, fe)) );  // fe = fd * 120
+  __ Swc1(f10, MemOperand(a0, offsetof(T, fe)));  // fe = fd * 120
 
   __ div_s(f12, f10, f4);
-  __ swc1(f12, MemOperand(a0, offsetof(T, ff)) );  // ff = fe / fa
+  __ Swc1(f12, MemOperand(a0, offsetof(T, ff)));  // ff = fe / fa
 
   __ sqrt_s(f14, f12);
-  __ swc1(f14, MemOperand(a0, offsetof(T, fg)) );
+  __ Swc1(f14, MemOperand(a0, offsetof(T, fg)));
 
   __ jr(ra);
   __ nop();
@@ -408,11 +408,11 @@ TEST(MIPS4) {
   } T;
   T t;
 
-  Assembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label L, C;
 
-  __ ldc1(f4, MemOperand(a0, offsetof(T, a)));
-  __ ldc1(f5, MemOperand(a0, offsetof(T, b)));
+  __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
+  __ Ldc1(f5, MemOperand(a0, offsetof(T, b)));
 
   // Swap f4 and f5, by using 3 integer registers, a4-a6,
   // both two 32-bit chunks, and one 64-bit chunk.
@@ -427,16 +427,16 @@ TEST(MIPS4) {
   __ dmtc1(a6, f4);
 
   // Store the swapped f4 and f5 back to memory.
-  __ sdc1(f4, MemOperand(a0, offsetof(T, a)));
-  __ sdc1(f5, MemOperand(a0, offsetof(T, c)));
+  __ Sdc1(f4, MemOperand(a0, offsetof(T, a)));
+  __ Sdc1(f5, MemOperand(a0, offsetof(T, c)));
 
   // Test sign extension of move operations from coprocessor.
-  __ ldc1(f4, MemOperand(a0, offsetof(T, d)));
+  __ Ldc1(f4, MemOperand(a0, offsetof(T, d)));
   __ mfhc1(a4, f4);
   __ mfc1(a5, f4);
 
-  __ sd(a4, MemOperand(a0, offsetof(T, high)));
-  __ sd(a5, MemOperand(a0, offsetof(T, low)));
+  __ Sd(a4, MemOperand(a0, offsetof(T, high)));
+  __ Sd(a5, MemOperand(a0, offsetof(T, low)));
 
   __ jr(ra);
   __ nop();
@@ -475,34 +475,34 @@ TEST(MIPS5) {
   } T;
   T t;
 
-  Assembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label L, C;
 
   // Load all structure elements to registers.
-  __ ldc1(f4, MemOperand(a0, offsetof(T, a)) );
-  __ ldc1(f6, MemOperand(a0, offsetof(T, b)) );
-  __ lw(a4, MemOperand(a0, offsetof(T, i)) );
-  __ lw(a5, MemOperand(a0, offsetof(T, j)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
+  __ Ldc1(f6, MemOperand(a0, offsetof(T, b)));
+  __ Lw(a4, MemOperand(a0, offsetof(T, i)));
+  __ Lw(a5, MemOperand(a0, offsetof(T, j)));
 
   // Convert double in f4 to int in element i.
   __ cvt_w_d(f8, f4);
   __ mfc1(a6, f8);
-  __ sw(a6, MemOperand(a0, offsetof(T, i)) );
+  __ Sw(a6, MemOperand(a0, offsetof(T, i)));
 
   // Convert double in f6 to int in element j.
   __ cvt_w_d(f10, f6);
   __ mfc1(a7, f10);
-  __ sw(a7, MemOperand(a0, offsetof(T, j)) );
+  __ Sw(a7, MemOperand(a0, offsetof(T, j)));
 
   // Convert int in original i (a4) to double in a.
   __ mtc1(a4, f12);
   __ cvt_d_w(f0, f12);
-  __ sdc1(f0, MemOperand(a0, offsetof(T, a)) );
+  __ Sdc1(f0, MemOperand(a0, offsetof(T, a)));
 
   // Convert int in original j (a5) to double in b.
   __ mtc1(a5, f14);
   __ cvt_d_w(f2, f14);
-  __ sdc1(f2, MemOperand(a0, offsetof(T, b)) );
+  __ Sdc1(f2, MemOperand(a0, offsetof(T, b)));
 
   __ jr(ra);
   __ nop();
@@ -544,35 +544,35 @@ TEST(MIPS6) {
   } T;
   T t;
 
-  Assembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label L, C;
 
   // Basic word load/store.
-  __ lw(a4, MemOperand(a0, offsetof(T, ui)) );
-  __ sw(a4, MemOperand(a0, offsetof(T, r1)) );
+  __ Lw(a4, MemOperand(a0, offsetof(T, ui)));
+  __ Sw(a4, MemOperand(a0, offsetof(T, r1)));
 
   // lh with positive data.
-  __ lh(a5, MemOperand(a0, offsetof(T, ui)) );
-  __ sw(a5, MemOperand(a0, offsetof(T, r2)) );
+  __ Lh(a5, MemOperand(a0, offsetof(T, ui)));
+  __ Sw(a5, MemOperand(a0, offsetof(T, r2)));
 
   // lh with negative data.
-  __ lh(a6, MemOperand(a0, offsetof(T, si)) );
-  __ sw(a6, MemOperand(a0, offsetof(T, r3)) );
+  __ Lh(a6, MemOperand(a0, offsetof(T, si)));
+  __ Sw(a6, MemOperand(a0, offsetof(T, r3)));
 
   // lhu with negative data.
-  __ lhu(a7, MemOperand(a0, offsetof(T, si)) );
-  __ sw(a7, MemOperand(a0, offsetof(T, r4)) );
+  __ Lhu(a7, MemOperand(a0, offsetof(T, si)));
+  __ Sw(a7, MemOperand(a0, offsetof(T, r4)));
 
-  // lb with negative data.
-  __ lb(t0, MemOperand(a0, offsetof(T, si)) );
-  __ sw(t0, MemOperand(a0, offsetof(T, r5)) );
+  // Lb with negative data.
+  __ Lb(t0, MemOperand(a0, offsetof(T, si)));
+  __ Sw(t0, MemOperand(a0, offsetof(T, r5)));
 
   // sh writes only 1/2 of word.
   __ lui(t1, 0x3333);
   __ ori(t1, t1, 0x3333);
-  __ sw(t1, MemOperand(a0, offsetof(T, r6)) );
-  __ lhu(t1, MemOperand(a0, offsetof(T, si)) );
-  __ sh(t1, MemOperand(a0, offsetof(T, r6)) );
+  __ Sw(t1, MemOperand(a0, offsetof(T, r6)));
+  __ Lhu(t1, MemOperand(a0, offsetof(T, si)));
+  __ Sh(t1, MemOperand(a0, offsetof(T, r6)));
 
   __ jr(ra);
   __ nop();
@@ -626,8 +626,8 @@ TEST(MIPS7) {
   MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label neither_is_nan, less_than, outa_here;
 
-  __ ldc1(f4, MemOperand(a0, offsetof(T, a)) );
-  __ ldc1(f6, MemOperand(a0, offsetof(T, b)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
+  __ Ldc1(f6, MemOperand(a0, offsetof(T, b)));
   if (kArchVariant != kMips64r6) {
     __ c(UN, D, f4, f6);
     __ bc1f(&neither_is_nan);
@@ -636,7 +636,7 @@ TEST(MIPS7) {
     __ bc1eqz(&neither_is_nan, f2);
   }
   __ nop();
-  __ sw(zero_reg, MemOperand(a0, offsetof(T, result)) );
+  __ Sw(zero_reg, MemOperand(a0, offsetof(T, result)));
   __ Branch(&outa_here);
 
   __ bind(&neither_is_nan);
@@ -650,13 +650,12 @@ TEST(MIPS7) {
   }
 
   __ nop();
-  __ sw(zero_reg, MemOperand(a0, offsetof(T, result)) );
+  __ Sw(zero_reg, MemOperand(a0, offsetof(T, result)));
   __ Branch(&outa_here);
 
   __ bind(&less_than);
   __ Addu(a4, zero_reg, Operand(1));
-  __ sw(a4, MemOperand(a0, offsetof(T, result)) );  // Set true.
-
+  __ Sw(a4, MemOperand(a0, offsetof(T, result)));  // Set true.
 
   // This test-case should have additional tests.
 
@@ -715,7 +714,7 @@ TEST(MIPS8) {
                         v8::internal::CodeObjectRequired::kYes);
 
     // Basic word load.
-    __ lw(a4, MemOperand(a0, offsetof(T, input)) );
+    __ Lw(a4, MemOperand(a0, offsetof(T, input)));
 
     // ROTR instruction (called through the Ror macro).
     __ Ror(a5, a4, 0x0004);
@@ -727,13 +726,13 @@ TEST(MIPS8) {
     __ Ror(t3, a4, 0x001c);
 
     // Basic word store.
-    __ sw(a5, MemOperand(a0, offsetof(T, result_rotr_4)) );
-    __ sw(a6, MemOperand(a0, offsetof(T, result_rotr_8)) );
-    __ sw(a7, MemOperand(a0, offsetof(T, result_rotr_12)) );
-    __ sw(t0, MemOperand(a0, offsetof(T, result_rotr_16)) );
-    __ sw(t1, MemOperand(a0, offsetof(T, result_rotr_20)) );
-    __ sw(t2, MemOperand(a0, offsetof(T, result_rotr_24)) );
-    __ sw(t3, MemOperand(a0, offsetof(T, result_rotr_28)) );
+    __ Sw(a5, MemOperand(a0, offsetof(T, result_rotr_4)));
+    __ Sw(a6, MemOperand(a0, offsetof(T, result_rotr_8)));
+    __ Sw(a7, MemOperand(a0, offsetof(T, result_rotr_12)));
+    __ Sw(t0, MemOperand(a0, offsetof(T, result_rotr_16)));
+    __ Sw(t1, MemOperand(a0, offsetof(T, result_rotr_20)));
+    __ Sw(t2, MemOperand(a0, offsetof(T, result_rotr_24)));
+    __ Sw(t3, MemOperand(a0, offsetof(T, result_rotr_28)));
 
     // ROTRV instruction (called through the Ror macro).
     __ li(t3, 0x0004);
@@ -752,13 +751,13 @@ TEST(MIPS8) {
     __ Ror(t3, a4, t3);
 
     // Basic word store.
-    __ sw(a5, MemOperand(a0, offsetof(T, result_rotrv_4)) );
-    __ sw(a6, MemOperand(a0, offsetof(T, result_rotrv_8)) );
-    __ sw(a7, MemOperand(a0, offsetof(T, result_rotrv_12)) );
-    __ sw(t0, MemOperand(a0, offsetof(T, result_rotrv_16)) );
-    __ sw(t1, MemOperand(a0, offsetof(T, result_rotrv_20)) );
-    __ sw(t2, MemOperand(a0, offsetof(T, result_rotrv_24)) );
-    __ sw(t3, MemOperand(a0, offsetof(T, result_rotrv_28)) );
+    __ Sw(a5, MemOperand(a0, offsetof(T, result_rotrv_4)));
+    __ Sw(a6, MemOperand(a0, offsetof(T, result_rotrv_8)));
+    __ Sw(a7, MemOperand(a0, offsetof(T, result_rotrv_12)));
+    __ Sw(t0, MemOperand(a0, offsetof(T, result_rotrv_16)));
+    __ Sw(t1, MemOperand(a0, offsetof(T, result_rotrv_20)));
+    __ Sw(t2, MemOperand(a0, offsetof(T, result_rotrv_24)));
+    __ Sw(t3, MemOperand(a0, offsetof(T, result_rotrv_28)));
 
     __ jr(ra);
     __ nop();
@@ -838,7 +837,7 @@ TEST(MIPS10) {
   } T;
   T t;
 
-  Assembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label L, C;
 
   if (kArchVariant == kMips64r2) {
@@ -846,43 +845,41 @@ TEST(MIPS10) {
     //  -  32 FP regs of 64-bits each, no odd/even pairs.
     //  -  Note that cvt_l_d/cvt_d_l ARE legal in FR=1 mode.
     // Load all structure elements to registers.
-    __ ldc1(f0, MemOperand(a0, offsetof(T, a)));
+    __ Ldc1(f0, MemOperand(a0, offsetof(T, a)));
 
     // Save the raw bits of the double.
     __ mfc1(a4, f0);
     __ mfhc1(a5, f0);
-    __ sw(a4, MemOperand(a0, offsetof(T, dbl_mant)));
-    __ sw(a5, MemOperand(a0, offsetof(T, dbl_exp)));
+    __ Sw(a4, MemOperand(a0, offsetof(T, dbl_mant)));
+    __ Sw(a5, MemOperand(a0, offsetof(T, dbl_exp)));
 
     // Convert double in f0 to long, save hi/lo parts.
     __ cvt_l_d(f0, f0);
     __ mfc1(a4, f0);  // f0 LS 32 bits of long.
     __ mfhc1(a5, f0);  // f0 MS 32 bits of long.
-    __ sw(a4, MemOperand(a0, offsetof(T, long_lo)));
-    __ sw(a5, MemOperand(a0, offsetof(T, long_hi)));
+    __ Sw(a4, MemOperand(a0, offsetof(T, long_lo)));
+    __ Sw(a5, MemOperand(a0, offsetof(T, long_hi)));
 
     // Combine the high/low ints, convert back to double.
     __ dsll32(a6, a5, 0);  // Move a5 to high bits of a6.
     __ or_(a6, a6, a4);
     __ dmtc1(a6, f1);
     __ cvt_d_l(f1, f1);
-    __ sdc1(f1, MemOperand(a0, offsetof(T, a_converted)));
-
+    __ Sdc1(f1, MemOperand(a0, offsetof(T, a_converted)));
 
     // Convert the b long integers to double b.
-    __ lw(a4, MemOperand(a0, offsetof(T, b_long_lo)));
-    __ lw(a5, MemOperand(a0, offsetof(T, b_long_hi)));
+    __ Lw(a4, MemOperand(a0, offsetof(T, b_long_lo)));
+    __ Lw(a5, MemOperand(a0, offsetof(T, b_long_hi)));
     __ mtc1(a4, f8);  // f8 LS 32-bits.
     __ mthc1(a5, f8);  // f8 MS 32-bits.
     __ cvt_d_l(f10, f8);
-    __ sdc1(f10, MemOperand(a0, offsetof(T, b)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(T, b)));
 
     // Convert double b back to long-int.
-    __ ldc1(f31, MemOperand(a0, offsetof(T, b)));
+    __ Ldc1(f31, MemOperand(a0, offsetof(T, b)));
     __ cvt_l_d(f31, f31);
     __ dmfc1(a7, f31);
-    __ sd(a7, MemOperand(a0, offsetof(T, b_long_as_int64)));
-
+    __ Sd(a7, MemOperand(a0, offsetof(T, b_long_as_int64)));
 
     __ jr(ra);
     __ nop();
@@ -941,82 +938,83 @@ TEST(MIPS11) {
     } T;
     T t;
 
-    Assembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
 
     // Test all combinations of LWL and vAddr.
-    __ lw(a4, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a4, MemOperand(a0, offsetof(T, reg_init)));
     __ lwl(a4, MemOperand(a0, offsetof(T, mem_init)));
-    __ sw(a4, MemOperand(a0, offsetof(T, lwl_0)));
+    __ Sw(a4, MemOperand(a0, offsetof(T, lwl_0)));
 
-    __ lw(a5, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a5, MemOperand(a0, offsetof(T, reg_init)));
     __ lwl(a5, MemOperand(a0, offsetof(T, mem_init) + 1));
-    __ sw(a5, MemOperand(a0, offsetof(T, lwl_1)));
+    __ Sw(a5, MemOperand(a0, offsetof(T, lwl_1)));
 
-    __ lw(a6, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a6, MemOperand(a0, offsetof(T, reg_init)));
     __ lwl(a6, MemOperand(a0, offsetof(T, mem_init) + 2));
-    __ sw(a6, MemOperand(a0, offsetof(T, lwl_2)));
+    __ Sw(a6, MemOperand(a0, offsetof(T, lwl_2)));
 
-    __ lw(a7, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a7, MemOperand(a0, offsetof(T, reg_init)));
     __ lwl(a7, MemOperand(a0, offsetof(T, mem_init) + 3));
-    __ sw(a7, MemOperand(a0, offsetof(T, lwl_3)));
+    __ Sw(a7, MemOperand(a0, offsetof(T, lwl_3)));
 
     // Test all combinations of LWR and vAddr.
-    __ lw(a4, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a4, MemOperand(a0, offsetof(T, reg_init)));
     __ lwr(a4, MemOperand(a0, offsetof(T, mem_init)));
-    __ sw(a4, MemOperand(a0, offsetof(T, lwr_0)));
+    __ Sw(a4, MemOperand(a0, offsetof(T, lwr_0)));
 
-    __ lw(a5, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a5, MemOperand(a0, offsetof(T, reg_init)));
     __ lwr(a5, MemOperand(a0, offsetof(T, mem_init) + 1));
-    __ sw(a5, MemOperand(a0, offsetof(T, lwr_1)));
+    __ Sw(a5, MemOperand(a0, offsetof(T, lwr_1)));
 
-    __ lw(a6, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a6, MemOperand(a0, offsetof(T, reg_init)));
     __ lwr(a6, MemOperand(a0, offsetof(T, mem_init) + 2));
-    __ sw(a6, MemOperand(a0, offsetof(T, lwr_2)) );
+    __ Sw(a6, MemOperand(a0, offsetof(T, lwr_2)));
 
-    __ lw(a7, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a7, MemOperand(a0, offsetof(T, reg_init)));
     __ lwr(a7, MemOperand(a0, offsetof(T, mem_init) + 3));
-    __ sw(a7, MemOperand(a0, offsetof(T, lwr_3)) );
+    __ Sw(a7, MemOperand(a0, offsetof(T, lwr_3)));
 
     // Test all combinations of SWL and vAddr.
-    __ lw(a4, MemOperand(a0, offsetof(T, mem_init)));
-    __ sw(a4, MemOperand(a0, offsetof(T, swl_0)));
-    __ lw(a4, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a4, MemOperand(a0, offsetof(T, mem_init)));
+    __ Sw(a4, MemOperand(a0, offsetof(T, swl_0)));
+    __ Lw(a4, MemOperand(a0, offsetof(T, reg_init)));
     __ swl(a4, MemOperand(a0, offsetof(T, swl_0)));
 
-    __ lw(a5, MemOperand(a0, offsetof(T, mem_init)));
-    __ sw(a5, MemOperand(a0, offsetof(T, swl_1)));
-    __ lw(a5, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a5, MemOperand(a0, offsetof(T, mem_init)));
+    __ Sw(a5, MemOperand(a0, offsetof(T, swl_1)));
+    __ Lw(a5, MemOperand(a0, offsetof(T, reg_init)));
     __ swl(a5, MemOperand(a0, offsetof(T, swl_1) + 1));
 
-    __ lw(a6, MemOperand(a0, offsetof(T, mem_init)));
-    __ sw(a6, MemOperand(a0, offsetof(T, swl_2)));
-    __ lw(a6, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a6, MemOperand(a0, offsetof(T, mem_init)));
+    __ Sw(a6, MemOperand(a0, offsetof(T, swl_2)));
+    __ Lw(a6, MemOperand(a0, offsetof(T, reg_init)));
     __ swl(a6, MemOperand(a0, offsetof(T, swl_2) + 2));
 
-    __ lw(a7, MemOperand(a0, offsetof(T, mem_init)));
-    __ sw(a7, MemOperand(a0, offsetof(T, swl_3)));
-    __ lw(a7, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a7, MemOperand(a0, offsetof(T, mem_init)));
+    __ Sw(a7, MemOperand(a0, offsetof(T, swl_3)));
+    __ Lw(a7, MemOperand(a0, offsetof(T, reg_init)));
     __ swl(a7, MemOperand(a0, offsetof(T, swl_3) + 3));
 
     // Test all combinations of SWR and vAddr.
-    __ lw(a4, MemOperand(a0, offsetof(T, mem_init)));
-    __ sw(a4, MemOperand(a0, offsetof(T, swr_0)));
-    __ lw(a4, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a4, MemOperand(a0, offsetof(T, mem_init)));
+    __ Sw(a4, MemOperand(a0, offsetof(T, swr_0)));
+    __ Lw(a4, MemOperand(a0, offsetof(T, reg_init)));
     __ swr(a4, MemOperand(a0, offsetof(T, swr_0)));
 
-    __ lw(a5, MemOperand(a0, offsetof(T, mem_init)));
-    __ sw(a5, MemOperand(a0, offsetof(T, swr_1)));
-    __ lw(a5, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a5, MemOperand(a0, offsetof(T, mem_init)));
+    __ Sw(a5, MemOperand(a0, offsetof(T, swr_1)));
+    __ Lw(a5, MemOperand(a0, offsetof(T, reg_init)));
     __ swr(a5, MemOperand(a0, offsetof(T, swr_1) + 1));
 
-    __ lw(a6, MemOperand(a0, offsetof(T, mem_init)));
-    __ sw(a6, MemOperand(a0, offsetof(T, swr_2)));
-    __ lw(a6, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a6, MemOperand(a0, offsetof(T, mem_init)));
+    __ Sw(a6, MemOperand(a0, offsetof(T, swr_2)));
+    __ Lw(a6, MemOperand(a0, offsetof(T, reg_init)));
     __ swr(a6, MemOperand(a0, offsetof(T, swr_2) + 2));
 
-    __ lw(a7, MemOperand(a0, offsetof(T, mem_init)));
-    __ sw(a7, MemOperand(a0, offsetof(T, swr_3)));
-    __ lw(a7, MemOperand(a0, offsetof(T, reg_init)));
+    __ Lw(a7, MemOperand(a0, offsetof(T, mem_init)));
+    __ Sw(a7, MemOperand(a0, offsetof(T, swr_3)));
+    __ Lw(a7, MemOperand(a0, offsetof(T, reg_init)));
     __ swr(a7, MemOperand(a0, offsetof(T, swr_3) + 3));
 
     __ jr(ra);
@@ -1097,8 +1095,8 @@ TEST(MIPS12) {
 
   __ mov(t2, fp);  // Save frame pointer.
   __ mov(fp, a0);  // Access struct T by fp.
-  __ lw(a4, MemOperand(a0, offsetof(T, y)));
-  __ lw(a7, MemOperand(a0, offsetof(T, y4)));
+  __ Lw(a4, MemOperand(a0, offsetof(T, y)));
+  __ Lw(a7, MemOperand(a0, offsetof(T, y4)));
 
   __ addu(a5, a4, a7);
   __ subu(t0, a4, a7);
@@ -1116,30 +1114,30 @@ TEST(MIPS12) {
   __ push(a7);
   __ pop(t0);
   __ nop();
-  __ sw(a4, MemOperand(fp, offsetof(T, y)));
-  __ lw(a4, MemOperand(fp, offsetof(T, y)));
+  __ Sw(a4, MemOperand(fp, offsetof(T, y)));
+  __ Lw(a4, MemOperand(fp, offsetof(T, y)));
   __ nop();
-  __ sw(a4, MemOperand(fp, offsetof(T, y)));
-  __ lw(a5, MemOperand(fp, offsetof(T, y)));
+  __ Sw(a4, MemOperand(fp, offsetof(T, y)));
+  __ Lw(a5, MemOperand(fp, offsetof(T, y)));
   __ nop();
   __ push(a5);
-  __ lw(a5, MemOperand(fp, offsetof(T, y)));
+  __ Lw(a5, MemOperand(fp, offsetof(T, y)));
   __ pop(a5);
   __ nop();
   __ push(a5);
-  __ lw(a6, MemOperand(fp, offsetof(T, y)));
+  __ Lw(a6, MemOperand(fp, offsetof(T, y)));
   __ pop(a5);
   __ nop();
   __ push(a5);
-  __ lw(a6, MemOperand(fp, offsetof(T, y)));
+  __ Lw(a6, MemOperand(fp, offsetof(T, y)));
   __ pop(a6);
   __ nop();
   __ push(a6);
-  __ lw(a6, MemOperand(fp, offsetof(T, y)));
+  __ Lw(a6, MemOperand(fp, offsetof(T, y)));
   __ pop(a5);
   __ nop();
   __ push(a5);
-  __ lw(a6, MemOperand(fp, offsetof(T, y)));
+  __ Lw(a6, MemOperand(fp, offsetof(T, y)));
   __ pop(a7);
   __ nop();
 
@@ -1184,19 +1182,19 @@ TEST(MIPS13) {
 
   MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
-  __ sw(a4, MemOperand(a0, offsetof(T, cvt_small_in)));
+  __ Sw(a4, MemOperand(a0, offsetof(T, cvt_small_in)));
   __ Cvt_d_uw(f10, a4);
-  __ sdc1(f10, MemOperand(a0, offsetof(T, cvt_small_out)));
+  __ Sdc1(f10, MemOperand(a0, offsetof(T, cvt_small_out)));
 
   __ Trunc_uw_d(f10, f10, f4);
-  __ swc1(f10, MemOperand(a0, offsetof(T, trunc_small_out)));
+  __ Swc1(f10, MemOperand(a0, offsetof(T, trunc_small_out)));
 
-  __ sw(a4, MemOperand(a0, offsetof(T, cvt_big_in)));
+  __ Sw(a4, MemOperand(a0, offsetof(T, cvt_big_in)));
   __ Cvt_d_uw(f8, a4);
-  __ sdc1(f8, MemOperand(a0, offsetof(T, cvt_big_out)));
+  __ Sdc1(f8, MemOperand(a0, offsetof(T, cvt_big_out)));
 
   __ Trunc_uw_d(f8, f8, f4);
-  __ swc1(f8, MemOperand(a0, offsetof(T, trunc_big_out)));
+  __ Swc1(f8, MemOperand(a0, offsetof(T, trunc_big_out)));
 
   __ jr(ra);
   __ nop();
@@ -1266,49 +1264,49 @@ TEST(MIPS14) {
   __ cfc1(a1, FCSR);
   // Disable FPU exceptions.
   __ ctc1(zero_reg, FCSR);
-#define RUN_ROUND_TEST(x) \
-  __ cfc1(t0, FCSR);\
-  __ sw(t0, MemOperand(a0, offsetof(T, x##_isNaN2008))); \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, round_up_in))); \
-  __ x##_w_d(f0, f0); \
-  __ swc1(f0, MemOperand(a0, offsetof(T, x##_up_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, round_down_in))); \
-  __ x##_w_d(f0, f0); \
-  __ swc1(f0, MemOperand(a0, offsetof(T, x##_down_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, neg_round_up_in))); \
-  __ x##_w_d(f0, f0); \
-  __ swc1(f0, MemOperand(a0, offsetof(T, neg_##x##_up_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, neg_round_down_in))); \
-  __ x##_w_d(f0, f0); \
-  __ swc1(f0, MemOperand(a0, offsetof(T, neg_##x##_down_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, err1_in))); \
-  __ ctc1(zero_reg, FCSR); \
-  __ x##_w_d(f0, f0); \
-  __ cfc1(a2, FCSR); \
-  __ sw(a2, MemOperand(a0, offsetof(T, x##_err1_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, err2_in))); \
-  __ ctc1(zero_reg, FCSR); \
-  __ x##_w_d(f0, f0); \
-  __ cfc1(a2, FCSR); \
-  __ sw(a2, MemOperand(a0, offsetof(T, x##_err2_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, err3_in))); \
-  __ ctc1(zero_reg, FCSR); \
-  __ x##_w_d(f0, f0); \
-  __ cfc1(a2, FCSR); \
-  __ sw(a2, MemOperand(a0, offsetof(T, x##_err3_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, err4_in))); \
-  __ ctc1(zero_reg, FCSR); \
-  __ x##_w_d(f0, f0); \
-  __ cfc1(a2, FCSR); \
-  __ sw(a2, MemOperand(a0, offsetof(T, x##_err4_out))); \
-  __ swc1(f0, MemOperand(a0, offsetof(T, x##_invalid_result)));
+#define RUN_ROUND_TEST(x)                                       \
+  __ cfc1(t0, FCSR);                                            \
+  __ Sw(t0, MemOperand(a0, offsetof(T, x##_isNaN2008)));        \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, round_up_in)));        \
+  __ x##_w_d(f0, f0);                                           \
+  __ Swc1(f0, MemOperand(a0, offsetof(T, x##_up_out)));         \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, round_down_in)));      \
+  __ x##_w_d(f0, f0);                                           \
+  __ Swc1(f0, MemOperand(a0, offsetof(T, x##_down_out)));       \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, neg_round_up_in)));    \
+  __ x##_w_d(f0, f0);                                           \
+  __ Swc1(f0, MemOperand(a0, offsetof(T, neg_##x##_up_out)));   \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, neg_round_down_in)));  \
+  __ x##_w_d(f0, f0);                                           \
+  __ Swc1(f0, MemOperand(a0, offsetof(T, neg_##x##_down_out))); \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, err1_in)));            \
+  __ ctc1(zero_reg, FCSR);                                      \
+  __ x##_w_d(f0, f0);                                           \
+  __ cfc1(a2, FCSR);                                            \
+  __ Sw(a2, MemOperand(a0, offsetof(T, x##_err1_out)));         \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, err2_in)));            \
+  __ ctc1(zero_reg, FCSR);                                      \
+  __ x##_w_d(f0, f0);                                           \
+  __ cfc1(a2, FCSR);                                            \
+  __ Sw(a2, MemOperand(a0, offsetof(T, x##_err2_out)));         \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, err3_in)));            \
+  __ ctc1(zero_reg, FCSR);                                      \
+  __ x##_w_d(f0, f0);                                           \
+  __ cfc1(a2, FCSR);                                            \
+  __ Sw(a2, MemOperand(a0, offsetof(T, x##_err3_out)));         \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, err4_in)));            \
+  __ ctc1(zero_reg, FCSR);                                      \
+  __ x##_w_d(f0, f0);                                           \
+  __ cfc1(a2, FCSR);                                            \
+  __ Sw(a2, MemOperand(a0, offsetof(T, x##_err4_out)));         \
+  __ Swc1(f0, MemOperand(a0, offsetof(T, x##_invalid_result)));
 
   RUN_ROUND_TEST(round)
   RUN_ROUND_TEST(floor)
@@ -1403,51 +1401,51 @@ TEST(MIPS16) {
   };
   T t;
 
-  Assembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label L, C;
 
   // Basic 32-bit word load/store, with un-signed data.
-  __ lw(a4, MemOperand(a0, offsetof(T, ui)));
-  __ sw(a4, MemOperand(a0, offsetof(T, r1)));
+  __ Lw(a4, MemOperand(a0, offsetof(T, ui)));
+  __ Sw(a4, MemOperand(a0, offsetof(T, r1)));
 
   // Check that the data got zero-extended into 64-bit a4.
-  __ sd(a4, MemOperand(a0, offsetof(T, r2)));
+  __ Sd(a4, MemOperand(a0, offsetof(T, r2)));
 
   // Basic 32-bit word load/store, with SIGNED data.
-  __ lw(a5, MemOperand(a0, offsetof(T, si)));
-  __ sw(a5, MemOperand(a0, offsetof(T, r3)));
+  __ Lw(a5, MemOperand(a0, offsetof(T, si)));
+  __ Sw(a5, MemOperand(a0, offsetof(T, r3)));
 
   // Check that the data got sign-extended into 64-bit a4.
-  __ sd(a5, MemOperand(a0, offsetof(T, r4)));
+  __ Sd(a5, MemOperand(a0, offsetof(T, r4)));
 
   // 32-bit UNSIGNED word load/store, with SIGNED data.
-  __ lwu(a6, MemOperand(a0, offsetof(T, si)));
-  __ sw(a6, MemOperand(a0, offsetof(T, r5)));
+  __ Lwu(a6, MemOperand(a0, offsetof(T, si)));
+  __ Sw(a6, MemOperand(a0, offsetof(T, r5)));
 
   // Check that the data got zero-extended into 64-bit a4.
-  __ sd(a6, MemOperand(a0, offsetof(T, r6)));
+  __ Sd(a6, MemOperand(a0, offsetof(T, r6)));
 
   // lh with positive data.
-  __ lh(a5, MemOperand(a0, offsetof(T, ui)));
-  __ sw(a5, MemOperand(a0, offsetof(T, r7)));
+  __ Lh(a5, MemOperand(a0, offsetof(T, ui)));
+  __ Sw(a5, MemOperand(a0, offsetof(T, r7)));
 
   // lh with negative data.
-  __ lh(a6, MemOperand(a0, offsetof(T, si)));
-  __ sw(a6, MemOperand(a0, offsetof(T, r8)));
+  __ Lh(a6, MemOperand(a0, offsetof(T, si)));
+  __ Sw(a6, MemOperand(a0, offsetof(T, r8)));
 
   // lhu with negative data.
-  __ lhu(a7, MemOperand(a0, offsetof(T, si)));
-  __ sw(a7, MemOperand(a0, offsetof(T, r9)));
+  __ Lhu(a7, MemOperand(a0, offsetof(T, si)));
+  __ Sw(a7, MemOperand(a0, offsetof(T, r9)));
 
-  // lb with negative data.
-  __ lb(t0, MemOperand(a0, offsetof(T, si)));
-  __ sw(t0, MemOperand(a0, offsetof(T, r10)));
+  // Lb with negative data.
+  __ Lb(t0, MemOperand(a0, offsetof(T, si)));
+  __ Sw(t0, MemOperand(a0, offsetof(T, r10)));
 
   // sh writes only 1/2 of word.
-  __ lw(a4, MemOperand(a0, offsetof(T, ui)));
-  __ sh(a4, MemOperand(a0, offsetof(T, r11)));
-  __ lw(a4, MemOperand(a0, offsetof(T, si)));
-  __ sh(a4, MemOperand(a0, offsetof(T, r12)));
+  __ Lw(a4, MemOperand(a0, offsetof(T, ui)));
+  __ Sh(a4, MemOperand(a0, offsetof(T, r11)));
+  __ Lw(a4, MemOperand(a0, offsetof(T, si)));
+  __ Sh(a4, MemOperand(a0, offsetof(T, r12)));
 
   __ jr(ra);
   __ nop();
@@ -1559,26 +1557,26 @@ TEST(seleqz_selnez) {
     // Integer part of test.
     __ addiu(t1, zero_reg, 1);                      // t1 = 1
     __ seleqz(t3, t1, zero_reg);                    // t3 = 1
-    __ sw(t3, MemOperand(a0, offsetof(Test, a)));  // a = 1
+    __ Sw(t3, MemOperand(a0, offsetof(Test, a)));   // a = 1
     __ seleqz(t2, t1, t1);                          // t2 = 0
-    __ sw(t2, MemOperand(a0, offsetof(Test, b)));  // b = 0
+    __ Sw(t2, MemOperand(a0, offsetof(Test, b)));   // b = 0
     __ selnez(t3, t1, zero_reg);                    // t3 = 1;
-    __ sw(t3, MemOperand(a0, offsetof(Test, c)));  // c = 0
+    __ Sw(t3, MemOperand(a0, offsetof(Test, c)));   // c = 0
     __ selnez(t3, t1, t1);                          // t3 = 1
-    __ sw(t3, MemOperand(a0, offsetof(Test, d)));  // d = 1
+    __ Sw(t3, MemOperand(a0, offsetof(Test, d)));   // d = 1
     // Floating point part of test.
-    __ ldc1(f0, MemOperand(a0, offsetof(Test, e)) );  // src
-    __ ldc1(f2, MemOperand(a0, offsetof(Test, f)) );  // test
-    __ lwc1(f8, MemOperand(a0, offsetof(Test, i)) );  // src
-    __ lwc1(f10, MemOperand(a0, offsetof(Test, j)) );  // test
+    __ Ldc1(f0, MemOperand(a0, offsetof(Test, e)));   // src
+    __ Ldc1(f2, MemOperand(a0, offsetof(Test, f)));   // test
+    __ Lwc1(f8, MemOperand(a0, offsetof(Test, i)));   // src
+    __ Lwc1(f10, MemOperand(a0, offsetof(Test, j)));  // test
     __ seleqz_d(f4, f0, f2);
     __ selnez_d(f6, f0, f2);
     __ seleqz_s(f12, f8, f10);
     __ selnez_s(f14, f8, f10);
-    __ sdc1(f4, MemOperand(a0, offsetof(Test, g)) );  // src
-    __ sdc1(f6, MemOperand(a0, offsetof(Test, h)) );  // src
-    __ swc1(f12, MemOperand(a0, offsetof(Test, k)) );  // src
-    __ swc1(f14, MemOperand(a0, offsetof(Test, l)) );  // src
+    __ Sdc1(f4, MemOperand(a0, offsetof(Test, g)));   // src
+    __ Sdc1(f6, MemOperand(a0, offsetof(Test, h)));   // src
+    __ Swc1(f12, MemOperand(a0, offsetof(Test, k)));  // src
+    __ Swc1(f14, MemOperand(a0, offsetof(Test, l)));  // src
     __ jr(ra);
     __ nop();
     CodeDesc desc;
@@ -1682,18 +1680,18 @@ TEST(min_max) {
     float outputsfmax[kTableLength] = {3.0,  3.0,  3.0,  3.0,  0.0,  0.0, finf,
                                        finf, finf, finf, finf, finf, fnan};
 
-    __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
-    __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
-    __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, e)));
-    __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, f)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+    __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
+    __ Lwc1(f2, MemOperand(a0, offsetof(TestFloat, e)));
+    __ Lwc1(f6, MemOperand(a0, offsetof(TestFloat, f)));
     __ min_d(f10, f4, f8);
     __ max_d(f12, f4, f8);
     __ min_s(f14, f2, f6);
     __ max_s(f16, f2, f6);
-    __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
-    __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, d)));
-    __ swc1(f14, MemOperand(a0, offsetof(TestFloat, g)));
-    __ swc1(f16, MemOperand(a0, offsetof(TestFloat, h)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
+    __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, d)));
+    __ Swc1(f14, MemOperand(a0, offsetof(TestFloat, g)));
+    __ Swc1(f16, MemOperand(a0, offsetof(TestFloat, h)));
     __ jr(ra);
     __ nop();
 
@@ -1798,11 +1796,11 @@ TEST(rint_d)  {
     int fcsr_inputs[4] =
       {kRoundToNearest, kRoundToZero, kRoundToPlusInf, kRoundToMinusInf};
     double* outputs[4] = {outputs_RN, outputs_RZ, outputs_RP, outputs_RM};
-    __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)) );
-    __ lw(t0, MemOperand(a0, offsetof(TestFloat, fcsr)) );
+    __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+    __ Lw(t0, MemOperand(a0, offsetof(TestFloat, fcsr)));
     __ ctc1(t0, FCSR);
     __ rint_d(f8, f4);
-    __ sdc1(f8, MemOperand(a0, offsetof(TestFloat, b)) );
+    __ Sdc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
     __ jr(ra);
     __ nop();
 
@@ -1842,16 +1840,16 @@ TEST(sel) {
     } Test;
 
     Test test;
-    __ ldc1(f0, MemOperand(a0, offsetof(Test, dd)) );  // test
-    __ ldc1(f2, MemOperand(a0, offsetof(Test, ds)) );  // src1
-    __ ldc1(f4, MemOperand(a0, offsetof(Test, dt)) );  // src2
-    __ lwc1(f6, MemOperand(a0, offsetof(Test, fd)) );  // test
-    __ lwc1(f8, MemOperand(a0, offsetof(Test, fs)) );  // src1
-    __ lwc1(f10, MemOperand(a0, offsetof(Test, ft)) );  // src2
+    __ Ldc1(f0, MemOperand(a0, offsetof(Test, dd)));   // test
+    __ Ldc1(f2, MemOperand(a0, offsetof(Test, ds)));   // src1
+    __ Ldc1(f4, MemOperand(a0, offsetof(Test, dt)));   // src2
+    __ Lwc1(f6, MemOperand(a0, offsetof(Test, fd)));   // test
+    __ Lwc1(f8, MemOperand(a0, offsetof(Test, fs)));   // src1
+    __ Lwc1(f10, MemOperand(a0, offsetof(Test, ft)));  // src2
     __ sel_d(f0, f2, f4);
     __ sel_s(f6, f8, f10);
-    __ sdc1(f0, MemOperand(a0, offsetof(Test, dd)) );
-    __ swc1(f6, MemOperand(a0, offsetof(Test, fd)) );
+    __ Sdc1(f0, MemOperand(a0, offsetof(Test, dd)));
+    __ Swc1(f6, MemOperand(a0, offsetof(Test, fd)));
     __ jr(ra);
     __ nop();
     CodeDesc desc;
@@ -1977,12 +1975,12 @@ TEST(rint_s)  {
     int fcsr_inputs[4] =
       {kRoundToNearest, kRoundToZero, kRoundToPlusInf, kRoundToMinusInf};
     float* outputs[4] = {outputs_RN, outputs_RZ, outputs_RP, outputs_RM};
-    __ lwc1(f4, MemOperand(a0, offsetof(TestFloat, a)) );
-    __ lw(t0, MemOperand(a0, offsetof(TestFloat, fcsr)) );
+    __ Lwc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+    __ Lw(t0, MemOperand(a0, offsetof(TestFloat, fcsr)));
     __ cfc1(t1, FCSR);
     __ ctc1(t0, FCSR);
     __ rint_s(f8, f4);
-    __ swc1(f8, MemOperand(a0, offsetof(TestFloat, b)) );
+    __ Swc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
     __ ctc1(t1, FCSR);
     __ jr(ra);
     __ nop();
@@ -2058,18 +2056,18 @@ TEST(mina_maxa) {
         5.3, 5.3, 6.1, -10.0, 9.8,  9.8,  -10.0, 9.8,  9.8,  -10.0, -11.2, -9.8,
         3.0, 3.0, 0.0, 0.0,   finf, finf, finf,  finf, finf, finf,  fnan};
 
-    __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
-    __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, b)) );
-    __ lwc1(f8, MemOperand(a0, offsetof(TestFloat, c)) );
-    __ lwc1(f10, MemOperand(a0, offsetof(TestFloat, d)) );
+    __ Ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, b)));
+    __ Lwc1(f8, MemOperand(a0, offsetof(TestFloat, c)));
+    __ Lwc1(f10, MemOperand(a0, offsetof(TestFloat, d)));
     __ mina_d(f6, f2, f4);
     __ mina_s(f12, f8, f10);
     __ maxa_d(f14, f2, f4);
     __ maxa_s(f16, f8, f10);
-    __ swc1(f12, MemOperand(a0, offsetof(TestFloat, resf)) );
-    __ sdc1(f6, MemOperand(a0, offsetof(TestFloat, resd)) );
-    __ swc1(f16, MemOperand(a0, offsetof(TestFloat, resf1)) );
-    __ sdc1(f14, MemOperand(a0, offsetof(TestFloat, resd1)) );
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, resf)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(TestFloat, resd)));
+    __ Swc1(f16, MemOperand(a0, offsetof(TestFloat, resf1)));
+    __ Sdc1(f14, MemOperand(a0, offsetof(TestFloat, resd1)));
     __ jr(ra);
     __ nop();
 
@@ -2145,13 +2143,13 @@ TEST(trunc_l) {
         dFPU64InvalidResult};
 
     __ cfc1(t1, FCSR);
-    __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-    __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
-    __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
+    __ Sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
+    __ Lwc1(f6, MemOperand(a0, offsetof(Test, b)));
     __ trunc_l_d(f8, f4);
     __ trunc_l_s(f10, f6);
-    __ sdc1(f8, MemOperand(a0, offsetof(Test, c)) );
-    __ sdc1(f10, MemOperand(a0, offsetof(Test, d)) );
+    __ Sdc1(f8, MemOperand(a0, offsetof(Test, c)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(Test, d)));
     __ jr(ra);
     __ nop();
     Test test;
@@ -2214,25 +2212,25 @@ TEST(movz_movn) {
       5.3, -5.3, 5.3, -2.9
     };
 
-    __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
-    __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, c)) );
-    __ ld(t0, MemOperand(a0, offsetof(TestFloat, rt)));
+    __ Ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)));
+    __ Lwc1(f6, MemOperand(a0, offsetof(TestFloat, c)));
+    __ Ld(t0, MemOperand(a0, offsetof(TestFloat, rt)));
     __ Move(f12, 0.0);
     __ Move(f10, 0.0);
     __ Move(f16, 0.0);
     __ Move(f14, 0.0);
-    __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, bold)) );
-    __ swc1(f10, MemOperand(a0, offsetof(TestFloat, dold)) );
-    __ sdc1(f16, MemOperand(a0, offsetof(TestFloat, bold1)) );
-    __ swc1(f14, MemOperand(a0, offsetof(TestFloat, dold1)) );
+    __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, bold)));
+    __ Swc1(f10, MemOperand(a0, offsetof(TestFloat, dold)));
+    __ Sdc1(f16, MemOperand(a0, offsetof(TestFloat, bold1)));
+    __ Swc1(f14, MemOperand(a0, offsetof(TestFloat, dold1)));
     __ movz_s(f10, f6, t0);
     __ movz_d(f12, f2, t0);
     __ movn_s(f14, f6, t0);
     __ movn_d(f16, f2, t0);
-    __ swc1(f10, MemOperand(a0, offsetof(TestFloat, d)) );
-    __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, b)) );
-    __ swc1(f14, MemOperand(a0, offsetof(TestFloat, d1)) );
-    __ sdc1(f16, MemOperand(a0, offsetof(TestFloat, b1)) );
+    __ Swc1(f10, MemOperand(a0, offsetof(TestFloat, d)));
+    __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, b)));
+    __ Swc1(f14, MemOperand(a0, offsetof(TestFloat, d1)));
+    __ Sdc1(f16, MemOperand(a0, offsetof(TestFloat, b1)));
     __ jr(ra);
     __ nop();
 
@@ -2313,26 +2311,26 @@ TEST(movt_movd) {
         HandleScope scope(isolate);
         MacroAssembler assm(isolate, NULL, 0,
                             v8::internal::CodeObjectRequired::kYes);
-        __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, srcd)) );
-        __ lwc1(f4, MemOperand(a0, offsetof(TestFloat, srcf)) );
-        __ lw(t1, MemOperand(a0, offsetof(TestFloat, fcsr)) );
+        __ Ldc1(f2, MemOperand(a0, offsetof(TestFloat, srcd)));
+        __ Lwc1(f4, MemOperand(a0, offsetof(TestFloat, srcf)));
+        __ Lw(t1, MemOperand(a0, offsetof(TestFloat, fcsr)));
         __ cfc1(t0, FCSR);
         __ ctc1(t1, FCSR);
         __ li(t2, 0x0);
         __ mtc1(t2, f12);
         __ mtc1(t2, f10);
-        __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstdold)) );
-        __ swc1(f12, MemOperand(a0, offsetof(TestFloat, dstfold)) );
+        __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstdold)));
+        __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, dstfold)));
         __ movt_s(f12, f4, test.cc);
         __ movt_d(f10, f2, test.cc);
-        __ swc1(f12, MemOperand(a0, offsetof(TestFloat, dstf)) );
-        __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstd)) );
-        __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstdold1)) );
-        __ swc1(f12, MemOperand(a0, offsetof(TestFloat, dstfold1)) );
+        __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, dstf)));
+        __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstd)));
+        __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstdold1)));
+        __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, dstfold1)));
         __ movf_s(f12, f4, test.cc);
         __ movf_d(f10, f2, test.cc);
-        __ swc1(f12, MemOperand(a0, offsetof(TestFloat, dstf1)) );
-        __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstd1)) );
+        __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, dstf1)));
+        __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstd1)));
         __ ctc1(t0, FCSR);
         __ jr(ra);
         __ nop();
@@ -2413,12 +2411,12 @@ TEST(cvt_w_d) {
   int fcsr_inputs[4] =
       {kRoundToNearest, kRoundToZero, kRoundToPlusInf, kRoundToMinusInf};
   double* outputs[4] = {outputs_RN, outputs_RZ, outputs_RP, outputs_RM};
-  __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
-  __ lw(t0, MemOperand(a0, offsetof(Test, fcsr)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
+  __ Lw(t0, MemOperand(a0, offsetof(Test, fcsr)));
   __ cfc1(t1, FCSR);
   __ ctc1(t0, FCSR);
   __ cvt_w_d(f8, f4);
-  __ swc1(f8, MemOperand(a0, offsetof(Test, b)) );
+  __ Swc1(f8, MemOperand(a0, offsetof(Test, b)));
   __ ctc1(t1, FCSR);
   __ jr(ra);
   __ nop();
@@ -2480,13 +2478,13 @@ TEST(trunc_w) {
       kFPUInvalidResult};
 
   __ cfc1(t1, FCSR);
-  __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-  __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
-  __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
+  __ Sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
+  __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
+  __ Lwc1(f6, MemOperand(a0, offsetof(Test, b)));
   __ trunc_w_d(f8, f4);
   __ trunc_w_s(f10, f6);
-  __ swc1(f8, MemOperand(a0, offsetof(Test, c)) );
-  __ swc1(f10, MemOperand(a0, offsetof(Test, d)) );
+  __ Swc1(f8, MemOperand(a0, offsetof(Test, c)));
+  __ Swc1(f10, MemOperand(a0, offsetof(Test, d)));
   __ jr(ra);
   __ nop();
   Test test;
@@ -2549,13 +2547,13 @@ TEST(round_w) {
       kFPUInvalidResult};
 
   __ cfc1(t1, FCSR);
-  __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-  __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
-  __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
+  __ Sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
+  __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
+  __ Lwc1(f6, MemOperand(a0, offsetof(Test, b)));
   __ round_w_d(f8, f4);
   __ round_w_s(f10, f6);
-  __ swc1(f8, MemOperand(a0, offsetof(Test, c)) );
-  __ swc1(f10, MemOperand(a0, offsetof(Test, d)) );
+  __ Swc1(f8, MemOperand(a0, offsetof(Test, c)));
+  __ Swc1(f10, MemOperand(a0, offsetof(Test, d)));
   __ jr(ra);
   __ nop();
   Test test;
@@ -2620,13 +2618,13 @@ TEST(round_l) {
         dFPU64InvalidResult};
 
     __ cfc1(t1, FCSR);
-    __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-    __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
-    __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
+    __ Sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
+    __ Lwc1(f6, MemOperand(a0, offsetof(Test, b)));
     __ round_l_d(f8, f4);
     __ round_l_s(f10, f6);
-    __ sdc1(f8, MemOperand(a0, offsetof(Test, c)) );
-    __ sdc1(f10, MemOperand(a0, offsetof(Test, d)) );
+    __ Sdc1(f8, MemOperand(a0, offsetof(Test, c)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(Test, d)));
     __ jr(ra);
     __ nop();
     Test test;
@@ -2691,14 +2689,14 @@ TEST(sub) {
     0.5, -0.5, 0.0, -10.1, -10.1, -5.8,
     10.1, 10.1, 5.8, -0.5, 0.5, 0.0
   };
-  __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
-  __ lwc1(f4, MemOperand(a0, offsetof(TestFloat, b)) );
-  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)) );
-  __ ldc1(f10, MemOperand(a0, offsetof(TestFloat, d)) );
+  __ Lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Lwc1(f4, MemOperand(a0, offsetof(TestFloat, b)));
+  __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)));
+  __ Ldc1(f10, MemOperand(a0, offsetof(TestFloat, d)));
   __ sub_s(f6, f2, f4);
   __ sub_d(f12, f8, f10);
-  __ swc1(f6, MemOperand(a0, offsetof(TestFloat, resultS)) );
-  __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)) );
+  __ Swc1(f6, MemOperand(a0, offsetof(TestFloat, resultS)));
+  __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)));
   __ jr(ra);
   __ nop();
 
@@ -2757,21 +2755,20 @@ TEST(sqrt_rsqrt_recip) {
     0.0, 2.0, sqrt2_s, 2e-14
   };
 
-
-  __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
-  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)) );
+  __ Lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)));
   __ sqrt_s(f6, f2);
   __ sqrt_d(f12, f8);
   __ rsqrt_d(f14, f8);
   __ rsqrt_s(f16, f2);
   __ recip_d(f18, f8);
   __ recip_s(f4, f2);
-  __ swc1(f6, MemOperand(a0, offsetof(TestFloat, resultS)) );
-  __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)) );
-  __ swc1(f16, MemOperand(a0, offsetof(TestFloat, resultS1)) );
-  __ sdc1(f14, MemOperand(a0, offsetof(TestFloat, resultD1)) );
-  __ swc1(f4, MemOperand(a0, offsetof(TestFloat, resultS2)) );
-  __ sdc1(f18, MemOperand(a0, offsetof(TestFloat, resultD2)) );
+  __ Swc1(f6, MemOperand(a0, offsetof(TestFloat, resultS)));
+  __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)));
+  __ Swc1(f16, MemOperand(a0, offsetof(TestFloat, resultS1)));
+  __ Sdc1(f14, MemOperand(a0, offsetof(TestFloat, resultD1)));
+  __ Swc1(f4, MemOperand(a0, offsetof(TestFloat, resultS2)));
+  __ Sdc1(f18, MemOperand(a0, offsetof(TestFloat, resultD2)));
   __ jr(ra);
   __ nop();
 
@@ -2844,12 +2841,12 @@ TEST(neg) {
   float outputs_S[kTableLength] = {
     -4.0, 2.0
   };
-  __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
-  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)) );
+  __ Lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)));
   __ neg_s(f6, f2);
   __ neg_d(f12, f8);
-  __ swc1(f6, MemOperand(a0, offsetof(TestFloat, resultS)) );
-  __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)) );
+  __ Swc1(f6, MemOperand(a0, offsetof(TestFloat, resultS)));
+  __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)));
   __ jr(ra);
   __ nop();
 
@@ -2900,14 +2897,14 @@ TEST(mul) {
     4.8, 4.8, -4.8, -0.29
   };
 
-  __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
-  __ lwc1(f4, MemOperand(a0, offsetof(TestFloat, b)) );
-  __ ldc1(f6, MemOperand(a0, offsetof(TestFloat, c)) );
-  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, d)) );
+  __ Lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Lwc1(f4, MemOperand(a0, offsetof(TestFloat, b)));
+  __ Ldc1(f6, MemOperand(a0, offsetof(TestFloat, c)));
+  __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, d)));
   __ mul_s(f10, f2, f4);
   __ mul_d(f12, f6, f8);
-  __ swc1(f10, MemOperand(a0, offsetof(TestFloat, resultS)) );
-  __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)) );
+  __ Swc1(f10, MemOperand(a0, offsetof(TestFloat, resultS)));
+  __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)));
   __ jr(ra);
   __ nop();
 
@@ -2957,12 +2954,12 @@ TEST(mov) {
     5.3, -5.3, 5.3, -2.9
   };
 
-  __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)) );
-  __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, c)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Lwc1(f6, MemOperand(a0, offsetof(TestFloat, c)));
   __ mov_s(f8, f6);
   __ mov_d(f10, f4);
-  __ swc1(f8, MemOperand(a0, offsetof(TestFloat, d)) );
-  __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, b)) );
+  __ Swc1(f8, MemOperand(a0, offsetof(TestFloat, d)));
+  __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, b)));
   __ jr(ra);
   __ nop();
 
@@ -3023,13 +3020,13 @@ TEST(floor_w) {
       kFPUInvalidResult};
 
   __ cfc1(t1, FCSR);
-  __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-  __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
-  __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
+  __ Sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
+  __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
+  __ Lwc1(f6, MemOperand(a0, offsetof(Test, b)));
   __ floor_w_d(f8, f4);
   __ floor_w_s(f10, f6);
-  __ swc1(f8, MemOperand(a0, offsetof(Test, c)) );
-  __ swc1(f10, MemOperand(a0, offsetof(Test, d)) );
+  __ Swc1(f8, MemOperand(a0, offsetof(Test, c)));
+  __ Swc1(f10, MemOperand(a0, offsetof(Test, d)));
   __ jr(ra);
   __ nop();
   Test test;
@@ -3094,13 +3091,13 @@ TEST(floor_l) {
         dFPU64InvalidResult};
 
     __ cfc1(t1, FCSR);
-    __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-    __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
-    __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
+    __ Sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
+    __ Lwc1(f6, MemOperand(a0, offsetof(Test, b)));
     __ floor_l_d(f8, f4);
     __ floor_l_s(f10, f6);
-    __ sdc1(f8, MemOperand(a0, offsetof(Test, c)) );
-    __ sdc1(f10, MemOperand(a0, offsetof(Test, d)) );
+    __ Sdc1(f8, MemOperand(a0, offsetof(Test, c)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(Test, d)));
     __ jr(ra);
     __ nop();
     Test test;
@@ -3165,13 +3162,13 @@ TEST(ceil_w) {
       kFPUInvalidResult};
 
   __ cfc1(t1, FCSR);
-  __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-  __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
-  __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
+  __ Sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
+  __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
+  __ Lwc1(f6, MemOperand(a0, offsetof(Test, b)));
   __ ceil_w_d(f8, f4);
   __ ceil_w_s(f10, f6);
-  __ swc1(f8, MemOperand(a0, offsetof(Test, c)) );
-  __ swc1(f10, MemOperand(a0, offsetof(Test, d)) );
+  __ Swc1(f8, MemOperand(a0, offsetof(Test, c)));
+  __ Swc1(f10, MemOperand(a0, offsetof(Test, d)));
   __ jr(ra);
   __ nop();
   Test test;
@@ -3236,13 +3233,13 @@ TEST(ceil_l) {
         dFPU64InvalidResult};
 
     __ cfc1(t1, FCSR);
-    __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-    __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
-    __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
+    __ Sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
+    __ Lwc1(f6, MemOperand(a0, offsetof(Test, b)));
     __ ceil_l_d(f8, f4);
     __ ceil_l_s(f10, f6);
-    __ sdc1(f8, MemOperand(a0, offsetof(Test, c)) );
-    __ sdc1(f10, MemOperand(a0, offsetof(Test, d)) );
+    __ Sdc1(f8, MemOperand(a0, offsetof(Test, c)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(Test, d)));
     __ jr(ra);
     __ nop();
     Test test;
@@ -3271,7 +3268,7 @@ TEST(jump_tables1) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, nullptr, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -3279,7 +3276,7 @@ TEST(jump_tables1) {
   Label labels[kNumCases];
 
   __ daddiu(sp, sp, -8);
-  __ sd(ra, MemOperand(sp));
+  __ Sd(ra, MemOperand(sp));
   __ Align(8);
 
   Label done;
@@ -3293,7 +3290,7 @@ TEST(jump_tables1) {
     __ dsll(at, a0, 3);  // In delay slot.
     __ bind(&here);
     __ daddu(at, at, ra);
-    __ ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
+    __ Ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
     __ jr(at);
     __ nop();
     for (int i = 0; i < kNumCases; ++i) {
@@ -3310,7 +3307,7 @@ TEST(jump_tables1) {
   }
 
   __ bind(&done);
-  __ ld(ra, MemOperand(sp));
+  __ Ld(ra, MemOperand(sp));
   __ daddiu(sp, sp, 8);
   __ jr(ra);
   __ nop();
@@ -3339,7 +3336,7 @@ TEST(jump_tables2) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, nullptr, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -3347,7 +3344,7 @@ TEST(jump_tables2) {
   Label labels[kNumCases];
 
   __ daddiu(sp, sp, -8);
-  __ sd(ra, MemOperand(sp));
+  __ Sd(ra, MemOperand(sp));
 
   Label done, dispatch;
   __ b(&dispatch);
@@ -3373,7 +3370,7 @@ TEST(jump_tables2) {
     __ dsll(at, a0, 3);  // In delay slot.
     __ bind(&here);
     __ daddu(at, at, ra);
-    __ ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
+    __ Ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
     __ jr(at);
     __ nop();
     for (int i = 0; i < kNumCases; ++i) {
@@ -3382,7 +3379,7 @@ TEST(jump_tables2) {
   }
 
   __ bind(&done);
-  __ ld(ra, MemOperand(sp));
+  __ Ld(ra, MemOperand(sp));
   __ daddiu(sp, sp, 8);
   __ jr(ra);
   __ nop();
@@ -3409,7 +3406,7 @@ TEST(jump_tables3) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, nullptr, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   const int kNumCases = 512;
   Handle<Object> values[kNumCases];
@@ -3422,7 +3419,7 @@ TEST(jump_tables3) {
   int64_t imm64;
 
   __ daddiu(sp, sp, -8);
-  __ sd(ra, MemOperand(sp));
+  __ Sd(ra, MemOperand(sp));
 
   Label done, dispatch;
   __ b(&dispatch);
@@ -3453,7 +3450,7 @@ TEST(jump_tables3) {
     __ dsll(at, a0, 3);  // In delay slot.
     __ bind(&here);
     __ daddu(at, at, ra);
-    __ ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
+    __ Ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
     __ jr(at);
     __ nop();
     for (int i = 0; i < kNumCases; ++i) {
@@ -3462,7 +3459,7 @@ TEST(jump_tables3) {
   }
 
   __ bind(&done);
-  __ ld(ra, MemOperand(sp));
+  __ Ld(ra, MemOperand(sp));
   __ daddiu(sp, sp, 8);
   __ jr(ra);
   __ nop();
@@ -3505,37 +3502,38 @@ TEST(BITSWAP) {
     } T;
     T t;
 
-    Assembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
 
-    __ ld(a4, MemOperand(a0, offsetof(T, r1)));
+    __ Ld(a4, MemOperand(a0, offsetof(T, r1)));
     __ nop();
     __ bitswap(a6, a4);
-    __ sd(a6, MemOperand(a0, offsetof(T, r1)));
+    __ Sd(a6, MemOperand(a0, offsetof(T, r1)));
 
-    __ ld(a4, MemOperand(a0, offsetof(T, r2)));
+    __ Ld(a4, MemOperand(a0, offsetof(T, r2)));
     __ nop();
     __ bitswap(a6, a4);
-    __ sd(a6, MemOperand(a0, offsetof(T, r2)));
+    __ Sd(a6, MemOperand(a0, offsetof(T, r2)));
 
-    __ ld(a4, MemOperand(a0, offsetof(T, r3)));
+    __ Ld(a4, MemOperand(a0, offsetof(T, r3)));
     __ nop();
     __ bitswap(a6, a4);
-    __ sd(a6, MemOperand(a0, offsetof(T, r3)));
+    __ Sd(a6, MemOperand(a0, offsetof(T, r3)));
 
-    __ ld(a4, MemOperand(a0, offsetof(T, r4)));
+    __ Ld(a4, MemOperand(a0, offsetof(T, r4)));
     __ nop();
     __ bitswap(a6, a4);
-    __ sd(a6, MemOperand(a0, offsetof(T, r4)));
+    __ Sd(a6, MemOperand(a0, offsetof(T, r4)));
 
-    __ ld(a4, MemOperand(a0, offsetof(T, r5)));
+    __ Ld(a4, MemOperand(a0, offsetof(T, r5)));
     __ nop();
     __ dbitswap(a6, a4);
-    __ sd(a6, MemOperand(a0, offsetof(T, r5)));
+    __ Sd(a6, MemOperand(a0, offsetof(T, r5)));
 
-    __ ld(a4, MemOperand(a0, offsetof(T, r6)));
+    __ Ld(a4, MemOperand(a0, offsetof(T, r6)));
     __ nop();
     __ dbitswap(a6, a4);
-    __ sd(a6, MemOperand(a0, offsetof(T, r6)));
+    __ Sd(a6, MemOperand(a0, offsetof(T, r6)));
 
     __ jr(ra);
     __ nop();
@@ -3599,86 +3597,86 @@ TEST(class_fmt) {
     MacroAssembler assm(isolate, NULL, 0,
                         v8::internal::CodeObjectRequired::kYes);
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dSignalingNan)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dSignalingNan)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dSignalingNan)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dSignalingNan)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dQuietNan)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dQuietNan)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dQuietNan)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dQuietNan)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dNegInf)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dNegInf)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dNegInf)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dNegInf)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dNegNorm)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dNegNorm)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dNegNorm)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dNegNorm)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dNegSubnorm)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dNegSubnorm)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dNegSubnorm)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dNegSubnorm)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dNegZero)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dNegZero)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dNegZero)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dNegZero)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dPosInf)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dPosInf)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dPosInf)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dPosInf)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dPosNorm)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dPosNorm)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dPosNorm)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dPosNorm)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dPosSubnorm)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dPosSubnorm)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dPosSubnorm)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dPosSubnorm)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dPosZero)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dPosZero)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dPosZero)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dPosZero)));
 
     // Testing instruction CLASS.S
-    __ lwc1(f4, MemOperand(a0, offsetof(T, fSignalingNan)));
+    __ Lwc1(f4, MemOperand(a0, offsetof(T, fSignalingNan)));
     __ class_s(f6, f4);
-    __ swc1(f6, MemOperand(a0, offsetof(T, fSignalingNan)));
+    __ Swc1(f6, MemOperand(a0, offsetof(T, fSignalingNan)));
 
-    __ lwc1(f4, MemOperand(a0, offsetof(T, fQuietNan)));
+    __ Lwc1(f4, MemOperand(a0, offsetof(T, fQuietNan)));
     __ class_s(f6, f4);
-    __ swc1(f6, MemOperand(a0, offsetof(T, fQuietNan)));
+    __ Swc1(f6, MemOperand(a0, offsetof(T, fQuietNan)));
 
-    __ lwc1(f4, MemOperand(a0, offsetof(T, fNegInf)));
+    __ Lwc1(f4, MemOperand(a0, offsetof(T, fNegInf)));
     __ class_s(f6, f4);
-    __ swc1(f6, MemOperand(a0, offsetof(T, fNegInf)));
+    __ Swc1(f6, MemOperand(a0, offsetof(T, fNegInf)));
 
-    __ lwc1(f4, MemOperand(a0, offsetof(T, fNegNorm)));
+    __ Lwc1(f4, MemOperand(a0, offsetof(T, fNegNorm)));
     __ class_s(f6, f4);
-    __ swc1(f6, MemOperand(a0, offsetof(T, fNegNorm)));
+    __ Swc1(f6, MemOperand(a0, offsetof(T, fNegNorm)));
 
-    __ lwc1(f4, MemOperand(a0, offsetof(T, fNegSubnorm)));
+    __ Lwc1(f4, MemOperand(a0, offsetof(T, fNegSubnorm)));
     __ class_s(f6, f4);
-    __ swc1(f6, MemOperand(a0, offsetof(T, fNegSubnorm)));
+    __ Swc1(f6, MemOperand(a0, offsetof(T, fNegSubnorm)));
 
-    __ lwc1(f4, MemOperand(a0, offsetof(T, fNegZero)));
+    __ Lwc1(f4, MemOperand(a0, offsetof(T, fNegZero)));
     __ class_s(f6, f4);
-    __ swc1(f6, MemOperand(a0, offsetof(T, fNegZero)));
+    __ Swc1(f6, MemOperand(a0, offsetof(T, fNegZero)));
 
-    __ lwc1(f4, MemOperand(a0, offsetof(T, fPosInf)));
+    __ Lwc1(f4, MemOperand(a0, offsetof(T, fPosInf)));
     __ class_s(f6, f4);
-    __ swc1(f6, MemOperand(a0, offsetof(T, fPosInf)));
+    __ Swc1(f6, MemOperand(a0, offsetof(T, fPosInf)));
 
-    __ lwc1(f4, MemOperand(a0, offsetof(T, fPosNorm)));
+    __ Lwc1(f4, MemOperand(a0, offsetof(T, fPosNorm)));
     __ class_s(f6, f4);
-    __ swc1(f6, MemOperand(a0, offsetof(T, fPosNorm)));
+    __ Swc1(f6, MemOperand(a0, offsetof(T, fPosNorm)));
 
-    __ lwc1(f4, MemOperand(a0, offsetof(T, fPosSubnorm)));
+    __ Lwc1(f4, MemOperand(a0, offsetof(T, fPosSubnorm)));
     __ class_s(f6, f4);
-    __ swc1(f6, MemOperand(a0, offsetof(T, fPosSubnorm)));
+    __ Swc1(f6, MemOperand(a0, offsetof(T, fPosSubnorm)));
 
-    __ lwc1(f4, MemOperand(a0, offsetof(T, fPosZero)));
+    __ Lwc1(f4, MemOperand(a0, offsetof(T, fPosZero)));
     __ class_s(f6, f4);
-    __ swc1(f6, MemOperand(a0, offsetof(T, fPosZero)));
+    __ Swc1(f6, MemOperand(a0, offsetof(T, fPosZero)));
 
     __ jr(ra);
     __ nop();
@@ -3759,17 +3757,17 @@ TEST(ABS) {
 
   // Save FIR.
   __ cfc1(a1, FCSR);
-  __ sd(a1, MemOperand(a0, offsetof(TestFloat, fcsr)));
+  __ Sd(a1, MemOperand(a0, offsetof(TestFloat, fcsr)));
   // Disable FPU exceptions.
   __ ctc1(zero_reg, FCSR);
 
-  __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
   __ abs_d(f10, f4);
-  __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, a)));
 
-  __ lwc1(f4, MemOperand(a0, offsetof(TestFloat, b)));
+  __ Lwc1(f4, MemOperand(a0, offsetof(TestFloat, b)));
   __ abs_s(f10, f4);
-  __ swc1(f10, MemOperand(a0, offsetof(TestFloat, b)));
+  __ Swc1(f10, MemOperand(a0, offsetof(TestFloat, b)));
 
   // Restore FCSR.
   __ ctc1(a1, FCSR);
@@ -3857,15 +3855,15 @@ TEST(ADD_FMT) {
 
   TestFloat test;
 
-  __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
-  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
+  __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
   __ add_d(f10, f8, f4);
-  __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
+  __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
 
-  __ lwc1(f4, MemOperand(a0, offsetof(TestFloat, fa)));
-  __ lwc1(f8, MemOperand(a0, offsetof(TestFloat, fb)));
+  __ Lwc1(f4, MemOperand(a0, offsetof(TestFloat, fa)));
+  __ Lwc1(f8, MemOperand(a0, offsetof(TestFloat, fb)));
   __ add_s(f10, f8, f4);
-  __ swc1(f10, MemOperand(a0, offsetof(TestFloat, fc)));
+  __ Swc1(f10, MemOperand(a0, offsetof(TestFloat, fc)));
 
   __ jr(ra);
   __ nop();
@@ -3944,11 +3942,11 @@ TEST(C_COND_FMT) {
 
     __ li(t1, 1);
 
-    __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, dOp1)));
-    __ ldc1(f6, MemOperand(a0, offsetof(TestFloat, dOp2)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, dOp1)));
+    __ Ldc1(f6, MemOperand(a0, offsetof(TestFloat, dOp2)));
 
-    __ lwc1(f14, MemOperand(a0, offsetof(TestFloat, fOp1)));
-    __ lwc1(f16, MemOperand(a0, offsetof(TestFloat, fOp2)));
+    __ Lwc1(f14, MemOperand(a0, offsetof(TestFloat, fOp1)));
+    __ Lwc1(f16, MemOperand(a0, offsetof(TestFloat, fOp2)));
 
     __ mov(t2, zero_reg);
     __ mov(t3, zero_reg);
@@ -3956,8 +3954,8 @@ TEST(C_COND_FMT) {
     __ c_s(F, f14, f16, 2);
     __ movt(t2, t1, 0);
     __ movt(t3, t1, 2);
-    __ sw(t2, MemOperand(a0, offsetof(TestFloat, dF)) );
-    __ sw(t3, MemOperand(a0, offsetof(TestFloat, fF)) );
+    __ Sw(t2, MemOperand(a0, offsetof(TestFloat, dF)));
+    __ Sw(t3, MemOperand(a0, offsetof(TestFloat, fF)));
 
     __ mov(t2, zero_reg);
     __ mov(t3, zero_reg);
@@ -3965,8 +3963,8 @@ TEST(C_COND_FMT) {
     __ c_s(UN, f14, f16, 4);
     __ movt(t2, t1, 2);
     __ movt(t3, t1, 4);
-    __ sw(t2, MemOperand(a0, offsetof(TestFloat, dUn)) );
-    __ sw(t3, MemOperand(a0, offsetof(TestFloat, fUn)) );
+    __ Sw(t2, MemOperand(a0, offsetof(TestFloat, dUn)));
+    __ Sw(t3, MemOperand(a0, offsetof(TestFloat, fUn)));
 
     __ mov(t2, zero_reg);
     __ mov(t3, zero_reg);
@@ -3974,8 +3972,8 @@ TEST(C_COND_FMT) {
     __ c_s(EQ, f14, f16, 6);
     __ movt(t2, t1, 4);
     __ movt(t3, t1, 6);
-    __ sw(t2, MemOperand(a0, offsetof(TestFloat, dEq)) );
-    __ sw(t3, MemOperand(a0, offsetof(TestFloat, fEq)) );
+    __ Sw(t2, MemOperand(a0, offsetof(TestFloat, dEq)));
+    __ Sw(t3, MemOperand(a0, offsetof(TestFloat, fEq)));
 
     __ mov(t2, zero_reg);
     __ mov(t3, zero_reg);
@@ -3983,8 +3981,8 @@ TEST(C_COND_FMT) {
     __ c_s(UEQ, f14, f16, 0);
     __ movt(t2, t1, 6);
     __ movt(t3, t1, 0);
-    __ sw(t2, MemOperand(a0, offsetof(TestFloat, dUeq)) );
-    __ sw(t3, MemOperand(a0, offsetof(TestFloat, fUeq)) );
+    __ Sw(t2, MemOperand(a0, offsetof(TestFloat, dUeq)));
+    __ Sw(t3, MemOperand(a0, offsetof(TestFloat, fUeq)));
 
     __ mov(t2, zero_reg);
     __ mov(t3, zero_reg);
@@ -3992,8 +3990,8 @@ TEST(C_COND_FMT) {
     __ c_s(OLT, f14, f16, 2);
     __ movt(t2, t1, 0);
     __ movt(t3, t1, 2);
-    __ sw(t2, MemOperand(a0, offsetof(TestFloat, dOlt)) );
-    __ sw(t3, MemOperand(a0, offsetof(TestFloat, fOlt)) );
+    __ Sw(t2, MemOperand(a0, offsetof(TestFloat, dOlt)));
+    __ Sw(t3, MemOperand(a0, offsetof(TestFloat, fOlt)));
 
     __ mov(t2, zero_reg);
     __ mov(t3, zero_reg);
@@ -4001,8 +3999,8 @@ TEST(C_COND_FMT) {
     __ c_s(ULT, f14, f16, 4);
     __ movt(t2, t1, 2);
     __ movt(t3, t1, 4);
-    __ sw(t2, MemOperand(a0, offsetof(TestFloat, dUlt)) );
-    __ sw(t3, MemOperand(a0, offsetof(TestFloat, fUlt)) );
+    __ Sw(t2, MemOperand(a0, offsetof(TestFloat, dUlt)));
+    __ Sw(t3, MemOperand(a0, offsetof(TestFloat, fUlt)));
 
     __ mov(t2, zero_reg);
     __ mov(t3, zero_reg);
@@ -4010,8 +4008,8 @@ TEST(C_COND_FMT) {
     __ c_s(OLE, f14, f16, 6);
     __ movt(t2, t1, 4);
     __ movt(t3, t1, 6);
-    __ sw(t2, MemOperand(a0, offsetof(TestFloat, dOle)) );
-    __ sw(t3, MemOperand(a0, offsetof(TestFloat, fOle)) );
+    __ Sw(t2, MemOperand(a0, offsetof(TestFloat, dOle)));
+    __ Sw(t3, MemOperand(a0, offsetof(TestFloat, fOle)));
 
     __ mov(t2, zero_reg);
     __ mov(t3, zero_reg);
@@ -4019,8 +4017,8 @@ TEST(C_COND_FMT) {
     __ c_s(ULE, f14, f16, 0);
     __ movt(t2, t1, 6);
     __ movt(t3, t1, 0);
-    __ sw(t2, MemOperand(a0, offsetof(TestFloat, dUle)) );
-    __ sw(t3, MemOperand(a0, offsetof(TestFloat, fUle)) );
+    __ Sw(t2, MemOperand(a0, offsetof(TestFloat, dUle)));
+    __ Sw(t3, MemOperand(a0, offsetof(TestFloat, fUle)));
 
     __ jr(ra);
     __ nop();
@@ -4162,66 +4160,66 @@ TEST(CMP_COND_FMT) {
 
     __ li(t1, 1);
 
-    __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, dOp1)));
-    __ ldc1(f6, MemOperand(a0, offsetof(TestFloat, dOp2)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, dOp1)));
+    __ Ldc1(f6, MemOperand(a0, offsetof(TestFloat, dOp2)));
 
-    __ lwc1(f14, MemOperand(a0, offsetof(TestFloat, fOp1)));
-    __ lwc1(f16, MemOperand(a0, offsetof(TestFloat, fOp2)));
+    __ Lwc1(f14, MemOperand(a0, offsetof(TestFloat, fOp1)));
+    __ Lwc1(f16, MemOperand(a0, offsetof(TestFloat, fOp2)));
 
     __ cmp_d(F, f2, f4, f6);
     __ cmp_s(F, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dF)) );
-    __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fF)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dF)));
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fF)));
 
     __ cmp_d(UN, f2, f4, f6);
     __ cmp_s(UN, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUn)) );
-    __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fUn)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUn)));
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fUn)));
 
     __ cmp_d(EQ, f2, f4, f6);
     __ cmp_s(EQ, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dEq)) );
-    __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fEq)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dEq)));
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fEq)));
 
     __ cmp_d(UEQ, f2, f4, f6);
     __ cmp_s(UEQ, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUeq)) );
-    __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fUeq)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUeq)));
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fUeq)));
 
     __ cmp_d(LT, f2, f4, f6);
     __ cmp_s(LT, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dOlt)) );
-    __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fOlt)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dOlt)));
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fOlt)));
 
     __ cmp_d(ULT, f2, f4, f6);
     __ cmp_s(ULT, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUlt)) );
-    __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fUlt)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUlt)));
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fUlt)));
 
     __ cmp_d(LE, f2, f4, f6);
     __ cmp_s(LE, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dOle)) );
-    __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fOle)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dOle)));
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fOle)));
 
     __ cmp_d(ULE, f2, f4, f6);
     __ cmp_s(ULE, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUle)) );
-    __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fUle)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUle)));
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fUle)));
 
     __ cmp_d(ORD, f2, f4, f6);
     __ cmp_s(ORD, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dOr)) );
-    __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fOr)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dOr)));
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fOr)));
 
     __ cmp_d(UNE, f2, f4, f6);
     __ cmp_s(UNE, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUne)) );
-    __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fUne)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUne)));
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fUne)));
 
     __ cmp_d(NE, f2, f4, f6);
     __ cmp_s(NE, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dNe)) );
-    __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fNe)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dNe)));
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fNe)));
 
     __ jr(ra);
     __ nop();
@@ -4558,19 +4556,19 @@ TEST(DIV_FMT) {
   // Disable FPU exceptions.
   __ ctc1(zero_reg, FCSR);
 
-  __ ldc1(f4, MemOperand(a0, offsetof(Test, dOp1)) );
-  __ ldc1(f2, MemOperand(a0, offsetof(Test, dOp2)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(Test, dOp1)));
+  __ Ldc1(f2, MemOperand(a0, offsetof(Test, dOp2)));
   __ nop();
   __ div_d(f6, f4, f2);
-  __ sdc1(f6, MemOperand(a0, offsetof(Test, dRes)) );
+  __ Sdc1(f6, MemOperand(a0, offsetof(Test, dRes)));
 
-  __ lwc1(f4, MemOperand(a0, offsetof(Test, fOp1)) );
-  __ lwc1(f2, MemOperand(a0, offsetof(Test, fOp2)) );
+  __ Lwc1(f4, MemOperand(a0, offsetof(Test, fOp1)));
+  __ Lwc1(f2, MemOperand(a0, offsetof(Test, fOp2)));
   __ nop();
   __ div_s(f6, f4, f2);
-  __ swc1(f6, MemOperand(a0, offsetof(Test, fRes)) );
+  __ Swc1(f6, MemOperand(a0, offsetof(Test, fRes)));
 
-    // Restore FCSR.
+  // Restore FCSR.
   __ ctc1(a1, FCSR);
 
   __ jr(ra);
@@ -5971,15 +5969,15 @@ void helper_madd_msub_maddf_msubf(F func) {
   };
 
   if (std::is_same<T, float>::value) {
-    __ lwc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
-    __ lwc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
-    __ lwc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
-    __ lwc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+    __ Lwc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+    __ Lwc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
+    __ Lwc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
+    __ Lwc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
   } else if (std::is_same<T, double>::value) {
-    __ ldc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
-    __ ldc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
-    __ ldc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
-    __ ldc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+    __ Ldc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
+    __ Ldc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
+    __ Ldc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
   } else {
     UNREACHABLE();
   }
@@ -6023,9 +6021,9 @@ TEST(madd_msub_s) {
   if (kArchVariant == kMips64r6) return;
   helper_madd_msub_maddf_msubf<float>([](MacroAssembler& assm) {
     __ madd_s(f10, f4, f6, f8);
-    __ swc1(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_add)));
+    __ Swc1(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_add)));
     __ msub_s(f16, f4, f6, f8);
-    __ swc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_sub)));
+    __ Swc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_sub)));
   });
 }
 
@@ -6033,9 +6031,9 @@ TEST(madd_msub_d) {
   if (kArchVariant == kMips64r6) return;
   helper_madd_msub_maddf_msubf<double>([](MacroAssembler& assm) {
     __ madd_d(f10, f4, f6, f8);
-    __ sdc1(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
     __ msub_d(f16, f4, f6, f8);
-    __ sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
+    __ Sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
   });
 }
 
@@ -6043,9 +6041,9 @@ TEST(maddf_msubf_s) {
   if (kArchVariant != kMips64r6) return;
   helper_madd_msub_maddf_msubf<float>([](MacroAssembler& assm) {
     __ maddf_s(f4, f6, f8);
-    __ swc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_add)));
+    __ Swc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_add)));
     __ msubf_s(f16, f6, f8);
-    __ swc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_sub)));
+    __ Swc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_sub)));
   });
 }
 
@@ -6053,10 +6051,69 @@ TEST(maddf_msubf_d) {
   if (kArchVariant != kMips64r6) return;
   helper_madd_msub_maddf_msubf<double>([](MacroAssembler& assm) {
     __ maddf_d(f4, f6, f8);
-    __ sdc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
+    __ Sdc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
     __ msubf_d(f16, f6, f8);
-    __ sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
+    __ Sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
   });
+}
+
+uint64_t run_Dins(uint64_t imm, uint64_t source, uint16_t pos, uint16_t size) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(v0, imm);
+  __ li(t0, source);
+  __ Dins(v0, t0, pos, size);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Dins) {
+  CcTest::InitializeVM();
+
+  // Test Dins macro-instruction.
+
+  struct TestCaseDins {
+    uint64_t imm;
+    uint64_t source;
+    uint16_t pos;
+    uint16_t size;
+    uint64_t expected_res;
+  };
+
+  // We load imm to v0 and source to t0 and then call
+  // Dins(v0, t0, pos, size) to test cases listed below.
+  struct TestCaseDins tc[] = {
+      // imm, source, pos, size, expected_res
+      {0x5555555555555555, 0x1ABCDEF01, 31, 1, 0x55555555D5555555},
+      {0x5555555555555555, 0x1ABCDEF02, 30, 2, 0x5555555595555555},
+      {0x201234567, 0x1FABCDEFF, 0, 32, 0x2FABCDEFF},
+      {0x201234567, 0x7FABCDEFF, 31, 2, 0x381234567},
+      {0x800000000, 0x7FABCDEFF, 0, 33, 0x9FABCDEFF},
+      {0x1234, 0xABCDABCDABCDABCD, 0, 64, 0xABCDABCDABCDABCD},
+      {0xABCD, 0xABCEABCF, 32, 1, 0x10000ABCD},
+      {0xABCD, 0xABCEABCF, 63, 1, 0x800000000000ABCD},
+      {0xABCD, 0xABC1ABC2ABC3ABC4, 32, 32, 0xABC3ABC40000ABCD},
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseDins);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res,
+             run_Dins(tc[i].imm, tc[i].source, tc[i].pos, tc[i].size));
+  }
 }
 
 #undef __

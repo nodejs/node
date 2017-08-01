@@ -140,18 +140,18 @@ TEST(TryProbeStubCache) {
 
     m.TryProbeStubCache(&stub_cache, receiver, name, &if_handler, &var_handler,
                         &if_miss);
-    m.Bind(&if_handler);
+    m.BIND(&if_handler);
     m.Branch(m.WordEqual(expected_handler, var_handler.value()), &passed,
              &failed);
 
-    m.Bind(&if_miss);
+    m.BIND(&if_miss);
     m.Branch(m.WordEqual(expected_handler, m.IntPtrConstant(0)), &passed,
              &failed);
 
-    m.Bind(&passed);
+    m.BIND(&passed);
     m.Return(m.BooleanConstant(true));
 
-    m.Bind(&failed);
+    m.BIND(&failed);
     m.Return(m.BooleanConstant(false));
   }
 

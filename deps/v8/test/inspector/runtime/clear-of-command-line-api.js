@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Tests that CommandLineAPI is presented only while evaluation.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Tests that CommandLineAPI is presented only while evaluation.");
 
-InspectorTest.addScript(
+contextGroup.addScript(
 `
 var methods = ["dir","dirxml","profile","profileEnd","clear","table","keys","values","debug","undebug","monitor","unmonitor","inspect","copy"];
 var window = this;

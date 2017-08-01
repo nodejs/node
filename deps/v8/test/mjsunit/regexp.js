@@ -803,3 +803,8 @@ assertTrue(/^[\444]*$/.test("\u{24}4"));
 assertTrue(/^[\d-X]*$/.test("234-X-432"));  // CharacterRangeOrUnion.
 assertTrue(/^[\d-X-Z]*$/.test("234-XZ-432"));
 assertFalse(/^[\d-X-Z]*$/.test("234-XYZ-432"));
+
+// Lone leading surrogates. Just here to exercise specific parsing code-paths.
+
+assertFalse(/\uDB88|\uDBEC|aa/.test(""));
+assertFalse(/\uDB88|\uDBEC|aa/u.test(""));

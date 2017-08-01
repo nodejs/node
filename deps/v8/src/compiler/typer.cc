@@ -607,19 +607,6 @@ Type* Typer::Visitor::TypeParameter(Node* node) {
 
 Type* Typer::Visitor::TypeOsrValue(Node* node) { return Type::Any(); }
 
-Type* Typer::Visitor::TypeOsrGuard(Node* node) {
-  switch (OsrGuardTypeOf(node->op())) {
-    case OsrGuardType::kUninitialized:
-      return Type::None();
-    case OsrGuardType::kSignedSmall:
-      return Type::SignedSmall();
-    case OsrGuardType::kAny:
-      return Type::Any();
-  }
-  UNREACHABLE();
-  return nullptr;
-}
-
 Type* Typer::Visitor::TypeRetain(Node* node) {
   UNREACHABLE();
   return nullptr;
@@ -1116,14 +1103,22 @@ Type* Typer::Visitor::TypeJSCreate(Node* node) { return Type::Object(); }
 
 
 Type* Typer::Visitor::TypeJSCreateArguments(Node* node) {
-  return Type::OtherObject();
+  switch (CreateArgumentsTypeOf(node->op())) {
+    case CreateArgumentsType::kRestParameter:
+      return Type::Array();
+    case CreateArgumentsType::kMappedArguments:
+    case CreateArgumentsType::kUnmappedArguments:
+      return Type::OtherObject();
+  }
+  UNREACHABLE();
+  return nullptr;
 }
 
+Type* Typer::Visitor::TypeJSCreateArray(Node* node) { return Type::Array(); }
 
-Type* Typer::Visitor::TypeJSCreateArray(Node* node) {
+Type* Typer::Visitor::TypeJSCreateGeneratorObject(Node* node) {
   return Type::OtherObject();
 }
-
 
 Type* Typer::Visitor::TypeJSCreateClosure(Node* node) {
   return Type::Function();
@@ -1139,7 +1134,7 @@ Type* Typer::Visitor::TypeJSCreateKeyValueArray(Node* node) {
 }
 
 Type* Typer::Visitor::TypeJSCreateLiteralArray(Node* node) {
-  return Type::OtherObject();
+  return Type::Array();
 }
 
 
@@ -1340,6 +1335,10 @@ Type* Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
 
 // JS other operators.
 
+Type* Typer::Visitor::TypeJSConstructForwardVarargs(Node* node) {
+  return Type::Receiver();
+}
+
 Type* Typer::Visitor::TypeJSConstruct(Node* node) { return Type::Receiver(); }
 
 Type* Typer::Visitor::TypeJSConstructWithSpread(Node* node) {
@@ -1516,6 +1515,7 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
 
         // Object functions.
         case kObjectAssign:
+          return Type::Receiver();
         case kObjectCreate:
           return Type::OtherObject();
         case kObjectHasOwnProperty:
@@ -1527,7 +1527,7 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
         case kRegExpCompile:
           return Type::OtherObject();
         case kRegExpExec:
-          return Type::Union(Type::OtherObject(), Type::Null(), t->zone());
+          return Type::Union(Type::Array(), Type::Null(), t->zone());
         case kRegExpTest:
           return Type::Boolean();
         case kRegExpToString:

@@ -30,25 +30,22 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
-  if (FLAG_zap_code_space) {
-    // Fail hard and early if we enter this code object again.
-    byte* pointer = code->FindCodeAgeSequence();
-    if (pointer != NULL) {
-      pointer += kNoCodeAgeSequenceLength;
-    } else {
-      pointer = code->instruction_start();
-    }
-    CodePatcher patcher(isolate, pointer, 1);
-    patcher.masm()->break_(0xCC);
+  // Fail hard and early if we enter this code object again.
+  byte* pointer = code->FindCodeAgeSequence();
+  if (pointer != NULL) {
+    pointer += kNoCodeAgeSequenceLength;
+  } else {
+    pointer = code->instruction_start();
+  }
+  CodePatcher patcher(isolate, pointer, 1);
+  patcher.masm()->break_(0xCC);
 
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
-    int osr_offset = data->OsrPcOffset()->value();
-    if (osr_offset > 0) {
-      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
-                              1);
-      osr_patcher.masm()->break_(0xCC);
-    }
+  DeoptimizationInputData* data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  int osr_offset = data->OsrPcOffset()->value();
+  if (osr_offset > 0) {
+    CodePatcher osr_patcher(isolate, code_start_address + osr_offset, 1);
+    osr_patcher.masm()->break_(0xCC);
   }
 
   DeoptimizationInputData* deopt_data =
@@ -123,7 +120,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
     int offset = code * kDoubleSize;
-    __ sdc1(fpu_reg, MemOperand(sp, offset));
+    __ Sdc1(fpu_reg, MemOperand(sp, offset));
   }
 
   // Save all float FPU registers before messing with them.
@@ -132,7 +129,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int code = config->GetAllocatableFloatCode(i);
     const FloatRegister fpu_reg = FloatRegister::from_code(code);
     int offset = code * kFloatSize;
-    __ swc1(fpu_reg, MemOperand(sp, offset));
+    __ Swc1(fpu_reg, MemOperand(sp, offset));
   }
 
   // Push saved_regs (needed to populate FrameDescription::registers_).
@@ -140,18 +137,18 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Dsubu(sp, sp, kNumberOfRegisters * kPointerSize);
   for (int16_t i = kNumberOfRegisters - 1; i >= 0; i--) {
     if ((saved_regs & (1 << i)) != 0) {
-      __ sd(ToRegister(i), MemOperand(sp, kPointerSize * i));
+      __ Sd(ToRegister(i), MemOperand(sp, kPointerSize * i));
     }
   }
 
   __ li(a2, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
-  __ sd(fp, MemOperand(a2));
+  __ Sd(fp, MemOperand(a2));
 
   const int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
 
   // Get the bailout id from the stack.
-  __ ld(a2, MemOperand(sp, kSavedRegistersAreaSize));
+  __ Ld(a2, MemOperand(sp, kSavedRegistersAreaSize));
 
   // Get the address of the location in the code object (a3) (return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
@@ -167,9 +164,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Pass six arguments, according to n64 ABI.
   __ mov(a0, zero_reg);
   Label context_check;
-  __ ld(a1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ Ld(a1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ JumpIfSmi(a1, &context_check);
-  __ ld(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ Ld(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
   __ li(a1, Operand(type()));  // Bailout type.
   // a2: bailout id already loaded.
@@ -187,18 +184,18 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // frame descriptor pointer to a1 (deoptimizer->input_);
   // Move deopt-obj to a0 for call to Deoptimizer::ComputeOutputFrames() below.
   __ mov(a0, v0);
-  __ ld(a1, MemOperand(v0, Deoptimizer::input_offset()));
+  __ Ld(a1, MemOperand(v0, Deoptimizer::input_offset()));
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
   DCHECK(Register::kNumRegisters == kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     if ((saved_regs & (1 << i)) != 0) {
-      __ ld(a2, MemOperand(sp, i * kPointerSize));
-      __ sd(a2, MemOperand(a1, offset));
+      __ Ld(a2, MemOperand(sp, i * kPointerSize));
+      __ Sd(a2, MemOperand(a1, offset));
     } else if (FLAG_debug_code) {
       __ li(a2, kDebugZapValue);
-      __ sd(a2, MemOperand(a1, offset));
+      __ Sd(a2, MemOperand(a1, offset));
     }
   }
 
@@ -210,8 +207,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int dst_offset = code * kDoubleSize + double_regs_offset;
     int src_offset =
         code * kDoubleSize + kNumberOfRegisters * kPointerSize + kFloatRegsSize;
-    __ ldc1(f0, MemOperand(sp, src_offset));
-    __ sdc1(f0, MemOperand(a1, dst_offset));
+    __ Ldc1(f0, MemOperand(sp, src_offset));
+    __ Sdc1(f0, MemOperand(a1, dst_offset));
   }
 
   int float_regs_offset = FrameDescription::float_registers_offset();
@@ -221,8 +218,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int code = config->GetAllocatableFloatCode(i);
     int dst_offset = code * kFloatSize + float_regs_offset;
     int src_offset = code * kFloatSize + kNumberOfRegisters * kPointerSize;
-    __ lwc1(f0, MemOperand(sp, src_offset));
-    __ swc1(f0, MemOperand(a1, dst_offset));
+    __ Lwc1(f0, MemOperand(sp, src_offset));
+    __ Swc1(f0, MemOperand(a1, dst_offset));
   }
 
   // Remove the bailout id and the saved registers from the stack.
@@ -230,7 +227,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Compute a pointer to the unwinding limit in register a2; that is
   // the first stack slot not part of the input frame.
-  __ ld(a2, MemOperand(a1, FrameDescription::frame_size_offset()));
+  __ Ld(a2, MemOperand(a1, FrameDescription::frame_size_offset()));
   __ Daddu(a2, a2, sp);
 
   // Unwind the stack down to - but not including - the unwinding
@@ -242,7 +239,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ BranchShort(&pop_loop_header);
   __ bind(&pop_loop);
   __ pop(a4);
-  __ sd(a4, MemOperand(a3, 0));
+  __ Sd(a4, MemOperand(a3, 0));
   __ daddiu(a3, a3, sizeof(uint64_t));
   __ bind(&pop_loop_header);
   __ BranchShort(&pop_loop, ne, a2, Operand(sp));
@@ -258,26 +255,26 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ pop(a0);  // Restore deoptimizer object (class Deoptimizer).
 
-  __ ld(sp, MemOperand(a0, Deoptimizer::caller_frame_top_offset()));
+  __ Ld(sp, MemOperand(a0, Deoptimizer::caller_frame_top_offset()));
 
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
   // Outer loop state: a4 = current "FrameDescription** output_",
   // a1 = one past the last FrameDescription**.
-  __ lw(a1, MemOperand(a0, Deoptimizer::output_count_offset()));
-  __ ld(a4, MemOperand(a0, Deoptimizer::output_offset()));  // a4 is output_.
+  __ Lw(a1, MemOperand(a0, Deoptimizer::output_count_offset()));
+  __ Ld(a4, MemOperand(a0, Deoptimizer::output_offset()));  // a4 is output_.
   __ Dlsa(a1, a4, a1, kPointerSizeLog2);
   __ BranchShort(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: a2 = current FrameDescription*, a3 = loop index.
-  __ ld(a2, MemOperand(a4, 0));  // output_[ix]
-  __ ld(a3, MemOperand(a2, FrameDescription::frame_size_offset()));
+  __ Ld(a2, MemOperand(a4, 0));  // output_[ix]
+  __ Ld(a3, MemOperand(a2, FrameDescription::frame_size_offset()));
   __ BranchShort(&inner_loop_header);
   __ bind(&inner_push_loop);
   __ Dsubu(a3, a3, Operand(sizeof(uint64_t)));
   __ Daddu(a6, a2, Operand(a3));
-  __ ld(a7, MemOperand(a6, FrameDescription::frame_content_offset()));
+  __ Ld(a7, MemOperand(a6, FrameDescription::frame_content_offset()));
   __ push(a7);
   __ bind(&inner_loop_header);
   __ BranchShort(&inner_push_loop, ne, a3, Operand(zero_reg));
@@ -286,21 +283,21 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ bind(&outer_loop_header);
   __ BranchShort(&outer_push_loop, lt, a4, Operand(a1));
 
-  __ ld(a1, MemOperand(a0, Deoptimizer::input_offset()));
+  __ Ld(a1, MemOperand(a0, Deoptimizer::input_offset()));
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
     int src_offset = code * kDoubleSize + double_regs_offset;
-    __ ldc1(fpu_reg, MemOperand(a1, src_offset));
+    __ Ldc1(fpu_reg, MemOperand(a1, src_offset));
   }
 
   // Push state, pc, and continuation from the last output frame.
-  __ ld(a6, MemOperand(a2, FrameDescription::state_offset()));
+  __ Ld(a6, MemOperand(a2, FrameDescription::state_offset()));
   __ push(a6);
 
-  __ ld(a6, MemOperand(a2, FrameDescription::pc_offset()));
+  __ Ld(a6, MemOperand(a2, FrameDescription::pc_offset()));
   __ push(a6);
-  __ ld(a6, MemOperand(a2, FrameDescription::continuation_offset()));
+  __ Ld(a6, MemOperand(a2, FrameDescription::continuation_offset()));
   __ push(a6);
 
 
@@ -312,7 +309,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     if ((restored_regs & (1 << i)) != 0) {
-      __ ld(ToRegister(i), MemOperand(at, offset));
+      __ Ld(ToRegister(i), MemOperand(at, offset));
     }
   }
 
@@ -326,14 +323,14 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
 
 // Maximum size of a table entry generated below.
-const int Deoptimizer::table_entry_size_ = 2 * Assembler::kInstrSize;
+const int Deoptimizer::table_entry_size_ = 3 * Assembler::kInstrSize;
 
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
 
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
-  Label table_start, done, done_special, trampoline_jump;
+  Label table_start, done, trampoline_jump;
   __ bind(&table_start);
   int kMaxEntriesBranchReach =
       (1 << (kImm16Bits - 2)) / (table_entry_size_ / Assembler::kInstrSize);
@@ -346,6 +343,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
       DCHECK(is_int16(i));
       __ BranchShort(USE_DELAY_SLOT, &done);  // Expose delay slot.
       __ li(at, i);                      // In the delay slot.
+      __ nop();
 
       DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
     }
@@ -356,34 +354,29 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     __ Push(at);
   } else {
     // Uncommon case, the branch cannot reach.
-    // Create mini trampoline and adjust id constants to get proper value at
-    // the end of table.
-    for (int i = kMaxEntriesBranchReach; i > 1; i--) {
+    // Create mini trampoline to reach the end of the table
+    for (int i = 0, j = 0; i < count(); i++, j++) {
       Label start;
       __ bind(&start);
       DCHECK(is_int16(i));
-      __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);  // Expose delay slot.
-      __ li(at, -i);                                // In the delay slot.
+      if (j >= kMaxEntriesBranchReach) {
+        j = 0;
+        __ li(at, i);
+        __ bind(&trampoline_jump);
+        trampoline_jump = Label();
+        __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);
+        __ nop();
+      } else {
+        __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);  // Expose delay slot.
+        __ li(at, i);                                      // In the delay slot.
+        __ nop();
+      }
       DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
-    }
-    // Entry with id == kMaxEntriesBranchReach - 1.
-    __ bind(&trampoline_jump);
-    __ BranchShort(USE_DELAY_SLOT, &done_special);
-    __ li(at, -1);
-
-    for (int i = kMaxEntriesBranchReach; i < count(); i++) {
-      Label start;
-      __ bind(&start);
-      DCHECK(is_int16(i));
-      __ Branch(USE_DELAY_SLOT, &done);  // Expose delay slot.
-      __ li(at, i);                      // In the delay slot.
     }
 
     DCHECK_EQ(masm()->SizeOfCodeGeneratedSince(&table_start),
               count() * table_entry_size_);
-    __ bind(&done_special);
-    __ daddiu(at, at, kMaxEntriesBranchReach);
-    __ bind(&done);
+    __ bind(&trampoline_jump);
     __ Push(at);
   }
 }

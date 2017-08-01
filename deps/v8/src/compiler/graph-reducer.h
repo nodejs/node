@@ -174,7 +174,7 @@ class V8_EXPORT_PRIVATE GraphReducer
   Node* const dead_;
   NodeMarker<State> state_;
   ZoneVector<Reducer*> reducers_;
-  ZoneStack<Node*> revisit_;
+  ZoneQueue<Node*> revisit_;
   ZoneStack<NodeState> stack_;
 
   DISALLOW_COPY_AND_ASSIGN(GraphReducer);

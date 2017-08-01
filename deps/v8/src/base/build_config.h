@@ -35,7 +35,7 @@
 #define V8_HOST_ARCH_32_BIT 1
 #elif defined(__PPC__) || defined(_ARCH_PPC)
 #define V8_HOST_ARCH_PPC 1
-#if defined(__PPC64__) || defined(_ARCH_PPC64)
+#if defined(__PPC64__) || defined(_ARCH_PPC64) || defined(_ARCH_PPCGR)
 #define V8_HOST_ARCH_64_BIT 1
 #else
 #define V8_HOST_ARCH_32_BIT 1
@@ -91,6 +91,8 @@
 #define V8_TARGET_ARCH_MIPS64 1
 #elif defined(__MIPSEB__) || defined(__MIPSEL__)
 #define V8_TARGET_ARCH_MIPS 1
+#elif defined(_ARCH_PPC)
+#define V8_TARGET_ARCH_PPC 1
 #else
 #error Target architecture was not detected as supported by v8
 #endif
@@ -181,6 +183,8 @@
 #endif
 #elif V8_TARGET_ARCH_X87
 #define V8_TARGET_LITTLE_ENDIAN 1
+#elif __BIG_ENDIAN__  // FOR PPCGR on AIX
+#define V8_TARGET_BIG_ENDIAN 1
 #elif V8_TARGET_ARCH_PPC_LE
 #define V8_TARGET_LITTLE_ENDIAN 1
 #elif V8_TARGET_ARCH_PPC_BE

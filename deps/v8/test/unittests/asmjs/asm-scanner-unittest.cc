@@ -209,6 +209,26 @@ TEST_F(AsmJsScannerTest, Numbers) {
   CheckForEnd();
 }
 
+TEST_F(AsmJsScannerTest, UnsignedNumbers) {
+  SetupSource("0x7fffffff 0x80000000 0xffffffff 0x100000000");
+
+  CHECK(scanner.IsUnsigned());
+  CHECK_EQ(0x7fffffff, scanner.AsUnsigned());
+  scanner.Next();
+
+  CHECK(scanner.IsUnsigned());
+  CHECK_EQ(0x80000000, scanner.AsUnsigned());
+  scanner.Next();
+
+  CHECK(scanner.IsUnsigned());
+  CHECK_EQ(0xffffffff, scanner.AsUnsigned());
+  scanner.Next();
+
+  // Numeric "unsigned" literals with a payload of more than 32-bit are rejected
+  // by asm.js in all contexts, we hence consider `0x100000000` to be an error.
+  CheckForParseError();
+}
+
 TEST_F(AsmJsScannerTest, BadNumber) {
   SetupSource(".123fe");
   Skip('.');
@@ -254,7 +274,7 @@ TEST_F(AsmJsScannerTest, TrailingCComment) {
 TEST_F(AsmJsScannerTest, Seeking) {
   SetupSource("var eval do arguments function break\n");
   Skip(TOK(var));
-  int old_pos = scanner.GetPosition();
+  size_t old_pos = scanner.Position();
   Skip(TOK(eval));
   Skip(TOK(do));
   Skip(TOK(arguments));
@@ -262,6 +282,7 @@ TEST_F(AsmJsScannerTest, Seeking) {
   Skip(TOK(arguments));
   scanner.Rewind();
   scanner.Seek(old_pos);
+  Skip(TOK(eval));
   Skip(TOK(do));
   Skip(TOK(arguments));
   Skip(TOK(function));
