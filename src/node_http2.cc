@@ -55,10 +55,27 @@ enum Http2OptionsIndex {
   IDX_OPTIONS_FLAGS
 };
 
+static uint32_t http2_padding_buffer[3];
+static uint32_t http2_options_buffer[IDX_OPTIONS_FLAGS + 1];
+static uint32_t http2_settings_buffer[IDX_SETTINGS_COUNT + 1];
+static double http2_session_state_buffer[IDX_SESSION_STATE_COUNT];
+static double http2_stream_state_buffer[IDX_STREAM_STATE_COUNT];
+
+static const size_t http2_options_buffer_byte_length =
+    sizeof(http2_options_buffer) * (IDX_OPTIONS_FLAGS + 1);
+static const size_t http2_settings_buffer_byte_length =
+    sizeof(http2_settings_buffer) * (IDX_SETTINGS_COUNT + 1);
+static const size_t http2_padding_buffer_byte_length =
+    sizeof(http2_padding_buffer) * 3;
+static const size_t http2_stream_state_buffer_byte_length =
+    sizeof(http2_stream_state_buffer) * IDX_STREAM_STATE_COUNT;
+static const size_t http2_session_state_buffer_byte_length =
+    sizeof(http2_session_state_buffer) * IDX_SESSION_STATE_COUNT;
+
 Http2Options::Http2Options(Environment* env) {
   nghttp2_option_new(&options_);
 
-  uint32_t* buffer = env->http2_options_buffer();
+  uint32_t* buffer = http2_options_buffer;
   uint32_t flags = buffer[IDX_OPTIONS_FLAGS];
 
   if (flags & (1 << IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE)) {
@@ -148,7 +165,7 @@ ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
   Context::Scope context_scope(context);
 
   if (object()->Has(context, env()->ongetpadding_string()).FromJust()) {
-    uint32_t* buffer = env()->http2_padding_buffer();
+    uint32_t* buffer = http2_padding_buffer;
     buffer[0] = frameLen;
     buffer[1] = maxPayloadLen;
     MakeCallback(env()->ongetpadding_string(), 0, nullptr);
@@ -189,7 +206,7 @@ void PackSettings(const FunctionCallbackInfo<Value>& args) {
   std::vector<nghttp2_settings_entry> entries;
   entries.reserve(6);
 
-  uint32_t* const buffer = env->http2_settings_buffer();
+  uint32_t* buffer = http2_settings_buffer;
   uint32_t flags = buffer[IDX_SETTINGS_COUNT];
 
   if (flags & (1 << IDX_SETTINGS_HEADER_TABLE_SIZE)) {
@@ -248,8 +265,7 @@ void PackSettings(const FunctionCallbackInfo<Value>& args) {
 // Used to fill in the spec defined initial values for each setting.
 void RefreshDefaultSettings(const FunctionCallbackInfo<Value>& args) {
   DEBUG_HTTP2("Http2Session: refreshing default settings\n");
-  Environment* env = Environment::GetCurrent(args);
-  uint32_t* const buffer = env->http2_settings_buffer();
+  uint32_t* buffer = http2_settings_buffer;
   buffer[IDX_SETTINGS_HEADER_TABLE_SIZE] =
       DEFAULT_SETTINGS_HEADER_TABLE_SIZE;
   buffer[IDX_SETTINGS_ENABLE_PUSH] =
@@ -272,10 +288,9 @@ void RefreshSettings(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args[0].As<Object>());
-  Environment* env = session->env();
   nghttp2_session* s = session->session();
 
-  uint32_t* const buffer = env->http2_settings_buffer();
+  uint32_t* buffer = http2_settings_buffer;
   buffer[IDX_SETTINGS_HEADER_TABLE_SIZE] =
       fn(s, NGHTTP2_SETTINGS_HEADER_TABLE_SIZE);
   buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS] =
@@ -295,8 +310,7 @@ void RefreshSessionState(const FunctionCallbackInfo<Value>& args) {
   DEBUG_HTTP2("Http2Session: refreshing session state\n");
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsObject());
-  Environment* env = Environment::GetCurrent(args);
-  double* const buffer = env->http2_session_state_buffer();
+  double* buffer = http2_session_state_buffer;
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args[0].As<Object>());
   nghttp2_session* s = session->session();
@@ -333,7 +347,7 @@ void RefreshStreamState(const FunctionCallbackInfo<Value>& args) {
   nghttp2_session* s = session->session();
   Nghttp2Stream* stream;
 
-  double* const buffer = env->http2_stream_state_buffer();
+  double* buffer = http2_stream_state_buffer;
 
   if ((stream = session->FindStream(id)) == nullptr) {
     buffer[IDX_STREAM_STATE] = NGHTTP2_STREAM_STATE_IDLE;
@@ -438,9 +452,7 @@ void Http2Session::SubmitSettings(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
-  Environment* env = session->env();
-
-  uint32_t* const buffer = env->http2_settings_buffer();
+  uint32_t* buffer = http2_settings_buffer;
   uint32_t flags = buffer[IDX_SETTINGS_COUNT];
 
   std::vector<nghttp2_settings_entry> entries;
@@ -1107,74 +1119,40 @@ void Initialize(Local<Object> target,
   HandleScope scope(isolate);
 
   // Initialize the buffer used for padding callbacks
-  env->set_http2_padding_buffer(new uint32_t[3]);
-  const size_t http2_padding_buffer_byte_length =
-      sizeof(*env->http2_padding_buffer()) * 3;
-
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "paddingArrayBuffer"),
               ArrayBuffer::New(env->isolate(),
-                               env->http2_padding_buffer(),
+                               &http2_padding_buffer,
                                http2_padding_buffer_byte_length))
                                    .FromJust();
 
   // Initialize the buffer used to store the session state
-  env->set_http2_session_state_buffer(
-      new double[IDX_SESSION_STATE_COUNT]);
-
-  const size_t http2_session_state_buffer_byte_length =
-      sizeof(*env->http2_session_state_buffer()) *
-      IDX_SESSION_STATE_COUNT;
-
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "sessionStateArrayBuffer"),
               ArrayBuffer::New(env->isolate(),
-                               env->http2_session_state_buffer(),
+                               &http2_session_state_buffer,
                                http2_session_state_buffer_byte_length))
                                    .FromJust();
 
   // Initialize the buffer used to store the stream state
-  env->set_http2_stream_state_buffer(
-      new double[IDX_STREAM_STATE_COUNT]);
-
-  const size_t http2_stream_state_buffer_byte_length =
-      sizeof(*env->http2_stream_state_buffer()) *
-      IDX_STREAM_STATE_COUNT;
-
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "streamStateArrayBuffer"),
               ArrayBuffer::New(env->isolate(),
-                               env->http2_stream_state_buffer(),
+                               &http2_stream_state_buffer,
                                http2_stream_state_buffer_byte_length))
                                    .FromJust();
-
-  // Initialize the buffer used to store the current settings
-  env->set_http2_settings_buffer(
-      new uint32_t[IDX_SETTINGS_COUNT + 1]);
-
-  const size_t http2_settings_buffer_byte_length =
-      sizeof(*env->http2_settings_buffer()) *
-      (IDX_SETTINGS_COUNT + 1);
 
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "settingsArrayBuffer"),
               ArrayBuffer::New(env->isolate(),
-                               env->http2_settings_buffer(),
+                               &http2_settings_buffer,
                                http2_settings_buffer_byte_length))
                                    .FromJust();
-
-  // Initialize the buffer used to store the options
-  env->set_http2_options_buffer(
-      new uint32_t[IDX_OPTIONS_FLAGS + 1]);
-
-  const size_t http2_options_buffer_byte_length =
-      sizeof(*env->http2_options_buffer()) *
-      (IDX_OPTIONS_FLAGS + 1);
 
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "optionsArrayBuffer"),
               ArrayBuffer::New(env->isolate(),
-                               env->http2_options_buffer(),
+                               &http2_options_buffer,
                                http2_options_buffer_byte_length))
                                    .FromJust();
 
