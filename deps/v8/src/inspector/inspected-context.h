@@ -44,6 +44,8 @@ class InspectedContext {
   friend class V8InspectorImpl;
   InspectedContext(V8InspectorImpl*, const V8ContextInfo&, int contextId);
 
+  class WeakCallbackData;
+
   V8InspectorImpl* m_inspector;
   v8::Global<v8::Context> m_context;
   int m_contextId;
@@ -53,6 +55,7 @@ class InspectedContext {
   const String16 m_auxData;
   bool m_reported;
   std::unique_ptr<InjectedScript> m_injectedScript;
+  WeakCallbackData* m_weakCallbackData;
 
   DISALLOW_COPY_AND_ASSIGN(InspectedContext);
 };

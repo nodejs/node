@@ -619,6 +619,9 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     inspector->Set(ToV8String(isolate, "fireContextDestroyed"),
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::FireContextDestroyed));
+    inspector->Set(
+        ToV8String(isolate, "freeContext"),
+        v8::FunctionTemplate::New(isolate, &InspectorExtension::FreeContext));
     inspector->Set(ToV8String(isolate, "setMaxAsyncTaskStacks"),
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::SetMaxAsyncTaskStacks));
@@ -656,6 +659,12 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
     data->inspector()->ContextDestroyed(context);
+  }
+
+  static void FreeContext(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+    IsolateData* data = IsolateData::FromContext(context);
+    data->FreeContext(context);
   }
 
   static void SetMaxAsyncTaskStacks(
