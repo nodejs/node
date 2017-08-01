@@ -54,6 +54,55 @@ dns.resolve4('archive.org', (err, addresses) => {
 There are subtle consequences in choosing one over the other, please consult
 the [Implementation considerations section][] for more information.
 
+## Class dns.Resolver
+<!-- YAML
+added: REPLACEME
+-->
+
+An independent resolver for DNS requests.
+
+Note that creating a new resolver uses the default server settings. Setting
+the servers used for a resolver using
+[`resolver.setServers()`][`dns.setServers()`] does not affect
+other resolver:
+
+```js
+const { Resolver } = require('dns');
+const resolver = new Resolver();
+resolver.setServers(['4.4.4.4']);
+
+// This request will use the server at 4.4.4.4, independent of global settings.
+resolver.resolve4('example.org', (err, addresses) => {
+  // ...
+});
+```
+
+The following methods from the `dns` module are available:
+
+* [`resolver.getServers()`][`dns.getServers()`]
+* [`resolver.setServers()`][`dns.setServers()`]
+* [`resolver.resolve()`][`dns.resolve()`]
+* [`resolver.resolve4()`][`dns.resolve4()`]
+* [`resolver.resolve6()`][`dns.resolve6()`]
+* [`resolver.resolveAny()`][`dns.resolveAny()`]
+* [`resolver.resolveCname()`][`dns.resolveCname()`]
+* [`resolver.resolveMx()`][`dns.resolveMx()`]
+* [`resolver.resolveNaptr()`][`dns.resolveNaptr()`]
+* [`resolver.resolveNs()`][`dns.resolveNs()`]
+* [`resolver.resolvePtr()`][`dns.resolvePtr()`]
+* [`resolver.resolveSoa()`][`dns.resolveSoa()`]
+* [`resolver.resolveSrv()`][`dns.resolveSrv()`]
+* [`resolver.resolveTxt()`][`dns.resolveTxt()`]
+* [`resolver.reverse()`][`dns.reverse()`]
+
+### resolver.cancel()
+<!-- YAML
+added: REPLACEME
+-->
+
+Cancel all outstanding DNS queries made by this resolver. The corresponding
+callbacks will be called with an error with code `ECANCELLED`.
+
 ## dns.getServers()
 <!-- YAML
 added: v0.11.3
@@ -590,6 +639,7 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
 [`Error`]: errors.html#errors_class_error
 [`dns.lookup()`]: #dns_dns_lookup_hostname_options_callback
+[`dns.resolve()`]: #dns_dns_resolve_hostname_rrtype_callback
 [`dns.resolve4()`]: #dns_dns_resolve4_hostname_options_callback
 [`dns.resolve6()`]: #dns_dns_resolve6_hostname_options_callback
 [`dns.resolveCname()`]: #dns_dns_resolvecname_hostname_callback
@@ -601,6 +651,9 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dns.resolveSrv()`]: #dns_dns_resolvesrv_hostname_callback
 [`dns.resolveTxt()`]: #dns_dns_resolvetxt_hostname_callback
 [`dns.resolveAny()`]: #dns_dns_resolveany_hostname_callback
+[`dns.getServers()`]: #dns_dns_getservers
+[`dns.setServers()`]: #dns_dns_setservers_servers
+[`dns.reverse()`]: #dns_dns_reverse_ip_callback
 [DNS error codes]: #dns_error_codes
 [Implementation considerations section]: #dns_implementation_considerations
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
