@@ -286,19 +286,14 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(F32x4Splat, 0xe500, s_f)             \
   V(F32x4Abs, 0xe503, s_s)               \
   V(F32x4Neg, 0xe504, s_s)               \
-  V(F32x4Sqrt, 0xe505, s_s)              \
   V(F32x4RecipApprox, 0xe506, s_s)       \
   V(F32x4RecipSqrtApprox, 0xe507, s_s)   \
   V(F32x4Add, 0xe508, s_ss)              \
+  V(F32x4AddHoriz, 0xe5b9, s_ss)         \
   V(F32x4Sub, 0xe509, s_ss)              \
   V(F32x4Mul, 0xe50a, s_ss)              \
-  V(F32x4Div, 0xe50b, s_ss)              \
   V(F32x4Min, 0xe50c, s_ss)              \
   V(F32x4Max, 0xe50d, s_ss)              \
-  V(F32x4MinNum, 0xe50e, s_ss)           \
-  V(F32x4MaxNum, 0xe50f, s_ss)           \
-  V(F32x4RecipRefine, 0xe592, s_ss)      \
-  V(F32x4RecipSqrtRefine, 0xe593, s_ss)  \
   V(F32x4Eq, 0xe510, s1x4_ss)            \
   V(F32x4Ne, 0xe511, s1x4_ss)            \
   V(F32x4Lt, 0xe512, s1x4_ss)            \
@@ -310,6 +305,7 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I32x4Splat, 0xe51b, s_i)             \
   V(I32x4Neg, 0xe51e, s_s)               \
   V(I32x4Add, 0xe51f, s_ss)              \
+  V(I32x4AddHoriz, 0xe5ba, s_ss)         \
   V(I32x4Sub, 0xe520, s_ss)              \
   V(I32x4Mul, 0xe521, s_ss)              \
   V(I32x4MinS, 0xe522, s_ss)             \
@@ -336,6 +332,7 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I16x8Neg, 0xe53b, s_s)               \
   V(I16x8Add, 0xe53c, s_ss)              \
   V(I16x8AddSaturateS, 0xe53d, s_ss)     \
+  V(I16x8AddHoriz, 0xe5bb, s_ss)         \
   V(I16x8Sub, 0xe53e, s_ss)              \
   V(I16x8SubSaturateS, 0xe53f, s_ss)     \
   V(I16x8Mul, 0xe540, s_ss)              \
@@ -391,14 +388,8 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(S128Xor, 0xe578, s_ss)               \
   V(S128Not, 0xe579, s_s)                \
   V(S32x4Select, 0xe52c, s_s1x4ss)       \
-  V(S32x4Swizzle, 0xe52d, s_s)           \
-  V(S32x4Shuffle, 0xe52e, s_ss)          \
   V(S16x8Select, 0xe54b, s_s1x8ss)       \
-  V(S16x8Swizzle, 0xe54c, s_s)           \
-  V(S16x8Shuffle, 0xe54d, s_ss)          \
   V(S8x16Select, 0xe56a, s_s1x16ss)      \
-  V(S8x16Swizzle, 0xe56b, s_s)           \
-  V(S8x16Shuffle, 0xe56c, s_ss)          \
   V(S1x4And, 0xe580, s1x4_s1x4s1x4)      \
   V(S1x4Or, 0xe581, s1x4_s1x4s1x4)       \
   V(S1x4Xor, 0xe582, s1x4_s1x4s1x4)      \
@@ -436,6 +427,11 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I8x16Shl, 0xe562, _)                 \
   V(I8x16ShrS, 0xe563, _)                \
   V(I8x16ShrU, 0xe571, _)
+
+#define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
+  V(S32x4Shuffle, 0xe52d, s_ss)             \
+  V(S16x8Shuffle, 0xe54c, s_ss)             \
+  V(S8x16Shuffle, 0xe56b, s_ss)
 
 #define FOREACH_ATOMIC_OPCODE(V)               \
   V(I32AtomicAdd8S, 0xe601, i_ii)              \
@@ -475,16 +471,17 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I32AtomicXor, 0xe623, i_ii)
 
 // All opcodes.
-#define FOREACH_OPCODE(V)          \
-  FOREACH_CONTROL_OPCODE(V)        \
-  FOREACH_MISC_OPCODE(V)           \
-  FOREACH_SIMPLE_OPCODE(V)         \
-  FOREACH_STORE_MEM_OPCODE(V)      \
-  FOREACH_LOAD_MEM_OPCODE(V)       \
-  FOREACH_MISC_MEM_OPCODE(V)       \
-  FOREACH_ASMJS_COMPAT_OPCODE(V)   \
-  FOREACH_SIMD_0_OPERAND_OPCODE(V) \
-  FOREACH_SIMD_1_OPERAND_OPCODE(V) \
+#define FOREACH_OPCODE(V)             \
+  FOREACH_CONTROL_OPCODE(V)           \
+  FOREACH_MISC_OPCODE(V)              \
+  FOREACH_SIMPLE_OPCODE(V)            \
+  FOREACH_STORE_MEM_OPCODE(V)         \
+  FOREACH_LOAD_MEM_OPCODE(V)          \
+  FOREACH_MISC_MEM_OPCODE(V)          \
+  FOREACH_ASMJS_COMPAT_OPCODE(V)      \
+  FOREACH_SIMD_0_OPERAND_OPCODE(V)    \
+  FOREACH_SIMD_1_OPERAND_OPCODE(V)    \
+  FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
   FOREACH_ATOMIC_OPCODE(V)
 
 // All signatures.
@@ -581,6 +578,10 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static FunctionSig* AsmjsSignature(WasmOpcode opcode);
   static FunctionSig* AtomicSignature(WasmOpcode opcode);
   static bool IsPrefixOpcode(WasmOpcode opcode);
+  static bool IsControlOpcode(WasmOpcode opcode);
+  // Check whether the given opcode always jumps, i.e. all instructions after
+  // this one in the current block are dead. Returns false for |end|.
+  static bool IsUnconditionalJump(WasmOpcode opcode);
 
   static int TrapReasonToMessageId(TrapReason reason);
   static const char* TrapReasonMessage(TrapReason reason);
@@ -644,66 +645,28 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   }
 
   static ValueType ValueTypeFor(MachineType type) {
-    if (type == MachineType::Int8()) {
-      return kWasmI32;
-    } else if (type == MachineType::Uint8()) {
-      return kWasmI32;
-    } else if (type == MachineType::Int16()) {
-      return kWasmI32;
-    } else if (type == MachineType::Uint16()) {
-      return kWasmI32;
-    } else if (type == MachineType::Int32()) {
-      return kWasmI32;
-    } else if (type == MachineType::Uint32()) {
-      return kWasmI32;
-    } else if (type == MachineType::Int64()) {
-      return kWasmI64;
-    } else if (type == MachineType::Uint64()) {
-      return kWasmI64;
-    } else if (type == MachineType::Float32()) {
-      return kWasmF32;
-    } else if (type == MachineType::Float64()) {
-      return kWasmF64;
-    } else if (type == MachineType::Simd128()) {
-      return kWasmS128;
-    } else if (type == MachineType::Simd1x4()) {
-      return kWasmS1x4;
-    } else if (type == MachineType::Simd1x8()) {
-      return kWasmS1x8;
-    } else if (type == MachineType::Simd1x16()) {
-      return kWasmS1x16;
-    } else {
-      UNREACHABLE();
-      return kWasmI32;
-    }
-  }
-
-  static WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
-    if (type == MachineType::Int8()) {
-      return store ? kExprI32StoreMem8 : kExprI32LoadMem8S;
-    } else if (type == MachineType::Uint8()) {
-      return store ? kExprI32StoreMem8 : kExprI32LoadMem8U;
-    } else if (type == MachineType::Int16()) {
-      return store ? kExprI32StoreMem16 : kExprI32LoadMem16S;
-    } else if (type == MachineType::Uint16()) {
-      return store ? kExprI32StoreMem16 : kExprI32LoadMem16U;
-    } else if (type == MachineType::Int32()) {
-      return store ? kExprI32StoreMem : kExprI32LoadMem;
-    } else if (type == MachineType::Uint32()) {
-      return store ? kExprI32StoreMem : kExprI32LoadMem;
-    } else if (type == MachineType::Int64()) {
-      return store ? kExprI64StoreMem : kExprI64LoadMem;
-    } else if (type == MachineType::Uint64()) {
-      return store ? kExprI64StoreMem : kExprI64LoadMem;
-    } else if (type == MachineType::Float32()) {
-      return store ? kExprF32StoreMem : kExprF32LoadMem;
-    } else if (type == MachineType::Float64()) {
-      return store ? kExprF64StoreMem : kExprF64LoadMem;
-    } else if (type == MachineType::Simd128()) {
-      return store ? kExprS128StoreMem : kExprS128LoadMem;
-    } else {
-      UNREACHABLE();
-      return kExprNop;
+    switch (type.representation()) {
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        return kWasmI32;
+      case MachineRepresentation::kWord64:
+        return kWasmI64;
+      case MachineRepresentation::kFloat32:
+        return kWasmF32;
+      case MachineRepresentation::kFloat64:
+        return kWasmF64;
+      case MachineRepresentation::kSimd128:
+        return kWasmS128;
+      case MachineRepresentation::kSimd1x4:
+        return kWasmS1x4;
+      case MachineRepresentation::kSimd1x8:
+        return kWasmS1x8;
+      case MachineRepresentation::kSimd1x16:
+        return kWasmS1x16;
+      default:
+        UNREACHABLE();
+        return kWasmI32;
     }
   }
 

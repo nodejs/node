@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Check that stepInto at then end of the script go to next user script instead InjectedScriptSource.js.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Check that stepInto at then end of the script go to next user script instead InjectedScriptSource.js.');
 
 (async function test() {
-  InspectorTest.setupScriptMap();
+  session.setupScriptMap();
   await Protocol.Debugger.enable();
   Protocol.Runtime.evaluate({expression: '(function boo() { setTimeout(() => 239, 0); debugger; })()\n'});
   await waitPauseAndDumpLocation();
@@ -22,6 +22,6 @@ InspectorTest.log('Check that stepInto at then end of the script go to next user
 async function waitPauseAndDumpLocation() {
   var message = await Protocol.Debugger.oncePaused();
   InspectorTest.log('paused at:');
-  InspectorTest.logSourceLocation(message.params.callFrames[0].location);
+  session.logSourceLocation(message.params.callFrames[0].location);
   return message;
 }

@@ -21,6 +21,10 @@ namespace {
 
 v8::Isolate* NewIsolateForPagePromotion(int min_semi_space_size = 8,
                                         int max_semi_space_size = 8) {
+  // Parallel evacuation messes with fragmentation in a way that objects that
+  // should be copied in semi space are promoted to old space because of
+  // fragmentation.
+  i::FLAG_parallel_compaction = false;
   i::FLAG_page_promotion = true;
   i::FLAG_page_promotion_threshold = 0;  // %
   i::FLAG_min_semi_space_size = min_semi_space_size;

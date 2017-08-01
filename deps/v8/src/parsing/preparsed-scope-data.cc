@@ -20,7 +20,7 @@ class VariableMaybeAssignedField
 class VariableContextAllocatedField
     : public BitField16<bool, VariableMaybeAssignedField::kNext, 1> {};
 
-const int kFunctionDataSize = 9;
+const int kFunctionDataSize = 8;
 
 }  // namespace
 
@@ -51,21 +51,20 @@ const int kFunctionDataSize = 9;
 
 void PreParsedScopeData::SaveData(Scope* scope) {
   DCHECK(!has_data_);
+  DCHECK_NE(scope->end_position(), kNoSourcePosition);
 
-  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
+  // We're not trying to save data for default constructors because the
+  // PreParser doesn't construct them.
+  DCHECK_IMPLIES(scope->scope_type() == ScopeType::FUNCTION_SCOPE,
+                 (scope->AsDeclarationScope()->function_kind() &
+                  kDefaultConstructor) == 0);
+
+  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE &&
+      !scope->AsDeclarationScope()->is_arrow_scope()) {
     // This cast is OK since we're not going to have more than 2^32 elements in
     // the data. FIXME(marja): Implement limits for the data size.
     function_data_positions_[scope->start_position()] =
         static_cast<uint32_t>(backing_store_.size());
-    // FIXME(marja): Fill in the missing fields: function_length +
-    // num_inner_functions.
-    function_index_.AddFunctionData(
-        scope->start_position(),
-        PreParseData::FunctionData(
-            scope->end_position(), scope->num_parameters(), -1, -1,
-            scope->language_mode(),
-            scope->AsDeclarationScope()->uses_super_property(),
-            scope->calls_eval()));
   }
 
   if (!ScopeNeedsData(scope)) {
@@ -80,7 +79,7 @@ void PreParsedScopeData::SaveData(Scope* scope) {
   // index is needed for skipping over data for a function scope when we skip
   // parsing of the corresponding function.
   size_t data_end_index = backing_store_.size();
-  backing_store_.push_back(-1);
+  backing_store_.push_back(0);
 
   if (!scope->is_hidden()) {
     for (Variable* var : *scope->locals()) {
@@ -92,11 +91,24 @@ void PreParsedScopeData::SaveData(Scope* scope) {
 
   SaveDataForInnerScopes(scope);
 
-  backing_store_[data_end_index] = backing_store_.size();
+  // FIXME(marja): see above.
+  backing_store_[data_end_index] = static_cast<uint32_t>(backing_store_.size());
+}
+
+void PreParsedScopeData::AddSkippableFunction(
+    int start_position, const PreParseData::FunctionData& function_data) {
+  AddFunction(start_position, function_data);
+  skippable_functions_.insert(start_position);
+}
+
+void PreParsedScopeData::AddFunction(
+    int start_position, const PreParseData::FunctionData& function_data) {
+  DCHECK(function_data.is_valid());
+  function_index_.AddFunctionData(start_position, function_data);
 }
 
 void PreParsedScopeData::RestoreData(DeclarationScope* scope) const {
-  int index = -1;
+  uint32_t index = 0;
 
   DCHECK_EQ(scope->scope_type(), ScopeType::FUNCTION_SCOPE);
 
@@ -107,7 +119,7 @@ void PreParsedScopeData::RestoreData(DeclarationScope* scope) const {
   RestoreData(scope, &index);
 }
 
-void PreParsedScopeData::RestoreData(Scope* scope, int* index_ptr) const {
+void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
   // It's possible that scope is not present in the data at all (since PreParser
   // doesn't create the corresponding scope). In this case, the Scope won't
   // contain any variables for which we need the data.
@@ -115,22 +127,21 @@ void PreParsedScopeData::RestoreData(Scope* scope, int* index_ptr) const {
     return;
   }
 
-  int& index = *index_ptr;
+  uint32_t& index = *index_ptr;
 
 #ifdef DEBUG
   // Data integrity check.
-  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
-    // FIXME(marja): Compare the missing fields too (function length,
-    // num_inner_functions).
+  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE &&
+      !scope->AsDeclarationScope()->is_arrow_scope()) {
     const PreParseData::FunctionData& data =
-        FindFunction(scope->start_position());
+        function_index_.GetFunctionData(scope->start_position());
+    DCHECK(data.is_valid());
     DCHECK_EQ(data.end, scope->end_position());
     // FIXME(marja): unify num_parameters too and DCHECK here.
     DCHECK_EQ(data.language_mode, scope->language_mode());
     DCHECK_EQ(data.uses_super_property,
               scope->AsDeclarationScope()->uses_super_property());
-    DCHECK_EQ(data.calls_eval, scope->calls_eval());
-    int index_from_data = -1;
+    uint32_t index_from_data = 0;
     FindFunctionData(scope->start_position(), &index_from_data);
     DCHECK_EQ(index_from_data, index);
   }
@@ -140,16 +151,19 @@ void PreParsedScopeData::RestoreData(Scope* scope, int* index_ptr) const {
     // This scope is a function scope representing a function we want to
     // skip. So just skip over its data.
     DCHECK(!scope->must_use_preparsed_scope_data());
+    // Check that we're moving forward (not backward) in the data.
+    DCHECK_GT(backing_store_[index + 2], index);
     index = backing_store_[index + 2];
     return;
   }
 
+  DCHECK_GE(backing_store_.size(), index + 3);
   DCHECK_EQ(backing_store_[index++], scope->scope_type());
 
   if (backing_store_[index++]) {
     scope->RecordEvalCall();
   }
-  int data_end_index = backing_store_[index++];
+  uint32_t data_end_index = backing_store_[index++];
   USE(data_end_index);
 
   if (!scope->is_hidden()) {
@@ -165,13 +179,14 @@ void PreParsedScopeData::RestoreData(Scope* scope, int* index_ptr) const {
   DCHECK_EQ(data_end_index, index);
 }
 
-FixedUint32Array* PreParsedScopeData::Serialize(Isolate* isolate) const {
+Handle<PodArray<uint32_t>> PreParsedScopeData::Serialize(
+    Isolate* isolate) const {
   // FIXME(marja): save space by using a byte array and converting
   // function_index_ to bytes.
-  Handle<JSTypedArray> js_array = isolate->factory()->NewJSTypedArray(
-      UINT32_ELEMENTS,
-      function_index_.size() * kFunctionDataSize + backing_store_.size() + 1);
-  FixedUint32Array* array = FixedUint32Array::cast(js_array->elements());
+  size_t length =
+      function_index_.size() * kFunctionDataSize + backing_store_.size() + 1;
+  Handle<PodArray<uint32_t>> array =
+      PodArray<uint32_t>::New(isolate, static_cast<int>(length), TENURED);
 
   array->set(0, static_cast<uint32_t>(function_index_.size()));
   int i = 1;
@@ -183,51 +198,56 @@ FixedUint32Array* PreParsedScopeData::Serialize(Isolate* isolate) const {
     array->set(i++, it->second);  // position in data
     array->set(i++, function_data.end);
     array->set(i++, function_data.num_parameters);
-    array->set(i++, function_data.function_length);
     array->set(i++, function_data.num_inner_functions);
     array->set(i++, function_data.language_mode);
     array->set(i++, function_data.uses_super_property);
-    array->set(i++, function_data.calls_eval);
+    array->set(i++, skippable_functions_.find(item.first) !=
+                        skippable_functions_.end());
   }
 
   for (size_t j = 0; j < backing_store_.size(); ++j) {
     array->set(i++, static_cast<uint32_t>(backing_store_[j]));
   }
+  DCHECK_EQ(array->length(), length);
   return array;
 }
 
-void PreParsedScopeData::Deserialize(Handle<FixedUint32Array> array) {
+void PreParsedScopeData::Deserialize(PodArray<uint32_t>* array) {
   has_data_ = true;
-  DCHECK(!array.is_null());
+  DCHECK_NOT_NULL(array);
   if (array->length() == 0) {
     return;
   }
-  int function_count = array->get_scalar(0);
+  int function_count = array->get(0);
   CHECK(array->length() > function_count * kFunctionDataSize);
   if (function_count == 0) {
     return;
   }
   int i = 1;
   for (; i < function_count * kFunctionDataSize + 1; i += kFunctionDataSize) {
-    int start = array->get_scalar(i);
-    function_data_positions_[start] = array->get_scalar(i + 1);
+    int start = array->get(i);
+    function_data_positions_[start] = array->get(i + 1);
     function_index_.AddFunctionData(
         start, PreParseData::FunctionData(
-                   array->get_scalar(i + 2), array->get_scalar(i + 3),
-                   array->get_scalar(i + 4), array->get_scalar(i + 5),
-                   LanguageMode(array->get_scalar(i + 6)),
-                   array->get_scalar(i + 7), array->get_scalar(i + 8)));
+                   array->get(i + 2), array->get(i + 3), array->get(i + 4),
+                   LanguageMode(array->get(i + 5)), array->get(i + 6)));
+    if (array->get(i + 7)) {
+      skippable_functions_.insert(start);
+    }
   }
   CHECK_EQ(function_index_.size(), function_count);
 
   backing_store_.reserve(array->length() - i);
   for (; i < array->length(); ++i) {
-    backing_store_.push_back(array->get_scalar(i));
+    backing_store_.push_back(array->get(i));
   }
 }
 
-PreParseData::FunctionData PreParsedScopeData::FindFunction(
+PreParseData::FunctionData PreParsedScopeData::FindSkippableFunction(
     int start_pos) const {
+  if (skippable_functions_.find(start_pos) == skippable_functions_.end()) {
+    return PreParseData::FunctionData();
+  }
   return function_index_.GetFunctionData(start_pos);
 }
 
@@ -252,15 +272,17 @@ void PreParsedScopeData::SaveDataForVariable(Variable* var) {
 }
 
 void PreParsedScopeData::RestoreDataForVariable(Variable* var,
-                                                int* index_ptr) const {
-  int& index = *index_ptr;
+                                                uint32_t* index_ptr) const {
+  uint32_t& index = *index_ptr;
 #ifdef DEBUG
   const AstRawString* name = var->raw_name();
-  DCHECK_EQ(backing_store_[index++], name->length());
+  DCHECK_GT(backing_store_.size(), index + name->length());
+  DCHECK_EQ(backing_store_[index++], static_cast<uint32_t>(name->length()));
   for (int i = 0; i < name->length(); ++i) {
     DCHECK_EQ(backing_store_[index++], name->raw_data()[i]);
   }
 #endif
+  DCHECK_GT(backing_store_.size(), index);
   byte variable_data = backing_store_[index++];
   if (VariableIsUsedField::decode(variable_data)) {
     var->set_is_used();
@@ -288,7 +310,7 @@ void PreParsedScopeData::SaveDataForInnerScopes(Scope* scope) {
 }
 
 void PreParsedScopeData::RestoreDataForInnerScopes(Scope* scope,
-                                                   int* index_ptr) const {
+                                                   uint32_t* index_ptr) const {
   std::vector<Scope*> scopes;
   for (Scope* inner = scope->inner_scope(); inner != nullptr;
        inner = inner->sibling()) {
@@ -299,7 +321,8 @@ void PreParsedScopeData::RestoreDataForInnerScopes(Scope* scope,
   }
 }
 
-bool PreParsedScopeData::FindFunctionData(int start_pos, int* index) const {
+bool PreParsedScopeData::FindFunctionData(int start_pos,
+                                          uint32_t* index) const {
   auto it = function_data_positions_.find(start_pos);
   if (it == function_data_positions_.end()) {
     return false;
@@ -310,7 +333,9 @@ bool PreParsedScopeData::FindFunctionData(int start_pos, int* index) const {
 
 bool PreParsedScopeData::ScopeNeedsData(Scope* scope) {
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
-    return true;
+    // Default constructors don't need data (they cannot contain inner functions
+    // defined by the user). Other functions do.
+    return !IsDefaultConstructor(scope->AsDeclarationScope()->function_kind());
   }
   if (!scope->is_hidden()) {
     for (Variable* var : *scope->locals()) {

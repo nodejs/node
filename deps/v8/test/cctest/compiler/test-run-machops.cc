@@ -6163,6 +6163,11 @@ int32_t foo8(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f,
   return a + b + c + d + e + f + g + h;
 }
 
+int32_t foo9(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f,
+             int32_t g, int32_t h, int32_t i) {
+  return a + b + c + d + e + f + g + h + i;
+}
+
 }  // namespace
 
 
@@ -6219,6 +6224,30 @@ TEST(RunCallCFunction8) {
   FOR_INT32_INPUTS(i) {
     int32_t const x = *i;
     CHECK_EQ(x * 8, m.Call(x));
+  }
+}
+
+TEST(RunCallCFunction9) {
+  auto* foo9_ptr = &foo9;
+  RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
+  Node* function = m.LoadFromPointer(&foo9_ptr, MachineType::Pointer());
+  Node* param = m.Parameter(0);
+  m.Return(m.CallCFunction9(
+      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+      MachineType::Int32(), function, param,
+      m.Int32Add(param, m.Int32Constant(1)),
+      m.Int32Add(param, m.Int32Constant(2)),
+      m.Int32Add(param, m.Int32Constant(3)),
+      m.Int32Add(param, m.Int32Constant(4)),
+      m.Int32Add(param, m.Int32Constant(5)),
+      m.Int32Add(param, m.Int32Constant(6)),
+      m.Int32Add(param, m.Int32Constant(7)),
+      m.Int32Add(param, m.Int32Constant(8))));
+  FOR_INT32_INPUTS(i) {
+    int32_t const x = *i;
+    CHECK_EQ(x * 9 + 36, m.Call(x));
   }
 }
 #endif  // USE_SIMULATOR
@@ -6710,6 +6739,34 @@ TEST(ParentFramePointer) {
   CHECK_EQ(1, r.Call(1));
 }
 
+#if V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+
+TEST(StackSlotAlignment) {
+  RawMachineAssemblerTester<int32_t> r;
+  RawMachineLabel tlabel;
+  RawMachineLabel flabel;
+  RawMachineLabel merge;
+
+  int alignments[] = {4, 8, 16};
+  int alignment_count = arraysize(alignments);
+
+  Node* alignment_counter = r.Int32Constant(0);
+  for (int i = 0; i < alignment_count; i++) {
+    for (int j = 0; j < 5; j++) {
+      Node* stack_slot =
+          r.StackSlot(MachineRepresentation::kWord32, alignments[i]);
+      alignment_counter = r.Int32Add(
+          alignment_counter,
+          r.Word32And(stack_slot, r.Int32Constant(alignments[i] - 1)));
+    }
+  }
+
+  r.Return(alignment_counter);
+  CHECK_EQ(0, r.Call());
+}
+
+#endif  // V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+
 #if V8_TARGET_ARCH_64_BIT
 
 TEST(Regression5923) {
@@ -6778,6 +6835,27 @@ TEST(Regression6028) {
   CHECK_EQ(1, m.Call());
 }
 
+TEST(Regression5951_32bit) {
+  BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Int32());
+  m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(0)),
+                       m.Int32Constant(0xffffffff)));
+  int32_t input = 1234;
+  CHECK_EQ(input, m.Call(input));
+}
+
+TEST(Regression738952) {
+  RawMachineAssemblerTester<int32_t> m;
+
+  int32_t sentinel = 1234;
+  // The index can be any value where the lower bits are 0 and the upper bits
+  // are not 0;
+  int64_t index = 3224;
+  index <<= 32;
+  double d = static_cast<double>(index);
+  m.Return(m.Load(MachineType::Int32(), m.PointerConstant(&sentinel),
+                  m.TruncateFloat64ToWord32(m.Float64Constant(d))));
+  CHECK_EQ(sentinel, m.Call());
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

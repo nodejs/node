@@ -180,12 +180,15 @@ class MacroAssembler: public Assembler {
 #define COND_ARGS Condition cond = al, Register rs = zero_reg, \
   const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
-  void Jump(Register target, COND_ARGS);
+  void Jump(Register target, int16_t offset = 0, COND_ARGS);
+  void Jump(Register target, Register base, int16_t offset = 0, COND_ARGS);
+  void Jump(Register target, const Operand& offset, COND_ARGS);
   void Jump(intptr_t target, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(Address target, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
-  static int CallSize(Register target, COND_ARGS);
-  void Call(Register target, COND_ARGS);
+  static int CallSize(Register target, int16_t offset = 0, COND_ARGS);
+  void Call(Register target, int16_t offset = 0, COND_ARGS);
+  void Call(Register target, Register base, int16_t offset = 0, COND_ARGS);
   static int CallSize(Address target, RelocInfo::Mode rmode, COND_ARGS);
   void Call(Address target, RelocInfo::Mode rmode, COND_ARGS);
   int CallSize(Handle<Code> code,
@@ -1664,9 +1667,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
 
  private:
-  void CallCFunctionHelper(Register function,
-                           int num_reg_arguments,
-                           int num_double_arguments);
+  void CallCFunctionHelper(Register function_base, int16_t function_offset,
+                           int num_reg_arguments, int num_double_arguments);
 
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
   inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);

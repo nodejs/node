@@ -281,69 +281,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ ret(0);
 }
 
-void RegExpExecStub::Generate(MacroAssembler* masm) {
-#ifdef V8_INTERPRETED_REGEXP
-  // This case is handled prior to the RegExpExecStub call.
-  __ Abort(kUnexpectedRegExpExecCall);
-#else  // V8_INTERPRETED_REGEXP
-  // Isolates: note we add an additional parameter here (isolate pointer).
-  static const int kRegExpExecuteArguments = 9;
-  __ EnterApiExitFrame(kRegExpExecuteArguments);
-
-  // Argument 9: Pass current isolate address.
-  __ mov(Operand(esp, 8 * kPointerSize),
-      Immediate(ExternalReference::isolate_address(isolate())));
-
-  // Argument 8: Indicate that this is a direct call from JavaScript.
-  __ mov(Operand(esp, 7 * kPointerSize), Immediate(1));
-
-  // Argument 7: Start (high end) of backtracking stack memory area.
-  ExternalReference address_of_regexp_stack_memory_address =
-      ExternalReference::address_of_regexp_stack_memory_address(isolate());
-  ExternalReference address_of_regexp_stack_memory_size =
-      ExternalReference::address_of_regexp_stack_memory_size(isolate());
-  __ mov(esi, Operand::StaticVariable(address_of_regexp_stack_memory_address));
-  __ add(esi, Operand::StaticVariable(address_of_regexp_stack_memory_size));
-  __ mov(Operand(esp, 6 * kPointerSize), esi);
-
-  // Argument 6: Set the number of capture registers to zero to force global
-  // regexps to behave as non-global.  This does not affect non-global regexps.
-  __ mov(Operand(esp, 5 * kPointerSize), Immediate(0));
-
-  // Argument 5: static offsets vector buffer.
-  __ mov(Operand(esp, 4 * kPointerSize),
-         Immediate(ExternalReference::address_of_static_offsets_vector(
-             isolate())));
-
-  // Argument 4: End of string data
-  // Argument 3: Start of string data
-  __ mov(Operand(esp, 3 * kPointerSize),
-         RegExpExecDescriptor::StringEndRegister());
-  __ mov(Operand(esp, 2 * kPointerSize),
-         RegExpExecDescriptor::StringStartRegister());
-
-  // Argument 2: Previous index.
-  __ mov(Operand(esp, 1 * kPointerSize),
-         RegExpExecDescriptor::LastIndexRegister());
-
-  // Argument 1: Original subject string.
-  __ mov(Operand(esp, 0 * kPointerSize),
-         RegExpExecDescriptor::StringRegister());
-
-  // Locate the code entry and call it.
-  __ add(RegExpExecDescriptor::CodeRegister(),
-         Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ call(RegExpExecDescriptor::CodeRegister());
-
-  // Drop arguments and come back to JS mode.
-  __ LeaveApiExitFrame(true);
-
-  // TODO(jgruber): Don't tag return value once this is supported by stubs.
-  __ SmiTag(eax);
-  __ ret(0 * kPointerSize);
-#endif  // V8_INTERPRETED_REGEXP
-}
-
 
 static int NegativeComparisonResult(Condition cc) {
   DCHECK(cc != equal);

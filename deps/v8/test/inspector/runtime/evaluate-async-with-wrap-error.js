@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Test that Runtime.evaluate correctly process errors during wrapping \
-async result.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Test that " +
+    "Runtime.evaluate correctly process errors during wrapping async result.");
 
 var evaluateArguments = {
   expression: "Promise.resolve(Symbol(123))",

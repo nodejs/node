@@ -52,7 +52,7 @@ std::tuple<Node*, Node*, Node*> ForInBuiltinsAssembler::EmitForInPrepare(
   GotoIf(WordEqual(enum_length, SmiConstant(0)), nothing_to_iterate);
   Node* descriptors = LoadMapDescriptors(map);
   Node* cache_offset =
-      LoadObjectField(descriptors, DescriptorArray::kEnumCacheOffset);
+      LoadObjectField(descriptors, DescriptorArray::kEnumCacheBridgeOffset);
   Node* enum_cache = LoadObjectField(
       cache_offset, DescriptorArray::kEnumCacheBridgeCacheOffset);
 

@@ -916,6 +916,10 @@ TEST(Regress436816) {
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
+  // Force a GC to free up space before we allocate objects whose
+  // mid-test states would fail heap verification.
+  CcTest::CollectAllGarbage();
+
   const int kPropsCount = kSmiValueSize * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
@@ -951,7 +955,7 @@ TEST(Regress436816) {
   CHECK(object->map()->HasFastPointerLayout());
 
   // Trigger GCs and heap verification.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 }
 
 
@@ -1010,7 +1014,7 @@ TEST(DescriptorArrayTrimming) {
 
   // Call GC that should trim both |map|'s descriptor array and layout
   // descriptor.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 
   // The unused tail of the layout descriptor is now "clean" again.
   CHECK(map->layout_descriptor()->IsConsistentWithMap(*map, true));

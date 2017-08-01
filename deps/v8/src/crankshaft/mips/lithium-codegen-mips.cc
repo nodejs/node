@@ -375,9 +375,7 @@ bool LCodeGen::GenerateJumpTable() {
     }
 
     // Add the base address to the offset previously loaded in entry_offset.
-    __ Addu(entry_offset, entry_offset,
-            Operand(ExternalReference::ForDeoptEntry(base)));
-    __ Jump(entry_offset);
+    __ Jump(entry_offset, Operand(ExternalReference::ForDeoptEntry(base)));
   }
   __ RecordComment("]");
 
@@ -3538,8 +3536,7 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     } else {
       DCHECK(instr->target()->IsRegister());
       Register target = ToRegister(instr->target());
-      __ Addu(target, target, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Jump(target);
+      __ Jump(target, Code::kHeaderSize - kHeapObjectTag);
     }
   } else {
     LPointerMap* pointers = instr->pointer_map();
@@ -3554,8 +3551,7 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
       DCHECK(instr->target()->IsRegister());
       Register target = ToRegister(instr->target());
       generator.BeforeCall(__ CallSize(target));
-      __ Addu(target, target, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Call(target);
+      __ Call(target, Code::kHeaderSize - kHeapObjectTag);
     }
     generator.AfterCall();
   }
@@ -5322,7 +5318,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   __ bind(&load_cache);
   __ LoadInstanceDescriptors(map, result);
   __ lw(result,
-        FieldMemOperand(result, DescriptorArray::kEnumCacheOffset));
+        FieldMemOperand(result, DescriptorArray::kEnumCacheBridgeOffset));
   __ lw(result,
         FieldMemOperand(result, FixedArray::SizeFor(instr->idx())));
   DeoptimizeIf(eq, instr, DeoptimizeReason::kNoCache, result,

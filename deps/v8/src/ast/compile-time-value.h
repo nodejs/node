@@ -17,19 +17,20 @@ class Expression;
 // can be fully handled at compile time.
 class CompileTimeValue : public AllStatic {
  public:
-  enum LiteralType {
-    OBJECT_LITERAL_FAST_ELEMENTS,
-    OBJECT_LITERAL_SLOW_ELEMENTS,
-    ARRAY_LITERAL
-  };
+  // This is a special marker used to encode array literals. The value has to be
+  // different from any value possibly returned by
+  // ObjectLiteral::EncodeLiteralType.
+  static const int kArrayLiteralFlag = -1;
 
   static bool IsCompileTimeValue(Expression* expression);
 
   // Get the value as a compile time value.
   static Handle<FixedArray> GetValue(Isolate* isolate, Expression* expression);
 
-  // Get the type of a compile time value returned by GetValue().
-  static LiteralType GetLiteralType(Handle<FixedArray> value);
+  // Get the encoded literal type. This can either be kArrayLiteralFlag or
+  // encoded properties of an ObjectLiteral returned by
+  // ObjectLiteral::EncodeLiteralType.
+  static int GetLiteralTypeFlags(Handle<FixedArray> value);
 
   // Get the elements of a compile time value returned by GetValue().
   static Handle<HeapObject> GetElements(Handle<FixedArray> value);

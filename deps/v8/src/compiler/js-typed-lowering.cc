@@ -488,13 +488,13 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
-      pointer_comparable_type_(Type::Union(
-          Type::Oddball(),
-          Type::Union(
-              Type::SymbolOrReceiver(),
-              Type::HeapConstant(factory()->empty_string(), graph()->zone()),
-              graph()->zone()),
-          graph()->zone())),
+      empty_string_type_(
+          Type::HeapConstant(factory()->empty_string(), graph()->zone())),
+      pointer_comparable_type_(
+          Type::Union(Type::Oddball(),
+                      Type::Union(Type::SymbolOrReceiver(), empty_string_type_,
+                                  graph()->zone()),
+                      graph()->zone())),
       type_cache_(TypeCache::Get()) {
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
@@ -534,6 +534,23 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   if (r.OneInputIs(Type::String())) {
     if (r.ShouldCreateConsString()) {
       return ReduceCreateConsString(node);
+    }
+    // Eliminate useless concatenation of empty string.
+    if ((flags() & kDeoptimizationEnabled) &&
+        BinaryOperationHintOf(node->op()) == BinaryOperationHint::kString) {
+      Node* effect = NodeProperties::GetEffectInput(node);
+      Node* control = NodeProperties::GetControlInput(node);
+      if (r.LeftInputIs(empty_string_type_)) {
+        Node* value = effect = graph()->NewNode(simplified()->CheckString(),
+                                                r.right(), effect, control);
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      } else if (r.RightInputIs(empty_string_type_)) {
+        Node* value = effect = graph()->NewNode(simplified()->CheckString(),
+                                                r.left(), effect, control);
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      }
     }
     StringAddFlags flags = STRING_ADD_CHECK_NONE;
     if (!r.LeftInputIs(Type::String())) {
@@ -1328,16 +1345,12 @@ Reduction JSTypedLowering::ReduceJSOrdinaryHasInstance(Node* node) {
   Type* constructor_type = NodeProperties::GetType(constructor);
   Node* object = NodeProperties::GetValueInput(node, 1);
   Type* object_type = NodeProperties::GetType(object);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
 
   // Check if the {constructor} cannot be callable.
   // See ES6 section 7.3.19 OrdinaryHasInstance ( C, O ) step 1.
   if (!constructor_type->Maybe(Type::Callable())) {
     Node* value = jsgraph()->FalseConstant();
-    ReplaceWithValue(node, value, effect, control);
+    ReplaceWithValue(node, value);
     return Replace(value);
   }
 
@@ -1347,156 +1360,11 @@ Reduction JSTypedLowering::ReduceJSOrdinaryHasInstance(Node* node) {
   if (!object_type->Maybe(Type::Receiver()) &&
       !constructor_type->Maybe(Type::BoundFunction())) {
     Node* value = jsgraph()->FalseConstant();
-    ReplaceWithValue(node, value, effect, control);
+    ReplaceWithValue(node, value);
     return Replace(value);
   }
 
-  // Check if the {constructor} is a (known) JSFunction.
-  if (!constructor_type->IsHeapConstant() ||
-      !constructor_type->AsHeapConstant()->Value()->IsJSFunction()) {
-    return NoChange();
-  }
-  Handle<JSFunction> function =
-      Handle<JSFunction>::cast(constructor_type->AsHeapConstant()->Value());
-
-  // Check if the {function} already has an initial map (i.e. the
-  // {function} has been used as a constructor at least once).
-  if (!function->has_initial_map()) return NoChange();
-
-  // Check if the {function}s "prototype" is a JSReceiver.
-  if (!function->prototype()->IsJSReceiver()) return NoChange();
-
-  // Install a code dependency on the {function}s initial map.
-  Handle<Map> initial_map(function->initial_map(), isolate());
-  dependencies()->AssumeInitialMapCantChange(initial_map);
-
-  Node* prototype =
-      jsgraph()->Constant(handle(initial_map->prototype(), isolate()));
-
-  Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), object);
-  Node* branch0 =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check0, control);
-
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* etrue0 = effect;
-  Node* vtrue0 = jsgraph()->FalseConstant();
-
-  control = graph()->NewNode(common()->IfFalse(), branch0);
-
-  // Loop through the {object}s prototype chain looking for the {prototype}.
-  Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
-  Node* eloop = effect =
-      graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
-  Node* vloop = object = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), object, object, loop);
-  // TODO(jarin): This is a very ugly hack to work-around the super-smart
-  // implicit typing of the Phi, which goes completely nuts if the {object}
-  // is for example a HeapConstant.
-  NodeProperties::SetType(vloop, Type::NonInternal());
-
-  // Load the {object} map and instance type.
-  Node* object_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()), object,
-                       effect, control);
-  Node* object_instance_type = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), object_map,
-      effect, control);
-
-  // Check if the {object} is a special receiver, because for special
-  // receivers, i.e. proxies or API objects that need access checks,
-  // we have to use the %HasInPrototypeChain runtime function instead.
-  Node* check1 = graph()->NewNode(
-      simplified()->NumberLessThanOrEqual(), object_instance_type,
-      jsgraph()->Constant(LAST_SPECIAL_RECEIVER_TYPE));
-  Node* branch1 =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check1, control);
-
-  control = graph()->NewNode(common()->IfFalse(), branch1);
-
-  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-  Node* etrue1 = effect;
-  Node* vtrue1;
-
-  // Check if the {object} is not a receiver at all.
-  Node* check10 =
-      graph()->NewNode(simplified()->NumberLessThan(), object_instance_type,
-                       jsgraph()->Constant(FIRST_JS_RECEIVER_TYPE));
-  Node* branch10 =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check10, if_true1);
-
-  // A primitive value cannot match the {prototype} we're looking for.
-  if_true1 = graph()->NewNode(common()->IfTrue(), branch10);
-  vtrue1 = jsgraph()->FalseConstant();
-
-  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch10);
-  Node* efalse1 = etrue1;
-  Node* vfalse1;
-  {
-    // Slow path, need to call the %HasInPrototypeChain runtime function.
-    vfalse1 = efalse1 = if_false1 = graph()->NewNode(
-        javascript()->CallRuntime(Runtime::kHasInPrototypeChain), object,
-        prototype, context, frame_state, efalse1, if_false1);
-
-    // Replace any potential {IfException} uses of {node} to catch exceptions
-    // from this %HasInPrototypeChain runtime call instead.
-    Node* on_exception = nullptr;
-    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-      NodeProperties::ReplaceControlInput(on_exception, vfalse1);
-      NodeProperties::ReplaceEffectInput(on_exception, efalse1);
-      if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
-      Revisit(on_exception);
-    }
-  }
-
-  // Load the {object} prototype.
-  Node* object_prototype = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapPrototype()), object_map,
-      effect, control);
-
-  // Check if we reached the end of {object}s prototype chain.
-  Node* check2 = graph()->NewNode(simplified()->ReferenceEqual(),
-                                  object_prototype, jsgraph()->NullConstant());
-  Node* branch2 = graph()->NewNode(common()->Branch(), check2, control);
-
-  Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
-  Node* etrue2 = effect;
-  Node* vtrue2 = jsgraph()->FalseConstant();
-
-  control = graph()->NewNode(common()->IfFalse(), branch2);
-
-  // Check if we reached the {prototype}.
-  Node* check3 = graph()->NewNode(simplified()->ReferenceEqual(),
-                                  object_prototype, prototype);
-  Node* branch3 = graph()->NewNode(common()->Branch(), check3, control);
-
-  Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
-  Node* etrue3 = effect;
-  Node* vtrue3 = jsgraph()->TrueConstant();
-
-  control = graph()->NewNode(common()->IfFalse(), branch3);
-
-  // Close the loop.
-  vloop->ReplaceInput(1, object_prototype);
-  eloop->ReplaceInput(1, effect);
-  loop->ReplaceInput(1, control);
-
-  control = graph()->NewNode(common()->Merge(5), if_true0, if_true1, if_true2,
-                             if_true3, if_false1);
-  effect = graph()->NewNode(common()->EffectPhi(5), etrue0, etrue1, etrue2,
-                            etrue3, efalse1, control);
-
-  // Morph the {node} into an appropriate Phi.
-  ReplaceWithValue(node, node, effect, control);
-  node->ReplaceInput(0, vtrue0);
-  node->ReplaceInput(1, vtrue1);
-  node->ReplaceInput(2, vtrue2);
-  node->ReplaceInput(3, vtrue3);
-  node->ReplaceInput(4, vfalse1);
-  node->ReplaceInput(5, control);
-  node->TrimInputCount(6);
-  NodeProperties::ChangeOp(node,
-                           common()->Phi(MachineRepresentation::kTagged, 5));
-  return Changed(node);
+  return NoChange();
 }
 
 Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
@@ -1542,35 +1410,49 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   return Changed(node);
 }
 
-Reduction JSTypedLowering::ReduceJSLoadModule(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSLoadModule, node->opcode());
+Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kJSLoadModule ||
+         node->opcode() == IrOpcode::kJSStoreModule);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
   int32_t cell_index = OpParameter<int32_t>(node);
   Node* module = NodeProperties::GetValueInput(node, 0);
+  Type* module_type = NodeProperties::GetType(module);
 
-  Node* array;
+  if (module_type->IsHeapConstant()) {
+    Handle<Module> module_constant =
+        Handle<Module>::cast(module_type->AsHeapConstant()->Value());
+    Handle<Cell> cell_constant(module_constant->GetCell(cell_index), isolate());
+    return jsgraph()->HeapConstant(cell_constant);
+  }
+
+  FieldAccess field_access;
   int index;
   if (ModuleDescriptor::GetCellIndexKind(cell_index) ==
       ModuleDescriptor::kExport) {
-    array = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForModuleRegularExports()),
-        module, effect, control);
+    field_access = AccessBuilder::ForModuleRegularExports();
     index = cell_index - 1;
   } else {
     DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
               ModuleDescriptor::kImport);
-    array = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForModuleRegularImports()),
-        module, effect, control);
+    field_access = AccessBuilder::ForModuleRegularImports();
     index = -cell_index - 1;
   }
-
-  Node* cell = effect = graph()->NewNode(
+  Node* array = effect = graph()->NewNode(simplified()->LoadField(field_access),
+                                          module, effect, control);
+  return graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForFixedArraySlot(index)), array,
       effect, control);
+}
 
+Reduction JSTypedLowering::ReduceJSLoadModule(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadModule, node->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  Node* cell = BuildGetModuleCell(node);
+  if (cell->op()->EffectOutputCount() > 0) effect = cell;
   Node* value = effect =
       graph()->NewNode(simplified()->LoadField(AccessBuilder::ForCellValue()),
                        cell, effect, control);
@@ -1583,32 +1465,12 @@ Reduction JSTypedLowering::ReduceJSStoreModule(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreModule, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-
-  int32_t cell_index = OpParameter<int32_t>(node);
-  Node* module = NodeProperties::GetValueInput(node, 0);
   Node* value = NodeProperties::GetValueInput(node, 1);
+  DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(OpParameter<int32_t>(node)),
+            ModuleDescriptor::kExport);
 
-  Node* array;
-  int index;
-  if (ModuleDescriptor::GetCellIndexKind(cell_index) ==
-      ModuleDescriptor::kExport) {
-    array = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForModuleRegularExports()),
-        module, effect, control);
-    index = cell_index - 1;
-  } else {
-    DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
-              ModuleDescriptor::kImport);
-    array = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForModuleRegularImports()),
-        module, effect, control);
-    index = -cell_index - 1;
-  }
-
-  Node* cell = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForFixedArraySlot(index)), array,
-      effect, control);
-
+  Node* cell = BuildGetModuleCell(node);
+  if (cell->op()->EffectOutputCount() > 0) effect = cell;
   effect =
       graph()->NewNode(simplified()->StoreField(AccessBuilder::ForCellValue()),
                        cell, value, effect, control);
@@ -1858,6 +1720,38 @@ bool NeedsArgumentAdaptorFrame(Handle<SharedFunctionInfo> shared, int arity) {
 
 }  // namespace
 
+Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSConstructForwardVarargs, node->opcode());
+  ConstructForwardVarargsParameters p =
+      ConstructForwardVarargsParametersOf(node->op());
+  DCHECK_LE(2u, p.arity());
+  int const arity = static_cast<int>(p.arity() - 2);
+  int const start_index = static_cast<int>(p.start_index());
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  Type* target_type = NodeProperties::GetType(target);
+  Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
+
+  // Check if {target} is a JSFunction.
+  if (target_type->Is(Type::Function())) {
+    // Patch {node} to an indirect call via ConstructFunctionForwardVarargs.
+    Callable callable = CodeFactory::ConstructFunctionForwardVarargs(isolate());
+    node->RemoveInput(arity + 1);
+    node->InsertInput(graph()->zone(), 0,
+                      jsgraph()->HeapConstant(callable.code()));
+    node->InsertInput(graph()->zone(), 2, new_target);
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 4, jsgraph()->Constant(start_index));
+    node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
+    NodeProperties::ChangeOp(
+        node, common()->Call(Linkage::GetStubCallDescriptor(
+                  isolate(), graph()->zone(), callable.descriptor(), arity + 1,
+                  CallDescriptor::kNeedsFrameState)));
+    return Changed(node);
+  }
+
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
@@ -1936,6 +1830,9 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
 Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallForwardVarargs, node->opcode());
   CallForwardVarargsParameters p = CallForwardVarargsParametersOf(node->op());
+  DCHECK_LE(2u, p.arity());
+  int const arity = static_cast<int>(p.arity() - 2);
+  int const start_index = static_cast<int>(p.start_index());
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type* target_type = NodeProperties::GetType(target);
 
@@ -1951,11 +1848,12 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
     Callable callable = CodeFactory::CallFunctionForwardVarargs(isolate());
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(p.start_index()));
+    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(start_index));
     NodeProperties::ChangeOp(
-        node,
-        common()->Call(Linkage::GetStubCallDescriptor(
-            isolate(), graph()->zone(), callable.descriptor(), 1, flags)));
+        node, common()->Call(Linkage::GetStubCallDescriptor(
+                  isolate(), graph()->zone(), callable.descriptor(), arity + 1,
+                  flags)));
     return Changed(node);
   }
 
@@ -2331,6 +2229,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSStoreModule(node);
     case IrOpcode::kJSConvertReceiver:
       return ReduceJSConvertReceiver(node);
+    case IrOpcode::kJSConstructForwardVarargs:
+      return ReduceJSConstructForwardVarargs(node);
     case IrOpcode::kJSConstruct:
       return ReduceJSConstruct(node);
     case IrOpcode::kJSCallForwardVarargs:

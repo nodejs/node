@@ -16,8 +16,6 @@ Reduction JSFrameSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kOsrValue:
       return ReduceOsrValue(node);
-    case IrOpcode::kOsrGuard:
-      return ReduceOsrGuard(node);
     case IrOpcode::kParameter:
       return ReduceParameter(node);
     default:
@@ -45,13 +43,6 @@ Reduction JSFrameSpecialization::ReduceOsrValue(Node* node) {
                isolate());
   }
   return Replace(jsgraph()->Constant(value));
-}
-
-Reduction JSFrameSpecialization::ReduceOsrGuard(Node* node) {
-  DCHECK_EQ(IrOpcode::kOsrGuard, node->opcode());
-  ReplaceWithValue(node, node->InputAt(0),
-                   NodeProperties::GetEffectInput(node));
-  return Changed(node);
 }
 
 Reduction JSFrameSpecialization::ReduceParameter(Node* node) {

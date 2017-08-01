@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Check that console.log is reported through Console domain as well.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Check that console.log is reported through Console domain as well.");
 
 var expectedMessages = 4;
 var messages = [];

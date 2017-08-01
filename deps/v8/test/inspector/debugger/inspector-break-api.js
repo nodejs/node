@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Checks breakProgram,(schedule|cancel)PauseOnNextStatement test API");
+let {session, contextGroup, Protocol} = InspectorTest.start("Checks breakProgram,(schedule|cancel)PauseOnNextStatement test API");
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function callBreakProgram() {
-  breakProgram('reason', JSON.stringify({a: 42}));
+  inspector.breakProgram('reason', JSON.stringify({a: 42}));
 }
 
 function foo() {
   return 42;
 }`, 7, 26);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
   InspectorTest.log('Stack:');
-  InspectorTest.logCallFrames(message.params.callFrames);
+  session.logCallFrames(message.params.callFrames);
   delete message.params.callFrames;
   InspectorTest.log('Other data:');
   InspectorTest.logMessage(message);
@@ -33,17 +33,17 @@ InspectorTest.runTestSuite([
   },
 
   function testSchedulePauseOnNextStatement(next) {
-    utils.schedulePauseOnNextStatement('reason', JSON.stringify({a: 42}));
+    contextGroup.schedulePauseOnNextStatement('reason', JSON.stringify({a: 42}));
     Protocol.Runtime.evaluate({ expression: 'foo()//# sourceURL=expr1.js'})
       .then(() => Protocol.Runtime.evaluate({
         expression: 'foo()//# sourceURL=expr2.js'}))
-      .then(() => utils.cancelPauseOnNextStatement())
+      .then(() => contextGroup.cancelPauseOnNextStatement())
       .then(next);
   },
 
   function testCancelPauseOnNextStatement(next) {
-    utils.schedulePauseOnNextStatement('reason', JSON.stringify({a: 42}));
-    utils.cancelPauseOnNextStatement();
+    contextGroup.schedulePauseOnNextStatement('reason', JSON.stringify({a: 42}));
+    contextGroup.cancelPauseOnNextStatement();
     Protocol.Runtime.evaluate({ expression: 'foo()'})
       .then(next);
   }

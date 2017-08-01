@@ -155,6 +155,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   RegionObservability region_observability_ = RegionObservability::kObservable;
   SourcePositionTable* source_positions_;
   GraphAssembler graph_assembler_;
+  Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
 };
 
 }  // namespace compiler

@@ -308,7 +308,7 @@ void MacroAssembler::RecordWriteField(
   Add(dst, object, offset - kHeapObjectTag, r0);
   if (emit_debug_code()) {
     Label ok;
-    andi(r0, dst, Operand((1 << kPointerSizeLog2) - 1));
+    andi(r0, dst, Operand(kPointerSize - 1));
     beq(&ok, cr0);
     stop("Unaligned cell in write barrier");
     bind(&ok);
@@ -363,7 +363,7 @@ void MacroAssembler::RecordWriteForMap(Register object, Register map,
   addi(dst, object, Operand(HeapObject::kMapOffset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    andi(r0, dst, Operand((1 << kPointerSizeLog2) - 1));
+    andi(r0, dst, Operand(kPointerSize - 1));
     beq(&ok, cr0);
     stop("Unaligned cell in write barrier");
     bind(&ok);
@@ -810,8 +810,9 @@ void MacroAssembler::ConvertDoubleToUnsignedInt64(
 void MacroAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
                                    Register src_low, Register src_high,
                                    Register scratch, Register shift) {
-  DCHECK(!AreAliased(dst_low, src_high, shift));
-  DCHECK(!AreAliased(dst_high, src_low, shift));
+  DCHECK(!AreAliased(dst_low, src_high));
+  DCHECK(!AreAliased(dst_high, src_low));
+  DCHECK(!AreAliased(dst_low, dst_high, shift));
   Label less_than_32;
   Label done;
   cmpi(shift, Operand(32));
@@ -856,8 +857,9 @@ void MacroAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
 void MacroAssembler::ShiftRightPair(Register dst_low, Register dst_high,
                                     Register src_low, Register src_high,
                                     Register scratch, Register shift) {
-  DCHECK(!AreAliased(dst_low, src_high, shift));
-  DCHECK(!AreAliased(dst_high, src_low, shift));
+  DCHECK(!AreAliased(dst_low, src_high));
+  DCHECK(!AreAliased(dst_high, src_low));
+  DCHECK(!AreAliased(dst_low, dst_high, shift));
   Label less_than_32;
   Label done;
   cmpi(shift, Operand(32));
@@ -2958,6 +2960,7 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
 void MacroAssembler::CallCFunctionHelper(Register function,
                                          int num_reg_arguments,
                                          int num_double_arguments) {
+  DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
 
   // Just call directly. The function called cannot cause a GC, or

@@ -7,6 +7,7 @@
 
 #include "src/ast/ast-types.h"
 #include "src/objects.h"
+#include "src/objects/map.h"
 #include "src/ostreams.h"
 
 namespace v8 {

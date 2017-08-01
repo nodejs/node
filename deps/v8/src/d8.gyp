@@ -50,6 +50,8 @@
       'sources': [
         'd8.h',
         'd8.cc',
+        'd8-console.h',
+        'd8-console.cc',
         '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
       ],
       'conditions': [

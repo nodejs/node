@@ -509,11 +509,18 @@ Profile.DynamicFuncCodeEntry = function(size, type, func, state) {
 Profile.DynamicFuncCodeEntry.STATE_PREFIX = ["", "~", "*"];
 
 /**
+ * Returns state.
+ */
+Profile.DynamicFuncCodeEntry.prototype.getState = function() {
+  return Profile.DynamicFuncCodeEntry.STATE_PREFIX[this.state];
+};
+
+/**
  * Returns node name.
  */
 Profile.DynamicFuncCodeEntry.prototype.getName = function() {
   var name = this.func.getName();
-  return this.type + ': ' + Profile.DynamicFuncCodeEntry.STATE_PREFIX[this.state] + name;
+  return this.type + ': ' + this.getState() + name;
 };
 
 

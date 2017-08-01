@@ -4,6 +4,8 @@
 
 // Flags: --expose-wasm
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests how wasm scripts are reported');
+
 utils.load('test/mjsunit/wasm/wasm-constants.js');
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -27,9 +29,8 @@ function testFunction(bytes) {
   new WebAssembly.Module(buffer);
 }
 
-InspectorTest.addScriptWithUrl(
-    testFunction.toString(), 'v8://test/testFunction');
-InspectorTest.addScript('var module_bytes = ' + JSON.stringify(module_bytes));
+contextGroup.addScript(testFunction.toString(), 0, 0, 'v8://test/testFunction');
+contextGroup.addScript('var module_bytes = ' + JSON.stringify(module_bytes));
 
 Protocol.Debugger.enable();
 Protocol.Debugger.onScriptParsed(handleScriptParsed);

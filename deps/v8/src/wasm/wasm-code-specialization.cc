@@ -41,8 +41,7 @@ int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
 class PatchDirectCallsHelper {
  public:
   PatchDirectCallsHelper(WasmInstanceObject* instance, Code* code)
-      : source_pos_it(code->source_position_table()),
-        decoder(nullptr, nullptr) {
+      : source_pos_it(code->SourcePositionTable()), decoder(nullptr, nullptr) {
     FixedArray* deopt_data = code->deoptimization_data();
     DCHECK_EQ(2, deopt_data->length());
     WasmCompiledModule* comp_mod = instance->compiled_module();
@@ -133,7 +132,7 @@ bool CodeSpecialization::ApplyToWholeInstance(
   for (int num_wasm_functions = static_cast<int>(wasm_functions->size());
        func_index < num_wasm_functions; ++func_index) {
     Code* wasm_function = Code::cast(code_table->get(func_index));
-    if (wasm_function->builtin_index() == Builtins::kWasmCompileLazy) continue;
+    if (wasm_function->kind() != Code::WASM_FUNCTION) continue;
     changed |= ApplyToWasmCode(wasm_function, icache_flush_mode);
   }
 

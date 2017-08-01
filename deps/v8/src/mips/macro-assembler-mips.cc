@@ -219,7 +219,7 @@ void MacroAssembler::RecordWriteField(
   Addu(dst, object, Operand(offset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    And(t8, dst, Operand((1 << kPointerSizeLog2) - 1));
+    And(t8, dst, Operand(kPointerSize - 1));
     Branch(&ok, eq, t8, Operand(zero_reg));
     stop("Unaligned cell in write barrier");
     bind(&ok);
@@ -287,7 +287,7 @@ void MacroAssembler::RecordWriteForMap(Register object,
   Addu(dst, object, Operand(HeapObject::kMapOffset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    And(at, dst, Operand((1 << kPointerSizeLog2) - 1));
+    And(at, dst, Operand(kPointerSize - 1));
     Branch(&ok, eq, at, Operand(zero_reg));
     stop("Unaligned cell in write barrier");
     bind(&ok);
@@ -564,8 +564,13 @@ void MacroAssembler::Subu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     subu(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.imm32_) && !MustUseReg(rt.rmode_)) {
+    if (is_int16(-rt.imm32_) && !MustUseReg(rt.rmode_)) {
       addiu(rd, rs, -rt.imm32_);  // No subiu instr, use addiu(x, y, -imm).
+    } else if (!(-rt.imm32_ & kHiMask) && !MustUseReg(rt.rmode_)) {  // Use load
+      // -imm and addu for cases where loading -imm generates one instruction.
+      DCHECK(!rs.is(at));
+      li(at, -rt.imm32_);
+      addu(rd, rs, at);
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -3600,22 +3605,87 @@ bool MacroAssembler::BranchAndLinkShortCheck(int32_t offset, Label* L,
   return false;
 }
 
-
-void MacroAssembler::Jump(Register target,
-                          Condition cond,
-                          Register rs,
-                          const Operand& rt,
-                          BranchDelaySlot bd) {
+void MacroAssembler::Jump(Register target, int16_t offset, Condition cond,
+                          Register rs, const Operand& rt, BranchDelaySlot bd) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
+  DCHECK(is_int16(offset));
   if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
     if (cond == cc_always) {
-      jic(target, 0);
+      jic(target, offset);
     } else {
       BRANCH_ARGS_CHECK(cond, rs, rt);
       Branch(2, NegateCondition(cond), rs, rt);
-      jic(target, 0);
+      jic(target, offset);
     }
   } else {
+    if (offset != 0) {
+      Addu(target, target, offset);
+    }
+    if (cond == cc_always) {
+      jr(target);
+    } else {
+      BRANCH_ARGS_CHECK(cond, rs, rt);
+      Branch(2, NegateCondition(cond), rs, rt);
+      jr(target);
+    }
+    // Emit a nop in the branch delay slot if required.
+    if (bd == PROTECT) nop();
+  }
+}
+
+void MacroAssembler::Jump(Register target, Register base, int16_t offset,
+                          Condition cond, Register rs, const Operand& rt,
+                          BranchDelaySlot bd) {
+  DCHECK(is_int16(offset));
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
+    if (cond == cc_always) {
+      jic(base, offset);
+    } else {
+      BRANCH_ARGS_CHECK(cond, rs, rt);
+      Branch(2, NegateCondition(cond), rs, rt);
+      jic(base, offset);
+    }
+  } else {
+    if (offset != 0) {
+      Addu(target, base, offset);
+    } else {  // Call through target
+      if (!target.is(base)) mov(target, base);
+    }
+    if (cond == cc_always) {
+      jr(target);
+    } else {
+      BRANCH_ARGS_CHECK(cond, rs, rt);
+      Branch(2, NegateCondition(cond), rs, rt);
+      jr(target);
+    }
+    // Emit a nop in the branch delay slot if required.
+    if (bd == PROTECT) nop();
+  }
+}
+
+void MacroAssembler::Jump(Register target, const Operand& offset,
+                          Condition cond, Register rs, const Operand& rt,
+                          BranchDelaySlot bd) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  if (IsMipsArchVariant(kMips32r6) && bd == PROTECT &&
+      !is_int16(offset.immediate())) {
+    uint32_t aui_offset, jic_offset;
+    Assembler::UnpackTargetAddressUnsigned(offset.immediate(), aui_offset,
+                                           jic_offset);
+    RecordRelocInfo(RelocInfo::EXTERNAL_REFERENCE, offset.immediate());
+    aui(target, target, aui_offset);
+    if (cond == cc_always) {
+      jic(target, jic_offset);
+    } else {
+      BRANCH_ARGS_CHECK(cond, rs, rt);
+      Branch(2, NegateCondition(cond), rs, rt);
+      jic(target, jic_offset);
+    }
+  } else {
+    if (offset.immediate() != 0) {
+      Addu(target, target, offset);
+    }
     if (cond == cc_always) {
       jr(target);
     } else {
@@ -3635,14 +3705,24 @@ void MacroAssembler::Jump(intptr_t target,
                           Register rs,
                           const Operand& rt,
                           BranchDelaySlot bd) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   Label skip;
   if (cond != cc_always) {
     Branch(USE_DELAY_SLOT, &skip, NegateCondition(cond), rs, rt);
   }
   // The first instruction of 'li' may be placed in the delay slot.
   // This is not an issue, t9 is expected to be clobbered anyway.
-  li(t9, Operand(target, rmode));
-  Jump(t9, al, zero_reg, Operand(zero_reg), bd);
+  if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
+    uint32_t lui_offset, jic_offset;
+    UnpackTargetAddressUnsigned(target, lui_offset, jic_offset);
+    DCHECK(MustUseReg(rmode));
+    RecordRelocInfo(rmode, target);
+    lui(t9, lui_offset);
+    Jump(t9, jic_offset, al, zero_reg, Operand(zero_reg), bd);
+  } else {
+    li(t9, Operand(target, rmode));
+    Jump(t9, 0, al, zero_reg, Operand(zero_reg), bd);
+  }
   bind(&skip);
 }
 
@@ -3669,11 +3749,8 @@ void MacroAssembler::Jump(Handle<Code> code,
   Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond, rs, rt, bd);
 }
 
-
-int MacroAssembler::CallSize(Register target,
-                             Condition cond,
-                             Register rs,
-                             const Operand& rt,
+int MacroAssembler::CallSize(Register target, int16_t offset, Condition cond,
+                             Register rs, const Operand& rt,
                              BranchDelaySlot bd) {
   int size = 0;
 
@@ -3685,16 +3762,18 @@ int MacroAssembler::CallSize(Register target,
 
   if (bd == PROTECT && !IsMipsArchVariant(kMips32r6)) size += 1;
 
+  if (!IsMipsArchVariant(kMips32r6) && offset != 0) {
+    size += 1;
+  }
+
   return size * kInstrSize;
 }
 
 
 // Note: To call gcc-compiled C code on mips, you must call thru t9.
-void MacroAssembler::Call(Register target,
-                          Condition cond,
-                          Register rs,
-                          const Operand& rt,
-                          BranchDelaySlot bd) {
+void MacroAssembler::Call(Register target, int16_t offset, Condition cond,
+                          Register rs, const Operand& rt, BranchDelaySlot bd) {
+  DCHECK(is_int16(offset));
 #ifdef DEBUG
   int size = IsPrevInstrCompactBranch() ? kInstrSize : 0;
 #endif
@@ -3704,13 +3783,16 @@ void MacroAssembler::Call(Register target,
   bind(&start);
   if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
     if (cond == cc_always) {
-      jialc(target, 0);
+      jialc(target, offset);
     } else {
       BRANCH_ARGS_CHECK(cond, rs, rt);
       Branch(2, NegateCondition(cond), rs, rt);
-      jialc(target, 0);
+      jialc(target, offset);
     }
   } else {
+    if (offset != 0) {
+      Addu(target, target, offset);
+    }
     if (cond == cc_always) {
       jalr(target);
     } else {
@@ -3723,7 +3805,50 @@ void MacroAssembler::Call(Register target,
   }
 
 #ifdef DEBUG
-  CHECK_EQ(size + CallSize(target, cond, rs, rt, bd),
+  CHECK_EQ(size + CallSize(target, offset, cond, rs, rt, bd),
+           SizeOfCodeGeneratedSince(&start));
+#endif
+}
+
+// Note: To call gcc-compiled C code on mips, you must call thru t9.
+void MacroAssembler::Call(Register target, Register base, int16_t offset,
+                          Condition cond, Register rs, const Operand& rt,
+                          BranchDelaySlot bd) {
+  DCHECK(is_uint16(offset));
+#ifdef DEBUG
+  int size = IsPrevInstrCompactBranch() ? kInstrSize : 0;
+#endif
+
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Label start;
+  bind(&start);
+  if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
+    if (cond == cc_always) {
+      jialc(base, offset);
+    } else {
+      BRANCH_ARGS_CHECK(cond, rs, rt);
+      Branch(2, NegateCondition(cond), rs, rt);
+      jialc(base, offset);
+    }
+  } else {
+    if (offset != 0) {
+      Addu(target, base, offset);
+    } else {  // Call through target
+      if (!target.is(base)) mov(target, base);
+    }
+    if (cond == cc_always) {
+      jalr(target);
+    } else {
+      BRANCH_ARGS_CHECK(cond, rs, rt);
+      Branch(2, NegateCondition(cond), rs, rt);
+      jalr(target);
+    }
+    // Emit a nop in the branch delay slot if required.
+    if (bd == PROTECT) nop();
+  }
+
+#ifdef DEBUG
+  CHECK_EQ(size + CallSize(target, offset, cond, rs, rt, bd),
            SizeOfCodeGeneratedSince(&start));
 #endif
 }
@@ -3735,8 +3860,11 @@ int MacroAssembler::CallSize(Address target,
                              Register rs,
                              const Operand& rt,
                              BranchDelaySlot bd) {
-  int size = CallSize(t9, cond, rs, rt, bd);
-  return size + 2 * kInstrSize;
+  int size = CallSize(t9, 0, cond, rs, rt, bd);
+  if (IsMipsArchVariant(kMips32r6) && bd == PROTECT && cond == cc_always)
+    return size + 1 * kInstrSize;
+  else
+    return size + 2 * kInstrSize;
 }
 
 
@@ -3746,12 +3874,23 @@ void MacroAssembler::Call(Address target,
                           Register rs,
                           const Operand& rt,
                           BranchDelaySlot bd) {
+  CheckBuffer();
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Label start;
   bind(&start);
   int32_t target_int = reinterpret_cast<int32_t>(target);
-  li(t9, Operand(target_int, rmode), CONSTANT_SIZE);
-  Call(t9, cond, rs, rt, bd);
+  if (IsMipsArchVariant(kMips32r6) && bd == PROTECT && cond == cc_always) {
+    uint32_t lui_offset, jialc_offset;
+    UnpackTargetAddressUnsigned(target_int, lui_offset, jialc_offset);
+    if (MustUseReg(rmode)) {
+      RecordRelocInfo(rmode, target_int);
+    }
+    lui(t9, lui_offset);
+    Call(t9, jialc_offset, cond, rs, rt, bd);
+  } else {
+    li(t9, Operand(target_int, rmode), CONSTANT_SIZE);
+    Call(t9, 0, cond, rs, rt, bd);
+  }
   DCHECK_EQ(CallSize(target, rmode, cond, rs, rt, bd),
             SizeOfCodeGeneratedSince(&start));
 }
@@ -3796,7 +3935,7 @@ void MacroAssembler::Ret(Condition cond,
                          Register rs,
                          const Operand& rt,
                          BranchDelaySlot bd) {
-  Jump(ra, cond, rs, rt, bd);
+  Jump(ra, 0, cond, rs, rt, bd);
 }
 
 
@@ -3825,9 +3964,8 @@ void MacroAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
       {
         BlockGrowBufferScope block_buf_growth(this);
         // Buffer growth (and relocation) must be blocked for internal
-        // references
-        // until associated instructions are emitted and available to be
-        // patched.
+        // references until associated instructions are emitted and
+        // available to be patched.
         RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
         lui(at, (imm32 & kHiMask) >> kLuiShift);
         ori(at, at, (imm32 & kImm16Mask));
@@ -3850,8 +3988,8 @@ void MacroAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
     uint32_t imm32;
     imm32 = jump_address(L);
     if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
-      uint32_t lui_offset, jic_offset;
-      UnpackTargetAddressUnsigned(imm32, lui_offset, jic_offset);
+      uint32_t lui_offset, jialc_offset;
+      UnpackTargetAddressUnsigned(imm32, lui_offset, jialc_offset);
       {
         BlockGrowBufferScope block_buf_growth(this);
         // Buffer growth (and relocation) must be blocked for internal
@@ -3859,16 +3997,15 @@ void MacroAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
         // available to be patched.
         RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
         lui(at, lui_offset);
-        jialc(at, jic_offset);
+        jialc(at, jialc_offset);
       }
       CheckBuffer();
     } else {
       {
         BlockGrowBufferScope block_buf_growth(this);
         // Buffer growth (and relocation) must be blocked for internal
-        // references
-        // until associated instructions are emitted and available to be
-        // patched.
+        // references until associated instructions are emitted and
+        // available to be patched.
         RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
         lui(at, (imm32 & kHiMask) >> kLuiShift);
         ori(at, at, (imm32 & kImm16Mask));
@@ -6047,15 +6184,27 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
 void MacroAssembler::CallCFunction(ExternalReference function,
                                    int num_reg_arguments,
                                    int num_double_arguments) {
-  li(t8, Operand(function));
-  CallCFunctionHelper(t8, num_reg_arguments, num_double_arguments);
+  if (IsMipsArchVariant(kMips32r6)) {
+    uint32_t lui_offset, jialc_offset;
+    UnpackTargetAddressUnsigned(Operand(function).immediate(), lui_offset,
+                                jialc_offset);
+    if (MustUseReg(Operand(function).rmode())) {
+      RecordRelocInfo(Operand(function).rmode(), Operand(function).immediate());
+    }
+    lui(t9, lui_offset);
+    CallCFunctionHelper(t9, jialc_offset, num_reg_arguments,
+                        num_double_arguments);
+  } else {
+    li(t9, Operand(function));
+    CallCFunctionHelper(t9, 0, num_reg_arguments, num_double_arguments);
+  }
 }
 
 
 void MacroAssembler::CallCFunction(Register function,
                                    int num_reg_arguments,
                                    int num_double_arguments) {
-  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments);
+  CallCFunctionHelper(function, 0, num_reg_arguments, num_double_arguments);
 }
 
 
@@ -6070,10 +6219,11 @@ void MacroAssembler::CallCFunction(Register function,
   CallCFunction(function, num_arguments, 0);
 }
 
-
-void MacroAssembler::CallCFunctionHelper(Register function,
+void MacroAssembler::CallCFunctionHelper(Register function_base,
+                                         int16_t function_offset,
                                          int num_reg_arguments,
                                          int num_double_arguments) {
+  DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
@@ -6102,12 +6252,12 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   // allow preemption, so the return address in the link register
   // stays correct.
 
-  if (!function.is(t9)) {
-    mov(t9, function);
-    function = t9;
+  if (!function_base.is(t9)) {
+    mov(t9, function_base);
+    function_base = t9;
   }
 
-  Call(function);
+  Call(function_base, function_offset);
 
   int stack_passed_arguments = CalculateStackPassedWords(
       num_reg_arguments, num_double_arguments);
@@ -6442,6 +6592,7 @@ CodePatcher::~CodePatcher() {
   }
 
   // Check that the code was patched as expected.
+
   DCHECK(masm_.pc_ == address_ + size_);
   DCHECK(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
 }

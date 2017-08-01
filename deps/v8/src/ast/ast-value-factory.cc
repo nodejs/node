@@ -31,6 +31,7 @@
 #include "src/char-predicates-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/string-hasher.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -189,10 +190,8 @@ bool AstValue::BooleanValue() const {
     case SYMBOL:
       UNREACHABLE();
       break;
-    case NUMBER_WITH_DOT:
     case NUMBER:
       return DoubleToBoolean(number_);
-    case SMI_WITH_DOT:
     case SMI:
       return smi_ != 0;
     case BOOLEAN:
@@ -224,11 +223,9 @@ void AstValue::Internalize(Isolate* isolate) {
           break;
       }
       break;
-    case NUMBER_WITH_DOT:
     case NUMBER:
       set_value(isolate->factory()->NewNumber(number_, TENURED));
       break;
-    case SMI_WITH_DOT:
     case SMI:
       set_value(handle(Smi::FromInt(smi_), isolate));
       break;
@@ -342,9 +339,8 @@ const AstValue* AstValueFactory::NewSymbol(AstSymbol symbol) {
   return AddValue(value);
 }
 
-
-const AstValue* AstValueFactory::NewNumber(double number, bool with_dot) {
-  AstValue* value = new (zone_) AstValue(number, with_dot);
+const AstValue* AstValueFactory::NewNumber(double number) {
+  AstValue* value = new (zone_) AstValue(number);
   return AddValue(value);
 }
 

@@ -76,7 +76,7 @@ bytecodes: [
                 B(Star), R(7),
   /*   63 S> */ B(ForInContinue), R(7), R(6),
                 B(JumpIfFalse), U8(23),
-                B(ForInNext), R(3), R(7), R(4), U8(2),
+                B(ForInNext), R(3), R(7), R(4), U8(3),
                 B(JumpIfUndefined), U8(9),
                 B(Star), R(1),
   /*   54 E> */ B(StackCheck),
@@ -107,7 +107,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
                 B(Star), R(0),
-  /*   59 S> */ B(CreateArrayLiteral), U8(0), U8(2), U8(9),
+  /*   59 S> */ B(CreateArrayLiteral), U8(0), U8(3), U8(17),
                 B(JumpIfUndefined), U8(46),
                 B(JumpIfNull), U8(44),
                 B(ToObject), R(3),
@@ -116,13 +116,13 @@ bytecodes: [
                 B(Star), R(7),
   /*   54 S> */ B(ForInContinue), R(7), R(6),
                 B(JumpIfFalse), U8(31),
-                B(ForInNext), R(3), R(7), R(4), U8(4),
+                B(ForInNext), R(3), R(7), R(4), U8(5),
                 B(JumpIfUndefined), U8(17),
                 B(Star), R(1),
   /*   45 E> */ B(StackCheck),
                 B(Star), R(2),
   /*   70 S> */ B(Ldar), R(1),
-  /*   75 E> */ B(Add), R(0), U8(3),
+  /*   75 E> */ B(Add), R(0), U8(4),
                 B(Mov), R(0), R(8),
                 B(Star), R(0),
   /*   72 E> */ B(ForInStep), R(7),
@@ -132,7 +132,7 @@ bytecodes: [
   /*   80 S> */ B(Return),
 ]
 constant pool: [
-  CONSTANT_ELEMENTS_PAIR_TYPE,
+  TUPLE2_TYPE,
 ]
 handlers: [
 ]
@@ -150,9 +150,9 @@ parameter count: 1
 bytecode array length: 87
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(2), U8(1), R(1),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(1),
                 B(Mov), R(1), R(0),
-  /*   77 S> */ B(CreateArrayLiteral), U8(1), U8(3), U8(9),
+  /*   77 S> */ B(CreateArrayLiteral), U8(1), U8(4), U8(17),
                 B(JumpIfUndefined), U8(72),
                 B(JumpIfNull), U8(70),
                 B(ToObject), R(1),
@@ -161,24 +161,24 @@ bytecodes: [
                 B(Star), R(5),
   /*   68 S> */ B(ForInContinue), R(5), R(4),
                 B(JumpIfFalse), U8(57),
-                B(ForInNext), R(1), R(5), R(2), U8(14),
+                B(ForInNext), R(1), R(5), R(2), U8(15),
                 B(JumpIfUndefined), U8(43),
                 B(Star), R(6),
                 B(Ldar), R(6),
-  /*   67 E> */ B(StaNamedPropertySloppy), R(0), U8(2), U8(12),
+  /*   67 E> */ B(StaNamedPropertySloppy), R(0), U8(2), U8(13),
   /*   62 E> */ B(StackCheck),
   /*   95 S> */ B(Nop),
-  /*  100 E> */ B(LdaNamedProperty), R(0), U8(2), U8(6),
+  /*  100 E> */ B(LdaNamedProperty), R(0), U8(2), U8(7),
                 B(Star), R(6),
                 B(LdaSmi), I8(10),
-  /*  106 E> */ B(TestEqual), R(6), U8(8),
+  /*  106 E> */ B(TestEqual), R(6), U8(9),
                 B(JumpIfFalse), U8(4),
   /*  113 S> */ B(Jump), U8(18),
   /*  125 S> */ B(Nop),
-  /*  130 E> */ B(LdaNamedProperty), R(0), U8(2), U8(9),
+  /*  130 E> */ B(LdaNamedProperty), R(0), U8(2), U8(10),
                 B(Star), R(6),
                 B(LdaSmi), I8(20),
-  /*  136 E> */ B(TestEqual), R(6), U8(11),
+  /*  136 E> */ B(TestEqual), R(6), U8(12),
                 B(JumpIfFalse), U8(4),
   /*  143 S> */ B(Jump), U8(9),
                 B(ForInStep), R(5),
@@ -189,7 +189,7 @@ bytecodes: [
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
-  CONSTANT_ELEMENTS_PAIR_TYPE,
+  TUPLE2_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
@@ -205,9 +205,9 @@ parameter count: 1
 bytecode array length: 62
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateArrayLiteral), U8(0), U8(2), U8(9),
+  /*   42 S> */ B(CreateArrayLiteral), U8(0), U8(3), U8(17),
                 B(Star), R(0),
-  /*   72 S> */ B(CreateArrayLiteral), U8(1), U8(3), U8(9),
+  /*   72 S> */ B(CreateArrayLiteral), U8(1), U8(4), U8(17),
                 B(JumpIfUndefined), U8(49),
                 B(JumpIfNull), U8(47),
                 B(ToObject), R(1),
@@ -216,16 +216,16 @@ bytecodes: [
                 B(Star), R(5),
   /*   65 S> */ B(ForInContinue), R(5), R(4),
                 B(JumpIfFalse), U8(34),
-                B(ForInNext), R(1), R(5), R(2), U8(10),
+                B(ForInNext), R(1), R(5), R(2), U8(11),
                 B(JumpIfUndefined), U8(20),
                 B(Star), R(6),
                 B(LdaZero),
                 B(Star), R(8),
                 B(Ldar), R(6),
-  /*   64 E> */ B(StaKeyedPropertySloppy), R(0), R(8), U8(8),
+  /*   64 E> */ B(StaKeyedPropertySloppy), R(0), R(8), U8(9),
   /*   59 E> */ B(StackCheck),
   /*   83 S> */ B(LdaSmi), I8(3),
-  /*   91 E> */ B(LdaKeyedProperty), R(0), U8(6),
+  /*   91 E> */ B(LdaKeyedProperty), R(0), U8(7),
   /*   98 S> */ B(Return),
                 B(ForInStep), R(5),
                 B(Star), R(5),
@@ -234,8 +234,8 @@ bytecodes: [
   /*   98 S> */ B(Return),
 ]
 constant pool: [
-  CONSTANT_ELEMENTS_PAIR_TYPE,
-  CONSTANT_ELEMENTS_PAIR_TYPE,
+  TUPLE2_TYPE,
+  TUPLE2_TYPE,
 ]
 handlers: [
 ]

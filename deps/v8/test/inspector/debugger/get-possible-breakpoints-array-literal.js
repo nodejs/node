@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests possible breakpoints in array literal');
+
 Protocol.Debugger.enable();
 
 Protocol.Debugger.onceScriptParsed().then(message => message.params.scriptId)
@@ -9,4 +11,4 @@ Protocol.Debugger.onceScriptParsed().then(message => message.params.scriptId)
   .then(InspectorTest.logMessage)
   .then(InspectorTest.completeTest);
 
-InspectorTest.addScript("() => []");
+contextGroup.addScript("() => []");

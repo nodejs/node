@@ -212,6 +212,14 @@ void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
 
 }  // namespace
 
+void InstructionSelector::VisitStackSlot(Node* node) {
+  StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
+  int slot = frame_->AllocateSpillSlot(rep.size());
+  OperandGenerator g(this);
+
+  Emit(kArchStackSlot, g.DefineAsRegister(node),
+       sequence()->AddImmediate(Constant(slot)), 0, nullptr);
+}
 
 void InstructionSelector::VisitLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
@@ -1864,11 +1872,7 @@ void InstructionSelector::VisitAtomicBinaryOperation(
   AddressingMode addressing_mode;
   InstructionOperand inputs[3];
   size_t input_count = 0;
-  if (type == MachineType::Int8() || type == MachineType::Uint8()) {
-    inputs[input_count++] = g.UseByteRegister(value);
-  } else {
-    inputs[input_count++] = g.UseUniqueRegister(value);
-  }
+  inputs[input_count++] = g.UseUniqueRegister(value);
   inputs[input_count++] = g.UseUniqueRegister(base);
   if (g.CanBeImmediate(index)) {
     inputs[input_count++] = g.UseImmediate(index);
@@ -1879,7 +1883,11 @@ void InstructionSelector::VisitAtomicBinaryOperation(
   }
   outputs[0] = g.DefineAsFixed(node, eax);
   InstructionOperand temp[1];
-  temp[0] = g.TempRegister();
+  if (type == MachineType::Int8() || type == MachineType::Uint8()) {
+    temp[0] = g.UseByteRegister(node);
+  } else {
+    temp[0] = g.TempRegister();
+  }
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
   Emit(code, 1, outputs, input_count, inputs, 1, temp);
 }

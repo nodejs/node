@@ -10,6 +10,7 @@
       'dependencies': [
         '../src/d8.gyp:d8',
         '../test/inspector/inspector.gyp:*',
+        '../test/mkgrokdump/mkgrokdump.gyp:*',
       ],
       'conditions': [
         ['component!="shared_library"', {

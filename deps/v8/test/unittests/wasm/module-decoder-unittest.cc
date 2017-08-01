@@ -8,8 +8,8 @@
 #include "src/objects-inl.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-limits.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-opcodes.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -89,14 +89,12 @@ namespace wasm {
   do {                                                             \
     ModuleResult result = DecodeModule(data, data + sizeof(data)); \
     EXPECT_TRUE(result.ok());                                      \
-    if (result.val) delete result.val;                             \
   } while (false)
 
 #define EXPECT_FAILURE_LEN(data, length)                     \
   do {                                                       \
     ModuleResult result = DecodeModule(data, data + length); \
     EXPECT_FALSE(result.ok());                               \
-    if (result.val) delete result.val;                       \
   } while (false)
 
 #define EXPECT_FAILURE(data) EXPECT_FAILURE_LEN(data, sizeof(data))
@@ -108,13 +106,10 @@ namespace wasm {
     }                                                   \
   } while (false)
 
-#define EXPECT_OK(result)                \
-  do {                                   \
-    EXPECT_TRUE(result.ok());            \
-    if (!result.ok()) {                  \
-      if (result.val) delete result.val; \
-      return;                            \
-    }                                    \
+#define EXPECT_OK(result)     \
+  do {                        \
+    EXPECT_TRUE(result.ok()); \
+    if (!result.ok()) return; \
   } while (false)
 
 static size_t SizeOfVarInt(size_t value) {
@@ -161,7 +156,6 @@ TEST_F(WasmModuleVerifyTest, WrongMagic) {
     const byte data[] = {U32_LE(kWasmMagic ^ x), U32_LE(kWasmVersion)};
     ModuleResult result = DecodeModuleNoHeader(data, data + sizeof(data));
     EXPECT_FALSE(result.ok());
-    if (result.val) delete result.val;
   }
 }
 
@@ -170,14 +164,12 @@ TEST_F(WasmModuleVerifyTest, WrongVersion) {
     const byte data[] = {U32_LE(kWasmMagic), U32_LE(kWasmVersion ^ x)};
     ModuleResult result = DecodeModuleNoHeader(data, data + sizeof(data));
     EXPECT_FALSE(result.ok());
-    if (result.val) delete result.val;
   }
 }
 
 TEST_F(WasmModuleVerifyTest, DecodeEmpty) {
   ModuleResult result = DecodeModule(nullptr, 0);
   EXPECT_TRUE(result.ok());
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, OneGlobal) {
@@ -204,8 +196,6 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
     EXPECT_FALSE(global->mutability);
     EXPECT_EQ(WasmInitExpr::kI32Const, global->init.kind);
     EXPECT_EQ(13, global->init.val.i32_const);
-
-    if (result.val) delete result.val;
   }
 
   EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
@@ -222,7 +212,6 @@ TEST_F(WasmModuleVerifyTest, Global_invalid_type) {
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_FALSE(result.ok());
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, Global_invalid_type2) {
@@ -236,7 +225,6 @@ TEST_F(WasmModuleVerifyTest, Global_invalid_type2) {
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_FALSE(result.ok());
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
@@ -246,7 +234,6 @@ TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
   };
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, ExportMutableGlobal) {
@@ -325,7 +312,6 @@ TEST_F(WasmModuleVerifyTest, NGlobals) {
 
     ModuleResult result = DecodeModule(&buffer[0], &buffer[0] + buffer.size());
     EXPECT_OK(result);
-    if (result.val) delete result.val;
   }
 }
 
@@ -371,8 +357,6 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
     EXPECT_EQ(8u, g1->offset);
     EXPECT_TRUE(g1->mutability);
     EXPECT_EQ(WasmInitExpr::kF64Const, g1->init.kind);
-
-    if (result.val) delete result.val;
   }
 
   EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
@@ -413,7 +397,6 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
     EXPECT_EQ(1u, result.val->signatures[1]->parameter_count());
     EXPECT_EQ(2u, result.val->signatures[2]->parameter_count());
   }
-  if (result.val) delete result.val;
 
   EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
 }
@@ -456,7 +439,6 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {
   WasmInitExpr expr = result.val->data_segments.back().dest_addr;
   EXPECT_EQ(WasmInitExpr::kGlobalIndex, expr.kind);
   EXPECT_EQ(1u, expr.val.global_index);
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, DataSegmentWithMutableImportedGlobal) {
@@ -544,8 +526,6 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
     EXPECT_EQ(0x9bbaa, segment->dest_addr.val.i32_const);
     EXPECT_EQ(kDataSegmentSourceOffset, segment->source_offset);
     EXPECT_EQ(3u, segment->source_size);
-
-    if (result.val) delete result.val;
   }
 
   EXPECT_OFF_END_FAILURE(data, 14, sizeof(data));
@@ -604,8 +584,6 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
     EXPECT_EQ(0x6ddcc, s1->dest_addr.val.i32_const);
     EXPECT_EQ(kDataSegment1SourceOffset, s1->source_offset);
     EXPECT_EQ(10u, s1->source_size);
-
-    if (result.val) delete result.val;
   }
 
   EXPECT_OFF_END_FAILURE(data, 14, sizeof(data));
@@ -679,7 +657,26 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
     EXPECT_EQ(1u, result.val->function_tables.size());
     EXPECT_EQ(1u, result.val->function_tables[0].min_size);
   }
-  if (result.val) delete result.val;
+}
+
+TEST_F(WasmModuleVerifyTest, Regression_735887) {
+  // Test with an invalid function index in the element section.
+  static const byte data[] = {
+      // sig#0 ---------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // funcs ---------------------------------------------------------------
+      ONE_EMPTY_FUNCTION,
+      // table declaration ---------------------------------------------------
+      SECTION(Table, 4), ENTRY_COUNT(1), kWasmAnyFunctionTypeForm, 0, 1,
+      // elements ------------------------------------------------------------
+      SECTION(Element, 7),
+      1,  // entry count
+      TABLE_INDEX(0), WASM_INIT_EXPR_I32V_1(0),
+      1,    // elements count
+      0x9a  // invalid I32V as function index
+  };
+
+  EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
@@ -705,7 +702,6 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
     EXPECT_EQ(1u, result.val->function_tables.size());
     EXPECT_EQ(1u, result.val->function_tables[0].min_size);
   }
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
@@ -742,7 +738,6 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
     EXPECT_EQ(1u, result.val->function_tables.size());
     EXPECT_EQ(8u, result.val->function_tables[0].min_size);
   }
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, IndirectFunctionNoFunctions) {
@@ -955,7 +950,7 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
   EXPECT_OK(result);
 
   if (result.val && result.ok()) {
-    WasmFunction* function = result.val;
+    WasmFunction* function = result.val.get();
     EXPECT_EQ(0u, function->sig->parameter_count());
     EXPECT_EQ(0u, function->sig->return_count());
     EXPECT_EQ(0u, function->name_offset);
@@ -964,8 +959,6 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
     EXPECT_EQ(sizeof(data), function->code_end_offset);
     // TODO(titzer): verify encoding of local declarations
   }
-
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, SectionWithoutNameLength) {
@@ -1070,8 +1063,6 @@ TEST_F(WasmModuleVerifyTest, UnknownSectionSkipped) {
 
   EXPECT_EQ(kWasmI32, global->type);
   EXPECT_EQ(0u, global->offset);
-
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, ImportTable_empty) {
@@ -1213,8 +1204,6 @@ TEST_F(WasmModuleVerifyTest, ExportTable_empty1) {
 
   EXPECT_EQ(1u, result.val->functions.size());
   EXPECT_EQ(0u, result.val->export_table.size());
-
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, ExportTable_empty2) {
@@ -1244,8 +1233,6 @@ TEST_F(WasmModuleVerifyTest, ExportTableOne) {
 
   EXPECT_EQ(1u, result.val->functions.size());
   EXPECT_EQ(1u, result.val->export_table.size());
-
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, ExportNameWithInvalidStringLength) {
@@ -1288,8 +1275,6 @@ TEST_F(WasmModuleVerifyTest, ExportTableTwo) {
 
   EXPECT_EQ(1u, result.val->functions.size());
   EXPECT_EQ(2u, result.val->export_table.size());
-
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, ExportTableThree) {
@@ -1316,8 +1301,6 @@ TEST_F(WasmModuleVerifyTest, ExportTableThree) {
 
   EXPECT_EQ(3u, result.val->functions.size());
   EXPECT_EQ(3u, result.val->export_table.size());
-
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, ExportTableThreeOne) {
@@ -1357,7 +1340,6 @@ TEST_F(WasmModuleVerifyTest, ExportTableOne_off_end) {
   for (size_t length = 33; length < sizeof(data); length++) {
     ModuleResult result = DecodeModule(data, data + length);
     EXPECT_FALSE(result.ok());
-    if (result.val) delete result.val;
   }
 }
 

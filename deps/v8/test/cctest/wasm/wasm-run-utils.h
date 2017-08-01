@@ -13,8 +13,7 @@
 #include <memory>
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/zone/accounting-allocator.h"
-
+#include "src/code-stubs.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
@@ -25,10 +24,10 @@
 #include "src/compiler/zone-stats.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -76,16 +75,10 @@ class TestingModule : public ModuleEnv {
  public:
   explicit TestingModule(Zone* zone, WasmExecutionMode mode = kExecuteCompiled)
       : ModuleEnv(&module_, &instance_),
-        execution_mode_(mode),
         instance_(&module_),
         isolate_(CcTest::InitIsolateOnce()),
         global_offset(0),
-        interpreter_(
-            mode == kExecuteInterpreted
-                ? new WasmInterpreter(
-                      isolate_, ModuleBytesEnv(&module_, &instance_,
-                                               Vector<const byte>::empty()))
-                : nullptr) {
+        interpreter_(nullptr) {
     WasmJs::Install(isolate_);
     instance->module = &module_;
     instance->globals_start = global_data;
@@ -94,22 +87,10 @@ class TestingModule : public ModuleEnv {
     instance->mem_size = 0;
     memset(global_data, 0, sizeof(global_data));
     instance_object_ = InitInstanceObject();
-  }
-
-  ~TestingModule() {
-    if (instance->mem_start) {
-      if (EnableGuardRegions() && module_.is_wasm()) {
-        // See the corresponding code in AddMemory. We use a different
-        // allocation path when guard regions are enabled, which means we have
-        // to free it differently too.
-        const size_t alloc_size =
-            RoundUp(kWasmMaxHeapOffset, v8::base::OS::CommitPageSize());
-        v8::base::OS::Free(instance->mem_start, alloc_size);
-      } else {
-        free(instance->mem_start);
-      }
+    if (mode == kExecuteInterpreted) {
+      interpreter_ =
+          WasmDebugInfo::SetupForTesting(instance_object_, &instance_);
     }
-    if (interpreter_) delete interpreter_;
   }
 
   void ChangeOriginToAsmjs() { module_.set_origin(kAsmJsOrigin); }
@@ -118,22 +99,20 @@ class TestingModule : public ModuleEnv {
     CHECK(!module_.has_memory);
     CHECK_NULL(instance->mem_start);
     CHECK_EQ(0, instance->mem_size);
+    DCHECK(!instance_object_->has_memory_buffer());
     module_.has_memory = true;
-    if (EnableGuardRegions() && module_.is_wasm()) {
-      const size_t alloc_size =
-          RoundUp(kWasmMaxHeapOffset, v8::base::OS::CommitPageSize());
-      instance->mem_start = reinterpret_cast<byte*>(
-          v8::base::OS::AllocateGuarded(alloc_size * 2));
-      instance->mem_start += alloc_size;
-      const size_t guard_size = RoundUp(size, v8::base::OS::CommitPageSize());
-      v8::base::OS::Unprotect(instance->mem_start, guard_size);
-    } else {
-      instance->mem_start = reinterpret_cast<byte*>(malloc(size));
-    }
+    bool enable_guard_regions = EnableGuardRegions() && module_.is_wasm();
+    uint32_t alloc_size =
+        enable_guard_regions ? RoundUp(size, OS::CommitPageSize()) : size;
+    Handle<JSArrayBuffer> new_buffer =
+        wasm::NewArrayBuffer(isolate_, alloc_size, enable_guard_regions);
+    CHECK(!new_buffer.is_null());
+    instance_object_->set_memory_buffer(*new_buffer);
+    instance->mem_start = reinterpret_cast<byte*>(new_buffer->backing_store());
     CHECK(size == 0 || instance->mem_start);
     memset(instance->mem_start, 0, size);
     instance->mem_size = size;
-    return raw_mem_start<byte>();
+    return instance->mem_start;
   }
 
   template <typename T>
@@ -289,7 +268,7 @@ class TestingModule : public ModuleEnv {
   }
 
   void PopulateIndirectFunctionTable() {
-    if (execution_mode_ == kExecuteInterpreted) return;
+    if (interpret()) return;
     // Initialize the fixed arrays in instance->function_tables.
     for (uint32_t i = 0; i < instance->function_tables.size(); i++) {
       WasmIndirectFunctionTable& table = module_.function_tables[i];
@@ -324,12 +303,11 @@ class TestingModule : public ModuleEnv {
   WasmFunction* GetFunctionAt(int index) { return &module_.functions[index]; }
 
   WasmInterpreter* interpreter() { return interpreter_; }
-  WasmExecutionMode execution_mode() { return execution_mode_; }
+  bool interpret() { return interpreter_ != nullptr; }
   Isolate* isolate() { return isolate_; }
   Handle<WasmInstanceObject> instance_object() { return instance_object_; }
 
  private:
-  WasmExecutionMode execution_mode_;
   WasmModule module_;
   WasmInstance instance_;
   Isolate* isolate_;
@@ -378,8 +356,9 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
                               FunctionSig* sig,
                               SourcePositionTable* source_position_table,
                               const byte* start, const byte* end) {
-  compiler::WasmGraphBuilder builder(module, zone, jsgraph, sig,
-                                     source_position_table);
+  compiler::WasmGraphBuilder builder(
+      module, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(), sig,
+      source_position_table);
   DecodeResult result =
       BuildTFGraph(zone->allocator(), &builder, sig, start, end);
   if (result.failed()) {
@@ -389,10 +368,10 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
       result = BuildTFGraph(zone->allocator(), &builder, sig, start, end);
     }
 
-    uint32_t pc = result.error_offset;
+    uint32_t pc = result.error_offset();
     std::ostringstream str;
     str << "Verification failed; pc = +" << pc
-        << ", msg = " << result.error_msg.c_str();
+        << ", msg = " << result.error_msg().c_str();
     FATAL(str.str().c_str());
   }
   builder.Int64LoweringForTesting();
@@ -566,7 +545,6 @@ class WasmFunctionCompiler : private GraphAndBuilders {
     if (interpreter_) {
       // Add the code to the interpreter.
       interpreter_->SetFunctionCodeForTesting(function_, start, end);
-      return;
     }
 
     // Build the TurboFan graph.
@@ -714,7 +692,10 @@ class WasmRunnerBase : public HandleAndZoneScope {
 
   uint32_t function_index() { return functions_[0]->function_index(); }
   WasmFunction* function() { return functions_[0]->function_; }
-  WasmInterpreter* interpreter() { return functions_[0]->interpreter_; }
+  WasmInterpreter* interpreter() {
+    DCHECK(interpret());
+    return functions_[0]->interpreter_;
+  }
   bool possible_nondeterminism() { return possible_nondeterminism_; }
   TestingModule& module() { return module_; }
   Zone* zone() { return &zone_; }
@@ -728,6 +709,8 @@ class WasmRunnerBase : public HandleAndZoneScope {
     }
     module_.instance->context = main_isolate()->native_context();
   }
+
+  bool interpret() { return module_.interpret(); }
 
  private:
   FunctionSig* CreateSig(MachineType return_type,
@@ -767,8 +750,6 @@ class WasmRunnerBase : public HandleAndZoneScope {
   WasmFunctionWrapper wrapper_;
   bool compiled_ = false;
   bool possible_nondeterminism_ = false;
-
-  bool interpret() { return module_.execution_mode() == kExecuteInterpreted; }
 
  public:
   // This field has to be static. Otherwise, gcc complains about the use in

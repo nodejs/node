@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks stepping over tail calls.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks stepping over tail calls.');
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 InspectorTest.logProtocolCommandCalls('Debugger.pause');
 InspectorTest.logProtocolCommandCalls('Debugger.stepInto');
 InspectorTest.logProtocolCommandCalls('Debugger.stepOver');
@@ -76,6 +76,6 @@ InspectorTest.runAsyncTestSuite([
 ]);
 
 function logPauseLocation(message) {
-  InspectorTest.logCallFrames(message.params.callFrames);
-  return InspectorTest.logSourceLocation(message.params.callFrames[0].location);
+  session.logCallFrames(message.params.callFrames);
+  return session.logSourceLocation(message.params.callFrames[0].location);
 }

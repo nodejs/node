@@ -16,7 +16,7 @@ bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   41 S> */ B(CreateClosure), U8(0), U8(2), U8(2),
+  /*   41 S> */ B(CreateClosure), U8(0), U8(3), U8(2),
   /*   71 S> */ B(Return),
 ]
 constant pool: [
@@ -38,7 +38,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   45 S> */ B(CreateClosure), U8(0), U8(2), U8(2),
+  /*   45 S> */ B(CreateClosure), U8(0), U8(3), U8(2),
   /*   75 S> */ B(Return),
 ]
 constant pool: [
@@ -62,7 +62,7 @@ bytecodes: [
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
   /*   53 S> */ B(LdaSmi), I8(2),
   /*   53 E> */ B(StaCurrentContextSlot), U8(5),
-  /*   56 S> */ B(CreateClosure), U8(0), U8(2), U8(2),
+  /*   56 S> */ B(CreateClosure), U8(0), U8(3), U8(2),
   /*   92 S> */ B(Return),
 ]
 constant pool: [
@@ -82,9 +82,9 @@ bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   41 S> */ B(CreateClosure), U8(0), U8(4), U8(2),
+  /*   41 S> */ B(CreateClosure), U8(0), U8(5), U8(2),
                 B(Star), R(1),
-  /*   64 E> */ B(CallUndefinedReceiver0), R(1), U8(2),
+  /*   64 E> */ B(CallUndefinedReceiver0), R(1), U8(3),
   /*   68 S> */ B(LdaCurrentContextSlot), U8(4),
   /*   78 S> */ B(Return),
 ]
@@ -118,7 +118,7 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(4),
   /*   69 S> */ B(LdaSmi), I8(2),
   /*   69 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   72 S> */ B(CreateClosure), U8(1), U8(2), U8(2),
+  /*   72 S> */ B(CreateClosure), U8(1), U8(3), U8(2),
                 B(PopContext), R(0),
   /*  104 S> */ B(Return),
 ]
@@ -899,9 +899,9 @@ bytecodes: [
   /* 3421 E> */ B(StaCurrentContextSlot), U8(254),
   /* 3435 S> */ B(LdaZero),
   /* 3435 E> */ B(StaCurrentContextSlot), U8(255),
-  /* 3438 S> */ B(LdaGlobal), U8(0), U8(4),
+  /* 3438 S> */ B(LdaGlobal), U8(0), U8(5),
                 B(Star), R(1),
-  /* 3438 E> */ B(CallUndefinedReceiver0), R(1), U8(2),
+  /* 3438 E> */ B(CallUndefinedReceiver0), R(1), U8(3),
   /* 3454 S> */ B(LdaSmi), I8(100),
   /* 3454 E> */ B(Wide), B(StaCurrentContextSlot), U16(256),
   /* 3459 S> */ B(Wide), B(LdaCurrentContextSlot), U16(256),

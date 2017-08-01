@@ -1,3 +1,4 @@
+Tests imports in wasm
 Installing code and global variable.
 Calling instantiate function for module A.
 Waiting for wasm script to be parsed.

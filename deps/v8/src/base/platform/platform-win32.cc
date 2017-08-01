@@ -764,15 +764,34 @@ static void* RandomizedVirtualAlloc(size_t size, int action, int protection) {
   return base;
 }
 
-
-void* OS::Allocate(const size_t requested,
-                   size_t* allocated,
+void* OS::Allocate(const size_t requested, size_t* allocated,
                    bool is_executable) {
+  return OS::Allocate(requested, allocated,
+                      is_executable ? OS::MemoryPermission::kReadWriteExecute
+                                    : OS::MemoryPermission::kReadWrite);
+}
+
+void* OS::Allocate(const size_t requested, size_t* allocated,
+                   OS::MemoryPermission access) {
   // VirtualAlloc rounds allocated size to page size automatically.
   size_t msize = RoundUp(requested, static_cast<int>(GetPageSize()));
 
   // Windows XP SP2 allows Data Excution Prevention (DEP).
-  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+  int prot = PAGE_NOACCESS;
+  switch (access) {
+    case OS::MemoryPermission::kNoAccess: {
+      prot = PAGE_NOACCESS;
+      break;
+    }
+    case OS::MemoryPermission::kReadWrite: {
+      prot = PAGE_READWRITE;
+      break;
+    }
+    case OS::MemoryPermission::kReadWriteExecute: {
+      prot = PAGE_EXECUTE_READWRITE;
+      break;
+    }
+  }
 
   LPVOID mbase = RandomizedVirtualAlloc(msize,
                                         MEM_COMMIT | MEM_RESERVE,

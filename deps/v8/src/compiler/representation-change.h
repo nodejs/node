@@ -198,8 +198,8 @@ class UseInfo {
                    TypeCheckKind::kSignedSmall);
   }
   static UseInfo CheckedSigned32AsWord32(IdentifyZeros identify_zeros) {
-    return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
-                   TypeCheckKind::kSigned32);
+    return UseInfo(MachineRepresentation::kWord32,
+                   Truncation::Any(identify_zeros), TypeCheckKind::kSigned32);
   }
   static UseInfo CheckedNumberAsFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64(),

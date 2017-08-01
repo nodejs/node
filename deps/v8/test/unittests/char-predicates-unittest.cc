@@ -84,8 +84,7 @@ TEST(CharPredicatesTest, IdentifierPart) {
   EXPECT_FALSE(IdentifierPart::Is(0x2E2F));
 }
 
-
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 TEST(CharPredicatesTest, SupplementaryPlaneIdentifiers) {
   // Both ID_Start and ID_Continue.
   EXPECT_TRUE(IdentifierStart::Is(0x10403));  // Category Lu
@@ -113,7 +112,7 @@ TEST(CharPredicatesTest, SupplementaryPlaneIdentifiers) {
   EXPECT_FALSE(IdentifierStart::Is(0x1F4A9));  // Category So
   EXPECT_FALSE(IdentifierPart::Is(0x1F4A9));
 }
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 
 }  // namespace internal
 }  // namespace v8

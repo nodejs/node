@@ -184,18 +184,11 @@ class RegExpParser BASE_EMBEDDED {
   // can be reparsed.
   bool ParseBackReferenceIndex(int* index_out);
 
-  // The default behavior is to combine surrogate pairs in unicode mode and
-  // don't combine them otherwise (a quantifier after a surrogate pair would
-  // then apply only to the trailing surrogate). Forcing combination is required
-  // when parsing capture names since they can always legally contain surrogate
-  // pairs.
-  enum class ScanMode { DEFAULT, FORCE_COMBINE_SURROGATE_PAIRS };
-
   bool ParseClassProperty(ZoneList<CharacterRange>* result);
   CharacterRange ParseClassAtom(uc16* char_class);
   RegExpTree* ReportError(Vector<const char> message);
-  void Advance(ScanMode mode = ScanMode::DEFAULT);
-  void Advance(int dist, ScanMode mode = ScanMode::DEFAULT);
+  void Advance();
+  void Advance(int dist);
   void Reset(int pos);
 
   // Reports whether the pattern might be used as a literal search string.
@@ -311,7 +304,8 @@ class RegExpParser BASE_EMBEDDED {
   bool has_more() { return has_more_; }
   bool has_next() { return next_pos_ < in()->length(); }
   uc32 Next();
-  uc32 ReadNext(bool update_position, ScanMode mode);
+  template <bool update_position>
+  uc32 ReadNext();
   FlatStringReader* in() { return in_; }
   void ScanForCaptures();
 

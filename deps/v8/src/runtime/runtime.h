@@ -118,12 +118,19 @@ namespace internal {
   F(WeakCollectionHas, 3, 1)              \
   F(WeakCollectionDelete, 3, 1)           \
   F(WeakCollectionSet, 4, 1)              \
-  F(GetWeakSetValues, 2, 1)
+  F(GetWeakSetValues, 2, 1)               \
+  F(IsJSMap, 1, 1)                        \
+  F(IsJSSet, 1, 1)                        \
+  F(IsJSMapIterator, 1, 1)                \
+  F(IsJSSetIterator, 1, 1)                \
+  F(IsJSWeakMap, 1, 1)                    \
+  F(IsJSWeakSet, 1, 1)
 
 #define FOR_EACH_INTRINSIC_COMPILER(F)    \
   F(CompileLazy, 1, 1)                    \
   F(CompileOptimized_Concurrent, 1, 1)    \
   F(CompileOptimized_NotConcurrent, 1, 1) \
+  F(EvictOptimizedCodeSlot, 1, 1)         \
   F(NotifyStubFailure, 0, 1)              \
   F(NotifyDeoptimized, 1, 1)              \
   F(CompileForOnStackReplacement, 1, 1)   \
@@ -209,10 +216,17 @@ namespace internal {
   F(ForInFilter, 2, 1)              \
   F(ForInHasProperty, 2, 1)
 
+#ifdef V8_TRACE_IGNITION
+#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F) \
+  F(InterpreterTraceBytecodeEntry, 3, 1)        \
+  F(InterpreterTraceBytecodeExit, 3, 1)
+#else
+#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F)
+#endif
+
 #define FOR_EACH_INTRINSIC_INTERPRETER(F) \
+  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F) \
   F(InterpreterNewClosure, 4, 1)          \
-  F(InterpreterTraceBytecodeEntry, 3, 1)  \
-  F(InterpreterTraceBytecodeExit, 3, 1)   \
   F(InterpreterAdvanceBytecodeOffset, 2, 1)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
@@ -251,8 +265,8 @@ namespace internal {
   F(GeneratorGetSourcePosition, 1, 1)            \
   F(GeneratorGetResumeMode, 1, 1)
 
-#ifdef V8_I18N_SUPPORT
-#define FOR_EACH_INTRINSIC_I18N(F)           \
+#ifdef V8_INTL_SUPPORT
+#define FOR_EACH_INTRINSIC_INTL(F)           \
   F(CanonicalizeLanguageTag, 1, 1)           \
   F(AvailableLocalesOf, 1, 1)                \
   F(GetDefaultICULocale, 0, 1)               \
@@ -274,63 +288,62 @@ namespace internal {
   F(BreakIteratorNext, 1, 1)                 \
   F(BreakIteratorCurrent, 1, 1)              \
   F(BreakIteratorBreakType, 1, 1)            \
-  F(StringToLowerCaseI18N, 1, 1)             \
-  F(StringToUpperCaseI18N, 1, 1)             \
+  F(StringToLowerCaseIntl, 1, 1)             \
+  F(StringToUpperCaseIntl, 1, 1)             \
   F(StringLocaleConvertCase, 3, 1)           \
   F(DateCacheVersion, 0, 1)
 #else
-#define FOR_EACH_INTRINSIC_I18N(F)
+#define FOR_EACH_INTRINSIC_INTL(F)
 #endif
 
-#define FOR_EACH_INTRINSIC_INTERNAL(F)              \
-  F(AllocateInNewSpace, 1, 1)                       \
-  F(AllocateInTargetSpace, 2, 1)                    \
-  F(AllocateSeqOneByteString, 1, 1)                 \
-  F(AllocateSeqTwoByteString, 1, 1)                 \
-  F(CheckIsBootstrapping, 0, 1)                     \
-  F(CreateAsyncFromSyncIterator, 1, 1)              \
-  F(CreateListFromArrayLike, 1, 1)                  \
-  F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)  \
-  F(ExportFromRuntime, 1, 1)                        \
-  F(IncrementUseCounter, 1, 1)                      \
-  F(InstallToContext, 1, 1)                         \
-  F(Interrupt, 0, 1)                                \
-  F(IS_VAR, 1, 1)                                   \
-  F(NewReferenceError, 2, 1)                        \
-  F(NewSyntaxError, 2, 1)                           \
-  F(NewTypeError, 2, 1)                             \
-  F(OrdinaryHasInstance, 2, 1)                      \
-  F(PromoteScheduledException, 0, 1)                \
-  F(ReThrow, 1, 1)                                  \
-  F(RunMicrotasks, 0, 1)                            \
-  F(StackGuard, 0, 1)                               \
-  F(Throw, 1, 1)                                    \
-  F(ThrowApplyNonFunction, 1, 1)                    \
-  F(ThrowCannotConvertToPrimitive, 0, 1)            \
-  F(ThrowCalledNonCallable, 1, 1)                   \
-  F(ThrowCalledOnNullOrUndefined, 1, 1)             \
-  F(ThrowConstructedNonConstructable, 1, 1)         \
-  F(ThrowDerivedConstructorReturnedNonObject, 0, 1) \
-  F(ThrowGeneratorRunning, 0, 1)                    \
-  F(ThrowIllegalInvocation, 0, 1)                   \
-  F(ThrowIncompatibleMethodReceiver, 2, 1)          \
-  F(ThrowInvalidHint, 1, 1)                         \
-  F(ThrowInvalidStringLength, 0, 1)                 \
-  F(ThrowInvalidTypedArrayAlignment, 2, 1)          \
-  F(ThrowIteratorResultNotAnObject, 1, 1)           \
-  F(ThrowSymbolIteratorInvalid, 0, 1)               \
-  F(ThrowNonCallableInInstanceOfCheck, 0, 1)        \
-  F(ThrowNonObjectInInstanceOfCheck, 0, 1)          \
-  F(ThrowNotConstructor, 1, 1)                      \
-  F(ThrowNotGeneric, 1, 1)                          \
-  F(ThrowRangeError, -1 /* >= 1 */, 1)              \
-  F(ThrowReferenceError, 1, 1)                      \
-  F(ThrowStackOverflow, 0, 1)                       \
-  F(ThrowSymbolAsyncIteratorInvalid, 0, 1)          \
-  F(ThrowTypeError, -1 /* >= 1 */, 1)               \
-  F(ThrowUndefinedOrNullToObject, 1, 1)             \
-  F(Typeof, 1, 1)                                   \
-  F(UnwindAndFindExceptionHandler, 0, 1)            \
+#define FOR_EACH_INTRINSIC_INTERNAL(F)             \
+  F(AllocateInNewSpace, 1, 1)                      \
+  F(AllocateInTargetSpace, 2, 1)                   \
+  F(AllocateSeqOneByteString, 1, 1)                \
+  F(AllocateSeqTwoByteString, 1, 1)                \
+  F(CheckIsBootstrapping, 0, 1)                    \
+  F(CreateAsyncFromSyncIterator, 1, 1)             \
+  F(CreateListFromArrayLike, 1, 1)                 \
+  F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1) \
+  F(ExportFromRuntime, 1, 1)                       \
+  F(IncrementUseCounter, 1, 1)                     \
+  F(InstallToContext, 1, 1)                        \
+  F(Interrupt, 0, 1)                               \
+  F(IS_VAR, 1, 1)                                  \
+  F(NewReferenceError, 2, 1)                       \
+  F(NewSyntaxError, 2, 1)                          \
+  F(NewTypeError, 2, 1)                            \
+  F(OrdinaryHasInstance, 2, 1)                     \
+  F(PromoteScheduledException, 0, 1)               \
+  F(ReThrow, 1, 1)                                 \
+  F(RunMicrotasks, 0, 1)                           \
+  F(StackGuard, 0, 1)                              \
+  F(Throw, 1, 1)                                   \
+  F(ThrowApplyNonFunction, 1, 1)                   \
+  F(ThrowCannotConvertToPrimitive, 0, 1)           \
+  F(ThrowCalledNonCallable, 1, 1)                  \
+  F(ThrowCalledOnNullOrUndefined, 1, 1)            \
+  F(ThrowConstructedNonConstructable, 1, 1)        \
+  F(ThrowConstructorReturnedNonObject, 0, 1)       \
+  F(ThrowGeneratorRunning, 0, 1)                   \
+  F(ThrowIllegalInvocation, 0, 1)                  \
+  F(ThrowIncompatibleMethodReceiver, 2, 1)         \
+  F(ThrowInvalidHint, 1, 1)                        \
+  F(ThrowInvalidStringLength, 0, 1)                \
+  F(ThrowInvalidTypedArrayAlignment, 2, 1)         \
+  F(ThrowIteratorResultNotAnObject, 1, 1)          \
+  F(ThrowSymbolIteratorInvalid, 0, 1)              \
+  F(ThrowNonCallableInInstanceOfCheck, 0, 1)       \
+  F(ThrowNonObjectInInstanceOfCheck, 0, 1)         \
+  F(ThrowNotConstructor, 1, 1)                     \
+  F(ThrowRangeError, -1 /* >= 1 */, 1)             \
+  F(ThrowReferenceError, 1, 1)                     \
+  F(ThrowStackOverflow, 0, 1)                      \
+  F(ThrowSymbolAsyncIteratorInvalid, 0, 1)         \
+  F(ThrowTypeError, -1 /* >= 1 */, 1)              \
+  F(ThrowUndefinedOrNullToObject, 1, 1)            \
+  F(Typeof, 1, 1)                                  \
+  F(UnwindAndFindExceptionHandler, 0, 1)           \
   F(AllowDynamicFunction, 1, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F) \
@@ -378,6 +391,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_OBJECT(F)                            \
   F(AddDictionaryProperty, 3, 1)                                \
   F(GetPrototype, 1, 1)                                         \
+  F(ObjectKeys, 1, 1)                                           \
   F(ObjectHasOwnProperty, 2, 1)                                 \
   F(ObjectCreate, 2, 1)                                         \
   F(InternalSetPrototype, 2, 1)                                 \
@@ -388,8 +402,8 @@ namespace internal {
   F(SetProperty, 4, 1)                                          \
   F(AddElement, 3, 1)                                           \
   F(AppendElement, 2, 1)                                        \
-  F(DeleteProperty_Sloppy, 2, 1)                                \
-  F(DeleteProperty_Strict, 2, 1)                                \
+  F(DeleteProperty, 3, 1)                                       \
+  F(ShrinkPropertyDictionary, 2, 1)                             \
   F(HasProperty, 2, 1)                                          \
   F(GetOwnPropertyKeys, 2, 1)                                   \
   F(GetInterceptorInfo, 1, 1)                                   \
@@ -466,9 +480,7 @@ namespace internal {
   F(PromiseRevokeReject, 1, 1)              \
   F(PromiseResult, 1, 1)                    \
   F(PromiseStatus, 1, 1)                    \
-  F(ReportPromiseReject, 2, 1)              \
-  F(IncrementWaitCount, 0, 1)               \
-  F(DecrementWaitCount, 0, 1)
+  F(ReportPromiseReject, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F)     \
   F(IsJSProxy, 1, 1)                    \
@@ -519,7 +531,7 @@ namespace internal {
   F(StoreLookupSlot_Strict, 2, 1)
 
 #define FOR_EACH_INTRINSIC_STRINGS(F)     \
-  F(GetSubstitution, 4, 1)                \
+  F(GetSubstitution, 5, 1)                \
   F(StringReplaceOneCharWithString, 3, 1) \
   F(StringIndexOf, 3, 1)                  \
   F(StringIndexOfUnchecked, 3, 1)         \
@@ -581,7 +593,6 @@ namespace internal {
   F(Abort, 1, 1)                              \
   F(AbortJS, 1, 1)                            \
   F(NativeScriptsCount, 0, 1)                 \
-  F(GetV8Version, 0, 1)                       \
   F(DisassembleFunction, 1, 1)                \
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \
@@ -617,24 +628,29 @@ namespace internal {
   F(ValidateWasmOrphanedInstance, 1, 1)       \
   F(SetWasmCompileControls, 2, 1)             \
   F(SetWasmInstantiateControls, 0, 1)         \
+  F(SetWasmCompileFromPromiseOverload, 0, 1)  \
+  F(ResetWasmOverloads, 0, 1)                 \
   F(HeapObjectVerify, 1, 1)                   \
   F(WasmNumInterpretedCalls, 1, 1)            \
   F(RedirectToWasmInterpreter, 2, 1)
 
-#define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
-  F(ArrayBufferGetByteLength, 1, 1)          \
-  F(ArrayBufferNeuter, 1, 1)                 \
-  F(ArrayBufferViewGetByteLength, 1, 1)      \
-  F(ArrayBufferViewGetByteOffset, 1, 1)      \
-  F(TypedArrayGetLength, 1, 1)               \
-  F(TypedArrayGetBuffer, 1, 1)               \
-  F(TypedArraySetFastCases, 3, 1)            \
-  F(TypedArraySortFast, 1, 1)                \
-  F(TypedArrayMaxSizeInHeap, 0, 1)           \
-  F(IsTypedArray, 1, 1)                      \
-  F(IsSharedTypedArray, 1, 1)                \
-  F(IsSharedIntegerTypedArray, 1, 1)         \
-  F(IsSharedInteger32TypedArray, 1, 1)
+#define FOR_EACH_INTRINSIC_TYPEDARRAY(F) \
+  F(ArrayBufferGetByteLength, 1, 1)      \
+  F(ArrayBufferNeuter, 1, 1)             \
+  F(TypedArrayCopyElements, 3, 1)        \
+  F(ArrayBufferViewGetByteLength, 1, 1)  \
+  F(ArrayBufferViewGetByteOffset, 1, 1)  \
+  F(ArrayBufferViewWasNeutered, 1, 1)    \
+  F(TypedArrayGetLength, 1, 1)           \
+  F(TypedArrayGetBuffer, 1, 1)           \
+  F(TypedArraySetFastCases, 3, 1)        \
+  F(TypedArraySortFast, 1, 1)            \
+  F(TypedArrayMaxSizeInHeap, 0, 1)       \
+  F(IsTypedArray, 1, 1)                  \
+  F(IsSharedTypedArray, 1, 1)            \
+  F(IsSharedIntegerTypedArray, 1, 1)     \
+  F(IsSharedInteger32TypedArray, 1, 1)   \
+  F(TypedArraySpeciesCreateByLength, 2, 1)
 
 #define FOR_EACH_INTRINSIC_WASM(F)     \
   F(WasmGrowMemory, 1, 1)              \
@@ -692,7 +708,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_INTERPRETER(F)         \
   FOR_EACH_INTRINSIC_FUNCTION(F)            \
   FOR_EACH_INTRINSIC_GENERATOR(F)           \
-  FOR_EACH_INTRINSIC_I18N(F)                \
+  FOR_EACH_INTRINSIC_INTL(F)                \
   FOR_EACH_INTRINSIC_INTERNAL(F)            \
   FOR_EACH_INTRINSIC_LITERALS(F)            \
   FOR_EACH_INTRINSIC_LIVEEDIT(F)            \

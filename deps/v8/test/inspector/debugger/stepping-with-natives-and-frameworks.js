@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Stepping with natives and frameworks.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Stepping with natives and frameworks.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function callAll() {
   for (var f of arguments)
     f();
 }
 //# sourceURL=framework.js`);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 InspectorTest.logProtocolCommandCalls('Debugger.pause');
 InspectorTest.logProtocolCommandCalls('Debugger.stepInto');
 InspectorTest.logProtocolCommandCalls('Debugger.stepOver');
@@ -296,5 +296,5 @@ InspectorTest.runAsyncTestSuite([
 ]);
 
 function logPauseLocation(message) {
-  return InspectorTest.logSourceLocation(message.params.callFrames[0].location);
+  return session.logSourceLocation(message.params.callFrames[0].location);
 }

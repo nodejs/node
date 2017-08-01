@@ -5555,8 +5555,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
 
   __ bind(&load_cache);
   __ LoadInstanceDescriptors(map, result);
-  __ mov(result,
-         FieldOperand(result, DescriptorArray::kEnumCacheOffset));
+  __ mov(result, FieldOperand(result, DescriptorArray::kEnumCacheBridgeOffset));
   __ mov(result,
          FieldOperand(result, FixedArray::SizeFor(instr->idx())));
   __ bind(&done);

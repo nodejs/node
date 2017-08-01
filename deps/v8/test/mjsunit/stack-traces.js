@@ -264,7 +264,7 @@ function testOmittedBuiltin(throwing, omitted) {
 }
 
 
-testTrace("testArrayNative", testArrayNative, ["Array.map (native)"]);
+testTrace("testArrayNative", testArrayNative, ["Array.map"]);
 testTrace("testNested", testNested, ["at one", "at two", "at three"]);
 testTrace("testMethodNameInference", testMethodNameInference, ["at Foo.bar"]);
 testTrace("testImplicitConversion", testImplicitConversion, ["at Nirk.valueOf"]);

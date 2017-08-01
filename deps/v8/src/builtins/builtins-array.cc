@@ -727,9 +727,12 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
       }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
+      DisallowHeapAllocation no_gc;
+      FixedArrayBase* elements = object->elements();
+      JSObject* raw_object = *object;
       ElementsAccessor* accessor = object->GetElementsAccessor();
       for (uint32_t i = 0; i < range; i++) {
-        if (accessor->HasElement(object, i)) {
+        if (accessor->HasElement(raw_object, i, elements)) {
           indices->Add(i);
         }
       }
@@ -749,7 +752,7 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
       }
       ElementsAccessor* accessor = object->GetElementsAccessor();
       for (; i < range; i++) {
-        if (accessor->HasElement(object, i)) {
+        if (accessor->HasElement(*object, i)) {
           indices->Add(i);
         }
       }
@@ -1203,15 +1206,9 @@ BUILTIN(ArrayConcat) {
   HandleScope scope(isolate);
 
   Handle<Object> receiver = args.receiver();
-  // TODO(bmeurer): Do we really care about the exact exception message here?
-  if (receiver->IsNullOrUndefined(isolate)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "Array.prototype.concat")));
-  }
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, receiver, Object::ToObject(isolate, args.receiver()));
+      isolate, receiver,
+      Object::ToObject(isolate, args.receiver(), "Array.prototype.concat"));
   args[0] = *receiver;
 
   Handle<JSArray> result_array;

@@ -16,6 +16,7 @@
 #include "src/log.h"
 #include "src/objects.h"
 #include "src/setup-isolate.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -109,14 +110,14 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
   return 0;
 }
 
-void Interpreter::IterateDispatchTable(ObjectVisitor* v) {
+void Interpreter::IterateDispatchTable(RootVisitor* v) {
   for (int i = 0; i < kDispatchTableSize; i++) {
     Address code_entry = dispatch_table_[i];
     Object* code = code_entry == nullptr
                        ? nullptr
                        : Code::GetCodeFromTargetAddress(code_entry);
     Object* old_code = code;
-    v->VisitPointer(&code);
+    v->VisitRootPointer(Root::kDispatchTable, &code);
     if (code != old_code) {
       dispatch_table_[i] = reinterpret_cast<Code*>(code)->entry();
     }
@@ -158,8 +159,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
     OFStream os(stdout);
     std::unique_ptr<char[]> name = info()->GetDebugName();
     os << "[generating bytecode for function: " << info()->GetDebugName().get()
-       << "]" << std::endl
-       << std::flush;
+       << "]" << std::endl;
   }
 
   return SUCCEEDED;
@@ -198,7 +198,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
 
   if (print_bytecode_) {
     OFStream os(stdout);
-    bytecodes->Print(os);
+    bytecodes->Disassemble(os);
     os << std::flush;
   }
 

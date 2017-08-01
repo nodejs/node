@@ -5,15 +5,16 @@
 #ifndef V8_ASMJS_ASM_NAMES_H_
 #define V8_ASMJS_ASM_NAMES_H_
 
+// V(stdlib.Math.<name>, constant-value)
 #define STDLIB_MATH_VALUE_LIST(V) \
-  V(E)                            \
-  V(LN10)                         \
-  V(LN2)                          \
-  V(LOG2E)                        \
-  V(LOG10E)                       \
-  V(PI)                           \
-  V(SQRT1_2)                      \
-  V(SQRT2)
+  V(E, 2.718281828459045)         \
+  V(LN10, 2.302585092994046)      \
+  V(LN2, 0.6931471805599453)      \
+  V(LOG2E, 1.4426950408889634)    \
+  V(LOG10E, 0.4342944819032518)   \
+  V(PI, 3.141592653589793)        \
+  V(SQRT1_2, 0.7071067811865476)  \
+  V(SQRT2, 1.4142135623730951)
 
 // V(stdlib.Math.<name>, Name, wasm-opcode, asm-js-type)
 #define STDLIB_MATH_FUNCTION_MONOMORPHIC_LIST(V) \
@@ -107,4 +108,4 @@
   V(kUnsigned, -3, "{unsigned value}")   \
   V(kDouble, -4, "{double value}")
 
-#endif
+#endif  // V8_ASMJS_ASM_NAMES_H_

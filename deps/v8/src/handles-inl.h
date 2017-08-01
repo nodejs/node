@@ -7,7 +7,6 @@
 
 #include "src/api.h"
 #include "src/handles.h"
-#include "src/heap/heap.h"
 #include "src/isolate.h"
 
 namespace v8 {

@@ -4,9 +4,9 @@
 
 // Flags: --max-old-space-size=8
 
-InspectorTest.log('Check pause on OOM');
+let {session, contextGroup, Protocol} = InspectorTest.start('Check pause on OOM');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 var arr = [];
 var stop = false;
 function generateGarbage() {

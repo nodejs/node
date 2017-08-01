@@ -276,7 +276,7 @@ void MacroAssembler::RecordWriteField(
   lay(dst, MemOperand(object, offset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    AndP(r0, dst, Operand((1 << kPointerSizeLog2) - 1));
+    AndP(r0, dst, Operand(kPointerSize - 1));
     beq(&ok, Label::kNear);
     stop("Unaligned cell in write barrier");
     bind(&ok);
@@ -329,7 +329,7 @@ void MacroAssembler::RecordWriteForMap(Register object, Register map,
   lay(dst, MemOperand(object, HeapObject::kMapOffset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    AndP(r0, dst, Operand((1 << kPointerSizeLog2) - 1));
+    AndP(r0, dst, Operand(kPointerSize - 1));
     beq(&ok, Label::kNear);
     stop("Unaligned cell in write barrier");
     bind(&ok);
@@ -2712,6 +2712,7 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
 void MacroAssembler::CallCFunctionHelper(Register function,
                                          int num_reg_arguments,
                                          int num_double_arguments) {
+  DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
 
   // Just call directly. The function called cannot cause a GC, or

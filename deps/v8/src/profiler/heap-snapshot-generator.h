@@ -12,6 +12,8 @@
 #include "src/base/platform/time.h"
 #include "src/objects.h"
 #include "src/profiler/strings-storage.h"
+#include "src/string-hasher.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {

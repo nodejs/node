@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Check that debug and monitor methods from Command Line API works with bound function.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Check that debug and monitor methods from Command Line API works with bound function.");
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function foo() {}
 function boo() {}
 var bar = boo.bind(null);

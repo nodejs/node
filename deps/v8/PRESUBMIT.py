@@ -43,6 +43,12 @@ _EXCLUDED_PATHS = (
 )
 
 
+# Regular expression that matches code which should not be run through cpplint.
+_NO_LINT_PATHS = (
+    r'src[\\\/]base[\\\/]export-template\.h',
+)
+
+
 # Regular expression that matches code only used for test binaries
 # (best effort).
 _TEST_CODE_EXCLUDED_PATHS = (
@@ -70,9 +76,15 @@ def _V8PresubmitChecks(input_api, output_api):
   from presubmit import SourceProcessor
   from presubmit import StatusFilesProcessor
 
+  def FilterFile(affected_file):
+    return input_api.FilterSourceFile(
+      affected_file,
+      white_list=None,
+      black_list=_NO_LINT_PATHS)
+
   results = []
   if not CppLintProcessor().RunOnFiles(
-      input_api.AffectedFiles(include_deletes=False)):
+      input_api.AffectedFiles(file_filter=FilterFile, include_deletes=False)):
     results.append(output_api.PresubmitError("C++ lint check failed"))
   if not SourceProcessor().RunOnFiles(
       input_api.AffectedFiles(include_deletes=False)):

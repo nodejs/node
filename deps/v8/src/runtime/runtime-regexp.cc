@@ -1637,10 +1637,10 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
     argv[0] = recv;
     argv[1] = new_flags;
 
-    Handle<JSFunction> ctor_fun = Handle<JSFunction>::cast(ctor);
     Handle<Object> splitter_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, splitter_obj, Execution::New(ctor_fun, argc, argv.start()));
+        isolate, splitter_obj,
+        Execution::New(isolate, ctor, argc, argv.start()));
 
     splitter = Handle<JSReceiver>::cast(splitter_obj);
   }

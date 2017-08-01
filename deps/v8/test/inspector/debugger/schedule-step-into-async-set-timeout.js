@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks Debugger.scheduleStepIntoAsync with setTimeout.');
-InspectorTest.setupScriptMap();
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks Debugger.scheduleStepIntoAsync with setTimeout.');
+session.setupScriptMap();
 Protocol.Debugger.enable();
 InspectorTest.runAsyncTestSuite([
   async function testSetTimeout() {
@@ -42,7 +42,7 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Debugger.stepOver();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
-    await InspectorTest.waitPendingTasks();
+    await InspectorTest.waitForPendingTasks();
   },
 
   async function testSetTimeoutWithoutJS() {
@@ -70,6 +70,6 @@ InspectorTest.runAsyncTestSuite([
 async function waitPauseAndDumpLocation() {
   var message = await Protocol.Debugger.oncePaused();
   InspectorTest.log('paused at:');
-  await InspectorTest.logSourceLocation(message.params.callFrames[0].location);
+  await session.logSourceLocation(message.params.callFrames[0].location);
   return message;
 }

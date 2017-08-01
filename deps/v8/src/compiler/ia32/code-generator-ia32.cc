@@ -780,7 +780,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     Label binop;                                                \
     __ bind(&binop);                                            \
     __ mov_inst(eax, i.MemoryOperand(1));                       \
-    __ mov_inst(i.TempRegister(0), Operand(eax));               \
+    __ Move(i.TempRegister(0), eax);                            \
     __ bin_inst(i.TempRegister(0), i.InputRegister(0));         \
     __ lock();                                                  \
     __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));     \

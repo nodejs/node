@@ -355,6 +355,9 @@ ScriptMirror.prototype.value = function() {}
 /** @return {number} */
 ScriptMirror.prototype.id = function() {}
 
+/** @return {ContextMirror} */
+ScriptMirror.prototype.context = function() {}
+
 /**
  * @param {number} position
  * @param {boolean=} includeResourceOffset

@@ -1,3 +1,4 @@
+Tests breakable locations in wasm
 Running testFunction...
 Script nr 0 parsed. URL: v8://test/setup
 Script nr 1 parsed. URL: v8://test/runTestFunction

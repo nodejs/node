@@ -1214,77 +1214,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ blr();
 }
 
-void RegExpExecStub::Generate(MacroAssembler* masm) {
-#ifdef V8_INTERPRETED_REGEXP
-  // This case is handled prior to the RegExpExecStub call.
-  __ Abort(kUnexpectedRegExpExecCall);
-#else  // V8_INTERPRETED_REGEXP
-  // Isolates: note we add an additional parameter here (isolate pointer).
-  const int kRegExpExecuteArguments = 10;
-  const int kParameterRegisters = 8;
-  __ EnterExitFrame(false, kRegExpExecuteArguments - kParameterRegisters);
-
-  // Stack pointer now points to cell where return address is to be written.
-  // Arguments are before that on the stack or in registers.
-
-  // Argument 10 (in stack parameter area): Pass current isolate address.
-  __ mov(r11, Operand(ExternalReference::isolate_address(isolate())));
-  __ StoreP(r11,
-            MemOperand(sp, (kStackFrameExtraParamSlot + 1) * kPointerSize));
-
-  // Argument 9 is a dummy that reserves the space used for
-  // the return address added by the ExitFrame in native calls.
-
-  // Argument 8 (r10): Indicate that this is a direct call from JavaScript.
-  __ li(r10, Operand(1));
-
-  // Argument 7 (r9): Start (high end) of backtracking stack memory area.
-  ExternalReference address_of_regexp_stack_memory_address =
-      ExternalReference::address_of_regexp_stack_memory_address(isolate());
-  ExternalReference address_of_regexp_stack_memory_size =
-      ExternalReference::address_of_regexp_stack_memory_size(isolate());
-  __ mov(r11, Operand(address_of_regexp_stack_memory_address));
-  __ LoadP(r11, MemOperand(r11, 0));
-  __ mov(ip, Operand(address_of_regexp_stack_memory_size));
-  __ LoadP(ip, MemOperand(ip, 0));
-  __ add(r9, r11, ip);
-
-  // Argument 6 (r8): Set the number of capture registers to zero to force
-  // global egexps to behave as non-global.  This does not affect non-global
-  // regexps.
-  __ li(r8, Operand::Zero());
-
-  // Argument 5 (r7): static offsets vector buffer.
-  __ mov(
-      r7,
-      Operand(ExternalReference::address_of_static_offsets_vector(isolate())));
-
-  // Argument 4, r6: End of string data
-  // Argument 3, r5: Start of string data
-  CHECK(r6.is(RegExpExecDescriptor::StringEndRegister()));
-  CHECK(r5.is(RegExpExecDescriptor::StringStartRegister()));
-
-  // Argument 2 (r4): Previous index.
-  CHECK(r4.is(RegExpExecDescriptor::LastIndexRegister()));
-
-  // Argument 1 (r3): Subject string.
-  CHECK(r3.is(RegExpExecDescriptor::StringRegister()));
-
-  // Locate the code entry and call it.
-  Register code_reg = RegExpExecDescriptor::CodeRegister();
-  __ addi(code_reg, code_reg, Operand(Code::kHeaderSize - kHeapObjectTag));
-
-  DirectCEntryStub stub(isolate());
-  stub.GenerateCall(masm, code_reg);
-
-  __ LeaveExitFrame(false, no_reg, true);
-
-  // Return the smi-tagged result.
-  __ SmiTag(r3);
-  __ Ret();
-#endif  // V8_INTERPRETED_REGEXP
-}
-
 
 static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
   // r3 : number of arguments to the construct function
@@ -3017,9 +2946,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ push(call_data);
 
   Register scratch = call_data;
-  if (!call_data_undefined()) {
-    __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
-  }
+  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
   // return value
   __ push(scratch);
   // return value default

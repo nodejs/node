@@ -1438,6 +1438,9 @@ class Assembler : public AssemblerBase {
   RelocInfoWriter reloc_info_writer;
 
  private:
+  // Avoid overflows for displacements etc.
+  static const int kMaximalBufferSize = 512 * MB;
+
   // Repeated checking whether the trampoline pool should be emitted is rather
   // expensive. By default we only check again once a number of instructions
   // has been generated.

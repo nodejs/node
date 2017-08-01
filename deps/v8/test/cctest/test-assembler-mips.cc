@@ -5513,4 +5513,78 @@ TEST(maddf_msubf_d) {
   });
 }
 
+uint32_t run_Subu(uint32_t imm, int32_t num_instr) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  Label code_start;
+  __ bind(&code_start);
+  __ Subu(v0, zero_reg, imm);
+  CHECK_EQ(assm.SizeOfCodeGeneratedSince(&code_start),
+           num_instr * Assembler::kInstrSize);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Subu) {
+  CcTest::InitializeVM();
+
+  // Test Subu macro-instruction for min_int16 and max_int16 border cases.
+  // For subtracting int16 immediate values we use addiu.
+
+  struct TestCaseSubu {
+    uint32_t imm;
+    uint32_t expected_res;
+    int32_t num_instr;
+  };
+
+  // We call Subu(v0, zero_reg, imm) to test cases listed below.
+  // 0 - imm = expected_res
+  struct TestCaseSubu tc[] = {
+      //    imm, expected_res, num_instr
+      {0xffff8000, 0x00008000, 2},  // min_int16
+      // Generates ori + addu
+      // We can't have just addiu because -min_int16 > max_int16 so use
+      // register. We can load min_int16 to at register with addiu and then
+      // subtract at with subu, but now we use ori + addu because -min_int16 can
+      // be loaded using ori.
+      {0x8000, 0xffff8000, 1},  // max_int16 + 1
+      // Generates addiu
+      // max_int16 + 1 is not int16 but -(max_int16 + 1) is, just use addiu.
+      {0xffff7fff, 0x8001, 2},  // min_int16 - 1
+      // Generates ori + addu
+      // To load this value to at we need two instructions and another one to
+      // subtract, lui + ori + subu. But we can load -value to at using just
+      // ori and then add at register with addu.
+      {0x8001, 0xffff7fff, 2},  // max_int16 + 2
+      // Generates ori + subu
+      // Not int16 but is uint16, load value to at with ori and subtract with
+      // subu.
+      {0x00010000, 0xffff0000, 2},
+      // Generates lui + subu
+      // Load value using lui to at and subtract with subu.
+      {0x00010001, 0xfffeffff, 3},
+      // Generates lui + ori + subu
+      // We have to generate three instructions in this case.
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseSubu);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res, run_Subu(tc[i].imm, tc[i].num_instr));
+  }
+}
+
 #undef __

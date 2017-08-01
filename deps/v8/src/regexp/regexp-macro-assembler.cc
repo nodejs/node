@@ -9,9 +9,9 @@
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator.h"
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -41,7 +41,7 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
   uc16* substring2 = reinterpret_cast<uc16*>(byte_offset2);
   size_t length = byte_length >> 1;
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
   if (isolate == nullptr) {
     for (size_t i = 0; i < length; i++) {
       uc32 c1 = substring1[i];
@@ -67,7 +67,7 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
     }
     return 1;
   }
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
   DCHECK_NOT_NULL(isolate);
   for (size_t i = 0; i < length; i++) {
     unibrow::uchar c1 = substring1[i];
@@ -170,15 +170,18 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   bool is_one_byte = subject_handle->IsOneByteRepresentationUnderneath();
 
   StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed()) {
+  bool js_has_overflowed = check.JsHasOverflowed();
+
+  if (is_direct_call) {
+    // Direct calls from JavaScript can be interrupted in two ways:
+    // 1. A real stack overflow, in which case we let the caller throw the
+    //    exception.
+    // 2. The stack guard was used to interrupt execution for another purpose,
+    //    forcing the call through the runtime system.
+    return_value = js_has_overflowed ? EXCEPTION : RETRY;
+  } else if (js_has_overflowed) {
     isolate->StackOverflow();
     return_value = EXCEPTION;
-  } else if (is_direct_call) {
-    // If not real stack overflow the stack guard was used to interrupt
-    // execution for another purpose.  If this is a direct call from JavaScript
-    // retry the RegExp forcing the call through the runtime system.
-    // Currently the direct call cannot handle a GC.
-    return_value = RETRY;
   } else {
     Object* result = isolate->stack_guard()->HandleInterrupts();
     if (result->IsException(isolate)) return_value = EXCEPTION;

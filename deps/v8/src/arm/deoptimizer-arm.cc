@@ -34,30 +34,28 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
-  if (FLAG_zap_code_space) {
-    // Fail hard and early if we enter this code object again.
-    byte* pointer = code->FindCodeAgeSequence();
-    if (pointer != NULL) {
-      pointer += kNoCodeAgeSequenceLength;
-    } else {
-      pointer = code->instruction_start();
-    }
+  // Fail hard and early if we enter this code object again.
+  byte* pointer = code->FindCodeAgeSequence();
+  if (pointer != NULL) {
+    pointer += kNoCodeAgeSequenceLength;
+  } else {
+    pointer = code->instruction_start();
+  }
 
-    {
-      PatchingAssembler patcher(Assembler::IsolateData(isolate), pointer, 1);
-      patcher.bkpt(0);
-      patcher.FlushICache(isolate);
-    }
+  {
+    PatchingAssembler patcher(Assembler::IsolateData(isolate), pointer, 1);
+    patcher.bkpt(0);
+    patcher.FlushICache(isolate);
+  }
 
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
-    int osr_offset = data->OsrPcOffset()->value();
-    if (osr_offset > 0) {
-      PatchingAssembler patcher(Assembler::IsolateData(isolate),
-                                code->instruction_start() + osr_offset, 1);
-      patcher.bkpt(0);
-      patcher.FlushICache(isolate);
-    }
+  DeoptimizationInputData* data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  int osr_offset = data->OsrPcOffset()->value();
+  if (osr_offset > 0) {
+    PatchingAssembler patcher(Assembler::IsolateData(isolate),
+                              code_start_address + osr_offset, 1);
+    patcher.bkpt(0);
+    patcher.FlushICache(isolate);
   }
 
   DeoptimizationInputData* deopt_data =
@@ -124,8 +122,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   const int kFloatRegsSize = kFloatSize * SwVfpRegister::kMaxNumRegisters;
 
   // Save all allocatable VFP registers before messing with them.
-  DCHECK(kDoubleRegZero.code() == 14);
-  DCHECK(kScratchDoubleReg.code() == 15);
+  DCHECK(kDoubleRegZero.code() == 13);
+  DCHECK(kScratchDoubleReg.code() == 14);
 
   {
     // We use a run-time check for VFP32DREGS.
@@ -141,11 +139,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
     __ vstm(db_w, sp, d0, d15);
 
-    // Push registers s0-s15, and possibly s16-s31, on the stack.
-    // If s16-s31 are not pushed, decrease the stack pointer instead.
-    __ vstm(db_w, sp, s16, s31, ne);
-    __ sub(sp, sp, Operand(16 * kFloatSize), LeaveCC, eq);
-    __ vstm(db_w, sp, s0, s15);
+    // Push registers s0-s31 on the stack.
+    __ vstm(db_w, sp, s0, s31);
   }
 
   // Push all 16 registers (needed to populate FrameDescription::registers_).
@@ -391,8 +386,8 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 
 
 void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
-  DCHECK(FLAG_enable_embedded_constant_pool);
-  SetFrameSlot(offset, value);
+  // No embedded constant pool support.
+  UNREACHABLE();
 }
 
 

@@ -716,6 +716,27 @@ class MacroAssembler: public Assembler {
   void LoadWordPair(Register rd, const MemOperand& rs, Register scratch = at);
   void StoreWordPair(Register rd, const MemOperand& rs, Register scratch = at);
 
+  void Lb(Register rd, const MemOperand& rs);
+  void Lbu(Register rd, const MemOperand& rs);
+  void Sb(Register rd, const MemOperand& rs);
+
+  void Lh(Register rd, const MemOperand& rs);
+  void Lhu(Register rd, const MemOperand& rs);
+  void Sh(Register rd, const MemOperand& rs);
+
+  void Lw(Register rd, const MemOperand& rs);
+  void Lwu(Register rd, const MemOperand& rs);
+  void Sw(Register rd, const MemOperand& rs);
+
+  void Ld(Register rd, const MemOperand& rs);
+  void Sd(Register rd, const MemOperand& rs);
+
+  void Lwc1(FPURegister fd, const MemOperand& src);
+  void Swc1(FPURegister fs, const MemOperand& dst);
+
+  void Ldc1(FPURegister fd, const MemOperand& src);
+  void Sdc1(FPURegister fs, const MemOperand& dst);
+
   // Load int32 in the rd register.
   void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
   inline bool LiLower32BitHelper(Register rd, Operand j);
@@ -735,7 +756,7 @@ class MacroAssembler: public Assembler {
 
   void push(Register src) {
     Daddu(sp, sp, Operand(-kPointerSize));
-    sd(src, MemOperand(sp, 0));
+    Sd(src, MemOperand(sp, 0));
   }
   void Push(Register src) { push(src); }
 
@@ -746,43 +767,43 @@ class MacroAssembler: public Assembler {
   // Push two registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
     Dsubu(sp, sp, Operand(2 * kPointerSize));
-    sd(src1, MemOperand(sp, 1 * kPointerSize));
-    sd(src2, MemOperand(sp, 0 * kPointerSize));
+    Sd(src1, MemOperand(sp, 1 * kPointerSize));
+    Sd(src2, MemOperand(sp, 0 * kPointerSize));
   }
 
   // Push three registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3) {
     Dsubu(sp, sp, Operand(3 * kPointerSize));
-    sd(src1, MemOperand(sp, 2 * kPointerSize));
-    sd(src2, MemOperand(sp, 1 * kPointerSize));
-    sd(src3, MemOperand(sp, 0 * kPointerSize));
+    Sd(src1, MemOperand(sp, 2 * kPointerSize));
+    Sd(src2, MemOperand(sp, 1 * kPointerSize));
+    Sd(src3, MemOperand(sp, 0 * kPointerSize));
   }
 
   // Push four registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Register src4) {
     Dsubu(sp, sp, Operand(4 * kPointerSize));
-    sd(src1, MemOperand(sp, 3 * kPointerSize));
-    sd(src2, MemOperand(sp, 2 * kPointerSize));
-    sd(src3, MemOperand(sp, 1 * kPointerSize));
-    sd(src4, MemOperand(sp, 0 * kPointerSize));
+    Sd(src1, MemOperand(sp, 3 * kPointerSize));
+    Sd(src2, MemOperand(sp, 2 * kPointerSize));
+    Sd(src3, MemOperand(sp, 1 * kPointerSize));
+    Sd(src4, MemOperand(sp, 0 * kPointerSize));
   }
 
   // Push five registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Register src4,
             Register src5) {
     Dsubu(sp, sp, Operand(5 * kPointerSize));
-    sd(src1, MemOperand(sp, 4 * kPointerSize));
-    sd(src2, MemOperand(sp, 3 * kPointerSize));
-    sd(src3, MemOperand(sp, 2 * kPointerSize));
-    sd(src4, MemOperand(sp, 1 * kPointerSize));
-    sd(src5, MemOperand(sp, 0 * kPointerSize));
+    Sd(src1, MemOperand(sp, 4 * kPointerSize));
+    Sd(src2, MemOperand(sp, 3 * kPointerSize));
+    Sd(src3, MemOperand(sp, 2 * kPointerSize));
+    Sd(src4, MemOperand(sp, 1 * kPointerSize));
+    Sd(src5, MemOperand(sp, 0 * kPointerSize));
   }
 
   void Push(Register src, Condition cond, Register tst1, Register tst2) {
     // Since we don't have conditional execution we use a Branch.
     Branch(3, cond, tst1, Operand(tst2));
     Dsubu(sp, sp, Operand(kPointerSize));
-    sd(src, MemOperand(sp, 0));
+    Sd(src, MemOperand(sp, 0));
   }
 
   void PushRegisterAsTwoSmis(Register src, Register scratch = at);
@@ -797,7 +818,7 @@ class MacroAssembler: public Assembler {
   void MultiPopReversedFPU(RegList regs);
 
   void pop(Register dst) {
-    ld(dst, MemOperand(sp, 0));
+    Ld(dst, MemOperand(sp, 0));
     Daddu(sp, sp, Operand(kPointerSize));
   }
   void Pop(Register dst) { pop(dst); }
@@ -805,16 +826,16 @@ class MacroAssembler: public Assembler {
   // Pop two registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2) {
     DCHECK(!src1.is(src2));
-    ld(src2, MemOperand(sp, 0 * kPointerSize));
-    ld(src1, MemOperand(sp, 1 * kPointerSize));
+    Ld(src2, MemOperand(sp, 0 * kPointerSize));
+    Ld(src1, MemOperand(sp, 1 * kPointerSize));
     Daddu(sp, sp, 2 * kPointerSize);
   }
 
   // Pop three registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Register src3) {
-    ld(src3, MemOperand(sp, 0 * kPointerSize));
-    ld(src2, MemOperand(sp, 1 * kPointerSize));
-    ld(src1, MemOperand(sp, 2 * kPointerSize));
+    Ld(src3, MemOperand(sp, 0 * kPointerSize));
+    Ld(src2, MemOperand(sp, 1 * kPointerSize));
+    Ld(src1, MemOperand(sp, 2 * kPointerSize));
     Daddu(sp, sp, 3 * kPointerSize);
   }
 
@@ -842,15 +863,10 @@ class MacroAssembler: public Assembler {
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // MIPS64 R2 instruction macro.
+  void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Dins(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
-
-  void ExtractBits(Register rt, Register rs, uint16_t pos, uint16_t size);
-
-  void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Dextm(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Dextu(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Neg_s(FPURegister fd, FPURegister fs);
   void Neg_d(FPURegister fd, FPURegister fs);
 
@@ -1163,7 +1179,7 @@ class MacroAssembler: public Assembler {
                      Register type_reg);
 
   void GetInstanceType(Register object_map, Register object_instance_type) {
-    lbu(object_instance_type,
+    Lbu(object_instance_type,
         FieldMemOperand(object_map, Map::kInstanceTypeOffset));
   }
 
@@ -1220,8 +1236,8 @@ class MacroAssembler: public Assembler {
   Condition IsObjectStringType(Register obj,
                                Register type,
                                Register result) {
-    ld(type, FieldMemOperand(obj, HeapObject::kMapOffset));
-    lbu(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
+    Ld(type, FieldMemOperand(obj, HeapObject::kMapOffset));
+    Lbu(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
     And(type, type, Operand(kIsNotStringMask));
     DCHECK_EQ(0u, kStringTag);
     return eq;
@@ -1465,7 +1481,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   // Arguments 1-4 are placed in registers a0 thru a3 respectively.
   // Arguments 5..n are stored to stack using following:
-  //  sw(a4, CFunctionArgumentOperand(5));
+  //  Sw(a4, CFunctionArgumentOperand(5));
 
   // Calls a C function and cleans up the space for arguments allocated
   // by PrepareCallCFunction. The called function is not allowed to trigger a
@@ -1861,6 +1877,10 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   MemOperand SafepointRegisterSlot(Register reg);
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
 
+  // Helpers.
+  void LoadRegPlusOffsetToAt(const MemOperand& src);
+  int32_t LoadRegPlusUpperOffsetPartToAt(const MemOperand& src);
+
   bool generating_stub_;
   bool has_frame_;
   bool has_double_zero_reg_set_;
@@ -1924,7 +1944,7 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
     }
     addiupc(at, 5);
     Dlsa(at, at, index, kPointerSizeLog2);
-    ld(at, MemOperand(at));
+    Ld(at, MemOperand(at));
   } else {
     Label here;
     BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 +
@@ -1936,7 +1956,7 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
     bind(&here);
     daddu(at, at, ra);
     pop(ra);
-    ld(at, MemOperand(at, 6 * v8::internal::Assembler::kInstrSize));
+    Ld(at, MemOperand(at, 6 * v8::internal::Assembler::kInstrSize));
   }
   jr(at);
   nop();  // Branch delay slot nop.

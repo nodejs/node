@@ -126,53 +126,53 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
       __ Pref(pref_hint_store, MemOperand(a0, 3 * pref_chunk));
     }
     __ bind(&loop16w);
-    __ lw(a4, MemOperand(a1));
+    __ Lw(a4, MemOperand(a1));
 
     if (pref_hint_store == kPrefHintPrepareForStore) {
       __ sltu(v1, t9, a0);  // If a0 > t9, don't use next prefetch.
       __ Branch(USE_DELAY_SLOT, &skip_pref, gt, v1, Operand(zero_reg));
     }
-    __ lw(a5, MemOperand(a1, 1, loadstore_chunk));  // Maybe in delay slot.
+    __ Lw(a5, MemOperand(a1, 1, loadstore_chunk));  // Maybe in delay slot.
 
     __ Pref(pref_hint_store, MemOperand(a0, 4 * pref_chunk));
     __ Pref(pref_hint_store, MemOperand(a0, 5 * pref_chunk));
 
     __ bind(&skip_pref);
-    __ lw(a6, MemOperand(a1, 2, loadstore_chunk));
-    __ lw(a7, MemOperand(a1, 3, loadstore_chunk));
-    __ lw(t0, MemOperand(a1, 4, loadstore_chunk));
-    __ lw(t1, MemOperand(a1, 5, loadstore_chunk));
-    __ lw(t2, MemOperand(a1, 6, loadstore_chunk));
-    __ lw(t3, MemOperand(a1, 7, loadstore_chunk));
+    __ Lw(a6, MemOperand(a1, 2, loadstore_chunk));
+    __ Lw(a7, MemOperand(a1, 3, loadstore_chunk));
+    __ Lw(t0, MemOperand(a1, 4, loadstore_chunk));
+    __ Lw(t1, MemOperand(a1, 5, loadstore_chunk));
+    __ Lw(t2, MemOperand(a1, 6, loadstore_chunk));
+    __ Lw(t3, MemOperand(a1, 7, loadstore_chunk));
     __ Pref(pref_hint_load, MemOperand(a1, 4 * pref_chunk));
 
-    __ sw(a4, MemOperand(a0));
-    __ sw(a5, MemOperand(a0, 1, loadstore_chunk));
-    __ sw(a6, MemOperand(a0, 2, loadstore_chunk));
-    __ sw(a7, MemOperand(a0, 3, loadstore_chunk));
-    __ sw(t0, MemOperand(a0, 4, loadstore_chunk));
-    __ sw(t1, MemOperand(a0, 5, loadstore_chunk));
-    __ sw(t2, MemOperand(a0, 6, loadstore_chunk));
-    __ sw(t3, MemOperand(a0, 7, loadstore_chunk));
+    __ Sw(a4, MemOperand(a0));
+    __ Sw(a5, MemOperand(a0, 1, loadstore_chunk));
+    __ Sw(a6, MemOperand(a0, 2, loadstore_chunk));
+    __ Sw(a7, MemOperand(a0, 3, loadstore_chunk));
+    __ Sw(t0, MemOperand(a0, 4, loadstore_chunk));
+    __ Sw(t1, MemOperand(a0, 5, loadstore_chunk));
+    __ Sw(t2, MemOperand(a0, 6, loadstore_chunk));
+    __ Sw(t3, MemOperand(a0, 7, loadstore_chunk));
 
-    __ lw(a4, MemOperand(a1, 8, loadstore_chunk));
-    __ lw(a5, MemOperand(a1, 9, loadstore_chunk));
-    __ lw(a6, MemOperand(a1, 10, loadstore_chunk));
-    __ lw(a7, MemOperand(a1, 11, loadstore_chunk));
-    __ lw(t0, MemOperand(a1, 12, loadstore_chunk));
-    __ lw(t1, MemOperand(a1, 13, loadstore_chunk));
-    __ lw(t2, MemOperand(a1, 14, loadstore_chunk));
-    __ lw(t3, MemOperand(a1, 15, loadstore_chunk));
+    __ Lw(a4, MemOperand(a1, 8, loadstore_chunk));
+    __ Lw(a5, MemOperand(a1, 9, loadstore_chunk));
+    __ Lw(a6, MemOperand(a1, 10, loadstore_chunk));
+    __ Lw(a7, MemOperand(a1, 11, loadstore_chunk));
+    __ Lw(t0, MemOperand(a1, 12, loadstore_chunk));
+    __ Lw(t1, MemOperand(a1, 13, loadstore_chunk));
+    __ Lw(t2, MemOperand(a1, 14, loadstore_chunk));
+    __ Lw(t3, MemOperand(a1, 15, loadstore_chunk));
     __ Pref(pref_hint_load, MemOperand(a1, 5 * pref_chunk));
 
-    __ sw(a4, MemOperand(a0, 8, loadstore_chunk));
-    __ sw(a5, MemOperand(a0, 9, loadstore_chunk));
-    __ sw(a6, MemOperand(a0, 10, loadstore_chunk));
-    __ sw(a7, MemOperand(a0, 11, loadstore_chunk));
-    __ sw(t0, MemOperand(a0, 12, loadstore_chunk));
-    __ sw(t1, MemOperand(a0, 13, loadstore_chunk));
-    __ sw(t2, MemOperand(a0, 14, loadstore_chunk));
-    __ sw(t3, MemOperand(a0, 15, loadstore_chunk));
+    __ Sw(a4, MemOperand(a0, 8, loadstore_chunk));
+    __ Sw(a5, MemOperand(a0, 9, loadstore_chunk));
+    __ Sw(a6, MemOperand(a0, 10, loadstore_chunk));
+    __ Sw(a7, MemOperand(a0, 11, loadstore_chunk));
+    __ Sw(t0, MemOperand(a0, 12, loadstore_chunk));
+    __ Sw(t1, MemOperand(a0, 13, loadstore_chunk));
+    __ Sw(t2, MemOperand(a0, 14, loadstore_chunk));
+    __ Sw(t3, MemOperand(a0, 15, loadstore_chunk));
     __ addiu(a0, a0, 16 * loadstore_chunk);
     __ bne(a0, a3, &loop16w);
     __ addiu(a1, a1, 16 * loadstore_chunk);  // In delay slot.
@@ -186,23 +186,23 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     __ andi(t8, a2, 0x1f);
     __ beq(a2, t8, &chk1w);  // Less than 32?
     __ nop();  // In delay slot.
-    __ lw(a4, MemOperand(a1));
-    __ lw(a5, MemOperand(a1, 1, loadstore_chunk));
-    __ lw(a6, MemOperand(a1, 2, loadstore_chunk));
-    __ lw(a7, MemOperand(a1, 3, loadstore_chunk));
-    __ lw(t0, MemOperand(a1, 4, loadstore_chunk));
-    __ lw(t1, MemOperand(a1, 5, loadstore_chunk));
-    __ lw(t2, MemOperand(a1, 6, loadstore_chunk));
-    __ lw(t3, MemOperand(a1, 7, loadstore_chunk));
+    __ Lw(a4, MemOperand(a1));
+    __ Lw(a5, MemOperand(a1, 1, loadstore_chunk));
+    __ Lw(a6, MemOperand(a1, 2, loadstore_chunk));
+    __ Lw(a7, MemOperand(a1, 3, loadstore_chunk));
+    __ Lw(t0, MemOperand(a1, 4, loadstore_chunk));
+    __ Lw(t1, MemOperand(a1, 5, loadstore_chunk));
+    __ Lw(t2, MemOperand(a1, 6, loadstore_chunk));
+    __ Lw(t3, MemOperand(a1, 7, loadstore_chunk));
     __ addiu(a1, a1, 8 * loadstore_chunk);
-    __ sw(a4, MemOperand(a0));
-    __ sw(a5, MemOperand(a0, 1, loadstore_chunk));
-    __ sw(a6, MemOperand(a0, 2, loadstore_chunk));
-    __ sw(a7, MemOperand(a0, 3, loadstore_chunk));
-    __ sw(t0, MemOperand(a0, 4, loadstore_chunk));
-    __ sw(t1, MemOperand(a0, 5, loadstore_chunk));
-    __ sw(t2, MemOperand(a0, 6, loadstore_chunk));
-    __ sw(t3, MemOperand(a0, 7, loadstore_chunk));
+    __ Sw(a4, MemOperand(a0));
+    __ Sw(a5, MemOperand(a0, 1, loadstore_chunk));
+    __ Sw(a6, MemOperand(a0, 2, loadstore_chunk));
+    __ Sw(a7, MemOperand(a0, 3, loadstore_chunk));
+    __ Sw(t0, MemOperand(a0, 4, loadstore_chunk));
+    __ Sw(t1, MemOperand(a0, 5, loadstore_chunk));
+    __ Sw(t2, MemOperand(a0, 6, loadstore_chunk));
+    __ Sw(t3, MemOperand(a0, 7, loadstore_chunk));
     __ addiu(a0, a0, 8 * loadstore_chunk);
 
     // Here we have less than 32 bytes to copy. Set up for a loop to copy
@@ -217,22 +217,22 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     __ addu(a3, a0, a3);
 
     __ bind(&wordCopy_loop);
-    __ lw(a7, MemOperand(a1));
+    __ Lw(a7, MemOperand(a1));
     __ addiu(a0, a0, loadstore_chunk);
     __ addiu(a1, a1, loadstore_chunk);
     __ bne(a0, a3, &wordCopy_loop);
-    __ sw(a7, MemOperand(a0, -1, loadstore_chunk));  // In delay slot.
+    __ Sw(a7, MemOperand(a0, -1, loadstore_chunk));  // In delay slot.
 
     __ bind(&lastb);
     __ Branch(&leave, le, a2, Operand(zero_reg));
     __ addu(a3, a0, a2);
 
     __ bind(&lastbloop);
-    __ lb(v1, MemOperand(a1));
+    __ Lb(v1, MemOperand(a1));
     __ addiu(a0, a0, 1);
     __ addiu(a1, a1, 1);
     __ bne(a0, a3, &lastbloop);
-    __ sb(v1, MemOperand(a0, -1));  // In delay slot.
+    __ Sb(v1, MemOperand(a0, -1));  // In delay slot.
 
     __ bind(&leave);
     __ jr(ra);
@@ -362,14 +362,14 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
              MemOperand(a1, 8, loadstore_chunk, MemOperand::offset_minus_one));
     }
     __ Pref(pref_hint_load, MemOperand(a1, 4 * pref_chunk));
-    __ sw(a4, MemOperand(a0));
-    __ sw(a5, MemOperand(a0, 1, loadstore_chunk));
-    __ sw(a6, MemOperand(a0, 2, loadstore_chunk));
-    __ sw(a7, MemOperand(a0, 3, loadstore_chunk));
-    __ sw(t0, MemOperand(a0, 4, loadstore_chunk));
-    __ sw(t1, MemOperand(a0, 5, loadstore_chunk));
-    __ sw(t2, MemOperand(a0, 6, loadstore_chunk));
-    __ sw(t3, MemOperand(a0, 7, loadstore_chunk));
+    __ Sw(a4, MemOperand(a0));
+    __ Sw(a5, MemOperand(a0, 1, loadstore_chunk));
+    __ Sw(a6, MemOperand(a0, 2, loadstore_chunk));
+    __ Sw(a7, MemOperand(a0, 3, loadstore_chunk));
+    __ Sw(t0, MemOperand(a0, 4, loadstore_chunk));
+    __ Sw(t1, MemOperand(a0, 5, loadstore_chunk));
+    __ Sw(t2, MemOperand(a0, 6, loadstore_chunk));
+    __ Sw(t3, MemOperand(a0, 7, loadstore_chunk));
     if (kArchEndian == kLittle) {
       __ lwr(a4, MemOperand(a1, 8, loadstore_chunk));
       __ lwr(a5, MemOperand(a1, 9, loadstore_chunk));
@@ -422,14 +422,14 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
              MemOperand(a1, 16, loadstore_chunk, MemOperand::offset_minus_one));
     }
     __ Pref(pref_hint_load, MemOperand(a1, 5 * pref_chunk));
-    __ sw(a4, MemOperand(a0, 8, loadstore_chunk));
-    __ sw(a5, MemOperand(a0, 9, loadstore_chunk));
-    __ sw(a6, MemOperand(a0, 10, loadstore_chunk));
-    __ sw(a7, MemOperand(a0, 11, loadstore_chunk));
-    __ sw(t0, MemOperand(a0, 12, loadstore_chunk));
-    __ sw(t1, MemOperand(a0, 13, loadstore_chunk));
-    __ sw(t2, MemOperand(a0, 14, loadstore_chunk));
-    __ sw(t3, MemOperand(a0, 15, loadstore_chunk));
+    __ Sw(a4, MemOperand(a0, 8, loadstore_chunk));
+    __ Sw(a5, MemOperand(a0, 9, loadstore_chunk));
+    __ Sw(a6, MemOperand(a0, 10, loadstore_chunk));
+    __ Sw(a7, MemOperand(a0, 11, loadstore_chunk));
+    __ Sw(t0, MemOperand(a0, 12, loadstore_chunk));
+    __ Sw(t1, MemOperand(a0, 13, loadstore_chunk));
+    __ Sw(t2, MemOperand(a0, 14, loadstore_chunk));
+    __ Sw(t3, MemOperand(a0, 15, loadstore_chunk));
     __ addiu(a0, a0, 16 * loadstore_chunk);
     __ bne(a0, a3, &ua_loop16w);
     __ addiu(a1, a1, 16 * loadstore_chunk);  // In delay slot.
@@ -496,14 +496,14 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
              MemOperand(a1, 8, loadstore_chunk, MemOperand::offset_minus_one));
     }
     __ addiu(a1, a1, 8 * loadstore_chunk);
-    __ sw(a4, MemOperand(a0));
-    __ sw(a5, MemOperand(a0, 1, loadstore_chunk));
-    __ sw(a6, MemOperand(a0, 2, loadstore_chunk));
-    __ sw(a7, MemOperand(a0, 3, loadstore_chunk));
-    __ sw(t0, MemOperand(a0, 4, loadstore_chunk));
-    __ sw(t1, MemOperand(a0, 5, loadstore_chunk));
-    __ sw(t2, MemOperand(a0, 6, loadstore_chunk));
-    __ sw(t3, MemOperand(a0, 7, loadstore_chunk));
+    __ Sw(a4, MemOperand(a0));
+    __ Sw(a5, MemOperand(a0, 1, loadstore_chunk));
+    __ Sw(a6, MemOperand(a0, 2, loadstore_chunk));
+    __ Sw(a7, MemOperand(a0, 3, loadstore_chunk));
+    __ Sw(t0, MemOperand(a0, 4, loadstore_chunk));
+    __ Sw(t1, MemOperand(a0, 5, loadstore_chunk));
+    __ Sw(t2, MemOperand(a0, 6, loadstore_chunk));
+    __ Sw(t3, MemOperand(a0, 7, loadstore_chunk));
     __ addiu(a0, a0, 8 * loadstore_chunk);
 
     // Less than 32 bytes to copy. Set up for a loop to
@@ -527,7 +527,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     __ addiu(a0, a0, loadstore_chunk);
     __ addiu(a1, a1, loadstore_chunk);
     __ bne(a0, a3, &ua_wordCopy_loop);
-    __ sw(v1, MemOperand(a0, -1, loadstore_chunk));  // In delay slot.
+    __ Sw(v1, MemOperand(a0, -1, loadstore_chunk));  // In delay slot.
 
     // Copy the last 8 bytes.
     __ bind(&ua_smallCopy);
@@ -535,11 +535,11 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     __ addu(a3, a0, a2);  // In delay slot.
 
     __ bind(&ua_smallCopy_loop);
-    __ lb(v1, MemOperand(a1));
+    __ Lb(v1, MemOperand(a1));
     __ addiu(a0, a0, 1);
     __ addiu(a1, a1, 1);
     __ bne(a0, a3, &ua_smallCopy_loop);
-    __ sb(v1, MemOperand(a0, -1));  // In delay slot.
+    __ Sb(v1, MemOperand(a0, -1));  // In delay slot.
 
     __ jr(ra);
     __ nop();
@@ -616,8 +616,8 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ bind(&indirect_string_loaded);
 
   // Fetch the instance type of the receiver into result register.
-  __ ld(result, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ lbu(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
+  __ Ld(result, FieldMemOperand(string, HeapObject::kMapOffset));
+  __ Lbu(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
 
   // We need special handling for indirect strings.
   Label check_sequential;
@@ -631,15 +631,15 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ Branch(&thin_string, eq, at, Operand(kThinStringTag));
 
   // Handle slices.
-  __ ld(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
-  __ ld(string, FieldMemOperand(string, SlicedString::kParentOffset));
+  __ Ld(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
+  __ Ld(string, FieldMemOperand(string, SlicedString::kParentOffset));
   __ dsra32(at, result, 0);
   __ Daddu(index, index, at);
   __ jmp(&indirect_string_loaded);
 
   // Handle thin strings.
   __ bind(&thin_string);
-  __ ld(string, FieldMemOperand(string, ThinString::kActualOffset));
+  __ Ld(string, FieldMemOperand(string, ThinString::kActualOffset));
   __ jmp(&indirect_string_loaded);
 
   // Handle cons strings.
@@ -648,11 +648,11 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // the case we would rather go to the runtime system now to flatten
   // the string.
   __ bind(&cons_string);
-  __ ld(result, FieldMemOperand(string, ConsString::kSecondOffset));
+  __ Ld(result, FieldMemOperand(string, ConsString::kSecondOffset));
   __ LoadRoot(at, Heap::kempty_stringRootIndex);
   __ Branch(call_runtime, ne, result, Operand(at));
   // Get the first of the two strings and load its instance type.
-  __ ld(string, FieldMemOperand(string, ConsString::kFirstOffset));
+  __ Ld(string, FieldMemOperand(string, ConsString::kFirstOffset));
   __ jmp(&indirect_string_loaded);
 
   // Distinguish sequential and external strings. Only these two string
@@ -684,7 +684,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   STATIC_ASSERT(kShortExternalStringTag != 0);
   __ And(at, result, Operand(kShortExternalStringMask));
   __ Branch(call_runtime, ne, at, Operand(zero_reg));
-  __ ld(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));
+  __ Ld(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));
 
   Label one_byte, done;
   __ bind(&check_encoding);
@@ -693,12 +693,12 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ Branch(&one_byte, ne, at, Operand(zero_reg));
   // Two-byte string.
   __ Dlsa(at, string, index, 1);
-  __ lhu(result, MemOperand(at));
+  __ Lhu(result, MemOperand(at));
   __ jmp(&done);
   __ bind(&one_byte);
   // One_byte string.
   __ Daddu(at, string, index);
-  __ lbu(result, MemOperand(at));
+  __ Lbu(result, MemOperand(at));
   __ bind(&done);
 }
 

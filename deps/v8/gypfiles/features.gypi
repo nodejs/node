@@ -95,7 +95,7 @@
         'defines': ['VERIFY_HEAP',],
       }],
       ['v8_trace_maps==1', {
-        'defines': ['TRACE_MAPS',],
+        'defines': ['V8_TRACE_MAPS',],
       }],
       ['v8_enable_verify_predictable==1', {
         'defines': ['VERIFY_PREDICTABLE',],
@@ -110,7 +110,7 @@
         'defines': ['V8_IMMINENT_DEPRECATION_WARNINGS',],
       }],
       ['v8_enable_i18n_support==1', {
-        'defines': ['V8_I18N_SUPPORT',],
+        'defines': ['V8_INTL_SUPPORT',],
       }],
       ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {
         'defines': ['V8_USE_EXTERNAL_STARTUP_DATA',],
@@ -123,7 +123,7 @@
       'DebugBaseCommon': {
         'abstract': 1,
         'variables': {
-          'v8_enable_handle_zapping%': 1,
+          'v8_enable_handle_zapping%': 0,
         },
         'conditions': [
           ['v8_enable_handle_zapping==1', {
@@ -133,7 +133,7 @@
       },  # Debug
       'Release': {
         'variables': {
-          'v8_enable_handle_zapping%': 0,
+          'v8_enable_handle_zapping%': 1,
         },
         'conditions': [
           ['v8_enable_handle_zapping==1', {

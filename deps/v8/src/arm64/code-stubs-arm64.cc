@@ -1267,73 +1267,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Ret();
 }
 
-void RegExpExecStub::Generate(MacroAssembler* masm) {
-#ifdef V8_INTERPRETED_REGEXP
-  // This case is handled prior to the RegExpExecStub call.
-  __ Abort(kUnexpectedRegExpExecCall);
-#else  // V8_INTERPRETED_REGEXP
-  // Isolates: note we add an additional parameter here (isolate pointer).
-  __ EnterExitFrame(false, x10, 1);
-  DCHECK(csp.Is(__ StackPointer()));
-
-  // We have 9 arguments to pass to the regexp code, therefore we have to pass
-  // one on the stack and the rest as registers.
-
-  // Note that the placement of the argument on the stack isn't standard
-  // AAPCS64:
-  // csp[0]: Space for the return address placed by DirectCEntryStub.
-  // csp[8]: Argument 9, the current isolate address.
-
-  __ Mov(x10, ExternalReference::isolate_address(isolate()));
-  __ Poke(x10, kPointerSize);
-
-  // Argument 1 (x0): Subject string.
-  CHECK(x0.is(RegExpExecDescriptor::StringRegister()));
-
-  // Argument 2 (x1): Previous index, already there.
-  CHECK(x1.is(RegExpExecDescriptor::LastIndexRegister()));
-
-  // Argument 3 (x2): Input start.
-  // Argument 4 (x3): Input end.
-  CHECK(x2.is(RegExpExecDescriptor::StringStartRegister()));
-  CHECK(x3.is(RegExpExecDescriptor::StringEndRegister()));
-
-  // Argument 5 (x4): static offsets vector buffer.
-  __ Mov(x4, ExternalReference::address_of_static_offsets_vector(isolate()));
-
-  // Argument 6 (x5): Set the number of capture registers to zero to force
-  // global regexps to behave as non-global. This stub is not used for global
-  // regexps.
-  __ Mov(x5, 0);
-
-  // Argument 7 (x6): Start (high end) of backtracking stack memory area.
-  ExternalReference address_of_regexp_stack_memory_address =
-      ExternalReference::address_of_regexp_stack_memory_address(isolate());
-  ExternalReference address_of_regexp_stack_memory_size =
-      ExternalReference::address_of_regexp_stack_memory_size(isolate());
-  __ Mov(x10, address_of_regexp_stack_memory_address);
-  __ Ldr(x10, MemOperand(x10));
-  __ Mov(x11, address_of_regexp_stack_memory_size);
-  __ Ldr(x11, MemOperand(x11));
-  __ Add(x6, x10, x11);
-
-  // Argument 8 (x7): Indicate that this is a direct call from JavaScript.
-  __ Mov(x7, 1);
-
-  // Locate the code entry and call it.
-  Register code_object = RegExpExecDescriptor::CodeRegister();
-  __ Add(code_object, code_object, Code::kHeaderSize - kHeapObjectTag);
-  DirectCEntryStub stub(isolate());
-  stub.GenerateCall(masm, code_object);
-
-  __ LeaveExitFrame(false, x10, true);
-
-  // Return the smi-tagged result.
-  __ SmiTag(x0);
-  __ Ret();
-#endif
-}
-
 
 static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
                                        Register argc, Register function,
@@ -3098,9 +3031,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     __ Ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
   }
 
-  if (!call_data_undefined()) {
-    __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
-  }
+  __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
   Register isolate_reg = x5;
   __ Mov(isolate_reg, ExternalReference::isolate_address(masm->isolate()));
 

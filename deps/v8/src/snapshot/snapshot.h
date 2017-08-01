@@ -62,8 +62,6 @@ class Snapshot : public AllStatic {
       size_t context_index,
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
-  static bool HaveASnapshotToStartFrom(Isolate* isolate);
-
   static bool HasContextSnapshot(Isolate* isolate, size_t index);
 
   static bool EmbedsScript(Isolate* isolate);
@@ -73,7 +71,7 @@ class Snapshot : public AllStatic {
 
   static v8::StartupData CreateSnapshotBlob(
       const SnapshotData* startup_snapshot,
-      const List<SnapshotData*>* context_snapshots, bool can_be_rehashed);
+      const List<SnapshotData*>* context_snapshots);
 
 #ifdef DEBUG
   static bool SnapshotIsValid(v8::StartupData* snapshot_blob);
@@ -81,16 +79,14 @@ class Snapshot : public AllStatic {
 
  private:
   static int ExtractNumContexts(const v8::StartupData* data);
-  static bool ExtractRehashability(const v8::StartupData* data);
   static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
   static Vector<const byte> ExtractContextData(const v8::StartupData* data,
                                                int index);
 
   // Snapshot blob layout:
   // [0] number of contexts N
-  // [1] rehashability
-  // [2] offset to context 0
-  // [3] offset to context 1
+  // [1] offset to context 0
+  // [2] offset to context 1
   // ...
   // ... offset to context N - 1
   // ... startup snapshot data
@@ -98,10 +94,8 @@ class Snapshot : public AllStatic {
   // ... context 1 snapshot data
 
   static const int kNumberOfContextsOffset = 0;
-  // TODO(yangguo): generalize rehashing, and remove this flag.
-  static const int kRehashabilityOffset = kNumberOfContextsOffset + kInt32Size;
   static const int kFirstContextOffsetOffset =
-      kRehashabilityOffset + kInt32Size;
+      kNumberOfContextsOffset + kInt32Size;
 
   static int StartupSnapshotOffset(int num_contexts) {
     return kFirstContextOffsetOffset + num_contexts * kInt32Size;

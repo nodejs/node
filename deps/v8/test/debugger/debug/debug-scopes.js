@@ -1144,7 +1144,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeChainPositions(
-      [{start: 52, end: 111}, {start: 22, end: 145}, {}, {}], exec_state);
+      [{start: 42, end: 111}, {start: 22, end: 145}, {}, {}], exec_state);
 }
 eval(code3);
 EndTest();
@@ -1165,7 +1165,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeChainPositions([{start: 66, end: 147},
-                            {start: 52, end: 147},
+                            {start: 42, end: 147},
                             {start: 22, end: 181},
                             {}, {}], exec_state);
 }

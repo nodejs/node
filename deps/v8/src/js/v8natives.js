@@ -11,14 +11,6 @@
 
 var GlobalObject = global.Object;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var ObjectToString = utils.ImportNow("object_to_string");
-
-// ----------------------------------------------------------------------------
-
-
-// Set up global object.
-var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
-
 
 // ----------------------------------------------------------------------------
 // Object
@@ -67,7 +59,7 @@ function ObjectConstructor(x) {
 
 // Set up non-enumerable functions on the Object.prototype object.
 utils.InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
-  "toString", ObjectToString,
+  // toString is added in bootstrapper.cc
   "toLocaleString", ObjectToLocaleString,
   // valueOf is added in bootstrapper.cc.
   "isPrototypeOf", ObjectIsPrototypeOf,
@@ -103,7 +95,6 @@ function GetIterator(obj, method) {
 utils.Export(function(to) {
   to.GetIterator = GetIterator;
   to.GetMethod = GetMethod;
-  to.ObjectHasOwnProperty = GlobalObject.prototype.hasOwnProperty;
 });
 
 })

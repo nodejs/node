@@ -18,14 +18,18 @@ class Handle;
 
 class Isolate;
 
-// DescriptorArrays are fixed arrays used to hold instance descriptors.
+// A DescriptorArray is a fixed array used to hold instance descriptors.
 // The format of the these objects is:
 //   [0]: Number of descriptors
-//   [1]: Either Smi(0) if uninitialized, or a pointer to small fixed array:
-//          [0]: pointer to fixed array with enum cache
+//   [1]: Either Smi(0) if uninitialized,
+//        or enum cache bridge (FixedArray[2]):
+//          [0]: enum cache: FixedArray containing all own enumerable keys
 //          [1]: either Smi(0) or pointer to fixed array with indices
-//   [2]: first key
-//   [2 + number of descriptors * kEntrySize]: start of slack
+//   [2]: first key (and internalized String)
+//   [3]: first descriptor details (see PropertyDetails)
+//   [4]: first value for constants | Smi(1) when not usedA
+//
+//   [2 + number of descriptors * 3]: start of slack
 class DescriptorArray : public FixedArray {
  public:
   // Returns true for both shared empty_descriptor_array and for smis, which the
@@ -35,28 +39,19 @@ class DescriptorArray : public FixedArray {
 
   // Returns the number of descriptors in the array.
   inline int number_of_descriptors();
-
   inline int number_of_descriptors_storage();
-
   inline int NumberOfSlackDescriptors();
 
   inline void SetNumberOfDescriptors(int number_of_descriptors);
   inline int number_of_entries();
 
   inline bool HasEnumCache();
-
-  inline void CopyEnumCacheFrom(DescriptorArray* array);
-
-  inline FixedArray* GetEnumCache();
-
   inline bool HasEnumIndicesCache();
-
+  inline FixedArray* GetEnumCache();
   inline FixedArray* GetEnumIndicesCache();
 
-  inline Object** GetEnumCacheSlot();
-
   void ClearEnumCache();
-
+  inline void CopyEnumCacheFrom(DescriptorArray* array);
   // Initialize or change the enum cache,
   // using the supplied storage for the small "bridge".
   static void SetEnumCache(Handle<DescriptorArray> descriptors,
@@ -127,7 +122,7 @@ class DescriptorArray : public FixedArray {
   static const int kNotFound = -1;
 
   static const int kDescriptorLengthIndex = 0;
-  static const int kEnumCacheIndex = 1;
+  static const int kEnumCacheBridgeIndex = 1;
   static const int kFirstIndex = 2;
 
   // The length of the "bridge" to the enum cache.
@@ -137,8 +132,9 @@ class DescriptorArray : public FixedArray {
 
   // Layout description.
   static const int kDescriptorLengthOffset = FixedArray::kHeaderSize;
-  static const int kEnumCacheOffset = kDescriptorLengthOffset + kPointerSize;
-  static const int kFirstOffset = kEnumCacheOffset + kPointerSize;
+  static const int kEnumCacheBridgeOffset =
+      kDescriptorLengthOffset + kPointerSize;
+  static const int kFirstOffset = kEnumCacheBridgeOffset + kPointerSize;
 
   // Layout description for the bridge array.
   static const int kEnumCacheBridgeCacheOffset = FixedArray::kHeaderSize;

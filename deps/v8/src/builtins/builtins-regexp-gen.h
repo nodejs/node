@@ -36,10 +36,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                          String::Encoding encoding, Variable* var_string_start,
                          Variable* var_string_end);
 
-  // Low level logic around the actual call into generated Irregexp code.
-  Node* IrregexpExec(Node* const context, Node* const regexp,
-                     Node* const string, Node* const last_index,
-                     Node* const match_info);
+  // Low level logic around the actual call into pattern matching code.
+  Node* RegExpExecInternal(Node* const context, Node* const regexp,
+                           Node* const string, Node* const last_index,
+                           Node* const match_info);
 
   Node* ConstructNewResultFromMatchInfo(Node* const context, Node* const regexp,
                                         Node* const match_info,

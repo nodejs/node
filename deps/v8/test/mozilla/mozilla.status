@@ -932,14 +932,14 @@
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == mipsel or arch == mips64el or arch == mips64'
 
-['arch == mipsel and simulator_run == True', {
+['arch == mipsel and simulator_run', {
   # Crashes due to C stack overflow.
   'js1_5/extensions/regress-355497': [SKIP],
-}], # 'arch == mipsel and simulator_run == True'
+}], # 'arch == mipsel and simulator_run'
 
-['arch == mips64el and simulator_run == True', {
+['arch == mips64el and simulator_run', {
   'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
-}], # 'arch == mips64el and simulator_run == True'
+}], # 'arch == mips64el and simulator_run'
 
 ['arch == mips', {
 
@@ -960,13 +960,13 @@
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == mips'
 
-['arch == arm and simulator_run == True', {
+['arch == arm and simulator_run', {
 
   #BUG(3837): Crashes due to C stack overflow.
   'js1_5/extensions/regress-355497': [SKIP],
-}],  # 'arch == arm and simulator_run == True'
+}],  # 'arch == arm and simulator_run'
 
-['arch == arm64 and simulator_run == True', {
+['arch == arm64 and simulator_run', {
 
   'js1_5/GC/regress-203278-2': [SKIP],
 
@@ -988,7 +988,7 @@
 
   #BUG(3152): Avoid C stack overflow.
   'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
-}],  # 'arch == arm64 and simulator_run == True'
+}],  # 'arch == arm64 and simulator_run'
 
 ['variant == wasm_traps', {
   '*': [SKIP],

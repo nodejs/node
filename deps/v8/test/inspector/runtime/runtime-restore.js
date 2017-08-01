@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.v8
 
-InspectorTest.log('Checks that Runtime agent correctly restore its state.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that Runtime agent correctly restore its state.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 var formatter = {
     header: function(x)
     {
@@ -56,9 +56,9 @@ InspectorTest.runTestSuite([
 
   function testSetCustomObjectFormatterEnabled(next) {
     Protocol.Runtime.onConsoleAPICalled(InspectorTest.logMessage);
-    // cleanup console message storage
-    reconnect();
-    Protocol.Runtime.enable()
+    Protocol.Runtime.discardConsoleEntries()
+      .then(reconnect)
+      .then(() => Protocol.Runtime.enable())
       .then(() => Protocol.Runtime.setCustomObjectFormatterEnabled({ enabled: true }))
       .then(reconnect)
       .then(() => Protocol.Runtime.evaluate({ expression: 'console.log({ name: 42 })'}))
@@ -73,5 +73,5 @@ InspectorTest.runTestSuite([
 
 function reconnect() {
   InspectorTest.logMessage('will reconnect..');
-  utils.reconnect();
+  session.reconnect();
 }

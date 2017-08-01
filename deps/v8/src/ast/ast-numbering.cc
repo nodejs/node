@@ -563,6 +563,7 @@ void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   IncrementNodeCount();
   DisableFullCodegenAndCrankshaft(kClassLiteral);
   node->set_base_id(ReserveIdRange(ClassLiteral::num_ids()));
+  LanguageModeScope language_mode_scope(this, STRICT);
   if (node->extends()) Visit(node->extends());
   if (node->constructor()) Visit(node->constructor());
   if (node->class_variable_proxy()) {
@@ -715,7 +716,7 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   node->set_dont_optimize_reason(dont_optimize_reason());
   node->set_suspend_count(suspend_count_);
 
-  if (FLAG_trace_opt) {
+  if (FLAG_trace_opt && !FLAG_turbo) {
     if (disable_crankshaft_reason_ != kNoReason) {
       // TODO(leszeks): This is a quick'n'dirty fix to allow the debug name of
       // the function to be accessed in the below print. This DCHECK will fail

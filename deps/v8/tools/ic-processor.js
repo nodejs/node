@@ -168,7 +168,7 @@ IcProcessor.prototype.formatName = function(entry) {
   var re = /(.*):[0-9]+:[0-9]+$/;
   var array = re.exec(name);
   if (!array) return name;
-  return array[1];
+  return entry.getState() + array[1];
 }
 
 IcProcessor.prototype.processPropertyIC = function (

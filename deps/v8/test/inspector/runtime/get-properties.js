@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks Runtime.getProperties method');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks Runtime.getProperties method');
 
 InspectorTest.runAsyncTestSuite([
   async function testObject5() {

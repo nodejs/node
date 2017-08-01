@@ -3,6 +3,26 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+"""
+Use this script to update V8 in a Node.js checkout.
+
+Requirements:
+  - Node.js checkout in which V8 should be updated.
+  - V8 checkout at the commit to which Node.js should be updated.
+
+Usage:
+  $ update_node.py <path_to_v8> <path_to_node>
+
+  This will synchronize the content of <path_to_node>/deps/v8 with <path_to_v8>,
+  and a few V8 dependencies require in Node.js. It will also update .gitignore
+  appropriately.
+
+Optional flags:
+  --gclient     Run `gclient sync` on the V8 checkout before updating.
+  --commit      Create commit with the updated V8 in the Node.js checkout.
+  --with-patch  Also include currently staged files in the V8 checkout.
+"""
+
 import argparse
 import os
 import shutil
@@ -52,7 +72,8 @@ def CommitPatch(options):
   """
   print ">> Comitting patch"
   subprocess.check_call(
-      ["git", "commit", "--allow-empty", "-m", "placeholder-commit"],
+      ["git", "-c", "user.name=fake", "-c", "user.email=fake@chromium.org",
+       "commit", "--allow-empty", "-m", "placeholder-commit"],
       cwd=options.v8_path,
   )
 

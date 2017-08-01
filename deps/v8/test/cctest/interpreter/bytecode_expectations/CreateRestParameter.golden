@@ -13,15 +13,13 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 8
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(0),
-                B(LdaTheHole),
-                B(Star), R(1),
   /*   10 E> */ B(StackCheck),
-                B(Mov), R(0), R(1),
-  /*   26 S> */ B(Ldar), R(1),
+                B(Star), R(1),
+  /*   26 S> */ B(Nop),
   /*   43 S> */ B(Return),
 ]
 constant pool: [
@@ -36,14 +34,10 @@ snippet: "
 "
 frame size: 3
 parameter count: 2
-bytecode array length: 19
+bytecode array length: 13
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(0),
-                B(LdaTheHole),
-                B(Star), R(1),
-                B(LdaTheHole),
-                B(Star), R(2),
   /*   10 E> */ B(StackCheck),
                 B(Mov), R(arg0), R(1),
                 B(Mov), R(0), R(2),
@@ -62,19 +56,15 @@ snippet: "
 "
 frame size: 3
 parameter count: 2
-bytecode array length: 21
+bytecode array length: 15
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(0),
-                B(LdaTheHole),
-                B(Star), R(1),
-                B(LdaTheHole),
-                B(Star), R(2),
   /*   10 E> */ B(StackCheck),
                 B(Mov), R(arg0), R(1),
                 B(Mov), R(0), R(2),
   /*   29 S> */ B(LdaZero),
-  /*   44 E> */ B(LdaKeyedProperty), R(2), U8(2),
+  /*   44 E> */ B(LdaKeyedProperty), R(2), U8(3),
   /*   49 S> */ B(Return),
 ]
 constant pool: [
@@ -89,25 +79,21 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 33
+bytecode array length: 27
 bytecodes: [
                 B(CreateUnmappedArguments),
                 B(Star), R(3),
                 B(CreateRestParameter),
                 B(Star), R(0),
-                B(LdaTheHole),
-                B(Star), R(1),
-                B(LdaTheHole),
-                B(Star), R(2),
   /*   10 E> */ B(StackCheck),
                 B(Mov), R(arg0), R(1),
                 B(Mov), R(0), R(2),
   /*   29 S> */ B(LdaZero),
-  /*   44 E> */ B(LdaKeyedProperty), R(2), U8(2),
+  /*   44 E> */ B(LdaKeyedProperty), R(2), U8(3),
                 B(Star), R(4),
                 B(LdaZero),
-  /*   59 E> */ B(LdaKeyedProperty), R(3), U8(4),
-  /*   48 E> */ B(Add), R(4), U8(6),
+  /*   59 E> */ B(LdaKeyedProperty), R(3), U8(5),
+  /*   48 E> */ B(Add), R(4), U8(7),
   /*   64 S> */ B(Return),
 ]
 constant pool: [

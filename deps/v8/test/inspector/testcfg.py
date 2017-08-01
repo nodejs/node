@@ -5,6 +5,7 @@
 import itertools
 import os
 import re
+import shlex
 
 from testrunner.local import testsuite
 from testrunner.local import utils
@@ -43,7 +44,7 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
     flags = [] + context.mode_flags
     flags_match = re.findall(FLAGS_PATTERN, source)
     for match in flags_match:
-      flags += match.strip().split()
+      flags += shlex.split(match.strip())
     testname = testcase.path.split(os.path.sep)[-1]
     testfilename = os.path.join(self.root, testcase.path + self.suffix())
     protocoltestfilename = os.path.join(self.root, PROTOCOL_TEST_JS)

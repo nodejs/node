@@ -90,7 +90,7 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
 SaveFlags* BytecodeAnalysisTest::save_flags_ = nullptr;
 
 TEST_F(BytecodeAnalysisTest, EmptyBlock) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 0, 3);
+  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -104,7 +104,7 @@ TEST_F(BytecodeAnalysisTest, EmptyBlock) {
 }
 
 TEST_F(BytecodeAnalysisTest, SimpleLoad) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 0, 3);
+  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -121,7 +121,7 @@ TEST_F(BytecodeAnalysisTest, SimpleLoad) {
 }
 
 TEST_F(BytecodeAnalysisTest, StoreThenLoad) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 0, 3);
+  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -141,7 +141,7 @@ TEST_F(BytecodeAnalysisTest, StoreThenLoad) {
 }
 
 TEST_F(BytecodeAnalysisTest, DiamondLoad) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 0, 3);
+  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -178,7 +178,7 @@ TEST_F(BytecodeAnalysisTest, DiamondLoad) {
 }
 
 TEST_F(BytecodeAnalysisTest, DiamondLookupsAndBinds) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 0, 3);
+  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -225,7 +225,7 @@ TEST_F(BytecodeAnalysisTest, DiamondLookupsAndBinds) {
 }
 
 TEST_F(BytecodeAnalysisTest, SimpleLoop) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 0, 3);
+  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -235,9 +235,10 @@ TEST_F(BytecodeAnalysisTest, SimpleLoop) {
   builder.StoreAccumulatorInRegister(reg_0);
   expected_liveness.emplace_back("..LL", "L.LL");
 
-  interpreter::LoopBuilder loop_builder(&builder);
-  loop_builder.LoopHeader();
   {
+    interpreter::LoopBuilder loop_builder(&builder);
+    loop_builder.LoopHeader();
+
     builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean,
                        loop_builder.break_labels()->New());
     expected_liveness.emplace_back("L.LL", "L.L.");
@@ -252,7 +253,6 @@ TEST_F(BytecodeAnalysisTest, SimpleLoop) {
     loop_builder.JumpToHeader(0);
     expected_liveness.emplace_back("L.LL", "L.LL");
   }
-  loop_builder.EndLoop();
 
   builder.LoadAccumulatorWithRegister(reg_2);
   expected_liveness.emplace_back("..L.", "...L");
@@ -266,7 +266,7 @@ TEST_F(BytecodeAnalysisTest, SimpleLoop) {
 }
 
 TEST_F(BytecodeAnalysisTest, TryCatch) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 0, 3);
+  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -311,7 +311,7 @@ TEST_F(BytecodeAnalysisTest, TryCatch) {
 }
 
 TEST_F(BytecodeAnalysisTest, DiamondInLoop) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 0, 3);
+  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -321,9 +321,10 @@ TEST_F(BytecodeAnalysisTest, DiamondInLoop) {
   builder.StoreAccumulatorInRegister(reg_0);
   expected_liveness.emplace_back("...L", "L..L");
 
-  interpreter::LoopBuilder loop_builder(&builder);
-  loop_builder.LoopHeader();
   {
+    interpreter::LoopBuilder loop_builder(&builder);
+    loop_builder.LoopHeader();
+
     builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean,
                        loop_builder.break_labels()->New());
     expected_liveness.emplace_back("L..L", "L..L");
@@ -350,7 +351,6 @@ TEST_F(BytecodeAnalysisTest, DiamondInLoop) {
     loop_builder.JumpToHeader(0);
     expected_liveness.emplace_back("L..L", "L..L");
   }
-  loop_builder.EndLoop();
 
   builder.Return();
   expected_liveness.emplace_back("...L", "....");
@@ -361,7 +361,7 @@ TEST_F(BytecodeAnalysisTest, DiamondInLoop) {
 }
 
 TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 0, 3);
+  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -370,9 +370,10 @@ TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
   builder.StoreAccumulatorInRegister(reg_0);
   expected_liveness.emplace_back(".L.L", "LL..");
 
-  interpreter::LoopBuilder loop_builder(&builder);
-  loop_builder.LoopHeader();
   {
+    interpreter::LoopBuilder loop_builder(&builder);
+    loop_builder.LoopHeader();
+
     builder.LoadAccumulatorWithRegister(reg_0);
     expected_liveness.emplace_back("LL..", ".L..");
 
@@ -383,9 +384,10 @@ TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
                        loop_builder.break_labels()->New());
     expected_liveness.emplace_back(".L.L", ".L.L");
 
-    interpreter::LoopBuilder inner_loop_builder(&builder);
-    inner_loop_builder.LoopHeader();
     {
+      interpreter::LoopBuilder inner_loop_builder(&builder);
+      inner_loop_builder.LoopHeader();
+
       builder.StoreAccumulatorInRegister(reg_0);
       expected_liveness.emplace_back(".L.L", "LL.L");
 
@@ -397,13 +399,11 @@ TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
       inner_loop_builder.JumpToHeader(1);
       expected_liveness.emplace_back(".L.L", ".L.L");
     }
-    inner_loop_builder.EndLoop();
 
     loop_builder.BindContinueTarget();
     loop_builder.JumpToHeader(0);
     expected_liveness.emplace_back("LL..", "LL..");
   }
-  loop_builder.EndLoop();
 
   builder.Return();
   expected_liveness.emplace_back("...L", "....");

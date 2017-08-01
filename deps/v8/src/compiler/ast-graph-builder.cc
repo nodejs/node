@@ -268,9 +268,9 @@ class AstGraphBuilder::ControlScopeForIteration : public ControlScope {
   LoopBuilder* control_;
 };
 
-
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
-                                 JSGraph* jsgraph, float invocation_frequency,
+                                 JSGraph* jsgraph,
+                                 CallFrequency invocation_frequency,
                                  LoopAssignmentAnalysis* loop)
     : isolate_(info->isolate()),
       local_zone_(local_zone),
@@ -1692,7 +1692,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   VisitForValues(args);
 
   // Create node to perform the function call.
-  float const frequency = ComputeCallFrequency(expr->CallFeedbackICSlot());
+  CallFrequency frequency = ComputeCallFrequency(expr->CallFeedbackICSlot());
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallFeedbackICSlot());
   const Operator* call =
       javascript()->Call(args->length() + 2, frequency, feedback, receiver_hint,
@@ -1720,7 +1720,7 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   environment()->Push(environment()->Peek(args->length()));
 
   // Create node to perform the construct call.
-  float const frequency = ComputeCallFrequency(expr->CallNewFeedbackSlot());
+  CallFrequency frequency = ComputeCallFrequency(expr->CallNewFeedbackSlot());
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallNewFeedbackSlot());
   const Operator* call =
       javascript()->Construct(args->length() + 2, frequency, feedback);
@@ -2120,7 +2120,8 @@ void AstGraphBuilder::VisitDelete(UnaryOperation* expr) {
     VisitForValue(property->key());
     Node* key = environment()->Pop();
     Node* object = environment()->Pop();
-    value = NewNode(javascript()->DeleteProperty(language_mode()), object, key);
+    Node* mode = jsgraph()->Constant(static_cast<int32_t>(language_mode()));
+    value = NewNode(javascript()->DeleteProperty(), object, key, mode);
     PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   } else {
     VisitForEffect(expr->expression());
@@ -2239,12 +2240,15 @@ void AstGraphBuilder::VisitRewritableExpression(RewritableExpression* node) {
   Visit(node->expression());
 }
 
-float AstGraphBuilder::ComputeCallFrequency(FeedbackSlot slot) const {
-  if (slot.IsInvalid()) return 0.0f;
+CallFrequency AstGraphBuilder::ComputeCallFrequency(FeedbackSlot slot) const {
+  if (invocation_frequency_.IsUnknown() || slot.IsInvalid()) {
+    return CallFrequency();
+  }
   Handle<FeedbackVector> feedback_vector(info()->closure()->feedback_vector(),
                                          isolate());
   CallICNexus nexus(feedback_vector, slot);
-  return nexus.ComputeCallFrequency() * invocation_frequency_;
+  return CallFrequency(nexus.ComputeCallFrequency() *
+                       invocation_frequency_.value());
 }
 
 Node* AstGraphBuilder::ProcessArguments(const Operator* op, int arity) {
@@ -2453,8 +2457,9 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable,
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Node* name = jsgraph()->Constant(variable->name());
-      const Operator* op = javascript()->DeleteProperty(language_mode());
-      Node* result = NewNode(op, global, name);
+      Node* mode = jsgraph()->Constant(static_cast<int32_t>(language_mode()));
+      const Operator* op = javascript()->DeleteProperty();
+      Node* result = NewNode(op, global, name, mode);
       PrepareFrameState(result, bailout_id, combine);
       return result;
     }
@@ -3014,8 +3019,9 @@ void AstGraphBuilder::Environment::PrepareForOsrEntry() {
   // Set the control and effect to the OSR loop entry.
   Node* osr_loop_entry = graph->NewNode(builder_->common()->OsrLoopEntry(),
                                         graph->start(), graph->start());
+  Node* effect = osr_loop_entry;
   UpdateControlDependency(osr_loop_entry);
-  UpdateEffectDependency(osr_loop_entry);
+  UpdateEffectDependency(effect);
 
   // Set OSR values.
   for (int i = 0; i < size; ++i) {
@@ -3028,30 +3034,11 @@ void AstGraphBuilder::Environment::PrepareForOsrEntry() {
       builder_->common()->OsrValue(Linkage::kOsrContextSpillSlotIndex);
   contexts()->back() = graph->NewNode(op_inner, osr_loop_entry);
 
-  // Create a checkpoint.
-  Node* frame_state = Checkpoint(builder_->info()->osr_ast_id());
-  Node* checkpoint = graph->NewNode(common()->Checkpoint(), frame_state,
-                                    osr_loop_entry, osr_loop_entry);
-  UpdateEffectDependency(checkpoint);
-
-  // Create the OSR guard nodes.
-  const Operator* guard_op =
-      builder_->info()->is_deoptimization_enabled()
-          ? builder_->common()->OsrGuard(OsrGuardType::kUninitialized)
-          : builder_->common()->OsrGuard(OsrGuardType::kAny);
-  Node* effect = checkpoint;
-  for (int i = 0; i < size; ++i) {
-    values()->at(i) = effect =
-        graph->NewNode(guard_op, values()->at(i), effect, osr_loop_entry);
-  }
-  contexts()->back() = effect =
-      graph->NewNode(guard_op, contexts()->back(), effect, osr_loop_entry);
-
   // The innermost context is the OSR value, and the outer contexts are
   // reconstructed by dynamically walking up the context chain.
   const Operator* load_op =
       builder_->javascript()->LoadContext(0, Context::PREVIOUS_INDEX, true);
-  Node* osr_context = effect = contexts()->back();
+  Node* osr_context = contexts()->back();
   int last = static_cast<int>(contexts()->size() - 1);
   for (int i = last - 1; i >= 0; i--) {
     osr_context = effect = graph->NewNode(load_op, osr_context, effect);
@@ -3172,7 +3159,7 @@ Node* AstGraphBuilder::MergeValue(Node* value, Node* other, Node* control) {
 
 AstGraphBuilderWithPositions::AstGraphBuilderWithPositions(
     Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
-    float invocation_frequency, LoopAssignmentAnalysis* loop_assignment,
+    CallFrequency invocation_frequency, LoopAssignmentAnalysis* loop_assignment,
     SourcePositionTable* source_positions, int inlining_id)
     : AstGraphBuilder(local_zone, info, jsgraph, invocation_frequency,
                       loop_assignment),

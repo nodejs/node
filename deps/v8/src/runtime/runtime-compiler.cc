@@ -68,6 +68,17 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
   return function->code();
 }
 
+RUNTIME_FUNCTION(Runtime_EvictOptimizedCodeSlot) {
+  SealHandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  DCHECK(function->is_compiled());
+  function->feedback_vector()->EvictOptimizedCodeMarkedForDeoptimization(
+      function->shared(), "Runtime_EvictOptimizedCodeSlot");
+  return function->code();
+}
+
 RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 4);
@@ -85,12 +96,11 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   if (args[3]->IsJSArrayBuffer()) {
     memory = args.at<JSArrayBuffer>(3);
   }
-  if (function->shared()->HasAsmWasmData() &&
-      AsmJs::IsStdlibValid(isolate, handle(function->shared()->asm_wasm_data()),
-                           stdlib)) {
-    MaybeHandle<Object> result;
-    result = AsmJs::InstantiateAsmWasm(
-        isolate, handle(function->shared()->asm_wasm_data()), memory, foreign);
+  if (function->shared()->HasAsmWasmData()) {
+    Handle<SharedFunctionInfo> shared(function->shared());
+    Handle<FixedArray> data(shared->asm_wasm_data());
+    MaybeHandle<Object> result = AsmJs::InstantiateAsmWasm(
+        isolate, shared, data, stdlib, foreign, memory);
     if (!result.is_null()) {
       return *result.ToHandleChecked();
     }
@@ -205,8 +215,15 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
     // Evict optimized code for this function from the cache so that it
     // doesn't get used for new closures.
-    function->shared()->EvictFromOptimizedCodeMap(*optimized_code,
-                                                  "notify deoptimized");
+    if (function->feedback_vector()->optimized_code() == *optimized_code) {
+      function->ClearOptimizedCodeSlot("notify deoptimized");
+    }
+    // Remove the code from the osr optimized code cache.
+    DeoptimizationInputData* deopt_data =
+        DeoptimizationInputData::cast(optimized_code->deoptimization_data());
+    if (deopt_data->OsrAstId()->value() == BailoutId::None().ToInt()) {
+      isolate->EvictOSROptimizedCode(*optimized_code, "notify deoptimized");
+    }
   } else {
     // TODO(titzer): we should probably do DeoptimizeCodeList(code)
     // unconditionally if the code is not already marked for deoptimization.

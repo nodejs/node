@@ -132,7 +132,7 @@ TEST(ArrayBuffer_Compaction) {
   heap::ForceEvacuationCandidate(page_before_gc);
   CHECK(IsTracked(*buf1));
 
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 
   Page* page_after_gc = Page::FromAddress(buf1->address());
   CHECK(IsTracked(*buf1));
@@ -309,6 +309,12 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
     v8::HandleScope handle_scope(isolate);
     v8::Context::New(isolate)->Enter();
     Heap* heap = i_isolate->heap();
+
+    // Ensure heap is in a clean state.
+    heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                            GarbageCollectionReason::kTesting);
+    heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                            GarbageCollectionReason::kTesting);
 
     Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
     Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);

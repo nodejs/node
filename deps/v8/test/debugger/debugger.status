@@ -73,6 +73,19 @@
   '*': [SKIP],
 }],  # variant == wasm_traps
 
+##############################################################################
+['arch == arm and not simulator_run', {
+  # Too slow on chromebooks.
+  'debug/ignition/debug-step-prefix-bytecodes': [SKIP],
+}],  # 'arch == arm and not simulator_run'
+
+##############################################################################
+['variant in [noturbofan, noturbofan_stress] and system == macos and asan', {
+  # Too slow for old pipeline and mac asan.
+  'debug/*': [SKIP],
+}],  # variant in [noturbofan, noturbofan_stress] and system == macos and asan
+
+##############################################################################
 ['arch == s390 or arch == s390x', {
 
   # Stack manipulations in LiveEdit is not implemented for this arch.

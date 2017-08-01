@@ -10,6 +10,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/isolate.h"
 #include "src/v8.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -42,6 +43,10 @@ void IncrementalMarkingJob::Task::Step(Heap* heap) {
 }
 
 void IncrementalMarkingJob::Task::RunInternal() {
+  VMState<GC> state(isolate());
+  RuntimeCallTimerScope runtime_timer(
+      isolate(), &RuntimeCallStats::GC_IncrementalMarkingJob);
+
   Heap* heap = isolate()->heap();
   job_->NotifyTask();
   IncrementalMarking* incremental_marking = heap->incremental_marking();

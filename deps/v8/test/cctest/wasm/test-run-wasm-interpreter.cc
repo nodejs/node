@@ -10,11 +10,11 @@
 
 #include "src/assembler-inl.h"
 #include "src/wasm/wasm-interpreter.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -325,19 +325,11 @@ TEST(GrowMemoryPreservesData) {
 }
 
 TEST(GrowMemoryInvalidSize) {
-  {
-    // Grow memory by an invalid amount without initial memory.
-    WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
-    BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
-    CHECK_EQ(-1, r.Call(1048575));
-  }
-  {
-    // Grow memory by an invalid amount without initial memory.
-    WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
-    r.module().AddMemory(WasmModule::kPageSize);
-    BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
-    CHECK_EQ(-1, r.Call(1048575));
-  }
+  // Grow memory by an invalid amount without initial memory.
+  WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
+  r.module().AddMemory(WasmModule::kPageSize);
+  BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
+  CHECK_EQ(-1, r.Call(1048575));
 }
 
 TEST(TestPossibleNondeterminism) {
@@ -431,6 +423,7 @@ TEST(WasmInterpreterActivations) {
 
 TEST(InterpreterLoadWithoutMemory) {
   WasmRunner<int32_t, int32_t> r(kExecuteInterpreted);
+  r.module().AddMemory(0);
   BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0)));
   CHECK_TRAP32(r.Call(0));
 }

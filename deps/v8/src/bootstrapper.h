@@ -7,13 +7,14 @@
 
 #include "src/factory.h"
 #include "src/snapshot/natives.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
 
 // A SourceCodeCache uses a FixedArray to store pairs of
 // (OneByteString*, JSFunction*), mapping names of native code files
-// (runtime.js, etc.) to precompiled functions. Instead of mapping
+// (array.js, etc.) to precompiled functions. Instead of mapping
 // names to functions it might make sense to let the JS2C tool
 // generate an index for each native JS file.
 class SourceCodeCache final BASE_EMBEDDED {
@@ -24,8 +25,9 @@ class SourceCodeCache final BASE_EMBEDDED {
     cache_ = create_heap_objects ? isolate->heap()->empty_fixed_array() : NULL;
   }
 
-  void Iterate(ObjectVisitor* v) {
-    v->VisitPointer(bit_cast<Object**, FixedArray**>(&cache_));
+  void Iterate(RootVisitor* v) {
+    v->VisitRootPointer(Root::kExtensions,
+                        bit_cast<Object**, FixedArray**>(&cache_));
   }
 
   bool Lookup(Vector<const char> name, Handle<SharedFunctionInfo>* handle) {
@@ -94,7 +96,7 @@ class Bootstrapper final {
   void DetachGlobal(Handle<Context> env);
 
   // Traverses the pointers for memory management.
-  void Iterate(ObjectVisitor* v);
+  void Iterate(RootVisitor* v);
 
   // Accessor for the native scripts source code.
   Handle<String> GetNativeSource(NativeType type, int index);

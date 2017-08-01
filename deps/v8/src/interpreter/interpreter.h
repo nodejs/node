@@ -24,6 +24,7 @@ class Callable;
 class CompilationInfo;
 class CompilationJob;
 class SetupIsolateDelegate;
+class RootVisitor;
 
 namespace interpreter {
 
@@ -44,7 +45,7 @@ class Interpreter {
   Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);
 
   // GC support.
-  void IterateDispatchTable(ObjectVisitor* v);
+  void IterateDispatchTable(RootVisitor* v);
 
   // Disassembler support (only useful with ENABLE_DISASSEMBLER defined).
   const char* LookupNameOfBytecodeHandler(Code* code);

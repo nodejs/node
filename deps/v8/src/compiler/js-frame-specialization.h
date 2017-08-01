@@ -29,7 +29,6 @@ class JSFrameSpecialization final : public AdvancedReducer {
 
  private:
   Reduction ReduceOsrValue(Node* node);
-  Reduction ReduceOsrGuard(Node* node);
   Reduction ReduceParameter(Node* node);
 
   Isolate* isolate() const;

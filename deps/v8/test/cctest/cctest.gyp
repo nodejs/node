@@ -32,7 +32,6 @@
     'v8_code': 1,
     'generated_file': '<(SHARED_INTERMEDIATE_DIR)/resources.cc',
     'cctest_sources': [  ### gcmole(all) ###
-      'asmjs/test-asm-typer.cc',
       'ast-types-fuzz.h',
       'compiler/c-signature.h',
       'compiler/call-tester.h',
@@ -337,6 +336,7 @@
       ],
       'sources': [
         '../common/wasm/test-signatures.h',
+        '../common/wasm/wasm-macro-gen.h',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
         '<@(cctest_sources)',
@@ -443,6 +443,9 @@
           'defines': [ 'BUILDING_V8_SHARED', ]
         }, {
           'dependencies': ['../../src/v8.gyp:v8'],
+        }],
+        ['v8_use_snapshot=="true"', {
+          'dependencies': ['../../src/v8.gyp:v8_builtins_generators'],
         }],
       ],
     },

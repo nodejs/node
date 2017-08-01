@@ -1339,24 +1339,25 @@ STORE_MATCHER(UnalignedStore)
 
 class IsStackSlotMatcher final : public NodeMatcher {
  public:
-  explicit IsStackSlotMatcher(const Matcher<int>& size_matcher)
-      : NodeMatcher(IrOpcode::kStackSlot), size_matcher_(size_matcher) {}
+  explicit IsStackSlotMatcher(
+      const Matcher<StackSlotRepresentation>& rep_matcher)
+      : NodeMatcher(IrOpcode::kStackSlot), rep_matcher_(rep_matcher) {}
 
   void DescribeTo(std::ostream* os) const final {
     NodeMatcher::DescribeTo(os);
-    *os << " whose size (";
-    size_matcher_.DescribeTo(os);
+    *os << " whose rep (";
+    rep_matcher_.DescribeTo(os);
     *os << ")";
   }
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<int>(node), "size", size_matcher_,
-                                 listener));
+            PrintMatchAndExplain(OpParameter<StackSlotRepresentation>(node),
+                                 "rep", rep_matcher_, listener));
   }
 
  private:
-  const Matcher<int> size_matcher_;
+  const Matcher<StackSlotRepresentation> rep_matcher_;
 };
 
 class IsToNumberMatcher final : public NodeMatcher {
@@ -2175,8 +2176,9 @@ Matcher<Node*> IsUnalignedStore(
       control_matcher));
 }
 
-Matcher<Node*> IsStackSlot(const Matcher<int>& size_matcher) {
-  return MakeMatcher(new IsStackSlotMatcher(size_matcher));
+Matcher<Node*> IsStackSlot(
+    const Matcher<StackSlotRepresentation>& rep_matcher) {
+  return MakeMatcher(new IsStackSlotMatcher(rep_matcher));
 }
 
 Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,

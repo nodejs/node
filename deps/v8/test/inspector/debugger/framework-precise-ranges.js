@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks framework debugging with blackboxed ranges.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks framework debugging with blackboxed ranges.');
 
-InspectorTest.addScript(
+contextGroup.addScript(
     `
 function foo() {
   return boo();
@@ -18,9 +18,9 @@ function testFunction() {
 //# sourceURL=test.js`,
     7, 26);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
-  InspectorTest.logCallFrames(message.params.callFrames);
+  session.logCallFrames(message.params.callFrames);
   InspectorTest.log('');
   Protocol.Debugger.stepInto();
 });
@@ -64,7 +64,7 @@ var testSuite = [
 ];
 
 function testPositions(positions) {
-  utils.schedulePauseOnNextStatement('', '');
+  contextGroup.schedulePauseOnNextStatement('', '');
   return Protocol.Debugger
       .setBlackboxedRanges({scriptId: scriptId, positions: positions})
       .then(InspectorTest.logMessage)

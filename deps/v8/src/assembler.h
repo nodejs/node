@@ -69,9 +69,7 @@ class AssemblerBase: public Malloced {
     IsolateData(const IsolateData&) = default;
 
     bool serializer_enabled_;
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
     size_t max_old_generation_size_;
-#endif
 #if V8_TARGET_ARCH_X64
     Address code_range_start_;
 #endif
@@ -325,7 +323,7 @@ class RelocInfo {
 
   enum Mode {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
-    CODE_TARGET,  // Code target which is not any of the above.
+    CODE_TARGET,
     CODE_TARGET_WITH_ID,
     EMBEDDED_OBJECT,
     // To relocate pointers into the wasm memory embedded in wasm code
@@ -820,6 +818,7 @@ class ExternalReference BASE_EMBEDDED {
 
   static void SetUp();
 
+  // These functions must use the isolate in a thread-safe way.
   typedef void* ExternalReferenceRedirector(Isolate* isolate, void* original,
                                             Type type);
 
@@ -990,7 +989,18 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference libc_memchr_function(Isolate* isolate);
   static ExternalReference libc_memcpy_function(Isolate* isolate);
+  static ExternalReference libc_memmove_function(Isolate* isolate);
   static ExternalReference libc_memset_function(Isolate* isolate);
+
+  static ExternalReference try_internalize_string_function(Isolate* isolate);
+
+#ifdef V8_INTL_SUPPORT
+  static ExternalReference intl_convert_one_byte_to_lower(Isolate* isolate);
+  static ExternalReference intl_to_latin1_lower_table(Isolate* isolate);
+#endif  // V8_INTL_SUPPORT
+
+  template <typename SubjectChar, typename PatternChar>
+  static ExternalReference search_string_raw(Isolate* isolate);
 
   static ExternalReference page_flags(Page* page);
 

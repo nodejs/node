@@ -32,6 +32,7 @@ class StringUtil {
     return String::fromInteger(number);
   }
   static String fromDouble(double number) { return String::fromDouble(number); }
+  static double toDouble(const char* s, size_t len, bool* isOk);
   static size_t find(const String& s, const char* needle) {
     return s.find(needle);
   }

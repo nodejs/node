@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef V8_I18N_SUPPORT
+#ifndef V8_INTL_SUPPORT
+#error Internationalization is expected to be enabled.
+#endif  // V8_INTL_SUPPORT
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
-#include "src/i18n.h"
+#include "src/intl.h"
 #include "src/objects-inl.h"
 
 #include "unicode/normalizer2.h"
@@ -14,21 +16,14 @@
 namespace v8 {
 namespace internal {
 
-BUILTIN(StringPrototypeToLowerCaseI18N) {
-  HandleScope scope(isolate);
-  TO_THIS_STRING(string, "String.prototype.toLowerCase");
-  string = String::Flatten(string);
-  return ConvertCase(string, false, isolate);
-}
-
-BUILTIN(StringPrototypeToUpperCaseI18N) {
+BUILTIN(StringPrototypeToUpperCaseIntl) {
   HandleScope scope(isolate);
   TO_THIS_STRING(string, "String.prototype.toUpperCase");
   string = String::Flatten(string);
   return ConvertCase(string, true, isolate);
 }
 
-BUILTIN(StringPrototypeNormalizeI18N) {
+BUILTIN(StringPrototypeNormalizeIntl) {
   HandleScope handle_scope(isolate);
   TO_THIS_STRING(string, "String.prototype.normalize");
 
@@ -104,5 +99,3 @@ BUILTIN(StringPrototypeNormalizeI18N) {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_I18N_SUPPORT

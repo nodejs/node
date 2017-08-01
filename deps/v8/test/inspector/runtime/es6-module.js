@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks basic ES6 modules support.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks basic ES6 modules support.');
 
 var module1 = `
 export function foo() {
@@ -30,7 +30,7 @@ debugger;
 
 var module4 = '}';
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 // We get scriptParsed events for modules ..
 Protocol.Debugger.onScriptParsed(InspectorTest.logMessage);
 // .. scriptFailed to parse for modules with syntax error ..
@@ -38,7 +38,7 @@ Protocol.Debugger.onScriptFailedToParse(InspectorTest.logMessage);
 // .. API messages from modules contain correct stack trace ..
 Protocol.Runtime.onConsoleAPICalled(message => {
   InspectorTest.log(`console.log(${message.params.args[0].value})`);
-  InspectorTest.logCallFrames(message.params.stackTrace.callFrames);
+  session.logCallFrames(message.params.stackTrace.callFrames);
   InspectorTest.log('');
 });
 // .. we could break inside module and scope contains correct list of variables ..
@@ -53,9 +53,9 @@ Protocol.Runtime.onExceptionThrown(InspectorTest.logMessage);
 
 Protocol.Runtime.enable();
 Protocol.Debugger.enable()
-  .then(() => InspectorTest.addModule(module1, "module1"))
-  .then(() => InspectorTest.addModule(module2, "module2"))
-  .then(() => InspectorTest.addModule(module3, "module3"))
-  .then(() => InspectorTest.addModule(module4, "module4"))
-  .then(() => InspectorTest.waitPendingTasks())
+  .then(() => contextGroup.addModule(module1, "module1"))
+  .then(() => contextGroup.addModule(module2, "module2"))
+  .then(() => contextGroup.addModule(module3, "module3"))
+  .then(() => contextGroup.addModule(module4, "module4"))
+  .then(() => InspectorTest.waitForPendingTasks())
   .then(InspectorTest.completeTest);

@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks Debugger.scheduleStepIntoAsync.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks Debugger.scheduleStepIntoAsync.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function testNoScheduledTask() {
   debugger;
   return 42;
@@ -47,7 +47,7 @@ function testBlackboxedCreatePromise() {
 }
 //# sourceURL=test.js`);
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 
 function createPromise() {
   return Promise.resolve().then(v => v * 3).then(v => v * 4);
@@ -55,7 +55,7 @@ function createPromise() {
 
 //# sourceURL=framework.js`)
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 
 Protocol.Debugger.enable();
 InspectorTest.runAsyncTestSuite([
@@ -154,6 +154,6 @@ InspectorTest.runAsyncTestSuite([
 async function waitPauseAndDumpLocation() {
   var message = await Protocol.Debugger.oncePaused();
   InspectorTest.log('paused at:');
-  InspectorTest.logSourceLocation(message.params.callFrames[0].location);
+  session.logSourceLocation(message.params.callFrames[0].location);
   return message;
 }

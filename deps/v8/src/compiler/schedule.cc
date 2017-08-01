@@ -4,8 +4,8 @@
 
 #include "src/compiler/schedule.h"
 
-#include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -95,6 +95,8 @@ BasicBlock* BasicBlock::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
   }
   return b1;
 }
+
+void BasicBlock::Print() { OFStream(stdout) << this; }
 
 std::ostream& operator<<(std::ostream& os, const BasicBlock& block) {
   os << "B" << block.id();
@@ -415,6 +417,21 @@ void Schedule::EnsureDeferredCodeSingleEntryPoint(BasicBlock* block) {
   merger->set_deferred(false);
   block->predecessors().clear();
   block->predecessors().push_back(merger);
+  MovePhis(block, merger);
+}
+
+void Schedule::MovePhis(BasicBlock* from, BasicBlock* to) {
+  for (size_t i = 0; i < from->NodeCount();) {
+    Node* node = from->NodeAt(i);
+    if (node->opcode() == IrOpcode::kPhi) {
+      to->AddNode(node);
+      from->RemoveNode(from->begin() + i);
+      DCHECK_EQ(nodeid_to_block_[node->id()], from);
+      nodeid_to_block_[node->id()] = to;
+    } else {
+      ++i;
+    }
+  }
 }
 
 void Schedule::PropagateDeferredMark() {

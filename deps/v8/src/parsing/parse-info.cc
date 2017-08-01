@@ -50,7 +50,6 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   set_toplevel(shared->is_toplevel());
   set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   set_is_named_expression(shared->is_named_expression());
-  set_calls_eval(shared->scope_info()->CallsEval());
   set_compiler_hints(shared->compiler_hints());
   set_start_position(shared->start_position());
   set_end_position(shared->end_position());
@@ -58,7 +57,6 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   set_language_mode(shared->language_mode());
   set_shared_info(shared);
   set_module(shared->kind() == FunctionKind::kModule);
-  set_scope_info_is_empty(shared->scope_info() == ScopeInfo::Empty(isolate));
 
   Handle<Script> script(Script::cast(shared->script()));
   set_script(script);
@@ -107,7 +105,6 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   p->set_toplevel(shared->is_toplevel());
   p->set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   p->set_is_named_expression(shared->is_named_expression());
-  p->set_calls_eval(shared->scope_info()->CallsEval());
   p->set_compiler_hints(shared->compiler_hints());
   p->set_start_position(shared->start_position());
   p->set_end_position(shared->end_position());
@@ -115,7 +112,6 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   p->set_language_mode(shared->language_mode());
   p->set_shared_info(shared);
   p->set_module(shared->kind() == FunctionKind::kModule);
-  p->set_scope_info_is_empty(shared->scope_info() == ScopeInfo::Empty(isolate));
 
   // BUG(5946): This function exists as a workaround until we can
   // get rid of %SetCode in our native functions. The ParseInfo
@@ -166,6 +162,38 @@ void ParseInfo::InitFromIsolate(Isolate* isolate) {
       isolate->is_tail_call_elimination_enabled());
   set_runtime_call_stats(isolate->counters()->runtime_call_stats());
   set_ast_string_constants(isolate->ast_string_constants());
+}
+
+void ParseInfo::UpdateStatisticsAfterBackgroundParse(Isolate* isolate) {
+  // Copy over the counters from the background thread to the main counters on
+  // the isolate.
+  RuntimeCallStats* main_call_stats = isolate->counters()->runtime_call_stats();
+  if (FLAG_runtime_stats ==
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE) {
+    DCHECK_NE(main_call_stats, runtime_call_stats());
+    DCHECK_NOT_NULL(main_call_stats);
+    DCHECK_NOT_NULL(runtime_call_stats());
+    main_call_stats->Add(runtime_call_stats());
+  }
+  set_runtime_call_stats(main_call_stats);
+}
+
+void ParseInfo::ParseFinished(std::unique_ptr<ParseInfo> info) {
+  if (info->literal()) {
+    base::LockGuard<base::Mutex> access_child_infos(&child_infos_mutex_);
+    child_infos_.emplace_back(std::move(info));
+  }
+}
+
+std::map<int, ParseInfo*> ParseInfo::child_infos() const {
+  base::LockGuard<base::Mutex> access_child_infos(&child_infos_mutex_);
+  std::map<int, ParseInfo*> rv;
+  for (const auto& child_info : child_infos_) {
+    DCHECK_NOT_NULL(child_info->literal());
+    int start_position = child_info->literal()->start_position();
+    rv.insert(std::make_pair(start_position, child_info.get()));
+  }
+  return rv;
 }
 
 #ifdef DEBUG

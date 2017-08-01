@@ -56,6 +56,12 @@ function toSlowMode(re) {
   assertFalse(re.dotAll);
 }
 
+// Different construction variants with all flags.
+{
+  assertEquals("gimsuy", new RegExp("", "yusmig").flags);
+  assertEquals("gimsuy", new RegExp().compile("", "yusmig").flags);
+}
+
 // Default '.' behavior.
 {
   let re = /^.$/;

@@ -361,6 +361,9 @@ constexpr DoubleRegister kDoubleRegZero = f28;
 // Used on mips64r6 for compare operations.
 // We use the last non-callee saved odd register for N64 ABI
 constexpr DoubleRegister kDoubleCompareReg = f23;
+// MSA zero and scratch regs must have the same numbers as FPU zero and scratch
+constexpr Simd128Register kSimd128RegZero = w28;
+constexpr Simd128Register kSimd128ScratchReg = w30;
 
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.
@@ -1002,9 +1005,11 @@ class Assembler : public AssemblerBase {
   void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void ext_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void dext_(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void dextm(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void dextu(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void dextm_(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void dextu_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void dins_(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void dinsm_(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void dinsu_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void bitswap(Register rd, Register rt);
   void dbitswap(Register rd, Register rt);
   void align(Register rd, Register rs, Register rt, uint8_t bp);
@@ -1898,7 +1903,6 @@ class Assembler : public AssemblerBase {
 
   // Helpers.
   void LoadRegPlusOffsetToAt(const MemOperand& src);
-  int32_t LoadRegPlusUpperOffsetPartToAt(const MemOperand& src);
 
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to
@@ -1974,6 +1978,9 @@ class Assembler : public AssemblerBase {
   inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
 
  private:
+  // Avoid overflows for displacements etc.
+  static const int kMaximalBufferSize = 512 * MB;
+
   // Buffer size and constant pool distance are checked together at regular
   // intervals of kBufferCheckInterval emitted bytes.
   static constexpr int kBufferCheckInterval = 1 * KB / 2;

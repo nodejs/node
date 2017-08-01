@@ -7,8 +7,8 @@
 #include "src/objects.h"
 #include "src/objects-inl.h"
 
-#ifdef V8_I18N_SUPPORT
-#include "src/i18n.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/intl.h"
 #endif
 
 namespace v8 {
@@ -28,7 +28,7 @@ static const char kDaysInMonths[] =
 DateCache::DateCache()
     : stamp_(0),
       tz_cache_(
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
           FLAG_icu_timezone_data ? new ICUTimezoneCache()
                                  : base::OS::CreateTimezoneCache()
 #else

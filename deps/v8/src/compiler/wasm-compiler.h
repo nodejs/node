@@ -48,13 +48,14 @@ namespace compiler {
 class WasmCompilationUnit final {
  public:
   WasmCompilationUnit(Isolate* isolate, wasm::ModuleBytesEnv* module_env,
-                      const wasm::WasmFunction* function);
+                      const wasm::WasmFunction* function, bool is_sync = true);
   WasmCompilationUnit(Isolate* isolate, wasm::ModuleEnv* module_env,
-                      wasm::FunctionBody body, wasm::WasmName name, int index);
+                      wasm::FunctionBody body, wasm::WasmName name, int index,
+                      bool is_sync = true);
 
-  Zone* graph_zone() { return graph_zone_.get(); }
   int func_index() const { return func_index_; }
 
+  void ReopenCentryStub() { centry_stub_ = handle(*centry_stub_, isolate_); }
   void InitializeHandles();
   void ExecuteCompilation();
   Handle<Code> FinishCompilation(wasm::ErrorThrower* thrower);
@@ -64,6 +65,9 @@ class WasmCompilationUnit final {
                                           wasm::ModuleBytesEnv* module_env,
                                           const wasm::WasmFunction* function);
 
+  void set_memory_cost(size_t memory_cost) { memory_cost_ = memory_cost; }
+  size_t memory_cost() const { return memory_cost_; }
+
  private:
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
 
@@ -71,21 +75,22 @@ class WasmCompilationUnit final {
   wasm::ModuleEnv* module_env_;
   wasm::FunctionBody func_body_;
   wasm::WasmName func_name_;
-  // The graph zone is deallocated at the end of ExecuteCompilation.
-  std::unique_ptr<Zone> graph_zone_;
-  JSGraph* jsgraph_;
-  Zone compilation_zone_;
-  CompilationInfo info_;
+  bool is_sync_;
+  // The graph zone is deallocated at the end of ExecuteCompilation by virtue of
+  // it being zone allocated.
+  JSGraph* jsgraph_ = nullptr;
+  // the compilation_zone_, info_, and job_ fields need to survive past
+  // ExecuteCompilation, onto FinishCompilation (which happens on the main
+  // thread).
+  std::unique_ptr<Zone> compilation_zone_;
+  std::unique_ptr<CompilationInfo> info_;
   std::unique_ptr<CompilationJob> job_;
+  Handle<Code> centry_stub_;
   int func_index_;
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   bool ok_ = true;
-#if DEBUG
-  bool handles_initialized_ = false;
-#endif  // DEBUG
-  ZoneVector<trap_handler::ProtectedInstructionData>
-      protected_instructions_;  // Instructions that are protected by the signal
-                                // handler.
+  size_t memory_cost_ = 0;
+  void ExecuteCompilationInternal();
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };
@@ -115,7 +120,8 @@ typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   WasmGraphBuilder(
-      wasm::ModuleEnv* module_env, Zone* z, JSGraph* g, wasm::FunctionSig* sig,
+      wasm::ModuleEnv* module_env, Zone* z, JSGraph* g,
+      Handle<Code> centry_stub_, wasm::FunctionSig* sig,
       compiler::SourcePositionTable* source_position_table = nullptr);
 
   Node** Buffer(size_t count) {
@@ -252,7 +258,7 @@ class WasmGraphBuilder {
   Node* SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
                     const NodeVector& inputs);
 
-  Node* SimdSwizzleOp(wasm::WasmOpcode opcode, uint32_t swizzle,
+  Node* SimdShuffleOp(uint8_t shuffle[16], unsigned lanes,
                       const NodeVector& inputs);
 
   bool has_simd() const { return has_simd_; }
@@ -265,6 +271,7 @@ class WasmGraphBuilder {
 
   Zone* zone_;
   JSGraph* jsgraph_;
+  Node* centry_stub_node_;
   wasm::ModuleEnv* module_ = nullptr;
   Node* mem_buffer_ = nullptr;
   Node* mem_size_ = nullptr;

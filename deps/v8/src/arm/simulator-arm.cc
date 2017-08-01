@@ -803,6 +803,8 @@ void Simulator::TearDown(base::CustomMatcherHashMap* i_cache,
 void* Simulator::RedirectExternalReference(Isolate* isolate,
                                            void* external_function,
                                            ExternalReference::Type type) {
+  base::LockGuard<base::Mutex> lock_guard(
+      isolate->simulator_redirection_mutex());
   Redirection* redirection = Redirection::Get(isolate, external_function, type);
   return redirection->address_of_swi_instruction();
 }
@@ -1706,12 +1708,11 @@ void Simulator::HandleVList(Instruction* instr) {
 // 64-bit value. With the code below we assume that all runtime calls return
 // 64 bits of result. If they don't, the r1 result register contains a bogus
 // value, which is fine because it is caller-saved.
-typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0,
-                                        int32_t arg1,
-                                        int32_t arg2,
-                                        int32_t arg3,
-                                        int32_t arg4,
-                                        int32_t arg5);
+typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0, int32_t arg1,
+                                        int32_t arg2, int32_t arg3,
+                                        int32_t arg4, int32_t arg5,
+                                        int32_t arg6, int32_t arg7,
+                                        int32_t arg8);
 
 typedef ObjectTriple (*SimulatorRuntimeTripleCall)(int32_t arg0, int32_t arg1,
                                                    int32_t arg2, int32_t arg3,
@@ -1752,6 +1753,11 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       int32_t* stack_pointer = reinterpret_cast<int32_t*>(get_register(sp));
       int32_t arg4 = stack_pointer[0];
       int32_t arg5 = stack_pointer[1];
+      int32_t arg6 = stack_pointer[2];
+      int32_t arg7 = stack_pointer[3];
+      int32_t arg8 = stack_pointer[4];
+      STATIC_ASSERT(kMaxCParameters == 9);
+
       bool fp_call =
          (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
          (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
@@ -1939,16 +1945,17 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF(
               "Call to host function at %p "
-              "args %08x, %08x, %08x, %08x, %08x, %08x",
+              "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x",
               static_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2, arg3,
-              arg4, arg5);
+              arg4, arg5, arg6, arg7, arg8);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
+        int64_t result =
+            target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
         if (::v8::internal::FLAG_trace_sim) {
@@ -4216,6 +4223,34 @@ void ArithmeticShiftRight(Simulator* simulator, int Vd, int Vm, int shift) {
 }
 
 template <typename T, int SIZE>
+void ShiftLeftAndInsert(Simulator* simulator, int Vd, int Vm, int shift) {
+  static const int kElems = SIZE / sizeof(T);
+  T src[kElems];
+  T dst[kElems];
+  simulator->get_neon_register<T, SIZE>(Vm, src);
+  simulator->get_neon_register<T, SIZE>(Vd, dst);
+  uint64_t mask = (1llu << shift) - 1llu;
+  for (int i = 0; i < kElems; i++) {
+    dst[i] = (src[i] << shift) | (dst[i] & mask);
+  }
+  simulator->set_neon_register<T, SIZE>(Vd, dst);
+}
+
+template <typename T, int SIZE>
+void ShiftRightAndInsert(Simulator* simulator, int Vd, int Vm, int shift) {
+  static const int kElems = SIZE / sizeof(T);
+  T src[kElems];
+  T dst[kElems];
+  simulator->get_neon_register<T, SIZE>(Vm, src);
+  simulator->get_neon_register<T, SIZE>(Vd, dst);
+  uint64_t mask = ~((1llu << (kBitsPerByte * SIZE - shift)) - 1llu);
+  for (int i = 0; i < kElems; i++) {
+    dst[i] = (src[i] >> shift) | (dst[i] & mask);
+  }
+  simulator->set_neon_register<T, SIZE>(Vd, dst);
+}
+
+template <typename T, int SIZE>
 void CompareEqual(Simulator* simulator, int Vd, int Vm, int Vn) {
   static const int kElems = SIZE / sizeof(T);
   T src1[kElems], src2[kElems];
@@ -4269,6 +4304,20 @@ void PairwiseMinMax(Simulator* simulator, int Vd, int Vm, int Vn, bool min) {
   for (int i = 0; i < kPairs; i++) {
     dst[i] = MinMax(src1[i * 2], src1[i * 2 + 1], min);
     dst[i + kPairs] = MinMax(src2[i * 2], src2[i * 2 + 1], min);
+  }
+  simulator->set_neon_register<T, kDoubleSize>(Vd, dst);
+}
+
+template <typename T>
+void PairwiseAdd(Simulator* simulator, int Vd, int Vm, int Vn) {
+  static const int kElems = kDoubleSize / sizeof(T);
+  static const int kPairs = kElems / 2;
+  T dst[kElems], src1[kElems], src2[kElems];
+  simulator->get_neon_register<T, kDoubleSize>(Vn, src1);
+  simulator->get_neon_register<T, kDoubleSize>(Vm, src2);
+  for (int i = 0; i < kPairs; i++) {
+    dst[i] = src1[i * 2] + src1[i * 2 + 1];
+    dst[i + kPairs] = src2[i * 2] + src2[i * 2 + 1];
   }
   simulator->set_neon_register<T, kDoubleSize>(Vd, dst);
 }
@@ -4477,6 +4526,25 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               break;
             case Neon32:
               PairwiseMinMax<int32_t>(this, Vd, Vm, Vn, min);
+              break;
+            default:
+              UNREACHABLE();
+              break;
+          }
+          break;
+        }
+        case 0xb: {
+          // vpadd.i<size> Dd, Dm, Dn.
+          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+          switch (size) {
+            case Neon8:
+              PairwiseAdd<int8_t>(this, Vd, Vm, Vn);
+              break;
+            case Neon16:
+              PairwiseAdd<int16_t>(this, Vd, Vm, Vn);
+              break;
+            case Neon32:
+              PairwiseAdd<int32_t>(this, Vd, Vm, Vn);
               break;
             default:
               UNREACHABLE();
@@ -4832,7 +4900,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           break;
         }
         case 0xd: {
-          if (instr->Bit(21) == 0 && instr->Bit(6) == 1 && instr->Bit(4) == 1) {
+          if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
+              instr->Bit(4) == 1) {
             // vmul.f32 Qd, Qn, Qm
             float src1[4], src2[4];
             get_neon_register(Vn, src1);
@@ -4841,6 +4910,10 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               src1[i] = src1[i] * src2[i];
             }
             set_neon_register(Vd, src1);
+          } else if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 0 &&
+                     instr->Bit(4) == 0) {
+            // vpadd.f32 Dd, Dn, Dm
+            PairwiseAdd<float>(this, Vd, Vm, Vn);
           } else {
             UNIMPLEMENTED();
           }
@@ -4950,14 +5023,40 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             set_neon_register(vd, mval);
           }
         } else if (instr->Bits(11, 7) == 0x18) {
-          // vdup.32 Qd, Sm.
-          int vd = instr->VFPDRegValue(kSimd128Precision);
+          // vdup.<size> Dd, Dm[index].
+          // vdup.<size> Qd, Dm[index].
           int vm = instr->VFPMRegValue(kDoublePrecision);
-          int index = instr->Bit(19);
-          uint32_t s_data = get_s_register(vm * 2 + index);
-          uint32_t q_data[4];
-          for (int i = 0; i < 4; i++) q_data[i] = s_data;
-          set_neon_register(vd, q_data);
+          int imm4 = instr->Bits(19, 16);
+          int size = 0, index = 0, mask = 0;
+          if ((imm4 & 0x1) != 0) {
+            size = 8;
+            index = imm4 >> 1;
+            mask = 0xffu;
+          } else if ((imm4 & 0x2) != 0) {
+            size = 16;
+            index = imm4 >> 2;
+            mask = 0xffffu;
+          } else {
+            size = 32;
+            index = imm4 >> 3;
+            mask = 0xffffffffu;
+          }
+          uint64_t d_data;
+          get_d_register(vm, &d_data);
+          uint32_t scalar = (d_data >> (size * index)) & mask;
+          uint32_t duped = scalar;
+          for (int i = 1; i < 32 / size; i++) {
+            scalar <<= size;
+            duped |= scalar;
+          }
+          uint32_t result[4] = {duped, duped, duped, duped};
+          if (instr->Bit(6) == 0) {
+            int vd = instr->VFPDRegValue(kDoublePrecision);
+            set_d_register(vd, result);
+          } else {
+            int vd = instr->VFPDRegValue(kSimd128Precision);
+            set_neon_register(vd, result);
+          }
         } else if (instr->Bits(19, 16) == 0 && instr->Bits(11, 6) == 0x17) {
           // vmvn Qd, Qm.
           int vd = instr->VFPDRegValue(kSimd128Precision);
@@ -5329,6 +5428,58 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             break;
           case Neon32:
             ShiftRight<uint32_t, kSimd128Size>(this, Vd, Vm, shift);
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
+      } else if (instr->Bits(11, 8) == 0x5 && instr->Bit(6) == 0 &&
+                 instr->Bit(4) == 1) {
+        // vsli.<size> Dd, Dm, shift
+        int imm7 = instr->Bits(21, 16);
+        if (instr->Bit(7) != 0) imm7 += 64;
+        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int shift = imm7 - size;
+        int Vd = instr->VFPDRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        switch (size) {
+          case 8:
+            ShiftLeftAndInsert<uint8_t, kDoubleSize>(this, Vd, Vm, shift);
+            break;
+          case 16:
+            ShiftLeftAndInsert<uint16_t, kDoubleSize>(this, Vd, Vm, shift);
+            break;
+          case 32:
+            ShiftLeftAndInsert<uint32_t, kDoubleSize>(this, Vd, Vm, shift);
+            break;
+          case 64:
+            ShiftLeftAndInsert<uint64_t, kDoubleSize>(this, Vd, Vm, shift);
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
+      } else if (instr->Bits(11, 8) == 0x4 && instr->Bit(6) == 0 &&
+                 instr->Bit(4) == 1) {
+        // vsri.<size> Dd, Dm, shift
+        int imm7 = instr->Bits(21, 16);
+        if (instr->Bit(7) != 0) imm7 += 64;
+        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int shift = 2 * size - imm7;
+        int Vd = instr->VFPDRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        switch (size) {
+          case 8:
+            ShiftRightAndInsert<uint8_t, kDoubleSize>(this, Vd, Vm, shift);
+            break;
+          case 16:
+            ShiftRightAndInsert<uint16_t, kDoubleSize>(this, Vd, Vm, shift);
+            break;
+          case 32:
+            ShiftRightAndInsert<uint32_t, kDoubleSize>(this, Vd, Vm, shift);
+            break;
+          case 64:
+            ShiftRightAndInsert<uint64_t, kDoubleSize>(this, Vd, Vm, shift);
             break;
           default:
             UNREACHABLE();

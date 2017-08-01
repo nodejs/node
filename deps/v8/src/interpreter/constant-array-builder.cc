@@ -38,11 +38,13 @@ void ConstantArrayBuilder::ConstantArraySlice::Unreserve() {
 }
 
 size_t ConstantArrayBuilder::ConstantArraySlice::Allocate(
-    ConstantArrayBuilder::Entry entry) {
-  DCHECK_GT(available(), 0u);
+    ConstantArrayBuilder::Entry entry, size_t count) {
+  DCHECK_GE(available(), count);
   size_t index = constants_.size();
   DCHECK_LT(index, capacity());
-  constants_.push_back(entry);
+  for (size_t i = 0; i < count; ++i) {
+    constants_.push_back(entry);
+  }
   return index + start_index();
 }
 
@@ -65,7 +67,12 @@ void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique(
     Isolate* isolate) const {
   std::set<Object*> elements;
   for (const Entry& entry : constants_) {
+    // TODO(leszeks): Ignore jump tables because they have to be contiguous,
+    // so they can contain duplicates.
+    if (entry.IsJumpTableEntry()) continue;
+
     Handle<Object> handle = entry.ToHandle(isolate);
+
     if (elements.find(*handle) != elements.end()) {
       std::ostringstream os;
       os << "Duplicate constant found: " << Brief(*handle) << std::endl;
@@ -220,9 +227,14 @@ SINGLETON_CONSTANT_ENTRY_TYPES(INSERT_ENTRY)
 
 ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateIndex(
     ConstantArrayBuilder::Entry entry) {
+  return AllocateIndexArray(entry, 1);
+}
+
+ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateIndexArray(
+    ConstantArrayBuilder::Entry entry, size_t count) {
   for (size_t i = 0; i < arraysize(idx_slice_); ++i) {
-    if (idx_slice_[i]->available() > 0) {
-      return static_cast<index_t>(idx_slice_[i]->Allocate(entry));
+    if (idx_slice_[i]->available() >= count) {
+      return static_cast<index_t>(idx_slice_[i]->Allocate(entry, count));
     }
   }
   UNREACHABLE();
@@ -254,9 +266,22 @@ size_t ConstantArrayBuilder::InsertDeferred() {
   return AllocateIndex(Entry::Deferred());
 }
 
+size_t ConstantArrayBuilder::InsertJumpTable(size_t size) {
+  return AllocateIndexArray(Entry::UninitializedJumpTableSmi(), size);
+}
+
 void ConstantArrayBuilder::SetDeferredAt(size_t index, Handle<Object> object) {
   ConstantArraySlice* slice = IndexToSlice(index);
   return slice->At(index).SetDeferred(object);
+}
+
+void ConstantArrayBuilder::SetJumpTableSmi(size_t index, Smi* smi) {
+  ConstantArraySlice* slice = IndexToSlice(index);
+  // Allow others to reuse these Smis, but insert using emplace to avoid
+  // overwriting existing values in the Smi map (which may have a smaller
+  // operand size).
+  smi_map_.emplace(smi, static_cast<index_t>(index));
+  return slice->At(index).SetJumpTableSmi(smi);
 }
 
 OperandSize ConstantArrayBuilder::CreateReservedEntry() {
@@ -311,7 +336,11 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
     case Tag::kHandle:
       return handle_;
     case Tag::kSmi:
+    case Tag::kJumpTableSmi:
       return handle(smi_, isolate);
+    case Tag::kUninitializedJumpTableSmi:
+      // TODO(leszeks): There's probably a better value we could use here.
+      return isolate->factory()->the_hole_value();
     case Tag::kRawString:
       return raw_string_->string();
     case Tag::kHeapNumber:

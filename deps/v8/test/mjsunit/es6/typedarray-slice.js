@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --allow-natives-syntax
+
 var typedArrayConstructors = [
   Uint8Array,
   Int8Array,
@@ -66,6 +68,18 @@ for (var constructor of typedArrayConstructors) {
   assertEquals(2, slice[0]);
   assertEquals(3, slice[1]);
   assertTrue(slice instanceof constructor);
+
+  // Detached Operation
+  var tmp = {
+    [Symbol.toPrimitive]() {
+      assertUnreachable("Parameter should not be processed when " +
+                        "array.[[ViewedArrayBuffer]] is neutered.");
+      return 0;
+    }
+  };
+  var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  %ArrayBufferNeuter(array.buffer);
+  assertThrows(() => array.slice(tmp, tmp), TypeError);
 
   // Check that the species array must be a typed array
   class MyTypedArray extends constructor {

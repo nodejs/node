@@ -2,16 +2,16 @@ Checks that stepping is cleared after breakProgram.
 paused at:
 function callBreakProgram() {
   #debugger;
-  breakProgram('reason', '');
+  inspector.breakProgram('reason', '');
 
 paused at:
   debugger;
-  #breakProgram('reason', '');
+  #inspector.breakProgram('reason', '');
 }
 
 paused at:
   debugger;
-  #breakProgram('reason', '');
+  inspector.#breakProgram('reason', '');
 }
 
 paused at:
