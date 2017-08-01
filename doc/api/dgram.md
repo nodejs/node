@@ -455,27 +455,30 @@ s.bind(1234, () => {
 ### dgram.createSocket(options[, callback])
 <!-- YAML
 added: v0.11.13
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/14560
+    description: The `lookup` option is supported.
 -->
 
-* `options` {Object}
-* `callback` {Function} Attached as a listener to `'message'` events.
+* `options` {Object} Available options are:
+  * `type` {string} The family of socket. Must be either `'udp4'` or `'udp6'`.
+    Required.
+  * `reuseAddr` {boolean} When `true` [`socket.bind()`][] will reuse the
+    address, even if another process has already bound a socket on it. Optional.
+    Defaults to `false`.
+  * `lookup` {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
+    Optional.
+* `callback` {Function} Attached as a listener for `'message'` events. Optional.
 * Returns: {dgram.Socket}
 
-Creates a `dgram.Socket` object. The `options` argument is an object that
-should contain a `type` field of either `udp4` or `udp6` and an optional
-boolean `reuseAddr` field.
-
-When `reuseAddr` is `true` [`socket.bind()`][] will reuse the address, even if
-another process has already bound a socket on it. `reuseAddr` defaults to
-`false`. The optional `callback` function is added as a listener for `'message'`
-events.
-
-Once the socket is created, calling [`socket.bind()`][] will instruct the
-socket to begin listening for datagram messages. When `address` and `port` are
-not passed to  [`socket.bind()`][] the method will bind the socket to the "all
-interfaces" address on a random port (it does the right thing for both `udp4`
-and `udp6` sockets). The bound address and port can be retrieved using
-[`socket.address().address`][] and [`socket.address().port`][].
+Creates a `dgram.Socket` object. Once the socket is created, calling
+[`socket.bind()`][] will instruct the socket to begin listening for datagram
+messages. When `address` and `port` are not passed to  [`socket.bind()`][] the
+method will bind the socket to the "all interfaces" address on a random port
+(it does the right thing for both `udp4` and `udp6` sockets). The bound address
+and port can be retrieved using [`socket.address().address`][] and
+[`socket.address().port`][].
 
 ### dgram.createSocket(type[, callback])
 <!-- YAML
@@ -505,6 +508,7 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`cluster`]: cluster.html
 [`dgram.Socket#bind()`]: #dgram_socket_bind_options_callback
 [`dgram.createSocket()`]: #dgram_dgram_createsocket_options_callback
+[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`socket.address().address`]: #dgram_socket_address
 [`socket.address().port`]: #dgram_socket_address
 [`socket.bind()`]: #dgram_socket_bind_port_address_callback
