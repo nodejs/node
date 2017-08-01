@@ -3,11 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const repl = require('repl');
 
-test();
-
-function test() {
-  testParseREPLKeyword();
-}
+testParseREPLKeyword();
 
 function testParseREPLKeyword() {
   const server = repl.start({ prompt: '> ' });
