@@ -591,7 +591,8 @@ For TCP connections, available `options` are:
 For [IPC][] connections, available `options` are:
 
 * `path` {string} Required. Path the client should connect to.
-  See [Identifying paths for IPC connections][].
+  See [Identifying paths for IPC connections][]. If provided, the TCP-specific
+  options above are ignored.
 
 Returns `socket`.
 
