@@ -1803,10 +1803,10 @@ req.end('Jane');
 
 ## Compatibility API
 
-The Compatibility API has the goal of providing a similar developer experience of
-HTTP/1 when using HTTP/2, making it possible to develop applications
-that supports both [HTTP/1](HTTP/1) and HTTP/2. This API targets only the **public
-API** of the [HTTP/1](HTTP/1), however many modules uses internal
+The Compatibility API has the goal of providing a similar developer experience
+of HTTP/1 when using HTTP/2, making it possible to develop applications
+that supports both [HTTP/1](HTTP/1) and HTTP/2. This API targets only the
+**public API** of the [HTTP/1](HTTP/1), however many modules uses internal
 methods or state, and those _are not supported_ as it is a completely
 different implementation.
 
@@ -1823,7 +1823,7 @@ const server = http2.createServer((req, res) => {
 });
 ```
 
-In order to create a mixed [HTTPs](https) and HTTP/2 server, refer to the
+In order to create a mixed [HTTPS](https) and HTTP/2 server, refer to the
 [ALPN negotiation](alpn-negotiation) section.
 Upgrading from non-tls HTTP/1 servers is not supported.
 
@@ -1834,8 +1834,8 @@ the status message for HTTP codes is ignored.
 
 ### ALPN negotiation
 
-ALPN negotiation allows to support both [HTTPs](https) and HTTP/2 over
-the same socket. the `req` and `res` object could be either HTTP/1 or
+ALPN negotiation allows to support both [HTTPS](https) and HTTP/2 over
+the same socket. The `req` and `res` objects can be either HTTP/1 or
 HTTP/2, and an application **must** restrict itself to the public API of
 [HTTP/1](), and detect if it is possible to use the more advanced
 features of HTTP/2.
@@ -1855,7 +1855,7 @@ const server = createSecureServer(
 ).listen(4443);
 
 function onRequest(req, res) {
-  // detects if it is a HTTPs request or HTTP/2
+  // detects if it is a HTTPS request or HTTP/2
   const { socket: { alpnProtocol } } = request.httpVersion === '2.0' ?
     request.stream.session : request;
   response.writeHead(200, { 'content-type': 'application/json' });
@@ -1866,7 +1866,7 @@ function onRequest(req, res) {
 }
 ```
 
-The `'request'` event works identically on both [HTTPs](https) and
+The `'request'` event works identically on both [HTTPS](https) and
 HTTP/2.
 
 ### Class: http2.Http2ServerRequest
@@ -1875,8 +1875,9 @@ added: REPLACEME
 -->
 
 A `Http2ServerRequest` object is created by [`http2.Server`][] or
-[`http2.SecureServer`][] and passed as the first argument to the [`'request'`][] event. It may be used to access a request status,
-headers and data.
+[`http2.SecureServer`][] and passed as the first argument to the
+[`'request'`][] event. It may be used to access a request status, headers and
+data.
 
 It implements the [Readable Stream][] interface, as well as the
 following additional events, methods, and properties.
@@ -1907,9 +1908,9 @@ added: REPLACEME
 
 * `error` {Error}
 
-Calls `destroy()` on the [Http2Stream]() that received the `ServerRequest`. If `error`
-is provided, an `'error'` event is emitted and `error` is passed as an argument
-to any listeners on the event.
+Calls `destroy()` on the [Http2Stream]() that received the `ServerRequest`. If
+`error` is provided, an `'error'` event is emitted and `error` is passed as an
+argument to any listeners on the event.
 
 It does nothing if the stream was already destroyed.
 
@@ -2201,7 +2202,7 @@ added: REPLACEME
 * `name` {string}
 * Returns: {string}
 
-Reads out a header that's already been queued but not sent to the client.
+Reads out a header that has already been queued but not sent to the client.
 Note that the name is case insensitive.
 
 Example:
@@ -2291,7 +2292,7 @@ added: REPLACEME
 
 * `name` {string}
 
-Removes a header that's queued for implicit sending.
+Removes a header that has been queued for implicit sending.
 
 Example:
 
@@ -2339,9 +2340,9 @@ response.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
-When headers have been set with [`response.setHeader()`][], they will be merged with
-any headers passed to [`response.writeHead()`][], with the headers passed to
-[`response.writeHead()`][] given precedence.
+When headers have been set with [`response.setHeader()`][], they will be merged
+with any headers passed to [`response.writeHead()`][], with the headers passed
+to [`response.writeHead()`][] given precedence.
 
 ```js
 // returns content-type = text/plain
@@ -2366,9 +2367,9 @@ provided, then it is added as a listener on the `'timeout'` event on
 the response object.
 
 If no `'timeout'` listener is added to the request, the response, or
-the server, then [`Http2Stream`]()s are destroyed when they time out.  If a handler is
-assigned to the request, the response, or the server's `'timeout'` events,
-timed out sockets must be handled explicitly.
+the server, then [`Http2Stream`]()s are destroyed when they time out. If a
+handler is assigned to the request, the response, or the server's `'timeout'`
+events, timed out sockets must be handled explicitly.
 
 Returns `response`.
 
@@ -2478,7 +2479,8 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 added: REPLACEME
 -->
 
-Throws an error as the `'continue'` flow is not current implemented. Added for parity with [HTTP/1]().
+Throws an error as the `'continue'` flow is not current implemented. Added for
+parity with [HTTP/1]().
 
 ### response.writeHead(statusCode[, statusMessage][, headers])
 <!-- YAML
@@ -2491,7 +2493,11 @@ added: REPLACEME
 
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like `404`. The last argument, `headers`, are the response headers.
-For compatibility with [HTTP/1](), one can give a human-readable `statusMessage` as the second argument, which will be silenty ignored and emit a warning.
+
+For compatibility with [HTTP/1](), a human-readable `statusMessage` may be
+passed as the second argument. However, because the `statusMessage` has no
+meaning within HTTP/2, the argument will have no effect and a process warning
+will be emitted.
 
 Example:
 
@@ -2502,15 +2508,22 @@ response.writeHead(200, {
   'Content-Type': 'text/plain' });
 ```
 
-This method must only be called once on a message and it must
-be called before [`response.end()`][] is called.
+Note that Content-Length is given in bytes not characters. The
+`Buffer.byteLength()` API  may be used to determine the number of bytes in a
+given encoding. On outbound messages, Node.js does not check if Content-Length
+and the length of the body being transmitted are equal or not. However, when
+receiving messages, Node.js will automatically reject messages when the
+Content-Length does not match the actual payload size.
+
+This method may be called at most one time on a message before
+[`response.end()`][] is called.
 
 If [`response.write()`][] or [`response.end()`][] are called before calling
 this, the implicit/mutable headers will be calculated and call this function.
 
-When headers have been set with [`response.setHeader()`][], they will be merged with
-any headers passed to [`response.writeHead()`][], with the headers passed to
-[`response.writeHead()`][] given precedence.
+When headers have been set with [`response.setHeader()`][], they will be merged
+with any headers passed to [`response.writeHead()`][], with the headers passed
+to [`response.writeHead()`][] given precedence.
 
 ```js
 // returns content-type = text/plain
@@ -2521,13 +2534,6 @@ const server = http2.createServer((req, res) => {
   res.end('ok');
 });
 ```
-
-Note that Content-Length is given in bytes not characters. The above example
-works because the string `'hello world'` contains only single byte characters.
-If the body contains higher coded characters then `Buffer.byteLength()`
-should be used to determine the number of bytes in a given encoding.
-And Node.js does not check whether Content-Length and the length of the body
-which has been transmitted are equal or not.
 
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
