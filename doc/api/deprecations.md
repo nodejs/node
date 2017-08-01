@@ -634,8 +634,8 @@ Type: End-of-Life
 
 *Note*: change was made while `async_hooks` was an experimental API.
 
-<a id="DEP00XX"></a>
-### DEP00XX: Several internal properties of net.Server
+<a id="DEP0073"></a>
+### DEP0073: Several internal properties of net.Server
 
 Type: Runtime
 
