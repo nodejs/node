@@ -306,9 +306,19 @@ def _ConfigWindowsTargetPlatformVersion(config_data, version):
         continue
       version = MSVSVersion._RegistryGetValue(key % ver, 'ProductVersion') or ''
       # Find a matching entry in sdk_dir\include.
-      names = sorted([x for x in os.listdir(r'%s\include' % sdk_dir)
+      expected_sdk_dir=r'%s\include' % sdk_dir
+      names = sorted([x for x in (os.listdir(expected_sdk_dir)
+                                  if os.path.isdir(expected_sdk_dir)
+                                  else []
+                                  )
                       if x.startswith(version)], reverse=True)
-      return names[0]
+      if names:
+        return names[0]
+      else:
+        print >> sys.stdout, (
+          'Warning: No include files found for '
+          'detected Windows SDK version %s' % (version)
+        )
 
 
 def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
@@ -2718,7 +2728,7 @@ def _GetMSBuildGlobalProperties(spec, version, guid, gyp_file_name):
     properties[0].append(['WindowsTargetPlatformVersion',
                           str(msvs_windows_sdk_version)])
   elif version.compatible_sdks:
-    raise GypError('%s requires any SDK of %o version, but non were found' %
+    raise GypError('%s requires any SDK of %s version, but none were found' %
                    (version.description, version.compatible_sdks))
 
   if platform_name == 'ARM':
