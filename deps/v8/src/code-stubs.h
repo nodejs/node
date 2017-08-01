@@ -45,7 +45,6 @@ class Node;
   V(MathPow)                                  \
   V(ProfileEntryHook)                         \
   V(RecordWrite)                              \
-  V(RegExpExec)                               \
   V(StoreBufferOverflow)                      \
   V(StoreSlowElement)                         \
   V(SubString)                                \
@@ -828,39 +827,29 @@ class CallApiCallbackStub : public PlatformCodeStub {
   static const int kArgMax = (1 << kArgBits) - 1;
 
   // CallApiCallbackStub for regular setters and getters.
-  CallApiCallbackStub(Isolate* isolate, bool is_store, bool call_data_undefined,
-                      bool is_lazy)
-      : CallApiCallbackStub(isolate, is_store ? 1 : 0, is_store,
-                            call_data_undefined, is_lazy) {}
+  CallApiCallbackStub(Isolate* isolate, bool is_store, bool is_lazy)
+      : CallApiCallbackStub(isolate, is_store ? 1 : 0, is_store, is_lazy) {}
 
   // CallApiCallbackStub for callback functions.
-  CallApiCallbackStub(Isolate* isolate, int argc, bool call_data_undefined,
-                      bool is_lazy)
-      : CallApiCallbackStub(isolate, argc, false, call_data_undefined,
-                            is_lazy) {}
+  CallApiCallbackStub(Isolate* isolate, int argc, bool is_lazy)
+      : CallApiCallbackStub(isolate, argc, false, is_lazy) {}
 
  private:
-  CallApiCallbackStub(Isolate* isolate, int argc, bool is_store,
-                      bool call_data_undefined, bool is_lazy)
+  CallApiCallbackStub(Isolate* isolate, int argc, bool is_store, bool is_lazy)
       : PlatformCodeStub(isolate) {
     CHECK(0 <= argc && argc <= kArgMax);
     minor_key_ = IsStoreBits::encode(is_store) |
-                 CallDataUndefinedBits::encode(call_data_undefined) |
                  ArgumentBits::encode(argc) |
                  IsLazyAccessorBits::encode(is_lazy);
   }
 
   bool is_store() const { return IsStoreBits::decode(minor_key_); }
   bool is_lazy() const { return IsLazyAccessorBits::decode(minor_key_); }
-  bool call_data_undefined() const {
-    return CallDataUndefinedBits::decode(minor_key_);
-  }
   int argc() const { return ArgumentBits::decode(minor_key_); }
 
   class IsStoreBits: public BitField<bool, 0, 1> {};
-  class CallDataUndefinedBits: public BitField<bool, 1, 1> {};
+  class IsLazyAccessorBits : public BitField<bool, 1, 1> {};
   class ArgumentBits : public BitField<int, 2, kArgBits> {};
-  class IsLazyAccessorBits : public BitField<bool, 3 + kArgBits, 1> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiCallback);
   DEFINE_PLATFORM_CODE_STUB(CallApiCallback, PlatformCodeStub);
@@ -1134,15 +1123,6 @@ class JSEntryStub : public PlatformCodeStub {
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(JSEntry, PlatformCodeStub);
-};
-
-
-class RegExpExecStub: public PlatformCodeStub {
- public:
-  explicit RegExpExecStub(Isolate* isolate) : PlatformCodeStub(isolate) { }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(RegExpExec);
-  DEFINE_PLATFORM_CODE_STUB(RegExpExec, PlatformCodeStub);
 };
 
 // TODO(bmeurer/mvstanton): Turn CallConstructStub into ConstructICStub.

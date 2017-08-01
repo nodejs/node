@@ -194,9 +194,9 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
 
 
 // static
-MaybeHandle<Object> Execution::New(Handle<JSFunction> constructor, int argc,
-                                   Handle<Object> argv[]) {
-  return New(constructor->GetIsolate(), constructor, constructor, argc, argv);
+MaybeHandle<Object> Execution::New(Isolate* isolate, Handle<Object> constructor,
+                                   int argc, Handle<Object> argv[]) {
+  return New(isolate, constructor, constructor, argc, argv);
 }
 
 

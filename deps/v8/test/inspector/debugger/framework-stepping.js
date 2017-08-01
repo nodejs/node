@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks stepping with blackboxed frames on stack');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks stepping with blackboxed frames on stack');
 
-InspectorTest.addScript(
+contextGroup.addScript(
     `
 function frameworkCall(funcs) {
   for (var f of funcs) f();
 }
 
 function frameworkBreakAndCall(funcs) {
-  breakProgram('', '');
+  inspector.breakProgram('', '');
   for (var f of funcs) f();
 }
 //# sourceURL=framework.js`,
     8, 4);
 
-InspectorTest.addScript(
+contextGroup.addScript(
     `
 function userFoo() {
   return 1;
@@ -37,7 +37,7 @@ function testStepFromFramework() {
 //# sourceURL=user.js`,
     21, 4);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 
 Protocol.Debugger.enable()
     .then(
@@ -47,7 +47,7 @@ Protocol.Debugger.enable()
 
 var testSuite = [
   function testStepIntoFromUser(next) {
-    utils.schedulePauseOnNextStatement('', '');
+    contextGroup.schedulePauseOnNextStatement('', '');
     test('testStepFromUser()', [
       'print',                          // before testStepFromUser call
       'stepInto', 'stepInto', 'print',  // userFoo
@@ -57,7 +57,7 @@ var testSuite = [
   },
 
   function testStepOverFromUser(next) {
-    utils.schedulePauseOnNextStatement('', '');
+    contextGroup.schedulePauseOnNextStatement('', '');
     test('testStepFromUser()', [
       'print',                          // before testStepFromUser call
       'stepInto', 'stepInto', 'print',  // userFoo
@@ -67,7 +67,7 @@ var testSuite = [
   },
 
   function testStepOutFromUser(next) {
-    utils.schedulePauseOnNextStatement('', '');
+    contextGroup.schedulePauseOnNextStatement('', '');
     test('testStepFromUser()', [
       'print',                          // before testStepFromUser call
       'stepInto', 'stepInto', 'print',  // userFoo
@@ -101,7 +101,7 @@ function test(entryExpression, actions) {
   Protocol.Debugger.onPaused(message => {
     var action = actions.shift() || 'resume';
     if (action === 'print') {
-      InspectorTest.logCallFrames(message.params.callFrames);
+      session.logCallFrames(message.params.callFrames);
       InspectorTest.log('');
       action = actions.shift() || 'resume';
     }

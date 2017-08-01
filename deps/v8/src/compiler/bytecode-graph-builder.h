@@ -29,7 +29,7 @@ class BytecodeGraphBuilder {
   BytecodeGraphBuilder(
       Zone* local_zone, Handle<SharedFunctionInfo> shared,
       Handle<FeedbackVector> feedback_vector, BailoutId osr_ast_id,
-      JSGraph* jsgraph, float invocation_frequency,
+      JSGraph* jsgraph, CallFrequency invocation_frequency,
       SourcePositionTable* source_positions,
       int inlining_id = SourcePosition::kNotInlined,
       JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags);
@@ -39,6 +39,7 @@ class BytecodeGraphBuilder {
 
  private:
   class Environment;
+  struct SubEnvironment;
 
   void VisitBytecodes(bool stack_check);
 
@@ -90,10 +91,15 @@ class BytecodeGraphBuilder {
   // Helpers to create new control nodes.
   Node* NewIfTrue() { return NewNode(common()->IfTrue()); }
   Node* NewIfFalse() { return NewNode(common()->IfFalse()); }
+  Node* NewIfValue(int32_t value) { return NewNode(common()->IfValue(value)); }
+  Node* NewIfDefault() { return NewNode(common()->IfDefault()); }
   Node* NewMerge() { return NewNode(common()->Merge(1), true); }
   Node* NewLoop() { return NewNode(common()->Loop(1), true); }
   Node* NewBranch(Node* condition, BranchHint hint = BranchHint::kNone) {
     return NewNode(common()->Branch(hint), condition);
+  }
+  Node* NewSwitch(Node* condition, int control_output_count) {
+    return NewNode(common()->Switch(control_output_count), condition);
   }
 
   // Creates a new Phi node having {count} input values.
@@ -206,7 +212,7 @@ class BytecodeGraphBuilder {
 
   // Helper function to compute call frequency from the recorded type
   // feedback.
-  float ComputeCallFrequency(int slot_id) const;
+  CallFrequency ComputeCallFrequency(int slot_id) const;
 
   // Control flow plumbing.
   void BuildJump();
@@ -220,6 +226,8 @@ class BytecodeGraphBuilder {
   void BuildJumpIfToBooleanFalse();
   void BuildJumpIfNotHole();
   void BuildJumpIfJSReceiver();
+
+  void BuildSwitchOnSmi(Node* condition);
 
   // Simulates control flow by forward-propagating environments.
   void MergeIntoSuccessorEnvironment(int target_offset);
@@ -315,7 +323,7 @@ class BytecodeGraphBuilder {
 
   Zone* local_zone_;
   JSGraph* jsgraph_;
-  float const invocation_frequency_;
+  CallFrequency const invocation_frequency_;
   Handle<BytecodeArray> bytecode_array_;
   Handle<HandlerTable> exception_handler_table_;
   Handle<FeedbackVector> feedback_vector_;
@@ -325,7 +333,6 @@ class BytecodeGraphBuilder {
   const BytecodeAnalysis* bytecode_analysis_;
   Environment* environment_;
   BailoutId osr_ast_id_;
-  int osr_loop_offset_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all

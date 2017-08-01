@@ -201,8 +201,7 @@ static Object* SliceHelper(BuiltinArguments args, Isolate* isolate,
 
     Handle<Object> new_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, new_obj,
-        Execution::New(Handle<JSFunction>::cast(ctor), argc, argv.start()));
+        isolate, new_obj, Execution::New(isolate, ctor, argc, argv.start()));
 
     new_ = Handle<JSReceiver>::cast(new_obj);
   }

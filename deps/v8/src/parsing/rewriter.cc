@@ -24,7 +24,7 @@ class Processor final : public AstVisitor<Processor> {
         breakable_(false),
         zone_(ast_value_factory->zone()),
         closure_scope_(closure_scope),
-        factory_(ast_value_factory) {
+        factory_(ast_value_factory, ast_value_factory->zone()) {
     DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
     InitializeAstVisitor(stack_limit);
   }
@@ -38,7 +38,7 @@ class Processor final : public AstVisitor<Processor> {
         breakable_(false),
         zone_(ast_value_factory->zone()),
         closure_scope_(closure_scope),
-        factory_(ast_value_factory) {
+        factory_(ast_value_factory, zone_) {
     DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
     InitializeAstVisitor(parser->stack_limit());
   }

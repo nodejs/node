@@ -935,7 +935,6 @@ void Assembler::cld() {
   emit(0xFC);
 }
 
-
 void Assembler::cdq() {
   EnsureSpace ensure_space(this);
   emit(0x99);
@@ -2892,11 +2891,11 @@ void Assembler::pextrw(Register dst, XMMRegister src, int8_t imm8) {
   DCHECK(is_uint8(imm8));
   EnsureSpace ensure_space(this);
   emit(0x66);
-  emit_optional_rex_32(dst, src);
+  emit_optional_rex_32(src, dst);
   emit(0x0F);
   emit(0x3A);
   emit(0x15);
-  emit_sse_operand(dst, src);
+  emit_sse_operand(src, dst);
   emit(imm8);
 }
 
@@ -4634,6 +4633,26 @@ void Assembler::psrldq(XMMRegister dst, uint8_t shift) {
   emit(0x73);
   emit_sse_operand(dst);
   emit(shift);
+}
+
+void Assembler::pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x70);
+  emit_sse_operand(dst, src);
+  emit(shuffle);
+}
+
+void Assembler::pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x70);
+  emit_sse_operand(dst, src);
+  emit(shuffle);
 }
 
 void Assembler::pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {

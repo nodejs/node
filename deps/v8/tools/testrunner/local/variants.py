@@ -10,11 +10,12 @@ ALL_VARIANT_FLAGS = {
   "turbofan_opt": [["--turbo", "--always-opt"]],
   "noturbofan": [["--no-turbo"]],
   "noturbofan_stress": [["--no-turbo", "--stress-opt", "--always-opt"]],
-  "fullcode": [["--nocrankshaft", "--no-turbo"]],
-  # No optimization actually means no profile guided optimization -
-  # %OptimizeFunctionOnNextCall still works.
-  "nooptimization": [["--nocrankshaft"]],
-  "asm_wasm": [["--validate-asm", "--fast-validate-asm", "--stress-validate-asm", "--suppress-asm-messages"]],
+  "fullcode": [["--noopt", "--no-turbo"]],
+  # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
+  # would not force optimization too. It turns into a Nop. Please see
+  # https://chromium-review.googlesource.com/c/452620/ for more discussion.
+  "nooptimization": [["--noopt"]],
+  "asm_wasm": [["--validate-asm", "--stress-validate-asm", "--suppress-asm-messages"]],
   "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
 
@@ -25,11 +26,12 @@ FAST_VARIANT_FLAGS = {
   "turbofan": [["--turbo"]],
   "noturbofan": [["--no-turbo"]],
   "noturbofan_stress": [["--no-turbo", "--stress-opt"]],
-  "fullcode": [["--nocrankshaft", "--no-turbo"]],
-  # No optimization actually means no profile guided optimization -
-  # %OptimizeFunctionOnNextCall still works.
-  "nooptimization": [["--nocrankshaft"]],
-  "asm_wasm": [["--validate-asm", "--fast-validate-asm", "--stress-validate-asm", "--suppress-asm-messages"]],
+  "fullcode": [["--noopt", "--no-turbo"]],
+  # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
+  # would not force optimization too. It turns into a Nop. Please see
+  # https://chromium-review.googlesource.com/c/452620/ for more discussion.
+  "nooptimization": [["--noopt"]],
+  "asm_wasm": [["--validate-asm", "--stress-validate-asm", "--suppress-asm-messages"]],
   "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
 

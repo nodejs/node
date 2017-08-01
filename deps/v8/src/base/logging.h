@@ -124,8 +124,10 @@ DEFINE_MAKE_CHECK_OP_STRING(void const*)
 template <typename Lhs, typename Rhs>
 struct is_signed_vs_unsigned {
   enum : bool {
-    value = std::is_integral<Lhs>::value && std::is_integral<Rhs>::value &&
-            std::is_signed<Lhs>::value && std::is_unsigned<Rhs>::value
+    value = std::is_integral<typename std::decay<Lhs>::type>::value &&
+            std::is_integral<typename std::decay<Rhs>::type>::value &&
+            std::is_signed<typename std::decay<Lhs>::type>::value &&
+            std::is_unsigned<typename std::decay<Rhs>::type>::value
   };
 };
 // Same thing, other way around: Lhs is unsigned, Rhs signed.
@@ -135,8 +137,10 @@ struct is_unsigned_vs_signed : public is_signed_vs_unsigned<Rhs, Lhs> {};
 // Specialize the compare functions for signed vs. unsigned comparisons.
 // std::enable_if ensures that this template is only instantiable if both Lhs
 // and Rhs are integral types, and their signedness does not match.
-#define MAKE_UNSIGNED(Type, value) \
-  static_cast<typename std::make_unsigned<Type>::type>(value)
+#define MAKE_UNSIGNED(Type, value)                                         \
+  static_cast<                                                             \
+      typename std::make_unsigned<typename std::decay<Type>::type>::type>( \
+      value)
 #define DEFINE_SIGNED_MISMATCH_COMP(CHECK, NAME, IMPL)                  \
   template <typename Lhs, typename Rhs>                                 \
   V8_INLINE typename std::enable_if<CHECK<Lhs, Rhs>::value, bool>::type \

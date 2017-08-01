@@ -41,7 +41,10 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
 
   void EnsureInitialized();
 
-  bool PumpMessageLoop(v8::Isolate* isolate);
+  bool PumpMessageLoop(
+      v8::Isolate* isolate,
+      MessageLoopBehavior behavior = MessageLoopBehavior::kDoNotWait);
+  void EnsureEventLoopInitialized(v8::Isolate* isolate);
 
   void RunIdleTasks(v8::Isolate* isolate, double idle_time_in_seconds);
 
@@ -81,6 +84,9 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   Task* PopTaskInMainThreadDelayedQueue(v8::Isolate* isolate);
   IdleTask* PopTaskInMainThreadIdleQueue(v8::Isolate* isolate);
 
+  void WaitForForegroundWork(v8::Isolate* isolate);
+  void ScheduleOnForegroundThread(v8::Isolate* isolate, Task* task);
+
   base::Mutex lock_;
   bool initialized_;
   int thread_pool_size_;
@@ -89,6 +95,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   TaskQueue queue_;
   std::map<v8::Isolate*, std::queue<Task*>> main_thread_queue_;
   std::map<v8::Isolate*, std::queue<IdleTask*>> main_thread_idle_queue_;
+  std::map<v8::Isolate*, std::unique_ptr<base::Semaphore>> event_loop_control_;
 
   typedef std::pair<double, Task*> DelayedEntry;
   std::map<v8::Isolate*,

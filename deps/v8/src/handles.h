@@ -133,10 +133,13 @@ class Handle final : public HandleBase {
   // MaybeHandle to force validation before being used as handles.
   static const Handle<T> null() { return Handle<T>(); }
 
+  // Location equality.
+  bool equals(Handle<T> other) const { return address() == other.address(); }
+
   // Provide function object for location equality comparison.
   struct equal_to : public std::binary_function<Handle<T>, Handle<T>, bool> {
     V8_INLINE bool operator()(Handle<T> lhs, Handle<T> rhs) const {
-      return lhs.address() == rhs.address();
+      return lhs.equals(rhs);
     }
   };
 

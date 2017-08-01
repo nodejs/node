@@ -230,10 +230,15 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   class SelectedCodeUnlinker: public OptimizedFunctionVisitor {
    public:
     virtual void VisitFunction(JSFunction* function) {
+      // The code in the function's optimized code feedback vector slot might
+      // be different from the code on the function - evict it if necessary.
+      function->feedback_vector()->EvictOptimizedCodeMarkedForDeoptimization(
+          function->shared(), "unlinking code marked for deopt");
+
       Code* code = function->code();
       if (!code->marked_for_deoptimization()) return;
 
-      // Unlink this function and evict from optimized code map.
+      // Unlink this function.
       SharedFunctionInfo* shared = function->shared();
       if (!code->deopt_already_counted()) {
         shared->increment_deopt_count();
@@ -342,12 +347,12 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 #endif
     // It is finally time to die, code object.
 
-    // Remove the code from optimized code map.
+    // Remove the code from the osr optimized code cache.
     DeoptimizationInputData* deopt_data =
         DeoptimizationInputData::cast(codes[i]->deoptimization_data());
-    SharedFunctionInfo* shared =
-        SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
-    shared->EvictFromOptimizedCodeMap(codes[i], "deoptimized code");
+    if (deopt_data->OsrAstId()->value() != BailoutId::None().ToInt()) {
+      isolate->EvictOSROptimizedCode(codes[i], "deoptimized code");
+    }
 
     // Do platform-specific patching to force any activations to lazy deopt.
     PatchCodeForDeoptimization(isolate, codes[i]);
@@ -1556,7 +1561,10 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   int input_index = 0;
 
   Builtins* builtins = isolate_->builtins();
-  Code* construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
+  Code* construct_stub = builtins->builtin(
+      FLAG_harmony_restrict_constructor_return
+          ? Builtins::kJSConstructStubGenericRestrictedReturn
+          : Builtins::kJSConstructStubGenericUnrestrictedReturn);
   BailoutId bailout_id = translated_frame->node_id();
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
@@ -1662,18 +1670,22 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     PrintF(trace_scope_->file(), "(%d)\n", height - 1);
   }
 
+  // The constructor function was mentioned explicitly in the
+  // CONSTRUCT_STUB_FRAME.
+  output_offset -= kPointerSize;
+  value = reinterpret_cast<intptr_t>(function);
+  WriteValueToOutput(function, 0, frame_index, output_offset,
+                     "constructor function ");
+
+  // The deopt info contains the implicit receiver or the new target at the
+  // position of the receiver. Copy it to the top of stack.
+  output_offset -= kPointerSize;
+  value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
+  output_frame->SetFrameSlot(output_offset, value);
   if (bailout_id == BailoutId::ConstructStubCreate()) {
-    // The function was mentioned explicitly in the CONSTRUCT_STUB_FRAME.
-    output_offset -= kPointerSize;
-    value = reinterpret_cast<intptr_t>(function);
-    WriteValueToOutput(function, 0, frame_index, output_offset, "function ");
+    DebugPrintOutputSlot(value, frame_index, output_offset, "new target\n");
   } else {
-    DCHECK(bailout_id == BailoutId::ConstructStubInvoke());
-    // The newly allocated object was passed as receiver in the artificial
-    // constructor stub environment created by HEnvironment::CopyForInlining().
-    output_offset -= kPointerSize;
-    value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
-    output_frame->SetFrameSlot(output_offset, value);
+    CHECK(bailout_id == BailoutId::ConstructStubInvoke());
     DebugPrintOutputSlot(value, frame_index, output_offset,
                          "allocated receiver\n");
   }
@@ -1684,8 +1696,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     Register result_reg = FullCodeGenerator::result_register();
     value = input_->GetRegister(result_reg.code());
     output_frame->SetFrameSlot(output_offset, value);
-    DebugPrintOutputSlot(value, frame_index, output_offset,
-                         "constructor result\n");
+    DebugPrintOutputSlot(value, frame_index, output_offset, "subcall result\n");
 
     output_frame->SetState(
         Smi::FromInt(static_cast<int>(BailoutState::TOS_REGISTER)));
@@ -2324,6 +2335,12 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   Assembler::FlushICache(isolate, chunk->area_start(), desc.instr_size);
 
   data->deopt_entry_code_entries_[type] = entry_count;
+}
+
+void Deoptimizer::EnsureCodeForMaxDeoptimizationEntries(Isolate* isolate) {
+  EnsureCodeForDeoptimizationEntry(isolate, EAGER, kMaxNumberOfEntries - 1);
+  EnsureCodeForDeoptimizationEntry(isolate, LAZY, kMaxNumberOfEntries - 1);
+  EnsureCodeForDeoptimizationEntry(isolate, SOFT, kMaxNumberOfEntries - 1);
 }
 
 FrameDescription::FrameDescription(uint32_t frame_size, int parameter_count)
@@ -3433,7 +3450,8 @@ Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
 // objects for the fields are not read from the TranslationIterator, but instead
 // created on-the-fly based on dynamic information in the optimized frame.
 void TranslatedState::CreateArgumentsElementsTranslatedValues(
-    int frame_index, Address input_frame_pointer, bool is_rest) {
+    int frame_index, Address input_frame_pointer, bool is_rest,
+    FILE* trace_file) {
   TranslatedFrame& frame = frames_[frame_index];
 
   int length;
@@ -3442,6 +3460,11 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 
   int object_index = static_cast<int>(object_positions_.size());
   int value_index = static_cast<int>(frame.values_.size());
+  if (trace_file != nullptr) {
+    PrintF(trace_file,
+           "arguments elements object #%d (is_rest = %d, length = %d)",
+           object_index, is_rest, length);
+  }
   object_positions_.push_back({frame_index, value_index});
   frame.Add(TranslatedValue::NewDeferredObject(
       this, length + FixedArray::kHeaderSize / kPointerSize, object_index));
@@ -3519,7 +3542,8 @@ int TranslatedState::CreateNextTranslatedValue(
 
     case Translation::ARGUMENTS_ELEMENTS: {
       bool is_rest = iterator->Next();
-      CreateArgumentsElementsTranslatedValues(frame_index, fp, is_rest);
+      CreateArgumentsElementsTranslatedValues(frame_index, fp, is_rest,
+                                              trace_file);
       return 0;
     }
 
@@ -3527,6 +3551,10 @@ int TranslatedState::CreateNextTranslatedValue(
       bool is_rest = iterator->Next();
       int length;
       ComputeArgumentsPosition(fp, is_rest, &length);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "arguments length field (is_rest = %d, length = %d)",
+               is_rest, length);
+      }
       frame.Add(TranslatedValue::NewInt32(this, length));
       return 0;
     }
@@ -3932,7 +3960,8 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> elements = materializer.FieldAt(value_index);
       object->set_properties(FixedArray::cast(*properties));
       object->set_elements(FixedArrayBase::cast(*elements));
-      for (int i = 0; i < length - 3; ++i) {
+      int in_object_properties = map->GetInObjectProperties();
+      for (int i = 0; i < in_object_properties; ++i) {
         Handle<Object> value = materializer.FieldAt(value_index);
         FieldIndex index = FieldIndex::ForPropertyIndex(object->map(), i);
         object->FastPropertyAtPut(index, *value);
@@ -4028,39 +4057,10 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       slot->value_ = object;
       Handle<Object> properties = materializer.FieldAt(value_index);
       Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> length = materializer.FieldAt(value_index);
+      Handle<Object> array_length = materializer.FieldAt(value_index);
       object->set_properties(FixedArray::cast(*properties));
       object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_length(*length);
-      return object;
-    }
-    case JS_FUNCTION_TYPE: {
-      Handle<SharedFunctionInfo> temporary_shared =
-          isolate_->factory()->NewSharedFunctionInfo(
-              isolate_->factory()->empty_string(), MaybeHandle<Code>(), false);
-      Handle<JSFunction> object =
-          isolate_->factory()->NewFunctionFromSharedFunctionInfo(
-              map, temporary_shared, isolate_->factory()->undefined_value(),
-              NOT_TENURED);
-      slot->value_ = object;
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> prototype = materializer.FieldAt(value_index);
-      Handle<Object> shared = materializer.FieldAt(value_index);
-      Handle<Object> context = materializer.FieldAt(value_index);
-      Handle<Object> vector_cell = materializer.FieldAt(value_index);
-      Handle<Object> entry = materializer.FieldAt(value_index);
-      Handle<Object> next_link = materializer.FieldAt(value_index);
-      object->ReplaceCode(*isolate_->builtins()->CompileLazy());
-      object->set_map(*map);
-      object->set_properties(FixedArray::cast(*properties));
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_prototype_or_initial_map(*prototype);
-      object->set_shared(SharedFunctionInfo::cast(*shared));
-      object->set_context(Context::cast(*context));
-      object->set_feedback_vector_cell(Cell::cast(*vector_cell));
-      CHECK(entry->IsNumber());  // Entry to compile lazy stub.
-      CHECK(next_link->IsUndefined(isolate_));
+      object->set_length(*array_length);
       return object;
     }
     case CONS_STRING_TYPE: {
@@ -4071,11 +4071,11 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
               .ToHandleChecked());
       slot->value_ = object;
       Handle<Object> hash = materializer.FieldAt(value_index);
-      Handle<Object> length = materializer.FieldAt(value_index);
+      Handle<Object> string_length = materializer.FieldAt(value_index);
       Handle<Object> first = materializer.FieldAt(value_index);
       Handle<Object> second = materializer.FieldAt(value_index);
       object->set_map(*map);
-      object->set_length(Smi::cast(*length)->value());
+      object->set_length(Smi::cast(*string_length)->value());
       object->set_first(String::cast(*first));
       object->set_second(String::cast(*second));
       CHECK(hash->IsNumber());  // The {Name::kEmptyHashField} value.
@@ -4095,15 +4095,16 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     }
     case FIXED_ARRAY_TYPE: {
       Handle<Object> lengthObject = materializer.FieldAt(value_index);
-      int32_t length = 0;
-      CHECK(lengthObject->ToInt32(&length));
-      Handle<FixedArray> object = isolate_->factory()->NewFixedArray(length);
+      int32_t array_length = 0;
+      CHECK(lengthObject->ToInt32(&array_length));
+      Handle<FixedArray> object =
+          isolate_->factory()->NewFixedArray(array_length);
       // We need to set the map, because the fixed array we are
       // materializing could be a context or an arguments object,
       // in which case we must retain that information.
       object->set_map(*map);
       slot->value_ = object;
-      for (int i = 0; i < length; ++i) {
+      for (int i = 0; i < array_length; ++i) {
         Handle<Object> value = materializer.FieldAt(value_index);
         object->set(i, *value);
       }
@@ -4112,15 +4113,15 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case FIXED_DOUBLE_ARRAY_TYPE: {
       DCHECK_EQ(*map, isolate_->heap()->fixed_double_array_map());
       Handle<Object> lengthObject = materializer.FieldAt(value_index);
-      int32_t length = 0;
-      CHECK(lengthObject->ToInt32(&length));
+      int32_t array_length = 0;
+      CHECK(lengthObject->ToInt32(&array_length));
       Handle<FixedArrayBase> object =
-          isolate_->factory()->NewFixedDoubleArray(length);
+          isolate_->factory()->NewFixedDoubleArray(array_length);
       slot->value_ = object;
-      if (length > 0) {
+      if (array_length > 0) {
         Handle<FixedDoubleArray> double_array =
             Handle<FixedDoubleArray>::cast(object);
-        for (int i = 0; i < length; ++i) {
+        for (int i = 0; i < array_length; ++i) {
           Handle<Object> value = materializer.FieldAt(value_index);
           if (value.is_identical_to(isolate_->factory()->the_hole_value())) {
             double_array->set_the_hole(isolate_, i);
@@ -4160,6 +4161,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_VALUE_TYPE:
+    case JS_FUNCTION_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -4203,23 +4205,23 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
-    case CALL_HANDLER_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
-    case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
     case PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE:
     case PROMISE_REACTION_JOB_INFO_TYPE:
     case DEBUG_INFO_TYPE:
-    case BREAK_POINT_INFO_TYPE:
     case STACK_FRAME_INFO_TYPE:
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
-    case CONSTANT_ELEMENTS_PAIR_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
+    case PADDING_TYPE_1:
+    case PADDING_TYPE_2:
+    case PADDING_TYPE_3:
+    case PADDING_TYPE_4:
       OFStream os(stderr);
       os << "[couldn't handle instance type " << map->instance_type() << "]"
          << std::endl;

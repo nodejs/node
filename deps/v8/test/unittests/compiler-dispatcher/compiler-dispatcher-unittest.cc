@@ -18,7 +18,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/v8.h"
-#include "test/unittests/compiler-dispatcher/compiler-dispatcher-helper.h"
+#include "test/unittests/test-helpers.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -891,8 +891,8 @@ TEST_F(CompilerDispatcherTest, EnqueueWithoutSFI) {
   ASSERT_TRUE(callback->result() == nullptr);
   ASSERT_TRUE(dispatcher.Enqueue(CreateSource(i_isolate(), resource.get()), 0,
                                  static_cast<int>(resource->length()), SLOPPY,
-                                 1, false, false, false, false, 0,
-                                 callback.get(), nullptr));
+                                 1, false, false, false, 0, callback.get(),
+                                 nullptr));
   ASSERT_TRUE(!dispatcher.jobs_.empty());
   ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
               CompileJobStatus::kReadyToParse);

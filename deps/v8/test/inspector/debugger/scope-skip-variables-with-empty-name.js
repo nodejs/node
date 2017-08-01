@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.addScript(
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests that scopes do not report variables with empty names');
+
+contextGroup.addScript(
 `function testFunction()
 {
     for (var a of [1]) {

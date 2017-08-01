@@ -114,8 +114,10 @@ MaybeHandle<Map> GetMapWitness(Node* node) {
   ZoneHandleSet<Map> maps;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
-  if (NodeProperties::InferReceiverMaps(receiver, effect, &maps)) {
-    if (maps.size() == 1) return MaybeHandle<Map>(maps[0]);
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &maps);
+  if (result == NodeProperties::kReliableReceiverMaps && maps.size() == 1) {
+    return maps[0];
   }
   return MaybeHandle<Map>();
 }
@@ -734,10 +736,22 @@ Reduction JSBuiltinReducer::ReduceArrayIsArray(Node* node) {
     return Replace(value);
   }
   Node* value = NodeProperties::GetValueInput(node, 2);
+  Type* value_type = NodeProperties::GetType(value);
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+
+  // Constant-fold based on {value} type.
+  if (value_type->Is(Type::Array())) {
+    Node* value = jsgraph()->TrueConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  } else if (!value_type->Maybe(Type::ArrayOrProxy())) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
 
   int count = 0;
   Node* values[5];
@@ -829,11 +843,11 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  // TODO(turbofan): Extend this to also handle fast (holey) double elements
+  // TODO(turbofan): Extend this to also handle fast holey double elements
   // once we got the hole NaN mess sorted out in TurboFan/V8.
   if (GetMapWitness(node).ToHandle(&receiver_map) &&
       CanInlineArrayResizeOperation(receiver_map) &&
-      IsFastSmiOrObjectElementsKind(receiver_map->elements_kind())) {
+      receiver_map->elements_kind() != FAST_HOLEY_DOUBLE_ELEMENTS) {
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
     dependencies()->AssumePropertyCell(factory()->array_protector());
@@ -859,15 +873,20 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
     Node* efalse = effect;
     Node* vfalse;
     {
+      // TODO(tebbi): We should trim the backing store if the capacity is too
+      // big, as implemented in elements.cc:ElementsAccessorBase::SetLengthImpl.
+
       // Load the elements backing store from the {receiver}.
       Node* elements = efalse = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
           receiver, efalse, if_false);
 
       // Ensure that we aren't popping from a copy-on-write backing store.
-      elements = efalse =
-          graph()->NewNode(simplified()->EnsureWritableFastElements(), receiver,
-                           elements, efalse, if_false);
+      if (IsFastSmiOrObjectElementsKind(receiver_map->elements_kind())) {
+        elements = efalse =
+            graph()->NewNode(simplified()->EnsureWritableFastElements(),
+                             receiver, elements, efalse, if_false);
+      }
 
       // Compute the new {length}.
       length = graph()->NewNode(simplified()->NumberSubtract(), length,

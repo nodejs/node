@@ -12,6 +12,7 @@
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
@@ -26,16 +27,16 @@ namespace interpreter {
 
 class BytecodeLabel;
 class BytecodeNode;
-class BytecodePipelineStage;
 class BytecodeRegisterOptimizer;
+class BytecodeJumpTable;
 class Register;
 
 class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   BytecodeArrayBuilder(
-      Isolate* isolate, Zone* zone, int parameter_count, int context_count,
-      int locals_count, FunctionLiteral* literal = nullptr,
+      Isolate* isolate, Zone* zone, int parameter_count, int locals_count,
+      FunctionLiteral* literal = nullptr,
       SourcePositionTableBuilder::RecordingMode source_position_mode =
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);
 
@@ -53,17 +54,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
     return local_register_count_;
   }
 
-  // Get number of contexts required for bytecode array.
-  int context_count() const {
-    DCHECK_GE(context_register_count_, 0);
-    return context_register_count_;
-  }
-
-  Register first_context_register() const;
-  Register last_context_register() const;
-
   // Returns the number of fixed (non-temporary) registers.
-  int fixed_register_count() const { return context_count() + locals_count(); }
+  int fixed_register_count() const { return locals_count(); }
 
   // Returns the number of fixed and temporary registers.
   int total_register_count() const {
@@ -359,6 +351,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);
   BytecodeArrayBuilder& Bind(const BytecodeLabel& target, BytecodeLabel* label);
+  BytecodeArrayBuilder& Bind(BytecodeJumpTable* jump_table, int case_value);
 
   BytecodeArrayBuilder& Jump(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpLoop(BytecodeLabel* label, int loop_depth);
@@ -375,6 +368,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
                                   NilValue nil);
   BytecodeArrayBuilder& JumpIfNotNil(BytecodeLabel* label, Token::Value op,
                                      NilValue nil);
+
+  BytecodeArrayBuilder& SwitchOnSmiNoFeedback(BytecodeJumpTable* jump_table);
 
   BytecodeArrayBuilder& StackCheck(int position);
 
@@ -412,6 +407,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Creates a new handler table entry and returns a {hander_id} identifying the
   // entry, so that it can be referenced by above exception handling support.
   int NewHandlerEntry() { return handler_table_builder()->NewHandlerEntry(); }
+
+  // Allocates a new jump table of given |size| and |case_value_base| in the
+  // constant pool.
+  BytecodeJumpTable* AllocateJumpTable(int size, int case_value_base);
 
   // Gets a constant pool entry.
   size_t GetConstantPoolEntry(const AstRawString* raw_string);
@@ -483,13 +482,17 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Returns the current source position for the given |bytecode|.
   INLINE(BytecodeSourceInfo CurrentSourcePosition(Bytecode bytecode));
 
-#define DECLARE_BYTECODE_OUTPUT(Name, ...)         \
-  template <typename... Operands>                  \
-  INLINE(void Output##Name(Operands... operands)); \
-  template <typename... Operands>                  \
+#define DECLARE_BYTECODE_OUTPUT(Name, ...)                       \
+  template <typename... Operands>                                \
+  INLINE(BytecodeNode Create##Name##Node(Operands... operands)); \
+  template <typename... Operands>                                \
+  INLINE(void Output##Name(Operands... operands));               \
+  template <typename... Operands>                                \
   INLINE(void Output##Name(BytecodeLabel* label, Operands... operands));
   BYTECODE_LIST(DECLARE_BYTECODE_OUTPUT)
 #undef DECLARE_OPERAND_TYPE_INFO
+
+  INLINE(void OutputSwitchOnSmiNoFeedback(BytecodeJumpTable* jump_table));
 
   bool RegisterIsValid(Register reg) const;
   bool RegisterListIsValid(RegisterList reg_list) const;
@@ -507,6 +510,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Write bytecode to bytecode array.
   void Write(BytecodeNode* node);
   void WriteJump(BytecodeNode* node, BytecodeLabel* label);
+  void WriteSwitch(BytecodeNode* node, BytecodeJumpTable* label);
 
   // Not implemented as the illegal bytecode is used inside internally
   // to indicate a bytecode field is not valid or an error has occured
@@ -521,7 +525,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayWriter* bytecode_array_writer() {
     return &bytecode_array_writer_;
   }
-  BytecodePipelineStage* pipeline() { return pipeline_; }
   ConstantArrayBuilder* constant_array_builder() {
     return &constant_array_builder_;
   }
@@ -540,11 +543,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   bool return_seen_in_block_;
   int parameter_count_;
   int local_register_count_;
-  int context_register_count_;
   int return_position_;
   BytecodeRegisterAllocator register_allocator_;
   BytecodeArrayWriter bytecode_array_writer_;
-  BytecodePipelineStage* pipeline_;
   BytecodeRegisterOptimizer* register_optimizer_;
   BytecodeSourceInfo latest_source_info_;
   BytecodeSourceInfo deferred_source_info_;

@@ -19,6 +19,9 @@ Running test: testSkipOtherContext2
 paused at:
 #var a = 239;
 
+paused at:
+var a = #239;
+
 
 Running test: testWithNativeBreakpoint
 paused at:

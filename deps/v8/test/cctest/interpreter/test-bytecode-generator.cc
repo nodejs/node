@@ -2507,6 +2507,108 @@ TEST(ForAwaitOf) {
   i::FLAG_harmony_async_iteration = old_flag;
 }
 
+TEST(StandardForLoop) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_test_function_name("f");
+
+  const char* snippets[] = {
+      "function f() {\n"
+      "  for (let x = 0; x < 10; ++x) { let y = x; }\n"
+      "}\n"
+      "f();\n",
+
+      "function f() {\n"
+      "  for (let x = 0; x < 10; ++x) { eval('1'); }\n"
+      "}\n"
+      "f();\n",
+
+      "function f() {\n"
+      "  for (let x = 0; x < 10; ++x) { (function() { return x; })(); }\n"
+      "}\n"
+      "f();\n",
+
+      "function f() {\n"
+      "  for (let { x, y } = { x: 0, y: 3 }; y > 0; --y) { let z = x + y; }\n"
+      "}\n"
+      "f();\n",
+
+      "function* f() {\n"
+      "  for (let x = 0; x < 10; ++x) { let y = x; }\n"
+      "}\n"
+      "f();\n",
+
+      "function* f() {\n"
+      "  for (let x = 0; x < 10; ++x) yield x;\n"
+      "}\n"
+      "f();\n",
+
+      "async function f() {\n"
+      "  for (let x = 0; x < 10; ++x) { let y = x; }\n"
+      "}\n"
+      "f();\n",
+
+      "async function f() {\n"
+      "  for (let x = 0; x < 10; ++x) await x;\n"
+      "}\n"
+      "f();\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("StandardForLoop.golden")));
+}
+
+TEST(ForOfLoop) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_test_function_name("f");
+
+  const char* snippets[] = {
+      "function f(arr) {\n"
+      "  for (let x of arr) { let y = x; }\n"
+      "}\n"
+      "f([1, 2, 3]);\n",
+
+      "function f(arr) {\n"
+      "  for (let x of arr) { eval('1'); }\n"
+      "}\n"
+      "f([1, 2, 3]);\n",
+
+      "function f(arr) {\n"
+      "  for (let x of arr) { (function() { return x; })(); }\n"
+      "}\n"
+      "f([1, 2, 3]);\n",
+
+      "function f(arr) {\n"
+      "  for (let { x, y } of arr) { let z = x + y; }\n"
+      "}\n"
+      "f([{ x: 0, y: 3 }, { x: 1, y: 9 }, { x: -12, y: 17 }]);\n",
+
+      "function* f(arr) {\n"
+      "  for (let x of arr) { let y = x; }\n"
+      "}\n"
+      "f([1, 2, 3]);\n",
+
+      "function* f(arr) {\n"
+      "  for (let x of arr) yield x;\n"
+      "}\n"
+      "f([1, 2, 3]);\n",
+
+      "async function f(arr) {\n"
+      "  for (let x of arr) { let y = x; }\n"
+      "}\n"
+      "f([1, 2, 3]);\n",
+
+      "async function f(arr) {\n"
+      "  for (let x of arr) await x;\n"
+      "}\n"
+      "f([1, 2, 3]);\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ForOfLoop.golden")));
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

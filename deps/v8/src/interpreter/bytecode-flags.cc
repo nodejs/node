@@ -23,19 +23,10 @@ uint8_t CreateArrayLiteralFlags::Encode(bool use_fast_shallow_clone,
 }
 
 // static
-uint8_t CreateObjectLiteralFlags::Encode(bool fast_clone_supported,
-                                         int properties_count,
-                                         int runtime_flags) {
+uint8_t CreateObjectLiteralFlags::Encode(int runtime_flags,
+                                         bool fast_clone_supported) {
   uint8_t result = FlagsBits::encode(runtime_flags);
-  if (fast_clone_supported) {
-    STATIC_ASSERT(
-        ConstructorBuiltins::kMaximumClonedShallowObjectProperties <=
-        1 << CreateObjectLiteralFlags::FastClonePropertiesCountBits::kShift);
-    DCHECK_LE(properties_count,
-              ConstructorBuiltins::kMaximumClonedShallowObjectProperties);
-    result |= CreateObjectLiteralFlags::FastClonePropertiesCountBits::encode(
-        properties_count);
-  }
+  result |= FastCloneSupportedBit::encode(fast_clone_supported);
   return result;
 }
 

@@ -9,9 +9,15 @@
 #include <string>
 #include <vector>
 
+#include "include/v8.h"
 #include "src/globals.h"
 
 namespace v8 {
+
+namespace internal {
+class BuiltinArguments;
+}  // internal
+
 namespace debug {
 
 /**
@@ -67,7 +73,6 @@ enum PromiseDebugActionType {
   kDebugEnqueueAsyncFunction,
   kDebugEnqueuePromiseResolve,
   kDebugEnqueuePromiseReject,
-  kDebugPromiseCollected,
   kDebugWillHandle,
   kDebugDidHandle,
 };
@@ -88,6 +93,47 @@ class V8_EXPORT_PRIVATE BreakLocation : public Location {
 
  private:
   BreakLocationType type_;
+};
+
+class ConsoleCallArguments : private v8::FunctionCallbackInfo<v8::Value> {
+ public:
+  int Length() const { return v8::FunctionCallbackInfo<v8::Value>::Length(); }
+  V8_INLINE Local<Value> operator[](int i) const {
+    return v8::FunctionCallbackInfo<v8::Value>::operator[](i);
+  }
+
+  explicit ConsoleCallArguments(const v8::FunctionCallbackInfo<v8::Value>&);
+  explicit ConsoleCallArguments(internal::BuiltinArguments&);
+};
+
+// v8::FunctionCallbackInfo could be used for getting arguments only. Calling
+// of any other getter will produce a crash.
+class ConsoleDelegate {
+ public:
+  virtual void Debug(const ConsoleCallArguments& args) {}
+  virtual void Error(const ConsoleCallArguments& args) {}
+  virtual void Info(const ConsoleCallArguments& args) {}
+  virtual void Log(const ConsoleCallArguments& args) {}
+  virtual void Warn(const ConsoleCallArguments& args) {}
+  virtual void Dir(const ConsoleCallArguments& args) {}
+  virtual void DirXml(const ConsoleCallArguments& args) {}
+  virtual void Table(const ConsoleCallArguments& args) {}
+  virtual void Trace(const ConsoleCallArguments& args) {}
+  virtual void Group(const ConsoleCallArguments& args) {}
+  virtual void GroupCollapsed(const ConsoleCallArguments& args) {}
+  virtual void GroupEnd(const ConsoleCallArguments& args) {}
+  virtual void Clear(const ConsoleCallArguments& args) {}
+  virtual void Count(const ConsoleCallArguments& args) {}
+  virtual void Assert(const ConsoleCallArguments& args) {}
+  virtual void MarkTimeline(const ConsoleCallArguments& args) {}
+  virtual void Profile(const ConsoleCallArguments& args) {}
+  virtual void ProfileEnd(const ConsoleCallArguments& args) {}
+  virtual void Timeline(const ConsoleCallArguments& args) {}
+  virtual void TimelineEnd(const ConsoleCallArguments& args) {}
+  virtual void Time(const ConsoleCallArguments& args) {}
+  virtual void TimeEnd(const ConsoleCallArguments& args) {}
+  virtual void TimeStamp(const ConsoleCallArguments& args) {}
+  virtual ~ConsoleDelegate() = default;
 };
 
 }  // namespace debug

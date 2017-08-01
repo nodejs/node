@@ -984,15 +984,7 @@ void AccessorAssembler::HandleStoreFieldAndReturn(Node* handler_word,
   BIND(&if_out_of_object);
   {
     if (transition_to_field) {
-      Label storage_extended(this);
-      GotoIfNot(IsSetWord<StoreHandler::ExtendStorageBits>(handler_word),
-                &storage_extended);
-      Comment("[ Extend storage");
-      ExtendPropertiesBackingStore(holder);
-      Comment("] Extend storage");
-      Goto(&storage_extended);
-
-      BIND(&storage_extended);
+      ExtendPropertiesBackingStore(holder, handler_word);
     }
 
     StoreNamedField(handler_word, holder, false, representation, prepared_value,
@@ -1053,13 +1045,26 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
   return value;
 }
 
-void AccessorAssembler::ExtendPropertiesBackingStore(Node* object) {
+void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
+                                                     Node* handler_word) {
+  Label done(this);
+  GotoIfNot(IsSetWord<StoreHandler::ExtendStorageBits>(handler_word), &done);
+  Comment("[ Extend storage");
+
   ParameterMode mode = OptimalParameterMode();
 
   Node* properties = LoadProperties(object);
   Node* length = (mode == INTPTR_PARAMETERS)
                      ? LoadAndUntagFixedArrayBaseLength(properties)
                      : LoadFixedArrayBaseLength(properties);
+
+  // Previous property deletion could have left behind unused backing store
+  // capacity even for a map that think it doesn't have any unused fields.
+  // Perform a bounds check to see if we actually have to grow the array.
+  Node* offset = DecodeWord<StoreHandler::FieldOffsetBits>(handler_word);
+  Node* size = ElementOffsetFromIndex(length, FAST_ELEMENTS, mode,
+                                      FixedArray::kHeaderSize);
+  GotoIf(UintPtrLessThan(offset, size), &done);
 
   Node* delta = IntPtrOrSmiConstant(JSObject::kFieldsAdded, mode);
   Node* new_capacity = IntPtrOrSmiAdd(length, delta, mode);
@@ -1088,6 +1093,10 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object) {
                          SKIP_WRITE_BARRIER, mode);
 
   StoreObjectField(object, JSObject::kPropertiesOffset, new_properties);
+  Comment("] Extend storage");
+  Goto(&done);
+
+  BIND(&done);
 }
 
 void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
@@ -1512,7 +1521,10 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     TryProbeStubCache(isolate()->load_stub_cache(), receiver, key,
                       &found_handler, &var_handler, &stub_cache_miss);
     BIND(&found_handler);
-    { HandleLoadICHandlerCase(p, var_handler.value(), slow, &direct_exit); }
+    {
+      HandleLoadICHandlerCase(p, var_handler.value(), &stub_cache_miss,
+                              &direct_exit);
+    }
 
     BIND(&stub_cache_miss);
     {
@@ -1865,33 +1877,19 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
                          LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
                          SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
 
-  Label not_function_prototype(this);
-  GotoIf(Word32NotEqual(instance_type, Int32Constant(JS_FUNCTION_TYPE)),
-         &not_function_prototype);
-  GotoIfNot(WordEqual(p->name, LoadRoot(Heap::kprototype_stringRootIndex)),
-            &not_function_prototype);
-  Node* bit_field = LoadMapBitField(receiver_map);
-  GotoIf(IsSetWord32(bit_field, 1 << Map::kHasNonInstancePrototype),
-         &not_function_prototype);
-  // Function.prototype load.
   {
-    // TODO(jkummerow): Unify with LoadIC_FunctionPrototype builtin
-    // (when we have a shared CSA base class for all builtins).
-    Node* proto_or_map =
-        LoadObjectField(receiver, JSFunction::kPrototypeOrInitialMapOffset);
-    GotoIf(IsTheHole(proto_or_map), &miss);
-
-    VARIABLE(var_result, MachineRepresentation::kTagged, proto_or_map);
-    Label done(this, &var_result);
-    GotoIfNot(IsMap(proto_or_map), &done);
-
-    var_result.Bind(LoadMapPrototype(proto_or_map));
-    Goto(&done);
-
-    BIND(&done);
-    Return(var_result.value());
+    // Special case for Function.prototype load, because it's very common
+    // for ICs that are only executed once (MyFunc.prototype.foo = ...).
+    Label not_function_prototype(this);
+    GotoIf(Word32NotEqual(instance_type, Int32Constant(JS_FUNCTION_TYPE)),
+           &not_function_prototype);
+    GotoIfNot(IsPrototypeString(p->name), &not_function_prototype);
+    Node* bit_field = LoadMapBitField(receiver_map);
+    GotoIf(IsSetWord32(bit_field, 1 << Map::kHasNonInstancePrototype),
+           &not_function_prototype);
+    Return(LoadJSFunctionPrototype(receiver, &miss));
+    BIND(&not_function_prototype);
   }
-  BIND(&not_function_prototype);
 
   GenericPropertyLoad(receiver, receiver_map, instance_type, p->name, p, &miss,
                       kDontUseStubCache);
@@ -2090,15 +2088,15 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   VARIABLE(var_index, MachineType::PointerRepresentation());
   VARIABLE(var_unique, MachineRepresentation::kTagged);
   var_unique.Bind(p->name);  // Dummy initialization.
-  Label if_index(this), if_unique_name(this), slow(this);
+  Label if_index(this), if_unique_name(this), if_notunique(this), slow(this);
 
   Node* receiver = p->receiver;
   GotoIf(TaggedIsSmi(receiver), &slow);
   Node* receiver_map = LoadMap(receiver);
   Node* instance_type = LoadMapInstanceType(receiver_map);
 
-  TryToName(p->name, &if_index, &var_index, &if_unique_name, &var_unique,
-            &slow);
+  TryToName(p->name, &if_index, &var_index, &if_unique_name, &var_unique, &slow,
+            &if_notunique);
 
   BIND(&if_index);
   {
@@ -2110,6 +2108,22 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   {
     GenericPropertyLoad(receiver, receiver_map, instance_type,
                         var_unique.value(), p, &slow);
+  }
+
+  BIND(&if_notunique);
+  {
+    if (FLAG_internalize_on_the_fly) {
+      Label not_in_string_table(this);
+      TryInternalizeString(p->name, &if_index, &var_index, &if_unique_name,
+                           &var_unique, &not_in_string_table, &slow);
+
+      BIND(&not_in_string_table);
+      // If the string was not found in the string table, then no object can
+      // have a property with that name.
+      Return(UndefinedConstant());
+    } else {
+      Goto(&slow);
+    }
   }
 
   BIND(&slow);

@@ -63,11 +63,11 @@ TEST(LoggingTest, CompareAgainstStaticConstPointer) {
   CHECK_SUCCEED(GT, 0, v8::internal::Smi::kMinValue);
 }
 
-TEST(LoggingTest, CompareWithDifferentSignedness) {
 #define CHECK_BOTH(name, lhs, rhs) \
   CHECK_##name(lhs, rhs);          \
   DCHECK_##name(lhs, rhs)
 
+TEST(LoggingTest, CompareWithDifferentSignedness) {
   int32_t i32 = 10;
   uint32_t u32 = 20;
   int64_t i64 = 30;
@@ -80,6 +80,19 @@ TEST(LoggingTest, CompareWithDifferentSignedness) {
   CHECK_BOTH(IMPLIES, i32, i64);
   CHECK_BOTH(IMPLIES, u32, i64);
   CHECK_BOTH(IMPLIES, !u32, !i64);
+}
+
+TEST(LoggingTest, CompareWithReferenceType) {
+  int32_t i32 = 10;
+  uint32_t u32 = 20;
+  int64_t i64 = 30;
+  uint64_t u64 = 40;
+
+  // All these checks should compile (!) and succeed.
+  CHECK_BOTH(EQ, i32 + 10, *&u32);
+  CHECK_BOTH(LT, *&i32, u64);
+  CHECK_BOTH(IMPLIES, *&i32, i64);
+  CHECK_BOTH(IMPLIES, *&i32, u64);
 }
 
 }  // namespace base

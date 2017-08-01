@@ -271,13 +271,12 @@ void ObjectStatsCollector::CollectStatistics(HeapObject* obj) {
   if (obj->IsScript()) RecordScriptDetails(Script::cast(obj));
 }
 
-class ObjectStatsCollector::CompilationCacheTableVisitor
-    : public ObjectVisitor {
+class ObjectStatsCollector::CompilationCacheTableVisitor : public RootVisitor {
  public:
   explicit CompilationCacheTableVisitor(ObjectStatsCollector* parent)
       : parent_(parent) {}
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       HeapObject* obj = HeapObject::cast(*current);
       if (obj->IsUndefined(parent_->heap_->isolate())) continue;
@@ -547,13 +546,6 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
   if (!feedback_metadata->is_empty()) {
     RecordFixedArrayHelper(sfi, feedback_metadata, FEEDBACK_METADATA_SUB_TYPE,
                            0);
-  }
-
-  if (!sfi->OptimizedCodeMapIsCleared()) {
-    FixedArray* optimized_code_map = sfi->optimized_code_map();
-    RecordFixedArrayHelper(sfi, optimized_code_map, OPTIMIZED_CODE_MAP_SUB_TYPE,
-                           0);
-    // Optimized code map should be small, so skip accounting.
   }
 }
 

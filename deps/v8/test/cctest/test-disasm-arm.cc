@@ -994,10 +994,14 @@ TEST(Neon) {
               "eea24b30       vdup.16 q1, r4");
       COMPARE(vdup(Neon32, q15, r1),
               "eeae1b90       vdup.32 q15, r1");
-      COMPARE(vdup(q0, s3),
-              "f3bc0c41       vdup q0, d1[1]");
-      COMPARE(vdup(q15, s2),
-              "f3f4ec41       vdup q15, d1[0]");
+      COMPARE(vdup(Neon32, q0, d1, 1),
+              "f3bc0c41       vdup.32 q0, d1[1]");
+      COMPARE(vdup(Neon32, q15, d1, 0),
+              "f3f4ec41       vdup.32 q15, d1[0]");
+      COMPARE(vdup(Neon16, q7, d8, 3),
+              "f3beec48       vdup.16 q7, d8[3]");
+      COMPARE(vdup(Neon32, d0, d30, 0),
+              "f3b40c2e       vdup.32 d0, d30[0]");
       COMPARE(vcvt_f32_s32(q15, q1),
               "f3fbe642       vcvt.f32.s32 q15, q1");
       COMPARE(vcvt_f32_u32(q8, q9),
@@ -1044,6 +1048,14 @@ TEST(Neon) {
               "f3142670       vmin.u16 q1, q2, q8");
       COMPARE(vmax(NeonS32, q15, q0, q8),
               "f260e660       vmax.s32 q15, q0, q8");
+      COMPARE(vpadd(d0, d1, d2),
+              "f3010d02       vpadd.f32 d0, d1, d2");
+      COMPARE(vpadd(Neon8, d0, d1, d2),
+              "f2010b12       vpadd.i8 d0, d1, d2");
+      COMPARE(vpadd(Neon16, d0, d1, d2),
+              "f2110b12       vpadd.i16 d0, d1, d2");
+      COMPARE(vpadd(Neon32, d0, d1, d2),
+              "f2210b12       vpadd.i32 d0, d1, d2");
       COMPARE(vpmax(NeonS8, d0, d1, d2),
               "f2010a02       vpmax.s8 d0, d1, d2");
       COMPARE(vpmin(NeonU16, d1, d2, d8),
@@ -1098,6 +1110,14 @@ TEST(Neon) {
               "f3d6e050       vshr.u16 q15, q0, #10");
       COMPARE(vshr(NeonS32, q15, q0, 17),
               "f2efe050       vshr.s32 q15, q0, #17");
+      COMPARE(vsli(Neon64, d2, d0, 32),
+              "f3a02590       vsli.64 d2, d0, #32");
+      COMPARE(vsli(Neon32, d7, d8, 17),
+              "f3b17518       vsli.32 d7, d8, #17");
+      COMPARE(vsri(Neon64, d2, d0, 32),
+              "f3a02490       vsri.64 d2, d0, #32");
+      COMPARE(vsri(Neon16, d7, d8, 8),
+              "f3987418       vsri.16 d7, d8, #8");
       COMPARE(vrecpe(q15, q0),
               "f3fbe540       vrecpe.f32 q15, q0");
       COMPARE(vrecps(q15, q0, q8),
@@ -1380,6 +1400,39 @@ TEST(LoadStore) {
     COMPARE(pld(MemOperand(r2, 128)),
             "f5d2f080       pld [r2, #+128]");
   }
+
+  VERIFY_RUN();
+}
+
+
+static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
+                            int offset) {
+  int pc_offset = assm->pc_offset();
+  byte *progcounter = &buffer[pc_offset];
+  assm->ldr(r0, MemOperand(pc, offset));
+
+  const char *expected_string_template =
+    (offset >= 0) ?
+    "e59f0%03x       ldr r0, [pc, #+%d] (addr %p)" :
+    "e51f0%03x       ldr r0, [pc, #%d] (addr %p)";
+  char expected_string[80];
+  snprintf(expected_string, sizeof(expected_string), expected_string_template,
+           abs(offset), offset,
+           progcounter + Instruction::kPCReadOffset + offset);
+  if (!DisassembleAndCompare(progcounter, expected_string)) *failure = true;
+}
+
+
+TEST(LoadLiteral) {
+  SET_UP();
+
+  TestLoadLiteral(buffer, &assm, &failure, 0);
+  TestLoadLiteral(buffer, &assm, &failure, 1);
+  TestLoadLiteral(buffer, &assm, &failure, 4);
+  TestLoadLiteral(buffer, &assm, &failure, 4095);
+  TestLoadLiteral(buffer, &assm, &failure, -1);
+  TestLoadLiteral(buffer, &assm, &failure, -4);
+  TestLoadLiteral(buffer, &assm, &failure, -4095);
 
   VERIFY_RUN();
 }

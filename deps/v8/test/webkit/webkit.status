@@ -53,9 +53,9 @@
   # Skip tests that are too slow for simulators.
   'dfg-int-overflow-in-loop': [SKIP],
 }],  # 'simulator'
-['arch == arm64 and simulator_run == True', {
+['arch == arm64 and simulator_run', {
   'dfg-int-overflow-in-loop': [SKIP],
-}],  # 'arch == arm64 and simulator_run == True'
+}],  # 'arch == arm64 and simulator_run'
 ['dcheck_always_on == True and (arch == arm or arch == arm64)', {
   # Doesn't work with gcc 4.6 on arm or arm64 for some reason.
   'reentrant-caching': [SKIP],
@@ -64,7 +64,7 @@
   # Too slow for mips big-endian boards on bots (no FPU).
   'dfg-int-overflow-in-loop': [SKIP],
 }], # 'arch == mips'
-['(arch == ppc or arch == ppc64) and simulator_run == True', {
+['(arch == ppc or arch == ppc64) and simulator_run', {
   # Too slow.
   'dfg-int-overflow-in-loop': [SKIP],
 }], # 'arch == ppc or arch == ppc64'

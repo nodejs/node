@@ -50,7 +50,7 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
       // Call the JavaScript setter with receiver and value on the stack.
       if (map->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
-        __ ld(scratch,
+        __ Ld(scratch,
               FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
         receiver = scratch;
       }
@@ -115,27 +115,26 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
   // Bail out if the receiver has a named interceptor or requires access checks.
   Register map = scratch1;
-  __ ld(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ lbu(scratch0, FieldMemOperand(map, Map::kBitFieldOffset));
+  __ Ld(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ Lbu(scratch0, FieldMemOperand(map, Map::kBitFieldOffset));
   __ And(scratch0, scratch0, Operand(kInterceptorOrAccessCheckNeededMask));
   __ Branch(miss_label, ne, scratch0, Operand(zero_reg));
 
   // Check that receiver is a JSObject.
-  __ lbu(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ Lbu(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
   __ Branch(miss_label, lt, scratch0, Operand(FIRST_JS_RECEIVER_TYPE));
 
   // Load properties array.
   Register properties = scratch0;
-  __ ld(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+  __ Ld(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   // Check that the properties array is a dictionary.
-  __ ld(map, FieldMemOperand(properties, HeapObject::kMapOffset));
+  __ Ld(map, FieldMemOperand(properties, HeapObject::kMapOffset));
   Register tmp = properties;
   __ LoadRoot(tmp, Heap::kHashTableMapRootIndex);
   __ Branch(miss_label, ne, map, Operand(tmp));
 
   // Restore the temporarily used register.
-  __ ld(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-
+  __ Ld(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 
   NameDictionaryLookupStub::GenerateNegativeLookup(
       masm, miss_label, &done, receiver, properties, name, scratch1);
@@ -155,7 +154,7 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
   DCHECK(cell->value()->IsTheHole(isolate));
   Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(cell);
   __ LoadWeakValue(scratch, weak_cell, miss);
-  __ ld(scratch, FieldMemOperand(scratch, PropertyCell::kValueOffset));
+  __ Ld(scratch, FieldMemOperand(scratch, PropertyCell::kValueOffset));
   __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
   __ Branch(miss, ne, scratch, Operand(at));
 }
@@ -197,11 +196,11 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
       __ Move(holder, receiver);
       break;
     case CallOptimization::kHolderFound:
-      __ ld(holder, FieldMemOperand(receiver, HeapObject::kMapOffset));
-      __ ld(holder, FieldMemOperand(holder, Map::kPrototypeOffset));
+      __ Ld(holder, FieldMemOperand(receiver, HeapObject::kMapOffset));
+      __ Ld(holder, FieldMemOperand(holder, Map::kPrototypeOffset));
       for (int i = 1; i < holder_depth; i++) {
-        __ ld(holder, FieldMemOperand(holder, HeapObject::kMapOffset));
-        __ ld(holder, FieldMemOperand(holder, Map::kPrototypeOffset));
+        __ Ld(holder, FieldMemOperand(holder, HeapObject::kMapOffset));
+        __ Ld(holder, FieldMemOperand(holder, Map::kPrototypeOffset));
       }
       break;
     case CallOptimization::kHolderNotFound:
@@ -211,23 +210,21 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
 
   Isolate* isolate = masm->isolate();
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
-  bool call_data_undefined = false;
   // Put call data in place.
   if (api_call_info->data()->IsUndefined(isolate)) {
-    call_data_undefined = true;
     __ LoadRoot(data, Heap::kUndefinedValueRootIndex);
   } else {
     if (optimization.is_constant_call()) {
-      __ ld(data,
+      __ Ld(data,
             FieldMemOperand(callee, JSFunction::kSharedFunctionInfoOffset));
-      __ ld(data,
+      __ Ld(data,
             FieldMemOperand(data, SharedFunctionInfo::kFunctionDataOffset));
-      __ ld(data, FieldMemOperand(data, FunctionTemplateInfo::kCallCodeOffset));
+      __ Ld(data, FieldMemOperand(data, FunctionTemplateInfo::kCallCodeOffset));
     } else {
-      __ ld(data,
+      __ Ld(data,
             FieldMemOperand(callee, FunctionTemplateInfo::kCallCodeOffset));
     }
-    __ ld(data, FieldMemOperand(data, CallHandlerInfo::kDataOffset));
+    __ Ld(data, FieldMemOperand(data, CallHandlerInfo::kDataOffset));
   }
 
   // Put api_function_address in place.
@@ -238,8 +235,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ li(api_function_address, Operand(ref));
 
   // Jump to stub.
-  CallApiCallbackStub stub(isolate, is_store, call_data_undefined,
-                           !optimization.is_constant_call());
+  CallApiCallbackStub stub(isolate, is_store, !optimization.is_constant_call());
   __ TailCallStub(&stub);
 }
 
@@ -260,7 +256,7 @@ void PropertyHandlerCompiler::GenerateAccessCheck(
     Label* miss, bool compare_native_contexts_only) {
   Label done;
   // Load current native context.
-  __ ld(scratch1, NativeContextMemOperand());
+  __ Ld(scratch1, NativeContextMemOperand());
   // Load expected native context.
   __ LoadWeakValue(scratch2, native_context_cell, miss);
 
@@ -268,8 +264,8 @@ void PropertyHandlerCompiler::GenerateAccessCheck(
     __ Branch(&done, eq, scratch1, Operand(scratch2));
 
     // Compare security tokens of current and expected native contexts.
-    __ ld(scratch1, ContextMemOperand(scratch1, Context::SECURITY_TOKEN_INDEX));
-    __ ld(scratch2, ContextMemOperand(scratch2, Context::SECURITY_TOKEN_INDEX));
+    __ Ld(scratch1, ContextMemOperand(scratch1, Context::SECURITY_TOKEN_INDEX));
+    __ Ld(scratch2, ContextMemOperand(scratch2, Context::SECURITY_TOKEN_INDEX));
   }
   __ Branch(miss, ne, scratch1, Operand(scratch2));
 
@@ -291,7 +287,7 @@ Register PropertyHandlerCompiler::CheckPrototypes(
   if (!validity_cell.is_null()) {
     DCHECK_EQ(Smi::FromInt(Map::kPrototypeChainValid), validity_cell->value());
     __ li(scratch1, Operand(validity_cell));
-    __ ld(scratch1, FieldMemOperand(scratch1, Cell::kValueOffset));
+    __ Ld(scratch1, FieldMemOperand(scratch1, Cell::kValueOffset));
     __ Branch(miss, ne, scratch1,
               Operand(Smi::FromInt(Map::kPrototypeChainValid)));
   }

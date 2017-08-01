@@ -1658,3 +1658,73 @@ assertEqualsAsync({ value: undefined, done: true }, () => it.next("x"));
 assertEqualsAsync({ value: "nores", done: true },
                   () => it.return("nores"));
 assertThrowsAsync(() => it.throw(new MyError("nores")), MyError, "nores");
+
+// ----------------------------------------------------------------------------
+// Simple yield*:
+
+log = [];
+async function* asyncGeneratorYieldStar1() {
+  yield* {
+    get [Symbol.asyncIterator]() {
+      log.push({ name: "get @@asyncIterator" });
+      return (...args) => {
+        log.push({ name: "call @@asyncIterator", args });
+        return this;
+      };
+    },
+    get [Symbol.iterator]() {
+      log.push({ name: "get @@iterator" });
+      return (...args) => {
+        log.push({ name: "call @@iterator", args });
+        return this;
+      }
+    },
+    get next() {
+      log.push({ name: "get next" });
+      return (...args) => {
+        log.push({ name: "call next", args });
+        return {
+          get then() {
+            log.push({ name: "get then" });
+            return null;
+          },
+          get value() {
+            log.push({ name: "get value" });
+            throw (exception = new MyError("AbruptValue!"));
+          },
+          get done() {
+            log.push({ name: "get done" });
+            return false;
+          }
+        };
+      }
+    },
+    get return() {
+      log.push({ name: "get return" });
+      return (...args) => {
+        log.push({ name: "call return", args });
+        return { value: args[0], done: true };
+      }
+    },
+    get throw() {
+      log.push({ name: "get throw" });
+      return (...args) => {
+        log.push({ name: "call throw", args });
+        throw args[0];
+      };
+    },
+  };
+}
+
+it = asyncGeneratorYieldStar1();
+assertThrowsAsync(() => it.next(), MyError);
+assertEquals([
+  { name: "get @@asyncIterator" },
+  { name: "call @@asyncIterator", args: [] },
+  { name: "get next" },
+  { name: "call next", args: [undefined] },
+  { name: "get then" },
+  { name: "get done" },
+  { name: "get value" },
+], log);
+assertEqualsAsync({ value: undefined, done: true }, () => it.next());

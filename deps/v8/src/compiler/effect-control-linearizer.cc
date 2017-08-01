@@ -26,7 +26,8 @@ EffectControlLinearizer::EffectControlLinearizer(
       schedule_(schedule),
       temp_zone_(temp_zone),
       source_positions_(source_positions),
-      graph_assembler_(js_graph, nullptr, nullptr, temp_zone) {}
+      graph_assembler_(js_graph, nullptr, nullptr, temp_zone),
+      frame_state_zapper_(nullptr) {}
 
 Graph* EffectControlLinearizer::graph() const { return js_graph_->graph(); }
 CommonOperatorBuilder* EffectControlLinearizer::common() const {
@@ -429,6 +430,7 @@ void EffectControlLinearizer::Run() {
         if (block_effects.For(block->PredecessorAt(i), block)
                 .current_frame_state != frame_state) {
           frame_state = nullptr;
+          frame_state_zapper_ = graph()->end();
           break;
         }
       }
@@ -502,6 +504,7 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
   if (region_observability_ == RegionObservability::kObservable &&
       !node->op()->HasProperty(Operator::kNoWrite)) {
     *frame_state = nullptr;
+    frame_state_zapper_ = node;
   }
 
   // Remove the end markers of 'atomic' allocation region because the
@@ -681,6 +684,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckedFloat64ToInt32(node, frame_state);
       break;
     case IrOpcode::kCheckedTaggedSignedToInt32:
+      if (frame_state == nullptr) {
+        V8_Fatal(__FILE__, __LINE__, "No frame state (zapped by #%d: %s)",
+                 frame_state_zapper_->id(),
+                 frame_state_zapper_->op()->mnemonic());
+      }
       result = LowerCheckedTaggedSignedToInt32(node, frame_state);
       break;
     case IrOpcode::kCheckedTaggedToInt32:

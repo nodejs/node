@@ -33,7 +33,8 @@ class Execution final : public AllStatic {
 
   // Construct object from function, the caller supplies an array of
   // arguments.
-  MUST_USE_RESULT static MaybeHandle<Object> New(Handle<JSFunction> constructor,
+  MUST_USE_RESULT static MaybeHandle<Object> New(Isolate* isolate,
+                                                 Handle<Object> constructor,
                                                  int argc,
                                                  Handle<Object> argv[]);
   MUST_USE_RESULT static MaybeHandle<Object> New(Isolate* isolate,

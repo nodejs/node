@@ -679,6 +679,7 @@ class RuntimeCallTimer final {
   V(UnboundScript_GetName)                                 \
   V(UnboundScript_GetSourceMappingURL)                     \
   V(UnboundScript_GetSourceURL)                            \
+  V(Value_InstanceOf)                                      \
   V(Value_TypeOf)                                          \
   V(ValueDeserializer_ReadHeader)                          \
   V(ValueDeserializer_ReadValue)                           \
@@ -715,6 +716,9 @@ class RuntimeCallTimer final {
   V(FunctionCallback)                               \
   V(GC)                                             \
   V(GC_AllAvailableGarbage)                         \
+  V(GC_IncrementalMarkingJob)                       \
+  V(GC_IncrementalMarkingObserver)                  \
+  V(GC_SlowAllocateRaw)                             \
   V(GCEpilogueCallback)                             \
   V(GCPrologueCallback)                             \
   V(GenericNamedPropertyDefinerCallback)            \
@@ -935,7 +939,8 @@ class RuntimeCallTimerScope {
      51)                                                                      \
   HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1,       \
      100000, 51)                                                              \
-  HR(array_buffer_big_allocations, V8.ArrayBufferBigAllocations, 0, 4096, 13) \
+  HR(array_buffer_big_allocations, V8.ArrayBufferLargeAllocations, 0, 4096,   \
+     13)                                                                      \
   HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096, 13)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
@@ -1015,24 +1020,25 @@ class RuntimeCallTimerScope {
   HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
   HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
 
-#define HISTOGRAM_MEMORY_LIST(HM)                                        \
-  HM(memory_heap_committed, V8.MemoryHeapCommitted)                      \
-  HM(memory_heap_used, V8.MemoryHeapUsed)                                \
-  /* Asm/Wasm */                                                         \
-  HM(wasm_decode_asm_module_peak_memory_bytes,                           \
-     V8.WasmDecodeModulePeakMemoryBytes.asm)                             \
-  HM(wasm_decode_wasm_module_peak_memory_bytes,                          \
-     V8.WasmDecodeModulePeakMemoryBytes.wasm)                            \
-  HM(wasm_compile_function_peak_memory_bytes,                            \
-     V8.WasmCompileFunctionPeakMemoryBytes)                              \
-  HM(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm)          \
-  HM(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm)        \
-  HM(wasm_asm_max_mem_pages_count, V8.WasmMaxMemPagesCount.asm)          \
-  HM(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm)        \
-  HM(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm)         \
-  HM(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm)       \
-  HM(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm)             \
-  HM(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm)
+#define HISTOGRAM_MEMORY_LIST(HM)                                  \
+  HM(memory_heap_committed, V8.MemoryHeapCommitted)                \
+  HM(memory_heap_used, V8.MemoryHeapUsed)                          \
+  /* Asm/Wasm */                                                   \
+  HM(wasm_decode_asm_module_peak_memory_bytes,                     \
+     V8.WasmDecodeModulePeakMemoryBytes.asm)                       \
+  HM(wasm_decode_wasm_module_peak_memory_bytes,                    \
+     V8.WasmDecodeModulePeakMemoryBytes.wasm)                      \
+  HM(wasm_compile_function_peak_memory_bytes,                      \
+     V8.WasmCompileFunctionPeakMemoryBytes)                        \
+  HM(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm)    \
+  HM(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm)  \
+  HM(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm)  \
+  HM(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm)   \
+  HM(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm) \
+  HM(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm)       \
+  HM(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm)     \
+  HM(asm_wasm_translation_peak_memory_bytes,                       \
+     V8.AsmWasmTranslationPeakMemoryBytes)
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
 // Intellisense to crash.  It was broken into two macros (each of length 40

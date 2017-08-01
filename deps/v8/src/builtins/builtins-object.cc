@@ -86,8 +86,11 @@ Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
                              Handle<Object> name, Handle<Object> accessor) {
   // 1. Let O be ? ToObject(this value).
   Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Object::ConvertReceiver(isolate, object));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, receiver,
+      FLAG_harmony_strict_legacy_accessor_builtins
+          ? Object::ToObject(isolate, object)
+          : Object::ConvertReceiver(isolate, object));
   // 2. If IsCallable(getter) is false, throw a TypeError exception.
   if (!accessor->IsCallable()) {
     MessageTemplate::Template message =
@@ -114,7 +117,9 @@ Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
   // To preserve legacy behavior, we ignore errors silently rather than
   // throwing an exception.
   Maybe<bool> success = JSReceiver::DefineOwnProperty(
-      isolate, receiver, name, &desc, Object::DONT_THROW);
+      isolate, receiver, name, &desc,
+      FLAG_harmony_strict_legacy_accessor_builtins ? Object::THROW_ON_ERROR
+                                                   : Object::DONT_THROW);
   MAYBE_RETURN(success, isolate->heap()->exception());
   if (!success.FromJust()) {
     isolate->CountUsage(v8::Isolate::kDefineGetterOrSetterWouldThrow);
@@ -125,8 +130,11 @@ Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
 
 Object* ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
                              Handle<Object> key, AccessorComponent component) {
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, object,
-                                     Object::ConvertReceiver(isolate, object));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, object,
+      FLAG_harmony_strict_legacy_accessor_builtins
+          ? Object::ToObject(isolate, object)
+          : Object::ConvertReceiver(isolate, object));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
                                      Object::ToPropertyKey(isolate, key));
   bool success = false;
@@ -427,41 +435,6 @@ BUILTIN(ObjectIsSealed) {
                            : Just(true);
   MAYBE_RETURN(result, isolate->heap()->exception());
   return isolate->heap()->ToBoolean(result.FromJust());
-}
-
-// ES6 section 19.1.2.14 Object.keys ( O )
-BUILTIN(ObjectKeys) {
-  HandleScope scope(isolate);
-  Handle<Object> object = args.atOrUndefined(isolate, 1);
-  Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Object::ToObject(isolate, object));
-
-  Handle<FixedArray> keys;
-  int enum_length = receiver->map()->EnumLength();
-  if (enum_length != kInvalidEnumCacheSentinel &&
-      JSObject::cast(*receiver)->elements() ==
-          isolate->heap()->empty_fixed_array()) {
-    DCHECK(receiver->IsJSObject());
-    DCHECK(!JSObject::cast(*receiver)->HasNamedInterceptor());
-    DCHECK(!JSObject::cast(*receiver)->IsAccessCheckNeeded());
-    DCHECK(!receiver->map()->has_hidden_prototype());
-    DCHECK(JSObject::cast(*receiver)->HasFastProperties());
-    if (enum_length == 0) {
-      keys = isolate->factory()->empty_fixed_array();
-    } else {
-      Handle<FixedArray> cache(
-          receiver->map()->instance_descriptors()->GetEnumCache());
-      keys = isolate->factory()->CopyFixedArrayUpTo(cache, enum_length);
-    }
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, keys,
-        KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly,
-                                ENUMERABLE_STRINGS,
-                                GetKeysConversion::kConvertToString));
-  }
-  return *isolate->factory()->NewJSArrayWithElements(keys, FAST_ELEMENTS);
 }
 
 BUILTIN(ObjectValues) {

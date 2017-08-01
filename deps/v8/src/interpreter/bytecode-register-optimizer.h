@@ -64,14 +64,18 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
   // Prepares for |bytecode|.
   template <Bytecode bytecode, AccumulatorUse accumulator_use>
   INLINE(void PrepareForBytecode()) {
-    if (Bytecodes::IsJump(bytecode) || bytecode == Bytecode::kDebugger ||
-        bytecode == Bytecode::kSuspendGenerator) {
+    if (Bytecodes::IsJump(bytecode) || Bytecodes::IsSwitch(bytecode) ||
+        bytecode == Bytecode::kDebugger ||
+        bytecode == Bytecode::kSuspendGenerator ||
+        bytecode == Bytecode::kResumeGenerator) {
       // All state must be flushed before emitting
       // - a jump bytecode (as the register equivalents at the jump target
-      // aren't
-      //   known.
+      //   aren't known)
+      // - a switch bytecode (as the register equivalents at the switch targets
+      //   aren't known)
       // - a call to the debugger (as it can manipulate locals and parameters),
       // - a generator suspend (as this involves saving all registers).
+      // - a generator resume (as this involves restoring all registers).
       Flush();
     }
 

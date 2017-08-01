@@ -45,10 +45,10 @@
 /src/inspector/build/closure-compiler
 /src/inspector/build/closure-compiler.tar.gz
 /test/benchmarks/data
-/test/fuzzer/wasm
-/test/fuzzer/wasm.tar.gz
-/test/fuzzer/wasm_asmjs
-/test/fuzzer/wasm_asmjs.tar.gz
+/test/fuzzer/wasm_corpus
+/test/fuzzer/wasm_corpus.tar.gz
+/test/fuzzer/wasm_asmjs_corpus
+/test/fuzzer/wasm_asmjs_corpus.tar.gz
 /test/mozilla/data
 /test/promises-aplus/promises-tests
 /test/promises-aplus/promises-tests.tar.gz
@@ -57,6 +57,8 @@
 /test/test262/data.tar
 /test/test262/harness
 /test/wasm-js
+/test/wasm-spec-tests/tests
+/test/wasm-spec-tests/tests.tar.gz
 /testing/gmock
 /testing/gtest/*
 !/testing/gtest/include

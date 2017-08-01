@@ -58,6 +58,7 @@ class StringTable
       Isolate* isolate, Handle<String> str);
   MUST_USE_RESULT static MaybeHandle<String> LookupTwoCharsStringIfExists(
       Isolate* isolate, uint16_t c1, uint16_t c2);
+  static Object* LookupStringIfExists_NoAllocate(String* string);
 
   static void EnsureCapacityForDeserialization(Isolate* isolate, int expected);
 

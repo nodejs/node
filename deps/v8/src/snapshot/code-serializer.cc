@@ -14,6 +14,7 @@
 #include "src/snapshot/deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/version.h"
+#include "src/visitors.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -50,7 +51,7 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
 ScriptData* CodeSerializer::Serialize(Handle<HeapObject> obj) {
   DisallowHeapAllocation no_gc;
 
-  VisitPointer(Handle<Object>::cast(obj).location());
+  VisitRootPointer(Root::kHandleScope, Handle<Object>::cast(obj).location());
   SerializeDeferredObjects();
   Pad();
 

@@ -38,6 +38,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceDeoptimizeNow(node);
     case Runtime::kInlineGeneratorClose:
       return ReduceGeneratorClose(node);
+    case Runtime::kInlineCreateJSGeneratorObject:
+      return ReduceCreateJSGeneratorObject(node);
     case Runtime::kInlineGeneratorGetInputOrDebugPos:
       return ReduceGeneratorGetInputOrDebugPos(node);
     case Runtime::kInlineAsyncGeneratorGetAwaitInputOrDebugPos:
@@ -56,6 +58,18 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsInstanceType(node, JS_TYPED_ARRAY_TYPE);
     case Runtime::kInlineIsJSProxy:
       return ReduceIsInstanceType(node, JS_PROXY_TYPE);
+    case Runtime::kInlineIsJSMap:
+      return ReduceIsInstanceType(node, JS_MAP_TYPE);
+    case Runtime::kInlineIsJSSet:
+      return ReduceIsInstanceType(node, JS_SET_TYPE);
+    case Runtime::kInlineIsJSMapIterator:
+      return ReduceIsInstanceType(node, JS_MAP_ITERATOR_TYPE);
+    case Runtime::kInlineIsJSSetIterator:
+      return ReduceIsInstanceType(node, JS_SET_ITERATOR_TYPE);
+    case Runtime::kInlineIsJSWeakMap:
+      return ReduceIsInstanceType(node, JS_WEAK_MAP_TYPE);
+    case Runtime::kInlineIsJSWeakSet:
+      return ReduceIsInstanceType(node, JS_WEAK_SET_TYPE);
     case Runtime::kInlineIsJSReceiver:
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
@@ -86,6 +100,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
     case Runtime::kInlineArrayBufferViewGetByteOffset:
       return ReduceArrayBufferViewField(
           node, AccessBuilder::ForJSArrayBufferViewByteOffset());
+    case Runtime::kInlineArrayBufferViewWasNeutered:
+      return ReduceArrayBufferViewWasNeutered(node);
     case Runtime::kInlineMaxSmi:
       return ReduceMaxSmi(node);
     case Runtime::kInlineTypedArrayGetLength:
@@ -143,6 +159,19 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
   node->TrimInputCount(0);
   NodeProperties::ChangeOp(node, common()->Dead());
   return Changed(node);
+}
+
+Reduction JSIntrinsicLowering::ReduceCreateJSGeneratorObject(Node* node) {
+  Node* const closure = NodeProperties::GetValueInput(node, 0);
+  Node* const receiver = NodeProperties::GetValueInput(node, 1);
+  Node* const context = NodeProperties::GetContextInput(node);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  Operator const* const op = javascript()->CreateGeneratorObject();
+  Node* create_generator =
+      graph()->NewNode(op, closure, receiver, context, effect, control);
+  ReplaceWithValue(node, create_generator, create_generator);
+  return Changed(create_generator);
 }
 
 Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
@@ -336,10 +365,7 @@ Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
   size_t const arity = CallRuntimeParametersOf(node->op()).arity();
-  NodeProperties::ChangeOp(
-      node,
-      javascript()->Call(arity, 0.0f, VectorSlotPair(),
-                         ConvertReceiverMode::kAny, TailCallMode::kDisallow));
+  NodeProperties::ChangeOp(node, javascript()->Call(arity));
   return Changed(node);
 }
 
@@ -369,6 +395,22 @@ Reduction JSIntrinsicLowering::ReduceArrayBufferViewField(
   value = graph()->NewNode(
       common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
       check, jsgraph()->ZeroConstant(), value);
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
+Reduction JSIntrinsicLowering::ReduceArrayBufferViewWasNeutered(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Check if the {receiver}s buffer was neutered.
+  Node* receiver_buffer = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+      receiver, effect, control);
+  Node* value = effect = graph()->NewNode(
+      simplified()->ArrayBufferWasNeutered(), receiver_buffer, effect, control);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);

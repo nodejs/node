@@ -18,7 +18,7 @@ class UnitTest(unittest.TestCase):
   def testDiff(self):
     # TODO(machenbach): Mock out suppression configuration.
     suppress = v8_suppressions.get_suppression(
-        'x64', 'fullcode', 'x64', 'default')
+        'x64', 'ignition', 'x64', 'ignition_turbo')
     one = ''
     two = ''
     diff = None, None
@@ -29,15 +29,12 @@ class UnitTest(unittest.TestCase):
     diff = None, None
     self.assertEquals(diff, suppress.diff(one, two))
 
-    # Ignore line before caret, caret position, stack trace char numbers
-    # error message and validator output.
+    # Ignore line before caret, caret position and error message.
     one = """
 undefined
 weird stuff
       ^
-Validation of asm.js module failed: foo bar
 somefile.js: TypeError: undefined is not a function
-stack line :15: foo
   undefined
 """
     two = """
@@ -45,8 +42,6 @@ undefined
 other weird stuff
             ^
 somefile.js: TypeError: baz is not a function
-stack line :2: foo
-Validation of asm.js module failed: baz
   undefined
 """
     diff = None, None

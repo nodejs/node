@@ -70,7 +70,7 @@ LINT_RULES = """
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
 FLAGS_LINE = re.compile("//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
 ASSERT_OPTIMIZED_PATTERN = re.compile("assertOptimized")
-FLAGS_ENABLE_OPT = re.compile("//\s*Flags:.*--(crankshaft|turbo)[^-].*\n")
+FLAGS_ENABLE_OPT = re.compile("//\s*Flags:.*--(opt|turbo)[^-].*\n")
 ASSERT_UNOPTIMIZED_PATTERN = re.compile("assertUnoptimized")
 FLAGS_NO_ALWAYS_OPT = re.compile("//\s*Flags:.*--no-?always-opt.*\n")
 
@@ -193,7 +193,7 @@ class SourceFileProcessor(object):
   def IgnoreDir(self, name):
     return (name.startswith('.') or
             name in ('buildtools', 'data', 'gmock', 'gtest', 'kraken',
-                     'octane', 'sunspider'))
+                     'octane', 'sunspider', 'traces-arm64'))
 
   def IgnoreFile(self, name):
     return name.startswith('.')
@@ -221,7 +221,7 @@ class CppLintProcessor(SourceFileProcessor):
     return (super(CppLintProcessor, self).IgnoreDir(name)
               or (name == 'third_party'))
 
-  IGNORE_LINT = ['flag-definitions.h']
+  IGNORE_LINT = ['export-template.h', 'flag-definitions.h']
 
   def IgnoreFile(self, name):
     return (super(CppLintProcessor, self).IgnoreFile(name)
@@ -413,7 +413,7 @@ class SourceProcessor(SourceFileProcessor):
       if not "mjsunit/mjsunit.js" in name:
         if ASSERT_OPTIMIZED_PATTERN.search(contents) and \
             not FLAGS_ENABLE_OPT.search(contents):
-          print "%s Flag --crankshaft or --turbo should be set " \
+          print "%s Flag --opt or --turbo should be set " \
                 "if assertOptimized() is used" % name
           result = False
         if ASSERT_UNOPTIMIZED_PATTERN.search(contents) and \

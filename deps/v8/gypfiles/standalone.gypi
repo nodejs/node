@@ -780,6 +780,12 @@
               # Don't warn about unrecognized command line option.
               '-Wno-gnu-zero-variadic-macro-arguments',
             ],
+            'cflags' : [
+              # Disable gcc warnings for optimizations based on the assumption
+              # that signed overflow does not occur. Generates false positives
+              # (see http://crbug.com/v8/6341).
+              "-Wno-strict-overflow",
+            ],
           }],
           [ 'clang==1 and (v8_target_arch=="x64" or v8_target_arch=="arm64" \
             or v8_target_arch=="mips64el")', {
@@ -855,7 +861,6 @@
           }],
         ],
         'msvs_cygwin_shell': 0,
-        'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
         'msvs_disabled_warnings': [
           # C4091: 'typedef ': ignored on left of 'X' when no variable is
           #                    declared.

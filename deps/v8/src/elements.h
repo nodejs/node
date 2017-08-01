@@ -6,7 +6,6 @@
 #define V8_ELEMENTS_H_
 
 #include "src/elements-kind.h"
-#include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/keys.h"
 #include "src/objects.h"
@@ -43,13 +42,13 @@ class ElementsAccessor {
   // index is ignored. Note that only Dictionary elements have custom
   // PropertyAttributes associated, hence the |filter| argument is ignored for
   // all but DICTIONARY_ELEMENTS and SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
-  virtual bool HasElement(Handle<JSObject> holder, uint32_t index,
-                          Handle<FixedArrayBase> backing_store,
+  virtual bool HasElement(JSObject* holder, uint32_t index,
+                          FixedArrayBase* backing_store,
                           PropertyFilter filter = ALL_PROPERTIES) = 0;
 
-  inline bool HasElement(Handle<JSObject> holder, uint32_t index,
+  inline bool HasElement(JSObject* holder, uint32_t index,
                          PropertyFilter filter = ALL_PROPERTIES) {
-    return HasElement(holder, index, handle(holder->elements()), filter);
+    return HasElement(holder, index, holder->elements(), filter);
   }
 
   virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t entry) = 0;
@@ -188,6 +187,9 @@ class ElementsAccessor {
   virtual void CopyElements(Handle<FixedArrayBase> source,
                             ElementsKind source_kind,
                             Handle<FixedArrayBase> destination, int size) = 0;
+
+  virtual Object* CopyElements(Handle<JSReceiver> source,
+                               Handle<JSObject> destination, size_t length) = 0;
 
   virtual Handle<FixedArray> CreateListFromArray(Isolate* isolate,
                                                  Handle<JSArray> array) = 0;

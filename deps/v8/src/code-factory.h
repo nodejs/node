@@ -91,8 +91,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
                                       OrdinaryToPrimitiveHint hint);
   static Callable NumberToString(Isolate* isolate);
 
-  static Callable RegExpExec(Isolate* isolate);
-
   static Callable Add(Isolate* isolate);
   static Callable Subtract(Isolate* isolate);
   static Callable Multiply(Isolate* isolate);
@@ -135,7 +133,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable FastCloneRegExp(Isolate* isolate);
   static Callable FastCloneShallowArray(Isolate* isolate,
                                         AllocationSiteMode allocation_mode);
-  static Callable FastCloneShallowObject(Isolate* isolate, int length);
+  static Callable FastCloneShallowObject(Isolate* isolate);
 
   static Callable FastNewFunctionContext(Isolate* isolate,
                                          ScopeType scope_type);
@@ -169,6 +167,8 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable Construct(Isolate* isolate);
   static Callable ConstructWithSpread(Isolate* isolate);
   static Callable ConstructFunction(Isolate* isolate);
+  static Callable ConstructForwardVarargs(Isolate* isolate);
+  static Callable ConstructFunctionForwardVarargs(Isolate* isolate);
   static Callable CreateIterResultObject(Isolate* isolate);
   static Callable HasProperty(Isolate* isolate);
   static Callable ForInFilter(Isolate* isolate);
@@ -184,14 +184,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable InterpreterOnStackReplacement(Isolate* isolate);
 
   static Callable ArrayConstructor(Isolate* isolate);
+  static Callable ArrayPop(Isolate* isolate);
   static Callable ArrayPush(Isolate* isolate);
-  static Callable ArrayFilterLoopContinuation(Isolate* isolate);
-  static Callable ArrayMapLoopContinuation(Isolate* isolate);
-  static Callable ArrayForEachLoopContinuation(Isolate* isolate);
-  static Callable ArraySomeLoopContinuation(Isolate* isolate);
-  static Callable ArrayEveryLoopContinuation(Isolate* isolate);
-  static Callable ArrayReduceLoopContinuation(Isolate* isolate);
-  static Callable ArrayReduceRightLoopContinuation(Isolate* isolate);
+  static Callable ArrayShift(Isolate* isolate);
   static Callable FunctionPrototypeBind(Isolate* isolate);
   static Callable PromiseHandleReject(Isolate* isolate);
 

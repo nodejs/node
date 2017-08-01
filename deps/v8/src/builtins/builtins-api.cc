@@ -11,6 +11,7 @@
 #include "src/log.h"
 #include "src/objects-inl.h"
 #include "src/prototype.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -117,7 +118,8 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     }
     // Rebox the result.
     result->VerifyApiCallResultType();
-    if (!is_construct || result->IsJSObject()) return handle(*result, isolate);
+    if (!is_construct || result->IsJSReceiver())
+      return handle(*result, isolate);
   }
 
   return js_receiver;
@@ -150,9 +152,10 @@ class RelocatableArguments : public BuiltinArguments, public Relocatable {
   RelocatableArguments(Isolate* isolate, int length, Object** arguments)
       : BuiltinArguments(length, arguments), Relocatable(isolate) {}
 
-  virtual inline void IterateInstance(ObjectVisitor* v) {
+  virtual inline void IterateInstance(RootVisitor* v) {
     if (length() == 0) return;
-    v->VisitPointers(lowest_address(), highest_address() + 1);
+    v->VisitRootPointers(Root::kRelocatable, lowest_address(),
+                         highest_address() + 1);
   }
 
  private:

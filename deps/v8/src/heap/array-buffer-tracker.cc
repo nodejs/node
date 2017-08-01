@@ -5,6 +5,7 @@
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/spaces.h"
 
 namespace v8 {
 namespace internal {
@@ -13,19 +14,16 @@ LocalArrayBufferTracker::~LocalArrayBufferTracker() {
   CHECK(array_buffers_.empty());
 }
 
-template <LocalArrayBufferTracker::FreeMode free_mode>
-void LocalArrayBufferTracker::Free() {
+template <typename Callback>
+void LocalArrayBufferTracker::Free(Callback should_free) {
   size_t freed_memory = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
     JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(it->first);
-    // TODO(mlippautz): Create a dependency on the collector to avoid getting
-    // the marking state out of thin air.
-    if ((free_mode == kFreeAll) ||
-        ObjectMarking::IsWhite(buffer, MarkingState::Internal(buffer))) {
+    if (should_free(buffer)) {
       const size_t len = it->second;
-      heap_->isolate()->array_buffer_allocator()->Free(buffer->backing_store(),
-                                                       len);
+      buffer->FreeBackingStore();
+
       freed_memory += len;
       it = array_buffers_.erase(it);
     } else {
@@ -64,8 +62,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
       it = array_buffers_.erase(it);
     } else if (result == kRemoveEntry) {
       const size_t len = it->second;
-      heap_->isolate()->array_buffer_allocator()->Free(
-          it->first->backing_store(), len);
+      it->first->FreeBackingStore();
       freed_memory += len;
       it = array_buffers_.erase(it);
     } else {
@@ -88,12 +85,14 @@ void ArrayBufferTracker::FreeDeadInNewSpace(Heap* heap) {
   heap->account_external_memory_concurrently_freed();
 }
 
-void ArrayBufferTracker::FreeDead(Page* page) {
+void ArrayBufferTracker::FreeDead(Page* page,
+                                  const MarkingState& marking_state) {
   // Callers need to ensure having the page lock.
   LocalArrayBufferTracker* tracker = page->local_tracker();
   if (tracker == nullptr) return;
-  DCHECK(!page->SweepingDone());
-  tracker->Free<LocalArrayBufferTracker::kFreeDead>();
+  tracker->Free([&marking_state](JSArrayBuffer* buffer) {
+    return ObjectMarking::IsWhite(buffer, marking_state);
+  });
   if (tracker->IsEmpty()) {
     page->ReleaseLocalTracker();
   }
@@ -102,7 +101,7 @@ void ArrayBufferTracker::FreeDead(Page* page) {
 void ArrayBufferTracker::FreeAll(Page* page) {
   LocalArrayBufferTracker* tracker = page->local_tracker();
   if (tracker == nullptr) return;
-  tracker->Free<LocalArrayBufferTracker::kFreeAll>();
+  tracker->Free([](JSArrayBuffer* buffer) { return true; });
   if (tracker->IsEmpty()) {
     page->ReleaseLocalTracker();
   }

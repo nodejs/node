@@ -1682,7 +1682,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("pextrw ");  // reg/m32, xmm, imm8
         current += PrintRightOperand(current);
-        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
+        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 7);
         current += 1;
       } else if (third_byte == 0x16) {
         get_modrm(*current, &mod, &regop, &rm);
@@ -1788,6 +1788,11 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += 1;
       } else if (opcode == 0xB1) {
         current += PrintOperands("cmpxchg", OPER_REG_OP_ORDER, current);
+      } else if (opcode == 0xC4) {
+        AppendToBuffer("pinsrw %s,", NameOfXMMRegister(regop));
+        current += PrintRightOperand(current);
+        AppendToBuffer(",0x%x", (*current) & 7);
+        current += 1;
       } else {
         const char* mnemonic = "?";
         if (opcode == 0x54) {
@@ -1824,10 +1829,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "punpckhdq";
         } else if (opcode == 0x6B) {
           mnemonic = "packssdw";
-        } else if (opcode == 0xC4) {
-          mnemonic = "pinsrw";
-        } else if (opcode == 0xC5) {
-          mnemonic = "pextrw";
         } else if (opcode == 0xD1) {
           mnemonic = "psrlw";
         } else if (opcode == 0xD2) {
@@ -1941,6 +1942,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
+    } else if (opcode == 0x70) {
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("pshuflw %s, ", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(", %d", (*current) & 7);
+      current += 1;
     } else if (opcode == 0xC2) {
       // Intel manual 2A, Table 3-18.
       int mod, regop, rm;
@@ -1996,6 +2004,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       AppendToBuffer("cvttss2si%c %s,",
           operand_size_code(), NameOfCPURegister(regop));
       current += PrintRightXMMOperand(current);
+    } else if (opcode == 0x70) {
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("pshufhw %s, ", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(", %d", (*current) & 7);
+      current += 1;
     } else if (opcode == 0x7E) {
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);

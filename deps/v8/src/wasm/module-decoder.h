@@ -20,7 +20,7 @@ const uint8_t kWasmFunctionTypeForm = 0x60;
 const uint8_t kWasmAnyFunctionTypeForm = 0x70;
 const uint8_t kResizableMaximumFlag = 1;
 
-enum SectionCode {
+enum SectionCode : int8_t {
   kUnknownSectionCode = 0,   // code for unknown sections
   kTypeSectionCode = 1,      // Function signature declarations
   kImportSectionCode = 2,    // Import declarations
@@ -34,6 +34,9 @@ enum SectionCode {
   kCodeSectionCode = 10,     // Function code
   kDataSectionCode = 11,     // Data segments
   kNameSectionCode = 12,     // Name section (encoded as a string)
+
+  // Helper values
+  kFirstSectionInModule = kTypeSectionCode,
 };
 
 enum NameSectionType : uint8_t { kFunction = 1, kLocal = 2 };
@@ -44,8 +47,8 @@ inline bool IsValidSectionCode(uint8_t byte) {
 
 const char* SectionName(SectionCode code);
 
-typedef Result<const WasmModule*> ModuleResult;
-typedef Result<WasmFunction*> FunctionResult;
+typedef Result<std::unique_ptr<WasmModule>> ModuleResult;
+typedef Result<std::unique_ptr<WasmFunction>> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;
 typedef Result<FunctionOffsets> FunctionOffsetsResult;
 struct AsmJsOffsetEntry {
@@ -57,11 +60,9 @@ typedef std::vector<std::vector<AsmJsOffsetEntry>> AsmJsOffsets;
 typedef Result<AsmJsOffsets> AsmJsOffsetsResult;
 
 // Decodes the bytes of a WASM module between {module_start} and {module_end}.
-V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(Isolate* isolate,
-                                                const byte* module_start,
-                                                const byte* module_end,
-                                                bool verify_functions,
-                                                ModuleOrigin origin);
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
+    Isolate* isolate, const byte* module_start, const byte* module_end,
+    bool verify_functions, ModuleOrigin origin, bool is_sync = true);
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone. Returns {nullptr} upon failure.
@@ -71,11 +72,9 @@ V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(Zone* zone,
 
 // Decodes the bytes of a WASM function between
 // {function_start} and {function_end}.
-V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunction(Isolate* isolate,
-                                                    Zone* zone,
-                                                    ModuleBytesEnv* env,
-                                                    const byte* function_start,
-                                                    const byte* function_end);
+V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunction(
+    Isolate* isolate, Zone* zone, ModuleBytesEnv* env,
+    const byte* function_start, const byte* function_end, bool is_sync = true);
 
 V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,
                                                             const byte* end);

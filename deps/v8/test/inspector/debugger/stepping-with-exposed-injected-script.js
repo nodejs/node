@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 // Flags: --expose-inspector-scripts
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests that stepping does not ignore injected script when passed a flag');
+
 Protocol.Debugger.onPaused(message => {
-  let url = InspectorTest._scriptMap.get(message.params.callFrames[0].location.scriptId).url;
+  let url = session._scriptMap.get(message.params.callFrames[0].location.scriptId).url;
   if (url !== 'test.js') {
     InspectorTest.log('InjectedSciptSource on stack.');
     InspectorTest.completeTest();
@@ -12,7 +14,7 @@ Protocol.Debugger.onPaused(message => {
   Protocol.Debugger.stepInto();
 });
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.enable();
 Protocol.Debugger.pause();
 Protocol.Runtime.evaluate({expression: 'console.log(42)//# sourceURL=test.js'})

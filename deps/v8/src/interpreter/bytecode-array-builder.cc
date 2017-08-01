@@ -6,8 +6,11 @@
 
 #include "src/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
+#include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
+#include "src/interpreter/bytecode-node.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
+#include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
 
@@ -35,8 +38,8 @@ class RegisterTransferWriter final
 };
 
 BytecodeArrayBuilder::BytecodeArrayBuilder(
-    Isolate* isolate, Zone* zone, int parameter_count, int context_count,
-    int locals_count, FunctionLiteral* literal,
+    Isolate* isolate, Zone* zone, int parameter_count, int locals_count,
+    FunctionLiteral* literal,
     SourcePositionTableBuilder::RecordingMode source_position_mode)
     : zone_(zone),
       literal_(literal),
@@ -46,14 +49,11 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
       return_seen_in_block_(false),
       parameter_count_(parameter_count),
       local_register_count_(locals_count),
-      context_register_count_(context_count),
       register_allocator_(fixed_register_count()),
       bytecode_array_writer_(zone, &constant_array_builder_,
                              source_position_mode),
-      pipeline_(&bytecode_array_writer_),
       register_optimizer_(nullptr) {
   DCHECK_GE(parameter_count_, 0);
-  DCHECK_GE(context_register_count_, 0);
   DCHECK_GE(local_register_count_, 0);
 
   if (FLAG_ignition_reo) {
@@ -63,16 +63,6 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
   }
 
   return_position_ = literal ? literal->return_position() : kNoSourcePosition;
-}
-
-Register BytecodeArrayBuilder::first_context_register() const {
-  DCHECK_GT(context_register_count_, 0);
-  return Register(local_register_count_);
-}
-
-Register BytecodeArrayBuilder::last_context_register() const {
-  DCHECK_GT(context_register_count_, 0);
-  return Register(local_register_count_ + context_register_count_ - 1);
 }
 
 Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
@@ -106,8 +96,8 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
 
   Handle<FixedArray> handler_table =
       handler_table_builder()->ToHandlerTable(isolate);
-  return pipeline_->ToBytecodeArray(isolate, register_count, parameter_count(),
-                                    handler_table);
+  return bytecode_array_writer_.ToBytecodeArray(
+      isolate, register_count, parameter_count(), handler_table);
 }
 
 BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
@@ -134,7 +124,7 @@ void BytecodeArrayBuilder::SetDeferredSourceInfo(
   if (deferred_source_info_.is_valid()) {
     // Emit any previous deferred source info now as a nop.
     BytecodeNode node = BytecodeNode::Nop(deferred_source_info_);
-    pipeline()->Write(&node);
+    bytecode_array_writer_.Write(&node);
   }
   deferred_source_info_ = source_info;
 }
@@ -146,19 +136,25 @@ void BytecodeArrayBuilder::AttachOrEmitDeferredSourceInfo(BytecodeNode* node) {
     node->set_source_info(deferred_source_info_);
   } else {
     BytecodeNode node = BytecodeNode::Nop(deferred_source_info_);
-    pipeline()->Write(&node);
+    bytecode_array_writer_.Write(&node);
   }
   deferred_source_info_.set_invalid();
 }
 
 void BytecodeArrayBuilder::Write(BytecodeNode* node) {
   AttachOrEmitDeferredSourceInfo(node);
-  pipeline()->Write(node);
+  bytecode_array_writer_.Write(node);
 }
 
 void BytecodeArrayBuilder::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   AttachOrEmitDeferredSourceInfo(node);
-  pipeline()->WriteJump(node, label);
+  bytecode_array_writer_.WriteJump(node, label);
+}
+
+void BytecodeArrayBuilder::WriteSwitch(BytecodeNode* node,
+                                       BytecodeJumpTable* jump_table) {
+  AttachOrEmitDeferredSourceInfo(node);
+  bytecode_array_writer_.WriteSwitch(node, jump_table);
 }
 
 void BytecodeArrayBuilder::OutputLdarRaw(Register reg) {
@@ -294,8 +290,9 @@ class BytecodeNodeBuilder {
  public:
   template <typename... Operands>
   INLINE(static BytecodeNode Make(BytecodeArrayBuilder* builder,
-                                  BytecodeSourceInfo source_info,
                                   Operands... operands)) {
+    static_assert(sizeof...(Operands) <= Bytecodes::kMaxOperands,
+                  "too many operands for bytecode");
     builder->PrepareToOutputBytecode<bytecode, accumulator_use>();
     // The "OperandHelper<operand_types>::Convert(builder, operands)..." will
     // expand both the OperandType... and Operands... parameter packs e.g. for:
@@ -305,36 +302,44 @@ class BytecodeNodeBuilder {
     //    OperandHelper<OperandType::kReg>::Convert(builder, reg),
     //    OperandHelper<OperandType::kImm>::Convert(builder, immediate),
     return BytecodeNode::Create<bytecode, accumulator_use, operand_types...>(
-        source_info,
+        builder->CurrentSourcePosition(bytecode),
         OperandHelper<operand_types>::Convert(builder, operands)...);
   }
 };
 
-#define DEFINE_BYTECODE_OUTPUT(name, ...)                                \
-  template <typename... Operands>                                        \
-  void BytecodeArrayBuilder::Output##name(Operands... operands) {        \
-    static_assert(sizeof...(Operands) <= Bytecodes::kMaxOperands,        \
-                  "too many operands for bytecode");                     \
-    BytecodeNode node(                                                   \
-        BytecodeNodeBuilder<Bytecode::k##name, __VA_ARGS__>::Make<       \
-            Operands...>(this, CurrentSourcePosition(Bytecode::k##name), \
-                         operands...));                                  \
-    Write(&node);                                                        \
-  }                                                                      \
-                                                                         \
-  template <typename... Operands>                                        \
-  void BytecodeArrayBuilder::Output##name(BytecodeLabel* label,          \
-                                          Operands... operands) {        \
-    DCHECK(Bytecodes::IsJump(Bytecode::k##name));                        \
-    BytecodeNode node(                                                   \
-        BytecodeNodeBuilder<Bytecode::k##name, __VA_ARGS__>::Make<       \
-            Operands...>(this, CurrentSourcePosition(Bytecode::k##name), \
-                         operands...));                                  \
-    WriteJump(&node, label);                                             \
-    LeaveBasicBlock();                                                   \
+#define DEFINE_BYTECODE_OUTPUT(name, ...)                             \
+  template <typename... Operands>                                     \
+  BytecodeNode BytecodeArrayBuilder::Create##name##Node(              \
+      Operands... operands) {                                         \
+    return BytecodeNodeBuilder<Bytecode::k##name, __VA_ARGS__>::Make( \
+        this, operands...);                                           \
+  }                                                                   \
+                                                                      \
+  template <typename... Operands>                                     \
+  void BytecodeArrayBuilder::Output##name(Operands... operands) {     \
+    BytecodeNode node(Create##name##Node(operands...));               \
+    Write(&node);                                                     \
+  }                                                                   \
+                                                                      \
+  template <typename... Operands>                                     \
+  void BytecodeArrayBuilder::Output##name(BytecodeLabel* label,       \
+                                          Operands... operands) {     \
+    DCHECK(Bytecodes::IsJump(Bytecode::k##name));                     \
+    BytecodeNode node(Create##name##Node(operands...));               \
+    WriteJump(&node, label);                                          \
+    LeaveBasicBlock();                                                \
   }
 BYTECODE_LIST(DEFINE_BYTECODE_OUTPUT)
 #undef DEFINE_BYTECODE_OUTPUT
+
+void BytecodeArrayBuilder::OutputSwitchOnSmiNoFeedback(
+    BytecodeJumpTable* jump_table) {
+  BytecodeNode node(CreateSwitchOnSmiNoFeedbackNode(
+      jump_table->constant_pool_index(), jump_table->size(),
+      jump_table->case_value_base()));
+  WriteSwitch(&node, jump_table);
+  LeaveBasicBlock();
+}
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
                                                             Register reg,
@@ -995,14 +1000,24 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeLabel* label) {
   // Flush the register optimizer when binding a label to ensure all
   // expected registers are valid when jumping to this label.
   if (register_optimizer_) register_optimizer_->Flush();
-  pipeline_->BindLabel(label);
+  bytecode_array_writer_.BindLabel(label);
   LeaveBasicBlock();
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
                                                  BytecodeLabel* label) {
-  pipeline_->BindLabel(target, label);
+  bytecode_array_writer_.BindLabel(target, label);
+  LeaveBasicBlock();
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeJumpTable* jump_table,
+                                                 int case_value) {
+  // Flush the register optimizer when binding a jump table entry to ensure
+  // all expected registers are valid when jumping to this location.
+  if (register_optimizer_) register_optimizer_->Flush();
+  bytecode_array_writer_.BindJumpTableEntry(jump_table, case_value);
   LeaveBasicBlock();
   return *this;
 }
@@ -1118,6 +1133,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(BytecodeLabel* label,
                                                      int loop_depth) {
   DCHECK(label->is_bound());
   OutputJumpLoop(label, 0, loop_depth);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::SwitchOnSmiNoFeedback(
+    BytecodeJumpTable* jump_table) {
+  OutputSwitchOnSmiNoFeedback(jump_table);
   return *this;
 }
 
@@ -1385,6 +1406,16 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(const Scope* scope) {
   }
 SINGLETON_CONSTANT_ENTRY_TYPES(ENTRY_GETTER)
 #undef ENTRY_GETTER
+
+BytecodeJumpTable* BytecodeArrayBuilder::AllocateJumpTable(
+    int size, int case_value_base) {
+  DCHECK_GT(size, 0);
+
+  size_t constant_pool_index = constant_array_builder()->InsertJumpTable(size);
+
+  return new (zone())
+      BytecodeJumpTable(constant_pool_index, size, case_value_base, zone());
+}
 
 size_t BytecodeArrayBuilder::AllocateDeferredConstantPoolEntry() {
   return constant_array_builder()->InsertDeferred();

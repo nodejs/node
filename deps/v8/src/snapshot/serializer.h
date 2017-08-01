@@ -156,7 +156,7 @@ class Serializer : public SerializerDeserializer {
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip) = 0;
 
-  void VisitPointers(Object** start, Object** end) override;
+  void VisitRootPointers(Root root, Object** start, Object** end) override;
 
   void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
                int skip);
@@ -282,15 +282,15 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void Serialize();
   void SerializeContent();
   void SerializeDeferred();
-  void VisitPointers(Object** start, Object** end) override;
-  void VisitEmbeddedPointer(RelocInfo* target) override;
-  void VisitExternalReference(Address* p) override;
-  void VisitExternalReference(RelocInfo* rinfo) override;
-  void VisitInternalReference(RelocInfo* rinfo) override;
-  void VisitCodeTarget(RelocInfo* target) override;
-  void VisitCodeEntry(Address entry_address) override;
-  void VisitCell(RelocInfo* rinfo) override;
-  void VisitRuntimeEntry(RelocInfo* reloc) override;
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override;
+  void VisitEmbeddedPointer(Code* host, RelocInfo* target) override;
+  void VisitExternalReference(Foreign* host, Address* p) override;
+  void VisitExternalReference(Code* host, RelocInfo* rinfo) override;
+  void VisitInternalReference(Code* host, RelocInfo* rinfo) override;
+  void VisitCodeTarget(Code* host, RelocInfo* target) override;
+  void VisitCodeEntry(JSFunction* host, Address entry_address) override;
+  void VisitCellPointer(Code* host, RelocInfo* rinfo) override;
+  void VisitRuntimeEntry(Code* host, RelocInfo* reloc) override;
 
  private:
   bool TryEncodeDeoptimizationEntry(HowToCode how_to_code, Address target,

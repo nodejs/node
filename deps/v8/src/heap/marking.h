@@ -38,12 +38,16 @@ class MarkBit {
     }
   }
 
+  // The function returns true if it succeeded to
+  // transition the bit from 0 to 1.
   template <AccessMode mode = NON_ATOMIC>
   inline bool Set();
 
   template <AccessMode mode = NON_ATOMIC>
   inline bool Get();
 
+  // The function returns true if it succeeded to
+  // transition the bit from 1 to 0.
   template <AccessMode mode = NON_ATOMIC>
   inline bool Clear();
 
@@ -57,8 +61,9 @@ class MarkBit {
 
 template <>
 inline bool MarkBit::Set<MarkBit::NON_ATOMIC>() {
-  *cell_ |= mask_;
-  return true;
+  base::Atomic32 old_value = *cell_;
+  *cell_ = old_value | mask_;
+  return (old_value & mask_) == 0;
 }
 
 template <>
@@ -86,8 +91,9 @@ inline bool MarkBit::Get<MarkBit::ATOMIC>() {
 
 template <>
 inline bool MarkBit::Clear<MarkBit::NON_ATOMIC>() {
-  *cell_ &= ~mask_;
-  return true;
+  base::Atomic32 old_value = *cell_;
+  *cell_ = old_value & ~mask_;
+  return (old_value & mask_) == mask_;
 }
 
 template <>
@@ -412,24 +418,17 @@ class Marking : public AllStatic {
 
   template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
   INLINE(static bool WhiteToGrey(MarkBit markbit)) {
-    DCHECK(mode == MarkBit::ATOMIC || IsWhite(markbit));
     return markbit.Set<mode>();
   }
 
-  // Warning: this method is not safe in general in concurrent scenarios.
-  // If you know that nobody else will change the bits on the given location
-  // then you may use it.
   template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
-  INLINE(static void WhiteToBlack(MarkBit markbit)) {
-    DCHECK(mode == MarkBit::ATOMIC || IsWhite(markbit));
-    markbit.Set<mode>();
-    markbit.Next().Set<mode>();
+  INLINE(static bool WhiteToBlack(MarkBit markbit)) {
+    return markbit.Set<mode>() && markbit.Next().Set<mode>();
   }
 
   template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
   INLINE(static bool GreyToBlack(MarkBit markbit)) {
-    DCHECK(mode == MarkBit::ATOMIC || IsGrey(markbit));
-    return markbit.Next().Set<mode>();
+    return markbit.Get<mode>() && markbit.Next().Set<mode>();
   }
 
   enum ObjectColor {

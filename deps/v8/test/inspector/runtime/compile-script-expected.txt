@@ -1,3 +1,4 @@
+Tests Runtime.compileScript
 Compiling script: foo1.js
          persist: false
 compilation result: 

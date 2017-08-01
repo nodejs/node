@@ -8,7 +8,7 @@
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/deoptimize-reason.h"
-#include "src/feedback-vector.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
@@ -16,6 +16,7 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
+class FeedbackNexus;
 
 namespace compiler {
 
@@ -67,7 +68,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Reduction ReduceJSStoreDataPropertyInLiteral(Node* node);
 
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
-                                MapHandleList const& receiver_maps,
+                                MapHandles const& receiver_maps,
                                 AccessMode access_mode,
                                 LanguageMode language_mode,
                                 KeyedAccessStoreMode store_mode);
@@ -82,7 +83,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                        AccessMode access_mode,
                                        LanguageMode language_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
-                              MapHandleList const& receiver_maps,
+                              MapHandles const& receiver_maps,
                               Handle<Name> name, AccessMode access_mode,
                               LanguageMode language_mode,
                               Node* index = nullptr);
@@ -130,7 +131,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
   // Construct an appropriate map check.
   Node* BuildCheckMaps(Node* receiver, Node* effect, Node* control,
-                       std::vector<Handle<Map>> const& maps);
+                       MapHandles const& maps);
 
   // Construct appropriate subgraph to extend properties backing store.
   Node* BuildExtendPropertiesBackingStore(Handle<Map> map, Node* properties,
@@ -138,26 +139,37 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
   // Adds stability dependencies on all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.
-  void AssumePrototypesStable(std::vector<Handle<Map>> const& receiver_maps,
+  void AssumePrototypesStable(MapHandles const& receiver_maps,
                               Handle<JSObject> holder);
 
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
   // code dependencies and might use the array protector cell.
-  bool CanTreatHoleAsUndefined(std::vector<Handle<Map>> const& receiver_maps);
+  bool CanTreatHoleAsUndefined(MapHandles const& receiver_maps);
+
+  // Checks if we know at compile time that the {receiver} either definitely
+  // has the {prototype} in it's prototype chain, or the {receiver} definitely
+  // doesn't have the {prototype} in it's prototype chain.
+  enum InferHasInPrototypeChainResult {
+    kIsInPrototypeChain,
+    kIsNotInPrototypeChain,
+    kMayBeInPrototypeChain
+  };
+  InferHasInPrototypeChainResult InferHasInPrototypeChain(
+      Node* receiver, Node* effect, Handle<JSReceiver> prototype);
 
   // Extract receiver maps from {nexus} and filter based on {receiver} if
   // possible.
   bool ExtractReceiverMaps(Node* receiver, Node* effect,
                            FeedbackNexus const& nexus,
-                           MapHandleList* receiver_maps);
+                           MapHandles* receiver_maps);
 
   // Try to infer maps for the given {receiver} at the current {effect}.
   // If maps are returned then you can be sure that the {receiver} definitely
   // has one of the returned maps at this point in the program (identified
   // by {effect}).
   bool InferReceiverMaps(Node* receiver, Node* effect,
-                         MapHandleList* receiver_maps);
+                         MapHandles* receiver_maps);
   // Try to infer a root map for the {receiver} independent of the current
   // program location.
   MaybeHandle<Map> InferReceiverRootMap(Node* receiver);

@@ -252,29 +252,15 @@ class SmallMapList final {
   bool is_empty() const { return list_.is_empty(); }
   int length() const { return list_.length(); }
 
-  void AddMapIfMissing(Handle<Map> map, Zone* zone) {
-    if (!Map::TryUpdate(map).ToHandle(&map)) return;
-    for (int i = 0; i < length(); ++i) {
-      if (at(i).is_identical_to(map)) return;
-    }
-    Add(map, zone);
-  }
+  void AddMapIfMissing(Handle<Map> map, Zone* zone);
 
-  void FilterForPossibleTransitions(Map* root_map) {
-    for (int i = list_.length() - 1; i >= 0; i--) {
-      if (at(i)->FindRootMap() != root_map) {
-        list_.RemoveElement(list_.at(i));
-      }
-    }
-  }
+  void FilterForPossibleTransitions(Map* root_map);
 
   void Add(Handle<Map> handle, Zone* zone) {
     list_.Add(handle.location(), zone);
   }
 
-  Handle<Map> at(int i) const {
-    return Handle<Map>(list_.at(i));
-  }
+  Handle<Map> at(int i) const;
 
   Handle<Map> first() const { return at(0); }
   Handle<Map> last() const { return at(length() - 1); }
@@ -484,20 +470,12 @@ class DoExpression final : public Expression {
   void set_block(Block* b) { block_ = b; }
   VariableProxy* result() { return result_; }
   void set_result(VariableProxy* v) { result_ = v; }
-  FunctionLiteral* represented_function() { return represented_function_; }
-  void set_represented_function(FunctionLiteral* f) {
-    represented_function_ = f;
-  }
-  bool IsAnonymousFunctionDefinition() const;
 
  private:
   friend class AstNodeFactory;
 
   DoExpression(Block* block, VariableProxy* result, int pos)
-      : Expression(pos, kDoExpression),
-        block_(block),
-        result_(result),
-        represented_function_(nullptr) {
+      : Expression(pos, kDoExpression), block_(block), result_(result) {
     DCHECK_NOT_NULL(block_);
     DCHECK_NOT_NULL(result_);
   }
@@ -506,7 +484,6 @@ class DoExpression final : public Expression {
 
   Block* block_;
   VariableProxy* result_;
-  FunctionLiteral* represented_function_;
 };
 
 
@@ -977,11 +954,11 @@ class CaseClause final : public Expression {
   CaseClause(Expression* label, ZoneList<Statement*>* statements, int pos);
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
+  FeedbackSlot feedback_slot_;
   Expression* label_;
   Label body_target_;
   ZoneList<Statement*>* statements_;
   AstType* compare_type_;
-  FeedbackSlot feedback_slot_;
 };
 
 
@@ -1238,9 +1215,9 @@ class Literal final : public Expression {
 // Base class for literals that need space in the type feedback vector.
 class MaterializedLiteral : public Expression {
  public:
+  bool is_initialized() const { return 0 < depth_; }
   int depth() const {
-    // only callable after initialization.
-    DCHECK(depth_ >= 1);
+    DCHECK(is_initialized());
     return depth_;
   }
 
@@ -1270,10 +1247,11 @@ class MaterializedLiteral : public Expression {
   void set_is_simple(bool is_simple) {
     bit_field_ = IsSimpleField::update(bit_field_, is_simple);
   }
+
   friend class CompileTimeValue;
 
   void set_depth(int depth) {
-    DCHECK_LE(1, depth);
+    DCHECK(!is_initialized());
     depth_ = depth;
   }
 
@@ -1359,6 +1337,11 @@ class ObjectLiteralProperty final : public LiteralProperty {
 
   void set_receiver_type(Handle<Map> map) { receiver_type_ = map; }
 
+  bool IsNullPrototype() const {
+    return IsPrototype() && value()->IsNullLiteral();
+  }
+  bool IsPrototype() const { return kind() == PROTOTYPE; }
+
  private:
   friend class AstNodeFactory;
 
@@ -1396,9 +1379,9 @@ class ObjectLiteral final : public MaterializedLiteral {
   bool has_rest_property() const {
     return HasRestPropertyField::decode(bit_field_);
   }
-
-  // Decide if a property should be in the object boilerplate.
-  static bool IsBoilerplateProperty(Property* property);
+  bool has_null_prototype() const {
+    return HasNullPrototypeField::decode(bit_field_);
+  }
 
   // Populate the depth field and flags.
   void InitDepthAndFlags();
@@ -1426,12 +1409,16 @@ class ObjectLiteral final : public MaterializedLiteral {
   // Assemble bitfield of flags for the CreateObjectLiteral helper.
   int ComputeFlags(bool disable_mementos = false) const {
     int flags = fast_elements() ? kFastElements : kNoFlags;
-    if (has_shallow_properties()) {
-      flags |= kShallowProperties;
-    }
-    if (disable_mementos) {
-      flags |= kDisableMementos;
-    }
+    if (has_shallow_properties()) flags |= kShallowProperties;
+    if (disable_mementos) flags |= kDisableMementos;
+    if (has_null_prototype()) flags |= kHasNullPrototype;
+    return flags;
+  }
+
+  int EncodeLiteralType() {
+    int flags = fast_elements() ? kFastElements : kNoFlags;
+    if (has_shallow_properties()) flags |= kShallowProperties;
+    if (has_null_prototype()) flags |= kHasNullPrototype;
     return flags;
   }
 
@@ -1440,7 +1427,7 @@ class ObjectLiteral final : public MaterializedLiteral {
     kFastElements = 1,
     kShallowProperties = 1 << 1,
     kDisableMementos = 1 << 2,
-    kHasRestProperty = 1 << 3,
+    kHasNullPrototype = 1 << 3,
   };
 
   struct Accessors: public ZoneObject {
@@ -1476,11 +1463,27 @@ class ObjectLiteral final : public MaterializedLiteral {
     bit_field_ |= FastElementsField::encode(false) |
                   HasElementsField::encode(false) |
                   MayStoreDoublesField::encode(false) |
-                  HasRestPropertyField::encode(has_rest_property);
+                  HasRestPropertyField::encode(has_rest_property) |
+                  HasNullPrototypeField::encode(false);
   }
 
   static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
+
+  void InitFlagsForPendingNullPrototype(int i);
+
+  void set_may_store_doubles(bool may_store_doubles) {
+    bit_field_ = MayStoreDoublesField::update(bit_field_, may_store_doubles);
+  }
+  void set_fast_elements(bool fast_elements) {
+    bit_field_ = FastElementsField::update(bit_field_, fast_elements);
+  }
+  void set_has_elements(bool has_elements) {
+    bit_field_ = HasElementsField::update(bit_field_, has_elements);
+  }
+  void set_has_null_protoype(bool has_null_prototype) {
+    bit_field_ = HasNullPrototypeField::update(bit_field_, has_null_prototype);
+  }
 
   uint32_t boilerplate_properties_;
   Handle<BoilerplateDescription> constant_properties_;
@@ -1494,6 +1497,8 @@ class ObjectLiteral final : public MaterializedLiteral {
       : public BitField<bool, HasElementsField::kNext, 1> {};
   class HasRestPropertyField
       : public BitField<bool, MayStoreDoublesField::kNext, 1> {};
+  class HasNullPrototypeField
+      : public BitField<bool, HasRestPropertyField::kNext, 1> {};
 };
 
 
@@ -1582,9 +1587,7 @@ class ArrayLiteral final : public MaterializedLiteral {
   // Assemble bitfield of flags for the CreateArrayLiteral helper.
   int ComputeFlags(bool disable_mementos = false) const {
     int flags = depth() == 1 ? kShallowElements : kNoFlags;
-    if (disable_mementos) {
-      flags |= kDisableMementos;
-    }
+    if (disable_mementos) flags |= kDisableMementos;
     return flags;
   }
 
@@ -1668,7 +1671,11 @@ class VariableProxy final : public Expression {
   }
 
   HoleCheckMode hole_check_mode() const {
-    return HoleCheckModeField::decode(bit_field_);
+    HoleCheckMode mode = HoleCheckModeField::decode(bit_field_);
+    DCHECK_IMPLIES(mode == HoleCheckMode::kRequired,
+                   var()->binding_needs_init() ||
+                       var()->local_if_not_shadowed()->binding_needs_init());
+    return mode;
   }
   void set_needs_hole_check() {
     bit_field_ =
@@ -2160,10 +2167,10 @@ class BinaryOperation final : public Expression {
 
   BinaryOperation(Token::Value op, Expression* left, Expression* right, int pos)
       : Expression(pos, kBinaryOperation),
-        has_fixed_right_arg_(false),
-        fixed_right_arg_value_(0),
         left_(left),
-        right_(right) {
+        right_(right),
+        has_fixed_right_arg_(false),
+        fixed_right_arg_value_(0) {
     bit_field_ |= OperatorField::encode(op);
     DCHECK(Token::IsBinaryOp(op));
   }
@@ -2171,14 +2178,14 @@ class BinaryOperation final : public Expression {
   static int parent_num_ids() { return Expression::num_ids(); }
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
+  FeedbackSlot feedback_slot_;
+  Expression* left_;
+  Expression* right_;
+  Handle<AllocationSite> allocation_site_;
   // TODO(rossberg): the fixed arg should probably be represented as a Constant
   // type for the RHS. Currenty it's actually a Maybe<int>
   bool has_fixed_right_arg_;
   int fixed_right_arg_value_;
-  Expression* left_;
-  Expression* right_;
-  Handle<AllocationSite> allocation_site_;
-  FeedbackSlot feedback_slot_;
 
   class OperatorField
       : public BitField<Token::Value, Expression::kNextBitFieldIndex, 7> {};
@@ -2306,11 +2313,11 @@ class CompareOperation final : public Expression {
   static int parent_num_ids() { return Expression::num_ids(); }
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
+  FeedbackSlot feedback_slot_;
   Expression* left_;
   Expression* right_;
-
   AstType* combined_type_;
-  FeedbackSlot feedback_slot_;
+
   class OperatorField
       : public BitField<Token::Value, Expression::kNextBitFieldIndex, 7> {};
 };
@@ -2645,6 +2652,14 @@ class FunctionLiteral final : public Expression {
 
   bool AllowsLazyCompilation();
 
+  bool CanSuspend() {
+    if (suspend_count() > 0) {
+      DCHECK(IsResumableFunction(kind()));
+      return true;
+    }
+    return false;
+  }
+
   Handle<String> debug_name() const {
     if (raw_name_ != NULL && !raw_name_->IsEmpty()) {
       return raw_name_->string();
@@ -2742,6 +2757,8 @@ class FunctionLiteral final : public Expression {
     function_literal_id_ = function_literal_id;
   }
 
+  void ReplaceBodyAndScope(FunctionLiteral* other);
+
  private:
   friend class AstNodeFactory;
 
@@ -2827,6 +2844,7 @@ class ClassLiteral final : public Expression {
  public:
   typedef ClassLiteralProperty Property;
 
+  Scope* scope() const { return scope_; }
   VariableProxy* class_variable_proxy() const { return class_variable_proxy_; }
   Expression* extends() const { return extends_; }
   void set_extends(Expression* e) { extends_ = e; }
@@ -2840,6 +2858,13 @@ class ClassLiteral final : public Expression {
   }
   bool has_static_computed_names() const {
     return HasStaticComputedNames::decode(bit_field_);
+  }
+
+  bool is_anonymous_expression() const {
+    return IsAnonymousExpression::decode(bit_field_);
+  }
+  bool IsAnonymousFunctionDefinition() const {
+    return is_anonymous_expression();
   }
 
   // Object literals need one feedback slot for each non-trivial value, as well
@@ -2858,23 +2883,27 @@ class ClassLiteral final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  ClassLiteral(VariableProxy* class_variable_proxy, Expression* extends,
-               FunctionLiteral* constructor, ZoneList<Property*>* properties,
-               int start_position, int end_position,
-               bool has_name_static_property, bool has_static_computed_names)
+  ClassLiteral(Scope* scope, VariableProxy* class_variable_proxy,
+               Expression* extends, FunctionLiteral* constructor,
+               ZoneList<Property*>* properties, int start_position,
+               int end_position, bool has_name_static_property,
+               bool has_static_computed_names, bool is_anonymous)
       : Expression(start_position, kClassLiteral),
         end_position_(end_position),
+        scope_(scope),
         class_variable_proxy_(class_variable_proxy),
         extends_(extends),
         constructor_(constructor),
         properties_(properties) {
     bit_field_ |= HasNameStaticProperty::encode(has_name_static_property) |
-                  HasStaticComputedNames::encode(has_static_computed_names);
+                  HasStaticComputedNames::encode(has_static_computed_names) |
+                  IsAnonymousExpression::encode(is_anonymous);
   }
 
   int end_position_;
   FeedbackSlot home_object_slot_;
   FeedbackSlot proxy_slot_;
+  Scope* scope_;
   VariableProxy* class_variable_proxy_;
   Expression* extends_;
   FunctionLiteral* constructor_;
@@ -2884,6 +2913,8 @@ class ClassLiteral final : public Expression {
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
   class HasStaticComputedNames
       : public BitField<bool, HasNameStaticProperty::kNext, 1> {};
+  class IsAnonymousExpression
+      : public BitField<bool, HasStaticComputedNames::kNext, 1> {};
 };
 
 
@@ -2909,9 +2940,9 @@ class NativeFunctionLiteral final : public Expression {
         name_(name),
         extension_(extension) {}
 
+  FeedbackSlot literal_feedback_slot_;
   const AstRawString* name_;
   v8::Extension* extension_;
-  FeedbackSlot literal_feedback_slot_;
 };
 
 
@@ -3211,17 +3242,12 @@ class AstVisitor BASE_EMBEDDED {
 
 class AstNodeFactory final BASE_EMBEDDED {
  public:
-  explicit AstNodeFactory(AstValueFactory* ast_value_factory)
-      : zone_(nullptr), ast_value_factory_(ast_value_factory) {
-    if (ast_value_factory != nullptr) {
-      zone_ = ast_value_factory->zone();
-    }
-  }
+  AstNodeFactory(AstValueFactory* ast_value_factory, Zone* zone)
+      : zone_(zone), ast_value_factory_(ast_value_factory) {}
 
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
   void set_ast_value_factory(AstValueFactory* ast_value_factory) {
     ast_value_factory_ = ast_value_factory;
-    zone_ = ast_value_factory->zone();
   }
 
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
@@ -3370,9 +3396,8 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) Literal(ast_value_factory_->NewSymbol(symbol), pos);
   }
 
-  Literal* NewNumberLiteral(double number, int pos, bool with_dot = false) {
-    return new (zone_)
-        Literal(ast_value_factory_->NewNumber(number, with_dot), pos);
+  Literal* NewNumberLiteral(double number, int pos) {
+    return new (zone_) Literal(ast_value_factory_->NewNumber(number), pos);
   }
 
   Literal* NewSmiLiteral(uint32_t number, int pos) {
@@ -3590,15 +3615,18 @@ class AstNodeFactory final BASE_EMBEDDED {
         ClassLiteral::Property(key, value, kind, is_static, is_computed_name);
   }
 
-  ClassLiteral* NewClassLiteral(VariableProxy* proxy, Expression* extends,
+  ClassLiteral* NewClassLiteral(Scope* scope, VariableProxy* proxy,
+                                Expression* extends,
                                 FunctionLiteral* constructor,
                                 ZoneList<ClassLiteral::Property*>* properties,
                                 int start_position, int end_position,
                                 bool has_name_static_property,
-                                bool has_static_computed_names) {
-    return new (zone_) ClassLiteral(
-        proxy, extends, constructor, properties, start_position, end_position,
-        has_name_static_property, has_static_computed_names);
+                                bool has_static_computed_names,
+                                bool is_anonymous) {
+    return new (zone_)
+        ClassLiteral(scope, proxy, extends, constructor, properties,
+                     start_position, end_position, has_name_static_property,
+                     has_static_computed_names, is_anonymous);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,
@@ -3645,24 +3673,6 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   Zone* zone() const { return zone_; }
   void set_zone(Zone* zone) { zone_ = zone; }
-
-  // Handles use of temporary zones when parsing inner function bodies.
-  class BodyScope {
-   public:
-    BodyScope(AstNodeFactory* factory, Zone* temp_zone, bool use_temp_zone)
-        : factory_(factory), prev_zone_(factory->zone_) {
-      if (use_temp_zone) {
-        factory->zone_ = temp_zone;
-      }
-    }
-
-    void Reset() { factory_->zone_ = prev_zone_; }
-    ~BodyScope() { Reset(); }
-
-   private:
-    AstNodeFactory* factory_;
-    Zone* prev_zone_;
-  };
 
  private:
   // This zone may be deallocated upon returning from parsing a function body

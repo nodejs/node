@@ -15,7 +15,7 @@
 #include "src/isolate-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/v8.h"
-#include "test/unittests/compiler-dispatcher/compiler-dispatcher-helper.h"
+#include "test/unittests/test-helpers.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -72,7 +72,7 @@ TEST_F(CompilerDispatcherJobTest, ConstructWithoutSFI) {
       tracer(), FLAG_stack_size,
       test::CreateSource(i_isolate(), resource.get()), 0,
       static_cast<int>(resource->length()), SLOPPY, 1, false, false, false,
-      false, i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
+      i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
       ScriptCompiler::kNoCompileOptions, i_isolate()->ast_string_constants(),
       callback.get()));
 }
@@ -109,7 +109,7 @@ TEST_F(CompilerDispatcherJobTest, StateTransitionsParseWithCallback) {
       tracer(), FLAG_stack_size,
       test::CreateSource(i_isolate(), resource.get()), 0,
       static_cast<int>(resource->length()), SLOPPY, 1, false, false, false,
-      false, i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
+      i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
       ScriptCompiler::kNoCompileOptions, i_isolate()->ast_string_constants(),
       callback.get()));
   ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToParse);

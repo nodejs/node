@@ -1245,7 +1245,7 @@
           'OBJECT_PRINT',
           'VERIFY_HEAP',
           'DEBUG',
-          'TRACE_MAPS'
+          'V8_TRACE_MAPS'
         ],
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \

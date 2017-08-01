@@ -83,12 +83,11 @@ void Builtins::Generate_TailCall_ReceiverIsAny(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm) {
-  Generate_CallForwardVarargs(masm, masm->isolate()->builtins()->Call());
+  Generate_ForwardVarargs(masm, masm->isolate()->builtins()->Call());
 }
 
 void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
-  Generate_CallForwardVarargs(masm,
-                              masm->isolate()->builtins()->CallFunction());
+  Generate_ForwardVarargs(masm, masm->isolate()->builtins()->CallFunction());
 }
 
 }  // namespace internal

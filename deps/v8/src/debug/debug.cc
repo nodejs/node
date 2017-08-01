@@ -186,7 +186,7 @@ CodeBreakIterator::CodeBreakIterator(Handle<DebugInfo> debug_info)
     : BreakIterator(debug_info),
       reloc_iterator_(debug_info->DebugCode(), GetModeMask()),
       source_position_iterator_(
-          debug_info->DebugCode()->source_position_table()) {
+          debug_info->DebugCode()->SourcePositionTable()) {
   // There is at least one break location.
   DCHECK(!Done());
   Next();
@@ -277,7 +277,7 @@ BytecodeArrayBreakIterator::BytecodeArrayBreakIterator(
     Handle<DebugInfo> debug_info)
     : BreakIterator(debug_info),
       source_position_iterator_(
-          debug_info->DebugBytecodeArray()->source_position_table()) {
+          debug_info->DebugBytecodeArray()->SourcePositionTable()) {
   // There is at least one break location.
   DCHECK(!Done());
   Next();
@@ -417,10 +417,10 @@ char* Debug::RestoreDebug(char* storage) {
 
 int Debug::ArchiveSpacePerThread() { return 0; }
 
-void Debug::Iterate(ObjectVisitor* v) {
-  v->VisitPointer(&thread_local_.return_value_);
-  v->VisitPointer(&thread_local_.suspended_generator_);
-  v->VisitPointer(&thread_local_.ignore_step_into_function_);
+void Debug::Iterate(RootVisitor* v) {
+  v->VisitRootPointer(Root::kDebug, &thread_local_.return_value_);
+  v->VisitRootPointer(Root::kDebug, &thread_local_.suspended_generator_);
+  v->VisitRootPointer(Root::kDebug, &thread_local_.ignore_step_into_function_);
 }
 
 DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
@@ -1301,19 +1301,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
         OptimizingCompileDispatcher::BlockingBehavior::kBlock);
   }
 
-  List<Handle<JSFunction> > functions;
-
-  // Flush all optimized code maps. Note that the below heap iteration does not
-  // cover this, because the given function might have been inlined into code
-  // for which no JSFunction exists.
-  {
-    SharedFunctionInfo::GlobalIterator iterator(isolate_);
-    while (SharedFunctionInfo* shared = iterator.Next()) {
-      shared->ClearCodeFromOptimizedCodeMap();
-    }
-  }
-
-  // The native context also has a list of OSR'd optimized code. Clear it.
+  // The native context has a list of OSR'd optimized code. Clear it.
   isolate_->ClearOSROptimizedCode();
 
   // Make sure we abort incremental marking.
@@ -1323,6 +1311,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   DCHECK(shared->is_compiled());
   bool baseline_exists = shared->HasBaselineCode();
 
+  List<Handle<JSFunction>> functions;
   {
     // TODO(yangguo): with bytecode, we still walk the heap to find all
     // optimized code for the function to deoptimize. We can probably be
@@ -1334,6 +1323,9 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
       if (obj->IsJSFunction()) {
         JSFunction* function = JSFunction::cast(obj);
         if (!function->Inlines(*shared)) continue;
+        if (function->has_feedback_vector()) {
+          function->ClearOptimizedCodeSlot("Prepare for breakpoints");
+        }
         if (function->code()->kind() == Code::OPTIMIZED_FUNCTION) {
           Deoptimizer::DeoptimizeFunction(function);
         }
@@ -1888,32 +1880,6 @@ void Debug::OnAfterCompile(Handle<Script> script) {
 }
 
 namespace {
-struct CollectedCallbackData {
-  Object** location;
-  int id;
-  Debug* debug;
-  Isolate* isolate;
-
-  CollectedCallbackData(Object** location, int id, Debug* debug,
-                        Isolate* isolate)
-      : location(location), id(id), debug(debug), isolate(isolate) {}
-};
-
-void SendAsyncTaskEventCancel(const v8::WeakCallbackInfo<void>& info) {
-  std::unique_ptr<CollectedCallbackData> data(
-      reinterpret_cast<CollectedCallbackData*>(info.GetParameter()));
-  if (!data->debug->is_active()) return;
-  HandleScope scope(data->isolate);
-  data->debug->OnAsyncTaskEvent(debug::kDebugPromiseCollected, data->id, 0);
-}
-
-void ResetPromiseHandle(const v8::WeakCallbackInfo<void>& info) {
-  CollectedCallbackData* data =
-      reinterpret_cast<CollectedCallbackData*>(info.GetParameter());
-  GlobalHandles::Destroy(data->location);
-  info.SetSecondPassCallback(&SendAsyncTaskEventCancel);
-}
-
 // In an async function, reuse the existing stack related to the outer
 // Promise. Otherwise, e.g. in a direct call to then, save a new stack.
 // Promises with multiple reactions with one or more of them being async
@@ -1982,19 +1948,6 @@ int Debug::NextAsyncTaskId(Handle<JSObject> promise) {
       handle(Smi::FromInt(++thread_local_.async_task_count_), isolate_);
   Object::SetProperty(&it, async_id, SLOPPY, Object::MAY_BE_STORE_FROM_KEYED)
       .ToChecked();
-  Handle<Object> global_handle = isolate_->global_handles()->Create(*promise);
-  // We send EnqueueRecurring async task event when promise is fulfilled or
-  // rejected, WillHandle and DidHandle for every scheduled microtask for this
-  // promise.
-  // We need to send a cancel event when no other microtasks can be
-  // started for this promise and all current microtasks are finished.
-  // Since we holding promise when at least one microtask is scheduled (inside
-  // PromiseReactionJobInfo), we can send cancel event in weak callback.
-  GlobalHandles::MakeWeak(
-      global_handle.location(),
-      new CollectedCallbackData(global_handle.location(), async_id->value(),
-                                this, isolate_),
-      &ResetPromiseHandle, v8::WeakCallbackType::kParameter);
   return async_id->value();
 }
 
@@ -2002,7 +1955,13 @@ namespace {
 debug::Location GetDebugLocation(Handle<Script> script, int source_position) {
   Script::PositionInfo info;
   Script::GetPositionInfo(script, source_position, &info, Script::WITH_OFFSET);
-  return debug::Location(info.line, info.column);
+  // V8 provides ScriptCompiler::CompileFunctionInContext method which takes
+  // expression and compile it as anonymous function like (function() ..
+  // expression ..). To produce correct locations for stmts inside of this
+  // expression V8 compile this function with negative offset. Instead of stmt
+  // position blackboxing use function start position which is negative in
+  // described case.
+  return debug::Location(std::max(info.line, 0), std::max(info.column, 0));
 }
 }  // namespace
 
@@ -2044,9 +2003,6 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
   if (in_debug_scope() || ignore_events()) return;
   if (!debug_delegate_) return;
   SuppressDebug while_processing(this);
-  DebugScope debug_scope(isolate_->debug());
-  if (debug_scope.failed()) return;
-  HandleScope scope(isolate_);
   PostponeInterruptsScope no_interrupts(isolate_);
   DisableBreak no_recursive_break(this);
   bool created_by_user = false;
@@ -2058,16 +2014,13 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
         !it.done() &&
         !IsFrameBlackboxed(it.frame());
   }
-  debug_delegate_->PromiseEventOccurred(
-      Utils::ToLocal(debug_scope.GetContext()), type, id, parent_id,
-      created_by_user);
+  debug_delegate_->PromiseEventOccurred(type, id, parent_id, created_by_user);
 }
 
 void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
   // Attach the correct debug id to the script. The debug id is used by the
   // inspector to filter scripts by native context.
-  FixedArray* array = isolate_->native_context()->embedder_data();
-  script->set_context_data(array->get(v8::Context::kDebugIdIndex));
+  script->set_context_data(isolate_->native_context()->debug_context_id());
   if (ignore_events()) return;
   if (!script->IsUserJavaScript() && script->type() != i::Script::TYPE_WASM) {
     return;
@@ -2188,9 +2141,9 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
     Object* fun = it.frame()->function();
     if (fun && fun->IsJSFunction()) {
       HandleScope scope(isolate_);
+      Handle<JSFunction> function(JSFunction::cast(fun), isolate_);
       // Don't stop in builtin and blackboxed functions.
-      Handle<SharedFunctionInfo> shared(JSFunction::cast(fun)->shared(),
-                                        isolate_);
+      Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
       bool ignore_break = ignore_break_mode == kIgnoreIfTopFrameBlackboxed
                               ? IsBlackboxed(shared)
                               : AllFramesOnStackAreBlackboxed();
@@ -2203,12 +2156,11 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
         // TODO(yangguo): introduce break_on_function_entry since current
         // implementation is slow.
         if (isolate_->stack_guard()->CheckDebugBreak()) {
-          Deoptimizer::DeoptimizeFunction(JSFunction::cast(fun));
+          Deoptimizer::DeoptimizeFunction(*function);
         }
         return;
       }
-      JSGlobalObject* global =
-          JSFunction::cast(fun)->context()->global_object();
+      JSGlobalObject* global = function->context()->global_object();
       // Don't stop in debugger functions.
       if (IsDebugGlobal(global)) return;
       // Don't stop if the break location is muted.
@@ -2347,8 +2299,11 @@ bool Debug::PerformSideEffectCheckForCallback(Address function) {
 }
 
 void LegacyDebugDelegate::PromiseEventOccurred(
-    v8::Local<v8::Context> context, v8::debug::PromiseDebugActionType type,
-    int id, int parent_id, bool created_by_user) {
+    v8::debug::PromiseDebugActionType type, int id, int parent_id,
+    bool created_by_user) {
+  DebugScope debug_scope(isolate_->debug());
+  if (debug_scope.failed()) return;
+  HandleScope scope(isolate_);
   Handle<Object> event_data;
   if (isolate_->debug()->MakeAsyncTaskEvent(type, id).ToHandle(&event_data)) {
     ProcessDebugEvent(v8::AsyncTaskEvent, Handle<JSObject>::cast(event_data));

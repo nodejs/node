@@ -21,6 +21,7 @@ namespace interpreter {
 
 class GlobalDeclarationsBuilder;
 class LoopBuilder;
+class BytecodeJumpTable;
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
@@ -133,7 +134,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalCatchContext(Scope* scope);
   void BuildNewLocalWithContext(Scope* scope);
 
-  void VisitGeneratorPrologue();
+  void BuildGeneratorPrologue();
+  void BuildGeneratorSuspend(Suspend* expr, Register generator);
+  void BuildGeneratorResume(Suspend* expr, Register generator);
 
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
@@ -141,8 +144,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitClassLiteralProperties(ClassLiteral* expr, Register constructor,
                                    Register prototype);
   void BuildClassLiteralNameProperty(ClassLiteral* expr, Register constructor);
+  void BuildClassLiteral(ClassLiteral* expr);
   void VisitThisFunctionVariable(Variable* variable);
   void VisitNewTargetVariable(Variable* variable);
+  void BuildGeneratorObjectVariableInitialization();
   void VisitBlockDeclarationsAndStatements(Block* stmt);
   void VisitFunctionClosureForContext();
   void VisitSetHomeObject(Register value, Register home_object,
@@ -237,7 +242,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ContextScope* execution_context_;
   ExpressionResultScope* execution_result_;
 
-  ZoneVector<BytecodeLabel> generator_resume_points_;
+  BytecodeJumpTable* generator_jump_table_;
   Register generator_state_;
   int loop_depth_;
 };

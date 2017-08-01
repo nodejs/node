@@ -307,26 +307,6 @@ int OsrValueIndexOf(Operator const* op) {
   return OpParameter<int>(op);
 }
 
-size_t hash_value(OsrGuardType type) { return static_cast<size_t>(type); }
-
-std::ostream& operator<<(std::ostream& os, OsrGuardType type) {
-  switch (type) {
-    case OsrGuardType::kUninitialized:
-      return os << "Uninitialized";
-    case OsrGuardType::kSignedSmall:
-      return os << "SignedSmall";
-    case OsrGuardType::kAny:
-      return os << "Any";
-  }
-  UNREACHABLE();
-  return os;
-}
-
-OsrGuardType OsrGuardTypeOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kOsrGuard, op->opcode());
-  return OpParameter<OsrGuardType>(op);
-}
-
 SparseInputMask SparseInputMaskOf(Operator const* op) {
   DCHECK(op->opcode() == IrOpcode::kStateValues ||
          op->opcode() == IrOpcode::kTypedStateValues);
@@ -1008,14 +988,6 @@ const Operator* CommonOperatorBuilder::OsrValue(int index) {
       "OsrValue",                                    // name
       0, 0, 1, 1, 0, 0,                              // counts
       index);                                        // parameter
-}
-
-const Operator* CommonOperatorBuilder::OsrGuard(OsrGuardType type) {
-  return new (zone()) Operator1<OsrGuardType>(  // --
-      IrOpcode::kOsrGuard, Operator::kNoThrow,  // opcode
-      "OsrGuard",                               // name
-      1, 1, 1, 1, 1, 0,                         // counts
-      type);                                    // parameter
 }
 
 const Operator* CommonOperatorBuilder::Int32Constant(int32_t value) {

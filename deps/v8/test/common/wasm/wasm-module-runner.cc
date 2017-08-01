@@ -25,7 +25,7 @@ uint32_t GetMinModuleMemSize(const WasmModule* module) {
   return WasmModule::kPageSize * module->min_mem_pages;
 }
 
-const WasmModule* DecodeWasmModuleForTesting(
+std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
     Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
     const byte* module_end, ModuleOrigin origin, bool verify_functions) {
   // Decode the module, but don't verify function bodies, since we'll
@@ -36,14 +36,10 @@ const WasmModule* DecodeWasmModuleForTesting(
   if (decoding_result.failed()) {
     // Module verification failed. throw.
     thrower->CompileError("WASM.compileRun() failed: %s",
-                          decoding_result.error_msg.c_str());
+                          decoding_result.error_msg().c_str());
   }
 
-  if (thrower->error()) {
-    if (decoding_result.val) delete decoding_result.val;
-    return nullptr;
-  }
-  return decoding_result.val;
+  return std::move(decoding_result.val);
 }
 
 const Handle<WasmInstanceObject> InstantiateModuleForTesting(
@@ -78,8 +74,8 @@ const Handle<WasmInstanceObject> InstantiateModuleForTesting(
 const Handle<WasmInstanceObject> CompileInstantiateWasmModuleForTesting(
     Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
     const byte* module_end, ModuleOrigin origin) {
-  std::unique_ptr<const WasmModule> module(DecodeWasmModuleForTesting(
-      isolate, thrower, module_start, module_end, origin));
+  std::unique_ptr<WasmModule> module = DecodeWasmModuleForTesting(
+      isolate, thrower, module_start, module_end, origin);
 
   if (module == nullptr) {
     thrower->CompileError("Wasm module decoding failed");

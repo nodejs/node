@@ -4,9 +4,9 @@
 
 // Flags: --turbo
 
-InspectorTest.log('Checks possible break locations.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks possible break locations.');
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
   var frames = message.params.callFrames;
   if (frames.length === 1) {
@@ -15,11 +15,11 @@ Protocol.Debugger.onPaused(message => {
   }
   var scriptId = frames[0].location.scriptId;
   InspectorTest.log('break at:');
-  InspectorTest.logSourceLocation(frames[0].location)
+  session.logSourceLocation(frames[0].location)
     .then(() => Protocol.Debugger.stepInto());
 });
 
-InspectorTest.loadScript('test/inspector/debugger/resources/break-locations.js');
+contextGroup.loadScript('test/inspector/debugger/resources/break-locations.js');
 
 Protocol.Debugger.enable();
 Protocol.Runtime.evaluate({ expression: 'Object.keys(this).filter(name => name.indexOf(\'test\') === 0)', returnByValue: true })

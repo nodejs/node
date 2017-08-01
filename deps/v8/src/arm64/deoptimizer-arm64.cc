@@ -31,16 +31,35 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
 
 
 void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
+  Address code_start_address = code->instruction_start();
   // Invalidate the relocation information, as it will become invalid by the
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
-  // TODO(jkummerow): if (FLAG_zap_code_space), make the code object's
-  // entry sequence unusable (see other architectures).
+  // Fail hard and early if we enter this code object again.
+  byte* pointer = code->FindCodeAgeSequence();
+  if (pointer != NULL) {
+    pointer += kNoCodeAgeSequenceLength;
+  } else {
+    pointer = code->instruction_start();
+  }
+
+  {
+    PatchingAssembler patcher(Assembler::IsolateData(isolate), pointer, 1);
+    patcher.brk(0);
+  }
+
+  DeoptimizationInputData* data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  int osr_offset = data->OsrPcOffset()->value();
+  if (osr_offset > 0) {
+    PatchingAssembler patcher(Assembler::IsolateData(isolate),
+                              code_start_address + osr_offset, 1);
+    patcher.brk(0);
+  }
 
   DeoptimizationInputData* deopt_data =
       DeoptimizationInputData::cast(code->deoptimization_data());
-  Address code_start_address = code->instruction_start();
 #ifdef DEBUG
   Address prev_call_address = NULL;
 #endif

@@ -280,6 +280,14 @@ Node* JSGraph::EmptyStateValues() {
                                        0, SparseInputMask::Dense())));
 }
 
+Node* JSGraph::SingleDeadTypedStateValues() {
+  return CACHED(kSingleDeadTypedStateValues,
+                graph()->NewNode(common()->TypedStateValues(
+                    new (graph()->zone()->New(sizeof(ZoneVector<MachineType>)))
+                        ZoneVector<MachineType>(0, graph()->zone()),
+                    SparseInputMask(SparseInputMask::kEndMarker << 1))));
+}
+
 Node* JSGraph::Dead() {
   return CACHED(kDead, graph()->NewNode(common()->Dead()));
 }

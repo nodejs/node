@@ -4,6 +4,8 @@
 
 // Flags: --expose-wasm
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests call stack in wasm scripts');
+
 utils.load('test/mjsunit/wasm/wasm-constants.js');
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -40,7 +42,7 @@ function testFunction(bytes) {
   instance.exports.main();
 }
 
-InspectorTest.addScript(testFunction.toString());
+contextGroup.addScript(testFunction.toString());
 
 Protocol.Debugger.enable();
 Protocol.Debugger.onPaused(handleDebuggerPaused);

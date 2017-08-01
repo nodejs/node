@@ -126,6 +126,7 @@ class CcTest {
   static i::Heap* heap();
 
   static void CollectGarbage(i::AllocationSpace space);
+  static void CollectAllGarbage();
   static void CollectAllGarbage(int flags);
   static void CollectAllAvailableGarbage();
 

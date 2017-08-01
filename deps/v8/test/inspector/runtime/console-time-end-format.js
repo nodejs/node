@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks format of console.timeEnd output');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks format of console.timeEnd output');
 
 Protocol.Runtime.enable();
 Protocol.Runtime.onConsoleAPICalled(message => {

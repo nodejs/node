@@ -549,7 +549,6 @@ function TestHeapAccessIntTypes() {
     assertValidAsm(module_decl);
     assertEquals(7, module.caller());
     assertEquals(7, memory_view[2]);
-    assertEquals(7, module_decl(stdlib).caller());
     assertValidAsm(module_decl);
   }
 }
@@ -1227,8 +1226,9 @@ TestForeignVariables();
     return {load: load, iload: iload, store: store, storeb: storeb};
   }
 
+  var memory = new ArrayBuffer(1024);
   var module_decl = eval('(' + TestByteHeapAccessCompat.toString() + ')');
-  var m = module_decl(stdlib);
+  var m = module_decl(stdlib, null, memory);
   assertValidAsm(module_decl);
   m.store(0, 20);
   m.store(4, 21);

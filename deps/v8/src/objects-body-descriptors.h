@@ -99,8 +99,10 @@ class FixedBodyDescriptor final : public BodyDescriptorBase {
 
   template <typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size) {
-    IterateBody<StaticVisitor>(obj);
+    IterateBody(obj);
   }
+
+  static inline int SizeOf(Map* map, HeapObject* object) { return kSize; }
 };
 
 

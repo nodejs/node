@@ -496,6 +496,16 @@ function TestTypedArraySet() {
     }
   }
 
+  a = new Uint32Array();
+  a.set('');
+  assertEquals(0, a.length);
+
+  assertThrows(() => a.set('abc'), RangeError);
+
+  a = new Uint8Array(3);
+  a.set('123');
+  assertArrayEquals([1, 2, 3], a);
+
   var a11 = new Int16Array([1, 2, 3, 4, 0, -1])
   var a12 = new Uint16Array(15)
   a12.set(a11, 3)
@@ -579,6 +589,21 @@ function TestTypedArraySet() {
   assertThrows(function() { a.set(0, 1); }, TypeError);
 
   assertEquals(1, a.set.length);
+
+  // Shared buffer that does not overlap.
+  var buf = new ArrayBuffer(32);
+  var a101 = new Int8Array(buf, 0, 16);
+  var b101 = new Uint8Array(buf, 16);
+  b101[0] = 42;
+  a101.set(b101);
+  assertArrayPrefix([42], a101);
+
+  buf = new ArrayBuffer(32);
+  var a101 = new Int8Array(buf, 0, 16);
+  var b101 = new Uint8Array(buf, 16);
+  a101[0] = 42;
+  b101.set(a101);
+  assertArrayPrefix([42], b101);
 }
 
 TestTypedArraySet();

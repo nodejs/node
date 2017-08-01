@@ -15,6 +15,7 @@
 #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
 #define SYMBOLIZE_FUNCTION
 #include <execinfo.h>
+#include <vector>
 #endif  // DEBUG && V8_OS_LINUX && !V8_OS_ANDROID
 
 namespace v8 {
@@ -49,6 +50,14 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   AddApiReferences(isolate);
 }
 
+ExternalReferenceTable::~ExternalReferenceTable() {
+#ifdef SYMBOLIZE_FUNCTION
+  for (char** table : symbol_tables_) {
+    free(table);
+  }
+#endif
+}
+
 #ifdef DEBUG
 void ExternalReferenceTable::ResetCount() {
   for (ExternalReferenceEntry& entry : refs_) entry.count = 0;
@@ -62,10 +71,12 @@ void ExternalReferenceTable::PrintCount() {
 }
 #endif  // DEBUG
 
-// static
-const char* ExternalReferenceTable::ResolveSymbol(void* address) {
+const char* ExternalReferenceTable::ResolveSymbol(void* address,
+                                                  std::vector<char**>* tables) {
 #ifdef SYMBOLIZE_FUNCTION
-  return backtrace_symbols(&address, 1)[0];
+  char** table = backtrace_symbols(&address, 1);
+  if (tables) tables->push_back(table);
+  return table[0];
 #else
   return "<unresolved>";
 #endif  // SYMBOLIZE_FUNCTION
@@ -235,8 +246,31 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "libc_memchr");
   Add(ExternalReference::libc_memcpy_function(isolate).address(),
       "libc_memcpy");
+  Add(ExternalReference::libc_memmove_function(isolate).address(),
+      "libc_memmove");
   Add(ExternalReference::libc_memset_function(isolate).address(),
       "libc_memset");
+  Add(ExternalReference::try_internalize_string_function(isolate).address(),
+      "try_internalize_string_function");
+#ifdef V8_INTL_SUPPORT
+  Add(ExternalReference::intl_convert_one_byte_to_lower(isolate).address(),
+      "intl_convert_one_byte_to_lower");
+  Add(ExternalReference::intl_to_latin1_lower_table(isolate).address(),
+      "intl_to_latin1_lower_table");
+#endif  // V8_INTL_SUPPORT
+  Add(ExternalReference::search_string_raw<const uint8_t, const uint8_t>(
+          isolate)
+          .address(),
+      "search_string_raw<1-byte, 1-byte>");
+  Add(ExternalReference::search_string_raw<const uint8_t, const uc16>(isolate)
+          .address(),
+      "search_string_raw<1-byte, 2-byte>");
+  Add(ExternalReference::search_string_raw<const uc16, const uint8_t>(isolate)
+          .address(),
+      "search_string_raw<2-byte, 1-byte>");
+  Add(ExternalReference::search_string_raw<const uc16, const uc16>(isolate)
+          .address(),
+      "search_string_raw<1-byte, 2-byte>");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),
@@ -443,7 +477,11 @@ void ExternalReferenceTable::AddApiReferences(Isolate* isolate) {
   if (api_external_references != nullptr) {
     while (*api_external_references != 0) {
       Address address = reinterpret_cast<Address>(*api_external_references);
+#ifdef SYMBOLIZE_FUNCTION
+      Add(address, ResolveSymbol(address, &symbol_tables_));
+#else
       Add(address, ResolveSymbol(address));
+#endif
       api_external_references++;
     }
   }

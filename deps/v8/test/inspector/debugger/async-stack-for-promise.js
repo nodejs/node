@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks that async chains for promises are correct.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that async chains for promises are correct.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function foo1() {
   debugger;
 }
@@ -219,10 +219,10 @@ function reject() {
 
 //# sourceURL=test.js`, 7, 26);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
-  InspectorTest.logCallFrames(message.params.callFrames);
-  InspectorTest.logAsyncStackTrace(message.params.asyncStackTrace);
+  session.logCallFrames(message.params.callFrames);
+  session.logAsyncStackTrace(message.params.asyncStackTrace);
   InspectorTest.log('');
   Protocol.Debugger.resume();
 });

@@ -144,6 +144,23 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiver) {
   EXPECT_THAT(r.replacement(), IsObjectIsReceiver(input));
 }
 
+// -----------------------------------------------------------------------------
+// %_CreateJSGeneratorObject
+
+TEST_F(JSIntrinsicLoweringTest, InlineCreateJSGeneratorObject) {
+  Node* const function = Parameter(0);
+  Node* const receiver = Parameter(1);
+  Node* const context = Parameter(2);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(graph()->NewNode(
+      javascript()->CallRuntime(Runtime::kInlineCreateJSGeneratorObject, 2),
+      function, receiver, context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(IrOpcode::kJSCreateGeneratorObject,
+            r.replacement()->op()->opcode());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

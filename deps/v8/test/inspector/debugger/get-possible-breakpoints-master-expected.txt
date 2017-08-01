@@ -183,7 +183,7 @@ function testCaughtException() {
 |R|}
 
 function testClasses() {
-  |_|class Cat {
+  class Cat {
     constructor(name) {
       |_|this.name = name;
     |R|}
@@ -191,7 +191,7 @@ function testClasses() {
     speak() {
     |R|}
   }
-  |_|class Lion extends Cat {
+  class Lion extends Cat {
     constructor(name) {
       |C|super(name);
     |R|}
@@ -204,17 +204,17 @@ function testClasses() {
 |R|}
 
 async function asyncFoo() {
-  |_|await Promise.resolve().then(v => v |_|* 2|R|);
+  |_|await Promise.|C|resolve().|C|then(v => v |_|* 2|R|);
   |C|return42();
   |_|await |C|asyncBoo();
 |R|}
 
 async function asyncBoo() {
-  |_|await Promise.resolve();
+  |_|await Promise.|C|resolve();
 |R|}
 
 async function testAsyncAwait() {
-  |_|await asyncFoo();
+  |_|await |C|asyncFoo();
   |_|await |C|awaitBoo();
 |R|}
 
@@ -247,7 +247,7 @@ async function testPromiseComplex() {
   var testPromise = |C|new Promise(resolve => nextTest |_|= resolve|R|);
   async function main() {
     async function foo() {
-      |_|await Promise.resolve();
+      |_|await Promise.|C|resolve();
       |_|return 42;
     |R|}
     var x = |_|1;

@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 // Flags: --expose-gc
 
-InspectorTest.log('Checks async stack for late .then handlers with gc');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks async stack for late .then handlers with gc');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function foo1() {
   gc();
   debugger;
@@ -27,13 +27,13 @@ function test() {
 }
 //# sourceURL=test.js`, 8, 26);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
-  InspectorTest.logCallFrames(message.params.callFrames);
+  session.logCallFrames(message.params.callFrames);
   var asyncStackTrace = message.params.asyncStackTrace;
   while (asyncStackTrace) {
     InspectorTest.log(`-- ${asyncStackTrace.description} --`);
-    InspectorTest.logCallFrames(asyncStackTrace.callFrames);
+    session.logCallFrames(asyncStackTrace.callFrames);
     asyncStackTrace = asyncStackTrace.parent;
   }
   InspectorTest.log('');

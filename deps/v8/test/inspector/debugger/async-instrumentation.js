@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks async instrumentation enabled in the middle.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks async instrumentation enabled in the middle.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function foo() {
   // asyncTaskStarted
   debugger;
@@ -24,15 +24,15 @@ function test() {
 
 //# sourceURL=test.js`, 7, 26);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
   if (enableOnPause-- === 0)
     Protocol.Debugger.setAsyncCallStackDepth({ maxDepth: 128 });
-  InspectorTest.logCallFrames(message.params.callFrames);
+  session.logCallFrames(message.params.callFrames);
   var asyncStackTrace = message.params.asyncStackTrace;
   while (asyncStackTrace) {
     InspectorTest.log(`-- ${asyncStackTrace.description} --`);
-    InspectorTest.logCallFrames(asyncStackTrace.callFrames);
+    session.logCallFrames(asyncStackTrace.callFrames);
     asyncStackTrace = asyncStackTrace.parent;
   }
   InspectorTest.log('');

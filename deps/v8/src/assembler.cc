@@ -63,6 +63,7 @@
 #include "src/runtime/runtime.h"
 #include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serializer-common.h"
+#include "src/string-search.h"
 #include "src/wasm/wasm-external-refs.h"
 
 // Include native regexp-macro-assembler.
@@ -89,6 +90,10 @@
 #error "Unknown architecture."
 #endif  // Target architecture.
 #endif  // V8_INTERPRETED_REGEXP
+
+#ifdef V8_INTL_SUPPORT
+#include "src/intl.h"
+#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -139,11 +144,8 @@ const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 // Implementation of AssemblerBase
 
 AssemblerBase::IsolateData::IsolateData(Isolate* isolate)
-    : serializer_enabled_(isolate->serializer_enabled())
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-      ,
+    : serializer_enabled_(isolate->serializer_enabled()),
       max_old_generation_size_(isolate->heap()->MaxOldGenerationSize())
-#endif
 #if V8_TARGET_ARCH_X64
       ,
       code_range_start_(
@@ -1553,6 +1555,14 @@ ExternalReference ExternalReference::libc_memcpy_function(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memcpy)));
 }
 
+void* libc_memmove(void* dest, const void* src, size_t n) {
+  return memmove(dest, src, n);
+}
+
+ExternalReference ExternalReference::libc_memmove_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memmove)));
+}
+
 void* libc_memset(void* dest, int byte, size_t n) {
   DCHECK_EQ(static_cast<char>(byte), byte);
   return memset(dest, byte, n);
@@ -1561,6 +1571,42 @@ void* libc_memset(void* dest, int byte, size_t n) {
 ExternalReference ExternalReference::libc_memset_function(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memset)));
 }
+
+template <typename SubjectChar, typename PatternChar>
+ExternalReference ExternalReference::search_string_raw(Isolate* isolate) {
+  auto f = SearchStringRaw<SubjectChar, PatternChar>;
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
+ExternalReference ExternalReference::try_internalize_string_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(StringTable::LookupStringIfExists_NoAllocate)));
+}
+
+#ifdef V8_INTL_SUPPORT
+ExternalReference ExternalReference::intl_convert_one_byte_to_lower(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(ConvertOneByteToLower)));
+}
+
+ExternalReference ExternalReference::intl_to_latin1_lower_table(
+    Isolate* isolate) {
+  uint8_t* ptr = const_cast<uint8_t*>(ToLatin1LowerTable());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+#endif  // V8_INTL_SUPPORT
+
+// Explicit instantiations for all combinations of 1- and 2-byte strings.
+template ExternalReference
+ExternalReference::search_string_raw<const uint8_t, const uint8_t>(Isolate*);
+template ExternalReference
+ExternalReference::search_string_raw<const uint8_t, const uc16>(Isolate*);
+template ExternalReference
+ExternalReference::search_string_raw<const uc16, const uint8_t>(Isolate*);
+template ExternalReference
+ExternalReference::search_string_raw<const uc16, const uc16>(Isolate*);
 
 ExternalReference ExternalReference::page_flags(Page* page) {
   return ExternalReference(reinterpret_cast<Address>(page) +

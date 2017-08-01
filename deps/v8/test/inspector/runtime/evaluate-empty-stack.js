@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Tests that Runtime.evaluate works with an empty stack");
+let {session, contextGroup, Protocol} = InspectorTest.start("Tests that Runtime.evaluate works with an empty stack");
 
-InspectorTest.addScript("var text = [48116210, 34460128, 1406661984071834]");
+contextGroup.addScript("var text = [48116210, 34460128, 1406661984071834]");
 
 var message = { expression: "text.map(x => x.toString(36)).join(' ')" };
 

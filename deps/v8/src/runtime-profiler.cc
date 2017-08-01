@@ -57,7 +57,7 @@ static const int kMaxSizeEarlyOptIgnition =
 // We aren't using the code size multiplier here because there is no
 // "kMaxSizeOpt" with which we would need to normalize. This constant is
 // only for optimization decisions coming into TurboFan from Ignition.
-static const int kMaxSizeOptIgnition = 250 * 1024;
+static const int kMaxSizeOptIgnition = 80 * KB;
 
 #define OPTIMIZATION_REASON_LIST(V)                            \
   V(DoNotOptimize, "do not optimize")                          \
@@ -432,7 +432,7 @@ OptimizationReason RuntimeProfiler::ShouldOptimizeIgnition(
 void RuntimeProfiler::MarkCandidatesForOptimization() {
   HandleScope scope(isolate_);
 
-  if (!isolate_->use_crankshaft()) return;
+  if (!isolate_->use_optimizer()) return;
 
   DisallowHeapAllocation no_gc;
 

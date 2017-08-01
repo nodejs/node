@@ -132,6 +132,7 @@ namespace compiler {
   V(X64Movq)                       \
   V(X64Movsd)                      \
   V(X64Movss)                      \
+  V(X64Movdqu)                     \
   V(X64BitcastFI)                  \
   V(X64BitcastDL)                  \
   V(X64BitcastIF)                  \
@@ -149,6 +150,7 @@ namespace compiler {
   V(X64I32x4Shl)                   \
   V(X64I32x4ShrS)                  \
   V(X64I32x4Add)                   \
+  V(X64I32x4AddHoriz)              \
   V(X64I32x4Sub)                   \
   V(X64I32x4Mul)                   \
   V(X64I32x4MinS)                  \
@@ -158,7 +160,46 @@ namespace compiler {
   V(X64I32x4ShrU)                  \
   V(X64I32x4MinU)                  \
   V(X64I32x4MaxU)                  \
-  V(X64S32x4Select)                \
+  V(X64I16x8Splat)                 \
+  V(X64I16x8ExtractLane)           \
+  V(X64I16x8ReplaceLane)           \
+  V(X64I16x8Shl)                   \
+  V(X64I16x8ShrS)                  \
+  V(X64I16x8Add)                   \
+  V(X64I16x8AddSaturateS)          \
+  V(X64I16x8AddHoriz)              \
+  V(X64I16x8Sub)                   \
+  V(X64I16x8SubSaturateS)          \
+  V(X64I16x8Mul)                   \
+  V(X64I16x8MinS)                  \
+  V(X64I16x8MaxS)                  \
+  V(X64I16x8Eq)                    \
+  V(X64I16x8Ne)                    \
+  V(X64I16x8ShrU)                  \
+  V(X64I16x8AddSaturateU)          \
+  V(X64I16x8SubSaturateU)          \
+  V(X64I16x8MinU)                  \
+  V(X64I16x8MaxU)                  \
+  V(X64I8x16Splat)                 \
+  V(X64I8x16ExtractLane)           \
+  V(X64I8x16ReplaceLane)           \
+  V(X64I8x16Add)                   \
+  V(X64I8x16AddSaturateS)          \
+  V(X64I8x16Sub)                   \
+  V(X64I8x16SubSaturateS)          \
+  V(X64I8x16MinS)                  \
+  V(X64I8x16MaxS)                  \
+  V(X64I8x16Eq)                    \
+  V(X64I8x16Ne)                    \
+  V(X64I8x16AddSaturateU)          \
+  V(X64I8x16SubSaturateU)          \
+  V(X64I8x16MinU)                  \
+  V(X64I8x16MaxU)                  \
+  V(X64S128And)                    \
+  V(X64S128Or)                     \
+  V(X64S128Xor)                    \
+  V(X64S128Not)                    \
+  V(X64S128Select)                 \
   V(X64S128Zero)
 
 // Addressing modes represent the "shape" of inputs to an instruction.

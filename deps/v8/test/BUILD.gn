@@ -11,6 +11,7 @@ group("gn_all") {
   deps = [
     ":default_tests",
     "inspector:inspector-test",
+    "mkgrokdump:mkgrokdump",
   ]
 
   if (host_os != "mac" || !is_android) {
@@ -48,8 +49,10 @@ group("default_tests") {
       ":intl_run",
       ":message_run",
       ":mjsunit_run",
+      ":mkgrokdump_run",
       ":preparser_run",
       ":unittests_run",
+      ":wasm_spec_tests_run",
     ]
   }
 }
@@ -164,6 +167,14 @@ v8_isolate_run("mjsunit") {
   isolate = "mjsunit/mjsunit.isolate"
 }
 
+v8_isolate_run("mkgrokdump") {
+  deps = [
+    "mkgrokdump:mkgrokdump",
+  ]
+
+  isolate = "mkgrokdump/mkgrokdump.isolate"
+}
+
 v8_isolate_run("mozilla") {
   deps = [
     "..:d8_run",
@@ -186,6 +197,14 @@ v8_isolate_run("unittests") {
   ]
 
   isolate = "unittests/unittests.isolate"
+}
+
+v8_isolate_run("wasm_spec_tests") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "wasm-spec-tests/wasm-spec-tests.isolate"
 }
 
 v8_isolate_run("webkit") {

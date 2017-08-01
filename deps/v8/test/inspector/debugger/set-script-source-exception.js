@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Check that setScriptSource completes correctly when an exception is thrown.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Check that setScriptSource completes correctly when an exception is thrown.');
 
 Protocol.Debugger.enable();
 
@@ -18,6 +18,6 @@ InspectorTest.runTestSuite([
       .then(message => Protocol.Debugger.setScriptSource({ scriptId: message.params.scriptId, scriptSource: 'a # b' }))
       .then(InspectorTest.logMessage)
       .then(next);
-    InspectorTest.addScript('function foo() {}');
+    contextGroup.addScript('function foo() {}');
   }
 ]);

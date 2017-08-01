@@ -70,8 +70,17 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
   // SetDeferredAt().
   size_t InsertDeferred();
 
+  // Inserts |size| consecutive empty entries and returns the array index
+  // associated with the first reservation. Each entry's Smi value can be
+  // inserted by calling SetJumpTableSmi().
+  size_t InsertJumpTable(size_t size);
+
   // Sets the deferred value at |index| to |object|.
   void SetDeferredAt(size_t index, Handle<Object> object);
+
+  // Sets the jump table entry at |index| to |smi|. Note that |index| is the
+  // constant pool index, not the switch case value.
+  void SetJumpTableSmi(size_t index, Smi* smi);
 
   // Creates a reserved entry in the constant pool and returns
   // the size of the operand that'll be required to hold the entry
@@ -107,12 +116,27 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
 
     static Entry Deferred() { return Entry(Tag::kDeferred); }
 
+    static Entry UninitializedJumpTableSmi() {
+      return Entry(Tag::kUninitializedJumpTableSmi);
+    }
+
     bool IsDeferred() const { return tag_ == Tag::kDeferred; }
+
+    bool IsJumpTableEntry() const {
+      return tag_ == Tag::kUninitializedJumpTableSmi ||
+             tag_ == Tag::kJumpTableSmi;
+    }
 
     void SetDeferred(Handle<Object> handle) {
       DCHECK(tag_ == Tag::kDeferred);
       tag_ = Tag::kHandle;
       handle_ = handle;
+    }
+
+    void SetJumpTableSmi(Smi* smi) {
+      DCHECK(tag_ == Tag::kUninitializedJumpTableSmi);
+      tag_ = Tag::kJumpTableSmi;
+      smi_ = smi;
     }
 
     Handle<Object> ToHandle(Isolate* isolate) const;
@@ -135,6 +159,8 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
       kRawString,
       kHeapNumber,
       kScope,
+      kUninitializedJumpTableSmi,
+      kJumpTableSmi,
 #define ENTRY_TAG(NAME, ...) k##NAME,
       SINGLETON_CONSTANT_ENTRY_TYPES(ENTRY_TAG)
 #undef ENTRY_TAG
@@ -142,6 +168,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
   };
 
   index_t AllocateIndex(Entry constant_entry);
+  index_t AllocateIndexArray(Entry constant_entry, size_t size);
   index_t AllocateReservedEntry(Smi* value);
 
   struct ConstantArraySlice final : public ZoneObject {
@@ -149,7 +176,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
                        OperandSize operand_size);
     void Reserve();
     void Unreserve();
-    size_t Allocate(Entry entry);
+    size_t Allocate(Entry entry, size_t count = 1);
     Entry& At(size_t index);
     const Entry& At(size_t index) const;
 

@@ -4,20 +4,19 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/v8.h"
-
-#include "test/common/wasm/test-signatures.h"
-
 #include "src/objects-inl.h"
 #include "src/objects.h"
-
+#include "src/v8.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-limits.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
+
+#include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -135,11 +134,11 @@ class FunctionBodyDecoderTest : public TestWithZone {
         start, end);
 
     if (result.ok() != expected_success) {
-      uint32_t pc = result.error_offset;
+      uint32_t pc = result.error_offset();
       std::ostringstream str;
       if (expected_success) {
         str << "Verification failed: pc = +" << pc
-            << ", msg = " << result.error_msg;
+            << ", msg = " << result.error_msg();
       } else {
         str << "Verification successed, expected failure; pc = +" << pc;
       }
@@ -1296,7 +1295,7 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset) {
   TestModuleEnv module_env;
   module = &module_env;
   module_env.InitializeMemory();
-  for (int offset = 0; offset < 128; offset += 7) {
+  for (byte offset = 0; offset < 128; offset += 7) {
     byte code[] = {WASM_STORE_MEM_OFFSET(MachineType::Int32(), offset,
                                          WASM_ZERO, WASM_ZERO)};
     EXPECT_VERIFIES_C(v_i, code);
@@ -2635,6 +2634,10 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
 #define TEST_SIMD(name, opcode, sig) \
   EXPECT_LENGTH_N(3, kSimdPrefix, static_cast<byte>(kExpr##name & 0xff));
   FOREACH_SIMD_1_OPERAND_OPCODE(TEST_SIMD)
+#undef TEST_SIMD
+  EXPECT_LENGTH_N(6, kSimdPrefix, static_cast<byte>(kExprS32x4Shuffle & 0xff));
+  EXPECT_LENGTH_N(10, kSimdPrefix, static_cast<byte>(kExprS16x8Shuffle & 0xff));
+  EXPECT_LENGTH_N(18, kSimdPrefix, static_cast<byte>(kExprS8x16Shuffle & 0xff));
 #undef TEST_SIMD
   // test for bad simd opcode
   EXPECT_LENGTH_N(2, kSimdPrefix, 0xff);
