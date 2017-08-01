@@ -225,12 +225,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   i::SafeStackFrameIterator it(isolate, reinterpret_cast<i::Address>(regs->fp),
                                reinterpret_cast<i::Address>(regs->sp),
                                js_entry_sp);
-
-  // If at this point iterator does not see any frames,
-  // is usually means something is wrong with the FP,
-  // e.g. it is used as a general purpose register in the function.
-  // Bailout.
-  if (it.done()) return false;
+  if (it.done()) return true;
 
   size_t i = 0;
   if (record_c_entry_frame == kIncludeCEntryFrame &&

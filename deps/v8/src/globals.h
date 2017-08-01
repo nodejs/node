@@ -118,6 +118,10 @@ namespace internal {
 #define V8_DOUBLE_FIELDS_UNBOXING 0
 #endif
 
+// Some types of tracing require the SFI to store a unique ID.
+#if defined(V8_TRACE_MAPS) || defined(V8_TRACE_IGNITION)
+#define V8_SFI_HAS_UNIQUE_ID 1
+#endif
 
 typedef uint8_t byte;
 typedef byte* Address;
@@ -589,6 +593,7 @@ enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
 enum VisitMode {
   VISIT_ALL,
+  VISIT_ALL_IN_MINOR_MC_UPDATE,
   VISIT_ALL_IN_SCAVENGE,
   VISIT_ALL_IN_SWEEP_NEWSPACE,
   VISIT_ONLY_STRONG,
@@ -671,14 +676,9 @@ enum InlineCacheState {
   GENERIC,
 };
 
-enum CacheHolderFlag {
-  kCacheOnPrototype,
-  kCacheOnPrototypeReceiverIsDictionary,
-  kCacheOnPrototypeReceiverIsPrimitive,
-  kCacheOnReceiver
-};
-
 enum WhereToStart { kStartAtReceiver, kStartAtPrototype };
+
+enum ResultSentinel { kNotFound = -1, kUnsupported = -2 };
 
 // The Store Buffer (GC).
 typedef enum {
@@ -785,6 +785,7 @@ enum CpuFeature {
   MIPSr1,
   MIPSr2,
   MIPSr6,
+  MIPS_SIMD,  // MSA instructions
   // ARM64
   ALWAYS_ALIGN_CSP,
   // PPC
@@ -1039,12 +1040,12 @@ enum VariableLocation : uint8_t {
   kLastVariableLocation = MODULE
 };
 
-// ES6 Draft Rev3 10.2 specifies declarative environment records with mutable
-// and immutable bindings that can be in two states: initialized and
-// uninitialized. In ES5 only immutable bindings have these two states. When
-// accessing a binding, it needs to be checked for initialization. However in
-// the following cases the binding is initialized immediately after creation
-// so the initialization check can always be skipped:
+// ES6 specifies declarative environment records with mutable and immutable
+// bindings that can be in two states: initialized and uninitialized.
+// When accessing a binding, it needs to be checked for initialization.
+// However in the following cases the binding is initialized immediately
+// after creation so the initialization check can always be skipped:
+//
 // 1. Var declared local variables.
 //      var foo;
 // 2. A local variable introduced by a function declaration.
@@ -1053,19 +1054,10 @@ enum VariableLocation : uint8_t {
 //      function x(foo) {}
 // 4. Catch bound variables.
 //      try {} catch (foo) {}
-// 6. Function variables of named function expressions.
+// 6. Function name variables of named function expressions.
 //      var x = function foo() {}
 // 7. Implicit binding of 'this'.
 // 8. Implicit binding of 'arguments' in functions.
-//
-// ES5 specified object environment records which are introduced by ES elements
-// such as Program and WithStatement that associate identifier bindings with the
-// properties of some object. In the specification only mutable bindings exist
-// (which may be non-writable) and have no distinct initialization step. However
-// V8 allows const declarations in global code with distinct creation and
-// initialization steps which are represented by non-writable properties in the
-// global object. As a result also these bindings need to be checked for
-// initialization.
 //
 // The following enum specifies a flag that indicates if the binding needs a
 // distinct initialization step (kNeedsInitialization) or if the binding is
@@ -1107,7 +1099,11 @@ enum FunctionKind : uint16_t {
   kClassConstructor =
       kBaseConstructor | kDerivedConstructor | kDefaultConstructor,
   kAsyncArrowFunction = kArrowFunction | kAsyncFunction,
-  kAsyncConciseMethod = kAsyncFunction | kConciseMethod
+  kAsyncConciseMethod = kAsyncFunction | kConciseMethod,
+
+  // https://tc39.github.io/proposal-async-iteration/
+  kAsyncConciseGeneratorMethod = kAsyncFunction | kConciseGeneratorMethod,
+  kAsyncGeneratorFunction = kAsyncFunction | kGeneratorFunction
 };
 
 inline bool IsValidFunctionKind(FunctionKind kind) {
@@ -1126,29 +1122,37 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kDerivedConstructor ||
          kind == FunctionKind::kAsyncFunction ||
          kind == FunctionKind::kAsyncArrowFunction ||
-         kind == FunctionKind::kAsyncConciseMethod;
+         kind == FunctionKind::kAsyncConciseMethod ||
+         kind == FunctionKind::kAsyncConciseGeneratorMethod ||
+         kind == FunctionKind::kAsyncGeneratorFunction;
 }
 
 
 inline bool IsArrowFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kArrowFunction;
+  return (kind & FunctionKind::kArrowFunction) != 0;
 }
 
 
 inline bool IsGeneratorFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kGeneratorFunction;
+  return (kind & FunctionKind::kGeneratorFunction) != 0;
 }
 
 inline bool IsModule(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kModule;
+  return (kind & FunctionKind::kModule) != 0;
 }
 
 inline bool IsAsyncFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kAsyncFunction;
+  return (kind & FunctionKind::kAsyncFunction) != 0;
+}
+
+inline bool IsAsyncGeneratorFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  const FunctionKind kMask = FunctionKind::kAsyncGeneratorFunction;
+  return (kind & kMask) == kMask;
 }
 
 inline bool IsResumableFunction(FunctionKind kind) {
@@ -1157,49 +1161,48 @@ inline bool IsResumableFunction(FunctionKind kind) {
 
 inline bool IsConciseMethod(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kConciseMethod;
+  return (kind & FunctionKind::kConciseMethod) != 0;
 }
 
 inline bool IsGetterFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kGetterFunction;
+  return (kind & FunctionKind::kGetterFunction) != 0;
 }
 
 inline bool IsSetterFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kSetterFunction;
+  return (kind & FunctionKind::kSetterFunction) != 0;
 }
 
 inline bool IsAccessorFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kAccessorFunction;
+  return (kind & FunctionKind::kAccessorFunction) != 0;
 }
 
 
 inline bool IsDefaultConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kDefaultConstructor;
+  return (kind & FunctionKind::kDefaultConstructor) != 0;
 }
 
 
 inline bool IsBaseConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kBaseConstructor;
+  return (kind & FunctionKind::kBaseConstructor) != 0;
 }
 
 inline bool IsDerivedConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kDerivedConstructor;
+  return (kind & FunctionKind::kDerivedConstructor) != 0;
 }
 
 
 inline bool IsClassConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kClassConstructor;
+  return (kind & FunctionKind::kClassConstructor) != 0;
 }
 
-
-inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
+inline bool IsConstructable(FunctionKind kind) {
   if (IsAccessorFunction(kind)) return false;
   if (IsConciseMethod(kind)) return false;
   if (IsArrowFunction(kind)) return false;
@@ -1340,6 +1343,77 @@ enum ExternalArrayType {
   kExternalFloat64Array,
   kExternalUint8ClampedArray,
 };
+
+// Static information used by SuspendGenerator bytecode & GeneratorStore, in
+// order to determine where to store bytecode offset in generator.
+enum class SuspendFlags {
+  kYield = 0,
+  kYieldStar = 1,
+  kAwait = 2,
+  kSuspendTypeMask = 3,
+
+  kGenerator = 0 << 2,
+  kAsyncGenerator = 1 << 2,
+  kGeneratorTypeMask = 1 << 2,
+
+  kBitWidth = 3,
+
+  // Aliases
+  kGeneratorYield = kGenerator | kYield,
+  kGeneratorYieldStar = kGenerator | kYieldStar,
+  kGeneratorAwait = kGenerator | kAwait,
+  kAsyncGeneratorYield = kAsyncGenerator | kYield,
+  kAsyncGeneratorYieldStar = kAsyncGenerator | kYieldStar,
+  kAsyncGeneratorAwait = kAsyncGenerator | kAwait
+};
+
+inline constexpr SuspendFlags operator&(SuspendFlags lhs, SuspendFlags rhs) {
+  return static_cast<SuspendFlags>(static_cast<uint8_t>(lhs) &
+                                   static_cast<uint8_t>(rhs));
+}
+
+inline constexpr SuspendFlags operator|(SuspendFlags lhs, SuspendFlags rhs) {
+  return static_cast<SuspendFlags>(static_cast<uint8_t>(lhs) |
+                                   static_cast<uint8_t>(rhs));
+}
+
+inline SuspendFlags& operator|=(SuspendFlags& lhs, SuspendFlags rhs) {
+  lhs = lhs | rhs;
+  return lhs;
+}
+
+inline SuspendFlags operator~(SuspendFlags lhs) {
+  return static_cast<SuspendFlags>(~static_cast<uint8_t>(lhs));
+}
+
+inline const char* SuspendTypeFor(SuspendFlags flags) {
+  switch (flags & SuspendFlags::kSuspendTypeMask) {
+    case SuspendFlags::kYield:
+      return "yield";
+    case SuspendFlags::kYieldStar:
+      return "yield*";
+    case SuspendFlags::kAwait:
+      return "await";
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return "";
+}
+
+struct AssemblerDebugInfo {
+  AssemblerDebugInfo(const char* name, const char* file, int line)
+      : name(name), file(file), line(line) {}
+  const char* name;
+  const char* file;
+  int line;
+};
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const AssemblerDebugInfo& info) {
+  os << "(" << info.name << ":" << info.file << ":" << info.line << ")";
+  return os;
+}
 
 }  // namespace internal
 }  // namespace v8

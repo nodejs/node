@@ -603,19 +603,20 @@ TEST_F(Int64LoweringTest, F64ReinterpretI64) {
              MachineRepresentation::kFloat64);
 
   Capture<Node*> stack_slot_capture;
-  Matcher<Node*> stack_slot_matcher = IsStackSlot(sizeof(int64_t));
+  Matcher<Node*> stack_slot_matcher =
+      IsStackSlot(StackSlotRepresentation(sizeof(int64_t), 0));
 
   Capture<Node*> store_capture;
   Matcher<Node*> store_matcher =
       IsStore(StoreRepresentation(MachineRepresentation::kWord32,
                                   WriteBarrierKind::kNoWriteBarrier),
               AllOf(CaptureEq(&stack_slot_capture), stack_slot_matcher),
-              IsInt32Constant(Int64Lowering::kLowerWordOffset),
+              IsInt32Constant(kInt64LowerHalfMemoryOffset),
               IsInt32Constant(low_word_value(0)),
               IsStore(StoreRepresentation(MachineRepresentation::kWord32,
                                           WriteBarrierKind::kNoWriteBarrier),
                       AllOf(CaptureEq(&stack_slot_capture), stack_slot_matcher),
-                      IsInt32Constant(Int64Lowering::kHigherWordOffset),
+                      IsInt32Constant(kInt64UpperHalfMemoryOffset),
                       IsInt32Constant(high_word_value(0)), start(), start()),
               start());
 
@@ -634,7 +635,8 @@ TEST_F(Int64LoweringTest, I64ReinterpretF64) {
              MachineRepresentation::kWord64);
 
   Capture<Node*> stack_slot;
-  Matcher<Node*> stack_slot_matcher = IsStackSlot(sizeof(int64_t));
+  Matcher<Node*> stack_slot_matcher =
+      IsStackSlot(StackSlotRepresentation(sizeof(int64_t), 0));
 
   Capture<Node*> store;
   Matcher<Node*> store_matcher = IsStore(
@@ -647,11 +649,11 @@ TEST_F(Int64LoweringTest, I64ReinterpretF64) {
       graph()->end()->InputAt(1),
       IsReturn2(IsLoad(MachineType::Int32(),
                        AllOf(CaptureEq(&stack_slot), stack_slot_matcher),
-                       IsInt32Constant(Int64Lowering::kLowerWordOffset),
+                       IsInt32Constant(kInt64LowerHalfMemoryOffset),
                        AllOf(CaptureEq(&store), store_matcher), start()),
                 IsLoad(MachineType::Int32(),
                        AllOf(CaptureEq(&stack_slot), stack_slot_matcher),
-                       IsInt32Constant(Int64Lowering::kHigherWordOffset),
+                       IsInt32Constant(kInt64UpperHalfMemoryOffset),
                        AllOf(CaptureEq(&store), store_matcher), start()),
                 start(), start()));
 }

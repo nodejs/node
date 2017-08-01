@@ -123,6 +123,9 @@ Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
     new_field_type_ = field_type;
   }
 
+  GeneralizeIfTransitionableFastElementsKind(
+      &new_constness_, &new_representation_, &new_field_type_);
+
   if (TryRecofigureToDataFieldInplace() == kEnd) return result_map_;
   if (FindRootMap() == kEnd) return result_map_;
   if (FindTargetMap() == kEnd) return result_map_;
@@ -134,6 +137,8 @@ Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
 Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
   DCHECK_EQ(kInitialized, state_);
   new_elements_kind_ = elements_kind;
+  is_transitionable_fast_elements_kind_ =
+      IsTransitionableFastElementsKind(new_elements_kind_);
 
   if (FindRootMap() == kEnd) return result_map_;
   if (FindTargetMap() == kEnd) return result_map_;
@@ -151,6 +156,28 @@ Handle<Map> MapUpdater::Update() {
   ConstructNewMap();
   DCHECK_EQ(kEnd, state_);
   return result_map_;
+}
+
+void MapUpdater::GeneralizeIfTransitionableFastElementsKind(
+    PropertyConstness* constness, Representation* representation,
+    Handle<FieldType>* field_type) {
+  DCHECK_EQ(is_transitionable_fast_elements_kind_,
+            IsTransitionableFastElementsKind(new_elements_kind_));
+  if (is_transitionable_fast_elements_kind_ &&
+      Map::IsInplaceGeneralizableField(*constness, *representation,
+                                       **field_type)) {
+    // We don't support propagation of field generalization through elements
+    // kind transitions because they are inserted into the transition tree
+    // before field transitions. In order to avoid complexity of handling
+    // such a case we ensure that all maps with transitionable elements kinds
+    // do not have fields that can be generalized in-place (without creation
+    // of a new map).
+    if (FLAG_track_constant_fields && FLAG_modify_map_inplace) {
+      *constness = kMutable;
+    }
+    DCHECK(representation->IsHeapObject());
+    *field_type = FieldType::Any(isolate_);
+  }
 }
 
 void MapUpdater::GeneralizeField(Handle<Map> map, int modify_index,
@@ -219,13 +246,23 @@ MapUpdater::State MapUpdater::FindRootMap() {
   DCHECK_EQ(kInitialized, state_);
   // Check the state of the root map.
   root_map_ = handle(old_map_->FindRootMap(), isolate_);
+  ElementsKind from_kind = root_map_->elements_kind();
+  ElementsKind to_kind = new_elements_kind_;
+  if (root_map_->is_deprecated()) {
+    state_ = kEnd;
+    result_map_ = handle(
+        JSFunction::cast(root_map_->GetConstructor())->initial_map(), isolate_);
+    if (from_kind != to_kind) {
+      result_map_ = Map::AsElementsKind(result_map_, to_kind);
+    }
+    DCHECK(result_map_->is_dictionary_map());
+    return state_;
+  }
   int root_nof = root_map_->NumberOfOwnDescriptors();
   if (!old_map_->EquivalentToForTransition(*root_map_)) {
     return CopyGeneralizeAllFields("GenAll_NotEquivalent");
   }
 
-  ElementsKind from_kind = root_map_->elements_kind();
-  ElementsKind to_kind = new_elements_kind_;
   // TODO(ishell): Add a test for SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
   if (from_kind != to_kind && to_kind != DICTIONARY_ELEMENTS &&
       to_kind != SLOW_STRING_WRAPPER_ELEMENTS &&
@@ -245,7 +282,8 @@ MapUpdater::State MapUpdater::FindRootMap() {
     if (old_details.location() != kField) {
       return CopyGeneralizeAllFields("GenAll_RootModification2");
     }
-    if (new_constness_ != old_details.constness()) {
+    if (new_constness_ != old_details.constness() &&
+        (!FLAG_modify_map_inplace || !old_map_->is_prototype_map())) {
       return CopyGeneralizeAllFields("GenAll_RootModification3");
     }
     if (!new_representation_.fits_into(old_details.representation())) {
@@ -259,6 +297,19 @@ MapUpdater::State MapUpdater::FindRootMap() {
         old_descriptors_->GetFieldType(modified_descriptor_);
     if (!new_field_type_->NowIs(old_field_type)) {
       return CopyGeneralizeAllFields("GenAll_RootModification5");
+    }
+
+    // Modify root map in-place.
+    if (FLAG_modify_map_inplace && new_constness_ != old_details.constness()) {
+      // Only prototype root maps are allowed to be updated in-place.
+      // TODO(ishell): fix all the stubs that use prototype map check to
+      // ensure that the prototype was not modified.
+      DCHECK(old_map_->is_prototype_map());
+      DCHECK(old_map_->is_stable());
+      DCHECK(IsGeneralizableTo(old_details.constness(), new_constness_));
+      GeneralizeField(old_map_, modified_descriptor_, new_constness_,
+                      old_details.representation(),
+                      handle(old_field_type, isolate_));
     }
   }
 
@@ -295,7 +346,8 @@ MapUpdater::State MapUpdater::FindTargetMap() {
       return CopyGeneralizeAllFields("GenAll_Incompatible");
     }
     PropertyConstness tmp_constness = tmp_details.constness();
-    if (!IsGeneralizableTo(old_details.constness(), tmp_constness)) {
+    if (!FLAG_modify_map_inplace &&
+        !IsGeneralizableTo(old_details.constness(), tmp_constness)) {
       break;
     }
     if (!IsGeneralizableTo(old_details.location(), tmp_details.location())) {
@@ -309,7 +361,9 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     if (tmp_details.location() == kField) {
       Handle<FieldType> old_field_type =
           GetOrComputeFieldType(i, old_details.location(), tmp_representation);
-      GeneralizeField(tmp_map, i, tmp_constness, tmp_representation,
+      PropertyConstness constness =
+          FLAG_modify_map_inplace ? old_details.constness() : tmp_constness;
+      GeneralizeField(tmp_map, i, constness, tmp_representation,
                       old_field_type);
     } else {
       // kDescriptor: Check that the value matches.
@@ -462,6 +516,9 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
           old_details.representation(), old_field_type, next_representation,
           target_field_type, isolate_);
 
+      GeneralizeIfTransitionableFastElementsKind(
+          &next_constness, &next_representation, &next_field_type);
+
       Handle<Object> wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
       if (next_kind == kData) {
@@ -505,10 +562,17 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 
     Descriptor d;
     if (next_location == kField) {
-      Handle<FieldType> old_field_type =
+      Handle<FieldType> next_field_type =
           GetOrComputeFieldType(i, old_details.location(), next_representation);
 
-      Handle<Object> wrapped_type(Map::WrapFieldType(old_field_type));
+      // If the |new_elements_kind_| is still transitionable then the old map's
+      // elements kind is also transitionable and therefore the old descriptors
+      // array must already have non in-place generalizable fields.
+      CHECK_IMPLIES(is_transitionable_fast_elements_kind_,
+                    !Map::IsInplaceGeneralizableField(
+                        next_constness, next_representation, *next_field_type));
+
+      Handle<Object> wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
       if (next_kind == kData) {
         DCHECK_IMPLIES(!FLAG_track_constant_fields, next_constness == kMutable);

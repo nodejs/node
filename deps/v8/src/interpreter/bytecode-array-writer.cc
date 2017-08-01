@@ -5,8 +5,11 @@
 #include "src/interpreter/bytecode-array-writer.h"
 
 #include "src/api.h"
+#include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
+#include "src/interpreter/bytecode-node.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/log.h"
 #include "src/objects-inl.h"
@@ -24,14 +27,15 @@ BytecodeArrayWriter::BytecodeArrayWriter(
     : bytecodes_(zone),
       unbound_jumps_(0),
       source_position_table_builder_(zone, source_position_mode),
-      constant_array_builder_(constant_array_builder) {
+      constant_array_builder_(constant_array_builder),
+      last_bytecode_(Bytecode::kIllegal),
+      last_bytecode_offset_(0),
+      last_bytecode_had_source_info_(false),
+      elide_noneffectful_bytecodes_(FLAG_ignition_elide_noneffectful_bytecodes),
+      exit_seen_in_block_(false) {
   bytecodes_.reserve(512);  // Derived via experimentation.
 }
 
-// override
-BytecodeArrayWriter::~BytecodeArrayWriter() {}
-
-// override
 Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
     Isolate* isolate, int register_count, int parameter_count,
     Handle<FixedArray> handler_table) {
@@ -52,21 +56,44 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
   return bytecode_array;
 }
 
-// override
 void BytecodeArrayWriter::Write(BytecodeNode* node) {
   DCHECK(!Bytecodes::IsJump(node->bytecode()));
+
+  if (exit_seen_in_block_) return;  // Don't emit dead code.
+  UpdateExitSeenInBlock(node->bytecode());
+  MaybeElideLastBytecode(node->bytecode(), node->source_info().is_valid());
+
   UpdateSourcePositionTable(node);
   EmitBytecode(node);
 }
 
-// override
 void BytecodeArrayWriter::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   DCHECK(Bytecodes::IsJump(node->bytecode()));
+
+  // TODO(rmcilroy): For forward jumps we could also mark the label as dead,
+  // thereby avoiding emitting dead code when we bind the label.
+  if (exit_seen_in_block_) return;  // Don't emit dead code.
+  UpdateExitSeenInBlock(node->bytecode());
+  MaybeElideLastBytecode(node->bytecode(), node->source_info().is_valid());
+
   UpdateSourcePositionTable(node);
   EmitJump(node, label);
 }
 
-// override
+void BytecodeArrayWriter::WriteSwitch(BytecodeNode* node,
+                                      BytecodeJumpTable* jump_table) {
+  DCHECK(Bytecodes::IsSwitch(node->bytecode()));
+
+  // TODO(rmcilroy): For jump tables we could also mark the table as dead,
+  // thereby avoiding emitting dead code when we bind the entries.
+  if (exit_seen_in_block_) return;  // Don't emit dead code.
+  UpdateExitSeenInBlock(node->bytecode());
+  MaybeElideLastBytecode(node->bytecode(), node->source_info().is_valid());
+
+  UpdateSourcePositionTable(node);
+  EmitSwitch(node, jump_table);
+}
+
 void BytecodeArrayWriter::BindLabel(BytecodeLabel* label) {
   size_t current_offset = bytecodes()->size();
   if (label->is_forward_target()) {
@@ -75,9 +102,10 @@ void BytecodeArrayWriter::BindLabel(BytecodeLabel* label) {
     // Now treat as if the label will only be back referred to.
   }
   label->bind_to(current_offset);
+  InvalidateLastBytecode();
+  exit_seen_in_block_ = false;  // Starting a new basic block.
 }
 
-// override
 void BytecodeArrayWriter::BindLabel(const BytecodeLabel& target,
                                     BytecodeLabel* label) {
   DCHECK(!label->is_bound());
@@ -88,6 +116,25 @@ void BytecodeArrayWriter::BindLabel(const BytecodeLabel& target,
     // Now treat as if the label will only be back referred to.
   }
   label->bind_to(target.offset());
+  InvalidateLastBytecode();
+  // exit_seen_in_block_ was reset when target was bound, so shouldn't be
+  // changed here.
+}
+
+void BytecodeArrayWriter::BindJumpTableEntry(BytecodeJumpTable* jump_table,
+                                             int case_value) {
+  DCHECK(!jump_table->is_bound(case_value));
+
+  size_t current_offset = bytecodes()->size();
+  size_t relative_jump = current_offset - jump_table->switch_bytecode_offset();
+
+  constant_array_builder()->SetJumpTableSmi(
+      jump_table->ConstantPoolEntryFor(case_value),
+      Smi::FromInt(static_cast<int>(relative_jump)));
+  jump_table->mark_bound(case_value);
+
+  InvalidateLastBytecode();
+  exit_seen_in_block_ = false;  // Starting a new basic block.
 }
 
 void BytecodeArrayWriter::UpdateSourcePositionTable(
@@ -99,6 +146,45 @@ void BytecodeArrayWriter::UpdateSourcePositionTable(
         bytecode_offset, SourcePosition(source_info.source_position()),
         source_info.is_statement());
   }
+}
+
+void BytecodeArrayWriter::UpdateExitSeenInBlock(Bytecode bytecode) {
+  switch (bytecode) {
+    case Bytecode::kReturn:
+    case Bytecode::kThrow:
+    case Bytecode::kReThrow:
+    case Bytecode::kJump:
+    case Bytecode::kJumpConstant:
+      exit_seen_in_block_ = true;
+      break;
+    default:
+      break;
+  }
+}
+
+void BytecodeArrayWriter::MaybeElideLastBytecode(Bytecode next_bytecode,
+                                                 bool has_source_info) {
+  if (!elide_noneffectful_bytecodes_) return;
+
+  // If the last bytecode loaded the accumulator without any external effect,
+  // and the next bytecode clobbers this load without reading the accumulator,
+  // then the previous bytecode can be elided as it has no effect.
+  if (Bytecodes::IsAccumulatorLoadWithoutEffects(last_bytecode_) &&
+      Bytecodes::GetAccumulatorUse(next_bytecode) == AccumulatorUse::kWrite &&
+      (!last_bytecode_had_source_info_ || !has_source_info)) {
+    DCHECK_GT(bytecodes()->size(), last_bytecode_offset_);
+    bytecodes()->resize(last_bytecode_offset_);
+    // If the last bytecode had source info we will transfer the source info
+    // to this bytecode.
+    has_source_info |= last_bytecode_had_source_info_;
+  }
+  last_bytecode_ = next_bytecode;
+  last_bytecode_had_source_info_ = has_source_info;
+  last_bytecode_offset_ = bytecodes()->size();
+}
+
+void BytecodeArrayWriter::InvalidateLastBytecode() {
+  last_bytecode_ = Bytecode::kIllegal;
 }
 
 void BytecodeArrayWriter::EmitBytecode(const BytecodeNode* const node) {
@@ -162,8 +248,12 @@ Bytecode GetJumpWithConstantOperand(Bytecode jump_bytecode) {
       return Bytecode::kJumpIfNotHoleConstant;
     case Bytecode::kJumpIfNull:
       return Bytecode::kJumpIfNullConstant;
+    case Bytecode::kJumpIfNotNull:
+      return Bytecode::kJumpIfNotNullConstant;
     case Bytecode::kJumpIfUndefined:
       return Bytecode::kJumpIfUndefinedConstant;
+    case Bytecode::kJumpIfNotUndefined:
+      return Bytecode::kJumpIfNotUndefinedConstant;
     case Bytecode::kJumpIfJSReceiver:
       return Bytecode::kJumpIfJSReceiverConstant;
     default:
@@ -325,6 +415,20 @@ void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
         break;
     }
   }
+  EmitBytecode(node);
+}
+
+void BytecodeArrayWriter::EmitSwitch(BytecodeNode* node,
+                                     BytecodeJumpTable* jump_table) {
+  DCHECK(Bytecodes::IsSwitch(node->bytecode()));
+
+  size_t current_offset = bytecodes()->size();
+  if (node->operand_scale() > OperandScale::kSingle) {
+    // Adjust for scaling byte prefix.
+    current_offset += 1;
+  }
+  jump_table->set_switch_bytecode_offset(current_offset);
+
   EmitBytecode(node);
 }
 

@@ -119,12 +119,9 @@ class LCodeGen: public LCodeGenBase {
 
   XMMRegister double_scratch0() const { return xmm0; }
 
-  void EmitClassOfTest(Label* if_true,
-                       Label* if_false,
-                       Handle<String> class_name,
-                       Register input,
-                       Register temporary,
-                       Register temporary2);
+  void EmitClassOfTest(Label* if_true, Label* if_false,
+                       Handle<String> class_name, Register input,
+                       Register temporary, Register temporary2);
 
   bool HasAllocatedStackSlots() const {
     return chunk()->HasAllocatedStackSlots();

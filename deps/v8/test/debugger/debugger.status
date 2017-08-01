@@ -21,22 +21,24 @@
   # parameter value
   'debug/es6/debug-scope-default-param-with-eval': [FAIL],
 
-  # Slow test
+  # Slow tests
   'debug/debug-scopes': [PASS, SLOW],
+  'debug/debug-stepout-scope-part*': [PASS, SLOW],
+  'debug/ignition/debug-step-prefix-bytecodes': [PASS, SLOW],
 
   # Too slow in debug mode and on slow platforms.
-  'regress/regress-2318': [PASS, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
+  'regress/regress-2318': [PASS, SLOW, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
-['variant == stress', {
+['variant == stress or variant == noturbofan_stress', {
   # TODO(jarin/mstarzinger): Functions with eval or debugger now get optimized
   # with Turbofan, which has issues with the debugger issues.
   'debug/debug-evaluate-locals': [FAIL],
 
   # Very slow in stress mode.
   'regress/regress-2318': [SKIP],
-}],  # 'stress == True'
+}],  # variant == stress or variant == noturbofan_stress
 
 ##############################################################################
 ['gc_stress == True', {
@@ -50,9 +52,6 @@
   'debug/debug-stepout-scope-part6': [SKIP],
   'debug/debug-stepout-scope-part7': [SKIP],
   'debug/debug-stepout-scope-part8': [SKIP],
-
-  # BUG(chromium:664490)
-  'debug/debug-scopes': [SKIP],
 
   # Async function tests taking too long
   # https://bugs.chromium.org/p/v8/issues/detail?id=5411
@@ -70,15 +69,23 @@
 }],  # variant == turbofan_opt
 
 ##############################################################################
-['variant == asm_wasm', {
-  '*': [SKIP],
-}],  # variant == asm_wasm
-
-##############################################################################
 ['variant == wasm_traps', {
   '*': [SKIP],
 }],  # variant == wasm_traps
 
+##############################################################################
+['arch == arm and not simulator_run', {
+  # Too slow on chromebooks.
+  'debug/ignition/debug-step-prefix-bytecodes': [SKIP],
+}],  # 'arch == arm and not simulator_run'
+
+##############################################################################
+['variant in [noturbofan, noturbofan_stress] and system == macos and asan', {
+  # Too slow for old pipeline and mac asan.
+  'debug/*': [SKIP],
+}],  # variant in [noturbofan, noturbofan_stress] and system == macos and asan
+
+##############################################################################
 ['arch == s390 or arch == s390x', {
 
   # Stack manipulations in LiveEdit is not implemented for this arch.

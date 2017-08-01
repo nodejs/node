@@ -39,9 +39,11 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/arm/assembler-arm-inl.h"
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -325,10 +327,9 @@ const int RelocInfo::kApplyMask = 0;
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
-  // specially coded on ARM means that it is a movw/movt instruction, or is an
-  // embedded constant pool entry.  These only occur if
-  // FLAG_enable_embedded_constant_pool is true.
-  return FLAG_enable_embedded_constant_pool;
+  // specially coded on ARM means that it is a movw/movt instruction. We don't
+  // generate those for relocatable pointers.
+  return false;
 }
 
 
@@ -357,13 +358,13 @@ uint32_t RelocInfo::wasm_function_table_size_reference() {
 }
 
 void RelocInfo::unchecked_update_wasm_memory_reference(
-    Address address, ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+    Isolate* isolate, Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
 }
 
-void RelocInfo::unchecked_update_wasm_size(uint32_t size,
+void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
                                            ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_,
+  Assembler::set_target_address_at(isolate, pc_, host_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
@@ -466,7 +467,6 @@ NeonMemOperand::NeonMemOperand(Register rn, Register rm, int align) {
   SetAlignment(align);
 }
 
-
 void NeonMemOperand::SetAlignment(int align) {
   switch (align) {
     case 0:
@@ -502,18 +502,9 @@ const Instr kPopRegPattern =
 // ldr rd, [pc, #offset]
 const Instr kLdrPCImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
 const Instr kLdrPCImmedPattern = 5 * B24 | L | Register::kCode_pc * B16;
-// ldr rd, [pp, #offset]
-const Instr kLdrPpImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPpImmedPattern = 5 * B24 | L | Register::kCode_r8 * B16;
-// ldr rd, [pp, rn]
-const Instr kLdrPpRegMask = 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPpRegPattern = 7 * B24 | L | Register::kCode_r8 * B16;
 // vldr dd, [pc, #offset]
 const Instr kVldrDPCMask = 15 * B24 | 3 * B20 | 15 * B16 | 15 * B8;
 const Instr kVldrDPCPattern = 13 * B24 | L | Register::kCode_pc * B16 | 11 * B8;
-// vldr dd, [pp, #offset]
-const Instr kVldrDPpMask = 15 * B24 | 3 * B20 | 15 * B16 | 15 * B8;
-const Instr kVldrDPpPattern = 13 * B24 | L | Register::kCode_r8 * B16 | 11 * B8;
 // blxcc rm
 const Instr kBlxRegMask =
     15 * B24 | 15 * B20 | 15 * B16 | 15 * B12 | 15 * B8 | 15 * B4;
@@ -549,12 +540,11 @@ const Instr kStrRegFpNegOffsetPattern =
     al | B26 | NegOffset | Register::kCode_fp * B16;
 const Instr kLdrStrInstrTypeMask = 0xffff0000;
 
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
+Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
+    : AssemblerBase(isolate_data, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
       pending_32_bit_constants_(),
-      pending_64_bit_constants_(),
-      constant_pool_builder_(kLdrMaxReachBits, kVldrMaxReachBits) {
+      pending_64_bit_constants_() {
   pending_32_bit_constants_.reserve(kMinNumPendingConstants);
   pending_64_bit_constants_.reserve(kMinNumPendingConstants);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
@@ -582,13 +572,9 @@ Assembler::~Assembler() {
 void Assembler::GetCode(CodeDesc* desc) {
   // Emit constant pool if necessary.
   int constant_pool_offset = 0;
-  if (FLAG_enable_embedded_constant_pool) {
-    constant_pool_offset = EmitEmbeddedConstantPool();
-  } else {
-    CheckConstPool(true, false);
-    DCHECK(pending_32_bit_constants_.empty());
-    DCHECK(pending_64_bit_constants_.empty());
-  }
+  CheckConstPool(true, false);
+  DCHECK(pending_32_bit_constants_.empty());
+  DCHECK(pending_64_bit_constants_.empty());
   // Set up code descriptor.
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
@@ -739,24 +725,6 @@ Register Assembler::GetRm(Instr instr) {
 }
 
 
-Instr Assembler::GetConsantPoolLoadPattern() {
-  if (FLAG_enable_embedded_constant_pool) {
-    return kLdrPpImmedPattern;
-  } else {
-    return kLdrPCImmedPattern;
-  }
-}
-
-
-Instr Assembler::GetConsantPoolLoadMask() {
-  if (FLAG_enable_embedded_constant_pool) {
-    return kLdrPpImmedMask;
-  } else {
-    return kLdrPCImmedMask;
-  }
-}
-
-
 bool Assembler::IsPush(Instr instr) {
   return ((instr & ~kRdMask) == kPushRegPattern);
 }
@@ -794,34 +762,10 @@ bool Assembler::IsLdrPcImmediateOffset(Instr instr) {
 }
 
 
-bool Assembler::IsLdrPpImmediateOffset(Instr instr) {
-  // Check the instruction is indeed a
-  // ldr<cond> <Rd>, [pp +/- offset_12].
-  return (instr & kLdrPpImmedMask) == kLdrPpImmedPattern;
-}
-
-
-bool Assembler::IsLdrPpRegOffset(Instr instr) {
-  // Check the instruction is indeed a
-  // ldr<cond> <Rd>, [pp, +/- <Rm>].
-  return (instr & kLdrPpRegMask) == kLdrPpRegPattern;
-}
-
-
-Instr Assembler::GetLdrPpRegOffsetPattern() { return kLdrPpRegPattern; }
-
-
 bool Assembler::IsVldrDPcImmediateOffset(Instr instr) {
   // Check the instruction is indeed a
   // vldr<cond> <Dd>, [pc +/- offset_10].
   return (instr & kVldrDPCMask) == kVldrDPCPattern;
-}
-
-
-bool Assembler::IsVldrDPpImmediateOffset(Instr instr) {
-  // Check the instruction is indeed a
-  // vldr<cond> <Dd>, [pp +/- offset_10].
-  return (instr & kVldrDPpMask) == kVldrDPpPattern;
 }
 
 
@@ -939,25 +883,25 @@ void Assembler::target_at_put(int pos, int target_pos) {
     if (is_uint8(target24)) {
       // If the target fits in a byte then only patch with a mov
       // instruction.
-      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos), 1,
-                          CodePatcher::DONT_FLUSH);
-      patcher.masm()->mov(dst, Operand(target24));
+      PatchingAssembler patcher(isolate_data(),
+                                reinterpret_cast<byte*>(buffer_ + pos), 1);
+      patcher.mov(dst, Operand(target24));
     } else {
       uint16_t target16_0 = target24 & kImm16Mask;
       uint16_t target16_1 = target24 >> 16;
       if (CpuFeatures::IsSupported(ARMv7)) {
         // Patch with movw/movt.
         if (target16_1 == 0) {
-          CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
-                              1, CodePatcher::DONT_FLUSH);
-          CpuFeatureScope scope(patcher.masm(), ARMv7);
-          patcher.masm()->movw(dst, target16_0);
+          PatchingAssembler patcher(isolate_data(),
+                                    reinterpret_cast<byte*>(buffer_ + pos), 1);
+          CpuFeatureScope scope(&patcher, ARMv7);
+          patcher.movw(dst, target16_0);
         } else {
-          CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
-                              2, CodePatcher::DONT_FLUSH);
-          CpuFeatureScope scope(patcher.masm(), ARMv7);
-          patcher.masm()->movw(dst, target16_0);
-          patcher.masm()->movt(dst, target16_1);
+          PatchingAssembler patcher(isolate_data(),
+                                    reinterpret_cast<byte*>(buffer_ + pos), 2);
+          CpuFeatureScope scope(&patcher, ARMv7);
+          patcher.movw(dst, target16_0);
+          patcher.movt(dst, target16_1);
         }
       } else {
         // Patch with a sequence of mov/orr/orr instructions.
@@ -965,16 +909,16 @@ void Assembler::target_at_put(int pos, int target_pos) {
         uint8_t target8_1 = target16_0 >> 8;
         uint8_t target8_2 = target16_1 & kImm8Mask;
         if (target8_2 == 0) {
-          CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
-                              2, CodePatcher::DONT_FLUSH);
-          patcher.masm()->mov(dst, Operand(target8_0));
-          patcher.masm()->orr(dst, dst, Operand(target8_1 << 8));
+          PatchingAssembler patcher(isolate_data(),
+                                    reinterpret_cast<byte*>(buffer_ + pos), 2);
+          patcher.mov(dst, Operand(target8_0));
+          patcher.orr(dst, dst, Operand(target8_1 << 8));
         } else {
-          CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
-                              3, CodePatcher::DONT_FLUSH);
-          patcher.masm()->mov(dst, Operand(target8_0));
-          patcher.masm()->orr(dst, dst, Operand(target8_1 << 8));
-          patcher.masm()->orr(dst, dst, Operand(target8_2 << 16));
+          PatchingAssembler patcher(isolate_data(),
+                                    reinterpret_cast<byte*>(buffer_ + pos), 3);
+          patcher.mov(dst, Operand(target8_0));
+          patcher.orr(dst, dst, Operand(target8_1 << 8));
+          patcher.orr(dst, dst, Operand(target8_2 << 16));
         }
       }
     }
@@ -1168,10 +1112,7 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
 static bool use_mov_immediate_load(const Operand& x,
                                    const Assembler* assembler) {
   DCHECK(assembler != nullptr);
-  if (FLAG_enable_embedded_constant_pool &&
-      !assembler->is_constant_pool_available()) {
-    return true;
-  } else if (x.must_output_reloc_info(assembler)) {
+  if (x.must_output_reloc_info(assembler)) {
     // Prefer constant pool if data is likely to be patched.
     return false;
   } else {
@@ -1195,14 +1136,10 @@ int Operand::instructions_required(const Assembler* assembler,
     if (use_mov_immediate_load(*this, assembler)) {
       // A movw / movt or mov / orr immediate load.
       instructions = CpuFeatures::IsSupported(ARMv7) ? 2 : 4;
-    } else if (assembler->ConstantPoolAccessIsInOverflow()) {
-      // An overflowed constant pool load.
-      instructions = CpuFeatures::IsSupported(ARMv7) ? 3 : 5;
     } else {
       // A small constant pool load.
       instructions = 1;
     }
-
     if ((instr & ~kCondMask) != 13 * B21) {  // mov, S not set
       // For a mov or mvn instruction which doesn't set the condition
       // code, the constant pool or immediate load is enough, otherwise we need
@@ -1227,51 +1164,25 @@ void Assembler::move_32_bit_immediate(Register rd,
   }
 
   if (use_mov_immediate_load(x, this)) {
+    // use_mov_immediate_load should return false when we need to output
+    // relocation info, since we prefer the constant pool for values that
+    // can be patched.
+    DCHECK(!x.must_output_reloc_info(this));
     Register target = rd.code() == pc.code() ? ip : rd;
     if (CpuFeatures::IsSupported(ARMv7)) {
       CpuFeatureScope scope(this, ARMv7);
-      if (!FLAG_enable_embedded_constant_pool &&
-          x.must_output_reloc_info(this)) {
-        // Make sure the movw/movt doesn't get separated.
-        BlockConstPoolFor(2);
-      }
       movw(target, imm32 & 0xffff, cond);
       movt(target, imm32 >> 16, cond);
-    } else {
-      DCHECK(FLAG_enable_embedded_constant_pool);
-      mov(target, Operand(imm32 & kImm8Mask), LeaveCC, cond);
-      orr(target, target, Operand(imm32 & (kImm8Mask << 8)), LeaveCC, cond);
-      orr(target, target, Operand(imm32 & (kImm8Mask << 16)), LeaveCC, cond);
-      orr(target, target, Operand(imm32 & (kImm8Mask << 24)), LeaveCC, cond);
     }
     if (target.code() != rd.code()) {
       mov(rd, target, LeaveCC, cond);
     }
   } else {
-    DCHECK(!FLAG_enable_embedded_constant_pool || is_constant_pool_available());
     ConstantPoolEntry::Access access =
         ConstantPoolAddEntry(pc_offset(), x.rmode_, x.imm32_);
-    if (access == ConstantPoolEntry::OVERFLOWED) {
-      DCHECK(FLAG_enable_embedded_constant_pool);
-      Register target = rd.code() == pc.code() ? ip : rd;
-      // Emit instructions to load constant pool offset.
-      if (CpuFeatures::IsSupported(ARMv7)) {
-        CpuFeatureScope scope(this, ARMv7);
-        movw(target, 0, cond);
-        movt(target, 0, cond);
-      } else {
-        mov(target, Operand(0), LeaveCC, cond);
-        orr(target, target, Operand(0), LeaveCC, cond);
-        orr(target, target, Operand(0), LeaveCC, cond);
-        orr(target, target, Operand(0), LeaveCC, cond);
-      }
-      // Load from constant pool at offset.
-      ldr(rd, MemOperand(pp, target), cond);
-    } else {
-      DCHECK(access == ConstantPoolEntry::REGULAR);
-      ldr(rd, MemOperand(FLAG_enable_embedded_constant_pool ? pp : pc, 0),
-          cond);
-    }
+    DCHECK(access == ConstantPoolEntry::REGULAR);
+    USE(access);
+    ldr(rd, MemOperand(pc, 0), cond);
   }
 }
 
@@ -1523,6 +1434,10 @@ void Assembler::sub(Register dst, Register src1, const Operand& src2,
   addrmod1(cond | SUB | s, src1, dst, src2);
 }
 
+void Assembler::sub(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
+  sub(dst, src1, Operand(src2), s, cond);
+}
 
 void Assembler::rsb(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
@@ -1535,6 +1450,10 @@ void Assembler::add(Register dst, Register src1, const Operand& src2,
   addrmod1(cond | ADD | s, src1, dst, src2);
 }
 
+void Assembler::add(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
+  add(dst, src1, Operand(src2), s, cond);
+}
 
 void Assembler::adc(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
@@ -1558,6 +1477,9 @@ void Assembler::tst(Register src1, const Operand& src2, Condition cond) {
   addrmod1(cond | TST | S, src1, r0, src2);
 }
 
+void Assembler::tst(Register src1, Register src2, Condition cond) {
+  tst(src1, Operand(src2), cond);
+}
 
 void Assembler::teq(Register src1, const Operand& src2, Condition cond) {
   addrmod1(cond | TEQ | S, src1, r0, src2);
@@ -1568,6 +1490,9 @@ void Assembler::cmp(Register src1, const Operand& src2, Condition cond) {
   addrmod1(cond | CMP | S, src1, r0, src2);
 }
 
+void Assembler::cmp(Register src1, Register src2, Condition cond) {
+  cmp(src1, Operand(src2), cond);
+}
 
 void Assembler::cmp_raw_immediate(
     Register src, int raw_immediate, Condition cond) {
@@ -1586,6 +1511,10 @@ void Assembler::orr(Register dst, Register src1, const Operand& src2,
   addrmod1(cond | ORR | s, src1, dst, src2);
 }
 
+void Assembler::orr(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
+  orr(dst, src1, Operand(src2), s, cond);
+}
 
 void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   // Don't allow nop instructions in the form mov rn, rn to be generated using
@@ -1595,6 +1524,9 @@ void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   addrmod1(cond | MOV | s, r0, dst, src);
 }
 
+void Assembler::mov(Register dst, Register src, SBit s, Condition cond) {
+  mov(dst, Operand(src), s, cond);
+}
 
 void Assembler::mov_label_offset(Register dst, Label* label) {
   if (label->is_bound()) {
@@ -1657,6 +1589,32 @@ void Assembler::mvn(Register dst, const Operand& src, SBit s, Condition cond) {
   addrmod1(cond | MVN | s, r0, dst, src);
 }
 
+void Assembler::asr(Register dst, Register src1, const Operand& src2, SBit s,
+                    Condition cond) {
+  if (src2.is_reg()) {
+    mov(dst, Operand(src1, ASR, src2.rm()), s, cond);
+  } else {
+    mov(dst, Operand(src1, ASR, src2.immediate()), s, cond);
+  }
+}
+
+void Assembler::lsl(Register dst, Register src1, const Operand& src2, SBit s,
+                    Condition cond) {
+  if (src2.is_reg()) {
+    mov(dst, Operand(src1, LSL, src2.rm()), s, cond);
+  } else {
+    mov(dst, Operand(src1, LSL, src2.immediate()), s, cond);
+  }
+}
+
+void Assembler::lsr(Register dst, Register src1, const Operand& src2, SBit s,
+                    Condition cond) {
+  if (src2.is_reg()) {
+    mov(dst, Operand(src1, LSR, src2.rm()), s, cond);
+  } else {
+    mov(dst, Operand(src1, LSR, src2.immediate()), s, cond);
+  }
+}
 
 // Multiply instructions.
 void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
@@ -2233,19 +2191,12 @@ void Assembler::stop(const char* msg, Condition cond, int32_t code) {
 #ifndef __arm__
   DCHECK(code >= kDefaultStopCode);
   {
-    // The Simulator will handle the stop instruction and get the message
-    // address. It expects to find the address just after the svc instruction.
     BlockConstPoolScope block_const_pool(this);
     if (code >= 0) {
       svc(kStopCode + code, cond);
     } else {
       svc(kStopCode + kMaxStopCode, cond);
     }
-    // Do not embed the message string address! We used to do this, but that
-    // made snapshots created from position-independent executable builds
-    // non-deterministic.
-    // TODO(yangguo): remove this field entirely.
-    nop();
   }
 #else  // def __arm__
   if (cond != al) {
@@ -2746,12 +2697,6 @@ void Assembler::vmov(const DwVfpRegister dst,
   DCHECK(VfpRegisterIsAvailable(dst));
   DCHECK(!scratch.is(ip));
   uint32_t enc;
-  // If the embedded constant pool is disabled, we can use the normal, inline
-  // constant pool. If the embedded constant pool is enabled (via
-  // FLAG_enable_embedded_constant_pool), we can only use it where the pool
-  // pointer (pp) is valid.
-  bool can_use_pool =
-      !FLAG_enable_embedded_constant_pool || is_constant_pool_available();
   if (CpuFeatures::IsSupported(VFPv3) && FitsVmovFPImmediate(imm, &enc)) {
     CpuFeatureScope scope(this, VFPv3);
     // The double can be encoded in the instruction.
@@ -2763,8 +2708,7 @@ void Assembler::vmov(const DwVfpRegister dst,
     int vd, d;
     dst.split_code(&vd, &d);
     emit(al | 0x1D*B23 | d*B22 | 0x3*B20 | vd*B12 | 0x5*B9 | B8 | enc);
-  } else if (CpuFeatures::IsSupported(ARMv7) && FLAG_enable_vldr_imm &&
-             can_use_pool) {
+  } else if (CpuFeatures::IsSupported(ARMv7) && FLAG_enable_vldr_imm) {
     CpuFeatureScope scope(this, ARMv7);
     // TODO(jfb) Temporarily turned off until we have constant blinding or
     //           some equivalent mitigation: an attacker can otherwise control
@@ -2782,17 +2726,9 @@ void Assembler::vmov(const DwVfpRegister dst,
     //           that's tricky because vldr has a limited reach. Furthermore
     //           it breaks load locality.
     ConstantPoolEntry::Access access = ConstantPoolAddEntry(pc_offset(), imm);
-    if (access == ConstantPoolEntry::OVERFLOWED) {
-      DCHECK(FLAG_enable_embedded_constant_pool);
-      // Emit instructions to load constant pool offset.
-      movw(ip, 0);
-      movt(ip, 0);
-      // Load from constant pool at offset.
-      vldr(dst, MemOperand(pp, ip));
-    } else {
-      DCHECK(access == ConstantPoolEntry::REGULAR);
-      vldr(dst, MemOperand(FLAG_enable_embedded_constant_pool ? pp : pc, 0));
-    }
+    DCHECK(access == ConstantPoolEntry::REGULAR);
+    USE(access);
+    vldr(dst, MemOperand(pc, 0));
   } else {
     // Synthesise the double from ARM immediates.
     uint32_t lo, hi;
@@ -3005,13 +2941,9 @@ static void SplitRegCode(VFPType reg_type,
                          int* m) {
   DCHECK((reg_code >= 0) && (reg_code <= 31));
   if (IsIntegerVFPType(reg_type) || !IsDoubleVFPType(reg_type)) {
-    // 32 bit type.
-    *m  = reg_code & 0x1;
-    *vm = reg_code >> 1;
+    SwVfpRegister::split_code(reg_code, vm, m);
   } else {
-    // 64 bit type.
-    *m  = (reg_code & 0x10) >> 4;
-    *vm = reg_code & 0x0F;
+    DwVfpRegister::split_code(reg_code, vm, m);
   }
 }
 
@@ -3854,9 +3786,7 @@ void Assembler::vld1(NeonSize size,
        dst.type()*B8 | size*B6 | src.align()*B4 | src.rm().code());
 }
 
-
-void Assembler::vst1(NeonSize size,
-                     const NeonListOperand& src,
+void Assembler::vst1(NeonSize size, const NeonListOperand& src,
                      const NeonMemOperand& dst) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.404.
   // 1111(31-28) | 01000(27-23) | D(22) | 00(21-20) | Rn(19-16) |
@@ -3882,6 +3812,21 @@ void Assembler::vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src) {
   int imm3 = 1 << NeonSz(dt);
   emit(0xFU * B28 | B25 | U * B24 | B23 | d * B22 | imm3 * B19 | vd * B12 |
        0xA * B8 | m * B5 | B4 | vm);
+}
+
+void Assembler::vqmovn(NeonDataType dt, DwVfpRegister dst, QwNeonRegister src) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.1004.
+  // vqmovn.<type><size> Dd, Qm. ARM vector narrowing move with saturation.
+  DCHECK(IsEnabled(NEON));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  int size = NeonSz(dt);
+  int u = NeonU(dt);
+  int op = u != 0 ? 3 : 2;
+  emit(0x1E7U * B23 | d * B22 | 0x3 * B20 | size * B18 | 0x2 * B16 | vd * B12 |
+       0x2 * B8 | op * B6 | m * B5 | vm);
 }
 
 static int EncodeScalar(NeonDataType dt, int index) {
@@ -3935,51 +3880,13 @@ void Assembler::vmov(NeonDataType dt, Register dst, DwVfpRegister src,
        n * B7 | B4 | opc1_opc2);
 }
 
-void Assembler::vmov(const QwNeonRegister dst, const QwNeonRegister src) {
+void Assembler::vmov(QwNeonRegister dst, QwNeonRegister src) {
   // Instruction details available in ARM DDI 0406C.b, A8-938.
   // vmov is encoded as vorr.
   vorr(dst, src, src);
 }
 
-void Assembler::vmvn(const QwNeonRegister dst, const QwNeonRegister src) {
-  DCHECK(IsEnabled(NEON));
-  // Instruction details available in ARM DDI 0406C.b, A8-966.
-  DCHECK(VfpRegisterIsAvailable(dst));
-  DCHECK(VfpRegisterIsAvailable(src));
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  src.split_code(&vm, &m);
-  emit(0x1E7U * B23 | d * B22 | 3 * B20 | vd * B12 | 0x17 * B6 | m * B5 | vm);
-}
-
-void Assembler::vswp(DwVfpRegister dst, DwVfpRegister src) {
-  // Instruction details available in ARM DDI 0406C.b, A8.8.418.
-  // 1111(31-28) | 00111(27-23) | D(22) | 110010(21-16) |
-  // Vd(15-12) | 000000(11-6) | M(5) | 0(4) | Vm(3-0)
-  DCHECK(IsEnabled(NEON));
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  src.split_code(&vm, &m);
-  emit(0xFU * B28 | 7 * B23 | d * B22 | 0x32 * B16 | vd * B12 | m * B5 | vm);
-}
-
-void Assembler::vswp(QwNeonRegister dst, QwNeonRegister src) {
-  // Instruction details available in ARM DDI 0406C.b, A8.8.418.
-  // 1111(31-28) | 00111(27-23) | D(22) | 110010(21-16) |
-  // Vd(15-12) | 000000(11-6) | M(5) | 0(4) | Vm(3-0)
-  DCHECK(IsEnabled(NEON));
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  src.split_code(&vm, &m);
-  emit(0xFU * B28 | 7 * B23 | d * B22 | 0x32 * B16 | vd * B12 | B6 | m * B5 |
-       vm);
-}
-
-void Assembler::vdup(NeonSize size, const QwNeonRegister dst,
-                     const Register src) {
+void Assembler::vdup(NeonSize size, QwNeonRegister dst, Register src) {
   DCHECK(IsEnabled(NEON));
   // Instruction details available in ARM DDI 0406C.b, A8-886.
   int B = 0, E = 0;
@@ -4003,24 +3910,52 @@ void Assembler::vdup(NeonSize size, const QwNeonRegister dst,
        0xB * B8 | d * B7 | E * B5 | B4);
 }
 
-void Assembler::vdup(const QwNeonRegister dst, const SwVfpRegister src) {
+enum NeonRegType { NEON_D, NEON_Q };
+
+void NeonSplitCode(NeonRegType type, int code, int* vm, int* m, int* encoding) {
+  if (type == NEON_D) {
+    DwVfpRegister::split_code(code, vm, m);
+  } else {
+    DCHECK_EQ(type, NEON_Q);
+    QwNeonRegister::split_code(code, vm, m);
+    *encoding |= B6;
+  }
+}
+
+static Instr EncodeNeonDupOp(NeonSize size, NeonRegType reg_type, int dst_code,
+                             DwVfpRegister src, int index) {
+  DCHECK_NE(Neon64, size);
+  int sz = static_cast<int>(size);
+  DCHECK_LE(0, index);
+  DCHECK_GT(kSimd128Size / (1 << sz), index);
+  int imm4 = (1 << sz) | ((index << (sz + 1)) & 0xF);
+  int qbit = 0;
+  int vd, d;
+  NeonSplitCode(reg_type, dst_code, &vd, &d, &qbit);
+  int vm, m;
+  src.split_code(&vm, &m);
+
+  return 0x1E7U * B23 | d * B22 | 0x3 * B20 | imm4 * B16 | vd * B12 |
+         0x18 * B7 | qbit | m * B5 | vm;
+}
+
+void Assembler::vdup(NeonSize size, DwVfpRegister dst, DwVfpRegister src,
+                     int index) {
   DCHECK(IsEnabled(NEON));
   // Instruction details available in ARM DDI 0406C.b, A8-884.
-  int index = src.code() & 1;
-  int d_reg = src.code() / 2;
-  int imm4 = 4 | index << 3;  // esize = 32, index in bit 3.
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  DwVfpRegister::from_code(d_reg).split_code(&vm, &m);
+  emit(EncodeNeonDupOp(size, NEON_D, dst.code(), src, index));
+}
 
-  emit(0x1E7U * B23 | d * B22 | 0x3 * B20 | imm4 * B16 | vd * B12 | 0x18 * B7 |
-       B6 | m * B5 | vm);
+void Assembler::vdup(NeonSize size, QwNeonRegister dst, DwVfpRegister src,
+                     int index) {
+  // Instruction details available in ARM DDI 0406C.b, A8-884.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonDupOp(size, NEON_Q, dst.code(), src, index));
 }
 
 // Encode NEON vcvt.src_type.dst_type instruction.
-static Instr EncodeNeonVCVT(const VFPType dst_type, const QwNeonRegister dst,
-                            const VFPType src_type, const QwNeonRegister src) {
+static Instr EncodeNeonVCVT(VFPType dst_type, QwNeonRegister dst,
+                            VFPType src_type, QwNeonRegister src) {
   DCHECK(src_type != dst_type);
   DCHECK(src_type == F32 || dst_type == F32);
   // Instruction details available in ARM DDI 0406C.b, A8.8.868.
@@ -4042,103 +3977,130 @@ static Instr EncodeNeonVCVT(const VFPType dst_type, const QwNeonRegister dst,
          B6 | m * B5 | vm;
 }
 
-void Assembler::vcvt_f32_s32(const QwNeonRegister dst,
-                             const QwNeonRegister src) {
+void Assembler::vcvt_f32_s32(QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(IsEnabled(NEON));
   DCHECK(VfpRegisterIsAvailable(dst));
   DCHECK(VfpRegisterIsAvailable(src));
   emit(EncodeNeonVCVT(F32, dst, S32, src));
 }
 
-void Assembler::vcvt_f32_u32(const QwNeonRegister dst,
-                             const QwNeonRegister src) {
+void Assembler::vcvt_f32_u32(QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(IsEnabled(NEON));
   DCHECK(VfpRegisterIsAvailable(dst));
   DCHECK(VfpRegisterIsAvailable(src));
   emit(EncodeNeonVCVT(F32, dst, U32, src));
 }
 
-void Assembler::vcvt_s32_f32(const QwNeonRegister dst,
-                             const QwNeonRegister src) {
+void Assembler::vcvt_s32_f32(QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(IsEnabled(NEON));
   DCHECK(VfpRegisterIsAvailable(dst));
   DCHECK(VfpRegisterIsAvailable(src));
   emit(EncodeNeonVCVT(S32, dst, F32, src));
 }
 
-void Assembler::vcvt_u32_f32(const QwNeonRegister dst,
-                             const QwNeonRegister src) {
+void Assembler::vcvt_u32_f32(QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(IsEnabled(NEON));
   DCHECK(VfpRegisterIsAvailable(dst));
   DCHECK(VfpRegisterIsAvailable(src));
   emit(EncodeNeonVCVT(U32, dst, F32, src));
 }
 
-// op is instr->Bits(11, 7).
-static Instr EncodeNeonUnaryOp(int op, bool is_float, NeonSize size,
-                               const QwNeonRegister dst,
-                               const QwNeonRegister src) {
-  DCHECK_IMPLIES(is_float, size == Neon32);
+enum UnaryOp { VMVN, VSWP, VABS, VABSF, VNEG, VNEGF };
+
+static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
+                               int dst_code, int src_code) {
+  int op_encoding = 0;
+  switch (op) {
+    case VMVN:
+      DCHECK_EQ(Neon8, size);  // size == 0 for vmvn
+      op_encoding = B10 | 0x3 * B7;
+      break;
+    case VSWP:
+      DCHECK_EQ(Neon8, size);  // size == 0 for vswp
+      op_encoding = B17;
+      break;
+    case VABS:
+      op_encoding = B16 | 0x6 * B7;
+      break;
+    case VABSF:
+      DCHECK_EQ(Neon32, size);
+      op_encoding = B16 | B10 | 0x6 * B7;
+      break;
+    case VNEG:
+      op_encoding = B16 | 0x7 * B7;
+      break;
+    case VNEGF:
+      DCHECK_EQ(Neon32, size);
+      op_encoding = B16 | B10 | 0x7 * B7;
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
   int vd, d;
-  dst.split_code(&vd, &d);
+  NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
   int vm, m;
-  src.split_code(&vm, &m);
-  int F = is_float ? 1 : 0;
-  return 0x1E7U * B23 | d * B22 | 0x3 * B20 | size * B18 | B16 | vd * B12 |
-         F * B10 | B8 | op * B7 | B6 | m * B5 | vm;
+  NeonSplitCode(reg_type, src_code, &vm, &m, &op_encoding);
+
+  return 0x1E7U * B23 | d * B22 | 0x3 * B20 | size * B18 | vd * B12 | m * B5 |
+         vm | op_encoding;
 }
 
-void Assembler::vabs(const QwNeonRegister dst, const QwNeonRegister src) {
+void Assembler::vmvn(QwNeonRegister dst, QwNeonRegister src) {
+  // Qd = vmvn(Qn, Qm) SIMD bitwise negate.
+  // Instruction details available in ARM DDI 0406C.b, A8-966.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonUnaryOp(VMVN, NEON_Q, Neon8, dst.code(), src.code()));
+}
+
+void Assembler::vswp(DwVfpRegister dst, DwVfpRegister src) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vswp(Dn, Dm) SIMD d-register swap.
+  // Instruction details available in ARM DDI 0406C.b, A8.8.418.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonUnaryOp(VSWP, NEON_D, Neon8, dst.code(), src.code()));
+}
+
+void Assembler::vswp(QwNeonRegister dst, QwNeonRegister src) {
+  // Qd = vswp(Qn, Qm) SIMD q-register swap.
+  // Instruction details available in ARM DDI 0406C.b, A8.8.418.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonUnaryOp(VSWP, NEON_Q, Neon8, dst.code(), src.code()));
+}
+
+void Assembler::vabs(QwNeonRegister dst, QwNeonRegister src) {
   // Qd = vabs.f<size>(Qn, Qm) SIMD floating point absolute value.
   // Instruction details available in ARM DDI 0406C.b, A8.8.824.
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonUnaryOp(0x6, true, Neon32, dst, src));
+  emit(EncodeNeonUnaryOp(VABSF, NEON_Q, Neon32, dst.code(), src.code()));
 }
 
-void Assembler::vabs(NeonSize size, const QwNeonRegister dst,
-                     const QwNeonRegister src) {
+void Assembler::vabs(NeonSize size, QwNeonRegister dst, QwNeonRegister src) {
   // Qd = vabs.s<size>(Qn, Qm) SIMD integer absolute value.
   // Instruction details available in ARM DDI 0406C.b, A8.8.824.
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonUnaryOp(0x6, false, size, dst, src));
+  emit(EncodeNeonUnaryOp(VABS, NEON_Q, size, dst.code(), src.code()));
 }
 
-void Assembler::vneg(const QwNeonRegister dst, const QwNeonRegister src) {
+void Assembler::vneg(QwNeonRegister dst, QwNeonRegister src) {
   // Qd = vabs.f<size>(Qn, Qm) SIMD floating point negate.
   // Instruction details available in ARM DDI 0406C.b, A8.8.968.
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonUnaryOp(0x7, true, Neon32, dst, src));
+  emit(EncodeNeonUnaryOp(VNEGF, NEON_Q, Neon32, dst.code(), src.code()));
 }
 
-void Assembler::vneg(NeonSize size, const QwNeonRegister dst,
-                     const QwNeonRegister src) {
+void Assembler::vneg(NeonSize size, QwNeonRegister dst, QwNeonRegister src) {
   // Qd = vabs.s<size>(Qn, Qm) SIMD integer negate.
   // Instruction details available in ARM DDI 0406C.b, A8.8.968.
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonUnaryOp(0x7, false, size, dst, src));
-}
-
-void Assembler::veor(DwVfpRegister dst, DwVfpRegister src1,
-                     DwVfpRegister src2) {
-  // Dd = veor(Dn, Dm) 64 bit integer exclusive OR.
-  // Instruction details available in ARM DDI 0406C.b, A8.8.888.
-  DCHECK(IsEnabled(NEON));
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vn, n;
-  src1.split_code(&vn, &n);
-  int vm, m;
-  src2.split_code(&vm, &m);
-  emit(0x1E6U * B23 | d * B22 | vn * B16 | vd * B12 | B8 | n * B7 | m * B5 |
-       B4 | vm);
+  emit(EncodeNeonUnaryOp(VNEG, NEON_Q, size, dst.code(), src.code()));
 }
 
 enum BinaryBitwiseOp { VAND, VBIC, VBIF, VBIT, VBSL, VEOR, VORR, VORN };
 
-static Instr EncodeNeonBinaryBitwiseOp(BinaryBitwiseOp op,
-                                       const QwNeonRegister dst,
-                                       const QwNeonRegister src1,
-                                       const QwNeonRegister src2) {
+static Instr EncodeNeonBinaryBitwiseOp(BinaryBitwiseOp op, NeonRegType reg_type,
+                                       int dst_code, int src_code1,
+                                       int src_code2) {
   int op_encoding = 0;
   switch (op) {
     case VBIC:
@@ -4170,13 +4132,14 @@ static Instr EncodeNeonBinaryBitwiseOp(BinaryBitwiseOp op,
       break;
   }
   int vd, d;
-  dst.split_code(&vd, &d);
+  NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
   int vn, n;
-  src1.split_code(&vn, &n);
+  NeonSplitCode(reg_type, src_code1, &vn, &n, &op_encoding);
   int vm, m;
-  src2.split_code(&vm, &m);
+  NeonSplitCode(reg_type, src_code2, &vm, &m, &op_encoding);
+
   return 0x1E4U * B23 | op_encoding | d * B22 | vn * B16 | vd * B12 | B8 |
-         n * B7 | B6 | m * B5 | B4 | vm;
+         n * B7 | m * B5 | B4 | vm;
 }
 
 void Assembler::vand(QwNeonRegister dst, QwNeonRegister src1,
@@ -4184,15 +4147,26 @@ void Assembler::vand(QwNeonRegister dst, QwNeonRegister src1,
   // Qd = vand(Qn, Qm) SIMD AND.
   // Instruction details available in ARM DDI 0406C.b, A8.8.836.
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonBinaryBitwiseOp(VAND, dst, src1, src2));
+  emit(EncodeNeonBinaryBitwiseOp(VAND, NEON_Q, dst.code(), src1.code(),
+                                 src2.code()));
 }
 
-void Assembler::vbsl(QwNeonRegister dst, const QwNeonRegister src1,
-                     const QwNeonRegister src2) {
-  DCHECK(IsEnabled(NEON));
+void Assembler::vbsl(QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
   // Qd = vbsl(Qn, Qm) SIMD bitwise select.
   // Instruction details available in ARM DDI 0406C.b, A8-844.
-  emit(EncodeNeonBinaryBitwiseOp(VBSL, dst, src1, src2));
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonBinaryBitwiseOp(VBSL, NEON_Q, dst.code(), src1.code(),
+                                 src2.code()));
+}
+
+void Assembler::veor(DwVfpRegister dst, DwVfpRegister src1,
+                     DwVfpRegister src2) {
+  // Dd = veor(Dn, Dm) SIMD exclusive OR.
+  // Instruction details available in ARM DDI 0406C.b, A8.8.888.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonBinaryBitwiseOp(VEOR, NEON_D, dst.code(), src1.code(),
+                                 src2.code()));
 }
 
 void Assembler::veor(QwNeonRegister dst, QwNeonRegister src1,
@@ -4200,7 +4174,8 @@ void Assembler::veor(QwNeonRegister dst, QwNeonRegister src1,
   // Qd = veor(Qn, Qm) SIMD exclusive OR.
   // Instruction details available in ARM DDI 0406C.b, A8.8.888.
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonBinaryBitwiseOp(VEOR, dst, src1, src2));
+  emit(EncodeNeonBinaryBitwiseOp(VEOR, NEON_Q, dst.code(), src1.code(),
+                                 src2.code()));
 }
 
 void Assembler::vorr(QwNeonRegister dst, QwNeonRegister src1,
@@ -4208,7 +4183,8 @@ void Assembler::vorr(QwNeonRegister dst, QwNeonRegister src1,
   // Qd = vorr(Qn, Qm) SIMD OR.
   // Instruction details available in ARM DDI 0406C.b, A8.8.976.
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonBinaryBitwiseOp(VORR, dst, src1, src2));
+  emit(EncodeNeonBinaryBitwiseOp(VORR, NEON_Q, dst.code(), src1.code(),
+                                 src2.code()));
 }
 
 enum FPBinOp {
@@ -4287,9 +4263,8 @@ enum IntegerBinOp {
 };
 
 static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
-                             const QwNeonRegister dst,
-                             const QwNeonRegister src1,
-                             const QwNeonRegister src2) {
+                             QwNeonRegister dst, QwNeonRegister src1,
+                             QwNeonRegister src2) {
   int op_encoding = 0;
   switch (op) {
     case VADD:
@@ -4341,10 +4316,8 @@ static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
          n * B7 | B6 | m * B5 | vm | op_encoding;
 }
 
-static Instr EncodeNeonBinOp(IntegerBinOp op, NeonSize size,
-                             const QwNeonRegister dst,
-                             const QwNeonRegister src1,
-                             const QwNeonRegister src2) {
+static Instr EncodeNeonBinOp(IntegerBinOp op, NeonSize size, QwNeonRegister dst,
+                             QwNeonRegister src1, QwNeonRegister src2) {
   // Map NeonSize values to the signed values in NeonDataType, so the U bit
   // will be 0.
   return EncodeNeonBinOp(op, static_cast<NeonDataType>(size), dst, src1, src2);
@@ -4406,16 +4379,16 @@ void Assembler::vmul(QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VMULF, dst, src1, src2));
 }
 
-void Assembler::vmul(NeonSize size, QwNeonRegister dst,
-                     const QwNeonRegister src1, const QwNeonRegister src2) {
+void Assembler::vmul(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
   // Qd = vadd(Qn, Qm) SIMD integer multiply.
   // Instruction details available in ARM DDI 0406C.b, A8-960.
   emit(EncodeNeonBinOp(VMUL, size, dst, src1, src2));
 }
 
-void Assembler::vmin(const QwNeonRegister dst, const QwNeonRegister src1,
-                     const QwNeonRegister src2) {
+void Assembler::vmin(QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
   // Qd = vmin(Qn, Qm) SIMD floating point MIN.
   // Instruction details available in ARM DDI 0406C.b, A8-928.
@@ -4446,30 +4419,55 @@ void Assembler::vmax(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VMAX, dt, dst, src1, src2));
 }
 
-enum NeonShiftOp { VSHL, VSHR };
+enum NeonShiftOp { VSHL, VSHR, VSLI, VSRI };
 
-static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonDataType dt,
-                               QwNeonRegister dst, QwNeonRegister src,
+static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonSize size, bool is_unsigned,
+                               NeonRegType reg_type, int dst_code, int src_code,
                                int shift) {
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  src.split_code(&vm, &m);
-  int size_in_bits = kBitsPerByte << NeonSz(dt);
-  int op_encoding = 0;
   int imm6 = 0;
-  if (op == VSHL) {
-    DCHECK(shift >= 0 && size_in_bits > shift);
-    imm6 = size_in_bits + shift;
-    op_encoding = 0x5 * B8;
-  } else {
-    DCHECK_EQ(VSHR, op);
-    DCHECK(shift > 0 && size_in_bits >= shift);
-    imm6 = 2 * size_in_bits - shift;
-    op_encoding = NeonU(dt) * B24;
+  int size_in_bits = kBitsPerByte << static_cast<int>(size);
+  int op_encoding = 0;
+  switch (op) {
+    case VSHL: {
+      DCHECK(shift >= 0 && size_in_bits > shift);
+      imm6 = size_in_bits + shift;
+      op_encoding = 0x5 * B8;
+      break;
+    }
+    case VSHR: {
+      DCHECK(shift > 0 && size_in_bits >= shift);
+      imm6 = 2 * size_in_bits - shift;
+      if (is_unsigned) op_encoding |= B24;
+      break;
+    }
+    case VSLI: {
+      DCHECK(shift >= 0 && size_in_bits > shift);
+      imm6 = size_in_bits + shift;
+      int L = imm6 >> 6;
+      imm6 &= 0x3F;
+      op_encoding = B24 | 0x5 * B8 | L * B7;
+      break;
+    }
+    case VSRI: {
+      DCHECK(shift > 0 && size_in_bits >= shift);
+      imm6 = 2 * size_in_bits - shift;
+      int L = imm6 >> 6;
+      imm6 &= 0x3F;
+      op_encoding = B24 | 0x4 * B8 | L * B7;
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
-  return 0x1E5U * B23 | d * B22 | imm6 * B16 | vd * B12 | B6 | m * B5 | B4 |
-         vm | op_encoding;
+
+  int vd, d;
+  NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
+  int vm, m;
+  NeonSplitCode(reg_type, src_code, &vm, &m, &op_encoding);
+
+  return 0x1E5U * B23 | d * B22 | imm6 * B16 | vd * B12 | m * B5 | B4 | vm |
+         op_encoding;
 }
 
 void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
@@ -4477,7 +4475,8 @@ void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
   DCHECK(IsEnabled(NEON));
   // Qd = vshl(Qm, bits) SIMD shift left immediate.
   // Instruction details available in ARM DDI 0406C.b, A8-1046.
-  emit(EncodeNeonShiftOp(VSHL, dt, dst, src, shift));
+  emit(EncodeNeonShiftOp(VSHL, NeonDataTypeToSize(dt), false, NEON_Q,
+                         dst.code(), src.code(), shift));
 }
 
 void Assembler::vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
@@ -4485,7 +4484,26 @@ void Assembler::vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
   DCHECK(IsEnabled(NEON));
   // Qd = vshl(Qm, bits) SIMD shift right immediate.
   // Instruction details available in ARM DDI 0406C.b, A8-1052.
-  emit(EncodeNeonShiftOp(VSHR, dt, dst, src, shift));
+  emit(EncodeNeonShiftOp(VSHR, NeonDataTypeToSize(dt), NeonU(dt), NEON_Q,
+                         dst.code(), src.code(), shift));
+}
+
+void Assembler::vsli(NeonSize size, DwVfpRegister dst, DwVfpRegister src,
+                     int shift) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vsli(Dm, bits) SIMD shift left and insert.
+  // Instruction details available in ARM DDI 0406C.b, A8-1056.
+  emit(EncodeNeonShiftOp(VSLI, size, false, NEON_D, dst.code(), src.code(),
+                         shift));
+}
+
+void Assembler::vsri(NeonSize size, DwVfpRegister dst, DwVfpRegister src,
+                     int shift) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vsri(Dm, bits) SIMD shift right and insert.
+  // Instruction details available in ARM DDI 0406C.b, A8-1062.
+  emit(EncodeNeonShiftOp(VSRI, size, false, NEON_D, dst.code(), src.code(),
+                         shift));
 }
 
 static Instr EncodeNeonEstimateOp(bool is_rsqrt, QwNeonRegister dst,
@@ -4527,6 +4545,78 @@ void Assembler::vrsqrts(QwNeonRegister dst, QwNeonRegister src1,
   // Qd = vrsqrts(Qn, Qm) SIMD reciprocal square root refinement step.
   // Instruction details available in ARM DDI 0406C.b, A8-1040.
   emit(EncodeNeonBinOp(VRSQRTS, dst, src1, src2));
+}
+
+enum NeonPairwiseOp { VPADD, VPMIN, VPMAX };
+
+static Instr EncodeNeonPairwiseOp(NeonPairwiseOp op, NeonDataType dt,
+                                  DwVfpRegister dst, DwVfpRegister src1,
+                                  DwVfpRegister src2) {
+  int op_encoding = 0;
+  switch (op) {
+    case VPADD:
+      op_encoding = 0xB * B8 | B4;
+      break;
+    case VPMIN:
+      op_encoding = 0xA * B8 | B4;
+      break;
+    case VPMAX:
+      op_encoding = 0xA * B8;
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int size = NeonSz(dt);
+  int u = NeonU(dt);
+  return 0x1E4U * B23 | u * B24 | d * B22 | size * B20 | vn * B16 | vd * B12 |
+         n * B7 | m * B5 | vm | op_encoding;
+}
+
+void Assembler::vpadd(DwVfpRegister dst, DwVfpRegister src1,
+                      DwVfpRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vpadd(Dn, Dm) SIMD integer pairwise ADD.
+  // Instruction details available in ARM DDI 0406C.b, A8-982.
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+
+  emit(0x1E6U * B23 | d * B22 | vn * B16 | vd * B12 | 0xD * B8 | n * B7 |
+       m * B5 | vm);
+}
+
+void Assembler::vpadd(NeonSize size, DwVfpRegister dst, DwVfpRegister src1,
+                      DwVfpRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vpadd(Dn, Dm) SIMD integer pairwise ADD.
+  // Instruction details available in ARM DDI 0406C.b, A8-980.
+  emit(EncodeNeonPairwiseOp(VPADD, NeonSizeToDataType(size), dst, src1, src2));
+}
+
+void Assembler::vpmin(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
+                      DwVfpRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vpmin(Dn, Dm) SIMD integer pairwise MIN.
+  // Instruction details available in ARM DDI 0406C.b, A8-986.
+  emit(EncodeNeonPairwiseOp(VPMIN, dt, dst, src1, src2));
+}
+
+void Assembler::vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
+                      DwVfpRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vpmax(Dn, Dm) SIMD integer pairwise MAX.
+  // Instruction details available in ARM DDI 0406C.b, A8-986.
+  emit(EncodeNeonPairwiseOp(VPMAX, dt, dst, src1, src2));
 }
 
 void Assembler::vtst(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
@@ -4585,8 +4675,8 @@ void Assembler::vcgt(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VCGT, dt, dst, src1, src2));
 }
 
-void Assembler::vext(QwNeonRegister dst, const QwNeonRegister src1,
-                     const QwNeonRegister src2, int bytes) {
+void Assembler::vext(QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2, int bytes) {
   DCHECK(IsEnabled(NEON));
   // Qd = vext(Qn, Qm) SIMD byte extract.
   // Instruction details available in ARM DDI 0406C.b, A8-890.
@@ -4601,57 +4691,118 @@ void Assembler::vext(QwNeonRegister dst, const QwNeonRegister src1,
        n * B7 | B6 | m * B5 | vm);
 }
 
-void Assembler::vzip(NeonSize size, QwNeonRegister dst,
-                     const QwNeonRegister src) {
+enum NeonSizedOp { VZIP, VUZP, VREV16, VREV32, VREV64, VTRN };
+
+static Instr EncodeNeonSizedOp(NeonSizedOp op, NeonRegType reg_type,
+                               NeonSize size, int dst_code, int src_code) {
+  int op_encoding = 0;
+  switch (op) {
+    case VZIP:
+      op_encoding = 0x2 * B16 | 0x3 * B7;
+      break;
+    case VUZP:
+      op_encoding = 0x2 * B16 | 0x2 * B7;
+      break;
+    case VREV16:
+      op_encoding = 0x2 * B7;
+      break;
+    case VREV32:
+      op_encoding = 0x1 * B7;
+      break;
+    case VREV64:
+      // op_encoding is 0;
+      break;
+    case VTRN:
+      op_encoding = 0x2 * B16 | B7;
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  int vd, d;
+  NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
+  int vm, m;
+  NeonSplitCode(reg_type, src_code, &vm, &m, &op_encoding);
+
+  int sz = static_cast<int>(size);
+  return 0x1E7U * B23 | d * B22 | 0x3 * B20 | sz * B18 | vd * B12 | m * B5 |
+         vm | op_encoding;
+}
+
+void Assembler::vzip(NeonSize size, DwVfpRegister src1, DwVfpRegister src2) {
+  if (size == Neon32) {  // vzip.32 Dd, Dm is a pseudo-op for vtrn.32 Dd, Dm.
+    vtrn(size, src1, src2);
+  } else {
+    DCHECK(IsEnabled(NEON));
+    // vzip.<size>(Dn, Dm) SIMD zip (interleave).
+    // Instruction details available in ARM DDI 0406C.b, A8-1102.
+    emit(EncodeNeonSizedOp(VZIP, NEON_D, size, src1.code(), src2.code()));
+  }
+}
+
+void Assembler::vzip(NeonSize size, QwNeonRegister src1, QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
-  // Qd = vzip.<size>(Qn, Qm) SIMD zip (interleave).
+  // vzip.<size>(Qn, Qm) SIMD zip (interleave).
   // Instruction details available in ARM DDI 0406C.b, A8-1102.
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  src.split_code(&vm, &m);
-  int sz = static_cast<int>(size);
-  emit(0x1E7U * B23 | d * B22 | 0x3 * B20 | sz * B18 | 2 * B16 | vd * B12 |
-       0x3 * B7 | B6 | m * B5 | vm);
+  emit(EncodeNeonSizedOp(VZIP, NEON_Q, size, src1.code(), src2.code()));
 }
 
-static Instr EncodeNeonVREV(NeonSize op_size, NeonSize size,
-                            const QwNeonRegister dst,
-                            const QwNeonRegister src) {
-  // Qd = vrev<op_size>.<size>(Qn, Qm) SIMD scalar reverse.
+void Assembler::vuzp(NeonSize size, DwVfpRegister src1, DwVfpRegister src2) {
+  if (size == Neon32) {  // vuzp.32 Dd, Dm is a pseudo-op for vtrn.32 Dd, Dm.
+    vtrn(size, src1, src2);
+  } else {
+    DCHECK(IsEnabled(NEON));
+    // vuzp.<size>(Dn, Dm) SIMD un-zip (de-interleave).
+    // Instruction details available in ARM DDI 0406C.b, A8-1100.
+    emit(EncodeNeonSizedOp(VUZP, NEON_D, size, src1.code(), src2.code()));
+  }
+}
+
+void Assembler::vuzp(NeonSize size, QwNeonRegister src1, QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // vuzp.<size>(Qn, Qm) SIMD un-zip (de-interleave).
+  // Instruction details available in ARM DDI 0406C.b, A8-1100.
+  emit(EncodeNeonSizedOp(VUZP, NEON_Q, size, src1.code(), src2.code()));
+}
+
+void Assembler::vrev16(NeonSize size, QwNeonRegister dst, QwNeonRegister src) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vrev16.<size>(Qm) SIMD element reverse.
   // Instruction details available in ARM DDI 0406C.b, A8-1028.
-  DCHECK_GT(op_size, static_cast<int>(size));
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  src.split_code(&vm, &m);
-  int sz = static_cast<int>(size);
-  int op = static_cast<int>(Neon64) - static_cast<int>(op_size);
-  return 0x1E7U * B23 | d * B22 | 0x3 * B20 | sz * B18 | vd * B12 | op * B7 |
-         B6 | m * B5 | vm;
+  emit(EncodeNeonSizedOp(VREV16, NEON_Q, size, dst.code(), src.code()));
 }
 
-void Assembler::vrev16(NeonSize size, const QwNeonRegister dst,
-                       const QwNeonRegister src) {
+void Assembler::vrev32(NeonSize size, QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonVREV(Neon16, size, dst, src));
+  // Qd = vrev32.<size>(Qm) SIMD element reverse.
+  // Instruction details available in ARM DDI 0406C.b, A8-1028.
+  emit(EncodeNeonSizedOp(VREV32, NEON_Q, size, dst.code(), src.code()));
 }
 
-void Assembler::vrev32(NeonSize size, const QwNeonRegister dst,
-                       const QwNeonRegister src) {
+void Assembler::vrev64(NeonSize size, QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonVREV(Neon32, size, dst, src));
+  // Qd = vrev64.<size>(Qm) SIMD element reverse.
+  // Instruction details available in ARM DDI 0406C.b, A8-1028.
+  emit(EncodeNeonSizedOp(VREV64, NEON_Q, size, dst.code(), src.code()));
 }
 
-void Assembler::vrev64(NeonSize size, const QwNeonRegister dst,
-                       const QwNeonRegister src) {
+void Assembler::vtrn(NeonSize size, DwVfpRegister src1, DwVfpRegister src2) {
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonVREV(Neon64, size, dst, src));
+  // vtrn.<size>(Dn, Dm) SIMD element transpose.
+  // Instruction details available in ARM DDI 0406C.b, A8-1096.
+  emit(EncodeNeonSizedOp(VTRN, NEON_D, size, src1.code(), src2.code()));
+}
+
+void Assembler::vtrn(NeonSize size, QwNeonRegister src1, QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // vtrn.<size>(Qn, Qm) SIMD element transpose.
+  // Instruction details available in ARM DDI 0406C.b, A8-1096.
+  emit(EncodeNeonSizedOp(VTRN, NEON_Q, size, src1.code(), src2.code()));
 }
 
 // Encode NEON vtbl / vtbx instruction.
-static Instr EncodeNeonVTB(const DwVfpRegister dst, const NeonListOperand& list,
-                           const DwVfpRegister index, bool vtbx) {
+static Instr EncodeNeonVTB(DwVfpRegister dst, const NeonListOperand& list,
+                           DwVfpRegister index, bool vtbx) {
   // Dd = vtbl(table, Dm) SIMD vector permute, zero at out of range indices.
   // Instruction details available in ARM DDI 0406C.b, A8-1094.
   // Dd = vtbx(table, Dm) SIMD vector permute, skip out of range indices.
@@ -4667,14 +4818,14 @@ static Instr EncodeNeonVTB(const DwVfpRegister dst, const NeonListOperand& list,
          list.length() * B8 | n * B7 | op * B6 | m * B5 | vm;
 }
 
-void Assembler::vtbl(const DwVfpRegister dst, const NeonListOperand& list,
-                     const DwVfpRegister index) {
+void Assembler::vtbl(DwVfpRegister dst, const NeonListOperand& list,
+                     DwVfpRegister index) {
   DCHECK(IsEnabled(NEON));
   emit(EncodeNeonVTB(dst, list, index, false));
 }
 
-void Assembler::vtbx(const DwVfpRegister dst, const NeonListOperand& list,
-                     const DwVfpRegister index) {
+void Assembler::vtbx(DwVfpRegister dst, const NeonListOperand& list,
+                     DwVfpRegister index) {
   DCHECK(IsEnabled(NEON));
   emit(EncodeNeonVTB(dst, list, index, true));
 }
@@ -4690,6 +4841,7 @@ void Assembler::nop(int type) {
   emit(al | 13*B21 | type*B12 | type);
 }
 
+void Assembler::pop() { add(sp, sp, Operand(kPointerSize)); }
 
 bool Assembler::IsMovT(Instr instr) {
   instr &= ~(((kNumberOfConditions - 1) << 28) |  // Mask off conditions
@@ -4790,7 +4942,14 @@ void Assembler::GrowBuffer() {
   } else {
     desc.buffer_size = buffer_size_ + 1*MB;
   }
-  CHECK_GT(desc.buffer_size, 0);  // no overflow
+
+  // Some internal data structures overflow for very large buffers,
+  // they must ensure that kMaximalBufferSize is not too large.
+  if (desc.buffer_size > kMaximalBufferSize ||
+      static_cast<size_t>(desc.buffer_size) >
+          isolate_data().max_old_generation_size_) {
+    V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
+  }
 
   // Set up new buffer.
   desc.buffer = NewArray<byte>(desc.buffer_size);
@@ -4873,7 +5032,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     data = RecordedAstId().ToInt();
     ClearRecordedAstId();
   }
-  RelocInfo rinfo(isolate(), pc_, rmode, data, NULL);
+  RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
 }
 
@@ -4885,52 +5044,37 @@ ConstantPoolEntry::Access Assembler::ConstantPoolAddEntry(int position,
          rmode != RelocInfo::NONE64);
   bool sharing_ok = RelocInfo::IsNone(rmode) ||
                     !(serializer_enabled() || rmode < RelocInfo::CELL);
-  if (FLAG_enable_embedded_constant_pool) {
-    return constant_pool_builder_.AddEntry(position, value, sharing_ok);
-  } else {
-    DCHECK(pending_32_bit_constants_.size() < kMaxNumPending32Constants);
-    if (pending_32_bit_constants_.empty()) {
-      first_const_pool_32_use_ = position;
-    }
-    ConstantPoolEntry entry(position, value, sharing_ok);
-    pending_32_bit_constants_.push_back(entry);
-
-    // Make sure the constant pool is not emitted in place of the next
-    // instruction for which we just recorded relocation info.
-    BlockConstPoolFor(1);
-    return ConstantPoolEntry::REGULAR;
+  DCHECK(pending_32_bit_constants_.size() < kMaxNumPending32Constants);
+  if (pending_32_bit_constants_.empty()) {
+    first_const_pool_32_use_ = position;
   }
+  ConstantPoolEntry entry(position, value, sharing_ok);
+  pending_32_bit_constants_.push_back(entry);
+
+  // Make sure the constant pool is not emitted in place of the next
+  // instruction for which we just recorded relocation info.
+  BlockConstPoolFor(1);
+  return ConstantPoolEntry::REGULAR;
 }
 
 
 ConstantPoolEntry::Access Assembler::ConstantPoolAddEntry(int position,
                                                           double value) {
-  if (FLAG_enable_embedded_constant_pool) {
-    return constant_pool_builder_.AddEntry(position, value);
-  } else {
-    DCHECK(pending_64_bit_constants_.size() < kMaxNumPending64Constants);
-    if (pending_64_bit_constants_.empty()) {
-      first_const_pool_64_use_ = position;
-    }
-    ConstantPoolEntry entry(position, value);
-    pending_64_bit_constants_.push_back(entry);
-
-    // Make sure the constant pool is not emitted in place of the next
-    // instruction for which we just recorded relocation info.
-    BlockConstPoolFor(1);
-    return ConstantPoolEntry::REGULAR;
+  DCHECK(pending_64_bit_constants_.size() < kMaxNumPending64Constants);
+  if (pending_64_bit_constants_.empty()) {
+    first_const_pool_64_use_ = position;
   }
+  ConstantPoolEntry entry(position, value);
+  pending_64_bit_constants_.push_back(entry);
+
+  // Make sure the constant pool is not emitted in place of the next
+  // instruction for which we just recorded relocation info.
+  BlockConstPoolFor(1);
+  return ConstantPoolEntry::REGULAR;
 }
 
 
 void Assembler::BlockConstPoolFor(int instructions) {
-  if (FLAG_enable_embedded_constant_pool) {
-    // Should be a no-op if using an embedded constant pool.
-    DCHECK(pending_32_bit_constants_.empty());
-    DCHECK(pending_64_bit_constants_.empty());
-    return;
-  }
-
   int pc_limit = pc_offset() + instructions * kInstrSize;
   if (no_const_pool_before_ < pc_limit) {
     // Max pool start (if we need a jump and an alignment).
@@ -4953,13 +5097,6 @@ void Assembler::BlockConstPoolFor(int instructions) {
 
 
 void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
-  if (FLAG_enable_embedded_constant_pool) {
-    // Should be a no-op if using an embedded constant pool.
-    DCHECK(pending_32_bit_constants_.empty());
-    DCHECK(pending_64_bit_constants_.empty());
-    return;
-  }
-
   // Some short sequence of instruction mustn't be broken up by constant pool
   // emission, such sequences are protected by calls to BlockConstPoolFor and
   // BlockConstPoolScope.
@@ -5172,61 +5309,29 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   next_buffer_check_ = pc_offset() + kCheckPoolInterval;
 }
 
-
-void Assembler::PatchConstantPoolAccessInstruction(
-    int pc_offset, int offset, ConstantPoolEntry::Access access,
-    ConstantPoolEntry::Type type) {
-  DCHECK(FLAG_enable_embedded_constant_pool);
-  Address pc = buffer_ + pc_offset;
-
-  // Patch vldr/ldr instruction with correct offset.
-  Instr instr = instr_at(pc);
-  if (access == ConstantPoolEntry::OVERFLOWED) {
-    if (CpuFeatures::IsSupported(ARMv7)) {
-      CpuFeatureScope scope(this, ARMv7);
-      // Instructions to patch must be 'movw rd, [#0]' and 'movt rd, [#0].
-      Instr next_instr = instr_at(pc + kInstrSize);
-      DCHECK((IsMovW(instr) && Instruction::ImmedMovwMovtValue(instr) == 0));
-      DCHECK((IsMovT(next_instr) &&
-              Instruction::ImmedMovwMovtValue(next_instr) == 0));
-      instr_at_put(pc, PatchMovwImmediate(instr, offset & 0xffff));
-      instr_at_put(pc + kInstrSize,
-                   PatchMovwImmediate(next_instr, offset >> 16));
-    } else {
-      // Instructions to patch must be 'mov rd, [#0]' and 'orr rd, rd, [#0].
-      Instr instr_2 = instr_at(pc + kInstrSize);
-      Instr instr_3 = instr_at(pc + 2 * kInstrSize);
-      Instr instr_4 = instr_at(pc + 3 * kInstrSize);
-      DCHECK((IsMovImmed(instr) && Instruction::Immed8Value(instr) == 0));
-      DCHECK((IsOrrImmed(instr_2) && Instruction::Immed8Value(instr_2) == 0) &&
-             GetRn(instr_2).is(GetRd(instr_2)));
-      DCHECK((IsOrrImmed(instr_3) && Instruction::Immed8Value(instr_3) == 0) &&
-             GetRn(instr_3).is(GetRd(instr_3)));
-      DCHECK((IsOrrImmed(instr_4) && Instruction::Immed8Value(instr_4) == 0) &&
-             GetRn(instr_4).is(GetRd(instr_4)));
-      instr_at_put(pc, PatchShiftImm(instr, (offset & kImm8Mask)));
-      instr_at_put(pc + kInstrSize,
-                   PatchShiftImm(instr_2, (offset & (kImm8Mask << 8))));
-      instr_at_put(pc + 2 * kInstrSize,
-                   PatchShiftImm(instr_3, (offset & (kImm8Mask << 16))));
-      instr_at_put(pc + 3 * kInstrSize,
-                   PatchShiftImm(instr_4, (offset & (kImm8Mask << 24))));
-    }
-  } else if (type == ConstantPoolEntry::DOUBLE) {
-    // Instruction to patch must be 'vldr rd, [pp, #0]'.
-    DCHECK((IsVldrDPpImmediateOffset(instr) &&
-            GetVldrDRegisterImmediateOffset(instr) == 0));
-    DCHECK(is_uint10(offset));
-    instr_at_put(pc, SetVldrDRegisterImmediateOffset(instr, offset));
-  } else {
-    // Instruction to patch must be 'ldr rd, [pp, #0]'.
-    DCHECK((IsLdrPpImmediateOffset(instr) &&
-            GetLdrRegisterImmediateOffset(instr) == 0));
-    DCHECK(is_uint12(offset));
-    instr_at_put(pc, SetLdrRegisterImmediateOffset(instr, offset));
-  }
+PatchingAssembler::PatchingAssembler(IsolateData isolate_data, byte* address,
+                                     int instructions)
+    : Assembler(isolate_data, address, instructions * kInstrSize + kGap) {
+  DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
 }
 
+PatchingAssembler::~PatchingAssembler() {
+  // Check that we don't have any pending constant pools.
+  DCHECK(pending_32_bit_constants_.empty());
+  DCHECK(pending_64_bit_constants_.empty());
+
+  // Check that the code was patched as expected.
+  DCHECK_EQ(pc_, buffer_ + buffer_size_ - kGap);
+  DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
+}
+
+void PatchingAssembler::Emit(Address addr) {
+  emit(reinterpret_cast<Instr>(addr));
+}
+
+void PatchingAssembler::FlushICache(Isolate* isolate) {
+  Assembler::FlushICache(isolate, buffer_, buffer_size_ - kGap);
+}
 
 }  // namespace internal
 }  // namespace v8

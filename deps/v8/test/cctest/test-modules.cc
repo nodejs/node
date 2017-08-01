@@ -27,9 +27,11 @@ ScriptOrigin ModuleOrigin(Local<v8::Value> resource_name, Isolate* isolate) {
   return origin;
 }
 
-MaybeLocal<Module> AlwaysEmptyResolveCallback(Local<Context> context,
-                                              Local<String> specifier,
-                                              Local<Module> referrer) {
+MaybeLocal<Module> FailAlwaysResolveCallback(Local<Context> context,
+                                             Local<String> specifier,
+                                             Local<Module> referrer) {
+  Isolate* isolate = context->GetIsolate();
+  isolate->ThrowException(v8_str("boom"));
   return MaybeLocal<Module>();
 }
 
@@ -37,18 +39,22 @@ static int g_count = 0;
 MaybeLocal<Module> FailOnSecondCallResolveCallback(Local<Context> context,
                                                    Local<String> specifier,
                                                    Local<Module> referrer) {
-  if (g_count++ > 0) return MaybeLocal<Module>();
+  Isolate* isolate = CcTest::isolate();
+  if (g_count++ > 0) {
+    isolate->ThrowException(v8_str("booom"));
+    return MaybeLocal<Module>();
+  }
   Local<String> source_text = v8_str("");
-  ScriptOrigin origin = ModuleOrigin(v8_str("module.js"), CcTest::isolate());
+  ScriptOrigin origin = ModuleOrigin(v8_str("module.js"), isolate);
   ScriptCompiler::Source source(source_text, origin);
-  return ScriptCompiler::CompileModule(CcTest::isolate(), &source)
-      .ToLocalChecked();
+  return ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
 }
 
 TEST(ModuleInstantiationFailures) {
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   LocalContext env;
+  v8::TryCatch try_catch(isolate);
 
   Local<String> source_text = v8_str(
       "import './foo.js';"
@@ -62,14 +68,26 @@ TEST(ModuleInstantiationFailures) {
   CHECK(v8_str("./bar.js")->StrictEquals(module->GetModuleRequest(1)));
 
   // Instantiation should fail.
-  CHECK(!module->Instantiate(env.local(), AlwaysEmptyResolveCallback));
+  {
+    v8::TryCatch inner_try_catch(isolate);
+    CHECK(!module->Instantiate(env.local(), FailAlwaysResolveCallback));
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+  }
 
   // Start over again...
   module = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
 
   // Instantiation should fail if a sub-module fails to resolve.
   g_count = 0;
-  CHECK(!module->Instantiate(env.local(), FailOnSecondCallResolveCallback));
+  {
+    v8::TryCatch inner_try_catch(isolate);
+    CHECK(!module->Instantiate(env.local(), FailOnSecondCallResolveCallback));
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("booom")));
+  }
+
+  CHECK(!try_catch.HasCaught());
 }
 
 static MaybeLocal<Module> CompileSpecifierAsModuleResolveCallback(
@@ -84,6 +102,7 @@ TEST(ModuleEvaluation) {
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   LocalContext env;
+  v8::TryCatch try_catch(isolate);
 
   Local<String> source_text = v8_str(
       "import 'Object.expando = 5';"
@@ -96,6 +115,89 @@ TEST(ModuleEvaluation) {
                             CompileSpecifierAsModuleResolveCallback));
   CHECK(!module->Evaluate(env.local()).IsEmpty());
   ExpectInt32("Object.expando", 10);
+
+  CHECK(!try_catch.HasCaught());
+}
+
+TEST(ModuleEvaluationCompletion1) {
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+
+  const char* sources[] = {
+      "",
+      "var a = 1",
+      "import '42'",
+      "export * from '42'",
+      "export {} from '42'",
+      "export {}",
+      "var a = 1; export {a}",
+      "export function foo() {}",
+      "export class C extends null {}",
+      "export let a = 1",
+      "export default 1",
+      "export default function foo() {}",
+      "export default function () {}",
+      "export default (function () {})",
+      "export default class C extends null {}",
+      "export default (class C extends null {})",
+      "for (var i = 0; i < 5; ++i) {}",
+  };
+
+  for (auto src : sources) {
+    Local<String> source_text = v8_str(src);
+    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK(module->Instantiate(env.local(),
+                              CompileSpecifierAsModuleResolveCallback));
+    CHECK(module->Evaluate(env.local()).ToLocalChecked()->IsUndefined());
+  }
+
+  CHECK(!try_catch.HasCaught());
+}
+
+TEST(ModuleEvaluationCompletion2) {
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+
+  const char* sources[] = {
+      "'gaga'; ",
+      "'gaga'; var a = 1",
+      "'gaga'; import '42'",
+      "'gaga'; export * from '42'",
+      "'gaga'; export {} from '42'",
+      "'gaga'; export {}",
+      "'gaga'; var a = 1; export {a}",
+      "'gaga'; export function foo() {}",
+      "'gaga'; export class C extends null {}",
+      "'gaga'; export let a = 1",
+      "'gaga'; export default 1",
+      "'gaga'; export default function foo() {}",
+      "'gaga'; export default function () {}",
+      "'gaga'; export default (function () {})",
+      "'gaga'; export default class C extends null {}",
+      "'gaga'; export default (class C extends null {})",
+  };
+
+  for (auto src : sources) {
+    Local<String> source_text = v8_str(src);
+    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK(module->Instantiate(env.local(),
+                              CompileSpecifierAsModuleResolveCallback));
+    CHECK(module->Evaluate(env.local())
+              .ToLocalChecked()
+              ->StrictEquals(v8_str("gaga")));
+  }
+
+  CHECK(!try_catch.HasCaught());
 }
 
 }  // anonymous namespace

@@ -1,3 +1,4 @@
+Tests call stack in wasm scripts
 Running testFunction with generated WASM bytes...
 Paused on 'debugger;'
 Number of frames: 5

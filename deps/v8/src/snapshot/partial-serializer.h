@@ -16,7 +16,7 @@ class StartupSerializer;
 class PartialSerializer : public Serializer {
  public:
   PartialSerializer(Isolate* isolate, StartupSerializer* startup_serializer,
-                    v8::SerializeInternalFieldsCallback callback);
+                    v8::SerializeEmbedderFieldsCallback callback);
 
   ~PartialSerializer() override;
 
@@ -29,11 +29,11 @@ class PartialSerializer : public Serializer {
 
   bool ShouldBeInThePartialSnapshotCache(HeapObject* o);
 
-  void SerializeInternalFields();
+  void SerializeEmbedderFields();
 
   StartupSerializer* startup_serializer_;
-  List<JSObject*> internal_field_holders_;
-  v8::SerializeInternalFieldsCallback serialize_internal_fields_;
+  List<JSObject*> embedder_field_holders_;
+  v8::SerializeEmbedderFieldsCallback serialize_embedder_fields_;
   DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
 };
 

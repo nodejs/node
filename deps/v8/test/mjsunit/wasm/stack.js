@@ -25,7 +25,8 @@ function verifyStack(frames, expected) {
     assertContains(exp[4], frames[i].getFileName(), "["+i+"].getFileName()");
     var toString;
     if (exp[0]) {
-      toString = exp[1] + " (<WASM>[" + exp[2] + "]+" + exp[3] + ")";
+      var fun_str = exp[1] !== null ? exp[1] : "<WASM UNNAMED>";
+      toString = fun_str + " (<WASM>[" + exp[2] + "]+" + exp[3] + ")";
     } else {
       toString = exp[4] + ":" + exp[2] + ":";
     }
@@ -70,10 +71,10 @@ var module = builder.instantiate({mod: {func: STACK}});
 (function testSimpleStack() {
   var expected_string = "Error\n" +
     // The line numbers below will change as this test gains / loses lines..
-    "    at STACK (stack.js:39:11)\n" +           // --
+    "    at STACK (stack.js:40:11)\n" +           // --
     "    at main (<WASM>[1]+1)\n" +               // --
-    "    at testSimpleStack (stack.js:78:18)\n" + // --
-    "    at stack.js:80:3";                       // --
+    "    at testSimpleStack (stack.js:79:18)\n" + // --
+    "    at stack.js:81:3";                       // --
 
   module.exports.main();
   assertEquals(expected_string, stripPath(stack));
@@ -90,10 +91,10 @@ Error.prepareStackTrace = function(error, frames) {
 
   verifyStack(stack, [
       // isWasm           function   line  pos        file
-      [   false,           "STACK",    39,   0, "stack.js"],
+      [   false,           "STACK",    40,   0, "stack.js"],
       [    true,            "main",     1,   1,       null],
-      [   false, "testStackFrames",    89,   0, "stack.js"],
-      [   false,              null,    98,   0, "stack.js"]
+      [   false, "testStackFrames",    90,   0, "stack.js"],
+      [   false,              null,    99,   0, "stack.js"]
   ]);
 })();
 
@@ -106,8 +107,8 @@ Error.prepareStackTrace = function(error, frames) {
     verifyStack(e.stack, [
         // isWasm               function   line  pos        file
         [    true,    "exec_unreachable",    2,    1,       null],
-        [   false, "testWasmUnreachable",  102,    0, "stack.js"],
-        [   false,                  null,  113,    0, "stack.js"]
+        [   false, "testWasmUnreachable",  103,    0, "stack.js"],
+        [   false,                  null,  114,    0, "stack.js"]
     ]);
   }
 })();
@@ -120,10 +121,10 @@ Error.prepareStackTrace = function(error, frames) {
     assertContains("out of bounds", e.message);
     verifyStack(e.stack, [
         // isWasm                  function   line  pos        file
-        [    true,                       "",     3,   3,       null],
+        [    true,                     null,     3,   3,       null],
         [    true, "call_mem_out_of_bounds",     4,   1,       null],
-        [   false, "testWasmMemOutOfBounds",   117,   0, "stack.js"],
-        [   false,                     null,   129,   0, "stack.js"]
+        [   false, "testWasmMemOutOfBounds",   118,   0, "stack.js"],
+        [   false,                     null,   130,   0, "stack.js"]
     ]);
   }
 })();

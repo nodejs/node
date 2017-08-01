@@ -187,7 +187,6 @@ class IdentityMapTester : public HandleAndZoneScope {
   void Rehash() { map.Rehash(); }
 };
 
-
 TEST(Find_smi_not_found) {
   IdentityMapTester t;
   for (int i = 0; i < 100; i++) {
@@ -549,11 +548,12 @@ TEST(Iterator_smi_num) {
     t.map.Set(num_keys[i], reinterpret_cast<void*>(i + 5));
   }
 
-  // Check iterator sees all values.
+  // Check iterator sees all values once.
   std::set<intptr_t> seen;
   {
     IdentityMap<void*, ZoneAllocationPolicy>::IteratableScope it_scope(&t.map);
     for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
+      CHECK(seen.find(reinterpret_cast<intptr_t>(**it)) == seen.end());
       seen.insert(reinterpret_cast<intptr_t>(**it));
     }
   }
@@ -585,6 +585,7 @@ TEST(Iterator_smi_num_gc) {
   {
     IdentityMap<void*, ZoneAllocationPolicy>::IteratableScope it_scope(&t.map);
     for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
+      CHECK(seen.find(reinterpret_cast<intptr_t>(**it)) == seen.end());
       seen.insert(reinterpret_cast<intptr_t>(**it));
     }
   }
@@ -593,41 +594,48 @@ TEST(Iterator_smi_num_gc) {
   }
 }
 
-TEST(Iterator_smi_delete) {
-  IdentityMapTester t;
-  int smi_keys[] = {1, 2, 7, 15, 23};
+void IterateCollisionTest(int stride) {
+  for (int load = 15; load <= 120; load = load * 2) {
+    IdentityMapTester t;
 
-  // Initialize the map.
-  for (size_t i = 0; i < arraysize(smi_keys); i++) {
-    t.map.Set(t.smi(smi_keys[i]), reinterpret_cast<void*>(i));
-  }
-
-  // Iterate and delete half the elements.
-  std::set<intptr_t> deleted;
-  {
-    int i = 0;
-    IdentityMap<void*, ZoneAllocationPolicy>::IteratableScope it_scope(&t.map);
-    for (auto it = it_scope.begin(); it != it_scope.end();) {
-      if (i % 2) {
-        deleted.insert(reinterpret_cast<intptr_t>(**it));
-        it.DeleteAndIncrement();
-      } else {
-        ++it;
+    {  // Add entries to the map.
+      HandleScope scope(t.isolate());
+      int next = 1;
+      for (int i = 0; i < load; i++) {
+        t.map.Set(t.smi(next), reinterpret_cast<void*>(next));
+        t.CheckFind(t.smi(next), reinterpret_cast<void*>(next));
+        next = next + stride;
+      }
+    }
+    // Iterate through the map and check we see all elements only once.
+    std::set<intptr_t> seen;
+    {
+      IdentityMap<void*, ZoneAllocationPolicy>::IteratableScope it_scope(
+          &t.map);
+      for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
+        CHECK(seen.find(reinterpret_cast<intptr_t>(**it)) == seen.end());
+        seen.insert(reinterpret_cast<intptr_t>(**it));
+      }
+    }
+    // Check get and find on map.
+    {
+      HandleScope scope(t.isolate());
+      int next = 1;
+      for (int i = 0; i < load; i++) {
+        CHECK(seen.find(next) != seen.end());
+        t.CheckFind(t.smi(next), reinterpret_cast<void*>(next));
+        t.CheckGet(t.smi(next), reinterpret_cast<void*>(next));
+        next = next + stride;
       }
     }
   }
-
-  // Check values in map are correct.
-  for (intptr_t i = 0; i < 5; i++) {
-    void** entry = t.map.Find(t.smi(smi_keys[i]));
-    if (deleted.find(i) != deleted.end()) {
-      CHECK_NULL(entry);
-    } else {
-      CHECK_NOT_NULL(entry);
-      CHECK_EQ(reinterpret_cast<void*>(i), *entry);
-    }
-  }
 }
+
+TEST(IterateCollisions_1) { IterateCollisionTest(1); }
+TEST(IterateCollisions_2) { IterateCollisionTest(2); }
+TEST(IterateCollisions_3) { IterateCollisionTest(3); }
+TEST(IterateCollisions_5) { IterateCollisionTest(5); }
+TEST(IterateCollisions_7) { IterateCollisionTest(7); }
 
 void CollisionTest(int stride, bool rehash = false, bool resize = false) {
   for (int load = 15; load <= 120; load = load * 2) {
@@ -664,7 +672,6 @@ TEST(Collisions_7) { CollisionTest(7); }
 TEST(Resize) { CollisionTest(9, false, true); }
 TEST(Rehash) { CollisionTest(11, true, false); }
 
-
 TEST(ExplicitGC) {
   IdentityMapTester t;
   Handle<Object> num_keys[] = {t.num(2.1), t.num(2.4), t.num(3.3), t.num(4.3),
@@ -685,7 +692,6 @@ TEST(ExplicitGC) {
     t.CheckGet(num_keys[i], &num_keys[i]);
   }
 }
-
 
 TEST(CanonicalHandleScope) {
   Isolate* isolate = CcTest::i_isolate();
@@ -729,7 +735,7 @@ TEST(CanonicalHandleScope) {
   Handle<String> string2(*string1);
   CHECK_EQ(number1.location(), number2.location());
   CHECK_EQ(string1.location(), string2.location());
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
   Handle<HeapNumber> number3(*number2);
   Handle<String> string3(*string2);
   CHECK_EQ(number1.location(), number3.location());
@@ -763,6 +769,55 @@ TEST(CanonicalHandleScope) {
     CHECK_NE(string1.location(), string6.location());
     CHECK_EQ(number5.location(), number6.location());
     CHECK_EQ(string5.location(), string6.location());
+  }
+}
+
+TEST(GCShortCutting) {
+  IdentityMapTester t;
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  const int kDummyValue = 0;
+
+  for (int i = 0; i < 16; i++) {
+    // Insert a varying number of Smis as padding to ensure some tests straddle
+    // a boundary where the thin string short cutting will cause size_ to be
+    // greater to capacity_ if not corrected by IdentityMap
+    // (see crbug.com/704132).
+    for (int j = 0; j < i; j++) {
+      t.map.Set(t.smi(j), reinterpret_cast<void*>(kDummyValue));
+    }
+
+    Handle<String> thin_string =
+        factory->NewStringFromAsciiChecked("thin_string");
+    Handle<String> internalized_string =
+        factory->InternalizeString(thin_string);
+    DCHECK_IMPLIES(FLAG_thin_strings, thin_string->IsThinString());
+    DCHECK_NE(*thin_string, *internalized_string);
+
+    // Insert both keys into the map.
+    t.map.Set(thin_string, &thin_string);
+    t.map.Set(internalized_string, &internalized_string);
+
+    // Do an explicit, real GC, this should short-cut the thin string to point
+    // to the internalized string.
+    t.heap()->CollectGarbage(i::NEW_SPACE,
+                             i::GarbageCollectionReason::kTesting);
+    DCHECK_IMPLIES(FLAG_thin_strings && !FLAG_optimize_for_size,
+                   *thin_string == *internalized_string);
+
+    // Check that getting the object points to one of the handles.
+    void** thin_string_entry = t.map.Get(thin_string);
+    CHECK(*thin_string_entry == &thin_string ||
+          *thin_string_entry == &internalized_string);
+    void** internalized_string_entry = t.map.Get(internalized_string);
+    CHECK(*internalized_string_entry == &thin_string ||
+          *internalized_string_entry == &internalized_string);
+
+    // Trigger resize.
+    for (int j = 0; j < 16; j++) {
+      t.map.Set(t.smi(j + 16), reinterpret_cast<void*>(kDummyValue));
+    }
+    t.map.Clear();
   }
 }
 

@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.addScript(
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests that variables introduced in eval scopes are accessible');
+
+contextGroup.addScript(
 `function testNonEmptyEvalScope() {
   eval("'use strict'; var hest = 420; debugger;");
 }

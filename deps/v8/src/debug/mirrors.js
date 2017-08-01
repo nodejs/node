@@ -11,17 +11,10 @@
 var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
-var MapEntries;
-var MapIteratorNext;
-var SetIteratorNext;
-var SetValues;
-
-utils.Import(function(from) {
-  MapEntries = from.MapEntries;
-  MapIteratorNext = from.MapIteratorNext;
-  SetIteratorNext = from.SetIteratorNext;
-  SetValues = from.SetValues;
-});
+var MapEntries = global.Map.prototype.entries;
+var MapIteratorNext = (new global.Map).entries().next;
+var SetIteratorNext = (new global.Set).values().next;
+var SetValues = global.Set.prototype.values;
 
 // ----------------------------------------------------------------------------
 

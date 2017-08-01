@@ -15,7 +15,7 @@
 #include "src/isolate-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/v8.h"
-#include "test/unittests/compiler-dispatcher/compiler-dispatcher-helper.h"
+#include "test/unittests/test-helpers.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -30,81 +30,57 @@ class CompilerDispatcherJobTest : public TestWithContext {
   CompilerDispatcherTracer* tracer() { return &tracer_; }
 
   static void SetUpTestCase() {
-    old_flag_ = i::FLAG_ignition;
-    i::FLAG_ignition = true;
+    CHECK_NULL(save_flags_);
+    save_flags_ = new SaveFlags();
+    FLAG_ignition = true;
     TestWithContext::SetUpTestCase();
   }
 
   static void TearDownTestCase() {
     TestWithContext::TearDownTestCase();
-    i::FLAG_ignition = old_flag_;
+    CHECK_NOT_NULL(save_flags_);
+    delete save_flags_;
+    save_flags_ = nullptr;
   }
 
  private:
   CompilerDispatcherTracer tracer_;
-  static bool old_flag_;
+  static SaveFlags* save_flags_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherJobTest);
 };
 
-bool CompilerDispatcherJobTest::old_flag_;
+SaveFlags* CompilerDispatcherJobTest::save_flags_ = nullptr;
 
 namespace {
 
 const char test_script[] = "(x) { x*x; }";
 
-class ScriptResource : public v8::String::ExternalOneByteStringResource {
- public:
-  ScriptResource(const char* data, size_t length)
-      : data_(data), length_(length) {}
-  ~ScriptResource() override = default;
-
-  const char* data() const override { return data_; }
-  size_t length() const override { return length_; }
-
- private:
-  const char* data_;
-  size_t length_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScriptResource);
-};
-
-Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
-    Isolate* isolate, ExternalOneByteString::Resource* maybe_resource) {
-  HandleScope scope(isolate);
-  Handle<String> source;
-  if (maybe_resource) {
-    source = isolate->factory()
-                 ->NewExternalStringFromOneByte(maybe_resource)
-                 .ToHandleChecked();
-  } else {
-    source = isolate->factory()->NewStringFromAsciiChecked(test_script);
-  }
-  Handle<Script> script = isolate->factory()->NewScript(source);
-  Handle<FixedArray> infos = isolate->factory()->NewFixedArray(3);
-  script->set_shared_function_infos(*infos);
-  Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
-      isolate->factory()->NewStringFromAsciiChecked("f"),
-      isolate->builtins()->CompileLazy(), false);
-  shared->set_end_position(source->length());
-  shared->set_outer_scope_info(ScopeInfo::Empty(isolate));
-  shared->set_function_literal_id(1);
-  SharedFunctionInfo::SetScript(shared, script);
-  return scope.CloseAndEscape(shared);
-}
-
 }  // namespace
 
 TEST_F(CompilerDispatcherJobTest, Construct) {
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      i_isolate(), tracer(), CreateSharedFunctionInfo(i_isolate(), nullptr),
-      FLAG_stack_size));
+      i_isolate(), tracer(),
+      test::CreateSharedFunctionInfo(i_isolate(), nullptr), FLAG_stack_size));
+}
+
+TEST_F(CompilerDispatcherJobTest, ConstructWithoutSFI) {
+  std::unique_ptr<test::FinishCallback> callback(new test::FinishCallback());
+  std::unique_ptr<test::ScriptResource> resource(
+      new test::ScriptResource(test_script, strlen(test_script)));
+  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
+      tracer(), FLAG_stack_size,
+      test::CreateSource(i_isolate(), resource.get()), 0,
+      static_cast<int>(resource->length()), SLOPPY, 1, false, false, false,
+      i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
+      ScriptCompiler::kNoCompileOptions, i_isolate()->ast_string_constants(),
+      callback.get()));
 }
 
 TEST_F(CompilerDispatcherJobTest, StateTransitions) {
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      i_isolate(), tracer(), CreateSharedFunctionInfo(i_isolate(), nullptr),
-      FLAG_stack_size));
+      i_isolate(), tracer(),
+      test::CreateSharedFunctionInfo(i_isolate(), nullptr), FLAG_stack_size));
 
   ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
   job->PrepareToParseOnMainThread();
@@ -125,11 +101,30 @@ TEST_F(CompilerDispatcherJobTest, StateTransitions) {
   ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
 }
 
-TEST_F(CompilerDispatcherJobTest, SyntaxError) {
-  ScriptResource script("^^^", strlen("^^^"));
+TEST_F(CompilerDispatcherJobTest, StateTransitionsParseWithCallback) {
+  std::unique_ptr<test::FinishCallback> callback(new test::FinishCallback());
+  std::unique_ptr<test::ScriptResource> resource(
+      new test::ScriptResource(test_script, strlen(test_script)));
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      i_isolate(), tracer(), CreateSharedFunctionInfo(i_isolate(), &script),
-      FLAG_stack_size));
+      tracer(), FLAG_stack_size,
+      test::CreateSource(i_isolate(), resource.get()), 0,
+      static_cast<int>(resource->length()), SLOPPY, 1, false, false, false,
+      i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
+      ScriptCompiler::kNoCompileOptions, i_isolate()->ast_string_constants(),
+      callback.get()));
+  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToParse);
+  job->Parse();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
+  job->ResetOnMainThread();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+  ASSERT_TRUE(callback->result() != nullptr);
+}
+
+TEST_F(CompilerDispatcherJobTest, SyntaxError) {
+  test::ScriptResource script("^^^", strlen("^^^"));
+  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
+      i_isolate(), tracer(),
+      test::CreateSharedFunctionInfo(i_isolate(), &script), FLAG_stack_size));
 
   job->PrepareToParseOnMainThread();
   job->Parse();
@@ -147,7 +142,8 @@ TEST_F(CompilerDispatcherJobTest, ScopeChain) {
   const char script[] =
       "function g() { var y = 1; function f(x) { return x * y }; return f; } "
       "g();";
-  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<JSFunction> f =
+      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
 
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
       i_isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
@@ -185,7 +181,8 @@ TEST_F(CompilerDispatcherJobTest, CompileAndRun) {
       "  return f;\n"
       "}\n"
       "g();";
-  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<JSFunction> f =
+      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
       i_isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
 
@@ -198,7 +195,7 @@ TEST_F(CompilerDispatcherJobTest, CompileAndRun) {
   ASSERT_TRUE(job->FinalizeCompilingOnMainThread());
   ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
 
-  Smi* value = Smi::cast(*RunJS(isolate(), "f(100);"));
+  Smi* value = Smi::cast(*test::RunJS(isolate(), "f(100);"));
   ASSERT_TRUE(value == Smi::FromInt(160));
 
   job->ResetOnMainThread();
@@ -211,10 +208,10 @@ TEST_F(CompilerDispatcherJobTest, CompileFailureToAnalyse) {
     raw_script += "'x' + ";
   }
   raw_script += " 'x'; }";
-  ScriptResource script(raw_script.c_str(), strlen(raw_script.c_str()));
+  test::ScriptResource script(raw_script.c_str(), strlen(raw_script.c_str()));
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      i_isolate(), tracer(), CreateSharedFunctionInfo(i_isolate(), &script),
-      100));
+      i_isolate(), tracer(),
+      test::CreateSharedFunctionInfo(i_isolate(), &script), 100));
 
   job->PrepareToParseOnMainThread();
   job->Parse();
@@ -234,10 +231,10 @@ TEST_F(CompilerDispatcherJobTest, CompileFailureToFinalize) {
     raw_script += "'x' + ";
   }
   raw_script += " 'x'; }";
-  ScriptResource script(raw_script.c_str(), strlen(raw_script.c_str()));
+  test::ScriptResource script(raw_script.c_str(), strlen(raw_script.c_str()));
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      i_isolate(), tracer(), CreateSharedFunctionInfo(i_isolate(), &script),
-      50));
+      i_isolate(), tracer(),
+      test::CreateSharedFunctionInfo(i_isolate(), &script), 50));
 
   job->PrepareToParseOnMainThread();
   job->Parse();
@@ -279,10 +276,10 @@ TEST_F(CompilerDispatcherJobTest, CompileOnBackgroundThread) {
       "  var d = { foo: 100, bar : bar() }\n"
       "  return bar;"
       "}";
-  ScriptResource script(raw_script, strlen(raw_script));
+  test::ScriptResource script(raw_script, strlen(raw_script));
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      i_isolate(), tracer(), CreateSharedFunctionInfo(i_isolate(), &script),
-      100));
+      i_isolate(), tracer(),
+      test::CreateSharedFunctionInfo(i_isolate(), &script), 100));
 
   job->PrepareToParseOnMainThread();
   job->Parse();
@@ -312,7 +309,8 @@ TEST_F(CompilerDispatcherJobTest, LazyInnerFunctions) {
       "  return f;\n"
       "}\n"
       "g();";
-  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<JSFunction> f =
+      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
 
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
       i_isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
@@ -326,7 +324,8 @@ TEST_F(CompilerDispatcherJobTest, LazyInnerFunctions) {
   ASSERT_TRUE(job->FinalizeCompilingOnMainThread());
   ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
 
-  Handle<JSFunction> e = Handle<JSFunction>::cast(RunJS(isolate(), "f();"));
+  Handle<JSFunction> e =
+      Handle<JSFunction>::cast(test::RunJS(isolate(), "f();"));
 
   ASSERT_FALSE(e->shared()->HasBaselineCode());
 

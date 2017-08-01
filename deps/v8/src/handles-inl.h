@@ -7,7 +7,6 @@
 
 #include "src/api.h"
 #include "src/handles.h"
-#include "src/heap/heap.h"
 #include "src/isolate.h"
 
 namespace v8 {
@@ -33,6 +32,8 @@ HandleScope::HandleScope(Isolate* isolate) {
   data->level++;
 }
 
+template <typename T>
+Handle<T>::Handle(T* object, Isolate* isolate) : HandleBase(object, isolate) {}
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {

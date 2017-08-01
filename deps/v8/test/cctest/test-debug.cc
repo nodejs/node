@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
+#include <set>
 
 #include "src/v8.h"
 
@@ -383,14 +384,13 @@ void CheckDebuggerUnloaded(bool check_functions) {
   CHECK(!CcTest::i_isolate()->debug()->debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
-  // Iterate the head and check that there are no debugger related objects left.
+  // Iterate the heap and check that there are no debugger related objects left.
   HeapIterator iterator(CcTest::heap());
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     CHECK(!obj->IsDebugInfo());
-    CHECK(!obj->IsBreakPointInfo());
 
     // If deep check of functions is requested check that no debug break code
     // is left in all functions.
@@ -812,7 +812,7 @@ static void DebugEventBreakPointCollectGarbage(
       CcTest::CollectGarbage(v8::internal::NEW_SPACE);
     } else {
       // Mark sweep compact.
-      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+      CcTest::CollectAllGarbage();
     }
   }
 }
@@ -1223,7 +1223,7 @@ static void CallAndGC(v8::Local<v8::Context> context,
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+    CcTest::CollectAllGarbage();
     f->Call(context, recv, 0, NULL).ToLocalChecked();
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }
@@ -1947,7 +1947,7 @@ TEST(ScriptBreakPointLineTopLevel) {
           ->Get(context, v8_str(env->GetIsolate(), "f"))
           .ToLocalChecked());
 
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 
   SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 3, -1);
 
@@ -6612,14 +6612,14 @@ TEST(DebugCoverage) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::debug::Coverage::TogglePrecise(isolate, true);
+  v8::debug::Coverage::SelectMode(isolate, v8::debug::Coverage::kPreciseCount);
   v8::Local<v8::String> source = v8_str(
       "function f() {\n"
       "}\n"
       "f();\n"
       "f();");
   CompileRun(source);
-  v8::debug::Coverage coverage = v8::debug::Coverage::Collect(isolate, false);
+  v8::debug::Coverage coverage = v8::debug::Coverage::CollectPrecise(isolate);
   CHECK_EQ(1u, coverage.ScriptCount());
   v8::debug::Coverage::ScriptData script_data = coverage.GetScriptData(0);
   v8::Local<v8::debug::Script> script = script_data.GetScript();
@@ -6631,16 +6631,110 @@ TEST(DebugCoverage) {
   CHECK_EQ(2u, script_data.FunctionCount());
   v8::debug::Coverage::FunctionData function_data =
       script_data.GetFunctionData(0);
-  CHECK_EQ(0, function_data.Start().GetLineNumber());
-  CHECK_EQ(0, function_data.Start().GetColumnNumber());
-  CHECK_EQ(3, function_data.End().GetLineNumber());
-  CHECK_EQ(4, function_data.End().GetColumnNumber());
+  v8::debug::Location start =
+      script->GetSourceLocation(function_data.StartOffset());
+  v8::debug::Location end =
+      script->GetSourceLocation(function_data.EndOffset());
+  CHECK_EQ(0, start.GetLineNumber());
+  CHECK_EQ(0, start.GetColumnNumber());
+  CHECK_EQ(3, end.GetLineNumber());
+  CHECK_EQ(4, end.GetColumnNumber());
   CHECK_EQ(1, function_data.Count());
 
   function_data = script_data.GetFunctionData(1);
-  CHECK_EQ(0, function_data.Start().GetLineNumber());
-  CHECK_EQ(0, function_data.Start().GetColumnNumber());
-  CHECK_EQ(1, function_data.End().GetLineNumber());
-  CHECK_EQ(1, function_data.End().GetColumnNumber());
+  start = script->GetSourceLocation(function_data.StartOffset());
+  end = script->GetSourceLocation(function_data.EndOffset());
+  CHECK_EQ(0, start.GetLineNumber());
+  CHECK_EQ(0, start.GetColumnNumber());
+  CHECK_EQ(1, end.GetLineNumber());
+  CHECK_EQ(1, end.GetColumnNumber());
   CHECK_EQ(2, function_data.Count());
+}
+
+TEST(BuiltinsExceptionPrediction) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Context::New(isolate);
+
+  // TODO(gsathya): Fix catch prediction for the following.
+  std::set<int> whitelist(
+      {i::Builtins::kPromiseThenFinally, i::Builtins::kPromiseCatchFinally});
+
+  i::Builtins* builtins = CcTest::i_isolate()->builtins();
+  bool fail = false;
+  for (int i = 0; i < i::Builtins::builtin_count; i++) {
+    Code* builtin = builtins->builtin(static_cast<i::Builtins::Name>(i));
+
+    if (i::HandlerTable::cast(builtin->handler_table())->length() == 0)
+      continue;
+
+    if (builtin->is_promise_rejection() || builtin->is_exception_caught())
+      continue;
+
+    if (whitelist.find(i) != whitelist.end()) continue;
+
+    fail = true;
+    i::PrintF("%s is missing exception predictions.\n", builtins->name(i));
+  }
+  CHECK(!fail);
+}
+
+TEST(DebugGetPossibleBreakpointsReturnLocations) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::String> source = v8_str(
+      "function fib(x) {\n"
+      "  if (x < 0) return;\n"
+      "  if (x === 0) return 1;\n"
+      "  if (x === 1) return fib(0);\n"
+      "  return x > 2 ? fib(x - 1) + fib(x - 2) : fib(1) + fib(0);\n"
+      "}");
+  CompileRun(source);
+  v8::PersistentValueVector<v8::debug::Script> scripts(isolate);
+  v8::debug::GetLoadedScripts(isolate, scripts);
+  CHECK(scripts.Size() == 1);
+  std::vector<v8::debug::BreakLocation> locations;
+  CHECK(scripts.Get(0)->GetPossibleBreakpoints(
+      v8::debug::Location(0, 17), v8::debug::Location(), true, &locations));
+  int returns_count = 0;
+  for (size_t i = 0; i < locations.size(); ++i) {
+    if (locations[i].type() == v8::debug::kReturnBreakLocation) {
+      ++returns_count;
+    }
+  }
+  if (i::FLAG_turbo) {
+    // With turbofan we generate one return location per return statement,
+    // each has line = 5, column = 0 as statement position.
+    CHECK(returns_count == 4);
+  } else {
+    // Without turbofan we generate one return location.
+    CHECK(returns_count == 1);
+  }
+}
+
+TEST(DebugEvaluateNoSideEffect) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  i::List<i::Handle<i::JSFunction>> list;
+  {
+    i::HeapIterator iterator(isolate->heap());
+    while (i::HeapObject* obj = iterator.next()) {
+      if (!obj->IsJSFunction()) continue;
+      i::JSFunction* fun = i::JSFunction::cast(obj);
+      list.Add(i::Handle<i::JSFunction>(fun));
+    }
+  }
+
+  // Perform side effect check on all built-in functions. The side effect check
+  // itself contains additional sanity checks.
+  for (i::Handle<i::JSFunction> fun : list) {
+    bool failed = false;
+    {
+      i::NoSideEffectScope scope(isolate, true);
+      failed = !isolate->debug()->PerformSideEffectCheck(fun);
+    }
+    if (failed) isolate->clear_pending_exception();
+  }
 }

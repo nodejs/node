@@ -6,7 +6,7 @@ function Module(stdlib, foreign, heap) {
   "use asm";
   function f1(i) {
     i = i|0;
-    return (i | 0) * 3 | 0;
+    return (i | 0) * -3 | 0;
   }
   function f2(i) {
     i = i|0;
@@ -26,7 +26,7 @@ function Module(stdlib, foreign, heap) {
 var m = Module(this, {}, new ArrayBuffer(1024));
 
 for (var i = -2147483648; i < 2147483648; i += 3999771) {
-  assertEquals(i * 3 | 0, m.f1(i));
+  assertEquals(i * -3 | 0, m.f1(i));
   assertEquals(i * 7 | 0, m.f2(i));
   assertEquals(i * 1024 | 0, m.f3(i));
   assertEquals(i * 333339 | 0, m.f4(i));

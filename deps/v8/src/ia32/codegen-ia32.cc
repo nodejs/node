@@ -56,7 +56,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
@@ -469,7 +469,7 @@ MemMoveFunction CreateMemMoveFunction(Isolate* isolate) {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
   Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
   // TODO(jkummerow): It would be nice to register this code creation event

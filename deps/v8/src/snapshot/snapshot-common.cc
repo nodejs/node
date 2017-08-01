@@ -52,7 +52,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
 
 MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
-    v8::DeserializeInternalFieldsCallback internal_fields_deserializer) {
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
@@ -64,7 +64,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   Deserializer deserializer(&snapshot_data);
 
   MaybeHandle<Object> maybe_context = deserializer.DeserializePartial(
-      isolate, global_proxy, internal_fields_deserializer);
+      isolate, global_proxy, embedder_fields_deserializer);
   Handle<Object> result;
   if (!maybe_context.ToHandle(&result)) return MaybeHandle<Context>();
   CHECK(result->IsContext());
@@ -195,7 +195,7 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
 
   // Set header values.
   SetMagicNumber(serializer->isolate());
-  SetHeaderValue(kCheckSumOffset, Version::Hash());
+  SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderValue(kNumReservationsOffset, reservations.length());
   SetHeaderValue(kPayloadLengthOffset, payload->length());
 
@@ -209,7 +209,7 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
 }
 
 bool SnapshotData::IsSane() {
-  return GetHeaderValue(kCheckSumOffset) == Version::Hash();
+  return GetHeaderValue(kVersionHashOffset) == Version::Hash();
 }
 
 Vector<const SerializedData::Reservation> SnapshotData::Reservations() const {

@@ -1,3 +1,4 @@
+Tests that asm-js scripts produce correct stack
 Paused on 'debugger;'
 Number of frames: 5
   - [0] {"functionName":"call_debugger","function_lineNumber":13,"function_columnNumber":24,"lineNumber":14,"columnNumber":4}

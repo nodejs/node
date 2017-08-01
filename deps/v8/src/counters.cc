@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/base/platform/platform.h"
+#include "src/builtins/builtins-definitions.h"
 #include "src/isolate.h"
 #include "src/log-inl.h"
 #include "src/log.h"
@@ -61,84 +62,142 @@ void HistogramTimer::Stop() {
 
 
 Counters::Counters(Isolate* isolate) {
+  static const struct {
+    Histogram Counters::*member;
+    const char* caption;
+    int min;
+    int max;
+    int num_buckets;
+  } kHistograms[] = {
 #define HR(name, caption, min, max, num_buckets) \
-  name##_ = Histogram(#caption, min, max, num_buckets, isolate);
-  HISTOGRAM_RANGE_LIST(HR)
+  {&Counters::name##_, #caption, min, max, num_buckets},
+      HISTOGRAM_RANGE_LIST(HR)
 #undef HR
+  };
+  for (const auto& histogram : kHistograms) {
+    this->*histogram.member =
+        Histogram(histogram.caption, histogram.min, histogram.max,
+                  histogram.num_buckets, isolate);
+  }
 
+  static const struct {
+    HistogramTimer Counters::*member;
+    const char* caption;
+    int max;
+    HistogramTimer::Resolution res;
+  } kHistogramTimers[] = {
 #define HT(name, caption, max, res) \
-  name##_ = HistogramTimer(#caption, 0, max, HistogramTimer::res, 50, isolate);
-    HISTOGRAM_TIMER_LIST(HT)
+  {&Counters::name##_, #caption, max, HistogramTimer::res},
+      HISTOGRAM_TIMER_LIST(HT)
 #undef HT
+  };
+  for (const auto& timer : kHistogramTimers) {
+    this->*timer.member =
+        HistogramTimer(timer.caption, 0, timer.max, timer.res, 50, isolate);
+  }
 
-#define AHT(name, caption) \
-  name##_ = AggregatableHistogramTimer(#caption, 0, 10000000, 50, isolate);
-    AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+  static const struct {
+    AggregatableHistogramTimer Counters::*member;
+    const char* caption;
+  } kAggregatableHistogramTimers[] = {
+#define AHT(name, caption) {&Counters::name##_, #caption},
+      AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
 #undef AHT
+  };
+  for (const auto& aht : kAggregatableHistogramTimers) {
+    this->*aht.member =
+        AggregatableHistogramTimer(aht.caption, 0, 10000000, 50, isolate);
+  }
 
-#define HP(name, caption) \
-    name##_ = Histogram(#caption, 0, 101, 100, isolate);
-    HISTOGRAM_PERCENTAGE_LIST(HP)
+  static const struct {
+    Histogram Counters::*member;
+    const char* caption;
+  } kHistogramPercentages[] = {
+#define HP(name, caption) {&Counters::name##_, #caption},
+      HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
+  };
+  for (const auto& percentage : kHistogramPercentages) {
+    this->*percentage.member =
+        Histogram(percentage.caption, 0, 101, 100, isolate);
+  }
 
-
-// Exponential histogram assigns bucket limits to points
-// p[1], p[2], ... p[n] such that p[i+1] / p[i] = constant.
-// The constant factor is equal to the n-th root of (high / low),
-// where the n is the number of buckets, the low is the lower limit,
-// the high is the upper limit.
-// For n = 50, low = 1000, high = 500000: the factor = 1.13.
-#define HM(name, caption) \
-    name##_ = Histogram(#caption, 1000, 500000, 50, isolate);
-  HISTOGRAM_LEGACY_MEMORY_LIST(HM)
+  // Exponential histogram assigns bucket limits to points
+  // p[1], p[2], ... p[n] such that p[i+1] / p[i] = constant.
+  // The constant factor is equal to the n-th root of (high / low),
+  // where the n is the number of buckets, the low is the lower limit,
+  // the high is the upper limit.
+  // For n = 50, low = 1000, high = 500000: the factor = 1.13.
+  static const struct {
+    Histogram Counters::*member;
+    const char* caption;
+  } kLegacyMemoryHistograms[] = {
+#define HM(name, caption) {&Counters::name##_, #caption},
+      HISTOGRAM_LEGACY_MEMORY_LIST(HM)
 #undef HM
-// For n = 100, low = 4000, high = 2000000: the factor = 1.06.
+  };
+  for (const auto& histogram : kLegacyMemoryHistograms) {
+    this->*histogram.member =
+        Histogram(histogram.caption, 1000, 500000, 50, isolate);
+  }
+
+  // For n = 100, low = 4000, high = 2000000: the factor = 1.06.
+  static const struct {
+    Histogram Counters::*member;
+    AggregatedMemoryHistogram<Histogram> Counters::*aggregated;
+    const char* caption;
+  } kMemoryHistograms[] = {
 #define HM(name, caption) \
-  name##_ = Histogram(#caption, 4000, 2000000, 100, isolate);
-  HISTOGRAM_MEMORY_LIST(HM)
+  {&Counters::name##_, &Counters::aggregated_##name##_, #caption},
+      HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
+  };
+  for (const auto& histogram : kMemoryHistograms) {
+    this->*histogram.member =
+        Histogram(histogram.caption, 4000, 2000000, 100, isolate);
+    this->*histogram.aggregated =
+        AggregatedMemoryHistogram<Histogram>(&(this->*histogram.member));
+  }
 
-#define HM(name, caption) \
-  aggregated_##name##_ = AggregatedMemoryHistogram<Histogram>(&name##_);
-    HISTOGRAM_MEMORY_LIST(HM)
-#undef HM
-
-#define SC(name, caption) \
-    name##_ = StatsCounter(isolate, "c:" #caption);
-
-    STATS_COUNTER_LIST_1(SC)
-    STATS_COUNTER_LIST_2(SC)
+  // clang-format off
+  static const struct {
+    StatsCounter Counters::*member;
+    const char* caption;
+  } kStatsCounters[] = {
+#define SC(name, caption) {&Counters::name##_, "c:" #caption},
+      STATS_COUNTER_LIST_1(SC) STATS_COUNTER_LIST_2(SC)
 #undef SC
-
-#define SC(name) \
-    count_of_##name##_ = StatsCounter(isolate, "c:" "V8.CountOf_" #name); \
-    size_of_##name##_ = StatsCounter(isolate, "c:" "V8.SizeOf_" #name);
-    INSTANCE_TYPE_LIST(SC)
+#define SC(name)                                             \
+  {&Counters::count_of_##name##_, "c:" "V8.CountOf_" #name}, \
+  {&Counters::size_of_##name##_, "c:" "V8.SizeOf_" #name},
+      INSTANCE_TYPE_LIST(SC)
 #undef SC
-
-#define SC(name) \
-    count_of_CODE_TYPE_##name##_ = \
-        StatsCounter(isolate, "c:" "V8.CountOf_CODE_TYPE-" #name); \
-    size_of_CODE_TYPE_##name##_ = \
-        StatsCounter(isolate, "c:" "V8.SizeOf_CODE_TYPE-" #name);
-    CODE_KIND_LIST(SC)
+#define SC(name)                            \
+  {&Counters::count_of_CODE_TYPE_##name##_, \
+    "c:" "V8.CountOf_CODE_TYPE-" #name},     \
+  {&Counters::size_of_CODE_TYPE_##name##_,  \
+    "c:" "V8.SizeOf_CODE_TYPE-" #name},
+      CODE_KIND_LIST(SC)
 #undef SC
-
-#define SC(name) \
-    count_of_FIXED_ARRAY_##name##_ = \
-        StatsCounter(isolate, "c:" "V8.CountOf_FIXED_ARRAY-" #name); \
-    size_of_FIXED_ARRAY_##name##_ = \
-        StatsCounter(isolate, "c:" "V8.SizeOf_FIXED_ARRAY-" #name);
-    FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
+#define SC(name)                              \
+  {&Counters::count_of_FIXED_ARRAY_##name##_, \
+    "c:" "V8.CountOf_FIXED_ARRAY-" #name},     \
+  {&Counters::size_of_FIXED_ARRAY_##name##_,  \
+    "c:" "V8.SizeOf_FIXED_ARRAY-" #name},
+      FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
-
-#define SC(name) \
-    count_of_CODE_AGE_##name##_ = \
-        StatsCounter(isolate, "c:" "V8.CountOf_CODE_AGE-" #name); \
-    size_of_CODE_AGE_##name##_ = \
-        StatsCounter(isolate, "c:" "V8.SizeOf_CODE_AGE-" #name);
-    CODE_AGE_LIST_COMPLETE(SC)
+#define SC(name)                           \
+  {&Counters::count_of_CODE_AGE_##name##_, \
+    "c:" "V8.CountOf_CODE_AGE-" #name},     \
+  {&Counters::size_of_CODE_AGE_##name##_,  \
+    "c:" "V8.SizeOf_CODE_AGE-" #name},
+      CODE_AGE_LIST_COMPLETE(SC)
 #undef SC
+  };
+  // clang-format on
+  for (const auto& counter : kStatsCounters) {
+    this->*counter.member = StatsCounter(isolate, counter.caption);
+  }
 }
 
 
@@ -193,6 +252,30 @@ void Counters::ResetHistograms() {
 
 #define HM(name, caption) name##_.Reset();
     HISTOGRAM_LEGACY_MEMORY_LIST(HM)
+    HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
+}
+
+void Counters::InitializeHistograms() {
+#define HR(name, caption, min, max, num_buckets) name##_.Enabled();
+  HISTOGRAM_RANGE_LIST(HR)
+#undef HR
+
+#define HT(name, caption, max, res) name##_.Enabled();
+  HISTOGRAM_TIMER_LIST(HT)
+#undef HT
+
+#define AHT(name, caption) name##_.Enabled();
+  AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+#undef AHT
+
+#define HP(name, caption) name##_.Enabled();
+  HISTOGRAM_PERCENTAGE_LIST(HP)
+#undef HP
+
+#define HM(name, caption) name##_.Enabled();
+  HISTOGRAM_LEGACY_MEMORY_LIST(HM)
+  HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
 }
 
@@ -275,19 +358,19 @@ class RuntimeCallStatEntries {
 
 void RuntimeCallCounter::Reset() {
   count_ = 0;
-  time_ = base::TimeDelta();
+  time_ = 0;
 }
 
 void RuntimeCallCounter::Dump(v8::tracing::TracedValue* value) {
   value->BeginArray(name_);
   value->AppendDouble(count_);
-  value->AppendDouble(time_.InMicroseconds());
+  value->AppendDouble(time_);
   value->EndArray();
 }
 
 void RuntimeCallCounter::Add(RuntimeCallCounter* other) {
   count_ += other->count();
-  time_ += other->time();
+  time_ += other->time().InMicroseconds();
 }
 
 void RuntimeCallTimer::Snapshot() {
@@ -301,6 +384,29 @@ void RuntimeCallTimer::Snapshot() {
     timer = timer->parent();
   }
   Resume(now);
+}
+
+RuntimeCallStats::RuntimeCallStats() : in_use_(false) {
+  static const char* const kNames[] = {
+#define CALL_RUNTIME_COUNTER(name) #name,
+      FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)  //
+#undef CALL_RUNTIME_COUNTER
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize) #name,
+      FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)  //
+#undef CALL_RUNTIME_COUNTER
+#define CALL_BUILTIN_COUNTER(name) #name,
+      BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)  //
+#undef CALL_BUILTIN_COUNTER
+#define CALL_BUILTIN_COUNTER(name) "API_" #name,
+      FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)  //
+#undef CALL_BUILTIN_COUNTER
+#define CALL_BUILTIN_COUNTER(name) #name,
+      FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+  };
+  for (int i = 0; i < counters_count; i++) {
+    this->*(counters[i]) = RuntimeCallCounter(kNames[i]);
+  }
 }
 
 // static
@@ -334,6 +440,7 @@ void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
   DCHECK(counter->name() != nullptr);
   timer->Start(counter, stats->current_timer_.Value());
   stats->current_timer_.SetValue(timer);
+  stats->current_counter_.SetValue(counter);
 }
 
 // static
@@ -348,6 +455,15 @@ void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
     while (next && next->parent() != timer) next = next->parent();
     if (next == nullptr) return;
     next->set_parent(timer->Stop());
+  }
+
+  {
+    RuntimeCallTimer* cur_timer = stats->current_timer_.Value();
+    if (cur_timer == nullptr) {
+      stats->current_counter_.SetValue(nullptr);
+    } else {
+      stats->current_counter_.SetValue(cur_timer->counter());
+    }
   }
 }
 
@@ -366,7 +482,9 @@ void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
   RuntimeCallTimer* timer = stats->current_timer_.Value();
   // When RCS are enabled dynamically there might be no current timer set up.
   if (timer == nullptr) return;
-  timer->set_counter(&(stats->*counter_id));
+  RuntimeCallCounter* counter = &(stats->*counter_id);
+  timer->set_counter(counter);
+  stats->current_counter_.SetValue(counter);
 }
 
 void RuntimeCallStats::Print(std::ostream& os) {

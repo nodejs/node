@@ -1,0 +1,91 @@
+Checks that we trim async call chains correctly.
+set async chain depth to 8
+
+Running test: testDebuggerPaused
+Run expression 'debugger;' with async chain len: 4
+actual async chain len: 1
+Run expression 'debugger;' with async chain len: 8
+actual async chain len: 1
+Run expression 'debugger;' with async chain len: 9
+actual async chain len: 1
+Run expression 'debugger;' with async chain len: 32
+actual async chain len: 1
+
+Running test: testConsoleTrace
+Run expression 'console.trace(42);' with async chain len: 4
+actual async chain len: 1
+Run expression 'console.trace(42);' with async chain len: 8
+actual async chain len: 1
+Run expression 'console.trace(42);' with async chain len: 9
+actual async chain len: 1
+Run expression 'console.trace(42);' with async chain len: 32
+actual async chain len: 1
+
+Running test: testDebuggerPausedSetTimeout
+Run expression 'debugger;' with async chain len: 4
+actual async chain len: 4
+Run expression 'debugger;' with async chain len: 8
+actual async chain len: 8
+Run expression 'debugger;' with async chain len: 9
+actual async chain len: 8
+Run expression 'debugger;' with async chain len: 32
+actual async chain len: 8
+
+Running test: testConsoleTraceSetTimeout
+Run expression 'console.trace(42);' with async chain len: 4
+actual async chain len: 4
+Run expression 'console.trace(42);' with async chain len: 8
+actual async chain len: 8
+Run expression 'console.trace(42);' with async chain len: 9
+actual async chain len: 8
+Run expression 'console.trace(42);' with async chain len: 32
+actual async chain len: 8
+
+Running test: testConsoleTraceWithEmptySync
+{
+    callFrames : [
+        [0] : {
+            columnNumber : 66
+            functionName : Promise.then
+            lineNumber : 0
+            scriptId : <scriptId>
+            url : 
+        }
+    ]
+    parent : {
+        callFrames : [
+            [0] : {
+                columnNumber : 47
+                functionName : 
+                lineNumber : 0
+                scriptId : <scriptId>
+                url : 
+            }
+        ]
+        description : Promise.resolve
+    }
+}
+
+Running test: testDebuggerPausedThenableJob
+Run expression 'debugger;' with async chain len: 4
+actual async chain len: 1
+Run expression 'debugger;' with async chain len: 8
+actual async chain len: 1
+Run expression 'debugger;' with async chain len: 9
+actual async chain len: 1
+Run expression 'debugger;' with async chain len: 32
+actual async chain len: 1
+
+Running test: testConsoleTraceThenableJob
+Run expression 'console.trace(42);' with async chain len: 4
+actual async chain len: 1
+Run expression 'console.trace(42);' with async chain len: 8
+actual async chain len: 1
+Run expression 'console.trace(42);' with async chain len: 9
+actual async chain len: 1
+Run expression 'console.trace(42);' with async chain len: 32
+actual async chain len: 1
+
+Running test: twoConsoleAssert
+actual async chain len: 1
+actual async chain len: 2

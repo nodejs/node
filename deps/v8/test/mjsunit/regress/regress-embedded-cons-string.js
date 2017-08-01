@@ -28,7 +28,7 @@
 // Flags: --fold-constants --nodead-code-elimination
 // Flags: --expose-gc --allow-natives-syntax
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
-// Flags: --crankshaft --no-always-opt
+// Flags: --opt --no-always-opt
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
@@ -37,7 +37,6 @@ if (!%IsConcurrentRecompilationSupported()) {
 
 function test(fun) {
   fun();
-  %BaselineFunctionOnNextCall(fun);
   fun();
   // Mark for concurrent optimization.
   %OptimizeFunctionOnNextCall(fun, "concurrent");

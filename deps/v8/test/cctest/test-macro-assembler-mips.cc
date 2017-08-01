@@ -1009,7 +1009,7 @@ TEST(min_max_nan) {
   auto handle_dnan = [masm](FPURegister dst, Label* nan, Label* back) {
     __ bind(nan);
     __ LoadRoot(at, Heap::kNanValueRootIndex);
-    __ ldc1(dst, FieldMemOperand(at, HeapNumber::kValueOffset));
+    __ Ldc1(dst, FieldMemOperand(at, HeapNumber::kValueOffset));
     __ Branch(back);
   };
 
@@ -1024,8 +1024,8 @@ TEST(min_max_nan) {
 
   __ push(s6);
   __ InitializeRootRegister();
-  __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
-  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
+  __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
   __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, e)));
   __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, f)));
   __ Float64Min(f10, f4, f8, &handle_mind_nan);
@@ -1036,8 +1036,8 @@ TEST(min_max_nan) {
   __ bind(&back_mins_nan);
   __ Float32Max(f16, f2, f6, &handle_maxs_nan);
   __ bind(&back_maxs_nan);
-  __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
-  __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, d)));
+  __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
+  __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, d)));
   __ swc1(f14, MemOperand(a0, offsetof(TestFloat, g)));
   __ swc1(f16, MemOperand(a0, offsetof(TestFloat, h)));
   __ pop(s6);
@@ -1521,11 +1521,11 @@ static ::F4 GenerateMacroFloat64MinMax(MacroAssembler* masm) {
   Label done_max_abc, done_max_aab, done_max_aba;
 
 #define FLOAT_MIN_MAX(fminmax, res, x, y, done, ool, res_field) \
-  __ ldc1(x, MemOperand(a0, offsetof(Inputs, src1_)));          \
-  __ ldc1(y, MemOperand(a0, offsetof(Inputs, src2_)));          \
+  __ Ldc1(x, MemOperand(a0, offsetof(Inputs, src1_)));          \
+  __ Ldc1(y, MemOperand(a0, offsetof(Inputs, src2_)));          \
   __ fminmax(res, x, y, &ool);                                  \
   __ bind(&done);                                               \
-  __ sdc1(a, MemOperand(a1, offsetof(Results, res_field)))
+  __ Sdc1(a, MemOperand(a1, offsetof(Results, res_field)))
 
   // a = min(b, c);
   FLOAT_MIN_MAX(Float64Min, a, b, c, done_min_abc, ool_min_abc, min_abc_);

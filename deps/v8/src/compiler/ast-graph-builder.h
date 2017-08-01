@@ -37,7 +37,7 @@ class Node;
 class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
  public:
   AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
-                  float invocation_frequency,
+                  CallFrequency invocation_frequency,
                   LoopAssignmentAnalysis* loop_assignment = nullptr);
   virtual ~AstGraphBuilder() {}
 
@@ -78,7 +78,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   Zone* local_zone_;
   CompilationInfo* info_;
   JSGraph* jsgraph_;
-  float const invocation_frequency_;
+  CallFrequency const invocation_frequency_;
   Environment* environment_;
   AstContext* ast_context_;
 
@@ -249,7 +249,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   VectorSlotPair CreateVectorSlotPair(FeedbackSlot slot) const;
 
   // Computes the frequency for JSCall and JSConstruct nodes.
-  float ComputeCallFrequency(FeedbackSlot slot) const;
+  CallFrequency ComputeCallFrequency(FeedbackSlot slot) const;
 
   // ===========================================================================
   // The following build methods all generate graph fragments and return one
@@ -559,7 +559,8 @@ class AstGraphBuilder::Environment : public ZoneObject {
 class AstGraphBuilderWithPositions final : public AstGraphBuilder {
  public:
   AstGraphBuilderWithPositions(Zone* local_zone, CompilationInfo* info,
-                               JSGraph* jsgraph, float invocation_frequency,
+                               JSGraph* jsgraph,
+                               CallFrequency invocation_frequency,
                                LoopAssignmentAnalysis* loop_assignment,
                                SourcePositionTable* source_positions,
                                int inlining_id = SourcePosition::kNotInlined);

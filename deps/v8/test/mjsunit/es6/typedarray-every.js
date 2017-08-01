@@ -98,6 +98,20 @@ function TestTypedArrayForEach(constructor) {
   CheckTypedArrayIsNeutered(a);
   assertEquals(undefined, a[0]);
 
+  // Calling array.buffer midway can change the backing store.
+  a = new constructor(5);
+  a[0] = 42;
+  result = a.every(function (n, index, array) {
+    assertSame(a, array);
+    if (index == 2) {
+      (new constructor(array.buffer))[(index + 1) % 5] = 42;
+    } else {
+      a[(index+1)%5] = 42
+    }
+    return n == 42;
+  });
+  assertEquals(true, result);
+
   // The method must work for typed arrays created from ArrayBuffer.
   // The length of the ArrayBuffer is chosen so it is a multiple of
   // all lengths of the typed array items.
@@ -145,6 +159,11 @@ function TestTypedArrayForEach(constructor) {
   assertEquals(Array.prototype.every.call(a,
       function(elt) { x += elt; return true; }), true);
   assertEquals(x, 4);
+
+  // Detached Operation
+  var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  %ArrayBufferNeuter(array.buffer);
+  assertThrows(() => array.every(() => true), TypeError);
 }
 
 for (i = 0; i < typedArrayConstructors.length; i++) {

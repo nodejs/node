@@ -168,11 +168,14 @@ Runtime::FunctionId BytecodeArrayAccessor::GetIntrinsicIdOperand(
       static_cast<IntrinsicsHelper::IntrinsicId>(raw_id));
 }
 
+Handle<Object> BytecodeArrayAccessor::GetConstantAtIndex(int index) const {
+  return FixedArray::get(bytecode_array()->constant_pool(), index,
+                         bytecode_array()->GetIsolate());
+}
+
 Handle<Object> BytecodeArrayAccessor::GetConstantForIndexOperand(
     int operand_index) const {
-  return FixedArray::get(bytecode_array()->constant_pool(),
-                         GetIndexOperand(operand_index),
-                         bytecode_array()->GetIsolate());
+  return GetConstantAtIndex(GetIndexOperand(operand_index));
 }
 
 int BytecodeArrayAccessor::GetJumpTargetOffset() const {
@@ -182,14 +185,29 @@ int BytecodeArrayAccessor::GetJumpTargetOffset() const {
     if (bytecode == Bytecode::kJumpLoop) {
       relative_offset = -relative_offset;
     }
-    return current_offset() + relative_offset + current_prefix_offset();
+    return GetAbsoluteOffset(relative_offset);
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
     Smi* smi = Smi::cast(*GetConstantForIndexOperand(0));
-    return current_offset() + smi->value() + current_prefix_offset();
+    return GetAbsoluteOffset(smi->value());
   } else {
     UNREACHABLE();
     return kMinInt;
   }
+}
+
+JumpTableTargetOffsets BytecodeArrayAccessor::GetJumpTableTargetOffsets()
+    const {
+  DCHECK_EQ(current_bytecode(), Bytecode::kSwitchOnSmiNoFeedback);
+
+  uint32_t table_start = GetIndexOperand(0);
+  uint32_t table_size = GetUnsignedImmediateOperand(1);
+  int32_t case_value_base = GetImmediateOperand(2);
+
+  return JumpTableTargetOffsets(this, table_start, table_size, case_value_base);
+}
+
+int BytecodeArrayAccessor::GetAbsoluteOffset(int relative_offset) const {
+  return current_offset() + relative_offset + current_prefix_offset();
 }
 
 bool BytecodeArrayAccessor::OffsetWithinBytecode(int offset) const {
@@ -201,6 +219,77 @@ std::ostream& BytecodeArrayAccessor::PrintTo(std::ostream& os) const {
   return BytecodeDecoder::Decode(
       os, bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_,
       bytecode_array()->parameter_count());
+}
+
+JumpTableTargetOffsets::JumpTableTargetOffsets(
+    const BytecodeArrayAccessor* accessor, int table_start, int table_size,
+    int case_value_base)
+    : accessor_(accessor),
+      table_start_(table_start),
+      table_size_(table_size),
+      case_value_base_(case_value_base) {}
+
+JumpTableTargetOffsets::iterator JumpTableTargetOffsets::begin() const {
+  return iterator(case_value_base_, table_start_, table_start_ + table_size_,
+                  accessor_);
+}
+JumpTableTargetOffsets::iterator JumpTableTargetOffsets::end() const {
+  return iterator(case_value_base_ + table_size_, table_start_ + table_size_,
+                  table_start_ + table_size_, accessor_);
+}
+int JumpTableTargetOffsets::size() const {
+  int ret = 0;
+  // TODO(leszeks): Is there a more efficient way of doing this than iterating?
+  for (const auto& entry : *this) {
+    USE(entry);
+    ret++;
+  }
+  return ret;
+}
+
+JumpTableTargetOffsets::iterator::iterator(
+    int case_value, int table_offset, int table_end,
+    const BytecodeArrayAccessor* accessor)
+    : accessor_(accessor),
+      index_(case_value),
+      table_offset_(table_offset),
+      table_end_(table_end) {
+  UpdateAndAdvanceToValid();
+}
+
+JumpTableTargetOffset JumpTableTargetOffsets::iterator::operator*() {
+  DCHECK_LT(table_offset_, table_end_);
+  DCHECK(current_->IsSmi());
+  return {index_, accessor_->GetAbsoluteOffset(Smi::cast(*current_)->value())};
+}
+
+JumpTableTargetOffsets::iterator& JumpTableTargetOffsets::iterator::
+operator++() {
+  DCHECK_LT(table_offset_, table_end_);
+  ++table_offset_;
+  ++index_;
+  UpdateAndAdvanceToValid();
+  return *this;
+}
+
+bool JumpTableTargetOffsets::iterator::operator!=(
+    const JumpTableTargetOffsets::iterator& other) {
+  DCHECK_EQ(accessor_, other.accessor_);
+  DCHECK_EQ(table_end_, other.table_end_);
+  DCHECK_EQ(index_ - other.index_, table_offset_ - other.table_offset_);
+  return index_ != other.index_;
+}
+
+void JumpTableTargetOffsets::iterator::UpdateAndAdvanceToValid() {
+  if (table_offset_ >= table_end_) return;
+
+  current_ = accessor_->GetConstantAtIndex(table_offset_);
+  Isolate* isolate = accessor_->bytecode_array()->GetIsolate();
+  while (current_->IsTheHole(isolate)) {
+    ++table_offset_;
+    ++index_;
+    current_ = accessor_->GetConstantAtIndex(table_offset_);
+  }
 }
 
 }  // namespace interpreter

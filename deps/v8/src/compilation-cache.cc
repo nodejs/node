@@ -8,6 +8,8 @@
 #include "src/factory.h"
 #include "src/globals.h"
 #include "src/objects-inl.h"
+#include "src/objects/compilation-cache-inl.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -80,9 +82,9 @@ void CompilationSubCache::IterateFunctions(ObjectVisitor* v) {
   }
 }
 
-
-void CompilationSubCache::Iterate(ObjectVisitor* v) {
-  v->VisitPointers(&tables_[0], &tables_[generations_]);
+void CompilationSubCache::Iterate(RootVisitor* v) {
+  v->VisitRootPointers(Root::kCompilationCache, &tables_[0],
+                       &tables_[generations_]);
 }
 
 
@@ -170,11 +172,19 @@ InfoVectorPair CompilationCacheScript::Lookup(
   // to see if we actually found a cached script. If so, we return a
   // handle created in the caller's handle scope.
   if (result.has_shared()) {
+#ifdef DEBUG
+    // Since HasOrigin can allocate, we need to protect the SharedFunctionInfo
+    // and the FeedbackVector with handles during the call.
     Handle<SharedFunctionInfo> shared(result.shared(), isolate());
-    // TODO(mvstanton): Make sure HasOrigin can't allocate, or it will
-    // mess up our InfoVectorPair.
+    Handle<Cell> vector_handle;
+    if (result.has_vector()) {
+      vector_handle = Handle<Cell>(result.vector(), isolate());
+    }
     DCHECK(
         HasOrigin(shared, name, line_offset, column_offset, resource_options));
+    result =
+        InfoVectorPair(*shared, result.has_vector() ? *vector_handle : nullptr);
+#endif
     isolate()->counters()->compilation_cache_hits()->Increment();
   } else {
     isolate()->counters()->compilation_cache_misses()->Increment();
@@ -357,8 +367,7 @@ void CompilationCache::Clear() {
   }
 }
 
-
-void CompilationCache::Iterate(ObjectVisitor* v) {
+void CompilationCache::Iterate(RootVisitor* v) {
   for (int i = 0; i < kSubCacheCount; i++) {
     subcaches_[i]->Iterate(v);
   }

@@ -402,10 +402,9 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
      */
     function contextId()
     {
-        var mirror = ensureFuncMirror();
-        var context = mirror.context();
-        if (context && context.data())
-            return Number(context.data());
+        var context =
+            ensureFuncMirror().context() || ensureScriptMirror().context();
+        if (context && context.data()) return Number(context.data());
         return 0;
     }
 

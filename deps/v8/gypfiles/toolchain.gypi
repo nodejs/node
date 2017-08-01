@@ -74,7 +74,6 @@
     # Chrome needs this definition unconditionally. For standalone V8 builds,
     # it's handled in gypfiles/standalone.gypi.
     'want_separate_host_toolset%': 1,
-    'want_separate_host_toolset_mkpeephole%': 1,
 
     # Toolset the shell binary should be compiled for. Possible values are
     # 'host' and 'target'.
@@ -82,7 +81,7 @@
     'v8_toolset_for_shell%': 'target',
 
     'host_os%': '<(OS)',
-    'werror%': '',
+    'werror%': '-Werror',
     # For a shared library build, results in "libv8-<(soname_version).so".
     'soname_version%': '',
 
@@ -1246,7 +1245,7 @@
           'OBJECT_PRINT',
           'VERIFY_HEAP',
           'DEBUG',
-          'TRACE_MAPS'
+          'V8_TRACE_MAPS'
         ],
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \

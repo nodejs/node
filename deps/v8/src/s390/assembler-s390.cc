@@ -35,6 +35,9 @@
 // Copyright 2014 the V8 project authors. All rights reserved.
 
 #include "src/s390/assembler-s390.h"
+#include <sys/auxv.h>
+#include <set>
+#include <string>
 
 #if V8_TARGET_ARCH_S390
 
@@ -55,6 +58,43 @@ namespace internal {
 static unsigned CpuFeaturesImpliedByCompiler() {
   unsigned answer = 0;
   return answer;
+}
+
+static bool supportsCPUFeature(const char* feature) {
+  static std::set<std::string> features;
+  static std::set<std::string> all_available_features = {
+      "iesan3", "zarch",  "stfle",    "msa", "ldisp", "eimm",
+      "dfp",    "etf3eh", "highgprs", "te",  "vx"};
+  if (features.empty()) {
+#if V8_HOST_ARCH_S390
+
+#ifndef HWCAP_S390_VX
+#define HWCAP_S390_VX 2048
+#endif
+#define CHECK_AVAILABILITY_FOR(mask, value) \
+  if (f & mask) features.insert(value);
+
+    // initialize feature vector
+    uint64_t f = getauxval(AT_HWCAP);
+    CHECK_AVAILABILITY_FOR(HWCAP_S390_ESAN3, "iesan3")
+    CHECK_AVAILABILITY_FOR(HWCAP_S390_ZARCH, "zarch")
+    CHECK_AVAILABILITY_FOR(HWCAP_S390_STFLE, "stfle")
+    CHECK_AVAILABILITY_FOR(HWCAP_S390_MSA, "msa")
+    CHECK_AVAILABILITY_FOR(HWCAP_S390_LDISP, "ldisp")
+    CHECK_AVAILABILITY_FOR(HWCAP_S390_EIMM, "eimm")
+    CHECK_AVAILABILITY_FOR(HWCAP_S390_DFP, "dfp")
+    CHECK_AVAILABILITY_FOR(HWCAP_S390_ETF3EH, "etf3eh")
+    CHECK_AVAILABILITY_FOR(HWCAP_S390_HIGH_GPRS, "highgprs")
+    CHECK_AVAILABILITY_FOR(HWCAP_S390_TE, "te")
+    CHECK_AVAILABILITY_FOR(HWCAP_S390_VX, "vx")
+#else
+    // import all features
+    features.insert(all_available_features.begin(),
+                    all_available_features.end());
+#endif
+  }
+  USE(all_available_features);
+  return features.find(feature) != features.end();
 }
 
 // Check whether Store Facility STFLE instruction is available on the platform.
@@ -106,8 +146,8 @@ static bool supportsSTFLE() {
 
   // HWCAP_S390_STFLE is defined to be 4 in include/asm/elf.h.  Currently
   // hardcoded in case that include file does not exist.
-  const uint32_t HWCAP_S390_STFLE = 4;
-  return (auxv_hwcap & HWCAP_S390_STFLE);
+  const uint32_t _HWCAP_S390_STFLE = 4;
+  return (auxv_hwcap & _HWCAP_S390_STFLE);
 #else
   // STFLE is not available on non-s390 hosts
   return false;
@@ -163,7 +203,8 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
       supported_ |= (1u << FLOATING_POINT_EXT);
     }
     // Test for Vector Facility - Bit 129
-    if (facilities[2] & (one << (63 - (129 - 128)))) {
+    if (facilities[2] & (one << (63 - (129 - 128))) &&
+        supportsCPUFeature("vx")) {
       supported_ |= (1u << VECTOR_FACILITY);
     }
     // Test for Miscellaneous Instruction Extension Facility - Bit 58
@@ -179,6 +220,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= (1u << FLOATING_POINT_EXT);
   supported_ |= (1u << MISC_INSTR_EXT2);
   USE(performSTFLE);  // To avoid assert
+  USE(supportsCPUFeature);
   supported_ |= (1u << VECTOR_FACILITY);
 #endif
   supported_ |= (1u << FPU);
@@ -251,13 +293,13 @@ uint32_t RelocInfo::wasm_function_table_size_reference() {
 }
 
 void RelocInfo::unchecked_update_wasm_memory_reference(
-    Address address, ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+    Isolate* isolate, Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
 }
 
-void RelocInfo::unchecked_update_wasm_size(uint32_t size,
+void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
                                            ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_,
+  Assembler::set_target_address_at(isolate, pc_, host_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
@@ -295,8 +337,8 @@ MemOperand::MemOperand(Register rx, Register rb, int32_t offset) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
+Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
+    : AssemblerBase(isolate_data, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
       code_targets_(100) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
@@ -1804,6 +1846,21 @@ void Assembler::lmg(Register r1, Register r2, const MemOperand& src) {
   rsy_form(LMG, r1, r2, src.rb(), src.offset());
 }
 
+// 32-bit Compare and Swap
+void Assembler::cs(Register r1, Register r2, const MemOperand& src) {
+  rs_form(CS, r1, r2, src.rb(), src.offset());
+}
+
+// 32-bit Compare and Swap
+void Assembler::csy(Register r1, Register r2, const MemOperand& src) {
+  rsy_form(CSY, r1, r2, src.rb(), src.offset());
+}
+
+// 64-bit Compare and Swap
+void Assembler::csg(Register r1, Register r2, const MemOperand& src) {
+  rsy_form(CSG, r1, r2, src.rb(), src.offset());
+}
+
 // Move integer (32)
 void Assembler::mvhi(const MemOperand& opnd1, const Operand& i2) {
   sil_form(MVHI, opnd1.getBaseRegister(), opnd1.getDisplacement(), i2);
@@ -1844,15 +1901,39 @@ void Assembler::adb(DoubleRegister r1, const MemOperand& opnd) {
            opnd.offset());
 }
 
+// Add Register-Storage (LB)
+void Assembler::aeb(DoubleRegister r1, const MemOperand& opnd) {
+  rxe_form(AEB, Register::from_code(r1.code()), opnd.rx(), opnd.rb(),
+           opnd.offset());
+}
+
+// Sub Register-Storage (LB)
+void Assembler::seb(DoubleRegister r1, const MemOperand& opnd) {
+  rxe_form(SEB, Register::from_code(r1.code()), opnd.rx(), opnd.rb(),
+           opnd.offset());
+}
+
 // Divide Register-Storage (LB)
 void Assembler::ddb(DoubleRegister r1, const MemOperand& opnd) {
   rxe_form(DDB, Register::from_code(r1.code()), opnd.rx(), opnd.rb(),
            opnd.offset());
 }
 
+// Divide Register-Storage (LB)
+void Assembler::deb(DoubleRegister r1, const MemOperand& opnd) {
+  rxe_form(DEB, Register::from_code(r1.code()), opnd.rx(), opnd.rb(),
+           opnd.offset());
+}
+
 // Multiply Register-Storage (LB)
 void Assembler::mdb(DoubleRegister r1, const MemOperand& opnd) {
   rxe_form(MDB, Register::from_code(r1.code()), opnd.rb(), opnd.rx(),
+           opnd.offset());
+}
+
+// Multiply Register-Storage (LB)
+void Assembler::meeb(DoubleRegister r1, const MemOperand& opnd) {
+  rxe_form(MEEB, Register::from_code(r1.code()), opnd.rb(), opnd.rx(),
            opnd.offset());
 }
 
@@ -1910,10 +1991,8 @@ void Assembler::clgebr(Condition m3, Condition m4, Register r1,
 // Convert to Fixed Logical (32<-F64)
 void Assembler::clfdbr(Condition m3, Condition m4, Register r1,
                        DoubleRegister r2) {
-  DCHECK_EQ(m3, Condition(0));
   DCHECK_EQ(m4, Condition(0));
-  rrfe_form(CLFDBR, Condition(0), Condition(0), r1,
-            Register::from_code(r2.code()));
+  rrfe_form(CLFDBR, m3, Condition(0), r1, Register::from_code(r2.code()));
 }
 
 // Convert to Fixed Logical (32<-F32)
@@ -2022,7 +2101,14 @@ void Assembler::GrowBuffer(int needed) {
   if (space < needed) {
     desc.buffer_size += needed - space;
   }
-  CHECK_GT(desc.buffer_size, 0);  // no overflow
+
+  // Some internal data structures overflow for very large buffers,
+  // they must ensure that kMaximalBufferSize is not too large.
+  if (desc.buffer_size > kMaximalBufferSize ||
+      static_cast<size_t>(desc.buffer_size) >
+          isolate_data().max_old_generation_size_) {
+    V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
+  }
 
   // Set up new buffer.
   desc.buffer = NewArray<byte>(desc.buffer_size);
@@ -2108,7 +2194,7 @@ void Assembler::EmitRelocations() {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = buffer_ + it->position();
     Code* code = NULL;
-    RelocInfo rinfo(isolate(), pc, rmode, it->data(), code);
+    RelocInfo rinfo(pc, rmode, it->data(), code);
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {
@@ -2118,7 +2204,7 @@ void Assembler::EmitRelocations() {
     } else if (RelocInfo::IsInternalReferenceEncoded(rmode)) {
       // mov sequence
       intptr_t pos = reinterpret_cast<intptr_t>(target_address_at(pc, code));
-      set_target_address_at(isolate(), pc, code, buffer_ + pos,
+      set_target_address_at(nullptr, pc, code, buffer_ + pos,
                             SKIP_ICACHE_FLUSH);
     }
 

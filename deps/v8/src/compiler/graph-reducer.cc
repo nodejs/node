@@ -56,7 +56,7 @@ void GraphReducer::ReduceNode(Node* node) {
       ReduceTop();
     } else if (!revisit_.empty()) {
       // If the stack becomes empty, revisit any nodes in the revisit queue.
-      Node* const node = revisit_.top();
+      Node* const node = revisit_.front();
       revisit_.pop();
       if (state_.Get(node) == State::kRevisit) {
         // state can change while in queue.
@@ -146,6 +146,10 @@ void GraphReducer::ReduceTop() {
   // Check if the reduction is an in-place update of the {node}.
   Node* const replacement = reduction.replacement();
   if (replacement == node) {
+    if (FLAG_trace_turbo_reduction) {
+      OFStream os(stdout);
+      os << "- In-place update of " << *replacement << std::endl;
+    }
     // In-place update of {node}, may need to recurse on an input.
     Node::Inputs node_inputs = node->inputs();
     for (int i = 0; i < node_inputs.count(); ++i) {
@@ -240,8 +244,6 @@ void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
         DCHECK_NOT_NULL(control);
         edge.UpdateTo(control);
         Revisit(user);
-        // TODO(jarin) Check that the node cannot throw (otherwise, it
-        // would have to be connected via IfSuccess/IfException).
       }
     } else if (NodeProperties::IsEffectEdge(edge)) {
       DCHECK_NOT_NULL(effect);

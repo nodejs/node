@@ -16,6 +16,7 @@ namespace internal {
 
 class Heap;
 class JSArrayBuffer;
+class MarkingState;
 class Page;
 
 class ArrayBufferTracker : public AllStatic {
@@ -40,7 +41,7 @@ class ArrayBufferTracker : public AllStatic {
   // Frees all backing store pointers for dead JSArrayBuffer on a given page.
   // Requires marking information to be present. Requires the page lock to be
   // taken by the caller.
-  static void FreeDead(Page* page);
+  static void FreeDead(Page* page, const MarkingState& marking_state);
 
   // Frees all remaining, live or dead, array buffers on a page. Only useful
   // during tear down.
@@ -71,9 +72,15 @@ class LocalArrayBufferTracker {
   inline void Add(Key key, const Value& value);
   inline Value Remove(Key key);
 
-  // Frees up array buffers determined by |free_mode|.
-  template <FreeMode free_mode>
-  void Free();
+  // Frees up array buffers.
+  //
+  // Sample usage:
+  // Free([](HeapObject* array_buffer) {
+  //    if (should_free_internal(array_buffer)) return true;
+  //    return false;
+  // });
+  template <typename Callback>
+  void Free(Callback should_free);
 
   // Processes buffers one by one. The CallbackResult of the callback decides
   // what action to take on the buffer.

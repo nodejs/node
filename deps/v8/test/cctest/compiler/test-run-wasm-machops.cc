@@ -28,10 +28,10 @@ static void UpdateMemoryReferences(Handle<Code> code, Address old_base,
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsWasmMemoryReference(mode)) {
-      it.rinfo()->update_wasm_memory_reference(old_base, new_base);
+      it.rinfo()->update_wasm_memory_reference(isolate, old_base, new_base);
     } else {
       DCHECK(RelocInfo::IsWasmMemorySizeReference(mode));
-      it.rinfo()->update_wasm_memory_size(old_size, new_size);
+      it.rinfo()->update_wasm_memory_size(isolate, old_size, new_size);
     }
     modified = true;
   }
@@ -51,7 +51,8 @@ static void UpdateFunctionTableSizeReferences(Handle<Code> code,
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsWasmFunctionTableSizeReference(mode)) {
-      it.rinfo()->update_wasm_function_table_size_reference(old_size, new_size);
+      it.rinfo()->update_wasm_function_table_size_reference(isolate, old_size,
+                                                            new_size);
       modified = true;
     }
   }

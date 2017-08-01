@@ -1475,7 +1475,7 @@ TEST_F(JSBuiltinReducerTest, NumberIsNaNWithNumber) {
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsBooleanNot(IsNumberEqual(p0, p0)));
+    EXPECT_THAT(r.replacement(), IsObjectIsNaN(p0));
   }
 }
 

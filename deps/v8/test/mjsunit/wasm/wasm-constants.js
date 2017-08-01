@@ -65,6 +65,10 @@ let kCodeSectionCode = 10;      // Function code
 let kDataSectionCode = 11;     // Data segments
 let kNameSectionCode = 12;     // Name section (encoded as string)
 
+// Name section types
+let kFunctionNamesCode = 1;
+let kLocalNamesCode = 2;
+
 let kWasmFunctionTypeForm = 0x60;
 let kWasmAnyFunctionTypeForm = 0x70;
 
@@ -315,6 +319,7 @@ let kExprI32ReinterpretF32 = 0xbc;
 let kExprI64ReinterpretF64 = 0xbd;
 let kExprF32ReinterpretI32 = 0xbe;
 let kExprF64ReinterpretI64 = 0xbf;
+let kExprS128LoadMem = 0xc0;
 
 let kTrapUnreachable          = 0;
 let kTrapMemOutOfBounds       = 1;
@@ -339,36 +344,34 @@ let kTrapMsgs = [
 ];
 
 function assertTraps(trap, code) {
-    var threwException = true;
-    try {
-      if (typeof code === 'function') {
-        code();
-      } else {
-        eval(code);
-      }
-      threwException = false;
-    } catch (e) {
-      assertEquals("object", typeof e);
-      assertEquals(kTrapMsgs[trap], e.message);
-      // Success.
-      return;
+  try {
+    if (typeof code === 'function') {
+      code();
+    } else {
+      eval(code);
     }
-    throw new MjsUnitAssertionError("Did not trap, expected: " + kTrapMsgs[trap]);
+  } catch (e) {
+    assertEquals('object', typeof e);
+    assertEquals(kTrapMsgs[trap], e.message);
+    // Success.
+    return;
+  }
+  throw new MjsUnitAssertionError('Did not trap, expected: ' + kTrapMsgs[trap]);
 }
 
 function assertWasmThrows(value, code) {
-    assertEquals("number", typeof(value));
-    try {
-      if (typeof code === 'function') {
-        code();
-      } else {
-        eval(code);
-      }
-    } catch (e) {
-      assertEquals("number", typeof e);
-      assertEquals(value, e);
-      // Success.
-      return;
+  assertEquals('number', typeof value);
+  try {
+    if (typeof code === 'function') {
+      code();
+    } else {
+      eval(code);
     }
-    throw new MjsUnitAssertionError("Did not throw at all, expected: " + value);
+  } catch (e) {
+    assertEquals('number', typeof e);
+    assertEquals(value, e);
+    // Success.
+    return;
+  }
+  throw new MjsUnitAssertionError('Did not throw, expected: ' + value);
 }

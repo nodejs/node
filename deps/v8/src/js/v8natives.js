@@ -9,27 +9,8 @@
 // ----------------------------------------------------------------------------
 // Imports
 
-var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var NaN = %GetRootNaN();
-var ObjectToString = utils.ImportNow("object_to_string");
-
-// ----------------------------------------------------------------------------
-
-
-// Set up global object.
-var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
-
-utils.InstallConstants(global, [
-  // ES6 18.1.1
-  "Infinity", INFINITY,
-  // ES6 18.1.2
-  "NaN", NaN,
-  // ES6 18.1.3
-  "undefined", UNDEFINED,
-]);
-
 
 // ----------------------------------------------------------------------------
 // Object
@@ -38,12 +19,6 @@ utils.InstallConstants(global, [
 function ObjectToLocaleString() {
   CHECK_OBJECT_COERCIBLE(this, "Object.prototype.toLocaleString");
   return this.toString();
-}
-
-
-// ES6 19.1.3.7 Object.prototype.valueOf()
-function ObjectValueOf() {
-  return TO_OBJECT(this);
 }
 
 
@@ -84,38 +59,15 @@ function ObjectConstructor(x) {
 
 // Set up non-enumerable functions on the Object.prototype object.
 utils.InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
-  "toString", ObjectToString,
+  // toString is added in bootstrapper.cc
   "toLocaleString", ObjectToLocaleString,
-  "valueOf", ObjectValueOf,
+  // valueOf is added in bootstrapper.cc.
   "isPrototypeOf", ObjectIsPrototypeOf,
   // propertyIsEnumerable is added in bootstrapper.cc.
   // __defineGetter__ is added in bootstrapper.cc.
   // __lookupGetter__ is added in bootstrapper.cc.
   // __defineSetter__ is added in bootstrapper.cc.
   // __lookupSetter__ is added in bootstrapper.cc.
-]);
-
-
-// ----------------------------------------------------------------------------
-// Number
-
-utils.InstallConstants(GlobalNumber, [
-  // ECMA-262 section 15.7.3.1.
-  "MAX_VALUE", 1.7976931348623157e+308,
-  // ECMA-262 section 15.7.3.2.
-  "MIN_VALUE", 5e-324,
-  // ECMA-262 section 15.7.3.3.
-  "NaN", NaN,
-  // ECMA-262 section 15.7.3.4.
-  "NEGATIVE_INFINITY", -INFINITY,
-  // ECMA-262 section 15.7.3.5.
-  "POSITIVE_INFINITY", INFINITY,
-
-  // --- Harmony constants (no spec refs until settled.)
-
-  "MAX_SAFE_INTEGER", 9007199254740991,
-  "MIN_SAFE_INTEGER", -9007199254740991,
-  "EPSILON", 2.220446049250313e-16,
 ]);
 
 
@@ -143,11 +95,6 @@ function GetIterator(obj, method) {
 utils.Export(function(to) {
   to.GetIterator = GetIterator;
   to.GetMethod = GetMethod;
-  to.ObjectHasOwnProperty = GlobalObject.prototype.hasOwnProperty;
 });
-
-%InstallToContext([
-  "object_value_of", ObjectValueOf,
-]);
 
 })

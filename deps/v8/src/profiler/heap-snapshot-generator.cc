@@ -18,6 +18,7 @@
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/prototype.h"
 #include "src/transitions.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -269,6 +270,7 @@ HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
                                   size_t size,
                                   unsigned trace_node_id) {
   HeapEntry entry(this, type, name, id, size, trace_node_id);
+  DCHECK(sorted_entries_.is_empty());
   entries_.Add(entry);
   return &entries_.last();
 }
@@ -290,26 +292,15 @@ void HeapSnapshot::FillChildren() {
   }
 }
 
-
-class FindEntryById {
- public:
-  explicit FindEntryById(SnapshotObjectId id) : id_(id) { }
-  int operator()(HeapEntry* const* entry) {
-    if ((*entry)->id() == id_) return 0;
-    return (*entry)->id() < id_ ? -1 : 1;
-  }
- private:
-  SnapshotObjectId id_;
-};
-
-
 HeapEntry* HeapSnapshot::GetEntryById(SnapshotObjectId id) {
   List<HeapEntry*>* entries_by_id = GetSortedEntriesList();
-  // Perform a binary search by id.
-  int index = SortedListBSearch(*entries_by_id, FindEntryById(id));
-  if (index == -1)
-    return NULL;
-  return entries_by_id->at(index);
+
+  auto it = std::lower_bound(
+      entries_by_id->begin(), entries_by_id->end(), id,
+      [](HeapEntry* first, SnapshotObjectId val) { return first->id() < val; });
+
+  if (it == entries_by_id->end() || (*it)->id() != id) return NULL;
+  return *it;
 }
 
 
@@ -972,12 +963,12 @@ class IndexedReferencesExtractor : public ObjectVisitor {
         parent_end_(HeapObject::RawField(parent_obj_, parent_obj_->Size())),
         parent_(parent),
         next_index_(0) {}
-  void VisitCodeEntry(Address entry_address) override {
-     Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
-     generator_->SetInternalReference(parent_obj_, parent_, "code", code);
-     generator_->TagCodeObject(code);
+  void VisitCodeEntry(JSFunction* host, Address entry_address) override {
+    Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
+    generator_->SetInternalReference(parent_obj_, parent_, "code", code);
+    generator_->TagCodeObject(code);
   }
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
       int index = static_cast<int>(p - HeapObject::RawField(parent_obj_, 0));
       ++next_index_;
@@ -1299,7 +1290,14 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
     TagObject(constructor_or_backpointer, "(back pointer)");
     SetInternalReference(map, entry, "back_pointer", constructor_or_backpointer,
                          Map::kConstructorOrBackPointerOffset);
+  } else if (constructor_or_backpointer->IsFunctionTemplateInfo()) {
+    TagObject(constructor_or_backpointer, "(constructor function data)");
+    SetInternalReference(map, entry, "constructor_function_data",
+                         constructor_or_backpointer,
+                         Map::kConstructorOrBackPointerOffset);
   } else {
+    DCHECK(constructor_or_backpointer->IsJSFunction() ||
+           constructor_or_backpointer->IsNull(map->GetIsolate()));
     SetInternalReference(map, entry, "constructor", constructor_or_backpointer,
                          Map::kConstructorOrBackPointerOffset);
   }
@@ -1357,9 +1355,6 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry, "function_identifier",
                        shared->function_identifier(),
                        SharedFunctionInfo::kFunctionIdentifierOffset);
-  SetInternalReference(obj, entry,
-                       "optimized_code_map", shared->optimized_code_map(),
-                       SharedFunctionInfo::kOptimizedCodeMapOffset);
   SetInternalReference(obj, entry, "feedback_metadata",
                        shared->feedback_metadata(),
                        SharedFunctionInfo::kFeedbackMetadataOffset);
@@ -1655,11 +1650,11 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
 
 
 void V8HeapExplorer::ExtractInternalReferences(JSObject* js_obj, int entry) {
-  int length = js_obj->GetInternalFieldCount();
+  int length = js_obj->GetEmbedderFieldCount();
   for (int i = 0; i < length; ++i) {
-    Object* o = js_obj->GetInternalField(i);
-    SetInternalReference(
-        js_obj, entry, i, o, js_obj->GetInternalFieldOffset(i));
+    Object* o = js_obj->GetEmbedderField(i);
+    SetInternalReference(js_obj, entry, i, o,
+                         js_obj->GetEmbedderFieldOffset(i));
   }
 }
 
@@ -1678,8 +1673,7 @@ HeapEntry* V8HeapExplorer::GetEntry(Object* obj) {
   return filler_->FindOrAddEntry(obj, this);
 }
 
-
-class RootsReferencesExtractor : public ObjectVisitor {
+class RootsReferencesExtractor : public RootVisitor {
  private:
   struct IndexTag {
     IndexTag(int index, VisitorSynchronization::SyncTag tag)
@@ -1695,7 +1689,7 @@ class RootsReferencesExtractor : public ObjectVisitor {
         heap_(heap) {
   }
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
     if (collecting_all_references_) {
       for (Object** p = start; p < end; p++) all_references_.Add(*p);
     } else {
@@ -1708,6 +1702,7 @@ class RootsReferencesExtractor : public ObjectVisitor {
   void FillReferences(V8HeapExplorer* explorer) {
     DCHECK(strong_references_.length() <= all_references_.length());
     Builtins* builtins = heap_->isolate()->builtins();
+    USE(builtins);
     int strong_index = 0, all_index = 0, tags_index = 0, builtin_index = 0;
     while (all_index < all_references_.length()) {
       bool is_strong = strong_index < strong_references_.length()
@@ -2139,9 +2134,9 @@ void V8HeapExplorer::TagFixedArraySubType(const FixedArray* array,
   array_types_[array] = type;
 }
 
-class GlobalObjectsEnumerator : public ObjectVisitor {
+class GlobalObjectsEnumerator : public RootVisitor {
  public:
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
       if ((*p)->IsNativeContext()) {
         Context* context = Context::cast(*p);
@@ -2189,16 +2184,17 @@ void V8HeapExplorer::TagGlobalObjects() {
   DeleteArray(urls);
 }
 
-
-class GlobalHandlesExtractor : public ObjectVisitor {
+class GlobalHandlesExtractor : public PersistentHandleVisitor {
  public:
   explicit GlobalHandlesExtractor(NativeObjectsExplorer* explorer)
       : explorer_(explorer) {}
   ~GlobalHandlesExtractor() override {}
-  void VisitPointers(Object** start, Object** end) override { UNREACHABLE(); }
-  void VisitEmbedderReference(Object** p, uint16_t class_id) override {
-    explorer_->VisitSubtreeWrapper(p, class_id);
+  void VisitPersistentHandle(Persistent<Value>* value,
+                             uint16_t class_id) override {
+    Handle<Object> object = Utils::OpenPersistent(value);
+    explorer_->VisitSubtreeWrapper(object.location(), class_id);
   }
+
  private:
   NativeObjectsExplorer* explorer_;
 };

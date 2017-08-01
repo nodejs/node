@@ -14,10 +14,6 @@
 namespace v8 {
 namespace internal {
 
-namespace compiler {
-class CodeAssemblerState;
-}
-
 // Arguments object passed to C++ builtins.
 class BuiltinArguments : public Arguments {
  public:
@@ -105,31 +101,6 @@ class BuiltinArguments : public Arguments {
                                                                               \
   MUST_USE_RESULT static Object* Builtin_Impl_##name(BuiltinArguments args,   \
                                                      Isolate* isolate)
-
-// ----------------------------------------------------------------------------
-// Support macro for defining builtins with Turbofan.
-// ----------------------------------------------------------------------------
-//
-// A builtin function is defined by writing:
-//
-//   TF_BUILTIN(name, code_assember_base_class) {
-//     ...
-//   }
-//
-// In the body of the builtin function the arguments can be accessed
-// as "Parameter(n)".
-#define TF_BUILTIN(Name, AssemblerBase)                                 \
-  class Name##Assembler : public AssemblerBase {                        \
-   public:                                                              \
-    explicit Name##Assembler(compiler::CodeAssemblerState* state)       \
-        : AssemblerBase(state) {}                                       \
-    void Generate##Name##Impl();                                        \
-  };                                                                    \
-  void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) { \
-    Name##Assembler assembler(state);                                   \
-    assembler.Generate##Name##Impl();                                   \
-  }                                                                     \
-  void Name##Assembler::Generate##Name##Impl()
 
 // ----------------------------------------------------------------------------
 

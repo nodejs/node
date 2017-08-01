@@ -196,7 +196,7 @@ TEST(WeakSet_Regress2060a) {
 
   // Force compacting garbage collection.
   CHECK(FLAG_always_compact);
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 }
 
 
@@ -238,7 +238,7 @@ TEST(WeakSet_Regress2060b) {
   // Force compacting garbage collection. The subsequent collections are used
   // to verify that key references were actually updated.
   CHECK(FLAG_always_compact);
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
 }

@@ -167,8 +167,7 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2,
 void RawMachineAssembler::DebugBreak() { AddNode(machine()->DebugBreak()); }
 
 void RawMachineAssembler::Unreachable() {
-  Node* values[] = {UndefinedConstant()};  // Unused.
-  Node* ret = MakeNode(common()->Throw(), 1, values);
+  Node* ret = MakeNode(common()->Throw(), 0, nullptr);
   schedule()->AddThrow(CurrentBlock(), ret);
   current_block_ = nullptr;
 }
@@ -258,6 +257,26 @@ Node* RawMachineAssembler::CallCFunction3(MachineType return_type,
   return AddNode(common()->Call(descriptor), function, arg0, arg1, arg2);
 }
 
+Node* RawMachineAssembler::CallCFunction6(
+    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
+    MachineType arg5_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
+    Node* arg3, Node* arg4, Node* arg5) {
+  MachineSignature::Builder builder(zone(), 1, 6);
+  builder.AddReturn(return_type);
+  builder.AddParam(arg0_type);
+  builder.AddParam(arg1_type);
+  builder.AddParam(arg2_type);
+  builder.AddParam(arg3_type);
+  builder.AddParam(arg4_type);
+  builder.AddParam(arg5_type);
+  const CallDescriptor* descriptor =
+      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  return AddNode(common()->Call(descriptor), function, arg0, arg1, arg2, arg3,
+                 arg4, arg5);
+}
+
 Node* RawMachineAssembler::CallCFunction8(
     MachineType return_type, MachineType arg0_type, MachineType arg1_type,
     MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
@@ -280,6 +299,41 @@ Node* RawMachineAssembler::CallCFunction8(
   return AddNode(common()->Call(descriptor), arraysize(args), args);
 }
 
+Node* RawMachineAssembler::CallCFunction9(
+    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
+    MachineType arg5_type, MachineType arg6_type, MachineType arg7_type,
+    MachineType arg8_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
+    Node* arg3, Node* arg4, Node* arg5, Node* arg6, Node* arg7, Node* arg8) {
+  MachineSignature::Builder builder(zone(), 1, 9);
+  builder.AddReturn(return_type);
+  builder.AddParam(arg0_type);
+  builder.AddParam(arg1_type);
+  builder.AddParam(arg2_type);
+  builder.AddParam(arg3_type);
+  builder.AddParam(arg4_type);
+  builder.AddParam(arg5_type);
+  builder.AddParam(arg6_type);
+  builder.AddParam(arg7_type);
+  builder.AddParam(arg8_type);
+  Node* args[] = {function, arg0, arg1, arg2, arg3,
+                  arg4,     arg5, arg6, arg7, arg8};
+  const CallDescriptor* descriptor =
+      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+  return AddNode(common()->Call(descriptor), arraysize(args), args);
+}
+
+BasicBlock* RawMachineAssembler::Use(RawMachineLabel* label) {
+  label->used_ = true;
+  return EnsureBlock(label);
+}
+
+BasicBlock* RawMachineAssembler::EnsureBlock(RawMachineLabel* label) {
+  if (label->block_ == nullptr) {
+    label->block_ = schedule()->NewBasicBlock();
+  }
+  return label->block_;
+}
 
 void RawMachineAssembler::Bind(RawMachineLabel* label) {
   DCHECK(current_block_ == nullptr);
@@ -289,18 +343,29 @@ void RawMachineAssembler::Bind(RawMachineLabel* label) {
   current_block_->set_deferred(label->deferred_);
 }
 
-
-BasicBlock* RawMachineAssembler::Use(RawMachineLabel* label) {
-  label->used_ = true;
-  return EnsureBlock(label);
+#if DEBUG
+void RawMachineAssembler::Bind(RawMachineLabel* label,
+                               AssemblerDebugInfo info) {
+  if (current_block_ != nullptr) {
+    std::stringstream str;
+    str << "Binding label without closing previous block:"
+        << "\n#    label:          " << info
+        << "\n#    previous block: " << *current_block_;
+    FATAL(str.str().c_str());
+  }
+  Bind(label);
+  current_block_->set_debug_info(info);
 }
 
-
-BasicBlock* RawMachineAssembler::EnsureBlock(RawMachineLabel* label) {
-  if (label->block_ == nullptr) label->block_ = schedule()->NewBasicBlock();
-  return label->block_;
+void RawMachineAssembler::PrintCurrentBlock(std::ostream& os) {
+  os << CurrentBlock();
 }
 
+void RawMachineAssembler::SetInitialDebugInformation(
+    AssemblerDebugInfo debug_info) {
+  CurrentBlock()->set_debug_info(debug_info);
+}
+#endif  // DEBUG
 
 BasicBlock* RawMachineAssembler::CurrentBlock() {
   DCHECK(current_block_);

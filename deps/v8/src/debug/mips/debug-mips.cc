@@ -53,9 +53,17 @@ void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
   // to a call to the debug break slot code.
   //   li t9, address   (lui t9 / ori t9 instruction pair)
   //   call t9          (jalr t9 / nop instruction pair)
+
+  // Add a label for checking the size of the code used for returning.
+  Label check_codesize;
+  patcher.masm()->bind(&check_codesize);
   patcher.masm()->li(v8::internal::t9,
                      Operand(reinterpret_cast<int32_t>(code->entry())));
   patcher.masm()->Call(v8::internal::t9);
+
+  // Check that the size of the code generated is as expected.
+  DCHECK_EQ(Assembler::kDebugBreakSlotLength,
+            patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
 }
 
 bool DebugCodegen::DebugBreakSlotIsPatched(Address pc) {

@@ -149,16 +149,16 @@ struct Register {
     kCode_no_reg = -1
   };
 
-  static const int kNumRegisters = Code::kAfterLast;
+  static constexpr int kNumRegisters = Code::kAfterLast;
 
 #define REGISTER_COUNT(R) 1 +
-  static const int kNumAllocatable =
-      ALLOCATABLE_GENERAL_REGISTERS(REGISTER_COUNT)0;
+  static constexpr int kNumAllocatable =
+      ALLOCATABLE_GENERAL_REGISTERS(REGISTER_COUNT) 0;
 #undef REGISTER_COUNT
 
 #define REGISTER_BIT(R) 1 << kCode_##R |
-  static const RegList kAllocatable =
-      ALLOCATABLE_GENERAL_REGISTERS(REGISTER_BIT)0;
+  static constexpr RegList kAllocatable =
+      ALLOCATABLE_GENERAL_REGISTERS(REGISTER_BIT) 0;
 #undef REGISTER_BIT
 
   static Register from_code(int code) {
@@ -183,30 +183,30 @@ struct Register {
   }
 
 #if V8_TARGET_LITTLE_ENDIAN
-  static const int kMantissaOffset = 0;
-  static const int kExponentOffset = 4;
+  static constexpr int kMantissaOffset = 0;
+  static constexpr int kExponentOffset = 4;
 #else
-  static const int kMantissaOffset = 4;
-  static const int kExponentOffset = 0;
+  static constexpr int kMantissaOffset = 4;
+  static constexpr int kExponentOffset = 0;
 #endif
 
   // Unfortunately we can't make this private in a struct.
   int reg_code;
 };
 
-#define DECLARE_REGISTER(R) const Register R = {Register::kCode_##R};
-GENERAL_REGISTERS(DECLARE_REGISTER)
-#undef DECLARE_REGISTER
-const Register no_reg = {Register::kCode_no_reg};
+#define DEFINE_REGISTER(R) constexpr Register R = {Register::kCode_##R};
+GENERAL_REGISTERS(DEFINE_REGISTER)
+#undef DEFINE_REGISTER
+constexpr Register no_reg = {Register::kCode_no_reg};
 
 // Aliases
-const Register kLithiumScratch = r11;        // lithium scratch.
-const Register kConstantPoolRegister = r28;  // Constant pool.
-const Register kRootRegister = r29;          // Roots array pointer.
-const Register cp = r30;                     // JavaScript context pointer.
+constexpr Register kLithiumScratch = r11;        // lithium scratch.
+constexpr Register kConstantPoolRegister = r28;  // Constant pool.
+constexpr Register kRootRegister = r29;          // Roots array pointer.
+constexpr Register cp = r30;                     // JavaScript context pointer.
 
-static const bool kSimpleFPAliasing = true;
-static const bool kSimdMaskRegisters = false;
+constexpr bool kSimpleFPAliasing = true;
+constexpr bool kSimdMaskRegisters = false;
 
 // Double word FP register.
 struct DoubleRegister {
@@ -218,8 +218,8 @@ struct DoubleRegister {
     kCode_no_reg = -1
   };
 
-  static const int kNumRegisters = Code::kAfterLast;
-  static const int kMaxNumRegisters = kNumRegisters;
+  static constexpr int kNumRegisters = Code::kAfterLast;
+  static constexpr int kMaxNumRegisters = kNumRegisters;
 
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
@@ -245,19 +245,16 @@ typedef DoubleRegister FloatRegister;
 // TODO(ppc) Define SIMD registers.
 typedef DoubleRegister Simd128Register;
 
-#define DECLARE_REGISTER(R) \
-  const DoubleRegister R = {DoubleRegister::kCode_##R};
-DOUBLE_REGISTERS(DECLARE_REGISTER)
-#undef DECLARE_REGISTER
-const Register no_dreg = {Register::kCode_no_reg};
+#define DEFINE_REGISTER(R) \
+  constexpr DoubleRegister R = {DoubleRegister::kCode_##R};
+DOUBLE_REGISTERS(DEFINE_REGISTER)
+#undef DEFINE_REGISTER
+constexpr Register no_dreg = {Register::kCode_no_reg};
 
-// Aliases for double registers.  Defined using #define instead of
-// "static const DoubleRegister&" because Clang complains otherwise when a
-// compilation unit that includes this header doesn't use the variables.
-#define kFirstCalleeSavedDoubleReg d14
-#define kLastCalleeSavedDoubleReg d31
-#define kDoubleRegZero d14
-#define kScratchDoubleReg d13
+constexpr DoubleRegister kFirstCalleeSavedDoubleReg = d14;
+constexpr DoubleRegister kLastCalleeSavedDoubleReg = d31;
+constexpr DoubleRegister kDoubleRegZero = d14;
+constexpr DoubleRegister kScratchDoubleReg = d13;
 
 Register ToRegister(int num);
 
@@ -278,25 +275,24 @@ struct CRegister {
   int reg_code;
 };
 
+constexpr CRegister no_creg = {-1};
 
-const CRegister no_creg = {-1};
-
-const CRegister cr0 = {0};
-const CRegister cr1 = {1};
-const CRegister cr2 = {2};
-const CRegister cr3 = {3};
-const CRegister cr4 = {4};
-const CRegister cr5 = {5};
-const CRegister cr6 = {6};
-const CRegister cr7 = {7};
+constexpr CRegister cr0 = {0};
+constexpr CRegister cr1 = {1};
+constexpr CRegister cr2 = {2};
+constexpr CRegister cr3 = {3};
+constexpr CRegister cr4 = {4};
+constexpr CRegister cr5 = {5};
+constexpr CRegister cr6 = {6};
+constexpr CRegister cr7 = {7};
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
 #if V8_TARGET_ARCH_PPC64
-const RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE64;
+constexpr RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE64;
 #else
-const RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE32;
+constexpr RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE32;
 #endif
 
 // Class Operand represents a shifter operand in data processing instructions
@@ -401,7 +397,9 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size)
+      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
+  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
   virtual ~Assembler() {}
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -466,6 +464,7 @@ class Assembler : public AssemblerBase {
       ConstantPoolEntry::Type type));
 
   // Read/Modify the code target address in the branch/call instruction at pc.
+  // The isolate argument is unused (and may be nullptr) when skipping flushing.
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
@@ -495,7 +494,7 @@ class Assembler : public AssemblerBase {
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // Size of an instruction.
-  static const int kInstrSize = sizeof(Instr);
+  static constexpr int kInstrSize = sizeof(Instr);
 
   // Here we are patching the address in the LUI/ORI instruction pair.
   // These values are used in the serialization process and must be zero for
@@ -503,25 +502,25 @@ class Assembler : public AssemblerBase {
   // are split across two consecutive instructions and don't exist separately
   // in the code, so the serializer should not step forwards in memory after
   // a target is resolved and written.
-  static const int kSpecialTargetSize = 0;
+  static constexpr int kSpecialTargetSize = 0;
 
 // Number of instructions to load an address via a mov sequence.
 #if V8_TARGET_ARCH_PPC64
-  static const int kMovInstructionsConstantPool = 1;
-  static const int kMovInstructionsNoConstantPool = 5;
+  static constexpr int kMovInstructionsConstantPool = 1;
+  static constexpr int kMovInstructionsNoConstantPool = 5;
 #if defined(V8_PPC_TAGGING_OPT)
-  static const int kTaggedLoadInstructions = 1;
+  static constexpr int kTaggedLoadInstructions = 1;
 #else
-  static const int kTaggedLoadInstructions = 2;
+  static constexpr int kTaggedLoadInstructions = 2;
 #endif
 #else
-  static const int kMovInstructionsConstantPool = 1;
-  static const int kMovInstructionsNoConstantPool = 2;
-  static const int kTaggedLoadInstructions = 1;
+  static constexpr int kMovInstructionsConstantPool = 1;
+  static constexpr int kMovInstructionsNoConstantPool = 2;
+  static constexpr int kTaggedLoadInstructions = 1;
 #endif
-  static const int kMovInstructions = FLAG_enable_embedded_constant_pool
-                                          ? kMovInstructionsConstantPool
-                                          : kMovInstructionsNoConstantPool;
+  static constexpr int kMovInstructions = FLAG_enable_embedded_constant_pool
+                                              ? kMovInstructionsConstantPool
+                                              : kMovInstructionsNoConstantPool;
 
   // Distance between the instruction referring to the address of the call
   // target and the return address.
@@ -531,7 +530,7 @@ class Assembler : public AssemblerBase {
   // mtlr    r8
   // blrl
   //                      @ return address
-  static const int kCallTargetAddressOffset =
+  static constexpr int kCallTargetAddressOffset =
       (kMovInstructions + 2) * kInstrSize;
 
   // Distance between start of patched debug break slot and the emitted address
@@ -540,18 +539,155 @@ class Assembler : public AssemblerBase {
   //   mov r0, <address>
   //   mtlr r0
   //   blrl
-  static const int kPatchDebugBreakSlotAddressOffset = 0 * kInstrSize;
+  static constexpr int kPatchDebugBreakSlotAddressOffset = 0 * kInstrSize;
 
   // This is the length of the code sequence from SetDebugBreakAtSlot()
   // FIXED_SEQUENCE
-  static const int kDebugBreakSlotInstructions =
+  static constexpr int kDebugBreakSlotInstructions =
       kMovInstructionsNoConstantPool + 2;
-  static const int kDebugBreakSlotLength =
+  static constexpr int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
 
   static inline int encode_crbit(const CRegister& cr, enum CRBit crbit) {
     return ((cr.code() * CRWIDTH) + crbit);
   }
+
+#define DECLARE_PPC_X_INSTRUCTIONS_A_FORM(name, instr_name, instr_value)    \
+  inline void name(const Register rt, const Register ra,                    \
+                   const Register rb, const RCBit rc = LeaveRC) {           \
+    x_form(instr_name, rt, ra, rb, rc);                                     \
+  }
+
+#define DECLARE_PPC_X_INSTRUCTIONS_B_FORM(name, instr_name, instr_value)    \
+  inline void name(const Register ra, const Register rs,                    \
+                   const Register rb, const RCBit rc = LeaveRC) {           \
+    x_form(instr_name, rs, ra, rb, rc);                                     \
+  }
+
+#define DECLARE_PPC_X_INSTRUCTIONS_C_FORM(name, instr_name, instr_value)    \
+  inline void name(const Register dst, const Register src,                  \
+                   const RCBit rc = LeaveRC) {                              \
+    x_form(instr_name, src, dst, r0, rc);                                   \
+  }
+
+#define DECLARE_PPC_X_INSTRUCTIONS_D_FORM(name, instr_name, instr_value)    \
+  template <class R>                                                        \
+  inline void name(const R rt, const Register ra,                           \
+                   const Register rb, const RCBit rc = LeaveRC) {           \
+    DCHECK(!ra.is(r0));                                                     \
+    x_form(instr_name, rt.code(), ra.code(), rb.code(), rc);                \
+  }                                                                         \
+  template <class R>                                                        \
+  inline void name(const R dst, const MemOperand& src) {                    \
+    name(dst, src.ra(), src.rb());                                          \
+  }
+
+#define DECLARE_PPC_X_INSTRUCTIONS_E_FORM(name, instr_name, instr_value)    \
+  inline void name(const Register dst, const Register src,                  \
+                   const int sh, const RCBit rc = LeaveRC) {                \
+    x_form(instr_name, src.code(), dst.code(), sh, rc);                     \
+  }
+
+#define DECLARE_PPC_X_INSTRUCTIONS_F_FORM(name, instr_name, instr_value)    \
+  inline void name(const Register src1, const Register src2,                \
+                   const CRegister cr = cr7, const RCBit rc = LeaveRC) {    \
+    x_form(instr_name, cr, src1, src2, rc);                                 \
+  }                                                                         \
+  inline void name##w(const Register src1, const Register src2,             \
+                      const CRegister cr = cr7, const RCBit rc = LeaveRC) { \
+    x_form(instr_name, cr.code() * B2, src1.code(), src2.code(), LeaveRC);  \
+  }
+
+#define DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM(name, instr_name, instr_value) \
+  inline void name(const Register dst, const MemOperand& src) {             \
+    x_form(instr_name, src.ra(), dst, src.rb(), SetEH);                     \
+  }
+#define DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM(name, instr_name, instr_value) \
+  inline void name(const Register dst, const MemOperand& src) {             \
+    DCHECK(!src.ra_.is(r0));                                                \
+    x_form(instr_name, src.ra(), dst, src.rb(), SetEH);                     \
+  }
+
+  inline void x_form(Instr instr, int f1, int f2, int f3, int rc) {
+    emit(instr | f1 * B21 | f2 * B16 | f3 * B11 | rc);
+  }
+  inline void x_form(Instr instr, Register rs, Register ra, Register rb,
+                     RCBit rc) {
+    emit(instr | rs.code() * B21 | ra.code() * B16 | rb.code() * B11 | rc);
+  }
+  inline void x_form(Instr instr, Register ra, Register rs, Register rb,
+                     EHBit eh = SetEH) {
+    emit(instr | rs.code() * B21 | ra.code() * B16 | rb.code() * B11 | eh);
+  }
+  inline void x_form(Instr instr, CRegister cr, Register s1, Register s2,
+                     RCBit rc) {
+#if V8_TARGET_ARCH_PPC64
+    int L = 1;
+#else
+    int L = 0;
+#endif
+    emit(instr | cr.code() * B23 | L * B21 | s1.code() * B16 |
+         s2.code() * B11 | rc);
+  }
+
+  PPC_X_OPCODE_A_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_A_FORM)
+  PPC_X_OPCODE_B_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_B_FORM)
+  PPC_X_OPCODE_C_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_C_FORM)
+  PPC_X_OPCODE_D_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_D_FORM)
+  PPC_X_OPCODE_E_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_E_FORM)
+  PPC_X_OPCODE_F_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_F_FORM)
+  PPC_X_OPCODE_EH_S_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM)
+  PPC_X_OPCODE_EH_L_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM)
+
+  inline void notx(Register dst, Register src, RCBit rc = LeaveRC) {
+    nor(dst, src, src, rc);
+  }
+  inline void lwax(Register rt, const MemOperand& src) {
+#if V8_TARGET_ARCH_PPC64
+    Register ra = src.ra();
+    Register rb = src.rb();
+    DCHECK(!ra.is(r0));
+    x_form(LWAX, rt, ra, rb, LeaveRC);
+#else
+    lwzx(rt, src);
+#endif
+  }
+  inline void extsw(Register rs, Register ra, RCBit rc = LeaveRC) {
+#if V8_TARGET_ARCH_PPC64
+    emit(EXT2 | EXTSW | ra.code() * B21 | rs.code() * B16 | rc);
+#else
+    // nop on 32-bit
+    DCHECK(rs.is(ra) && rc == LeaveRC);
+#endif
+  }
+
+#undef DECLARE_PPC_X_INSTRUCTIONS_A_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_B_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_C_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_D_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_E_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_F_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM
+
+#define DECLARE_PPC_XX3_INSTRUCTIONS(name, instr_name, instr_value)  \
+  inline void name(const DoubleRegister rt, const DoubleRegister ra, \
+                   const DoubleRegister rb) {                        \
+    xx3_form(instr_name, rt, ra, rb);                                \
+  }
+
+  inline void xx3_form(Instr instr, DoubleRegister t, DoubleRegister a,
+                       DoubleRegister b) {
+    int AX = ((a.code() & 0x20) >> 5) & 0x1;
+    int BX = ((b.code() & 0x20) >> 5) & 0x1;
+    int TX = ((t.code() & 0x20) >> 5) & 0x1;
+
+    emit(instr | (t.code() & 0x1F) * B21 | (a.code() & 0x1F) * B16 |
+         (b.code() & 0x1F) * B11 | AX * B2 | BX * B1 | TX);
+  }
+
+  PPC_XX3_OPCODE_LIST(DECLARE_PPC_XX3_INSTRUCTIONS)
+#undef DECLARE_PPC_XX3_INSTRUCTIONS
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -831,26 +967,17 @@ class Assembler : public AssemblerBase {
             RCBit r = LeaveRC);
   void divwu(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
-  void modsw(Register rt, Register ra, Register rb);
-  void moduw(Register rt, Register ra, Register rb);
 
   void addi(Register dst, Register src, const Operand& imm);
   void addis(Register dst, Register src, const Operand& imm);
   void addic(Register dst, Register src, const Operand& imm);
 
-  void and_(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
-  void andc(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
   void andi(Register ra, Register rs, const Operand& imm);
   void andis(Register ra, Register rs, const Operand& imm);
-  void nor(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
-  void notx(Register dst, Register src, RCBit r = LeaveRC);
   void ori(Register dst, Register src, const Operand& imm);
   void oris(Register dst, Register src, const Operand& imm);
-  void orx(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
-  void orc(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
   void xori(Register dst, Register src, const Operand& imm);
   void xoris(Register ra, Register rs, const Operand& imm);
-  void xor_(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
   void cmpi(Register src1, const Operand& src2, CRegister cr = cr7);
   void cmpli(Register src1, const Operand& src2, CRegister cr = cr7);
   void cmpwi(Register src1, const Operand& src2, CRegister cr = cr7);
@@ -860,48 +987,22 @@ class Assembler : public AssemblerBase {
   void mr(Register dst, Register src);
 
   void lbz(Register dst, const MemOperand& src);
-  void lbzx(Register dst, const MemOperand& src);
-  void lbzux(Register dst, const MemOperand& src);
   void lhz(Register dst, const MemOperand& src);
-  void lhzx(Register dst, const MemOperand& src);
-  void lhzux(Register dst, const MemOperand& src);
   void lha(Register dst, const MemOperand& src);
-  void lhax(Register dst, const MemOperand& src);
   void lwz(Register dst, const MemOperand& src);
   void lwzu(Register dst, const MemOperand& src);
-  void lwzx(Register dst, const MemOperand& src);
-  void lwzux(Register dst, const MemOperand& src);
   void lwa(Register dst, const MemOperand& src);
-  void lwax(Register dst, const MemOperand& src);
-  void ldbrx(Register dst, const MemOperand& src);
-  void lwbrx(Register dst, const MemOperand& src);
-  void lhbrx(Register dst, const MemOperand& src);
   void stb(Register dst, const MemOperand& src);
-  void stbx(Register dst, const MemOperand& src);
-  void stbux(Register dst, const MemOperand& src);
   void sth(Register dst, const MemOperand& src);
-  void sthx(Register dst, const MemOperand& src);
-  void sthux(Register dst, const MemOperand& src);
   void stw(Register dst, const MemOperand& src);
   void stwu(Register dst, const MemOperand& src);
-  void stwx(Register rs, const MemOperand& src);
-  void stwux(Register rs, const MemOperand& src);
-
-  void extsb(Register rs, Register ra, RCBit r = LeaveRC);
-  void extsh(Register rs, Register ra, RCBit r = LeaveRC);
-  void extsw(Register rs, Register ra, RCBit r = LeaveRC);
-
   void neg(Register rt, Register ra, OEBit o = LeaveOE, RCBit c = LeaveRC);
 
 #if V8_TARGET_ARCH_PPC64
   void ld(Register rd, const MemOperand& src);
-  void ldx(Register rd, const MemOperand& src);
   void ldu(Register rd, const MemOperand& src);
-  void ldux(Register rd, const MemOperand& src);
   void std(Register rs, const MemOperand& src);
-  void stdx(Register rs, const MemOperand& src);
   void stdu(Register rs, const MemOperand& src);
-  void stdux(Register rs, const MemOperand& src);
   void rldic(Register dst, Register src, int sh, int mb, RCBit r = LeaveRC);
   void rldicl(Register dst, Register src, int sh, int mb, RCBit r = LeaveRC);
   void rldcl(Register ra, Register rs, Register rb, int mb, RCBit r = LeaveRC);
@@ -914,22 +1015,15 @@ class Assembler : public AssemblerBase {
   void clrldi(Register dst, Register src, const Operand& val,
               RCBit rc = LeaveRC);
   void sradi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
-  void srd(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
-  void sld(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
-  void srad(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
   void rotld(Register ra, Register rs, Register rb, RCBit r = LeaveRC);
   void rotldi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
   void rotrdi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
-  void cntlzd_(Register dst, Register src, RCBit rc = LeaveRC);
-  void popcntd(Register dst, Register src);
   void mulld(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
   void divd(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
             RCBit r = LeaveRC);
   void divdu(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
-  void modsd(Register rt, Register ra, Register rb);
-  void modud(Register rt, Register ra, Register rb);
 #endif
 
   void rlwinm(Register ra, Register rs, int sh, int mb, int me,
@@ -944,23 +1038,11 @@ class Assembler : public AssemblerBase {
               RCBit rc = LeaveRC);
   void clrlwi(Register dst, Register src, const Operand& val,
               RCBit rc = LeaveRC);
-  void srawi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
-  void srw(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
-  void slw(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
-  void sraw(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
   void rotlw(Register ra, Register rs, Register rb, RCBit r = LeaveRC);
   void rotlwi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
   void rotrwi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
 
-  void cntlzw_(Register dst, Register src, RCBit rc = LeaveRC);
-  void popcntw(Register dst, Register src);
-
   void subi(Register dst, Register src1, const Operand& src2);
-
-  void cmp(Register src1, Register src2, CRegister cr = cr7);
-  void cmpl(Register src1, Register src2, CRegister cr = cr7);
-  void cmpw(Register src1, Register src2, CRegister cr = cr7);
-  void cmplw(Register src1, Register src2, CRegister cr = cr7);
 
   void mov(Register dst, const Operand& src);
   void bitwise_mov(Register dst, intptr_t value);
@@ -1025,20 +1107,12 @@ class Assembler : public AssemblerBase {
   // Support for floating point
   void lfd(const DoubleRegister frt, const MemOperand& src);
   void lfdu(const DoubleRegister frt, const MemOperand& src);
-  void lfdx(const DoubleRegister frt, const MemOperand& src);
-  void lfdux(const DoubleRegister frt, const MemOperand& src);
   void lfs(const DoubleRegister frt, const MemOperand& src);
   void lfsu(const DoubleRegister frt, const MemOperand& src);
-  void lfsx(const DoubleRegister frt, const MemOperand& src);
-  void lfsux(const DoubleRegister frt, const MemOperand& src);
   void stfd(const DoubleRegister frs, const MemOperand& src);
   void stfdu(const DoubleRegister frs, const MemOperand& src);
-  void stfdx(const DoubleRegister frs, const MemOperand& src);
-  void stfdux(const DoubleRegister frs, const MemOperand& src);
   void stfs(const DoubleRegister frs, const MemOperand& src);
   void stfsu(const DoubleRegister frs, const MemOperand& src);
-  void stfsx(const DoubleRegister frs, const MemOperand& src);
-  void stfsux(const DoubleRegister frs, const MemOperand& src);
 
   void fadd(const DoubleRegister frt, const DoubleRegister fra,
             const DoubleRegister frb, RCBit rc = LeaveRC);
@@ -1101,17 +1175,6 @@ class Assembler : public AssemblerBase {
   void fmsub(const DoubleRegister frt, const DoubleRegister fra,
              const DoubleRegister frc, const DoubleRegister frb,
              RCBit rc = LeaveRC);
-
-  // Support for VSX instructions
-
-  void xsadddp(const DoubleRegister frt, const DoubleRegister fra,
-               const DoubleRegister frb);
-  void xssubdp(const DoubleRegister frt, const DoubleRegister fra,
-               const DoubleRegister frb);
-  void xsdivdp(const DoubleRegister frt, const DoubleRegister fra,
-               const DoubleRegister frb);
-  void xsmuldp(const DoubleRegister frt, const DoubleRegister fra,
-               const DoubleRegister frc);
 
   // Pseudo instructions
 
@@ -1365,13 +1428,18 @@ class Assembler : public AssemblerBase {
 
   bool is_trampoline_emitted() const { return trampoline_emitted_; }
 
- private:
   // Code generation
   // The relocation writer's position is at least kGap bytes below the end of
   // the generated instructions. This is so that multi-instruction sequences do
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
-  static const int kGap = 32;
+  static constexpr int kGap = 32;
+
+  RelocInfoWriter reloc_info_writer;
+
+ private:
+  // Avoid overflows for displacements etc.
+  static const int kMaximalBufferSize = 512 * MB;
 
   // Repeated checking whether the trampoline pool should be emitted is rather
   // expensive. By default we only check again once a number of instructions
@@ -1387,8 +1455,7 @@ class Assembler : public AssemblerBase {
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
-  static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
-  RelocInfoWriter reloc_info_writer;
+  static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   std::vector<DeferredRelocInfo> relocations_;
 
   // The bound position, before this we cannot do instruction elimination.
@@ -1412,11 +1479,8 @@ class Assembler : public AssemblerBase {
               DoubleRegister frb, RCBit r);
   void d_form(Instr instr, Register rt, Register ra, const intptr_t val,
               bool signed_disp);
-  void x_form(Instr instr, Register ra, Register rs, Register rb, RCBit r);
   void xo_form(Instr instr, Register rt, Register ra, Register rb, OEBit o,
                RCBit r);
-  void xx3_form(Instr instr, DoubleRegister t, DoubleRegister a,
-                DoubleRegister b);
   void md_form(Instr instr, Register ra, Register rs, int shift, int maskbit,
                RCBit r);
   void mds_form(Instr instr, Register ra, Register rs, Register rb, int maskbit,
@@ -1467,10 +1531,10 @@ class Assembler : public AssemblerBase {
   // trigger different mode of branch instruction generation, where we
   // no longer use a single branch instruction.
   bool trampoline_emitted_;
-  static const int kTrampolineSlotsSize = kInstrSize;
-  static const int kMaxCondBranchReach = (1 << (16 - 1)) - 1;
-  static const int kMaxBlockTrampolineSectionSize = 64 * kInstrSize;
-  static const int kInvalidSlotPos = -1;
+  static constexpr int kTrampolineSlotsSize = kInstrSize;
+  static constexpr int kMaxCondBranchReach = (1 << (16 - 1)) - 1;
+  static constexpr int kMaxBlockTrampolineSectionSize = 64 * kInstrSize;
+  static constexpr int kInvalidSlotPos = -1;
 
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
@@ -1487,6 +1551,15 @@ class EnsureSpace BASE_EMBEDDED {
  public:
   explicit EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 };
+
+class PatchingAssembler : public Assembler {
+ public:
+  PatchingAssembler(IsolateData isolate_data, byte* address, int instructions);
+  ~PatchingAssembler();
+
+  void FlushICache(Isolate* isolate);
+};
+
 }  // namespace internal
 }  // namespace v8
 
