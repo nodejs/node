@@ -12,9 +12,6 @@ var break_count;
 var num_wasm_scripts;
 var module;
 
-var filename = '(?:[^ ]+/)?test/mjsunit/wasm/asm-debug.js';
-filename = filename.replace(/\//g, '[/\\\\]');
-
 var expected_stack_entries = [];
 
 function listener(event, exec_state, event_data, data) {
@@ -28,16 +25,11 @@ function listener(event, exec_state, event_data, data) {
       print('Stack Trace (length ' + num_frames + '):');
       for (var i = 0; i < num_frames; ++i) {
         var frame = exec_state.frame(i);
-        var script = frame.script();
-        assertNotNull(script);
-        var line = frame.sourceLine() + 1;
+        var line = frame.sourceLine();
         var column = frame.sourceColumn() + 1;
         var funcName = frame.func().name();
-        var name = script.name();
         print(
-            '  [' + i + '] ' + funcName + ' (' + name + ':' + line + ':' +
-            column + ')');
-        assertMatches(filename, name, 'name');
+            '  [' + i + '] ' + funcName + ' (' + line + ':' + column + ')');
         assertEquals(
             expected_stack_entries[i][0], funcName, 'function name at ' + i);
         assertEquals(expected_stack_entries[i][1], line, 'line at ' + i);
@@ -76,14 +68,15 @@ function setup() {
   var fun =
       generateWasmFromAsmJs(this, {'call_debugger': call_debugger}, undefined);
   expected_stack_entries = [
-    ['call_debugger', 66, 3],    // --
-    ['callDebugger', 57, 5],     // --
-    ['redirectFun', 60, 5],      // --
-    ['FrameInspection', 86, 3],  // --
-    ['', 89, 3]
+    ['call_debugger', 58, 3],    // --
+    ['callDebugger', 49, 5],     // --
+    ['redirectFun', 52, 5],      // --
+    ['FrameInspection', 78, 3],  // --
+    ['', 82, 3]
   ];
   Debug.setListener(listener);
   fun();
   Debug.setListener(null);
   assertEquals(1, break_count);
+  if (exception) throw exception;
 })();

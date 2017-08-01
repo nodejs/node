@@ -14,6 +14,7 @@
 #include "src/snapshot/deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/version.h"
+#include "src/visitors.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -50,7 +51,7 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
 ScriptData* CodeSerializer::Serialize(Handle<HeapObject> obj) {
   DisallowHeapAllocation no_gc;
 
-  VisitPointer(Handle<Object>::cast(obj).location());
+  VisitRootPointer(Root::kHandleScope, Handle<Object>::cast(obj).location());
   SerializeDeferredObjects();
   Pad();
 
@@ -302,16 +303,17 @@ void WasmCompiledModuleSerializer::SerializeCodeObject(
     case Code::WASM_FUNCTION:
     case Code::JS_TO_WASM_FUNCTION:
       // Just serialize the code_object.
+      SerializeGeneric(code_object, how_to_code, where_to_point);
       break;
+    case Code::WASM_INTERPRETER_ENTRY:
     case Code::WASM_TO_JS_FUNCTION:
       // Serialize the illegal builtin instead. On instantiation of a
       // deserialized module, these will be replaced again.
-      code_object = *isolate()->builtins()->Illegal();
+      SerializeBuiltin(Builtins::kIllegal, how_to_code, where_to_point);
       break;
     default:
       UNREACHABLE();
   }
-  SerializeGeneric(code_object, how_to_code, where_to_point);
 }
 
 bool WasmCompiledModuleSerializer::ElideObject(Object* obj) {
@@ -387,6 +389,9 @@ SerializedCodeData::SerializedCodeData(const List<byte>* payload,
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
   SetHeaderValue(kPayloadLengthOffset, payload->length());
 
+  // Zero out any padding in the header.
+  memset(data_ + kUnalignedHeaderSize, 0, kHeaderSize - kUnalignedHeaderSize);
+
   // Copy reservation chunk sizes.
   CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
             reservation_size);
@@ -395,6 +400,7 @@ SerializedCodeData::SerializedCodeData(const List<byte>* payload,
   CopyBytes(data_ + kHeaderSize + reservation_size,
             reinterpret_cast<byte*>(stub_keys->begin()), stub_keys_size);
 
+  // Zero out any padding before the payload.
   memset(data_ + payload_offset, 0, padded_payload_offset - payload_offset);
 
   // Copy serialized data.
@@ -411,10 +417,14 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   if (this->size_ < kHeaderSize) return INVALID_HEADER;
   uint32_t magic_number = GetMagicNumber();
   if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
+  if (GetExtraReferences() > GetExtraReferences(isolate)) {
+    return MAGIC_NUMBER_MISMATCH;
+  }
   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
   uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
   uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);
   uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
+  uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
   uint32_t c1 = GetHeaderValue(kChecksum1Offset);
   uint32_t c2 = GetHeaderValue(kChecksum2Offset);
   if (version_hash != Version::Hash()) return VERSION_MISMATCH;
@@ -423,6 +433,12 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
     return CPU_FEATURES_MISMATCH;
   }
   if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
+  uint32_t max_payload_length =
+      this->size_ -
+      POINTER_SIZE_ALIGN(kHeaderSize +
+                         GetHeaderValue(kNumReservationsOffset) * kInt32Size +
+                         GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size);
+  if (payload_length > max_payload_length) return LENGTH_MISMATCH;
   if (!Checksum(DataWithoutHeader()).Check(c1, c2)) return CHECKSUM_MISMATCH;
   return CHECK_SUCCESS;
 }
@@ -470,7 +486,7 @@ Vector<const uint32_t> SerializedCodeData::CodeStubKeys() const {
 SerializedCodeData::SerializedCodeData(ScriptData* data)
     : SerializedData(const_cast<byte*>(data->data()), data->length()) {}
 
-const SerializedCodeData SerializedCodeData::FromCachedData(
+SerializedCodeData SerializedCodeData::FromCachedData(
     Isolate* isolate, ScriptData* cached_data, uint32_t expected_source_hash,
     SanityCheckResult* rejection_result) {
   DisallowHeapAllocation no_gc;

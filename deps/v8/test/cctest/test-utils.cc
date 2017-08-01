@@ -275,16 +275,7 @@ TEST(CPlusPlus11Features) {
   S s{true, {3.1415, {1, 2, 3}}};
   CHECK_EQ(2, s.t.z[1]);
 
-// TODO(svenpanne) Remove the old-skool code when we ship the new C++ headers.
-#if 0
   std::vector<int> vec{11, 22, 33, 44};
-#else
-  std::vector<int> vec;
-  vec.push_back(11);
-  vec.push_back(22);
-  vec.push_back(33);
-  vec.push_back(44);
-#endif
   vec.push_back(55);
   vec.push_back(66);
   for (auto& i : vec) {

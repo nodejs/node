@@ -27,7 +27,8 @@ struct MockIdleTask : public IdleTask {
 
 class DefaultPlatformWithMockTime : public DefaultPlatform {
  public:
-  DefaultPlatformWithMockTime() : time_(0) {}
+  DefaultPlatformWithMockTime()
+      : DefaultPlatform(IdleTaskSupport::kEnabled), time_(0) {}
   double MonotonicallyIncreasingTime() override { return time_; }
   void IncreaseTime(double seconds) { time_ += seconds; }
 

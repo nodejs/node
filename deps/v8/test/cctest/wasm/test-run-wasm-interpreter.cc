@@ -10,11 +10,11 @@
 
 #include "src/assembler-inl.h"
 #include "src/wasm/wasm-interpreter.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -197,7 +197,7 @@ TEST(Breakpoint_I32Add) {
     for (uint32_t b = 11; b < 3000000000u; b += 1000000000u) {
       thread->Reset();
       WasmVal args[] = {WasmVal(*a), WasmVal(b)};
-      thread->PushFrame(r.function(), args);
+      thread->InitFrame(r.function(), args);
 
       for (int i = 0; i < kNumBreakpoints; i++) {
         thread->Run();  // run to next breakpoint
@@ -232,7 +232,7 @@ TEST(Step_I32Mul) {
     for (uint32_t b = 33; b < 3000000000u; b += 1000000000u) {
       thread->Reset();
       WasmVal args[] = {WasmVal(*a), WasmVal(b)};
-      thread->PushFrame(r.function(), args);
+      thread->InitFrame(r.function(), args);
 
       // Run instructions one by one.
       for (int i = 0; i < kTraceLength - 1; i++) {
@@ -274,7 +274,7 @@ TEST(Breakpoint_I32And_disable) {
                                    do_break);
         thread->Reset();
         WasmVal args[] = {WasmVal(*a), WasmVal(b)};
-        thread->PushFrame(r.function(), args);
+        thread->InitFrame(r.function(), args);
 
         if (do_break) {
           thread->Run();  // run to next breakpoint
@@ -325,19 +325,11 @@ TEST(GrowMemoryPreservesData) {
 }
 
 TEST(GrowMemoryInvalidSize) {
-  {
-    // Grow memory by an invalid amount without initial memory.
-    WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
-    BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
-    CHECK_EQ(-1, r.Call(1048575));
-  }
-  {
-    // Grow memory by an invalid amount without initial memory.
-    WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
-    r.module().AddMemory(WasmModule::kPageSize);
-    BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
-    CHECK_EQ(-1, r.Call(1048575));
-  }
+  // Grow memory by an invalid amount without initial memory.
+  WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
+  r.module().AddMemory(WasmModule::kPageSize);
+  BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
+  CHECK_EQ(-1, r.Call(1048575));
 }
 
 TEST(TestPossibleNondeterminism) {
@@ -398,6 +390,44 @@ TEST(TestPossibleNondeterminism) {
     CHECK(r.possible_nondeterminism());
   }
 }
+
+TEST(WasmInterpreterActivations) {
+  WasmRunner<void> r(kExecuteInterpreted);
+  Isolate* isolate = r.main_isolate();
+  BUILD(r, WASM_NOP);
+
+  WasmInterpreter* interpreter = r.interpreter();
+  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
+  CHECK_EQ(0, thread->NumActivations());
+  uint32_t act0 = thread->StartActivation();
+  CHECK_EQ(0, act0);
+  thread->InitFrame(r.function(), nullptr);
+  uint32_t act1 = thread->StartActivation();
+  CHECK_EQ(1, act1);
+  thread->InitFrame(r.function(), nullptr);
+  CHECK_EQ(2, thread->NumActivations());
+  CHECK_EQ(2, thread->GetFrameCount());
+  isolate->set_pending_exception(Smi::kZero);
+  thread->HandleException(isolate);
+  CHECK_EQ(1, thread->GetFrameCount());
+  CHECK_EQ(2, thread->NumActivations());
+  thread->FinishActivation(act1);
+  CHECK_EQ(1, thread->GetFrameCount());
+  CHECK_EQ(1, thread->NumActivations());
+  thread->HandleException(isolate);
+  CHECK_EQ(0, thread->GetFrameCount());
+  CHECK_EQ(1, thread->NumActivations());
+  thread->FinishActivation(act0);
+  CHECK_EQ(0, thread->NumActivations());
+}
+
+TEST(InterpreterLoadWithoutMemory) {
+  WasmRunner<int32_t, int32_t> r(kExecuteInterpreted);
+  r.module().AddMemory(0);
+  BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0)));
+  CHECK_TRAP32(r.Call(0));
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

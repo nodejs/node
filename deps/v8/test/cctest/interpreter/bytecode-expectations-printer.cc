@@ -308,7 +308,7 @@ void BytecodeExpectationsPrinter::PrintBytecodeSequence(
          << "\nbytecodes: [\n";
 
   SourcePositionTableIterator source_iterator(
-      bytecode_array->source_position_table());
+      bytecode_array->SourcePositionTable());
   BytecodeArrayIterator bytecode_iterator(bytecode_array);
   for (; !bytecode_iterator.done(); bytecode_iterator.Advance()) {
     stream << kIndent;

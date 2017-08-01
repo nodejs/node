@@ -86,8 +86,7 @@ inline bool IsDictionaryElementsKind(ElementsKind kind) {
   return kind == DICTIONARY_ELEMENTS;
 }
 
-
-inline bool IsSloppyArgumentsElements(ElementsKind kind) {
+inline bool IsSloppyArgumentsElementsKind(ElementsKind kind) {
   return kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS ||
          kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
 }
@@ -149,6 +148,10 @@ inline bool IsFastSmiOrObjectElementsKind(ElementsKind kind) {
 inline bool IsFastSmiElementsKind(ElementsKind kind) {
   return kind == FAST_SMI_ELEMENTS ||
       kind == FAST_HOLEY_SMI_ELEMENTS;
+}
+
+inline bool IsFastNumberElementsKind(ElementsKind kind) {
+  return IsFastSmiElementsKind(kind) || IsFastDoubleElementsKind(kind);
 }
 
 

@@ -1,0 +1,11 @@
+Return break locations within function
+
+Running test: testTailCall
+[
+    [0] : {
+        columnNumber : 0
+        lineNumber : 6
+        scriptId : <scriptId>
+        type : return
+    }
+]

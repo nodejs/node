@@ -32,6 +32,9 @@ class FuzzerTestSuite(testsuite.TestSuite):
     for subtest in FuzzerTestSuite.SUB_TESTS:
       shell = 'v8_simple_%s_fuzzer' % subtest
       for fname in os.listdir(os.path.join(self.root, subtest)):
+        if subtest in ["wasm", "wasm_asmjs"] and fname.endswith(".wasm"):
+          os.remove(os.path.join(self.root, subtest, fname))
+          continue
         if not os.path.isfile(os.path.join(self.root, subtest, fname)):
           continue
         test = testcase.TestCase(self, '%s/%s' % (subtest, fname),

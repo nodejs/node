@@ -5,6 +5,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "include/v8.h"
+#include "src/api.h"
+#include "src/handles.h"
+#include "src/objects-inl.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -92,6 +95,24 @@ TEST_F(RemoteObjectTest, TypeOfRemoteObject) {
       constructor_template->NewRemoteInstance().ToLocalChecked();
   String::Utf8Value result(remote_object->TypeOf(isolate()));
   EXPECT_STREQ("object", *result);
+}
+
+TEST_F(RemoteObjectTest, ClassOf) {
+  Local<FunctionTemplate> constructor_template =
+      FunctionTemplate::New(isolate(), Constructor);
+  constructor_template->InstanceTemplate()->SetAccessCheckCallbackAndHandler(
+      AccessCheck, NamedPropertyHandlerConfiguration(NamedGetter),
+      IndexedPropertyHandlerConfiguration());
+  constructor_template->SetClassName(
+      String::NewFromUtf8(isolate(), "test_class", NewStringType::kNormal)
+          .ToLocalChecked());
+
+  Local<Object> remote_object =
+      constructor_template->NewRemoteInstance().ToLocalChecked();
+  Local<String> class_name = Utils::ToLocal(
+      i::handle(Utils::OpenHandle(*remote_object)->class_name(), i_isolate()));
+  String::Utf8Value result(class_name);
+  EXPECT_STREQ("test_class", *result);
 }
 
 }  // namespace v8

@@ -30,11 +30,18 @@ class TestMergeInfo(unittest.TestCase):
       raise Exception(err)
     return output
 
+  def _update_origin(self):
+    # Fetch from origin to get/update the origin/master branch
+    self._execute_git(['fetch', 'origin'])
+
   def setUp(self):
     if path.exists(self.base_dir):
       shutil.rmtree(self.base_dir)
 
     check_call(["git", "init", self.base_dir])
+
+    # Add fake remote with name 'origin'
+    self._execute_git(['remote', 'add', 'origin', self.base_dir])
 
     # Initial commit
     message = '''Initial commit'''
@@ -66,8 +73,12 @@ class TestMergeInfo(unittest.TestCase):
         ["log", "--format=%H", "--reverse"]).splitlines()
     return commits
 
+  def _get_branches(self, hash):
+    return mergeinfo.get_branches_for_commit(self.base_dir, hash)
+
   def _make_empty_commit(self, message):
     self._execute_git(["commit", "--allow-empty", "-m", message])
+    self._update_origin()
     return self._get_commits()[-1]
 
   def testCanDescribeCommit(self):
@@ -158,23 +169,41 @@ class TestMergeInfo(unittest.TestCase):
     self._execute_git(['branch', 'remotes/origin/lkgr'])
     hash_of_not_lkgr = self._make_empty_commit('This one is not yet lkgr')
 
-    self.assertTrue(mergeinfo.is_lkgr(
-      self.base_dir, hash_of_first_commit))
-    self.assertFalse(mergeinfo.is_lkgr(
-      self.base_dir, hash_of_not_lkgr))
+    branches = self._get_branches(hash_of_first_commit);
+    self.assertTrue(mergeinfo.is_lkgr(branches))
+    branches = self._get_branches(hash_of_not_lkgr);
+    self.assertFalse(mergeinfo.is_lkgr(branches))
 
   def testShowFirstCanary(self):
     commits = self._get_commits()
     hash_of_first_commit = commits[0]
 
-    self.assertEqual(mergeinfo.get_first_canary(
-      self.base_dir, hash_of_first_commit), 'No Canary coverage')
+    branches = self._get_branches(hash_of_first_commit);
+    self.assertEqual(mergeinfo.get_first_canary(branches), 'No Canary coverage')
 
     self._execute_git(['branch', 'remotes/origin/chromium/2345'])
     self._execute_git(['branch', 'remotes/origin/chromium/2346'])
 
-    self.assertEqual(mergeinfo.get_first_canary(
-      self.base_dir, hash_of_first_commit), '2345')
+    branches = self._get_branches(hash_of_first_commit);
+    self.assertEqual(mergeinfo.get_first_canary(branches), '2345')
+
+  def testFirstV8Version(self):
+    commits = self._get_commits()
+    hash_of_first_commit = commits[0]
+
+    self._execute_git(['branch', 'remotes/origin/chromium/2345'])
+    self._execute_git(['branch', 'remotes/origin/chromium/2346'])
+    branches = self._get_branches(hash_of_first_commit);
+    self.assertEqual(mergeinfo.get_first_v8_version(branches), '--')
+
+    self._execute_git(['branch', 'remotes/origin/5.7.1'])
+    self._execute_git(['branch', 'remotes/origin/5.8.1'])
+    branches = self._get_branches(hash_of_first_commit);
+    self.assertEqual(mergeinfo.get_first_v8_version(branches), '5.7.1')
+
+    self._execute_git(['branch', 'remotes/origin/5.6.1'])
+    branches = self._get_branches(hash_of_first_commit);
+    self.assertEqual(mergeinfo.get_first_v8_version(branches), '5.6.1')
 
 if __name__ == "__main__":
    unittest.main()

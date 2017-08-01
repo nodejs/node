@@ -38,8 +38,7 @@ namespace internal {
  * Each call to a public method should retain this convention.
  *
  * The stack will have the following structure:
- *  - fp[44]  Isolate* isolate   (address of the current isolate)
- *  - fp[40]  secondary link/return address used by native call.
+ *  - fp[40]  Isolate* isolate   (address of the current isolate)
  *  - fp[36]  lr save area (currently unused)
  *  - fp[32]  backchain    (currently unused)
  *  --- sp when called ---
@@ -81,16 +80,13 @@ namespace internal {
  *              Address start,
  *              Address end,
  *              int* capture_output_array,
+ *              int num_capture_registers,
  *              byte* stack_area_base,
- *              Address secondary_return_address,  // Only used by native call.
- *              bool direct_call = false)
+ *              bool direct_call = false,
+ *              Isolate* isolate);
  * The call is performed by NativeRegExpMacroAssembler::Execute()
  * (in regexp-macro-assembler.cc) via the CALL_GENERATED_REGEXP_CODE macro
  * in ppc/simulator-ppc.h.
- * When calling as a non-direct call (i.e., from C++ code), the return address
- * area is overwritten with the LR register by the RegExp code. When doing a
- * direct call from generated code, the return address is placed there by
- * the calling code, as in a normal exit frame.
  */
 
 #define __ ACCESS_MASM(masm_)
@@ -334,11 +330,11 @@ void RegExpMacroAssemblerPPC::CheckNotBackReferenceIgnoreCase(
       __ sub(r4, r4, r25);
     }
     // Isolate.
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
     if (unicode) {
       __ li(r6, Operand::Zero());
     } else  // NOLINT
-#endif      // V8_I18N_SUPPORT
+#endif      // V8_INTL_SUPPORT
     {
       __ mov(r6, Operand(ExternalReference::isolate_address(isolate())));
     }
@@ -387,7 +383,7 @@ void RegExpMacroAssemblerPPC::CheckNotBackReference(int start_reg,
     __ LoadP(r6, MemOperand(frame_pointer(), kStringStartMinusOne));
     __ add(r6, r6, r4);
     __ cmp(current_input_offset(), r6);
-    BranchOrBacktrack(lt, on_no_match);
+    BranchOrBacktrack(le, on_no_match);
   } else {
     __ add(r0, r4, current_input_offset(), LeaveOE, SetRC);
     BranchOrBacktrack(gt, on_no_match, cr0);

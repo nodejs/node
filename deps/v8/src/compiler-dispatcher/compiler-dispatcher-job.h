@@ -11,12 +11,13 @@
 #include "src/base/macros.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace internal {
 
 class AstValueFactory;
+class AstStringConstants;
 class CompilerDispatcherTracer;
 class CompilationInfo;
 class CompilationJob;
@@ -42,12 +43,28 @@ enum class CompileJobStatus {
   kDone,
 };
 
+class V8_EXPORT_PRIVATE CompileJobFinishCallback {
+ public:
+  virtual ~CompileJobFinishCallback() {}
+  virtual void ParseFinished(std::unique_ptr<ParseInfo> parse_info) = 0;
+};
+
 class V8_EXPORT_PRIVATE CompilerDispatcherJob {
  public:
   // Creates a CompilerDispatcherJob in the initial state.
   CompilerDispatcherJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
                         Handle<SharedFunctionInfo> shared,
                         size_t max_stack_size);
+  // TODO(wiktorg) document it better once I know how it relates to whole stuff
+  // Creates a CompilerDispatcherJob in ready to parse top-level function state.
+  CompilerDispatcherJob(CompilerDispatcherTracer* tracer, size_t max_stack_size,
+                        Handle<String> source, int start_position,
+                        int end_position, LanguageMode language_mode,
+                        int function_literal_id, bool native, bool module,
+                        bool is_named_expression, uint32_t hash_seed,
+                        AccountingAllocator* zone_allocator, int compiler_hints,
+                        const AstStringConstants* ast_string_constants,
+                        CompileJobFinishCallback* finish_callback);
   // Creates a CompilerDispatcherJob in the analyzed state.
   CompilerDispatcherJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
                         Handle<Script> script,
@@ -61,7 +78,10 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
 
   CompileJobStatus status() const { return status_; }
 
+  bool has_context() const { return !context_.is_null(); }
   Context* context() { return *context_; }
+
+  Handle<SharedFunctionInfo> shared() const { return shared_; }
 
   // Returns true if this CompilerDispatcherJob was created for the given
   // function.
@@ -70,7 +90,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   // Transition from kInitial to kReadyToParse.
   void PrepareToParseOnMainThread();
 
-  // Transition from kReadyToParse to kParsed.
+  // Transition from kReadyToParse to kParsed (or kDone if there is
+  // finish_callback).
   void Parse();
 
   // Transition from kParsed to kReadyToAnalyze (or kFailed). Returns false
@@ -114,6 +135,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   Handle<String> wrapper_;       // Global handle.
   std::unique_ptr<v8::String::ExternalStringResourceBase> source_wrapper_;
   size_t max_stack_size_;
+  CompileJobFinishCallback* finish_callback_ = nullptr;
 
   // Members required for parsing.
   std::unique_ptr<UnicodeCache> unicode_cache_;

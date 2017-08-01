@@ -681,23 +681,6 @@ static Handle<Object> GetFunctionPrototype(Isolate* isolate,
   return Handle<Object>(function->prototype(), isolate);
 }
 
-
-MUST_USE_RESULT static MaybeHandle<Object> SetFunctionPrototype(
-    Isolate* isolate, Handle<JSFunction> function, Handle<Object> value) {
-  JSFunction::SetPrototype(function, value);
-  DCHECK(function->prototype() == *value);
-  return function;
-}
-
-
-MaybeHandle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
-                                                    Handle<Object> prototype) {
-  DCHECK(function->IsConstructor());
-  Isolate* isolate = function->GetIsolate();
-  return SetFunctionPrototype(isolate, function, prototype);
-}
-
-
 void Accessors::FunctionPrototypeGetter(
     v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -719,11 +702,8 @@ void Accessors::FunctionPrototypeSetter(
   Handle<Object> value = Utils::OpenHandle(*val);
   Handle<JSFunction> object =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-  if (SetFunctionPrototype(isolate, object, value).is_null()) {
-    isolate->OptionalRescheduleException(false);
-  } else {
-    info.GetReturnValue().Set(true);
-  }
+  JSFunction::SetPrototype(object, value);
+  info.GetReturnValue().Set(true);
 }
 
 

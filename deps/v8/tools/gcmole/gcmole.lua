@@ -109,7 +109,7 @@ local function MakeClangCommandLine(
       .. " -Xclang -triple -Xclang " .. triple
       .. " -D" .. arch_define
       .. " -DENABLE_DEBUGGER_SUPPORT"
-      .. " -DV8_I18N_SUPPORT"
+      .. " -DV8_INTL_SUPPORT"
       .. " -I./"
       .. " -Iinclude/"
       .. " -Ithird_party/icu/source/common"

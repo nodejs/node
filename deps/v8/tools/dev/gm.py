@@ -37,7 +37,7 @@ MODES = ["release", "debug", "optdebug"]
 # Modes that get built/run when you don't specify any.
 DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
-TARGETS = ["d8", "cctest", "unittests", "v8_fuzzers"]
+TARGETS = ["d8", "cctest", "unittests", "v8_fuzzers", "mkgrokdump"]
 # Build targets that get built when you don't specify any (and specified tests
 # don't imply any other targets).
 DEFAULT_TARGETS = ["d8"]
@@ -80,8 +80,16 @@ TESTSUITES_TARGETS = {"benchmarks": "d8",
 
 OUTDIR = "out"
 
-IS_GOMA_MACHINE = (os.path.exists(os.path.expanduser("~/goma")) or
-                   os.environ.get('GOMADIR'))
+def DetectGoma():
+  home_goma = os.path.expanduser("~/goma")
+  if os.path.exists(home_goma):
+    return home_goma
+  if os.environ.get("GOMADIR"):
+    return os.environ.get("GOMADIR")
+  return None
+
+GOMADIR = DetectGoma()
+IS_GOMA_MACHINE = GOMADIR is not None
 
 USE_GOMA = "true" if IS_GOMA_MACHINE else "false"
 BUILD_OPTS = BUILD_OPTS_GOMA if IS_GOMA_MACHINE else BUILD_OPTS_DEFAULT
@@ -98,7 +106,6 @@ v8_enable_verify_heap = true
 """.replace("{GOMA}", USE_GOMA)
 
 DEBUG_ARGS_TEMPLATE = """\
-gdb_index = true
 is_component_build = true
 is_debug = true
 symbol_level = 2
@@ -110,7 +117,6 @@ v8_optimized_debug = false
 """.replace("{GOMA}", USE_GOMA)
 
 OPTDEBUG_ARGS_TEMPLATE = """\
-gdb_index = false
 is_component_build = true
 is_debug = true
 symbol_level = 1
@@ -136,10 +142,22 @@ def _Call(cmd, silent=False):
   if not silent: print("# %s" % cmd)
   return subprocess.call(cmd, shell=True)
 
+def _Which(cmd):
+  for path in os.environ["PATH"].split(os.pathsep):
+    if os.path.exists(os.path.join(path, cmd)):
+      return os.path.join(path, cmd)
+  return None
+
 def _Write(filename, content):
   print("# echo > %s << EOF\n%sEOF" % (filename, content))
   with open(filename, "w") as f:
     f.write(content)
+
+def _Notify(summary, body):
+  if _Which('notify-send') is not None:
+    _Call("notify-send '{}' '{}'".format(summary, body), silent=True)
+  else:
+    print("{} - {}".format(summary, body))
 
 def GetPath(arch, mode):
   subdir = "%s.%s" % (arch, mode)
@@ -158,7 +176,7 @@ class Config(object):
 
   def GetTargetCpu(self):
     cpu = "x86"
-    if self.arch.endswith("64") or self.arch == "s390x":
+    if "64" in self.arch or self.arch == "s390x":
       cpu = "x64"
     return "target_cpu = \"%s\"" % cpu
 
@@ -234,7 +252,11 @@ class ArgumentParser(object):
     targets = []
     actions = []
     tests = []
-    words = argstring.split('.')
+    # Specifying a single unit test looks like "unittests/Foo.Bar".
+    if argstring.startswith("unittests/"):
+      words = [argstring]
+    else:
+      words = argstring.split('.')
     if len(words) == 1:
       word = words[0]
       if word in ACTIONS:
@@ -286,16 +308,19 @@ def Main(argv):
   parser = ArgumentParser()
   configs = parser.ParseArguments(argv[1:])
   return_code = 0
+  # If we have Goma but it is not running, start it.
+  if (GOMADIR is not None and
+      _Call("ps -e | grep compiler_proxy > /dev/null", silent=True) != 0):
+    _Call("%s/goma_ctl.py ensure_start" % GOMADIR)
   for c in configs:
     return_code += configs[c].Build()
-  for c in configs:
-    return_code += configs[c].RunTests()
   if return_code == 0:
-    _Call("notify-send 'Done!' 'V8 compilation finished successfully.'",
-          silent=True)
+    for c in configs:
+      return_code += configs[c].RunTests()
+  if return_code == 0:
+    _Notify('Done!', 'V8 compilation finished successfully.')
   else:
-    _Call("notify-send 'Error!' 'V8 compilation finished with errors.'",
-          silent=True)
+    _Notify('Error!', 'V8 compilation finished with errors.')
   return return_code
 
 if __name__ == "__main__":

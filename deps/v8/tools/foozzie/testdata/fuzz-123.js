@@ -3,3 +3,4 @@
 // found in the LICENSE file.
 
 // Empty test dummy.
+print("js-mutation: start generated test case");

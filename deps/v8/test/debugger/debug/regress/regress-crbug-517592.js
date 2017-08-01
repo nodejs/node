@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --min-preparse-length=10
-
 var source =
   "var foo = function foo() {\n" +
   "  return 1;\n" +

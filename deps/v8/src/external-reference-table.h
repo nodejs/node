@@ -5,6 +5,8 @@
 #ifndef V8_EXTERNAL_REFERENCE_TABLE_H_
 #define V8_EXTERNAL_REFERENCE_TABLE_H_
 
+#include <vector>
+
 #include "src/address-map.h"
 
 namespace v8 {
@@ -18,11 +20,13 @@ class Isolate;
 class ExternalReferenceTable {
  public:
   static ExternalReferenceTable* instance(Isolate* isolate);
+  ~ExternalReferenceTable();
 
   uint32_t size() const { return static_cast<uint32_t>(refs_.length()); }
   Address address(uint32_t i) { return refs_[i].address; }
   const char* name(uint32_t i) { return refs_[i].name; }
   bool is_api_reference(uint32_t i) { return i >= api_refs_start_; }
+  uint32_t num_api_references() { return size() - api_refs_start_; }
 
 #ifdef DEBUG
   void increment_count(uint32_t i) { refs_[i].count++; }
@@ -31,9 +35,8 @@ class ExternalReferenceTable {
   void PrintCount();
 #endif  // DEBUG
 
-  static const char* ResolveSymbol(void* address);
-
-  static const int kDeoptTableSerializeEntryCount = 64;
+  static const char* ResolveSymbol(void* address,
+                                   std::vector<char**>* = nullptr);
 
  private:
   struct ExternalReferenceEntry {
@@ -61,10 +64,12 @@ class ExternalReferenceTable {
   void AddIsolateAddresses(Isolate* isolate);
   void AddAccessors(Isolate* isolate);
   void AddStubCache(Isolate* isolate);
-  void AddDeoptEntries(Isolate* isolate);
   void AddApiReferences(Isolate* isolate);
 
   List<ExternalReferenceEntry> refs_;
+#ifdef DEBUG
+  std::vector<char**> symbol_tables_;
+#endif
   uint32_t api_refs_start_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceTable);

@@ -199,7 +199,14 @@ const unsigned kFloatExponentBits = 8;
   V_(SysOp1, 18, 16, Bits)                              \
   V_(SysOp2, 7, 5, Bits)                                \
   V_(CRn, 15, 12, Bits)                                 \
-  V_(CRm, 11, 8, Bits)
+  V_(CRm, 11, 8, Bits)                                  \
+                                                        \
+  /* Load-/store-exclusive */                           \
+  V_(LoadStoreXLoad, 22, 22, Bits)                      \
+  V_(LoadStoreXNotExclusive, 23, 23, Bits)              \
+  V_(LoadStoreXAcquireRelease, 15, 15, Bits)            \
+  V_(LoadStoreXSizeLog2, 31, 30, Bits)                  \
+  V_(LoadStoreXPair, 21, 21, Bits)
 
 #define SYSTEM_REGISTER_FIELDS_LIST(V_, M_)                                    \
 /* NZCV */                                                                     \
@@ -857,7 +864,7 @@ enum LoadStoreRegisterOffset {
   #undef LOAD_STORE_REGISTER_OFFSET
 };
 
-// Load/store acquire/release
+// Load/store acquire/release.
 enum LoadStoreAcquireReleaseOp {
   LoadStoreAcquireReleaseFixed = 0x08000000,
   LoadStoreAcquireReleaseFMask = 0x3F000000,

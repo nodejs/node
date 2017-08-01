@@ -90,8 +90,6 @@ class Accessors : public AllStatic {
   };
 
   // Accessor functions called directly from the runtime system.
-  MUST_USE_RESULT static MaybeHandle<Object> FunctionSetPrototype(
-      Handle<JSFunction> object, Handle<Object> value);
   static Handle<JSObject> FunctionGetArguments(Handle<JSFunction> object);
 
   // Returns true for properties that are accessors to object fields.

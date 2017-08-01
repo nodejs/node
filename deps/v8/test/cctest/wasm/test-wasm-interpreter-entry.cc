@@ -4,13 +4,13 @@
 
 #include <cstdint>
 
+#include "src/assembler-inl.h"
 #include "src/objects-inl.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-objects.h"
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 using namespace v8::internal;
 using namespace v8::internal::wasm;
@@ -46,8 +46,9 @@ class ArgPassingHelper {
     std::vector<uint8_t> outer_code{bytes_outer_function};
     runner.Build(outer_code.data(), outer_code.data() + outer_code.size());
 
+    int funcs_to_redict[] = {static_cast<int>(inner_compiler.function_index())};
     WasmDebugInfo::RedirectToInterpreter(debug_info_,
-                                         inner_compiler.function_index());
+                                         ArrayVector(funcs_to_redict));
     main_fun_wrapper_ = runner.module().WrapCode(runner.function_index());
   }
 
@@ -87,6 +88,7 @@ static ArgPassingHelper<T> GetHelper(
 
 }  // namespace
 
+// Pass int32_t, return int32_t.
 TEST(TestArgumentPassing_int32) {
   WasmRunner<int32_t, int32_t> runner(kExecuteCompiled);
   WasmFunctionCompiler& f2 = runner.NewFunction<int32_t, int32_t>();
@@ -103,7 +105,8 @@ TEST(TestArgumentPassing_int32) {
   for (int32_t v : test_values) helper.CheckCall(v);
 }
 
-TEST(TestArgumentPassing_int64) {
+// Pass int64_t, return double.
+TEST(TestArgumentPassing_double_int64) {
   WasmRunner<double, int32_t, int32_t> runner(kExecuteCompiled);
   WasmFunctionCompiler& f2 = runner.NewFunction<double, int64_t>();
 
@@ -138,6 +141,27 @@ TEST(TestArgumentPassing_int64) {
   }
 }
 
+// Pass double, return int64_t.
+TEST(TestArgumentPassing_int64_double) {
+  // Outer function still returns double.
+  WasmRunner<double, double> runner(kExecuteCompiled);
+  WasmFunctionCompiler& f2 = runner.NewFunction<int64_t, double>();
+
+  auto helper = GetHelper(
+      runner, f2,
+      {// Return (int64_t)<0>.
+       WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0))},
+      {// Call f2 with param <0>, convert returned value back to double.
+       WASM_F64_SCONVERT_I64(WASM_SEQ(
+           WASM_GET_LOCAL(0), WASM_CALL_FUNCTION0(f2.function_index())))},
+      [](double d) { return d; });
+
+  for (int64_t i : compiler::ValueHelper::int64_vector()) {
+    helper.CheckCall(i);
+  }
+}
+
+// Pass float, return double.
 TEST(TestArgumentPassing_float_double) {
   WasmRunner<double, float> runner(kExecuteCompiled);
   WasmFunctionCompiler& f2 = runner.NewFunction<double, float>();
@@ -156,6 +180,7 @@ TEST(TestArgumentPassing_float_double) {
   for (float f : test_values) helper.CheckCall(f);
 }
 
+// Pass two doubles, return double.
 TEST(TestArgumentPassing_double_double) {
   WasmRunner<double, double, double> runner(kExecuteCompiled);
   WasmFunctionCompiler& f2 = runner.NewFunction<double, double, double>();
@@ -176,11 +201,13 @@ TEST(TestArgumentPassing_double_double) {
   }
 }
 
+// Pass int32_t, int64_t, float and double, return double.
 TEST(TestArgumentPassing_AllTypes) {
   // The second and third argument will be combined to an i64.
-  WasmRunner<double, int, int, int, float, double> runner(kExecuteCompiled);
+  WasmRunner<double, int32_t, int32_t, int32_t, float, double> runner(
+      kExecuteCompiled);
   WasmFunctionCompiler& f2 =
-      runner.NewFunction<double, int, int64_t, float, double>();
+      runner.NewFunction<double, int32_t, int64_t, float, double>();
 
   auto helper = GetHelper(
       runner, f2,

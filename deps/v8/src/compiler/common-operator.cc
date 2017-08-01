@@ -307,26 +307,6 @@ int OsrValueIndexOf(Operator const* op) {
   return OpParameter<int>(op);
 }
 
-size_t hash_value(OsrGuardType type) { return static_cast<size_t>(type); }
-
-std::ostream& operator<<(std::ostream& os, OsrGuardType type) {
-  switch (type) {
-    case OsrGuardType::kUninitialized:
-      return os << "Uninitialized";
-    case OsrGuardType::kSignedSmall:
-      return os << "SignedSmall";
-    case OsrGuardType::kAny:
-      return os << "Any";
-  }
-  UNREACHABLE();
-  return os;
-}
-
-OsrGuardType OsrGuardTypeOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kOsrGuard, op->opcode());
-  return OpParameter<OsrGuardType>(op);
-}
-
 SparseInputMask SparseInputMaskOf(Operator const* op) {
   DCHECK(op->opcode() == IrOpcode::kStateValues ||
          op->opcode() == IrOpcode::kTypedStateValues);
@@ -354,7 +334,7 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
   V(IfException, Operator::kKontrol, 0, 1, 1, 1, 1, 1)                        \
   V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
-  V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)                              \
+  V(Throw, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                              \
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                          \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)                    \
   V(OsrLoopEntry, Operator::kFoldable | Operator::kNoThrow, 0, 1, 1, 0, 1, 1) \
@@ -1010,14 +990,6 @@ const Operator* CommonOperatorBuilder::OsrValue(int index) {
       index);                                        // parameter
 }
 
-const Operator* CommonOperatorBuilder::OsrGuard(OsrGuardType type) {
-  return new (zone()) Operator1<OsrGuardType>(  // --
-      IrOpcode::kOsrGuard, Operator::kNoThrow,  // opcode
-      "OsrGuard",                               // name
-      1, 1, 1, 1, 1, 0,                         // counts
-      type);                                    // parameter
-}
-
 const Operator* CommonOperatorBuilder::Int32Constant(int32_t value) {
   return new (zone()) Operator1<int32_t>(         // --
       IrOpcode::kInt32Constant, Operator::kPure,  // opcode
@@ -1232,11 +1204,24 @@ const Operator* CommonOperatorBuilder::TypedStateValues(
       TypedStateValueInfo(types, bitmask));            // parameters
 }
 
-const Operator* CommonOperatorBuilder::ArgumentsObjectState() {
-  return new (zone()) Operator(                          // --
-      IrOpcode::kArgumentsObjectState, Operator::kPure,  // opcode
-      "ArgumentsObjectState",                            // name
-      0, 0, 0, 1, 0, 0);                                 // counts
+const Operator* CommonOperatorBuilder::ArgumentsElementsState(bool is_rest) {
+  return new (zone()) Operator1<bool>(                     // --
+      IrOpcode::kArgumentsElementsState, Operator::kPure,  // opcode
+      "ArgumentsElementsState",                            // name
+      0, 0, 0, 1, 0, 0, is_rest);                          // counts
+}
+
+const Operator* CommonOperatorBuilder::ArgumentsLengthState(bool is_rest) {
+  return new (zone()) Operator1<bool>(                   // --
+      IrOpcode::kArgumentsLengthState, Operator::kPure,  // opcode
+      "ArgumentsLengthState",                            // name
+      0, 0, 0, 1, 0, 0, is_rest);                        // counts
+}
+
+bool IsRestOf(Operator const* op) {
+  DCHECK(op->opcode() == IrOpcode::kArgumentsElementsState ||
+         op->opcode() == IrOpcode::kArgumentsLengthState);
+  return OpParameter<bool>(op);
 }
 
 const Operator* CommonOperatorBuilder::ObjectState(int pointer_slots) {

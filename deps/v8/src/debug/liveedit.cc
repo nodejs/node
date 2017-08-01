@@ -839,8 +839,6 @@ class DependentFunctionMarker: public OptimizedFunctionVisitor {
   explicit DependentFunctionMarker(SharedFunctionInfo* shared_info)
     : shared_info_(shared_info), found_(false) { }
 
-  virtual void EnterContext(Context* context) { }  // Don't care.
-  virtual void LeaveContext(Context* context)  { }  // Don't care.
   virtual void VisitFunction(JSFunction* function) {
     // It should be guaranteed by the iterator that everything is optimized.
     DCHECK(function->code()->kind() == Code::OPTIMIZED_FUNCTION);

@@ -2,7 +2,7 @@ Checks breakProgram,(schedule|cancel)PauseOnNextStatement test API
 
 Running test: testBreakProgram
 Stack:
-callBreakProgram (:9:2)
+callBreakProgram (:9:12)
 (anonymous) (:0:0)
 Other data:
 {

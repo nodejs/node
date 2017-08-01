@@ -55,6 +55,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
                                         IterationKind kind);
   Reduction ReduceTypedArrayIteratorNext(Handle<Map> iterator_map, Node* node,
                                          IterationKind kind);
+  Reduction ReduceArrayIsArray(Node* node);
   Reduction ReduceArrayPop(Node* node);
   Reduction ReduceArrayPush(Node* node);
   Reduction ReduceArrayShift(Node* node);
@@ -103,6 +104,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceObjectCreate(Node* node);
   Reduction ReduceStringCharAt(Node* node);
   Reduction ReduceStringCharCodeAt(Node* node);
+  Reduction ReduceStringConcat(Node* node);
   Reduction ReduceStringFromCharCode(Node* node);
   Reduction ReduceStringIndexOf(Node* node);
   Reduction ReduceStringIterator(Node* node);

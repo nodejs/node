@@ -54,9 +54,9 @@ bool CompilationInfo::has_shared_info() const {
 }
 
 CompilationInfo::CompilationInfo(Zone* zone, ParseInfo* parse_info,
-                                 Handle<JSFunction> closure)
+                                 Isolate* isolate, Handle<JSFunction> closure)
     : CompilationInfo(parse_info, {}, Code::ComputeFlags(Code::FUNCTION), BASE,
-                      parse_info->isolate(), zone) {
+                      isolate, zone) {
   closure_ = closure;
 
   // Compiling for the snapshot typically results in different code than
@@ -124,8 +124,7 @@ bool CompilationInfo::is_this_defined() const { return !IsStub(); }
 // profiler, so they trigger their own optimization when they're called
 // for the SharedFunctionInfo::kCallsUntilPrimitiveOptimization-th time.
 bool CompilationInfo::ShouldSelfOptimize() {
-  return FLAG_opt && FLAG_crankshaft &&
-         !(literal()->flags() & AstProperties::kDontSelfOptimize) &&
+  return FLAG_opt && !(literal()->flags() & AstProperties::kDontSelfOptimize) &&
          !literal()->dont_optimize() &&
          literal()->scope()->AllowsLazyCompilation() &&
          !shared_info()->optimization_disabled();

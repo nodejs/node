@@ -58,13 +58,6 @@ class TypeFeedbackOracle: public ZoneObject {
   void CollectReceiverTypes(FeedbackSlot slot, SmallMapList* types);
   void CollectReceiverTypes(FeedbackNexus* nexus, SmallMapList* types);
 
-  static bool IsRelevantFeedback(Map* map, Context* native_context) {
-    Object* constructor = map->GetConstructor();
-    return !constructor->IsJSFunction() ||
-           JSFunction::cast(constructor)->context()->native_context() ==
-               native_context;
-  }
-
   Handle<JSFunction> GetCallTarget(FeedbackSlot slot);
   Handle<AllocationSite> GetCallAllocationSite(FeedbackSlot slot);
   Handle<JSFunction> GetCallNewTarget(FeedbackSlot slot);
@@ -91,11 +84,6 @@ class TypeFeedbackOracle: public ZoneObject {
   Isolate* isolate() const { return isolate_; }
 
  private:
-  void CollectReceiverTypes(StubCache* stub_cache, FeedbackSlot slot,
-                            Handle<Name> name, SmallMapList* types);
-  void CollectReceiverTypes(StubCache* stub_cache, FeedbackNexus* nexus,
-                            Handle<Name> name, SmallMapList* types);
-
   // Returns true if there is at least one string map and if
   // all maps are string maps.
   bool HasOnlyStringMaps(SmallMapList* receiver_types);

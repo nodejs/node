@@ -1,9 +1,46 @@
 Test collecting code coverage data with Profiler.collectCoverage.
 
-Running test: testPreciseCoverage
+Running test: testPreciseCountBaseline
 {
     id : <messageId>
     result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : fib
+                        ranges : [
+                            [0] : {
+                                count : 15
+                                endOffset : 73
+                                startOffset : 1
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testPreciseCountBaseline
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+        ]
+    }
+}
+
+Running test: testPreciseCountCoverage
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 8
+            type : number
+            value : 8
+        }
     }
 }
 {
@@ -17,10 +54,8 @@ Running test: testPreciseCoverage
                         ranges : [
                             [0] : {
                                 count : 1
-                                endColumnNumber : 0
-                                endLineNumber : 9
-                                startColumnNumber : 0
-                                startLineNumber : 0
+                                endOffset : 221
+                                startOffset : 0
                             }
                         ]
                     }
@@ -29,28 +64,34 @@ Running test: testPreciseCoverage
                         ranges : [
                             [0] : {
                                 count : 15
-                                endColumnNumber : 1
-                                endLineNumber : 4
-                                startColumnNumber : 0
-                                startLineNumber : 1
+                                endOffset : 73
+                                startOffset : 1
                             }
                         ]
                     }
                     [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
                         functionName : iife
                         ranges : [
                             [0] : {
                                 count : 1
-                                endColumnNumber : 1
-                                endLineNumber : 7
-                                startColumnNumber : 1
-                                startLineNumber : 5
+                                endOffset : 208
+                                startOffset : 177
                             }
                         ]
                     }
                 ]
                 scriptId : <scriptId>
-                url : 1
+                url : testPreciseCountCoverage
             }
             [1] : {
                 functions : [
@@ -59,10 +100,8 @@ Running test: testPreciseCoverage
                         ranges : [
                             [0] : {
                                 count : 1
-                                endColumnNumber : 11
-                                endLineNumber : 0
-                                startColumnNumber : 0
-                                startLineNumber : 0
+                                endOffset : 38
+                                startOffset : 0
                             }
                         ]
                     }
@@ -77,66 +116,6 @@ Running test: testPreciseCoverage
     id : <messageId>
     result : {
         result : [
-            [0] : {
-                functions : [
-                    [0] : {
-                        functionName : 
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endColumnNumber : 0
-                                endLineNumber : 9
-                                startColumnNumber : 0
-                                startLineNumber : 0
-                            }
-                        ]
-                    }
-                    [1] : {
-                        functionName : fib
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endColumnNumber : 1
-                                endLineNumber : 4
-                                startColumnNumber : 0
-                                startLineNumber : 1
-                            }
-                        ]
-                    }
-                    [2] : {
-                        functionName : iife
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endColumnNumber : 1
-                                endLineNumber : 7
-                                startColumnNumber : 1
-                                startLineNumber : 5
-                            }
-                        ]
-                    }
-                ]
-                scriptId : <scriptId>
-                url : 1
-            }
-            [1] : {
-                functions : [
-                    [0] : {
-                        functionName : 
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endColumnNumber : 11
-                                endLineNumber : 0
-                                startColumnNumber : 0
-                                startLineNumber : 0
-                            }
-                        ]
-                    }
-                ]
-                scriptId : <scriptId>
-                url : 
-            }
         ]
     }
 }
@@ -186,7 +165,7 @@ Running test: testBestEffortCoverage
     }
 }
 
-Running test: testBestEffortCoveragePrecise
+Running test: testBestEffortCoverageWithPreciseBinaryEnabled
 {
     id : <messageId>
     result : {
@@ -208,10 +187,8 @@ Running test: testBestEffortCoveragePrecise
                         ranges : [
                             [0] : {
                                 count : 1
-                                endColumnNumber : 0
-                                endLineNumber : 9
-                                startColumnNumber : 0
-                                startLineNumber : 0
+                                endOffset : 221
+                                startOffset : 0
                             }
                         ]
                     }
@@ -219,29 +196,35 @@ Running test: testBestEffortCoveragePrecise
                         functionName : fib
                         ranges : [
                             [0] : {
-                                count : 15
-                                endColumnNumber : 1
-                                endLineNumber : 4
-                                startColumnNumber : 0
-                                startLineNumber : 1
+                                count : 1
+                                endOffset : 73
+                                startOffset : 1
                             }
                         ]
                     }
                     [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
                         functionName : iife
                         ranges : [
                             [0] : {
                                 count : 1
-                                endColumnNumber : 1
-                                endLineNumber : 7
-                                startColumnNumber : 1
-                                startLineNumber : 5
+                                endOffset : 208
+                                startOffset : 177
                             }
                         ]
                     }
                 ]
                 scriptId : <scriptId>
-                url : 4
+                url : testBestEffortCoverageWithPreciseBinaryEnabled
             }
             [1] : {
                 functions : [
@@ -250,10 +233,8 @@ Running test: testBestEffortCoveragePrecise
                         ranges : [
                             [0] : {
                                 count : 1
-                                endColumnNumber : 11
-                                endLineNumber : 0
-                                startColumnNumber : 0
-                                startLineNumber : 0
+                                endOffset : 38
+                                startOffset : 0
                             }
                         ]
                     }
@@ -275,10 +256,8 @@ Running test: testBestEffortCoveragePrecise
                         ranges : [
                             [0] : {
                                 count : 1
-                                endColumnNumber : 0
-                                endLineNumber : 9
-                                startColumnNumber : 0
-                                startLineNumber : 0
+                                endOffset : 221
+                                startOffset : 0
                             }
                         ]
                     }
@@ -286,29 +265,35 @@ Running test: testBestEffortCoveragePrecise
                         functionName : fib
                         ranges : [
                             [0] : {
-                                count : 15
-                                endColumnNumber : 1
-                                endLineNumber : 4
-                                startColumnNumber : 0
-                                startLineNumber : 1
+                                count : 1
+                                endOffset : 73
+                                startOffset : 1
                             }
                         ]
                     }
                     [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
                         functionName : iife
                         ranges : [
                             [0] : {
                                 count : 1
-                                endColumnNumber : 1
-                                endLineNumber : 7
-                                startColumnNumber : 1
-                                startLineNumber : 5
+                                endOffset : 208
+                                startOffset : 177
                             }
                         ]
                     }
                 ]
                 scriptId : <scriptId>
-                url : 4
+                url : testBestEffortCoverageWithPreciseBinaryEnabled
             }
             [1] : {
                 functions : [
@@ -317,10 +302,536 @@ Running test: testBestEffortCoveragePrecise
                         ranges : [
                             [0] : {
                                 count : 1
-                                endColumnNumber : 11
-                                endLineNumber : 0
-                                startColumnNumber : 0
-                                startLineNumber : 0
+                                endOffset : 38
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 
+            }
+        ]
+    }
+}
+
+Running test: testBestEffortCoverageWithPreciseCountEnabled
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 8
+            type : number
+            value : 8
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 221
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : fib
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 73
+                                startOffset : 1
+                            }
+                        ]
+                    }
+                    [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
+                        functionName : iife
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 208
+                                startOffset : 177
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testBestEffortCoverageWithPreciseCountEnabled
+            }
+            [1] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 38
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 221
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : fib
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 73
+                                startOffset : 1
+                            }
+                        ]
+                    }
+                    [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
+                        functionName : iife
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 208
+                                startOffset : 177
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testBestEffortCoverageWithPreciseCountEnabled
+            }
+            [1] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 38
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 
+            }
+        ]
+    }
+}
+
+Running test: testEnablePreciseCountCoverageAtPause
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 114
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : g
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 29
+                                startOffset : 1
+                            }
+                        ]
+                    }
+                    [2] : {
+                        functionName : f
+                        ranges : [
+                            [0] : {
+                                count : 4
+                                endOffset : 83
+                                startOffset : 30
+                            }
+                        ]
+                    }
+                    [3] : {
+                        functionName : h
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 107
+                                startOffset : 84
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testEnablePreciseCountCoverageAtPause
+            }
+            [1] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 38
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 
+            }
+        ]
+    }
+}
+
+Running test: testPreciseBinaryCoverage
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 8
+            type : number
+            value : 8
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 221
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : fib
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 73
+                                startOffset : 1
+                            }
+                        ]
+                    }
+                    [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
+                        functionName : iife
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 208
+                                startOffset : 177
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testPreciseBinaryCoverage
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : unoptimized
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 10946
+            type : number
+            value : 10946
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : optimized
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testPreciseBinaryCoverage
+            }
+            [1] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 17
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 
+            }
+            [2] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 7
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 
+            }
+        ]
+    }
+}
+
+Running test: testPreciseEmptyScriptCoverageEntries
+{
+    id : <messageId>
+    result : {
+        result : [
+        ]
+    }
+}
+
+Running test: testPreciseCountCoveragePartial
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 238
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : outer
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 224
+                                startOffset : 10
+                            }
+                        ]
+                    }
+                    [2] : {
+                        functionName : nested_0
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 176
+                                startOffset : 31
+                            }
+                        ]
+                    }
+                    [3] : {
+                        functionName : nested_1
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 172
+                                startOffset : 64
+                            }
+                        ]
+                    }
+                    [4] : {
+                        functionName : nested_2
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 166
+                                startOffset : 99
+                            }
+                        ]
+                    }
+                    [5] : {
+                        functionName : nested_3
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 158
+                                startOffset : 136
+                            }
+                        ]
+                    }
+                    [6] : {
+                        functionName : nested_4
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 201
+                                startOffset : 179
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testPreciseCountCoveragePartial
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : nested_1
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 172
+                                startOffset : 64
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : nested_2
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 166
+                                startOffset : 99
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testPreciseCountCoveragePartial
+            }
+            [1] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 3
+                                startOffset : 0
                             }
                         ]
                     }

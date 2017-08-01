@@ -1,3 +1,4 @@
+Tests that blackboxed ranges are respected while stepping
 foo: 8:4
 blackboxedBoo: 3:12
 notBlackboxedFoo: 3:12
@@ -52,3 +53,4 @@ notBlackboxedFoo: 3:12
 blackboxedFoo: 10:12
 notBlackboxedBoo: 17:12
 testFunction: 3:4
+

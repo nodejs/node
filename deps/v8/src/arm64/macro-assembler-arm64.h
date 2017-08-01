@@ -162,12 +162,32 @@ enum CopyHint { kCopyUnknown, kCopyShort, kCopyLong };
 enum DiscardMoveMode { kDontDiscardForSameWReg, kDiscardForSameWReg };
 enum SeqStringSetCharCheckIndexType { kIndexIsSmi, kIndexIsInteger32 };
 
+// The macro assembler supports moving automatically pre-shifted immediates for
+// arithmetic and logical instructions, and then applying a post shift in the
+// instruction to undo the modification, in order to reduce the code emitted for
+// an operation. For example:
+//
+//  Add(x0, x0, 0x1f7de) => movz x16, 0xfbef; add x0, x0, x16, lsl #1.
+//
+// This optimisation can be only partially applied when the stack pointer is an
+// operand or destination, so this enumeration is used to control the shift.
+enum PreShiftImmMode {
+  kNoShift,          // Don't pre-shift.
+  kLimitShiftForSP,  // Limit pre-shift for add/sub extend use.
+  kAnyShift          // Allow any pre-shift.
+};
+
 class MacroAssembler : public Assembler {
  public:
   MacroAssembler(Isolate* isolate, byte* buffer, unsigned buffer_size,
                  CodeObjectRequired create_code_object);
 
-  inline Handle<Object> CodeObject();
+  Isolate* isolate() const { return isolate_; }
+
+  Handle<Object> CodeObject() {
+    DCHECK(!code_object_.is_null());
+    return code_object_;
+  }
 
   // Instruction set functions ------------------------------------------------
   // Logical macros.
@@ -271,7 +291,8 @@ class MacroAssembler : public Assembler {
   // dst is not necessarily equal to imm; it may have had a shifting operation
   // applied to it that will be subsequently undone by the shift applied in the
   // Operand.
-  Operand MoveImmediateForShiftedOp(const Register& dst, int64_t imm);
+  Operand MoveImmediateForShiftedOp(const Register& dst, int64_t imm,
+                                    PreShiftImmMode mode);
 
   // Conditional macros.
   inline void Ccmp(const Register& rn,
@@ -672,7 +693,7 @@ class MacroAssembler : public Assembler {
 
   // This is a convenience method for pushing a single Handle<Object>.
   inline void Push(Handle<Object> handle);
-  void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
+  inline void Push(Smi* smi);
 
   // Aliases of Push and Pop, required for V8 compatibility.
   inline void push(Register src) {
@@ -872,14 +893,7 @@ class MacroAssembler : public Assembler {
 
   // Align csp for a frame, as per ActivationFrameAlignment, and make it the
   // current stack pointer.
-  inline void AlignAndSetCSPForFrame() {
-    int sp_alignment = ActivationFrameAlignment();
-    // AAPCS64 mandates at least 16-byte alignment.
-    DCHECK(sp_alignment >= 16);
-    DCHECK(base::bits::IsPowerOfTwo32(sp_alignment));
-    Bic(csp, StackPointer(), sp_alignment - 1);
-    SetStackPointer(csp);
-  }
+  inline void AlignAndSetCSPForFrame();
 
   // Push the system stack pointer (csp) down to allow the same to be done to
   // the current stack pointer (according to StackPointer()). This must be
@@ -923,23 +937,15 @@ class MacroAssembler : public Assembler {
 
   void LoadHeapObject(Register dst, Handle<HeapObject> object);
 
-  void LoadObject(Register result, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      LoadHeapObject(result, Handle<HeapObject>::cast(object));
-    } else {
-      DCHECK(object->IsSmi());
-      Mov(result, Operand(object));
-    }
-  }
+  void LoadObject(Register result, Handle<Object> object);
 
   static int SafepointRegisterStackIndex(int reg_code);
 
   // This is required for compatibility with architecture independant code.
   // Remove if not needed.
-  inline void Move(Register dst, Register src) { Mov(dst, src); }
-  inline void Move(Register dst, Handle<Object> x) { LoadObject(dst, x); }
-  inline void Move(Register dst, Smi* src) { Mov(dst, src); }
+  void Move(Register dst, Register src);
+  void Move(Register dst, Handle<Object> x);
+  void Move(Register dst, Smi* src);
 
   void LoadInstanceDescriptors(Register map,
                                Register descriptors);
@@ -1004,37 +1010,24 @@ class MacroAssembler : public Assembler {
   inline void ObjectTag(Register tagged_obj, Register obj);
   inline void ObjectUntag(Register untagged_obj, Register obj);
 
-  // Abort execution if argument is not a name, enabled via --debug-code.
-  void AssertName(Register object);
-
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
 
   // Abort execution if argument is not a JSGeneratorObject,
   // enabled via --debug-code.
-  void AssertGeneratorObject(Register object);
+  void AssertGeneratorObject(Register object, Register suspend_flags);
 
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
 
-  // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
-  void AssertReceiver(Register object);
-
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object, Register scratch);
 
-  // Abort execution if argument is not a string, enabled via --debug-code.
-  void AssertString(Register object);
-
   // Abort execution if argument is not a positive or zero integer, enabled via
   // --debug-code.
   void AssertPositiveOrZero(Register value);
-
-  // Abort execution if argument is not a number (heap number or smi).
-  void AssertNumber(Register value);
-  void AssertNotNumber(Register value);
 
   void JumpIfHeapNumber(Register object, Label* on_heap_number,
                         SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);
@@ -1112,7 +1105,7 @@ class MacroAssembler : public Assembler {
   // ---- Calling / Jumping helpers ----
 
   // This is required for compatibility in architecture indepenedant code.
-  inline void jmp(Label* L) { B(L); }
+  inline void jmp(Label* L);
 
   void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
   void TailCallStub(CodeStub* stub);
@@ -1445,16 +1438,6 @@ class MacroAssembler : public Assembler {
                 Label* fail,
                 SmiCheckType smi_check_type);
 
-  // Check if the map of an object is equal to a specified weak map and branch
-  // to a specified target if equal. Skip the smi check if not required
-  // (object is known to be a heap object)
-  void DispatchWeakMap(Register obj, Register scratch1, Register scratch2,
-                       Handle<WeakCell> cell, Handle<Code> success,
-                       SmiCheckType smi_check_type);
-
-  // Compare the given value and the value of weak cell.
-  void CmpWeakValue(Register value, Handle<WeakCell> cell, Register scratch);
-
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
   // Load the value of the weak cell in the value register. Branch to the given
@@ -1484,13 +1467,6 @@ class MacroAssembler : public Assembler {
   void JumpIfNotRoot(const Register& obj,
                      Heap::RootListIndex index,
                      Label* if_not_equal);
-
-  // Load and check the instance type of an object for being a unique name.
-  // Loads the type into the second argument register.
-  // The object and type arguments can be the same register; in that case it
-  // will be overwritten with the type.
-  // Fall-through if the object was a string and jump on fail otherwise.
-  inline void IsObjectNameType(Register object, Register type, Label* fail);
 
   // Load and check the instance type of an object for being a string.
   // Loads the type into the second argument register.
@@ -1665,15 +1641,11 @@ class MacroAssembler : public Assembler {
   void PopSafepointRegistersAndDoubles();
 
   // Store value in register src in the safepoint stack slot for register dst.
-  void StoreToSafepointRegisterSlot(Register src, Register dst) {
-    Poke(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
-  }
+  void StoreToSafepointRegisterSlot(Register src, Register dst);
 
   // Load the value of the src register from its safepoint stack slot
   // into register dst.
-  void LoadFromSafepointRegisterSlot(Register dst, Register src) {
-    Peek(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
-  }
+  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   void CheckPageFlag(const Register& object, const Register& scratch, int mask,
                      Condition cc, Label* condition_met);
@@ -1808,7 +1780,6 @@ class MacroAssembler : public Assembler {
       Register reg,
       Heap::RootListIndex index,
       BailoutReason reason = kRegisterDidNotMatchExpectedRoot);
-  void AssertFastElements(Register elements);
 
   // Abort if the specified register contains the invalid color bit pattern.
   // The pattern must be in bits [1:0] of 'reg' register.
@@ -1922,8 +1893,8 @@ class MacroAssembler : public Assembler {
   void PushPreamble(Operand total_size);
   void PopPostamble(Operand total_size);
 
-  void PushPreamble(int count, int size) { PushPreamble(count * size); }
-  void PopPostamble(int count, int size) { PopPostamble(count * size); }
+  void PushPreamble(int count, int size);
+  void PopPostamble(int count, int size);
 
  private:
   // The actual Push and Pop implementations. These don't generate any code
@@ -1977,6 +1948,7 @@ class MacroAssembler : public Assembler {
   bool allow_macro_instructions_;
 #endif
   bool has_frame_;
+  Isolate* isolate_;
 
   // The Abort method should call a V8 runtime function, but the CallRuntime
   // mechanism depends on CEntryStub. If use_real_aborts is false, Abort will
@@ -2118,15 +2090,8 @@ class UseScratchRegisterScope {
   RegList old_availablefp_;   // kFPRegister
 };
 
-
-inline MemOperand ContextMemOperand(Register context, int index = 0) {
-  return MemOperand(context, Context::SlotOffset(index));
-}
-
-inline MemOperand NativeContextMemOperand() {
-  return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
-}
-
+MemOperand ContextMemOperand(Register context, int index = 0);
+MemOperand NativeContextMemOperand();
 
 // Encode and decode information about patchable inline SMI checks.
 class InlineSmiCheckInfo {

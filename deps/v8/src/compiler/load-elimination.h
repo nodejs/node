@@ -8,6 +8,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/globals.h"
+#include "src/machine-type.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {
@@ -78,19 +79,23 @@ class V8_EXPORT_PRIVATE LoadElimination final
         elements_[i] = Element();
       }
     }
-    AbstractElements(Node* object, Node* index, Node* value, Zone* zone)
+    AbstractElements(Node* object, Node* index, Node* value,
+                     MachineRepresentation representation, Zone* zone)
         : AbstractElements(zone) {
-      elements_[next_index_++] = Element(object, index, value);
+      elements_[next_index_++] = Element(object, index, value, representation);
     }
 
     AbstractElements const* Extend(Node* object, Node* index, Node* value,
+                                   MachineRepresentation representation,
                                    Zone* zone) const {
       AbstractElements* that = new (zone) AbstractElements(*this);
-      that->elements_[that->next_index_] = Element(object, index, value);
+      that->elements_[that->next_index_] =
+          Element(object, index, value, representation);
       that->next_index_ = (that->next_index_ + 1) % arraysize(elements_);
       return that;
     }
-    Node* Lookup(Node* object, Node* index) const;
+    Node* Lookup(Node* object, Node* index,
+                 MachineRepresentation representation) const;
     AbstractElements const* Kill(Node* object, Node* index, Zone* zone) const;
     bool Equals(AbstractElements const* that) const;
     AbstractElements const* Merge(AbstractElements const* that,
@@ -101,12 +106,17 @@ class V8_EXPORT_PRIVATE LoadElimination final
    private:
     struct Element {
       Element() {}
-      Element(Node* object, Node* index, Node* value)
-          : object(object), index(index), value(value) {}
+      Element(Node* object, Node* index, Node* value,
+              MachineRepresentation representation)
+          : object(object),
+            index(index),
+            value(value),
+            representation(representation) {}
 
       Node* object = nullptr;
       Node* index = nullptr;
       Node* value = nullptr;
+      MachineRepresentation representation = MachineRepresentation::kNone;
     };
 
     Element elements_[kMaxTrackedElements];
@@ -224,10 +234,12 @@ class V8_EXPORT_PRIVATE LoadElimination final
     Node* LookupField(Node* object, size_t index) const;
 
     AbstractState const* AddElement(Node* object, Node* index, Node* value,
+                                    MachineRepresentation representation,
                                     Zone* zone) const;
     AbstractState const* KillElement(Node* object, Node* index,
                                      Zone* zone) const;
-    Node* LookupElement(Node* object, Node* index) const;
+    Node* LookupElement(Node* object, Node* index,
+                        MachineRepresentation representation) const;
 
     AbstractState const* AddCheck(Node* node, Zone* zone) const;
     Node* LookupCheck(Node* node) const;

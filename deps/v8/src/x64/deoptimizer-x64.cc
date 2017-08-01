@@ -30,29 +30,27 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
 
 
 void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
+  Address instruction_start = code->instruction_start();
   // Invalidate the relocation information, as it will become invalid by the
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
-  if (FLAG_zap_code_space) {
-    // Fail hard and early if we enter this code object again.
-    byte* pointer = code->FindCodeAgeSequence();
-    if (pointer != NULL) {
-      pointer += kNoCodeAgeSequenceLength;
-    } else {
-      pointer = code->instruction_start();
-    }
-    CodePatcher patcher(isolate, pointer, 1);
-    patcher.masm()->int3();
+  // Fail hard and early if we enter this code object again.
+  byte* pointer = code->FindCodeAgeSequence();
+  if (pointer != NULL) {
+    pointer += kNoCodeAgeSequenceLength;
+  } else {
+    pointer = code->instruction_start();
+  }
+  CodePatcher patcher(isolate, pointer, 1);
+  patcher.masm()->int3();
 
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
-    int osr_offset = data->OsrPcOffset()->value();
-    if (osr_offset > 0) {
-      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
-                              1);
-      osr_patcher.masm()->int3();
-    }
+  DeoptimizationInputData* data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  int osr_offset = data->OsrPcOffset()->value();
+  if (osr_offset > 0) {
+    CodePatcher osr_patcher(isolate, instruction_start + osr_offset, 1);
+    osr_patcher.masm()->int3();
   }
 
   // For each LLazyBailout instruction insert a absolute call to the
@@ -61,7 +59,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // before the safepoint table (space was allocated there when the Code
   // object was created, if necessary).
 
-  Address instruction_start = code->instruction_start();
 #ifdef DEBUG
   Address prev_call_address = NULL;
 #endif
@@ -125,6 +122,16 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ Movsd(Operand(rsp, offset), xmm_reg);
   }
 
+  const int kFloatRegsSize = kFloatSize * XMMRegister::kMaxNumRegisters;
+  __ subp(rsp, Immediate(kFloatRegsSize));
+
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    XMMRegister xmm_reg = XMMRegister::from_code(code);
+    int offset = code * kFloatSize;
+    __ Movss(Operand(rsp, offset), xmm_reg);
+  }
+
   // We push all registers onto the stack, even though we do not need
   // to restore all later.
   for (int i = 0; i < kNumberOfRegisters; i++) {
@@ -132,8 +139,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ pushq(r);
   }
 
-  const int kSavedRegistersAreaSize = kNumberOfRegisters * kRegisterSize +
-                                      kDoubleRegsSize;
+  const int kSavedRegistersAreaSize =
+      kNumberOfRegisters * kRegisterSize + kDoubleRegsSize + kFloatRegsSize;
 
   __ Store(ExternalReference(Isolate::kCEntryFPAddress, isolate()), rbp);
 
@@ -189,6 +196,16 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ PopQuad(Operand(rbx, offset));
   }
+
+  // Fill in the float input registers.
+  int float_regs_offset = FrameDescription::float_registers_offset();
+  for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    int src_offset = i * kFloatSize;
+    int dst_offset = i * kFloatSize + float_regs_offset;
+    __ movl(rcx, Operand(rsp, src_offset));
+    __ movl(Operand(rbx, dst_offset), rcx);
+  }
+  __ addp(rsp, Immediate(kFloatRegsSize));
 
   // Fill in the double input registers.
   int double_regs_offset = FrameDescription::double_registers_offset();

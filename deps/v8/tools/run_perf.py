@@ -732,7 +732,8 @@ class AndroidPlatform(Platform):  # pragma: no cover
   def PostExecution(self):
     perf = perf_control.PerfControl(self.device)
     perf.SetDefaultPerfMode()
-    self.device.RunShellCommand(["rm", "-rf", AndroidPlatform.DEVICE_DIR])
+    self.device.RemovePath(
+        AndroidPlatform.DEVICE_DIR, force=True, recursive=True)
 
   def _PushFile(self, host_dir, file_name, target_rel=".",
                 skip_if_missing=False):
@@ -784,7 +785,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
     )
     self._PushFile(
         shell_dir,
-        "snapshot_blob_ignition.bin",
+        "icudtl.dat",
         target_dir,
         skip_if_missing=True,
     )
@@ -830,6 +831,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
       output = self.device.RunShellCommand(
           cmd,
           cwd=os.path.join(AndroidPlatform.DEVICE_DIR, bench_rel),
+          check_return=True,
           timeout=runnable.timeout,
           retries=0,
       )
@@ -998,6 +1000,12 @@ def Main(args):
                     "'powersave' for more stable results, or 'performance' "
                     "for shorter completion time of suite, with potentially "
                     "more noise in results.")
+  parser.add_option("--filter",
+                    help="Only run the benchmarks beginning with this string. "
+                    "For example: "
+                    "--filter=JSTests/TypedArrays/ will run only TypedArray "
+                    "benchmarks from the JSTests suite.",
+                    default="")
 
   (options, args) = parser.parse_args(args)
 
@@ -1039,7 +1047,8 @@ def Main(args):
     if options.outdir_no_patch:
       print "specify either binary-override-path or outdir-no-patch"
       return 1
-    options.shell_dir = os.path.dirname(options.binary_override_path)
+    options.shell_dir = os.path.abspath(
+        os.path.dirname(options.binary_override_path))
     default_binary_name = os.path.basename(options.binary_override_path)
 
   if options.outdir_no_patch:
@@ -1047,6 +1056,17 @@ def Main(args):
         workspace, options.outdir_no_patch, build_config)
   else:
     options.shell_dir_no_patch = None
+
+  if options.json_test_results:
+    options.json_test_results = os.path.abspath(options.json_test_results)
+
+  if options.json_test_results_no_patch:
+    options.json_test_results_no_patch = os.path.abspath(
+        options.json_test_results_no_patch)
+
+  # Ensure all arguments have absolute path before we start changing current
+  # directory.
+  args = map(os.path.abspath, args)
 
   prev_aslr = None
   prev_cpu_gov = None
@@ -1057,8 +1077,6 @@ def Main(args):
   with CustomMachineConfiguration(governor = options.cpu_governor,
                                   disable_aslr = options.noaslr) as conf:
     for path in args:
-      path = os.path.abspath(path)
-
       if not os.path.exists(path):  # pragma: no cover
         results.errors.append("Configuration file %s does not exist." % path)
         continue
@@ -1080,9 +1098,12 @@ def Main(args):
       def NodeCB(node):
         platform.PreTests(node, path)
 
-      # Traverse graph/trace tree and interate over all runnables.
+      # Traverse graph/trace tree and iterate over all runnables.
       for runnable in FlattenRunnables(root, NodeCB):
-        print ">>> Running suite: %s" % "/".join(runnable.graphs)
+        runnable_name = "/".join(runnable.graphs)
+        if not runnable_name.startswith(options.filter):
+          continue
+        print ">>> Running suite: %s" % runnable_name
 
         def Runner():
           """Output generator that reruns several times."""

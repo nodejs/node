@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler.h"
+#include "src/assembler-inl.h"
 #include "src/macro-assembler.h"
 
 #include "src/compiler/linkage.h"
@@ -155,6 +155,8 @@ LinkageLocation regloc(Register reg, MachineType type) {
 // General code uses the above configuration data.
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(
     Zone* zone, const MachineSignature* msig, bool set_initialize_root_flag) {
+  DCHECK_LE(msig->parameter_count(), static_cast<size_t>(kMaxCParameters));
+
   LocationSignature::Builder locations(zone, msig->return_count(),
                                        msig->parameter_count());
   // Check the types of the signature.

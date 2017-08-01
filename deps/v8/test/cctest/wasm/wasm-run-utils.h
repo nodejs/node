@@ -13,8 +13,7 @@
 #include <memory>
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/zone/accounting-allocator.h"
-
+#include "src/code-stubs.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
@@ -23,11 +22,12 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/zone-stats.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -75,16 +75,10 @@ class TestingModule : public ModuleEnv {
  public:
   explicit TestingModule(Zone* zone, WasmExecutionMode mode = kExecuteCompiled)
       : ModuleEnv(&module_, &instance_),
-        execution_mode_(mode),
         instance_(&module_),
         isolate_(CcTest::InitIsolateOnce()),
         global_offset(0),
-        interpreter_(mode == kExecuteInterpreted
-                         ? new WasmInterpreter(
-                               ModuleBytesEnv(&module_, &instance_,
-                                              Vector<const byte>::empty()),
-                               zone->allocator())
-                         : nullptr) {
+        interpreter_(nullptr) {
     WasmJs::Install(isolate_);
     instance->module = &module_;
     instance->globals_start = global_data;
@@ -93,27 +87,32 @@ class TestingModule : public ModuleEnv {
     instance->mem_size = 0;
     memset(global_data, 0, sizeof(global_data));
     instance_object_ = InitInstanceObject();
-  }
-
-  ~TestingModule() {
-    if (instance->mem_start) {
-      free(instance->mem_start);
+    if (mode == kExecuteInterpreted) {
+      interpreter_ =
+          WasmDebugInfo::SetupForTesting(instance_object_, &instance_);
     }
-    if (interpreter_) delete interpreter_;
   }
 
-  void ChangeOriginToAsmjs() { module_.origin = kAsmJsOrigin; }
+  void ChangeOriginToAsmjs() { module_.set_origin(kAsmJsOrigin); }
 
   byte* AddMemory(uint32_t size) {
     CHECK(!module_.has_memory);
     CHECK_NULL(instance->mem_start);
     CHECK_EQ(0, instance->mem_size);
+    DCHECK(!instance_object_->has_memory_buffer());
     module_.has_memory = true;
-    instance->mem_start = reinterpret_cast<byte*>(malloc(size));
+    bool enable_guard_regions = EnableGuardRegions() && module_.is_wasm();
+    uint32_t alloc_size =
+        enable_guard_regions ? RoundUp(size, OS::CommitPageSize()) : size;
+    Handle<JSArrayBuffer> new_buffer =
+        wasm::NewArrayBuffer(isolate_, alloc_size, enable_guard_regions);
+    CHECK(!new_buffer.is_null());
+    instance_object_->set_memory_buffer(*new_buffer);
+    instance->mem_start = reinterpret_cast<byte*>(new_buffer->backing_store());
     CHECK(size == 0 || instance->mem_start);
     memset(instance->mem_start, 0, size);
     instance->mem_size = size;
-    return raw_mem_start<byte>();
+    return instance->mem_start;
   }
 
   template <typename T>
@@ -203,9 +202,7 @@ class TestingModule : public ModuleEnv {
     }
     instance->function_code.push_back(code);
     if (interpreter_) {
-      const WasmFunction* function = &module->functions.back();
-      int interpreter_index = interpreter_->AddFunctionForTesting(function);
-      CHECK_EQ(index, static_cast<uint32_t>(interpreter_index));
+      interpreter_->AddFunctionForTesting(&module->functions.back());
     }
     DCHECK_LT(index, kMaxFunctions);  // limited for testing.
     return index;
@@ -217,7 +214,7 @@ class TestingModule : public ModuleEnv {
     uint32_t index = AddFunction(sig, Handle<Code>::null(), nullptr);
     Handle<Code> code = CompileWasmToJSWrapper(
         isolate_, jsfunc, sig, index, Handle<String>::null(),
-        Handle<String>::null(), module->origin);
+        Handle<String>::null(), module->get_origin());
     instance->function_code[index] = code;
     return index;
   }
@@ -271,7 +268,7 @@ class TestingModule : public ModuleEnv {
   }
 
   void PopulateIndirectFunctionTable() {
-    if (execution_mode_ == kExecuteInterpreted) return;
+    if (interpret()) return;
     // Initialize the fixed arrays in instance->function_tables.
     for (uint32_t i = 0; i < instance->function_tables.size(); i++) {
       WasmIndirectFunctionTable& table = module_.function_tables[i];
@@ -290,25 +287,27 @@ class TestingModule : public ModuleEnv {
     Handle<SeqOneByteString> old_bytes(
         instance_object_->compiled_module()->module_bytes(), isolate_);
     uint32_t old_size = static_cast<uint32_t>(old_bytes->length());
-    ScopedVector<byte> new_bytes(old_size + bytes.length());
+    // Avoid placing strings at offset 0, this might be interpreted as "not
+    // set", e.g. for function names.
+    uint32_t bytes_offset = old_size ? old_size : 1;
+    ScopedVector<byte> new_bytes(bytes_offset + bytes.length());
     memcpy(new_bytes.start(), old_bytes->GetChars(), old_size);
-    memcpy(new_bytes.start() + old_size, bytes.start(), bytes.length());
+    memcpy(new_bytes.start() + bytes_offset, bytes.start(), bytes.length());
     Handle<SeqOneByteString> new_bytes_str = Handle<SeqOneByteString>::cast(
         isolate_->factory()->NewStringFromOneByte(new_bytes).ToHandleChecked());
     instance_object_->compiled_module()->shared()->set_module_bytes(
         *new_bytes_str);
-    return old_size;
+    return bytes_offset;
   }
 
   WasmFunction* GetFunctionAt(int index) { return &module_.functions[index]; }
 
   WasmInterpreter* interpreter() { return interpreter_; }
-  WasmExecutionMode execution_mode() { return execution_mode_; }
+  bool interpret() { return interpreter_ != nullptr; }
   Isolate* isolate() { return isolate_; }
   Handle<WasmInstanceObject> instance_object() { return instance_object_; }
 
  private:
-  WasmExecutionMode execution_mode_;
   WasmModule module_;
   WasmInstance instance_;
   Isolate* isolate_;
@@ -341,15 +340,11 @@ class TestingModule : public ModuleEnv {
     Handle<WasmSharedModuleData> shared_module_data =
         WasmSharedModuleData::New(isolate_, module_wrapper, empty_string,
                                   script, Handle<ByteArray>::null());
-    Handle<WasmCompiledModule> compiled_module =
-        WasmCompiledModule::New(isolate_, shared_module_data);
-    // Minimally initialize the compiled module such that IsWasmCompiledModule
-    // passes.
-    // If tests need more (correct) information, add it later.
-    compiled_module->set_min_mem_pages(0);
-    compiled_module->set_max_mem_pages(Smi::kMaxValue);
     Handle<FixedArray> code_table = isolate_->factory()->NewFixedArray(0);
-    compiled_module->set_code_table(code_table);
+
+    Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
+        isolate_, shared_module_data, code_table, MaybeHandle<FixedArray>(),
+        MaybeHandle<FixedArray>());
     Handle<FixedArray> weak_exported = isolate_->factory()->NewFixedArray(0);
     compiled_module->set_weak_exported_functions(weak_exported);
     DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));
@@ -361,8 +356,9 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
                               FunctionSig* sig,
                               SourcePositionTable* source_position_table,
                               const byte* start, const byte* end) {
-  compiler::WasmGraphBuilder builder(module, zone, jsgraph, sig,
-                                     source_position_table);
+  compiler::WasmGraphBuilder builder(
+      module, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(), sig,
+      source_position_table);
   DecodeResult result =
       BuildTFGraph(zone->allocator(), &builder, sig, start, end);
   if (result.failed()) {
@@ -372,16 +368,14 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
       result = BuildTFGraph(zone->allocator(), &builder, sig, start, end);
     }
 
-    ptrdiff_t pc = result.error_pc - result.start;
-    ptrdiff_t pt = result.error_pt - result.start;
+    uint32_t pc = result.error_offset();
     std::ostringstream str;
-    str << "Verification failed: " << result.error_code << " pc = +" << pc;
-    if (result.error_pt) str << ", pt = +" << pt;
-    str << ", msg = " << result.error_msg.get();
+    str << "Verification failed; pc = +" << pc
+        << ", msg = " << result.error_msg().c_str();
     FATAL(str.str().c_str());
   }
   builder.Int64LoweringForTesting();
-  if (!CpuFeatures::SupportsSimd128()) {
+  if (!CpuFeatures::SupportsWasmSimd128()) {
     builder.SimdScalarLoweringForTesting();
   }
 }
@@ -447,7 +441,7 @@ class WasmFunctionWrapper : private GraphAndBuilders {
         common()->Return(), zero,
         graph()->NewNode(common()->Int32Constant(WASM_WRAPPER_RETURN_VALUE)),
         effect, graph()->start());
-    graph()->SetEnd(graph()->NewNode(common()->End(2), r, graph()->start()));
+    graph()->SetEnd(graph()->NewNode(common()->End(1), r));
   }
 
   template <typename ReturnType, typename... ParamTypes>
@@ -550,8 +544,7 @@ class WasmFunctionCompiler : private GraphAndBuilders {
 
     if (interpreter_) {
       // Add the code to the interpreter.
-      CHECK(interpreter_->SetFunctionCodeForTesting(function_, start, end));
-      return;
+      interpreter_->SetFunctionCodeForTesting(function_, start, end);
     }
 
     // Build the TurboFan graph.
@@ -569,11 +562,14 @@ class WasmFunctionCompiler : private GraphAndBuilders {
           static_cast<int>(function_index()) + 1);
       code_table->CopyTo(0, *new_arr, 0, code_table->length());
       code_table = new_arr;
-      compiled_module->set_code_table(code_table);
+      compiled_module->ReplaceCodeTableForTesting(code_table);
     }
     DCHECK(code_table->get(static_cast<int>(function_index()))
                ->IsUndefined(isolate()));
     code_table->set(static_cast<int>(function_index()), *code);
+    if (trap_handler::UseTrapHandler()) {
+      UnpackAndRegisterProtectedInstructions(isolate(), code_table);
+    }
   }
 
   byte AllocateLocal(ValueType type) {
@@ -609,7 +605,10 @@ class WasmFunctionCompiler : private GraphAndBuilders {
     if (kPointerSize == 4) {
       desc = testing_module_->GetI32WasmCallDescriptor(this->zone(), desc);
     }
-    CompilationInfo info(CStrVector("wasm"), this->isolate(), this->zone(),
+    EmbeddedVector<char, 16> comp_name;
+    int comp_name_len = SNPrintF(comp_name, "wasm#%u", this->function_index());
+    comp_name.Truncate(comp_name_len);
+    CompilationInfo info(comp_name, this->isolate(), this->zone(),
                          Code::ComputeFlags(Code::WASM_FUNCTION));
     std::unique_ptr<CompilationJob> job(Pipeline::NewWasmCompilationJob(
         &info, &jsgraph, desc, &source_position_table_, nullptr, false));
@@ -628,7 +627,6 @@ class WasmFunctionCompiler : private GraphAndBuilders {
         isolate()->factory()->NewWeakCell(testing_module_->instance_object());
     deopt_data->set(0, *weak_instance);
     deopt_data->set(1, Smi::FromInt(static_cast<int>(function_index())));
-    deopt_data->set_length(2);
     code->set_deoptimization_data(*deopt_data);
 
 #ifdef ENABLE_DISASSEMBLER
@@ -694,7 +692,10 @@ class WasmRunnerBase : public HandleAndZoneScope {
 
   uint32_t function_index() { return functions_[0]->function_index(); }
   WasmFunction* function() { return functions_[0]->function_; }
-  WasmInterpreter* interpreter() { return functions_[0]->interpreter_; }
+  WasmInterpreter* interpreter() {
+    DCHECK(interpret());
+    return functions_[0]->interpreter_;
+  }
   bool possible_nondeterminism() { return possible_nondeterminism_; }
   TestingModule& module() { return module_; }
   Zone* zone() { return &zone_; }
@@ -708,6 +709,8 @@ class WasmRunnerBase : public HandleAndZoneScope {
     }
     module_.instance->context = main_isolate()->native_context();
   }
+
+  bool interpret() { return module_.interpret(); }
 
  private:
   FunctionSig* CreateSig(MachineType return_type,
@@ -747,8 +750,6 @@ class WasmRunnerBase : public HandleAndZoneScope {
   WasmFunctionWrapper wrapper_;
   bool compiled_ = false;
   bool possible_nondeterminism_ = false;
-
-  bool interpret() { return module_.execution_mode() == kExecuteInterpreted; }
 
  public:
   // This field has to be static. Otherwise, gcc complains about the use in
@@ -796,7 +797,7 @@ class WasmRunner : public WasmRunnerBase {
     WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
     thread->Reset();
     std::array<WasmVal, sizeof...(p)> args{{WasmVal(p)...}};
-    thread->PushFrame(function(), args.data());
+    thread->InitFrame(function(), args.data());
     if (thread->Run() == WasmInterpreter::FINISHED) {
       WasmVal val = thread->GetReturnValue();
       possible_nondeterminism_ |= thread->PossibleNondeterminism();
@@ -822,17 +823,20 @@ bool WasmRunnerBase::trap_happened;
   TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
-#define WASM_EXEC_TEST_WITH_TRAP(name)                                     \
-  void RunWasm_##name(WasmExecutionMode execution_mode);                   \
-  TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); }       \
-  void RunWasm_##name(WasmExecutionMode execution_mode);                   \
-  TEST(RunWasmCompiledWithoutTrapIf_##name) {                              \
-    bool trap_if = FLAG_wasm_trap_if;                                      \
-    FLAG_wasm_trap_if = false;                                             \
-    RunWasm_##name(kExecuteCompiled);                                      \
-    FLAG_wasm_trap_if = trap_if;                                           \
-  }                                                                        \
-  TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
+#define WASM_EXEC_TEST_WITH_TRAP(name)                   \
+  void RunWasm_##name(WasmExecutionMode execution_mode); \
+  TEST(RunWasmCompiled_##name) {                         \
+    if (trap_handler::UseTrapHandler()) {                \
+      return;                                            \
+    }                                                    \
+    RunWasm_##name(kExecuteCompiled);                    \
+  }                                                      \
+  TEST(RunWasmInterpreted_##name) {                      \
+    if (trap_handler::UseTrapHandler()) {                \
+      return;                                            \
+    }                                                    \
+    RunWasm_##name(kExecuteInterpreted);                 \
+  }                                                      \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
 #define WASM_EXEC_COMPILED_TEST(name)                                \

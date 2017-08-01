@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition
+// Flags: --ignition --turbo
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests side-effect-free evaluation');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function testFunction()
 {
   var o = 0;

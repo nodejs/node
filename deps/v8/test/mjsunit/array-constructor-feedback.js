@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc
-// Flags: --no-always-opt --crankshaft
+// Flags: --no-always-opt --opt
 
 // Test element kind of objects.
 
@@ -119,10 +119,13 @@ function assertKind(expected, obj, name_opt) {
     return new Array(one, two, three);
   }
 
-  barn(1, 2, 3);
-  barn(1, 2, 3);
+  a = barn(1, 2, 3);
+  a[1] = "a string";
+  a = barn(1, 2, 3);
+  assertKind(elements_kind.fast, a);
   %OptimizeFunctionOnNextCall(barn);
-  barn(1, 2, 3);
+  a = barn(1, 2, 3);
+  assertKind(elements_kind.fast, a);
   assertOptimized(barn);
   a = barn(1, "oops", 3);
   assertOptimized(barn);

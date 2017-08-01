@@ -34,30 +34,6 @@
       "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
     },
     {
-      "name": "GeneratorsIgnition",
-      "path": ["Generators"],
-      "main": "run.js",
-      "resources": ["generators.js"],
-      "flags": [
-        "--harmony-function-sent",
-        "--ignition"
-      ],
-      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
-    },
-    {
-      "name": "GeneratorsIgnitionTurbofan",
-      "path": ["Generators"],
-      "main": "run.js",
-      "resources": ["generators.js"],
-      "flags": [
-        "--harmony-function-sent",
-        "--ignition",
-        "--turbo",
-        "--turbo-from-bytecode"
-      ],
-      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
-    },
-    {
       "name": "RestParameters",
       "path": ["RestParameters"],
       "main": "run.js",
@@ -65,7 +41,9 @@
       "units": "score",
       "results_regexp": "^%s\\-RestParameters\\(Score\\): (.+)$",
       "tests": [
-        {"name": "Basic1"}
+        {"name": "Basic1"},
+        {"name": "ReturnArgsBabel"},
+        {"name": "ReturnArgsNative"}
       ]
     },
     {
@@ -283,49 +261,162 @@
         {
           "name": "CopyWithin",
           "main": "run.js",
+          "resources": ["copywithin.js"],
           "test_flags": ["copywithin"]
         },
         {
           "name": "Constructor",
           "main": "run.js",
+          "resources": ["constructor.js"],
           "test_flags": ["constructor"]
         },
         {
-          "name": "Constructor--Future",
-          "flags": ["--future"],
+          "name": "Constructor--noTF",
+          "flags": ["--no-turbo"],
           "results_regexp": "^TypedArrays\\-Constructor\\(Score\\): (.+)$",
           "main": "run.js",
+          "resources": ["constructor.js"],
           "test_flags": ["constructor"]
         },
         {
           "name": "ConstructWithBuffer",
           "main": "run.js",
+          "resources": ["construct-buffer.js"],
           "test_flags": ["construct-buffer"]
         },
         {
-          "name": "ConstructWithBuffer--Future",
-          "flags": ["--future"],
+          "name": "ConstructWithBuffer--noTF",
+          "flags": ["--no-turbo"],
           "results_regexp": "^TypedArrays\\-ConstructWithBuffer\\(Score\\): (.+)$",
           "main": "run.js",
+          "resources": ["construct-buffer.js"],
           "test_flags": ["construct-buffer"]
         },
         {
           "name": "ConstructArrayLike",
           "main": "run.js",
+          "resources": ["construct-arraylike.js"],
           "test_flags": ["construct-arraylike"]
         },
         {
-          "name": "ConstructArrayLike--Future",
-          "flags": ["--future"],
+          "name": "ConstructArrayLike--noTF",
+          "flags": ["--no-turbo"],
           "results_regexp": "^TypedArrays\\-ConstructArrayLike\\(Score\\): (.+)$",
           "main": "run.js",
+          "resources": ["construct-arraylike.js"],
           "test_flags": ["construct-arraylike"]
+        },
+        {
+          "name": "ConstructByTypedArray",
+          "main": "run.js",
+          "resources": ["construct-typedarray.js"],
+          "test_flags": ["construct-typedarray"]
+        },
+        {
+          "name": "ConstructByTypedArray--noTF",
+          "flags": ["--no-turbo"],
+          "results_regexp": "^TypedArrays\\-ConstructByTypedArray\\(Score\\): (.+)$",
+          "main": "run.js",
+          "resources": ["construct-typedarray.js"],
+          "test_flags": ["construct-typedarray"]
+        },
+        {
+          "name": "ConstructBySameTypedArray",
+          "main": "run.js",
+          "resources": ["construct-same-typedarray.js"],
+          "test_flags": ["construct-same-typedarray"]
+        },
+        {
+          "name": "ConstructAllTypedArrays",
+          "main": "run.js",
+          "resources": ["construct-all-typedarrays.js"],
+          "test_flags": ["construct-all-typedarrays"]
         },
         {
           "name": "Sort",
           "main": "run.js",
+          "resources": ["sort.js"],
           "test_flags": ["sort"]
         }
+      ]
+    },
+    {
+      "name": "Array",
+      "path": ["Array"],
+      "main": "run.js",
+      "resources": [
+        "filter.js", "map.js"
+      ],
+      "results_regexp": "^%s\\-Array\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "NaiveFilterReplacement"},
+        {"name": "DoubleFilter"},
+        {"name": "SmiFilter"},
+        {"name": "FastFilter"},
+        {"name": "ObjectFilter"},
+        {"name": "NaiveMapReplacement"},
+        {"name": "DoubleMap"},
+        {"name": "SmiMap"},
+        {"name": "FastMap"},
+        {"name": "ObjectMap"}
+      ]
+    },
+    {
+      "name": "ForLoops",
+      "path": ["ForLoops"],
+      "main": "run.js",
+      "resources": [
+        "for_loop.js"
+      ],
+      "results_regexp": "^%s\\-ForLoop\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Let-Standard"},
+        {"name": "Var-Standard"}
+      ]
+    },
+    {
+      "name": "Modules",
+      "path": ["Modules"],
+      "main": "run.js",
+      "resources": ["basic-export.js", "basic-import.js", "basic-namespace.js", "value.js"],
+      "flags": [
+        "--allow-natives-syntax",
+        "--harmony-dynamic-import"
+      ],
+      "results_regexp": "^%s\\-Modules\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "BasicExport"},
+        {"name": "BasicImport"},
+        {"name": "BasicNamespace"}
+      ]
+    },
+    {
+      "name": "BytecodeHandlers",
+      "path": ["BytecodeHandlers"],
+      "main": "run.js",
+      "resources": [ "compare.js" ],
+      "flags": [ "--no-opt" ],
+      "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Smi-StrictEquals-True"},
+        {"name": "Smi-StrictEquals-False"},
+        {"name": "Number-StrictEquals-True"},
+        {"name": "Number-StrictEquals-False"},
+        {"name": "String-StrictEquals-True"},
+        {"name": "String-StrictEquals-False"},
+        {"name": "SmiString-StrictEquals"},
+        {"name": "Smi-Equals-True"},
+        {"name": "Smi-Equals-False"},
+        {"name": "Number-Equals-True"},
+        {"name": "Number-Equals-False"},
+        {"name": "String-Equals-True"},
+        {"name": "String-Equals-False"},
+        {"name": "ObjectNull-Equals"},
+        {"name": "SmiString-Equals"},
+        {"name": "Smi-RelationalCompare"},
+        {"name": "Number-RelationalCompare"},
+        {"name": "String-RelationalCompare"},
+        {"name": "SmiString-RelationalCompare"}
       ]
     }
   ]

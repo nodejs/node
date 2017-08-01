@@ -73,6 +73,9 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     Address original_address = Foreign::cast(info->getter())->foreign_address();
     Foreign::cast(info->js_getter())->set_foreign_address(original_address);
     accessor_infos_.Add(info);
+  } else if (obj->IsScript() && Script::cast(obj)->IsUserJavaScript()) {
+    Script::cast(obj)->set_context_data(
+        isolate_->heap()->uninitialized_symbol());
   }
 
   // Object has not yet been serialized.  Serialize it here.
@@ -95,7 +98,7 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   // add entries to the partial snapshot cache of the startup snapshot. Add
   // one entry with 'undefined' to terminate the partial snapshot cache.
   Object* undefined = isolate()->heap()->undefined_value();
-  VisitPointer(&undefined);
+  VisitRootPointer(Root::kPartialSnapshotCache, &undefined);
   isolate()->heap()->IterateWeakRoots(this, VISIT_ALL);
   SerializeDeferredObjects();
   Pad();
@@ -107,7 +110,8 @@ int StartupSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
     // This object is not part of the partial snapshot cache yet. Add it to the
     // startup snapshot so we can refer to it via partial snapshot index from
     // the partial snapshot.
-    VisitPointer(reinterpret_cast<Object**>(&heap_object));
+    VisitRootPointer(Root::kPartialSnapshotCache,
+                     reinterpret_cast<Object**>(&heap_object));
   }
   return index;
 }
@@ -144,7 +148,8 @@ void StartupSerializer::SerializeStrongReferences() {
                                       VISIT_ONLY_STRONG_FOR_SERIALIZATION);
 }
 
-void StartupSerializer::VisitPointers(Object** start, Object** end) {
+void StartupSerializer::VisitRootPointers(Root root, Object** start,
+                                          Object** end) {
   if (start == isolate()->heap()->roots_array_start()) {
     // Serializing the root list needs special handling:
     // - The first pass over the root list only serializes immortal immovables.
@@ -171,7 +176,7 @@ void StartupSerializer::VisitPointers(Object** start, Object** end) {
     }
     FlushSkip(skip);
   } else {
-    Serializer::VisitPointers(start, end);
+    Serializer::VisitRootPointers(root, start, end);
   }
 }
 

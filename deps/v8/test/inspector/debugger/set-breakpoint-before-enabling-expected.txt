@@ -1,3 +1,4 @@
+Tests that setting breakpoint before enabling debugger produces an error
 setBreakpointByUrl error: undefined
 setBreakpoint error: {
   "code": -32602,

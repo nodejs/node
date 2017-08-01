@@ -135,8 +135,8 @@ void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
 }
 
 void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
-  if (FLAG_block_concurrent_recompilation) Unblock();
   if (blocking_behavior == BlockingBehavior::kDontBlock) {
+    if (FLAG_block_concurrent_recompilation) Unblock();
     base::LockGuard<base::Mutex> access_input_queue_(&input_queue_mutex_);
     while (input_queue_length_ > 0) {
       CompilationJob* job = input_queue_[InputQueueIndex(0)];

@@ -37,6 +37,7 @@ Aliasing QueryAlias(Node* a, Node* b) {
       break;
     }
     case IrOpcode::kFinishRegion:
+    case IrOpcode::kTypeGuard:
       return QueryAlias(a, b->InputAt(0));
     default:
       break;
@@ -53,6 +54,7 @@ Aliasing QueryAlias(Node* a, Node* b) {
       break;
     }
     case IrOpcode::kFinishRegion:
+    case IrOpcode::kTypeGuard:
       return QueryAlias(a->InputAt(0), b);
     default:
       break;
@@ -140,7 +142,7 @@ bool IsCompatibleCheck(Node const* a, Node const* b) {
 
 Node* LoadElimination::AbstractChecks::Lookup(Node* node) const {
   for (Node* const check : nodes_) {
-    if (check && IsCompatibleCheck(check, node)) {
+    if (check && !check->IsDead() && IsCompatibleCheck(check, node)) {
       return check;
     }
   }
@@ -193,13 +195,23 @@ void LoadElimination::AbstractChecks::Print() const {
   }
 }
 
-Node* LoadElimination::AbstractElements::Lookup(Node* object,
-                                                Node* index) const {
+namespace {
+
+bool IsCompatible(MachineRepresentation r1, MachineRepresentation r2) {
+  if (r1 == r2) return true;
+  return IsAnyTagged(r1) && IsAnyTagged(r2);
+}
+
+}  // namespace
+
+Node* LoadElimination::AbstractElements::Lookup(
+    Node* object, Node* index, MachineRepresentation representation) const {
   for (Element const element : elements_) {
     if (element.object == nullptr) continue;
     DCHECK_NOT_NULL(element.index);
     DCHECK_NOT_NULL(element.value);
-    if (MustAlias(object, element.object) && MustAlias(index, element.index)) {
+    if (MustAlias(object, element.object) && MustAlias(index, element.index) &&
+        IsCompatible(representation, element.representation)) {
       return element.value;
     }
   }
@@ -468,22 +480,26 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillMaps(
   return this;
 }
 
-Node* LoadElimination::AbstractState::LookupElement(Node* object,
-                                                    Node* index) const {
+Node* LoadElimination::AbstractState::LookupElement(
+    Node* object, Node* index, MachineRepresentation representation) const {
   if (this->elements_) {
-    return this->elements_->Lookup(object, index);
+    return this->elements_->Lookup(object, index, representation);
   }
   return nullptr;
 }
 
 LoadElimination::AbstractState const*
 LoadElimination::AbstractState::AddElement(Node* object, Node* index,
-                                           Node* value, Zone* zone) const {
+                                           Node* value,
+                                           MachineRepresentation representation,
+                                           Zone* zone) const {
   AbstractState* that = new (zone) AbstractState(*this);
   if (that->elements_) {
-    that->elements_ = that->elements_->Extend(object, index, value, zone);
+    that->elements_ =
+        that->elements_->Extend(object, index, value, representation, zone);
   } else {
-    that->elements_ = new (zone) AbstractElements(object, index, value, zone);
+    that->elements_ =
+        new (zone) AbstractElements(object, index, value, representation, zone);
   }
   return that;
 }
@@ -798,23 +814,50 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
   Node* const control = NodeProperties::GetControlInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  if (Node* replacement = state->LookupElement(object, index)) {
-    // Make sure we don't resurrect dead {replacement} nodes.
-    if (!replacement->IsDead()) {
-      // We might need to guard the {replacement} if the type of the
-      // {node} is more precise than the type of the {replacement}.
-      Type* const node_type = NodeProperties::GetType(node);
-      if (!NodeProperties::GetType(replacement)->Is(node_type)) {
-        replacement = graph()->NewNode(common()->TypeGuard(node_type),
-                                       replacement, control);
-        NodeProperties::SetType(replacement, node_type);
+
+  // Only handle loads that do not require truncations.
+  ElementAccess const& access = ElementAccessOf(node->op());
+  switch (access.machine_type.representation()) {
+    case MachineRepresentation::kNone:
+    case MachineRepresentation::kSimd1x4:
+    case MachineRepresentation::kSimd1x8:
+    case MachineRepresentation::kSimd1x16:
+    case MachineRepresentation::kBit:
+      UNREACHABLE();
+      break;
+    case MachineRepresentation::kWord8:
+    case MachineRepresentation::kWord16:
+    case MachineRepresentation::kWord32:
+    case MachineRepresentation::kWord64:
+    case MachineRepresentation::kFloat32:
+      // TODO(turbofan): Add support for doing the truncations.
+      break;
+    case MachineRepresentation::kFloat64:
+    case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
+    case MachineRepresentation::kTagged:
+      if (Node* replacement = state->LookupElement(
+              object, index, access.machine_type.representation())) {
+        // Make sure we don't resurrect dead {replacement} nodes.
+        if (!replacement->IsDead()) {
+          // We might need to guard the {replacement} if the type of the
+          // {node} is more precise than the type of the {replacement}.
+          Type* const node_type = NodeProperties::GetType(node);
+          if (!NodeProperties::GetType(replacement)->Is(node_type)) {
+            replacement = graph()->NewNode(common()->TypeGuard(node_type),
+                                           replacement, control);
+            NodeProperties::SetType(replacement, node_type);
+          }
+          ReplaceWithValue(node, replacement, effect);
+          return Replace(replacement);
+        }
       }
-      ReplaceWithValue(node, replacement, effect);
-      return Replace(replacement);
-    }
+      state = state->AddElement(object, index, node,
+                                access.machine_type.representation(), zone());
+      return UpdateState(node, state);
   }
-  state = state->AddElement(object, index, node, zone());
-  return UpdateState(node, state);
+  return NoChange();
 }
 
 Reduction LoadElimination::ReduceStoreElement(Node* node) {
@@ -825,7 +868,8 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  Node* const old_value = state->LookupElement(object, index);
+  Node* const old_value =
+      state->LookupElement(object, index, access.machine_type.representation());
   if (old_value == new_value) {
     // This store is fully redundant.
     return Replace(effect);
@@ -853,7 +897,8 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-      state = state->AddElement(object, index, new_value, zone());
+      state = state->AddElement(object, index, new_value,
+                                access.machine_type.representation(), zone());
       break;
   }
   return UpdateState(node, state);
@@ -980,8 +1025,15 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
                 !ZoneHandleSet<Map>(transition.target())
                      .contains(object_maps)) {
               state = state->KillMaps(object, zone());
-              state = state->KillField(
-                  object, FieldIndexOf(JSObject::kElementsOffset), zone());
+              switch (transition.mode()) {
+                case ElementsTransition::kFastTransition:
+                  break;
+                case ElementsTransition::kSlowTransition:
+                  // Kill the elements as well.
+                  state = state->KillField(
+                      object, FieldIndexOf(JSObject::kElementsOffset), zone());
+                  break;
+              }
             }
             break;
           }

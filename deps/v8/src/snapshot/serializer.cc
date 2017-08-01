@@ -5,6 +5,7 @@
 #include "src/snapshot/serializer.h"
 
 #include "src/assembler-inl.h"
+#include "src/deoptimizer.h"
 #include "src/heap/heap-inl.h"
 #include "src/macro-assembler.h"
 #include "src/snapshot/natives.h"
@@ -75,6 +76,7 @@ void Serializer::OutputStatistics(const char* name) {
     for (uint32_t chunk_size : completed_chunks_[space]) s += chunk_size;
     PrintF("%16" PRIuS, s);
   }
+  PrintF("%16d", num_maps_ * Map::kSize);
   PrintF("%16d\n", large_objects_total_size_);
 #ifdef OBJECT_PRINT
   PrintF("  Instance types (count and bytes):\n");
@@ -98,7 +100,7 @@ void Serializer::SerializeDeferredObjects() {
   sink_.Put(kSynchronize, "Finished with deferred objects");
 }
 
-void Serializer::VisitPointers(Object** start, Object** end) {
+void Serializer::VisitRootPointers(Root root, Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
     if ((*current)->IsSmi()) {
       PutSmi(Smi::cast(*current));
@@ -334,6 +336,25 @@ bool Serializer::HasNotExceededFirstPageOfEachSpace() {
   return true;
 }
 
+bool Serializer::ObjectSerializer::TryEncodeDeoptimizationEntry(
+    HowToCode how_to_code, Address target, int skip) {
+  for (int bailout_type = 0; bailout_type <= Deoptimizer::kLastBailoutType;
+       ++bailout_type) {
+    int id = Deoptimizer::GetDeoptimizationId(
+        serializer_->isolate(), target,
+        static_cast<Deoptimizer::BailoutType>(bailout_type));
+    if (id == Deoptimizer::kNotDeoptimizationEntry) continue;
+    sink_->Put(how_to_code == kPlain ? kDeoptimizerEntryPlain
+                                     : kDeoptimizerEntryFromCode,
+               "DeoptimizationEntry");
+    sink_->PutInt(skip, "SkipB4DeoptimizationEntry");
+    sink_->Put(bailout_type, "BailoutType");
+    sink_->PutInt(id, "EntryId");
+    return true;
+  }
+  return false;
+}
+
 void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
                                                      int size, Map* map) {
   if (serializer_->code_address_map_) {
@@ -381,6 +402,29 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
 }
 
 void Serializer::ObjectSerializer::SerializeExternalString() {
+  Heap* heap = serializer_->isolate()->heap();
+  if (object_->map() != heap->native_source_string_map()) {
+    // Usually we cannot recreate resources for external strings. To work
+    // around this, external strings are serialized to look like ordinary
+    // sequential strings.
+    // The exception are native source code strings, since we can recreate
+    // their resources.
+    SerializeExternalStringAsSequentialString();
+  } else {
+    ExternalOneByteString* string = ExternalOneByteString::cast(object_);
+    DCHECK(string->is_short());
+    const NativesExternalStringResource* resource =
+        reinterpret_cast<const NativesExternalStringResource*>(
+            string->resource());
+    // Replace the resource field with the type and index of the native source.
+    string->set_resource(resource->EncodeForSerialization());
+    SerializeContent();
+    // Restore the resource field.
+    string->set_resource(resource);
+  }
+}
+
+void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   // Instead of serializing this as an external string, we serialize
   // an imaginary sequential string with the same content.
   Isolate* isolate = serializer_->isolate();
@@ -481,6 +525,11 @@ void Serializer::ObjectSerializer::Serialize() {
     PrintF("\n");
   }
 
+  if (object_->IsExternalString()) {
+    SerializeExternalString();
+    return;
+  }
+
   // We cannot serialize typed array objects correctly.
   DCHECK(!object_->IsJSTypedArray());
 
@@ -493,20 +542,10 @@ void Serializer::ObjectSerializer::Serialize() {
     Script::cast(object_)->set_line_ends(undefined);
   }
 
-  if (object_->IsExternalString()) {
-    Heap* heap = serializer_->isolate()->heap();
-    if (object_->map() != heap->native_source_string_map()) {
-      // Usually we cannot recreate resources for external strings. To work
-      // around this, external strings are serialized to look like ordinary
-      // sequential strings.
-      // The exception are native source code strings, since we can recreate
-      // their resources. In that case we fall through and leave it to
-      // VisitExternalOneByteString further down.
-      SerializeExternalString();
-      return;
-    }
-  }
+  SerializeContent();
+}
 
+void Serializer::ObjectSerializer::SerializeContent() {
   int size = object_->Size();
   Map* map = object_->map();
   AllocationSpace space =
@@ -560,7 +599,8 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   OutputRawData(object_->address() + size);
 }
 
-void Serializer::ObjectSerializer::VisitPointers(Object** start, Object** end) {
+void Serializer::ObjectSerializer::VisitPointers(HeapObject* host,
+                                                 Object** start, Object** end) {
   Object** current = start;
   while (current < end) {
     while (current < end && (*current)->IsSmi()) current++;
@@ -598,7 +638,8 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start, Object** end) {
   }
 }
 
-void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code* host,
+                                                        RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
@@ -608,29 +649,37 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitExternalReference(Address* p) {
+void Serializer::ObjectSerializer::VisitExternalReference(Foreign* host,
+                                                          Address* p) {
   int skip = OutputRawData(reinterpret_cast<Address>(p),
                            kCanReturnSkipInsteadOfSkipping);
-  sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
-  sink_->PutInt(skip, "SkipB4ExternalRef");
   Address target = *p;
-  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  if (!TryEncodeDeoptimizationEntry(kPlain, target, skip)) {
+    sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
+    sink_->PutInt(skip, "SkipB4ExternalRef");
+    sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  }
   bytes_processed_so_far_ += kPointerSize;
 }
 
-void Serializer::ObjectSerializer::VisitExternalReference(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitExternalReference(Code* host,
+                                                          RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
-  sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
-  sink_->PutInt(skip, "SkipB4ExternalRef");
   Address target = rinfo->target_external_reference();
-  DCHECK_NOT_NULL(target);  // Code does not reference null.
-  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  if (!TryEncodeDeoptimizationEntry(how_to_code, target, skip)) {
+    sink_->Put(kExternalReference + how_to_code + kStartOfObject,
+               "ExternalRef");
+    sink_->PutInt(skip, "SkipB4ExternalRef");
+    DCHECK_NOT_NULL(target);  // Code does not reference null.
+    sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  }
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitInternalReference(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitInternalReference(Code* host,
+                                                          RelocInfo* rinfo) {
   // We can only reference to internal references of code that has been output.
   DCHECK(object_->IsCode() && code_has_been_output_);
   // We do not use skip from last patched pc to find the pc to patch, since
@@ -654,18 +703,23 @@ void Serializer::ObjectSerializer::VisitInternalReference(RelocInfo* rinfo) {
   sink_->PutInt(static_cast<uintptr_t>(target_offset), "internal ref value");
 }
 
-void Serializer::ObjectSerializer::VisitRuntimeEntry(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitRuntimeEntry(Code* host,
+                                                     RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
-  sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
-  sink_->PutInt(skip, "SkipB4ExternalRef");
   Address target = rinfo->target_address();
-  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  if (!TryEncodeDeoptimizationEntry(how_to_code, target, skip)) {
+    sink_->Put(kExternalReference + how_to_code + kStartOfObject,
+               "ExternalRef");
+    sink_->PutInt(skip, "SkipB4ExternalRef");
+    sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  }
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitCodeTarget(Code* host,
+                                                   RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   Code* object = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -673,64 +727,20 @@ void Serializer::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitCodeEntry(Address entry_address) {
+void Serializer::ObjectSerializer::VisitCodeEntry(JSFunction* host,
+                                                  Address entry_address) {
   int skip = OutputRawData(entry_address, kCanReturnSkipInsteadOfSkipping);
   Code* object = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
   serializer_->SerializeObject(object, kPlain, kInnerPointer, skip);
   bytes_processed_so_far_ += kPointerSize;
 }
 
-void Serializer::ObjectSerializer::VisitCell(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitCellPointer(Code* host,
+                                                    RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->pc(), kCanReturnSkipInsteadOfSkipping);
   Cell* object = Cell::cast(rinfo->target_cell());
   serializer_->SerializeObject(object, kPlain, kInnerPointer, skip);
   bytes_processed_so_far_ += kPointerSize;
-}
-
-bool Serializer::ObjectSerializer::SerializeExternalNativeSourceString(
-    int builtin_count,
-    v8::String::ExternalOneByteStringResource** resource_pointer,
-    FixedArray* source_cache, int resource_index) {
-  Isolate* isolate = serializer_->isolate();
-  for (int i = 0; i < builtin_count; i++) {
-    Object* source = source_cache->get(i);
-    if (!source->IsUndefined(isolate)) {
-      ExternalOneByteString* string = ExternalOneByteString::cast(source);
-      typedef v8::String::ExternalOneByteStringResource Resource;
-      const Resource* resource = string->resource();
-      if (resource == *resource_pointer) {
-        sink_->Put(resource_index, "NativesStringResource");
-        sink_->PutSection(i, "NativesStringResourceEnd");
-        bytes_processed_so_far_ += sizeof(resource);
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-void Serializer::ObjectSerializer::VisitExternalOneByteString(
-    v8::String::ExternalOneByteStringResource** resource_pointer) {
-  DCHECK_EQ(serializer_->isolate()->heap()->native_source_string_map(),
-            object_->map());
-  DCHECK(ExternalOneByteString::cast(object_)->is_short());
-  Address references_start = reinterpret_cast<Address>(resource_pointer);
-  OutputRawData(references_start);
-  if (SerializeExternalNativeSourceString(
-          Natives::GetBuiltinsCount(), resource_pointer,
-          Natives::GetSourceCache(serializer_->isolate()->heap()),
-          kNativesStringResource)) {
-    return;
-  }
-  if (SerializeExternalNativeSourceString(
-          ExtraNatives::GetBuiltinsCount(), resource_pointer,
-          ExtraNatives::GetSourceCache(serializer_->isolate()->heap()),
-          kExtraNativesStringResource)) {
-    return;
-  }
-  // One of the strings in the natives cache should match the resource.  We
-  // don't expect any other kinds of external strings here.
-  UNREACHABLE();
 }
 
 Address Serializer::ObjectSerializer::PrepareCode() {
@@ -747,7 +757,7 @@ Address Serializer::ObjectSerializer::PrepareCode() {
                     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
     for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();
-      rinfo->WipeOut();
+      rinfo->WipeOut(serializer_->isolate());
     }
     // We need to wipe out the header fields *after* wiping out the
     // relocations, because some of these fields are needed for the latter.

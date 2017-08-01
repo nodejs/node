@@ -41,11 +41,6 @@ void IdentityMapBase::EnableIteration() {
 void IdentityMapBase::DisableIteration() {
   CHECK(is_iterable());
   is_iterable_ = false;
-
-  // We might need to resize due to iterator deletion - do this now.
-  if (size_ * kResizeFactor < capacity_ / kResizeFactor) {
-    Resize(capacity_ / kResizeFactor);
-  }
 }
 
 int IdentityMapBase::ScanKeysFor(Object* address) const {
@@ -71,6 +66,8 @@ int IdentityMapBase::InsertKey(Object* address) {
     for (int index = start; --limit > 0; index = (index + 1) & mask_) {
       if (keys_[index] == address) return index;  // Found.
       if (keys_[index] == not_mapped) {           // Free entry.
+        size_++;
+        DCHECK_LE(size_, capacity_);
         keys_[index] = address;
         return index;
       }
@@ -91,7 +88,7 @@ void* IdentityMapBase::DeleteIndex(int index) {
   size_--;
   DCHECK_GE(size_, 0);
 
-  if (!is_iterable() && (size_ * kResizeFactor < capacity_ / kResizeFactor)) {
+  if (size_ * kResizeFactor < capacity_ / kResizeFactor) {
     Resize(capacity_ / kResizeFactor);
     return ret_value;  // No need to fix collisions as resize reinserts keys.
   }
@@ -110,6 +107,7 @@ void* IdentityMapBase::DeleteIndex(int index) {
       DCHECK_GT(index, next_index);
       if (index < expected_index || expected_index <= next_index) continue;
     }
+
     DCHECK_EQ(not_mapped, keys_[index]);
     DCHECK_NULL(values_[index]);
     std::swap(keys_[index], keys_[next_index]);
@@ -137,8 +135,6 @@ int IdentityMapBase::LookupOrInsert(Object* key) {
     // Miss; rehash if there was a GC, then insert.
     if (gc_counter_ != heap_->gc_count()) Rehash();
     index = InsertKey(key);
-    size_++;
-    DCHECK_LE(size_, capacity_);
   }
   DCHECK_GE(index, 0);
   return index;
@@ -212,7 +208,7 @@ int IdentityMapBase::NextIndex(int index) const {
   DCHECK_LE(index, capacity_);
   CHECK(is_iterable());  // Must be iterable to access by index;
   Object* not_mapped = heap_->not_mapped_symbol();
-  for (index++; index < capacity_; index++) {
+  for (++index; index < capacity_; ++index) {
     if (keys_[index] != not_mapped) {
       return index;
     }
@@ -241,6 +237,7 @@ void IdentityMapBase::Rehash() {
         keys_[i] = not_mapped;
         values_[i] = nullptr;
         last_empty = i;
+        size_--;
       }
     }
   }
@@ -263,6 +260,7 @@ void IdentityMapBase::Resize(int new_capacity) {
   capacity_ = new_capacity;
   mask_ = capacity_ - 1;
   gc_counter_ = heap_->gc_count();
+  size_ = 0;
 
   keys_ = reinterpret_cast<Object**>(NewPointerArray(capacity_));
   Object* not_mapped = heap_->not_mapped_symbol();

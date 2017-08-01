@@ -65,6 +65,11 @@ enum DebugBreakType {
   DEBUG_BREAK_SLOT_AT_TAIL_CALL,
 };
 
+enum IgnoreBreakMode {
+  kIgnoreIfAllFramesBlackboxed,
+  kIgnoreIfTopFrameBlackboxed
+};
+
 class BreakLocation {
  public:
   static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
@@ -87,6 +92,8 @@ class BreakLocation {
   bool HasBreakPoint(Handle<DebugInfo> debug_info) const;
 
   inline int position() const { return position_; }
+
+  debug::BreakLocationType type() const;
 
  private:
   BreakLocation(Handle<AbstractCode> abstract_code, DebugBreakType type,
@@ -274,7 +281,7 @@ class Debug {
   MUST_USE_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
                                            Handle<Object> data);
   Handle<Context> GetDebugContext();
-  void HandleDebugBreak();
+  void HandleDebugBreak(IgnoreBreakMode ignore_break_mode);
 
   // Internal logic
   bool Load();
@@ -312,7 +319,8 @@ class Debug {
 
   bool PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
-                              int end_position, std::set<int>* positions);
+                              int end_position, bool restrict_to_function,
+                              std::vector<BreakLocation>* locations);
 
   void RecordGenerator(Handle<JSGeneratorObject> generator_object);
 
@@ -350,14 +358,14 @@ class Debug {
   // Support for LiveEdit
   void ScheduleFrameRestart(StackFrame* frame);
 
-  bool IsFrameBlackboxed(JavaScriptFrame* frame);
+  bool AllFramesOnStackAreBlackboxed();
 
   // Threading support.
   char* ArchiveDebug(char* to);
   char* RestoreDebug(char* from);
   static int ArchiveSpacePerThread();
   void FreeThreadResources() { }
-  void Iterate(ObjectVisitor* v);
+  void Iterate(RootVisitor* v);
 
   bool CheckExecutionState(int id) {
     return CheckExecutionState() && break_id() == id;
@@ -482,9 +490,12 @@ class Debug {
   // Clear all code from instrumentation.
   void ClearAllBreakPoints();
   // Instrument a function with one-shots.
-  void FloodWithOneShot(Handle<SharedFunctionInfo> function);
+  void FloodWithOneShot(Handle<SharedFunctionInfo> function,
+                        bool returns_only = false);
   // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
+
+  bool IsFrameBlackboxed(JavaScriptFrame* frame);
 
   void ActivateStepOut(StackFrame* frame);
   void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
@@ -555,6 +566,13 @@ class Debug {
     // Step action for last step performed.
     StepAction last_step_action_;
 
+    // If set, next PrepareStepIn will ignore this function until stepped into
+    // another function, at which point this will be cleared.
+    Object* ignore_step_into_function_;
+
+    // If set then we need to repeat StepOut action at return.
+    bool fast_forward_to_return_;
+
     // Source statement position from last step next action.
     int last_statement_position_;
 
@@ -599,7 +617,7 @@ class LegacyDebugDelegate : public v8::debug::DebugDelegate {
  public:
   explicit LegacyDebugDelegate(Isolate* isolate) : isolate_(isolate) {}
   void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
-                            int parent_id) override;
+                            int parent_id, bool created_by_user) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
