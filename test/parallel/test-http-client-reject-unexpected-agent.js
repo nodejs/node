@@ -49,8 +49,12 @@ server.listen(0, baseOptions.host, common.mustCall(function() {
   failingAgentOptions.forEach((agent) => {
     assert.throws(
       () => createRequest(agent),
-      /^TypeError: Agent option must be an Agent-like object/,
-      `Expected typeof agent: ${typeof agent} to be rejected`
+      common.expectsError({
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "Agent option" argument must be one of type ' +
+                 'Agent-like object, undefined, or false'
+      })
     );
   });
 
