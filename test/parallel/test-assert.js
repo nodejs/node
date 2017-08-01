@@ -546,62 +546,6 @@ a.throws(makeBlock(thrower, TypeError), function(err) {
   assert.ok(threw);
 }
 
-// https://github.com/nodejs/node/issues/6416
-// Make sure circular refs don't throw.
-{
-  const b = {};
-  b.b = b;
-
-  const c = {};
-  c.b = c;
-
-  a.doesNotThrow(makeBlock(a.deepEqual, b, c));
-  a.doesNotThrow(makeBlock(a.deepStrictEqual, b, c));
-
-  const d = {};
-  d.a = 1;
-  d.b = d;
-
-  const e = {};
-  e.a = 1;
-  e.b = e.a;
-
-  a.throws(makeBlock(a.deepEqual, d, e), /AssertionError/);
-  a.throws(makeBlock(a.deepStrictEqual, d, e), /AssertionError/);
-
-  // https://github.com/nodejs/node/issues/13314
-  const f = {};
-  f.ref = f;
-
-  const g = {};
-  g.ref = g;
-
-  const h = { ref: g };
-
-  a.throws(makeBlock(a.deepEqual, f, h), /AssertionError/);
-  a.throws(makeBlock(a.deepStrictEqual, f, h), /AssertionError/);
-}
-// GH-7178. Ensure reflexivity of deepEqual with `arguments` objects.
-const args = (function() { return arguments; })();
-a.throws(makeBlock(a.deepEqual, [], args));
-a.throws(makeBlock(a.deepEqual, args, []));
-
-// more checking that arguments objects are handled correctly
-{
-  // eslint-disable-next-line func-style
-  const returnArguments = function() { return arguments; };
-
-  const someArgs = returnArguments('a');
-  const sameArgs = returnArguments('a');
-  const diffArgs = returnArguments('b');
-
-  a.throws(makeBlock(a.deepEqual, someArgs, ['a']));
-  a.throws(makeBlock(a.deepEqual, ['a'], someArgs));
-  a.throws(makeBlock(a.deepEqual, someArgs, { '0': 'a' }));
-  a.throws(makeBlock(a.deepEqual, someArgs, diffArgs));
-  a.doesNotThrow(makeBlock(a.deepEqual, someArgs, sameArgs));
-}
-
 // check messages from assert.throws()
 {
   const noop = () => {};

@@ -159,15 +159,17 @@ assertNotDeepOrStrict(new Set([1, 2, 3, 4]), new Set([1, 2, 3]));
 assertDeepAndStrictEqual(new Set(['1', '2', '3']), new Set(['1', '2', '3']));
 assertDeepAndStrictEqual(new Set([[1, 2], [3, 4]]), new Set([[3, 4], [1, 2]]));
 
-const a = [ 1, 2 ];
-const b = [ 3, 4 ];
-const c = [ 1, 2 ];
-const d = [ 3, 4 ];
+{
+  const a = [ 1, 2 ];
+  const b = [ 3, 4 ];
+  const c = [ 1, 2 ];
+  const d = [ 3, 4 ];
 
-assertDeepAndStrictEqual(
-  { a: a, b: b, s: new Set([a, b]) },
-  { a: c, b: d, s: new Set([d, c]) }
-);
+  assertDeepAndStrictEqual(
+    { a: a, b: b, s: new Set([a, b]) },
+    { a: c, b: d, s: new Set([d, c]) }
+  );
+}
 
 assertDeepAndStrictEqual(new Map([[1, 1], [2, 2]]), new Map([[1, 1], [2, 2]]));
 assertDeepAndStrictEqual(new Map([[1, 1], [2, 2]]), new Map([[2, 2], [1, 1]]));
@@ -302,6 +304,66 @@ assertOnlyDeepEqual(
   new Set([null]),
   new Set([undefined])
 );
+
+// GH-6416. Make sure circular refs don't throw.
+{
+  const b = {};
+  b.b = b;
+  const c = {};
+  c.b = c;
+
+  assertDeepAndStrictEqual(b, c);
+
+  const d = {};
+  d.a = 1;
+  d.b = d;
+  const e = {};
+  e.a = 1;
+  e.b = {};
+
+  assertNotDeepOrStrict(d, e);
+}
+
+// GH-14441. Circular structures should be consistent
+{
+  const a = {};
+  const b = {};
+  a.a = a;
+  b.a = {};
+  b.a.a = a;
+  assertDeepAndStrictEqual(a, b);
+}
+
+{
+  const a = new Set();
+  const b = new Set();
+  const c = new Set();
+  a.add(a);
+  b.add(b);
+  c.add(a);
+  assertDeepAndStrictEqual(b, c);
+}
+
+// GH-7178. Ensure reflexivity of deepEqual with `arguments` objects.
+{
+  const args = (function() { return arguments; })();
+  assertNotDeepOrStrict([], args);
+}
+
+// More checking that arguments objects are handled correctly
+{
+  // eslint-disable-next-line func-style
+  const returnArguments = function() { return arguments; };
+
+  const someArgs = returnArguments('a');
+  const sameArgs = returnArguments('a');
+  const diffArgs = returnArguments('b');
+
+  assertNotDeepOrStrict(someArgs, ['a']);
+  assertNotDeepOrStrict(someArgs, { '0': 'a' });
+  assertNotDeepOrStrict(someArgs, diffArgs);
+  assertDeepAndStrictEqual(someArgs, sameArgs);
+}
 
 {
   const values = [
