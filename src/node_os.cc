@@ -376,27 +376,11 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
   else
     shell = StringBytes::Encode(env->isolate(), pwd.shell, encoding, &error);
 
-  uv_os_free_passwd(&pwd);
-
-  if (username.IsEmpty()) {
-    // TODO(addaleax): Use `error` itself here.
-    return env->ThrowUVException(UV_EINVAL,
-                                 "uv_os_get_passwd",
-                                 "Invalid character encoding for username");
-  }
-
-  if (homedir.IsEmpty()) {
-    // TODO(addaleax): Use `error` itself here.
-    return env->ThrowUVException(UV_EINVAL,
-                                 "uv_os_get_passwd",
-                                 "Invalid character encoding for homedir");
-  }
-
-  if (shell.IsEmpty()) {
-    // TODO(addaleax): Use `error` itself here.
-    return env->ThrowUVException(UV_EINVAL,
-                                 "uv_os_get_passwd",
-                                 "Invalid character encoding for shell");
+  if (username.IsEmpty() || homedir.IsEmpty() || shell.IsEmpty()) {
+    CHECK(!error.IsEmpty());
+    uv_os_free_passwd(&pwd);
+    env->isolate()->ThrowException(error);
+    return;
   }
 
   Local<Object> entry = Object::New(env->isolate());
