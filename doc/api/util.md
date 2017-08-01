@@ -167,9 +167,11 @@ corresponding argument. Supported placeholders are:
 * `%f` - Floating point value.
 * `%j` - JSON.  Replaced with the string `'[Circular]'` if the argument
 contains circular references.
-* `%o` - Object. A string representation of an object. 
-Similar to `util.inspect()` without options.
-* `%O` - Object. Same as `%o`.
+* `%o` - Object. A string representation of an object 
+  with optimally useful formatting.
+* `%O` - Object. A string representation of an object 
+  with generic JavaScript object formatting. 
+  Similar to `util.inspect()` without options.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
 
 If the placeholder does not have a corresponding argument, the placeholder is

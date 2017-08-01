@@ -116,20 +116,19 @@ const nestedObj = {
 };
 assert.strictEqual(util.format('%o'), '%o');
 assert.strictEqual(util.format('%o', 42), '42');
-assert.strictEqual(util.format('%o', 'foo'), '\'foo\'');
+assert.strictEqual(util.format('%o', 'foo'), '"foo"');
 assert.strictEqual(
   util.format('%o', obj),
-  '{ foo: \'bar\', foobar: 1, func: [Function: func] }');
+  '{"foo":"bar","foobar":1}');
 assert.strictEqual(
   util.format('%o', nestedObj),
-  '{ foo: \'bar\', foobar: { foo: \'bar\', func: [Function: func] } }');
+  '{"foo":"bar","foobar":{"foo":"bar"}}');
 assert.strictEqual(
   util.format('%o %o', obj, obj),
-  '{ foo: \'bar\', foobar: 1, func: [Function: func] } ' +
-  '{ foo: \'bar\', foobar: 1, func: [Function: func] }');
+  '{"foo":"bar","foobar":1} {"foo":"bar","foobar":1}');
 assert.strictEqual(
   util.format('%o %o', obj),
-  '{ foo: \'bar\', foobar: 1, func: [Function: func] } %o');
+  '{"foo":"bar","foobar":1} %o');
 
 assert.strictEqual(util.format('%O'), '%O');
 assert.strictEqual(util.format('%O', 42), '42');
