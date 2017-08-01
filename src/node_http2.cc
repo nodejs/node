@@ -1120,38 +1120,38 @@ void Initialize(Local<Object> target,
 
   // Initialize the buffer used for padding callbacks
   target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "paddingArrayBuffer"),
-              ArrayBuffer::New(env->isolate(),
+              FIXED_ONE_BYTE_STRING(isolate, "paddingArrayBuffer"),
+              ArrayBuffer::New(isolate,
                                &http2_padding_buffer,
                                http2_padding_buffer_byte_length))
                                    .FromJust();
 
   // Initialize the buffer used to store the session state
   target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "sessionStateArrayBuffer"),
-              ArrayBuffer::New(env->isolate(),
+              FIXED_ONE_BYTE_STRING(isolate, "sessionStateArrayBuffer"),
+              ArrayBuffer::New(isolate,
                                &http2_session_state_buffer,
                                http2_session_state_buffer_byte_length))
                                    .FromJust();
 
   // Initialize the buffer used to store the stream state
   target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "streamStateArrayBuffer"),
-              ArrayBuffer::New(env->isolate(),
+              FIXED_ONE_BYTE_STRING(isolate, "streamStateArrayBuffer"),
+              ArrayBuffer::New(isolate,
                                &http2_stream_state_buffer,
                                http2_stream_state_buffer_byte_length))
                                    .FromJust();
 
   target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "settingsArrayBuffer"),
-              ArrayBuffer::New(env->isolate(),
+              FIXED_ONE_BYTE_STRING(isolate, "settingsArrayBuffer"),
+              ArrayBuffer::New(isolate,
                                &http2_settings_buffer,
                                http2_settings_buffer_byte_length))
                                    .FromJust();
 
   target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "optionsArrayBuffer"),
-              ArrayBuffer::New(env->isolate(),
+              FIXED_ONE_BYTE_STRING(isolate, "optionsArrayBuffer"),
+              ArrayBuffer::New(isolate,
                                &http2_options_buffer,
                                http2_options_buffer_byte_length))
                                    .FromJust();
