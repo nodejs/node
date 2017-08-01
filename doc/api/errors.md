@@ -692,7 +692,7 @@ platform-dependent.
 ### ERR_INVALID_HANDLE_TYPE
 
 Used when an attempt is made to send an unsupported "handle" over an IPC
-communication channel to a child process. See [`child.send()`] and
+communication channel to a child process. See [`subprocess.send()`] and
 [`process.send()`] for more information.
 
 <a id="ERR_INVALID_HTTP_TOKEN"></a>
@@ -910,7 +910,7 @@ Used when an invalid or unknown encoding option is passed to an API.
 ### ERR_UNKNOWN_SIGNAL
 
 Used when an invalid or unknown process signal is passed to an API expecting a
-valid signal (such as [`child.kill()`][]).
+valid signal (such as [`subprocess.kill()`][]).
 
 <a id="ERR_UNKNOWN_STDIN_TYPE"></a>
 ### ERR_UNKNOWN_STDIN_TYPE
@@ -935,8 +935,8 @@ Used when the V8 BreakIterator API is used but the full ICU data set is not
 installed.
 
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
-[`child.kill()`]: child_process.html#child_process_child_kill_signal
-[`child.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
+[`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
+[`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
