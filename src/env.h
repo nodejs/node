@@ -596,21 +596,6 @@ class Environment {
   inline double* heap_space_statistics_buffer() const;
   inline void set_heap_space_statistics_buffer(double* pointer);
 
-  inline uint32_t* http2_settings_buffer() const;
-  inline void set_http2_settings_buffer(uint32_t* pointer);
-
-  inline uint32_t* http2_options_buffer() const;
-  inline void set_http2_options_buffer(uint32_t* pointer);
-
-  inline double* http2_session_state_buffer() const;
-  inline void set_http2_session_state_buffer(double* pointer);
-
-  inline double* http2_stream_state_buffer() const;
-  inline void set_http2_stream_state_buffer(double* pointer);
-
-  inline uint32_t* http2_padding_buffer() const;
-  inline void set_http2_padding_buffer(uint32_t* pointer);
-
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
   inline char* http2_socket_buffer() const;
@@ -720,11 +705,6 @@ class Environment {
 
   double* heap_statistics_buffer_ = nullptr;
   double* heap_space_statistics_buffer_ = nullptr;
-  uint32_t* http2_settings_buffer_ = nullptr;
-  uint32_t* http2_options_buffer_ = nullptr;
-  double* http2_session_state_buffer_ = nullptr;
-  double* http2_stream_state_buffer_ = nullptr;
-  uint32_t* http2_padding_buffer_ = nullptr;
 
   char* http_parser_buffer_;
   char* http2_socket_buffer_;
