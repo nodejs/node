@@ -1603,6 +1603,44 @@ TEST_F(ValueSerializerTest, DecodeRegExp) {
       });
 }
 
+// Tests that invalid flags are not accepted by the deserializer. In particular,
+// the dotAll flag ('s') is only valid when the corresponding flag is enabled.
+TEST_F(ValueSerializerTest, DecodeRegExpDotAll) {
+  i::FLAG_harmony_regexp_dotall = false;
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x1f},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsRegExp());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === RegExp.prototype"));
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toString() === '/foo/gimuy'"));
+             });
+  InvalidDecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x3f});
+  InvalidDecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x7f});
+
+  i::FLAG_harmony_regexp_dotall = true;
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x1f},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsRegExp());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === RegExp.prototype"));
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toString() === '/foo/gimuy'"));
+             });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x3f},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsRegExp());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === RegExp.prototype"));
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toString() === '/foo/gimsuy'"));
+             });
+  InvalidDecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x7f});
+}
+
 TEST_F(ValueSerializerTest, RoundTripMap) {
   RoundTripTest(
       "(() => { var m = new Map(); m.set(42, 'foo'); return m; })()",
@@ -1866,21 +1904,24 @@ TEST_F(ValueSerializerTest, DecodeArrayBufferOOM) {
   Isolate::CreateParams params;
   params.array_buffer_allocator = &allocator;
   Isolate* isolate = Isolate::New(params);
-  Isolate::Scope isolate_scope(isolate);
-  HandleScope handle_scope(isolate);
-  Local<Context> context = Context::New(isolate);
-  Context::Scope context_scope(context);
-  TryCatch try_catch(isolate);
+  {
+    Isolate::Scope isolate_scope(isolate);
+    HandleScope handle_scope(isolate);
+    Local<Context> context = Context::New(isolate);
+    Context::Scope context_scope(context);
+    TryCatch try_catch(isolate);
 
-  const std::vector<uint8_t> data = {0xff, 0x09, 0x3f, 0x00, 0x42,
-                                     0x03, 0x00, 0x80, 0xff, 0x00};
-  ValueDeserializer deserializer(isolate, &data[0],
-                                 static_cast<int>(data.size()), nullptr);
-  deserializer.SetSupportsLegacyWireFormat(true);
-  ASSERT_TRUE(deserializer.ReadHeader(context).FromMaybe(false));
-  ASSERT_FALSE(try_catch.HasCaught());
-  EXPECT_TRUE(deserializer.ReadValue(context).IsEmpty());
-  EXPECT_TRUE(try_catch.HasCaught());
+    const std::vector<uint8_t> data = {0xff, 0x09, 0x3f, 0x00, 0x42,
+                                       0x03, 0x00, 0x80, 0xff, 0x00};
+    ValueDeserializer deserializer(isolate, &data[0],
+                                   static_cast<int>(data.size()), nullptr);
+    deserializer.SetSupportsLegacyWireFormat(true);
+    ASSERT_TRUE(deserializer.ReadHeader(context).FromMaybe(false));
+    ASSERT_FALSE(try_catch.HasCaught());
+    EXPECT_TRUE(deserializer.ReadValue(context).IsEmpty());
+    EXPECT_TRUE(try_catch.HasCaught());
+  }
+  isolate->Dispose();
 }
 
 // Includes an ArrayBuffer wrapper marked for transfer from the serialization

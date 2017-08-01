@@ -240,7 +240,6 @@ ifdef android_ndk_root
 endif
 
 # ----------------- available targets: --------------------
-# - "grokdump": rebuilds heap constants lists used by grokdump
 # - any arch listed in ARCHES (see below)
 # - any mode listed in MODES
 # - every combination <arch>.<mode>, e.g. "ia32.release"
@@ -466,12 +465,6 @@ $(ENVFILE).new:
 	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$(CXX_TARGET_ARCH)))
 	$(eval CXX_TARGET_ARCH:=$(subst x86_64,x64,$(CXX_TARGET_ARCH)))
 	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS) -Dtarget_arch=$(CXX_TARGET_ARCH)" > $(ENVFILE).new;
-
-# Heap constants for grokdump.
-DUMP_FILE = tools/v8heapconst.py
-grokdump: ia32.release
-	@cat $(DUMP_FILE).tmpl > $(DUMP_FILE)
-	@$(OUTDIR)/ia32.release/d8 --dump-heap-constants >> $(DUMP_FILE)
 
 # Support for the GNU GLOBAL Source Code Tag System.
 gtags.files: $(GYPFILES) $(ENVFILE)

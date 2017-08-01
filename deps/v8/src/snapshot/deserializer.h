@@ -66,11 +66,9 @@ class Deserializer : public SerializerDeserializer {
   void SetRehashability(bool v) { can_rehash_ = v; }
 
  private:
-  void VisitPointers(Object** start, Object** end) override;
+  void VisitRootPointers(Root root, Object** start, Object** end) override;
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
-
-  void VisitRuntimeEntry(RelocInfo* rinfo) override { UNREACHABLE(); }
 
   void Initialize(Isolate* isolate);
 

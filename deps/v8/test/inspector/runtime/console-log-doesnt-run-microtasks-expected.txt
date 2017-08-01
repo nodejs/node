@@ -18,4 +18,3 @@ Check that console.log doesn't run microtasks.
     type : string
     value : finished
 }
-

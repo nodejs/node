@@ -5,6 +5,7 @@
 #ifndef V8_BASE_PLATFORM_PLATFORM_POSIX_H_
 #define V8_BASE_PLATFORM_PLATFORM_POSIX_H_
 
+#include "src/base/platform/platform.h"
 #include "src/base/timezone-cache.h"
 
 namespace v8 {
@@ -21,6 +22,8 @@ class PosixTimezoneCache : public TimezoneCache {
  protected:
   static const int msPerSecond = 1000;
 };
+
+int GetProtectionFromMemoryPermission(OS::MemoryPermission access);
 
 }  // namespace base
 }  // namespace v8

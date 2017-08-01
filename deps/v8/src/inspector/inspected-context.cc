@@ -4,6 +4,7 @@
 
 #include "src/inspector/inspected-context.h"
 
+#include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console.h"
@@ -24,20 +25,16 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
       m_humanReadableName(toString16(info.humanReadableName)),
       m_auxData(toString16(info.auxData)),
       m_reported(false) {
-  v8::Isolate* isolate = m_inspector->isolate();
-  info.context->SetEmbedderData(static_cast<int>(v8::Context::kDebugIdIndex),
-                                v8::Int32::New(isolate, contextId));
+  v8::debug::SetContextId(info.context, contextId);
+  if (!info.hasMemoryOnConsole) return;
+  v8::Context::Scope contextScope(info.context);
   v8::Local<v8::Object> global = info.context->Global();
-  v8::Local<v8::Object> console =
-      m_inspector->console()->createConsole(info.context);
-  if (info.hasMemoryOnConsole) {
-    m_inspector->console()->installMemoryGetter(info.context, console);
-  }
-  if (!global
-           ->Set(info.context, toV8StringInternalized(isolate, "console"),
-                 console)
-           .FromMaybe(false)) {
-    return;
+  v8::Local<v8::Value> console;
+  if (global->Get(info.context, toV8String(m_inspector->isolate(), "console"))
+          .ToLocal(&console) &&
+      console->IsObject()) {
+    m_inspector->console()->installMemoryGetter(
+        info.context, v8::Local<v8::Object>::Cast(console));
   }
 }
 
@@ -46,10 +43,7 @@ InspectedContext::~InspectedContext() {
 
 // static
 int InspectedContext::contextId(v8::Local<v8::Context> context) {
-  v8::Local<v8::Value> data =
-      context->GetEmbedderData(static_cast<int>(v8::Context::kDebugIdIndex));
-  if (data.IsEmpty() || !data->IsInt32()) return 0;
-  return static_cast<int>(data.As<v8::Int32>()->Value());
+  return v8::debug::GetContextId(context);
 }
 
 v8::Local<v8::Context> InspectedContext::context() const {

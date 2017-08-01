@@ -66,7 +66,7 @@ class JSCallAccessor {
     return call_->op()->ValueInputCount() - 2;
   }
 
-  float frequency() const {
+  CallFrequency frequency() const {
     return (call_->opcode() == IrOpcode::kJSCall)
                ? CallParametersOf(call_->op()).frequency()
                : ConstructParametersOf(call_->op()).frequency();
@@ -335,10 +335,11 @@ bool NeedsImplicitReceiver(Handle<SharedFunctionInfo> shared_info) {
   DisallowHeapAllocation no_gc;
   Isolate* const isolate = shared_info->GetIsolate();
   Code* const construct_stub = shared_info->construct_stub();
-  return construct_stub != *isolate->builtins()->JSBuiltinsConstructStub() &&
-         construct_stub !=
-             *isolate->builtins()->JSBuiltinsConstructStubForDerived() &&
-         construct_stub != *isolate->builtins()->JSConstructStubApi();
+  if (construct_stub == *isolate->builtins()->JSConstructStubGeneric()) {
+    return !IsDerivedConstructor(shared_info->kind());
+  } else {
+    return false;
+  }
 }
 
 bool IsNonConstructible(Handle<SharedFunctionInfo> shared_info) {
@@ -481,18 +482,6 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   if (node->opcode() == IrOpcode::kJSConstruct &&
       IsNonConstructible(shared_info)) {
     TRACE("Not inlining %s into %s because constructor is not constructable.\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-    return NoChange();
-  }
-
-  // TODO(706642): Don't inline derived class constructors for now, as the
-  // inlining logic doesn't deal properly with derived class constructors
-  // that return a primitive, i.e. it's not in sync with what the Parser
-  // and the JSConstructSub does.
-  if (node->opcode() == IrOpcode::kJSConstruct &&
-      IsDerivedConstructor(shared_info->kind())) {
-    TRACE("Not inlining %s into %s because constructor is derived.\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
@@ -655,21 +644,93 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       uncaught_subcalls.push_back(create);  // Adds {IfSuccess} & {IfException}.
       NodeProperties::ReplaceControlInput(node, create);
       NodeProperties::ReplaceEffectInput(node, create);
-      // Insert a check of the return value to determine whether the return
-      // value or the implicit receiver should be selected as a result of the
-      // call.
-      Node* check = graph()->NewNode(simplified()->ObjectIsReceiver(), node);
-      Node* select =
-          graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
-                           check, node, create);
-      NodeProperties::ReplaceUses(node, select, node, node, node);
-      // Fix-up inputs that have been mangled by the {ReplaceUses} call above.
-      NodeProperties::ReplaceValueInput(select, node, 1);  // Fix-up input.
-      NodeProperties::ReplaceValueInput(check, node, 0);   // Fix-up input.
+      Node* node_success =
+          NodeProperties::FindSuccessfulControlProjection(node);
+      // Placeholder to hold {node}'s value dependencies while {node} is
+      // replaced.
+      Node* dummy = graph()->NewNode(common()->Dead());
+      NodeProperties::ReplaceUses(node, dummy, node, node, node);
+      Node* result;
+      if (FLAG_harmony_restrict_constructor_return &&
+          IsClassConstructor(shared_info->kind())) {
+        Node* is_undefined =
+            graph()->NewNode(simplified()->ReferenceEqual(), node,
+                             jsgraph()->UndefinedConstant());
+        Node* branch_is_undefined =
+            graph()->NewNode(common()->Branch(), is_undefined, node_success);
+        Node* branch_is_undefined_true =
+            graph()->NewNode(common()->IfTrue(), branch_is_undefined);
+        Node* branch_is_undefined_false =
+            graph()->NewNode(common()->IfFalse(), branch_is_undefined);
+        Node* is_receiver =
+            graph()->NewNode(simplified()->ObjectIsReceiver(), node);
+        Node* branch_is_receiver = graph()->NewNode(
+            common()->Branch(), is_receiver, branch_is_undefined_false);
+        Node* branch_is_receiver_true =
+            graph()->NewNode(common()->IfTrue(), branch_is_receiver);
+        Node* branch_is_receiver_false =
+            graph()->NewNode(common()->IfFalse(), branch_is_receiver);
+        branch_is_receiver_false =
+            graph()->NewNode(javascript()->CallRuntime(
+                                 Runtime::kThrowConstructorReturnedNonObject),
+                             context, NodeProperties::GetFrameStateInput(node),
+                             node, branch_is_receiver_false);
+        uncaught_subcalls.push_back(branch_is_receiver_false);
+        branch_is_receiver_false =
+            graph()->NewNode(common()->Throw(), branch_is_receiver_false,
+                             branch_is_receiver_false);
+        NodeProperties::MergeControlToEnd(graph(), common(),
+                                          branch_is_receiver_false);
+        Node* merge =
+            graph()->NewNode(common()->Merge(2), branch_is_undefined_true,
+                             branch_is_receiver_true);
+        result =
+            graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                             create, node, merge);
+        ReplaceWithValue(node_success, node_success, node_success, merge);
+        // Fix input destroyed by the above {ReplaceWithValue} call.
+        NodeProperties::ReplaceControlInput(branch_is_undefined, node_success,
+                                            0);
+      } else {
+        // Insert a check of the return value to determine whether the return
+        // value or the implicit receiver should be selected as a result of the
+        // call.
+        Node* check = graph()->NewNode(simplified()->ObjectIsReceiver(), node);
+        result =
+            graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
+                             check, node, create);
+      }
       receiver = create;  // The implicit receiver.
+      ReplaceWithValue(dummy, result);
+    } else if (IsDerivedConstructor(shared_info->kind())) {
+      Node* node_success =
+          NodeProperties::FindSuccessfulControlProjection(node);
+      Node* is_receiver =
+          graph()->NewNode(simplified()->ObjectIsReceiver(), node);
+      Node* branch_is_receiver =
+          graph()->NewNode(common()->Branch(), is_receiver, node_success);
+      Node* branch_is_receiver_true =
+          graph()->NewNode(common()->IfTrue(), branch_is_receiver);
+      Node* branch_is_receiver_false =
+          graph()->NewNode(common()->IfFalse(), branch_is_receiver);
+      branch_is_receiver_false =
+          graph()->NewNode(javascript()->CallRuntime(
+                               Runtime::kThrowConstructorReturnedNonObject),
+                           context, NodeProperties::GetFrameStateInput(node),
+                           node, branch_is_receiver_false);
+      uncaught_subcalls.push_back(branch_is_receiver_false);
+      branch_is_receiver_false =
+          graph()->NewNode(common()->Throw(), branch_is_receiver_false,
+                           branch_is_receiver_false);
+      NodeProperties::MergeControlToEnd(graph(), common(),
+                                        branch_is_receiver_false);
+
+      ReplaceWithValue(node_success, node_success, node_success,
+                       branch_is_receiver_true);
+      // Fix input destroyed by the above {ReplaceWithValue} call.
+      NodeProperties::ReplaceControlInput(branch_is_receiver, node_success, 0);
     }
     node->ReplaceInput(1, receiver);
-
     // Insert a construct stub frame into the chain of frame states. This will
     // reconstruct the proper frame when deoptimizing within the constructor.
     frame_state = CreateArtificialFrameState(

@@ -91,7 +91,7 @@ def main():
 
   # Ensure depot_tools are updated.
   subprocess.check_output(
-      'gclient', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
+      'update_depot_tools', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
 
   cmd = ['git cl try -m internal.client.v8']
   cmd += ['-b %s' % bot for bot in options.bots]

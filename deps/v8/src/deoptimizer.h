@@ -322,7 +322,7 @@ class TranslatedState {
                                    int* length);
   void CreateArgumentsElementsTranslatedValues(int frame_index,
                                                Address input_frame_pointer,
-                                               bool is_rest);
+                                               bool is_rest, FILE* trace_file);
 
   void UpdateFromPreviouslyMaterializedObjects();
   Handle<Object> MaterializeAt(int frame_index, int* value_index);
@@ -540,6 +540,7 @@ class Deoptimizer : public Malloced {
   static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
                                                BailoutType type,
                                                int max_entry_id);
+  static void EnsureCodeForMaxDeoptimizationEntries(Isolate* isolate);
 
   Isolate* isolate() const { return isolate_; }
 

@@ -40,20 +40,15 @@ class BoilerplateDescription : public FixedArray {
 // Pair of {ElementsKind} and an array of constant values for {ArrayLiteral}
 // expressions. Used to communicate with the runtime for literal boilerplate
 // creation within the {Runtime_CreateArrayLiteral} method.
-class ConstantElementsPair : public Struct {
+class ConstantElementsPair : public Tuple2 {
  public:
   DECL_INT_ACCESSORS(elements_kind)
   DECL_ACCESSORS(constant_values, FixedArrayBase)
 
   DECLARE_CAST(ConstantElementsPair)
 
-  // Dispatched behavior.
-  DECLARE_PRINTER(ConstantElementsPair)
-  DECLARE_VERIFIER(ConstantElementsPair)
-
-  static const int kElementsKindOffset = HeapObject::kHeaderSize;
-  static const int kConstantValuesOffset = kElementsKindOffset + kPointerSize;
-  static const int kSize = kConstantValuesOffset + kPointerSize;
+  static const int kElementsKindOffset = kValue1Offset;
+  static const int kConstantValuesOffset = kValue2Offset;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantElementsPair);

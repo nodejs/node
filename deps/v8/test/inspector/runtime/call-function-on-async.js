@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Tests that Runtime.callFunctionOn works with awaitPromise flag.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Tests that Runtime.callFunctionOn works with awaitPromise flag.");
 
 InspectorTest.runTestSuite([
   function testArguments(next)

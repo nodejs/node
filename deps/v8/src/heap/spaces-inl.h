@@ -337,8 +337,13 @@ MemoryChunk* MemoryChunkIterator::next() {
   return nullptr;
 }
 
-Page* FreeListCategory::page() {
-  return Page::FromAddress(reinterpret_cast<Address>(this));
+Page* FreeListCategory::page() const {
+  return Page::FromAddress(
+      reinterpret_cast<Address>(const_cast<FreeListCategory*>(this)));
+}
+
+Page* FreeList::GetPageForCategoryType(FreeListCategoryType type) {
+  return top(type) ? top(type)->page() : nullptr;
 }
 
 FreeList* FreeListCategory::owner() {

@@ -7,6 +7,9 @@
 
 #include "src/objects.h"
 
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
+
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -63,7 +66,7 @@ class BaseShape {
   static inline Map* GetMap(Isolate* isolate);
 };
 
-class HashTableBase : public FixedArray {
+class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
  public:
   // Returns the number of elements in the hash table.
   inline int NumberOfElements();
@@ -177,8 +180,11 @@ class HashTable : public HashTableBase {
   static const int kMaxCapacity =
       (FixedArray::kMaxLength - kElementsStartIndex) / kEntrySize;
 
+  // Maximum length to create a regular HashTable (aka. non large object).
+  static const int kMaxRegularCapacity = 16384;
+
   // Returns the index for an entry (of the key)
-  static inline int EntryToIndex(int entry) {
+  static constexpr inline int EntryToIndex(int entry) {
     return (entry * kEntrySize) + kElementsStartIndex;
   }
 
@@ -203,6 +209,15 @@ class HashTable : public HashTableBase {
   // Returns true if this table has sufficient capacity for adding n elements.
   bool HasSufficientCapacityToAdd(int number_of_additional_elements);
 
+ private:
+  // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
+  STATIC_ASSERT(EntryToIndex(kMaxRegularCapacity) < kMaxRegularLength);
+  STATIC_ASSERT(v8::base::bits::IsPowerOfTwo32(kMaxRegularCapacity));
+  static const int kMaxRegularEntry = kMaxRegularCapacity / kEntrySize;
+  static const int kMaxRegularIndex = EntryToIndex(kMaxRegularEntry);
+  STATIC_ASSERT(OffsetOfElementAt(kMaxRegularIndex) <
+                kMaxRegularHeapObjectSize);
+
   // Sets the capacity of the hash table.
   void SetCapacity(int capacity) {
     // To scale a computed hash code to fit within the hash table, we
@@ -213,7 +228,6 @@ class HashTable : public HashTableBase {
     set(kCapacityIndex, Smi::FromInt(capacity));
   }
 
- private:
   // Returns _expected_ if one of entries given by the first _probe_ probes is
   // equal to  _expected_. Otherwise, returns the entry given by the probe
   // number _probe_.
@@ -329,9 +343,9 @@ class ObjectHashSet
 // Originally attributed to Tyler Close.
 //
 // Memory layout:
-//   [0]: bucket count
-//   [1]: element count
-//   [2]: deleted element count
+//   [0]: element count
+//   [1]: deleted element count
+//   [2]: bucket count
 //   [3..(3 + NumberOfBuckets() - 1)]: "hash table", where each item is an
 //                            offset into the data table (see below) where the
 //                            first item in this bucket is stored.

@@ -84,8 +84,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Int32Constant(int32_t value) {
     return AddNode(common()->Int32Constant(value));
   }
-  Node* StackSlot(MachineRepresentation rep) {
-    return AddNode(machine()->StackSlot(rep));
+  Node* StackSlot(MachineRepresentation rep, int alignment = 0) {
+    return AddNode(machine()->StackSlot(rep, alignment));
   }
   Node* Int64Constant(int64_t value) {
     return AddNode(common()->Int64Constant(value));
@@ -773,6 +773,13 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* CallCFunction3(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, MachineType arg2_type,
                        Node* function, Node* arg0, Node* arg1, Node* arg2);
+  // Call to a C function with six arguments.
+  Node* CallCFunction6(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       MachineType arg3_type, MachineType arg4_type,
+                       MachineType arg5_type, Node* function, Node* arg0,
+                       Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+                       Node* arg5);
   // Call to a C function with eight arguments.
   Node* CallCFunction8(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, MachineType arg2_type,
@@ -781,6 +788,15 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                        MachineType arg7_type, Node* function, Node* arg0,
                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                        Node* arg5, Node* arg6, Node* arg7);
+  // Call to a C function with nine arguments.
+  Node* CallCFunction9(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       MachineType arg3_type, MachineType arg4_type,
+                       MachineType arg5_type, MachineType arg6_type,
+                       MachineType arg7_type, MachineType arg8_type,
+                       Node* function, Node* arg0, Node* arg1, Node* arg2,
+                       Node* arg3, Node* arg4, Node* arg5, Node* arg6,
+                       Node* arg7, Node* arg8);
 
   // ===========================================================================
   // The following utility methods deal with control flow, hence might switch

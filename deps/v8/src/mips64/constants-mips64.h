@@ -1179,9 +1179,9 @@ inline Hint NegateHint(Hint hint) {
 extern const Instr kPopInstruction;
 // addiu(sp, sp, -4) part of Push(r) operation as pre-decrement of sp.
 extern const Instr kPushInstruction;
-// sw(r, MemOperand(sp, 0))
+// Sw(r, MemOperand(sp, 0))
 extern const Instr kPushRegPattern;
-// lw(r, MemOperand(sp, 0))
+// Lw(r, MemOperand(sp, 0))
 extern const Instr kPopRegPattern;
 extern const Instr kLwRegFpOffsetPattern;
 extern const Instr kSwRegFpOffsetPattern;
@@ -1684,6 +1684,8 @@ const int kCArgsSlotsSize = kCArgSlotCount * Instruction::kInstrSize * 2;
 const int kInvalidStackOffset = -1;
 const int kBranchReturnOffset = 2 * Instruction::kInstrSize;
 
+static const int kNegOffset = 0x00008000;
+
 InstructionBase::Type InstructionBase::InstructionType() const {
   switch (OpcodeFieldRaw()) {
     case SPECIAL:
@@ -1706,6 +1708,8 @@ InstructionBase::Type InstructionBase::InstructionType() const {
       switch (FunctionFieldRaw()) {
         case INS:
         case DINS:
+        case DINSM:
+        case DINSU:
         case EXT:
         case DEXT:
         case DEXTM:

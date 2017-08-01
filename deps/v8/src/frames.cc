@@ -15,6 +15,7 @@
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
+#include "src/visitors.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -405,14 +406,13 @@ Code* StackFrame::GetSafepointData(Isolate* isolate,
 static bool GcSafeCodeContains(HeapObject* object, Address addr);
 #endif
 
-
-void StackFrame::IteratePc(ObjectVisitor* v, Address* pc_address,
+void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
                            Address* constant_pool_address, Code* holder) {
   Address pc = *pc_address;
   DCHECK(GcSafeCodeContains(holder, pc));
   unsigned pc_offset = static_cast<unsigned>(pc - holder->instruction_start());
   Object* code = holder;
-  v->VisitPointer(&code);
+  v->VisitRootPointer(Root::kTop, &code);
   if (code == holder) return;
   holder = reinterpret_cast<Code*>(code);
   pc = holder->instruction_start() + pc_offset;
@@ -601,12 +601,11 @@ void ExitFrame::SetCallerFp(Address caller_fp) {
   Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset) = caller_fp;
 }
 
-
-void ExitFrame::Iterate(ObjectVisitor* v) const {
+void ExitFrame::Iterate(RootVisitor* v) const {
   // The arguments are traversed as part of the expression stack of
   // the calling frame.
   IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
-  v->VisitPointer(&code_slot());
+  v->VisitRootPointer(Root::kTop, &code_slot());
 }
 
 
@@ -782,7 +781,7 @@ void StandardFrame::Summarize(List<FrameSummary>* functions,
   UNREACHABLE();
 }
 
-void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
+void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   // Make sure that we're not doing "safe" stack frame iteration. We cannot
   // possibly find pointers in optimized frames in that state.
   DCHECK(can_access_heap_objects());
@@ -842,8 +841,8 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
 
   // Visit the parameters that may be on top of the saved registers.
   if (safepoint_entry.argument_count() > 0) {
-    v->VisitPointers(parameters_base,
-                     parameters_base + safepoint_entry.argument_count());
+    v->VisitRootPointers(Root::kTop, parameters_base,
+                         parameters_base + safepoint_entry.argument_count());
     parameters_base += safepoint_entry.argument_count();
   }
 
@@ -861,7 +860,7 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
     for (int i = kNumSafepointRegisters - 1; i >=0; i--) {
       if (safepoint_entry.HasRegisterAt(i)) {
         int reg_stack_index = MacroAssembler::SafepointRegisterStackIndex(i);
-        v->VisitPointer(parameters_base + reg_stack_index);
+        v->VisitRootPointer(Root::kTop, parameters_base + reg_stack_index);
       }
     }
     // Skip the words containing the register values.
@@ -874,7 +873,7 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
 
   // Visit the rest of the parameters if they are tagged.
   if (code->has_tagged_params()) {
-    v->VisitPointers(parameters_base, parameters_limit);
+    v->VisitRootPointers(Root::kTop, parameters_base, parameters_limit);
   }
 
   // Visit pointer spill slots and locals.
@@ -882,7 +881,7 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
     int byte_index = index >> kBitsPerByteLog2;
     int bit_index = index & (kBitsPerByte - 1);
     if ((safepoint_bits[byte_index] & (1U << bit_index)) != 0) {
-      v->VisitPointer(parameters_limit + index);
+      v->VisitRootPointer(Root::kTop, parameters_limit + index);
     }
   }
 
@@ -892,15 +891,11 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   if (!is_wasm() && !is_wasm_to_js()) {
     // If this frame has JavaScript ABI, visit the context (in stub and JS
     // frames) and the function (in JS frames).
-    v->VisitPointers(frame_header_base, frame_header_limit);
+    v->VisitRootPointers(Root::kTop, frame_header_base, frame_header_limit);
   }
 }
 
-
-void StubFrame::Iterate(ObjectVisitor* v) const {
-  IterateCompiledFrame(v);
-}
-
+void StubFrame::Iterate(RootVisitor* v) const { IterateCompiledFrame(v); }
 
 Code* StubFrame::unchecked_code() const {
   return isolate()->FindCodeObject(pc());
@@ -926,10 +921,7 @@ int StubFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   return table->LookupReturn(pc_offset);
 }
 
-void OptimizedFrame::Iterate(ObjectVisitor* v) const {
-  IterateCompiledFrame(v);
-}
-
+void OptimizedFrame::Iterate(RootVisitor* v) const { IterateCompiledFrame(v); }
 
 void JavaScriptFrame::SetParameterValue(int index, Object* value) const {
   Memory::Object_at(GetParameterSlot(index)) = value;
@@ -1727,7 +1719,7 @@ Code* WasmCompiledFrame::unchecked_code() const {
   return isolate()->FindCodeObject(pc());
 }
 
-void WasmCompiledFrame::Iterate(ObjectVisitor* v) const {
+void WasmCompiledFrame::Iterate(RootVisitor* v) const {
   IterateCompiledFrame(v);
 }
 
@@ -1787,7 +1779,7 @@ int WasmCompiledFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   return table->LookupReturn(pc_offset);
 }
 
-void WasmInterpreterEntryFrame::Iterate(ObjectVisitor* v) const {
+void WasmInterpreterEntryFrame::Iterate(RootVisitor* v) const {
   IterateCompiledFrame(v);
 }
 
@@ -1831,6 +1823,10 @@ Script* WasmInterpreterEntryFrame::script() const {
 
 int WasmInterpreterEntryFrame::position() const {
   return FrameSummary::GetBottom(this).AsWasmInterpreted().SourcePosition();
+}
+
+Object* WasmInterpreterEntryFrame::context() const {
+  return wasm_instance()->compiled_module()->ptr_to_native_context();
 }
 
 Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {
@@ -2029,26 +2025,23 @@ void ArgumentsAdaptorFrame::Print(StringStream* accumulator,
   accumulator->Add("}\n\n");
 }
 
-
-void EntryFrame::Iterate(ObjectVisitor* v) const {
+void EntryFrame::Iterate(RootVisitor* v) const {
   IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
 }
 
-
-void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
+void StandardFrame::IterateExpressions(RootVisitor* v) const {
   const int offset = StandardFrameConstants::kLastObjectOffset;
   Object** base = &Memory::Object_at(sp());
   Object** limit = &Memory::Object_at(fp() + offset) + 1;
-  v->VisitPointers(base, limit);
+  v->VisitRootPointers(Root::kTop, base, limit);
 }
 
-
-void JavaScriptFrame::Iterate(ObjectVisitor* v) const {
+void JavaScriptFrame::Iterate(RootVisitor* v) const {
   IterateExpressions(v);
   IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
 }
 
-void InternalFrame::Iterate(ObjectVisitor* v) const {
+void InternalFrame::Iterate(RootVisitor* v) const {
   Code* code = LookupCode();
   IteratePc(v, pc_address(), constant_pool_address(), code);
   // Internal frames typically do not receive any arguments, hence their stack
@@ -2060,16 +2053,15 @@ void InternalFrame::Iterate(ObjectVisitor* v) const {
   if (code->has_tagged_params()) IterateExpressions(v);
 }
 
-
-void StubFailureTrampolineFrame::Iterate(ObjectVisitor* v) const {
+void StubFailureTrampolineFrame::Iterate(RootVisitor* v) const {
   Object** base = &Memory::Object_at(sp());
   Object** limit = &Memory::Object_at(
       fp() + StubFailureTrampolineFrameConstants::kFixedHeaderBottomOffset);
-  v->VisitPointers(base, limit);
+  v->VisitRootPointers(Root::kTop, base, limit);
   base = &Memory::Object_at(fp() + StandardFrameConstants::kFunctionOffset);
   const int offset = StandardFrameConstants::kLastObjectOffset;
   limit = &Memory::Object_at(fp() + offset) + 1;
-  v->VisitPointers(base, limit);
+  v->VisitRootPointers(Root::kTop, base, limit);
   IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
 }
 

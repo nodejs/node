@@ -4,7 +4,7 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/wasm/wasm-macro-gen.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
 namespace internal {

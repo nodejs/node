@@ -213,9 +213,7 @@
   V(intl_resolved_symbol)                   \
   V(megamorphic_symbol)                     \
   V(native_context_index_symbol)            \
-  V(nonexistent_symbol)                     \
   V(nonextensible_symbol)                   \
-  V(normal_ic_symbol)                       \
   V(not_mapped_symbol)                      \
   V(premonomorphic_symbol)                  \
   V(promise_async_stack_id_symbol)          \

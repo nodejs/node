@@ -9,7 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/elements-kind.h"
-#include "src/objects.h"
+#include "src/objects/map.h"
 #include "src/type-hints.h"
 #include "src/zone/zone-containers.h"
 
@@ -228,7 +228,7 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
   // If used, the TypeProfileSlot is always added as the first slot and its
   // index is constant. If other slots are added before the TypeProfileSlot,
   // this number changes.
-  static const int kTypeProfileSlotIndex = 2;
+  static const int kTypeProfileSlotIndex = 3;
 
  private:
   friend class FeedbackVectorSpecBase<FeedbackVectorSpec>;
@@ -308,7 +308,8 @@ class FeedbackVector : public FixedArray {
 
   static const int kSharedFunctionInfoIndex = 0;
   static const int kInvocationCountIndex = 1;
-  static const int kReservedIndexCount = 2;
+  static const int kOptimizedCodeIndex = 2;
+  static const int kReservedIndexCount = 3;
 
   inline void ComputeCounts(int* with_type_info, int* generic,
                             int* vector_ic_count, bool code_is_interpreted);
@@ -322,6 +323,14 @@ class FeedbackVector : public FixedArray {
   inline SharedFunctionInfo* shared_function_info() const;
   inline int invocation_count() const;
   inline void clear_invocation_count();
+
+  inline Code* optimized_code() const;
+  inline bool has_optimized_code() const;
+  void ClearOptimizedCode();
+  void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo* shared,
+                                                 const char* reason);
+  static void SetOptimizedCode(Handle<FeedbackVector> vector,
+                               Handle<Code> code);
 
   // Conversion from a slot to an integer index to the underlying array.
   static int GetIndex(FeedbackSlot slot) {
@@ -477,17 +486,14 @@ class FeedbackNexus {
   InlineCacheState ic_state() const { return StateFromFeedback(); }
   bool IsUninitialized() const { return StateFromFeedback() == UNINITIALIZED; }
   Map* FindFirstMap() const {
-    MapHandleList maps;
+    MapHandles maps;
     ExtractMaps(&maps);
-    if (maps.length() > 0) return *maps.at(0);
+    if (maps.size() > 0) return *maps.at(0);
     return NULL;
   }
 
-  // TODO(mvstanton): remove FindAllMaps, it didn't survive a code review.
-  void FindAllMaps(MapHandleList* maps) const { ExtractMaps(maps); }
-
   virtual InlineCacheState StateFromFeedback() const = 0;
-  virtual int ExtractMaps(MapHandleList* maps) const;
+  virtual int ExtractMaps(MapHandles* maps) const;
   virtual MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const;
   virtual bool FindHandlers(List<Handle<Object>>* code_list,
                             int length = -1) const;
@@ -511,7 +517,7 @@ class FeedbackNexus {
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
                             Handle<Object> handler);
 
-  void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
+  void ConfigurePolymorphic(Handle<Name> name, MapHandles const& maps,
                             List<Handle<Object>>* handlers);
 
  protected:
@@ -548,7 +554,7 @@ class CallICNexus final : public FeedbackNexus {
 
   InlineCacheState StateFromFeedback() const final;
 
-  int ExtractMaps(MapHandleList* maps) const final {
+  int ExtractMaps(MapHandles* maps) const final {
     // CallICs don't record map feedback.
     return 0;
   }
@@ -594,7 +600,7 @@ class LoadGlobalICNexus : public FeedbackNexus {
     DCHECK(vector->IsLoadGlobalIC(slot));
   }
 
-  int ExtractMaps(MapHandleList* maps) const final {
+  int ExtractMaps(MapHandles* maps) const final {
     // LoadGlobalICs don't record map feedback.
     return 0;
   }
@@ -687,7 +693,7 @@ class BinaryOpICNexus final : public FeedbackNexus {
   InlineCacheState StateFromFeedback() const final;
   BinaryOperationHint GetBinaryOperationFeedback() const;
 
-  int ExtractMaps(MapHandleList* maps) const final {
+  int ExtractMaps(MapHandles* maps) const final {
     // BinaryOpICs don't record map feedback.
     return 0;
   }
@@ -714,7 +720,7 @@ class CompareICNexus final : public FeedbackNexus {
   InlineCacheState StateFromFeedback() const final;
   CompareOperationHint GetCompareOperationFeedback() const;
 
-  int ExtractMaps(MapHandleList* maps) const final {
+  int ExtractMaps(MapHandles* maps) const final {
     // BinaryOpICs don't record map feedback.
     return 0;
   }

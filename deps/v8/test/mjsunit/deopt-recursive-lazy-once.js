@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --crankshaft --turbo --no-always-opt
+// Flags: --allow-natives-syntax --opt --turbo --no-always-opt
 
 function foo(i, deopt = false) {
     if (i == 0) {

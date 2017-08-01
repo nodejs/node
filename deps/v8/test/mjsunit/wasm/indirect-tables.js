@@ -523,3 +523,34 @@ function js_div(a, b) { return (a / b) | 0; }
   // Try to grow past imported maximum
   assertThrows(() => table.grow(21));
 })();
+
+(function InitImportedTableSignatureMismatch() {
+  // instance0 exports a function table and a main function which indirectly
+  // calls a function from the table.
+  let builder0 = new WasmModuleBuilder();
+  let sig_index = builder0.addType(kSig_i_v);
+  builder0.addFunction('main', kSig_i_i)
+      .addBody([
+        kExprGetLocal, 0,  // -
+        kExprCallIndirect, sig_index, kTableZero
+      ])
+      .exportAs('main');
+  builder0.setFunctionTableLength(3);
+  builder0.addExportOfKind('table', kExternalTable);
+  let module0 = new WebAssembly.Module(builder0.toBuffer());
+  let instance0 = new WebAssembly.Instance(module0);
+
+  // instance1 imports the table and adds a function to it.
+  let builder1 = new WasmModuleBuilder();
+  builder1.addFunction('f', kSig_i_i).addBody([kExprGetLocal, 0]);
+  builder1.addImportedTable('z', 'table');
+  builder1.addFunctionTableInit(0, false, [0], true);
+  let module1 = new WebAssembly.Module(builder1.toBuffer());
+  let instance1 =
+      new WebAssembly.Instance(module1, {z: {table: instance0.exports.table}});
+
+  // Calling the main method on instance0 should fail, because the signature of
+  // the added function does not match.
+  assertThrows(
+      () => instance0.exports.main(0), WebAssembly.RuntimeError);
+})();

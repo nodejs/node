@@ -289,10 +289,10 @@ TEST(GetScriptLineNumber) {
 
 
 TEST(FeedbackVectorPreservedAcrossRecompiles) {
-  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  if (i::FLAG_always_opt || !i::FLAG_opt) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_crankshaft()) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
 
@@ -402,8 +402,8 @@ TEST(OptimizedCodeSharing1) {
             env->Global()
                 ->Get(env.local(), v8_str("closure2"))
                 .ToLocalChecked())));
-    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
-    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
+    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_optimizer());
+    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_optimizer());
     CHECK_EQ(fun1->code(), fun2->code());
   }
 }

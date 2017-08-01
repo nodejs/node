@@ -35,7 +35,7 @@ from testrunner.objects import testcase
 
 
 class BenchmarksVariantGenerator(testsuite.VariantGenerator):
-  # Both --nocrankshaft and --stressopt are very slow. Add TF but without
+  # Both --noopt and --stressopt are very slow. Add TF but without
   # always opt to match the way the benchmarks are run for performance
   # testing.
   def FilterVariantsByTest(self, testcase):

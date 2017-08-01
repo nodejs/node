@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks internal properties in Runtime.getProperties output');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks internal properties in Runtime.getProperties output');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function* foo() {
   yield 1;
 }

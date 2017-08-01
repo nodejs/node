@@ -5,9 +5,12 @@
 #ifndef V8_PARSING_PARSE_INFO_H_
 #define V8_PARSING_PARSE_INFO_H_
 
+#include <map>
 #include <memory>
+#include <vector>
 
 #include "include/v8.h"
+#include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/parsing/preparsed-scope-data.h"
@@ -33,7 +36,7 @@ class Utf16CharacterStream;
 class Zone;
 
 // A container for the inputs, configuration options, and outputs of parsing.
-class V8_EXPORT_PRIVATE ParseInfo {
+class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
  public:
   explicit ParseInfo(AccountingAllocator* zone_allocator);
   ParseInfo(Handle<Script> script);
@@ -74,10 +77,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_ast_value_factory_owned)
   FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
                 set_is_named_expression)
-  FLAG_ACCESSOR(kCallsEval, calls_eval, set_calls_eval)
   FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
   FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
-  FLAG_ACCESSOR(kScopeInfoIsEmpty, scope_info_is_empty, set_scope_info_is_empty)
   FLAG_ACCESSOR(kTailCallEliminationEnabled, is_tail_call_elimination_enabled,
                 set_tail_call_elimination_enabled)
 
@@ -245,6 +246,13 @@ class V8_EXPORT_PRIVATE ParseInfo {
     }
   }
 
+  void UpdateStatisticsAfterBackgroundParse(Isolate* isolate);
+
+  // The key of the map is the FunctionLiteral's start_position
+  std::map<int, ParseInfo*> child_infos() const;
+
+  void ParseFinished(std::unique_ptr<ParseInfo> info) override;
+
 #ifdef DEBUG
   bool script_is_native() const;
 #endif  // DEBUG
@@ -262,12 +270,10 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kModule = 1 << 6,
     kAllowLazyParsing = 1 << 7,
     kIsNamedExpression = 1 << 8,
-    kCallsEval = 1 << 9,
-    kDebug = 1 << 10,
-    kSerializing = 1 << 11,
-    kScopeInfoIsEmpty = 1 << 12,
-    kTailCallEliminationEnabled = 1 << 13,
-    kAstValueFactoryOwned = 1 << 14,
+    kDebug = 1 << 9,
+    kSerializing = 1 << 10,
+    kTailCallEliminationEnabled = 1 << 11,
+    kAstValueFactoryOwned = 1 << 12,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
@@ -306,6 +312,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
   std::shared_ptr<DeferredHandles> deferred_handles_;
+
+  std::vector<std::unique_ptr<ParseInfo>> child_infos_;
+  mutable base::Mutex child_infos_mutex_;
 
   void SetFlag(Flag f) { flags_ |= f; }
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }

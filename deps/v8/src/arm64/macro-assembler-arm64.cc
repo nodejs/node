@@ -129,7 +129,12 @@ void MacroAssembler::LogicalMacro(const Register& rd,
     } else {
       // Immediate can't be encoded: synthesize using move immediate.
       Register temp = temps.AcquireSameSizeAs(rn);
-      Operand imm_operand = MoveImmediateForShiftedOp(temp, immediate);
+
+      // If the left-hand input is the stack pointer, we can't pre-shift the
+      // immediate, as the encoding won't allow the subsequent post shift.
+      PreShiftImmMode mode = rn.Is(csp) ? kNoShift : kAnyShift;
+      Operand imm_operand = MoveImmediateForShiftedOp(temp, immediate, mode);
+
       if (rd.Is(csp)) {
         // If rd is the stack pointer we cannot use it as the destination
         // register so we use the temp register as an intermediate again.
@@ -437,17 +442,23 @@ bool MacroAssembler::TryOneInstrMoveImmediate(const Register& dst,
   return false;
 }
 
-
 Operand MacroAssembler::MoveImmediateForShiftedOp(const Register& dst,
-                                                  int64_t imm) {
+                                                  int64_t imm,
+                                                  PreShiftImmMode mode) {
   int reg_size = dst.SizeInBits();
-
   // Encode the immediate in a single move instruction, if possible.
   if (TryOneInstrMoveImmediate(dst, imm)) {
     // The move was successful; nothing to do here.
   } else {
     // Pre-shift the immediate to the least-significant bits of the register.
     int shift_low = CountTrailingZeros(imm, reg_size);
+    if (mode == kLimitShiftForSP) {
+      // When applied to the stack pointer, the subsequent arithmetic operation
+      // can use the extend form to shift left by a maximum of four bits. Right
+      // shifts are not allowed, so we filter them out later before the new
+      // immediate is tested.
+      shift_low = std::min(shift_low, 4);
+    }
     int64_t imm_low = imm >> shift_low;
 
     // Pre-shift the immediate to the most-significant bits of the register. We
@@ -456,13 +467,13 @@ Operand MacroAssembler::MoveImmediateForShiftedOp(const Register& dst,
     // If this new immediate is encodable, the set bits will be eliminated by
     // the post shift on the following instruction.
     int shift_high = CountLeadingZeros(imm, reg_size);
-    int64_t imm_high = (imm << shift_high) | ((1 << shift_high) - 1);
+    int64_t imm_high = (imm << shift_high) | ((INT64_C(1) << shift_high) - 1);
 
-    if (TryOneInstrMoveImmediate(dst, imm_low)) {
+    if ((mode != kNoShift) && TryOneInstrMoveImmediate(dst, imm_low)) {
       // The new immediate has been moved into the destination's low bits:
       // return a new leftward-shifting operand.
       return Operand(dst, LSL, shift_low);
-    } else if (TryOneInstrMoveImmediate(dst, imm_high)) {
+    } else if ((mode == kAnyShift) && TryOneInstrMoveImmediate(dst, imm_high)) {
       // The new immediate has been moved into the destination's high bits:
       // return a new rightward-shifting operand.
       return Operand(dst, LSR, shift_high);
@@ -498,8 +509,21 @@ void MacroAssembler::AddSubMacro(const Register& rd,
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireSameSizeAs(rn);
     if (operand.IsImmediate()) {
+      PreShiftImmMode mode = kAnyShift;
+
+      // If the destination or source register is the stack pointer, we can
+      // only pre-shift the immediate right by values supported in the add/sub
+      // extend encoding.
+      if (rd.Is(csp)) {
+        // If the destination is SP and flags will be set, we can't pre-shift
+        // the immediate at all.
+        mode = (S == SetFlags) ? kNoShift : kLimitShiftForSP;
+      } else if (rn.Is(csp)) {
+        mode = kLimitShiftForSP;
+      }
+
       Operand imm_operand =
-          MoveImmediateForShiftedOp(temp, operand.ImmediateValue());
+          MoveImmediateForShiftedOp(temp, operand.ImmediateValue(), mode);
       AddSub(rd, rn, imm_operand, S, op);
     } else {
       Mov(temp, operand);
@@ -1791,14 +1815,13 @@ void MacroAssembler::CallCFunction(ExternalReference function,
   CallCFunction(temp, num_of_reg_args, num_of_double_args);
 }
 
+static const int kRegisterPassedArguments = 8;
 
 void MacroAssembler::CallCFunction(Register function,
                                    int num_of_reg_args,
                                    int num_of_double_args) {
+  DCHECK_LE(num_of_reg_args + num_of_double_args, kMaxCParameters);
   DCHECK(has_frame());
-  // We can pass 8 integer arguments in registers. If we need to pass more than
-  // that, we'll need to implement support for passing them on the stack.
-  DCHECK(num_of_reg_args <= 8);
 
   // If we're passing doubles, we're limited to the following prototypes
   // (defined by ExternalReference::Type):
@@ -1811,6 +1834,10 @@ void MacroAssembler::CallCFunction(Register function,
     DCHECK((num_of_double_args + num_of_reg_args) <= 2);
   }
 
+  // We rely on the frame alignment being 16 bytes, which means we never need
+  // to align the CSP by an unknown number of bytes and we always know the delta
+  // between the stack pointer and the frame pointer.
+  DCHECK(ActivationFrameAlignment() == 16);
 
   // If the stack pointer is not csp, we need to derive an aligned csp from the
   // current stack pointer.
@@ -1819,16 +1846,18 @@ void MacroAssembler::CallCFunction(Register function,
     AssertStackConsistency();
 
     int sp_alignment = ActivationFrameAlignment();
-    // The ABI mandates at least 16-byte alignment.
-    DCHECK(sp_alignment >= 16);
-    DCHECK(base::bits::IsPowerOfTwo32(sp_alignment));
-
     // The current stack pointer is a callee saved register, and is preserved
     // across the call.
     DCHECK(kCalleeSaved.IncludesAliasOf(old_stack_pointer));
 
-    // Align and synchronize the system stack pointer with jssp.
-    Bic(csp, old_stack_pointer, sp_alignment - 1);
+    // If more than eight arguments are passed to the function, we expect the
+    // ninth argument onwards to have been placed on the csp-based stack
+    // already. We assume csp already points to the last stack-passed argument
+    // in that case.
+    // Otherwise, align and synchronize the system stack pointer with jssp.
+    if (num_of_reg_args <= kRegisterPassedArguments) {
+      Bic(csp, old_stack_pointer, sp_alignment - 1);
+    }
     SetStackPointer(csp);
   }
 
@@ -1836,19 +1865,39 @@ void MacroAssembler::CallCFunction(Register function,
   // so the return address in the link register stays correct.
   Call(function);
 
-  if (!csp.Is(old_stack_pointer)) {
+  if (csp.Is(old_stack_pointer)) {
+    if (num_of_reg_args > kRegisterPassedArguments) {
+      // Drop the register passed arguments.
+      int claim_slots = RoundUp(num_of_reg_args - kRegisterPassedArguments, 2);
+      Drop(claim_slots);
+    }
+  } else {
+    DCHECK(jssp.Is(old_stack_pointer));
     if (emit_debug_code()) {
-      // Because the stack pointer must be aligned on a 16-byte boundary, the
-      // aligned csp can be up to 12 bytes below the jssp. This is the case
-      // where we only pushed one W register on top of an aligned jssp.
       UseScratchRegisterScope temps(this);
       Register temp = temps.AcquireX();
-      DCHECK(ActivationFrameAlignment() == 16);
-      Sub(temp, csp, old_stack_pointer);
-      // We want temp <= 0 && temp >= -12.
-      Cmp(temp, 0);
-      Ccmp(temp, -12, NFlag, le);
-      Check(ge, kTheStackWasCorruptedByMacroAssemblerCall);
+
+      if (num_of_reg_args > kRegisterPassedArguments) {
+        // We don't need to drop stack arguments, as the stack pointer will be
+        // jssp when returning from this function. However, in debug builds, we
+        // can check that jssp is as expected.
+        int claim_slots =
+            RoundUp(num_of_reg_args - kRegisterPassedArguments, 2);
+
+        // Check jssp matches the previous value on the stack.
+        Ldr(temp, MemOperand(csp, claim_slots * kPointerSize));
+        Cmp(jssp, temp);
+        Check(eq, kTheStackWasCorruptedByMacroAssemblerCall);
+      } else {
+        // Because the stack pointer must be aligned on a 16-byte boundary, the
+        // aligned csp can be up to 12 bytes below the jssp. This is the case
+        // where we only pushed one W register on top of an aligned jssp.
+        Sub(temp, csp, old_stack_pointer);
+        // We want temp <= 0 && temp >= -12.
+        Cmp(temp, 0);
+        Ccmp(temp, -12, NFlag, le);
+        Check(ge, kTheStackWasCorruptedByMacroAssemblerCall);
+      }
     }
     SetStackPointer(old_stack_pointer);
   }
@@ -2547,6 +2596,8 @@ void MacroAssembler::TruncateDoubleToI(Register result,
   }
 
   Bind(&done);
+  // Keep our invariant that the upper 32 bits are zero.
+  Uxtw(result.W(), result.W());
 }
 
 
@@ -3733,7 +3784,7 @@ void MacroAssembler::RecordWriteField(
   Add(scratch, object, offset - kHeapObjectTag);
   if (emit_debug_code()) {
     Label ok;
-    Tst(scratch, (1 << kPointerSizeLog2) - 1);
+    Tst(scratch, kPointerSize - 1);
     B(eq, &ok);
     Abort(kUnalignedCellInWriteBarrier);
     Bind(&ok);

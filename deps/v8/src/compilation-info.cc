@@ -124,8 +124,7 @@ bool CompilationInfo::is_this_defined() const { return !IsStub(); }
 // profiler, so they trigger their own optimization when they're called
 // for the SharedFunctionInfo::kCallsUntilPrimitiveOptimization-th time.
 bool CompilationInfo::ShouldSelfOptimize() {
-  return FLAG_opt && FLAG_crankshaft &&
-         !(literal()->flags() & AstProperties::kDontSelfOptimize) &&
+  return FLAG_opt && !(literal()->flags() & AstProperties::kDontSelfOptimize) &&
          !literal()->dont_optimize() &&
          literal()->scope()->AllowsLazyCompilation() &&
          !shared_info()->optimization_disabled();

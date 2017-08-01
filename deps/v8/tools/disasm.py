@@ -38,8 +38,10 @@ OBJDUMP_BIN = "/usr/bin/objdump"
 if not os.path.exists(OBJDUMP_BIN):
   OBJDUMP_BIN = "objdump"
 
-
-_COMMON_DISASM_OPTIONS = ["-M", "intel-mnemonic", "-C"]
+# -M intel-mnemonic selects Intel syntax.
+# -C demangles.
+# -z disables skipping over sections of zeroes.
+_COMMON_DISASM_OPTIONS = ["-M", "intel-mnemonic", "-C", "-z"]
 
 _DISASM_HEADER_RE = re.compile(r"[a-f0-9]+\s+<.*:$")
 _DISASM_LINE_RE = re.compile(r"\s*([a-f0-9]+):\s*(\S.*)")

@@ -10,6 +10,7 @@
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
@@ -260,10 +261,11 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   void WriteDataValue(Handle<Object> value, bool initializing_store);
   inline void UpdateProtector() {
     if (IsElement()) return;
+    // This list must be kept in sync with
+    // CodeStubAssembler::HasAssociatedProtector!
     if (*name_ == heap()->is_concat_spreadable_symbol() ||
         *name_ == heap()->constructor_string() ||
         *name_ == heap()->species_symbol() ||
-        *name_ == heap()->has_instance_symbol() ||
         *name_ == heap()->iterator_symbol()) {
       InternalUpdateProtector();
     }

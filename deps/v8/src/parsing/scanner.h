@@ -197,7 +197,7 @@ class Scanner {
 
   explicit Scanner(UnicodeCache* scanner_contants);
 
-  void Initialize(Utf16CharacterStream* source);
+  void Initialize(Utf16CharacterStream* source, bool is_module);
 
   // Returns the next token and advances input.
   Token::Value Next();
@@ -247,7 +247,6 @@ class Scanner {
       AstValueFactory* ast_value_factory) const;
 
   double DoubleValue();
-  bool ContainsDot();
 
   inline bool CurrentMatches(Token::Value token) const {
     DCHECK(Token::IsKeyword(token));
@@ -689,7 +688,8 @@ class Scanner {
   // Scans a single JavaScript token.
   void Scan();
 
-  bool SkipWhiteSpace();
+  Token::Value SkipWhiteSpace();
+  Token::Value SkipSingleHTMLComment();
   Token::Value SkipSingleLineComment();
   Token::Value SkipSourceURLComment();
   void TryToParseSourceURLComment();
@@ -716,6 +716,8 @@ class Scanner {
   // Helper for the above functions.
   template <bool capture_raw>
   uc32 ScanUnicodeEscape();
+
+  bool is_module_;
 
   Token::Value ScanTemplateSpan();
 

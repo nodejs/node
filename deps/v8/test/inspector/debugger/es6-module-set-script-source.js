@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks that Debugger.setScriptSource doesn\'t crash with modules');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that Debugger.setScriptSource doesn\'t crash with modules');
 
 var module1 = `
 export function foo() {
@@ -25,9 +25,9 @@ Protocol.Debugger.onScriptParsed(message => {
     module1Id = message.params.scriptId;
 });
 Protocol.Debugger.enable()
-  .then(() => InspectorTest.addModule(module1, 'module1'))
-  .then(() => InspectorTest.addModule(module2, 'module2'))
-  .then(() => InspectorTest.waitPendingTasks())
+  .then(() => contextGroup.addModule(module1, 'module1'))
+  .then(() => contextGroup.addModule(module2, 'module2'))
+  .then(() => InspectorTest.waitForPendingTasks())
   .then(() => Protocol.Debugger.setScriptSource({ scriptId: module1Id, scriptSource: editedModule1 }))
   .then(InspectorTest.logMessage)
   .then(InspectorTest.completeTest);

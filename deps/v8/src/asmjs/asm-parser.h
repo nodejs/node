@@ -5,14 +5,11 @@
 #ifndef V8_ASMJS_ASM_PARSER_H_
 #define V8_ASMJS_ASM_PARSER_H_
 
-#include <list>
 #include <string>
 #include <vector>
 
 #include "src/asmjs/asm-scanner.h"
-#include "src/asmjs/asm-typer.h"
 #include "src/asmjs/asm-types.h"
-#include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/zone/zone-containers.h"
 
@@ -31,13 +28,31 @@ namespace wasm {
 //   scopes (local + module wide).
 class AsmJsParser {
  public:
+  // clang-format off
+  enum StandardMember {
+    kInfinity,
+    kNaN,
+#define V(_unused1, name, _unused2, _unused3) kMath##name,
+    STDLIB_MATH_FUNCTION_LIST(V)
+#undef V
+#define V(name, _unused1) kMath##name,
+    STDLIB_MATH_VALUE_LIST(V)
+#undef V
+#define V(name, _unused1, _unused2, _unused3) k##name,
+    STDLIB_ARRAY_TYPE_LIST(V)
+#undef V
+  };
+  // clang-format on
+
+  typedef std::unordered_set<StandardMember, std::hash<int>> StdlibSet;
+
   explicit AsmJsParser(Isolate* isolate, Zone* zone, Handle<Script> script,
                        int start, int end);
   bool Run();
-  const char* failure_message() const { return failure_message_.c_str(); }
+  const char* failure_message() const { return failure_message_; }
   int failure_location() const { return failure_location_; }
   WasmModuleBuilder* module_builder() { return module_builder_; }
-  const AsmTyper::StdlibSet* stdlib_uses() const { return &stdlib_uses_; }
+  const StdlibSet* stdlib_uses() const { return &stdlib_uses_; }
 
  private:
   // clang-format off
@@ -52,40 +67,32 @@ class AsmJsParser {
 #define V(_unused0, Name, _unused1, _unused2) kMath##Name,
     STDLIB_MATH_FUNCTION_LIST(V)
 #undef V
-#define V(Name) kMath##Name,
+#define V(Name, _unused1) kMath##Name,
     STDLIB_MATH_VALUE_LIST(V)
 #undef V
   };
   // clang-format on
 
   struct FunctionImportInfo {
-    char* function_name;
-    size_t function_name_size;
-    SignatureMap cache;
-    std::vector<uint32_t> cache_index;
+    Vector<const char> function_name;
+    WasmModuleBuilder::SignatureMap cache;
   };
 
   struct VarInfo {
-    AsmType* type;
-    WasmFunctionBuilder* function_builder;
-    FunctionImportInfo* import;
-    int32_t mask;
-    uint32_t index;
-    VarKind kind;
-    bool mutable_variable;
-    bool function_defined;
-
-    VarInfo();
-    void DeclareGlobalImport(AsmType* type, uint32_t index);
-    void DeclareStdlibFunc(VarKind kind, AsmType* type);
+    AsmType* type = AsmType::None();
+    WasmFunctionBuilder* function_builder = nullptr;
+    FunctionImportInfo* import = nullptr;
+    uint32_t mask = 0;
+    uint32_t index = 0;
+    VarKind kind = VarKind::kUnused;
+    bool mutable_variable = true;
+    bool function_defined = false;
   };
 
   struct GlobalImport {
-    char* import_name;
-    size_t import_name_size;
-    uint32_t import_index;
-    uint32_t global_index;
-    bool needs_init;
+    Vector<const char> import_name;
+    ValueType value_type;
+    VarInfo* var_info;
   };
 
   enum class BlockKind { kRegular, kLoop, kOther };
@@ -103,9 +110,8 @@ class AsmJsParser {
   WasmModuleBuilder* module_builder_;
   WasmFunctionBuilder* current_function_builder_;
   AsmType* return_type_;
-  std::uintptr_t stack_limit_;
-  AsmTyper::StdlibSet stdlib_uses_;
-  std::list<FunctionImportInfo> function_import_info_;
+  uintptr_t stack_limit_;
+  StdlibSet stdlib_uses_;
   ZoneVector<VarInfo> global_var_info_;
   ZoneVector<VarInfo> local_var_info_;
 
@@ -115,7 +121,7 @@ class AsmJsParser {
 
   // Error Handling related
   bool failed_;
-  std::string failure_message_;
+  const char* failure_message_;
   int failure_location_;
 
   // Module Related.
@@ -143,19 +149,28 @@ class AsmJsParser {
   AsmType* stdlib_fround_;
 
   // When making calls, the return type is needed to lookup signatures.
-  // For +callsite(..) or fround(callsite(..)) use this value to pass
+  // For `+callsite(..)` or `fround(callsite(..))` use this value to pass
   // along the coercion.
   AsmType* call_coercion_;
 
   // The source position associated with the above {call_coercion}.
   size_t call_coercion_position_;
 
+  // When making calls, the coercion can also appear in the source stream
+  // syntactically "behind" the call site. For `callsite(..)|0` use this
+  // value to flag that such a coercion must happen.
+  AsmType* call_coercion_deferred_;
+
+  // The source position at which requesting a deferred coercion via the
+  // aforementioned {call_coercion_deferred} is allowed.
+  size_t call_coercion_deferred_position_;
+
   // Used to track the last label we've seen so it can be matched to later
   // statements it's attached to.
   AsmJsScanner::token_t pending_label_;
 
-  // Global imports.
-  // NOTE: Holds the strings referenced in wasm-module-builder for imports.
+  // Global imports. The list of imported variables that are copied during
+  // module instantiation into a corresponding global variable.
   ZoneLinkedList<GlobalImport> global_imports_;
 
   Zone* zone() { return zone_; }
@@ -192,7 +207,7 @@ class AsmJsParser {
     }
   }
 
-  inline bool CheckForUnsigned(uint64_t* value) {
+  inline bool CheckForUnsigned(uint32_t* value) {
     if (scanner_.IsUnsigned()) {
       *value = scanner_.AsUnsigned();
       scanner_.Next();
@@ -202,7 +217,7 @@ class AsmJsParser {
     }
   }
 
-  inline bool CheckForUnsignedBelow(uint64_t limit, uint64_t* value) {
+  inline bool CheckForUnsignedBelow(uint32_t limit, uint32_t* value) {
     if (scanner_.IsUnsigned() && scanner_.AsUnsigned() < limit) {
       *value = scanner_.AsUnsigned();
       scanner_.Next();
@@ -225,13 +240,16 @@ class AsmJsParser {
   void DeclareGlobal(VarInfo* info, bool mutable_variable, AsmType* type,
                      ValueType vtype,
                      const WasmInitExpr& init = WasmInitExpr());
+  void DeclareStdlibFunc(VarInfo* info, VarKind kind, AsmType* type);
+  void AddGlobalImport(Vector<const char> name, AsmType* type, ValueType vtype,
+                       bool mutable_variable, VarInfo* info);
 
   // Allocates a temporary local variable. The given {index} is absolute within
   // the function body, consider using {TemporaryVariableScope} when nesting.
   uint32_t TempVariable(int index);
 
-  void AddGlobalImport(std::string name, AsmType* type, ValueType vtype,
-                       bool mutable_variable, VarInfo* info);
+  // Preserves a copy of the scanner's current identifier string in the zone.
+  Vector<const char> CopyCurrentIdentifierString();
 
   // Use to set up block stack layers (including synthetic ones for if-else).
   // Begin/Loop/End below are implemented with these plus code generation.
@@ -251,12 +269,11 @@ class AsmJsParser {
   FunctionSig* ConvertSignature(AsmType* return_type,
                                 const std::vector<AsmType*>& params);
 
-  // 6.1 ValidateModule
-  void ValidateModule();
-  void ValidateModuleParameters();
-  void ValidateModuleVars();
+  void ValidateModule();            // 6.1 ValidateModule
+  void ValidateModuleParameters();  // 6.1 ValidateModule - parameters
+  void ValidateModuleVars();        // 6.1 ValidateModule - variables
   void ValidateModuleVar(bool mutable_variable);
-  bool ValidateModuleVarImport(VarInfo* info, bool mutable_variable);
+  void ValidateModuleVarImport(VarInfo* info, bool mutable_variable);
   void ValidateModuleVarStdlib(VarInfo* info);
   void ValidateModuleVarNewStdlib(VarInfo* info);
   void ValidateModuleVarFromGlobal(VarInfo* info, bool mutable_variable);
@@ -267,7 +284,7 @@ class AsmJsParser {
   void ValidateFunctionParams(std::vector<AsmType*>* params);
   void ValidateFunctionLocals(size_t param_count,
                               std::vector<ValueType>* locals);
-  void ValidateStatement();              // ValidateStatement
+  void ValidateStatement();              // 6.5 ValidateStatement
   void Block();                          // 6.5.1 Block
   void ExpressionStatement();            // 6.5.2 ExpressionStatement
   void EmptyStatement();                 // 6.5.3 EmptyStatement
@@ -291,7 +308,7 @@ class AsmJsParser {
   AsmType* MemberExpression();           // 6.8.5 MemberExpression
   AsmType* AssignmentExpression();       // 6.8.6 AssignmentExpression
   AsmType* UnaryExpression();            // 6.8.7 UnaryExpression
-  AsmType* MultiplicativeExpression();   // 6.8.8 MultaplicativeExpression
+  AsmType* MultiplicativeExpression();   // 6.8.8 MultiplicativeExpression
   AsmType* AdditiveExpression();         // 6.8.9 AdditiveExpression
   AsmType* ShiftExpression();            // 6.8.10 ShiftExpression
   AsmType* RelationalExpression();       // 6.8.11 RelationalExpression
@@ -306,6 +323,14 @@ class AsmJsParser {
   void ValidateHeapAccess();             // 6.10 ValidateHeapAccess
   void ValidateFloatCoercion();          // 6.11 ValidateFloatCoercion
 
+  // Used as part of {ForStatement}. Scans forward to the next `)` in order to
+  // skip over the third expression in a for-statement. This is one piece that
+  // makes this parser not be a pure single-pass.
+  void ScanToClosingParenthesis();
+
+  // Used as part of {SwitchStatement}. Collects all case labels in the current
+  // switch-statement, then resets the scanner position. This is one piece that
+  // makes this parser not be a pure single-pass.
   void GatherCases(std::vector<int32_t>* cases);
 };
 

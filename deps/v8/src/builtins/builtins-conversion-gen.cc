@@ -133,35 +133,7 @@ TF_BUILTIN(ToString, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* input = Parameter(Descriptor::kArgument);
 
-  Label is_number(this);
-  Label runtime(this);
-
-  GotoIf(TaggedIsSmi(input), &is_number);
-
-  Node* input_map = LoadMap(input);
-  Node* input_instance_type = LoadMapInstanceType(input_map);
-
-  Label not_string(this);
-  GotoIfNot(IsStringInstanceType(input_instance_type), &not_string);
-  Return(input);
-
-  Label not_heap_number(this);
-
-  BIND(&not_string);
-  { Branch(IsHeapNumberMap(input_map), &is_number, &not_heap_number); }
-
-  BIND(&is_number);
-  { Return(NumberToString(context, input)); }
-
-  BIND(&not_heap_number);
-  {
-    GotoIf(Word32NotEqual(input_instance_type, Int32Constant(ODDBALL_TYPE)),
-           &runtime);
-    Return(LoadObjectField(input, Oddball::kToStringOffset));
-  }
-
-  BIND(&runtime);
-  { Return(CallRuntime(Runtime::kToString, context, input)); }
+  Return(ToString(context, input));
 }
 
 // 7.1.1.1 OrdinaryToPrimitive ( O, hint )

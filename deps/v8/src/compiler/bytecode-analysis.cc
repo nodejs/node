@@ -90,6 +90,7 @@ BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
       loop_end_index_queue_(zone),
       end_to_header_(zone),
       header_to_info_(zone),
+      osr_entry_point_(-1),
       liveness_map_(bytecode_array->length(), zone) {}
 
 namespace {
@@ -187,6 +188,10 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState& out_liveness,
   if (Bytecodes::IsForwardJump(bytecode)) {
     int target_offset = accessor.GetJumpTargetOffset();
     out_liveness.Union(*liveness_map.GetInLiveness(target_offset));
+  } else if (Bytecodes::IsSwitch(bytecode)) {
+    for (const auto& entry : accessor.GetJumpTableTargetOffsets()) {
+      out_liveness.Union(*liveness_map.GetInLiveness(entry.target_offset));
+    }
   }
 
   // Update from next bytecode (unless there isn't one or this is an
@@ -256,7 +261,8 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
       // Every byte up to and including the last byte within the backwards jump
       // instruction is considered part of the loop, set loop end accordingly.
       int loop_end = current_offset + iterator.current_bytecode_size();
-      PushLoop(iterator.GetJumpTargetOffset(), loop_end);
+      int loop_header = iterator.GetJumpTargetOffset();
+      PushLoop(loop_header, loop_end);
 
       // Normally prefixed bytecodes are treated as if the prefix's offset was
       // the actual bytecode's offset. However, the OSR id is the offset of the
@@ -270,9 +276,10 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
       DCHECK(!is_osr_loop ||
              iterator.OffsetWithinBytecode(osr_loop_end_offset));
 
-      // OSR "assigns" everything to OSR values on entry into an OSR loop, so we
-      // need to make sure to considered everything to be assigned.
       if (is_osr_loop) {
+        osr_entry_point_ = loop_header;
+        // OSR "assigns" everything to OSR values on entry into an OSR loop, so
+        // we need to make sure to considered everything to be assigned.
         loop_stack_.top().loop_info->assignments().AddAll();
       }
 

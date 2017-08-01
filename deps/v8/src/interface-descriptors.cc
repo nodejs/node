@@ -447,8 +447,18 @@ void CallTrampolineDescriptor::InitializePlatformIndependent(
 
 void CallForwardVarargsDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kTarget, kStartIndex
+  // kTarget, kActualArgumentsCount, kStartIndex
+  MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
+                                 MachineType::Int32()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void ConstructForwardVarargsDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kNewTarget, kActualArgumentsCount, kStartIndex
   MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::AnyTagged(), MachineType::Int32(),
                                  MachineType::Int32()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
@@ -490,24 +500,6 @@ void CallICTrampolineDescriptor::InitializePlatformIndependent(
                                  MachineType::Int32()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
-}
-
-void RegExpExecDescriptor::InitializePlatformIndependent(
-    CallInterfaceDescriptorData* data) {
-  // kString, kLastIndex, kStringStart, kStringEnd, kEntryPoint
-  MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
-                                 MachineType::Pointer(), MachineType::Pointer(),
-                                 MachineType::AnyTagged()};
-  data->InitializePlatformIndependent(arraysize(machine_types), 0,
-                                      machine_types);
-}
-
-void RegExpExecDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {StringRegister(), LastIndexRegister(),
-                          StringStartRegister(), StringEndRegister(),
-                          CodeRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 void BuiltinDescriptor::InitializePlatformIndependent(

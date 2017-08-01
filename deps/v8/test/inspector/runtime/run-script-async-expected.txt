@@ -175,10 +175,6 @@ Running test: testAwaitRejectedPromise
             }
             exceptionId : <exceptionId>
             lineNumber : 0
-            stackTrace : {
-                callFrames : [
-                ]
-            }
             text : Uncaught (in promise)
         }
         result : {

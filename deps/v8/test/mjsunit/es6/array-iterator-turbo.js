@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --turbo --turbo-escape --allow-natives-syntax --no-always-opt
-// Flags: --crankshaft --turbo-filter=*
+// Flags: --opt --turbo-filter=*
 
 "use strict";
 
@@ -43,13 +43,15 @@ let tests = {
           return sum;
       },
 
-      FAST_HOLEY_DOUBLE_ELEMENTS(array) {
+      // TODO(6587): Re-enable the below test case once we no longer deopt due
+      // to non-truncating uses of {CheckFloat64Hole} nodes.
+      /*FAST_HOLEY_DOUBLE_ELEMENTS(array) {
         let sum = 0.0;
         for (let x of array) {
           if (x) sum += x;
         }
         return sum;
-      }
+      }*/
     };
 
     let tests = {
@@ -84,12 +86,14 @@ let tests = {
         array2: [0.6, 0.4, 0.2],
         expected2: 1.2
       },
-      FAST_HOLEY_DOUBLE_ELEMENTS: {
+      // TODO(6587): Re-enable the below test case once we no longer deopt due
+      // to non-truncating uses of {CheckFloat64Hole} nodes.
+      /*FAST_HOLEY_DOUBLE_ELEMENTS: {
         array: [0.1, , 0.3, , 0.5, , 0.7, , 0.9, ,],
         expected: 2.5,
         array2: [0.1, , 0.3],
         expected2: 0.4
-      }
+      }*/
     };
 
     for (let key of Object.keys(runners)) {
@@ -102,29 +106,13 @@ let tests = {
       %OptimizeFunctionOnNextCall(fn);
       fn(array);
 
-      // TODO(bmeurer): FAST_HOLEY_DOUBLE_ELEMENTS maps generally deopt when
-      // a hole is encountered. Test should be fixed once that is corrected.
-      let expect_deopt = /HOLEY_DOUBLE/.test(key);
-
-      if (expect_deopt) {
-        assertUnoptimized(fn, '', key);
-      } else {
-        assertOptimized(fn, '', key);
-      }
+      assertOptimized(fn, '', key);
       assertEquals(expected, fn(array), key);
-      if (expect_deopt) {
-        assertUnoptimized(fn, '', key);
-      } else {
-        assertOptimized(fn, '', key);
-      }
+      assertOptimized(fn, '', key);
 
       // Check no deopt when another array with the same map is used
       assertTrue(%HaveSameMap(array, array2), key);
-      if (expect_deopt) {
-        assertUnoptimized(fn, '', key);
-      } else {
-        assertOptimized(fn, '', key);
-      }
+      assertOptimized(fn, '', key);
       assertEquals(expected2, fn(array2), key);
 
       // CheckMaps bailout
@@ -231,6 +219,10 @@ let tests = {
       let clone = new array.constructor(array);
       %ArrayBufferNeuter(clone.buffer);
       assertThrows(() => sum(clone), TypeError);
+
+      // Clear the slate for the next iteration.
+      %DeoptimizeFunction(sum);
+      %ClearFunctionFeedback(sum);
     }
   }
 };

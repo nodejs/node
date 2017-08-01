@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks that console message storage doesn\'t exceed limits');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that console message storage doesn\'t exceed limits');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function generateEmptyMessages(n) {
   for (var i = 0; i < n; ++i) {
     console.log('');

@@ -21,6 +21,7 @@
 #include "src/heap/marking.h"
 #include "src/list.h"
 #include "src/objects.h"
+#include "src/objects/map.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -190,6 +191,7 @@ class FreeListCategory {
   FreeSpace* SearchForNodeInList(size_t minimum_size, size_t* node_size);
 
   inline FreeList* owner();
+  inline Page* page() const;
   inline bool is_linked();
   bool is_empty() { return top() == nullptr; }
   size_t available() const { return available_; }
@@ -203,8 +205,6 @@ class FreeListCategory {
   // For debug builds we accurately compute free lists lengths up until
   // {kVeryLongFreeList} by manually walking the list.
   static const int kVeryLongFreeList = 500;
-
-  inline Page* page();
 
   FreeSpace* top() { return top_; }
   void set_top(FreeSpace* top) { top_ = top; }
@@ -290,6 +290,10 @@ class MemoryChunk {
 
     // |ANCHOR|: Flag is set if page is an anchor.
     ANCHOR = 1u << 17,
+
+    // |SWEEP_TO_ITERATE|: The page requires sweeping using external markbits
+    // to iterate the page.
+    SWEEP_TO_ITERATE = 1u << 18,
   };
   typedef base::Flags<Flag, uintptr_t> Flags;
 
@@ -670,9 +674,9 @@ class MarkingState {
   MarkingState(Bitmap* bitmap, intptr_t* live_bytes)
       : bitmap_(bitmap), live_bytes_(live_bytes) {}
 
-  void IncrementLiveBytes(intptr_t by) const {
-    *live_bytes_ += static_cast<int>(by);
-  }
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  inline void IncrementLiveBytes(intptr_t by) const;
+
   void SetLiveBytes(intptr_t value) const {
     *live_bytes_ = static_cast<int>(value);
   }
@@ -689,6 +693,18 @@ class MarkingState {
   Bitmap* bitmap_;
   intptr_t* live_bytes_;
 };
+
+template <>
+inline void MarkingState::IncrementLiveBytes<MarkBit::NON_ATOMIC>(
+    intptr_t by) const {
+  *live_bytes_ += by;
+}
+
+template <>
+inline void MarkingState::IncrementLiveBytes<MarkBit::ATOMIC>(
+    intptr_t by) const {
+  reinterpret_cast<base::AtomicNumber<intptr_t>*>(live_bytes_)->Increment(by);
+}
 
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 1MB. Large object pages may be larger.
@@ -808,6 +824,7 @@ class Page : public MemoryChunk {
   size_t ShrinkToHighWaterMark();
 
   V8_EXPORT_PRIVATE void CreateBlackArea(Address start, Address end);
+  void DestroyBlackArea(Address start, Address end);
 
 #ifdef DEBUG
   void Print();
@@ -1261,8 +1278,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
   // Initializes its internal bookkeeping structures.
   // Max capacity of the total space and executable memory limit.
-  bool SetUp(size_t max_capacity, size_t capacity_executable,
-             size_t code_range_size);
+  bool SetUp(size_t max_capacity, size_t code_range_size);
 
   void TearDown();
 
@@ -1291,13 +1307,6 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   size_t Available() {
     const size_t size = Size();
     return capacity_ < size ? 0 : capacity_ - size;
-  }
-
-  // Returns the maximum available executable bytes of heaps.
-  size_t AvailableExecutable() {
-    const size_t executable_size = SizeExecutable();
-    if (capacity_executable_ < executable_size) return 0;
-    return capacity_executable_ - executable_size;
   }
 
   // Returns maximum available bytes that the old space can have.
@@ -1398,8 +1407,6 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
   // Maximum space size in bytes.
   size_t capacity_;
-  // Maximum subset of capacity_ that can be executable
-  size_t capacity_executable_;
 
   // Allocated space size in bytes.
   base::AtomicNumber<size_t> size_;
@@ -1719,6 +1726,21 @@ class V8_EXPORT_PRIVATE FreeList {
     return maximum_freed;
   }
 
+  static FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
+    if (size_in_bytes <= kTiniestListMax) {
+      return kTiniest;
+    } else if (size_in_bytes <= kTinyListMax) {
+      return kTiny;
+    } else if (size_in_bytes <= kSmallListMax) {
+      return kSmall;
+    } else if (size_in_bytes <= kMediumListMax) {
+      return kMedium;
+    } else if (size_in_bytes <= kLargeListMax) {
+      return kLarge;
+    }
+    return kHuge;
+  }
+
   explicit FreeList(PagedSpace* owner);
 
   // Adds a node on the free list. The block of size {size_in_bytes} starting
@@ -1790,6 +1812,9 @@ class V8_EXPORT_PRIVATE FreeList {
   void RemoveCategory(FreeListCategory* category);
   void PrintCategories(FreeListCategoryType type);
 
+  // Returns a page containing an entry for a given type, or nullptr otherwise.
+  inline Page* GetPageForCategoryType(FreeListCategoryType type);
+
 #ifdef DEBUG
   size_t SumFreeLists();
   bool IsVeryLong();
@@ -1843,21 +1868,6 @@ class V8_EXPORT_PRIVATE FreeList {
   FreeSpace* SearchForNodeInList(FreeListCategoryType type, size_t* node_size,
                                  size_t minimum_size);
 
-  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
-    if (size_in_bytes <= kTiniestListMax) {
-      return kTiniest;
-    } else if (size_in_bytes <= kTinyListMax) {
-      return kTiny;
-    } else if (size_in_bytes <= kSmallListMax) {
-      return kSmall;
-    } else if (size_in_bytes <= kMediumListMax) {
-      return kMedium;
-    } else if (size_in_bytes <= kLargeListMax) {
-      return kLarge;
-    }
-    return kHuge;
-  }
-
   // The tiny categories are not used for fast allocation.
   FreeListCategoryType SelectFastAllocationFreeListCategoryType(
       size_t size_in_bytes) {
@@ -1871,7 +1881,9 @@ class V8_EXPORT_PRIVATE FreeList {
     return kHuge;
   }
 
-  FreeListCategory* top(FreeListCategoryType type) { return categories_[type]; }
+  FreeListCategory* top(FreeListCategoryType type) const {
+    return categories_[type];
+  }
 
   PagedSpace* owner_;
   base::AtomicNumber<size_t> wasted_bytes_;
@@ -2074,6 +2086,7 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   void EmptyAllocationInfo();
 
   void MarkAllocationInfoBlack();
+  void UnmarkAllocationInfo();
 
   void AccountAllocatedBytes(size_t bytes) {
     accounting_stats_.AllocateBytes(bytes);
@@ -2146,6 +2159,11 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
 
+  // Remove a page if it has at least |size_in_bytes| bytes available that can
+  // be used for allocation.
+  Page* RemovePageSafe(int size_in_bytes);
+  void AddPage(Page* page);
+
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
@@ -2179,7 +2197,9 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
       int size_in_bytes);
 
   // Slow path of AllocateRaw.  This function is space-dependent.
-  MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT virtual HeapObject* SlowAllocateRaw(int size_in_bytes);
+
+  MUST_USE_RESULT HeapObject* RawSlowAllocateRaw(int size_in_bytes);
 
   size_t area_size_;
 
@@ -2738,6 +2758,8 @@ class V8_EXPORT_PRIVATE CompactionSpace : public PagedSpace {
 
   MUST_USE_RESULT HeapObject* SweepAndRetryAllocation(
       int size_in_bytes) override;
+
+  MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes) override;
 };
 
 

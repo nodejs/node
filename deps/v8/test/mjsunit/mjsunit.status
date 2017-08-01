@@ -65,6 +65,7 @@
   # Too slow in debug mode for validation of elements.
   'regress/regress-430201': [PASS, ['mode == debug', SKIP]],
   'regress/regress-430201b': [PASS, ['mode == debug', SKIP]],
+  'regress/regress-716044': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
   # Too slow in debug mode for GC stress mode.
@@ -130,9 +131,6 @@
   'compiler/alloc-number-debug': [PASS, ['mode == release', SKIP]],
   'regress/regress-634-debug': [PASS, ['mode == release', SKIP]],
 
-  # BUG(336820). TODO(bmeurer): Investigate.
-  'regress/regress-336820': [PASS, FAIL],
-
   # BUG(v8:2989). PASS/FAIL on linux32 because crankshaft is turned off for
   # nosse2. Also for arm novfp3.
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == x87 or arch == arm and simulator == True', PASS]],
@@ -148,7 +146,7 @@
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
   'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
-  'es6/typedarray-construct-offset-not-smi': [PASS, SLOW, NO_VARIANTS],
+  'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
@@ -186,15 +184,8 @@
   #                  which makes the test useless.
   'big-object-literal': [PASS, ['mode == debug', SKIP]],
 
-  # BUG(v8:5778): These fail with --future, which we are about to turn on.
-  # Investigate.
-  'regress/regress-105': [SKIP],
-
-  # BUG(v8:6101): This fails because of a hole deopt, need to investigate.
-  'getters-on-elements': [SKIP],
-
-  # BUG(v8:6113).
-  'es6/array-iterator-turbo': [SKIP],
+  # BUG(v8:6306).
+  'wasm/huge-memory': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -342,7 +333,7 @@
   'whitespaces': [PASS, TIMEOUT, SLOW],
 }],  # 'arch == arm64'
 
-['arch == arm64 and mode == debug and simulator_run == True', {
+['arch == arm64 and mode == debug and simulator_run', {
 
   # Pass but take too long with the simulator in debug mode.
   'array-sort': [PASS, TIMEOUT],
@@ -354,7 +345,7 @@
   'unicodelctest-no-optimization': [PASS, TIMEOUT],
   # Issue 3219:
   'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
-}],  # 'arch == arm64 and mode == debug and simulator_run == True'
+}],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
 ['asan == True', {
@@ -369,6 +360,10 @@
 
   # Exception thrown during bootstrapping on ASAN builds, see issue 4236.
   'regress/regress-1132': [SKIP],
+
+  # Flaky on ASAN builds: https://bugs.chromium.org/p/v8/issues/detail?id=6305
+  'regress/regress-430201': [SKIP],
+  'regress/regress-430201b': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
@@ -387,7 +382,7 @@
   # Flaky with baseline?
   'regress/regress-2185-2': [SKIP],
 
-  # Slow tests with --nocrankshaft.
+  # Slow tests with --noopt.
   'compiler/osr-one': [PASS, SLOW],
   'compiler/osr-two': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],
@@ -551,6 +546,7 @@
   # Setting the timezone and locale with environment variables unavailable
   'icu-date-to-string': [SKIP],
   'icu-date-lord-howe': [SKIP],
+  'regress/regress-6288': [SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -601,11 +597,11 @@
 }],  # 'predictable == True'
 
 ##############################################################################
-['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
+['arch == ppc and simulator_run or arch == ppc64 and simulator_run', {
 
   # take too long with the simulator.
   'regress/regress-1132': [SKIP],
-}],  # 'arch == ppc and simulator_run == True'
+}],  # 'arch == ppc and simulator_run'
 
 ##############################################################################
 ['arch == ppc64', {
@@ -646,6 +642,13 @@
 }],  # variant == nooptimization
 
 ##############################################################################
+['variant == noturbofan and no_snap', {
+  # Too slow for old pipeline and nosnap.
+  'regress/regress-2249': [SKIP],
+  'harmony/futex': [SKIP],
+}],  # variant == noturbofan and no_snap
+
+##############################################################################
 ['variant == turbofan_opt', {
   'es6/array-iterator-turbo': [SKIP],
 
@@ -669,11 +672,6 @@
 }],  # 'gcov_coverage'
 
 ##############################################################################
-['variant == asm_wasm', {
-  # Issue 6127: Currently {StashCode} breaks the source position table.
-  'wasm/asm-wasm-expr': [SKIP],
-}],  # variant == asm_wasm
-
 ['variant == wasm_traps', {
   # Skip stuff uninteresting for wasm traps
   'bugs/*': [SKIP],

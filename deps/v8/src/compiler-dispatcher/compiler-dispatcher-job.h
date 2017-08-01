@@ -11,7 +11,7 @@
 #include "src/base/macros.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace internal {
@@ -43,7 +43,7 @@ enum class CompileJobStatus {
   kDone,
 };
 
-class CompileJobFinishCallback {
+class V8_EXPORT_PRIVATE CompileJobFinishCallback {
  public:
   virtual ~CompileJobFinishCallback() {}
   virtual void ParseFinished(std::unique_ptr<ParseInfo> parse_info) = 0;
@@ -61,9 +61,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
                         Handle<String> source, int start_position,
                         int end_position, LanguageMode language_mode,
                         int function_literal_id, bool native, bool module,
-                        bool is_named_expression, bool calls_eval,
-                        uint32_t hash_seed, AccountingAllocator* zone_allocator,
-                        int compiler_hints,
+                        bool is_named_expression, uint32_t hash_seed,
+                        AccountingAllocator* zone_allocator, int compiler_hints,
                         const AstStringConstants* ast_string_constants,
                         CompileJobFinishCallback* finish_callback);
   // Creates a CompilerDispatcherJob in the analyzed state.

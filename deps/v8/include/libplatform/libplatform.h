@@ -15,6 +15,11 @@ namespace platform {
 enum class IdleTaskSupport { kDisabled, kEnabled };
 enum class InProcessStackDumping { kDisabled, kEnabled };
 
+enum class MessageLoopBehavior : bool {
+  kDoNotWait = false,
+  kWaitForWork = true
+};
+
 /**
  * Returns a new instance of the default v8::Platform implementation.
  *
@@ -36,12 +41,16 @@ V8_PLATFORM_EXPORT v8::Platform* CreateDefaultPlatform(
  * Pumps the message loop for the given isolate.
  *
  * The caller has to make sure that this is called from the right thread.
- * Returns true if a task was executed, and false otherwise. This call does
- * not block if no task is pending. The |platform| has to be created using
- * |CreateDefaultPlatform|.
+ * Returns true if a task was executed, and false otherwise. Unless requested
+ * through the |behavior| parameter, this call does not block if no task is
+ * pending. The |platform| has to be created using |CreateDefaultPlatform|.
  */
-V8_PLATFORM_EXPORT bool PumpMessageLoop(v8::Platform* platform,
-                                        v8::Isolate* isolate);
+V8_PLATFORM_EXPORT bool PumpMessageLoop(
+    v8::Platform* platform, v8::Isolate* isolate,
+    MessageLoopBehavior behavior = MessageLoopBehavior::kDoNotWait);
+
+V8_PLATFORM_EXPORT void EnsureEventLoopInitialized(v8::Platform* platform,
+                                                   v8::Isolate* isolate);
 
 /**
  * Runs pending idle tasks for at most |idle_time_in_seconds| seconds.

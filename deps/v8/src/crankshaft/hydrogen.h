@@ -1379,19 +1379,9 @@ class HGraphBuilder {
                                    ElementsKind kind,
                                    HValue* length);
 
-  void BuildTransitionElementsKind(HValue* object,
-                                   HValue* map,
-                                   ElementsKind from_kind,
-                                   ElementsKind to_kind,
-                                   bool is_jsarray);
-
   HValue* BuildNumberToString(HValue* object, AstType* type);
   HValue* BuildToNumber(HValue* input);
   HValue* BuildToObject(HValue* receiver);
-
-  HValue* BuildUncheckedDictionaryElementLoad(HValue* receiver,
-                                              HValue* elements, HValue* key,
-                                              HValue* hash);
 
   // ES6 section 7.4.7 CreateIterResultObject ( value, done )
   HValue* BuildCreateIterResultObject(HValue* value, HValue* done);
@@ -1474,8 +1464,6 @@ class HGraphBuilder {
   HLoadNamedField* AddLoadArrayLength(HValue *object,
                                       ElementsKind kind,
                                       HValue *dependency = NULL);
-
-  HValue* AddLoadJSBuiltin(int context_index);
 
   HValue* EnforceNumberType(HValue* number, AstType* expected);
   HValue* TruncateToNumber(HValue* value, AstType** expected);
@@ -1797,8 +1785,6 @@ class HGraphBuilder {
                          HValue* length,
                          HValue* capacity);
 
-  HValue* BuildElementIndexHash(HValue* index);
-
   void BuildCreateAllocationMemento(HValue* previous_object,
                                     HValue* previous_object_size,
                                     HValue* payload);
@@ -1809,14 +1795,8 @@ class HGraphBuilder {
                                         Handle<JSObject> holder,
                                         bool ensure_no_elements = false);
 
-  HInstruction* BuildGetNativeContext(HValue* closure);
   HInstruction* BuildGetNativeContext();
 
-  // Builds a loop version if |depth| is specified or unrolls the loop to
-  // |depth_value| iterations otherwise.
-  HValue* BuildGetParentContext(HValue* depth, int depth_value);
-
-  HInstruction* BuildGetArrayFunction();
   HValue* BuildArrayBufferViewFieldAccessor(HValue* object,
                                             HValue* checked_object,
                                             FieldIndex index);
@@ -2179,6 +2159,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   F(TypedArrayMaxSizeInHeap)           \
   F(ArrayBufferViewGetByteLength)      \
   F(ArrayBufferViewGetByteOffset)      \
+  F(ArrayBufferViewWasNeutered)        \
   F(TypedArrayGetLength)               \
   /* ArrayBuffer */                    \
   F(ArrayBufferGetByteLength)          \

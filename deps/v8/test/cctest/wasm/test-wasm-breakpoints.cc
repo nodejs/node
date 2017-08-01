@@ -7,13 +7,13 @@
 #include "src/frames-inl.h"
 #include "src/property-descriptor.h"
 #include "src/utils.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-objects.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 using namespace v8::internal;
 using namespace v8::internal::wasm;
@@ -158,6 +158,109 @@ void SetBreakpoint(WasmRunnerBase& runner, int function_index, int byte_offset,
   WasmDebugInfo::SetBreakpoint(debug_info, function_index, set_byte_offset);
 }
 
+// Wrapper with operator<<.
+struct WasmValWrapper {
+  WasmVal val;
+
+  bool operator==(const WasmValWrapper& other) const {
+    return val == other.val;
+  }
+};
+
+// Only needed in debug builds. Avoid unused warning otherwise.
+#ifdef DEBUG
+std::ostream& operator<<(std::ostream& out, const WasmValWrapper& wrapper) {
+  switch (wrapper.val.type) {
+    case kWasmI32:
+      out << "i32: " << wrapper.val.to<int32_t>();
+      break;
+    case kWasmI64:
+      out << "i64: " << wrapper.val.to<int64_t>();
+      break;
+    case kWasmF32:
+      out << "f32: " << wrapper.val.to<float>();
+      break;
+    case kWasmF64:
+      out << "f64: " << wrapper.val.to<double>();
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+  return out;
+}
+#endif
+
+class CollectValuesBreakHandler : public debug::DebugDelegate {
+ public:
+  struct BreakpointValues {
+    std::vector<WasmVal> locals;
+    std::vector<WasmVal> stack;
+  };
+
+  explicit CollectValuesBreakHandler(
+      Isolate* isolate, std::initializer_list<BreakpointValues> expected_values)
+      : isolate_(isolate), expected_values_(expected_values) {
+    v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_), this);
+  }
+  ~CollectValuesBreakHandler() {
+    v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_),
+                                nullptr);
+  }
+
+ private:
+  Isolate* isolate_;
+  int count_ = 0;
+  std::vector<BreakpointValues> expected_values_;
+
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             v8::Local<v8::Object> exec_state,
+                             v8::Local<v8::Value> break_points_hit) override {
+    printf("Break #%d\n", count_);
+    CHECK_GT(expected_values_.size(), count_);
+    auto& expected = expected_values_[count_];
+    ++count_;
+
+    HandleScope handles(isolate_);
+
+    StackTraceFrameIterator frame_it(isolate_);
+    auto summ = FrameSummary::GetTop(frame_it.frame()).AsWasmInterpreted();
+    Handle<WasmInstanceObject> instance = summ.wasm_instance();
+
+    auto frame =
+        instance->debug_info()->GetInterpretedFrame(frame_it.frame()->fp(), 0);
+    CHECK_EQ(expected.locals.size(), frame->GetLocalCount());
+    for (int i = 0; i < frame->GetLocalCount(); ++i) {
+      CHECK_EQ(WasmValWrapper{expected.locals[i]},
+               WasmValWrapper{frame->GetLocalValue(i)});
+    }
+
+    CHECK_EQ(expected.stack.size(), frame->GetStackHeight());
+    for (int i = 0; i < frame->GetStackHeight(); ++i) {
+      CHECK_EQ(WasmValWrapper{expected.stack[i]},
+               WasmValWrapper{frame->GetStackValue(i)});
+    }
+
+    isolate_->debug()->PrepareStep(StepAction::StepIn);
+  }
+};
+
+// Special template to explicitly cast to WasmVal.
+template <typename Arg>
+WasmVal MakeWasmVal(Arg arg) {
+  return WasmVal(arg);
+}
+// Translate long to i64 (ambiguous otherwise).
+template <>
+WasmVal MakeWasmVal(long arg) {  // NOLINT: allow long parameter
+  return WasmVal(static_cast<int64_t>(arg));
+}
+
+template <typename... Args>
+std::vector<WasmVal> wasmVec(Args... args) {
+  std::array<WasmVal, sizeof...(args)> arr{{MakeWasmVal(args)...}};
+  return std::vector<WasmVal>{arr.begin(), arr.end()};
+}
+
 }  // namespace
 
 TEST(WasmCollectPossibleBreakpoints) {
@@ -271,4 +374,49 @@ TEST(WasmStepInAndOut) {
   Handle<Object> global(isolate->context()->global_object(), isolate);
   CHECK(!Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr)
              .is_null());
+}
+
+TEST(WasmGetLocalsAndStack) {
+  WasmRunner<void, int> runner(kExecuteCompiled);
+  runner.AllocateLocal(ValueType::kWord64);
+  runner.AllocateLocal(ValueType::kFloat32);
+  runner.AllocateLocal(ValueType::kFloat64);
+
+  BUILD(runner,
+        // set [1] to 17
+        WASM_SET_LOCAL(1, WASM_I64V_1(17)),
+        // set [2] to <arg0> = 7
+        WASM_SET_LOCAL(2, WASM_F32_SCONVERT_I32(WASM_GET_LOCAL(0))),
+        // set [3] to <arg1>/2 = 8.5
+        WASM_SET_LOCAL(3, WASM_F64_DIV(WASM_F64_SCONVERT_I64(WASM_GET_LOCAL(1)),
+                                       WASM_F64(2))));
+
+  Isolate* isolate = runner.main_isolate();
+  Handle<JSFunction> main_fun_wrapper =
+      runner.module().WrapCode(runner.function_index());
+
+  // Set breakpoint at the first instruction (7 bytes for local decls: num
+  // entries + 3x<count, type>).
+  SetBreakpoint(runner, runner.function_index(), 7, 7);
+
+  CollectValuesBreakHandler break_handler(
+      isolate,
+      {
+          // params + locals          stack
+          {wasmVec(7, 0L, 0.f, 0.), wasmVec()},          // 0: i64.const[17]
+          {wasmVec(7, 0L, 0.f, 0.), wasmVec(17L)},       // 1: set_local[1]
+          {wasmVec(7, 17L, 0.f, 0.), wasmVec()},         // 2: get_local[0]
+          {wasmVec(7, 17L, 0.f, 0.), wasmVec(7)},        // 3: f32.convert_s
+          {wasmVec(7, 17L, 0.f, 0.), wasmVec(7.f)},      // 4: set_local[2]
+          {wasmVec(7, 17L, 7.f, 0.), wasmVec()},         // 5: get_local[1]
+          {wasmVec(7, 17L, 7.f, 0.), wasmVec(17L)},      // 6: f64.convert_s
+          {wasmVec(7, 17L, 7.f, 0.), wasmVec(17.)},      // 7: f64.const[2]
+          {wasmVec(7, 17L, 7.f, 0.), wasmVec(17., 2.)},  // 8: f64.div
+          {wasmVec(7, 17L, 7.f, 0.), wasmVec(8.5)},      // 9: set_local[3]
+          {wasmVec(7, 17L, 7.f, 8.5), wasmVec()},        // 10: end
+      });
+
+  Handle<Object> global(isolate->context()->global_object(), isolate);
+  Handle<Object> args[]{handle(Smi::FromInt(7), isolate)};
+  CHECK(!Execution::Call(isolate, main_fun_wrapper, global, 1, args).is_null());
 }

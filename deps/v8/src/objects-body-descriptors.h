@@ -101,6 +101,8 @@ class FixedBodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj, int object_size) {
     IterateBody<StaticVisitor>(obj);
   }
+
+  static inline int SizeOf(Map* map, HeapObject* object) { return kSize; }
 };
 
 

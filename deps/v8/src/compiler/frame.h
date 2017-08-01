@@ -111,9 +111,18 @@ class Frame : public ZoneObject {
     frame_slot_count_ += count;
   }
 
-  int AllocateSpillSlot(int width) {
+  int AllocateSpillSlot(int width, int alignment = 0) {
     int frame_slot_count_before = frame_slot_count_;
-    AllocateAlignedFrameSlots(width);
+    if (alignment <= kPointerSize) {
+      AllocateAlignedFrameSlots(width);
+    } else {
+      // We need to allocate more place for spill slot
+      // in case we need an aligned spill slot to be
+      // able to properly align start of spill slot
+      // and still have enough place to hold all the
+      // data
+      AllocateAlignedFrameSlots(width + alignment - kPointerSize);
+    }
     spill_slot_count_ += frame_slot_count_ - frame_slot_count_before;
     return frame_slot_count_ - 1;
   }

@@ -203,6 +203,7 @@ class V8_EXPORT_PRIVATE CompilationJob {
   State state() const { return state_; }
   CompilationInfo* info() const { return info_; }
   Isolate* isolate() const;
+  virtual size_t AllocatedMemory() const { return 0; }
 
  protected:
   // Overridden by the actual implementation.

@@ -29,6 +29,7 @@
 #include "test/cctest/cctest.h"
 
 #include "src/api.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/debug/debug.h"
 #include "src/execution.h"
 #include "src/factory.h"
@@ -309,6 +310,17 @@ TEST(SetRequiresCopyOnCapacityChange) {
   Handle<NameDictionary> new_dict =
       NameDictionary::Add(dict, key, value, PropertyDetails::Empty());
   CHECK_NE(*dict, *new_dict);
+}
+
+TEST(MaximumClonedShallowObjectProperties) {
+  // Assert that a NameDictionary with kMaximumClonedShallowObjectProperties is
+  // not in large-object space.
+  const int max_capacity = NameDictionary::ComputeCapacity(
+      ConstructorBuiltins::kMaximumClonedShallowObjectProperties);
+  const int max_literal_entry = max_capacity / NameDictionary::kEntrySize;
+  const int max_literal_index = NameDictionary::EntryToIndex(max_literal_entry);
+  CHECK_LE(NameDictionary::OffsetOfElementAt(max_literal_index),
+           kMaxRegularHeapObjectSize);
 }
 
 }  // namespace

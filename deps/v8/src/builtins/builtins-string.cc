@@ -217,7 +217,7 @@ BUILTIN(StringPrototypeLastIndexOf) {
 //
 // This function is implementation specific.  For now, we do not
 // do anything locale specific.
-// If internationalization is enabled, then i18n.js will override this function
+// If internationalization is enabled, then intl.js will override this function
 // and provide the proper functionality, so this is just a fallback.
 BUILTIN(StringPrototypeLocaleCompare) {
   HandleScope handle_scope(isolate);
@@ -264,11 +264,11 @@ BUILTIN(StringPrototypeLocaleCompare) {
   return Smi::FromInt(str1_length - str2_length);
 }
 
-#ifndef V8_I18N_SUPPORT
+#ifndef V8_INTL_SUPPORT
 // ES6 section 21.1.3.12 String.prototype.normalize ( [form] )
 //
 // Simply checks the argument is valid and returns the string itself.
-// If internationalization is enabled, then i18n.js will override this function
+// If internationalization is enabled, then intl.js will override this function
 // and provide the proper functionality, so this is just a fallback.
 BUILTIN(StringPrototypeNormalize) {
   HandleScope handle_scope(isolate);
@@ -298,7 +298,7 @@ BUILTIN(StringPrototypeNormalize) {
 
   return *string;
 }
-#endif  // !V8_I18N_SUPPORT
+#endif  // !V8_INTL_SUPPORT
 
 BUILTIN(StringPrototypeStartsWith) {
   HandleScope handle_scope(isolate);

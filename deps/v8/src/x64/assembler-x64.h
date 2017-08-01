@@ -1305,6 +1305,8 @@ class Assembler : public AssemblerBase {
   void psrldq(XMMRegister dst, uint8_t shift);
   void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
   void pshufd(XMMRegister dst, const Operand& src, uint8_t shuffle);
+  void pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+  void pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
   void cvtdq2ps(XMMRegister dst, XMMRegister src);
   void cvtdq2ps(XMMRegister dst, const Operand& src);
 

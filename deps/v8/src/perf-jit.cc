@@ -284,7 +284,7 @@ SourcePositionInfo GetSourcePositionInfo(Handle<Code> code,
 void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   // Compute the entry count and get the name of the script.
   uint32_t entry_count = 0;
-  for (SourcePositionTableIterator iterator(code->source_position_table());
+  for (SourcePositionTableIterator iterator(code->SourcePositionTable());
        !iterator.done(); iterator.Advance()) {
     entry_count++;
   }
@@ -305,7 +305,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
 
   Handle<Code> code_handle(code);
   Handle<SharedFunctionInfo> function_handle(shared);
-  for (SourcePositionTableIterator iterator(code->source_position_table());
+  for (SourcePositionTableIterator iterator(code->SourcePositionTable());
        !iterator.done(); iterator.Advance()) {
     SourcePositionInfo info(GetSourcePositionInfo(code_handle, function_handle,
                                                   iterator.source_position()));
@@ -320,7 +320,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
 
   Address code_start = code->instruction_start();
 
-  for (SourcePositionTableIterator iterator(code->source_position_table());
+  for (SourcePositionTableIterator iterator(code->SourcePositionTable());
        !iterator.done(); iterator.Advance()) {
     SourcePositionInfo info(GetSourcePositionInfo(code_handle, function_handle,
                                                   iterator.source_position()));

@@ -30,29 +30,27 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
 
 
 void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
+  Address instruction_start = code->instruction_start();
   // Invalidate the relocation information, as it will become invalid by the
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
-  if (FLAG_zap_code_space) {
-    // Fail hard and early if we enter this code object again.
-    byte* pointer = code->FindCodeAgeSequence();
-    if (pointer != NULL) {
-      pointer += kNoCodeAgeSequenceLength;
-    } else {
-      pointer = code->instruction_start();
-    }
-    CodePatcher patcher(isolate, pointer, 1);
-    patcher.masm()->int3();
+  // Fail hard and early if we enter this code object again.
+  byte* pointer = code->FindCodeAgeSequence();
+  if (pointer != NULL) {
+    pointer += kNoCodeAgeSequenceLength;
+  } else {
+    pointer = code->instruction_start();
+  }
+  CodePatcher patcher(isolate, pointer, 1);
+  patcher.masm()->int3();
 
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
-    int osr_offset = data->OsrPcOffset()->value();
-    if (osr_offset > 0) {
-      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
-                              1);
-      osr_patcher.masm()->int3();
-    }
+  DeoptimizationInputData* data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  int osr_offset = data->OsrPcOffset()->value();
+  if (osr_offset > 0) {
+    CodePatcher osr_patcher(isolate, instruction_start + osr_offset, 1);
+    osr_patcher.masm()->int3();
   }
 
   // For each LLazyBailout instruction insert a absolute call to the
@@ -61,7 +59,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // before the safepoint table (space was allocated there when the Code
   // object was created, if necessary).
 
-  Address instruction_start = code->instruction_start();
 #ifdef DEBUG
   Address prev_call_address = NULL;
 #endif

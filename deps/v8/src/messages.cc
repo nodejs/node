@@ -51,7 +51,7 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
 Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     Isolate* isolate, MessageTemplate::Template message,
     const MessageLocation* location, Handle<Object> argument,
-    Handle<JSArray> stack_frames) {
+    Handle<FixedArray> stack_frames) {
   Factory* factory = isolate->factory();
 
   int start = -1;
@@ -890,13 +890,14 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
     Handle<Object> pending_exception =
         handle(isolate->pending_exception(), isolate);
     isolate->clear_pending_exception();
+    isolate->set_external_caught_exception(false);
 
     err_str = ErrorUtils::ToString(isolate, pending_exception);
     if (err_str.is_null()) {
       // Formatting the thrown exception threw again, give up.
       DCHECK(isolate->has_pending_exception());
       isolate->clear_pending_exception();
-
+      isolate->set_external_caught_exception(false);
       builder->AppendCString("<error>");
     } else {
       // Formatted thrown exception successfully, append it.
@@ -991,6 +992,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
       Handle<Object> pending_exception =
           handle(isolate->pending_exception(), isolate);
       isolate->clear_pending_exception();
+      isolate->set_external_caught_exception(false);
 
       maybe_frame_string = ErrorUtils::ToString(isolate, pending_exception);
       if (maybe_frame_string.is_null()) {
@@ -1222,6 +1224,7 @@ Handle<String> FormatMessage(Isolate* isolate, int template_index,
            .ToHandle(&msg)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
+    isolate->set_external_caught_exception(false);
     return isolate->factory()->NewStringFromAsciiChecked("<error>");
   }
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks command line API.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks command line API.');
 
 InspectorTest.runAsyncTestSuite([
   async function testKeys() {
@@ -46,7 +46,7 @@ InspectorTest.runAsyncTestSuite([
   },
 
   async function testDebug() {
-    InspectorTest.setupScriptMap();
+    session.setupScriptMap();
     await Protocol.Debugger.enable();
     InspectorTest.logMessage(await Protocol.Runtime.evaluate({expression: 'debug', includeCommandLineAPI: true}));
     InspectorTest.logMessage(await Protocol.Runtime.evaluate({expression: 'undebug', includeCommandLineAPI: true}));
@@ -54,7 +54,7 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Runtime.evaluate({expression: 'debug(foo)', includeCommandLineAPI: true});
     Protocol.Runtime.evaluate({ expression: 'foo()'});
     let message = await Protocol.Debugger.oncePaused();
-    InspectorTest.logCallFrames(message.params.callFrames);
+    session.logCallFrames(message.params.callFrames);
     InspectorTest.logMessage(message.params.hitBreakpoints);
     await Protocol.Debugger.resume();
     await Protocol.Runtime.evaluate({expression: 'undebug(foo)', includeCommandLineAPI: true});
@@ -65,7 +65,7 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Runtime.evaluate({expression: 'this.debug(foo)'});
     Protocol.Runtime.evaluate({ expression: 'foo()'});
     message = await Protocol.Debugger.oncePaused();
-    InspectorTest.logCallFrames(message.params.callFrames);
+    session.logCallFrames(message.params.callFrames);
     InspectorTest.logMessage(message.params.hitBreakpoints);
     await Protocol.Debugger.resume();
     await Protocol.Runtime.evaluate({expression: 'this.undebug(foo)'});

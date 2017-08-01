@@ -2,11 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Test that profiler doesn't crash when we call stop without preceeding start.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Test that profiler doesn't crash when we call stop without preceeding start.");
 
 Protocol.Profiler.stop().then(didStopProfile);
 function didStopProfile(messageObject)
 {
-  InspectorTest.expectedError("ProfileAgent.stop", messageObject);
+  expectedError("ProfileAgent.stop", messageObject);
   InspectorTest.completeTest();
 }
+
+function checkExpectation(fail, name, messageObject)
+{
+  if (fail === !!messageObject.error) {
+    InspectorTest.log("PASS: " + name);
+    return true;
+  }
+
+  InspectorTest.log("FAIL: " + name + ": " + JSON.stringify(messageObject));
+  InspectorTest.completeTest();
+  return false;
+}
+var expectedSuccess = checkExpectation.bind(null, false);
+var expectedError = checkExpectation.bind(null, true);

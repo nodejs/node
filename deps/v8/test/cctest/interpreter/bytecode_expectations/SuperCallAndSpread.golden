@@ -53,15 +53,13 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 61
+bytecode array length: 58
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
-                B(LdaTheHole),
-                B(Star), R(3),
   /*  128 E> */ B(StackCheck),
                 B(Mov), R(2), R(3),
   /*  140 S> */ B(Ldar), R(1),
@@ -102,15 +100,13 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 94
+bytecode array length: 91
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
-                B(LdaTheHole),
-                B(Star), R(3),
   /*  128 E> */ B(StackCheck),
                 B(Mov), R(2), R(3),
   /*  140 S> */ B(LdaUndefined),
@@ -119,14 +115,14 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaUndefined),
                 B(Star), R(6),
-                B(CreateArrayLiteral), U8(0), U8(2), U8(9),
+                B(CreateArrayLiteral), U8(0), U8(3), U8(17),
                 B(Star), R(7),
                 B(LdaUndefined),
                 B(Star), R(8),
                 B(Mov), R(2), R(9),
   /*  152 E> */ B(CallJSRuntime), U8(%spread_iterable), R(8), U8(2),
                 B(Star), R(8),
-                B(CreateArrayLiteral), U8(1), U8(3), U8(9),
+                B(CreateArrayLiteral), U8(1), U8(4), U8(17),
                 B(Star), R(9),
                 B(CallJSRuntime), U8(%spread_arguments), R(6), U8(4),
                 B(Star), R(6),
@@ -144,8 +140,8 @@ bytecodes: [
   /*  162 S> */ B(Return),
 ]
 constant pool: [
-  CONSTANT_ELEMENTS_PAIR_TYPE,
-  CONSTANT_ELEMENTS_PAIR_TYPE,
+  TUPLE2_TYPE,
+  TUPLE2_TYPE,
 ]
 handlers: [
 ]

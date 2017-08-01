@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks that stepping is cleared after breakProgram.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that stepping is cleared after breakProgram.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function callBreakProgram() {
   debugger;
-  breakProgram('reason', '');
+  inspector.breakProgram('reason', '');
 }`);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 (async function test() {
   Protocol.Debugger.enable();
   Protocol.Runtime.evaluate({expression: 'callBreakProgram();'});
@@ -29,6 +29,6 @@ InspectorTest.setupScriptMap();
 async function waitPauseAndDumpLocation() {
   var message = await Protocol.Debugger.oncePaused();
   InspectorTest.log('paused at:');
-  InspectorTest.logSourceLocation(message.params.callFrames[0].location);
+  session.logSourceLocation(message.params.callFrames[0].location);
   return message;
 }

@@ -1,6 +1,8 @@
 include_rules = [
   "+base/trace_event/common/trace_event_common.h",
   "+src",
+  "-src/asmjs",
+  "+src/asmjs/asm-js.h",
   "-src/compiler",
   "+src/compiler/pipeline.h",
   "+src/compiler/code-assembler.h",

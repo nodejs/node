@@ -34,6 +34,10 @@ namespace base {
 class RandomNumberGenerator;
 }
 
+namespace debug {
+class ConsoleDelegate;
+}
+
 namespace internal {
 
 class AccessCompilerData;
@@ -74,6 +78,7 @@ class Logger;
 class MaterializedObjectStore;
 class OptimizingCompileDispatcher;
 class RegExpStack;
+class RootVisitor;
 class RuntimeProfiler;
 class SaveContext;
 class SetupIsolateDelegate;
@@ -390,7 +395,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   V(int, suffix_table, (kBMMaxShift + 1))                                      \
   ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
 
-typedef List<HeapObject*> DebugObjectCache;
+typedef std::vector<HeapObject*> DebugObjectCache;
 
 #define ISOLATE_INIT_LIST(V)                                                  \
   /* Assembler state. */                                                      \
@@ -430,6 +435,7 @@ typedef List<HeapObject*> DebugObjectCache;
   V(bool, needs_side_effect_check, false)                                     \
   /* Current code coverage mode */                                            \
   V(debug::Coverage::Mode, code_coverage_mode, debug::Coverage::kBestEffort)  \
+  V(int, last_stack_frame_info_id, 0)                                         \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
@@ -666,7 +672,7 @@ class Isolate {
   // exceptions.  If an exception was thrown and not handled by an external
   // handler the exception is scheduled to be rethrown when we return to running
   // JavaScript code.  If an exception is scheduled true is returned.
-  bool OptionalRescheduleException(bool is_bottom_call);
+  V8_EXPORT_PRIVATE bool OptionalRescheduleException(bool is_bottom_call);
 
   // Push and pop a promise and the current try-catch handler.
   void PushPromise(Handle<JSObject> promise);
@@ -717,9 +723,8 @@ class Isolate {
                                        void* ptr2, void* ptr3, void* ptr4,
                                        void* ptr5, void* ptr6, void* ptr7,
                                        void* ptr8, unsigned int magic2));
-  Handle<JSArray> CaptureCurrentStackTrace(
-      int frame_limit,
-      StackTrace::StackTraceOptions options);
+  Handle<FixedArray> CaptureCurrentStackTrace(
+      int frame_limit, StackTrace::StackTraceOptions options);
   Handle<Object> CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                          FrameSkipMode mode,
                                          Handle<Object> caller);
@@ -728,7 +733,7 @@ class Isolate {
   MaybeHandle<JSReceiver> CaptureAndSetSimpleStackTrace(
       Handle<JSReceiver> error_object, FrameSkipMode mode,
       Handle<Object> caller);
-  Handle<JSArray> GetDetailedStackTrace(Handle<JSObject> error_object);
+  Handle<FixedArray> GetDetailedStackTrace(Handle<JSObject> error_object);
 
   // Returns if the given context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
@@ -749,6 +754,11 @@ class Isolate {
     Throw(*exception, location);
     return MaybeHandle<T>();
   }
+
+  void set_console_delegate(debug::ConsoleDelegate* delegate) {
+    console_delegate_ = delegate;
+  }
+  debug::ConsoleDelegate* console_delegate() { return console_delegate_; }
 
   // Re-throw an exception.  This involves no error reporting since error
   // reporting was handled when the exception was thrown originally.
@@ -806,9 +816,9 @@ class Isolate {
   void InvokeApiInterruptCallbacks();
 
   // Administration
-  void Iterate(ObjectVisitor* v);
-  void Iterate(ObjectVisitor* v, ThreadLocalTop* t);
-  char* Iterate(ObjectVisitor* v, char* t);
+  void Iterate(RootVisitor* v);
+  void Iterate(RootVisitor* v, ThreadLocalTop* t);
+  char* Iterate(RootVisitor* v, char* t);
   void IterateThread(ThreadVisitor* v, char* t);
 
   // Returns the current native context.
@@ -987,7 +997,7 @@ class Isolate {
   bool IsDead() { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
 
-  bool use_crankshaft();
+  bool use_optimizer();
 
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
@@ -1068,7 +1078,7 @@ class Isolate {
 
   AccessCompilerData* access_compiler_data() { return access_compiler_data_; }
 
-  void IterateDeferredHandles(ObjectVisitor* visitor);
+  void IterateDeferredHandles(RootVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
   void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
 
@@ -1157,7 +1167,7 @@ class Isolate {
 
   std::string GetTurboCfgFileName();
 
-#if TRACE_MAPS
+#if V8_SFI_HAS_UNIQUE_ID
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
 #endif
 
@@ -1240,6 +1250,9 @@ class Isolate {
 
 #ifdef USE_SIMULATOR
   base::Mutex* simulator_i_cache_mutex() { return &simulator_i_cache_mutex_; }
+  base::Mutex* simulator_redirection_mutex() {
+    return &simulator_redirection_mutex_;
+  }
 #endif
 
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
@@ -1278,10 +1291,10 @@ class Isolate {
   // reset to nullptr.
   void UnregisterFromReleaseAtTeardown(ManagedObjectFinalizer** finalizer_ptr);
 
-  // Used by mjsunit tests to force d8 to wait for certain things to run.
-  inline void IncrementWaitCountForTesting() { wait_count_++; }
-  inline void DecrementWaitCountForTesting() { wait_count_--; }
-  inline int GetWaitCountForTesting() { return wait_count_; }
+  size_t elements_deletion_counter() { return elements_deletion_counter_; }
+  void set_elements_deletion_counter(size_t value) {
+    elements_deletion_counter_ = value;
+  }
 
  protected:
   explicit Isolate(bool enable_serializer);
@@ -1528,7 +1541,7 @@ class Isolate {
 
   int next_optimization_id_;
 
-#if TRACE_MAPS
+#if V8_SFI_HAS_UNIQUE_ID
   int next_unique_sfi_id_;
 #endif
 
@@ -1553,11 +1566,14 @@ class Isolate {
 
   CancelableTaskManager* cancelable_task_manager_;
 
+  debug::ConsoleDelegate* console_delegate_ = nullptr;
+
   v8::Isolate::AbortOnUncaughtExceptionCallback
       abort_on_uncaught_exception_callback_;
 
 #ifdef USE_SIMULATOR
   base::Mutex simulator_i_cache_mutex_;
+  base::Mutex simulator_redirection_mutex_;
 #endif
 
   bool allow_atomics_wait_;
@@ -1566,7 +1582,7 @@ class Isolate {
 
   size_t total_regexp_code_generated_;
 
-  int wait_count_ = 0;
+  size_t elements_deletion_counter_ = 0;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

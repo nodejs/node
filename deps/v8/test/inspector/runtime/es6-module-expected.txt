@@ -232,10 +232,6 @@ console.log(239)
             executionContextId : <executionContextId>
             lineNumber : 0
             scriptId : <scriptId>
-            stackTrace : {
-                callFrames : [
-                ]
-            }
             text : Uncaught SyntaxError: Unexpected token }
             url : module4
         }

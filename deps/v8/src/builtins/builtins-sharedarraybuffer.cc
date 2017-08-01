@@ -63,23 +63,15 @@ MUST_USE_RESULT MaybeHandle<JSTypedArray> ValidateSharedIntegerTypedArray(
 MUST_USE_RESULT Maybe<size_t> ValidateAtomicAccess(
     Isolate* isolate, Handle<JSTypedArray> typed_array,
     Handle<Object> request_index) {
-  // TOOD(v8:5961): Use ToIndex for indexes
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, request_index,
-                                   Object::ToNumber(request_index),
-                                   Nothing<size_t>());
-  Handle<Object> offset;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, offset,
-                                   Object::ToInteger(isolate, request_index),
-                                   Nothing<size_t>());
-  if (!request_index->SameValue(*offset)) {
-    isolate->Throw(*isolate->factory()->NewRangeError(
-        MessageTemplate::kInvalidAtomicAccessIndex));
-    return Nothing<size_t>();
-  }
-  size_t access_index;
-  uint32_t length = typed_array->length_value();
-  if (!TryNumberToSize(*request_index, &access_index) ||
-      access_index >= length) {
+  Handle<Object> access_index_obj;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, access_index_obj,
+      Object::ToIndex(isolate, request_index,
+                      MessageTemplate::kInvalidAtomicAccessIndex),
+      Nothing<size_t>());
+
+  size_t access_index = NumberToSize(*access_index_obj);
+  if (access_index >= typed_array->length_value()) {
     isolate->Throw(*isolate->factory()->NewRangeError(
         MessageTemplate::kInvalidAtomicAccessIndex));
     return Nothing<size_t>();

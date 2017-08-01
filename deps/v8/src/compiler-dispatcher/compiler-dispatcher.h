@@ -18,7 +18,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/globals.h"
 #include "src/identity-map.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 
@@ -85,9 +85,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Enqueue a job for initial parse. Returns true if a job was enqueued.
   bool Enqueue(Handle<String> source, int start_pos, int end_position,
                LanguageMode language_mode, int function_literal_id, bool native,
-               bool module, bool is_named_expression, bool calls_eval,
-               int compiler_hints, CompileJobFinishCallback* finish_callback,
-               JobId* job_id);
+               bool module, bool is_named_expression, int compiler_hints,
+               CompileJobFinishCallback* finish_callback, JobId* job_id);
 
   // Like Enqueue, but also advances the job so that it can potentially
   // continue running on a background thread (if at all possible). Returns

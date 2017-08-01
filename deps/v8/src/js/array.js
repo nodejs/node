@@ -18,8 +18,8 @@ var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MaxSimple;
 var MinSimple;
-var ObjectHasOwnProperty;
-var ObjectToString = utils.ImportNow("object_to_string");
+var ObjectHasOwnProperty = global.Object.prototype.hasOwnProperty;
+var ObjectToString = global.Object.prototype.toString;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
@@ -28,7 +28,6 @@ utils.Import(function(from) {
   GetMethod = from.GetMethod;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  ObjectHasOwnProperty = from.ObjectHasOwnProperty;
 });
 
 // -------------------------------------------------------------------
@@ -403,7 +402,7 @@ function ArrayPop() {
 
   n--;
   var value = array[n];
-  %DeleteProperty_Strict(array, n);
+  delete array[n];
   array.length = n;
   return value;
 }
@@ -1001,57 +1000,6 @@ function ArraySort(comparefn) {
   return InnerArraySort(array, length, comparefn);
 }
 
-
-// The following functions cannot be made efficient on sparse arrays while
-// preserving the semantics, since the calls to the receiver function can add
-// or delete elements from the array.
-function InnerArrayFilter(f, receiver, array, length, result) {
-  var result_length = 0;
-  for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      if (%_Call(f, receiver, element, i, array)) {
-        %CreateDataProperty(result, result_length, element);
-        result_length++;
-      }
-    }
-  }
-  return result;
-}
-
-
-
-function ArrayFilter(f, receiver) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.filter");
-
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
-  var array = TO_OBJECT(this);
-  var length = TO_LENGTH(array.length);
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-  var result = ArraySpeciesCreate(array, 0);
-  return InnerArrayFilter(f, receiver, array, length, result);
-}
-
-function ArrayMap(f, receiver) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.map");
-
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
-  var array = TO_OBJECT(this);
-  var length = TO_LENGTH(array.length);
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-  var result = ArraySpeciesCreate(array, length);
-  for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      %CreateDataProperty(result, i, %_Call(f, receiver, element, i, array));
-    }
-  }
-  return result;
-}
-
-
 function ArrayLastIndexOf(element, index) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.lastIndexOf");
 
@@ -1384,8 +1332,6 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "slice", getFunction("slice", ArraySlice, 2),
   "splice", getFunction("splice", ArraySplice, 2),
   "sort", getFunction("sort", ArraySort),
-  "filter", getFunction("filter", ArrayFilter, 1),
-  "map", getFunction("map", ArrayMap, 1),
   "indexOf", getFunction("indexOf", null, 1),
   "lastIndexOf", getFunction("lastIndexOf", ArrayLastIndexOf, 1),
   "copyWithin", getFunction("copyWithin", ArrayCopyWithin, 2),
@@ -1442,7 +1388,6 @@ utils.Export(function(to) {
   to.ArrayPush = ArrayPush;
   to.ArrayToString = ArrayToString;
   to.ArrayValues = IteratorFunctions.values,
-  to.InnerArrayFilter = InnerArrayFilter;
   to.InnerArrayFind = InnerArrayFind;
   to.InnerArrayFindIndex = InnerArrayFindIndex;
   to.InnerArrayJoin = InnerArrayJoin;

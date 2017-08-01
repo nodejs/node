@@ -68,8 +68,10 @@ TEST_MAP = {
     "debugger",
     "mjsunit",
     "cctest",
+    "wasm-spec-tests",
     "inspector",
     "webkit",
+    "mkgrokdump",
     "fuzzer",
     "message",
     "preparser",
@@ -81,7 +83,9 @@ TEST_MAP = {
     "debugger",
     "mjsunit",
     "cctest",
+    "wasm-spec-tests",
     "inspector",
+    "mkgrokdump",
     "fuzzer",
     "message",
     "preparser",
@@ -265,7 +269,7 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
-                    default="")
+                    action="append", default=[])
   result.add_option("--isolates", help="Whether to test isolates",
                     default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
@@ -419,6 +423,7 @@ def SetupEnvironment(options):
       'coverage=1',
       'coverage_dir=%s' % options.sancov_dir,
       symbolizer,
+      "allow_user_segv_handler=1",
     ])
 
   if options.cfi_vptr:
@@ -532,7 +537,7 @@ def ProcessOptions(options):
           "running tests locally.")
     options.no_network = True
   options.command_prefix = shlex.split(options.command_prefix)
-  options.extra_flags = shlex.split(options.extra_flags)
+  options.extra_flags = sum(map(shlex.split, options.extra_flags), [])
 
   if options.gc_stress:
     options.extra_flags += GC_STRESS_FLAGS
@@ -781,8 +786,8 @@ def Execute(arch, mode, args, options, suites):
   # target_arch != v8_target_arch in the dumped build config.
   simulator_run = not options.dont_skip_simulator_slow_tests and \
       arch in ['arm64', 'arm', 'mipsel', 'mips', 'mips64', 'mips64el', \
-               'ppc', 'ppc64'] and \
-      ARCH_GUESS and arch != ARCH_GUESS
+               'ppc', 'ppc64', 's390', 's390x'] and \
+      bool(ARCH_GUESS) and arch != ARCH_GUESS
   # Find available test suites and read test cases from them.
   variables = {
     "arch": arch,

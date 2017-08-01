@@ -31,6 +31,8 @@ for exclusion in exclusions:
     remove_if_exists(args, '-fsanitize-coverage=func')
     remove_if_exists(args, '-fsanitize-coverage=bb')
     remove_if_exists(args, '-fsanitize-coverage=edge')
+    remove_if_exists(args, '-fsanitize-coverage=trace-pc-guard')
+    remove_if_exists(args, '-fsanitize-coverage=bb,trace-pc-guard')
     break
 
 sys.exit(subprocess.check_call(args))

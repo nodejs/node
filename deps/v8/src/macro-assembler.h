@@ -65,6 +65,9 @@ enum AllocationFlags {
 namespace v8 {
 namespace internal {
 
+// Simulators only support C calls with up to kMaxCParameters parameters.
+static constexpr int kMaxCParameters = 9;
+
 class FrameScope {
  public:
   explicit FrameScope(MacroAssembler* masm, StackFrame::Type type)
@@ -145,22 +148,22 @@ class FrameAndConstantPoolScope {
 // Class for scoping the the unavailability of constant pool access.
 class ConstantPoolUnavailableScope {
  public:
-  explicit ConstantPoolUnavailableScope(MacroAssembler* masm)
-      : masm_(masm),
+  explicit ConstantPoolUnavailableScope(Assembler* assembler)
+      : assembler_(assembler),
         old_constant_pool_available_(FLAG_enable_embedded_constant_pool &&
-                                     masm->is_constant_pool_available()) {
+                                     assembler->is_constant_pool_available()) {
     if (FLAG_enable_embedded_constant_pool) {
-      masm_->set_constant_pool_available(false);
+      assembler->set_constant_pool_available(false);
     }
   }
   ~ConstantPoolUnavailableScope() {
     if (FLAG_enable_embedded_constant_pool) {
-      masm_->set_constant_pool_available(old_constant_pool_available_);
+      assembler_->set_constant_pool_available(old_constant_pool_available_);
     }
   }
 
  private:
-  MacroAssembler* masm_;
+  Assembler* assembler_;
   int old_constant_pool_available_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantPoolUnavailableScope);
@@ -196,11 +199,11 @@ class NoCurrentFrameScope {
 
 class Comment {
  public:
-  Comment(MacroAssembler* masm, const char* msg);
+  Comment(Assembler* assembler, const char* msg);
   ~Comment();
 
  private:
-  MacroAssembler* masm_;
+  Assembler* assembler_;
   const char* msg_;
 };
 
@@ -208,7 +211,7 @@ class Comment {
 
 class Comment {
  public:
-  Comment(MacroAssembler*, const char*)  {}
+  Comment(Assembler*, const char*) {}
 };
 
 #endif  // DEBUG

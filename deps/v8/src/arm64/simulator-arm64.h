@@ -36,17 +36,14 @@ typedef int (*arm64_regexp_matcher)(String* input,
                                     int64_t output_size,
                                     Address stack_base,
                                     int64_t direct_call,
-                                    void* return_address,
                                     Isolate* isolate);
 
 // Call the generated regexp code directly. The code at the entry address
 // should act as a function matching the type arm64_regexp_matcher.
-// The ninth argument is a dummy that reserves the space used for
-// the return address added by the ExitFrame in native calls.
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
   (FUNCTION_CAST<arm64_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,  \
-                                              NULL, p8))
+                                              p8))
 
 // Running without a simulator there is nothing to do.
 class SimulatorStack : public v8::internal::AllStatic {
@@ -201,7 +198,6 @@ class Simulator : public DecoderVisitor {
                      int64_t output_size,
                      Address stack_base,
                      int64_t direct_call,
-                     void* return_address,
                      Isolate* isolate);
 
   // A wrapper class that stores an argument for one of the above Call
@@ -277,7 +273,7 @@ class Simulator : public DecoderVisitor {
 
   void ResetState();
 
-  // Runtime call support.
+  // Runtime call support. Uses the isolate in a thread-safe way.
   static void* RedirectExternalReference(Isolate* isolate,
                                          void* external_function,
                                          ExternalReference::Type type);
@@ -973,8 +969,7 @@ class Simulator : public DecoderVisitor {
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
   static_cast<int>(Simulator::current(isolate)->CallRegExp(                    \
-      entry, p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8))
-
+      entry, p0, p1, p2, p3, p4, p5, p6, p7, p8))
 
 // The simulator has its own stack. Thus it has a different stack limit from
 // the C-based native code.  The JS-based limit normally points near the end of

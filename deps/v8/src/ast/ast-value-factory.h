@@ -189,10 +189,6 @@ class AstValue : public ZoneObject {
 
   bool IsNumber() const { return IsSmi() || IsHeapNumber(); }
 
-  bool ContainsDot() const {
-    return type_ == NUMBER_WITH_DOT || type_ == SMI_WITH_DOT;
-  }
-
   const AstRawString* AsString() const {
     CHECK_EQ(STRING, type_);
     return string_;
@@ -236,10 +232,8 @@ class AstValue : public ZoneObject {
 
   bool BooleanValue() const;
 
-  bool IsSmi() const { return type_ == SMI || type_ == SMI_WITH_DOT; }
-  bool IsHeapNumber() const {
-    return type_ == NUMBER || type_ == NUMBER_WITH_DOT;
-  }
+  bool IsSmi() const { return type_ == SMI; }
+  bool IsHeapNumber() const { return type_ == NUMBER; }
   bool IsFalse() const { return type_ == BOOLEAN && !bool_; }
   bool IsTrue() const { return type_ == BOOLEAN && bool_; }
   bool IsUndefined() const { return type_ == UNDEFINED; }
@@ -267,9 +261,7 @@ class AstValue : public ZoneObject {
     STRING,
     SYMBOL,
     NUMBER,
-    NUMBER_WITH_DOT,
     SMI,
-    SMI_WITH_DOT,
     BOOLEAN,
     NULL_TYPE,
     UNDEFINED,
@@ -284,13 +276,13 @@ class AstValue : public ZoneObject {
     symbol_ = symbol;
   }
 
-  explicit AstValue(double n, bool with_dot) : next_(nullptr) {
+  explicit AstValue(double n) : next_(nullptr) {
     int int_value;
     if (DoubleToSmiInteger(n, &int_value)) {
-      type_ = with_dot ? SMI_WITH_DOT : SMI;
+      type_ = SMI;
       smi_ = int_value;
     } else {
-      type_ = with_dot ? NUMBER_WITH_DOT : NUMBER;
+      type_ = NUMBER;
       number_ = n;
     }
   }
@@ -481,8 +473,7 @@ class AstValueFactory {
   V8_EXPORT_PRIVATE const AstValue* NewString(const AstRawString* string);
   // A JavaScript symbol (ECMA-262 edition 6).
   const AstValue* NewSymbol(AstSymbol symbol);
-  V8_EXPORT_PRIVATE const AstValue* NewNumber(double number,
-                                              bool with_dot = false);
+  V8_EXPORT_PRIVATE const AstValue* NewNumber(double number);
   const AstValue* NewSmi(uint32_t number);
   const AstValue* NewBoolean(bool b);
   const AstValue* NewStringList(ZoneList<const AstRawString*>* strings);

@@ -12,7 +12,7 @@ v8_executable("cctest") {
 
     ### gcmole(all) ###
     "../common/wasm/test-signatures.h",
-    "asmjs/test-asm-typer.cc",
+    "../common/wasm/wasm-macro-gen.h",
     "ast-types-fuzz.h",
     "cctest.cc",
     "cctest.h",
@@ -338,7 +338,7 @@ v8_executable("cctest") {
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:wasm_module_runner",
-    "//build/config/sanitizers:deps",
+    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
   ]
 
@@ -437,7 +437,7 @@ v8_executable("generate-bytecode-expectations") {
     "../..:v8",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "//build/config/sanitizers:deps",
+    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
   ]
 }

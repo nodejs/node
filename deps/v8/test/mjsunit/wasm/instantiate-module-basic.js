@@ -70,7 +70,7 @@ function CheckInstance(instance) {
 
   print('async instantiate...');
   let instance_promise = WebAssembly.instantiate(buffer);
-  assertPromiseResult(instance_promise, CheckInstance);
+  assertPromiseResult(instance_promise, pair => CheckInstance(pair.instance));
 })();
 
 // Check that validate works correctly for a module.

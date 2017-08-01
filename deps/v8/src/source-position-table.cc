@@ -168,18 +168,27 @@ Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
 }
 
 SourcePositionTableIterator::SourcePositionTableIterator(ByteArray* byte_array)
-    : table_(byte_array), index_(0), current_() {
+    : raw_table_(byte_array) {
   Advance();
 }
 
+SourcePositionTableIterator::SourcePositionTableIterator(
+    Handle<ByteArray> byte_array)
+    : table_(byte_array) {
+  Advance();
+  // We can enable allocation because we keep the table in a handle.
+  no_gc.Release();
+}
+
 void SourcePositionTableIterator::Advance() {
+  ByteArray* table = raw_table_ ? raw_table_ : *table_;
   DCHECK(!done());
-  DCHECK(index_ >= 0 && index_ <= table_->length());
-  if (index_ >= table_->length()) {
+  DCHECK(index_ >= 0 && index_ <= table->length());
+  if (index_ >= table->length()) {
     index_ = kDone;
   } else {
     PositionTableEntry tmp;
-    DecodeEntry(table_, &index_, &tmp);
+    DecodeEntry(table, &index_, &tmp);
     AddAndSetEntry(current_, tmp);
   }
 }

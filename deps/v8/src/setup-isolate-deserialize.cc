@@ -16,19 +16,10 @@ void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate,
                                          bool create_heap_objects) {
   DCHECK(!create_heap_objects);
   // No actual work to be done; builtins will be deserialized from the snapshot.
-  isolate->builtins()->MarkInitialized();
 }
 
 void SetupIsolateDelegate::SetupInterpreter(
     interpreter::Interpreter* interpreter, bool create_heap_objects) {
-#ifdef V8_USE_SNAPSHOT
-  if (FLAG_trace_ignition || FLAG_trace_ignition_codegen ||
-      FLAG_trace_ignition_dispatches) {
-    OFStream os(stdout);
-    os << "Warning: --trace-ignition-* flags must be passed at mksnapshot "
-       << "time or used with nosnapshot builds." << std::endl;
-  }
-#endif
   DCHECK(interpreter->IsDispatchTableInitialized());
 }
 

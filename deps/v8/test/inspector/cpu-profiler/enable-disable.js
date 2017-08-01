@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Test that profiling can only be started when Profiler was enabled and that Profiler.disable command will stop recording all profiles.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Test that profiling can only be started when Profiler was enabled and that Profiler.disable command will stop recording all profiles.");
 
 Protocol.Profiler.start().then(didFailToStartWhenDisabled);
 disallowConsoleProfiles();
@@ -31,7 +31,7 @@ function allowConsoleProfiles()
 }
 function didFailToStartWhenDisabled(messageObject)
 {
-  if (!InspectorTest.expectedError("didFailToStartWhenDisabled", messageObject))
+  if (!expectedError("didFailToStartWhenDisabled", messageObject))
     return;
   allowConsoleProfiles();
   Protocol.Profiler.enable();
@@ -39,21 +39,21 @@ function didFailToStartWhenDisabled(messageObject)
 }
 function didStartFrontendProfile(messageObject)
 {
-  if (!InspectorTest.expectedSuccess("didStartFrontendProfile", messageObject))
+  if (!expectedSuccess("didStartFrontendProfile", messageObject))
     return;
   Protocol.Runtime.evaluate({expression: "console.profile('p1');"}).then(didStartConsoleProfile);
 }
 
 function didStartConsoleProfile(messageObject)
 {
-  if (!InspectorTest.expectedSuccess("didStartConsoleProfile", messageObject))
+  if (!expectedSuccess("didStartConsoleProfile", messageObject))
     return;
   Protocol.Profiler.disable().then(didDisableProfiler);
 }
 
 function didDisableProfiler(messageObject)
 {
-  if (!InspectorTest.expectedSuccess("didDisableProfiler", messageObject))
+  if (!expectedSuccess("didDisableProfiler", messageObject))
     return;
   Protocol.Profiler.enable();
   Protocol.Profiler.stop().then(didStopFrontendProfile);
@@ -61,7 +61,7 @@ function didDisableProfiler(messageObject)
 
 function didStopFrontendProfile(messageObject)
 {
-  if (!InspectorTest.expectedError("no front-end initiated profiles found", messageObject))
+  if (!expectedError("no front-end initiated profiles found", messageObject))
     return;
   disallowConsoleProfiles();
   Protocol.Runtime.evaluate({expression: "console.profileEnd();"}).then(didStopConsoleProfile);
@@ -69,7 +69,21 @@ function didStopFrontendProfile(messageObject)
 
 function didStopConsoleProfile(messageObject)
 {
-  if (!InspectorTest.expectedSuccess("didStopConsoleProfile", messageObject))
+  if (!expectedSuccess("didStopConsoleProfile", messageObject))
     return;
   InspectorTest.completeTest();
 }
+
+function checkExpectation(fail, name, messageObject)
+{
+  if (fail === !!messageObject.error) {
+    InspectorTest.log("PASS: " + name);
+    return true;
+  }
+
+  InspectorTest.log("FAIL: " + name + ": " + JSON.stringify(messageObject));
+  InspectorTest.completeTest();
+  return false;
+}
+var expectedSuccess = checkExpectation.bind(null, false);
+var expectedError = checkExpectation.bind(null, true);

@@ -148,13 +148,13 @@ void StatisticsExtension::GetCounters(
     if (obj->IsCode()) {
       Code* code = Code::cast(obj);
       reloc_info_total += code->relocation_info()->Size();
-      ByteArray* source_position_table = code->source_position_table();
+      ByteArray* source_position_table = code->SourcePositionTable();
       if (source_position_table->length() > 0) {
-        source_position_table_total += code->source_position_table()->Size();
+        source_position_table_total += code->SourcePositionTable()->Size();
       }
     } else if (obj->IsBytecodeArray()) {
       source_position_table_total +=
-          BytecodeArray::cast(obj)->source_position_table()->Size();
+          BytecodeArray::cast(obj)->SourcePositionTable()->Size();
     }
   }
 

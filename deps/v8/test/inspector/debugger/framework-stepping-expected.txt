@@ -67,7 +67,7 @@ testStepFromUser (user.js:31:2)
 Executing resume...
 
 Running test: testStepIntoFromFramework
-frameworkBreakAndCall (framework.js:14:2)
+frameworkBreakAndCall (framework.js:14:12)
 testStepFromFramework (user.js:35:2)
 (anonymous) (expr.js:0:0)
 
@@ -80,7 +80,7 @@ testStepFromFramework (user.js:35:2)
 Executing resume...
 
 Running test: testStepOverFromFramework
-frameworkBreakAndCall (framework.js:14:2)
+frameworkBreakAndCall (framework.js:14:12)
 testStepFromFramework (user.js:35:2)
 (anonymous) (expr.js:0:0)
 
@@ -91,7 +91,7 @@ testStepFromFramework (user.js:36:0)
 Executing resume...
 
 Running test: testStepOutFromFramework
-frameworkBreakAndCall (framework.js:14:2)
+frameworkBreakAndCall (framework.js:14:12)
 testStepFromFramework (user.js:35:2)
 (anonymous) (expr.js:0:0)
 

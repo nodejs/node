@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks that takeHeapSnapshot uses empty accessing_context for access \
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that takeHeapSnapshot uses empty accessing_context for access \
 checks.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function testFunction() {
-  var array = [ createObjectWithStrictCheck() ];
+  var array = [ inspector.createObjectWithStrictCheck() ];
   debugger;
 }
 //# sourceURL=test.js`);

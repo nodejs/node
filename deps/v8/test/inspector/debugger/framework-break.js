@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 // Flags: --allow-natives-syntax
 
-InspectorTest.log('Checks that breaks in framework code correctly processed.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that breaks in framework code correctly processed.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function frameworkAssert() {
   console.assert(false);
 }
@@ -30,7 +30,7 @@ function debuggerStatement() {
 }
 
 function syncDOMBreakpoint() {
-  breakProgram('', '');
+  inspector.breakProgram('', '');
 }
 
 function asyncDOMBreakpoint() {
@@ -69,7 +69,7 @@ function syncDOMBreakpointWithInlinedUserFrame() {
 
 //# sourceURL=framework.js`, 8, 26);
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function throwUserException() {
   throw new Error();
 }
@@ -80,9 +80,9 @@ function userFunction() {
 
 //# sourceURL=user.js`, 64, 26)
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
-  InspectorTest.logCallFrames(message.params.callFrames);
+  session.logCallFrames(message.params.callFrames);
   InspectorTest.log('');
   Protocol.Debugger.resume();
 });
@@ -188,16 +188,16 @@ InspectorTest.runTestSuite([
   },
 
   function testAsyncDOMBreakpoint(next) {
-    utils.schedulePauseOnNextStatement('', '');
+    contextGroup.schedulePauseOnNextStatement('', '');
     InspectorTest.log('> all frames in framework:');
     Protocol.Runtime
         .evaluate(
             {expression: 'asyncDOMBreakpoint()//# sourceURL=framework.js'})
-        .then(() => utils.cancelPauseOnNextStatement())
+        .then(() => contextGroup.cancelPauseOnNextStatement())
         .then(
             () => Protocol.Runtime.evaluate(
                 {expression: '42//# sourceURL=user.js'}))
-        .then(() => utils.schedulePauseOnNextStatement('', ''))
+        .then(() => contextGroup.schedulePauseOnNextStatement('', ''))
         .then(
             () => Protocol.Runtime.evaluate(
                 {expression: 'asyncDOMBreakpoint()//# sourceURL=user.js'}))

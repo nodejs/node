@@ -291,9 +291,20 @@ class RegExpAssertion final : public RegExpTree {
 
 class RegExpCharacterClass final : public RegExpTree {
  public:
-  RegExpCharacterClass(ZoneList<CharacterRange>* ranges, bool is_negated)
-      : set_(ranges), is_negated_(is_negated) {}
-  explicit RegExpCharacterClass(uc16 type) : set_(type), is_negated_(false) {}
+  // NEGATED: The character class is negated and should match everything but
+  //     the specified ranges.
+  // CONTAINS_SPLIT_SURROGATE: The character class contains part of a split
+  //     surrogate and should not be unicode-desugared (crbug.com/641091).
+  enum Flag {
+    NEGATED = 1 << 0,
+    CONTAINS_SPLIT_SURROGATE = 1 << 1,
+  };
+  typedef base::Flags<Flag> Flags;
+
+  explicit RegExpCharacterClass(ZoneList<CharacterRange>* ranges,
+                                Flags flags = Flags())
+      : set_(ranges), flags_(flags) {}
+  explicit RegExpCharacterClass(uc16 type) : set_(type), flags_(0) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpCharacterClass* AsCharacterClass() override;
@@ -322,11 +333,14 @@ class RegExpCharacterClass final : public RegExpTree {
   // * : All characters, for advancing unanchored regexp
   uc16 standard_type() { return set_.standard_set_type(); }
   ZoneList<CharacterRange>* ranges(Zone* zone) { return set_.ranges(zone); }
-  bool is_negated() { return is_negated_; }
+  bool is_negated() const { return (flags_ & NEGATED) != 0; }
+  bool contains_split_surrogate() const {
+    return (flags_ & CONTAINS_SPLIT_SURROGATE) != 0;
+  }
 
  private:
   CharacterSet set_;
-  bool is_negated_;
+  const Flags flags_;
 };
 
 

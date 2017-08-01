@@ -150,6 +150,9 @@ class FunctionCallbackArguments;
 class GlobalHandles;
 }  // namespace internal
 
+namespace debug {
+class ConsoleCallArguments;
+}  // namespace debug
 
 // --- Handles ---
 
@@ -1092,7 +1095,8 @@ class V8_EXPORT Module {
   /**
    * ModuleDeclarationInstantiation
    *
-   * Returns false if an exception occurred during instantiation.
+   * Returns false if an exception occurred during instantiation. (In the case
+   * where the callback throws an exception, that exception is propagated.)
    */
   V8_WARN_UNUSED_RESULT bool Instantiate(Local<Context> context,
                                          ResolveCallback callback);
@@ -1789,8 +1793,6 @@ class V8_EXPORT ValueSerializer {
     virtual void FreeBufferMemory(void* buffer);
   };
 
-  static uint32_t GetCurrentDataFormatVersion();
-
   explicit ValueSerializer(Isolate* isolate);
   ValueSerializer(Isolate* isolate, Delegate* delegate);
   ~ValueSerializer();
@@ -2317,6 +2319,8 @@ class V8_EXPORT Value : public Data {
 
   Local<String> TypeOf(Isolate*);
 
+  Maybe<bool> InstanceOf(Local<Context> context, Local<Object> object);
+
  private:
   V8_INLINE bool QuickIsUndefined() const;
   V8_INLINE bool QuickIsNull() const;
@@ -2791,11 +2795,16 @@ class V8_EXPORT Symbol : public Name {
   static Local<Symbol> ForApi(Isolate *isolate, Local<String> name);
 
   // Well-known symbols
+  static Local<Symbol> GetHasInstance(Isolate* isolate);
+  static Local<Symbol> GetIsConcatSpreadable(Isolate* isolate);
   static Local<Symbol> GetIterator(Isolate* isolate);
-  static Local<Symbol> GetUnscopables(Isolate* isolate);
+  static Local<Symbol> GetMatch(Isolate* isolate);
+  static Local<Symbol> GetReplace(Isolate* isolate);
+  static Local<Symbol> GetSearch(Isolate* isolate);
+  static Local<Symbol> GetSplit(Isolate* isolate);
   static Local<Symbol> GetToPrimitive(Isolate* isolate);
   static Local<Symbol> GetToStringTag(Isolate* isolate);
-  static Local<Symbol> GetIsConcatSpreadable(Isolate* isolate);
+  static Local<Symbol> GetUnscopables(Isolate* isolate);
 
   V8_INLINE static Symbol* Cast(Value* obj);
 
@@ -3070,12 +3079,12 @@ class V8_EXPORT Object : public Value {
       Local<Context> context, Local<Value> key);
 
   /**
-   * Returns Object.getOwnPropertyDescriptor as per ES5 section 15.2.3.3.
+   * Returns Object.getOwnPropertyDescriptor as per ES2016 section 19.1.2.6.
    */
   V8_DEPRECATED("Use maybe version",
-                Local<Value> GetOwnPropertyDescriptor(Local<String> key));
+                Local<Value> GetOwnPropertyDescriptor(Local<Name> key));
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> GetOwnPropertyDescriptor(
-      Local<Context> context, Local<String> key);
+      Local<Context> context, Local<Name> key);
 
   V8_DEPRECATE_SOON("Use maybe version", bool Has(Local<Value> key));
   /**
@@ -3134,6 +3143,16 @@ class V8_EXPORT Object : public Value {
                            Local<Function> setter = Local<Function>(),
                            PropertyAttribute attribute = None,
                            AccessControl settings = DEFAULT);
+
+  /**
+   * Sets a native data property like Template::SetNativeDataProperty, but
+   * this method sets on this object directly.
+   */
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
+      Local<Context> context, Local<Name> name,
+      AccessorNameGetterCallback getter,
+      AccessorNameSetterCallback setter = nullptr,
+      Local<Value> data = Local<Value>(), PropertyAttribute attributes = None);
 
   /**
    * Functionality for private properties.
@@ -3578,16 +3597,34 @@ class ReturnValue {
 template<typename T>
 class FunctionCallbackInfo {
  public:
+  /** The number of available arguments. */
   V8_INLINE int Length() const;
+  /** Accessor for the available arguments. */
   V8_INLINE Local<Value> operator[](int i) const;
   V8_INLINE V8_DEPRECATED("Use Data() to explicitly pass Callee instead",
                           Local<Function> Callee() const);
+  /** Returns the receiver. This corresponds to the "this" value. */
   V8_INLINE Local<Object> This() const;
+  /**
+   * If the callback was created without a Signature, this is the same
+   * value as This(). If there is a signature, and the signature didn't match
+   * This() but one of its hidden prototypes, this will be the respective
+   * hidden prototype.
+   *
+   * Note that this is not the prototype of This() on which the accessor
+   * referencing this callback was found (which in V8 internally is often
+   * referred to as holder [sic]).
+   */
   V8_INLINE Local<Object> Holder() const;
+  /** For construct calls, this returns the "new.target" value. */
   V8_INLINE Local<Value> NewTarget() const;
+  /** Indicates whether this is a regular call or a construct call. */
   V8_INLINE bool IsConstructCall() const;
+  /** The data argument specified when creating the callback. */
   V8_INLINE Local<Value> Data() const;
+  /** The current Isolate. */
   V8_INLINE Isolate* GetIsolate() const;
+  /** The ReturnValue for the call. */
   V8_INLINE ReturnValue<T> GetReturnValue() const;
   // This shouldn't be public, but the arm compiler needs it.
   static const int kArgsLength = 8;
@@ -3595,6 +3632,7 @@ class FunctionCallbackInfo {
  protected:
   friend class internal::FunctionCallbackArguments;
   friend class internal::CustomArguments<FunctionCallbackInfo>;
+  friend class debug::ConsoleCallArguments;
   static const int kHolderIndex = 0;
   static const int kIsolateIndex = 1;
   static const int kReturnValueDefaultValueIndex = 2;
@@ -4159,10 +4197,40 @@ class V8_EXPORT ArrayBuffer : public Object {
     virtual void* AllocateUninitialized(size_t length) = 0;
 
     /**
+     * Reserved |length| bytes, but do not commit the memory. Must call
+     * |SetProtection| to make memory accessible.
+     */
+    // TODO(eholk): make this pure virtual once blink implements this.
+    virtual void* Reserve(size_t length);
+
+    /**
      * Free the memory block of size |length|, pointed to by |data|.
      * That memory is guaranteed to be previously allocated by |Allocate|.
      */
     virtual void Free(void* data, size_t length) = 0;
+
+    enum class AllocationMode { kNormal, kReservation };
+
+    /**
+     * Free the memory block of size |length|, pointed to by |data|.
+     * That memory is guaranteed to be previously allocated by |Allocate| or
+     * |Reserve|, depending on |mode|.
+     */
+    // TODO(eholk): make this pure virtual once blink implements this.
+    virtual void Free(void* data, size_t length, AllocationMode mode);
+
+    enum class Protection { kNoAccess, kReadWrite };
+
+    /**
+     * Change the protection on a region of memory.
+     *
+     * On platforms that make a distinction between reserving and committing
+     * memory, changing the protection to kReadWrite must also ensure the memory
+     * is committed.
+     */
+    // TODO(eholk): make this pure virtual once blink implements this.
+    virtual void SetProtection(void* data, size_t length,
+                               Protection protection);
 
     /**
      * malloc/free based convenience allocator.
@@ -5745,9 +5813,13 @@ class V8_EXPORT ObjectTemplate : public Template {
   friend class FunctionTemplate;
 };
 
-
 /**
  * A Signature specifies which receiver is valid for a function.
+ *
+ * A receiver matches a given signature if the receiver (or any of its
+ * hidden prototypes) was created from the signature's FunctionTemplate, or
+ * from a FunctionTemplate that inherits directly or indirectly from the
+ * signature's FunctionTemplate.
  */
 class V8_EXPORT Signature : public Data {
  public:
@@ -5878,8 +5950,12 @@ class V8_EXPORT ResourceConstraints {
   void set_max_old_space_size(int limit_in_mb) {
     max_old_space_size_ = limit_in_mb;
   }
-  int max_executable_size() const { return max_executable_size_; }
-  void set_max_executable_size(int limit_in_mb) {
+  V8_DEPRECATE_SOON("max_executable_size_ is subsumed by max_old_space_size_",
+                    int max_executable_size() const) {
+    return max_executable_size_;
+  }
+  V8_DEPRECATE_SOON("max_executable_size_ is subsumed by max_old_space_size_",
+                    void set_max_executable_size(int limit_in_mb)) {
     max_executable_size_ = limit_in_mb;
   }
   uint32_t* stack_limit() const { return stack_limit_; }
@@ -6154,6 +6230,8 @@ enum GCType {
  *   - kGCCallbackFlagCollectAllAvailableGarbage: The GC callback is called
  *     in a phase where V8 is trying to collect all available garbage
  *     (e.g., handling a low memory notification).
+ *   - kGCCallbackScheduleIdleGarbageCollection: The GC callback is called to
+ *     trigger an idle garbage collection.
  */
 enum GCCallbackFlags {
   kNoGCCallbackFlags = 0,
@@ -6162,6 +6240,7 @@ enum GCCallbackFlags {
   kGCCallbackFlagSynchronousPhantomCallbackProcessing = 1 << 3,
   kGCCallbackFlagCollectAllAvailableGarbage = 1 << 4,
   kGCCallbackFlagCollectAllExternalMemory = 1 << 5,
+  kGCCallbackScheduleIdleGarbageCollection = 1 << 6,
 };
 
 typedef void (*GCCallback)(GCType type, GCCallbackFlags flags);
@@ -6188,9 +6267,8 @@ class V8_EXPORT HeapStatistics {
   size_t peak_malloced_memory() { return peak_malloced_memory_; }
 
   /**
-   * Returns a 0/1 boolean, which signifies whether the |--zap_code_space|
-   * option is enabled or not, which makes V8 overwrite heap garbage with a bit
-   * pattern.
+   * Returns a 0/1 boolean, which signifies whether the V8 overwrite heap
+   * garbage with a bit pattern.
    */
   size_t does_zap_garbage() { return does_zap_garbage_; }
 
@@ -6607,7 +6685,7 @@ class V8_EXPORT Isolate {
 
     /**
      * Whether calling Atomics.wait (a function that may block) is allowed in
-     * this isolate.
+     * this isolate. This can also be configured via SetAllowAtomicsWait.
      */
     bool allow_atomics_wait;
 
@@ -7466,6 +7544,13 @@ class V8_EXPORT Isolate {
    * True if at least one thread Enter'ed this isolate.
    */
   bool IsInUse();
+
+  /**
+   * Set whether calling Atomics.wait (a function that may block) is allowed in
+   * this isolate. This can also be configured via
+   * CreateParams::allow_atomics_wait.
+   */
+  void SetAllowAtomicsWait(bool allow);
 
   Isolate() = delete;
   ~Isolate() = delete;
@@ -8365,16 +8450,14 @@ class V8_EXPORT Context {
   Isolate* GetIsolate();
 
   /**
-   * The field at kDebugIdIndex is reserved for V8 debugger implementation.
-   * The value is propagated to the scripts compiled in given Context and
-   * can be used for filtering scripts.
+   * The field at kDebugIdIndex used to be reserved for the inspector.
+   * It now serves no purpose.
    */
   enum EmbedderDataFields { kDebugIdIndex = 0 };
 
   /**
    * Gets the embedder data with the given index, which must have been set by a
-   * previous call to SetEmbedderData with the same index. Note that index 0
-   * currently has a special meaning for Chrome's debugger.
+   * previous call to SetEmbedderData with the same index.
    */
   V8_INLINE Local<Value> GetEmbedderData(int index);
 

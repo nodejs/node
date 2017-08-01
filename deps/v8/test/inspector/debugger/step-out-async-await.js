@@ -6,9 +6,9 @@
 // of async generator we should break at next instruction of resumed generator
 // instead of next scheduled microtask.
 
-InspectorTest.log('StepOut from return position of async function.');
+let {session, contextGroup, Protocol} = InspectorTest.start('StepOut from return position of async function.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
   async function testFunction() {
     async function foo() {
       var p = Promise.resolve();
@@ -21,7 +21,7 @@ InspectorTest.addScript(`
   }
 `);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.enable();
 InspectorTest.runAsyncTestSuite([
   async function testStepInto() {
@@ -68,5 +68,5 @@ InspectorTest.runAsyncTestSuite([
 ]);
 
 function logPauseLocation(message) {
-  return InspectorTest.logSourceLocation(message.params.callFrames[0].location);
+  return session.logSourceLocation(message.params.callFrames[0].location);
 }

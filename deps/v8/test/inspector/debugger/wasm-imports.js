@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests imports in wasm');
+
 utils.load('test/mjsunit/wasm/wasm-constants.js');
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -39,7 +41,7 @@ function instantiate(bytes, imp) {
 var evalWithUrl = (code, url) => Protocol.Runtime.evaluate(
     {'expression': code + '\n//# sourceURL=v8://test/' + url});
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 
 // Main promise chain:
 Protocol.Debugger.enable()
@@ -61,7 +63,7 @@ Protocol.Debugger.enable()
         url =>
             Protocol.Debugger.setBreakpointByUrl({lineNumber: 1, url: url}))
     .then(printFailure)
-    .then(msg => InspectorTest.logSourceLocations(msg.result.locations))
+    .then(msg => session.logSourceLocations(msg.result.locations))
     .then(() => InspectorTest.log('Calling instantiate function for module B.'))
     .then(
         () =>
@@ -84,7 +86,7 @@ Protocol.Debugger.oncePaused()
             (InspectorTest.log(
                  'Paused at ' + loc.lineNumber + ':' + loc.columnNumber + '.'),
              loc))
-    .then(InspectorTest.logSourceLocation)
+    .then(session.logSourceLocation.bind(session))
     .then(
         () => InspectorTest.log(
             'Getting current stack trace via "new Error().stack".'))

@@ -527,13 +527,49 @@ void GCTracer::PrintNVP() const {
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
+          "minor_mc=%.2f "
+          "finish_sweeping=%.2f "
           "mark=%.2f "
+          "mark.identify_global_handles=%.2f "
+          "mark.seed=%.2f "
           "mark.roots=%.2f "
-          "mark.old_to_new=%.2f\n",
+          "mark.weak=%.2f "
+          "mark.global_handles=%.2f "
+          "clear=%.2f "
+          "clear.string_table=%.2f "
+          "clear.weak_lists=%.2f "
+          "evacuate=%.2f "
+          "evacuate.copy=%.2f "
+          "evacuate.update_pointers=%.2f "
+          "evacuate.update_pointers.to_new=%.2f "
+          "evacuate.update_pointers.to_new.tospace=%.2f "
+          "evacuate.update_pointers.to_new.roots=%.2f "
+          "evacuate.update_pointers.to_new.old=%.2f "
+          "update_marking_deque=%.2f "
+          "reset_liveness=%.2f\n",
           duration, spent_in_mutator, "mmc", current_.reduce_memory,
+          current_.scopes[Scope::MINOR_MC],
+          current_.scopes[Scope::MINOR_MC_SWEEPING],
           current_.scopes[Scope::MINOR_MC_MARK],
+          current_.scopes[Scope::MINOR_MC_MARK_IDENTIFY_GLOBAL_HANDLES],
+          current_.scopes[Scope::MINOR_MC_MARK_SEED],
           current_.scopes[Scope::MINOR_MC_MARK_ROOTS],
-          current_.scopes[Scope::MINOR_MC_MARK_OLD_TO_NEW_POINTERS]);
+          current_.scopes[Scope::MINOR_MC_MARK_WEAK],
+          current_.scopes[Scope::MINOR_MC_MARK_GLOBAL_HANDLES],
+          current_.scopes[Scope::MINOR_MC_CLEAR],
+          current_.scopes[Scope::MINOR_MC_CLEAR_STRING_TABLE],
+          current_.scopes[Scope::MINOR_MC_CLEAR_WEAK_LISTS],
+          current_.scopes[Scope::MINOR_MC_EVACUATE],
+          current_.scopes[Scope::MINOR_MC_EVACUATE_COPY],
+          current_.scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS],
+          current_.scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW],
+          current_
+              .scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_TOSPACE],
+          current_
+              .scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS],
+          current_.scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_OLD],
+          current_.scopes[Scope::MINOR_MC_MARKING_DEQUE],
+          current_.scopes[Scope::MINOR_MC_RESET_LIVENESS]);
       break;
     case Event::MARK_COMPACTOR:
     case Event::INCREMENTAL_MARK_COMPACTOR:

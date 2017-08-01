@@ -551,7 +551,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     //   bit 0: invoked in the debugger context.
     //   bit 1: optimized frame.
     //   bit 2: inlined in optimized frame
-    int flags = 0;
+    int flags = inlined_frame_index << 2;
     if (*save->context() == *isolate->debug()->debug_context()) {
       flags |= 1 << 0;
     }
@@ -830,7 +830,7 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
-  CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
+  CONVERT_NUMBER_CHECKED(int, inlined_frame_index, Int32, args[2]);
 
   ScopeIterator::Option option = ScopeIterator::DEFAULT;
   if (args.length() == 4) {
@@ -842,9 +842,19 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
   StackTraceFrameIterator frame_it(isolate, id);
   StandardFrame* frame = frame_it.frame();
-  FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
-  List<Handle<JSObject> > result(4);
+  // Handle wasm frames specially. They provide exactly two scopes (global /
+  // local).
+  if (frame->is_wasm_interpreter_entry()) {
+    Handle<WasmDebugInfo> debug_info(
+        WasmInterpreterEntryFrame::cast(frame)->wasm_instance()->debug_info(),
+        isolate);
+    return *WasmDebugInfo::GetScopeDetails(debug_info, frame->fp(),
+                                           inlined_frame_index);
+  }
+
+  FrameInspector frame_inspector(frame, inlined_frame_index, isolate);
+  List<Handle<JSObject>> result(4);
   ScopeIterator it(isolate, &frame_inspector, option);
   for (; !it.Done(); it.Next()) {
     Handle<JSObject> details;

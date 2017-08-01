@@ -894,6 +894,8 @@ void Simulator::TearDown(base::CustomMatcherHashMap* i_cache,
 void* Simulator::RedirectExternalReference(Isolate* isolate,
                                            void* external_function,
                                            ExternalReference::Type type) {
+  base::LockGuard<base::Mutex> lock_guard(
+      isolate->simulator_redirection_mutex());
   Redirection* redirection = Redirection::Get(isolate, external_function, type);
   return redirection->address();
 }
@@ -1292,7 +1294,9 @@ static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
 // Calls into the V8 runtime.
 typedef intptr_t (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1,
                                          intptr_t arg2, intptr_t arg3,
-                                         intptr_t arg4, intptr_t arg5);
+                                         intptr_t arg4, intptr_t arg5,
+                                         intptr_t arg6, intptr_t arg7,
+                                         intptr_t arg8);
 typedef ObjectPair (*SimulatorRuntimePairCall)(intptr_t arg0, intptr_t arg1,
                                                intptr_t arg2, intptr_t arg3,
                                                intptr_t arg4, intptr_t arg5);
@@ -1329,7 +1333,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           (get_register(sp) & (::v8::internal::FLAG_sim_stack_alignment - 1)) ==
           0;
       Redirection* redirection = Redirection::FromSwiInstruction(instr);
-      const int kArgCount = 6;
+      const int kArgCount = 9;
+      const int kRegisterArgCount = 8;
       int arg0_regnum = 3;
       intptr_t result_buffer = 0;
       bool uses_result_buffer =
@@ -1341,9 +1346,15 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         arg0_regnum++;
       }
       intptr_t arg[kArgCount];
-      for (int i = 0; i < kArgCount; i++) {
+      // First eight arguments in registers r3-r10.
+      for (int i = 0; i < kRegisterArgCount; i++) {
         arg[i] = get_register(arg0_regnum + i);
       }
+      intptr_t* stack_pointer = reinterpret_cast<intptr_t*>(get_register(sp));
+      // Remaining argument on stack
+      arg[kRegisterArgCount] = stack_pointer[kStackFrameExtraParamSlot];
+      STATIC_ASSERT(kArgCount == kRegisterArgCount + 1);
+      STATIC_ASSERT(kMaxCParameters == 9);
       bool fp_call =
           (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
           (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
@@ -1519,9 +1530,10 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF(
               "Call to host function at %p,\n"
               "\t\t\t\targs %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
+              ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
               ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR,
-              static_cast<void*>(FUNCTION_ADDR(target)), arg[0], arg[1],
-              arg[2], arg[3], arg[4], arg[5]);
+              static_cast<void*>(FUNCTION_ADDR(target)), arg[0], arg[1], arg[2],
+              arg[3], arg[4], arg[5], arg[6], arg[7], arg[8]);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08" V8PRIxPTR "\n",
                    get_register(sp));
@@ -1568,8 +1580,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL);
             SimulatorRuntimeCall target =
                 reinterpret_cast<SimulatorRuntimeCall>(external);
-            intptr_t result =
-                target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+            intptr_t result = target(arg[0], arg[1], arg[2], arg[3], arg[4],
+                                     arg[5], arg[6], arg[7], arg[8]);
             if (::v8::internal::FLAG_trace_sim) {
               PrintF("Returned %08" V8PRIxPTR "\n", result);
             }

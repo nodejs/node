@@ -1,0 +1,211 @@
+Checks that we drop old async call chains.
+
+Running test: testInfrastructure
+inspector.setMaxAsyncTaskStacks(1024)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(1024)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(1024)
+Run expression 'console.trace(42)' with async chain len: 5
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(1024)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(1024)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 2
+
+inspector.setMaxAsyncTaskStacks(1024)
+Run expression 'console.trace(42)' with async chain len: 5
+actual async chain len: 5
+
+
+Running test: testZeroLimit
+inspector.setMaxAsyncTaskStacks(0)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 0
+
+inspector.setMaxAsyncTaskStacks(0)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 0
+
+inspector.setMaxAsyncTaskStacks(0)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 0
+
+inspector.setMaxAsyncTaskStacks(0)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 0
+
+
+Running test: testOneLimit
+inspector.setMaxAsyncTaskStacks(1)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(1)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(1)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(1)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 1
+
+
+Running test: testTwoLimit
+inspector.setMaxAsyncTaskStacks(2)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(2)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 0
+
+inspector.setMaxAsyncTaskStacks(2)
+Run expression 'console.trace(42)' with async chain len: 3
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(2)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(2)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 2
+
+inspector.setMaxAsyncTaskStacks(2)
+Run expression 'console.trace(42)' with async chain len: 3
+actual async chain len: 1
+
+
+Running test: testMoreThanTwoLimit
+inspector.setMaxAsyncTaskStacks(3)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(3)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(3)
+Run expression 'console.trace(42)' with async chain len: 3
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(3)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(3)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 2
+
+inspector.setMaxAsyncTaskStacks(3)
+Run expression 'console.trace(42)' with async chain len: 3
+actual async chain len: 3
+
+inspector.setMaxAsyncTaskStacks(4)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(4)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(4)
+Run expression 'console.trace(42)' with async chain len: 3
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(4)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(4)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 2
+
+inspector.setMaxAsyncTaskStacks(4)
+Run expression 'console.trace(42)' with async chain len: 3
+actual async chain len: 3
+
+inspector.setMaxAsyncTaskStacks(5)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(5)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(5)
+Run expression 'console.trace(42)' with async chain len: 3
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(5)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(5)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 2
+
+inspector.setMaxAsyncTaskStacks(5)
+Run expression 'console.trace(42)' with async chain len: 3
+actual async chain len: 3
+
+inspector.setMaxAsyncTaskStacks(6)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(6)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(6)
+Run expression 'console.trace(42)' with async chain len: 3
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(6)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(6)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 2
+
+inspector.setMaxAsyncTaskStacks(6)
+Run expression 'console.trace(42)' with async chain len: 3
+actual async chain len: 3
+
+inspector.setMaxAsyncTaskStacks(7)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(7)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(7)
+Run expression 'console.trace(42)' with async chain len: 3
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(7)
+Run expression 'console.trace(42)' with async chain len: 1
+actual async chain len: 1
+
+inspector.setMaxAsyncTaskStacks(7)
+Run expression 'console.trace(42)' with async chain len: 2
+actual async chain len: 2
+
+inspector.setMaxAsyncTaskStacks(7)
+Run expression 'console.trace(42)' with async chain len: 3
+actual async chain len: 3
+

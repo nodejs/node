@@ -4,7 +4,9 @@
 
 #include "src/inspector/string-util.h"
 
+#include "src/conversions.h"
 #include "src/inspector/protocol/Protocol.h"
+#include "src/unicode-cache.h"
 
 namespace v8_inspector {
 
@@ -91,6 +93,16 @@ bool stringViewStartsWith(const StringView& string, const char* prefix) {
 }
 
 namespace protocol {
+
+// static
+double StringUtil::toDouble(const char* s, size_t len, bool* isOk) {
+  v8::internal::UnicodeCache unicode_cache;
+  int flags = v8::internal::ALLOW_HEX | v8::internal::ALLOW_OCTAL |
+              v8::internal::ALLOW_BINARY;
+  double result = StringToDouble(&unicode_cache, s, flags);
+  *isOk = !std::isnan(result);
+  return result;
+}
 
 std::unique_ptr<protocol::Value> StringUtil::parseJSON(
     const StringView& string) {

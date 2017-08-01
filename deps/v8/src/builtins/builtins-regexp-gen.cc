@@ -231,11 +231,11 @@ void RegExpBuiltinsAssembler::GetStringPointers(
   var_string_end->Bind(IntPtrAdd(string_data, to_offset));
 }
 
-Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
-                                            Node* const regexp,
-                                            Node* const string,
-                                            Node* const last_index,
-                                            Node* const match_info) {
+Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
+                                                  Node* const regexp,
+                                                  Node* const string,
+                                                  Node* const last_index,
+                                                  Node* const match_info) {
 // Just jump directly to runtime if native RegExp is not selected at compile
 // time or if regexp entry in generated code is turned off runtime switch or
 // at compilation.
@@ -260,12 +260,14 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
   Label out(this), runtime(this, Label::kDeferred);
 
   // External constants.
+  Node* const isolate_address =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+  Node* const regexp_stack_memory_address_address = ExternalConstant(
+      ExternalReference::address_of_regexp_stack_memory_address(isolate()));
   Node* const regexp_stack_memory_size_address = ExternalConstant(
       ExternalReference::address_of_regexp_stack_memory_size(isolate()));
   Node* const static_offsets_vector_address = ExternalConstant(
       ExternalReference::address_of_static_offsets_vector(isolate()));
-  Node* const pending_exception_address = ExternalConstant(
-      ExternalReference(Isolate::kPendingExceptionAddress, isolate()));
 
   // Ensure that a RegExp stack is allocated.
   {
@@ -304,9 +306,16 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
 
   Node* const smi_string_length = LoadStringLength(string);
 
-  // Bail out to runtime for invalid {last_index} values.
-  GotoIfNot(TaggedIsSmi(last_index), &runtime);
-  GotoIf(SmiAboveOrEqual(last_index, smi_string_length), &runtime);
+  // At this point, last_index is definitely a canonicalized non-negative
+  // number, which implies that any non-Smi last_index is greater than
+  // the maximal string length. If lastIndex > string.length then the matcher
+  // must fail.
+
+  Label if_failure(this);
+  CSA_ASSERT(this, IsNumberNormalized(last_index));
+  CSA_ASSERT(this, IsNumberPositive(last_index));
+  GotoIfNot(TaggedIsSmi(last_index), &if_failure);  // Outside Smi range.
+  GotoIf(SmiGreaterThan(last_index, smi_string_length), &if_failure);
 
   // Load the irregexp code object and offsets into the subject string. Both
   // depend on whether the string is one- or two-byte.
@@ -356,27 +365,89 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
   GotoIf(TaggedIsSmi(code), &runtime);
   CSA_ASSERT(this, HasInstanceType(code, CODE_TYPE));
 
-  Label if_success(this), if_failure(this),
-      if_exception(this, Label::kDeferred);
+  Label if_success(this), if_exception(this, Label::kDeferred);
   {
     IncrementCounter(isolate()->counters()->regexp_entry_native(), 1);
 
-    Callable exec_callable = CodeFactory::RegExpExec(isolate());
-    Node* const result = CallStub(
-        exec_callable, context, string, TruncateWordToWord32(int_last_index),
-        var_string_start.value(), var_string_end.value(), code);
+    // Set up args for the final call into generated Irregexp code.
+
+    MachineType type_int32 = MachineType::Int32();
+    MachineType type_tagged = MachineType::AnyTagged();
+    MachineType type_ptr = MachineType::Pointer();
+
+    // Result: A NativeRegExpMacroAssembler::Result return code.
+    MachineType retval_type = type_int32;
+
+    // Argument 0: Original subject string.
+    MachineType arg0_type = type_tagged;
+    Node* const arg0 = string;
+
+    // Argument 1: Previous index.
+    MachineType arg1_type = type_int32;
+    Node* const arg1 = TruncateWordToWord32(int_last_index);
+
+    // Argument 2: Start of string data.
+    MachineType arg2_type = type_ptr;
+    Node* const arg2 = var_string_start.value();
+
+    // Argument 3: End of string data.
+    MachineType arg3_type = type_ptr;
+    Node* const arg3 = var_string_end.value();
+
+    // Argument 4: static offsets vector buffer.
+    MachineType arg4_type = type_ptr;
+    Node* const arg4 = static_offsets_vector_address;
+
+    // Argument 5: Set the number of capture registers to zero to force global
+    // regexps to behave as non-global.  This does not affect non-global
+    // regexps.
+    MachineType arg5_type = type_int32;
+    Node* const arg5 = Int32Constant(0);
+
+    // Argument 6: Start (high end) of backtracking stack memory area.
+    Node* const stack_start =
+        Load(MachineType::Pointer(), regexp_stack_memory_address_address);
+    Node* const stack_size =
+        Load(MachineType::IntPtr(), regexp_stack_memory_size_address);
+    Node* const stack_end = IntPtrAdd(stack_start, stack_size);
+
+    MachineType arg6_type = type_ptr;
+    Node* const arg6 = stack_end;
+
+    // Argument 7: Indicate that this is a direct call from JavaScript.
+    MachineType arg7_type = type_int32;
+    Node* const arg7 = Int32Constant(1);
+
+    // Argument 8: Pass current isolate address.
+    MachineType arg8_type = type_ptr;
+    Node* const arg8 = isolate_address;
+
+    Node* const code_entry =
+        IntPtrAdd(BitcastTaggedToWord(code),
+                  IntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
+
+    Node* const result = CallCFunction9(
+        retval_type, arg0_type, arg1_type, arg2_type, arg3_type, arg4_type,
+        arg5_type, arg6_type, arg7_type, arg8_type, code_entry, arg0, arg1,
+        arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 
     // Check the result.
-    // We expect exactly one result since the stub forces the called regexp to
-    // behave as non-global.
-    GotoIf(SmiEqual(result, SmiConstant(1)), &if_success);
-    GotoIf(SmiEqual(result, SmiConstant(NativeRegExpMacroAssembler::FAILURE)),
+    // We expect exactly one result since we force the called regexp to behave
+    // as non-global.
+    Node* const int_result = ChangeInt32ToIntPtr(result);
+    GotoIf(IntPtrEqual(int_result,
+                       IntPtrConstant(NativeRegExpMacroAssembler::SUCCESS)),
+           &if_success);
+    GotoIf(IntPtrEqual(int_result,
+                       IntPtrConstant(NativeRegExpMacroAssembler::FAILURE)),
            &if_failure);
-    GotoIf(SmiEqual(result, SmiConstant(NativeRegExpMacroAssembler::EXCEPTION)),
+    GotoIf(IntPtrEqual(int_result,
+                       IntPtrConstant(NativeRegExpMacroAssembler::EXCEPTION)),
            &if_exception);
 
-    CSA_ASSERT(
-        this, SmiEqual(result, SmiConstant(NativeRegExpMacroAssembler::RETRY)));
+    CSA_ASSERT(this,
+               IntPtrEqual(int_result,
+                           IntPtrConstant(NativeRegExpMacroAssembler::RETRY)));
     Goto(&runtime);
   }
 
@@ -440,21 +511,14 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
 
   BIND(&if_exception);
   {
-    Node* const pending_exception =
-        Load(MachineType::AnyTagged(), pending_exception_address);
-
-    // If there is no pending exception, a
-    // stack overflow (on the backtrack stack) was detected in RegExp code.
-
-    Label stack_overflow(this), rethrow(this);
-    Branch(IsTheHole(pending_exception), &stack_overflow, &rethrow);
-
-    BIND(&stack_overflow);
+// A stack overflow was detected in RegExp code.
+#ifdef DEBUG
+    Node* const pending_exception_address = ExternalConstant(
+        ExternalReference(Isolate::kPendingExceptionAddress, isolate()));
+    CSA_ASSERT(this, IsTheHole(Load(MachineType::AnyTagged(),
+                                    pending_exception_address)));
+#endif  // DEBUG
     CallRuntime(Runtime::kThrowStackOverflow, context);
-    Unreachable();
-
-    BIND(&rethrow);
-    CallRuntime(Runtime::kRegExpExecReThrow, context);
     Unreachable();
   }
 
@@ -513,8 +577,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
       BIND(&call_tolength);
       {
-        var_lastindex.Bind(
-            CallBuiltin(Builtins::kToLength, context, regexp_lastindex));
+        var_lastindex.Bind(ToLength_Inline(context, regexp_lastindex));
         Goto(&next);
       }
 
@@ -571,8 +634,8 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
         native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
     // Call the exec stub.
-    match_indices = IrregexpExec(context, regexp, string, var_lastindex.value(),
-                                 last_match_info);
+    match_indices = RegExpExecInternal(context, regexp, string,
+                                       var_lastindex.value(), last_match_info);
     var_result.Bind(match_indices);
 
     // {match_indices} is either null or the RegExpMatchInfo array.
@@ -1877,7 +1940,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
         if (is_fastpath) {
           CSA_ASSERT(this, TaggedIsPositiveSmi(last_index));
         } else {
-          last_index = CallBuiltin(Builtins::kToLength, context, last_index);
+          last_index = ToLength_Inline(context, last_index);
         }
 
         Node* const new_last_index =
@@ -2104,8 +2167,8 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
       Node* const last_match_info = LoadContextElement(
           native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
-      Node* const match_indices =
-          IrregexpExec(context, regexp, string, smi_zero, last_match_info);
+      Node* const match_indices = RegExpExecInternal(context, regexp, string,
+                                                     smi_zero, last_match_info);
 
       Label return_singleton_array(this);
       Branch(WordEqual(match_indices, null), &return_singleton_array,
@@ -2166,8 +2229,8 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
     Node* const last_match_info = LoadContextElement(
         native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
-    Node* const match_indices = IrregexpExec(context, regexp, string,
-                                             next_search_from, last_match_info);
+    Node* const match_indices = RegExpExecInternal(
+        context, regexp, string, next_search_from, last_match_info);
 
     // We're done if no match was found.
     {
@@ -2373,10 +2436,19 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
 // ES#sec-regexp.prototype-@@split
 // RegExp.prototype [ @@split ] ( string, limit )
 TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
-  Node* const maybe_receiver = Parameter(Descriptor::kReceiver);
-  Node* const maybe_string = Parameter(Descriptor::kString);
-  Node* const maybe_limit = Parameter(Descriptor::kLimit);
-  Node* const context = Parameter(Descriptor::kContext);
+  const int kStringArg = 0;
+  const int kLimitArg = 1;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* const maybe_receiver = args.GetReceiver();
+  Node* const maybe_string =
+      args.GetOptionalArgumentValue(kStringArg, UndefinedConstant());
+  Node* const maybe_limit =
+      args.GetOptionalArgumentValue(kLimitArg, UndefinedConstant());
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSReceiver.
   ThrowIfNotJSReceiver(context, maybe_receiver,
@@ -2391,12 +2463,12 @@ TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
   BranchIfFastRegExp(context, receiver, &stub, &runtime);
 
   BIND(&stub);
-  Return(CallBuiltin(Builtins::kRegExpSplit, context, receiver, string,
-                     maybe_limit));
+  args.PopAndReturn(CallBuiltin(Builtins::kRegExpSplit, context, receiver,
+                                string, maybe_limit));
 
   BIND(&runtime);
-  Return(CallRuntime(Runtime::kRegExpSplit, context, receiver, string,
-                     maybe_limit));
+  args.PopAndReturn(CallRuntime(Runtime::kRegExpSplit, context, receiver,
+                                string, maybe_limit));
 }
 
 Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
@@ -2736,8 +2808,7 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
   // 3. Does ToString({replace_value}) contain '$'?
   BIND(&checkreplacestring);
   {
-    Node* const replace_string =
-        CallBuiltin(Builtins::kToString, context, replace_value);
+    Node* const replace_string = ToString_Inline(context, replace_value);
 
     // ToString(replaceValue) could potentially change the shape of the RegExp
     // object. Recheck that we are still on the fast path and bail to runtime
@@ -2786,10 +2857,19 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
 // ES#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
 TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
-  Node* const maybe_receiver = Parameter(Descriptor::kReceiver);
-  Node* const maybe_string = Parameter(Descriptor::kString);
-  Node* const replace_value = Parameter(Descriptor::kReplaceValue);
-  Node* const context = Parameter(Descriptor::kContext);
+  const int kStringArg = 0;
+  const int kReplaceValueArg = 1;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* const maybe_receiver = args.GetReceiver();
+  Node* const maybe_string =
+      args.GetOptionalArgumentValue(kStringArg, UndefinedConstant());
+  Node* const replace_value =
+      args.GetOptionalArgumentValue(kReplaceValueArg, UndefinedConstant());
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
 
   // RegExpPrototypeReplace is a bit of a beast - a summary of dispatch logic:
   //
@@ -2816,19 +2896,19 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = CallBuiltin(Builtins::kToString, context, maybe_string);
+  Node* const string = ToString_Inline(context, maybe_string);
 
   // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
   Label stub(this), runtime(this, Label::kDeferred);
   BranchIfFastRegExp(context, receiver, &stub, &runtime);
 
   BIND(&stub);
-  Return(CallBuiltin(Builtins::kRegExpReplace, context, receiver, string,
-                     replace_value));
+  args.PopAndReturn(CallBuiltin(Builtins::kRegExpReplace, context, receiver,
+                                string, replace_value));
 
   BIND(&runtime);
-  Return(CallRuntime(Runtime::kRegExpReplace, context, receiver, string,
-                     replace_value));
+  args.PopAndReturn(CallRuntime(Runtime::kRegExpReplace, context, receiver,
+                                string, replace_value));
 }
 
 // Simple string matching functionality for internal use which does not modify
@@ -2848,8 +2928,8 @@ TF_BUILTIN(RegExpInternalMatch, RegExpBuiltinsAssembler) {
   Node* const internal_match_info = LoadContextElement(
       native_context, Context::REGEXP_INTERNAL_MATCH_INFO_INDEX);
 
-  Node* const match_indices =
-      IrregexpExec(context, regexp, string, smi_zero, internal_match_info);
+  Node* const match_indices = RegExpExecInternal(context, regexp, string,
+                                                 smi_zero, internal_match_info);
 
   Label if_matched(this), if_didnotmatch(this);
   Branch(WordEqual(match_indices, null), &if_didnotmatch, &if_matched);

@@ -13,7 +13,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
 #include "src/zone/zone-segment.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace internal {

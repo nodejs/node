@@ -155,6 +155,8 @@ LinkageLocation regloc(Register reg, MachineType type) {
 // General code uses the above configuration data.
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(
     Zone* zone, const MachineSignature* msig, bool set_initialize_root_flag) {
+  DCHECK_LE(msig->parameter_count(), static_cast<size_t>(kMaxCParameters));
+
   LocationSignature::Builder locations(zone, msig->return_count(),
                                        msig->parameter_count());
   // Check the types of the signature.

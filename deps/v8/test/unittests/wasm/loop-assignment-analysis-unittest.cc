@@ -4,17 +4,15 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/v8.h"
-
-#include "test/common/wasm/test-signatures.h"
-
 #include "src/bit-vector.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
-
+#include "src/v8.h"
 #include "src/wasm/function-body-decoder.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
+
+#include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 #define WASM_SET_ZERO(i) WASM_SET_LOCAL(i, WASM_ZERO)
 

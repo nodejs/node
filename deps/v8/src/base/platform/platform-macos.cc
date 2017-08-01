@@ -51,12 +51,10 @@ namespace base {
 static const int kMmapFd = VM_MAKE_TAG(255);
 static const off_t kMmapFdOffset = 0;
 
-
-void* OS::Allocate(const size_t requested,
-                   size_t* allocated,
-                   bool is_executable) {
+void* OS::Allocate(const size_t requested, size_t* allocated,
+                   OS::MemoryPermission access) {
   const size_t msize = RoundUp(requested, getpagesize());
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+  int prot = GetProtectionFromMemoryPermission(access);
   void* mbase = mmap(OS::GetRandomMmapAddr(),
                      msize,
                      prot,

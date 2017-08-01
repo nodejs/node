@@ -713,7 +713,6 @@ function assertCompileError(args, err, msg) {
   var error = null;
   assertPromiseResult(compile(...args), unexpectedSuccess, error => {
     assertTrue(error instanceof err);
-    assertTrue(Boolean(error.stack.match('js-api.js')));
     // TODO  assertTrue(Boolean(error.message.match(msg)));
   });
 }
@@ -760,7 +759,6 @@ function assertInstantiateError(args, err, msg) {
   var error = null;
   assertPromiseResult(instantiate(...args), unexpectedSuccess, error => {
     assertTrue(error instanceof err);
-    assertTrue(Boolean(error.stack.match('js-api.js')));
     // TODO assertTrue(Boolean(error.message.match(msg)));
   });
 }

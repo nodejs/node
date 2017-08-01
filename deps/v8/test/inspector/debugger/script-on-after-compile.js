@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Checks that inspector correctly process compiled scripts");
+let {session, contextGroup, Protocol} = InspectorTest.start("Checks that inspector correctly process compiled scripts");
 
 function addScripts() {
   // sourceURL in the same line

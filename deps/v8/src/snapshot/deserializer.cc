@@ -22,11 +22,11 @@ namespace internal {
 
 void Deserializer::DecodeReservation(
     Vector<const SerializedData::Reservation> res) {
-  DCHECK_EQ(0, reservations_[NEW_SPACE].length());
+  DCHECK_EQ(0, reservations_[NEW_SPACE].size());
   STATIC_ASSERT(NEW_SPACE == 0);
   int current_space = NEW_SPACE;
   for (auto& r : res) {
-    reservations_[current_space].Add({r.chunk_size(), NULL, NULL});
+    reservations_[current_space].push_back({r.chunk_size(), NULL, NULL});
     if (r.is_last()) current_space++;
   }
   DCHECK_EQ(kNumberOfSpaces, current_space);
@@ -57,7 +57,7 @@ void Deserializer::FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects() {
 bool Deserializer::ReserveSpace() {
 #ifdef DEBUG
   for (int i = NEW_SPACE; i < kNumberOfSpaces; ++i) {
-    CHECK(reservations_[i].length() > 0);
+    CHECK(reservations_[i].size() > 0);
   }
 #endif  // DEBUG
   DCHECK(allocated_maps_.is_empty());
@@ -92,6 +92,8 @@ void Deserializer::Deserialize(Isolate* isolate) {
   DCHECK(isolate_->handle_scope_implementer()->blocks()->is_empty());
   // Partial snapshot cache is not yet populated.
   DCHECK(isolate_->partial_snapshot_cache()->is_empty());
+  // Builtins are not yet created.
+  DCHECK(!isolate_->builtins()->is_initialized());
 
   {
     DisallowHeapAllocation no_gc;
@@ -122,6 +124,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
   LOG_CODE_EVENT(isolate_, LogBytecodeHandlers());
   LOG_CODE_EVENT(isolate_, LogCompiledFunctions());
 
+  isolate_->builtins()->MarkInitialized();
   if (FLAG_rehash_snapshot && can_rehash_) Rehash();
 }
 
@@ -142,7 +145,7 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
   OldSpace* code_space = isolate_->heap()->code_space();
   Address start_address = code_space->top();
   Object* root;
-  VisitPointer(&root);
+  VisitRootPointer(Root::kPartialSnapshotCache, &root);
   DeserializeDeferredObjects();
   DeserializeEmbedderFields(embedder_fields_deserializer);
 
@@ -170,7 +173,7 @@ MaybeHandle<HeapObject> Deserializer::DeserializeObject(Isolate* isolate) {
     {
       DisallowHeapAllocation no_gc;
       Object* root;
-      VisitPointer(&root);
+      VisitRootPointer(Root::kPartialSnapshotCache, &root);
       DeserializeDeferredObjects();
       FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
       result = Handle<HeapObject>(HeapObject::cast(root));
@@ -247,7 +250,7 @@ Deserializer::~Deserializer() {
   while (source_.HasMore()) CHECK_EQ(kNop, source_.Get());
   for (int space = 0; space < kNumberOfPreallocatedSpaces; space++) {
     int chunk_index = current_chunk_[space];
-    CHECK_EQ(reservations_[space].length(), chunk_index + 1);
+    CHECK_EQ(reservations_[space].size(), chunk_index + 1);
     CHECK_EQ(reservations_[space][chunk_index].end, high_water_[space]);
   }
   CHECK_EQ(allocated_maps_.length(), next_map_index_);
@@ -256,7 +259,7 @@ Deserializer::~Deserializer() {
 
 // This is called on the roots.  It is the driver of the deserialization
 // process.  It is also called on the body of each function.
-void Deserializer::VisitPointers(Object** start, Object** end) {
+void Deserializer::VisitRootPointers(Root root, Object** start, Object** end) {
   // The space must be new space.  Any other space would cause ReadChunk to try
   // to update the remembered using NULL as the address.
   ReadData(start, end, NEW_SPACE, NULL);
@@ -863,7 +866,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         CHECK_EQ(reservation[chunk_index].end, high_water_[space]);
         // Move to next reserved chunk.
         chunk_index = ++current_chunk_[space];
-        CHECK_LT(chunk_index, reservation.length());
+        CHECK_LT(chunk_index, reservation.size());
         high_water_[space] = reservation[chunk_index].start;
         break;
       }

@@ -149,15 +149,6 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
   map->SetConstructor(*constructor);
   Handle<JSObject> prototype = isolate->factory()->NewJSObjectFromMap(map);
 
-  if (!super_class->IsTheHole(isolate)) {
-    // Derived classes, just like builtins, don't create implicit receivers in
-    // [[construct]]. Instead they just set up new.target and call into the
-    // constructor. Hence we can reuse the builtins construct stub for derived
-    // classes.
-    Handle<Code> stub(isolate->builtins()->JSBuiltinsConstructStubForDerived());
-    constructor->shared()->SetConstructStub(*stub);
-  }
-
   JSFunction::SetPrototype(constructor, prototype);
   PropertyAttributes attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);

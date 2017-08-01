@@ -8,6 +8,7 @@
 #include "src/address-map.h"
 #include "src/external-reference-table.h"
 #include "src/globals.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -73,9 +74,9 @@ class HotObjectsList {
 // The Serializer/Deserializer class is a common superclass for Serializer and
 // Deserializer which is used to store common constants and methods used by
 // both.
-class SerializerDeserializer : public ObjectVisitor {
+class SerializerDeserializer : public RootVisitor {
  public:
-  static void Iterate(Isolate* isolate, ObjectVisitor* visitor);
+  static void Iterate(Isolate* isolate, RootVisitor* visitor);
 
   // No reservation for large object space necessary.
   // We also handle map space differenly.

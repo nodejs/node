@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.addScript(
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests blackboxing by patterns');
+
+contextGroup.addScript(
 `function bar()
 {
     return 42;
 }`);
 
-InspectorTest.addScript(
+contextGroup.addScript(
 `function foo()
 {
     var a = bar();
@@ -16,7 +18,7 @@ InspectorTest.addScript(
 }
 //# sourceURL=foo.js`);
 
-InspectorTest.addScript(
+contextGroup.addScript(
 `function qwe()
 {
     var a = foo();
@@ -24,7 +26,7 @@ InspectorTest.addScript(
 }
 //# sourceURL=qwe.js`);
 
-InspectorTest.addScript(
+contextGroup.addScript(
 `function baz()
 {
     var a = qwe();

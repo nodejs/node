@@ -50,6 +50,7 @@
 #include "src/tracing/tracing-category-observer.h"
 #include "src/v8.h"
 #include "src/version.h"
+#include "src/visitors.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -200,8 +201,7 @@ Address Isolate::get_address_from_id(Isolate::AddressId id) {
   return isolate_addresses_[id];
 }
 
-
-char* Isolate::Iterate(ObjectVisitor* v, char* thread_storage) {
+char* Isolate::Iterate(RootVisitor* v, char* thread_storage) {
   ThreadLocalTop* thread = reinterpret_cast<ThreadLocalTop*>(thread_storage);
   Iterate(v, thread);
   return thread_storage + sizeof(ThreadLocalTop);
@@ -213,19 +213,18 @@ void Isolate::IterateThread(ThreadVisitor* v, char* t) {
   v->VisitThread(this, thread);
 }
 
-
-void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
+void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   // Visit the roots from the top for a given thread.
-  v->VisitPointer(&thread->pending_exception_);
-  v->VisitPointer(&(thread->pending_message_obj_));
-  v->VisitPointer(bit_cast<Object**>(&(thread->context_)));
-  v->VisitPointer(&thread->scheduled_exception_);
+  v->VisitRootPointer(Root::kTop, &thread->pending_exception_);
+  v->VisitRootPointer(Root::kTop, &thread->pending_message_obj_);
+  v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(thread->context_)));
+  v->VisitRootPointer(Root::kTop, &thread->scheduled_exception_);
 
   for (v8::TryCatch* block = thread->try_catch_handler();
        block != NULL;
        block = block->next_) {
-    v->VisitPointer(bit_cast<Object**>(&(block->exception_)));
-    v->VisitPointer(bit_cast<Object**>(&(block->message_obj_)));
+    v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(block->exception_)));
+    v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(block->message_obj_)));
   }
 
   // Iterate over pointers on native execution stack.
@@ -234,14 +233,12 @@ void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   }
 }
 
-
-void Isolate::Iterate(ObjectVisitor* v) {
+void Isolate::Iterate(RootVisitor* v) {
   ThreadLocalTop* current_t = thread_local_top();
   Iterate(v, current_t);
 }
 
-
-void Isolate::IterateDeferredHandles(ObjectVisitor* visitor) {
+void Isolate::IterateDeferredHandles(RootVisitor* visitor) {
   for (DeferredHandles* deferred = deferred_handles_head_;
        deferred != NULL;
        deferred = deferred->next_) {
@@ -620,7 +617,7 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
   if (capture_stack_trace_for_uncaught_exceptions_) {
     // Capture stack trace for a detailed exception message.
     Handle<Name> key = factory()->detailed_stack_trace_symbol();
-    Handle<JSArray> stack_trace = CaptureCurrentStackTrace(
+    Handle<FixedArray> stack_trace = CaptureCurrentStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
     RETURN_ON_EXCEPTION(
@@ -643,13 +640,13 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
   return error_object;
 }
 
-
-Handle<JSArray> Isolate::GetDetailedStackTrace(Handle<JSObject> error_object) {
+Handle<FixedArray> Isolate::GetDetailedStackTrace(
+    Handle<JSObject> error_object) {
   Handle<Name> key_detailed = factory()->detailed_stack_trace_symbol();
   Handle<Object> stack_trace =
       JSReceiver::GetDataProperty(error_object, key_detailed);
-  if (stack_trace->IsJSArray()) return Handle<JSArray>::cast(stack_trace);
-  return Handle<JSArray>();
+  if (stack_trace->IsFixedArray()) return Handle<FixedArray>::cast(stack_trace);
+  return Handle<FixedArray>();
 }
 
 
@@ -666,6 +663,32 @@ class CaptureStackTraceHelper {
 
   Handle<StackFrameInfo> NewStackFrameObject(
       const FrameSummary::JavaScriptFrameSummary& summ) {
+    int code_offset;
+    Handle<ByteArray> source_position_table;
+    Object* maybe_cache;
+    Handle<UnseededNumberDictionary> cache;
+    if (!FLAG_optimize_for_size) {
+      code_offset = summ.code_offset();
+      source_position_table =
+          handle(summ.abstract_code()->source_position_table(), isolate_);
+      maybe_cache = summ.abstract_code()->stack_frame_cache();
+      if (maybe_cache->IsUnseededNumberDictionary()) {
+        cache = handle(UnseededNumberDictionary::cast(maybe_cache));
+      } else {
+        cache = UnseededNumberDictionary::New(isolate_, 1);
+      }
+      int entry = cache->FindEntry(code_offset);
+      if (entry != UnseededNumberDictionary::kNotFound) {
+        Handle<StackFrameInfo> frame(
+            StackFrameInfo::cast(cache->ValueAt(entry)));
+        DCHECK(frame->function_name()->IsString());
+        Handle<String> function_name = summ.FunctionName();
+        if (function_name->Equals(String::cast(frame->function_name()))) {
+          return frame;
+        }
+      }
+    }
+
     Handle<StackFrameInfo> frame = factory()->NewStackFrameInfo();
     Handle<Script> script = Handle<Script>::cast(summ.script());
     Script::PositionInfo info;
@@ -684,6 +707,14 @@ class CaptureStackTraceHelper {
     frame->set_function_name(*function_name);
     frame->set_is_constructor(summ.is_constructor());
     frame->set_is_wasm(false);
+    if (!FLAG_optimize_for_size) {
+      auto new_cache =
+          UnseededNumberDictionary::AtNumberPut(cache, code_offset, frame);
+      if (*new_cache != *cache || !maybe_cache->IsUnseededNumberDictionary()) {
+        AbstractCode::SetStackFrameCache(summ.abstract_code(), new_cache);
+      }
+    }
+    frame->set_id(next_id());
     return frame;
   }
 
@@ -705,25 +736,30 @@ class CaptureStackTraceHelper {
     info->set_column_number(position);
     info->set_script_id(summ.script()->id());
     info->set_is_wasm(true);
+    info->set_id(next_id());
     return info;
   }
 
  private:
   inline Factory* factory() { return isolate_->factory(); }
 
+  int next_id() const {
+    int id = isolate_->last_stack_frame_info_id() + 1;
+    isolate_->set_last_stack_frame_info_id(id);
+    return id;
+  }
+
   Isolate* isolate_;
 };
 
-Handle<JSArray> Isolate::CaptureCurrentStackTrace(
+Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {
   DisallowJavascriptExecution no_js(this);
   CaptureStackTraceHelper helper(this);
 
   // Ensure no negative values.
   int limit = Max(frame_limit, 0);
-  Handle<JSArray> stack_trace = factory()->NewJSArray(frame_limit);
-  Handle<FixedArray> stack_trace_elems(
-      FixedArray::cast(stack_trace->elements()), this);
+  Handle<FixedArray> stack_trace_elems = factory()->NewFixedArray(limit);
 
   int frames_seen = 0;
   for (StackTraceFrameIterator it(this); !it.done() && (frames_seen < limit);
@@ -744,9 +780,8 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
       frames_seen++;
     }
   }
-
-  stack_trace->set_length(Smi::FromInt(frames_seen));
-  return stack_trace;
+  stack_trace_elems->Shrink(frames_seen);
+  return stack_trace_elems;
 }
 
 
@@ -1637,7 +1672,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
 
 Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
                                                MessageLocation* location) {
-  Handle<JSArray> stack_trace_object;
+  Handle<FixedArray> stack_trace_object;
   if (capture_stack_trace_for_uncaught_exceptions_) {
     if (exception->IsJSError()) {
       // We fetch the stack trace that corresponds to this error object.
@@ -2311,7 +2346,7 @@ Isolate::Isolate(bool enable_serializer)
       optimizing_compile_dispatcher_(NULL),
       stress_deopt_count_(0),
       next_optimization_id_(0),
-#if TRACE_MAPS
+#if V8_SFI_HAS_UNIQUE_ID
       next_unique_sfi_id_(0),
 #endif
       is_running_microtasks_(false),
@@ -2976,8 +3011,8 @@ Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
   return nullptr;
 }
 
-bool Isolate::use_crankshaft() {
-  return FLAG_opt && FLAG_crankshaft && !serializer_enabled_ &&
+bool Isolate::use_optimizer() {
+  return FLAG_opt && !serializer_enabled_ &&
          CpuFeatures::SupportsCrankshaft() && !is_precise_count_code_coverage();
 }
 
@@ -3010,7 +3045,7 @@ void Isolate::ClearOSROptimizedCode() {
   Object* context = heap()->native_contexts_list();
   while (!context->IsUndefined(this)) {
     Context* current_context = Context::cast(context);
-    current_context->ClearOptimizedCodeMap();
+    current_context->ClearOSROptimizedCodeCache();
     context = current_context->next_context_link();
   }
 }
@@ -3020,7 +3055,7 @@ void Isolate::EvictOSROptimizedCode(Code* code, const char* reason) {
   Object* context = heap()->native_contexts_list();
   while (!context->IsUndefined(this)) {
     Context* current_context = Context::cast(context);
-    current_context->EvictFromOptimizedCodeMap(code, reason);
+    current_context->EvictFromOSROptimizedCodeCache(code, reason);
     context = current_context->next_context_link();
   }
 }
@@ -3364,7 +3399,7 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
                                   Handle<Object> value,
                                   v8::PromiseRejectEvent event) {
   if (promise_reject_callback_ == NULL) return;
-  Handle<JSArray> stack_trace;
+  Handle<FixedArray> stack_trace;
   if (event == v8::kPromiseRejectWithNoHandler && value->IsJSObject()) {
     stack_trace = GetDetailedStackTrace(Handle<JSObject>::cast(value));
   }
@@ -3474,6 +3509,7 @@ void Isolate::RunMicrotasksInternal() {
   while (pending_microtask_count() > 0) {
     HandleScope scope(this);
     int num_tasks = pending_microtask_count();
+    // Do not use factory()->microtask_queue() here; we need a fresh handle!
     Handle<FixedArray> queue(heap()->microtask_queue(), this);
     DCHECK(num_tasks <= queue->length());
     set_pending_microtask_count(0);
@@ -3617,11 +3653,11 @@ void Isolate::SetTailCallEliminationEnabled(bool enabled) {
 void Isolate::AddDetachedContext(Handle<Context> context) {
   HandleScope scope(this);
   Handle<WeakCell> cell = factory()->NewWeakCell(context);
-  Handle<FixedArray> detached_contexts = factory()->detached_contexts();
-  int length = detached_contexts->length();
-  detached_contexts = factory()->CopyFixedArrayAndGrow(detached_contexts, 2);
-  detached_contexts->set(length, Smi::kZero);
-  detached_contexts->set(length + 1, *cell);
+  Handle<FixedArray> detached_contexts =
+      factory()->CopyFixedArrayAndGrow(factory()->detached_contexts(), 2);
+  int new_length = detached_contexts->length();
+  detached_contexts->set(new_length - 2, Smi::kZero);
+  detached_contexts->set(new_length - 1, *cell);
   heap()->set_detached_contexts(*detached_contexts);
 }
 

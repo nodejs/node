@@ -9,6 +9,7 @@
 #include "src/globals.h"
 #include "src/objects-inl.h"
 #include "src/objects/compilation-cache-inl.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -81,9 +82,9 @@ void CompilationSubCache::IterateFunctions(ObjectVisitor* v) {
   }
 }
 
-
-void CompilationSubCache::Iterate(ObjectVisitor* v) {
-  v->VisitPointers(&tables_[0], &tables_[generations_]);
+void CompilationSubCache::Iterate(RootVisitor* v) {
+  v->VisitRootPointers(Root::kCompilationCache, &tables_[0],
+                       &tables_[generations_]);
 }
 
 
@@ -366,8 +367,7 @@ void CompilationCache::Clear() {
   }
 }
 
-
-void CompilationCache::Iterate(ObjectVisitor* v) {
+void CompilationCache::Iterate(RootVisitor* v) {
   for (int i = 0; i < kSubCacheCount; i++) {
     subcaches_[i]->Iterate(v);
   }

@@ -7,6 +7,18 @@ new BenchmarkSuite('Basic1', [1000], [
                 BasicRest1, BasicRest1Setup, BasicRest1TearDown)
 ]);
 
+new BenchmarkSuite('ReturnArgsBabel', [10000], [
+    new Benchmark('ReturnArgsBabel', false, false, 0,
+                  ReturnArgsBabel, ReturnArgsBabelSetup,
+                  ReturnArgsBabelTearDown)
+]);
+
+new BenchmarkSuite('ReturnArgsNative', [10000], [
+    new Benchmark('ReturnArgsNative', false, false, 0,
+                  ReturnArgsNative, ReturnArgsNativeSetup,
+                  ReturnArgsNativeTearDown)
+]);
+
 // ----------------------------------------------------------------------------
 
 var result;
@@ -27,4 +39,58 @@ function BasicRest1() {
 
 function BasicRest1TearDown() {
   return result == 550;
+}
+
+// ----------------------------------------------------------------------------
+
+var length = 50;
+var numbers = Array.apply(null, {length}).map(Number.call, Number);
+var strings = numbers.map(String.call, String);
+
+function ReturnArgsBabelFunction(unused) {
+  "use strict";
+  for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0),
+           _key = 1;
+       _key < _len; _key++) {
+    args[_key - 1] = arguments[_key];
+  }
+  return args;
+}
+
+function ReturnArgsBabelSetup() {
+  // Warm up with FAST_HOLEY_ELEMENTS
+  result = ReturnArgsBabelFunction(...strings);
+  // Warm up with FAST_HOLEY_SMI_ELEMENTS
+  result = ReturnArgsBabelFunction(...numbers);
+}
+
+function ReturnArgsBabel() {
+  result = ReturnArgsBabelFunction(...strings);
+  result = ReturnArgsBabelFunction(...numbers);
+}
+
+function ReturnArgsBabelTearDown() {
+  return result.indexOf(0) === 0;
+}
+
+// ----------------------------------------------------------------------------
+
+function ReturnArgsNativeFunction(unused, ...args) {
+  return args;
+}
+
+function ReturnArgsNativeSetup() {
+  // Warm up with FAST_HOLEY_ELEMENTS
+  result = ReturnArgsNativeFunction(...strings);
+  // Warm up with FAST_HOLEY_SMI_ELEMENTS
+  result = ReturnArgsNativeFunction(...numbers);
+}
+
+function ReturnArgsNative() {
+  result = ReturnArgsNativeFunction(...strings);
+  result = ReturnArgsNativeFunction(...numbers);
+}
+
+function ReturnArgsNativeTearDown() {
+  return result.indexOf(0) === 0;
 }

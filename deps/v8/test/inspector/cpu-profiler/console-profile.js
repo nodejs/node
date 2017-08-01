@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Tests that console.profile/profileEnd will record CPU profile when inspector front-end is connected.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Tests that console.profile/profileEnd will record CPU profile when inspector front-end is connected.");
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function collectProfiles()
 {
   console.profile("outer");

@@ -17,6 +17,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+std::ostream& operator<<(std::ostream& os, CallFrequency f) {
+  if (f.IsUnknown()) return os << "unknown";
+  return os << f.value();
+}
+
 VectorSlotPair::VectorSlotPair() {}
 
 
@@ -50,6 +55,17 @@ ConvertReceiverMode ConvertReceiverModeOf(Operator const* op) {
 ToBooleanHints ToBooleanHintsOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kJSToBoolean, op->opcode());
   return OpParameter<ToBooleanHints>(op);
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         ConstructForwardVarargsParameters const& p) {
+  return os << p.arity() << ", " << p.start_index();
+}
+
+ConstructForwardVarargsParameters const& ConstructForwardVarargsParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSConstructForwardVarargs, op->opcode());
+  return OpParameter<ConstructForwardVarargsParameters>(op);
 }
 
 bool operator==(ConstructParameters const& lhs,
@@ -113,7 +129,8 @@ const CallParameters& CallParametersOf(const Operator* op) {
 
 std::ostream& operator<<(std::ostream& os,
                          CallForwardVarargsParameters const& p) {
-  return os << p.start_index() << ", " << p.tail_call_mode();
+  return os << p.arity() << ", " << p.start_index() << ", "
+            << p.tail_call_mode();
 }
 
 CallForwardVarargsParameters const& CallForwardVarargsParametersOf(
@@ -738,16 +755,16 @@ const Operator* JSOperatorBuilder::ToBoolean(ToBooleanHints hints) {
 }
 
 const Operator* JSOperatorBuilder::CallForwardVarargs(
-    uint32_t start_index, TailCallMode tail_call_mode) {
-  CallForwardVarargsParameters parameters(start_index, tail_call_mode);
+    size_t arity, uint32_t start_index, TailCallMode tail_call_mode) {
+  CallForwardVarargsParameters parameters(arity, start_index, tail_call_mode);
   return new (zone()) Operator1<CallForwardVarargsParameters>(   // --
       IrOpcode::kJSCallForwardVarargs, Operator::kNoProperties,  // opcode
       "JSCallForwardVarargs",                                    // name
-      2, 1, 1, 1, 1, 2,                                          // counts
+      parameters.arity(), 1, 1, 1, 1, 2,                         // counts
       parameters);                                               // parameter
 }
 
-const Operator* JSOperatorBuilder::Call(size_t arity, float frequency,
+const Operator* JSOperatorBuilder::Call(size_t arity, CallFrequency frequency,
                                         VectorSlotPair const& feedback,
                                         ConvertReceiverMode convert_mode,
                                         TailCallMode tail_call_mode) {
@@ -793,7 +810,18 @@ const Operator* JSOperatorBuilder::CallRuntime(const Runtime::Function* f,
       parameters);                                        // parameter
 }
 
-const Operator* JSOperatorBuilder::Construct(uint32_t arity, float frequency,
+const Operator* JSOperatorBuilder::ConstructForwardVarargs(
+    size_t arity, uint32_t start_index) {
+  ConstructForwardVarargsParameters parameters(arity, start_index);
+  return new (zone()) Operator1<ConstructForwardVarargsParameters>(   // --
+      IrOpcode::kJSConstructForwardVarargs, Operator::kNoProperties,  // opcode
+      "JSConstructForwardVarargs",                                    // name
+      parameters.arity(), 1, 1, 1, 1, 2,                              // counts
+      parameters);  // parameter
+}
+
+const Operator* JSOperatorBuilder::Construct(uint32_t arity,
+                                             CallFrequency frequency,
                                              VectorSlotPair const& feedback) {
   ConstructParameters parameters(arity, frequency, feedback);
   return new (zone()) Operator1<ConstructParameters>(   // --
@@ -891,14 +919,19 @@ const Operator* JSOperatorBuilder::StoreNamedOwn(
       parameters);                                          // parameter
 }
 
-const Operator* JSOperatorBuilder::DeleteProperty(LanguageMode language_mode) {
-  return new (zone()) Operator1<LanguageMode>(               // --
+const Operator* JSOperatorBuilder::DeleteProperty() {
+  return new (zone()) Operator(                              // --
       IrOpcode::kJSDeleteProperty, Operator::kNoProperties,  // opcode
       "JSDeleteProperty",                                    // name
-      2, 1, 1, 1, 1, 2,                                      // counts
-      language_mode);                                        // parameter
+      3, 1, 1, 1, 1, 2);                                     // counts
 }
 
+const Operator* JSOperatorBuilder::CreateGeneratorObject() {
+  return new (zone()) Operator(                                     // --
+      IrOpcode::kJSCreateGeneratorObject, Operator::kEliminatable,  // opcode
+      "JSCreateGeneratorObject",                                    // name
+      2, 1, 1, 1, 1, 0);                                            // counts
+}
 
 const Operator* JSOperatorBuilder::LoadGlobal(const Handle<Name>& name,
                                               const VectorSlotPair& feedback,

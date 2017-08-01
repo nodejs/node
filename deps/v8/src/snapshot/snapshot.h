@@ -62,8 +62,6 @@ class Snapshot : public AllStatic {
       size_t context_index,
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
-  static bool HaveASnapshotToStartFrom(Isolate* isolate);
-
   static bool HasContextSnapshot(Isolate* isolate, size_t index);
 
   static bool EmbedsScript(Isolate* isolate);

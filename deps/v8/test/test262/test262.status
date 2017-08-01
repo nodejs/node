@@ -117,7 +117,6 @@
   'built-ins/TypedArray/prototype/slice/detached-buffer-custom-ctor-other-targettype': [FAIL],
   'built-ins/TypedArray/prototype/slice/detached-buffer-custom-ctor-same-targettype': [FAIL],
   'built-ins/TypedArray/prototype/slice/detached-buffer-get-ctor': [FAIL],
-  'built-ins/TypedArray/prototype/slice/detached-buffer-speciesctor-get-species-custom-ctor-throws': [FAIL],
   'built-ins/TypedArray/prototype/some/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/sort/detached-buffer-comparefn': [FAIL],
   # DataView functions should also throw on detached buffers
@@ -157,27 +156,6 @@
   'built-ins/DataView/prototype/setUint32/detached-buffer-before-outofrange-byteoffset': [FAIL],
   'built-ins/DataView/prototype/setUint8/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/setUint8/detached-buffer-before-outofrange-byteoffset': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4648
-  'built-ins/TypedArray/prototype/copyWithin/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/every/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/fill/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/filter/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/find/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/findIndex/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/forEach/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/includes/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/indexOf/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/join/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/lastIndexOf/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/map/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/reverse/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/slice/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/some/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/sort/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/toLocaleString/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/toString/detached-buffer': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4034
   'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
@@ -278,14 +256,14 @@
   'built-ins/TypedArrays/internals/Set/conversion-operation-consistent-nan': [PASS, FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5070
-  'annexB/built-ins/Object/prototype/__defineGetter__/define-non-configurable': [FAIL],
-  'annexB/built-ins/Object/prototype/__defineGetter__/define-non-extensible': [FAIL],
-  'annexB/built-ins/Object/prototype/__defineGetter__/this-non-obj': [FAIL],
-  'annexB/built-ins/Object/prototype/__defineSetter__/define-non-configurable': [FAIL],
-  'annexB/built-ins/Object/prototype/__defineSetter__/define-non-extensible': [FAIL],
-  'annexB/built-ins/Object/prototype/__defineSetter__/this-non-obj': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupGetter__/this-non-obj': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupSetter__/this-non-obj': [FAIL],
+  'annexB/built-ins/Object/prototype/__defineGetter__/define-non-configurable': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__defineGetter__/define-non-extensible': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__defineGetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__defineSetter__/define-non-configurable': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__defineSetter__/define-non-extensible': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__defineSetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__lookupGetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__lookupSetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4451
   # https://github.com/tc39/ecma262/issues/753
@@ -391,9 +369,6 @@
   'language/statements/async-function/early-errors-declaration-formals-body-duplicate': [FAIL],
 
   # Module-related tests
-  # v8:5485
-  'language/module-code/comment-multi-line-html*': [FAIL],
-  'language/module-code/comment-single-line-html*': [FAIL],
   # v8:5487
   'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
   # https://github.com/tc39/ecma262/pull/858
@@ -420,36 +395,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5601
   'intl402/PluralRules/*': [SKIP],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5855
-  'language/expressions/async-generators/*': ['--harmony-async-iteration'],
-  'language/statements/async-generator/*': ['--harmony-async-iteration'],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6226
-  'language/expressions/async-generator/named-yield-star-async-next': [FAIL],
-  'language/expressions/async-generator/named-yield-star-async-return': [FAIL],
-  'language/expressions/async-generator/named-yield-star-async-throw': [FAIL],
-  'language/expressions/async-generator/yield-star-async-next': [FAIL],
-  'language/expressions/async-generator/yield-star-async-return': [FAIL],
-  'language/expressions/async-generator/yield-star-async-throw': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-async-next': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-async-return': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-async-throw': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-async-next': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-async-return': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-async-throw': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-async-next': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-async-return': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-async-throw': [FAIL],
-  'language/statements/async-generator/yield-star-async-next': [FAIL],
-  'language/statements/async-generator/yield-star-async-return': [FAIL],
-  'language/statements/async-generator/yield-star-async-throw': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-async-next': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-async-return': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-async-throw': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-async-next': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-async-return': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-async-throw': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6242
   'language/expressions/async-generator/named-yield-star-sync-next': [FAIL],
@@ -552,18 +497,6 @@
   'built-ins/TypedArrays/buffer-arg-use-default-proto-if-custom-proto-is-not-object-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArrays/internals/Get/indexed-value-sab': ['--harmony-sharedarraybuffer'],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5961
-  'built-ins/Atomics/add/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/and/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/compareExchange/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/exchange/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/load/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/or/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/store/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/sub/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/wake/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/xor/good-views': ['--harmony-sharedarraybuffer', FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6045
   'intl402/NumberFormat/prototype/format/11.3.2_TRF': [FAIL],
   'intl402/NumberFormat/prototype/format/11.3.2_TRP': [FAIL],
@@ -596,19 +529,6 @@
 
   # https://code.google.com/p/v8/issues/detail?id=4693
   'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS, FAIL_SLOPPY],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4953
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-ctor': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-ctor-abrupt': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-ctor-inherited': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-ctor-returns-throws': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-abrupt': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-invocation': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-returns-another-instance': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-throws': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-returns-throws': [FAIL],
 
   # We do not expose Array.prototype.values due to webcompat issues.
   # Most recent incompatability: https://crbug.com/615873
@@ -712,7 +632,7 @@
   # compilation of parenthesized function literals. Needs investigation.
   'language/statements/function/S13.2.1_A1_T1': [SKIP],
 
-  # BUG(3251225): Tests that timeout with --nocrankshaft.
+  # BUG(3251225): Tests that timeout with --noopt.
   'built-ins/decodeURI/S15.1.3.1_A2.4_T1': [SKIP],
   'built-ins/decodeURI/S15.1.3.1_A2.5_T1': [SKIP],
   'built-ins/decodeURIComponent/S15.1.3.2_A2.4_T1': [SKIP],
@@ -721,16 +641,24 @@
   'built-ins/encodeURIComponent/S15.1.3.4_A2.3_T1': [SKIP],
 }],  # 'arch == arm or arch == mipsel or arch == mips or arch == arm64'
 
+['byteorder == big', {
+  # Test failures on big endian platforms due to the way the tests
+  # are written
+
+  # https://github.com/tc39/test262/issues/757
+  'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-same-buffer-other-type': [SKIP],
+}],
+
 ['asan == True', {
   # BUG(v8:4653): Test262 tests which rely on quit() are not compatible with
   # asan's --omit-quit flag.
   'built-ins/Promise/prototype/then/deferred-is-resolved-value': [SKIP],
 }],  # asan == True
 
-['variant != default and asan', {
-  # BUG(chromium:710428).
+['asan and variant in [noturbofan, noturbofan_stress, fullcode]', {
+  # Demands too many resources to test the old pipeline with asan.
   '*': [SKIP],
-}],  # variant != default and asan
+}],  # asan and variant in [noturbofan, noturbofan_stress, fullcode]
 
 ['asan == True or msan == True or tsan == True', {
   # https://bugs.chromium.org/p/v8/issues/detail?id=4639

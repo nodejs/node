@@ -47,7 +47,7 @@ void PartialSerializer::Serialize(Object** o, bool include_global_proxy) {
     // We only do rehashing for native contexts.
     can_be_rehashed_ = false;
   }
-  VisitPointer(o);
+  VisitRootPointer(Root::kPartialSnapshotCache, o);
   SerializeDeferredObjects();
   SerializeEmbedderFields();
   Pad();

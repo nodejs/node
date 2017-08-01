@@ -17,11 +17,12 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_GetSubstitution) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, matched, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
   CONVERT_SMI_ARG_CHECKED(position, 2);
   CONVERT_ARG_HANDLE_CHECKED(String, replacement, 3);
+  CONVERT_SMI_ARG_CHECKED(start_index, 4);
 
   // A simple match without captures.
   class SimpleMatch : public String::Match {
@@ -58,7 +59,8 @@ RUNTIME_FUNCTION(Runtime_GetSubstitution) {
   SimpleMatch match(matched, prefix, suffix);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, String::GetSubstitution(isolate, &match, replacement));
+      isolate,
+      String::GetSubstitution(isolate, &match, replacement, start_index));
 }
 
 // This may return an empty MaybeHandle if an exception is thrown or

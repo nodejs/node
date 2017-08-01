@@ -41,9 +41,15 @@ v8::Platform* CreateDefaultPlatform(
   return platform;
 }
 
+bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate,
+                     MessageLoopBehavior behavior) {
+  return reinterpret_cast<DefaultPlatform*>(platform)->PumpMessageLoop(
+      isolate, behavior);
+}
 
-bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate) {
-  return reinterpret_cast<DefaultPlatform*>(platform)->PumpMessageLoop(isolate);
+void EnsureEventLoopInitialized(v8::Platform* platform, v8::Isolate* isolate) {
+  return reinterpret_cast<DefaultPlatform*>(platform)
+      ->EnsureEventLoopInitialized(isolate);
 }
 
 void RunIdleTasks(v8::Platform* platform, v8::Isolate* isolate,
@@ -158,7 +164,30 @@ IdleTask* DefaultPlatform::PopTaskInMainThreadIdleQueue(v8::Isolate* isolate) {
   return task;
 }
 
-bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate) {
+void DefaultPlatform::EnsureEventLoopInitialized(v8::Isolate* isolate) {
+  base::LockGuard<base::Mutex> guard(&lock_);
+  if (event_loop_control_.count(isolate) == 0) {
+    event_loop_control_.insert(std::make_pair(
+        isolate, std::unique_ptr<base::Semaphore>(new base::Semaphore(0))));
+  }
+}
+
+void DefaultPlatform::WaitForForegroundWork(v8::Isolate* isolate) {
+  base::Semaphore* semaphore = nullptr;
+  {
+    base::LockGuard<base::Mutex> guard(&lock_);
+    DCHECK_EQ(event_loop_control_.count(isolate), 1);
+    semaphore = event_loop_control_[isolate].get();
+  }
+  DCHECK_NOT_NULL(semaphore);
+  semaphore->Wait();
+}
+
+bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
+                                      MessageLoopBehavior behavior) {
+  if (behavior == MessageLoopBehavior::kWaitForWork) {
+    WaitForForegroundWork(isolate);
+  }
   Task* task = NULL;
   {
     base::LockGuard<base::Mutex> guard(&lock_);
@@ -166,14 +195,14 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate) {
     // Move delayed tasks that hit their deadline to the main queue.
     task = PopTaskInMainThreadDelayedQueue(isolate);
     while (task != NULL) {
-      main_thread_queue_[isolate].push(task);
+      ScheduleOnForegroundThread(isolate, task);
       task = PopTaskInMainThreadDelayedQueue(isolate);
     }
 
     task = PopTaskInMainThreadQueue(isolate);
 
     if (task == NULL) {
-      return false;
+      return behavior == MessageLoopBehavior::kWaitForWork;
     }
   }
   task->Run();
@@ -206,10 +235,17 @@ void DefaultPlatform::CallOnBackgroundThread(Task* task,
   queue_.Append(task);
 }
 
+void DefaultPlatform::ScheduleOnForegroundThread(v8::Isolate* isolate,
+                                                 Task* task) {
+  main_thread_queue_[isolate].push(task);
+  if (event_loop_control_.count(isolate) != 0) {
+    event_loop_control_[isolate]->Signal();
+  }
+}
 
 void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
   base::LockGuard<base::Mutex> guard(&lock_);
-  main_thread_queue_[isolate].push(task);
+  ScheduleOnForegroundThread(isolate, task);
 }
 
 

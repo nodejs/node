@@ -99,9 +99,9 @@ Object* ThrowRuntimeError(Isolate* isolate, int message_id, int byte_offset,
   // properties).
   Handle<Object> detailed_stack_trace_obj = JSReceiver::GetDataProperty(
       error, isolate->factory()->detailed_stack_trace_symbol());
-  if (detailed_stack_trace_obj->IsJSArray()) {
+  if (detailed_stack_trace_obj->IsFixedArray()) {
     Handle<FixedArray> stack_elements(
-        FixedArray::cast(JSArray::cast(*detailed_stack_trace_obj)->elements()));
+        FixedArray::cast(*detailed_stack_trace_obj));
     DCHECK_GE(stack_elements->length(), 1);
     Handle<StackFrameInfo> top_frame(
         StackFrameInfo::cast(stack_elements->get(0)));

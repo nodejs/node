@@ -11,15 +11,13 @@
 namespace v8 {
 namespace internal {
 
-
-StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(Map* map) {
+VisitorId StaticVisitorBase::GetVisitorId(Map* map) {
   return GetVisitorId(map->instance_type(), map->instance_size(),
                       FLAG_unbox_double_fields && !map->HasFastPointerLayout());
 }
 
-
-StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
-    int instance_type, int instance_size, bool has_unboxed_fields) {
+VisitorId StaticVisitorBase::GetVisitorId(int instance_type, int instance_size,
+                                          bool has_unboxed_fields) {
   if (instance_type < FIRST_NONSTRING_TYPE) {
     switch (instance_type & kStringRepresentationMask) {
       case kSeqStringTag:
@@ -187,7 +185,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case FIXED_INT32_ARRAY_TYPE:
     case FIXED_FLOAT32_ARRAY_TYPE:
     case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
-      return kVisitFixedTypedArray;
+      return kVisitFixedTypedArrayBase;
 
     case FIXED_FLOAT64_ARRAY_TYPE:
       return kVisitFixedFloat64Array;

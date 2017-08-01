@@ -340,6 +340,8 @@ class PropertyDetails BASE_EMBEDDED {
       : public BitField<PropertyAttributes, ConstnessField::kNext, 3> {};
   static const int kAttributesReadOnlyMask =
       (READ_ONLY << AttributesField::kShift);
+  static const int kAttributesDontDeleteMask =
+      (DONT_DELETE << AttributesField::kShift);
 
   // Bit fields for normalized objects.
   class PropertyCellTypeField

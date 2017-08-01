@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Return break locations within function');
+let {session, contextGroup, Protocol} = InspectorTest.start('Return break locations within function');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function fib(x) {
   if (x < 0) return;
   if (x === 0) return 1;

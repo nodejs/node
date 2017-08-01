@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_SWITCH_LOGIC_H
-#define V8_WASM_SWITCH_LOGIC_H
+#ifndef V8_ASMJS_SWITCH_LOGIC_H
+#define V8_ASMJS_SWITCH_LOGIC_H
 
 #include "src/globals.h"
 #include "src/zone/zone-containers.h"
@@ -25,8 +25,9 @@ struct CaseNode : public ZoneObject {
 };
 
 V8_EXPORT_PRIVATE CaseNode* OrderCases(ZoneVector<int>* cases, Zone* zone);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_ASMJS_SWITCH_LOGIC_H

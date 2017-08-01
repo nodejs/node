@@ -4,10 +4,10 @@
 
 // Flags: --turbo
 
-InspectorTest.log('Checks Debugger.getPossibleBreakpoints');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks Debugger.getPossibleBreakpoints');
 
 var source = utils.read('test/inspector/debugger/resources/break-locations.js');
-InspectorTest.addScript(source);
+contextGroup.addScript(source);
 
 Protocol.Debugger.onceScriptParsed()
   .then(message => Protocol.Debugger.getPossibleBreakpoints({ start: { lineNumber: 0, columnNumber : 0, scriptId: message.params.scriptId }}))

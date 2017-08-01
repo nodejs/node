@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log("Tests that \"console.profileEnd()\" does not cause crash. (webkit:105759)");
+let {session, contextGroup, Protocol} = InspectorTest.start("Tests that \"console.profileEnd()\" does not cause crash. (webkit:105759)");
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function collectProfiles()
 {
   console.profile();

@@ -1943,7 +1943,7 @@ static void Parse(Environment* env,
       null,  // fragment defaults to null
     };
     SetArgs(env, argv, &url);
-    (void)cb->Call(context, recv, arraysize(argv), argv);
+    cb->Call(context, recv, arraysize(argv), argv).FromMaybe(Local<Value>());
   } else if (error_cb->IsFunction()) {
     Local<Value> argv[2] = { undef, undef };
     argv[ERR_ARG_FLAGS] = Integer::NewFromUnsigned(isolate, url.flags);
@@ -1951,7 +1951,8 @@ static void Parse(Environment* env,
       String::NewFromUtf8(env->isolate(),
                           input,
                           v8::NewStringType::kNormal).ToLocalChecked();
-    (void)error_cb.As<Function>()->Call(context, recv, arraysize(argv), argv);
+    error_cb.As<Function>()->Call(context, recv, arraysize(argv), argv)
+        .FromMaybe(Local<Value>());
   }
 }
 

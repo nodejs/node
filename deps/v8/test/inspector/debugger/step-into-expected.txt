@@ -747,16 +747,6 @@ break at:
 
 Running test: testClasses
 break at:
-function testClasses() {
-  #class Cat {
-    constructor(name) {
-
-break at:
-  }
-  #class Lion extends Cat {
-    constructor(name) {
-
-break at:
   }
   #new Lion().speak();
 }
@@ -810,8 +800,18 @@ break at:
 Running test: testAsyncAwait
 break at:
 async function testAsyncAwait() {
+  #await asyncFoo();
+  await awaitBoo();
+
+break at:
+async function testAsyncAwait() {
   await #asyncFoo();
   await awaitBoo();
+
+break at:
+async function asyncFoo() {
+  #await Promise.resolve().then(v => v * 2);
+  return42();
 
 break at:
 async function asyncFoo() {
@@ -842,6 +842,11 @@ break at:
   return 42;
 #}
 
+
+break at:
+async function asyncBoo() {
+  #await Promise.resolve();
+}
 
 break at:
 async function asyncBoo() {
@@ -882,6 +887,11 @@ break at:
 
 break at:
     setTimeout(returnCall, 0);
+    #await foo();
+    await foo();
+
+break at:
+    setTimeout(returnCall, 0);
     await #foo();
     await foo();
 
@@ -904,6 +914,11 @@ break at:
       var p = new Promise(resolve => resolveNested = resolve);
       #setTimeout(resolveNested, 0);
       await p;
+
+break at:
+      setTimeout(resolveNested, 0);
+      #await p;
+    }
 
 break at:
       setTimeout(resolveNested, 0);
@@ -934,6 +949,11 @@ break at:
       var p = new Promise(resolve => resolveNested = resolve);
       #setTimeout(resolveNested, 0);
       await p;
+
+break at:
+      setTimeout(resolveNested, 0);
+      #await p;
+    }
 
 break at:
       setTimeout(resolveNested, 0);
@@ -1061,6 +1081,11 @@ break at:
     var y = 2;
     returnFunction(emptyFunction(), x++, --y, x => 2 * x, returnCall())().a = await #foo((a => 2 *a)(5));
     nextTest();
+
+break at:
+    async function foo() {
+      #await Promise.resolve();
+      return 42;
 
 break at:
     async function foo() {

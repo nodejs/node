@@ -19,6 +19,7 @@
 #include "src/elements.h"
 #include "src/objects-inl.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/map.h"
 #include "src/property-details.h"
 #include "src/property.h"
 #include "src/string-stream.h"
@@ -147,8 +148,8 @@ bool Expression::IsValidReferenceExpressionOrThis() const {
 bool Expression::IsAnonymousFunctionDefinition() const {
   return (IsFunctionLiteral() &&
           AsFunctionLiteral()->IsAnonymousFunctionDefinition()) ||
-         (IsDoExpression() &&
-          AsDoExpression()->IsAnonymousFunctionDefinition());
+         (IsClassLiteral() &&
+          AsClassLiteral()->IsAnonymousFunctionDefinition());
 }
 
 void Expression::MarkTail() {
@@ -159,12 +160,6 @@ void Expression::MarkTail() {
   } else if (IsBinaryOperation()) {
     AsBinaryOperation()->MarkTail();
   }
-}
-
-bool DoExpression::IsAnonymousFunctionDefinition() const {
-  // This is specifically to allow DoExpressions to represent ClassLiterals.
-  return represented_function_ != nullptr &&
-         represented_function_->raw_name()->IsEmpty();
 }
 
 bool Statement::IsJump() const {
@@ -350,6 +345,23 @@ bool FunctionLiteral::NeedsHomeObject(Expression* expr) {
   return expr->AsFunctionLiteral()->scope()->NeedsHomeObject();
 }
 
+void FunctionLiteral::ReplaceBodyAndScope(FunctionLiteral* other) {
+  DCHECK_NULL(body_);
+  DCHECK_NOT_NULL(scope_);
+  DCHECK_NOT_NULL(other->scope());
+
+  Scope* outer_scope = scope_->outer_scope();
+
+  body_ = other->body();
+  scope_ = other->scope();
+  scope_->ReplaceOuterScope(outer_scope);
+#ifdef DEBUG
+  scope_->set_replaced_from_parse_task(true);
+#endif
+
+  function_length_ = other->function_length_;
+}
+
 ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
                                              Kind kind, bool is_computed_name)
     : LiteralProperty(key, value, is_computed_name),
@@ -490,7 +502,7 @@ void ObjectLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
     ObjectLiteral::Property* property = properties()->at(property_index);
 
     Expression* value = property->value();
-    if (property->kind() != ObjectLiteral::Property::PROTOTYPE) {
+    if (!property->IsPrototype()) {
       if (FunctionLiteral::NeedsHomeObject(value)) {
         property->SetSlot(spec->AddStoreICSlot(language_mode));
       }
@@ -512,7 +524,7 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
   for (int i = properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = properties()->at(i);
     if (property->is_computed_name()) continue;
-    if (property->kind() == ObjectLiteral::Property::PROTOTYPE) continue;
+    if (property->IsPrototype()) continue;
     Literal* literal = property->key()->AsLiteral();
     DCHECK(!literal->IsNullLiteral());
 
@@ -532,31 +544,42 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
   }
 }
 
-
-bool ObjectLiteral::IsBoilerplateProperty(ObjectLiteral::Property* property) {
-  return property != NULL &&
-         property->kind() != ObjectLiteral::Property::PROTOTYPE;
+void ObjectLiteral::InitFlagsForPendingNullPrototype(int i) {
+  // We still check for __proto__:null after computed property names.
+  for (; i < properties()->length(); i++) {
+    if (properties()->at(i)->IsNullPrototype()) {
+      set_has_null_protoype(true);
+      break;
+    }
+  }
 }
 
 void ObjectLiteral::InitDepthAndFlags() {
-  if (depth_ > 0) return;
-
-  int position = 0;
-  // Accumulate the value in local variables and store it at the end.
+  if (is_initialized()) return;
   bool is_simple = true;
+  bool has_seen_prototype = false;
   int depth_acc = 1;
-  uint32_t max_element_index = 0;
+  uint32_t nof_properties = 0;
   uint32_t elements = 0;
+  uint32_t max_element_index = 0;
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
-    if (!IsBoilerplateProperty(property)) {
+    if (property->IsPrototype()) {
+      has_seen_prototype = true;
+      // __proto__:null has no side-effects and is set directly on the
+      // boilerplate.
+      if (property->IsNullPrototype()) {
+        set_has_null_protoype(true);
+        continue;
+      }
+      DCHECK(!has_null_prototype());
       is_simple = false;
       continue;
     }
-
-    if (static_cast<uint32_t>(position) == boilerplate_properties_ * 2) {
+    if (nof_properties == boilerplate_properties_) {
       DCHECK(property->is_computed_name());
       is_simple = false;
+      if (!has_seen_prototype) InitFlagsForPendingNullPrototype(i);
       break;
     }
     DCHECK(!property->is_computed_name());
@@ -578,7 +601,7 @@ void ObjectLiteral::InitDepthAndFlags() {
     // TODO(verwaest): Remove once we can store them inline.
     if (FLAG_track_double_fields &&
         (value->IsNumberLiteral() || !is_compile_time_value)) {
-      bit_field_ = MayStoreDoublesField::update(bit_field_, true);
+      set_may_store_doubles(true);
     }
 
     is_simple = is_simple && is_compile_time_value;
@@ -596,15 +619,12 @@ void ObjectLiteral::InitDepthAndFlags() {
       elements++;
     }
 
-    // Increment the position for the key and the value.
-    position += 2;
+    nof_properties++;
   }
 
-  bit_field_ = FastElementsField::update(
-      bit_field_,
-      (max_element_index <= 32) || ((2 * elements) >= max_element_index));
-  bit_field_ = HasElementsField::update(bit_field_, elements > 0);
-
+  set_fast_elements((max_element_index <= 32) ||
+                    ((2 * elements) >= max_element_index));
+  set_has_elements(elements > 0);
   set_is_simple(is_simple);
   set_depth(depth_acc);
 }
@@ -616,7 +636,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
   bool has_seen_proto = false;
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
-    if (!IsBoilerplateProperty(property)) {
+    if (property->IsPrototype()) {
       has_seen_proto = true;
       continue;
     }
@@ -641,9 +661,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
   int position = 0;
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
-    if (!IsBoilerplateProperty(property)) {
-      continue;
-    }
+    if (property->IsPrototype()) continue;
 
     if (static_cast<uint32_t>(position) == boilerplate_properties_ * 2) {
       DCHECK(property->is_computed_name());
@@ -693,7 +711,7 @@ ElementsKind ArrayLiteral::constant_elements_kind() const {
 void ArrayLiteral::InitDepthAndFlags() {
   DCHECK_LT(first_spread_index_, 0);
 
-  if (depth_ > 0) return;
+  if (is_initialized()) return;
 
   int constants_length = values()->length();
 
@@ -1012,6 +1030,24 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
     set_to_boolean_types(oracle->ToBooleanTypes(test_id()));
   }
 }
+
+void SmallMapList::AddMapIfMissing(Handle<Map> map, Zone* zone) {
+  if (!Map::TryUpdate(map).ToHandle(&map)) return;
+  for (int i = 0; i < length(); ++i) {
+    if (at(i).is_identical_to(map)) return;
+  }
+  Add(map, zone);
+}
+
+void SmallMapList::FilterForPossibleTransitions(Map* root_map) {
+  for (int i = list_.length() - 1; i >= 0; i--) {
+    if (at(i)->FindRootMap() != root_map) {
+      list_.RemoveElement(list_.at(i));
+    }
+  }
+}
+
+Handle<Map> SmallMapList::at(int i) const { return Handle<Map>(list_.at(i)); }
 
 SmallMapList* Expression::GetReceiverTypes() {
   switch (node_type()) {

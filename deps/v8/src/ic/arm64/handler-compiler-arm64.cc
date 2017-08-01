@@ -156,10 +156,8 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
 
   Isolate* isolate = masm->isolate();
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
-  bool call_data_undefined = false;
   // Put call data in place.
   if (api_call_info->data()->IsUndefined(isolate)) {
-    call_data_undefined = true;
     __ LoadRoot(data, Heap::kUndefinedValueRootIndex);
   } else {
     if (optimization.is_constant_call()) {
@@ -184,8 +182,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ Mov(api_function_address, ref);
 
   // Jump to stub.
-  CallApiCallbackStub stub(isolate, is_store, call_data_undefined,
-                           !optimization.is_constant_call());
+  CallApiCallbackStub stub(isolate, is_store, !optimization.is_constant_call());
   __ TailCallStub(&stub);
 }
 
