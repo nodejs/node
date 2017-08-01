@@ -953,6 +953,13 @@ forward-slash characters (`/`) are required following the colon in the
 ### url.format(urlObject)
 <!-- YAML
 added: v0.1.25
+changes:
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/7234
+    description: URLs with a `file:` scheme will now always use the correct
+                 number of slashes regardless of `slashes` option. A false-y
+                 `slashes` option with no protocol is now also respected at all
+                 times.
 -->
 
 * `urlObject` {Object|string} A URL object (as returned by `url.parse()` or
