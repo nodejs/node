@@ -169,9 +169,13 @@ corresponding argument. Supported placeholders are:
 contains circular references.
 * `%o` - Object. A string representation of an object 
   with optimally useful formatting.
+  This is equivalent to `JSON.stringify` with no replacer
+  and 1 space. This is not full representation of the object. 
+  Functions, for example, will not be displayed.
 * `%O` - Object. A string representation of an object 
   with generic JavaScript object formatting. 
   Similar to `util.inspect()` without options.
+  This is a full representation of the object.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
 
 If the placeholder does not have a corresponding argument, the placeholder is
