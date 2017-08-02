@@ -48,6 +48,7 @@ function send(socket, message, id, callback) {
 }
 
 function parseWSFrame(buffer, handler) {
+  // Protocol described in https://tools.ietf.org/html/rfc6455#section-5
   if (buffer.length < 2)
     return 0;
   assert.strictEqual(0x81, buffer[0]);
@@ -59,7 +60,8 @@ function parseWSFrame(buffer, handler) {
     dataLen = buffer.readUInt16BE(2);
     bodyOffset = 4;
   } else if (dataLen === 127) {
-    dataLen = buffer.readUInt32BE(2);
+    assert(buffer[2] === 0 && buffer[3] === 0, 'Inspector message too big');
+    dataLen = buffer.readUIntBE(4, 6);
     bodyOffset = 10;
   }
   if (buffer.length < bodyOffset + dataLen)
