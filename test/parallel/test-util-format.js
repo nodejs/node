@@ -116,19 +116,51 @@ const nestedObj = {
 };
 assert.strictEqual(util.format('%o'), '%o');
 assert.strictEqual(util.format('%o', 42), '42');
-assert.strictEqual(util.format('%o', 'foo'), '"foo"');
+assert.strictEqual(util.format('%o', 'foo'), '\'foo\'');
 assert.strictEqual(
   util.format('%o', obj),
-  '{"foo":"bar","foobar":1}');
+  '{ foo: \'bar\',\n' +
+  '  foobar: 1,\n' +
+  '  func: \n' +
+  '   { [Function: func]\n' +
+  '     [length]: 0,\n' +
+  '     [name]: \'func\',\n' +
+  '     [prototype]: func { [constructor]: [Circular] } } }');
 assert.strictEqual(
   util.format('%o', nestedObj),
-  '{"foo":"bar","foobar":{"foo":"bar"}}');
+  '{ foo: \'bar\',\n' +
+  '  foobar: \n' +
+  '   { foo: \'bar\',\n' +
+  '     func: \n' +
+  '      { [Function: func]\n' +
+  '        [length]: 0,\n' +
+  '        [name]: \'func\',\n' +
+  '        [prototype]: func { [constructor]: [Circular] } } } }');
 assert.strictEqual(
   util.format('%o %o', obj, obj),
-  '{"foo":"bar","foobar":1} {"foo":"bar","foobar":1}');
+  '{ foo: \'bar\',\n' +
+  '  foobar: 1,\n' +
+  '  func: \n' +
+  '   { [Function: func]\n' +
+  '     [length]: 0,\n' +
+  '     [name]: \'func\',\n' +
+  '     [prototype]: func { [constructor]: [Circular] } } }' +
+  ' { foo: \'bar\',\n' +
+  '  foobar: 1,\n' +
+  '  func: \n' +
+  '   { [Function: func]\n' +
+  '     [length]: 0,\n' +
+  '     [name]: \'func\',\n' +
+  '     [prototype]: func { [constructor]: [Circular] } } }');
 assert.strictEqual(
   util.format('%o %o', obj),
-  '{"foo":"bar","foobar":1} %o');
+  '{ foo: \'bar\',\n' +
+  '  foobar: 1,\n' +
+  '  func: \n' +
+  '   { [Function: func]\n' +
+  '     [length]: 0,\n' +
+  '     [name]: \'func\',\n' +
+  '     [prototype]: func { [constructor]: [Circular] } } } %o');
 
 assert.strictEqual(util.format('%O'), '%O');
 assert.strictEqual(util.format('%O', 42), '42');
