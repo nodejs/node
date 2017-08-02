@@ -77,13 +77,9 @@ void TCPWrap::Initialize(Local<Object> target,
   // Init properties
   t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "reading"),
                              Boolean::New(env->isolate(), false));
-  t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "owner"),
-                             Null(env->isolate()));
-  t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "onread"),
-                             Null(env->isolate()));
-  t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(),
-                                                 "onconnection"),
-                             Null(env->isolate()));
+  t->InstanceTemplate()->Set(env->owner_string(), Null(env->isolate()));
+  t->InstanceTemplate()->Set(env->onread_string(), Null(env->isolate()));
+  t->InstanceTemplate()->Set(env->onconnection_string(), Null(env->isolate()));
 
   env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
   env->SetProtoMethod(t, "asyncReset", AsyncWrap::AsyncReset);
