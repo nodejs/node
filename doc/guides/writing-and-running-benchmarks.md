@@ -153,7 +153,7 @@ an example. This pull request _claims_ to improve the performance of the
 
 First build two versions of Node.js, one from the master branch (here called
 `./node-master`) and another with the pull request applied (here called
-`./node-pr-5135`).
+`./node-pr-5134`).
 
 The `compare.js` tool will then produce a csv file with the benchmark results.
 
