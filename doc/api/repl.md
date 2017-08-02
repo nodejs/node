@@ -385,6 +385,20 @@ buffered but not yet executed. This method is primarily intended to be
 called from within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
+### replServer.parseREPLKeyword(keyword, [rest])
+<!-- YAML
+added: v0.8.9
+deprecated: REPLACEME
+-->
+
+* `keyword` {string} the potential keyword to parse and execute
+* `rest` {any} any parameters to the keyword command
+
+> Stability: 0 - Deprecated.
+
+An internal method used to parse and execute `REPLServer` keywords.
+Returns `true` if `keyword` is a valid keyword, otherwise `false`.
+
 ## repl.start([options])
 <!-- YAML
 added: v0.1.91
