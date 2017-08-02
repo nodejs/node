@@ -68,7 +68,9 @@ function parseWSFrame(buffer, handler) {
     dataLen = buffer.readUInt16BE(2);
     bodyOffset = 4;
   } else if (dataLen === 127) {
-    dataLen = buffer.readUIntBE(2, 8);
+    if (buffer[2] !== 0 || buffer[3] !== 0)
+      assert.fail('Inspector message to big');
+    dataLen = buffer.readUIntBE(4, 6);
     bodyOffset = 10;
   }
   if (buffer.length < bodyOffset + dataLen)
