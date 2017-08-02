@@ -20,6 +20,7 @@ namespace v8_inspector {
 
 class V8InspectorSessionImpl;
 
+using protocol::Maybe;
 using protocol::Response;
 
 class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
@@ -37,7 +38,7 @@ class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
   Response start() override;
   Response stop(std::unique_ptr<protocol::Profiler::Profile>*) override;
 
-  Response startPreciseCoverage() override;
+  Response startPreciseCoverage(Maybe<bool> binary) override;
   Response stopPreciseCoverage() override;
   Response takePreciseCoverage(
       std::unique_ptr<protocol::Array<protocol::Profiler::ScriptCoverage>>*

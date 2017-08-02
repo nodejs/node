@@ -128,6 +128,8 @@ assertEquals("abci\u0307", "aBcI\u0307".toLowerCase());
 assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase("fil"));
 assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase("zh-Hant-TW"));
 assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase("i-klingon"));
+assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase("i-enochian"));
+assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase("x-foobar"));
 
 // Up to 8 chars are allowed for the primary language tag in BCP 47.
 assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase("longlang"));

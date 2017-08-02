@@ -287,15 +287,15 @@ Type* TypeGuardTypeOf(Operator const*) WARN_UNUSED_RESULT;
 
 int OsrValueIndexOf(Operator const*);
 
-enum class OsrGuardType { kUninitialized, kSignedSmall, kAny };
-size_t hash_value(OsrGuardType type);
-std::ostream& operator<<(std::ostream&, OsrGuardType);
-OsrGuardType OsrGuardTypeOf(Operator const*);
-
 SparseInputMask SparseInputMaskOf(Operator const*);
 
 ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
     WARN_UNUSED_RESULT;
+
+// The ArgumentsElementsState and ArgumentsLengthState can either describe an
+// unmapped arguments backing store or the backing store of the rest parameters.
+// IsRestOf(op) is true in the second case.
+bool IsRestOf(Operator const*);
 
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
@@ -332,7 +332,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* OsrNormalEntry();
   const Operator* OsrLoopEntry();
   const Operator* OsrValue(int index);
-  const Operator* OsrGuard(OsrGuardType type);
 
   const Operator* Int32Constant(int32_t);
   const Operator* Int64Constant(int64_t);
@@ -362,7 +361,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* StateValues(int arguments, SparseInputMask bitmask);
   const Operator* TypedStateValues(const ZoneVector<MachineType>* types,
                                    SparseInputMask bitmask);
-  const Operator* ArgumentsObjectState();
+  const Operator* ArgumentsElementsState(bool is_rest);
+  const Operator* ArgumentsLengthState(bool is_rest);
   const Operator* ObjectState(int pointer_slots);
   const Operator* TypedObjectState(const ZoneVector<MachineType>* types);
   const Operator* FrameState(BailoutId bailout_id,

@@ -24,21 +24,21 @@ namespace compiler {
 
 namespace {
 
-bool HasNumberMaps(MapList const& maps) {
+bool HasNumberMaps(MapHandles const& maps) {
   for (auto map : maps) {
     if (map->instance_type() == HEAP_NUMBER_TYPE) return true;
   }
   return false;
 }
 
-bool HasOnlyJSArrayMaps(MapList const& maps) {
+bool HasOnlyJSArrayMaps(MapHandles const& maps) {
   for (auto map : maps) {
     if (!map->IsJSArrayMap()) return false;
   }
   return true;
 }
 
-bool HasOnlyNumberMaps(MapList const& maps) {
+bool HasOnlyNumberMaps(MapHandles const& maps) {
   for (auto map : maps) {
     if (map->instance_type() != HEAP_NUMBER_TYPE) return false;
   }
@@ -138,9 +138,6 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   DCHECK_EQ(IrOpcode::kJSGetSuperConstructor, node->opcode());
   Node* constructor = NodeProperties::GetValueInput(node, 0);
 
-  // If deoptimization is disabled, we cannot optimize.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-
   // Check if the input is a known JSFunction.
   HeapObjectMatcher m(constructor);
   if (!m.HasValue()) return NoChange();
@@ -157,11 +154,6 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
     if (function_prototype->IsConstructor()) {
       ReplaceWithValue(node, value);
       return Replace(value);
-    } else {
-      node->InsertInput(graph()->zone(), 0, value);
-      NodeProperties::ChangeOp(
-          node, javascript()->CallRuntime(Runtime::kThrowNotSuperConstructor));
-      return Changed(node);
     }
   }
 
@@ -175,9 +167,6 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-
-  // If deoptimization is disabled, we cannot optimize.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
   // Check if the right hand side is a known {receiver}.
   HeapObjectMatcher m(constructor);
@@ -217,29 +206,44 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
       Reduction const reduction = ReduceJSOrdinaryHasInstance(node);
       return reduction.Changed() ? reduction : Changed(node);
     }
-  } else if (access_info.IsDataConstant()) {
-    DCHECK(access_info.constant()->IsCallable());
-
+  } else if (access_info.IsDataConstant() ||
+             access_info.IsDataConstantField()) {
     // Determine actual holder and perform prototype chain checks.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
       AssumePrototypesStable(access_info.receiver_maps(), holder);
+    } else {
+      holder = receiver;
     }
+
+    Handle<Object> constant;
+    if (access_info.IsDataConstant()) {
+      DCHECK(!FLAG_track_constant_fields);
+      constant = access_info.constant();
+    } else {
+      DCHECK(FLAG_track_constant_fields);
+      DCHECK(access_info.IsDataConstantField());
+      // The value must be callable therefore tagged.
+      DCHECK(CanBeTaggedPointer(access_info.field_representation()));
+      FieldIndex field_index = access_info.field_index();
+      constant = JSObject::FastPropertyAt(holder, Representation::Tagged(),
+                                          field_index);
+    }
+    DCHECK(constant->IsCallable());
 
     // Monomorphic property access.
     effect = BuildCheckMaps(constructor, effect, control,
                             access_info.receiver_maps());
 
     // Call the @@hasInstance handler.
-    Node* target = jsgraph()->Constant(access_info.constant());
+    Node* target = jsgraph()->Constant(constant);
     node->InsertInput(graph()->zone(), 0, target);
     node->ReplaceInput(1, constructor);
     node->ReplaceInput(2, object);
     node->ReplaceInput(5, effect);
     NodeProperties::ChangeOp(
-        node,
-        javascript()->Call(3, 0.0f, VectorSlotPair(),
-                           ConvertReceiverMode::kNotNullOrUndefined));
+        node, javascript()->Call(3, CallFrequency(), VectorSlotPair(),
+                                 ConvertReceiverMode::kNotNullOrUndefined));
 
     // Rewire the value uses of {node} to ToBoolean conversion of the result.
     Node* value = graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
@@ -261,10 +265,17 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
   DCHECK_EQ(IrOpcode::kJSOrdinaryHasInstance, node->opcode());
   Node* constructor = NodeProperties::GetValueInput(node, 0);
   Node* object = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Check if the {constructor} is known at compile time.
+  HeapObjectMatcher m(constructor);
+  if (!m.HasValue()) return NoChange();
 
   // Check if the {constructor} is a JSBoundFunction.
-  HeapObjectMatcher m(constructor);
-  if (m.HasValue() && m.Value()->IsJSBoundFunction()) {
+  if (m.Value()->IsJSBoundFunction()) {
     // OrdinaryHasInstance on bound functions turns into a recursive
     // invocation of the instanceof operator again.
     // ES6 section 7.3.19 OrdinaryHasInstance (C, O) step 2.
@@ -276,6 +287,160 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     NodeProperties::ChangeOp(node, javascript()->InstanceOf());
     Reduction const reduction = ReduceJSInstanceOf(node);
     return reduction.Changed() ? reduction : Changed(node);
+  }
+
+  // Check if the {constructor} is a JSFunction.
+  if (m.Value()->IsJSFunction()) {
+    // Check if the {function} is a constructor and has an instance "prototype".
+    Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
+    if (function->IsConstructor() && function->has_instance_prototype() &&
+        function->prototype()->IsJSReceiver()) {
+      // Ensure that the {function} has a valid initial map, so we can
+      // depend on that for the prototype constant-folding below.
+      JSFunction::EnsureHasInitialMap(function);
+
+      // Install a code dependency on the {function}s initial map.
+      Handle<Map> initial_map(function->initial_map(), isolate());
+      dependencies()->AssumeInitialMapCantChange(initial_map);
+      Handle<JSReceiver> function_prototype =
+          handle(JSReceiver::cast(initial_map->prototype()), isolate());
+
+      // Check if we can constant-fold the prototype chain walk
+      // for the given {object} and the {function_prototype}.
+      InferHasInPrototypeChainResult result =
+          InferHasInPrototypeChain(object, effect, function_prototype);
+      if (result != kMayBeInPrototypeChain) {
+        Node* value = jsgraph()->BooleanConstant(result == kIsInPrototypeChain);
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      }
+
+      Node* prototype = jsgraph()->Constant(function_prototype);
+
+      Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), object);
+      Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                       check0, control);
+
+      Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+      Node* etrue0 = effect;
+      Node* vtrue0 = jsgraph()->FalseConstant();
+
+      control = graph()->NewNode(common()->IfFalse(), branch0);
+
+      // Loop through the {object}s prototype chain looking for the {prototype}.
+      Node* loop = control =
+          graph()->NewNode(common()->Loop(2), control, control);
+      Node* eloop = effect =
+          graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
+      Node* vloop = object =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           object, object, loop);
+
+      // Load the {object} map and instance type.
+      Node* object_map = effect =
+          graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                           object, effect, control);
+      Node* object_instance_type = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
+          object_map, effect, control);
+
+      // Check if the {object} is a special receiver, because for special
+      // receivers, i.e. proxies or API objects that need access checks,
+      // we have to use the %HasInPrototypeChain runtime function instead.
+      Node* check1 = graph()->NewNode(
+          simplified()->NumberLessThanOrEqual(), object_instance_type,
+          jsgraph()->Constant(LAST_SPECIAL_RECEIVER_TYPE));
+      Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                       check1, control);
+
+      control = graph()->NewNode(common()->IfFalse(), branch1);
+
+      Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+      Node* etrue1 = effect;
+      Node* vtrue1;
+
+      // Check if the {object} is not a receiver at all.
+      Node* check10 =
+          graph()->NewNode(simplified()->NumberLessThan(), object_instance_type,
+                           jsgraph()->Constant(FIRST_JS_RECEIVER_TYPE));
+      Node* branch10 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                        check10, if_true1);
+
+      // A primitive value cannot match the {prototype} we're looking for.
+      if_true1 = graph()->NewNode(common()->IfTrue(), branch10);
+      vtrue1 = jsgraph()->FalseConstant();
+
+      Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch10);
+      Node* efalse1 = etrue1;
+      Node* vfalse1;
+      {
+        // Slow path, need to call the %HasInPrototypeChain runtime function.
+        vfalse1 = efalse1 = if_false1 = graph()->NewNode(
+            javascript()->CallRuntime(Runtime::kHasInPrototypeChain), object,
+            prototype, context, frame_state, efalse1, if_false1);
+
+        // Replace any potential {IfException} uses of {node} to catch
+        // exceptions from this %HasInPrototypeChain runtime call instead.
+        Node* on_exception = nullptr;
+        if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+          NodeProperties::ReplaceControlInput(on_exception, vfalse1);
+          NodeProperties::ReplaceEffectInput(on_exception, efalse1);
+          if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
+          Revisit(on_exception);
+        }
+      }
+
+      // Load the {object} prototype.
+      Node* object_prototype = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForMapPrototype()), object_map,
+          effect, control);
+
+      // Check if we reached the end of {object}s prototype chain.
+      Node* check2 =
+          graph()->NewNode(simplified()->ReferenceEqual(), object_prototype,
+                           jsgraph()->NullConstant());
+      Node* branch2 = graph()->NewNode(common()->Branch(), check2, control);
+
+      Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+      Node* etrue2 = effect;
+      Node* vtrue2 = jsgraph()->FalseConstant();
+
+      control = graph()->NewNode(common()->IfFalse(), branch2);
+
+      // Check if we reached the {prototype}.
+      Node* check3 = graph()->NewNode(simplified()->ReferenceEqual(),
+                                      object_prototype, prototype);
+      Node* branch3 = graph()->NewNode(common()->Branch(), check3, control);
+
+      Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
+      Node* etrue3 = effect;
+      Node* vtrue3 = jsgraph()->TrueConstant();
+
+      control = graph()->NewNode(common()->IfFalse(), branch3);
+
+      // Close the loop.
+      vloop->ReplaceInput(1, object_prototype);
+      eloop->ReplaceInput(1, effect);
+      loop->ReplaceInput(1, control);
+
+      control = graph()->NewNode(common()->Merge(5), if_true0, if_true1,
+                                 if_true2, if_true3, if_false1);
+      effect = graph()->NewNode(common()->EffectPhi(5), etrue0, etrue1, etrue2,
+                                etrue3, efalse1, control);
+
+      // Morph the {node} into an appropriate Phi.
+      ReplaceWithValue(node, node, effect, control);
+      node->ReplaceInput(0, vtrue0);
+      node->ReplaceInput(1, vtrue1);
+      node->ReplaceInput(2, vtrue2);
+      node->ReplaceInput(3, vtrue3);
+      node->ReplaceInput(4, vfalse1);
+      node->ReplaceInput(5, control);
+      node->TrimInputCount(6);
+      NodeProperties::ChangeOp(
+          node, common()->Phi(MachineRepresentation::kTagged, 5));
+      return Changed(node);
+    }
   }
 
   return NoChange();
@@ -513,9 +678,6 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
     return Replace(value);
   }
 
-  // Not much we can do if deoptimization support is disabled.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-
   // Lookup the {name} on the global object instead.
   return ReduceGlobalAccess(node, nullptr, nullptr, name, AccessMode::kLoad);
 }
@@ -539,17 +701,13 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     return Replace(value);
   }
 
-  // Not much we can do if deoptimization support is disabled.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-
   // Lookup the {name} on the global object instead.
   return ReduceGlobalAccess(node, nullptr, value, name, AccessMode::kStore);
 }
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
-    Node* node, Node* value, MapHandleList const& receiver_maps,
-    Handle<Name> name, AccessMode access_mode, LanguageMode language_mode,
-    Handle<FeedbackVector> vector, FeedbackSlot slot, Node* index) {
+    Node* node, Node* value, MapHandles const& receiver_maps, Handle<Name> name,
+    AccessMode access_mode, LanguageMode language_mode, Node* index) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -561,14 +719,11 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Not much we can do if deoptimization support is disabled.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-
   // Check if we have an access o.x or o.x=v where o is the current
   // native contexts' global proxy, and turn that into a direct access
   // to the current native contexts' global object instead.
-  if (receiver_maps.length() == 1) {
-    Handle<Map> receiver_map = receiver_maps.first();
+  if (receiver_maps.size() == 1) {
+    Handle<Map> receiver_map = receiver_maps.front();
     if (receiver_map->IsJSGlobalProxyMap()) {
       Object* maybe_constructor = receiver_map->GetConstructor();
       // Detached global proxies have |null| as their constructor.
@@ -596,13 +751,6 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     if (access_info.IsAccessorConstant()) {
       // Accessor in try-blocks are not supported yet.
       if (is_exceptional || !(flags() & kAccessorInliningEnabled)) {
-        return NoChange();
-      }
-    } else if (access_info.IsGeneric()) {
-      // We do not handle generic calls in try blocks.
-      if (is_exceptional) return NoChange();
-      // We only handle the generic store IC case.
-      if (!vector->IsStoreIC(slot)) {
         return NoChange();
       }
     }
@@ -643,7 +791,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     // Generate the actual property access.
     ValueEffectControl continuation = BuildPropertyAccess(
         receiver, value, context, frame_state, effect, control, name,
-        access_info, access_mode, language_mode, vector, slot);
+        access_info, access_mode, language_mode);
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -692,7 +840,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       Node* this_control = fallthrough_control;
 
       // Perform map check on {receiver}.
-      MapList const& receiver_maps = access_info.receiver_maps();
+      MapHandles const& receiver_maps = access_info.receiver_maps();
       {
         // Emit a (sequence of) map checks for other {receiver}s.
         ZoneVector<Node*> this_controls(zone());
@@ -746,10 +894,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       }
 
       // Generate the actual property access.
-      ValueEffectControl continuation =
-          BuildPropertyAccess(this_receiver, this_value, context, frame_state,
-                              this_effect, this_control, name, access_info,
-                              access_mode, language_mode, vector, slot);
+      ValueEffectControl continuation = BuildPropertyAccess(
+          this_receiver, this_value, context, frame_state, this_effect,
+          this_control, name, access_info, access_mode, language_mode);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -790,19 +937,16 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
   Node* const receiver = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
 
-  if (flags() & kDeoptimizationEnabled) {
-    // Check if we are accessing the current native contexts' global proxy.
-    HeapObjectMatcher m(receiver);
-    if (m.HasValue() && m.Value().is_identical_to(global_proxy())) {
-      // Optimize accesses to the current native contexts' global proxy.
-      return ReduceGlobalAccess(node, nullptr, value, name, access_mode);
-    }
+  // Check if we are accessing the current native contexts' global proxy.
+  HeapObjectMatcher m(receiver);
+  if (m.HasValue() && m.Value().is_identical_to(global_proxy())) {
+    // Optimize accesses to the current native contexts' global proxy.
+    return ReduceGlobalAccess(node, nullptr, value, name, access_mode);
   }
 
   // Check if the {nexus} reports type feedback for the IC.
   if (nexus.IsUninitialized()) {
-    if ((flags() & kDeoptimizationEnabled) &&
-        (flags() & kBailoutOnUninitialized)) {
+    if (flags() & kBailoutOnUninitialized) {
       return ReduceSoftDeoptimize(
           node,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
@@ -811,12 +955,11 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
   }
 
   // Extract receiver maps from the IC using the {nexus}.
-  MapHandleList receiver_maps;
+  MapHandles receiver_maps;
   if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
     return NoChange();
-  } else if (receiver_maps.length() == 0) {
-    if ((flags() & kDeoptimizationEnabled) &&
-        (flags() & kBailoutOnUninitialized)) {
+  } else if (receiver_maps.empty()) {
+    if (flags() & kBailoutOnUninitialized) {
       return ReduceSoftDeoptimize(
           node,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
@@ -826,7 +969,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccess(node, value, receiver_maps, name, access_mode,
-                           language_mode, nexus.vector_handle(), nexus.slot());
+                           language_mode);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
@@ -842,19 +985,17 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
         p.name().is_identical_to(factory()->prototype_string())) {
       // Optimize "prototype" property of functions.
       Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
-      if (function->has_initial_map()) {
+      if (function->IsConstructor()) {
         // We need to add a code dependency on the initial map of the
         // {function} in order to be notified about changes to the
-        // "prototype" of {function}, so it doesn't make sense to
-        // continue unless deoptimization is enabled.
-        if (flags() & kDeoptimizationEnabled) {
-          Handle<Map> initial_map(function->initial_map(), isolate());
-          dependencies()->AssumeInitialMapCantChange(initial_map);
-          Handle<Object> prototype(initial_map->prototype(), isolate());
-          Node* value = jsgraph()->Constant(prototype);
-          ReplaceWithValue(node, value);
-          return Replace(value);
-        }
+        // "prototype" of {function}.
+        JSFunction::EnsureHasInitialMap(function);
+        Handle<Map> initial_map(function->initial_map(), isolate());
+        dependencies()->AssumeInitialMapCantChange(initial_map);
+        Handle<Object> prototype(function->prototype(), isolate());
+        Node* value = jsgraph()->Constant(prototype);
+        ReplaceWithValue(node, value);
+        return Replace(value);
       }
     } else if (m.Value()->IsString() &&
                p.name().is_identical_to(factory()->length_string())) {
@@ -905,7 +1046,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceElementAccess(
-    Node* node, Node* index, Node* value, MapHandleList const& receiver_maps,
+    Node* node, Node* index, Node* value, MapHandles const& receiver_maps,
     AccessMode access_mode, LanguageMode language_mode,
     KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -914,9 +1055,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* frame_state = NodeProperties::FindFrameStateBefore(node);
-
-  // Not much we can do if deoptimization support is disabled.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
   // Check for keyed access to strings.
   if (HasOnlyStringMaps(receiver_maps)) {
@@ -1072,7 +1210,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                              receiver, this_effect, this_control);
 
         // Perform map check(s) on {receiver}.
-        MapList const& receiver_maps = access_info.receiver_maps();
+        MapHandles const& receiver_maps = access_info.receiver_maps();
         if (j == access_infos.size() - 1) {
           // Last map check on the fallthrough control path, do a
           // conditional eager deoptimization exit here.
@@ -1163,41 +1301,40 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   if (mreceiver.HasValue() && mreceiver.Value()->IsString()) {
     Handle<String> string = Handle<String>::cast(mreceiver.Value());
 
+    // Strings are immutable in JavaScript.
+    if (access_mode == AccessMode::kStore) return NoChange();
+
+    // Properly deal with constant {index}.
+    NumberMatcher mindex(index);
+    if (mindex.IsInteger() && mindex.IsInRange(0.0, string->length() - 1)) {
+      // Constant-fold the {index} access to {string}.
+      Node* value = jsgraph()->HeapConstant(
+          factory()->LookupSingleCharacterStringFromCode(
+              string->Get(static_cast<int>(mindex.Value()))));
+      ReplaceWithValue(node, value, effect, control);
+      return Replace(value);
+    }
+
     // We can only assume that the {index} is a valid array index if the IC
     // is in element access mode and not MEGAMORPHIC, otherwise there's no
     // guard for the bounds check below.
     if (nexus.ic_state() != MEGAMORPHIC && nexus.GetKeyType() == ELEMENT) {
-      // Strings are immutable in JavaScript.
-      if (access_mode == AccessMode::kStore) return NoChange();
+      // Ensure that {index} is less than {receiver} length.
+      Node* length = jsgraph()->Constant(string->length());
+      index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
+                                        length, effect, control);
 
-      // Properly deal with constant {index}.
-      NumberMatcher mindex(index);
-      if (mindex.IsInteger() && mindex.IsInRange(0.0, string->length() - 1)) {
-        // Constant-fold the {index} access to {string}.
-        Node* value = jsgraph()->HeapConstant(
-            factory()->LookupSingleCharacterStringFromCode(
-                string->Get(static_cast<int>(mindex.Value()))));
-        ReplaceWithValue(node, value, effect, control);
-        return Replace(value);
-      } else if (flags() & kDeoptimizationEnabled) {
-        // Ensure that {index} is less than {receiver} length.
-        Node* length = jsgraph()->Constant(string->length());
-        index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
-                                          length, effect, control);
-
-        // Return the character from the {receiver} as single character string.
-        value = graph()->NewNode(simplified()->StringCharAt(), receiver, index,
-                                 control);
-        ReplaceWithValue(node, value, effect, control);
-        return Replace(value);
-      }
+      // Return the character from the {receiver} as single character string.
+      value = graph()->NewNode(simplified()->StringCharAt(), receiver, index,
+                               control);
+      ReplaceWithValue(node, value, effect, control);
+      return Replace(value);
     }
   }
 
   // Check if the {nexus} reports type feedback for the IC.
   if (nexus.IsUninitialized()) {
-    if ((flags() & kDeoptimizationEnabled) &&
-        (flags() & kBailoutOnUninitialized)) {
+    if (flags() & kBailoutOnUninitialized) {
       return ReduceSoftDeoptimize(
           node,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
@@ -1206,12 +1343,11 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   }
 
   // Extract receiver maps from the {nexus}.
-  MapHandleList receiver_maps;
+  MapHandles receiver_maps;
   if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
     return NoChange();
-  } else if (receiver_maps.length() == 0) {
-    if ((flags() & kDeoptimizationEnabled) &&
-        (flags() & kBailoutOnUninitialized)) {
+  } else if (receiver_maps.empty()) {
+    if (flags() & kBailoutOnUninitialized) {
       return ReduceSoftDeoptimize(
           node,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
@@ -1235,17 +1371,16 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
       } else {
         name = factory()->InternalizeName(name);
         return ReduceNamedAccess(node, value, receiver_maps, name, access_mode,
-                                 language_mode, nexus.vector_handle(),
-                                 nexus.slot());
+                                 language_mode);
       }
     }
   }
 
   // Check if we have feedback for a named access.
   if (Name* name = nexus.FindFirstName()) {
-    return ReduceNamedAccess(
-        node, value, receiver_maps, handle(name, isolate()), access_mode,
-        language_mode, nexus.vector_handle(), nexus.slot(), index);
+    return ReduceNamedAccess(node, value, receiver_maps,
+                             handle(name, isolate()), access_mode,
+                             language_mode, index);
   } else if (nexus.GetKeyType() != ELEMENT) {
     // The KeyedLoad/StoreIC has seen non-element accesses, so we cannot assume
     // that the {index} is a valid array index, thus we just let the IC continue
@@ -1319,8 +1454,7 @@ JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildPropertyAccess(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
     Node* control, Handle<Name> name, PropertyAccessInfo const& access_info,
-    AccessMode access_mode, LanguageMode language_mode,
-    Handle<FeedbackVector> vector, FeedbackSlot slot) {
+    AccessMode access_mode, LanguageMode language_mode) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
@@ -1333,6 +1467,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     DCHECK_EQ(AccessMode::kLoad, access_mode);
     value = jsgraph()->UndefinedConstant();
   } else if (access_info.IsDataConstant()) {
+    DCHECK(!FLAG_track_constant_fields);
     Node* constant_value = jsgraph()->Constant(access_info.constant());
     if (access_mode == AccessMode::kStore) {
       Node* check = graph()->NewNode(simplified()->ReferenceEqual(), value,
@@ -1365,11 +1500,10 @@ JSNativeContextSpecialization::BuildPropertyAccess(
 
         // Introduce the call to the getter function.
         if (access_info.constant()->IsJSFunction()) {
-          value = effect = graph()->NewNode(
-              javascript()->Call(2, 0.0f, VectorSlotPair(),
+          value = effect = control = graph()->NewNode(
+              javascript()->Call(2, CallFrequency(), VectorSlotPair(),
                                  ConvertReceiverMode::kNotNullOrUndefined),
               target, receiver, context, frame_state0, effect, control);
-          control = graph()->NewNode(common()->IfSuccess(), value);
         } else {
           DCHECK(access_info.constant()->IsFunctionTemplateInfo());
           Handle<FunctionTemplateInfo> function_template_info(
@@ -1402,11 +1536,10 @@ JSNativeContextSpecialization::BuildPropertyAccess(
 
         // Introduce the call to the setter function.
         if (access_info.constant()->IsJSFunction()) {
-          effect = graph()->NewNode(
-              javascript()->Call(3, 0.0f, VectorSlotPair(),
+          effect = control = graph()->NewNode(
+              javascript()->Call(3, CallFrequency(), VectorSlotPair(),
                                  ConvertReceiverMode::kNotNullOrUndefined),
               target, receiver, value, context, frame_state0, effect, control);
-          control = graph()->NewNode(common()->IfSuccess(), effect);
         } else {
           DCHECK(access_info.constant()->IsFunctionTemplateInfo());
           Handle<FunctionTemplateInfo> function_template_info(
@@ -1422,7 +1555,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         break;
       }
     }
-  } else if (access_info.IsDataField() || access_info.IsDataConstantField()) {
+  } else {
+    DCHECK(access_info.IsDataField() || access_info.IsDataConstantField());
     FieldIndex const field_index = access_info.field_index();
     Type* const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
@@ -1531,7 +1665,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
                   common()->BeginRegion(RegionObservability::kNotObservable),
                   effect);
               Node* box = effect = graph()->NewNode(
-                  simplified()->Allocate(NOT_TENURED),
+                  simplified()->Allocate(Type::OtherInternal(), NOT_TENURED),
                   jsgraph()->Constant(HeapNumber::kSize), effect, control);
               effect = graph()->NewNode(
                   simplified()->StoreField(AccessBuilder::ForMap()), box,
@@ -1634,44 +1768,44 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           UNREACHABLE();
           break;
       }
+      // Check if we need to perform a transitioning store.
       Handle<Map> transition_map;
       if (access_info.transition_map().ToHandle(&transition_map)) {
+        // Check if we need to grow the properties backing store
+        // with this transitioning store.
+        Handle<Map> original_map(Map::cast(transition_map->GetBackPointer()),
+                                 isolate());
+        if (original_map->unused_property_fields() == 0) {
+          DCHECK(!field_index.is_inobject());
+
+          // Reallocate the properties {storage}.
+          storage = effect = BuildExtendPropertiesBackingStore(
+              original_map, storage, effect, control);
+
+          // Perform the actual store.
+          effect = graph()->NewNode(simplified()->StoreField(field_access),
+                                    storage, value, effect, control);
+
+          // Atomically switch to the new properties below.
+          field_access = AccessBuilder::ForJSObjectProperties();
+          value = storage;
+          storage = receiver;
+        }
         effect = graph()->NewNode(
             common()->BeginRegion(RegionObservability::kObservable), effect);
         effect = graph()->NewNode(
             simplified()->StoreField(AccessBuilder::ForMap()), receiver,
             jsgraph()->Constant(transition_map), effect, control);
-      }
-      effect = graph()->NewNode(simplified()->StoreField(field_access), storage,
-                                value, effect, control);
-      if (access_info.HasTransitionMap()) {
+        effect = graph()->NewNode(simplified()->StoreField(field_access),
+                                  storage, value, effect, control);
         effect = graph()->NewNode(common()->FinishRegion(),
                                   jsgraph()->UndefinedConstant(), effect);
+      } else {
+        // Regular non-transitioning field store.
+        effect = graph()->NewNode(simplified()->StoreField(field_access),
+                                  storage, value, effect, control);
       }
     }
-  } else {
-    DCHECK(access_info.IsGeneric());
-    DCHECK_EQ(AccessMode::kStore, access_mode);
-    DCHECK(vector->IsStoreIC(slot));
-    DCHECK_EQ(vector->GetLanguageMode(slot), language_mode);
-    Callable callable =
-        CodeFactory::StoreICInOptimizedCode(isolate(), language_mode);
-    const CallInterfaceDescriptor& descriptor = callable.descriptor();
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), descriptor,
-        descriptor.GetStackParameterCount(), CallDescriptor::kNeedsFrameState,
-        Operator::kNoProperties);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* name_node = jsgraph()->HeapConstant(name);
-    Node* slot_node = jsgraph()->Constant(vector->GetIndex(slot));
-    Node* vector_node = jsgraph()->HeapConstant(vector);
-
-    Node* inputs[] = {stub_code,   receiver, name_node,   value,  slot_node,
-                      vector_node, context,  frame_state, effect, control};
-
-    value = effect = control =
-        graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
-    control = graph()->NewNode(common()->IfSuccess(), control);
   }
 
   return ValueEffectControl(value, effect, control);
@@ -1681,10 +1815,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
     Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreDataPropertyInLiteral, node->opcode());
 
-  // If deoptimization is disabled, we cannot optimize.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-
-  DataPropertyParameters const& p = DataPropertyParametersOf(node->op());
+  FeedbackParameter const& p = FeedbackParameterOf(node->op());
 
   if (!p.feedback().IsValid()) return NoChange();
 
@@ -1719,10 +1850,6 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
     return NoChange();
   }
 
-  if (access_info.IsGeneric()) {
-    return NoChange();
-  }
-
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1746,8 +1873,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   // Generate the actual property access.
   ValueEffectControl continuation = BuildPropertyAccess(
       receiver, value, context, frame_state_lazy, effect, control, cached_name,
-      access_info, AccessMode::kStoreInLiteral, LanguageMode::SLOPPY,
-      p.feedback().vector(), p.feedback().slot());
+      access_info, AccessMode::kStoreInLiteral, LanguageMode::SLOPPY);
   value = continuation.value();
   effect = continuation.effect();
   control = continuation.control();
@@ -1784,7 +1910,7 @@ JSNativeContextSpecialization::BuildElementAccess(
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
   ElementsKind elements_kind = access_info.elements_kind();
-  MapList const& receiver_maps = access_info.receiver_maps();
+  MapHandles const& receiver_maps = access_info.receiver_maps();
 
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
     Node* buffer;
@@ -1990,10 +2116,12 @@ JSNativeContextSpecialization::BuildElementAccess(
     if (access_mode == AccessMode::kLoad) {
       // Compute the real element access type, which includes the hole in case
       // of holey backing stores.
-      if (elements_kind == FAST_HOLEY_ELEMENTS ||
-          elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
+      if (IsHoleyElementsKind(elements_kind)) {
         element_access.type =
             Type::Union(element_type, Type::Hole(), graph()->zone());
+      }
+      if (elements_kind == FAST_HOLEY_ELEMENTS ||
+          elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
         element_access.machine_type = MachineType::AnyTagged();
       }
       // Perform the actual backing store access.
@@ -2085,7 +2213,7 @@ JSNativeContextSpecialization::InlineApiCall(
   int const argc = value == nullptr ? 0 : 1;
   // The stub always expects the receiver as the first param on the stack.
   CallApiCallbackStub stub(
-      isolate(), argc, call_data_object->IsUndefined(isolate()),
+      isolate(), argc,
       true /* FunctionTemplateInfo doesn't have an associated context. */);
   CallInterfaceDescriptor call_interface_descriptor =
       stub.GetCallInterfaceDescriptor();
@@ -2117,10 +2245,10 @@ JSNativeContextSpecialization::InlineApiCall(
     inputs[6] = value;
   }
 
+  Node* control0;
   Node* effect0;
-  Node* value0 = effect0 =
+  Node* value0 = effect0 = control0 =
       graph()->NewNode(common()->Call(call_descriptor), index, inputs);
-  Node* control0 = graph()->NewNode(common()->IfSuccess(), value0);
   return ValueEffectControl(value0, effect0, control0);
 }
 
@@ -2153,7 +2281,7 @@ Node* JSNativeContextSpecialization::BuildCheckHeapObject(Node* receiver,
 
 Node* JSNativeContextSpecialization::BuildCheckMaps(
     Node* receiver, Node* effect, Node* control,
-    std::vector<Handle<Map>> const& receiver_maps) {
+    MapHandles const& receiver_maps) {
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
     Handle<Map> receiver_map(m.Value()->map(), isolate());
@@ -2178,8 +2306,56 @@ Node* JSNativeContextSpecialization::BuildCheckMaps(
                           effect, control);
 }
 
+Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
+    Handle<Map> map, Node* properties, Node* effect, Node* control) {
+  // TODO(bmeurer/jkummerow): Property deletions can undo map transitions
+  // while keeping the backing store around, meaning that even though the
+  // map might believe that objects have no unused property fields, there
+  // might actually be some. It would be nice to not create a new backing
+  // store in that case (i.e. when properties->length() >= new_length).
+  // However, introducing branches and Phi nodes here would make it more
+  // difficult for escape analysis to get rid of the backing stores used
+  // for intermediate states of chains of property additions. That makes
+  // it unclear what the best approach is here.
+  DCHECK_EQ(0, map->unused_property_fields());
+  // Compute the length of the old {properties} and the new properties.
+  int length = map->NextFreePropertyIndex() - map->GetInObjectProperties();
+  int new_length = length + JSObject::kFieldsAdded;
+  // Collect the field values from the {properties}.
+  ZoneVector<Node*> values(zone());
+  values.reserve(new_length);
+  for (int i = 0; i < length; ++i) {
+    Node* value = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForFixedArraySlot(i)),
+        properties, effect, control);
+    values.push_back(value);
+  }
+  // Initialize the new fields to undefined.
+  for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
+    values.push_back(jsgraph()->UndefinedConstant());
+  }
+  // Allocate and initialize the new properties.
+  effect = graph()->NewNode(
+      common()->BeginRegion(RegionObservability::kNotObservable), effect);
+  Node* new_properties = effect = graph()->NewNode(
+      simplified()->Allocate(Type::OtherInternal(), NOT_TENURED),
+      jsgraph()->Constant(FixedArray::SizeFor(new_length)), effect, control);
+  effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
+                            new_properties, jsgraph()->FixedArrayMapConstant(),
+                            effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForFixedArrayLength()),
+      new_properties, jsgraph()->Constant(new_length), effect, control);
+  for (int i = 0; i < new_length; ++i) {
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)),
+        new_properties, values[i], effect, control);
+  }
+  return graph()->NewNode(common()->FinishRegion(), new_properties, effect);
+}
+
 void JSNativeContextSpecialization::AssumePrototypesStable(
-    std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder) {
+    MapHandles const& receiver_maps, Handle<JSObject> holder) {
   // Determine actual holder and perform prototype chain checks.
   for (auto map : receiver_maps) {
     // Perform the implicit ToObject for primitives here.
@@ -2194,7 +2370,7 @@ void JSNativeContextSpecialization::AssumePrototypesStable(
 }
 
 bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
-    std::vector<Handle<Map>> const& receiver_maps) {
+    MapHandles const& receiver_maps) {
   // Check if the array prototype chain is intact.
   if (!isolate()->IsFastArrayConstructorPrototypeChainIntact()) return false;
 
@@ -2228,10 +2404,61 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   return true;
 }
 
+JSNativeContextSpecialization::InferHasInPrototypeChainResult
+JSNativeContextSpecialization::InferHasInPrototypeChain(
+    Node* receiver, Node* effect, Handle<JSReceiver> prototype) {
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (result == NodeProperties::kNoReceiverMaps) return kMayBeInPrototypeChain;
+
+  // Check if either all or none of the {receiver_maps} have the given
+  // {prototype} in their prototype chain.
+  bool all = true;
+  bool none = true;
+  for (size_t i = 0; i < receiver_maps.size(); ++i) {
+    Handle<Map> receiver_map = receiver_maps[i];
+    if (receiver_map->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE) {
+      return kMayBeInPrototypeChain;
+    }
+    if (result == NodeProperties::kUnreliableReceiverMaps) {
+      // In case of an unreliable {result} we need to ensure that all
+      // {receiver_maps} are stable, because otherwise we cannot trust
+      // the {receiver_maps} information, since arbitrary side-effects
+      // may have happened.
+      if (!receiver_map->is_stable()) {
+        return kMayBeInPrototypeChain;
+      }
+    }
+    for (PrototypeIterator j(receiver_map);; j.Advance()) {
+      if (j.IsAtEnd()) {
+        all = false;
+        break;
+      }
+      Handle<JSReceiver> const current =
+          PrototypeIterator::GetCurrent<JSReceiver>(j);
+      if (current.is_identical_to(prototype)) {
+        none = false;
+        break;
+      }
+      if (!current->map()->is_stable() ||
+          current->map()->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE) {
+        return kMayBeInPrototypeChain;
+      }
+    }
+  }
+  DCHECK_IMPLIES(all, !none);
+  DCHECK_IMPLIES(none, !all);
+
+  if (all) return kIsInPrototypeChain;
+  if (none) return kIsNotInPrototypeChain;
+  return kMayBeInPrototypeChain;
+}
+
 bool JSNativeContextSpecialization::ExtractReceiverMaps(
     Node* receiver, Node* effect, FeedbackNexus const& nexus,
-    MapHandleList* receiver_maps) {
-  DCHECK_EQ(0, receiver_maps->length());
+    MapHandles* receiver_maps) {
+  DCHECK_EQ(0, receiver_maps->size());
   // See if we can infer a concrete type for the {receiver}.
   if (InferReceiverMaps(receiver, effect, receiver_maps)) {
     // We can assume that the {receiver} still has the infered {receiver_maps}.
@@ -2242,11 +2469,12 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     // Try to filter impossible candidates based on infered root map.
     Handle<Map> receiver_map;
     if (InferReceiverRootMap(receiver).ToHandle(&receiver_map)) {
-      for (int i = receiver_maps->length(); --i >= 0;) {
-        if (receiver_maps->at(i)->FindRootMap() != *receiver_map) {
-          receiver_maps->Remove(i);
-        }
-      }
+      receiver_maps->erase(
+          std::remove_if(receiver_maps->begin(), receiver_maps->end(),
+                         [receiver_map](const Handle<Map>& map) {
+                           return map->FindRootMap() != *receiver_map;
+                         }),
+          receiver_maps->end());
     }
     return true;
   }
@@ -2254,13 +2482,13 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
 }
 
 bool JSNativeContextSpecialization::InferReceiverMaps(
-    Node* receiver, Node* effect, MapHandleList* receiver_maps) {
+    Node* receiver, Node* effect, MapHandles* receiver_maps) {
   ZoneHandleSet<Map> maps;
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(receiver, effect, &maps);
   if (result == NodeProperties::kReliableReceiverMaps) {
     for (size_t i = 0; i < maps.size(); ++i) {
-      receiver_maps->Add(maps[i]);
+      receiver_maps->push_back(maps[i]);
     }
     return true;
   } else if (result == NodeProperties::kUnreliableReceiverMaps) {
@@ -2270,7 +2498,7 @@ bool JSNativeContextSpecialization::InferReceiverMaps(
       if (!maps[i]->is_stable()) return false;
     }
     for (size_t i = 0; i < maps.size(); ++i) {
-      receiver_maps->Add(maps[i]);
+      receiver_maps->push_back(maps[i]);
     }
     return true;
   }

@@ -325,5 +325,48 @@ RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
   CHECK(max_values >= 0);
   return *JSWeakCollection::GetEntries(holder, max_values);
 }
+
+RUNTIME_FUNCTION(Runtime_IsJSMap) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSMap());
+}
+
+RUNTIME_FUNCTION(Runtime_IsJSSet) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSSet());
+}
+
+RUNTIME_FUNCTION(Runtime_IsJSMapIterator) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSMapIterator());
+}
+
+RUNTIME_FUNCTION(Runtime_IsJSSetIterator) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSSetIterator());
+}
+
+RUNTIME_FUNCTION(Runtime_IsJSWeakMap) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSWeakMap());
+}
+
+RUNTIME_FUNCTION(Runtime_IsJSWeakSet) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSWeakSet());
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -4,6 +4,7 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include "src/assembler-inl.h"
 #include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
 #include "src/builtins/builtins-constructor.h"
@@ -14,7 +15,9 @@
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
+#include "src/objects-inl.h"
 
 #include "src/arm/code-stubs-arm.h"
 #include "src/arm/macro-assembler-arm.h"
@@ -199,8 +202,7 @@ void FullCodeGenerator::Generate() {
       if (info->scope()->new_target_var() != nullptr) {
         __ push(r3);  // Preserve new target.
       }
-      if (slots <=
-          ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+      if (slots <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
         Callable callable = CodeFactory::FastNewFunctionContext(
             isolate(), info->scope()->scope_type());
         __ mov(FastNewFunctionContextDescriptor::SlotsRegister(),
@@ -1027,7 +1029,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ b(eq, &no_descriptors);
 
   __ LoadInstanceDescriptors(r0, r2);
-  __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheOffset));
+  __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheBridgeOffset));
   __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.
@@ -1226,8 +1228,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     __ Push(r3, r2, r1, r0);
     __ CallRuntime(Runtime::kCreateObjectLiteral);
   } else {
-    Callable callable = CodeFactory::FastCloneShallowObject(
-        isolate(), expr->properties_count());
+    Callable callable = CodeFactory::FastCloneShallowObject(isolate());
     __ Call(callable.code(), RelocInfo::CODE_TARGET);
     RestoreContext();
   }
@@ -1265,7 +1266,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             VisitForAccumulatorValue(value);
             DCHECK(StoreDescriptor::ValueRegister().is(r0));
             __ ldr(StoreDescriptor::ReceiverRegister(), MemOperand(sp));
-            CallStoreIC(property->GetSlot(0), key->value(), true);
+            CallStoreIC(property->GetSlot(0), key->value(), kStoreOwn);
             PrepareForBailoutForId(key->id(), BailoutState::NO_REGISTERS);
 
             if (NeedsHomeObject(value)) {
@@ -1512,8 +1513,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   }
 }
 
-
-void FullCodeGenerator::VisitYield(Yield* expr) {
+void FullCodeGenerator::VisitSuspend(Suspend* expr) {
   // Resumable functions are not supported.
   UNREACHABLE();
 }
@@ -1723,7 +1723,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
   if (var->IsUnallocated()) {
     // Global var, const, or let.
     __ LoadGlobalObject(StoreDescriptor::ReceiverRegister());
-    CallStoreIC(slot, var->name());
+    CallStoreIC(slot, var->name(), kStoreGlobal);
 
   } else if (IsLexicalVariableMode(var->mode()) && op != Token::INIT) {
     DCHECK(!var->IsLookupSlot());
@@ -1766,12 +1766,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     // Assignment to var or initializing assignment to let/const in harmony
     // mode.
     MemOperand location = VarOperand(var, r1);
-    if (FLAG_debug_code && var->mode() == LET && op == Token::INIT) {
-      // Check for an uninitialized let binding.
-      __ ldr(r2, location);
-      __ CompareRoot(r2, Heap::kTheHoleValueRootIndex);
-      __ Check(eq, kLetBindingReInitialization);
-    }
     EmitStoreToStackLocalOrContextSlot(var, location);
   }
 }
@@ -2043,7 +2037,6 @@ void FullCodeGenerator::EmitIsJSProxy(CallRuntime* expr) {
   context()->Plug(if_true, if_false);
 }
 
-
 void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);
@@ -2094,7 +2087,6 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
 
   context()->Plug(r0);
 }
-
 
 void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
@@ -2242,9 +2234,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       if (property != NULL) {
         VisitForStackValue(property->obj());
         VisitForStackValue(property->key());
-        CallRuntimeWithOperands(is_strict(language_mode())
-                                    ? Runtime::kDeleteProperty_Strict
-                                    : Runtime::kDeleteProperty_Sloppy);
+        PushOperand(Smi::FromInt(language_mode()));
+        CallRuntimeWithOperands(Runtime::kDeleteProperty);
         context()->Plug(r0);
       } else if (proxy != NULL) {
         Variable* var = proxy->var();
@@ -2256,7 +2247,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           __ LoadGlobalObject(r2);
           __ mov(r1, Operand(var->name()));
           __ Push(r2, r1);
-          __ CallRuntime(Runtime::kDeleteProperty_Sloppy);
+          __ Push(Smi::FromInt(SLOPPY));
+          __ CallRuntime(Runtime::kDeleteProperty);
           context()->Plug(r0);
         } else {
           DCHECK(!var->IsLookupSlot());
@@ -2761,43 +2753,7 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
 
 static Address GetInterruptImmediateLoadAddress(Address pc) {
   Address load_address = pc - 2 * Assembler::kInstrSize;
-  if (!FLAG_enable_embedded_constant_pool) {
-    DCHECK(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(load_address)));
-  } else if (Assembler::IsLdrPpRegOffset(Memory::int32_at(load_address))) {
-    // This is an extended constant pool lookup.
-    if (CpuFeatures::IsSupported(ARMv7)) {
-      load_address -= 2 * Assembler::kInstrSize;
-      DCHECK(Assembler::IsMovW(Memory::int32_at(load_address)));
-      DCHECK(Assembler::IsMovT(
-          Memory::int32_at(load_address + Assembler::kInstrSize)));
-    } else {
-      load_address -= 4 * Assembler::kInstrSize;
-      DCHECK(Assembler::IsMovImmed(Memory::int32_at(load_address)));
-      DCHECK(Assembler::IsOrrImmed(
-          Memory::int32_at(load_address + Assembler::kInstrSize)));
-      DCHECK(Assembler::IsOrrImmed(
-          Memory::int32_at(load_address + 2 * Assembler::kInstrSize)));
-      DCHECK(Assembler::IsOrrImmed(
-          Memory::int32_at(load_address + 3 * Assembler::kInstrSize)));
-    }
-  } else if (CpuFeatures::IsSupported(ARMv7) &&
-             Assembler::IsMovT(Memory::int32_at(load_address))) {
-    // This is a movw / movt immediate load.
-    load_address -= Assembler::kInstrSize;
-    DCHECK(Assembler::IsMovW(Memory::int32_at(load_address)));
-  } else if (!CpuFeatures::IsSupported(ARMv7) &&
-             Assembler::IsOrrImmed(Memory::int32_at(load_address))) {
-    // This is a mov / orr immediate load.
-    load_address -= 3 * Assembler::kInstrSize;
-    DCHECK(Assembler::IsMovImmed(Memory::int32_at(load_address)));
-    DCHECK(Assembler::IsOrrImmed(
-        Memory::int32_at(load_address + Assembler::kInstrSize)));
-    DCHECK(Assembler::IsOrrImmed(
-        Memory::int32_at(load_address + 2 * Assembler::kInstrSize)));
-  } else {
-    // This is a small constant pool lookup.
-    DCHECK(Assembler::IsLdrPpImmediateOffset(Memory::int32_at(load_address)));
-  }
+  DCHECK(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(load_address)));
   return load_address;
 }
 

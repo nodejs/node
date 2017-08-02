@@ -48,7 +48,7 @@ TEST(List) {
   Zone zone(&allocator, ZONE_NAME);
   AstValueFactory value_factory(&zone, isolate->ast_string_constants(),
                                 isolate->heap()->HashSeed());
-  AstNodeFactory factory(&value_factory);
+  AstNodeFactory factory(&value_factory, &zone);
   AstNode* node = factory.NewEmptyStatement(kNoSourcePosition);
   list->Add(node);
   CHECK_EQ(1, list->length());

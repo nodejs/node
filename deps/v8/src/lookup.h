@@ -9,6 +9,8 @@
 #include "src/globals.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/descriptor-array.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
@@ -69,7 +71,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
         initial_holder_(holder),
         // kMaxUInt32 isn't a valid index.
         index_(kMaxUInt32),
-        number_(DescriptorArray::kNotFound) {
+        number_(static_cast<uint32_t>(DescriptorArray::kNotFound)) {
 #ifdef DEBUG
     uint32_t index;  // Assert that the name is not an array index.
     DCHECK(!name->AsArrayIndex(&index));
@@ -92,7 +94,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
         receiver_(receiver),
         initial_holder_(holder),
         index_(index),
-        number_(DescriptorArray::kNotFound) {
+        number_(static_cast<uint32_t>(DescriptorArray::kNotFound)) {
     // kMaxUInt32 isn't a valid index.
     DCHECK_NE(kMaxUInt32, index_);
     Start<true>();
@@ -211,8 +213,9 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   bool IsCacheableTransition() {
     DCHECK_EQ(TRANSITION, state_);
     return transition_->IsPropertyCell() ||
-           (!transition_map()->is_dictionary_map() &&
-            transition_map()->GetBackPointer()->IsMap());
+           (transition_map()->is_dictionary_map() &&
+            !GetStoreTarget()->HasFastProperties()) ||
+           transition_map()->GetBackPointer()->IsMap();
   }
   void ApplyTransitionToDataProperty(Handle<JSObject> receiver);
   void ReconfigureDataProperty(Handle<Object> value,
@@ -258,10 +261,11 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   void WriteDataValue(Handle<Object> value, bool initializing_store);
   inline void UpdateProtector() {
     if (IsElement()) return;
+    // This list must be kept in sync with
+    // CodeStubAssembler::HasAssociatedProtector!
     if (*name_ == heap()->is_concat_spreadable_symbol() ||
         *name_ == heap()->constructor_string() ||
         *name_ == heap()->species_symbol() ||
-        *name_ == heap()->has_instance_symbol() ||
         *name_ == heap()->iterator_symbol()) {
       InternalUpdateProtector();
     }

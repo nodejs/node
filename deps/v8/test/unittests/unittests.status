@@ -18,12 +18,4 @@
   'RegisterAllocatorTest.CanAllocateFPRegisters': [SKIP],
 }],  # 'arch == x87'
 
-['variant == asm_wasm', {
-  '*': [SKIP],
-}],  # variant == asm_wasm
-
-['variant == wasm_traps', {
-  '*': [SKIP],
-}],  # variant == wasm_traps
-
 ]

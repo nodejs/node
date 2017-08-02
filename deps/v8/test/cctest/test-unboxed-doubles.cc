@@ -916,6 +916,10 @@ TEST(Regress436816) {
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
+  // Force a GC to free up space before we allocate objects whose
+  // mid-test states would fail heap verification.
+  CcTest::CollectAllGarbage();
+
   const int kPropsCount = kSmiValueSize * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {
@@ -951,7 +955,7 @@ TEST(Regress436816) {
   CHECK(object->map()->HasFastPointerLayout());
 
   // Trigger GCs and heap verification.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 }
 
 
@@ -1010,7 +1014,7 @@ TEST(DescriptorArrayTrimming) {
 
   // Call GC that should trim both |map|'s descriptor array and layout
   // descriptor.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 
   // The unused tail of the layout descriptor is now "clean" again.
   CHECK(map->layout_descriptor()->IsConsistentWithMap(*map, true));
@@ -1172,7 +1176,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   // in compacting mode and |obj_value|'s page is an evacuation candidate).
   IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsCompacting());
-  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*obj)));
+  CHECK(ObjectMarking::IsBlack(*obj, MarkingState::Internal(*obj)));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
   // Trigger GCs so that |obj| moves to old gen.
@@ -1411,7 +1415,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
     obj = factory->NewJSObjectFromMap(map, TENURED);
     CHECK(old_space->Contains(*obj));
 
-    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS);
+    obj_value = factory->NewHeapNumber(0.);
   }
 
   CHECK(heap->InNewSpace(*obj_value));
@@ -1492,8 +1496,8 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   // still active and |obj_value|'s page is indeed an evacuation candidate).
   IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsMarking());
-  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*obj)));
-  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*obj_value)));
+  CHECK(ObjectMarking::IsBlack(*obj, MarkingState::Internal(*obj)));
+  CHECK(ObjectMarking::IsBlack(*obj_value, MarkingState::Internal(*obj_value)));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
   // Trigger incremental write barrier, which should add a slot to remembered

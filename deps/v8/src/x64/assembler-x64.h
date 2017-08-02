@@ -80,7 +80,7 @@ namespace internal {
   V(r15)
 
 // The length of pushq(rbp), movp(rbp, rsp), Push(rsi) and Push(rdi).
-static const int kNoCodeAgeSequenceLength = kPointerSize == kInt64Size ? 6 : 17;
+constexpr int kNoCodeAgeSequenceLength = kPointerSize == kInt64Size ? 6 : 17;
 
 // CPU Registers.
 //
@@ -112,7 +112,7 @@ struct Register {
     kCode_no_reg = -1
   };
 
-  static const int kNumRegisters = Code::kAfterLast;
+  static constexpr int kNumRegisters = Code::kAfterLast;
 
   static Register from_code(int code) {
     DCHECK(code >= 0);
@@ -144,25 +144,23 @@ struct Register {
   int reg_code;
 };
 
-
-#define DECLARE_REGISTER(R) const Register R = {Register::kCode_##R};
+#define DECLARE_REGISTER(R) constexpr Register R = {Register::kCode_##R};
 GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
-const Register no_reg = {Register::kCode_no_reg};
-
+constexpr Register no_reg = {Register::kCode_no_reg};
 
 #ifdef _WIN64
   // Windows calling convention
-const Register arg_reg_1 = {Register::kCode_rcx};
-const Register arg_reg_2 = {Register::kCode_rdx};
-const Register arg_reg_3 = {Register::kCode_r8};
-const Register arg_reg_4 = {Register::kCode_r9};
+constexpr Register arg_reg_1 = {Register::kCode_rcx};
+constexpr Register arg_reg_2 = {Register::kCode_rdx};
+constexpr Register arg_reg_3 = {Register::kCode_r8};
+constexpr Register arg_reg_4 = {Register::kCode_r9};
 #else
   // AMD64 calling convention
-const Register arg_reg_1 = {Register::kCode_rdi};
-const Register arg_reg_2 = {Register::kCode_rsi};
-const Register arg_reg_3 = {Register::kCode_rdx};
-const Register arg_reg_4 = {Register::kCode_rcx};
+constexpr Register arg_reg_1 = {Register::kCode_rdi};
+constexpr Register arg_reg_2 = {Register::kCode_rsi};
+constexpr Register arg_reg_3 = {Register::kCode_rdx};
+constexpr Register arg_reg_4 = {Register::kCode_rcx};
 #endif  // _WIN64
 
 
@@ -204,8 +202,8 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm13)                              \
   V(xmm14)
 
-static const bool kSimpleFPAliasing = true;
-static const bool kSimdMaskRegisters = false;
+constexpr bool kSimpleFPAliasing = true;
+constexpr bool kSimdMaskRegisters = false;
 
 struct XMMRegister {
   enum Code {
@@ -216,7 +214,7 @@ struct XMMRegister {
     kCode_no_reg = -1
   };
 
-  static const int kMaxNumRegisters = Code::kAfterLast;
+  static constexpr int kMaxNumRegisters = Code::kAfterLast;
 
   static XMMRegister from_code(int code) {
     XMMRegister result = {code};
@@ -249,10 +247,10 @@ typedef XMMRegister DoubleRegister;
 typedef XMMRegister Simd128Register;
 
 #define DECLARE_REGISTER(R) \
-  const DoubleRegister R = {DoubleRegister::kCode_##R};
+  constexpr DoubleRegister R = {DoubleRegister::kCode_##R};
 DOUBLE_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
-const DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
+constexpr DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
 
 enum Condition {
   // any value < 0 is considered no_condition
@@ -471,7 +469,7 @@ class Assembler : public AssemblerBase {
   // (There is a 15 byte limit on x64 instruction length that rules out some
   // otherwise valid instructions.)
   // This allows for a single, fast space check per instruction.
-  static const int kGap = 32;
+  static constexpr int kGap = 32;
 
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -487,7 +485,9 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size)
+      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
+  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
   virtual ~Assembler() { }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -502,6 +502,7 @@ class Assembler : public AssemblerBase {
   // the absolute address of the target.
   // These functions convert between absolute Addresses of Code objects and
   // the relative displacements stored in the code.
+  // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static inline Address target_address_at(Address pc, Address constant_pool);
   static inline void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
@@ -535,45 +536,45 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  inline Handle<Object> code_target_object_handle_at(Address pc);
+  inline Handle<Code> code_target_object_handle_at(Address pc);
   inline Address runtime_entry_at(Address pc);
   // Number of bytes taken up by the branch target in the code.
-  static const int kSpecialTargetSize = 4;  // Use 32-bit displacement.
+  static constexpr int kSpecialTargetSize = 4;  // 32-bit displacement.
   // Distance between the address of the code target in the call instruction
   // and the return address pushed on the stack.
-  static const int kCallTargetAddressOffset = 4;  // Use 32-bit displacement.
+  static constexpr int kCallTargetAddressOffset = 4;  // 32-bit displacement.
   // The length of call(kScratchRegister).
-  static const int kCallScratchRegisterInstructionLength = 3;
+  static constexpr int kCallScratchRegisterInstructionLength = 3;
   // The length of call(Immediate32).
-  static const int kShortCallInstructionLength = 5;
+  static constexpr int kShortCallInstructionLength = 5;
   // The length of movq(kScratchRegister, address).
-  static const int kMoveAddressIntoScratchRegisterInstructionLength =
+  static constexpr int kMoveAddressIntoScratchRegisterInstructionLength =
       2 + kPointerSize;
   // The length of movq(kScratchRegister, address) and call(kScratchRegister).
-  static const int kCallSequenceLength =
+  static constexpr int kCallSequenceLength =
       kMoveAddressIntoScratchRegisterInstructionLength +
       kCallScratchRegisterInstructionLength;
 
   // The debug break slot must be able to contain an indirect call sequence.
-  static const int kDebugBreakSlotLength = kCallSequenceLength;
+  static constexpr int kDebugBreakSlotLength = kCallSequenceLength;
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
-  static const int kPatchDebugBreakSlotAddressOffset =
+  static constexpr int kPatchDebugBreakSlotAddressOffset =
       kMoveAddressIntoScratchRegisterInstructionLength - kPointerSize;
 
   // One byte opcode for test eax,0xXXXXXXXX.
-  static const byte kTestEaxByte = 0xA9;
+  static constexpr byte kTestEaxByte = 0xA9;
   // One byte opcode for test al, 0xXX.
-  static const byte kTestAlByte = 0xA8;
+  static constexpr byte kTestAlByte = 0xA8;
   // One byte opcode for nop.
-  static const byte kNopByte = 0x90;
+  static constexpr byte kNopByte = 0x90;
 
   // One byte prefix for a short conditional jump.
-  static const byte kJccShortPrefix = 0x70;
-  static const byte kJncShortOpcode = kJccShortPrefix | not_carry;
-  static const byte kJcShortOpcode = kJccShortPrefix | carry;
-  static const byte kJnzShortOpcode = kJccShortPrefix | not_zero;
-  static const byte kJzShortOpcode = kJccShortPrefix | zero;
+  static constexpr byte kJccShortPrefix = 0x70;
+  static constexpr byte kJncShortOpcode = kJccShortPrefix | not_carry;
+  static constexpr byte kJcShortOpcode = kJccShortPrefix | carry;
+  static constexpr byte kJnzShortOpcode = kJccShortPrefix | not_zero;
+  static constexpr byte kJzShortOpcode = kJccShortPrefix | zero;
 
   // VEX prefix encodings.
   enum SIMDPrefix { kNone = 0x0, k66 = 0x1, kF3 = 0x2, kF2 = 0x3 };
@@ -888,6 +889,9 @@ class Assembler : public AssemblerBase {
   void ud2();
   void setcc(Condition cc, Register reg);
 
+  void pshufw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+  void pshufw(XMMRegister dst, const Operand& src, uint8_t shuffle);
+
   // Label operations & relative jumps (PPUM Appendix D)
   //
   // Takes a branch opcode (cc) and a label (L) and generates
@@ -927,7 +931,6 @@ class Assembler : public AssemblerBase {
   // Use a 32-bit signed displacement.
   // Unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
-  void jmp(Address entry, RelocInfo::Mode rmode);
   void jmp(Handle<Code> target, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
@@ -1302,6 +1305,8 @@ class Assembler : public AssemblerBase {
   void psrldq(XMMRegister dst, uint8_t shift);
   void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
   void pshufd(XMMRegister dst, const Operand& src, uint8_t shuffle);
+  void pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+  void pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
   void cvtdq2ps(XMMRegister dst, XMMRegister src);
   void cvtdq2ps(XMMRegister dst, const Operand& src);
 
@@ -2019,7 +2024,7 @@ class Assembler : public AssemblerBase {
   static bool IsNop(Address addr);
 
   // Avoid overflows for displacements etc.
-  static const int kMaximalBufferSize = 512*MB;
+  static constexpr int kMaximalBufferSize = 512 * MB;
 
   byte byte_at(int pos)  { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }

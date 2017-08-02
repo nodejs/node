@@ -1,3 +1,4 @@
+Tests that protocol works with different locales
 
 Running test: consoleLogWithDefaultLocale
 {

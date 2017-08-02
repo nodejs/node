@@ -247,7 +247,10 @@ node::DebugOptions debug_options;
 static struct {
 #if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {
-    platform_ = v8::platform::CreateDefaultPlatform(thread_pool_size);
+    platform_ = v8::platform::CreateDefaultPlatform(
+        thread_pool_size,
+        v8::platform::IdleTaskSupport::kDisabled,
+        v8::platform::InProcessStackDumping::kDisabled);
     V8::InitializePlatform(platform_);
     tracing::TraceEventHelper::SetCurrentPlatform(platform_);
   }

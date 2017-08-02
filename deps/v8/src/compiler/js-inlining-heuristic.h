@@ -37,14 +37,17 @@ class JSInliningHeuristic final : public AdvancedReducer {
 
   struct Candidate {
     Handle<JSFunction> functions[kMaxCallPolymorphism];
+    // In the case of polymorphic inlining, this tells if each of the
+    // functions could be inlined.
+    bool can_inline_function[kMaxCallPolymorphism];
     // TODO(2206): For now polymorphic inlining is treated orthogonally to
     // inlining based on SharedFunctionInfo. This should be unified and the
     // above array should be switched to SharedFunctionInfo instead. Currently
     // we use {num_functions == 1 && functions[0].is_null()} as an indicator.
     Handle<SharedFunctionInfo> shared_info;
     int num_functions;
-    Node* node = nullptr;    // The call site at which to inline.
-    float frequency = 0.0f;  // Relative frequency of this call site.
+    Node* node = nullptr;     // The call site at which to inline.
+    CallFrequency frequency;  // Relative frequency of this call site.
   };
 
   // Comparator for candidates.
@@ -57,7 +60,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
 
   // Dumps candidates to console.
   void PrintCandidates();
-  Reduction InlineCandidate(Candidate const& candidate);
+  Reduction InlineCandidate(Candidate const& candidate, bool force_inline);
 
   CommonOperatorBuilder* common() const;
   Graph* graph() const;

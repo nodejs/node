@@ -289,10 +289,10 @@ TEST(GetScriptLineNumber) {
 
 
 TEST(FeedbackVectorPreservedAcrossRecompiles) {
-  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  if (i::FLAG_always_opt || !i::FLAG_opt) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_crankshaft()) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
 
@@ -402,8 +402,8 @@ TEST(OptimizedCodeSharing1) {
             env->Global()
                 ->Get(env.local(), v8_str("closure2"))
                 .ToLocalChecked())));
-    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
-    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
+    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_optimizer());
+    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_optimizer());
     CHECK_EQ(fun1->code(), fun2->code());
   }
 }
@@ -563,6 +563,84 @@ TEST(CompileFunctionInContextScriptOrigin) {
   CHECK_EQ(42 + strlen("throw "), static_cast<unsigned>(frame->GetColumn()));
 }
 
+TEST(CompileFunctionInContextHarmonyFunctionToString) {
+#define CHECK_NOT_CAUGHT(__local_context__, try_catch, __op__)                \
+  do {                                                                        \
+    const char* op = (__op__);                                                \
+    v8::Local<v8::Context> context = (__local_context__);                     \
+    if (try_catch.HasCaught()) {                                              \
+      v8::String::Utf8Value error(                                            \
+          try_catch.Exception()->ToString(context).ToLocalChecked());         \
+      V8_Fatal(__FILE__, __LINE__,                                            \
+               "Unexpected exception thrown during %s:\n\t%s\n", op, *error); \
+    }                                                                         \
+  } while (0)
+
+  auto previous_flag = v8::internal::FLAG_harmony_function_tostring;
+  v8::internal::FLAG_harmony_function_tostring = true;
+  {
+    CcTest::InitializeVM();
+    v8::HandleScope scope(CcTest::isolate());
+    LocalContext env;
+
+    // Regression test for v8:6190
+    {
+      v8::ScriptOrigin origin(v8_str("test"), v8_int(22), v8_int(41));
+      v8::ScriptCompiler::Source script_source(v8_str("return event"), origin);
+
+      v8::Local<v8::String> params[] = {v8_str("event")};
+      v8::TryCatch try_catch(CcTest::isolate());
+      v8::MaybeLocal<v8::Function> maybe_fun =
+          v8::ScriptCompiler::CompileFunctionInContext(
+              env.local(), &script_source, arraysize(params), params, 0,
+              nullptr);
+
+      CHECK_NOT_CAUGHT(env.local(), try_catch,
+                       "v8::ScriptCompiler::CompileFunctionInContext");
+
+      v8::Local<v8::Function> fun = maybe_fun.ToLocalChecked();
+      CHECK(!fun.IsEmpty());
+      CHECK(!try_catch.HasCaught());
+      v8::Local<v8::String> result =
+          fun->ToString(env.local()).ToLocalChecked();
+      v8::Local<v8::String> expected = v8_str(
+          "function anonymous(event\n"
+          ") {\n"
+          "return event\n"
+          "}");
+      CHECK(expected->Equals(env.local(), result).FromJust());
+    }
+
+    // With no parameters:
+    {
+      v8::ScriptOrigin origin(v8_str("test"), v8_int(17), v8_int(31));
+      v8::ScriptCompiler::Source script_source(v8_str("return 0"), origin);
+
+      v8::TryCatch try_catch(CcTest::isolate());
+      v8::MaybeLocal<v8::Function> maybe_fun =
+          v8::ScriptCompiler::CompileFunctionInContext(
+              env.local(), &script_source, 0, nullptr, 0, nullptr);
+
+      CHECK_NOT_CAUGHT(env.local(), try_catch,
+                       "v8::ScriptCompiler::CompileFunctionInContext");
+
+      v8::Local<v8::Function> fun = maybe_fun.ToLocalChecked();
+      CHECK(!fun.IsEmpty());
+      CHECK(!try_catch.HasCaught());
+      v8::Local<v8::String> result =
+          fun->ToString(env.local()).ToLocalChecked();
+      v8::Local<v8::String> expected = v8_str(
+          "function anonymous(\n"
+          ") {\n"
+          "return 0\n"
+          "}");
+      CHECK(expected->Equals(env.local(), result).FromJust());
+    }
+  }
+  v8::internal::FLAG_harmony_function_tostring = previous_flag;
+
+#undef CHECK_NOT_CAUGHT
+}
 
 #ifdef ENABLE_DISASSEMBLER
 static Handle<JSFunction> GetJSFunction(v8::Local<v8::Object> obj,
@@ -621,38 +699,6 @@ TEST(SplitConstantsInFullCompiler) {
 }
 #endif
 
-TEST(IgnitionEntryTrampolineSelfHealing) {
-  FLAG_allow_natives_syntax = true;
-  FLAG_always_opt = false;
-  CcTest::InitializeVM();
-  FLAG_ignition = true;
-  Isolate* isolate = CcTest::i_isolate();
-  v8::HandleScope scope(CcTest::isolate());
-
-  CompileRun(
-      "function MkFun() {"
-      "  function f() { return 23 }"
-      "  return f"
-      "}"
-      "var f1 = MkFun(); f1();"
-      "var f2 = MkFun(); f2();"
-      "%BaselineFunctionOnNextCall(f1);");
-  Handle<JSFunction> f1 = Handle<JSFunction>::cast(GetGlobalProperty("f1"));
-  Handle<JSFunction> f2 = Handle<JSFunction>::cast(GetGlobalProperty("f2"));
-
-  // Function {f1} is marked for baseline.
-  CompileRun("var result1 = f1()");
-  CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f1->code());
-  CHECK_EQ(*isolate->builtins()->InterpreterEntryTrampoline(), f2->code());
-  CHECK_EQ(23.0, GetGlobalProperty("result1")->Number());
-
-  // Function {f2} will self-heal now.
-  CompileRun("var result2 = f2()");
-  CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f1->code());
-  CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f2->code());
-  CHECK_EQ(23.0, GetGlobalProperty("result2")->Number());
-}
-
 TEST(InvocationCount) {
   FLAG_allow_natives_syntax = true;
   FLAG_always_opt = false;
@@ -671,7 +717,4 @@ TEST(InvocationCount) {
   CHECK_EQ(2, foo->feedback_vector()->invocation_count());
   CompileRun("foo(); foo()");
   CHECK_EQ(4, foo->feedback_vector()->invocation_count());
-  CompileRun("%BaselineFunctionOnNextCall(foo);");
-  CompileRun("foo();");
-  CHECK_EQ(5, foo->feedback_vector()->invocation_count());
 }

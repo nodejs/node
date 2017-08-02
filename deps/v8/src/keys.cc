@@ -712,6 +712,17 @@ Handle<FixedArray> KeyAccumulator::GetOwnEnumPropertyKeys(
   }
 }
 
+namespace {
+
+struct NameComparator {
+  bool operator()(uint32_t hash1, uint32_t hash2, const Handle<Name>& key1,
+                  const Handle<Name>& key2) const {
+    return Name::Equals(key1, key2);
+  }
+};
+
+}  // namespace
+
 // ES6 9.5.12
 // Returns |true| on success, |nothing| in case of exception.
 Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
@@ -800,33 +811,36 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   }
   // 16. Let uncheckedResultKeys be a new List which is a copy of trapResult.
   Zone set_zone(isolate_->allocator(), ZONE_NAME);
+  ZoneAllocationPolicy alloc(&set_zone);
   const int kPresent = 1;
   const int kGone = 0;
-  IdentityMap<int, ZoneAllocationPolicy> unchecked_result_keys(
-      isolate_->heap(), ZoneAllocationPolicy(&set_zone));
+  base::TemplateHashMapImpl<Handle<Name>, int, NameComparator,
+                            ZoneAllocationPolicy>
+      unchecked_result_keys(ZoneHashMap::kDefaultHashMapCapacity,
+                            NameComparator(), alloc);
   int unchecked_result_keys_size = 0;
   for (int i = 0; i < trap_result->length(); ++i) {
-    DCHECK(trap_result->get(i)->IsUniqueName());
-    Object* key = trap_result->get(i);
-    int* entry = unchecked_result_keys.Get(key);
-    if (*entry != kPresent) {
-      *entry = kPresent;
+    Handle<Name> key(Name::cast(trap_result->get(i)), isolate_);
+    auto entry = unchecked_result_keys.LookupOrInsert(key, key->Hash(), alloc);
+    if (entry->value != kPresent) {
+      entry->value = kPresent;
       unchecked_result_keys_size++;
     }
   }
   // 17. Repeat, for each key that is an element of targetNonconfigurableKeys:
   for (int i = 0; i < nonconfigurable_keys_length; ++i) {
-    Object* key = target_nonconfigurable_keys->get(i);
+    Object* raw_key = target_nonconfigurable_keys->get(i);
+    Handle<Name> key(Name::cast(raw_key), isolate_);
     // 17a. If key is not an element of uncheckedResultKeys, throw a
     //      TypeError exception.
-    int* found = unchecked_result_keys.Find(key);
-    if (found == nullptr || *found == kGone) {
+    auto found = unchecked_result_keys.Lookup(key, key->Hash());
+    if (found == nullptr || found->value == kGone) {
       isolate_->Throw(*isolate_->factory()->NewTypeError(
-          MessageTemplate::kProxyOwnKeysMissing, handle(key, isolate_)));
+          MessageTemplate::kProxyOwnKeysMissing, key));
       return Nothing<bool>();
     }
     // 17b. Remove key from uncheckedResultKeys.
-    *found = kGone;
+    found->value = kGone;
     unchecked_result_keys_size--;
   }
   // 18. If extensibleTarget is true, return trapResult.
@@ -835,18 +849,19 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   }
   // 19. Repeat, for each key that is an element of targetConfigurableKeys:
   for (int i = 0; i < target_configurable_keys->length(); ++i) {
-    Object* key = target_configurable_keys->get(i);
-    if (key->IsSmi()) continue;  // Zapped entry, was nonconfigurable.
+    Object* raw_key = target_configurable_keys->get(i);
+    if (raw_key->IsSmi()) continue;  // Zapped entry, was nonconfigurable.
+    Handle<Name> key(Name::cast(raw_key), isolate_);
     // 19a. If key is not an element of uncheckedResultKeys, throw a
     //      TypeError exception.
-    int* found = unchecked_result_keys.Find(key);
-    if (found == nullptr || *found == kGone) {
+    auto found = unchecked_result_keys.Lookup(key, key->Hash());
+    if (found == nullptr || found->value == kGone) {
       isolate_->Throw(*isolate_->factory()->NewTypeError(
-          MessageTemplate::kProxyOwnKeysMissing, handle(key, isolate_)));
+          MessageTemplate::kProxyOwnKeysMissing, key));
       return Nothing<bool>();
     }
     // 19b. Remove key from uncheckedResultKeys.
-    *found = kGone;
+    found->value = kGone;
     unchecked_result_keys_size--;
   }
   // 20. If uncheckedResultKeys is not empty, throw a TypeError exception.

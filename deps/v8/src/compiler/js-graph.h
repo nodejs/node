@@ -142,6 +142,10 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // values for a certain part of the frame state.
   Node* EmptyStateValues();
 
+  // Typed state values with a single dead input. This is useful to represent
+  // dead accumulator.
+  Node* SingleDeadTypedStateValues();
+
   // Create a control node that serves as dependency for dead nodes.
   Node* Dead();
 
@@ -181,6 +185,7 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
     kOneConstant,
     kNaNConstant,
     kEmptyStateValues,
+    kSingleDeadTypedStateValues,
     kDead,
     kNumCachedNodes  // Must remain last.
   };

@@ -17,6 +17,7 @@
 #include "src/frames-inl.h"
 #include "src/globals.h"
 #include "src/isolate-inl.h"
+#include "src/macro-assembler-inl.h"
 #include "src/macro-assembler.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
@@ -216,7 +217,7 @@ void FullCodeGenerator::CallLoadIC(FeedbackSlot slot, Handle<Object> name) {
 }
 
 void FullCodeGenerator::CallStoreIC(FeedbackSlot slot, Handle<Object> name,
-                                    bool store_own_property) {
+                                    StoreICKind store_ic_kind) {
   DCHECK(name->IsName());
   __ Move(StoreDescriptor::NameRegister(), name);
 
@@ -230,16 +231,26 @@ void FullCodeGenerator::CallStoreIC(FeedbackSlot slot, Handle<Object> name,
   }
 
   Handle<Code> code;
-  if (store_own_property) {
-    DCHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
-              feedback_vector_spec()->GetKind(slot));
-    code = CodeFactory::StoreOwnIC(isolate()).code();
-  } else {
-    // Ensure that language mode is in sync with the IC slot kind.
-    DCHECK_EQ(
-        GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
-        language_mode());
-    code = CodeFactory::StoreIC(isolate(), language_mode()).code();
+  switch (store_ic_kind) {
+    case kStoreOwn:
+      DCHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
+                feedback_vector_spec()->GetKind(slot));
+      code = CodeFactory::StoreOwnIC(isolate()).code();
+      break;
+    case kStoreGlobal:
+      // Ensure that language mode is in sync with the IC slot kind.
+      DCHECK_EQ(
+          GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
+          language_mode());
+      code = CodeFactory::StoreGlobalIC(isolate(), language_mode()).code();
+      break;
+    case kStoreNamed:
+      // Ensure that language mode is in sync with the IC slot kind.
+      DCHECK_EQ(
+          GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
+          language_mode());
+      code = CodeFactory::StoreIC(isolate(), language_mode()).code();
+      break;
   }
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
@@ -1437,6 +1448,10 @@ void FullCodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
 
 void FullCodeGenerator::VisitGetIterator(GetIterator* expr) { UNREACHABLE(); }
 
+void FullCodeGenerator::VisitImportCallExpression(ImportCallExpression* expr) {
+  UNREACHABLE();
+}
+
 void FullCodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
@@ -1444,10 +1459,11 @@ void FullCodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
 
 bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
   Expression* sub_expr;
-  Handle<String> check;
-  if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
+  Literal* literal;
+  if (expr->IsLiteralCompareTypeof(&sub_expr, &literal)) {
     SetExpressionPosition(expr);
-    EmitLiteralCompareTypeof(expr, sub_expr, check);
+    EmitLiteralCompareTypeof(expr, sub_expr,
+                             Handle<String>::cast(literal->value()));
     return true;
   }
 

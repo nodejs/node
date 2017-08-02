@@ -448,7 +448,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
       i::FLAG_always_opt = true;
       CompileRun(f_source);
       CompileRun("f('a+', new X());");
-      CHECK(!i_isolate->use_crankshaft() ||
+      CHECK(!i_isolate->use_optimizer() ||
             GetJSFunction(env.local(), "f")->IsOptimized());
 
       // Call f and force deoptimization while processing the binary operation.
@@ -510,7 +510,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
   i::FLAG_always_opt = true;
   CompileRun(f_source);
   CompileRun("f(7, new X());");
-  CHECK(!i_isolate->use_crankshaft() ||
+  CHECK(!i_isolate->use_optimizer() ||
         GetJSFunction((*env).local(), "f")->IsOptimized());
 
   // Call f and force deoptimization while processing the binary operation.
@@ -707,7 +707,7 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
       i::FLAG_always_opt = true;
       CompileRun(f_source);
       CompileRun("f('a', new X());");
-      CHECK(!i_isolate->use_crankshaft() ||
+      CHECK(!i_isolate->use_optimizer() ||
             GetJSFunction(env.local(), "f")->IsOptimized());
 
       // Call f and force deoptimization while processing the comparison.
@@ -798,7 +798,7 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
       CompileRun("g1(new X());");
       CompileRun("f2(new X(), 'z');");
       CompileRun("g2(new X(), 'z');");
-      if (i_isolate->use_crankshaft()) {
+      if (i_isolate->use_optimizer()) {
         CHECK(GetJSFunction(env.local(), "f1")->IsOptimized());
         CHECK(GetJSFunction(env.local(), "g1")->IsOptimized());
         CHECK(GetJSFunction(env.local(), "f2")->IsOptimized());
@@ -902,7 +902,7 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreICNested) {
       CompileRun("g1(new X());");
       CompileRun("f2(new X(), 'z');");
       CompileRun("g2(new X(), 'z');");
-      if (i_isolate->use_crankshaft()) {
+      if (i_isolate->use_optimizer()) {
         CHECK(GetJSFunction(env.local(), "f1")->IsOptimized());
         CHECK(GetJSFunction(env.local(), "g1")->IsOptimized());
         CHECK(GetJSFunction(env.local(), "f2")->IsOptimized());

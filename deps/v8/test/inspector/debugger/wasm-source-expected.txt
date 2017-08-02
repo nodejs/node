@@ -1,3 +1,4 @@
+Tests how wasm scrips report the source
 Check that inspector gets disassembled wasm code
 Paused on debugger!
 Number of frames: 5

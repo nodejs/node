@@ -117,7 +117,8 @@ TEST(Bits, RoundUpToPowerOfTwo32) {
   TRACED_FORRANGE(uint32_t, shift, 0, 31) {
     EXPECT_EQ(1u << shift, RoundUpToPowerOfTwo32(1u << shift));
   }
-  EXPECT_EQ(0u, RoundUpToPowerOfTwo32(0));
+  EXPECT_EQ(1u, RoundUpToPowerOfTwo32(0));
+  EXPECT_EQ(1u, RoundUpToPowerOfTwo32(1));
   EXPECT_EQ(4u, RoundUpToPowerOfTwo32(3));
   EXPECT_EQ(0x80000000u, RoundUpToPowerOfTwo32(0x7fffffffu));
 }
@@ -125,7 +126,24 @@ TEST(Bits, RoundUpToPowerOfTwo32) {
 
 TEST(BitsDeathTest, DISABLE_IN_RELEASE(RoundUpToPowerOfTwo32)) {
   ASSERT_DEATH_IF_SUPPORTED({ RoundUpToPowerOfTwo32(0x80000001u); },
-                            "0x80000000");
+                            "Check failed:.* << 31");
+}
+
+TEST(Bits, RoundUpToPowerOfTwo64) {
+  TRACED_FORRANGE(uint64_t, shift, 0, 63) {
+    uint64_t value = uint64_t{1} << shift;
+    EXPECT_EQ(value, RoundUpToPowerOfTwo64(value));
+  }
+  EXPECT_EQ(uint64_t{1}, RoundUpToPowerOfTwo64(0));
+  EXPECT_EQ(uint64_t{1}, RoundUpToPowerOfTwo64(1));
+  EXPECT_EQ(uint64_t{4}, RoundUpToPowerOfTwo64(3));
+  EXPECT_EQ(uint64_t{1} << 63, RoundUpToPowerOfTwo64((uint64_t{1} << 63) - 1));
+  EXPECT_EQ(uint64_t{1} << 63, RoundUpToPowerOfTwo64(uint64_t{1} << 63));
+}
+
+TEST(BitsDeathTest, DISABLE_IN_RELEASE(RoundUpToPowerOfTwo64)) {
+  ASSERT_DEATH_IF_SUPPORTED({ RoundUpToPowerOfTwo64((uint64_t{1} << 63) + 1); },
+                            "Check failed:.* << 63");
 }
 
 

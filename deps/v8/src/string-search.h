@@ -563,6 +563,19 @@ int SearchString(Isolate* isolate,
   return search.Search(subject, start_index);
 }
 
+// A wrapper function around SearchString that wraps raw pointers to the subject
+// and pattern as vectors before calling SearchString. Used from the
+// StringIndexOf builtin.
+template <typename SubjectChar, typename PatternChar>
+int SearchStringRaw(Isolate* isolate, const SubjectChar* subject_ptr,
+                    int subject_length, const PatternChar* pattern_ptr,
+                    int pattern_length, int start_index) {
+  DisallowHeapAllocation no_gc;
+  Vector<const SubjectChar> subject(subject_ptr, subject_length);
+  Vector<const PatternChar> pattern(pattern_ptr, pattern_length);
+  return SearchString(isolate, subject, pattern, start_index);
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -13,23 +13,24 @@ namespace v8 {
 namespace internal {
 
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK(ObjectMarking::IsBlack(obj));
+  DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC>(
+      obj, MarkingState::Internal(obj))));
   if (!marking_deque()->Push(obj)) {
-    ObjectMarking::BlackToGrey(obj);
+    ObjectMarking::BlackToGrey<MarkBit::NON_ATOMIC>(
+        obj, MarkingState::Internal(obj));
   }
 }
 
-
 void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
-  DCHECK(ObjectMarking::IsBlack(obj));
+  DCHECK(ObjectMarking::IsBlack(obj, MarkingState::Internal(obj)));
   if (!marking_deque()->Unshift(obj)) {
-    ObjectMarking::BlackToGrey(obj);
+    ObjectMarking::BlackToGrey(obj, MarkingState::Internal(obj));
   }
 }
 
 void MarkCompactCollector::MarkObject(HeapObject* obj) {
-  if (ObjectMarking::IsWhite(obj)) {
-    ObjectMarking::WhiteToBlack(obj);
+  if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+          obj, MarkingState::Internal(obj))) {
     PushBlack(obj);
   }
 }
@@ -40,7 +41,8 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
   if (target_page->IsEvacuationCandidate() &&
       !ShouldSkipEvacuationSlotRecording(object)) {
-    DCHECK(ObjectMarking::IsBlackOrGrey(object));
+    DCHECK(
+        ObjectMarking::IsBlackOrGrey(object, MarkingState::Internal(object)));
     RememberedSet<OLD_TO_OLD>::Insert(source_page,
                                       reinterpret_cast<Address>(slot));
   }
@@ -105,9 +107,34 @@ void CodeFlusher::ClearNextCandidate(SharedFunctionInfo* candidate) {
   candidate->code()->set_gc_metadata(NULL, SKIP_WRITE_BARRIER);
 }
 
+void CodeFlusher::VisitListHeads(RootVisitor* visitor) {
+  visitor->VisitRootPointer(
+      Root::kCodeFlusher,
+      reinterpret_cast<Object**>(&jsfunction_candidates_head_));
+  visitor->VisitRootPointer(
+      Root::kCodeFlusher,
+      reinterpret_cast<Object**>(&shared_function_info_candidates_head_));
+}
+
+template <typename StaticVisitor>
+void CodeFlusher::IteratePointersToFromSpace() {
+  Heap* heap = isolate_->heap();
+  JSFunction* candidate = jsfunction_candidates_head_;
+  while (candidate != nullptr) {
+    JSFunction** slot = GetNextCandidateSlot(candidate);
+    if (heap->InFromSpace(*slot)) {
+      StaticVisitor::VisitPointer(heap, candidate,
+                                  reinterpret_cast<Object**>(slot));
+    }
+    candidate = GetNextCandidate(candidate);
+  }
+}
 
 template <LiveObjectIterationMode T>
 HeapObject* LiveObjectIterator<T>::Next() {
+  Map* one_word_filler = heap()->one_pointer_filler_map();
+  Map* two_word_filler = heap()->two_pointer_filler_map();
+  Map* free_space_map = heap()->free_space_map();
   while (!it_.Done()) {
     HeapObject* object = nullptr;
     while (current_cell_ != 0) {
@@ -127,14 +154,13 @@ HeapObject* LiveObjectIterator<T>::Next() {
         // However, if there is a black area at the end of the page, and the
         // last word is a one word filler, we are not allowed to advance. In
         // that case we can return immediately.
-        if (it_.Done()) {
+        if (!it_.Advance()) {
           DCHECK(HeapObject::FromAddress(addr)->map() ==
                  HeapObject::FromAddress(addr)
                      ->GetHeap()
                      ->one_pointer_filler_map());
           return nullptr;
         }
-        it_.Advance();
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }
@@ -177,9 +203,17 @@ HeapObject* LiveObjectIterator<T>::Next() {
 
       // We found a live object.
       if (object != nullptr) {
-        if (map == heap()->one_pointer_filler_map()) {
-          // Black areas together with slack tracking may result in black one
-          // word filler objects. We filter these objects out in the iterator.
+        // Do not use IsFiller() here. This may cause a data race for reading
+        // out the instance type when a new map concurrently is written into
+        // this object while iterating over the object.
+        if (map == one_word_filler || map == two_word_filler ||
+            map == free_space_map) {
+          // There are two reasons why we can get black or grey fillers:
+          // 1) Black areas together with slack tracking may result in black one
+          // word filler objects.
+          // 2) Left trimming may leave black or grey fillers behind because we
+          // do not clear the old location of the object start.
+          // We filter these objects out in the iterator.
           object = nullptr;
         } else {
           break;
@@ -188,8 +222,7 @@ HeapObject* LiveObjectIterator<T>::Next() {
     }
 
     if (current_cell_ == 0) {
-      if (!it_.Done()) {
-        it_.Advance();
+      if (it_.Advance()) {
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }

@@ -13,20 +13,20 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {Register::kCode_v0};
-const Register kReturnRegister1 = {Register::kCode_v1};
-const Register kReturnRegister2 = {Register::kCode_a0};
-const Register kJSFunctionRegister = {Register::kCode_a1};
-const Register kContextRegister = {Register::kCpRegister};
-const Register kAllocateSizeRegister = {Register::kCode_a0};
-const Register kInterpreterAccumulatorRegister = {Register::kCode_v0};
-const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_t4};
-const Register kInterpreterBytecodeArrayRegister = {Register::kCode_t5};
-const Register kInterpreterDispatchTableRegister = {Register::kCode_t6};
-const Register kJavaScriptCallArgCountRegister = {Register::kCode_a0};
-const Register kJavaScriptCallNewTargetRegister = {Register::kCode_a3};
-const Register kRuntimeCallFunctionRegister = {Register::kCode_a1};
-const Register kRuntimeCallArgCountRegister = {Register::kCode_a0};
+constexpr Register kReturnRegister0 = {Register::kCode_v0};
+constexpr Register kReturnRegister1 = {Register::kCode_v1};
+constexpr Register kReturnRegister2 = {Register::kCode_a0};
+constexpr Register kJSFunctionRegister = {Register::kCode_a1};
+constexpr Register kContextRegister = {Register::kCpRegister};
+constexpr Register kAllocateSizeRegister = {Register::kCode_a0};
+constexpr Register kInterpreterAccumulatorRegister = {Register::kCode_v0};
+constexpr Register kInterpreterBytecodeOffsetRegister = {Register::kCode_t4};
+constexpr Register kInterpreterBytecodeArrayRegister = {Register::kCode_t5};
+constexpr Register kInterpreterDispatchTableRegister = {Register::kCode_t6};
+constexpr Register kJavaScriptCallArgCountRegister = {Register::kCode_a0};
+constexpr Register kJavaScriptCallNewTargetRegister = {Register::kCode_a3};
+constexpr Register kRuntimeCallFunctionRegister = {Register::kCode_a1};
+constexpr Register kRuntimeCallArgCountRegister = {Register::kCode_a0};
 
 // Forward declaration.
 class JumpTarget;
@@ -142,6 +142,8 @@ class MacroAssembler: public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
 
+  Isolate* isolate() const { return isolate_; }
+
   // Arguments macros.
 #define COND_TYPED_ARGS Condition cond, Register r1, const Operand& r2
 #define COND_ARGS cond, r1, r2
@@ -178,12 +180,15 @@ class MacroAssembler: public Assembler {
 #define COND_ARGS Condition cond = al, Register rs = zero_reg, \
   const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
-  void Jump(Register target, COND_ARGS);
+  void Jump(Register target, int16_t offset = 0, COND_ARGS);
+  void Jump(Register target, Register base, int16_t offset = 0, COND_ARGS);
+  void Jump(Register target, const Operand& offset, COND_ARGS);
   void Jump(intptr_t target, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(Address target, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
-  static int CallSize(Register target, COND_ARGS);
-  void Call(Register target, COND_ARGS);
+  static int CallSize(Register target, int16_t offset = 0, COND_ARGS);
+  void Call(Register target, int16_t offset = 0, COND_ARGS);
+  void Call(Register target, Register base, int16_t offset = 0, COND_ARGS);
   static int CallSize(Address target, RelocInfo::Mode rmode, COND_ARGS);
   void Call(Address target, RelocInfo::Mode rmode, COND_ARGS);
   int CallSize(Handle<Code> code,
@@ -210,9 +215,9 @@ class MacroAssembler: public Assembler {
 
 // Number of instructions needed for calculation of switch table entry address
 #ifdef _MIPS_ARCH_MIPS32R6
-  static const int kSwitchTablePrologueSize = 5;
+  static constexpr int kSwitchTablePrologueSize = 5;
 #else
-  static const int kSwitchTablePrologueSize = 10;
+  static constexpr int kSwitchTablePrologueSize = 10;
 #endif
   // GetLabelFunction must be lambda '[](size_t index) -> Label*' or a
   // functor/function with 'Label *func(size_t index)' declaration.
@@ -671,6 +676,9 @@ class MacroAssembler: public Assembler {
   void Uldc1(FPURegister fd, const MemOperand& rs, Register scratch);
   void Usdc1(FPURegister fd, const MemOperand& rs, Register scratch);
 
+  void Ldc1(FPURegister fd, const MemOperand& src);
+  void Sdc1(FPURegister fs, const MemOperand& dst);
+
   // Load int32 in the rd register.
   void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
   inline void li(Register rd, int32_t j, LiFlags mode = OPTIMIZE_SIZE) {
@@ -1076,10 +1084,6 @@ class MacroAssembler: public Assembler {
                             Register scratch,
                             Label* fail);
 
-  void IsObjectNameType(Register object,
-                        Register scratch,
-                        Label* fail);
-
   // Frame restart support.
   void MaybeDropFrames();
 
@@ -1150,13 +1154,6 @@ class MacroAssembler: public Assembler {
                 Heap::RootListIndex index,
                 Label* fail,
                 SmiCheckType smi_check_type);
-
-  // Check if the map of an object is equal to a specified weak map and branch
-  // to a specified target if equal. Skip the smi check if not required
-  // (object is known to be a heap object)
-  void DispatchWeakMap(Register obj, Register scratch1, Register scratch2,
-                       Handle<WeakCell> cell, Handle<Code> success,
-                       SmiCheckType smi_check_type);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
   void FPUCanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
@@ -1430,7 +1427,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
   void Assert(Condition cc, BailoutReason reason, Register rs, Operand rt);
-  void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
   void Check(Condition cc, BailoutReason reason, Register rs, Operand rt);
@@ -1532,18 +1528,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // Jump if either of the registers contain a smi.
   void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
 
-  // Abort execution if argument is a number, enabled via --debug-code.
-  void AssertNotNumber(Register object);
-
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
   void AssertSmi(Register object);
-
-  // Abort execution if argument is not a string, enabled via --debug-code.
-  void AssertString(Register object);
-
-  // Abort execution if argument is not a name, enabled via --debug-code.
-  void AssertName(Register object);
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
@@ -1554,10 +1541,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   // Abort execution if argument is not a JSGeneratorObject,
   // enabled via --debug-code.
-  void AssertGeneratorObject(Register object);
-
-  // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
-  void AssertReceiver(Register object);
+  void AssertGeneratorObject(Register object, Register flags);
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
@@ -1632,8 +1616,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   template<typename Field>
   void DecodeFieldToSmi(Register dst, Register src) {
-    static const int shift = Field::kShift;
-    static const int mask = Field::kMask >> shift << kSmiTagSize;
+    constexpr int shift = Field::kShift;
+    constexpr int mask = Field::kMask >> shift << kSmiTagSize;
     STATIC_ASSERT((mask & (0x80000000u >> (kSmiTagSize - 1))) == 0);
     STATIC_ASSERT(kSmiTag == 0);
     if (shift < kSmiTagSize) {
@@ -1683,9 +1667,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
 
  private:
-  void CallCFunctionHelper(Register function,
-                           int num_reg_arguments,
-                           int num_double_arguments);
+  void CallCFunctionHelper(Register function_base, int16_t function_offset,
+                           int num_reg_arguments, int num_double_arguments);
 
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
   inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);
@@ -1751,6 +1734,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   bool generating_stub_;
   bool has_frame_;
   bool has_double_zero_reg_set_;
+  Isolate* isolate_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
 

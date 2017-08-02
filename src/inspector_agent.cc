@@ -219,7 +219,8 @@ class JsBindingsSessionDelegate : public InspectorSessionDelegate {
     Local<Value> argument = v8string.ToLocalChecked().As<Value>();
     Local<Function> callback = callback_.Get(isolate);
     Local<Object> receiver = receiver_.Get(isolate);
-    static_cast<void>(callback->Call(env_->context(), receiver, 1, &argument));
+    callback->Call(env_->context(), receiver, 1, &argument)
+        .FromMaybe(Local<Value>());
   }
 
   void Disconnect() {
@@ -353,10 +354,10 @@ void InspectorConsoleCall(const v8::FunctionCallbackInfo<Value>& info) {
 
   Local<Value> node_method = info[1];
   CHECK(node_method->IsFunction());
-  static_cast<void>(node_method.As<Function>()->Call(context,
-                                                     info.Holder(),
-                                                     call_args.size(),
-                                                     call_args.data()));
+  node_method.As<Function>()->Call(context,
+                                   info.Holder(),
+                                   call_args.size(),
+                                   call_args.data()).FromMaybe(Local<Value>());
 }
 
 void CallAndPauseOnStart(

@@ -66,7 +66,7 @@ class JSCallAccessor {
     return call_->op()->ValueInputCount() - 2;
   }
 
-  float frequency() const {
+  CallFrequency frequency() const {
     return (call_->opcode() == IrOpcode::kJSCall)
                ? CallParametersOf(call_->op()).frequency()
                : ConstructParametersOf(call_->op()).frequency();
@@ -141,12 +141,15 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
     int subcall_count = static_cast<int>(uncaught_subcalls.size());
     if (subcall_count > 0) {
       TRACE(
-          "Inlinee contains %d calls without IfException; "
-          "linking to existing IfException\n",
+          "Inlinee contains %d calls without local exception handler; "
+          "linking to surrounding exception handler\n",
           subcall_count);
     }
     NodeVector on_exception_nodes(local_zone_);
     for (Node* subcall : uncaught_subcalls) {
+      Node* on_success = graph()->NewNode(common()->IfSuccess(), subcall);
+      NodeProperties::ReplaceUses(subcall, subcall, subcall, on_success);
+      NodeProperties::ReplaceControlInput(on_success, subcall);
       Node* on_exception =
           graph()->NewNode(common()->IfException(), subcall, subcall);
       on_exception_nodes.push_back(on_exception);
@@ -215,7 +218,8 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
     ReplaceWithValue(call, value_output, effect_output, control_output);
     return Changed(value_output);
   } else {
-    ReplaceWithValue(call, call, call, jsgraph()->Dead());
+    ReplaceWithValue(call, jsgraph()->Dead(), jsgraph()->Dead(),
+                     jsgraph()->Dead());
     return Changed(call);
   }
 }
@@ -331,10 +335,11 @@ bool NeedsImplicitReceiver(Handle<SharedFunctionInfo> shared_info) {
   DisallowHeapAllocation no_gc;
   Isolate* const isolate = shared_info->GetIsolate();
   Code* const construct_stub = shared_info->construct_stub();
-  return construct_stub != *isolate->builtins()->JSBuiltinsConstructStub() &&
-         construct_stub !=
-             *isolate->builtins()->JSBuiltinsConstructStubForDerived() &&
-         construct_stub != *isolate->builtins()->JSConstructStubApi();
+  if (construct_stub == *isolate->builtins()->JSConstructStubGeneric()) {
+    return !IsDerivedConstructor(shared_info->kind());
+  } else {
+    return false;
+  }
 }
 
 bool IsNonConstructible(Handle<SharedFunctionInfo> shared_info) {
@@ -482,18 +487,6 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
-  // TODO(706642): Don't inline derived class constructors for now, as the
-  // inlining logic doesn't deal properly with derived class constructors
-  // that return a primitive, i.e. it's not in sync with what the Parser
-  // and the JSConstructSub does.
-  if (node->opcode() == IrOpcode::kJSConstruct &&
-      IsDerivedConstructor(shared_info->kind())) {
-    TRACE("Not inlining %s into %s because constructor is derived.\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-    return NoChange();
-  }
-
   // Class constructors are callable, but [[Call]] will raise an exception.
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
   if (node->opcode() == IrOpcode::kJSCall &&
@@ -529,40 +522,23 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
   }
 
-  // Find the IfException node, if any.
+  // Calls surrounded by a local try-block are only inlined if the appropriate
+  // flag is active. We also discover the {IfException} projection this way.
   Node* exception_target = nullptr;
-  for (Edge edge : node->use_edges()) {
-    if (NodeProperties::IsControlEdge(edge) &&
-        edge.from()->opcode() == IrOpcode::kIfException) {
-      DCHECK_NULL(exception_target);
-      exception_target = edge.from();
-    }
-  }
-
-  NodeVector uncaught_subcalls(local_zone_);
-
-  if (exception_target != nullptr) {
-    if (!FLAG_inline_into_try) {
-      TRACE(
-          "Try block surrounds #%d:%s and --no-inline-into-try active, so not "
-          "inlining %s into %s.\n",
-          exception_target->id(), exception_target->op()->mnemonic(),
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-      return NoChange();
-    } else {
-      TRACE(
-          "Inlining %s into %s regardless of surrounding try-block to catcher "
-          "#%d:%s\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get(),
-          exception_target->id(), exception_target->op()->mnemonic());
-    }
+  if (NodeProperties::IsExceptionalCall(node, &exception_target) &&
+      !FLAG_inline_into_try) {
+    TRACE(
+        "Try block surrounds #%d:%s and --no-inline-into-try active, so not "
+        "inlining %s into %s.\n",
+        exception_target->id(), exception_target->op()->mnemonic(),
+        shared_info->DebugName()->ToCString().get(),
+        info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
   }
 
   ParseInfo parse_info(shared_info);
   CompilationInfo info(parse_info.zone(), &parse_info,
-                       Handle<JSFunction>::null());
+                       shared_info->GetIsolate(), Handle<JSFunction>::null());
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
   info.MarkAsOptimizeFromBytecode();
 
@@ -586,9 +562,9 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // After this point, we've made a decision to inline this function.
   // We shall not bailout from inlining if we got here.
 
-  TRACE("Inlining %s into %s\n",
-        shared_info->DebugName()->ToCString().get(),
-        info_->shared_info()->DebugName()->ToCString().get());
+  TRACE("Inlining %s into %s%s\n", shared_info->DebugName()->ToCString().get(),
+        info_->shared_info()->DebugName()->ToCString().get(),
+        (exception_target != nullptr) ? " (inside try-block)" : "");
 
   // Determine the targets feedback vector and its context.
   Node* context;
@@ -601,9 +577,13 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   {
     // Run the BytecodeGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
+    JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags;
+    if (info_->is_bailout_on_uninitialized()) {
+      flags |= JSTypeHintLowering::kBailoutOnUninitialized;
+    }
     BytecodeGraphBuilder graph_builder(
         parse_info.zone(), shared_info, feedback_vector, BailoutId::None(),
-        jsgraph(), call.frequency(), source_positions_, inlining_id);
+        jsgraph(), call.frequency(), source_positions_, inlining_id, flags);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.
@@ -611,23 +591,18 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     end = graph()->end();
   }
 
+  // If we are inlining into a surrounding exception handler, we collect all
+  // potentially throwing nodes within the inlinee that are not handled locally
+  // by the inlinee itself. They are later wired into the surrounding handler.
+  NodeVector uncaught_subcalls(local_zone_);
   if (exception_target != nullptr) {
     // Find all uncaught 'calls' in the inlinee.
     AllNodes inlined_nodes(local_zone_, end, graph());
     for (Node* subnode : inlined_nodes.reachable) {
-      // Every possibly throwing node with an IfSuccess should get an
-      // IfException.
-      if (subnode->op()->HasProperty(Operator::kNoThrow)) {
-        continue;
-      }
-      bool hasIfException = false;
-      for (Node* use : subnode->uses()) {
-        if (use->opcode() == IrOpcode::kIfException) {
-          hasIfException = true;
-          break;
-        }
-      }
-      if (!hasIfException) {
+      // Every possibly throwing node should get {IfSuccess} and {IfException}
+      // projections, unless there already is local exception handling.
+      if (subnode->op()->HasProperty(Operator::kNoThrow)) continue;
+      if (!NodeProperties::IsExceptionalCall(subnode)) {
         DCHECK_EQ(2, subnode->op()->ControlOutputCount());
         uncaught_subcalls.push_back(subnode);
       }
@@ -666,25 +641,96 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       Node* create =
           graph()->NewNode(javascript()->Create(), call.target(), new_target,
                            context, frame_state_inside, effect, control);
-      Node* success = graph()->NewNode(common()->IfSuccess(), create);
-      uncaught_subcalls.push_back(create);  // Adds {IfException}.
-      NodeProperties::ReplaceControlInput(node, success);
+      uncaught_subcalls.push_back(create);  // Adds {IfSuccess} & {IfException}.
+      NodeProperties::ReplaceControlInput(node, create);
       NodeProperties::ReplaceEffectInput(node, create);
-      // Insert a check of the return value to determine whether the return
-      // value or the implicit receiver should be selected as a result of the
-      // call.
-      Node* check = graph()->NewNode(simplified()->ObjectIsReceiver(), node);
-      Node* select =
-          graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
-                           check, node, create);
-      NodeProperties::ReplaceUses(node, select, node, node, node);
-      // Fix-up inputs that have been mangled by the {ReplaceUses} call above.
-      NodeProperties::ReplaceValueInput(select, node, 1);  // Fix-up input.
-      NodeProperties::ReplaceValueInput(check, node, 0);   // Fix-up input.
+      Node* node_success =
+          NodeProperties::FindSuccessfulControlProjection(node);
+      // Placeholder to hold {node}'s value dependencies while {node} is
+      // replaced.
+      Node* dummy = graph()->NewNode(common()->Dead());
+      NodeProperties::ReplaceUses(node, dummy, node, node, node);
+      Node* result;
+      if (FLAG_harmony_restrict_constructor_return &&
+          IsClassConstructor(shared_info->kind())) {
+        Node* is_undefined =
+            graph()->NewNode(simplified()->ReferenceEqual(), node,
+                             jsgraph()->UndefinedConstant());
+        Node* branch_is_undefined =
+            graph()->NewNode(common()->Branch(), is_undefined, node_success);
+        Node* branch_is_undefined_true =
+            graph()->NewNode(common()->IfTrue(), branch_is_undefined);
+        Node* branch_is_undefined_false =
+            graph()->NewNode(common()->IfFalse(), branch_is_undefined);
+        Node* is_receiver =
+            graph()->NewNode(simplified()->ObjectIsReceiver(), node);
+        Node* branch_is_receiver = graph()->NewNode(
+            common()->Branch(), is_receiver, branch_is_undefined_false);
+        Node* branch_is_receiver_true =
+            graph()->NewNode(common()->IfTrue(), branch_is_receiver);
+        Node* branch_is_receiver_false =
+            graph()->NewNode(common()->IfFalse(), branch_is_receiver);
+        branch_is_receiver_false =
+            graph()->NewNode(javascript()->CallRuntime(
+                                 Runtime::kThrowConstructorReturnedNonObject),
+                             context, NodeProperties::GetFrameStateInput(node),
+                             node, branch_is_receiver_false);
+        uncaught_subcalls.push_back(branch_is_receiver_false);
+        branch_is_receiver_false =
+            graph()->NewNode(common()->Throw(), branch_is_receiver_false,
+                             branch_is_receiver_false);
+        NodeProperties::MergeControlToEnd(graph(), common(),
+                                          branch_is_receiver_false);
+        Node* merge =
+            graph()->NewNode(common()->Merge(2), branch_is_undefined_true,
+                             branch_is_receiver_true);
+        result =
+            graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                             create, node, merge);
+        ReplaceWithValue(node_success, node_success, node_success, merge);
+        // Fix input destroyed by the above {ReplaceWithValue} call.
+        NodeProperties::ReplaceControlInput(branch_is_undefined, node_success,
+                                            0);
+      } else {
+        // Insert a check of the return value to determine whether the return
+        // value or the implicit receiver should be selected as a result of the
+        // call.
+        Node* check = graph()->NewNode(simplified()->ObjectIsReceiver(), node);
+        result =
+            graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
+                             check, node, create);
+      }
       receiver = create;  // The implicit receiver.
+      ReplaceWithValue(dummy, result);
+    } else if (IsDerivedConstructor(shared_info->kind())) {
+      Node* node_success =
+          NodeProperties::FindSuccessfulControlProjection(node);
+      Node* is_receiver =
+          graph()->NewNode(simplified()->ObjectIsReceiver(), node);
+      Node* branch_is_receiver =
+          graph()->NewNode(common()->Branch(), is_receiver, node_success);
+      Node* branch_is_receiver_true =
+          graph()->NewNode(common()->IfTrue(), branch_is_receiver);
+      Node* branch_is_receiver_false =
+          graph()->NewNode(common()->IfFalse(), branch_is_receiver);
+      branch_is_receiver_false =
+          graph()->NewNode(javascript()->CallRuntime(
+                               Runtime::kThrowConstructorReturnedNonObject),
+                           context, NodeProperties::GetFrameStateInput(node),
+                           node, branch_is_receiver_false);
+      uncaught_subcalls.push_back(branch_is_receiver_false);
+      branch_is_receiver_false =
+          graph()->NewNode(common()->Throw(), branch_is_receiver_false,
+                           branch_is_receiver_false);
+      NodeProperties::MergeControlToEnd(graph(), common(),
+                                        branch_is_receiver_false);
+
+      ReplaceWithValue(node_success, node_success, node_success,
+                       branch_is_receiver_true);
+      // Fix input destroyed by the above {ReplaceWithValue} call.
+      NodeProperties::ReplaceControlInput(branch_is_receiver, node_success, 0);
     }
     node->ReplaceInput(1, receiver);
-
     // Insert a construct stub frame into the chain of frame states. This will
     // reconstruct the proper frame when deoptimizing within the constructor.
     frame_state = CreateArtificialFrameState(

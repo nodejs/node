@@ -8,6 +8,7 @@
 #include "src/address-map.h"
 #include "src/external-reference-table.h"
 #include "src/globals.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -73,9 +74,9 @@ class HotObjectsList {
 // The Serializer/Deserializer class is a common superclass for Serializer and
 // Deserializer which is used to store common constants and methods used by
 // both.
-class SerializerDeserializer : public ObjectVisitor {
+class SerializerDeserializer : public RootVisitor {
  public:
-  static void Iterate(Isolate* isolate, ObjectVisitor* visitor);
+  static void Iterate(Isolate* isolate, RootVisitor* visitor);
 
   // No reservation for large object space necessary.
   // We also handle map space differenly.
@@ -166,14 +167,11 @@ class SerializerDeserializer : public ObjectVisitor {
   // Internal reference encoded as offsets of pc and target from code entry.
   static const int kInternalReference = 0x1b;
   static const int kInternalReferenceEncoded = 0x1c;
-  // Used for the source code of the natives, which is in the executable, but
-  // is referred to from external strings in the snapshot.
-  static const int kNativesStringResource = 0x1d;
-  // Used for the source code for compiled stubs, which is in the executable,
-  // but is referred to from external strings in the snapshot.
-  static const int kExtraNativesStringResource = 0x1e;
-  // Used for embedder-provided serialization data for internal fields.
-  static const int kInternalFieldsData = 0x1f;
+  // Used to encode deoptimizer entry code.
+  static const int kDeoptimizerEntryPlain = 0x1d;
+  static const int kDeoptimizerEntryFromCode = 0x1e;
+  // Used for embedder-provided serialization data for embedder fields.
+  static const int kEmbedderFieldsData = 0x1f;
 
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kNumberOfHotObjects = 8;
@@ -239,20 +237,37 @@ class SerializedData {
   SerializedData(byte* data, int size)
       : data_(data), size_(size), owns_data_(false) {}
   SerializedData() : data_(NULL), size_(0), owns_data_(false) {}
+  SerializedData(SerializedData&& other)
+      : data_(other.data_), size_(other.size_), owns_data_(other.owns_data_) {
+    // Ensure |other| will not attempt to destroy our data in destructor.
+    other.owns_data_ = false;
+  }
 
   ~SerializedData() {
     if (owns_data_) DeleteArray<byte>(data_);
   }
 
   uint32_t GetMagicNumber() const { return GetHeaderValue(kMagicNumberOffset); }
+  uint32_t GetExtraReferences() const {
+    return GetHeaderValue(kExtraExternalReferencesOffset);
+  }
 
   class ChunkSizeBits : public BitField<uint32_t, 0, 31> {};
   class IsLastChunkBits : public BitField<bool, 31, 1> {};
 
   static uint32_t ComputeMagicNumber(ExternalReferenceTable* table) {
-    uint32_t external_refs = table->size();
+    uint32_t external_refs = table->size() - table->num_api_references();
     return 0xC0DE0000 ^ external_refs;
   }
+  static uint32_t GetExtraReferences(ExternalReferenceTable* table) {
+    return table->num_api_references();
+  }
+
+  static const int kMagicNumberOffset = 0;
+  static const int kExtraExternalReferencesOffset =
+      kMagicNumberOffset + kInt32Size;
+  static const int kVersionHashOffset =
+      kExtraExternalReferencesOffset + kInt32Size;
 
  protected:
   void SetHeaderValue(int offset, uint32_t value) {
@@ -271,16 +286,21 @@ class SerializedData {
   static uint32_t ComputeMagicNumber(Isolate* isolate) {
     return ComputeMagicNumber(ExternalReferenceTable::instance(isolate));
   }
+  static uint32_t GetExtraReferences(Isolate* isolate) {
+    return GetExtraReferences(ExternalReferenceTable::instance(isolate));
+  }
 
   void SetMagicNumber(Isolate* isolate) {
     SetHeaderValue(kMagicNumberOffset, ComputeMagicNumber(isolate));
+    SetHeaderValue(kExtraExternalReferencesOffset, GetExtraReferences(isolate));
   }
-
-  static const int kMagicNumberOffset = 0;
 
   byte* data_;
   int size_;
   bool owns_data_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(SerializedData);
 };
 
 }  // namespace internal

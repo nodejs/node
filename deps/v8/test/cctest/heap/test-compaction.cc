@@ -26,7 +26,7 @@ void CheckInvariantsOfAbortedPage(Page* page) {
   // 1) Markbits are cleared
   // 2) The page is not marked as evacuation candidate anymore
   // 3) The page is not marked as aborted compaction anymore.
-  CHECK(page->markbits()->IsClean());
+  CHECK(MarkingState::Internal(page).bitmap()->IsClean());
   CHECK(!page->IsEvacuationCandidate());
   CHECK(!page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
 }
@@ -68,7 +68,7 @@ HEAP_TEST(CompactionFullAbortedPage) {
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
 
       heap->set_force_oom(true);
-      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+      CcTest::CollectAllGarbage();
       heap->mark_compact_collector()->EnsureSweepingCompleted();
 
       // Check that all handles still point to the same page, i.e., compaction
@@ -128,7 +128,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
             Page::FromAddress(page_to_fill_handles.front()->address());
 
         heap->set_force_oom(true);
-        CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+        CcTest::CollectAllGarbage();
         heap->mark_compact_collector()->EnsureSweepingCompleted();
 
         bool migration_aborted = false;
@@ -210,7 +210,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
           Page::FromAddress(page_to_fill_handles.front()->address());
 
       heap->set_force_oom(true);
-      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+      CcTest::CollectAllGarbage();
       heap->mark_compact_collector()->EnsureSweepingCompleted();
 
       // The following check makes sure that we compacted "some" objects, while
@@ -303,7 +303,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
           Page::FromAddress(page_to_fill_handles.front()->address());
 
       heap->set_force_oom(true);
-      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+      CcTest::CollectAllGarbage();
       heap->mark_compact_collector()->EnsureSweepingCompleted();
 
       // The following check makes sure that we compacted "some" objects, while

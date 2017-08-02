@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace parsing {
 
-bool ParseProgram(ParseInfo* info, bool internalize) {
+bool ParseProgram(ParseInfo* info, Isolate* isolate, bool internalize) {
   DCHECK(info->is_toplevel());
   DCHECK_NULL(info->literal());
 
@@ -24,7 +24,6 @@ bool ParseProgram(ParseInfo* info, bool internalize) {
   FunctionLiteral* result = nullptr;
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
-  Isolate* isolate = info->isolate();
 
   parser.SetCachedData(info);
   result = parser.ParseProgram(isolate, info);
@@ -41,7 +40,7 @@ bool ParseProgram(ParseInfo* info, bool internalize) {
   return (result != nullptr);
 }
 
-bool ParseFunction(ParseInfo* info, bool internalize) {
+bool ParseFunction(ParseInfo* info, Isolate* isolate, bool internalize) {
   DCHECK(!info->is_toplevel());
   DCHECK_NULL(info->literal());
 
@@ -50,7 +49,6 @@ bool ParseFunction(ParseInfo* info, bool internalize) {
   FunctionLiteral* result = nullptr;
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
-  Isolate* isolate = info->isolate();
 
   result = parser.ParseFunction(isolate, info);
   info->set_literal(result);
@@ -64,9 +62,9 @@ bool ParseFunction(ParseInfo* info, bool internalize) {
   return (result != nullptr);
 }
 
-bool ParseAny(ParseInfo* info, bool internalize) {
-  return info->is_toplevel() ? ParseProgram(info, internalize)
-                             : ParseFunction(info, internalize);
+bool ParseAny(ParseInfo* info, Isolate* isolate, bool internalize) {
+  return info->is_toplevel() ? ParseProgram(info, isolate, internalize)
+                             : ParseFunction(info, isolate, internalize);
 }
 
 }  // namespace parsing

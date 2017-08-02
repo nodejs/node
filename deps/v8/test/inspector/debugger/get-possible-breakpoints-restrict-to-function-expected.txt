@@ -1,0 +1,497 @@
+Checks Debugger.getPossibleBreakpoints with ignoreNestedFunctions
+
+Running test: testWholeFunction
+
+function test() {
+  #Array.#from([1,2]).#map(() => #1#).#filter(() => #true#);
+  function nested1() {
+    #Array.#from([1,2]).#map(() => #1#).#filter(() => #true#);
+  #}
+  function nested2() {
+    #Array.#from([1,2]).#map(() => #1#).#filter(() => #true#);
+  #}
+  #nested1();
+  #nested2();
+#}
+//# sourceURL=test.js
+
+Running test: testWholeFunctionWithoutNested
+
+function test() {
+  #Array.#from([1,2]).#map(() => #1#).#filter(() => #true#);
+  function nested1() {
+    #Array.#from([1,2]).#map(() => #1#).#filter(() => #true#);
+  #}
+  function nested2() {
+    #Array.#from([1,2]).#map(() => #1#).#filter(() => #true#);
+  #}
+  #nested1();
+  #nested2();
+#}
+//# sourceURL=test.js
+
+Running test: testPartOfFunctionWithoutNested
+
+function test() {
+  #Array.#from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Running test: testNestedFunction
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    #Array.#from([1,2]).#map(() => #1#).#filter(() => #true#);
+  #}
+  function nested2() {
+    #Array.#from([1,2]).#map(() => #1#).#filter(() => #true#);
+  #}
+  #nested1();
+  #nested2();
+#}
+//# sourceURL=test.js
+Run test() to check breakpoints..
+test (test.js:9:2)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  ^nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+nested1 (test.js:4:4)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    ^Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+nested1 (test.js:4:10)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.^from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+nested1 (test.js:4:22)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).^map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map (test.js:4:32)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => ^1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map (test.js:4:33)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1^).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map (test.js:4:32)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => ^1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map (test.js:4:33)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1^).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+nested1 (test.js:4:35)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).^filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map.filter (test.js:4:48)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => ^true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map.filter (test.js:4:52)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true^);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map.filter (test.js:4:48)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => ^true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map.filter (test.js:4:52)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true^);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+nested1 (test.js:5:2)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  ^}
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+test (test.js:10:2)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  ^nested2();
+}
+//# sourceURL=test.js
+
+nested2 (test.js:7:4)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    ^Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+nested2 (test.js:7:10)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.^from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+nested2 (test.js:7:22)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).^map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map (test.js:7:32)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => ^1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map (test.js:7:33)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1^).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map (test.js:7:32)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => ^1).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map (test.js:7:33)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1^).filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+nested2 (test.js:7:35)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).^filter(() => true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map.filter (test.js:7:48)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => ^true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map.filter (test.js:7:52)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true^);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map.filter (test.js:7:48)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => ^true);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+Array.from.map.filter (test.js:7:52)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true^);
+  }
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+nested2 (test.js:8:2)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  ^}
+  nested1();
+  nested2();
+}
+//# sourceURL=test.js
+
+test (test.js:11:0)
+
+function test() {
+  Array.from([1,2]).map(() => 1).filter(() => true);
+  function nested1() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  function nested2() {
+    Array.from([1,2]).map(() => 1).filter(() => true);
+  }
+  nested1();
+  nested2();
+^}
+//# sourceURL=test.js
+

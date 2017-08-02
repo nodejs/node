@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests scripts hasing');
+
 var hashes = new Set(["1C6D2E82E4E4F1BA4CB5762843D429DC872EBA18",
                       "EBF1ECD351E7A3294CB5762843D429DC872EBA18",
                       "86A31E7131896CF01BA837945C2894385F369F24"]);

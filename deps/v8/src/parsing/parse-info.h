@@ -5,9 +5,12 @@
 #ifndef V8_PARSING_PARSE_INFO_H_
 #define V8_PARSING_PARSE_INFO_H_
 
+#include <map>
 #include <memory>
+#include <vector>
 
 #include "include/v8.h"
+#include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/parsing/preparsed-scope-data.h"
@@ -20,10 +23,12 @@ namespace internal {
 
 class AccountingAllocator;
 class AstRawString;
+class AstStringConstants;
 class AstValueFactory;
 class DeclarationScope;
 class DeferredHandles;
 class FunctionLiteral;
+class RuntimeCallStats;
 class ScriptData;
 class SharedFunctionInfo;
 class UnicodeCache;
@@ -31,7 +36,7 @@ class Utf16CharacterStream;
 class Zone;
 
 // A container for the inputs, configuration options, and outputs of parsing.
-class V8_EXPORT_PRIVATE ParseInfo {
+class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
  public:
   explicit ParseInfo(AccountingAllocator* zone_allocator);
   ParseInfo(Handle<Script> script);
@@ -41,6 +46,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   ParseInfo(Handle<SharedFunctionInfo> shared, std::shared_ptr<Zone> zone);
 
   ~ParseInfo();
+
+  void InitFromIsolate(Isolate* isolate);
 
   static ParseInfo* AllocateWithoutScript(Handle<SharedFunctionInfo> shared);
 
@@ -70,9 +77,10 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_ast_value_factory_owned)
   FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
                 set_is_named_expression)
-  FLAG_ACCESSOR(kCallsEval, calls_eval, set_calls_eval)
   FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
   FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
+  FLAG_ACCESSOR(kTailCallEliminationEnabled, is_tail_call_elimination_enabled,
+                set_tail_call_elimination_enabled)
 
 #undef FLAG_ACCESSOR
 
@@ -184,6 +192,19 @@ class V8_EXPORT_PRIVATE ParseInfo {
     max_function_literal_id_ = max_function_literal_id;
   }
 
+  const AstStringConstants* ast_string_constants() const {
+    return ast_string_constants_;
+  }
+  void set_ast_string_constants(
+      const AstStringConstants* ast_string_constants) {
+    ast_string_constants_ = ast_string_constants;
+  }
+
+  RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
+  void set_runtime_call_stats(RuntimeCallStats* runtime_call_stats) {
+    runtime_call_stats_ = runtime_call_stats;
+  }
+
   // Getters for individual compiler hints.
   bool is_declaration() const;
   FunctionKind function_kind() const;
@@ -191,14 +212,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
-  Isolate* isolate() const { return isolate_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_; }
   Handle<Script> script() const { return script_; }
   MaybeHandle<ScopeInfo> maybe_outer_scope_info() const {
     return maybe_outer_scope_info_;
   }
   void clear_script() { script_ = Handle<Script>::null(); }
-  void set_isolate(Isolate* isolate) { isolate_ = isolate; }
   void set_shared_info(Handle<SharedFunctionInfo> shared) { shared_ = shared; }
   void set_outer_scope_info(Handle<ScopeInfo> outer_scope_info) {
     maybe_outer_scope_info_ = outer_scope_info;
@@ -227,6 +246,13 @@ class V8_EXPORT_PRIVATE ParseInfo {
     }
   }
 
+  void UpdateStatisticsAfterBackgroundParse(Isolate* isolate);
+
+  // The key of the map is the FunctionLiteral's start_position
+  std::map<int, ParseInfo*> child_infos() const;
+
+  void ParseFinished(std::unique_ptr<ParseInfo> info) override;
+
 #ifdef DEBUG
   bool script_is_native() const;
 #endif  // DEBUG
@@ -244,11 +270,10 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kModule = 1 << 6,
     kAllowLazyParsing = 1 << 7,
     kIsNamedExpression = 1 << 8,
-    kCallsEval = 1 << 9,
-    kDebug = 1 << 10,
-    kSerializing = 1 << 11,
-    // ---------- Output flags --------------------------
-    kAstValueFactoryOwned = 1 << 12
+    kDebug = 1 << 9,
+    kSerializing = 1 << 10,
+    kTailCallEliminationEnabled = 1 << 11,
+    kAstValueFactoryOwned = 1 << 12,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
@@ -271,8 +296,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int function_literal_id_;
   int max_function_literal_id_;
 
-  // TODO(titzer): Move handles and isolate out of ParseInfo.
-  Isolate* isolate_;
+  // TODO(titzer): Move handles out of ParseInfo.
   Handle<SharedFunctionInfo> shared_;
   Handle<Script> script_;
   MaybeHandle<ScopeInfo> maybe_outer_scope_info_;
@@ -281,11 +305,16 @@ class V8_EXPORT_PRIVATE ParseInfo {
   ScriptData** cached_data_;  // used if available, populated if requested.
   PreParsedScopeData preparsed_scope_data_;
   AstValueFactory* ast_value_factory_;  // used if available, otherwise new.
+  const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;
+  RuntimeCallStats* runtime_call_stats_;
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
   std::shared_ptr<DeferredHandles> deferred_handles_;
+
+  std::vector<std::unique_ptr<ParseInfo>> child_infos_;
+  mutable base::Mutex child_infos_mutex_;
 
   void SetFlag(Flag f) { flags_ |= f; }
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }

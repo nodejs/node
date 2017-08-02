@@ -35,8 +35,6 @@ class FunctionEntry BASE_EMBEDDED {
     kStartPositionIndex,
     kEndPositionIndex,
     kNumParametersIndex,
-    kFunctionLengthIndex,
-    kPropertyCountIndex,
     kFlagsIndex,
     kNumInnerFunctionsIndex,
     kSize
@@ -50,36 +48,21 @@ class FunctionEntry BASE_EMBEDDED {
   class LanguageModeField : public BitField<LanguageMode, 0, 1> {};
   class UsesSuperPropertyField
       : public BitField<bool, LanguageModeField::kNext, 1> {};
-  class CallsEvalField
-      : public BitField<bool, UsesSuperPropertyField::kNext, 1> {};
-  class HasDuplicateParametersField
-      : public BitField<bool, CallsEvalField::kNext, 1> {};
 
   static uint32_t EncodeFlags(LanguageMode language_mode,
-                              bool uses_super_property, bool calls_eval,
-                              bool has_duplicate_parameters) {
+                              bool uses_super_property) {
     return LanguageModeField::encode(language_mode) |
-           UsesSuperPropertyField::encode(uses_super_property) |
-           CallsEvalField::encode(calls_eval) |
-           HasDuplicateParametersField::encode(has_duplicate_parameters);
+           UsesSuperPropertyField::encode(uses_super_property);
   }
 
   int start_pos() const { return backing_[kStartPositionIndex]; }
   int end_pos() const { return backing_[kEndPositionIndex]; }
   int num_parameters() const { return backing_[kNumParametersIndex]; }
-  int function_length() const { return backing_[kFunctionLengthIndex]; }
-  int property_count() const { return backing_[kPropertyCountIndex]; }
   LanguageMode language_mode() const {
     return LanguageModeField::decode(backing_[kFlagsIndex]);
   }
   bool uses_super_property() const {
     return UsesSuperPropertyField::decode(backing_[kFlagsIndex]);
-  }
-  bool calls_eval() const {
-    return CallsEvalField::decode(backing_[kFlagsIndex]);
-  }
-  bool has_duplicate_parameters() const {
-    return HasDuplicateParametersField::decode(backing_[kFlagsIndex]);
   }
   int num_inner_functions() const { return backing_[kNumInnerFunctionsIndex]; }
 
@@ -140,26 +123,23 @@ class Parser;
 struct ParserFormalParameters : FormalParametersBase {
   struct Parameter : public ZoneObject {
     Parameter(const AstRawString* name, Expression* pattern,
-              Expression* initializer, int initializer_end_position,
-              bool is_rest)
+              Expression* initializer, int position,
+              int initializer_end_position, bool is_rest)
         : name(name),
           pattern(pattern),
           initializer(initializer),
+          position(position),
           initializer_end_position(initializer_end_position),
           is_rest(is_rest) {}
     const AstRawString* name;
     Expression* pattern;
     Expression* initializer;
+    int position;
     int initializer_end_position;
     bool is_rest;
     Parameter* next_parameter = nullptr;
     bool is_simple() const {
       return pattern->IsVariableProxy() && initializer == nullptr && !is_rest;
-    }
-
-    bool is_nondestructuring_rest() const {
-      DCHECK_IMPLIES(is_rest, initializer == nullptr);
-      return is_rest && pattern->IsVariableProxy();
     }
 
     Parameter** next() { return &next_parameter; }
@@ -184,6 +164,7 @@ struct ParserTypes<Parser> {
   typedef v8::internal::FunctionLiteral* FunctionLiteral;
   typedef ObjectLiteral::Property* ObjectLiteralProperty;
   typedef ClassLiteral::Property* ClassLiteralProperty;
+  typedef v8::internal::Suspend* Suspend;
   typedef ZoneList<v8::internal::Expression*>* ExpressionList;
   typedef ZoneList<ObjectLiteral::Property*>* ObjectPropertyList;
   typedef ZoneList<ClassLiteral::Property*>* ClassPropertyList;
@@ -211,7 +192,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     cached_parse_data_ = NULL;
   }
 
-  static bool const IsPreParser() { return false; }
+  static bool IsPreParser() { return false; }
 
   void ParseOnBackground(ParseInfo* info);
 
@@ -235,8 +216,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
  private:
   friend class ParserBase<Parser>;
   friend class v8::internal::ExpressionClassifier<ParserTypes<Parser>>;
-  friend bool v8::internal::parsing::ParseProgram(ParseInfo*, bool);
-  friend bool v8::internal::parsing::ParseFunction(ParseInfo*, bool);
+  friend bool v8::internal::parsing::ParseProgram(ParseInfo*, Isolate*, bool);
+  friend bool v8::internal::parsing::ParseFunction(ParseInfo*, Isolate*, bool);
 
   bool AllowsLazyParsingWithoutUnresolvedVariables() const {
     return scope()->AllowsLazyParsingWithoutUnresolvedVariables(
@@ -285,14 +266,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   FunctionLiteral* ParseProgram(Isolate* isolate, ParseInfo* info);
 
   FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info);
-  FunctionLiteral* DoParseFunction(ParseInfo* info,
-                                   const AstRawString* raw_name,
-                                   Utf16CharacterStream* source);
+  FunctionLiteral* DoParseFunction(ParseInfo* info);
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(ParseInfo* info);
 
   void SetCachedData(ParseInfo* info);
+
+  void StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate);
 
   ScriptCompiler::CompileOptions compile_options() const {
     return compile_options_;
@@ -302,6 +283,28 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
   bool produce_cached_parse_data() const {
     return compile_options_ == ScriptCompiler::kProduceParserCache;
+  }
+
+  PreParser* reusable_preparser() {
+    if (reusable_preparser_ == NULL) {
+      reusable_preparser_ =
+          new PreParser(zone(), &scanner_, stack_limit_, ast_value_factory(),
+                        &pending_error_handler_, runtime_call_stats_,
+                        preparsed_scope_data_, parsing_on_main_thread_);
+#define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
+      SET_ALLOW(natives);
+      SET_ALLOW(tailcalls);
+      SET_ALLOW(harmony_do_expressions);
+      SET_ALLOW(harmony_function_sent);
+      SET_ALLOW(harmony_trailing_commas);
+      SET_ALLOW(harmony_class_fields);
+      SET_ALLOW(harmony_object_rest_spread);
+      SET_ALLOW(harmony_dynamic_import);
+      SET_ALLOW(harmony_async_iteration);
+      SET_ALLOW(harmony_template_escapes);
+#undef SET_ALLOW
+    }
+    return reusable_preparser_;
   }
 
   void ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
@@ -370,11 +373,16 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
                                       ClassInfo* class_info, bool* ok);
-  V8_INLINE Expression* RewriteClassLiteral(const AstRawString* name,
+  V8_INLINE Expression* RewriteClassLiteral(Scope* block_scope,
+                                            const AstRawString* name,
                                             ClassInfo* class_info, int pos,
-                                            bool* ok);
+                                            int end_pos, bool* ok);
   V8_INLINE Statement* DeclareNative(const AstRawString* name, int pos,
                                      bool* ok);
+
+  V8_INLINE Block* IgnoreCompletion(Statement* statement);
+
+  V8_INLINE Scope* NewHiddenCatchScopeWithParent(Scope* parent);
 
   class PatternRewriter final : public AstVisitor<PatternRewriter> {
    public:
@@ -547,11 +555,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // in order to force the function to be eagerly parsed, after all.
   LazyParsingResult SkipFunction(FunctionKind kind,
                                  DeclarationScope* function_scope,
-                                 int* num_parameters, int* function_length,
-                                 bool* has_duplicate_parameters,
-                                 int* expected_property_count,
-                                 bool is_inner_function, bool may_abort,
-                                 bool* ok);
+                                 int* num_parameters, bool is_inner_function,
+                                 bool may_abort, bool* ok);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
@@ -652,6 +657,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* BuildResolvePromise(Expression* value, int pos);
   Expression* BuildRejectPromise(Expression* value, int pos);
   Variable* PromiseVariable();
+  Variable* AsyncGeneratorAwaitVariable();
 
   // Generic AST generator for throwing errors from compiled code.
   Expression* NewThrowError(Runtime::FunctionId function_id,
@@ -666,7 +672,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Statement* FinalizeForOfStatement(ForOfStatement* loop, Variable* completion,
                                     IteratorType type, int pos);
   void BuildIteratorClose(ZoneList<Statement*>* statements, Variable* iterator,
-                          Variable* input, Variable* output);
+                          Variable* input, Variable* output, IteratorType type);
   void BuildIteratorCloseForCompletion(Scope* scope,
                                        ZoneList<Statement*>* statements,
                                        Variable* iterator,
@@ -720,7 +726,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE static bool IsIdentifier(Expression* expression) {
     DCHECK_NOT_NULL(expression);
     VariableProxy* operand = expression->AsVariableProxy();
-    return operand != nullptr && !operand->is_this();
+    return operand != nullptr && !operand->is_this() &&
+           !operand->is_new_target();
   }
 
   V8_INLINE static const AstRawString* AsIdentifier(Expression* expression) {
@@ -746,7 +753,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE static bool IsBoilerplateProperty(
       ObjectLiteral::Property* property) {
-    return ObjectLiteral::IsBoilerplateProperty(property);
+    return !property->IsPrototype();
   }
 
   V8_INLINE bool IsNative(Expression* expr) const {
@@ -1066,9 +1073,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     const AstRawString* name = has_simple_name
                                    ? pattern->AsVariableProxy()->raw_name()
                                    : ast_value_factory()->empty_string();
-    auto parameter =
-        new (parameters->scope->zone()) ParserFormalParameters::Parameter(
-            name, pattern, initializer, initializer_end_position, is_rest);
+    auto parameter = new (parameters->scope->zone())
+        ParserFormalParameters::Parameter(name, pattern, initializer,
+                                          scanner()->location().beg_pos,
+                                          initializer_end_position, is_rest);
 
     parameters->params.Add(parameter);
   }
@@ -1080,12 +1088,15 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (!is_simple) scope->SetHasNonSimpleParameters();
     for (auto parameter : parameters) {
       bool is_duplicate = false;
-      bool use_name = is_simple || parameter->is_nondestructuring_rest();
       bool is_optional = parameter->initializer != nullptr;
+      // If the parameter list is simple, declare the parameters normally with
+      // their names. If the parameter list is not simple, declare a temporary
+      // for each parameter - the corresponding named variable is declared by
+      // BuildParamerterInitializationBlock.
       scope->DeclareParameter(
-          use_name ? parameter->name : ast_value_factory()->empty_string(),
-          use_name ? VAR : TEMPORARY, is_optional, parameter->is_rest,
-          &is_duplicate, ast_value_factory());
+          is_simple ? parameter->name : ast_value_factory()->empty_string(),
+          is_simple ? VAR : TEMPORARY, is_optional, parameter->is_rest,
+          &is_duplicate, ast_value_factory(), parameter->position);
       if (is_duplicate &&
           classifier()->is_valid_formal_parameter_list_without_duplicates()) {
         classifier()->RecordDuplicateFormalParameterError(
@@ -1142,8 +1153,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Scanner scanner_;
   PreParser* reusable_preparser_;
-  Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   Mode mode_;
+
+  std::vector<FunctionLiteral*> literals_to_stitch_;
+  Handle<String> source_;
+  CompilerDispatcher* compiler_dispatcher_ = nullptr;
+  ParseInfo* main_parse_info_ = nullptr;
 
   friend class ParserTarget;
   friend class ParserTargetScope;
@@ -1161,8 +1176,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool allow_lazy_;
   bool temp_zoned_;
   ParserLogger* log_;
-
-  PreParsedScopeData* preparsed_scope_data_;
 
   // If not kNoSourcePosition, indicates that the first function literal
   // encountered is a dynamic function, see CreateDynamicFunction(). This field

@@ -77,10 +77,6 @@ Check that exceptionThrown is supported by test runner.
             executionContextId : <executionContextId>
             lineNumber : 0
             scriptId : <scriptId>
-            stackTrace : {
-                callFrames : [
-                ]
-            }
             text : Uncaught SyntaxError: Unexpected token }
         }
         timestamp : <timestamp>

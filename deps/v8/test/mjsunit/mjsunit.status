@@ -30,6 +30,7 @@
   # Modules which are only meant to be imported from by other tests, not to be
   # tested standalone.
   'modules-skip*': [SKIP],
+  'harmony/modules-skip*': [SKIP],
 
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
@@ -64,6 +65,7 @@
   # Too slow in debug mode for validation of elements.
   'regress/regress-430201': [PASS, ['mode == debug', SKIP]],
   'regress/regress-430201b': [PASS, ['mode == debug', SKIP]],
+  'regress/regress-716044': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
   # Too slow in debug mode for GC stress mode.
@@ -84,7 +86,7 @@
 
   # Issue 488: this test sometimes times out.
   # TODO(arm): This seems to flush out a bug on arm with simulator.
-  'array-constructor': [PASS, TIMEOUT, ['arch == arm and simulator == True', SKIP]],
+  'array-constructor': [PASS, SLOW, ['arch == arm and simulator == True', SKIP]],
 
   # Issue 4413: this test sometimes times out with TSAN because we trigger
   # the slow path in C++ with holey arrays in Function.prototype.apply.
@@ -129,9 +131,6 @@
   'compiler/alloc-number-debug': [PASS, ['mode == release', SKIP]],
   'regress/regress-634-debug': [PASS, ['mode == release', SKIP]],
 
-  # BUG(336820). TODO(bmeurer): Investigate.
-  'regress/regress-336820': [PASS, FAIL],
-
   # BUG(v8:2989). PASS/FAIL on linux32 because crankshaft is turned off for
   # nosse2. Also for arm novfp3.
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == x87 or arch == arm and simulator == True', PASS]],
@@ -146,21 +145,33 @@
 
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
+  'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
+  'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
+  'harmony/regexp-property-script-extensions': [PASS, SLOW],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
+  'regress/regress-1122': [PASS, SLOW],
+  'regress/regress-605470': [PASS, SLOW],
+  'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
   'regress/regress-crbug-474297': [PASS, ['gc_stress == False', SKIP]],
-  'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
+  'wasm/embenchen/*': [PASS, SLOW],
+  'wasm/unreachable-validation': [PASS, SLOW],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
   'es6/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
   'regress/regress-5036': [PASS, ['no_i18n == True', FAIL]],
+  'es7/regexp-ui-word': [PASS, ['no_i18n == True', FAIL]],
   # desugaring regexp property class relies on ICU.
   'harmony/regexp-property-*': [PASS, ['no_i18n == True', FAIL]],
 
   # noi18n build cannot parse characters in supplementary plane.
   'harmony/regexp-named-captures': [PASS, ['no_i18n == True', FAIL]],
+
+  # noi18n cannot turn on ICU backend for Date
+  'icu-date-to-string': [PASS, ['no_i18n == True', SKIP]],
+  'icu-date-lord-howe': [PASS, ['no_i18n == True', SKIP]],
 
   # Allocates a large array buffer, which TSAN sometimes cannot handle.
   'regress/regress-599717': [PASS, ['tsan', SKIP]],
@@ -173,8 +184,8 @@
   #                  which makes the test useless.
   'big-object-literal': [PASS, ['mode == debug', SKIP]],
 
-  # BUG(v8:5807): Flaky data race.
-  'wasm/embenchen/fannkuch': [PASS, ['tsan', SKIP]],
+  # BUG(v8:6306).
+  'wasm/huge-memory': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -293,7 +304,6 @@
 
   # Slow tests.
   'array-concat': [PASS, SLOW],
-  'array-constructor': [PASS, SLOW],
   'array-indexing': [PASS, SLOW],
   'array-reduce': [PASS, SLOW],
   'array-sort': [PASS, SLOW],
@@ -306,8 +316,8 @@
   'json2': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
+  'messages': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
-  'regress/regress-1122': [PASS, SLOW],
   'regress/regress-2185-2': [PASS, SLOW],
   'regress/regress-2185': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
@@ -323,7 +333,7 @@
   'whitespaces': [PASS, TIMEOUT, SLOW],
 }],  # 'arch == arm64'
 
-['arch == arm64 and mode == debug and simulator_run == True', {
+['arch == arm64 and mode == debug and simulator_run', {
 
   # Pass but take too long with the simulator in debug mode.
   'array-sort': [PASS, TIMEOUT],
@@ -335,7 +345,7 @@
   'unicodelctest-no-optimization': [PASS, TIMEOUT],
   # Issue 3219:
   'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
-}],  # 'arch == arm64 and mode == debug and simulator_run == True'
+}],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
 ['asan == True', {
@@ -344,8 +354,16 @@
   'big-object-literal': [SKIP],
   'regress/regress-crbug-178790': [SKIP],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4639
+  # The failed allocation causes an asan/msan/tsan error
+  'es6/typedarray-construct-offset-not-smi': [SKIP],
+
   # Exception thrown during bootstrapping on ASAN builds, see issue 4236.
   'regress/regress-1132': [SKIP],
+
+  # Flaky on ASAN builds: https://bugs.chromium.org/p/v8/issues/detail?id=6305
+  'regress/regress-430201': [SKIP],
+  'regress/regress-430201b': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
@@ -363,6 +381,11 @@
 
   # Flaky with baseline?
   'regress/regress-2185-2': [SKIP],
+
+  # Slow tests with --noopt.
+  'compiler/osr-one': [PASS, SLOW],
+  'compiler/osr-two': [PASS, SLOW],
+  'wasm/grow-memory': [PASS, SLOW],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -519,6 +542,11 @@
 
   # BUG(v8:4495).
   'es6/collections': [PASS, ['arch == ia32', FAST_VARIANTS]],
+
+  # Setting the timezone and locale with environment variables unavailable
+  'icu-date-to-string': [SKIP],
+  'icu-date-lord-howe': [SKIP],
+  'regress/regress-6288': [SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -550,7 +578,6 @@
   'es6/tail-call-megatest*': [SKIP],
 
   # Forced optimisation path tests.
-  'shared-function-tier-up-default': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 
   # Fails deopt_fuzzer due to --deopt_every_n_times or
@@ -570,11 +597,11 @@
 }],  # 'predictable == True'
 
 ##############################################################################
-['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
+['arch == ppc and simulator_run or arch == ppc64 and simulator_run', {
 
   # take too long with the simulator.
   'regress/regress-1132': [SKIP],
-}],  # 'arch == ppc and simulator_run == True'
+}],  # 'arch == ppc and simulator_run'
 
 ##############################################################################
 ['arch == ppc64', {
@@ -585,7 +612,7 @@
 }],  # 'arch == ppc64'
 
 ##############################################################################
-['variant == nocrankshaft', {
+['variant == fullcode', {
   'es6/array-iterator-turbo': [SKIP],
 }],  # variant == nocranshaft
 
@@ -596,7 +623,30 @@
   'array-natives-elements': [SKIP],
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
+
+  # Slow tests.
+  'regress/regress-2185-2': [SKIP],
 }],  # variant == stress
+
+##############################################################################
+['variant == noturbofan_stress', {
+  # Slow tests.
+  'ignition/regress-599001-verifyheap': [SKIP],
+  'regress/regress-2185-2': [SKIP],
+}],  # variant == noturbofan_stress
+
+##############################################################################
+['variant == nooptimization', {
+  # Slow tests.
+  'regress/regress-2185-2': [SKIP],
+}],  # variant == nooptimization
+
+##############################################################################
+['variant == noturbofan and no_snap', {
+  # Too slow for old pipeline and nosnap.
+  'regress/regress-2249': [SKIP],
+  'harmony/futex': [SKIP],
+}],  # variant == noturbofan and no_snap
 
 ##############################################################################
 ['variant == turbofan_opt', {
@@ -622,24 +672,6 @@
 }],  # 'gcov_coverage'
 
 ##############################################################################
-['variant == asm_wasm', {
-  # Skip stuff uninteresting for asm.js
-  'bugs/*': [SKIP],
-  'compiler/*': [SKIP],
-  'es6/*': [SKIP],
-  'es7/*': [SKIP],
-  'es8/*': [SKIP],
-  'harmony/*': [SKIP],
-  'ignition/*': [SKIP],
-  'lithium/*': [SKIP],
-  'third_party/*': [SKIP],
-  'tools/*': [SKIP],
-  'apply': [SKIP],
-  'math-*': [SKIP],
-  'unicode-test': [SKIP],
-  'whitespaces': [SKIP],
-}],  # variant == asm_wasm
-
 ['variant == wasm_traps', {
   # Skip stuff uninteresting for wasm traps
   'bugs/*': [SKIP],

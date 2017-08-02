@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "include/libplatform/libplatform-export.h"
+#include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
 #include "include/v8-platform.h"
 #include "src/base/compiler-specific.h"
@@ -32,14 +33,18 @@ class TracingController;
 
 class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
  public:
-  DefaultPlatform();
+  explicit DefaultPlatform(
+      IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled);
   virtual ~DefaultPlatform();
 
   void SetThreadPoolSize(int thread_pool_size);
 
   void EnsureInitialized();
 
-  bool PumpMessageLoop(v8::Isolate* isolate);
+  bool PumpMessageLoop(
+      v8::Isolate* isolate,
+      MessageLoopBehavior behavior = MessageLoopBehavior::kDoNotWait);
+  void EnsureEventLoopInitialized(v8::Isolate* isolate);
 
   void RunIdleTasks(v8::Isolate* isolate, double idle_time_in_seconds);
 
@@ -70,6 +75,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
 
   void AddTraceStateObserver(TraceStateObserver* observer) override;
   void RemoveTraceStateObserver(TraceStateObserver* observer) override;
+  StackTracePrinter GetStackTracePrinter() override;
 
  private:
   static const int kMaxThreadPoolSize;
@@ -78,13 +84,18 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   Task* PopTaskInMainThreadDelayedQueue(v8::Isolate* isolate);
   IdleTask* PopTaskInMainThreadIdleQueue(v8::Isolate* isolate);
 
+  void WaitForForegroundWork(v8::Isolate* isolate);
+  void ScheduleOnForegroundThread(v8::Isolate* isolate, Task* task);
+
   base::Mutex lock_;
   bool initialized_;
   int thread_pool_size_;
+  IdleTaskSupport idle_task_support_;
   std::vector<WorkerThread*> thread_pool_;
   TaskQueue queue_;
   std::map<v8::Isolate*, std::queue<Task*>> main_thread_queue_;
   std::map<v8::Isolate*, std::queue<IdleTask*>> main_thread_idle_queue_;
+  std::map<v8::Isolate*, std::unique_ptr<base::Semaphore>> event_loop_control_;
 
   typedef std::pair<double, Task*> DelayedEntry;
   std::map<v8::Isolate*,

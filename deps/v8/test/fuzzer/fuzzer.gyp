@@ -169,6 +169,8 @@
         '../common/wasm/test-signatures.h',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
+        'wasm-fuzzer-common.cc',
+        'wasm-fuzzer-common.h',
       ],
     },
     {
@@ -198,6 +200,8 @@
         '../common/wasm/test-signatures.h',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
+        'wasm-fuzzer-common.cc',
+        'wasm-fuzzer-common.h',
       ],
     },
     {
@@ -227,6 +231,8 @@
         '../common/wasm/test-signatures.h',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
+        'wasm-fuzzer-common.cc',
+        'wasm-fuzzer-common.h',
       ],
     },
     {
@@ -255,8 +261,8 @@
         'wasm-data-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
-        'wasm-section-fuzzers.cc',
-        'wasm-section-fuzzers.h',
+        'wasm-fuzzer-common.cc',
+        'wasm-fuzzer-common.h',
       ],
     },
     {
@@ -285,8 +291,8 @@
         'wasm-function-sigs-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
-        'wasm-section-fuzzers.cc',
-        'wasm-section-fuzzers.h',
+        'wasm-fuzzer-common.cc',
+        'wasm-fuzzer-common.h',
       ],
     },
     {
@@ -315,8 +321,8 @@
         'wasm-globals-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
-        'wasm-section-fuzzers.cc',
-        'wasm-section-fuzzers.h',
+        'wasm-fuzzer-common.cc',
+        'wasm-fuzzer-common.h',
       ],
     },
     {
@@ -345,8 +351,8 @@
         'wasm-imports-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
-        'wasm-section-fuzzers.cc',
-        'wasm-section-fuzzers.h',
+        'wasm-fuzzer-common.cc',
+        'wasm-fuzzer-common.h',
       ],
     },
     {
@@ -375,8 +381,8 @@
         'wasm-memory-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
-        'wasm-section-fuzzers.cc',
-        'wasm-section-fuzzers.h',
+        'wasm-fuzzer-common.cc',
+        'wasm-fuzzer-common.h',
       ],
     },
     {
@@ -405,8 +411,8 @@
         'wasm-names-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
-        'wasm-section-fuzzers.cc',
-        'wasm-section-fuzzers.h',
+        'wasm-fuzzer-common.cc',
+        'wasm-fuzzer-common.h',
       ],
     },
     {
@@ -435,8 +441,8 @@
         'wasm-types-section.cc',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
-        'wasm-section-fuzzers.cc',
-        'wasm-section-fuzzers.h',
+        'wasm-fuzzer-common.cc',
+        'wasm-fuzzer-common.h',
       ],
     },
     {

@@ -156,7 +156,7 @@ class Serializer : public SerializerDeserializer {
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip) = 0;
 
-  void VisitPointers(Object** start, Object** end) override;
+  void VisitRootPointers(Root root, Object** start, Object** end) override;
 
   void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
                int skip);
@@ -280,32 +280,23 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
         code_has_been_output_(false) {}
   ~ObjectSerializer() override {}
   void Serialize();
+  void SerializeContent();
   void SerializeDeferred();
-  void VisitPointers(Object** start, Object** end) override;
-  void VisitEmbeddedPointer(RelocInfo* target) override;
-  void VisitExternalReference(Address* p) override;
-  void VisitExternalReference(RelocInfo* rinfo) override;
-  void VisitInternalReference(RelocInfo* rinfo) override;
-  void VisitCodeTarget(RelocInfo* target) override;
-  void VisitCodeEntry(Address entry_address) override;
-  void VisitCell(RelocInfo* rinfo) override;
-  void VisitRuntimeEntry(RelocInfo* reloc) override;
-  // Used for seralizing the external strings that hold the natives source.
-  void VisitExternalOneByteString(
-      v8::String::ExternalOneByteStringResource** resource) override;
-  // We can't serialize a heap with external two byte strings.
-  void VisitExternalTwoByteString(
-      v8::String::ExternalStringResource** resource) override {
-    UNREACHABLE();
-  }
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override;
+  void VisitEmbeddedPointer(Code* host, RelocInfo* target) override;
+  void VisitExternalReference(Foreign* host, Address* p) override;
+  void VisitExternalReference(Code* host, RelocInfo* rinfo) override;
+  void VisitInternalReference(Code* host, RelocInfo* rinfo) override;
+  void VisitCodeTarget(Code* host, RelocInfo* target) override;
+  void VisitCodeEntry(JSFunction* host, Address entry_address) override;
+  void VisitCellPointer(Code* host, RelocInfo* rinfo) override;
+  void VisitRuntimeEntry(Code* host, RelocInfo* reloc) override;
 
  private:
+  bool TryEncodeDeoptimizationEntry(HowToCode how_to_code, Address target,
+                                    int skip);
   void SerializePrologue(AllocationSpace space, int size, Map* map);
 
-  bool SerializeExternalNativeSourceString(
-      int builtin_count,
-      v8::String::ExternalOneByteStringResource** resource_pointer,
-      FixedArray* source_cache, int resource_index);
 
   enum ReturnSkip { kCanReturnSkipInsteadOfSkipping, kIgnoringReturn };
   // This function outputs or skips the raw data between the last pointer and
@@ -313,8 +304,8 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   // bytes to skip instead of performing a skip instruction, in case the skip
   // can be merged into the next instruction.
   int OutputRawData(Address up_to, ReturnSkip return_skip = kIgnoringReturn);
-  // External strings are serialized in a way to resemble sequential strings.
   void SerializeExternalString();
+  void SerializeExternalStringAsSequentialString();
 
   Address PrepareCode();
 

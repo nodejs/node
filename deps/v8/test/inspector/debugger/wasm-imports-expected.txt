@@ -1,0 +1,25 @@
+Tests imports in wasm
+Installing code and global variable.
+Calling instantiate function for module A.
+Waiting for wasm script to be parsed.
+Got wasm script!
+Setting breakpoint in line 1:
+func $func
+  #nop
+end
+
+Calling instantiate function for module B.
+Calling main function on module B.
+Paused at 1:2.
+func $func
+  #nop
+end
+
+Getting current stack trace via "new Error().stack".
+Error
+    at v8://test/getStack:1:1
+    at func (<WASM>[0]+1)
+    at main (<WASM>[1]+1)
+    at v8://test/runWasm:1:22
+exports.main returned.
+Finished.

@@ -9,12 +9,12 @@
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/objects-inl.h"
-#include "src/wasm/wasm-macro-gen.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 // If the target architecture is 64-bit, enable all tests.
 #if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
@@ -253,7 +253,7 @@ WASM_EXEC_TEST(I64SarUseOnlyLowWord) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64DivS) {
+WASM_EXEC_TEST(I64DivS) {
   REQUIRE(I64DivS);
   WasmRunner<int64_t, int64_t, int64_t> r(execution_mode);
   BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -270,7 +270,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64DivS) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64DivS_Trap) {
+WASM_EXEC_TEST(I64DivS_Trap) {
   REQUIRE(I64DivS);
   WasmRunner<int64_t, int64_t, int64_t> r(execution_mode);
   BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -281,7 +281,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64DivS_Trap) {
   CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), asi64(0)));
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64DivS_Byzero_Const) {
+WASM_EXEC_TEST(I64DivS_Byzero_Const) {
   REQUIRE(I64DivS);
   for (int8_t denom = -2; denom < 8; denom++) {
     WasmRunner<int64_t, int64_t> r(execution_mode);
@@ -296,7 +296,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64DivS_Byzero_Const) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64DivU) {
+WASM_EXEC_TEST(I64DivU) {
   REQUIRE(I64DivU);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_mode);
   BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -311,7 +311,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64DivU) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64DivU_Trap) {
+WASM_EXEC_TEST(I64DivU_Trap) {
   REQUIRE(I64DivU);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_mode);
   BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -321,7 +321,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64DivU_Trap) {
   CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), asu64(0)));
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64DivU_Byzero_Const) {
+WASM_EXEC_TEST(I64DivU_Byzero_Const) {
   REQUIRE(I64DivU);
   for (uint64_t denom = 0xfffffffffffffffe; denom < 8; denom++) {
     WasmRunner<uint64_t, uint64_t> r(execution_mode);
@@ -337,7 +337,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64DivU_Byzero_Const) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64RemS) {
+WASM_EXEC_TEST(I64RemS) {
   REQUIRE(I64RemS);
   WasmRunner<int64_t, int64_t, int64_t> r(execution_mode);
   BUILD(r, WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -352,7 +352,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64RemS) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64RemS_Trap) {
+WASM_EXEC_TEST(I64RemS_Trap) {
   REQUIRE(I64RemS);
   WasmRunner<int64_t, int64_t, int64_t> r(execution_mode);
   BUILD(r, WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -363,7 +363,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64RemS_Trap) {
   CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), asi64(0)));
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64RemU) {
+WASM_EXEC_TEST(I64RemU) {
   REQUIRE(I64RemU);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_mode);
   BUILD(r, WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -378,7 +378,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64RemU) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64RemU_Trap) {
+WASM_EXEC_TEST(I64RemU_Trap) {
   REQUIRE(I64RemU);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_mode);
   BUILD(r, WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -839,7 +839,7 @@ WASM_EXEC_TEST(F64UConvertI64) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64SConvertF32a) {
+WASM_EXEC_TEST(I64SConvertF32a) {
   WasmRunner<int64_t, float> r(execution_mode);
   BUILD(r, WASM_I64_SCONVERT_F32(WASM_GET_LOCAL(0)));
 
@@ -853,7 +853,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64SConvertF32a) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64SConvertF64a) {
+WASM_EXEC_TEST(I64SConvertF64a) {
   WasmRunner<int64_t, double> r(execution_mode);
   BUILD(r, WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0)));
 
@@ -867,7 +867,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64SConvertF64a) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64UConvertF32a) {
+WASM_EXEC_TEST(I64UConvertF32a) {
   WasmRunner<uint64_t, float> r(execution_mode);
   BUILD(r, WASM_I64_UCONVERT_F32(WASM_GET_LOCAL(0)));
 
@@ -881,7 +881,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64UConvertF32a) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64UConvertF64a) {
+WASM_EXEC_TEST(I64UConvertF64a) {
   WasmRunner<uint64_t, double> r(execution_mode);
   BUILD(r, WASM_I64_UCONVERT_F64(WASM_GET_LOCAL(0)));
 
@@ -1248,7 +1248,7 @@ WASM_EXEC_TEST(LoadStoreI64_sx) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64SConvertF32b) {
+WASM_EXEC_TEST(I64SConvertF32b) {
   REQUIRE(I64SConvertF32);
   WasmRunner<int64_t, float> r(execution_mode);
   BUILD(r, WASM_I64_SCONVERT_F32(WASM_GET_LOCAL(0)));
@@ -1263,7 +1263,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64SConvertF32b) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64SConvertF64b) {
+WASM_EXEC_TEST(I64SConvertF64b) {
   REQUIRE(I64SConvertF64);
   WasmRunner<int64_t, double> r(execution_mode);
   BUILD(r, WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0)));
@@ -1278,7 +1278,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64SConvertF64b) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64UConvertF32b) {
+WASM_EXEC_TEST(I64UConvertF32b) {
   REQUIRE(I64UConvertF32);
   WasmRunner<uint64_t, float> r(execution_mode);
   BUILD(r, WASM_I64_UCONVERT_F32(WASM_GET_LOCAL(0)));
@@ -1292,7 +1292,7 @@ WASM_EXEC_TEST_WITH_TRAP(I64UConvertF32b) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I64UConvertF64b) {
+WASM_EXEC_TEST(I64UConvertF64b) {
   REQUIRE(I64UConvertF64);
   WasmRunner<uint64_t, double> r(execution_mode);
   BUILD(r, WASM_I64_UCONVERT_F64(WASM_GET_LOCAL(0)));
@@ -1499,7 +1499,9 @@ WASM_EXEC_TEST(I64Rol) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(StoreMem_offset_oob_i64) {
+WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
+  // TODO(eholk): Fix this test for the trap handler.
+  if (trap_handler::UseTrapHandler()) return;
   static const MachineType machineTypes[] = {
       MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
       MachineType::Uint16(), MachineType::Int32(),  MachineType::Uint32(),
@@ -1524,6 +1526,22 @@ WASM_EXEC_TEST_WITH_TRAP(StoreMem_offset_oob_i64) {
       CHECK_TRAP(r.Call(offset));  // out of bounds.
     }
   }
+}
+
+WASM_EXEC_TEST(UnalignedInt64Load) {
+  WasmRunner<uint64_t> r(execution_mode);
+  r.module().AddMemoryElems<int64_t>(8);
+  BUILD(r, WASM_LOAD_MEM_ALIGNMENT(MachineType::Int64(), WASM_ONE, 3));
+  r.Call();
+}
+
+WASM_EXEC_TEST(UnalignedInt64Store) {
+  WasmRunner<int32_t> r(execution_mode);
+  r.module().AddMemoryElems<uint64_t>(8);
+  BUILD(r, WASM_SEQ(WASM_STORE_MEM_ALIGNMENT(MachineType::Int64(), WASM_ONE, 3,
+                                             WASM_I64V_1(1)),
+                    WASM_I32V_1(12)));
+  r.Call();
 }
 
 #define ADD_CODE(vec, ...)                                              \
@@ -1596,9 +1614,6 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     // =========================================================================
     std::vector<byte> code;
 
-    // Load the offset for the store.
-    ADD_CODE(code, WASM_ZERO);
-
     // Load the arguments.
     for (int i = 0; i < num_params; i++) {
       int offset = (i + 1) * kElemSize;
@@ -1608,10 +1623,13 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     // Call the selector function.
     ADD_CODE(code, WASM_CALL_FUNCTION0(t.function_index()));
 
+    // Store the result in a local.
+    byte local_index = r.AllocateLocal(WasmOpcodes::ValueTypeFor(result));
+    ADD_CODE(code, kExprSetLocal, local_index);
+
     // Store the result in memory.
     ADD_CODE(code,
-             static_cast<byte>(WasmOpcodes::LoadStoreOpcodeOf(result, true)),
-             ZERO_ALIGNMENT, ZERO_OFFSET);
+             WASM_STORE_MEM(result, WASM_ZERO, WASM_GET_LOCAL(local_index)));
 
     // Return the expected value.
     ADD_CODE(code, WASM_I32V_2(kExpected));

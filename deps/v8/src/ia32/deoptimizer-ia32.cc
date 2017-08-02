@@ -76,7 +76,7 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
         new_reloc->GetDataStartAddress() + padding, 0);
     intptr_t comment_string
         = reinterpret_cast<intptr_t>(RelocInfo::kFillerCommentString);
-    RelocInfo rinfo(isolate, 0, RelocInfo::COMMENT, comment_string, NULL);
+    RelocInfo rinfo(0, RelocInfo::COMMENT, comment_string, NULL);
     for (int i = 0; i < additional_comments; ++i) {
 #ifdef DEBUG
       byte* pos_before = reloc_info_writer.pos();
@@ -94,25 +94,22 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
 void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   Address code_start_address = code->instruction_start();
 
-  if (FLAG_zap_code_space) {
-    // Fail hard and early if we enter this code object again.
-    byte* pointer = code->FindCodeAgeSequence();
-    if (pointer != NULL) {
-      pointer += kNoCodeAgeSequenceLength;
-    } else {
-      pointer = code->instruction_start();
-    }
-    CodePatcher patcher(isolate, pointer, 1);
-    patcher.masm()->int3();
+  // Fail hard and early if we enter this code object again.
+  byte* pointer = code->FindCodeAgeSequence();
+  if (pointer != NULL) {
+    pointer += kNoCodeAgeSequenceLength;
+  } else {
+    pointer = code->instruction_start();
+  }
+  CodePatcher patcher(isolate, pointer, 1);
+  patcher.masm()->int3();
 
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
-    int osr_offset = data->OsrPcOffset()->value();
-    if (osr_offset > 0) {
-      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
-                              1);
-      osr_patcher.masm()->int3();
-    }
+  DeoptimizationInputData* data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  int osr_offset = data->OsrPcOffset()->value();
+  if (osr_offset > 0) {
+    CodePatcher osr_patcher(isolate, code_start_address + osr_offset, 1);
+    osr_patcher.masm()->int3();
   }
 
   // We will overwrite the code's relocation info in-place. Relocation info
@@ -143,7 +140,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
     patcher.masm()->call(deopt_entry, RelocInfo::NONE32);
     // We use RUNTIME_ENTRY for deoptimization bailouts.
-    RelocInfo rinfo(isolate, call_address + 1,  // 1 after the call opcode.
+    RelocInfo rinfo(call_address + 1,  // 1 after the call opcode.
                     RelocInfo::RUNTIME_ENTRY,
                     reinterpret_cast<intptr_t>(deopt_entry), NULL);
     reloc_info_writer.Write(&rinfo);
@@ -204,13 +201,23 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ movsd(Operand(esp, offset), xmm_reg);
   }
 
+  STATIC_ASSERT(kFloatSize == kPointerSize);
+  const int kFloatRegsSize = kFloatSize * XMMRegister::kMaxNumRegisters;
+  __ sub(esp, Immediate(kFloatRegsSize));
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    XMMRegister xmm_reg = XMMRegister::from_code(code);
+    int offset = code * kFloatSize;
+    __ movss(Operand(esp, offset), xmm_reg);
+  }
+
   __ pushad();
 
   ExternalReference c_entry_fp_address(Isolate::kCEntryFPAddress, isolate());
   __ mov(Operand::StaticVariable(c_entry_fp_address), ebp);
 
-  const int kSavedRegistersAreaSize = kNumberOfRegisters * kPointerSize +
-                                      kDoubleRegsSize;
+  const int kSavedRegistersAreaSize =
+      kNumberOfRegisters * kPointerSize + kDoubleRegsSize + kFloatRegsSize;
 
   // Get the bailout id from the stack.
   __ mov(ebx, Operand(esp, kSavedRegistersAreaSize));
@@ -251,6 +258,13 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ pop(Operand(ebx, offset));
+  }
+
+  int float_regs_offset = FrameDescription::float_registers_offset();
+  // Fill in the float input registers.
+  for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    int dst_offset = i * kFloatSize + float_regs_offset;
+    __ pop(Operand(ebx, dst_offset));
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();

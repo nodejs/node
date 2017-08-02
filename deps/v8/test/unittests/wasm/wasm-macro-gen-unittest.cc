@@ -4,7 +4,7 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/wasm/wasm-macro-gen.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -15,6 +15,7 @@ class WasmMacroGenTest : public TestWithZone {};
 #define EXPECT_SIZE(size, ...)                          \
   do {                                                  \
     byte code[] = {__VA_ARGS__};                        \
+    USE(code);                                          \
     EXPECT_EQ(static_cast<size_t>(size), sizeof(code)); \
   } while (false)
 

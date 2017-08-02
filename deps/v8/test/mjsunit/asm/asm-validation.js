@@ -339,23 +339,6 @@ function assertValidAsm(func) {
   assertFalse(%IsAsmWasmCode(Module));
 })();
 
-(function TestBadishBooleanExprAnnotation() {
-  function Module() {
-    "use asm";
-    function foo(x) {
-      x = x | 0;
-      x = (x + 1) | false;
-      return x | 0;
-    }
-    return { foo: foo };
-  }
-  var m = Module();
-  // We all false here because the parser optimizes expressons like:
-  // !123 to false.
-  assertTrue(%IsAsmWasmCode(Module));
-  assertEquals(4, m.foo(3));
-})();
-
 (function TestBadFroundTrue() {
   function Module(stdlib) {
     "use asm";
@@ -443,7 +426,7 @@ function assertValidAsm(func) {
     return foo;
   }
   Module();
-  assertFalse(% IsAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 (function TestBadIntConditionalReturn() {
@@ -458,7 +441,7 @@ function assertValidAsm(func) {
     return foo;
   }
   Module();
-  assertFalse(% IsAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 (function TestBadSignedConditionalReturn() {
@@ -474,7 +457,7 @@ function assertValidAsm(func) {
     return foo;
   }
   Module();
-  assertFalse(% IsAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 (function TestAsmIsRegular() {
@@ -491,8 +474,26 @@ function assertValidAsm(func) {
   assertFalse(o instanceof WebAssembly.Instance);
   assertTrue(o instanceof Object);
   assertTrue(o.__proto__ === Object.prototype);
+  var p = Object.getOwnPropertyDescriptor(o, "x")
+  assertTrue(p.writable);
+  assertTrue(p.enumerable);
+  assertTrue(p.configurable);
+  assertTrue(typeof o.x === 'function');
   o.x = 5;
   assertTrue(typeof o.x === 'number');
   assertTrue(o.__single_function__ === undefined);
   assertTrue(o.__foreign_init__ === undefined);
+})();
+
+(function TestAsmExportOrderPreserved() {
+  function Module() {
+    "use asm";
+    function f() {}
+    function g() {}
+    return { a:f, b:g, x:f, c:g, d:f };
+  }
+  var m = Module();
+  assertValidAsm(Module);
+  var props = Object.getOwnPropertyNames(m);
+  assertEquals(["a","b","x","c","d"], props);
 })();

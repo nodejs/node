@@ -41,6 +41,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
   Vector<const byte> startup_data = ExtractStartupData(blob);
   SnapshotData snapshot_data(startup_data);
   Deserializer deserializer(&snapshot_data);
+  deserializer.SetRehashability(ExtractRehashability(blob));
   bool success = isolate->Init(&deserializer);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -52,7 +53,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
 
 MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
-    v8::DeserializeInternalFieldsCallback internal_fields_deserializer) {
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
@@ -62,9 +63,10 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
       ExtractContextData(blob, static_cast<int>(context_index));
   SnapshotData snapshot_data(context_data);
   Deserializer deserializer(&snapshot_data);
+  deserializer.SetRehashability(ExtractRehashability(blob));
 
   MaybeHandle<Object> maybe_context = deserializer.DeserializePartial(
-      isolate, global_proxy, internal_fields_deserializer);
+      isolate, global_proxy, embedder_fields_deserializer);
   Handle<Object> result;
   if (!maybe_context.ToHandle(&result)) return MaybeHandle<Context>();
   CHECK(result->IsContext());
@@ -98,7 +100,7 @@ void ProfileDeserialization(const SnapshotData* startup_snapshot,
 
 v8::StartupData Snapshot::CreateSnapshotBlob(
     const SnapshotData* startup_snapshot,
-    const List<SnapshotData*>* context_snapshots) {
+    const List<SnapshotData*>* context_snapshots, bool can_be_rehashed) {
   int num_contexts = context_snapshots->length();
   int startup_snapshot_offset = StartupSnapshotOffset(num_contexts);
   int total_length = startup_snapshot_offset;
@@ -111,6 +113,8 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
 
   char* data = new char[total_length];
   memcpy(data + kNumberOfContextsOffset, &num_contexts, kInt32Size);
+  int rehashability = can_be_rehashed ? 1 : 0;
+  memcpy(data + kRehashabilityOffset, &rehashability, kInt32Size);
   int payload_offset = StartupSnapshotOffset(num_contexts);
   int payload_length = startup_snapshot->RawData().length();
   memcpy(data + payload_offset, startup_snapshot->RawData().start(),
@@ -141,6 +145,13 @@ int Snapshot::ExtractNumContexts(const v8::StartupData* data) {
   int num_contexts;
   memcpy(&num_contexts, data->data + kNumberOfContextsOffset, kInt32Size);
   return num_contexts;
+}
+
+bool Snapshot::ExtractRehashability(const v8::StartupData* data) {
+  CHECK_LT(kRehashabilityOffset, data->raw_size);
+  int rehashability;
+  memcpy(&rehashability, data->data + kRehashabilityOffset, kInt32Size);
+  return rehashability != 0;
 }
 
 Vector<const byte> Snapshot::ExtractStartupData(const v8::StartupData* data) {
@@ -195,7 +206,7 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
 
   // Set header values.
   SetMagicNumber(serializer->isolate());
-  SetHeaderValue(kCheckSumOffset, Version::Hash());
+  SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderValue(kNumReservationsOffset, reservations.length());
   SetHeaderValue(kPayloadLengthOffset, payload->length());
 
@@ -209,7 +220,7 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
 }
 
 bool SnapshotData::IsSane() {
-  return GetHeaderValue(kCheckSumOffset) == Version::Hash();
+  return GetHeaderValue(kVersionHashOffset) == Version::Hash();
 }
 
 Vector<const SerializedData::Reservation> SnapshotData::Reservations() const {

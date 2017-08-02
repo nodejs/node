@@ -80,7 +80,7 @@ assertTrue(extension_count == 2 || extension_count == 3);
 // This script, test-api.js and mjsunit.js has been loaded.  If using d8, d8
 // loads a normal script during startup too.
 assertTrue(normal_count == 3 || normal_count == 4);
-assertTrue(inspector_count == 2);
+assertTrue(inspector_count == 1);
 
 // Test a builtins script.
 var array_script = Debug.findScript('native array.js');

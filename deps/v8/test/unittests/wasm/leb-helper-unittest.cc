@@ -92,13 +92,13 @@ TEST_F(LEBHelperTest, sizeof_i32v) {
   static void CheckEncodeDecode_##name(ctype val) {                        \
     static const int kSize = 16;                                           \
     static byte buffer[kSize];                                             \
-    byte *ptr = buffer;                                                    \
+    byte* ptr = buffer;                                                    \
     LEBHelper::write_##name(&ptr, val);                                    \
     EXPECT_EQ(LEBHelper::sizeof_##name(val),                               \
               static_cast<size_t>(ptr - buffer));                          \
     Decoder decoder(buffer, buffer + kSize);                               \
     unsigned length = 0;                                                   \
-    ctype result = decoder.checked_read_##name(buffer, 0, &length);        \
+    ctype result = decoder.read_##name<false>(buffer, &length);            \
     EXPECT_EQ(val, result);                                                \
     EXPECT_EQ(LEBHelper::sizeof_##name(val), static_cast<size_t>(length)); \
   }

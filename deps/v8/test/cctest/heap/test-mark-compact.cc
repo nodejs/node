@@ -43,6 +43,7 @@
 #include "src/global-handles.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/sequential-marking-deque.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
@@ -51,10 +52,9 @@
 using namespace v8::internal;
 using v8::Just;
 
-
-TEST(MarkingDeque) {
+TEST(SequentialMarkingDeque) {
   CcTest::InitializeVM();
-  MarkingDeque s(CcTest::i_isolate()->heap());
+  SequentialMarkingDeque s(CcTest::i_isolate()->heap());
   s.SetUp();
   s.StartUsing();
   Address original_address = reinterpret_cast<Address>(&s);
@@ -90,8 +90,8 @@ TEST(Promotion) {
 
     // Array should be in the new space.
     CHECK(heap->InSpace(*array, NEW_SPACE));
-    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+    CcTest::CollectAllGarbage();
+    CcTest::CollectAllGarbage();
     CHECK(heap->InSpace(*array, OLD_SPACE));
   }
 }
@@ -115,8 +115,8 @@ HEAP_TEST(NoPromotion) {
     heap->set_force_oom(true);
     // Array should be in the new space.
     CHECK(heap->InSpace(*array, NEW_SPACE));
-    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+    CcTest::CollectAllGarbage();
+    CcTest::CollectAllGarbage();
     CHECK(heap->InSpace(*array, NEW_SPACE));
   }
 }
@@ -354,7 +354,8 @@ TEST(Regress5829) {
   heap->CreateFillerObjectAt(old_end - kPointerSize, kPointerSize,
                              ClearRecordedSlots::kNo);
   heap->old_space()->EmptyAllocationInfo();
-  LiveObjectIterator<kGreyObjects> it(Page::FromAddress(array->address()));
+  Page* page = Page::FromAddress(array->address());
+  LiveObjectIterator<kGreyObjects> it(page, MarkingState::Internal(page));
   HeapObject* object = nullptr;
   while ((object = it.Next()) != nullptr) {
     CHECK(!object->IsFiller());

@@ -25,7 +25,7 @@ function __f_0(__v_1, __v_6) {
 %DebugPrint(undefined);
 function __f_1(__v_4, add_first, __v_6, same_map_as) {
   var __v_1 = __v_4 ? new __f_3() : {};
-  assertTrue(%HasFastProperties(__v_1));
+  assertTrue(__v_4 || %HasFastProperties(__v_1));
   if (add_first) {
     __f_4(__v_1);
     assertFalse(%HasFastProperties(__v_1));
@@ -33,9 +33,9 @@ function __f_1(__v_4, add_first, __v_6, same_map_as) {
     assertFalse(%HasFastProperties(__v_1));
   } else {
     __f_0(__v_1, __v_6);
-    assertTrue(%HasFastProperties(__v_1));
+    assertTrue(__v_4 || %HasFastProperties(__v_1));
     __f_4(__v_1);
-    assertTrue(%HasFastProperties(__v_1));
+    assertTrue(__v_4 || %HasFastProperties(__v_1));
   }
 }
 gc();

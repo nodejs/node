@@ -62,9 +62,9 @@ var IntegerTypedArrayConstructors = [
   var si32a = new Int32Array(sab);
   var si32a2 = new Int32Array(sab, 4);
 
-  // Non-integer indexes should throw RangeError.
-  var nonInteger = [1.4, '1.4', NaN, -Infinity, Infinity, undefined, 'hi', {}];
-  nonInteger.forEach(function(i) {
+  // Indexes that are out of bounds when coerced via ToIndex should throw
+  // RangeError.
+  [-Infinity, Infinity].forEach(function(i) {
     assertThrows(function() { Atomics.compareExchange(si32a, i, 0); },
                  RangeError);
     assertThrows(function() { Atomics.load(si32a, i, 0); }, RangeError);
@@ -140,7 +140,8 @@ var IntegerTypedArrayConstructors = [
   };
 
   // These values all map to index 0
-  [-0, 0, 0.0, null, false].forEach(function(i) {
+  [-0, 0, 0.0, null, false, NaN, {}, '0.2', 'hi', undefined].forEach(
+      function(i) {
     var name = String(i);
     [si32a, si32a2].forEach(function(array) {
       testOp(Atomics.compareExchange, array, i, 0, name);
@@ -562,5 +563,35 @@ function clearArray(sab) {
       assertEquals(valWrapped, sta[0], name);
     }
 
+  });
+})();
+
+(function TestValidateIndexBeforeValue() {
+  var testOp = function(op, sta, name) {
+    var valueof_has_been_called = 0;
+    var value = {valueOf: function() { valueof_has_been_called = 1; return 0;}};
+    var index = -1;
+
+    // The index should be checked before calling ToInteger on the value, so
+    // valueof_has_been_called should not be modified.
+    sta[0] = 0;
+    assertThrows(function() { op(sta, index, value, value); }, RangeError);
+    assertEquals(0, valueof_has_been_called);
+  };
+
+  IntegerTypedArrayConstructors.forEach(function(t) {
+    var sab = new SharedArrayBuffer(10 * t.constr.BYTES_PER_ELEMENT);
+    var sta = new t.constr(sab);
+    var name = Object.prototype.toString.call(sta);
+
+    testOp(Atomics.compareExchange, sta, name);
+    testOp(Atomics.load, sta, name);
+    testOp(Atomics.store, sta, name);
+    testOp(Atomics.add, sta, name);
+    testOp(Atomics.sub, sta, name);
+    testOp(Atomics.and, sta, name);
+    testOp(Atomics.or, sta, name);
+    testOp(Atomics.xor, sta, name);
+    testOp(Atomics.exchange, sta, name);
   });
 })();

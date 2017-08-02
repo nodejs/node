@@ -7,9 +7,10 @@
 
 #include "src/checks.h"
 #include "src/elements-kind.h"
-#include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/descriptor-array.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
@@ -189,15 +190,17 @@ class TransitionArray: public FixedArray {
   void TransitionArrayVerify();
 #endif
 
+  void Sort();
+
 #ifdef DEBUG
   bool IsSortedNoDuplicates(int valid_entries = -1);
   static bool IsSortedNoDuplicates(Map* map);
   static bool IsConsistentWithBackPointers(Map* map);
+#endif
 
   // Returns true for a non-property transitions like elements kind, observed
   // or frozen transitions.
   static inline bool IsSpecialTransition(Name* name);
-#endif
 
   // Constant for denoting key was not found.
   static const int kNotFound = -1;

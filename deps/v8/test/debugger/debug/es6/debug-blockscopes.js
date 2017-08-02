@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noanalyze-environment-liveness --crankshaft
+// Flags: --noanalyze-environment-liveness --opt
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 

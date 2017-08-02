@@ -14,12 +14,14 @@
 namespace v8 {
 namespace internal {
 
+class AstStringConstants;
 class CompilationInfo;
 
 namespace interpreter {
 
 class GlobalDeclarationsBuilder;
 class LoopBuilder;
+class BytecodeJumpTable;
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
@@ -52,7 +54,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class TestResultScope;
   class ValueResultScope;
 
+  using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
+
   enum class TestFallthrough { kThen, kElse, kNone };
+  enum class TypeHint { kAny, kBoolean };
 
   void GenerateBytecodeBody();
   void AllocateDeferredConstants(Isolate* isolate);
@@ -70,6 +75,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitTypeOf(UnaryOperation* expr);
   void VisitNot(UnaryOperation* expr);
   void VisitDelete(UnaryOperation* expr);
+
+  // Visits a typeof expression for the value on which to perform the typeof.
+  void VisitForTypeOfValue(Expression* expr);
 
   // Used by flow control routines to evaluate loop condition.
   void VisitCondition(Expression* expr);
@@ -105,12 +113,13 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildVariableAssignment(Variable* variable, Token::Value op,
                                FeedbackSlot slot,
                                HoleCheckMode hole_check_mode);
-
+  void BuildLiteralCompareNil(Token::Value compare_op, NilValue nil);
   void BuildReturn();
   void BuildAsyncReturn();
+  void BuildAsyncGeneratorReturn();
   void BuildReThrow();
   void BuildAbort(BailoutReason bailout_reason);
-  void BuildThrowIfHole(const AstRawString* name);
+  void BuildThrowIfHole(Variable* variable);
   void BuildThrowReferenceError(const AstRawString* name);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 
@@ -122,10 +131,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalActivationContext();
   void BuildLocalActivationContextInitialization();
   void BuildNewLocalBlockContext(Scope* scope);
-  void BuildNewLocalCatchContext(Variable* variable, Scope* scope);
+  void BuildNewLocalCatchContext(Scope* scope);
   void BuildNewLocalWithContext(Scope* scope);
 
-  void VisitGeneratorPrologue();
+  void BuildGeneratorPrologue();
+  void BuildGeneratorSuspend(Suspend* expr, Register generator);
+  void BuildGeneratorResume(Suspend* expr, Register generator);
 
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
@@ -133,8 +144,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitClassLiteralProperties(ClassLiteral* expr, Register constructor,
                                    Register prototype);
   void BuildClassLiteralNameProperty(ClassLiteral* expr, Register constructor);
+  void BuildClassLiteral(ClassLiteral* expr);
   void VisitThisFunctionVariable(Variable* variable);
   void VisitNewTargetVariable(Variable* variable);
+  void BuildGeneratorObjectVariableInitialization();
   void VisitBlockDeclarationsAndStatements(Block* stmt);
   void VisitFunctionClosureForContext();
   void VisitSetHomeObject(Register value, Register home_object,
@@ -155,9 +168,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   void BuildPushUndefinedIntoRegisterList(RegisterList* reg_list);
 
+  void BuildLoadPropertyKey(LiteralProperty* property, Register out_reg);
+
   // Visitors for obtaining expression result in the accumulator, in a
-  // register, or just getting the effect.
-  void VisitForAccumulatorValue(Expression* expr);
+  // register, or just getting the effect. Some visitors return a TypeHint which
+  // specifies the type of the result of the visited expression.
+  TypeHint VisitForAccumulatorValue(Expression* expr);
   void VisitForAccumulatorValueOrTheHole(Expression* expr);
   MUST_USE_RESULT Register VisitForRegisterValue(Expression* expr);
   void VisitForRegisterValue(Expression* expr, Register destination);
@@ -171,10 +187,15 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   inline Runtime::FunctionId StoreToSuperRuntimeId();
   inline Runtime::FunctionId StoreKeyedToSuperRuntimeId();
 
+  ToBooleanMode ToBooleanModeFromTypeHint(TypeHint type_hint);
+
   inline BytecodeArrayBuilder* builder() const { return builder_; }
   inline Zone* zone() const { return zone_; }
   inline DeclarationScope* closure_scope() const { return closure_scope_; }
   inline CompilationInfo* info() const { return info_; }
+  inline const AstStringConstants* ast_string_constants() const {
+    return ast_string_constants_;
+  }
 
   inline Scope* current_scope() const { return current_scope_; }
   inline void set_current_scope(Scope* scope) { current_scope_ = scope; }
@@ -202,12 +223,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   inline LanguageMode language_mode() const;
   int feedback_index(FeedbackSlot slot) const;
 
-  const AstRawString* prototype_string() const { return prototype_string_; }
-  const AstRawString* undefined_string() const { return undefined_string_; }
-
   Zone* zone_;
   BytecodeArrayBuilder* builder_;
   CompilationInfo* info_;
+  const AstStringConstants* ast_string_constants_;
   DeclarationScope* closure_scope_;
   Scope* current_scope_;
 
@@ -223,12 +242,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ContextScope* execution_context_;
   ExpressionResultScope* execution_result_;
 
-  ZoneVector<BytecodeLabel> generator_resume_points_;
+  BytecodeJumpTable* generator_jump_table_;
   Register generator_state_;
   int loop_depth_;
-
-  const AstRawString* prototype_string_;
-  const AstRawString* undefined_string_;
 };
 
 }  // namespace interpreter

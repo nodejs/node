@@ -66,9 +66,9 @@ class V8_EXPORT_PRIVATE ZoneStats final {
   explicit ZoneStats(AccountingAllocator* allocator);
   ~ZoneStats();
 
-  size_t GetMaxAllocatedBytes();
-  size_t GetTotalAllocatedBytes();
-  size_t GetCurrentAllocatedBytes();
+  size_t GetMaxAllocatedBytes() const;
+  size_t GetTotalAllocatedBytes() const;
+  size_t GetCurrentAllocatedBytes() const;
 
  private:
   Zone* NewEmptyZone(const char* zone_name);
