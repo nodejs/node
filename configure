@@ -773,16 +773,16 @@ def configure_arm(o):
 
   if is_arch_armv7():
     arm_fpu = 'vfpv3'
-    o['variables']['arm_version'] = '7'
+    o['variables']['arm_version'] = 7
   else:
-    o['variables']['arm_version'] = '6' if is_arch_armv6() else 'default'
+    o['variables']['arm_version'] = 6 if is_arch_armv6() else 'default'
 
   o['variables']['arm_thumb'] = 0      # -marm
   o['variables']['arm_float_abi'] = arm_float_abi
 
   if options.dest_os == 'android':
     arm_fpu = 'vfpv3'
-    o['variables']['arm_version'] = '7'
+    o['variables']['arm_version'] = 7
 
   o['variables']['arm_fpu'] = options.arm_fpu or arm_fpu
 

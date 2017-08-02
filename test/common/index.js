@@ -333,10 +333,10 @@ exports.platformTimeout = function(ms) {
 
   const armv = process.config.variables.arm_version;
 
-  if (armv === '6')
+  if (armv === 6)
     return 7 * ms;  // ARMv6
 
-  if (armv === '7')
+  if (armv === 7)
     return 2 * ms;  // ARMv7
 
   return ms; // ARMv8+
