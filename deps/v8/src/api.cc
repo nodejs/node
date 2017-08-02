@@ -441,7 +441,10 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
   i::V8::SetSnapshotBlob(snapshot_blob);
 }
 
-void* v8::ArrayBuffer::Allocator::Reserve(size_t length) { UNIMPLEMENTED(); }
+void* v8::ArrayBuffer::Allocator::Reserve(size_t length) {
+  UNIMPLEMENTED();
+  return nullptr;
+}
 
 void v8::ArrayBuffer::Allocator::Free(void* data, size_t length,
                                       AllocationMode mode) {
