@@ -1340,7 +1340,7 @@ of the ECMAScript Language Specification.
 
 #### *napi_create_dataview*
 <!-- YAML
-added: REPLACEME
+added: v8.3.0
 -->
 
 ```C
@@ -1596,7 +1596,7 @@ is managed by the VM
 
 #### *napi_get_dataview_info*
 <!-- YAML
-added: REPLACEME
+added: v8.3.0
 -->
 
 ```C
@@ -2093,7 +2093,7 @@ This API checks if the Object passsed in is a typed array.
 
 ### *napi_is_dataview*
 <!-- YAML
-added: REPLACEME
+added: v8.3.0
 -->
 
 ```C

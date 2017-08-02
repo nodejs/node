@@ -56,7 +56,7 @@ the [Implementation considerations section][] for more information.
 
 ## Class dns.Resolver
 <!-- YAML
-added: REPLACEME
+added: v8.3.0
 -->
 
 An independent resolver for DNS requests.
@@ -97,7 +97,7 @@ The following methods from the `dns` module are available:
 
 ### resolver.cancel()
 <!-- YAML
-added: REPLACEME
+added: v8.3.0
 -->
 
 Cancel all outstanding DNS queries made by this resolver. The corresponding
