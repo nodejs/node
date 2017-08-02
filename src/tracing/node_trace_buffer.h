@@ -75,7 +75,6 @@ class NodeTraceBuffer : public TraceBuffer {
   // Used to wait until async handles have been closed.
   ConditionVariable exit_cond_;
   std::unique_ptr<NodeTraceWriter> trace_writer_;
-  // TODO(matthewloring): Change std::atomic to something less contentious.
   std::atomic<InternalTraceBuffer*> current_buf_;
   InternalTraceBuffer buffer1_;
   InternalTraceBuffer buffer2_;
