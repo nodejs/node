@@ -5666,9 +5666,7 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
                              data,
                              RandomBytesRequest::DONT_FREE_DATA);
   if (args[3]->IsFunction()) {
-    obj->Set(env->context(),
-             FIXED_ONE_BYTE_STRING(args.GetIsolate(), "ondone"),
-             args[3]).FromJust();
+    obj->Set(env->context(), env->ondone_string(), args[3]).FromJust();
 
     if (env->in_domain()) {
       obj->Set(env->context(),
