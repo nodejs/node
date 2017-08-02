@@ -235,7 +235,6 @@ abc: 1
 undefined
 >
 ```
-<!-- eslint-enable -->
 
 ### console.dir(obj[, options])
 <!-- YAML
