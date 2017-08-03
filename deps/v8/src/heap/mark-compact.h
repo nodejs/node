@@ -491,8 +491,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   class Sweeper {
    public:
-    class SweeperTask;
-
     enum FreeListRebuildingMode { REBUILD_FREE_LIST, IGNORE_FREE_LIST };
     enum ClearOldToNewSlotsMode {
       DO_NOT_CLEAR,
@@ -508,8 +506,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
     explicit Sweeper(Heap* heap)
         : heap_(heap),
+          num_tasks_(0),
           pending_sweeper_tasks_semaphore_(0),
-          semaphore_counter_(0),
           sweeping_in_progress_(false),
           num_sweeping_tasks_(0) {}
 
@@ -535,7 +533,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     Page* GetSweptPageSafe(PagedSpace* space);
 
    private:
+    class SweeperTask;
+
     static const int kAllocationSpaces = LAST_PAGED_SPACE + 1;
+    static const int kMaxSweeperTasks = kAllocationSpaces;
 
     static ClearOldToNewSlotsMode GetClearOldToNewSlotsMode(Page* p);
 
@@ -550,10 +551,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
     void PrepareToBeSweptPage(AllocationSpace space, Page* page);
 
-    Heap* heap_;
+    Heap* const heap_;
+    int num_tasks_;
+    uint32_t task_ids_[kMaxSweeperTasks];
     base::Semaphore pending_sweeper_tasks_semaphore_;
-    // Counter is only used for waiting on the semaphore.
-    intptr_t semaphore_counter_;
     base::Mutex mutex_;
     SweptList swept_list_[kAllocationSpaces];
     SweepingList sweeping_list_[kAllocationSpaces];
