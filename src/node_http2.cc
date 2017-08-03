@@ -407,7 +407,13 @@ void Http2Session::Destroy(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   DEBUG_HTTP2("Http2Session: destroying session %d\n", session->type());
-  session->Unconsume();
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+
+  bool skipUnconsume = args[0]->BooleanValue(context).ToChecked();
+
+  if (!skipUnconsume)
+    session->Unconsume();
   session->Free();
 }
 
