@@ -67,13 +67,13 @@ function verifySecureSession(key, cert, ca, opts) {
 
 // The server can be connected as 'localhost'.
 verifySecureSession(
-    loadKey('agent8-key.pem'),
-    loadKey('agent8-cert.pem'),
-    loadKey('fake-startcom-root-cert.pem'));
+  loadKey('agent8-key.pem'),
+  loadKey('agent8-cert.pem'),
+  loadKey('fake-startcom-root-cert.pem'));
 
 // Custom servername is specified.
 verifySecureSession(
-    loadKey('agent1-key.pem'),
-    loadKey('agent1-cert.pem'),
-    loadKey('ca1-cert.pem'),
-    { servername: 'agent1' });
+  loadKey('agent1-key.pem'),
+  loadKey('agent1-cert.pem'),
+  loadKey('ca1-cert.pem'),
+  { servername: 'agent1' });
