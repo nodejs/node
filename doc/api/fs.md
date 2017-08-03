@@ -789,6 +789,7 @@ const defaults = {
 the file instead of the entire file.  Both `start` and `end` are inclusive and
 start counting at 0. If `fd` is specified and `start` is omitted or `undefined`,
 `fs.createReadStream()` reads sequentially from the current file position.
+.
 The `encoding` can be any one of those accepted by [`Buffer`][].
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
@@ -1639,8 +1640,8 @@ Read data from the file specified by `fd`.
 
 `length` is an integer specifying the number of bytes to read.
 
-`position` is an integer specifying where to begin reading from in the file.
-If `position` is `null`, data will be read from the current file position.
+`position` is an integer specifying where to begin reading from in the file, in this case the current file position is not updated.
+If `position` is `null`, data will be read from the current file position and the file position is updated.
 
 The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
