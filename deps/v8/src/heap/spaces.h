@@ -15,6 +15,7 @@
 #include "src/base/bits.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/mutex.h"
+#include "src/cancelable-task.h"
 #include "src/flags.h"
 #include "src/globals.h"
 #include "src/heap/heap.h"
@@ -1149,8 +1150,9 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
    public:
     class UnmapFreeMemoryTask;
 
-    explicit Unmapper(MemoryAllocator* allocator)
-        : allocator_(allocator),
+    Unmapper(Heap* heap, MemoryAllocator* allocator)
+        : heap_(heap),
+          allocator_(allocator),
           pending_unmapping_tasks_semaphore_(0),
           concurrent_unmapping_tasks_active_(0) {
       chunks_[kRegular].reserve(kReservedQueueingSlots);
@@ -1184,13 +1186,14 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     }
 
     void FreeQueuedChunks();
-    bool WaitUntilCompleted();
+    void WaitUntilCompleted();
     void TearDown();
 
     bool has_delayed_chunks() { return delayed_regular_chunks_.size() > 0; }
 
    private:
     static const int kReservedQueueingSlots = 64;
+    static const int kMaxUnmapperTasks = 24;
 
     enum ChunkQueueType {
       kRegular,     // Pages of kPageSize that do not live in a CodeRange and
@@ -1229,13 +1232,15 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     template <FreeMode mode>
     void PerformFreeMemoryOnQueuedChunks();
 
+    Heap* const heap_;
+    MemoryAllocator* const allocator_;
     base::Mutex mutex_;
-    MemoryAllocator* allocator_;
     std::vector<MemoryChunk*> chunks_[kNumberOfChunkQueues];
     // Delayed chunks cannot be processed in the current unmapping cycle because
     // of dependencies such as an active sweeper.
     // See MemoryAllocator::CanFreeMemoryChunk.
     std::list<MemoryChunk*> delayed_regular_chunks_;
+    CancelableTaskManager::Id task_ids_[kMaxUnmapperTasks];
     base::Semaphore pending_unmapping_tasks_semaphore_;
     intptr_t concurrent_unmapping_tasks_active_;
 
