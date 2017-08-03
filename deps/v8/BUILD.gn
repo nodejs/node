@@ -2507,6 +2507,8 @@ v8_component("v8_libbase") {
 
   if (is_posix) {
     sources += [
+      "src/base/platform/platform-posix-time.cc",
+      "src/base/platform/platform-posix-time.h",
       "src/base/platform/platform-posix.cc",
       "src/base/platform/platform-posix.h",
     ]
