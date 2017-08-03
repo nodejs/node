@@ -868,7 +868,7 @@ void Http2Session::OnTrailers(Nghttp2Stream* stream,
     };
 
     Local<Value> ret = MakeCallback(env()->ontrailers_string(),
-                                    arraysize(argv), argv);
+                                    arraysize(argv), argv).ToLocalChecked();
     if (!ret.IsEmpty()) {
       if (ret->IsArray()) {
         Local<Array> headers = ret.As<Array>();
