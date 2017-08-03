@@ -1640,7 +1640,9 @@ Read data from the file specified by `fd`.
 `length` is an integer specifying the number of bytes to read.
 
 `position` is an integer specifying where to begin reading from in the file.
-If `position` is `null`, data will be read from the current file position.
+If `position` is `null`, data will be read from the current file position, 
+and the file position will be updated for subsequent reads.
+If `position` is an integer, the file position will remain unchanged.
 
 The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
