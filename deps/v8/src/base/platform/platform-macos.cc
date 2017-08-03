@@ -36,9 +36,9 @@
 #undef MAP_TYPE
 
 #include "src/base/macros.h"
+#include "src/base/platform/platform-posix-time.h"
 #include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
-
 
 namespace v8 {
 namespace base {
@@ -97,7 +97,9 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
 void OS::SignalCodeMovingGC() {
 }
 
-TimezoneCache* OS::CreateTimezoneCache() { return new PosixTimezoneCache(); }
+TimezoneCache* OS::CreateTimezoneCache() {
+  return new PosixDefaultTimezoneCache();
+}
 
 VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
