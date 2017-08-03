@@ -830,8 +830,8 @@ static inline napi_status napi_clear_last_error(napi_env env) {
 
 static inline
 napi_status napi_set_last_error(napi_env env, napi_status error_code,
-                                       uint32_t engine_error_code,
-                                       void* engine_reserved) {
+                                uint32_t engine_error_code,
+                                void* engine_reserved) {
   env->last_error.error_code = error_code;
   env->last_error.engine_error_code = engine_error_code;
   env->last_error.engine_reserved = engine_reserved;
