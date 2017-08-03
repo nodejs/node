@@ -43,8 +43,10 @@ assert.strictEqual(url.searchParams, oldParams);  // [SameObject]
 // searchParams is readonly. Under strict mode setting a
 // non-writable property should throw.
 // Note: this error message is subject to change in V8 updates
-assert.throws(() => url.origin = 'http://foo.bar.com:22',
-              /TypeError: Cannot set property origin of \[object URL\] which has only a getter$/);
+assert.throws(
+  () => url.origin = 'http://foo.bar.com:22',
+  /^TypeError: Cannot set property origin of \[object URL\] which has only a getter$/
+);
 assert.strictEqual(url.origin, 'http://foo.bar.com:21');
 assert.strictEqual(url.toString(),
                    'http://user:pass@foo.bar.com:21/aaa/zzz?l=25#test');
@@ -118,8 +120,10 @@ assert.strictEqual(url.hash, '#abcd');
 // searchParams is readonly. Under strict mode setting a
 // non-writable property should throw.
 // Note: this error message is subject to change in V8 updates
-assert.throws(() => url.searchParams = '?k=88',
-              /^TypeError: Cannot set property searchParams of \[object URL\] which has only a getter$/);
+assert.throws(
+  () => url.searchParams = '?k=88',
+  /^TypeError: Cannot set property searchParams of \[object URL\] which has only a getter$/
+);
 assert.strictEqual(url.searchParams, oldParams);
 assert.strictEqual(url.toString(),
                    'https://user2:pass2@foo.bar.org:23/aaa/bbb?k=99#abcd');
