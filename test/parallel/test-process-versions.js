@@ -29,5 +29,6 @@ assert(commonTemplate.test(process.versions.node));
 assert(commonTemplate.test(process.versions.uv));
 assert(commonTemplate.test(process.versions.zlib));
 
-assert(/^\d+\.\d+\.\d+(?:\.\d+)?(?: \(candidate\))?$/.test(process.versions.v8));
+assert(/^\d+\.\d+\.\d+(?:\.\d+)?(?: \(candidate\))?$/
+  .test(process.versions.v8));
 assert(/^\d+$/.test(process.versions.modules));

@@ -142,7 +142,7 @@ function error_test() {
       expect: prompt_unix },
     // But passing the same string to eval() should throw
     { client: client_unix, send: 'eval("function test_func() {")',
-      expect: /\bSyntaxError: Unexpected end of input/ },
+      expect: /^SyntaxError: Unexpected end of input/ },
     // Can handle multiline template literals
     { client: client_unix, send: '`io.js',
       expect: prompt_multiline },
@@ -171,22 +171,22 @@ function error_test() {
     // invalid input to JSON.parse error is special case of syntax error,
     // should throw
     { client: client_unix, send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
-      expect: /\bSyntaxError: Unexpected token i/ },
+      expect: /^SyntaxError: Unexpected token i/ },
     // end of input to JSON.parse error is special case of syntax error,
     // should throw
     { client: client_unix, send: 'JSON.parse(\'066\');',
-      expect: /\bSyntaxError: Unexpected number/ },
+      expect: /^SyntaxError: Unexpected number/ },
     // should throw
     { client: client_unix, send: 'JSON.parse(\'{\');',
-      expect: /\bSyntaxError: Unexpected end of JSON input/ },
+      expect: /^SyntaxError: Unexpected end of JSON input/ },
     // invalid RegExps are a special case of syntax error,
     // should throw
     { client: client_unix, send: '/(/;',
-      expect: /\bSyntaxError: Invalid regular expression:/ },
+      expect: /^SyntaxError: Invalid regular expression:/ },
     // invalid RegExp modifiers are a special case of syntax error,
     // should throw (GH-4012)
     { client: client_unix, send: 'new RegExp("foo", "wrong modifier");',
-      expect: /\bSyntaxError: Invalid flags supplied to RegExp constructor/ },
+      expect: /^SyntaxError: Invalid flags supplied to RegExp constructor/ },
     // strict mode syntax errors should be caught (GH-5178)
     { client: client_unix,
       send: '(function() { "use strict"; return 0755; })()',
@@ -194,7 +194,8 @@ function error_test() {
     {
       client: client_unix,
       send: '(function(a, a, b) { "use strict"; return a + b + c; })()',
-      expect: /\bSyntaxError: Duplicate parameter name not allowed in this context/
+      expect:
+        /\bSyntaxError: Duplicate parameter name not allowed in this context/
     },
     {
       client: client_unix,
@@ -204,7 +205,8 @@ function error_test() {
     {
       client: client_unix,
       send: '(function() { "use strict"; var x; delete x; })()',
-      expect: /\bSyntaxError: Delete of an unqualified identifier in strict mode/
+      expect:
+        /\bSyntaxError: Delete of an unqualified identifier in strict mode/
     },
     { client: client_unix,
       send: '(function() { "use strict"; eval = 17; })()',
@@ -212,7 +214,8 @@ function error_test() {
     {
       client: client_unix,
       send: '(function() { "use strict"; if (true) function f() { } })()',
-      expect: /\bSyntaxError: In strict mode code, functions can only be declared at top level or inside a block\./
+      expect:
+        /\bSyntaxError: In strict mode code, functions can only be declared at top level or inside a block\./
     },
     // Named functions can be used:
     { client: client_unix, send: 'function blah() { return 1; }',
