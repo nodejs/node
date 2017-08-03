@@ -553,7 +553,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
     Heap* const heap_;
     int num_tasks_;
-    uint32_t task_ids_[kMaxSweeperTasks];
+    CancelableTaskManager::Id task_ids_[kMaxSweeperTasks];
     base::Semaphore pending_sweeper_tasks_semaphore_;
     base::Mutex mutex_;
     SweptList swept_list_[kAllocationSpaces];
