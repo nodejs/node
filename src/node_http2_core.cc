@@ -176,7 +176,7 @@ void Nghttp2Session::GetTrailers(nghttp2_session* session,
     handle->OnTrailers(stream, &trailers);
     if (trailers.length() > 0) {
       DEBUG_HTTP2("Nghttp2Session %d: sending trailers for stream %d, "
-                  "count: %d\n", handle->session_type_, id,
+                  "count: %d\n", handle->session_type_, stream->id(),
                   trailers.length());
       *flags |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
       nghttp2_submit_trailer(session,
