@@ -7,6 +7,7 @@
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
 #include "src/base/sys-info.h"
+#include "src/cancelable-task.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/deoptimizer.h"
@@ -546,12 +547,14 @@ void MarkCompactCollector::ClearMarkbits() {
   heap_->lo_space()->ClearMarkingStateOfLiveObjects();
 }
 
-class MarkCompactCollector::Sweeper::SweeperTask : public v8::Task {
+class MarkCompactCollector::Sweeper::SweeperTask final : public CancelableTask {
  public:
-  SweeperTask(Sweeper* sweeper, base::Semaphore* pending_sweeper_tasks,
+  SweeperTask(Isolate* isolate, Sweeper* sweeper,
+              base::Semaphore* pending_sweeper_tasks,
               base::AtomicNumber<intptr_t>* num_sweeping_tasks,
               AllocationSpace space_to_start)
-      : sweeper_(sweeper),
+      : CancelableTask(isolate),
+        sweeper_(sweeper),
         pending_sweeper_tasks_(pending_sweeper_tasks),
         num_sweeping_tasks_(num_sweeping_tasks),
         space_to_start_(space_to_start) {}
@@ -559,8 +562,7 @@ class MarkCompactCollector::Sweeper::SweeperTask : public v8::Task {
   virtual ~SweeperTask() {}
 
  private:
-  // v8::Task overrides.
-  void Run() override {
+  void RunInternal() final {
     DCHECK_GE(space_to_start_, FIRST_SPACE);
     DCHECK_LE(space_to_start_, LAST_PAGED_SPACE);
     const int offset = space_to_start_ - FIRST_SPACE;
@@ -575,9 +577,9 @@ class MarkCompactCollector::Sweeper::SweeperTask : public v8::Task {
     pending_sweeper_tasks_->Signal();
   }
 
-  Sweeper* sweeper_;
-  base::Semaphore* pending_sweeper_tasks_;
-  base::AtomicNumber<intptr_t>* num_sweeping_tasks_;
+  Sweeper* const sweeper_;
+  base::Semaphore* const pending_sweeper_tasks_;
+  base::AtomicNumber<intptr_t>* const num_sweeping_tasks_;
   AllocationSpace space_to_start_;
 
   DISALLOW_COPY_AND_ASSIGN(SweeperTask);
@@ -595,15 +597,19 @@ void MarkCompactCollector::Sweeper::StartSweeping() {
 }
 
 void MarkCompactCollector::Sweeper::StartSweeperTasks() {
+  DCHECK_EQ(0, num_tasks_);
+  DCHECK_EQ(0, num_sweeping_tasks_.Value());
   if (FLAG_concurrent_sweeping && sweeping_in_progress_) {
     ForAllSweepingSpaces([this](AllocationSpace space) {
       if (space == NEW_SPACE) return;
       num_sweeping_tasks_.Increment(1);
-      semaphore_counter_++;
+      SweeperTask* task = new SweeperTask(heap_->isolate(), this,
+                                          &pending_sweeper_tasks_semaphore_,
+                                          &num_sweeping_tasks_, space);
+      DCHECK_LT(num_tasks_, kMaxSweeperTasks);
+      task_ids_[num_tasks_++] = task->id();
       V8::GetCurrentPlatform()->CallOnBackgroundThread(
-          new SweeperTask(this, &pending_sweeper_tasks_semaphore_,
-                          &num_sweeping_tasks_, space),
-          v8::Platform::kShortRunningTask);
+          task, v8::Platform::kShortRunningTask);
     });
   }
 }
@@ -646,10 +652,14 @@ void MarkCompactCollector::Sweeper::EnsureCompleted() {
       [this](AllocationSpace space) { ParallelSweepSpace(space, 0); });
 
   if (FLAG_concurrent_sweeping) {
-    while (semaphore_counter_ > 0) {
-      pending_sweeper_tasks_semaphore_.Wait();
-      semaphore_counter_--;
+    for (int i = 0; i < num_tasks_; i++) {
+      if (heap_->isolate()->cancelable_task_manager()->TryAbort(task_ids_[i]) !=
+          CancelableTaskManager::kTaskAborted) {
+        pending_sweeper_tasks_semaphore_.Wait();
+      }
     }
+    num_tasks_ = 0;
+    num_sweeping_tasks_.SetValue(0);
   }
 
   ForAllSweepingSpaces([this](AllocationSpace space) {
