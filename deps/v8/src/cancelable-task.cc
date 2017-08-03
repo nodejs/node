@@ -29,18 +29,17 @@ Cancelable::~Cancelable() {
 CancelableTaskManager::CancelableTaskManager()
     : task_id_counter_(0), canceled_(false) {}
 
-uint32_t CancelableTaskManager::Register(Cancelable* task) {
+CancelableTaskManager::Id CancelableTaskManager::Register(Cancelable* task) {
   base::LockGuard<base::Mutex> guard(&mutex_);
-  uint32_t id = ++task_id_counter_;
-  // The loop below is just used when task_id_counter_ overflows.
-  while (cancelable_tasks_.count(id) > 0) ++id;
+  CancelableTaskManager::Id id = ++task_id_counter_;
+  // Id overflows are not supported.
+  CHECK_NE(0, id);
   CHECK(!canceled_);
   cancelable_tasks_[id] = task;
   return id;
 }
 
-
-void CancelableTaskManager::RemoveFinishedTask(uint32_t id) {
+void CancelableTaskManager::RemoveFinishedTask(CancelableTaskManager::Id id) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   size_t removed = cancelable_tasks_.erase(id);
   USE(removed);
@@ -49,7 +48,7 @@ void CancelableTaskManager::RemoveFinishedTask(uint32_t id) {
 }
 
 CancelableTaskManager::TryAbortResult CancelableTaskManager::TryAbort(
-    uint32_t id) {
+    CancelableTaskManager::Id id) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   auto entry = cancelable_tasks_.find(id);
   if (entry != cancelable_tasks_.end()) {
