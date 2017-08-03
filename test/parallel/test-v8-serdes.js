@@ -20,6 +20,11 @@ const objects = [
   circular
 ];
 
+const serializerTypeError =
+  /^TypeError: Class constructor Serializer cannot be invoked without 'new'$/;
+const deserializerTypeError =
+  /^TypeError: Class constructor Deserializer cannot be invoked without 'new'$/;
+
 {
   const ser = new v8.DefaultSerializer();
   ser.writeHeader();
@@ -133,13 +138,6 @@ const objects = [
 }
 
 {
-  assert.throws(
-    () => { v8.Serializer(); },
-    /^TypeError: Class constructor Serializer cannot be invoked without 'new'$/
-  );
-
-  assert.throws(
-    () => { v8.Deserializer(); },
-    /^TypeError: Class constructor Deserializer cannot be invoked without 'new'$/
-  );
+  assert.throws(v8.Serializer, serializerTypeError);
+  assert.throws(v8.Deserializer, deserializerTypeError);
 }
