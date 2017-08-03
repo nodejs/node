@@ -260,3 +260,15 @@ assert.strictEqual(
   errors.message('ERR_UNESCAPED_CHARACTERS', ['Request path']),
   'Request path contains unescaped characters'
 );
+
+
+// Test error messages for async_hooks
+assert.strictEqual(
+  errors.message('ERR_ASYNC_CALLBACK', ['init']),
+  'init must be a function');
+assert.strictEqual(
+  errors.message('ERR_ASYNC_TYPE', [{}]),
+  'Invalid name for async "type": [object Object]');
+assert.strictEqual(
+  errors.message('ERR_INVALID_ASYNC_ID', ['asyncId', undefined]),
+  'Invalid asyncId value: undefined');
