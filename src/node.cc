@@ -1334,8 +1334,9 @@ MaybeLocal<Value> MakeCallback(Environment* env,
                                      asyncContext.trigger_async_id);
 
     if (asyncContext.async_id != 0) {
-      if (!AsyncWrap::EmitBefore(env, asyncContext.async_id))
-        return Local<Value>();
+      // No need to check a return value because the application will exit if
+      // an exception occurs.
+      AsyncWrap::EmitBefore(env, asyncContext.async_id);
     }
 
     ret = callback->Call(env->context(), recv, argc, argv);
@@ -1348,8 +1349,7 @@ MaybeLocal<Value> MakeCallback(Environment* env,
     }
 
     if (asyncContext.async_id != 0) {
-      if (!AsyncWrap::EmitAfter(env, asyncContext.async_id))
-        return Local<Value>();
+      AsyncWrap::EmitAfter(env, asyncContext.async_id);
     }
   }
 
