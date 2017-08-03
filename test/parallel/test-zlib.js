@@ -182,7 +182,6 @@ testKeys.forEach(common.mustCall((file) => {
                 buf.on('data', common.mustCall((c) => {
                   const msg = `${file} ${chunkSize} ${
                     JSON.stringify(opts)} ${Def.name} -> ${Inf.name}`;
-                  let ok = true;
                   let i;
                   for (i = 0; i < Math.max(c.length, test.length); i++) {
                     if (c[i] !== test[i]) {

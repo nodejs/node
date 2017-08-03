@@ -120,16 +120,15 @@ class HashStream extends Stream {
 
   write(c) {
     // Simulate the way that an fs.ReadStream returns false
-    // on *every* write like a jerk, only to resume a
-    // moment later.
+    // on *every* write, only to resume a moment later.
     this._hasher.update(c);
-    process.nextTick(this.resume.bind(this));
+    process.nextTick(() => this.resume());
     return false;
   }
 
   resume() {
     this.emit('resume');
-    process.nextTick(this.emit.bind(this, 'drain'));
+    process.nextTick(() => this.emit('drain'));
   }
 
   end(c) {
