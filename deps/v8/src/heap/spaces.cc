@@ -300,7 +300,7 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate)
       size_executable_(0),
       lowest_ever_allocated_(reinterpret_cast<void*>(-1)),
       highest_ever_allocated_(reinterpret_cast<void*>(0)),
-      unmapper_(this) {}
+      unmapper_(isolate->heap(), this) {}
 
 bool MemoryAllocator::SetUp(size_t capacity, size_t code_range_size) {
   capacity_ = RoundUp(capacity, Page::kPageSize);
@@ -332,40 +332,46 @@ void MemoryAllocator::TearDown() {
   code_range_ = nullptr;
 }
 
-class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public v8::Task {
+class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public CancelableTask {
  public:
-  explicit UnmapFreeMemoryTask(Unmapper* unmapper) : unmapper_(unmapper) {}
+  explicit UnmapFreeMemoryTask(Isolate* isolate, Unmapper* unmapper)
+      : CancelableTask(isolate), unmapper_(unmapper) {}
 
  private:
-  // v8::Task overrides.
-  void Run() override {
+  void RunInternal() override {
     unmapper_->PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>();
     unmapper_->pending_unmapping_tasks_semaphore_.Signal();
   }
 
-  Unmapper* unmapper_;
+  Unmapper* const unmapper_;
   DISALLOW_COPY_AND_ASSIGN(UnmapFreeMemoryTask);
 };
 
 void MemoryAllocator::Unmapper::FreeQueuedChunks() {
   ReconsiderDelayedChunks();
-  if (FLAG_concurrent_sweeping) {
+  if (heap_->use_tasks() && FLAG_concurrent_sweeping) {
+    if (concurrent_unmapping_tasks_active_ >= kMaxUnmapperTasks) {
+      // kMaxUnmapperTasks are already running. Avoid creating any more.
+      return;
+    }
+    UnmapFreeMemoryTask* task = new UnmapFreeMemoryTask(heap_->isolate(), this);
+    DCHECK_LT(concurrent_unmapping_tasks_active_, kMaxUnmapperTasks);
+    task_ids_[concurrent_unmapping_tasks_active_++] = task->id();
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new UnmapFreeMemoryTask(this), v8::Platform::kShortRunningTask);
-    concurrent_unmapping_tasks_active_++;
+        task, v8::Platform::kShortRunningTask);
   } else {
     PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>();
   }
 }
 
-bool MemoryAllocator::Unmapper::WaitUntilCompleted() {
-  bool waited = false;
-  while (concurrent_unmapping_tasks_active_ > 0) {
-    pending_unmapping_tasks_semaphore_.Wait();
-    concurrent_unmapping_tasks_active_--;
-    waited = true;
+void MemoryAllocator::Unmapper::WaitUntilCompleted() {
+  for (int i = 0; i < concurrent_unmapping_tasks_active_; i++) {
+    if (heap_->isolate()->cancelable_task_manager()->TryAbort(task_ids_[i]) !=
+        CancelableTaskManager::kTaskAborted) {
+      pending_unmapping_tasks_semaphore_.Wait();
+    }
+    concurrent_unmapping_tasks_active_ = 0;
   }
-  return waited;
 }
 
 template <MemoryAllocator::Unmapper::FreeMode mode>
@@ -392,7 +398,7 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks() {
 }
 
 void MemoryAllocator::Unmapper::TearDown() {
-  WaitUntilCompleted();
+  CHECK_EQ(0, concurrent_unmapping_tasks_active_);
   ReconsiderDelayedChunks();
   CHECK(delayed_regular_chunks_.empty());
   PerformFreeMemoryOnQueuedChunks<FreeMode::kReleasePooled>();
