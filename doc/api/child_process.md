@@ -987,6 +987,17 @@ setTimeout(() => {
 }, 2000);
 ```
 
+### subprocess.killed
+<!-- YAML
+added: v0.5.10
+-->
+
+* {boolean} Set to `true` after `subprocess.kill()` is used to successfully
+  terminate the child process.
+
+The `subprocess.killed` property indicates whether the child process was
+successfully terminated using `subprocess.kill()`.
+
 ### subprocess.pid
 <!-- YAML
 added: v0.1.90
