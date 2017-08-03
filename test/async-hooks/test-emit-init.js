@@ -25,12 +25,24 @@ const hooks1 = initHooks({
 
 hooks1.enable();
 
-assert.throws(() => async_hooks.emitInit(),
-              /^RangeError: asyncId must be an unsigned integer$/);
-assert.throws(() => async_hooks.emitInit(expectedId),
-              /^TypeError: type must be a string with length > 0$/);
-assert.throws(() => async_hooks.emitInit(expectedId, expectedType, -1),
-              /^RangeError: triggerAsyncId must be an unsigned integer$/);
+assert.throws(() => {
+  async_hooks.emitInit();
+}, common.expectsError({
+  code: 'ERR_INVALID_ASYNC_ID',
+  type: RangeError,
+}));
+assert.throws(() => {
+  async_hooks.emitInit(expectedId);
+}, common.expectsError({
+  code: 'ERR_INVALID_ASYNC_ID',
+  type: RangeError,
+}));
+assert.throws(() => {
+  async_hooks.emitInit(expectedId, expectedType, -2);
+}, common.expectsError({
+  code: 'ERR_INVALID_ASYNC_ID',
+  type: RangeError,
+}));
 
 async_hooks.emitInit(expectedId, expectedType, expectedTriggerId,
                      expectedResource);
