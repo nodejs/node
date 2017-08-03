@@ -10,8 +10,8 @@
 // system so their names cannot be changed without changing the scripts.
 #define V8_MAJOR_VERSION 6
 #define V8_MINOR_VERSION 0
-#define V8_BUILD_NUMBER 286
-#define V8_PATCH_LEVEL 52
+#define V8_BUILD_NUMBER 287
+#define V8_PATCH_LEVEL 53
 
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)
