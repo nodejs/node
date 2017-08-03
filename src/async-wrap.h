@@ -111,8 +111,8 @@ class AsyncWrap : public BaseObject {
                             double id,
                             double trigger_id);
 
-  static bool EmitBefore(Environment* env, double id);
-  static bool EmitAfter(Environment* env, double id);
+  static void EmitBefore(Environment* env, double id);
+  static void EmitAfter(Environment* env, double id);
 
   inline ProviderType provider_type() const;
 
@@ -146,6 +146,7 @@ class AsyncWrap : public BaseObject {
 
 void LoadAsyncWrapperInfo(Environment* env);
 
+// Return value is an indicator whether the domain was disposed.
 bool DomainEnter(Environment* env, v8::Local<v8::Object> object);
 bool DomainExit(Environment* env, v8::Local<v8::Object> object);
 
