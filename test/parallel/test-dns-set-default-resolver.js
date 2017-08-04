@@ -56,5 +56,13 @@ server.bind(0, common.mustCall(() => {
     server.close();
 
     assert.strictEqual(dns.getDefaultResolver(), resolver);
+
+    common.expectsError(function() {
+      dns.setDefaultResolver(123);
+    }, {
+      code: 'ERR_INVALID_DNS_RESOLVER',
+      type: TypeError,
+      message: /^Not a DNS resolver instance$/
+    })
   }));
 }));
