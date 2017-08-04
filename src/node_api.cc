@@ -1989,7 +1989,7 @@ napi_status napi_get_value_int32(napi_env env,
   } else {
     RETURN_STATUS_IF_FALSE(env, val->IsNumber(), napi_number_expected);
 
-    v8::Local<v8::Context> context; // empty context
+    v8::Local<v8::Context> context;  // empty context
     *result = val->Int32Value(context).FromJust();
   }
 
@@ -2012,7 +2012,7 @@ napi_status napi_get_value_uint32(napi_env env,
   } else {
     RETURN_STATUS_IF_FALSE(env, val->IsNumber(), napi_number_expected);
 
-    v8::Local<v8::Context> context; // empty context
+    v8::Local<v8::Context> context;  // empty context
     *result = val->Uint32Value(context).FromJust();
   }
 
@@ -2044,7 +2044,7 @@ napi_status napi_get_value_int64(napi_env env,
   if (std::isnan(doubleValue)) {
     *result = 0;
   } else {
-    v8::Local<v8::Context> context; // empty context
+    v8::Local<v8::Context> context;  // empty context
     *result = val->IntegerValue(context).FromJust();
   }
 
