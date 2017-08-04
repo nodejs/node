@@ -1010,6 +1010,12 @@ would be possible by calling a callback more then once.
 Used when an attempt is made to use crypto features while Node.js is not
 compiled with OpenSSL crypto support.
 
+<a id="ERR_NO_ICU"></a>
+### ERR_NO_ICU
+
+Used when an attempt is made to use features that require [ICU][], while
+Node.js is not compiled with ICU support.
+
 <a id="ERR_NO_LONGER_SUPPORTED"></a>
 ### ERR_NO_LONGER_SUPPORTED
 
@@ -1139,6 +1145,7 @@ installed.
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[ICU]: intl.html#intl_internationalization_support
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
