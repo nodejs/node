@@ -103,6 +103,32 @@ added: REPLACEME
 Cancel all outstanding DNS queries made by this resolver. The corresponding
 callbacks will be called with an error with code `ECANCELLED`.
 
+## dns.getDefaultResolver()
+<!-- YAML
+added: REPLACEME
+-->
+
+Get the default resolver which may used by Node.js modules such as `http` and
+provides functions like `dns.resolve()`, `dns.setServers()`, etc.
+
+## dns.setDefaultResolver()
+<!-- YAML
+added: REPLACEME
+-->
+
+Set the default resolver which may used by Node.js modules such as `http` and
+provides functions like `dns.resolve()`, `dns.setServers()`, etc.
+
+The only parameter must be a `dns.Resolver` instance that to replace the default
+one.
+
+For example:
+
+```js
+const resolver = new dns.Resolver();
+dns.setDefaultResolver(resolver);
+```
+
 ## dns.getServers()
 <!-- YAML
 added: v0.11.3
