@@ -10,6 +10,9 @@ for (const badArg of [0, 1, false, true, null, 'hello']) {
   for (const field of ['init', 'before', 'after', 'destroy']) {
     assert.throws(() => {
       async_hooks.createHook({ [field]: badArg });
-    }, new RegExp(`^TypeError: ${field} must be a function$`));
+    }, new RegExp(
+      '^TypeError \\[ERR_INVALID_ARG_TYPE\\]: ' +
+      `The "${field}" argument must be of type function$`)
+    );
   }
 }

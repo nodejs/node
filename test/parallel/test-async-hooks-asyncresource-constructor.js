@@ -14,16 +14,16 @@ async_hooks.createHook({
 
 assert.throws(() => {
   return new AsyncResource();
-}, /^TypeError: type must be a string with length > 0$/);
+}, /^TypeError \[ERR_INVALID_STRING_LENGTH\]: The string "type" \(length 0\) must be of length > 0\.$/);
 
 assert.throws(() => {
   new AsyncResource('');
-}, /^TypeError: type must be a string with length > 0$/);
+}, /^TypeError \[ERR_INVALID_STRING_LENGTH\]: The string "type" \(length 0\) must be of length > 0\.$/);
 
 assert.throws(() => {
   new AsyncResource('type', -4);
-}, /^RangeError: triggerAsyncId must be an unsigned integer$/);
+}, /^RangeError \[ERR_NOT_ASSIGNED_INTEGER\]: triggerAsyncId must be an unsigned integer$/);
 
 assert.throws(() => {
   new AsyncResource('type', Math.PI);
-}, /^RangeError: triggerAsyncId must be an unsigned integer$/);
+}, /^RangeError \[ERR_NOT_ASSIGNED_INTEGER\]: triggerAsyncId must be an unsigned integer$/);
