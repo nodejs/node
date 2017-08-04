@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 
 /*
  * This test makes sure that non-integer timer delays do not make the process
@@ -39,13 +39,11 @@ require('../common');
  */
 
 const TIMEOUT_DELAY = 1.1;
-const NB_TIMEOUTS_FIRED = 50;
+let N = 50;
 
-let nbTimeoutFired = 0;
-const interval = setInterval(function() {
-  ++nbTimeoutFired;
-  if (nbTimeoutFired === NB_TIMEOUTS_FIRED) {
+const interval = setInterval(common.mustCall(() => {
+  if (--N === 0) {
     clearInterval(interval);
     process.exit(0);
   }
-}, TIMEOUT_DELAY);
+}, N), TIMEOUT_DELAY);
