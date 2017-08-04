@@ -59,6 +59,11 @@ changes:
     `cachedData` property of the returned `vm.Script` instance.
     The `cachedDataProduced` value will be set to either `true` or `false`
     depending on whether code cache data is produced successfully.
+  * `contextifiedSandbox` {Object} A [contextified][] sandbox to associate with
+    the current script. This does not bind the created script to this context
+    (i.e. `runInContext` still works with all contexts), but merely informs V8
+    (and V8 inspector) that the script is associated with the context. Defaults
+    to the current context.
 
 Creating a new `vm.Script` object compiles `code` but does not run it. The
 compiled `vm.Script` can be run later multiple times. It is important to note
@@ -94,11 +99,27 @@ changes:
     event that have been attached via `process.on("SIGINT")` will be disabled
     during script execution, but will continue to work after that.
     If execution is terminated, an [`Error`][] will be thrown.
+  * `doNotInformInspector` {boolean} If `true`, do not try to attach the
+    context to inspector. Debugging with `--inspect` will not work for code in
+    the context in that case.
 
 
 Runs the compiled code contained by the `vm.Script` object within the given
 `contextifiedSandbox` and returns the result. Running code does not have access
 to local scope.
+
+By default, this function checks if inspector was already aware of the context
+(if support for inspector is available in the Node.js build). If not, and if
+`doNotInformInspector` is not specified, this function attaches it to inspector
+using [`inspector.attachContext()`][], and detaches it before returning.
+However, *it is still recommended that you handle context attachment and
+detachment manually,* since:
+
+1. Asynchronous code running in the context would still not have inspector
+   debugging support, if relying on automatic attachment provided by this
+   function.
+2. Attaching and detaching per `runInContext()` run can have a significant
+   performance cost if this is done for the same context again and again.
 
 The following example compiles code that increments a global variable, sets
 the value of another global variable, then execute the code multiple times.
@@ -149,10 +170,22 @@ added: v0.3.1
   * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown.
+  * `doNotInformInspector` {boolean} If `true`, do not try to attach the
+    context to inspector. Debugging with `--inspect` will not work for code in
+    the context in that case.
 
 First contextifies the given `sandbox`, runs the compiled code contained by
 the `vm.Script` object within the created sandbox, and returns the result.
 Running code does not have access to local scope.
+
+By default, if support for inspector is available in the Node.js build, and if
+`doNotInformInspector` is not specified, this function attaches the new context
+to inspector using [`inspector.attachContext()`][], and detaches it before
+returning. However, if debugging supported is desired, *it is recommended that
+you handle context creation, attachment to inspector, and detachment from
+inspector manually,* since asynchronous code running in the context would still
+not have inspector debugging support, if relying on automatic attachment
+provided by this function.
 
 The following example compiles code that sets a global variable, then executes
 the code multiple times in different contexts. The globals are set on and
@@ -284,11 +317,27 @@ Returns `true` if the given `sandbox` object has been [contextified][] using
   * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown.
+  * `doNotInformInspector` {boolean} If `true`, do not try to attach the
+    context to inspector. Debugging with `--inspect` will not work for code in
+    the context in that case.
 
 The `vm.runInContext()` method compiles `code`, runs it within the context of
 the `contextifiedSandbox`, then returns the result. Running code does not have
 access to the local scope. The `contextifiedSandbox` object *must* have been
 previously [contextified][] using the [`vm.createContext()`][] method.
+
+By default, this function checks if inspector was already aware of the context
+(if support for inspector is available in the Node.js build). If not, and if
+`doNotInformInspector` is not specified, this function attaches it to inspector
+using [`inspector.attachContext()`][], and detaches it before returning.
+However, *it is still recommended that you handle context attachment and
+detachment manually,* since:
+
+1. Asynchronous code running in the context would still not have inspector
+   debugging support, if relying on automatic attachment provided by this
+   function.
+2. Attaching and detaching per `runInContext()` run can have a significant
+   performance cost if this is done for the same context again and again.
 
 The following example compiles and executes different scripts using a single
 [contextified][] object:

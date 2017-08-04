@@ -4,6 +4,7 @@
 #include "env.h"
 #include "env-inl.h"
 #include "node.h"
+#include "node_contextify.h"
 #include "v8-inspector.h"
 #include "v8-platform.h"
 #include "util.h"
@@ -11,6 +12,7 @@
 
 #include "libplatform/libplatform.h"
 
+#include <algorithm>
 #include <string.h>
 #include <unordered_map>
 #include <vector>
@@ -22,6 +24,9 @@
 namespace node {
 namespace inspector {
 namespace {
+
+using node::contextify::ContextifyContext;
+
 using v8::Context;
 using v8::External;
 using v8::Function;
@@ -44,6 +49,10 @@ using v8_inspector::V8InspectorClient;
 
 static uv_sem_t start_io_thread_semaphore;
 static uv_async_t start_io_thread_async;
+
+// Used in NodeInspectorClient::currentTimeMS() below.
+const int NANOS_PER_MSEC = 1000000;
+const int CONTEXT_GROUP_ID = 1;
 
 class StartIoTask : public v8::Task {
  public:
@@ -379,9 +388,84 @@ void CallAndPauseOnStart(
   }
 }
 
-// Used in NodeInspectorClient::currentTimeMS() below.
-const int NANOS_PER_MSEC = 1000000;
-const int CONTEXT_GROUP_ID = 1;
+void AttachContext(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsObject()) {
+    env->ThrowTypeError("sandbox must be an object");
+    return;
+  }
+  Local<Object> sandbox = args[0].As<Object>();
+  ContextifyContext* contextify_context =
+      ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
+  if (contextify_context == nullptr) {
+    return env->ThrowTypeError(
+        "sandbox argument must have been converted to a context.");
+  }
+
+  if (contextify_context->context().IsEmpty())
+    return;
+
+  const char* name =
+      args[1]->IsString() ?
+          Utf8Value(env->isolate(), args[1]).out() :
+          "vm Module Context";
+  const char* origin =
+      args[2]->IsString() ?
+          Utf8Value(env->isolate(), args[2]).out() :
+          nullptr;
+
+  // TODO(TimothyGu): Don't allow customizing group ID for now; not sure what
+  // it's used for.
+  int group_id = CONTEXT_GROUP_ID;
+
+  auto info = new node::inspector::ContextInfo(
+      contextify_context->context(), group_id, name, origin,
+      "{\"isDefault\":false}");
+  // Ignore error.
+  env->inspector_agent()->ContextCreated(info);
+}
+
+void ContextAttached(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsObject()) {
+    env->ThrowTypeError("sandbox must be an object");
+    return;
+  }
+  Local<Object> sandbox = args[0].As<Object>();
+  ContextifyContext* contextify_context =
+      ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
+  if (contextify_context == nullptr) {
+    return env->ThrowTypeError(
+        "sandbox argument must have been converted to a context.");
+  }
+
+  if (contextify_context->context().IsEmpty())
+    return;
+
+  args.GetReturnValue().Set(
+      env->inspector_agent()->ContextRegistered(
+          contextify_context->context()));
+}
+
+void DetachContext(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsObject()) {
+    env->ThrowTypeError("sandbox must be an object");
+    return;
+  }
+  Local<Object> sandbox = args[0].As<Object>();
+  ContextifyContext* contextify_context =
+      ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
+  if (contextify_context == nullptr) {
+    return env->ThrowTypeError(
+        "sandbox argument must have been converted to a context.");
+  }
+
+  if (contextify_context->context().IsEmpty())
+    return;
+
+  env->inspector_agent()->ContextDestroyed(contextify_context->context());
+}
 
 class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
  public:
@@ -519,11 +603,24 @@ class NodeInspectorClient : public V8InspectorClient {
     return uv_hrtime() * 1.0 / NANOS_PER_MSEC;
   }
 
-  void contextCreated(Local<Context> context, const std::string& name) {
-    std::unique_ptr<StringBuffer> name_buffer = Utf8ToStringView(name);
-    v8_inspector::V8ContextInfo info(context, CONTEXT_GROUP_ID,
-                                     name_buffer->string());
-    client_->contextCreated(info);
+  void contextCreated(const node::inspector::ContextInfo* info) {
+    std::unique_ptr<StringBuffer> name_buffer = Utf8ToStringView(info->name());
+    v8_inspector::V8ContextInfo v8_info(info->context(env_->isolate()),
+                                        info->group_id(),
+                                        name_buffer->string());
+
+    std::unique_ptr<StringBuffer> origin_buffer;
+    std::unique_ptr<StringBuffer> aux_data_buffer;
+    if (info->origin() != nullptr) {
+      origin_buffer = Utf8ToStringView(info->origin());
+      v8_info.origin = origin_buffer->string();
+    }
+    if (info->aux_data() != nullptr) {
+      aux_data_buffer = Utf8ToStringView(info->aux_data());
+      v8_info.auxData = aux_data_buffer->string();
+    }
+
+    client_->contextCreated(v8_info);
   }
 
   void contextDestroyed(Local<Context> context) {
@@ -619,6 +716,39 @@ Agent::Agent(Environment* env) : parent_env_(env),
 Agent::~Agent() {
 }
 
+bool Agent::ContextRegistered(Local<Context> context) {
+  auto it = std::find_if(
+      contexts_.begin(), contexts_.end(),
+      [&] (const node::inspector::ContextInfo*& info) {
+        return info->context(parent_env_->isolate()) == context;
+      });
+  return it != contexts_.end();
+}
+
+bool Agent::ContextCreated(const node::inspector::ContextInfo* info) {
+  auto isolate = parent_env_->isolate();
+  if (ContextRegistered(info->context(isolate))) {
+    return false;
+  }
+  contexts_.push_back(info);
+  client_->contextCreated(info);
+  return true;
+}
+
+void Agent::ContextDestroyed(Local<Context> context) {
+  auto it = std::find_if(
+      contexts_.begin(), contexts_.end(),
+      [&] (const node::inspector::ContextInfo*& info) {
+        return info->context(parent_env_->isolate()) == context;
+      });
+  if (it == contexts_.end()) {
+    return;
+  }
+  delete *it;
+  contexts_.erase(it);
+  client_->contextDestroyed(context);
+}
+
 bool Agent::Start(v8::Platform* platform, const char* path,
                   const DebugOptions& options) {
   path_ = path == nullptr ? "" : path;
@@ -626,7 +756,10 @@ bool Agent::Start(v8::Platform* platform, const char* path,
   client_ =
       std::unique_ptr<NodeInspectorClient>(
           new NodeInspectorClient(parent_env_, platform));
-  client_->contextCreated(parent_env_->context(), "Node.js Main Context");
+  CHECK(ContextCreated(
+      new node::inspector::ContextInfo(
+          parent_env_->context(), CONTEXT_GROUP_ID, "Node.js Main Context",
+          nullptr, "{\"isDefault\":true}")));
   platform_ = platform;
   CHECK_EQ(0, uv_async_init(uv_default_loop(),
                             &start_io_thread_async,
@@ -700,7 +833,9 @@ bool Agent::IsConnected() {
 
 void Agent::WaitForDisconnect() {
   CHECK_NE(client_, nullptr);
-  client_->contextDestroyed(parent_env_->context());
+  for (const node::inspector::ContextInfo*& info : contexts_) {
+    ContextDestroyed(info->context(parent_env_->isolate()));
+  }
   if (io_ != nullptr) {
     io_->WaitForDisconnect();
   }
@@ -786,6 +921,9 @@ void Agent::InitInspector(Local<Object> target, Local<Value> unused,
   Environment* env = Environment::GetCurrent(context);
   Agent* agent = env->inspector_agent();
   env->SetMethod(target, "consoleCall", InspectorConsoleCall);
+  env->SetMethod(target, "contextAttached", ContextAttached);
+  env->SetMethod(target, "attachContext", AttachContext);
+  env->SetMethod(target, "detachContext", DetachContext);
   if (agent->debug_options_.wait_for_connect())
     env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
   env->SetMethod(target, "connect", ConnectJSBindingsSession);

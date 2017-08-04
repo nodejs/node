@@ -816,3 +816,36 @@ exports.hijackStdout = hijackStdWritable.bind(null, 'stdout');
 exports.hijackStderr = hijackStdWritable.bind(null, 'stderr');
 exports.restoreStdout = restoreWritable.bind(null, 'stdout');
 exports.restoreStderr = restoreWritable.bind(null, 'stderr');
+
+exports.cancellableOnce = function(type) {
+  let cancel;
+  const promise = new Promise((resolve, reject) => {
+    this.once(type, resolve);
+    cancel = () => {
+      this.removeListener(type, resolve);
+      reject('Cancelled');
+    };
+  });
+  promise.cancel = cancel;
+  return promise;
+};
+
+const timeout = util.promisify(setTimeout);
+const successSentinel = Symbol('success');
+exports.fires = function fires(promise, timeoutMs = 100) {
+  const err = new Error('timeout');
+  return Promise.race([
+    promise,
+    timeout(timeoutMs).then(() => { throw err; })
+  ]);
+};
+exports.neverFires = async function neverFires(promise, timeoutMs = 100) {
+  const result = await Promise.race([
+    promise,
+    timeout(timeoutMs, successSentinel)
+  ]);
+  assert.strictEqual(result, successSentinel);
+  if (typeof promise.cancel === 'function') {
+    promise.cancel();
+  }
+};

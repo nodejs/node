@@ -26,6 +26,32 @@ A stream to push an array into a REPL
 
 Blocks for `time` amount of time.
 
+### cancellableOnce(eventName)
+* `eventName` [&lt;String>]
+* return [&lt;Promise>]
+
+A version of
+[EventEmitter.prototype.once](https://nodejs.org/api/events.html#events_emitter_on_eventname_listener)
+that returns a promise. The returned promise also has a `cancel` property
+function that can be used to remove the added listener.
+
+```js
+const common = require('../common');
+const emitter = getEventEmitter();
+const once = common.cancellableOnce.bind(emitter);
+
+const promise = once('event');
+let fired = false;
+promise.then(() => {
+  fired = true;
+});
+setTimeout(() => {
+  if (!fired) {
+    promise.cancel();
+  }
+}, 1000);
+```
+
 ### canCreateSymLink
 API to indicate whether the current running process can create
 symlinks. On Windows, this returns false if the process running
@@ -98,6 +124,14 @@ Tests whether `name` and `expected` are part of a raised warning.
 * return [&lt;Boolean>]
 
 Checks if `pathname` exists
+
+### fires(promise[, timeoutMs])
+* promise [&lt;Promise>]
+* timeoutMs [&lt;Number>] Defaults to 100.
+* return [&lt;Promise>]
+
+Ensure `promise` resolves within `timeoutMs` milliseconds. If `promise` is
+rejected within `timeoutMs`, the returned promise is rejected to that error.
 
 ### fixturesDir
 * return [&lt;String>]
@@ -258,6 +292,15 @@ If `fn` is not provided, an empty function will be used.
 Returns a function that triggers an `AssertionError` if it is invoked. `msg` is
 used as the error message for the `AssertionError`.
 
+### neverFires(promise[, timeoutMs])
+* promise [&lt;Promise>]
+* timeoutMs [&lt;Number>] Defaults to 100.
+* return [&lt;Promise>]
+
+Ensure `promise` does not resolve within `timeoutMs` milliseconds. If `promise`
+is rejected within `timeoutMs`, the returned promise is rejected with that
+error.
+
 ### nodeProcessAborted(exitCode, signal)
 * `exitCode` [&lt;Number>]
 * `signal` [&lt;String>]
@@ -390,6 +433,7 @@ implementation with tests from
 [&lt;Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
 [&lt;Number>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [&lt;Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
+[&lt;Promise>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
 [&lt;RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
 [&lt;String>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
 [internationalization]: https://github.com/nodejs/node/wiki/Intl
