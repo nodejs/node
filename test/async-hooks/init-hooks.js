@@ -67,7 +67,7 @@ class ActivityCollector {
     const violations = [];
     function v(msg) { violations.push(msg); }
     for (const a of this._activities.values()) {
-      if (types != null && types.indexOf(a.type) < 0) continue;
+      if (types != null && !types.includes(a.type)) continue;
 
       if (a.init && a.init.length > 1) {
         v('Activity inited twice\n' + activityString(a) +
@@ -131,7 +131,7 @@ class ActivityCollector {
 
   activitiesOfTypes(types) {
     if (!Array.isArray(types)) types = [ types ];
-    return this.activities.filter((x) => types.indexOf(x.type) >= 0);
+    return this.activities.filter((x) => types.includes(x.type));
   }
 
   get activities() {
