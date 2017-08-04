@@ -411,7 +411,7 @@ const warningRegEx = new RegExp(
     });
 
     // no `biu`
-    assert.strictEqual(data.indexOf('ele.biu'), -1);
+    assert.strictEqual(data.includes('ele.biu'), false);
   }));
 });
 
