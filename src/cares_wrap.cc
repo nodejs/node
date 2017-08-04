@@ -136,8 +136,9 @@ class ChannelWrap : public AsyncWrap {
 
   void Setup();
   void EnsureServers();
+  void CleanupTimer();
 
-  inline uv_timer_t* timer_handle() { return &timer_handle_; }
+  inline uv_timer_t* timer_handle() { return timer_handle_; }
   inline ares_channel cares_channel() { return channel_; }
   inline bool query_last_ok() const { return query_last_ok_; }
   inline void set_query_last_ok(bool ok) { query_last_ok_ = ok; }
@@ -152,7 +153,7 @@ class ChannelWrap : public AsyncWrap {
   static void AresTimeout(uv_timer_t* handle);
 
  private:
-  uv_timer_t timer_handle_;
+  uv_timer_t* timer_handle_;
   ares_channel channel_;
   bool query_last_ok_;
   bool is_servers_default_;
@@ -163,6 +164,7 @@ class ChannelWrap : public AsyncWrap {
 ChannelWrap::ChannelWrap(Environment* env,
                          Local<Object> object)
   : AsyncWrap(env, object, PROVIDER_DNSCHANNEL),
+    timer_handle_(nullptr),
     channel_(nullptr),
     query_last_ok_(true),
     is_servers_default_(true),
@@ -236,7 +238,8 @@ RB_GENERATE_STATIC(node_ares_task_list, node_ares_task, node, cmp_ares_tasks)
 /* This is called once per second by loop->timer. It is used to constantly */
 /* call back into c-ares for possibly processing timeouts. */
 void ChannelWrap::AresTimeout(uv_timer_t* handle) {
-  ChannelWrap* channel = ContainerOf(&ChannelWrap::timer_handle_, handle);
+  ChannelWrap* channel = static_cast<ChannelWrap*>(handle->data);
+  CHECK_EQ(channel->timer_handle(), handle);
   CHECK_EQ(false, RB_EMPTY(channel->task_list()));
   ares_process_fd(channel->cares_channel(), ARES_SOCKET_BAD, ARES_SOCKET_BAD);
 }
@@ -505,25 +508,30 @@ void ChannelWrap::Setup() {
 
   /* Initialize the timeout timer. The timer won't be started until the */
   /* first socket is opened. */
-  uv_timer_init(env()->event_loop(), &timer_handle_);
-  env()->RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(&timer_handle_),
-      [](Environment* env, uv_handle_t* handle, void* arg) {
-        uv_close(handle, [](uv_handle_t* handle) {
-          ChannelWrap* channel = ContainerOf(
-              &ChannelWrap::timer_handle_,
-              reinterpret_cast<uv_timer_t*>(handle));
-          channel->env()->FinishHandleCleanup(handle);
-        });
-      },
-      nullptr);
+  CleanupTimer();
+  timer_handle_ = new uv_timer_t();
+  timer_handle_->data = static_cast<void*>(this);
+  uv_timer_init(env()->event_loop(), timer_handle_);
 }
 
 
 ChannelWrap::~ChannelWrap() {
   if (library_inited_)
     ares_library_cleanup();
+
   ares_destroy(channel_);
+  CleanupTimer();
+}
+
+
+void ChannelWrap::CleanupTimer() {
+  if (timer_handle_ == nullptr) return;
+
+  uv_close(reinterpret_cast<uv_handle_t*>(timer_handle_),
+           [](uv_handle_t* handle) {
+    delete reinterpret_cast<uv_timer_t*>(handle);
+  });
+  timer_handle_ = nullptr;
 }
 
 
