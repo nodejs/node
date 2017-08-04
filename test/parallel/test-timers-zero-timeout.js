@@ -36,18 +36,14 @@ const assert = require('assert');
 }
 
 {
-  let ncalled = 0;
+  let ncalled = 3;
 
-  const iv = setInterval(f, 0, 'foo', 'bar', 'baz');
-
-  function f(a, b, c) {
+  const f = common.mustCall((a, b, c) => {
     assert.strictEqual(a, 'foo');
     assert.strictEqual(b, 'bar');
     assert.strictEqual(c, 'baz');
-    if (++ncalled === 3) clearTimeout(iv);
-  }
+    if (--ncalled === 0) clearTimeout(iv);
+  }, ncalled);
 
-  process.on('exit', function() {
-    assert.strictEqual(ncalled, 3);
-  });
+  const iv = setInterval(f, 0, 'foo', 'bar', 'baz');
 }
