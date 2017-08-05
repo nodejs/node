@@ -314,7 +314,7 @@ inline void Nghttp2Stream::Destroy() {
   // Do nothing if this stream instance is already destroyed
   if (IsDestroyed())
     return;
-  flags_ |= NGHTTP2_STREAM_DESTROYED;
+  flags_ |= NGHTTP2_STREAM_FLAG_DESTROYED;
   Nghttp2Session* session = this->session_;
 
   if (session != nullptr) {
@@ -539,8 +539,8 @@ inline void Nghttp2Stream::ReadStart() {
                                           id_,
                                           prev_local_window_size_);
   }
-  flags_ |= NGHTTP2_STREAM_READ_START;
-  flags_ &= ~NGHTTP2_STREAM_READ_PAUSED;
+  flags_ |= NGHTTP2_STREAM_FLAG_READ_START;
+  flags_ &= ~NGHTTP2_STREAM_FLAG_READ_PAUSED;
 
   // Flush any queued data chunks immediately out to the JS layer
   FlushDataChunks();
@@ -549,11 +549,11 @@ inline void Nghttp2Stream::ReadStart() {
 inline void Nghttp2Stream::ReadStop() {
   DEBUG_HTTP2("Nghttp2Stream %d: stop reading\n", id_);
   // Has no effect if IsReading() is false, which will happen if we either
-  // have not started reading yet at all (NGHTTP2_STREAM_READ_START is not
-  // set) or if we're already paused (NGHTTP2_STREAM_READ_PAUSED is set.
+  // have not started reading yet at all (NGHTTP2_STREAM_FLAG_READ_START is not
+  // set) or if we're already paused (NGHTTP2_STREAM_FLAG_READ_PAUSED is set.
   if (!IsReading())
     return;
-  flags_ |= NGHTTP2_STREAM_READ_PAUSED;
+  flags_ |= NGHTTP2_STREAM_FLAG_READ_PAUSED;
 
   // When not reading, explicitly set the local window size to 0 so that
   // the peer does not keep sending data that has to be buffered
