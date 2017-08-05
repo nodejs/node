@@ -1283,7 +1283,7 @@ void URL::Parse(const char* input,
         }
         break;
       case kNoScheme:
-        cannot_be_base = base->flags & URL_FLAGS_CANNOT_BE_BASE;
+        cannot_be_base = has_base && (base->flags & URL_FLAGS_CANNOT_BE_BASE);
         if (!has_base || (cannot_be_base && ch != '#')) {
           url->flags |= URL_FLAGS_FAILED;
           return;
