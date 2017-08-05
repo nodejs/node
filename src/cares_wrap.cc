@@ -529,7 +529,7 @@ void ChannelWrap::CleanupTimer() {
 
   uv_close(reinterpret_cast<uv_handle_t*>(timer_handle_),
            [](uv_handle_t* handle) {
-    handle->data = NULL;
+    handle->data = nullptr;
     delete reinterpret_cast<uv_timer_t*>(handle);
   });
   timer_handle_ = nullptr;
