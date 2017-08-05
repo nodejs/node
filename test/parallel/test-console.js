@@ -117,7 +117,9 @@ console.timeEnd({});
 console.time(null);
 console.timeEnd(null);
 console.time(undefined);
-console.timeEnd(undefined);
+console.timeEnd('default');
+console.time('default');
+console.timeEnd();
 console.time(NaN);
 console.timeEnd(NaN);
 
