@@ -34,7 +34,7 @@ if (cluster.isMaster) {
     for (var i = 0; i < workers; ++i)
       cluster.fork().on('online', onOnline).on('message', onMessage);
 
-    function onOnline(msg) {
+    function onOnline() {
       if (++readies === workers) {
         bench.start();
         broadcast();
@@ -56,7 +56,7 @@ if (cluster.isMaster) {
       }
     }
 
-    function onMessage(msg) {
+    function onMessage() {
       if (++msgCount === expectedPerBroadcast) {
         msgCount = 0;
         broadcast();
