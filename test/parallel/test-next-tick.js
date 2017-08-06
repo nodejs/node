@@ -51,7 +51,7 @@ process.nextTick((a, b) => {
 }, 42, obj);
 
 process.nextTick(function() {
-  assert.strictEqual(this, null);
+  assert.strictEqual(this, undefined);
 }, 1, 2, 3, 4);
 
 process.nextTick(() => {
