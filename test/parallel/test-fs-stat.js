@@ -66,7 +66,7 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
   // Confirm that we are not running in the context of the internal binding
   // layer.
   // Ref: https://github.com/nodejs/node/commit/463d6bac8b349acc462d345a6e298a76f7d06fb1
-  assert.strictEqual(this, null);
+  assert.strictEqual(this, undefined);
 }));
 
 // fstatSync
