@@ -1,7 +1,9 @@
 // Flags: --expose-http2
 'use strict';
 
-const { mustCall } = require('../common');
+const { mustCall, hasCrypto, skip } = require('../common');
+if (!hasCrypto)
+  skip('missing crypto');
 const { doesNotThrow } = require('assert');
 const { createServer, connect } = require('http2');
 

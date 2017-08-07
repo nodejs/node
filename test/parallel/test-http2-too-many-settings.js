@@ -5,6 +5,8 @@
 // settings frames will result in a throw.
 
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
 
