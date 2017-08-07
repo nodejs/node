@@ -2251,7 +2251,7 @@ napi_status napi_wrap(napi_env env,
                       napi_finalize finalize_cb,
                       void* finalize_hint,
                       napi_ref* result) {
-  CHECK_ENV(env);
+  NAPI_PREAMBLE(env);
   CHECK_ARG(env, js_object);
 
   v8::Isolate* isolate = env->isolate;
@@ -2299,7 +2299,7 @@ napi_status napi_wrap(napi_env env,
         env, obj, 0, true, finalize_cb, native_object, finalize_hint);
   }
 
-  return napi_clear_last_error(env);
+  return GET_RETURN_STATUS(env);
 }
 
 napi_status napi_unwrap(napi_env env, napi_value js_object, void** result) {
