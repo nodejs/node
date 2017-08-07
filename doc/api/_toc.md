@@ -32,6 +32,7 @@
 * [Net](net.html)
 * [OS](os.html)
 * [Path](path.html)
+* [Performance Hooks](perf_hooks.html)
 * [Process](process.html)
 * [Punycode](punycode.html)
 * [Query Strings](querystring.html)
