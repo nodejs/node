@@ -16,7 +16,6 @@ if (cluster.isMaster) {
     assert.strictEqual(payload, received);
     assert(handle instanceof net.Socket);
     server.close();
-    worker.kill();
     handle.destroy();
   }));
 
@@ -33,5 +32,9 @@ if (cluster.isMaster) {
     assert.strictEqual(payload, received);
     assert(handle instanceof net.Socket);
     process.send({ payload }, handle);
+
+    // Prepare for a clean exit.
+    process.channel.unref();
+    handle.unref();
   }));
 }
