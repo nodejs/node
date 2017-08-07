@@ -318,6 +318,16 @@ inline Environment::Environment(IsolateData* isolate_data,
   AssignToContext(context);
 
   destroy_ids_list_.reserve(512);
+  performance_state_ = Calloc<performance::performance_state>(1);
+  performance_state_->milestones[
+      performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT] =
+          PERFORMANCE_NOW();
+  performance_state_->milestones[
+    performance::NODE_PERFORMANCE_MILESTONE_NODE_START] =
+        performance::performance_node_start;
+  performance_state_->milestones[
+    performance::NODE_PERFORMANCE_MILESTONE_V8_START] =
+        performance::performance_v8_start;
 }
 
 inline Environment::~Environment() {
@@ -333,6 +343,7 @@ inline Environment::~Environment() {
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
   free(http2_state_buffer_);
+  free(performance_state_);
 }
 
 inline v8::Isolate* Environment::isolate() const {
@@ -498,6 +509,41 @@ inline double* Environment::fs_stats_field_array() const {
 inline void Environment::set_fs_stats_field_array(double* fields) {
   CHECK_EQ(fs_stats_field_array_, nullptr);  // Should be set only once.
   fs_stats_field_array_ = fields;
+}
+
+inline performance::performance_state* Environment::performance_state() {
+  return performance_state_;
+}
+
+inline std::map<std::string, uint64_t>* Environment::performance_marks() {
+  return &performance_marks_;
+}
+
+inline Environment* Environment::from_performance_check_handle(
+    uv_check_t* handle) {
+  return ContainerOf(&Environment::performance_check_handle_, handle);
+}
+
+inline Environment* Environment::from_performance_idle_handle(
+    uv_idle_t* handle) {
+  return ContainerOf(&Environment::performance_idle_handle_, handle);
+}
+
+inline Environment* Environment::from_performance_prepare_handle(
+    uv_prepare_t* handle) {
+  return ContainerOf(&Environment::performance_prepare_handle_, handle);
+}
+
+inline uv_check_t* Environment::performance_check_handle() {
+  return &performance_check_handle_;
+}
+
+inline uv_idle_t* Environment::performance_idle_handle() {
+  return &performance_idle_handle_;
+}
+
+inline uv_prepare_t* Environment::performance_prepare_handle() {
+  return &performance_prepare_handle_;
 }
 
 inline IsolateData* Environment::isolate_data() const {
