@@ -39,6 +39,12 @@ server.on('stream', (stream, headers) => {
 server.listen(80);
 ```
 
+Note that the above example is an HTTP/2 server that does not support SSL.
+This is significant as most browsers support HTTP/2 only with SSL.
+To make the above server be able to serve content to browsers,
+replace `http2.createServer()` with
+`http2.createSecureServer({key: /* your SSL key */, cert: /* your SSL cert */})`.
+
 The following illustrates an HTTP/2 client:
 
 ```js
