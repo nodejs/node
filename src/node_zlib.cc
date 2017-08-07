@@ -111,16 +111,18 @@ class ZCtx : public AsyncWrap {
     CHECK(init_done_ && "close before init");
     CHECK_LE(mode_, UNZIP);
 
+    int status = Z_OK;
     if (mode_ == DEFLATE || mode_ == GZIP || mode_ == DEFLATERAW) {
-      (void)deflateEnd(&strm_);
+      status = deflateEnd(&strm_);
       int64_t change_in_bytes = -static_cast<int64_t>(kDeflateContextSize);
       env()->isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
     } else if (mode_ == INFLATE || mode_ == GUNZIP || mode_ == INFLATERAW ||
                mode_ == UNZIP) {
-      (void)inflateEnd(&strm_);
+      status = inflateEnd(&strm_);
       int64_t change_in_bytes = -static_cast<int64_t>(kInflateContextSize);
       env()->isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
     }
+    CHECK(status == Z_OK || status == Z_DATA_ERROR);
     mode_ = NONE;
 
     if (dictionary_ != nullptr) {
