@@ -5,6 +5,8 @@
 // connection and makes sure that the data for each is appropriately echoed.
 
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
 

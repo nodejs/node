@@ -2,6 +2,8 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 const h2 = require('http2');
 
 const server = h2.createServer();
