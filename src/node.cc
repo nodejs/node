@@ -28,6 +28,7 @@
 #include "node_internals.h"
 #include "node_revert.h"
 #include "node_debug_options.h"
+#include "node_perf.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -4559,6 +4560,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   {
     SealHandleScope seal(isolate);
     bool more;
+    PERFORMANCE_MARK(&env, LOOP_START);
     do {
       uv_run(env.event_loop(), UV_RUN_DEFAULT);
 
@@ -4569,6 +4571,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       // event, or after running some callbacks.
       more = uv_loop_alive(env.event_loop());
     } while (more == true);
+    PERFORMANCE_MARK(&env, LOOP_EXIT);
   }
 
   env.set_trace_sync_io(false);
@@ -4638,6 +4641,7 @@ inline int Start(uv_loop_t* event_loop,
 int Start(int argc, char** argv) {
   atexit([] () { uv_tty_reset_mode(); });
   PlatformInit();
+  node::performance::performance_node_start = PERFORMANCE_NOW();
 
   CHECK_GT(argc, 0);
 
@@ -4674,6 +4678,7 @@ int Start(int argc, char** argv) {
     v8_platform.StartTracingAgent();
   }
   V8::Initialize();
+  node::performance::performance_v8_start = PERFORMANCE_NOW();
   v8_initialized = true;
   const int exit_code =
       Start(uv_default_loop(), argc, argv, exec_argc, exec_argv);
