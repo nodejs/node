@@ -27,6 +27,7 @@
 @include net
 @include os
 @include path
+@include perf_hooks
 @include process
 @include punycode
 @include querystring
