@@ -1,4 +1,3 @@
-[Pt-br](./README-pt_br.md)
 <p align="center">
   <a href="https://nodejs.org/">
     <img alt="Node.js" src="https://nodejs.org/static/images/logo-light.svg" width="400"/>
@@ -7,23 +6,23 @@
 <p align="center">
   <a title="CII Best Practices" href="https://bestpractices.coreinfrastructure.org/projects/29"><img src="https://bestpractices.coreinfrastructure.org/projects/29/badge"></a>
 </p>
-Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. Node.js
-uses an event-driven, non-blocking I/O model that makes it lightweight and
-efficient. The Node.js package ecosystem, [npm][], is the largest ecosystem of
-open source libraries in the world.
 
-The Node.js project is supported by the
-[Node.js Foundation](https://nodejs.org/en/foundation/). Contributions,
-policies, and releases are managed under an
+Node.js é um runtime construído em cima da engine de JavaScript V8 do Chrome. Node.js
+usa um modelo de event-driven, non-blocking I/O que o faz leve e eficiente. O ecosistema de pacotes do
+Node.js, [npm][], é o maior ambiente de bibliotecas open source do Mundo.
+
+O projeto do Node.js mantido pela
+[Node.js Foundation](https://nodejs.org/en/foundation/). Contribuições,
+Políticas, e Lançamentos são gerenciadas sob
 [open governance model](./GOVERNANCE.md).
 
-**This project is bound by a [Code of Conduct][].**
+**Este projeto é vinculado por um [Código de Conduta][].**
 
-If you need help using or installing Node.js, please use the
-[nodejs/help](https://github.com/nodejs/help) issue tracker.
+Se voce precisa de ajuda para usar ou instalar o Node.js, por favor use o
+[nodejs/ajuda](https://github.com/nodejs/help) issue tracker.
 
 
-# Table of Contents
+# Índice
 
 * [Resources for Newcomers](#resources-for-newcomers)
 * [Release Types](#release-types)
