@@ -104,7 +104,8 @@ console.error(interfaces);
 switch (platform) {
   case 'linux':
   {
-    const filter = (e) => e.address === '127.0.0.1';
+    const filter =
+      (e) => e.address === '127.0.0.1' && e.netmask === '255.0.0.0';
     const actual = interfaces.lo.filter(filter);
     const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
                         mac: '00:00:00:00:00:00', family: 'IPv4',
