@@ -16,7 +16,7 @@ O projeto do Node.js mantido pela
 Políticas, e Lançamentos são gerenciadas sob
 [open governance model](./GOVERNANCE.md).
 
-**Este projeto é vinculado por um [Código de Conduta][].**
+**Este projeto é vinculado por um [Código de Conduta](./CODE_OF_CONDUCT.md)**
 
 Se voce precisa de ajuda para usar ou instalar o Node.js, por favor use o
 [nodejs/ajuda](https://github.com/nodejs/help) issue tracker.
