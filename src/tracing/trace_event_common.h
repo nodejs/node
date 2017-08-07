@@ -189,6 +189,9 @@
 // trace points would carry a significant performance cost of acquiring a lock
 // and resolving the category.
 
+#ifndef SRC_TRACING_TRACE_EVENT_COMMON_H_
+#define SRC_TRACING_TRACE_EVENT_COMMON_H_
+
 #if defined(TRACE_EVENT0)
 #error "Another copy of this file has already been included."
 #endif
@@ -1071,3 +1074,5 @@
 #define TRACE_EVENT_SCOPE_NAME_GLOBAL ('g')
 #define TRACE_EVENT_SCOPE_NAME_PROCESS ('p')
 #define TRACE_EVENT_SCOPE_NAME_THREAD ('t')
+
+#endif  // SRC_TRACING_TRACE_EVENT_COMMON_H_
