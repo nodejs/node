@@ -331,8 +331,8 @@ function isWarned(emitter) {
   // over the default crlfDelay but within the setting value
   {
     const fi = new FakeInput();
-    const delay = 200;
-    const crlfDelay = 500;
+    const delay = 125;
+    const crlfDelay = common.platformTimeout(1000);
     const rli = new readline.Interface({
       input: fi,
       output: fi,
