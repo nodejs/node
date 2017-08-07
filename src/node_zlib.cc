@@ -562,6 +562,7 @@ class ZCtx : public AsyncWrap {
         delete[] dictionary;
         ctx->dictionary_ = nullptr;
       }
+      ctx->mode_ = NONE;
       ctx->env()->ThrowError("Init error");
     }
   }
