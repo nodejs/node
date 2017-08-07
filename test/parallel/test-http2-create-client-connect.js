@@ -4,6 +4,8 @@
 // Tests http2.connect()
 
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 const fs = require('fs');
 const h2 = require('http2');
 const path = require('path');
