@@ -525,7 +525,7 @@ ChannelWrap::~ChannelWrap() {
 
 
 void ChannelWrap::CleanupTimer() {
-  if (!timer_handle_) return;
+  if (timer_handle_ == nullptr) return;
 
   uv_close(reinterpret_cast<uv_handle_t*>(timer_handle_),
            [](uv_handle_t* handle) {
