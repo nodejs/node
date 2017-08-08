@@ -1824,7 +1824,7 @@ napi_status napi_get_new_target(napi_env env,
   CHECK_ARG(env, result);
 
   v8impl::CallbackWrapper* info =
-       reinterpret_cast<v8impl::CallbackWrapper*>(cbinfo);
+      reinterpret_cast<v8impl::CallbackWrapper*>(cbinfo);
 
   *result = info->NewTarget();
   return napi_clear_last_error(env);
