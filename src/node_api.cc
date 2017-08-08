@@ -3251,13 +3251,18 @@ static napi_status ConvertUVErrorCode(int code) {
 }
 
 // Wrapper around uv_work_t which calls user-provided callbacks.
-class Work {
+class Work : public node::AsyncResource {
  private:
   explicit Work(napi_env env,
-                napi_async_execute_callback execute = nullptr,
+                v8::Local<v8::Object> async_resource,
+                const char* async_resource_name,
+                napi_async_execute_callback execute,
                 napi_async_complete_callback complete = nullptr,
                 void* data = nullptr)
-    : _env(env),
+    : AsyncResource(env->isolate,
+                    async_resource,
+                    async_resource_name),
+    _env(env),
     _data(data),
     _execute(execute),
     _complete(complete) {
@@ -3269,10 +3274,13 @@ class Work {
 
  public:
   static Work* New(napi_env env,
+                   v8::Local<v8::Object> async_resource,
+                   const char* async_resource_name,
                    napi_async_execute_callback execute,
                    napi_async_complete_callback complete,
                    void* data) {
-    return new Work(env, execute, complete, data);
+    return new Work(env, async_resource, async_resource_name,
+                    execute, complete, data);
   }
 
   static void Delete(Work* work) {
@@ -3293,6 +3301,7 @@ class Work {
       // Establish a handle scope here so that every callback doesn't have to.
       // Also it is needed for the exception-handling below.
       v8::HandleScope scope(env->isolate);
+      CallbackScope callback_scope(work);
 
       work->_complete(env, ConvertUVErrorCode(status), work->_data);
 
@@ -3335,6 +3344,8 @@ class Work {
   } while (0)
 
 napi_status napi_create_async_work(napi_env env,
+                                   napi_value async_resource,
+                                   const char* async_resource_name,
                                    napi_async_execute_callback execute,
                                    napi_async_complete_callback complete,
                                    void* data,
@@ -3343,7 +3354,18 @@ napi_status napi_create_async_work(napi_env env,
   CHECK_ARG(env, execute);
   CHECK_ARG(env, result);
 
-  uvimpl::Work* work = uvimpl::Work::New(env, execute, complete, data);
+  v8::Local<v8::Object> resource;
+  if (async_resource != nullptr) {
+    auto value = v8impl::V8LocalValueFromJsValue(async_resource);
+    RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
+    resource = value.As<v8::Object>();
+  } else {
+    resource = v8::Object::New(env->isolate);
+  }
+
+  uvimpl::Work* work =
+      uvimpl::Work::New(env, resource, async_resource_name,
+                        execute, complete, data);
 
   *result = reinterpret_cast<napi_async_work>(work);
 
