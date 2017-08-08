@@ -167,7 +167,7 @@ HTTP_KNOWN_HEADER_MAX
   V(UNSUPPORTED_MEDIA_TYPE, 415)                                              \
   V(RANGE_NOT_SATISFIABLE, 416)                                               \
   V(EXPECTATION_FAILED, 417)                                                  \
-  V(TEAPOT, 418)                                                              \
+  V(TEAPOT, 418)  /** docs deprecated, DEP00XX **/                            \
   V(MISDIRECTED_REQUEST, 421)                                                 \
   V(UNPROCESSABLE_ENTITY, 422)                                                \
   V(LOCKED, 423)                                                              \
