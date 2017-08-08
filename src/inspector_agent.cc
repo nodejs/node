@@ -1,12 +1,9 @@
 #include "inspector_agent.h"
 
 #include "inspector_io.h"
-#include "env.h"
-#include "env-inl.h"
-#include "node.h"
+#include "node_internals.h"
 #include "v8-inspector.h"
 #include "v8-platform.h"
-#include "util.h"
 #include "zlib.h"
 
 #include "libplatform/libplatform.h"
