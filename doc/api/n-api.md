@@ -2891,7 +2891,7 @@ call like the arguments and the `this` pointer from a given callback info.
 
 ### *napi_get_new_target*
 <!-- YAML
-added: v9.0.0
+added: REPLACEME
 -->
 ```C
 napi_status napi_get_new_target(napi_env env,
