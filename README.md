@@ -295,6 +295,8 @@ more information about the governance of the Node.js project, see
 **Daniel Wang** &lt;wangyang0123@gmail.com&gt;
 * [Fishrock123](https://github.com/Fishrock123) -
 **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt;
+* [gabrielschulhof](https://github.com/gabrielschulhof) -
+**Gabriel Schulhof** &lt;gabriel.schulhof@intel.com&gt;
 * [geek](https://github.com/geek) -
 **Wyatt Preul** &lt;wpreul@gmail.com&gt;
 * [gibfahn](https://github.com/gibfahn) -
