@@ -144,7 +144,7 @@ is shown in **bold** in the index. When updating the index, please make sure
 to update the display accordingly by removing the bold styling from the previous
 release.
 
-#### Step 3: Update any REPLACEME tags in the docs
+#### Step 3: Update any REPLACEME and DEP00XX tags in the docs
 
 If this release includes new APIs then it is necessary to document that they
 were first added in this version. The relevant commits should already include
@@ -153,6 +153,13 @@ were first added in this version. The relevant commits should already include
 `grep REPLACEME doc/api/*.md`, and substitute this node version with
 `sed -i "s/REPLACEME/$VERSION/g" doc/api/*.md` or
 `perl -pi -e "s/REPLACEME/$VERSION/g" doc/api/*.md`.
+
+If this release includes any new deprecations it is necessary to ensure that
+those are assigned a proper static deprecation code. These are listed in the
+docs (see `doc/api/deprecations.md`) and in the source as `DEP00XX`. The code
+must be assigned a number (e.g. `DEP0012`). Note that this assignment should
+occur when the PR is landed, but a check will be made when the release built
+is run.
 
 ### 4. Create Release Commit
 

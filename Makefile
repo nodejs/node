@@ -672,6 +672,11 @@ release-only:
 		echo 'Please update REPLACEME in Added: tags in doc/api/*.md (See doc/releases.md)' ; \
 		exit 1 ; \
 	fi
+	@if [ "$(DISTTYPE)" != "nightly" ] && [ "$(DISTTYPE)" != "next-nightly" ] && \
+		`grep -q DEP00XX doc/api/deprecations.md`; then \
+		echo 'Please update DEP00XX in doc/api/deprecations.md (See doc/releases.md)' ; \
+		exit 1 ; \
+	fi
 	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \
 		exit 0 ; \
 	else \
