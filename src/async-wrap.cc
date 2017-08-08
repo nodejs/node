@@ -657,73 +657,8 @@ void AsyncWrap::EmitAsyncInit(Environment* env,
 MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                           int argc,
                                           Local<Value>* argv) {
-  CHECK(env()->context() == env()->isolate()->GetCurrentContext());
-
-  Environment::AsyncCallbackScope callback_scope(env());
-
-  Environment::AsyncHooks::ExecScope exec_scope(env(),
-                                                get_id(),
-                                                get_trigger_id());
-
-  // Return v8::Undefined() because returning an empty handle will cause
-  // ToLocalChecked() to abort.
-  if (env()->using_domains() && DomainEnter(env(), object())) {
-    return Undefined(env()->isolate());
-  }
-
-  // No need to check a return value because the application will exit if an
-  // exception occurs.
-  AsyncWrap::EmitBefore(env(), get_id());
-
-  MaybeLocal<Value> ret = cb->Call(env()->context(), object(), argc, argv);
-
-  if (ret.IsEmpty()) {
-    return ret;
-  }
-
-  AsyncWrap::EmitAfter(env(), get_id());
-
-  // Return v8::Undefined() because returning an empty handle will cause
-  // ToLocalChecked() to abort.
-  if (env()->using_domains() && DomainExit(env(), object())) {
-    return Undefined(env()->isolate());
-  }
-
-  exec_scope.Dispose();
-
-  if (callback_scope.in_makecallback()) {
-    return ret;
-  }
-
-  Environment::TickInfo* tick_info = env()->tick_info();
-
-  if (tick_info->length() == 0) {
-    env()->isolate()->RunMicrotasks();
-  }
-
-  // Make sure the stack unwound properly. If there are nested MakeCallback's
-  // then it should return early and not reach this code.
-  CHECK_EQ(env()->current_async_id(), 0);
-  CHECK_EQ(env()->trigger_id(), 0);
-
-  Local<Object> process = env()->process_object();
-
-  if (tick_info->length() == 0) {
-    tick_info->set_index(0);
-    return ret;
-  }
-
-  MaybeLocal<Value> rcheck =
-      env()->tick_callback_function()->Call(env()->context(),
-                                            process,
-                                            0,
-                                            nullptr);
-
-  // Make sure the stack unwound properly.
-  CHECK_EQ(env()->current_async_id(), 0);
-  CHECK_EQ(env()->trigger_id(), 0);
-
-  return rcheck.IsEmpty() ? MaybeLocal<Value>() : ret;
+  async_context context { get_id(), get_trigger_id() };
+  return InternalMakeCallback(env(), object(), cb, argc, argv, context);
 }
 
 
