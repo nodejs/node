@@ -35,6 +35,11 @@ assert.ok(test_general.testGetPrototype(baseObject) !==
 // expected version is currently 1
 assert.strictEqual(test_general.testGetVersion(), 1);
 
+const [ major, minor, patch, release ] = test_general.testGetNodeVersion();
+assert.strictEqual(process.version.split('-')[0],
+                   `v${major}.${minor}.${patch}`);
+assert.strictEqual(release, process.release.name);
+
 [
   123,
   'test string',

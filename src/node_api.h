@@ -536,6 +536,10 @@ NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
 // version management
 NAPI_EXTERN napi_status napi_get_version(napi_env env, uint32_t* result);
 
+NAPI_EXTERN
+napi_status napi_get_node_version(napi_env env,
+                                  const napi_node_version** version);
+
 EXTERN_C_END
 
 #endif  // SRC_NODE_API_H_
