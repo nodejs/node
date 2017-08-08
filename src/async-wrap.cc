@@ -646,6 +646,8 @@ void AsyncWrap::EmitAsyncInit(Environment* env,
                               Local<String> type,
                               double async_id,
                               double trigger_id) {
+  CHECK(!object.IsEmpty());
+  CHECK(!type.IsEmpty());
   AsyncHooks* async_hooks = env->async_hooks();
 
   // Nothing to execute, so can continue normally.
