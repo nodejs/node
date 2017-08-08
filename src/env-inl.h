@@ -31,6 +31,7 @@
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
+#include "node_perf_common.h"
 
 #include <stddef.h>
 #include <stdint.h>

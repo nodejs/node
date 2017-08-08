@@ -20,8 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
+#include <stdio.h>
 
 #ifdef _WIN32
+#include <windows.h>
 #include <VersionHelpers.h>
 #include <WinError.h>
 

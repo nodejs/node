@@ -1,7 +1,5 @@
-#include "env.h"
-#include "env-inl.h"
+#include "node_internals.h"
 #include "async-wrap.h"
-#include "v8.h"
 #include "v8-profiler.h"
 
 #if defined(_MSC_VER)

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "gtest/gtest.h"
 #include "node.h"
+#include "node_platform.h"
 #include "env.h"
 #include "v8.h"
 #include "libplatform/libplatform.h"

@@ -31,8 +31,6 @@
 #include "node_internals.h"
 #include "stream_base.h"
 #include "stream_base-inl.h"
-#include "util.h"
-#include "util-inl.h"
 
 namespace node {
 
