@@ -166,12 +166,29 @@ class Nghttp2Session {
                             int error_code) {}
   virtual ssize_t GetPadding(size_t frameLength,
                              size_t maxFrameLength) { return 0; }
-  virtual void OnTrailers(Nghttp2Stream* stream,
-                          MaybeStackBuffer<nghttp2_nv>* nva) {}
   virtual void OnFreeSession() {}
   virtual void AllocateSend(size_t suggested_size, uv_buf_t* buf) = 0;
 
   virtual bool HasGetPaddingCallback() { return false; }
+
+  class SubmitTrailers {
+   public:
+    void Submit(nghttp2_nv* trailers, size_t length) const;
+
+   private:
+    inline SubmitTrailers(Nghttp2Session* handle,
+                          Nghttp2Stream* stream,
+                          uint32_t* flags);
+
+    Nghttp2Session* const handle_;
+    Nghttp2Stream* const stream_;
+    uint32_t* const flags_;
+
+    friend class Nghttp2Session;
+  };
+
+  virtual void OnTrailers(Nghttp2Stream* stream,
+                          const SubmitTrailers& submit_trailers) {}
 
  private:
   inline void SendPendingData();

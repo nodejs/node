@@ -387,7 +387,7 @@ class Http2Session : public AsyncWrap,
                 size_t length) override;
   void OnFrameError(int32_t id, uint8_t type, int error_code) override;
   void OnTrailers(Nghttp2Stream* stream,
-                  MaybeStackBuffer<nghttp2_nv>* trailers) override;
+                  const SubmitTrailers& submit_trailers) override;
   void AllocateSend(size_t recommended, uv_buf_t* buf) override;
 
   int DoWrite(WriteWrap* w, uv_buf_t* bufs, size_t count,
