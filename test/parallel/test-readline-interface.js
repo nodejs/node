@@ -22,6 +22,7 @@
 // Flags: --expose_internals
 'use strict';
 const common = require('../common');
+
 const assert = require('assert');
 const readline = require('readline');
 const internalReadline = require('internal/readline');
@@ -232,43 +233,6 @@ function isWarned(emitter) {
 
   // sending multiple newlines at once that does not end with a new line
   // and a `end` event(last line is)
-
-  // \r\n should emit one line event, not two
-  {
-    const fi = new FakeInput();
-    const rli = new readline.Interface(
-      { input: fi, output: fi, terminal: terminal }
-    );
-    const expectedLines = ['foo', 'bar', 'baz', 'bat'];
-    let callCount = 0;
-    rli.on('line', function(line) {
-      assert.strictEqual(line, expectedLines[callCount]);
-      callCount++;
-    });
-    fi.emit('data', expectedLines.join('\r\n'));
-    assert.strictEqual(callCount, expectedLines.length - 1);
-    rli.close();
-  }
-
-  // \r\n should emit one line event when split across multiple writes.
-  {
-    const fi = new FakeInput();
-    const rli = new readline.Interface(
-      { input: fi, output: fi, terminal: terminal }
-    );
-    const expectedLines = ['foo', 'bar', 'baz', 'bat'];
-    let callCount = 0;
-    rli.on('line', function(line) {
-      assert.strictEqual(line, expectedLines[callCount]);
-      callCount++;
-    });
-    expectedLines.forEach(function(line) {
-      fi.emit('data', `${line}\r`);
-      fi.emit('data', '\n');
-    });
-    assert.strictEqual(callCount, expectedLines.length);
-    rli.close();
-  }
 
   // \r should behave like \n when alone
   {
