@@ -3199,7 +3199,9 @@ Returns `napi_ok` if the API succeeded.
 
 Retrieves a native instance that was previously wrapped in the JavaScript
 object `js_object` using `napi_wrap()` and removes the wrapping, thereby
-restoring the JavaScript object's prototype chain.
+restoring the JavaScript object's prototype chain. If a finalize callback was
+associated with the wrapping, it will no longer be called when the JavaScript
+object becomes garbage-collected.
 
 ## Asynchronous Operations
 
