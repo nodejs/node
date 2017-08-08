@@ -286,6 +286,14 @@ static v8::MaybeLocal<v8::Object> New(Environment* env,
 }
 }  // namespace Buffer
 
+v8::MaybeLocal<v8::Value> InternalMakeCallback(
+    Environment* env,
+    v8::Local<v8::Object> recv,
+    const v8::Local<v8::Function> callback,
+    int argc,
+    v8::Local<v8::Value> argv[],
+    async_context asyncContext);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
