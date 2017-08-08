@@ -516,7 +516,11 @@ class FunctionCallbackWrapper
       : CallbackWrapperBase(cbinfo, cbinfo.Length()) {}
 
   napi_value NewTarget() override {
-    return v8impl::JsValueFromV8LocalValue(_cbinfo.NewTarget());
+    if (_cbinfo.IsConstructCall()) {
+      return v8impl::JsValueFromV8LocalValue(_cbinfo.NewTarget());
+    } else {
+      return nullptr;
+    }
   }
 
   /*virtual*/
