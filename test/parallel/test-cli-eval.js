@@ -31,6 +31,7 @@ const common = require('../common');
 const assert = require('assert');
 const child = require('child_process');
 const path = require('path');
+const fixtures = require('../common/fixtures');
 const nodejs = `"${process.execPath}"`;
 
 if (process.argv.length > 2) {
@@ -138,7 +139,7 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
 
 // Regression test for https://github.com/nodejs/node/issues/3574.
 {
-  const emptyFile = path.join(common.fixturesDir, 'empty.js');
+  const emptyFile = fixtures.path('empty.js');
 
   child.exec(`${nodejs} -e 'require("child_process").fork("${emptyFile}")'`,
              common.mustCall((err, stdout, stderr) => {

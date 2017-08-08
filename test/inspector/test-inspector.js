@@ -34,6 +34,11 @@ function checkBadPath(err, response) {
   assert(/WebSockets request was expected/.test(err.response));
 }
 
+function checkException(message) {
+  assert.strictEqual(message['exceptionDetails'], undefined,
+                     'An exception occurred during execution');
+}
+
 function expectMainScriptSource(result) {
   const expected = helper.mainScriptSource();
   const source = result['scriptSource'];
@@ -209,6 +214,142 @@ function testI18NCharacters(session) {
   ]);
 }
 
+function testCommandLineAPI(session) {
+  const testModulePath = require.resolve('../fixtures/empty.js');
+  const testModuleStr = JSON.stringify(testModulePath);
+  const printAModulePath = require.resolve('../fixtures/printA.js');
+  const printAModuleStr = JSON.stringify(printAModulePath);
+  const printBModulePath = require.resolve('../fixtures/printB.js');
+  const printBModuleStr = JSON.stringify(printBModulePath);
+  session.sendInspectorCommands([
+    [ // we can use `require` outside of a callframe with require in scope
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': 'typeof require("fs").readFile === "function"',
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.strictEqual(message['result']['value'], true);
+      }
+    ],
+    [ // the global require has the same properties as a normal `require`
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': [
+            'typeof require.resolve === "function"',
+            'typeof require.extensions === "object"',
+            'typeof require.cache === "object"'
+          ].join(' && '),
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.strictEqual(message['result']['value'], true);
+      }
+    ],
+    [ // `require` twice returns the same value
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          // 1. We require the same module twice
+          // 2. We mutate the exports so we can compare it later on
+          'expression': `
+            Object.assign(
+              require(${testModuleStr}),
+              { old: 'yes' }
+            ) === require(${testModuleStr})`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.strictEqual(message['result']['value'], true);
+      }
+    ],
+    [ // after require the module appears in require.cache
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': `JSON.stringify(
+            require.cache[${testModuleStr}].exports
+          )`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.deepStrictEqual(JSON.parse(message['result']['value']),
+                               { old: 'yes' });
+      }
+    ],
+    [ // remove module from require.cache
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': `delete require.cache[${testModuleStr}]`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.strictEqual(message['result']['value'], true);
+      }
+    ],
+    [ // require again, should get fresh (empty) exports
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': `JSON.stringify(require(${testModuleStr}))`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.deepStrictEqual(JSON.parse(message['result']['value']), {});
+      }
+    ],
+    [ // require 2nd module, exports an empty object
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': `JSON.stringify(require(${printAModuleStr}))`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.deepStrictEqual(JSON.parse(message['result']['value']), {});
+      }
+    ],
+    [ // both modules end up with the same module.parent
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': `JSON.stringify({
+            parentsEqual:
+              require.cache[${testModuleStr}].parent ===
+              require.cache[${printAModuleStr}].parent,
+            parentId: require.cache[${testModuleStr}].parent.id,
+          })`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.deepStrictEqual(JSON.parse(message['result']['value']), {
+          parentsEqual: true,
+          parentId: '<inspector console>'
+        });
+      }
+    ],
+    [ // the `require` in the module shadows the command line API's `require`
+      {
+        'method': 'Debugger.evaluateOnCallFrame', 'params': {
+          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+          'expression': `(
+            require(${printBModuleStr}),
+            require.cache[${printBModuleStr}].parent.id
+          )`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.notStrictEqual(message['result']['value'],
+                              '<inspector console>');
+      }
+    ],
+  ]);
+}
+
 function testWaitsForFrontendDisconnect(session, harness) {
   console.log('[test]', 'Verify node waits for the frontend to disconnect');
   session.sendInspectorCommands({ 'method': 'Debugger.resume' })
@@ -231,6 +372,7 @@ function runTests(harness) {
       testSetBreakpointAndResume,
       testInspectScope,
       testI18NCharacters,
+      testCommandLineAPI,
       testWaitsForFrontendDisconnect
     ]).expectShutDown(55);
 }

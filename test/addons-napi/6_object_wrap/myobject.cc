@@ -86,7 +86,7 @@ napi_value MyObject::GetValue(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_unwrap(env, _this, reinterpret_cast<void**>(&obj)));
 
   napi_value num;
-  NAPI_CALL(env, napi_create_number(env, obj->value_, &num));
+  NAPI_CALL(env, napi_create_double(env, obj->value_, &num));
 
   return num;
 }
@@ -116,7 +116,7 @@ napi_value MyObject::PlusOne(napi_env env, napi_callback_info info) {
   obj->value_ += 1;
 
   napi_value num;
-  NAPI_CALL(env, napi_create_number(env, obj->value_, &num));
+  NAPI_CALL(env, napi_create_double(env, obj->value_, &num));
 
   return num;
 }
@@ -140,7 +140,7 @@ napi_value MyObject::Multiply(napi_env env, napi_callback_info info) {
 
   const int kArgCount = 1;
   napi_value argv[kArgCount];
-  NAPI_CALL(env, napi_create_number(env, obj->value_ * multiple, argv));
+  NAPI_CALL(env, napi_create_double(env, obj->value_ * multiple, argv));
 
   napi_value instance;
   NAPI_CALL(env, napi_new_instance(env, cons, kArgCount, argv, &instance));

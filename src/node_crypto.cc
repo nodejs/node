@@ -2699,18 +2699,6 @@ int Connection::HandleSSLError(const char* func,
 }
 
 
-void Connection::ClearError() {
-#ifndef NDEBUG
-  HandleScope scope(ssl_env()->isolate());
-
-  // We should clear the error in JS-land
-  Local<String> error_key = ssl_env()->error_string();
-  Local<Value> error = object()->Get(error_key);
-  CHECK_EQ(error->BooleanValue(), false);
-#endif  // NDEBUG
-}
-
-
 void Connection::SetShutdownFlags() {
   HandleScope scope(ssl_env()->isolate());
 
@@ -5676,9 +5664,7 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
                              data,
                              RandomBytesRequest::DONT_FREE_DATA);
   if (args[3]->IsFunction()) {
-    obj->Set(env->context(),
-             FIXED_ONE_BYTE_STRING(args.GetIsolate(), "ondone"),
-             args[3]).FromJust();
+    obj->Set(env->context(), env->ondone_string(), args[3]).FromJust();
 
     if (env->in_domain()) {
       obj->Set(env->context(),

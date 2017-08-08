@@ -1,13 +1,13 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 // Test directly created TLS sockets and options.
 
 const assert = require('assert');
-const join = require('path').join;
 const {
   connect, keys, tls
-} = require(join(common.fixturesDir, 'tls-connect'));
+} = require(fixtures.path('tls-connect'));
 
 test(undefined, (err) => {
   assert.strictEqual(err.message, 'unable to verify the first certificate');

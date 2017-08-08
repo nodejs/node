@@ -7,9 +7,10 @@ if (common.isSunOS || common.isWindows || common.isAIX)
 const assert = require('assert');
 const fs = require('fs');
 const spawn = require('child_process').spawn;
+const fixtures = require('../common/fixtures');
 
 const dirname = `${common.tmpDir}/cwd-does-not-exist-${process.pid}`;
-const abspathFile = require('path').join(common.fixturesDir, 'a.js');
+const abspathFile = fixtures.path('a.js');
 common.refreshTmpDir();
 fs.mkdirSync(dirname);
 process.chdir(dirname);

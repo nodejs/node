@@ -7,17 +7,12 @@ if (!common.hasCrypto)
 if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
 
-const fs = require('fs');
 const net = require('net');
-const path = require('path');
 const tls = require('tls');
-
-function filenamePEM(n) {
-  return path.join(common.fixturesDir, 'keys', `${n}.pem`);
-}
+const fixtures = require('../common/fixtures');
 
 function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
+  return fixtures.readKey(`${n}.pem`);
 }
 
 const opts = {

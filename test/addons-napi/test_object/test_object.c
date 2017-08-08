@@ -144,7 +144,7 @@ napi_value New(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_create_object(env, &ret));
 
   napi_value num;
-  NAPI_CALL(env, napi_create_number(env, 987654321, &num));
+  NAPI_CALL(env, napi_create_int32(env, 987654321, &num));
 
   NAPI_CALL(env, napi_set_named_property(env, ret, "test_number", num));
 
@@ -187,7 +187,7 @@ napi_value Inflate(napi_env env, napi_callback_info info) {
 
     double double_val;
     NAPI_CALL(env, napi_get_value_double(env, value, &double_val));
-    NAPI_CALL(env, napi_create_number(env, double_val + 1, &value));
+    NAPI_CALL(env, napi_create_double(env, double_val + 1, &value));
     NAPI_CALL(env, napi_set_property(env, obj, property_str, value));
   }
 

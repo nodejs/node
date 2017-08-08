@@ -374,6 +374,37 @@ Decrements the `Countdown` counter.
 Specifies the remaining number of times `Countdown.prototype.dec()` must be
 called before the callback is invoked.
 
+## Fixtures Module
+
+The `common/fixtures` module provides convenience methods for working with
+files in the `test/fixtures` directory.
+
+### fixtures.fixturesDir
+
+* [&lt;String>]
+
+The absolute path to the `test/fixtures/` directory.
+
+### fixtures.path(...args)
+
+* `...args` [&lt;String>]
+
+Returns the result of `path.join(fixtures.fixturesDir, ...args)`.
+
+### fixtures.readSync(args[, enc])
+
+* `args` [&lt;String>] | [&lt;Array>]
+
+Returns the result of
+`fs.readFileSync(path.join(fixtures.fixturesDir, ...args), 'enc')`.
+
+### fixtures.readKey(arg[, enc])
+
+* `arg` [&lt;String>]
+
+Returns the result of
+`fs.readFileSync(path.join(fixtures.fixturesDir, 'keys', arg), 'enc')`.
+
 ## WPT Module
 
 The wpt.js module is a port of parts of

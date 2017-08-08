@@ -5,13 +5,13 @@ if (!common.hasIntl) {
   common.skip('missing Intl');
 }
 
-const path = require('path');
+const fixtures = require('../common/fixtures');
 const { URL, URLSearchParams } = require('url');
 const { test, assert_equals, assert_true, assert_throws } =
   require('../common/wpt');
 
 const request = {
-  response: require(path.join(common.fixturesDir, 'url-tests'))
+  response: require(fixtures.path('url-tests'))
 };
 
 /* The following tests are copied from WPT. Modifications to them should be

@@ -40,9 +40,8 @@ const assert = require('assert');
 const { spawn } = require('child_process');
 const { SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION } =
   require('crypto').constants;
-const fs = require('fs');
-const path = require('path');
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
 const testCases =
   [{ title: 'Do not request certs. Everyone is unauthorized.',
@@ -128,14 +127,12 @@ const testCases =
    }
   ];
 
-
 function filenamePEM(n) {
-  return path.join(common.fixturesDir, 'keys', `${n}.pem`);
+  return fixtures.path('keys', `${n}.pem`);
 }
 
-
 function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
+  return fixtures.readKey(`${n}.pem`);
 }
 
 
