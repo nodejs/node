@@ -1,6 +1,4 @@
-#include "node.h"
-#include "env.h"
-#include "v8.h"
+#include "node_internals.h"
 #include "libplatform/libplatform.h"
 
 #include <string>

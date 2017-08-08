@@ -14,10 +14,8 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
-#include "uv.h"
 #include "node_api.h"
 #include "node_internals.h"
-#include "util.h"
 
 #define NAPI_VERSION  1
 
