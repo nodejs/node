@@ -439,10 +439,12 @@ class CallbackWrapper {
       : _this(this_arg), _args_length(args_length), _data(data) {}
 
   virtual bool IsConstructCall() = 0;
+  virtual napi_value NewTarget() = 0;
   virtual void Args(napi_value* buffer, size_t bufferlength) = 0;
   virtual void SetReturnValue(napi_value value) = 0;
 
   napi_value This() { return _this; }
+
 
   size_t ArgsLength() { return _args_length; }
 
@@ -469,6 +471,7 @@ class CallbackWrapperBase : public CallbackWrapper {
 
   /*virtual*/
   bool IsConstructCall() override { return false; }
+  napi_value NewTarget() override { return nullptr; }
 
  protected:
   void InvokeCallback() {
@@ -518,6 +521,9 @@ class FunctionCallbackWrapper
 
   /*virtual*/
   bool IsConstructCall() override { return _cbinfo.IsConstructCall(); }
+  napi_value NewTarget() override {
+    return v8impl::JsValueFromV8LocalValue(_cbinfo.NewTarget());
+  }
 
   /*virtual*/
   void Args(napi_value* buffer, size_t buffer_length) override {
@@ -1810,18 +1816,17 @@ napi_status napi_get_cb_info(
   return napi_clear_last_error(env);
 }
 
-napi_status napi_is_construct_call(napi_env env,
-                                   napi_callback_info cbinfo,
-                                   bool* result) {
-  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because no V8 APIs are called.
+napi_status napi_get_new_target(napi_env env,
+                                napi_callback_info cbinfo,
+                                napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, cbinfo);
   CHECK_ARG(env, result);
 
   v8impl::CallbackWrapper* info =
-      reinterpret_cast<v8impl::CallbackWrapper*>(cbinfo);
+       reinterpret_cast<v8impl::CallbackWrapper*>(cbinfo);
 
-  *result = info->IsConstructCall();
+  *result = info->NewTarget();
   return napi_clear_last_error(env);
 }
 
