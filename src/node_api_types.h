@@ -102,4 +102,11 @@ typedef struct {
   napi_status error_code;
 } napi_extended_error_info;
 
+typedef struct {
+  uint32_t major;
+  uint32_t minor;
+  uint32_t patch;
+  const char* release;
+} napi_node_version;
+
 #endif  // SRC_NODE_API_TYPES_H_

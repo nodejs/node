@@ -15,6 +15,10 @@
 #define NODE_STRINGIFY_HELPER(n) #n
 #endif
 
+#ifndef NODE_RELEASE
+#define NODE_RELEASE "node"
+#endif
+
 #ifndef NODE_TAG
 # if NODE_VERSION_IS_RELEASE
 #  define NODE_TAG ""
