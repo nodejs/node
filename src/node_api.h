@@ -330,9 +330,9 @@ NAPI_EXTERN napi_status napi_get_cb_info(
     napi_value* this_arg,  // [out] Receives the JS 'this' arg for the call
     void** data);          // [out] Receives the data pointer for the callback.
 
-NAPI_EXTERN napi_status napi_is_construct_call(napi_env env,
-                                               napi_callback_info cbinfo,
-                                               bool* result);
+NAPI_EXTERN napi_status napi_get_new_target(napi_env env,
+                                            napi_callback_info cbinfo,
+                                            napi_value* result);
 NAPI_EXTERN napi_status
 napi_define_class(napi_env env,
                   const char* utf8name,
