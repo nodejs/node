@@ -48,6 +48,10 @@ struct nghttp2_rcbuf;
 
 namespace node {
 
+namespace performance {
+struct performance_state;
+}
+
 // Pick an index that's hopefully out of the way when we're embedded inside
 // another application. Performance-wise or memory-wise it doesn't matter:
 // Context::SetAlignedPointerInEmbedderData() is backed by a FixedArray,

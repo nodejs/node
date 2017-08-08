@@ -20,10 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_constants.h"
-#include "env.h"
-#include "env-inl.h"
+#include "node_internals.h"
 
-#include "uv.h"
 #include "zlib.h"
 
 #include <errno.h>

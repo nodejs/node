@@ -27,6 +27,8 @@
 #include "node.h"
 #include "util.h"
 #include "util-inl.h"
+#include "env.h"
+#include "env-inl.h"
 #include "uv.h"
 #include "v8.h"
 #include "tracing/trace_event.h"
