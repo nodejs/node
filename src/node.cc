@@ -161,6 +161,7 @@ using v8::SealHandleScope;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32Array;
+using v8::Undefined;
 using v8::V8;
 using v8::Value;
 
@@ -1311,85 +1312,153 @@ void AddPromiseHook(v8::Isolate* isolate, promise_hook_func fn, void* arg) {
   env->AddPromiseHook(fn, arg);
 }
 
+class InternalCallbackScope {
+ public:
+  InternalCallbackScope(Environment* env,
+                        Local<Object> object,
+                        const async_context& asyncContext);
+  ~InternalCallbackScope();
+  void Close();
 
-MaybeLocal<Value> MakeCallback(Environment* env,
-                               Local<Value> recv,
-                               const Local<Function> callback,
-                               int argc,
-                               Local<Value> argv[],
-                               async_context asyncContext) {
+  inline bool Failed() const { return failed_; }
+  inline void MarkAsFailed() { failed_ = true; }
+  inline bool IsInnerMakeCallback() const {
+    return callback_scope_.in_makecallback();
+  }
+
+ private:
+  Environment* env_;
+  async_context async_context_;
+  v8::Local<v8::Object> object_;
+  Environment::AsyncCallbackScope callback_scope_;
+  bool failed_ = false;
+  bool pushed_ids_ = false;
+  bool closed_ = false;
+};
+
+CallbackScope::CallbackScope(Isolate* isolate,
+                             Local<Object> object,
+                             async_context asyncContext)
+  : private_(new InternalCallbackScope(Environment::GetCurrent(isolate),
+                                       object,
+                                       asyncContext)),
+    try_catch_(isolate) {
+  try_catch_.SetVerbose(true);
+}
+
+CallbackScope::~CallbackScope() {
+  if (try_catch_.HasCaught())
+    private_->MarkAsFailed();
+  delete private_;
+}
+
+InternalCallbackScope::InternalCallbackScope(Environment* env,
+                                             Local<Object> object,
+                                             const async_context& asyncContext)
+  : env_(env),
+    async_context_(asyncContext),
+    object_(object),
+    callback_scope_(env) {
+  CHECK(!object.IsEmpty());
+
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
-  Local<Object> object;
-
-  Environment::AsyncCallbackScope callback_scope(env);
-  bool disposed_domain = false;
-
-  if (recv->IsObject()) {
-    object = recv.As<Object>();
+  if (env->using_domains()) {
+    failed_ = DomainEnter(env, object_);
+    if (failed_)
+      return;
   }
 
-  if (env->using_domains()) {
-    CHECK(recv->IsObject());
-    disposed_domain = DomainEnter(env, object);
-    if (disposed_domain) return Undefined(env->isolate());
+  if (asyncContext.async_id != 0) {
+    // No need to check a return value because the application will exit if
+    // an exception occurs.
+    AsyncWrap::EmitBefore(env, asyncContext.async_id);
+  }
+
+  env->async_hooks()->push_ids(async_context_.async_id,
+                               async_context_.trigger_async_id);
+  pushed_ids_ = true;
+}
+
+InternalCallbackScope::~InternalCallbackScope() {
+  Close();
+}
+
+void InternalCallbackScope::Close() {
+  if (closed_) return;
+  closed_ = true;
+
+  if (pushed_ids_)
+    env_->async_hooks()->pop_ids(async_context_.async_id);
+
+  if (failed_) return;
+
+  if (async_context_.async_id != 0) {
+    AsyncWrap::EmitAfter(env_, async_context_.async_id);
+  }
+
+  if (env_->using_domains()) {
+    failed_ = DomainExit(env_, object_);
+    if (failed_) return;
+  }
+
+  if (IsInnerMakeCallback()) {
+    return;
+  }
+
+  Environment::TickInfo* tick_info = env_->tick_info();
+
+  if (tick_info->length() == 0) {
+    env_->isolate()->RunMicrotasks();
+  }
+
+  // Make sure the stack unwound properly. If there are nested MakeCallback's
+  // then it should return early and not reach this code.
+  CHECK_EQ(env_->current_async_id(), 0);
+  CHECK_EQ(env_->trigger_id(), 0);
+
+  Local<Object> process = env_->process_object();
+
+  if (tick_info->length() == 0) {
+    tick_info->set_index(0);
+    return;
+  }
+
+  CHECK_EQ(env_->current_async_id(), 0);
+  CHECK_EQ(env_->trigger_id(), 0);
+
+  if (env_->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
+    failed_ = true;
+  }
+}
+
+MaybeLocal<Value> InternalMakeCallback(Environment* env,
+                                       Local<Object> recv,
+                                       const Local<Function> callback,
+                                       int argc,
+                                       Local<Value> argv[],
+                                       async_context asyncContext) {
+  InternalCallbackScope scope(env, recv, asyncContext);
+  if (scope.Failed()) {
+    return Undefined(env->isolate());
   }
 
   MaybeLocal<Value> ret;
 
   {
-    AsyncHooks::ExecScope exec_scope(env, asyncContext.async_id,
-                                     asyncContext.trigger_async_id);
-
-    if (asyncContext.async_id != 0) {
-      // No need to check a return value because the application will exit if
-      // an exception occurs.
-      AsyncWrap::EmitBefore(env, asyncContext.async_id);
-    }
-
     ret = callback->Call(env->context(), recv, argc, argv);
 
     if (ret.IsEmpty()) {
       // NOTE: For backwards compatibility with public API we return Undefined()
       // if the top level call threw.
-      return callback_scope.in_makecallback() ?
-          ret : Undefined(env->isolate());
-    }
-
-    if (asyncContext.async_id != 0) {
-      AsyncWrap::EmitAfter(env, asyncContext.async_id);
+      scope.MarkAsFailed();
+      return scope.IsInnerMakeCallback() ? ret : Undefined(env->isolate());
     }
   }
 
-  if (env->using_domains()) {
-    disposed_domain = DomainExit(env, object);
-    if (disposed_domain) return Undefined(env->isolate());
-  }
-
-  if (callback_scope.in_makecallback()) {
-    return ret;
-  }
-
-  Environment::TickInfo* tick_info = env->tick_info();
-
-  if (tick_info->length() == 0) {
-    env->isolate()->RunMicrotasks();
-  }
-
-  // Make sure the stack unwound properly. If there are nested MakeCallback's
-  // then it should return early and not reach this code.
-  CHECK_EQ(env->current_async_id(), asyncContext.async_id);
-  CHECK_EQ(env->trigger_id(), asyncContext.trigger_async_id);
-
-  Local<Object> process = env->process_object();
-
-  if (tick_info->length() == 0) {
-    tick_info->set_index(0);
-    return ret;
-  }
-
-  if (env->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
+  scope.Close();
+  if (scope.Failed()) {
     return Undefined(env->isolate());
   }
 
@@ -1442,8 +1511,8 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   // the two contexts need not be the same.
   Environment* env = Environment::GetCurrent(callback->CreationContext());
   Context::Scope context_scope(env->context());
-  return MakeCallback(env, recv.As<Value>(), callback, argc, argv,
-                      asyncContext);
+  return InternalMakeCallback(env, recv, callback,
+                              argc, argv, asyncContext);
 }
 
 
