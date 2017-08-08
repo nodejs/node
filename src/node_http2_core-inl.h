@@ -605,6 +605,12 @@ Nghttp2Session::Callbacks::~Callbacks() {
   nghttp2_session_callbacks_del(callbacks);
 }
 
+Nghttp2Session::SubmitTrailers::SubmitTrailers(
+    Nghttp2Session* handle,
+    Nghttp2Stream* stream,
+    uint32_t* flags)
+  : handle_(handle), stream_(stream), flags_(flags) { }
+
 }  // namespace http2
 }  // namespace node
 
