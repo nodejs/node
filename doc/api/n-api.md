@@ -2905,8 +2905,8 @@ napi_status napi_get_new_target(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This API return the `new.target` of the construct call. If the current
-callback is not a constructor call, the result equals to `nulltpr`.
+This API returns the `new.target` of the construct call. If the current
+callback is not a constructor call, the result is `nulltpr`.
 
 ### *napi_new_instance*
 <!-- YAML
