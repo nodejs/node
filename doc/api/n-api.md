@@ -2889,25 +2889,24 @@ Returns `napi_ok` if the API succeeded.
 This method is used within a callback function to retrieve details about the
 call like the arguments and the `this` pointer from a given callback info.
 
-### *napi_is_construct_call*
+### *napi_get_new_target*
 <!-- YAML
-added: v8.0.0
+added: v9.0.0
 -->
 ```C
-napi_status napi_is_construct_call(napi_env env,
-                                   napi_callback_info cbinfo,
-                                   bool* result)
+napi_status napi_get_new_target(napi_env env,
+                                napi_callback_info cbinfo,
+                                napi_value* result)
 ```
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] cbinfo`: The callback info passed into the callback function.
-- `[out] result`: Whether the native function is being invoked as
-a constructor call.
+- `[out] result`: The `new.target` of the construct call.
 
 Returns `napi_ok` if the API succeeded.
 
-This API checks if the the current callback was due to a
-consructor call.
+This API return the `new.target` of the construct call. If the current
+callback is not a constructor call, the result equals to `nulltpr`.
 
 ### *napi_new_instance*
 <!-- YAML
