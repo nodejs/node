@@ -141,6 +141,7 @@ class ChannelWrap : public AsyncWrap {
   inline uv_timer_t* timer_handle() { return timer_handle_; }
   inline ares_channel cares_channel() { return channel_; }
   inline bool query_last_ok() const { return query_last_ok_; }
+  static inline bool library_inited() { return library_inited_; }
   inline void set_query_last_ok(bool ok) { query_last_ok_ = ok; }
   inline bool is_servers_default() const { return is_servers_default_; }
   inline void set_is_servers_default(bool is_default) {
@@ -157,9 +158,11 @@ class ChannelWrap : public AsyncWrap {
   ares_channel channel_;
   bool query_last_ok_;
   bool is_servers_default_;
-  bool library_inited_;
+  static bool library_inited_;
   node_ares_task_list task_list_;
 };
+
+bool ChannelWrap::library_inited_ = false;
 
 ChannelWrap::ChannelWrap(Environment* env,
                          Local<Object> object)
@@ -167,8 +170,7 @@ ChannelWrap::ChannelWrap(Environment* env,
     timer_handle_(nullptr),
     channel_(nullptr),
     query_last_ok_(true),
-    is_servers_default_(true),
-    library_inited_(false) {
+    is_servers_default_(true) {
   RB_INIT(&task_list_);
 
   MakeWeak<ChannelWrap>(this);
@@ -493,6 +495,7 @@ void ChannelWrap::Setup() {
     if (r != ARES_SUCCESS)
       return env()->ThrowError(ToErrorCodeString(r));
   }
+  library_inited_ = true;
 
   /* We do the call to ares_init_option for caller. */
   r = ares_init_options(&channel_,
@@ -500,11 +503,8 @@ void ChannelWrap::Setup() {
                         ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
 
   if (r != ARES_SUCCESS) {
-    ares_library_cleanup();
     return env()->ThrowError(ToErrorCodeString(r));
   }
-
-  library_inited_ = true;
 
   /* Initialize the timeout timer. The timer won't be started until the */
   /* first socket is opened. */
@@ -516,9 +516,6 @@ void ChannelWrap::Setup() {
 
 
 ChannelWrap::~ChannelWrap() {
-  if (library_inited_)
-    ares_library_cleanup();
-
   ares_destroy(channel_);
   CleanupTimer();
 }
