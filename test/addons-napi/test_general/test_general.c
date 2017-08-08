@@ -33,6 +33,25 @@ napi_value testGetVersion(napi_env env, napi_callback_info info) {
   return result;
 }
 
+napi_value testGetNodeVersion(napi_env env, napi_callback_info info) {
+  const napi_node_version* node_version;
+  napi_value result, major, minor, patch, release;
+  NAPI_CALL(env, napi_get_node_version(env, &node_version));
+  NAPI_CALL(env, napi_create_uint32(env, node_version->major, &major));
+  NAPI_CALL(env, napi_create_uint32(env, node_version->minor, &minor));
+  NAPI_CALL(env, napi_create_uint32(env, node_version->patch, &patch));
+  NAPI_CALL(env, napi_create_string_utf8(env,
+                                         node_version->release,
+                                         (size_t)-1,
+                                         &release));
+  NAPI_CALL(env, napi_create_array_with_length(env, 4, &result));
+  NAPI_CALL(env, napi_set_element(env, result, 0, major));
+  NAPI_CALL(env, napi_set_element(env, result, 1, minor));
+  NAPI_CALL(env, napi_set_element(env, result, 2, patch));
+  NAPI_CALL(env, napi_set_element(env, result, 3, release));
+  return result;
+}
+
 napi_value doInstanceOf(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
@@ -142,6 +161,7 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("testStrictEquals", testStrictEquals),
     DECLARE_NAPI_PROPERTY("testGetPrototype", testGetPrototype),
     DECLARE_NAPI_PROPERTY("testGetVersion", testGetVersion),
+    DECLARE_NAPI_PROPERTY("testGetNodeVersion", testGetNodeVersion),
     DECLARE_NAPI_PROPERTY("doInstanceOf", doInstanceOf),
     DECLARE_NAPI_PROPERTY("getUndefined", getUndefined),
     DECLARE_NAPI_PROPERTY("getNull", getNull),
