@@ -4692,8 +4692,9 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   {
     Environment::AsyncCallbackScope callback_scope(&env);
-    Environment::AsyncHooks::ExecScope exec_scope(&env, 1, 0);
+    env.async_hooks()->push_ids(1, 0);
     LoadEnvironment(&env);
+    env.async_hooks()->pop_ids(1);
   }
 
   env.set_trace_sync_io(trace_sync_io);
