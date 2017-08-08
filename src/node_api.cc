@@ -445,7 +445,6 @@ class CallbackWrapper {
 
   napi_value This() { return _this; }
 
-
   size_t ArgsLength() { return _args_length; }
 
   void* Data() { return _data; }
