@@ -32,8 +32,9 @@ void MyObject::Init(napi_env env, napi_value exports) {
 }
 
 napi_value MyObject::New(napi_env env, napi_callback_info info) {
-  bool is_constructor;
-  NAPI_CALL(env, napi_is_construct_call(env, info, &is_constructor));
+  napi_value new_target;
+  NAPI_CALL(env, napi_get_new_target(env, info, &new_target));
+  bool is_constructor = (new_target != nullptr);
 
   size_t argc = 1;
   napi_value args[1];
