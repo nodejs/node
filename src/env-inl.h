@@ -194,26 +194,6 @@ inline Environment::AsyncHooks::InitScope::~InitScope() {
   env_->async_hooks()->pop_ids(uid_fields_ref_[AsyncHooks::kCurrentAsyncId]);
 }
 
-inline Environment::AsyncHooks::ExecScope::ExecScope(
-    Environment* env, double async_id, double trigger_id)
-        : env_(env),
-          async_id_(async_id),
-          disposed_(false) {
-  CHECK_GE(async_id, -1);
-  CHECK_GE(trigger_id, -1);
-  env->async_hooks()->push_ids(async_id, trigger_id);
-}
-
-inline Environment::AsyncHooks::ExecScope::~ExecScope() {
-  if (disposed_) return;
-  Dispose();
-}
-
-inline void Environment::AsyncHooks::ExecScope::Dispose() {
-  disposed_ = true;
-  env_->async_hooks()->pop_ids(async_id_);
-}
-
 inline Environment::AsyncCallbackScope::AsyncCallbackScope(Environment* env)
     : env_(env) {
   env_->makecallback_cntr_++;
