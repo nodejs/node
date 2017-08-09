@@ -341,6 +341,14 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
   return true;
 }
 
+inline uint32_t Add32Clamp(uint32_t x, uint32_t y) {
+  return x + y >= x ? x + y : static_cast<uint32_t>(-1);
+}
+
+inline uint64_t Add64Clamp(uint64_t x, uint64_t y) {
+  return x + y >= x ? x + y : static_cast<uint64_t>(-1);
+}
+
 inline size_t MultiplyWithOverflowCheck(size_t a, size_t b) {
   size_t ret = a * b;
   if (a != 0)
