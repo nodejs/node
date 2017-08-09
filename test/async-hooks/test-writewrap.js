@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const initHooks = require('./init-hooks');
-const fs = require('fs');
+const fixtures = require('../common/fixtures');
 const { checkInvocations } = require('./hook-checks');
 const tls = require('tls');
 
@@ -18,8 +18,8 @@ hooks.enable();
 //
 const server = tls
   .createServer({
-    cert: fs.readFileSync(`${common.fixturesDir}/test_cert.pem`),
-    key: fs.readFileSync(`${common.fixturesDir}/test_key.pem`)
+    cert: fixtures.readSync('test_cert.pem'),
+    key: fixtures.readSync('test_key.pem')
   })
   .on('listening', common.mustCall(onlistening))
   .on('secureConnection', common.mustCall(onsecureConnection))

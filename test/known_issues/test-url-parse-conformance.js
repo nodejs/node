@@ -1,13 +1,11 @@
 'use strict';
 
 // Refs: https://github.com/nodejs/node/issues/5832
-
-const common = require('../common');
+require('../common');
 const url = require('url');
 const assert = require('assert');
-const path = require('path');
-
-const tests = require(path.join(common.fixturesDir, 'url-tests'));
+const fixtures = require('../common/fixtures');
+const tests = require(fixtures.path('url-tests'));
 
 let failed = 0;
 let attempted = 0;

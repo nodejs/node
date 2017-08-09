@@ -26,15 +26,15 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
+const fixtures = require('../common/fixtures');
 const stream = require('stream');
 const util = require('util');
 
 const request = Buffer.from('ABCD'.repeat(1024 * 256 - 1)); // 1mb
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
 function Mediator() {

@@ -3,11 +3,11 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const http = require('http');
-const path = require('path');
+const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
 const url = require('url');
 
-const _MAINSCRIPT = path.join(common.fixturesDir, 'loop.js');
+const _MAINSCRIPT = fixtures.path('loop.js');
 const DEBUG = false;
 const TIMEOUT = common.platformTimeout(15 * 1000);
 
