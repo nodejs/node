@@ -342,7 +342,7 @@ to be added to the error object.  If the optional parameter is NULL
 then no code will be associated with the error. If a code is provided,
 the name associated with the error is also updated to be:
 
-```
+```text
 originalName [code]
 ```
 
@@ -350,7 +350,7 @@ where originalName is the original name associated with the error
 and code is the code that was provided.  For example if the code
 is 'ERR_ERROR_1' and a TypeError is being created the name will be:
 
-```
+```text
 TypeError [ERR_ERROR_1]
 ```
 
@@ -3342,6 +3342,8 @@ support it:
 * If the function is not available, provide an alternate implementation
   that does not use the function.
 
+<!-- it's very convenient to have all the anchors indexed -->
+<!--lint disable no-unused-definitions remark-lint-->
 [Asynchronous Operations]: #n_api_asynchronous_operations
 [Basic N-API Data Types]: #n_api_basic_n_api_data_types
 [ECMAScript Language Specification]: https://tc39.github.io/ecma262/
