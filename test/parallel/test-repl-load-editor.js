@@ -11,7 +11,7 @@ const terminalCode = '\u001b[1G\u001b[0J> \u001b[3G';
 const terminalCodeRegex = new RegExp(terminalCode.replace(/\[/g, '\\['), 'g');
 
 function run({ input, filename, errormsg, output, event,
-  checkTerminalCodes = true }) {
+               checkTerminalCodes = true }) {
   const stream = new common.ArrayStream();
   let found = '';
 
