@@ -101,7 +101,7 @@ assert.ok(!arg);
   child.on('close', (code, signal) => {
     clearTimeout(tO);
     if (common.isWindows) {
-      assert.strictEqual(code, 3);
+      assert.strictEqual(code, 134);
       assert.strictEqual(signal, null);
     } else {
       assert.strictEqual(code, null);

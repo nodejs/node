@@ -1819,6 +1819,8 @@ cases:
   value of the signal code.  This is a standard Unix practice, since
   exit codes are defined to be 7-bit integers, and signal exits set
   the high-order bit, and then contain the value of the signal code.
+  For example, signal `SIGABRT` has value `6`, so the expected exit
+  code will be `128` + `6`, or `134`.
 
 
 [`'exit'`]: #process_event_exit

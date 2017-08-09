@@ -1,7 +1,9 @@
 // Flags: --expose-http2
 'use strict';
 
-require('../common');
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 const assert = require('assert');
 
 assert.doesNotThrow(() => process.binding('http2'));
@@ -173,7 +175,7 @@ const expectedNGConstants = {
   NGHTTP2_INTERNAL_ERROR: 2,
   NGHTTP2_FLOW_CONTROL_ERROR: 3,
   NGHTTP2_SETTINGS_TIMEOUT: 4,
-  NGHTTP2_STREAM_CLOSED: 8,
+  NGHTTP2_STREAM_CLOSED: 5,
   NGHTTP2_FRAME_SIZE_ERROR: 6,
   NGHTTP2_REFUSED_STREAM: 7,
   NGHTTP2_CANCEL: 8,

@@ -4,6 +4,8 @@
 // Verifies that uploading data from a client works
 
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
 const fs = require('fs');
