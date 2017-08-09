@@ -54,6 +54,7 @@ using v8::String;
 using v8::Symbol;
 using v8::TryCatch;
 using v8::Uint32Array;
+using v8::Undefined;
 using v8::Value;
 
 using AsyncHooks = node::Environment::AsyncHooks;
@@ -696,7 +697,7 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                                 get_trigger_id());
 
   if (!PreCallbackExecution(this, true)) {
-    return MaybeLocal<Value>();
+    return Undefined(env()->isolate());
   }
 
   // Finally... Get to running the user's callback.
@@ -707,7 +708,7 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   }
 
   if (!PostCallbackExecution(this, true)) {
-    return Local<Value>();
+    return Undefined(env()->isolate());
   }
 
   exec_scope.Dispose();
