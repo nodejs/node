@@ -1850,8 +1850,8 @@ const server = http2.createServer((req, res) => {
 });
 ```
 
-In order to create a mixed [HTTPS](https) and HTTP/2 server, refer to the
-[ALPN negotiation](alpn-negotiation) section.
+In order to create a mixed [HTTPS][] and HTTP/2 server, refer to the
+[ALPN negotiation][] section.
 Upgrading from non-tls HTTP/1 servers is not supported.
 
 The HTTP2 compatibility API is composed of [`Http2ServerRequest`]() and
@@ -1861,10 +1861,10 @@ the status message for HTTP codes is ignored.
 
 ### ALPN negotiation
 
-ALPN negotiation allows to support both [HTTPS](https) and HTTP/2 over
+ALPN negotiation allows to support both [HTTPS][] and HTTP/2 over
 the same socket. The `req` and `res` objects can be either HTTP/1 or
 HTTP/2, and an application **must** restrict itself to the public API of
-[HTTP/1](), and detect if it is possible to use the more advanced
+[HTTP/1][], and detect if it is possible to use the more advanced
 features of HTTP/2.
 
 The following example creates a server that supports both protocols:
@@ -1925,7 +1925,7 @@ abnormally aborted in mid-communication.
 added: REPLACEME
 -->
 
-Indicates that the underlying [`Http2Stream`]() was closed.
+Indicates that the underlying [`Http2Stream`][] was closed.
 Just like `'end'`, this event occurs only once per response.
 
 #### request.destroy([error])
@@ -1935,7 +1935,7 @@ added: REPLACEME
 
 * `error` {Error}
 
-Calls `destroy()` on the [Http2Stream]() that received the `ServerRequest`. If
+Calls `destroy()` on the [`Http2Stream`][] that received the [`ServerRequest`][]. If
 `error` is provided, an `'error'` event is emitted and `error` is passed as an
 argument to any listeners on the event.
 
@@ -2570,7 +2570,7 @@ will result in a [`TypeError`][] being thrown.
 added: REPLACEME
 -->
 
-Call [`stream.pushStream()`]() with the given headers, and wraps the
+Call [`stream.pushStream()`][] with the given headers, and wraps the
 given newly created [`Http2Stream`] on `Http2ServerRespose`.
 
 The callback will be called with an error with code `ERR_HTTP2_STREAM_CLOSED`
@@ -2578,13 +2578,13 @@ if the stream is closed.
 
 [HTTP/2]: https://tools.ietf.org/html/rfc7540
 [HTTP/1]: http.html
-[https]: https.html
+[HTTPS]: https.html
 [`net.Socket`]: net.html
 [`tls.TLSSocket`]: tls.html
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [`ClientHttp2Stream`]: #http2_class_clienthttp2stream
 [Compatibility API]: #http2_compatibility_api
-[alpn-negotiation]: #http2_alpn_negotiation
+[ALPN negotiation]: #http2_alpn_negotiation
 [`Duplex`]: stream.html#stream_class_stream_duplex
 [Headers Object]: #http2_headers_object
 [`Http2Stream`]: #http2_class_http2stream
