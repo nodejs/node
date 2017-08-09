@@ -185,7 +185,7 @@ added: v8.0.0
 Enable loading native modules compiled with the ABI-stable Node.js API (N-API)
 (experimental).
 
-## `--abort-on-uncaught-exception`
+### `--abort-on-uncaught-exception`
 <!-- YAML
 added: v0.10
 -->
