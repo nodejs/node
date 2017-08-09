@@ -66,7 +66,7 @@ function testCodeAligment({ input, cursor = 0, line = '' }) {
   const stream = new common.ArrayStream();
   const outputStream = new common.ArrayStream();
 
-  stream.write = () => { throw new Error('Writing not allowed!'); };
+  stream.write = common.mustNotCall('writing not allowed');
 
   const replServer = repl.start({
     prompt: '> ',
