@@ -147,7 +147,7 @@ cmd_alink_thin = rm -f $@ && $(AR.$(TOOLSET)) crsT $@ $(filter %.o,$^)
 # special "figure out circular dependencies" flags around the entire
 # input list during linking.
 quiet_cmd_link = LINK($(TOOLSET)) $@
-cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) $(LIBS) -Wl,--end-group
+cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) -Wl,--end-group $(LIBS)
 
 # We support two kinds of shared objects (.so):
 # 1) shared_library, which is just bundling together many dependent libraries
@@ -2074,10 +2074,10 @@ def GenerateOutput(target_list, target_dicts, data, params):
     'AR.target':   GetEnvironFallback(('AR_target', 'AR'), '$(AR)'),
     'CXX.target':  GetEnvironFallback(('CXX_target', 'CXX'), '$(CXX)'),
     'LINK.target': GetEnvironFallback(('LINK_target', 'LINK'), '$(LINK)'),
-    'CC.host':     GetEnvironFallback(('CC_host', 'CC'), 'gcc'),
-    'AR.host':     GetEnvironFallback(('AR_host', 'AR'), 'ar'),
-    'CXX.host':    GetEnvironFallback(('CXX_host', 'CXX'), 'g++'),
-    'LINK.host':   GetEnvironFallback(('LINK_host', 'LINK'), '$(CXX.host)'),
+    'CC.host':     GetEnvironFallback(('CC_host',), 'gcc'),
+    'AR.host':     GetEnvironFallback(('AR_host',), 'ar'),
+    'CXX.host':    GetEnvironFallback(('CXX_host',), 'g++'),
+    'LINK.host':   GetEnvironFallback(('LINK_host',), '$(CXX.host)'),
   })
 
   build_file, _, _ = gyp.common.ParseQualifiedTarget(target_list[0])
