@@ -3713,6 +3713,7 @@ static void PrintHelp() {
          "NODE_NO_WARNINGS             set to 1 to silence process warnings\n"
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
          "NODE_OPTIONS                 set CLI options in the environment\n"
+         "                             via a space-separated list\n"
 #endif
 #ifdef _WIN32
          "NODE_PATH                    ';'-separated list of directories\n"
