@@ -440,10 +440,10 @@ When set to `1`, process warnings are silenced.
 added: v8.0.0
 -->
 
-`options...` are interpreted as if they had been specified on the command line
-before the actual command line (so they can be overridden).  Node will exit with
-an error if an option that is not allowed in the environment is used, such as
-`-p` or a script file.
+A space-separated list of command line options. `options...` are interpreted as
+if they had been specified on the command line before the actual command line
+(so they can be overridden).  Node will exit with an error if an option that is
+not allowed in the environment is used, such as `-p` or a script file.
 
 Node options that are allowed are:
 - `--enable-fips`
