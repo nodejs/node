@@ -21,6 +21,8 @@
 
 'use strict';
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const tls = require('tls');
@@ -29,8 +31,6 @@ const { spawn } = require('child_process');
 if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
 
 doTest({ tickets: false }, function() {
   doTest({ tickets: true }, function() {
