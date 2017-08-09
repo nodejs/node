@@ -1907,6 +1907,9 @@ changes:
 Returns a new `Buffer` that references the same memory as the original, but
 offset and cropped by the `start` and `end` indices.
 
+Specifying `end` greater than [`buf.length`] will return the same result as
+that of `end` equal to [`buf.length`].
+
 *Note*: Modifying the new `Buffer` slice will modify the memory in the
 original `Buffer` because the allocated memory of the two objects overlap.
 
