@@ -762,12 +762,9 @@ void ReadDoubleBE(const FunctionCallbackInfo<Value>& args) {
 template <typename T, enum Endianness endianness>
 void WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
 
   bool should_assert = args.Length() < 4;
-
-  if (should_assert) {
-    THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
-  }
 
   Local<ArrayBufferView> ts_obj = args[0].As<ArrayBufferView>();
   ArrayBuffer::Contents ts_obj_c = ts_obj->Buffer()->GetContents();

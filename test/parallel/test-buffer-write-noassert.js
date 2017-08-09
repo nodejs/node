@@ -100,3 +100,26 @@ writePartial('writeFloatBE', [1, 6], 10,
              Buffer.from([0, 0, 0, 0, 0, 0, 63, 128, 0]));
 writePartial('writeFloatLE', [1, 6], 10,
              Buffer.from([0, 0, 0, 0, 0, 0, 0, 0, 128]));
+
+// https://github.com/nodejs/node/issues/8724 - specific to methods dealing
+// with floating point types because they call out to C++ code.
+for (const noAssert of [true, false]) {
+  const re = /^TypeError: argument should be a Buffer$/;
+  const proto = Buffer.prototype;
+  const { writeFloatBE, writeFloatLE, writeDoubleBE, writeDoubleLE } = proto;
+  // Non-method call.
+  assert.throws(() => writeFloatBE(0, 0, noAssert), re);
+  assert.throws(() => writeFloatLE(0, 0, noAssert), re);
+  assert.throws(() => writeDoubleBE(0, 0, noAssert), re);
+  assert.throws(() => writeDoubleLE(0, 0, noAssert), re);
+  // Wrong receiver.
+  assert.throws(() => proto.writeFloatBE(0, 0, noAssert), re);
+  assert.throws(() => proto.writeFloatLE(0, 0, noAssert), re);
+  assert.throws(() => proto.writeDoubleBE(0, 0, noAssert), re);
+  assert.throws(() => proto.writeDoubleLE(0, 0, noAssert), re);
+  // Wrong receiver.
+  assert.throws(() => proto.writeFloatBE.call({}, 0, 0, noAssert), re);
+  assert.throws(() => proto.writeFloatLE.call({}, 0, 0, noAssert), re);
+  assert.throws(() => proto.writeDoubleBE.call({}, 0, 0, noAssert), re);
+  assert.throws(() => proto.writeDoubleLE.call({}, 0, 0, noAssert), re);
+}
