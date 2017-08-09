@@ -82,16 +82,12 @@ const {
     'BAR': [1]
   };
 
-  assert.deepStrictEqual(mapToHeaders(headers), [
-    [ ':path', 'abc' ],
-    [ ':status', '200' ],
-    [ 'abc', '1' ],
-    [ 'xyz', '1' ],
-    [ 'xyz', '2' ],
-    [ 'xyz', '3' ],
-    [ 'xyz', '4' ],
-    [ 'bar', '1' ]
-  ]);
+  assert.deepStrictEqual(
+    mapToHeaders(headers),
+    [ ':path_abc_:status_200_abc_1_xyz_1_xyz_2_xyz_3_xyz_4_bar_1_'
+        .replace(/_/g, '\0'),
+      8 ]
+  );
 }
 
 {
@@ -103,15 +99,12 @@ const {
     'xyz': [1, 2, 3, 4]
   };
 
-  assert.deepStrictEqual(mapToHeaders(headers), [
-    [ ':status', '200' ],
-    [ ':path', 'abc' ],
-    [ 'abc', '1' ],
-    [ 'xyz', '1' ],
-    [ 'xyz', '2' ],
-    [ 'xyz', '3' ],
-    [ 'xyz', '4' ]
-  ]);
+  assert.deepStrictEqual(
+    mapToHeaders(headers),
+    [ ':status_200_:path_abc_abc_1_xyz_1_xyz_2_xyz_3_xyz_4_'
+        .replace(/_/g, '\0'),
+      7 ]
+  );
 }
 
 {
@@ -124,15 +117,12 @@ const {
     [Symbol('test')]: 1 // Symbol keys are ignored
   };
 
-  assert.deepStrictEqual(mapToHeaders(headers), [
-    [ ':status', '200' ],
-    [ ':path', 'abc' ],
-    [ 'abc', '1' ],
-    [ 'xyz', '1' ],
-    [ 'xyz', '2' ],
-    [ 'xyz', '3' ],
-    [ 'xyz', '4' ]
-  ]);
+  assert.deepStrictEqual(
+    mapToHeaders(headers),
+    [ ':status_200_:path_abc_abc_1_xyz_1_xyz_2_xyz_3_xyz_4_'
+        .replace(/_/g, '\0'),
+      7 ]
+  );
 }
 
 {
@@ -144,14 +134,10 @@ const {
   headers.foo = [];
   headers[':status'] = 200;
 
-  assert.deepStrictEqual(mapToHeaders(headers), [
-    [ ':status', '200' ],
-    [ ':path', 'abc' ],
-    [ 'xyz', '1' ],
-    [ 'xyz', '2' ],
-    [ 'xyz', '3' ],
-    [ 'xyz', '4' ]
-  ]);
+  assert.deepStrictEqual(
+    mapToHeaders(headers),
+    [ ':status_200_:path_abc_xyz_1_xyz_2_xyz_3_xyz_4_'.replace(/_/g, '\0'), 6 ]
+  );
 }
 
 // The following are not allowed to have multiple values
