@@ -173,7 +173,7 @@ class Nghttp2Session {
 
   class SubmitTrailers {
    public:
-    void operator ()(nghttp2_nv* trailers, size_t length) const;
+    void Submit(nghttp2_nv* trailers, size_t length) const;
 
    private:
     inline SubmitTrailers(Nghttp2Session* handle,

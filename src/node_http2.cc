@@ -839,7 +839,7 @@ void Http2Session::OnTrailers(Nghttp2Stream* stream,
         Local<Array> headers = ret.As<Array>();
         if (headers->Length() > 0) {
           Headers trailers(isolate, context, headers);
-          submit_trailers(*trailers, trailers.length());
+          submit_trailers.Submit(*trailers, trailers.length());
         }
       }
     }

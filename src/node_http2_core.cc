@@ -177,8 +177,8 @@ void Nghttp2Session::GetTrailers(nghttp2_session* session,
   }
 }
 
-void Nghttp2Session::SubmitTrailers::operator ()(nghttp2_nv* trailers,
-                                                 size_t length) const {
+void Nghttp2Session::SubmitTrailers::Submit(nghttp2_nv* trailers,
+                                            size_t length) const {
   if (length == 0) return;
   DEBUG_HTTP2("Nghttp2Session %d: sending trailers for stream %d, "
               "count: %d\n", handle_->session_type_, stream_->id(),
