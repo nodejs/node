@@ -515,54 +515,20 @@ class ExternalHeader :
 
 class Headers {
  public:
-  Headers(Isolate* isolate, Local<Context> context, Local<Array> headers) {
-    headers_.AllocateSufficientStorage(headers->Length());
-    Local<Value> item;
-    Local<Array> header;
-
-    for (size_t n = 0; n < headers->Length(); n++) {
-      item = headers->Get(context, n).ToLocalChecked();
-      CHECK(item->IsArray());
-      header = item.As<Array>();
-      Local<Value> key = header->Get(context, 0).ToLocalChecked();
-      Local<Value> value = header->Get(context, 1).ToLocalChecked();
-      CHECK(key->IsString());
-      CHECK(value->IsString());
-      size_t keylen = StringBytes::StorageSize(isolate, key, ASCII);
-      size_t valuelen = StringBytes::StorageSize(isolate, value, ASCII);
-      headers_[n].flags = NGHTTP2_NV_FLAG_NONE;
-      Local<Value> flag = header->Get(context, 2).ToLocalChecked();
-      if (flag->BooleanValue(context).ToChecked())
-        headers_[n].flags |= NGHTTP2_NV_FLAG_NO_INDEX;
-      uint8_t* buf = Malloc<uint8_t>(keylen + valuelen);
-      headers_[n].name = buf;
-      headers_[n].value = buf + keylen;
-      headers_[n].namelen =
-          StringBytes::Write(isolate,
-                            reinterpret_cast<char*>(headers_[n].name),
-                            keylen, key, ASCII);
-      headers_[n].valuelen =
-          StringBytes::Write(isolate,
-                            reinterpret_cast<char*>(headers_[n].value),
-                            valuelen, value, ASCII);
-    }
-  }
-
-  ~Headers() {
-    for (size_t n = 0; n < headers_.length(); n++)
-      free(headers_[n].name);
-  }
+  Headers(Isolate* isolate, Local<Context> context, Local<Array> headers);
+  ~Headers() {}
 
   nghttp2_nv* operator*() {
-    return *headers_;
+    return reinterpret_cast<nghttp2_nv*>(*buf_);
   }
 
   size_t length() const {
-    return headers_.length();
+    return count_;
   }
 
  private:
-  MaybeStackBuffer<nghttp2_nv> headers_;
+  size_t count_;
+  MaybeStackBuffer<char, 3000> buf_;
 };
 
 }  // namespace http2
