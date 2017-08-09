@@ -1,13 +1,10 @@
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
-const path = require('path');
+const path = require('../common/fixtures').path;
 const spawn = require('child_process').spawn;
 const assert = require('assert');
-const fixture = path.join(
-  common.fixturesDir,
-  'debugger-repeat-last.js'
-);
+const fixture = path('debugger-repeat-last.js');
 
 const args = [
   'inspect',
