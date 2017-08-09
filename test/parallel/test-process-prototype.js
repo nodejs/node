@@ -5,6 +5,7 @@ const EventEmitter = require('events');
 
 const proto = Object.getPrototypeOf(process);
 
+assert(process instanceof process.constructor);
 assert(proto instanceof EventEmitter);
 
 const desc = Object.getOwnPropertyDescriptor(proto, 'constructor');
