@@ -546,7 +546,7 @@ see [Custom promisified functions][].
 
 ## Class: util.TextDecoder
 <!-- YAML
-added: REPLACEME
+added: v8.3.0
 -->
 
 > Stability: 1 - Experimental
@@ -685,7 +685,7 @@ mark.
 
 ## Class: util.TextEncoder
 <!-- YAML
-added: REPLACEME
+added: v8.3.0
 -->
 
 > Stability: 1 - Experimental
