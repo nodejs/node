@@ -132,7 +132,7 @@ const {
   headers[':status'] = 200;
 
   assert.deepStrictEqual(
-    mapToHeaders(headers)
+    mapToHeaders(headers),
     [ [ ':status', '200', ':path', 'abc', 'xyz', '1', 'xyz', '2', 'xyz', '3',
         'xyz', '4', '' ].join('\0'), 6 ]
   );
