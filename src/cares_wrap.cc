@@ -489,6 +489,8 @@ void ChannelWrap::Setup() {
 
   int r;
   if (!library_inited_) {
+    // Multiple calls to ares_library_init() increase a reference counter,
+    // so this is a no-op except for the first call to it.
     r = ares_library_init(ARES_LIB_INIT_ALL);
     if (r != ARES_SUCCESS)
       return env()->ThrowError(ToErrorCodeString(r));
@@ -516,8 +518,10 @@ void ChannelWrap::Setup() {
 
 
 ChannelWrap::~ChannelWrap() {
-  if (library_inited_)
+  if (library_inited_) {
+    // This decreases the reference counter increased by ares_library_init().
     ares_library_cleanup();
+  }
 
   ares_destroy(channel_);
   CleanupTimer();
