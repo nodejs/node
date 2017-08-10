@@ -1086,7 +1086,7 @@ Headers::Headers(Isolate* isolate,
   CHECK(header_string->IsString());
   CHECK(header_count->IsUint32());
   count_ = header_count.As<Uint32>()->Value();
-  size_t header_string_len = header_string.As<String>()->Length();
+  int header_string_len = header_string.As<String>()->Length();
 
   if (count_ == 0) {
     CHECK_EQ(header_string_len, 0);
@@ -1100,9 +1100,11 @@ Headers::Headers(Isolate* isolate,
   char* header_contents = *buf_ + (count_ * sizeof(nghttp2_nv));
   nghttp2_nv* const nva = reinterpret_cast<nghttp2_nv*>(*buf_);
 
-  CHECK_EQ(StringBytes::Write(isolate,
-                              header_contents, header_string_len,
-                              header_string, ASCII), header_string_len);
+  CHECK_EQ(header_string.As<String>()
+              ->WriteOneByte(reinterpret_cast<uint8_t*>(header_contents),
+                             0, header_string_len,
+                             String::NO_NULL_TERMINATION),
+           header_string_len);
 
   size_t n = 0;
   char* p;
