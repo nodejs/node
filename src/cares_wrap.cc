@@ -372,6 +372,69 @@ struct CaresAsyncData {
   uv_async_t async_handle;
 };
 
+void SetupCaresChannel(Environment* env) {
+  struct ares_options options;
+  memset(&options, 0, sizeof(options));
+  options.flags = ARES_FLAG_NOCHECKRESP;
+  options.sock_state_cb = ares_sockstate_cb;
+  options.sock_state_cb_data = env;
+
+  /* We do the call to ares_init_option for caller. */
+  int r = ares_init_options(env->cares_channel_ptr(),
+                            &options,
+                            ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
+
+  if (r != ARES_SUCCESS) {
+    ares_library_cleanup();
+    return env->ThrowError(ToErrorCodeString(r));
+  }
+}
+
+
+/**
+ * This function is to check whether current servers are fallback servers
+ * when cares initialized.
+ *
+ * The fallback servers of cares is [ "127.0.0.1" ] with no user additional
+ * setting.
+ */
+void AresEnsureServers(Environment* env) {
+  /* if last query is OK or servers are set by user self, do not check */
+  if (env->cares_query_last_ok() || !env->cares_is_servers_default()) {
+    return;
+  }
+
+  ares_channel channel = env->cares_channel();
+  ares_addr_node* servers = nullptr;
+
+  ares_get_servers(channel, &servers);
+
+  /* if no server or multi-servers, ignore */
+  if (servers == nullptr) return;
+  if (servers->next != nullptr) {
+    ares_free_data(servers);
+    env->set_cares_is_servers_default(false);
+    return;
+  }
+
+  /* if the only server is not 127.0.0.1, ignore */
+  if (servers[0].family != AF_INET ||
+      servers[0].addr.addr4.s_addr != htonl(INADDR_LOOPBACK)) {
+    ares_free_data(servers);
+    env->set_cares_is_servers_default(false);
+    return;
+  }
+
+  ares_free_data(servers);
+  servers = nullptr;
+
+  /* destroy channel and reset channel */
+  ares_destroy(channel);
+
+  SetupCaresChannel(env);
+}
+
+
 class QueryWrap : public AsyncWrap {
  public:
   QueryWrap(Environment* env, Local<Object> req_wrap_obj)
@@ -400,6 +463,13 @@ class QueryWrap : public AsyncWrap {
  protected:
   void* GetQueryArg() {
     return static_cast<void*>(this);
+  }
+
+  static void AresQuery(Environment* env, const char* name,
+                        int dnsclass, int type, ares_callback callback,
+                        void* arg) {
+    AresEnsureServers(env);
+    ares_query(env->cares_channel(), name, dnsclass, type, callback, arg);
   }
 
   static void CaresAsyncClose(uv_handle_t* handle) {
@@ -453,6 +523,7 @@ class QueryWrap : public AsyncWrap {
                               async_handle,
                               CaresAsyncCb));
 
+    wrap->env()->set_cares_query_last_ok(status != ARES_ECONNREFUSED);
     async_handle->data = data;
     uv_async_send(async_handle);
   }
@@ -478,6 +549,7 @@ class QueryWrap : public AsyncWrap {
                               async_handle,
                               CaresAsyncCb));
 
+    wrap->env()->set_cares_query_last_ok(status != ARES_ECONNREFUSED);
     async_handle->data = data;
     uv_async_send(async_handle);
   }
@@ -522,12 +594,7 @@ class QueryAWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    ares_query(env()->cares_channel(),
-               name,
-               ns_c_in,
-               ns_t_a,
-               Callback,
-               GetQueryArg());
+    AresQuery(env(), name, ns_c_in, ns_t_a, Callback, GetQueryArg());
     return 0;
   }
 
@@ -570,12 +637,7 @@ class QueryAaaaWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    ares_query(env()->cares_channel(),
-               name,
-               ns_c_in,
-               ns_t_aaaa,
-               Callback,
-               GetQueryArg());
+    AresQuery(env(),  name, ns_c_in, ns_t_aaaa, Callback, GetQueryArg());
     return 0;
   }
 
@@ -618,12 +680,7 @@ class QueryCnameWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    ares_query(env()->cares_channel(),
-               name,
-               ns_c_in,
-               ns_t_cname,
-               Callback,
-               GetQueryArg());
+    AresQuery(env(), name, ns_c_in, ns_t_cname, Callback, GetQueryArg());
     return 0;
   }
 
@@ -659,12 +716,7 @@ class QueryMxWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    ares_query(env()->cares_channel(),
-               name,
-               ns_c_in,
-               ns_t_mx,
-               Callback,
-               GetQueryArg());
+    AresQuery(env(), name, ns_c_in, ns_t_mx, Callback, GetQueryArg());
     return 0;
   }
 
@@ -710,12 +762,7 @@ class QueryNsWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    ares_query(env()->cares_channel(),
-               name,
-               ns_c_in,
-               ns_t_ns,
-               Callback,
-               GetQueryArg());
+    AresQuery(env(), name, ns_c_in, ns_t_ns, Callback, GetQueryArg());
     return 0;
   }
 
@@ -748,12 +795,7 @@ class QueryTxtWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    ares_query(env()->cares_channel(),
-               name,
-               ns_c_in,
-               ns_t_txt,
-               Callback,
-               GetQueryArg());
+    AresQuery(env(), name, ns_c_in, ns_t_txt, Callback, GetQueryArg());
     return 0;
   }
 
@@ -805,12 +847,7 @@ class QuerySrvWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    ares_query(env()->cares_channel(),
-               name,
-               ns_c_in,
-               ns_t_srv,
-               Callback,
-               GetQueryArg());
+    AresQuery(env(), name, ns_c_in, ns_t_srv, Callback, GetQueryArg());
     return 0;
   }
 
@@ -861,12 +898,7 @@ class QueryPtrWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    ares_query(env()->cares_channel(),
-               name,
-               ns_c_in,
-               ns_t_ptr,
-               Callback,
-               GetQueryArg());
+    AresQuery(env(), name, ns_c_in, ns_t_ptr, Callback, GetQueryArg());
     return 0;
   }
 
@@ -904,12 +936,7 @@ class QueryNaptrWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    ares_query(env()->cares_channel(),
-               name,
-               ns_c_in,
-               ns_t_naptr,
-               Callback,
-               GetQueryArg());
+    AresQuery(env(), name, ns_c_in, ns_t_naptr, Callback, GetQueryArg());
     return 0;
   }
 
@@ -968,12 +995,7 @@ class QuerySoaWrap: public QueryWrap {
   }
 
   int Send(const char* name) override {
-    ares_query(env()->cares_channel(),
-               name,
-               ns_c_in,
-               ns_t_soa,
-               Callback,
-               GetQueryArg());
+    AresQuery(env(), name, ns_c_in, ns_t_soa, Callback, GetQueryArg());
     return 0;
   }
 
@@ -1434,6 +1456,9 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
 
   delete[] servers;
 
+  if (err == ARES_SUCCESS)
+    env->set_cares_is_servers_default(false);
+
   args.GetReturnValue().Set(err);
 }
 
@@ -1468,20 +1493,7 @@ static void Initialize(Local<Object> target,
   if (r != ARES_SUCCESS)
     return env->ThrowError(ToErrorCodeString(r));
 
-  struct ares_options options;
-  memset(&options, 0, sizeof(options));
-  options.flags = ARES_FLAG_NOCHECKRESP;
-  options.sock_state_cb = ares_sockstate_cb;
-  options.sock_state_cb_data = env;
-
-  /* We do the call to ares_init_option for caller. */
-  r = ares_init_options(env->cares_channel_ptr(),
-                        &options,
-                        ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
-  if (r != ARES_SUCCESS) {
-    ares_library_cleanup();
-    return env->ThrowError(ToErrorCodeString(r));
-  }
+  SetupCaresChannel(env);
 
   /* Initialize the timeout timer. The timer won't be started until the */
   /* first socket is opened. */
