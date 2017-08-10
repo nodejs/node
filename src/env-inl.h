@@ -283,10 +283,8 @@ template <typename T>
 inline Environment* Environment::GetCurrent(
     const v8::PropertyCallbackInfo<T>& info) {
   CHECK(info.Data()->IsExternal());
-  // XXX(bnoordhuis) Work around a g++ 4.9.2 template type inferrer bug
-  // when the expression is written as info.Data().As<v8::External>().
-  v8::Local<v8::Value> data = info.Data();
-  return static_cast<Environment*>(data.As<v8::External>()->Value());
+  return static_cast<Environment*>(
+      info.Data().template As<v8::External>()->Value());
 }
 
 inline Environment::Environment(IsolateData* isolate_data,
