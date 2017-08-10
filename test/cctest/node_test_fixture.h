@@ -8,13 +8,6 @@
 #include "v8.h"
 #include "libplatform/libplatform.h"
 
-using node::Environment;
-using node::IsolateData;
-using node::CreateIsolateData;
-using node::CreateEnvironment;
-using node::AtExit;
-using node::RunAtExit;
-
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   virtual void* Allocate(size_t length) {
