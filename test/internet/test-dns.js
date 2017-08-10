@@ -549,7 +549,7 @@ console.log('looking up nodejs.org...');
 
 const cares = process.binding('cares_wrap');
 const req = new cares.GetAddrInfoReqWrap();
-cares.getaddrinfo(req, 'nodejs.org', 4);
+cares.getaddrinfo(req, 'nodejs.org', 4, /* hints */ 0, /* verbatim */ true);
 
 req.oncomplete = function(err, domains) {
   assert.strictEqual(err, 0);
