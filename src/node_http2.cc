@@ -104,47 +104,6 @@ Http2Options::Http2Options(Environment* env) {
   }
 }
 
-inline void CopyHeaders(Isolate* isolate,
-                        Local<Context> context,
-                        MaybeStackBuffer<nghttp2_nv>* list,
-                        Local<Array> headers) {
-  Local<Value> item;
-  Local<Array> header;
-
-  for (size_t n = 0; n < headers->Length(); n++) {
-    item = headers->Get(context, n).ToLocalChecked();
-    header = item.As<Array>();
-    Local<Value> key = header->Get(context, 0).ToLocalChecked();
-    Local<Value> value = header->Get(context, 1).ToLocalChecked();
-    CHECK(key->IsString());
-    CHECK(value->IsString());
-    size_t keylen = StringBytes::StorageSize(isolate, key, ASCII);
-    size_t valuelen = StringBytes::StorageSize(isolate, value, ASCII);
-    nghttp2_nv& nv = (*list)[n];
-    nv.flags = NGHTTP2_NV_FLAG_NONE;
-    Local<Value> flag = header->Get(context, 2).ToLocalChecked();
-    if (flag->BooleanValue(context).ToChecked())
-      nv.flags |= NGHTTP2_NV_FLAG_NO_INDEX;
-    nv.name = Malloc<uint8_t>(keylen);
-    nv.value = Malloc<uint8_t>(valuelen);
-    nv.namelen =
-        StringBytes::Write(isolate,
-                           reinterpret_cast<char*>(nv.name),
-                           keylen, key, ASCII);
-    nv.valuelen =
-        StringBytes::Write(isolate,
-                           reinterpret_cast<char*>(nv.value),
-                           valuelen, value, ASCII);
-  }
-}
-
-inline void FreeHeaders(MaybeStackBuffer<nghttp2_nv>* list) {
-  for (size_t n = 0; n < list->length(); n++) {
-    free((*list)[n].name);
-    free((*list)[n].value);
-  }
-}
-
 void Http2Session::OnFreeSession() {
   ::delete this;
 }
@@ -860,7 +819,7 @@ void Http2Session::Send(uv_buf_t* buf, size_t length) {
 }
 
 void Http2Session::OnTrailers(Nghttp2Stream* stream,
-                              MaybeStackBuffer<nghttp2_nv>* trailers) {
+                              const SubmitTrailers& submit_trailers) {
   DEBUG_HTTP2("Http2Session: prompting for trailers on stream %d\n",
               stream->id());
   Local<Context> context = env()->context();
@@ -879,8 +838,8 @@ void Http2Session::OnTrailers(Nghttp2Stream* stream,
       if (ret->IsArray()) {
         Local<Array> headers = ret.As<Array>();
         if (headers->Length() > 0) {
-          trailers->AllocateSufficientStorage(headers->Length());
-          CopyHeaders(isolate, context, trailers, headers);
+          Headers trailers(isolate, context, headers);
+          submit_trailers.Submit(*trailers, trailers.length());
         }
       }
     }
