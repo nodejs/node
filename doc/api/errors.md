@@ -998,6 +998,11 @@ Used when an attempt is made to open an IPC communication channel with a
 synchronous forked Node.js process. See the documentation for the
 [`child_process`](child_process.html) module for more information.
 
+<a id="ERR_METHOD_NOT_IMPLEMENTED"></a>
+### ERR_METHOD_NOT_IMPLEMENTED
+
+Used when a method is required but not implemented.
+
 <a id="ERR_MISSING_ARGS"></a>
 ### ERR_MISSING_ARGS
 

@@ -242,7 +242,7 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
-  errors.message('ERR_HTTP_HEADERS_SENT'),
+  errors.message('ERR_HTTP_HEADERS_SENT', ['render']),
   'Cannot render headers after they are sent to the client'
 );
 
@@ -252,8 +252,8 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
-  errors.message('ERR_INVALID_HTTP_TOKEN', ['Method']),
-  'Method must be a valid HTTP token'
+  errors.message('ERR_INVALID_HTTP_TOKEN', ['Method', 'foo']),
+  'Method must be a valid HTTP token ["foo"]'
 );
 
 assert.strictEqual(
