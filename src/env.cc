@@ -105,9 +105,6 @@ void Environment::CleanupHandles() {
 
   while (handle_cleanup_waiting_ != 0)
     uv_run(event_loop(), UV_RUN_ONCE);
-
-  while (handle_cleanup_waiting_ != 0)
-    uv_run(event_loop(), UV_RUN_ONCE);
 }
 
 void Environment::StartProfilerIdleNotifier() {
