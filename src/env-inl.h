@@ -219,6 +219,8 @@ inline Environment::Environment(v8::Local<v8::Context> context,
     : isolate_(context->GetIsolate()),
       isolate_data_(IsolateData::GetOrCreate(context->GetIsolate(), loop)),
       timer_base_(uv_now(loop)),
+      cares_query_last_ok_(true),
+      cares_is_servers_default_(true),
       using_domains_(false),
       printed_error_(false),
       trace_sync_io_(false),
@@ -451,6 +453,22 @@ inline ares_channel Environment::cares_channel() {
 // Only used in the call to ares_init_options().
 inline ares_channel* Environment::cares_channel_ptr() {
   return &cares_channel_;
+}
+
+inline bool Environment::cares_query_last_ok() {
+  return cares_query_last_ok_;
+}
+
+inline void Environment::set_cares_query_last_ok(bool ok) {
+  cares_query_last_ok_ = ok;
+}
+
+inline bool Environment::cares_is_servers_default() {
+  return cares_is_servers_default_;
+}
+
+inline void Environment::set_cares_is_servers_default(bool is_default) {
+  cares_is_servers_default_ = is_default;
 }
 
 inline node_ares_task_list* Environment::cares_task_list() {
