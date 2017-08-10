@@ -255,13 +255,53 @@ void ThrowCryptoError(Environment* env,
                       unsigned long err,  // NOLINT(runtime/int)
                       const char* default_message = nullptr) {
   HandleScope scope(env->isolate());
+  Local<String> message;
+
   if (err != 0 || default_message == nullptr) {
     char errmsg[128] = { 0 };
     ERR_error_string_n(err, errmsg, sizeof(errmsg));
-    env->ThrowError(errmsg);
+    message = String::NewFromUtf8(env->isolate(), errmsg,
+                                  v8::NewStringType::kInternalized)
+                                    .ToLocalChecked();
   } else {
-    env->ThrowError(default_message);
+    message = String::NewFromUtf8(env->isolate(), default_message,
+                                  v8::NewStringType::kInternalized)
+                                    .ToLocalChecked();
   }
+
+  Local<Value> exception_v = Exception::Error(message);
+  CHECK(!exception_v.IsEmpty());
+  // add the openSSLErrorStack property
+  Local<Object> exception = exception_v.As<Object>();
+  Local<String> key = String::NewFromUtf8(env->isolate(), "openSSLErrorStack",
+                                          v8::NewStringType::kInternalized)
+                                            .ToLocalChecked();
+  Local<Array> errorStack = Array::New(env->isolate());
+
+  // get the error state
+  // will only add to errorStack if state has not been cleared out
+  ERR_STATE *es;
+  es = ERR_get_state();
+
+  // add content to the openssl error stack
+  unsigned int i = 0;
+  while (es->bottom != es->top
+        && (es->err_flags[es->top] & ERR_FLAG_MARK) == 0) {
+    unsigned long err_buf = es->err_buffer[es->top];  // NOLINT(runtime/int)
+    // only add if there is valid err_buffer
+    if (err_buf) {
+      char tmpStr[128] = { 0 };
+      ERR_error_string_n(err_buf, tmpStr, sizeof(tmpStr));
+      errorStack->Set(i, String::NewFromUtf8(env->isolate(), tmpStr,
+                                             v8::NewStringType::kInternalized)
+                                              .ToLocalChecked());
+    }
+    i++;
+    es->top -= 1;
+  }
+
+  exception->Set(env->context(), key, errorStack).FromJust();
+  env->isolate()->ThrowException(exception);
 }
 
 
@@ -4278,7 +4318,7 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
   if (!initialised_)
     return kSignNotInitialised;
 
-  ClearErrorOnReturn clear_error_on_return;
+  // ClearErrorOnReturn clear_error_on_return;
 
   EVP_PKEY* pkey = nullptr;
   BIO* bp = nullptr;
@@ -4288,6 +4328,8 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
   unsigned int m_len;
   int r = 0;
   EVP_PKEY_CTX* pkctx = nullptr;
+
+  ERR_set_mark();
 
   bp = BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len);
   if (bp == nullptr)
@@ -4367,6 +4409,8 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
 
 void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+
+  ClearErrorOnReturn clear_error_on_return;
 
   Verify* verify;
   ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
