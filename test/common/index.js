@@ -803,10 +803,8 @@ function hijackStdWritable(name, listener) {
   stream.write = function(data, callback) {
     try {
       listener(data);
-    } catch(e) {
-      process.nextTick(function() {
-        throw e;
-      });
+    } catch (e) {
+      process.nextTick(() => { throw e; });
     }
 
     _write.call(stream, data, callback);

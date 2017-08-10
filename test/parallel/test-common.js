@@ -111,20 +111,22 @@ const HIJACK_TEST_ARRAY = [ 'foo\n', 'bar\n', 'baz\n' ];
 
 // hijackStderr and hijackStdout again
 // for console
-[ 'err', 'out' ].forEach((txt) => {
-  common[`hijackStd${txt}`](common.mustCall(function(data) {
+[[ 'err', 'error' ], [ 'out', 'log' ]].forEach(([ type, method ]) => {
+  common[`hijackStd${type}`](common.mustCall(function(data) {
     assert.strictEqual(data, 'test\n');
 
     // throw an error
-    throw new Error(`console ${txt} error`);
+    throw new Error(`console ${type} error`);
   }));
 
-  console[txt === 'err' ? 'error' : 'log']('test');
-  common[`restoreStd${txt}`]();
+  console[method]('test');
+  common[`restoreStd${type}`]();
 });
 
 let uncaughtTimes = 0;
 process.on('uncaughtException', common.mustCallAtLeast(function(e) {
   assert.strictEqual(e instanceof Error, true);
-  assert.strictEqual(e.message, `console ${([ 'err', 'out' ])[uncaughtTimes++]} error`);
+  assert.strictEqual(
+    e.message,
+    `console ${([ 'err', 'out' ])[uncaughtTimes++]} error`);
 }, 2));
