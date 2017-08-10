@@ -528,7 +528,7 @@ class Headers {
 
  private:
   size_t count_;
-  MaybeStackBuffer<char> buf_;
+  MaybeStackBuffer<char, 3000> buf_;
 };
 
 }  // namespace http2
