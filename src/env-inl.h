@@ -303,7 +303,6 @@ inline Environment::Environment(IsolateData* isolate_data,
 #endif
       handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
-      http2_socket_buffer_(nullptr),
       fs_stats_field_array_(nullptr),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
@@ -330,7 +329,6 @@ inline Environment::~Environment() {
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
-  delete[] http2_socket_buffer_;
 }
 
 inline v8::Isolate* Environment::isolate() const {
@@ -487,15 +485,6 @@ inline double* Environment::fs_stats_field_array() const {
 inline void Environment::set_fs_stats_field_array(double* fields) {
   CHECK_EQ(fs_stats_field_array_, nullptr);  // Should be set only once.
   fs_stats_field_array_ = fields;
-}
-
-inline char* Environment::http2_socket_buffer() const {
-  return http2_socket_buffer_;
-}
-
-inline void Environment::set_http2_socket_buffer(char* buffer) {
-  CHECK_EQ(http2_socket_buffer_, nullptr);  // Should be set only once.
-  http2_socket_buffer_ = buffer;
 }
 
 inline IsolateData* Environment::isolate_data() const {
