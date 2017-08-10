@@ -255,13 +255,65 @@ void ThrowCryptoError(Environment* env,
                       unsigned long err,  // NOLINT(runtime/int)
                       const char* default_message = nullptr) {
   HandleScope scope(env->isolate());
+  Local<String> message;
+
   if (err != 0 || default_message == nullptr) {
     char errmsg[128] = { 0 };
     ERR_error_string_n(err, errmsg, sizeof(errmsg));
-    env->ThrowError(errmsg);
+    message = String::NewFromUtf8(env->isolate(), errmsg,
+                                  v8::NewStringType::kNormal)
+                                      .ToLocalChecked();
   } else {
-    env->ThrowError(default_message);
+    message = String::NewFromUtf8(env->isolate(), default_message,
+                                  v8::NewStringType::kNormal)
+                                      .ToLocalChecked();
   }
+
+  Local<Value> exception_v = Exception::Error(message);
+  CHECK(!exception_v.IsEmpty());
+  Local<Object> exception = exception_v.As<Object>();
+  ERR_STATE* es = ERR_get_state();
+
+  if (es->bottom != es->top) {
+    Local<Array> error_stack = Array::New(env->isolate());
+    int top = es->top;
+
+    // Build the error_stack array to be added to opensslErrorStack property.
+    for (unsigned int i = 0; es->bottom != es->top;) {
+      unsigned long err_buf = es->err_buffer[es->top];  // NOLINT(runtime/int)
+      // Only add error string if there is valid err_buffer.
+      if (err_buf) {
+        char tmp_str[256];
+        ERR_error_string_n(err_buf, tmp_str, sizeof(tmp_str));
+        error_stack->Set(env->context(), i,
+                        String::NewFromUtf8(env->isolate(), tmp_str,
+                                              v8::NewStringType::kNormal)
+                                                  .ToLocalChecked()).FromJust();
+        // Only increment if we added to error_stack.
+        i++;
+      }
+
+      // Since the ERR_STATE is a ring buffer, we need to use modular
+      // arithmetic to loop back around in the case where bottom is after top.
+      // Using ERR_NUM_ERRORS  macro defined in openssl.
+      es->top = (((es->top - 1) % ERR_NUM_ERRORS) + ERR_NUM_ERRORS) %
+          ERR_NUM_ERRORS;
+    }
+
+    // Restore top.
+    es->top = top;
+
+    // Add the opensslErrorStack property to the exception object.
+    // The new property will look like the following:
+    // opensslErrorStack: [
+    // 'error:0906700D:PEM routines:PEM_ASN1_read_bio:ASN1 lib',
+    // 'error:0D07803A:asn1 encoding routines:ASN1_ITEM_EX_D2I:nested asn1 err'
+    // ]
+    exception->Set(env->context(), env->openssl_error_stack(), error_stack)
+        .FromJust();
+  }
+
+  env->isolate()->ThrowException(exception);
 }
 
 
@@ -4276,8 +4328,6 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
   if (!initialised_)
     return kSignNotInitialised;
 
-  ClearErrorOnReturn clear_error_on_return;
-
   EVP_PKEY* pkey = nullptr;
   BIO* bp = nullptr;
   X509* x509 = nullptr;
@@ -4365,6 +4415,8 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
 
 void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+
+  ClearErrorOnReturn clear_error_on_return;
 
   Verify* verify;
   ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
