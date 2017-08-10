@@ -10,9 +10,24 @@ process.maxTickDepth = Infinity;
 function main(conf) {
   var n = +conf.millions * 1e6;
 
+  function cb4(arg1, arg2, arg3, arg4) {
+    if (--n) {
+      if (n % 4 === 0)
+        process.nextTick(cb4, 3.14, 1024, true, false);
+      else if (n % 3 === 0)
+        process.nextTick(cb3, 512, true, null);
+      else if (n % 2 === 0)
+        process.nextTick(cb2, false, 5.1);
+      else
+        process.nextTick(cb1, 0);
+    } else
+      bench.end(+conf.millions);
+  }
   function cb3(arg1, arg2, arg3) {
     if (--n) {
-      if (n % 3 === 0)
+      if (n % 4 === 0)
+        process.nextTick(cb4, 3.14, 1024, true, false);
+      else if (n % 3 === 0)
         process.nextTick(cb3, 512, true, null);
       else if (n % 2 === 0)
         process.nextTick(cb2, false, 5.1);
@@ -23,7 +38,9 @@ function main(conf) {
   }
   function cb2(arg1, arg2) {
     if (--n) {
-      if (n % 3 === 0)
+      if (n % 4 === 0)
+        process.nextTick(cb4, 3.14, 1024, true, false);
+      else if (n % 3 === 0)
         process.nextTick(cb3, 512, true, null);
       else if (n % 2 === 0)
         process.nextTick(cb2, false, 5.1);
@@ -34,7 +51,9 @@ function main(conf) {
   }
   function cb1(arg1) {
     if (--n) {
-      if (n % 3 === 0)
+      if (n % 4 === 0)
+        process.nextTick(cb4, 3.14, 1024, true, false);
+      else if (n % 3 === 0)
         process.nextTick(cb3, 512, true, null);
       else if (n % 2 === 0)
         process.nextTick(cb2, false, 5.1);
