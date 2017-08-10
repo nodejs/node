@@ -1094,12 +1094,18 @@ Headers::Headers(Isolate* isolate,
   }
 
   // Allocate a single buffer with count_ nghttp2_nv structs, followed
-  // by the raw header data as passed from JS.
-  buf_.AllocateSufficientStorage(count_ * sizeof(nghttp2_nv) +
+  // by the raw header data as passed from JS. This looks like:
+  // | possible padding | nghttp2_nv | nghttp2_nv | ... | header contents |
+  buf_.AllocateSufficientStorage((alignof(nghttp2_nv) - 1) +
+                                 count_ * sizeof(nghttp2_nv) +
                                  header_string_len);
-  char* header_contents = *buf_ + (count_ * sizeof(nghttp2_nv));
-  nghttp2_nv* const nva = reinterpret_cast<nghttp2_nv*>(*buf_);
+  // Make sure the start address is aligned appropriately for an nghttp2_nv*.
+  char* start = reinterpret_cast<char*>(
+      ROUND_UP(reinterpret_cast<uintptr_t>(*buf_), alignof(nghttp2_nv)));
+  char* header_contents = start + (count_ * sizeof(nghttp2_nv));
+  nghttp2_nv* const nva = reinterpret_cast<nghttp2_nv*>(start);
 
+  CHECK_LE(header_contents + header_string_len, *buf_ + buf_.length());
   CHECK_EQ(header_string.As<String>()
               ->WriteOneByte(reinterpret_cast<uint8_t*>(header_contents),
                              0, header_string_len,
