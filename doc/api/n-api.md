@@ -1405,14 +1405,14 @@ NAPI_EXTERN napi_status napi_create_string_latin1(napi_env env,
 ```
 
 - `[in] env`: The environment that the API is invoked under.
-- `[in] str`: Character buffer representing a latin1-encoded string.
+- `[in] str`: Character buffer representing a ISO-8859-1-encoded string.
 - `[in] length`: The length of the string in bytes, or -1 if it is
 null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
 Returns `napi_ok` if the API succeeded.
 
-This API creates a JavaScript String object from a latin1-encoded C string.
+This API creates a JavaScript String object from a ISO-8859-1-encoded C string.
 
 The JavaScript String type is described in
 [Section 6.1.4](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type)
@@ -1740,17 +1740,18 @@ NAPI_EXTERN napi_status napi_get_value_string_latin1(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] value`: `napi_value` representing JavaScript string.
-- `[in] buf`: Buffer to write the latin1-encoded string into. If NULL is passed
- in, the length of the string (in bytes) is returned.
+- `[in] buf`: Buffer to write the ISO-8859-1-encoded string into. If NULL is
+passed in, the length of the string (in bytes) is returned.
 - `[in] bufsize`: Size of the destination buffer.
-- `[out] result`: Number of bytes copied into the buffer including the null.
+- `[out] result`: Number of bytes copied into the buffer including the null
 terminator. If the buffer size is insufficient, the string will be truncated
 including a null terminator.
 
 Returns `napi_ok` if the API succeeded. If a non-String `napi_value`
 is passed in it returns `napi_string_expected`.
 
-This API returns the latin1-encoded string corresponding the value passed in.
+This API returns the ISO-8859-1-encoded string corresponding the value passed
+in.
 
 #### *napi_get_value_string_utf8*
 <!-- YAML
@@ -1767,9 +1768,9 @@ napi_status napi_get_value_string_utf8(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[in] value`: `napi_value` representing JavaScript string.
 - `[in] buf`: Buffer to write the UTF8-encoded string into. If NULL is passed
- in, the length of the string (in bytes) is returned.
+in, the length of the string (in bytes) is returned.
 - `[in] bufsize`: Size of the destination buffer.
-- `[out] result`: Number of bytes copied into the buffer including the null.
+- `[out] result`: Number of bytes copied into the buffer including the null
 terminator. If the buffer size is insufficient, the string will be truncated
 including a null terminator.
 
@@ -1796,7 +1797,7 @@ napi_status napi_get_value_string_utf16(napi_env env,
 passed in, the length of the string (in 2-byte code units) is returned.
 - `[in] bufsize`: Size of the destination buffer.
 - `[out] result`: Number of 2-byte code units copied into the buffer including
-the null terminateor. If the buffer size is insufficient, the string will be
+the null terminator. If the buffer size is insufficient, the string will be
 truncated including a null terminator.
 
 Returns `napi_ok` if the API succeeded. If a non-String `napi_value`
