@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const http = require('http');
 const net = require('net');
 const url = require('url');
@@ -19,23 +19,29 @@ const y = 'foo⠊Set-Cookie: foo=bar';
 
 let count = 0;
 
-function test(res, code, header) {
-  assert.throws(() => {
-    res.writeHead(code, header);
-  }, /^TypeError: The header content contains invalid characters$/);
+function test(res, code, key, value) {
+  const header = { [key]: value };
+  common.expectsError(
+    () => res.writeHead(code, header),
+    {
+      code: 'ERR_INVALID_CHAR',
+      type: TypeError,
+      message: `Invalid character in header content ["${key}"]`
+    }
+  );
 }
 
 const server = http.createServer((req, res) => {
   switch (count++) {
     case 0:
       const loc = url.parse(req.url, true).query.lang;
-      test(res, 302, { Location: `/foo?lang=${loc}` });
+      test(res, 302, 'Location', `/foo?lang=${loc}`);
       break;
     case 1:
-      test(res, 200, { 'foo': x });
+      test(res, 200, 'foo', x);
       break;
     case 2:
-      test(res, 200, { 'foo': y });
+      test(res, 200, 'foo', y);
       break;
     default:
       assert.fail('should not get to here.');
