@@ -59,8 +59,15 @@ enum Http2OptionsIndex {
   IDX_OPTIONS_FLAGS
 };
 
+enum Http2PaddingBufferFields {
+  PADDING_BUF_FRAME_LENGTH,
+  PADDING_BUF_MAX_PAYLOAD_LENGTH,
+  PADDING_BUF_RETURN_VALUE,
+  PADDING_BUF_FIELD_COUNT
+};
+
 struct http2_state {
-  uint32_t padding_buffer[3];
+  uint32_t padding_buffer[PADDING_BUF_FIELD_COUNT];
   uint32_t options_buffer[IDX_OPTIONS_FLAGS + 1];
   uint32_t settings_buffer[IDX_SETTINGS_COUNT + 1];
   double session_state_buffer[IDX_SESSION_STATE_COUNT];
@@ -120,10 +127,10 @@ ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
 
   if (object()->Has(context, env()->ongetpadding_string()).FromJust()) {
     uint32_t* buffer = env()->http2_state_buffer()->padding_buffer;
-    buffer[0] = frameLen;
-    buffer[1] = maxPayloadLen;
+    buffer[PADDING_BUF_FRAME_LENGTH] = frameLen;
+    buffer[PADDING_BUF_MAX_PAYLOAD_LENGTH] = maxPayloadLen;
     MakeCallback(env()->ongetpadding_string(), 0, nullptr);
-    uint32_t retval = buffer[2];
+    uint32_t retval = buffer[PADDING_BUF_RETURN_VALUE];
     retval = retval <= maxPayloadLen ? retval : maxPayloadLen;
     retval = retval >= frameLen ? retval : frameLen;
     CHECK_GE(retval, frameLen);
@@ -1166,6 +1173,10 @@ void Initialize(Local<Object> target,
   SET_STATE_TYPEDARRAY("settingsBuffer", Uint32Array, settings_buffer);
   SET_STATE_TYPEDARRAY("optionsBuffer", Uint32Array, options_buffer);
 #undef SET_STATE_TYPEDARRAY
+
+  NODE_DEFINE_CONSTANT(target, PADDING_BUF_FRAME_LENGTH);
+  NODE_DEFINE_CONSTANT(target, PADDING_BUF_MAX_PAYLOAD_LENGTH);
+  NODE_DEFINE_CONSTANT(target, PADDING_BUF_RETURN_VALUE);
 
   // Method to fetch the nghttp2 string description of an nghttp2 error code
   env->SetMethod(target, "nghttp2ErrorString", HttpErrorString);
