@@ -196,15 +196,23 @@ void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
  public:
-  GetAddrInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+  GetAddrInfoReqWrap(Environment* env,
+                     Local<Object> req_wrap_obj,
+                     bool verbatim);
   ~GetAddrInfoReqWrap();
 
   size_t self_size() const override { return sizeof(*this); }
+  bool verbatim() const { return verbatim_; }
+
+ private:
+  const bool verbatim_;
 };
 
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
-                                       Local<Object> req_wrap_obj)
-    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETADDRINFOREQWRAP) {
+                                       Local<Object> req_wrap_obj,
+                                       bool verbatim)
+    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETADDRINFOREQWRAP)
+    , verbatim_(verbatim) {
   Wrap(req_wrap_obj, this);
 }
 
@@ -1811,70 +1819,38 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   };
 
   if (status == 0) {
-    // Success
-    struct addrinfo *address;
     int n = 0;
-
-    // Create the response array.
     Local<Array> results = Array::New(env->isolate());
 
-    char ip[INET6_ADDRSTRLEN];
-    const char *addr;
+    auto add = [&] (bool want_ipv4, bool want_ipv6) {
+      for (auto p = res; p != nullptr; p = p->ai_next) {
+        CHECK_EQ(p->ai_socktype, SOCK_STREAM);
 
-    // Iterate over the IPv4 responses again this time creating javascript
-    // strings for each IP and filling the results array.
-    address = res;
-    while (address) {
-      CHECK_EQ(address->ai_socktype, SOCK_STREAM);
+        const char* addr;
+        if (want_ipv4 && p->ai_family == AF_INET) {
+          addr = reinterpret_cast<char*>(
+              &(reinterpret_cast<struct sockaddr_in*>(p->ai_addr)->sin_addr));
+        } else if (want_ipv6 && p->ai_family == AF_INET6) {
+          addr = reinterpret_cast<char*>(
+              &(reinterpret_cast<struct sockaddr_in6*>(p->ai_addr)->sin6_addr));
+        } else {
+          continue;
+        }
 
-      // Ignore random ai_family types.
-      if (address->ai_family == AF_INET) {
-        // Juggle pointers
-        addr = reinterpret_cast<char*>(&(reinterpret_cast<struct sockaddr_in*>(
-            address->ai_addr)->sin_addr));
-        int err = uv_inet_ntop(address->ai_family,
-                               addr,
-                               ip,
-                               INET6_ADDRSTRLEN);
-        if (err)
+        char ip[INET6_ADDRSTRLEN];
+        if (uv_inet_ntop(p->ai_family, addr, ip, sizeof(ip)))
           continue;
 
-        // Create JavaScript string
         Local<String> s = OneByteString(env->isolate(), ip);
         results->Set(n, s);
         n++;
       }
+    };
 
-      // Increment
-      address = address->ai_next;
-    }
-
-    // Iterate over the IPv6 responses putting them in the array.
-    address = res;
-    while (address) {
-      CHECK_EQ(address->ai_socktype, SOCK_STREAM);
-
-      // Ignore random ai_family types.
-      if (address->ai_family == AF_INET6) {
-        // Juggle pointers
-        addr = reinterpret_cast<char*>(&(reinterpret_cast<struct sockaddr_in6*>(
-            address->ai_addr)->sin6_addr));
-        int err = uv_inet_ntop(address->ai_family,
-                               addr,
-                               ip,
-                               INET6_ADDRSTRLEN);
-        if (err)
-          continue;
-
-        // Create JavaScript string
-        Local<String> s = OneByteString(env->isolate(), ip);
-        results->Set(n, s);
-        n++;
-      }
-
-      // Increment
-      address = address->ai_next;
-    }
+    const bool verbatim = req_wrap->verbatim();
+    add(true, verbatim);
+    if (verbatim == false)
+      add(false, true);
 
     // No responses were found to return
     if (n == 0) {
@@ -1965,6 +1941,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
   CHECK(args[2]->IsInt32());
+  CHECK(args[4]->IsBoolean());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(env->isolate(), args[1]);
 
@@ -1985,7 +1962,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
     CHECK(0 && "bad address family");
   }
 
-  GetAddrInfoReqWrap* req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj);
+  auto req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj, args[4]->IsTrue());
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
