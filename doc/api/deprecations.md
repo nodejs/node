@@ -660,6 +660,19 @@ Type: Runtime
 
 `REPLServer.parseREPLKeyword()` was removed from userland visibility.
 
+<a id="DEP00XX"></a>
+#### DEP00XX: HTTP 418 I'm a teapot Status
+
+Type: Documentation-only
+
+The HTTP `418 I'm a teapot` status code was defined in [RFC2324][] as an
+April Fools joke to illustrate the ways in which the HTTP protocol can be
+misused. The status code is not registered in the [IANA HTTP Status Codes][]
+registry and *may* be registered in the future for purposes other than those
+described in [RFC2324][].
+
+*Note*: This deprecation applies *only* to the use of the `418` status code
+to identify the [RFC2324][] defined `I'm a teapot` response semantics.
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
@@ -691,6 +704,7 @@ Type: Runtime
 [`os.networkInterfaces`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`punycode`]: punycode.html
+[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
 [`require.extensions`]: globals.html#globals_require_extensions
 [`tls.CryptoStream`]: tls.html#tls_class_cryptostream
 [`tls.SecureContext`]: tls.html#tls_tls_createsecurecontext_options
@@ -724,4 +738,5 @@ Type: Runtime
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
-[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
+[IANA HTTP Status Codes]: https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
+[RFC2324]: https://www.ietf.org/rfc/rfc2324.txt
