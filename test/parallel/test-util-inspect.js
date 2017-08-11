@@ -794,6 +794,37 @@ if (typeof Symbol !== 'undefined') {
                      'Map { \'foo\' => null, [size]: 1, bar: 42 }');
 }
 
+// Test maps and sets with circular references
+{
+  const circularKeyMap = new Map();
+  circularKeyMap.set(circularKeyMap, 'value');
+  assert.strictEqual(
+    util.inspect(circularKeyMap),
+    'Map { [Circular] => \'value\' }'
+  );
+
+  const circularValueMap = new Map();
+  circularValueMap.set('key', circularValueMap);
+  assert.strictEqual(
+    util.inspect(circularValueMap),
+    'Map { \'key\' => [Circular] }'
+  );
+
+  const circularKeyValueMap = new Map();
+  circularKeyValueMap.set(circularKeyValueMap, circularKeyValueMap);
+  assert.strictEqual(
+    util.inspect(circularKeyValueMap),
+    'Map { [Circular] => [Circular] }'
+  );
+
+  const circularSet = new Set();
+  circularSet.add(circularSet);
+  assert.strictEqual(
+    util.inspect(circularSet),
+    'Set { [Circular] }'
+  );
+}
+
 // test Promise
 {
   const resolved = Promise.resolve(3);
