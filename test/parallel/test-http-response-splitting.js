@@ -19,23 +19,26 @@ const y = 'foo⠊Set-Cookie: foo=bar';
 
 let count = 0;
 
-function test(res, code, header) {
+function test(res, code, header, failing) {
+  const expected =
+      '^TypeError: The header content contains invalid characters \\["' +
+      failing + '"\\]$';
   assert.throws(() => {
     res.writeHead(code, header);
-  }, /^TypeError: The header content contains invalid characters$/);
+  }, new RegExp(expected));
 }
 
 const server = http.createServer((req, res) => {
   switch (count++) {
     case 0:
       const loc = url.parse(req.url, true).query.lang;
-      test(res, 302, { Location: `/foo?lang=${loc}` });
+      test(res, 302, { Location: `/foo?lang=${loc}` }, 'Location');
       break;
     case 1:
-      test(res, 200, { 'foo': x });
+      test(res, 200, { 'foo': x }, 'foo');
       break;
     case 2:
-      test(res, 200, { 'foo': y });
+      test(res, 200, { 'foo': y }, 'foo');
       break;
     default:
       assert.fail('should not get to here.');
