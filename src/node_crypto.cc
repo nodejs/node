@@ -162,7 +162,11 @@ template void SSLWrap<TLSWrap>::SetSNIContext(SecureContext* sc);
 template int SSLWrap<TLSWrap>::SetCACerts(SecureContext* sc);
 template SSL_SESSION* SSLWrap<TLSWrap>::GetSessionCallback(
     SSL* s,
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     unsigned char* key,
+#else
+    const unsigned char *key,
+#endif
     int len,
     int* copy);
 template int SSLWrap<TLSWrap>::NewSessionCallback(SSL* s,
@@ -1394,7 +1398,11 @@ void SSLWrap<Base>::InitNPN(SecureContext* sc) {
 
 template <class Base>
 SSL_SESSION* SSLWrap<Base>::GetSessionCallback(SSL* s,
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
                                                unsigned char* key,
+#else
+                                               const unsigned char* key,
+#endif
                                                int len,
                                                int* copy) {
   Base* w = static_cast<Base*>(SSL_get_app_data(s));

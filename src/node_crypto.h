@@ -232,7 +232,11 @@ class SSLWrap {
   static void AddMethods(Environment* env, v8::Local<v8::FunctionTemplate> t);
 
   static SSL_SESSION* GetSessionCallback(SSL* s,
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
                                          unsigned char* key,
+#else
+                                         const unsigned char* key,
+#endif
                                          int len,
                                          int* copy);
   static int NewSessionCallback(SSL* s, SSL_SESSION* sess);
