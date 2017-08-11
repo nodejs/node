@@ -26,7 +26,6 @@ namespace inspector {
 namespace {
 using v8::Array;
 using v8::Context;
-using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -39,6 +38,7 @@ using v8::NewStringType;
 using v8::Object;
 using v8::Persistent;
 using v8::String;
+using v8::Undefined;
 using v8::Value;
 
 using v8_inspector::StringBuffer;
@@ -193,11 +193,9 @@ class JsBindingsSessionDelegate : public InspectorSessionDelegate {
  public:
   JsBindingsSessionDelegate(Environment* env,
                             Local<Object> session,
-                            Local<Object> receiver,
                             Local<Function> callback)
                             : env_(env),
                               session_(env->isolate(), session),
-                              receiver_(env->isolate(), receiver),
                               callback_(env->isolate(), callback) {
     session_.SetWeak(this, JsBindingsSessionDelegate::Release,
                      v8::WeakCallbackType::kParameter);
@@ -205,7 +203,6 @@ class JsBindingsSessionDelegate : public InspectorSessionDelegate {
 
   ~JsBindingsSessionDelegate() override {
     session_.Reset();
-    receiver_.Reset();
     callback_.Reset();
   }
 
@@ -222,8 +219,7 @@ class JsBindingsSessionDelegate : public InspectorSessionDelegate {
                                NewStringType::kNormal, message.length());
     Local<Value> argument = v8string.ToLocalChecked().As<Value>();
     Local<Function> callback = callback_.Get(isolate);
-    Local<Object> receiver = receiver_.Get(isolate);
-    callback->Call(env_->context(), receiver, 1, &argument)
+    callback->Call(env_->context(), Undefined(isolate), 1, &argument)
         .FromMaybe(Local<Value>());
   }
 
@@ -249,7 +245,6 @@ class JsBindingsSessionDelegate : public InspectorSessionDelegate {
 
   Environment* env_;
   Persistent<Object> session_;
-  Persistent<Object> receiver_;
   Persistent<Function> callback_;
 };
 
@@ -257,7 +252,6 @@ class JSBindingsConnection : public BaseObject {
  public:
   JSBindingsConnection(Environment* env,
                        Local<Object> wrap,
-                       Local<Object> receiver,
                        Local<Function> callback)
                        : BaseObject(env, wrap) {
     MakeWeak<JSBindingsConnection>(this);
@@ -268,7 +262,7 @@ class JSBindingsConnection : public BaseObject {
       env->ThrowTypeError("Session is already attached");
       return;
     }
-    delegate_ = new JsBindingsSessionDelegate(env, wrap, receiver, callback);
+    delegate_ = new JsBindingsSessionDelegate(env, wrap, callback);
     inspector->Connect(delegate_);
   }
 
@@ -287,9 +281,7 @@ class JSBindingsConnection : public BaseObject {
       return;
     }
     Local<Function> callback = info[0].As<Function>();
-    Local<Object> receiver =
-        info[1]->IsObject() ? info[1].As<Object>() : info.This();
-    new JSBindingsConnection(env, info.This(), receiver, callback);
+    new JSBindingsConnection(env, info.This(), callback);
   }
 
   void Disconnect() {
