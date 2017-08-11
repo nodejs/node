@@ -2,20 +2,8 @@
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
-const util = require('util');
 
 function close() { this.close(); }
-
-function listenError(literals, ...values) {
-  let result = literals[0];
-  for (const [i, value] of values.entries()) {
-    const str = util.inspect(value);
-    // Need to escape special characters.
-    result += str.replace(/[\\^$.*+?()[\]{}|=!<>:-]/g, '\\$&');
-    result += literals[i + 1];
-  }
-  return new RegExp(`Error: Invalid listen argument: ${result}`);
-}
 
 {
   // Test listen()
@@ -36,7 +24,13 @@ const listenOnPort = [
 ];
 
 {
-  const portError = /^RangeError: "port" argument must be >= 0 and < 65536$/;
+  const assertPort = () => {
+    return common.expectsError({
+      code: 'ERR_SOCKET_BAD_PORT',
+      type: RangeError
+    });
+  };
+
   for (const listen of listenOnPort) {
     // Arbitrary unused ports
     listen('0', common.mustCall(close));
@@ -44,37 +38,36 @@ const listenOnPort = [
     listen(undefined, common.mustCall(close));
     listen(null, common.mustCall(close));
     // Test invalid ports
-    assert.throws(() => listen(-1, common.mustNotCall()), portError);
-    assert.throws(() => listen(NaN, common.mustNotCall()), portError);
-    assert.throws(() => listen(123.456, common.mustNotCall()), portError);
-    assert.throws(() => listen(65536, common.mustNotCall()), portError);
-    assert.throws(() => listen(1 / 0, common.mustNotCall()), portError);
-    assert.throws(() => listen(-1 / 0, common.mustNotCall()), portError);
+    assert.throws(() => listen(-1, common.mustNotCall()), assertPort());
+    assert.throws(() => listen(NaN, common.mustNotCall()), assertPort());
+    assert.throws(() => listen(123.456, common.mustNotCall()), assertPort());
+    assert.throws(() => listen(65536, common.mustNotCall()), assertPort());
+    assert.throws(() => listen(1 / 0, common.mustNotCall()), assertPort());
+    assert.throws(() => listen(-1 / 0, common.mustNotCall()), assertPort());
   }
   // In listen(options, cb), port takes precedence over path
   assert.throws(() => {
     net.createServer().listen({ port: -1, path: common.PIPE },
                               common.mustNotCall());
-  }, portError);
+  }, assertPort());
 }
 
 {
-  function shouldFailToListen(options, optionsInMessage) {
-    // Plain arguments get normalized into an object before
-    // formatted in message, options objects don't.
-    if (arguments.length === 1) {
-      optionsInMessage = options;
-    }
+  function shouldFailToListen(options) {
     const block = () => {
       net.createServer().listen(options, common.mustNotCall());
     };
-    assert.throws(block, listenError`${optionsInMessage}`,
-                  `expect listen(${util.inspect(options)}) to throw`);
+    assert.throws(block,
+                  common.expectsError({
+                    code: 'ERR_INVALID_OPT_VALUE',
+                    type: Error,
+                    message: /^The value "{.*}" is invalid for option "options"$/
+                  }));
   }
 
   shouldFailToListen(false, { port: false });
   shouldFailToListen({ port: false });
-  shouldFailToListen(true, { port: true });
+  shouldFailToListen(true);
   shouldFailToListen({ port: true });
   // Invalid fd as listen(handle)
   shouldFailToListen({ fd: -1 });
