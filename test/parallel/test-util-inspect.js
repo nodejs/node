@@ -799,6 +799,13 @@ if (typeof Symbol !== 'undefined') {
   );
 }
 
+// Test circular Set
+{
+  const set = new Set();
+  set.add(set);
+  assert.strictEqual(util.inspect(set), 'Set { [Circular] }');
+}
+
 // test Map
 {
   assert.strictEqual(util.inspect(new Map()), 'Map {}');
@@ -808,6 +815,18 @@ if (typeof Symbol !== 'undefined') {
   map.bar = 42;
   assert.strictEqual(util.inspect(map, true),
                      'Map { \'foo\' => null, [size]: 1, bar: 42 }');
+}
+
+// Test circular Map
+{
+  const map = new Map();
+  map.set(map, 'map');
+  assert.strictEqual(util.inspect(map), "Map { [Circular] => 'map' }");
+  map.set(map, map);
+  assert.strictEqual(util.inspect(map), 'Map { [Circular] => [Circular] }');
+  map.delete(map);
+  map.set('map', map);
+  assert.strictEqual(util.inspect(map), "Map { 'map' => [Circular] }");
 }
 
 // test Promise
