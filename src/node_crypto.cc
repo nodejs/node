@@ -261,45 +261,44 @@ void ThrowCryptoError(Environment* env,
     char errmsg[128] = { 0 };
     ERR_error_string_n(err, errmsg, sizeof(errmsg));
     message = String::NewFromUtf8(env->isolate(), errmsg,
-                                  v8::NewStringType::kInternalized)
+                                  v8::NewStringType::kNormal)
                                     .ToLocalChecked();
   } else {
     message = String::NewFromUtf8(env->isolate(), default_message,
-                                  v8::NewStringType::kInternalized)
+                                  v8::NewStringType::kNormal)
                                     .ToLocalChecked();
   }
 
   Local<Value> exception_v = Exception::Error(message);
   CHECK(!exception_v.IsEmpty());
-  // add the openSSLErrorStack property
+  // Add the openSSLErrorStack property to the exception object.
   Local<Object> exception = exception_v.As<Object>();
   Local<String> key = String::NewFromUtf8(env->isolate(), "openSSLErrorStack",
                                           v8::NewStringType::kInternalized)
                                             .ToLocalChecked();
   Local<Array> errorStack = Array::New(env->isolate());
 
-  // get the error state
-  // will only add to errorStack if state has not been cleared out
-  ERR_STATE *es;
-  es = ERR_get_state();
-
-  // add content to the openssl error stack
-  unsigned int i = 0;
-  while (es->bottom != es->top
-        && (es->err_flags[es->top] & ERR_FLAG_MARK) == 0) {
+  ERR_STATE *es = ERR_get_state();
+  // Build the errorStack array to be added to openSSLErrorStack property.
+  for (unsigned int i = 0; es->bottom != es->top
+        && (es->err_flags[es->top] & ERR_FLAG_MARK) == 0; i++) {
     unsigned long err_buf = es->err_buffer[es->top];  // NOLINT(runtime/int)
-    // only add if there is valid err_buffer
+    // Only add error string if there is valid err_buffer.
     if (err_buf) {
-      char tmpStr[128] = { 0 };
+      char tmpStr[256] = { };
       ERR_error_string_n(err_buf, tmpStr, sizeof(tmpStr));
       errorStack->Set(i, String::NewFromUtf8(env->isolate(), tmpStr,
-                                             v8::NewStringType::kInternalized)
+                                             v8::NewStringType::kNormal)
                                               .ToLocalChecked());
     }
-    i++;
     es->top -= 1;
   }
 
+  // Adding the new property that will look like the following:
+  // openSSLErrorStack: [
+  // 'error:0906700D:PEM routines:PEM_ASN1_read_bio:ASN1 lib',
+  // 'error:0D07803A:asn1 encoding routines:ASN1_ITEM_EX_D2I:nested asn1 error'
+  // ]
   exception->Set(env->context(), key, errorStack).FromJust();
   env->isolate()->ThrowException(exception);
 }
