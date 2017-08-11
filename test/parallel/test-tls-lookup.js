@@ -6,8 +6,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 
-const expectedError = /^TypeError: "lookup" option should be a function$/;
-
 ['foobar', 1, {}, []].forEach(function connectThrows(input) {
   const opts = {
     host: 'localhost',
@@ -17,7 +15,10 @@ const expectedError = /^TypeError: "lookup" option should be a function$/;
 
   assert.throws(function() {
     tls.connect(opts);
-  }, expectedError);
+  }, common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  }));
 });
 
 connectDoesNotThrow(common.mustCall(() => {}));
