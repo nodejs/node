@@ -84,6 +84,12 @@ assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: false }));
   assert.deepStrictEqual(packed, check);
 }
 
+// check for not passing settings
+{
+  const packed = http2.getPackedSettings();
+  assert.strictEqual(packed.length, 0);
+}
+
 {
   const packed = Buffer.from([
     0x00, 0x01, 0x00, 0x00, 0x00, 0x64, 0x00, 0x03, 0x00, 0x00,
@@ -120,6 +126,33 @@ assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: false }));
   assert.strictEqual(settings.enablePush, true);
 }
 
+//check for what happens if passing {validate: true} and no errors happen
+{
+  const packed = Buffer.from([
+    0x00, 0x01, 0x00, 0x00, 0x00, 0x64, 0x00, 0x03, 0x00, 0x00,
+    0x00, 0xc8, 0x00, 0x05, 0x00, 0x00, 0x4e, 0x20, 0x00, 0x04,
+    0x00, 0x00, 0x00, 0x64, 0x00, 0x06, 0x00, 0x00, 0x00, 0x64,
+    0x00, 0x02, 0x00, 0x00, 0x00, 0x01]);
+
+  assert.doesNotThrow(() => {
+    http2.getUnpackedSettings(packed, { validate: true });
+  });
+}
+
+// check for maxFrameSize failing the max number
+{
+  const packed = Buffer.from([0x00, 0x05, 0x01, 0x00, 0x00, 0x00]);
+
+  assert.throws(() => {
+    http2.getUnpackedSettings(packed, { validate: true });
+  }, common.expectsError({
+    code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
+    type: RangeError,
+    message: 'Invalid value for setting "maxFrameSize": 16777216'
+  }));
+}
+
+// check for maxConcurrentStreams failing the max number
 {
   const packed = Buffer.from([0x00, 0x03, 0xFF, 0xFF, 0xFF, 0xFF]);
 

@@ -39,6 +39,12 @@ server.on('stream', (stream, headers) => {
 server.listen(80);
 ```
 
+Note that the above example is an HTTP/2 server that does not support SSL.
+This is significant as most browsers support HTTP/2 only with SSL.
+To make the above server be able to serve content to browsers,
+replace `http2.createServer()` with
+`http2.createSecureServer({key: /* your SSL key */, cert: /* your SSL cert */})`.
+
 The following illustrates an HTTP/2 client:
 
 ```js
@@ -1236,7 +1242,7 @@ const {
   HTTP2_HEADER_CONTENT_TYPE
 } = http2.constants;
 
-const server = http.createServer();
+const server = http2.createServer();
 server.on('stream', (stream, headers, flags) => {
   const method = headers[HTTP2_HEADER_METHOD];
   const path = headers[HTTP2_HEADER_PATH];
@@ -1322,7 +1328,7 @@ const {
 
 const options = getOptionsSomehow();
 
-const server = http.createSecureServer(options);
+const server = http2.createSecureServer(options);
 server.on('stream', (stream, headers, flags) => {
   const method = headers[HTTP2_HEADER_METHOD];
   const path = headers[HTTP2_HEADER_PATH];
@@ -2367,7 +2373,7 @@ to [`response.writeHead()`][] given precedence.
 
 ```js
 // returns content-type = text/plain
-const server = http.createServer((req, res) => {
+const server = http2.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
   res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -2410,8 +2416,8 @@ via `response.connection`.
 Example:
 
 ```js
-const http = require('http');
-const server = http.createServer((req, res) => {
+const http2 = require('http2');
+const server = http2.createServer((req, res) => {
   const ip = req.socket.remoteAddress;
   const port = req.socket.remotePort;
   res.end(`Your IP address is ${ip} and your source port is ${port}.`);
