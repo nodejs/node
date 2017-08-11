@@ -276,7 +276,7 @@ class JSBindingsConnection : public BaseObject {
     Disconnect();
   }
 
-  JsBindingsSessionDelegate* delegate() {
+  JsBindingsSessionDelegate* delegate() const {
     return delegate_;
   }
 
@@ -293,7 +293,7 @@ class JSBindingsConnection : public BaseObject {
   }
 
   void Disconnect() {
-    if (!delegate_)
+    if (delegate_ == nullptr)
       return;
     delegate_->Disconnect();
     delete delegate_;
@@ -316,7 +316,7 @@ class JSBindingsConnection : public BaseObject {
     }
 
     auto delegate = session->delegate();
-    if (!delegate) {
+    if (delegate == nullptr) {
       env->ThrowTypeError("Inspector is not connected");
       return;
     }
