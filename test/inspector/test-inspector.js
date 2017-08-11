@@ -4,11 +4,12 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 const assert = require('assert');
-const { mainScriptPath,
-        readMainScriptSource,
-        NodeInstance } = require('./inspector-helper.js');
+const helper = require('./inspector-helper.js');
 
-function checkListResponse(response) {
+let scopeId;
+
+function checkListResponse(err, response) {
+  assert.ifError(err);
   assert.strictEqual(1, response.length);
   assert.ok(response[0]['devtoolsFrontendUrl']);
   assert.ok(
@@ -16,7 +17,8 @@ function checkListResponse(response) {
       .test(response[0]['webSocketDebuggerUrl']));
 }
 
-function checkVersion(response) {
+function checkVersion(err, response) {
+  assert.ifError(err);
   assert.ok(response);
   const expected = {
     'Browser': `node.js/${process.version}`,
@@ -26,10 +28,10 @@ function checkVersion(response) {
                      JSON.stringify(expected));
 }
 
-function checkBadPath(err) {
+function checkBadPath(err, response) {
   assert(err instanceof SyntaxError);
-  assert(/Unexpected token/.test(err.message), err.message);
-  assert(/WebSockets request was expected/.test(err.body), err.body);
+  assert(/Unexpected token/.test(err.message));
+  assert(/WebSockets request was expected/.test(err.response));
 }
 
 function checkException(message) {
@@ -37,26 +39,69 @@ function checkException(message) {
                      'An exception occurred during execution');
 }
 
-function assertNoUrlsWhileConnected(response) {
-  assert.strictEqual(1, response.length);
-  assert.ok(!response[0].hasOwnProperty('devtoolsFrontendUrl'));
-  assert.ok(!response[0].hasOwnProperty('webSocketDebuggerUrl'));
+function expectMainScriptSource(result) {
+  const expected = helper.mainScriptSource();
+  const source = result['scriptSource'];
+  assert(source && (source.includes(expected)),
+         `Script source is wrong: ${source}`);
 }
 
-function assertScopeValues({ result }, expected) {
-  const unmatched = new Set(Object.keys(expected));
-  for (const actual of result) {
-    const value = expected[actual['name']];
-    if (value) {
-      assert.strictEqual(value, actual['value']['value']);
-      unmatched.delete(actual['name']);
+function setupExpectBreakOnLine(line, url, session, scopeIdCallback) {
+  return function(message) {
+    if ('Debugger.paused' === message['method']) {
+      const callFrame = message['params']['callFrames'][0];
+      const location = callFrame['location'];
+      assert.strictEqual(url, session.scriptUrlForId(location['scriptId']));
+      assert.strictEqual(line, location['lineNumber']);
+      scopeIdCallback &&
+          scopeIdCallback(callFrame['scopeChain'][0]['object']['objectId']);
+      return true;
     }
-  }
-  if (unmatched.size)
-    assert.fail(Array.from(unmatched.values()));
+  };
 }
 
-async function testBreakpointOnStart(session) {
+function setupExpectConsoleOutput(type, values) {
+  if (!(values instanceof Array))
+    values = [ values ];
+  return function(message) {
+    if ('Runtime.consoleAPICalled' === message['method']) {
+      const params = message['params'];
+      if (params['type'] === type) {
+        let i = 0;
+        for (const value of params['args']) {
+          if (value['value'] !== values[i++])
+            return false;
+        }
+        return i === values.length;
+      }
+    }
+  };
+}
+
+function setupExpectScopeValues(expected) {
+  return function(result) {
+    for (const actual of result['result']) {
+      const value = expected[actual['name']];
+      if (value)
+        assert.strictEqual(value, actual['value']['value']);
+    }
+  };
+}
+
+function setupExpectValue(value) {
+  return function(result) {
+    assert.strictEqual(value, result['result']['value']);
+  };
+}
+
+function setupExpectContextDestroyed(id) {
+  return function(message) {
+    if ('Runtime.executionContextDestroyed' === message['method'])
+      return message['params']['executionContextId'] === id;
+  };
+}
+
+function testBreakpointOnStart(session) {
   console.log('[test]',
               'Verifying debugger stops on start (--inspect-brk option)');
   const commands = [
@@ -74,230 +119,262 @@ async function testBreakpointOnStart(session) {
     { 'method': 'Runtime.runIfWaitingForDebugger' }
   ];
 
-  await session.send(commands);
-  await session.waitForBreakOnLine(0, mainScriptPath);
+  session
+    .sendInspectorCommands(commands)
+    .expectMessages(setupExpectBreakOnLine(0, session.mainScriptPath, session));
 }
 
-async function testBreakpoint(session) {
+function testSetBreakpointAndResume(session) {
   console.log('[test]', 'Setting a breakpoint and verifying it is hit');
   const commands = [
     { 'method': 'Debugger.setBreakpointByUrl',
       'params': { 'lineNumber': 5,
-                  'url': mainScriptPath,
+                  'url': session.mainScriptPath,
                   'columnNumber': 0,
                   'condition': ''
       }
     },
     { 'method': 'Debugger.resume' },
+    [ { 'method': 'Debugger.getScriptSource',
+        'params': { 'scriptId': session.mainScriptId } },
+      expectMainScriptSource ],
   ];
-  await session.send(commands);
-  const { scriptSource } = await session.send({
-    'method': 'Debugger.getScriptSource',
-    'params': { 'scriptId': session.mainScriptId } });
-  assert(scriptSource && (scriptSource.includes(readMainScriptSource())),
-         `Script source is wrong: ${scriptSource}`);
-
-  await session.waitForConsoleOutput('log', ['A message', 5]);
-  const scopeId = await session.waitForBreakOnLine(5, mainScriptPath);
-
-  console.log('[test]', 'Verify we can read current application state');
-  const response = await session.send({
-    'method': 'Runtime.getProperties',
-    'params': {
-      'objectId': scopeId,
-      'ownProperties': false,
-      'accessorPropertiesOnly': false,
-      'generatePreview': true
-    }
-  });
-  assertScopeValues(response, { t: 1001, k: 1 });
-
-  let { result } = await session.send({
-    'method': 'Debugger.evaluateOnCallFrame', 'params': {
-      'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
-      'expression': 'k + t',
-      'objectGroup': 'console',
-      'includeCommandLineAPI': true,
-      'silent': false,
-      'returnByValue': false,
-      'generatePreview': true
-    }
-  });
-
-  assert.strictEqual(1002, result['value']);
-
-  result = (await session.send({
-    'method': 'Runtime.evaluate', 'params': {
-      'expression': '5 * 5'
-    }
-  })).result;
-  assert.strictEqual(25, result['value']);
+  session
+    .sendInspectorCommands(commands)
+    .expectMessages([
+      setupExpectConsoleOutput('log', ['A message', 5]),
+      setupExpectBreakOnLine(5, session.mainScriptPath,
+                             session, (id) => scopeId = id),
+    ]);
 }
 
-async function testI18NCharacters(session) {
+function testInspectScope(session) {
+  console.log('[test]', 'Verify we can read current application state');
+  session.sendInspectorCommands([
+    [
+      {
+        'method': 'Runtime.getProperties',
+        'params': {
+          'objectId': scopeId,
+          'ownProperties': false,
+          'accessorPropertiesOnly': false,
+          'generatePreview': true
+        }
+      }, setupExpectScopeValues({ t: 1001, k: 1 })
+    ],
+    [
+      {
+        'method': 'Debugger.evaluateOnCallFrame', 'params': {
+          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+          'expression': 'k + t',
+          'objectGroup': 'console',
+          'includeCommandLineAPI': true,
+          'silent': false,
+          'returnByValue': false,
+          'generatePreview': true
+        }
+      }, setupExpectValue(1002)
+    ],
+    [
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': '5 * 5'
+        }
+      }, (message) => assert.strictEqual(25, message['result']['value'])
+    ],
+  ]);
+}
+
+function testNoUrlsWhenConnected(session) {
+  session.testHttpResponse('/json/list', (err, response) => {
+    assert.ifError(err);
+    assert.strictEqual(1, response.length);
+    assert.ok(!response[0].hasOwnProperty('devtoolsFrontendUrl'));
+    assert.ok(!response[0].hasOwnProperty('webSocketDebuggerUrl'));
+  });
+}
+
+function testI18NCharacters(session) {
   console.log('[test]', 'Verify sending and receiving UTF8 characters');
   const chars = 'טֶ字и';
-  session.send({
-    'method': 'Debugger.evaluateOnCallFrame', 'params': {
-      'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
-      'expression': `console.log("${chars}")`,
-      'objectGroup': 'console',
-      'includeCommandLineAPI': true,
-      'silent': false,
-      'returnByValue': false,
-      'generatePreview': true
+  session.sendInspectorCommands([
+    {
+      'method': 'Debugger.evaluateOnCallFrame', 'params': {
+        'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+        'expression': `console.log("${chars}")`,
+        'objectGroup': 'console',
+        'includeCommandLineAPI': true,
+        'silent': false,
+        'returnByValue': false,
+        'generatePreview': true
+      }
     }
-  });
-  await session.waitForConsoleOutput('log', [chars]);
+  ]).expectMessages([
+    setupExpectConsoleOutput('log', [chars]),
+  ]);
 }
 
-async function testCommandLineAPI(session) {
+function testCommandLineAPI(session) {
   const testModulePath = require.resolve('../fixtures/empty.js');
   const testModuleStr = JSON.stringify(testModulePath);
   const printAModulePath = require.resolve('../fixtures/printA.js');
   const printAModuleStr = JSON.stringify(printAModulePath);
   const printBModulePath = require.resolve('../fixtures/printB.js');
   const printBModuleStr = JSON.stringify(printBModulePath);
-
-  // we can use `require` outside of a callframe with require in scope
-  let result = await session.send(
-    {
-      'method': 'Runtime.evaluate', 'params': {
-        'expression': 'typeof require("fs").readFile === "function"',
-        'includeCommandLineAPI': true
+  session.sendInspectorCommands([
+    [ // we can use `require` outside of a callframe with require in scope
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': 'typeof require("fs").readFile === "function"',
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.strictEqual(message['result']['value'], true);
       }
-    });
-  checkException(result);
-  assert.strictEqual(result['result']['value'], true);
-
-  // the global require has the same properties as a normal `require`
-  result = await session.send(
-    {
-      'method': 'Runtime.evaluate', 'params': {
-        'expression': [
-          'typeof require.resolve === "function"',
-          'typeof require.extensions === "object"',
-          'typeof require.cache === "object"'
-        ].join(' && '),
-        'includeCommandLineAPI': true
+    ],
+    [ // the global require has the same properties as a normal `require`
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': [
+            'typeof require.resolve === "function"',
+            'typeof require.extensions === "object"',
+            'typeof require.cache === "object"'
+          ].join(' && '),
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.strictEqual(message['result']['value'], true);
       }
-    });
-  checkException(result);
-  assert.strictEqual(result['result']['value'], true);
-  // `require` twice returns the same value
-  result = await session.send(
-    {
-      'method': 'Runtime.evaluate', 'params': {
-        // 1. We require the same module twice
-        // 2. We mutate the exports so we can compare it later on
-        'expression': `
-          Object.assign(
-            require(${testModuleStr}),
-            { old: 'yes' }
-          ) === require(${testModuleStr})`,
-        'includeCommandLineAPI': true
+    ],
+    [ // `require` twice returns the same value
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          // 1. We require the same module twice
+          // 2. We mutate the exports so we can compare it later on
+          'expression': `
+            Object.assign(
+              require(${testModuleStr}),
+              { old: 'yes' }
+            ) === require(${testModuleStr})`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.strictEqual(message['result']['value'], true);
       }
-    });
-  checkException(result);
-  assert.strictEqual(result['result']['value'], true);
-  // after require the module appears in require.cache
-  result = await session.send(
-    {
-      'method': 'Runtime.evaluate', 'params': {
-        'expression': `JSON.stringify(
-          require.cache[${testModuleStr}].exports
-        )`,
-        'includeCommandLineAPI': true
+    ],
+    [ // after require the module appears in require.cache
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': `JSON.stringify(
+            require.cache[${testModuleStr}].exports
+          )`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.deepStrictEqual(JSON.parse(message['result']['value']),
+                               { old: 'yes' });
       }
-    });
-  checkException(result);
-  assert.deepStrictEqual(JSON.parse(result['result']['value']),
-                         { old: 'yes' });
-  // remove module from require.cache
-  result = await session.send(
-    {
-      'method': 'Runtime.evaluate', 'params': {
-        'expression': `delete require.cache[${testModuleStr}]`,
-        'includeCommandLineAPI': true
+    ],
+    [ // remove module from require.cache
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': `delete require.cache[${testModuleStr}]`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.strictEqual(message['result']['value'], true);
       }
-    });
-  checkException(result);
-  assert.strictEqual(result['result']['value'], true);
-  // require again, should get fresh (empty) exports
-  result = await session.send(
-    {
-      'method': 'Runtime.evaluate', 'params': {
-        'expression': `JSON.stringify(require(${testModuleStr}))`,
-        'includeCommandLineAPI': true
+    ],
+    [ // require again, should get fresh (empty) exports
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': `JSON.stringify(require(${testModuleStr}))`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.deepStrictEqual(JSON.parse(message['result']['value']), {});
       }
-    });
-  checkException(result);
-  assert.deepStrictEqual(JSON.parse(result['result']['value']), {});
-  // require 2nd module, exports an empty object
-  result = await session.send(
-    {
-      'method': 'Runtime.evaluate', 'params': {
-        'expression': `JSON.stringify(require(${printAModuleStr}))`,
-        'includeCommandLineAPI': true
+    ],
+    [ // require 2nd module, exports an empty object
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': `JSON.stringify(require(${printAModuleStr}))`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.deepStrictEqual(JSON.parse(message['result']['value']), {});
       }
-    });
-  checkException(result);
-  assert.deepStrictEqual(JSON.parse(result['result']['value']), {});
-  // both modules end up with the same module.parent
-  result = await session.send(
-    {
-      'method': 'Runtime.evaluate', 'params': {
-        'expression': `JSON.stringify({
-          parentsEqual:
-            require.cache[${testModuleStr}].parent ===
-            require.cache[${printAModuleStr}].parent,
-          parentId: require.cache[${testModuleStr}].parent.id,
-        })`,
-        'includeCommandLineAPI': true
+    ],
+    [ // both modules end up with the same module.parent
+      {
+        'method': 'Runtime.evaluate', 'params': {
+          'expression': `JSON.stringify({
+            parentsEqual:
+              require.cache[${testModuleStr}].parent ===
+              require.cache[${printAModuleStr}].parent,
+            parentId: require.cache[${testModuleStr}].parent.id,
+          })`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.deepStrictEqual(JSON.parse(message['result']['value']), {
+          parentsEqual: true,
+          parentId: '<inspector console>'
+        });
       }
-    });
-  checkException(result);
-  assert.deepStrictEqual(JSON.parse(result['result']['value']), {
-    parentsEqual: true,
-    parentId: '<inspector console>'
-  });
-  // the `require` in the module shadows the command line API's `require`
-  result = await session.send(
-    {
-      'method': 'Debugger.evaluateOnCallFrame', 'params': {
-        'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
-        'expression': `(
-          require(${printBModuleStr}),
-          require.cache[${printBModuleStr}].parent.id
-        )`,
-        'includeCommandLineAPI': true
+    ],
+    [ // the `require` in the module shadows the command line API's `require`
+      {
+        'method': 'Debugger.evaluateOnCallFrame', 'params': {
+          'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
+          'expression': `(
+            require(${printBModuleStr}),
+            require.cache[${printBModuleStr}].parent.id
+          )`,
+          'includeCommandLineAPI': true
+        }
+      }, (message) => {
+        checkException(message);
+        assert.notStrictEqual(message['result']['value'],
+                              '<inspector console>');
       }
-    });
-  checkException(result);
-  assert.notStrictEqual(result['result']['value'],
-                        '<inspector console>');
+    ],
+  ]);
 }
 
-async function runTest() {
-  const child = new NodeInstance();
-  checkListResponse(await child.httpGet(null, '/json'));
-  checkListResponse(await child.httpGet(null, '/json/list'));
-  checkVersion(await child.httpGet(null, '/json/version'));
-
-  await child.httpGet(null, '/json/activate').catch(checkBadPath);
-  await child.httpGet(null, '/json/activate/boom').catch(checkBadPath);
-  await child.httpGet(null, '/json/badpath').catch(checkBadPath);
-
-  const session = await child.connectInspectorSession();
-  assertNoUrlsWhileConnected(await child.httpGet(null, '/json/list'));
-  await testBreakpointOnStart(session);
-  await testBreakpoint(session);
-  await testI18NCharacters(session);
-  await testCommandLineAPI(session);
-  await session.runToCompletion();
-  assert.strictEqual(55, (await child.expectShutdown()).exitCode);
+function testWaitsForFrontendDisconnect(session, harness) {
+  console.log('[test]', 'Verify node waits for the frontend to disconnect');
+  session.sendInspectorCommands({ 'method': 'Debugger.resume' })
+    .expectMessages(setupExpectContextDestroyed(1))
+    .expectStderrOutput('Waiting for the debugger to disconnect...')
+    .disconnect(true);
 }
 
-common.crashOnUnhandledRejection();
+function runTests(harness) {
+  harness
+    .testHttpResponse(null, '/json', checkListResponse)
+    .testHttpResponse(null, '/json/list', checkListResponse)
+    .testHttpResponse(null, '/json/version', checkVersion)
+    .testHttpResponse(null, '/json/activate', checkBadPath)
+    .testHttpResponse(null, '/json/activate/boom', checkBadPath)
+    .testHttpResponse(null, '/json/badpath', checkBadPath)
+    .runFrontendSession([
+      testNoUrlsWhenConnected,
+      testBreakpointOnStart,
+      testSetBreakpointAndResume,
+      testInspectScope,
+      testI18NCharacters,
+      testCommandLineAPI,
+      testWaitsForFrontendDisconnect
+    ]).expectShutDown(55);
+}
 
-runTest();
+helper.startNodeForInspectorTest(runTests);
