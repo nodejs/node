@@ -27,7 +27,9 @@ const util = require('util');
 
 assert(Array.isArray(http.METHODS));
 assert(http.METHODS.length > 0);
+assert(http.METHODS.includes('DELETE'));
 assert(http.METHODS.includes('GET'));
 assert(http.METHODS.includes('HEAD'));
 assert(http.METHODS.includes('POST'));
+assert(http.METHODS.includes('PUT'));
 assert.deepStrictEqual(util._extend([], http.METHODS), http.METHODS.sort());
