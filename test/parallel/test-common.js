@@ -125,6 +125,7 @@ const HIJACK_TEST_ARRAY = [ 'foo\n', 'bar\n', 'baz\n' ];
 
 let uncaughtTimes = 0;
 process.on('uncaughtException', common.mustCallAtLeast(function(e) {
+  assert.strictEqual(uncaughtTimes < 2, true);
   assert.strictEqual(e instanceof Error, true);
   assert.strictEqual(
     e.message,
