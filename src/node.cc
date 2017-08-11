@@ -1281,7 +1281,7 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
 
   env->process_object()->Delete(
       env->context(),
-      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupPromises")).FromJust();
+      FIXED_ONE_BYTE_STRING(isolate, "_setupPromises")).FromJust();
 }
 
 }  // anonymous namespace
