@@ -99,15 +99,6 @@ Tests whether `name` and `expected` are part of a raised warning.
 
 Checks if `pathname` exists
 
-### fires(promise, [error], [timeoutMs])
-* promise [&lt;Promise]
-* error [&lt;String] default = 'timeout'
-* timeoutMs [&lt;Number] default = 100
-
-Returns a new promise that will propagate `promise` resolution or rejection if
-that happens within the `timeoutMs` timespan, or rejects with `error` as
-a reason otherwise.
-
 ### fixturesDir
 * return [&lt;String>]
 
