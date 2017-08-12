@@ -901,8 +901,10 @@ void Http2Session::OnHeaders(Nghttp2Stream* stream,
     while (headers != nullptr && j < arraysize(argv) / 2) {
       nghttp2_header_list* item = headers;
       // The header name and value are passed as external one-byte strings
-      name_str = ExternalHeader::New(isolate, item->name);
-      value_str = ExternalHeader::New(isolate, item->value);
+      name_str =
+          ExternalHeader::New<true>(env(), item->name).ToLocalChecked();
+      value_str =
+          ExternalHeader::New<false>(env(), item->value).ToLocalChecked();
       argv[j * 2] = name_str;
       argv[j * 2 + 1] = value_str;
       headers = item->next;
