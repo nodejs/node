@@ -1,0 +1,4 @@
+RangeError: Maximum call stack size exceeded
+    at f (*test*message*stack_overflow_async.js:*)
+    at f (*test*message*stack_overflow_async.js:7:*)
+    at f (*test*message*stack_overflow_async.js:7:*)
