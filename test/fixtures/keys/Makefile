@@ -335,6 +335,14 @@ ec-cert.pem: ec-csr.pem ec-key.pem
 		-signkey ec-key.pem \
 		-out ec-cert.pem
 
+ec-pfx.pem: ec-cert.pem ec-key.pem
+	openssl pkcs12 -export \
+		-descert \
+		-in ec-cert.pem \
+		-inkey ec-key.pem \
+		-out ec-pfx.pem \
+		-password pass:
+
 dh512.pem:
 	openssl dhparam -out dh512.pem 512
 
