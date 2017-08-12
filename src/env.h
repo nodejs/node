@@ -40,6 +40,9 @@
 #include <stdint.h>
 #include <vector>
 #include <stack>
+#include <unordered_map>
+
+struct nghttp2_rcbuf;
 
 namespace node {
 
@@ -337,6 +340,8 @@ class IsolateData {
 #undef V
 #undef VS
 #undef VP
+
+  std::unordered_map<nghttp2_rcbuf*, v8::Eternal<v8::String>> http2_static_strs;
 
  private:
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
