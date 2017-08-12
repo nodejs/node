@@ -5,7 +5,7 @@ const PORT = common.PORT;
 
 var bench = common.createBenchmark(main, {
   n: [1e3],
-  nheaders: [100, 1000],
+  nheaders: [0, 10, 100, 1000],
 }, { flags: ['--expose-http2', '--no-warnings'] });
 
 function main(conf) {
@@ -14,7 +14,16 @@ function main(conf) {
   const http2 = require('http2');
   const server = http2.createServer();
 
-  const headersObject = { ':path': '/' };
+  const headersObject = {
+    ':path': '/',
+    ':scheme': 'http',
+    'accept-encoding': 'gzip, deflate',
+    'accept-language': 'en',
+    'content-type': 'text/plain',
+    'referer': 'https://example.org/',
+    'user-agent': 'SuperBenchmarker 3000'
+  };
+
   for (var i = 0; i < nheaders; i++) {
     headersObject[`foo${i}`] = `some header value ${i}`;
   }
