@@ -36,7 +36,7 @@ const unicode = '中文测试'; // length = 4, byte length = 12
 }
 
 {
-  const cmd = `"${process.execPath}" -e "console.('${unicode}');"`;
+  const cmd = `"${process.execPath}" -e "console.error('${unicode}');"`;
 
   cp.exec(cmd, {maxBuffer: 10}, checkFactory('stderr'));
 }
