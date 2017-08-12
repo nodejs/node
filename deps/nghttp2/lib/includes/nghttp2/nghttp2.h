@@ -470,6 +470,15 @@ NGHTTP2_EXTERN void nghttp2_rcbuf_decref(nghttp2_rcbuf *rcbuf);
 NGHTTP2_EXTERN nghttp2_vec nghttp2_rcbuf_get_buf(nghttp2_rcbuf *rcbuf);
 
 /**
+ * @function
+ *
+ * Returns 1 if the underlying buffer is statically allocated,
+ * and 0 otherwise. This can be useful for language bindings that wish to avoid
+ * creating duplicate strings for these buffers.
+ */
+NGHTTP2_EXTERN int nghttp2_rcbuf_is_static(const nghttp2_rcbuf *rcbuf);
+
+/**
  * @enum
  *
  * The flags for header field name/value pair.

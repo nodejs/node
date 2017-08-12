@@ -96,3 +96,7 @@ nghttp2_vec nghttp2_rcbuf_get_buf(nghttp2_rcbuf *rcbuf) {
   nghttp2_vec res = {rcbuf->base, rcbuf->len};
   return res;
 }
+
+int nghttp2_rcbuf_is_static(const nghttp2_rcbuf *rcbuf) {
+  return rcbuf->ref == -1;
+}
