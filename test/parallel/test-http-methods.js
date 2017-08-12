@@ -27,7 +27,7 @@ const http = require('http');
 // This test ensures all http methods from HTTP parser are exposed 
 // to http library
 
-var methods = [
+const methods = [
   'DELETE',
   'GET',
   'HEAD',
@@ -62,7 +62,5 @@ var methods = [
   'LINK',
   'UNLINK'
 ];
-assert(Array.isArray(http.METHODS));
-assert(http.METHODS.length > 0);
-assert.equal(methods.length, http.METHODS.length);
-assert.deepStrictEqual(methods.sort(), http.METHODS.sort());
+
+assert.deepStrictEqual(http.METHODS, methods.sort());
