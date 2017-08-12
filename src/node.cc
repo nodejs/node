@@ -1285,7 +1285,7 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
 
   env->process_object()->Delete(
       env->context(),
-      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupPromises")).FromJust();
+      FIXED_ONE_BYTE_STRING(isolate, "_setupPromises")).FromJust();
 }
 
 }  // anonymous namespace
@@ -3266,7 +3266,8 @@ void SetupProcessObject(Environment* env,
   // process.release
   Local<Object> release = Object::New(env->isolate());
   READONLY_PROPERTY(process, "release", release);
-  READONLY_PROPERTY(release, "name", OneByteString(env->isolate(), "node"));
+  READONLY_PROPERTY(release, "name",
+                    OneByteString(env->isolate(), NODE_RELEASE));
 
 // if this is a release build and no explicit base has been set
 // substitute the standard release download URL

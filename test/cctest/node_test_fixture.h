@@ -8,13 +8,6 @@
 #include "v8.h"
 #include "libplatform/libplatform.h"
 
-using node::Environment;
-using node::IsolateData;
-using node::CreateIsolateData;
-using node::CreateEnvironment;
-using node::AtExit;
-using node::RunAtExit;
-
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   virtual void* Allocate(size_t length) {
@@ -36,12 +29,12 @@ struct Argv {
 
   Argv(const std::initializer_list<const char*> &args) {
     nr_args_ = args.size();
-    int totalLen = 0;
+    int total_len = 0;
     for (auto it = args.begin(); it != args.end(); ++it) {
-      totalLen += strlen(*it) + 1;
+      total_len += strlen(*it) + 1;
     }
     argv_ = static_cast<char**>(malloc(nr_args_ * sizeof(char*)));
-    argv_[0] = static_cast<char*>(malloc(totalLen));
+    argv_[0] = static_cast<char*>(malloc(total_len));
     int i = 0;
     int offset = 0;
     for (auto it = args.begin(); it != args.end(); ++it, ++i) {

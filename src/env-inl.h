@@ -259,6 +259,9 @@ inline void Environment::TickInfo::set_index(uint32_t value) {
 
 inline void Environment::AssignToContext(v8::Local<v8::Context> context) {
   context->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex, this);
+#if HAVE_INSPECTOR
+  inspector_agent()->ContextCreated(context);
+#endif  // HAVE_INSPECTOR
 }
 
 inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
