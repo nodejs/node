@@ -1,5 +1,4 @@
 # Whitelist dotfiles
-.*
 !deps/**/.*
 !test/fixtures/**/.*
 !tools/eslint/**/.*
@@ -13,6 +12,7 @@
 !.gitkeep
 !.mailmap
 !.remarkrc
+.*
 
 core
 vgcore.*
