@@ -1374,7 +1374,7 @@ JavaScript DataView Objects are described in
 ### Functions to convert from C types to N-API
 #### *napi_create_int32*
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 ```C
 napi_status napi_create_int32(napi_env env, int32_t value, napi_value* result)
@@ -1395,7 +1395,7 @@ of the ECMAScript Language Specification.
 
 #### *napi_create_uint32*
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 ```C
 napi_status napi_create_uint32(napi_env env, uint32_t value, napi_value* result)
@@ -1416,7 +1416,7 @@ of the ECMAScript Language Specification.
 
 #### *napi_create_int64*
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 ```C
 napi_status napi_create_int64(napi_env env, int64_t value, napi_value* result)
@@ -1443,7 +1443,7 @@ outside the range of
 
 #### *napi_create_double*
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 ```C
 napi_status napi_create_double(napi_env env, double value, napi_value* result)
@@ -3287,7 +3287,7 @@ callback invocation, even if it has been successfully cancelled.
 
 ### napi_get_node_version
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 ```C
