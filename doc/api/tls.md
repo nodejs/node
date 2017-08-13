@@ -554,7 +554,7 @@ when creating the `tls.TLSSocket` instance, otherwise `false`.
 
 ### tlsSocket.disableRenegotiation()
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 Disables TLS renegotiation for this `TLSSocket` instance. Once called, attempts

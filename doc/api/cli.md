@@ -172,7 +172,7 @@ Silence all process warnings (including deprecations).
 
 ### `--expose-http2`
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 Enable the experimental `'http2'` module.

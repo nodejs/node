@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td>
+<a href="#8.4.0">8.4.0</a><br/>
 <a href="#8.3.0">8.3.0</a><br/>
 <a href="#8.2.1">8.2.1</a><br/>
 <a href="#8.2.0">8.2.0</a><br/>
@@ -28,6 +29,135 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="8.4.0"></a>
+## 2017-08-15, Version 8.4.0 (Current), @addaleax
+
+### Notable changes
+
+* **HTTP2**
+  * Experimental support for the built-in `http2` has been added via the
+    `--expose-http2` flag.
+    [#14239](https://github.com/nodejs/node/pull/14239)
+
+* **Inspector**
+  * `require()` is available in the inspector console now.
+    [#8837](https://github.com/nodejs/node/pull/8837)
+  * Multiple contexts, as created by the `vm` module, are supported now.
+    [#14465](https://github.com/nodejs/node/pull/14465)
+
+* **N-API**
+  * New APIs for creating number values have been introduced.
+    [#14573](https://github.com/nodejs/node/pull/14573)
+
+* **Stream**
+  * For `Duplex` streams, the high water mark option can now be set
+    independently for the readable and the writable side.
+    [#14636](https://github.com/nodejs/node/pull/14636)
+
+* **Util**
+  * `util.format` now supports the `%o` and `%O` specifiers for printing
+    objects.
+    [#14558](https://github.com/nodejs/node/pull/14558)
+
+### Commits
+
+* [[`a6539ece2c`](https://github.com/nodejs/node/commit/a6539ece2c)] - **assert**: optimize code path for deepEqual Maps (Ruben Bridgewater) [#14501](https://github.com/nodejs/node/pull/14501)
+* [[`2716b626b0`](https://github.com/nodejs/node/commit/2716b626b0)] - **async_hooks**: CHECK that resource is not empty (Anna Henningsen) [#14694](https://github.com/nodejs/node/pull/14694)
+* [[`b3c1c6ff7f`](https://github.com/nodejs/node/commit/b3c1c6ff7f)] - **benchmark**: fix and extend assert benchmarks (Ruben Bridgewater) [#14147](https://github.com/nodejs/node/pull/14147)
+* [[`139b08863e`](https://github.com/nodejs/node/commit/139b08863e)] - **benchmark**: Correct constructor for freelist (Gareth Ellis) [#14627](https://github.com/nodejs/node/pull/14627)
+* [[`574cc379b9`](https://github.com/nodejs/node/commit/574cc379b9)] - **benchmark**: remove unused parameters (nishijayaraj) [#14640](https://github.com/nodejs/node/pull/14640)
+* [[`fef2aa7e27`](https://github.com/nodejs/node/commit/fef2aa7e27)] - **(SEMVER-MINOR)** **deps**: add nghttp2 dependency (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`2d806f4f71`](https://github.com/nodejs/node/commit/2d806f4f71)] - **deps**: cherry-pick f19b889 from V8 upstream (Alexey Kozyatinskiy) [#14465](https://github.com/nodejs/node/pull/14465)
+* [[`dd521d0a28`](https://github.com/nodejs/node/commit/dd521d0a28)] - **deps,tools**: add missing nghttp2 license (Anna Henningsen) [#14806](https://github.com/nodejs/node/pull/14806)
+* [[`621c03acfe`](https://github.com/nodejs/node/commit/621c03acfe)] - **doc**: delint (Refael Ackermann) [#14707](https://github.com/nodejs/node/pull/14707)
+* [[`230cb55574`](https://github.com/nodejs/node/commit/230cb55574)] - **doc**: fix header level typo (Refael Ackermann) [#14707](https://github.com/nodejs/node/pull/14707)
+* [[`af85b6e058`](https://github.com/nodejs/node/commit/af85b6e058)] - **doc**: fix http2 sample code for http2.md (Keita Akutsu) [#14667](https://github.com/nodejs/node/pull/14667)
+* [[`1e7ddb200f`](https://github.com/nodejs/node/commit/1e7ddb200f)] - **doc**: explain browser support of http/2 without SSL (Gil Tayar) [#14670](https://github.com/nodejs/node/pull/14670)
+* [[`be716d00cc`](https://github.com/nodejs/node/commit/be716d00cc)] - **(SEMVER-MINOR)** **doc**: include http2.md in all.md (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`9e51802f53`](https://github.com/nodejs/node/commit/9e51802f53)] - **doc**: add missing `changes:` metadata for util (Anna Henningsen) [#14810](https://github.com/nodejs/node/pull/14810)
+* [[`4811fea553`](https://github.com/nodejs/node/commit/4811fea553)] - **doc**: add missing `changes:` metadata for streams (Anna Henningsen) [#14810](https://github.com/nodejs/node/pull/14810)
+* [[`20fb69063a`](https://github.com/nodejs/node/commit/20fb69063a)] - **doc**: fix docs style in util.md (Daijiro Wachi) [#14711](https://github.com/nodejs/node/pull/14711)
+* [[`0de63e6888`](https://github.com/nodejs/node/commit/0de63e6888)] - **doc**: fix docs style in intl.md (Daijiro Wachi) [#14711](https://github.com/nodejs/node/pull/14711)
+* [[`ee2ae0f30b`](https://github.com/nodejs/node/commit/ee2ae0f30b)] - **doc**: expanded description of buffer.slice (Vishal Bisht) [#14720](https://github.com/nodejs/node/pull/14720)
+* [[`9888bb1238`](https://github.com/nodejs/node/commit/9888bb1238)] - **doc**: improve fs.read() doc text (Rich Trott) [#14631](https://github.com/nodejs/node/pull/14631)
+* [[`d604173a66`](https://github.com/nodejs/node/commit/d604173a66)] - **doc**: clarify the position argument for fs.read (dcharbonnier) [#14631](https://github.com/nodejs/node/pull/14631)
+* [[`d3b072276b`](https://github.com/nodejs/node/commit/d3b072276b)] - **doc**: add docs for AssertionError (Mandeep Singh) [#14261](https://github.com/nodejs/node/pull/14261)
+* [[`4e15a6b76a`](https://github.com/nodejs/node/commit/4e15a6b76a)] - **doc**: fix order of AtExit callbacks in addons.md (Daniel Bevenius) [#14048](https://github.com/nodejs/node/pull/14048)
+* [[`e07dfffad0`](https://github.com/nodejs/node/commit/e07dfffad0)] - **doc**: remove undef NDEBUG from addons.md (Daniel Bevenius) [#14048](https://github.com/nodejs/node/pull/14048)
+* [[`c5ee34e39b`](https://github.com/nodejs/node/commit/c5ee34e39b)] - **encoding**: rudimentary TextDecoder support w/o ICU (Timothy Gu) [#14489](https://github.com/nodejs/node/pull/14489)
+* [[`e0001dc601`](https://github.com/nodejs/node/commit/e0001dc601)] - **(SEMVER-MINOR)** **http**: move utcDate to internal/http.js (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`1d40850338`](https://github.com/nodejs/node/commit/1d40850338)] - **http2**: fix \[kInspect\]() output for Http2Stream (Evan Lucas) [#14753](https://github.com/nodejs/node/pull/14753)
+* [[`c5740f9111`](https://github.com/nodejs/node/commit/c5740f9111)] - **http2**: name padding buffer fields (Anna Henningsen) [#14744](https://github.com/nodejs/node/pull/14744)
+* [[`8a0d101adf`](https://github.com/nodejs/node/commit/8a0d101adf)] - **http2**: use per-environment buffers (Anna Henningsen) [#14744](https://github.com/nodejs/node/pull/14744)
+* [[`92c37fe5fd`](https://github.com/nodejs/node/commit/92c37fe5fd)] - **http2**: improve perf of passing headers to C++ (Anna Henningsen) [#14723](https://github.com/nodejs/node/pull/14723)
+* [[`47bf705f75`](https://github.com/nodejs/node/commit/47bf705f75)] - **http2**: rename some nghttp2 stream flags (Kelvin Jin) [#14637](https://github.com/nodejs/node/pull/14637)
+* [[`723d1af5e7`](https://github.com/nodejs/node/commit/723d1af5e7)] - **(SEMVER-MINOR)** **http2**: fix flakiness in timeout (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`6a30448bac`](https://github.com/nodejs/node/commit/6a30448bac)] - **(SEMVER-MINOR)** **http2**: fix linting after rebase (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`efd929e402`](https://github.com/nodejs/node/commit/efd929e402)] - **(SEMVER-MINOR)** **http2**: fix compilation error after V8 update (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`f46c50b3e2`](https://github.com/nodejs/node/commit/f46c50b3e2)] - **(SEMVER-MINOR)** **http2**: add some doc detail for invalid header chars (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`b43caf92c0`](https://github.com/nodejs/node/commit/b43caf92c0)] - **(SEMVER-MINOR)** **http2**: fix documentation errors (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`33b03b2ab2`](https://github.com/nodejs/node/commit/33b03b2ab2)] - **(SEMVER-MINOR)** **http2**: minor cleanup (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`174ab6fda0`](https://github.com/nodejs/node/commit/174ab6fda0)] - **(SEMVER-MINOR)** **http2**: use static allocated arrays (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`9a4be4adc4`](https://github.com/nodejs/node/commit/9a4be4adc4)] - **(SEMVER-MINOR)** **http2**: get trailers working with the compat api (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`3e5b07a8fb`](https://github.com/nodejs/node/commit/3e5b07a8fb)] - **(SEMVER-MINOR)** **http2**: refactor trailers API (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`26e1f8e01c`](https://github.com/nodejs/node/commit/26e1f8e01c)] - **(SEMVER-MINOR)** **http2**: address initial pr feedback (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`7824fa0b40`](https://github.com/nodejs/node/commit/7824fa0b40)] - **(SEMVER-MINOR)** **http2**: make writeHead behave like HTTP/1. (Matteo Collina) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`b778838337`](https://github.com/nodejs/node/commit/b778838337)] - **(SEMVER-MINOR)** **http2**: doc and fixes to the Compatibility API (Matteo Collina) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`8f3bbd9b68`](https://github.com/nodejs/node/commit/8f3bbd9b68)] - **(SEMVER-MINOR)** **http2**: add range support for respondWith{File|FD} (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`61696f1215`](https://github.com/nodejs/node/commit/61696f1215)] - **(SEMVER-MINOR)** **http2**: fix socketOnTimeout and a segfault (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`2620769e7f`](https://github.com/nodejs/node/commit/2620769e7f)] - **(SEMVER-MINOR)** **http2**: refinement and test for socketError (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`cd0f4c6652`](https://github.com/nodejs/node/commit/cd0f4c6652)] - **(SEMVER-MINOR)** **http2**: fix abort when client.destroy inside end event (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`e8cc193bcc`](https://github.com/nodejs/node/commit/e8cc193bcc)] - **(SEMVER-MINOR)** **http2**: fix documentation nits (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`a49146e446`](https://github.com/nodejs/node/commit/a49146e446)] - **(SEMVER-MINOR)** **http2**: remove redundant return in test (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`3eb61b00de`](https://github.com/nodejs/node/commit/3eb61b00de)] - **(SEMVER-MINOR)** **http2**: add tests and benchmarks (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`9623ee0f99`](https://github.com/nodejs/node/commit/9623ee0f99)] - **(SEMVER-MINOR)** **http2**: introducing HTTP/2 (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`029567a460`](https://github.com/nodejs/node/commit/029567a460)] - **inspector**: support extra contexts (Eugene Ostroukhov) [#14465](https://github.com/nodejs/node/pull/14465)
+* [[`d89f9f82b0`](https://github.com/nodejs/node/commit/d89f9f82b0)] - **(SEMVER-MINOR)** **inspector**: allow require in Runtime.evaluate (Jan Krems) [#8837](https://github.com/nodejs/node/pull/8837)
+* [[`ac1b81ad75`](https://github.com/nodejs/node/commit/ac1b81ad75)] - **lib**: move deprecationWarned var (Daniel Bevenius) [#14769](https://github.com/nodejs/node/pull/14769)
+* [[`8433b1ad37`](https://github.com/nodejs/node/commit/8433b1ad37)] - **lib**: use Timer.now() in readline module (Rich Trott) [#14681](https://github.com/nodejs/node/pull/14681)
+* [[`917ace283f`](https://github.com/nodejs/node/commit/917ace283f)] - **(SEMVER-MINOR)** **n-api**: add napi_get_node_version (Anna Henningsen) [#14696](https://github.com/nodejs/node/pull/14696)
+* [[`5e2cce59ef`](https://github.com/nodejs/node/commit/5e2cce59ef)] - **(SEMVER-MINOR)** **n-api**: optimize number API performance (Jason Ginchereau) [#14573](https://github.com/nodejs/node/pull/14573)
+* [[`c94f346b93`](https://github.com/nodejs/node/commit/c94f346b93)] - **net**: use rest parameters instead of arguments (Tobias Nießen) [#13472](https://github.com/nodejs/node/pull/13472)
+* [[`1c00875747`](https://github.com/nodejs/node/commit/1c00875747)] - **repl**: include folder extensions in autocomplete (Teddy Katz) [#14727](https://github.com/nodejs/node/pull/14727)
+* [[`59d1d56da6`](https://github.com/nodejs/node/commit/59d1d56da6)] - **src**: remove unused http2_socket_buffer from env (Anna Henningsen) [#14740](https://github.com/nodejs/node/pull/14740)
+* [[`268a1ff3f1`](https://github.com/nodejs/node/commit/268a1ff3f1)] - **src**: mention that node options are space-separated (Gabriel Schulhof) [#14709](https://github.com/nodejs/node/pull/14709)
+* [[`9237ef868e`](https://github.com/nodejs/node/commit/9237ef868e)] - **src**: avoid creating local data variable (Daniel Bevenius) [#14732](https://github.com/nodejs/node/pull/14732)
+* [[`f83827d64b`](https://github.com/nodejs/node/commit/f83827d64b)] - **src**: use local isolate instead of args.GetIsolate (Daniel Bevenius) [#14768](https://github.com/nodejs/node/pull/14768)
+* [[`d7d22ead2b`](https://github.com/nodejs/node/commit/d7d22ead2b)] - **src**: add comments for cares library init refcount (Anna Henningsen) [#14743](https://github.com/nodejs/node/pull/14743)
+* [[`b87fae927d`](https://github.com/nodejs/node/commit/b87fae927d)] - **src**: remove duplicate loop (Anna Henningsen) [#14750](https://github.com/nodejs/node/pull/14750)
+* [[`033773c17b`](https://github.com/nodejs/node/commit/033773c17b)] - **src**: add overlooked handle to cleanup (Anna Henningsen) [#14749](https://github.com/nodejs/node/pull/14749)
+* [[`dd6444d401`](https://github.com/nodejs/node/commit/dd6444d401)] - **src,http2**: DRY header/trailer handling code up (Anna Henningsen) [#14688](https://github.com/nodejs/node/pull/14688)
+* [[`ef8ac7b5ac`](https://github.com/nodejs/node/commit/ef8ac7b5ac)] - **(SEMVER-MINOR)** **stream**: support readable/writableHWM for Duplex (Guy Margalit) [#14636](https://github.com/nodejs/node/pull/14636)
+* [[`6d9f94f93f`](https://github.com/nodejs/node/commit/6d9f94f93f)] - **test**: cover all HTTP methods that parser supports (Oky Antoro) [#14773](https://github.com/nodejs/node/pull/14773)
+* [[`e4854fccfc`](https://github.com/nodejs/node/commit/e4854fccfc)] - **test**: use regular expressions in throw assertions (Vincent Xue) [#14318](https://github.com/nodejs/node/pull/14318)
+* [[`66788fc4d0`](https://github.com/nodejs/node/commit/66788fc4d0)] - **test**: increase http2 coverage (Michael Albert) [#14701](https://github.com/nodejs/node/pull/14701)
+* [[`dbb9c370d4`](https://github.com/nodejs/node/commit/dbb9c370d4)] - **test**: add crypto check to http2 tests (Daniel Bevenius) [#14657](https://github.com/nodejs/node/pull/14657)
+* [[`97f622b99e`](https://github.com/nodejs/node/commit/97f622b99e)] - **(SEMVER-MINOR)** **test**: fix flaky test-http2-client-unescaped-path on osx (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`9d752d5282`](https://github.com/nodejs/node/commit/9d752d5282)] - **(SEMVER-MINOR)** **test**: fix flakiness in test-http2-client-upload (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`82c63a55ea`](https://github.com/nodejs/node/commit/82c63a55ea)] - **test**: add test-benchmark-arrays (Rich Trott) [#14728](https://github.com/nodejs/node/pull/14728)
+* [[`0eab77c86f`](https://github.com/nodejs/node/commit/0eab77c86f)] - **test**: allow inspector to reopen with same port (Gibson Fahnestock) [#14320](https://github.com/nodejs/node/pull/14320)
+* [[`9bbbf12827`](https://github.com/nodejs/node/commit/9bbbf12827)] - **test**: remove redundant `using` in cctest (XadillaX) [#14739](https://github.com/nodejs/node/pull/14739)
+* [[`7eb9f6f6e4`](https://github.com/nodejs/node/commit/7eb9f6f6e4)] - **test**: make totalLen snake case (Daniel Bevenius) [#14765](https://github.com/nodejs/node/pull/14765)
+* [[`977e22857a`](https://github.com/nodejs/node/commit/977e22857a)] - **test**: make test-tls-connect checks more strict (Rich Trott) [#14695](https://github.com/nodejs/node/pull/14695)
+* [[`a781bb4508`](https://github.com/nodejs/node/commit/a781bb4508)] - ***Revert*** "**test**: disable MultipleEnvironmentsPerIsolate" (Anna Henningsen) [#14749](https://github.com/nodejs/node/pull/14749)
+* [[`8ff2a5c338`](https://github.com/nodejs/node/commit/8ff2a5c338)] - ***Revert*** "**test**: add DISABLED_ prefix to commented out test" (Anna Henningsen) [#14749](https://github.com/nodejs/node/pull/14749)
+* [[`0bc3124c80`](https://github.com/nodejs/node/commit/0bc3124c80)] - **test**: properly order freeing resources in cctest (Anna Henningsen) [#14749](https://github.com/nodejs/node/pull/14749)
+* [[`3f1bb0a551`](https://github.com/nodejs/node/commit/3f1bb0a551)] - **test**: split out load-sensitive readline tests (Rich Trott) [#14681](https://github.com/nodejs/node/pull/14681)
+* [[`5d99d7dff2`](https://github.com/nodejs/node/commit/5d99d7dff2)] - **test**: add block scoping to test-readline-interface (Rich Trott) [#14615](https://github.com/nodejs/node/pull/14615)
+* [[`58742729da`](https://github.com/nodejs/node/commit/58742729da)] - **test**: set module loading error for aix (Prakash Palaniappan) [#14511](https://github.com/nodejs/node/pull/14511)
+* [[`06ba2dae30`](https://github.com/nodejs/node/commit/06ba2dae30)] - **test**: fix conversion of microseconds in test (Nick Stanish) [#14706](https://github.com/nodejs/node/pull/14706)
+* [[`30837b3b90`](https://github.com/nodejs/node/commit/30837b3b90)] - **test**: improve check in test-os (Rich Trott) [#14655](https://github.com/nodejs/node/pull/14655)
+* [[`55aba6aee7`](https://github.com/nodejs/node/commit/55aba6aee7)] - **test**: replace indexOf with includes (Miguel Angel Asencio Hurtado) [#14630](https://github.com/nodejs/node/pull/14630)
+* [[`935d34bd6b`](https://github.com/nodejs/node/commit/935d34bd6b)] - **test**: fix test-readline-interface (Azard) [#14677](https://github.com/nodejs/node/pull/14677)
+* [[`2ee3320f2c`](https://github.com/nodejs/node/commit/2ee3320f2c)] - **test**: improve multiple timers tests (James M Snell) [#14616](https://github.com/nodejs/node/pull/14616)
+* [[`71f2e76353`](https://github.com/nodejs/node/commit/71f2e76353)] - **test**: use ciphers supported by shared OpenSSL (Jérémy Lal) [#14566](https://github.com/nodejs/node/pull/14566)
+* [[`f73f659186`](https://github.com/nodejs/node/commit/f73f659186)] - **test**: mitigate RegEx exceeding 80 chars (Aditya Anand) [#14607](https://github.com/nodejs/node/pull/14607)
+* [[`96147c980c`](https://github.com/nodejs/node/commit/96147c980c)] - **test**: read proper inspector message size (Bartosz Sosnowski) [#14596](https://github.com/nodejs/node/pull/14596)
+* [[`e84c9d7176`](https://github.com/nodejs/node/commit/e84c9d7176)] - **(SEMVER-MINOR)** **tls**: add tlsSocket.disableRenegotiation() (James M Snell) [#14239](https://github.com/nodejs/node/pull/14239)
+* [[`a0e05e884e`](https://github.com/nodejs/node/commit/a0e05e884e)] - **tools**: fix tools/addon-verify.js (Daniel Bevenius) [#14048](https://github.com/nodejs/node/pull/14048)
+* [[`116841056a`](https://github.com/nodejs/node/commit/116841056a)] - **util**: improve util.inspect performance (Ruben Bridgewater) [#14492](https://github.com/nodejs/node/pull/14492)
+* [[`7203924fea`](https://github.com/nodejs/node/commit/7203924fea)] - **(SEMVER-MINOR)** **util**: implement %o and %O as formatting specifiers (Greg Alexander) [#14558](https://github.com/nodejs/node/pull/14558)
 
 <a id="8.3.0"></a>
 ## 2017-08-09, Version 8.3.0 (Current), @addaleax
