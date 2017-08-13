@@ -1740,6 +1740,13 @@ constructor and implement *both* the `readable._read()` and
 `writable._write()` methods.
 
 #### new stream.Duplex(options)
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/14636
+    description: The `readableHighWaterMark` and `writableHighWaterMark` options
+                 are supported now.
+-->
 
 * `options` {Object} Passed to both Writable and Readable
   constructors. Also has the following fields:
