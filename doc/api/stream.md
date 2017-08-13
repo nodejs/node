@@ -1742,7 +1742,7 @@ constructor and implement *both* the `readable._read()` and
 #### new stream.Duplex(options)
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v8.4.0
     pr-url: https://github.com/nodejs/node/pull/14636
     description: The `readableHighWaterMark` and `writableHighWaterMark` options
                  are supported now.
