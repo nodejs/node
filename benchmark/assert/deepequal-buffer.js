@@ -19,7 +19,7 @@ function main(conf) {
   data.copy(expected);
 
   switch (conf.method) {
-    case 'strict':
+    case 'nonstrict':
       bench.start();
       for (i = 0; i < n; ++i) {
         // eslint-disable-next-line no-restricted-properties
@@ -27,7 +27,7 @@ function main(conf) {
       }
       bench.end(n);
       break;
-    case 'nonstrict':
+    case 'strict':
       bench.start();
       for (i = 0; i < n; ++i) {
         assert.deepStrictEqual(actual, expected);
