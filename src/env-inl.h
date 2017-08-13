@@ -329,6 +329,7 @@ inline Environment::~Environment() {
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
+  free(http2_state_buffer_);
 }
 
 inline v8::Isolate* Environment::isolate() const {
@@ -476,6 +477,15 @@ inline char* Environment::http_parser_buffer() const {
 inline void Environment::set_http_parser_buffer(char* buffer) {
   CHECK_EQ(http_parser_buffer_, nullptr);  // Should be set only once.
   http_parser_buffer_ = buffer;
+}
+
+inline http2::http2_state* Environment::http2_state_buffer() const {
+  return http2_state_buffer_;
+}
+
+inline void Environment::set_http2_state_buffer(http2::http2_state* buffer) {
+  CHECK_EQ(http2_state_buffer_, nullptr);  // Should be set only once.
+  http2_state_buffer_ = buffer;
 }
 
 inline double* Environment::fs_stats_field_array() const {
