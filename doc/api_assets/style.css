@@ -94,6 +94,8 @@ em code {
   margin: 0 0 1em 0;
   font-family: "Lato", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
   font-weight: 700;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 .api_stability * {
