@@ -93,3 +93,10 @@ v8::MaybeLocal<v8::Module> IsolateData::ModuleResolveCallback(
   IsolateData* data = IsolateData::FromContext(context);
   return data->modules_[ToVector(specifier)].Get(data->isolate_);
 }
+
+void IsolateData::FreeContext(v8::Local<v8::Context> context) {
+  int context_group_id = GetContextGroupId(context);
+  auto it = contexts_.find(context_group_id);
+  if (it == contexts_.end()) return;
+  contexts_.erase(it);
+}
