@@ -15,7 +15,10 @@ const argv = ['--set', 'type=depth',
               '--set', 'thousands=0.001',
               'timers'];
 
-const child = fork(runjs, argv, {env: {NODEJS_BENCHMARK_ZERO_ALLOWED: 1}});
+const env = Object.assign({}, process.env,
+                          { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+
+const child = fork(runjs, argv, { env });
 child.on('exit', (code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
