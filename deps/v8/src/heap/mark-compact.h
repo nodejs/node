@@ -612,10 +612,6 @@ class MarkCompactCollector {
   static const uint32_t kSingleFreeEncoding = 0;
   static const uint32_t kMultiFreeEncoding = 1;
 
-  // If the number of deleted slots in a JSWeakCollection exceeds the number
-  // of entries / 2^(factor), we rehash the table.
-  static const int kJSWeakCollectionLoadFactorExp = 1;
-
   static inline bool IsMarked(Object* obj);
   static bool IsUnmarkedHeapObjectWithHeap(Heap* heap, Object** p);
 

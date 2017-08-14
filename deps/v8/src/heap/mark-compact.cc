@@ -2614,13 +2614,6 @@ void MarkCompactCollector::ClearWeakCollections() {
           table->RemoveEntry(i);
         }
       }
-      // Rehash if more than 25% of the entries are deleted entries.
-      // TODO(jochen): Consider to shrink the fixed array in place.
-      if ((table->NumberOfDeletedElements() << kJSWeakCollectionLoadFactorExp) >
-          table->NumberOfElements()) {
-        HandleScope scope(heap()->isolate());
-        table->Rehash(heap()->isolate()->factory()->undefined_value());
-      }
     }
     weak_collection_obj = weak_collection->next();
     weak_collection->set_next(heap()->undefined_value());
