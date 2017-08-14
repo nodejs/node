@@ -273,29 +273,13 @@ class Http2Options {
     nghttp2_option_del(options_);
   }
 
-  nghttp2_option* operator*() {
+  nghttp2_option* operator*() const {
     return options_;
   }
 
-  void SetPaddingStrategy(uint32_t val) {
+  void SetPaddingStrategy(padding_strategy_type val) {
     CHECK_LE(val, PADDING_STRATEGY_CALLBACK);
     padding_strategy_ = static_cast<padding_strategy_type>(val);
-  }
-
-  void SetMaxDeflateDynamicTableSize(size_t val) {
-    nghttp2_option_set_max_deflate_dynamic_table_size(options_, val);
-  }
-
-  void SetMaxReservedRemoteStreams(uint32_t val) {
-    nghttp2_option_set_max_reserved_remote_streams(options_, val);
-  }
-
-  void SetMaxSendHeaderBlockLength(size_t val) {
-    nghttp2_option_set_max_send_header_block_length(options_, val);
-  }
-
-  void SetPeerMaxConcurrentStreams(uint32_t val) {
-    nghttp2_option_set_peer_max_concurrent_streams(options_, val);
   }
 
   padding_strategy_type GetPaddingStrategy() {
