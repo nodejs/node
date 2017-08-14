@@ -18,7 +18,7 @@ const hooks = initHooks();
 hooks.enable();
 
 const request = Buffer.from(
-  'GET /hello HTTP/1.1' + '\r\n' + '\r\n'
+  'GET /hello HTTP/1.1\r\n\r\n'
 );
 
 const parser = new HTTPParser(REQUEST);
