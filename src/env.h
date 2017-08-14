@@ -30,7 +30,6 @@
 #endif
 #include "handle_wrap.h"
 #include "req-wrap.h"
-#include "tree.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
