@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const https = require('https');
+const tls = require('tls');
 const fs = require('fs');
 
 const keyBuff = fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`);
@@ -24,7 +24,7 @@ const caCertStr2 = caCert2.toString();
 const invalidKeyRE = /^The "key" argument must be one of type string or buffer$/;
 const invalidCertRE = /^The "cert" argument must be one of type string or buffer$/;
 
-// Checks to ensure https.createServer doesn't throw an error
+// Checks to ensure tls.createServer doesn't throw an error
 // Format ['key', 'cert']
 [
   [keyBuff, certBuff],
@@ -42,14 +42,14 @@ const invalidCertRE = /^The "cert" argument must be one of type string or buffer
   [[{ pem: keyBuff }, { pem: keyBuff }], false]
 ].map((params) => {
   assert.doesNotThrow(() => {
-    https.createServer({
+    tls.createServer({
       key: params[0],
       cert: params[1]
     });
   });
 });
 
-// Checks to ensure https.createServer predictably throws an error
+// Checks to ensure tls.createServer predictably throws an error
 // Format ['key', 'cert', 'expected message']
 [
   [true, certBuff, invalidKeyRE],
@@ -74,7 +74,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string or buffer
   [true, [certBuff, certBuff2], invalidKeyRE]
 ].map((params) => {
   assert.throws(() => {
-    https.createServer({
+    tls.createServer({
       key: params[0],
       cert: params[1]
     });
@@ -85,7 +85,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string or buffer
   }));
 });
 
-// Checks to ensure https.createServer works with the CA parameter
+// Checks to ensure tls.createServer works with the CA parameter
 // Format ['key', 'cert', 'ca']
 [
   [keyBuff, certBuff, caCert],
@@ -95,7 +95,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string or buffer
   [keyBuff, certBuff, false],
 ].map((params) => {
   assert.doesNotThrow(() => {
-    https.createServer({
+    tls.createServer({
       key: params[0],
       cert: params[1],
       ca: params[2]
@@ -103,7 +103,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string or buffer
   });
 });
 
-// Checks to ensure https.createServer throws an error for CA assignment
+// Checks to ensure tls.createServer throws an error for CA assignment
 // Format ['key', 'cert', 'ca']
 [
   [keyBuff, certBuff, true],
@@ -113,7 +113,7 @@ const invalidCertRE = /^The "cert" argument must be one of type string or buffer
   [keyBuff, certBuff, [caCert, true]]
 ].map((params) => {
   assert.throws(() => {
-    https.createServer({
+    tls.createServer({
       key: params[0],
       cert: params[1],
       ca: params[2]
