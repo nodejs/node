@@ -126,7 +126,7 @@ struct node_ares_task {
 
 struct TaskHash {
   size_t operator()(node_ares_task* a) const {
-    return std::hash<ares_sock_t>()(a->sock);
+    return std::hash<ares_socket_t>()(a->sock);
   }
 };
 
@@ -136,8 +136,8 @@ struct TaskEqual {
   }
 };
 
-typedef std::unordered_set<node_ares_task*, TaskHash, TaskEqual>
-    node_ares_task_list;
+using node_ares_task_list =
+    std::unordered_set<node_ares_task*, TaskHash, TaskEqual>;
 
 class ChannelWrap : public AsyncWrap {
  public:
