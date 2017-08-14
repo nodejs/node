@@ -38,7 +38,7 @@ assert.throws(() => {
 assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.setHeader('200', 'あ');
-}, /^TypeError: The header content contains invalid characters$/);
+}, /^TypeError: The header content contains invalid characters \["200"\]$/);
 
 // write
 assert.throws(() => {
