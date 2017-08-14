@@ -480,12 +480,6 @@ goto exit
 echo %1 | findstr /c:"src\node_root_certs.h"
 if %errorlevel% equ 0 goto exit
 
-echo %1 | findstr /c:"src\queue.h"
-if %errorlevel% equ 0 goto exit
-
-echo %1 | findstr /c:"src\tree.h"
-if %errorlevel% equ 0 goto exit
-
 @rem skip subfolders under /src
 echo %1 | findstr /r /c:"src\\.*\\.*"
 if %errorlevel% equ 0 goto exit
