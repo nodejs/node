@@ -95,28 +95,36 @@ Http2Options::Http2Options(Environment* env) {
   uint32_t flags = buffer[IDX_OPTIONS_FLAGS];
 
   if (flags & (1 << IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE)) {
-    SetMaxDeflateDynamicTableSize(
+    nghttp2_option_set_max_deflate_dynamic_table_size(
+        options_,
         buffer[IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE]);
   }
 
   if (flags & (1 << IDX_OPTIONS_MAX_RESERVED_REMOTE_STREAMS)) {
-    SetMaxReservedRemoteStreams(
+    nghttp2_option_set_max_reserved_remote_streams(
+        options_,
         buffer[IDX_OPTIONS_MAX_RESERVED_REMOTE_STREAMS]);
   }
 
   if (flags & (1 << IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH)) {
-    SetMaxSendHeaderBlockLength(
+    nghttp2_option_set_max_send_header_block_length(
+        options_,
         buffer[IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH]);
   }
 
-  SetPeerMaxConcurrentStreams(100);  // Recommended default
+  // Recommended default
+  nghttp2_option_set_peer_max_concurrent_streams(options_, 100);
   if (flags & (1 << IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS)) {
-    SetPeerMaxConcurrentStreams(
+    nghttp2_option_set_peer_max_concurrent_streams(
+        options_,
         buffer[IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS]);
   }
 
   if (flags & (1 << IDX_OPTIONS_PADDING_STRATEGY)) {
-    SetPaddingStrategy(buffer[IDX_OPTIONS_PADDING_STRATEGY]);
+    padding_strategy_type strategy =
+        static_cast<padding_strategy_type>(
+            buffer[IDX_OPTIONS_PADDING_STRATEGY]);
+    SetPaddingStrategy(strategy);
   }
 }
 

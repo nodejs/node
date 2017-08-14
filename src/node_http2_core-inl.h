@@ -916,9 +916,6 @@ Nghttp2Session::Callbacks::Callbacks(bool kHasGetPaddingCallback) {
   nghttp2_session_callbacks_set_on_frame_not_send_callback(
     callbacks, OnFrameNotSent);
 
-  // nghttp2_session_callbacks_set_on_invalid_frame_recv(
-  //   callbacks, OnInvalidFrameReceived);
-
 #ifdef NODE_DEBUG_HTTP2
   nghttp2_session_callbacks_set_error_callback(
     callbacks, OnNghttpError);
