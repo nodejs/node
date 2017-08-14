@@ -105,6 +105,16 @@ class Nghttp2Session {
     return destroying_;
   }
 
+  inline const char* TypeName(nghttp2_session_type type) {
+    switch (type) {
+      case NGHTTP2_SESSION_SERVER: return "server";
+      case NGHTTP2_SESSION_CLIENT: return "client";
+      default:
+        // This should never happen
+        ABORT();
+    }
+  }
+
   // Returns the pointer to the identified stream, or nullptr if
   // the stream does not exist
   inline Nghttp2Stream* FindStream(int32_t id);
@@ -173,7 +183,7 @@ class Nghttp2Session {
 
   class SubmitTrailers {
    public:
-    void Submit(nghttp2_nv* trailers, size_t length) const;
+    inline void Submit(nghttp2_nv* trailers, size_t length) const;
 
    private:
     inline SubmitTrailers(Nghttp2Session* handle,
@@ -197,63 +207,63 @@ class Nghttp2Session {
   inline void HandleDataFrame(const nghttp2_frame* frame);
   inline void HandleGoawayFrame(const nghttp2_frame* frame);
 
-  static void GetTrailers(nghttp2_session* session,
-                          Nghttp2Session* handle,
-                          Nghttp2Stream* stream,
-                          uint32_t* flags);
+  static inline void GetTrailers(nghttp2_session* session,
+                                 Nghttp2Session* handle,
+                                 Nghttp2Stream* stream,
+                                 uint32_t* flags);
 
   /* callbacks for nghttp2 */
 #ifdef NODE_DEBUG_HTTP2
-  static int OnNghttpError(nghttp2_session* session,
-                           const char* message,
-                           size_t len,
-                           void* user_data);
+  static inline int OnNghttpError(nghttp2_session* session,
+                                  const char* message,
+                                  size_t len,
+                                  void* user_data);
 #endif
 
-  static int OnBeginHeadersCallback(nghttp2_session* session,
-                                    const nghttp2_frame* frame,
-                                    void* user_data);
-  static int OnHeaderCallback(nghttp2_session* session,
-                              const nghttp2_frame* frame,
-                              nghttp2_rcbuf* name,
-                              nghttp2_rcbuf* value,
-                              uint8_t flags,
-                              void* user_data);
-  static int OnFrameReceive(nghttp2_session* session,
-                            const nghttp2_frame* frame,
-                            void* user_data);
-  static int OnFrameNotSent(nghttp2_session* session,
-                            const nghttp2_frame* frame,
-                            int error_code,
-                            void* user_data);
-  static int OnStreamClose(nghttp2_session* session,
-                           int32_t id,
-                           uint32_t code,
-                           void* user_data);
-  static int OnDataChunkReceived(nghttp2_session* session,
-                                 uint8_t flags,
-                                 int32_t id,
-                                 const uint8_t *data,
-                                 size_t len,
-                                 void* user_data);
-  static ssize_t OnStreamReadFD(nghttp2_session* session,
-                                int32_t id,
-                                uint8_t* buf,
-                                size_t length,
-                                uint32_t* flags,
-                                nghttp2_data_source* source,
-                                void* user_data);
-  static ssize_t OnStreamRead(nghttp2_session* session,
-                              int32_t id,
-                              uint8_t* buf,
-                              size_t length,
-                              uint32_t* flags,
-                              nghttp2_data_source* source,
-                              void* user_data);
-  static ssize_t OnSelectPadding(nghttp2_session* session,
-                                 const nghttp2_frame* frame,
-                                 size_t maxPayloadLen,
-                                 void* user_data);
+  static inline int OnBeginHeadersCallback(nghttp2_session* session,
+                                           const nghttp2_frame* frame,
+                                           void* user_data);
+  static inline int OnHeaderCallback(nghttp2_session* session,
+                                     const nghttp2_frame* frame,
+                                     nghttp2_rcbuf* name,
+                                     nghttp2_rcbuf* value,
+                                     uint8_t flags,
+                                     void* user_data);
+  static inline int OnFrameReceive(nghttp2_session* session,
+                                   const nghttp2_frame* frame,
+                                   void* user_data);
+  static inline int OnFrameNotSent(nghttp2_session* session,
+                                   const nghttp2_frame* frame,
+                                   int error_code,
+                                   void* user_data);
+  static inline int OnStreamClose(nghttp2_session* session,
+                                  int32_t id,
+                                  uint32_t code,
+                                  void* user_data);
+  static inline int OnDataChunkReceived(nghttp2_session* session,
+                                        uint8_t flags,
+                                        int32_t id,
+                                        const uint8_t *data,
+                                        size_t len,
+                                        void* user_data);
+  static inline ssize_t OnStreamReadFD(nghttp2_session* session,
+                                       int32_t id,
+                                       uint8_t* buf,
+                                       size_t length,
+                                       uint32_t* flags,
+                                       nghttp2_data_source* source,
+                                       void* user_data);
+  static inline ssize_t OnStreamRead(nghttp2_session* session,
+                                     int32_t id,
+                                     uint8_t* buf,
+                                     size_t length,
+                                     uint32_t* flags,
+                                     nghttp2_data_source* source,
+                                     void* user_data);
+  static inline ssize_t OnSelectPadding(nghttp2_session* session,
+                                        const nghttp2_frame* frame,
+                                        size_t maxPayloadLen,
+                                        void* user_data);
 
   struct Callbacks {
     inline explicit Callbacks(bool kHasGetPaddingCallback);
