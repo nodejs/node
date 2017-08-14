@@ -50,6 +50,18 @@ enum nghttp2_session_type {
   NGHTTP2_SESSION_CLIENT
 };
 
+static inline const char* SessionTypeName(nghttp2_session_type type) {
+  switch (type) {
+    case NGHTTP2_SESSION_SERVER: return "server";
+    case NGHTTP2_SESSION_CLIENT: return "client";
+    default:
+      // This should never happen
+      ABORT();
+  }
+}
+
+#define SESSION_TYPE_NAME(session) SessionTypeName(session->session_type_)
+
 enum nghttp2_shutdown_flags {
   NGHTTP2_SHUTDOWN_FLAG_GRACEFUL
 };
