@@ -93,8 +93,6 @@ em code {
   color: white !important;
   margin: 0 0 1em 0;
   font-family: "Lato", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
-  white-space: pre-wrap;
-  word-wrap: break-word;
   padding: 1em;
   line-height: 1.5;
 }
