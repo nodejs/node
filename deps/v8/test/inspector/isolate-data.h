@@ -39,6 +39,7 @@ class IsolateData {
   void RegisterModule(v8::Local<v8::Context> context,
                       v8::internal::Vector<uint16_t> name,
                       v8::ScriptCompiler::Source* source);
+  void FreeContext(v8::Local<v8::Context> context);
 
  private:
   struct VectorCompare {
