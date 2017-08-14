@@ -218,6 +218,16 @@ bool DomainExit(Environment* env, v8::Local<v8::Object> object) {
 
 
 static bool PreCallbackExecution(AsyncWrap* wrap, bool run_domain_cbs) {
+  switch (wrap->provider_type()) {
+#define V(PROVIDER)                                                           \
+    case AsyncWrap::PROVIDER_ ## PROVIDER:                                    \
+      TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("node", #PROVIDER " cb",              \
+        static_cast<int64_t>(wrap->get_id()));                                \
+      break;
+    NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
+  }
+
   if (wrap->env()->using_domains() && run_domain_cbs) {
     bool is_disposed = DomainEnter(wrap->env(), wrap->object());
     if (is_disposed)
@@ -249,6 +259,16 @@ bool AsyncWrap::EmitBefore(Environment* env, double async_id) {
 
 
 static bool PostCallbackExecution(AsyncWrap* wrap, bool run_domain_cbs) {
+  switch (wrap->provider_type()) {
+#define V(PROVIDER)                                                           \
+    case AsyncWrap::PROVIDER_ ## PROVIDER:                                    \
+      TRACE_EVENT_NESTABLE_ASYNC_END0("node", #PROVIDER " cb",                \
+        static_cast<int64_t>(wrap->get_id()));                                \
+      break;
+    NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
+  }
+
   if (!AsyncWrap::EmitAfter(wrap->env(), wrap->get_id()))
     return false;
 
@@ -617,10 +637,29 @@ AsyncWrap::AsyncWrap(Environment* env,
 
   // Use AsyncReset() call to execute the init() callbacks.
   AsyncReset(silent);
+
+  switch (provider_type()) {
+#define V(PROVIDER)                                                           \
+    case PROVIDER_ ## PROVIDER:                                               \
+      TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("node", #PROVIDER,                    \
+        static_cast<int64_t>(get_id()));                                      \
+      break;
+    NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
+  }
 }
 
 
 AsyncWrap::~AsyncWrap() {
+  switch (provider_type()) {
+#define V(PROVIDER)                                                           \
+    case PROVIDER_ ## PROVIDER:                                               \
+      TRACE_EVENT_NESTABLE_ASYNC_END0("node", #PROVIDER,                      \
+        static_cast<int64_t>(get_id()));                                      \
+      break;
+    NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
+  }
   PushBackDestroyId(env(), get_id());
 }
 
@@ -767,6 +806,9 @@ async_context EmitAsyncInit(Isolate* isolate,
     trigger_async_id  // trigger_async_id_
   };
 
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("node", "custom_event",
+    static_cast<int64_t>(context.async_id));
+
   // Run init hooks
   Local<String> type =
       String::NewFromUtf8(isolate, name, v8::NewStringType::kInternalized)
@@ -778,6 +820,8 @@ async_context EmitAsyncInit(Isolate* isolate,
 }
 
 void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
+  TRACE_EVENT_NESTABLE_ASYNC_END0("node", "custom_event",
+    static_cast<int64_t>(asyncContext.async_id));
   PushBackDestroyId(Environment::GetCurrent(isolate), asyncContext.async_id);
 }
 
