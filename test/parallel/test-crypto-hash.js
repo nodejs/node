@@ -4,8 +4,9 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const fs = require('fs');
 const crypto = require('crypto');
+const fs = require('fs');
+
 const fixtures = require('../common/fixtures');
 
 // Test hashing
@@ -80,11 +81,11 @@ const fileStream = fs.createReadStream(fn);
 fileStream.on('data', function(data) {
   sha1Hash.update(data);
 });
-fileStream.on('close', function() {
+fileStream.on('close', common.mustCall(function() {
   assert.strictEqual(sha1Hash.digest('hex'),
                      '22723e553129a336ad96e10f6aecdf0f45e4149e',
                      'Test SHA1 of sample.png');
-});
+}));
 
 // Issue #2227: unknown digest method should throw an error.
 assert.throws(function() {
