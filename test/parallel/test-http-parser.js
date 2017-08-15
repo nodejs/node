@@ -110,7 +110,7 @@ function expectBody(expected) {
 //
 {
   const request = Buffer.from(
-      'HTTP/1.1 200 OK' + CRLF +
+    'HTTP/1.1 200 OK' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Content-Length: 4' + CRLF +
       CRLF +
@@ -167,7 +167,7 @@ function expectBody(expected) {
 //
 {
   const request = Buffer.from(
-      'POST /it HTTP/1.1' + CRLF +
+    'POST /it HTTP/1.1' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
       CRLF +
       '4' + CRLF +
@@ -214,7 +214,7 @@ function expectBody(expected) {
 //
 {
   const request = Buffer.from(
-      'GET / HTTP/1.0' + CRLF +
+    'GET / HTTP/1.0' + CRLF +
       'X-Filler: 1337' + CRLF +
       'X-Filler:   42' + CRLF +
       'X-Filler2:  42' + CRLF +
@@ -227,8 +227,8 @@ function expectBody(expected) {
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 0);
     assert.deepStrictEqual(
-        headers || parser.headers,
-        ['X-Filler', '1337', 'X-Filler', '42', 'X-Filler2', '42']);
+      headers || parser.headers,
+      ['X-Filler', '1337', 'X-Filler', '42', 'X-Filler2', '42']);
   };
 
   const parser = newParser(REQUEST);
@@ -245,7 +245,7 @@ function expectBody(expected) {
   const lots_of_headers = `X-Filler: 42${CRLF}`.repeat(256);
 
   const request = Buffer.from(
-      'GET /foo/bar/baz?quux=42#1337 HTTP/1.0' + CRLF +
+    'GET /foo/bar/baz?quux=42#1337 HTTP/1.0' + CRLF +
       lots_of_headers +
       CRLF);
 
@@ -277,7 +277,7 @@ function expectBody(expected) {
 //
 {
   const request = Buffer.from(
-      'POST /it HTTP/1.1' + CRLF +
+    'POST /it HTTP/1.1' + CRLF +
       'Content-Type: application/x-www-form-urlencoded' + CRLF +
       'Content-Length: 15' + CRLF +
       CRLF +
@@ -309,7 +309,7 @@ function expectBody(expected) {
 //
 {
   const request = Buffer.from(
-      'POST /it HTTP/1.1' + CRLF +
+    'POST /it HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
       CRLF +
@@ -350,7 +350,7 @@ function expectBody(expected) {
 //
 {
   let request = Buffer.from(
-      'POST /it HTTP/1.1' + CRLF +
+    'POST /it HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
       CRLF +
@@ -383,7 +383,7 @@ function expectBody(expected) {
   parser.execute(request, 0, request.length);
 
   request = Buffer.from(
-      '9' + CRLF +
+    '9' + CRLF +
       '123456789' + CRLF +
       'C' + CRLF +
       '123456789ABC' + CRLF +
@@ -400,7 +400,7 @@ function expectBody(expected) {
 //
 {
   const request = Buffer.from(
-      'POST /helpme HTTP/1.1' + CRLF +
+    'POST /helpme HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
       CRLF +
@@ -458,7 +458,7 @@ function expectBody(expected) {
 //
 {
   const request = Buffer.from(
-      'POST /it HTTP/1.1' + CRLF +
+    'POST /it HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
       CRLF +
@@ -482,8 +482,8 @@ function expectBody(expected) {
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 1);
     assert.deepStrictEqual(
-        headers || parser.headers,
-        ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
+      headers || parser.headers,
+      ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
   };
 
   let expected_body = '123123456123456789123456789ABC123456789ABCDEF';
@@ -511,7 +511,7 @@ function expectBody(expected) {
 //
 {
   const req1 = Buffer.from(
-      'PUT /this HTTP/1.1' + CRLF +
+    'PUT /this HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
       CRLF +
@@ -520,7 +520,7 @@ function expectBody(expected) {
       '0' + CRLF);
 
   const req2 = Buffer.from(
-      'POST /that HTTP/1.0' + CRLF +
+    'POST /that HTTP/1.0' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Content-Length: 4' + CRLF +
       CRLF +
@@ -534,8 +534,8 @@ function expectBody(expected) {
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 1);
     assert.deepStrictEqual(
-        headers,
-        ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
+      headers,
+      ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
   };
 
   const onHeadersComplete2 = (versionMajor, versionMinor, headers,

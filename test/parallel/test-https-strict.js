@@ -128,9 +128,9 @@ function makeReq(path, port, error, host, ca) {
   const req = https.get(options);
   expectResponseCount++;
   const server = port === server1.address().port ? server1
-      : port === server2.address().port ? server2
+    : port === server2.address().port ? server2
       : port === server3.address().port ? server3
-      : null;
+        : null;
 
   if (!server) throw new Error(`invalid port: ${port}`);
   server.expectCount++;

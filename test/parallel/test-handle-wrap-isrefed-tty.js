@@ -20,7 +20,7 @@ if (process.argv[2] === 'child') {
   tty.unref();
   assert(tty._handle.hasRef(), false);
   tty._handle.close(
-      common.mustCall(() => assert(tty._handle.hasRef(), false)));
+    common.mustCall(() => assert(tty._handle.hasRef(), false)));
   return;
 }
 

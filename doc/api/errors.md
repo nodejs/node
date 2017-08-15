@@ -316,20 +316,20 @@ function makeFaster() {
 }
 
 makeFaster(); // will throw:
-  // /home/gbusey/file.js:6
-  //     throw new Error('oh no!');
-  //           ^
-  // Error: oh no!
-  //     at speedy (/home/gbusey/file.js:6:11)
-  //     at makeFaster (/home/gbusey/file.js:5:3)
-  //     at Object.<anonymous> (/home/gbusey/file.js:10:1)
-  //     at Module._compile (module.js:456:26)
-  //     at Object.Module._extensions..js (module.js:474:10)
-  //     at Module.load (module.js:356:32)
-  //     at Function.Module._load (module.js:312:12)
-  //     at Function.Module.runMain (module.js:497:10)
-  //     at startup (node.js:119:16)
-  //     at node.js:906:3
+// /home/gbusey/file.js:6
+//     throw new Error('oh no!');
+//           ^
+// Error: oh no!
+//     at speedy (/home/gbusey/file.js:6:11)
+//     at makeFaster (/home/gbusey/file.js:5:3)
+//     at Object.<anonymous> (/home/gbusey/file.js:10:1)
+//     at Module._compile (module.js:456:26)
+//     at Object.Module._extensions..js (module.js:474:10)
+//     at Module.load (module.js:356:32)
+//     at Function.Module._load (module.js:312:12)
+//     at Function.Module.runMain (module.js:497:10)
+//     at startup (node.js:119:16)
+//     at node.js:906:3
 ```
 
 The location information will be one of:
@@ -360,7 +360,7 @@ For example:
 
 ```js
 require('net').connect(-1);
-  // throws "RangeError: "port" option should be >= 0 and < 65536: -1"
+// throws "RangeError: "port" option should be >= 0 and < 65536: -1"
 ```
 
 Node.js will generate and throw `RangeError` instances *immediately* as a form
@@ -377,7 +377,7 @@ will do so.
 
 ```js
 doesNotExist;
-  // throws ReferenceError, doesNotExist is not a variable in this program.
+// throws ReferenceError, doesNotExist is not a variable in this program.
 ```
 
 Unless an application is dynamically generating and running code,
@@ -411,7 +411,7 @@ string would be considered a TypeError.
 
 ```js
 require('url').parse(() => { });
-  // throws TypeError, since it expected a string
+// throws TypeError, since it expected a string
 ```
 
 Node.js will generate and throw `TypeError` instances *immediately* as a form

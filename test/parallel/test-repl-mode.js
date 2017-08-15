@@ -32,7 +32,7 @@ function testStrictMode() {
 
   cli.input.emit('data', 'x = 3\n');
   assert.ok(/ReferenceError: x is not defined/.test(
-      cli.output.accumulator.join('')));
+    cli.output.accumulator.join('')));
   cli.output.accumulator.length = 0;
 
   cli.input.emit('data', 'let y = 3\n');

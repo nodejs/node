@@ -181,8 +181,8 @@ function doTest(cb, done) {
             c.end();
             c.on('end', function() {
               console.error(
-                  '>>> killing node process %d\n\n',
-                  nodeProcess.pid);
+                '>>> killing node process %d\n\n',
+                nodeProcess.pid);
               nodeProcess.kill();
               done();
             });

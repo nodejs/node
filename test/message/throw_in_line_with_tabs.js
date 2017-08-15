@@ -1,4 +1,4 @@
-/* eslint-disable indent-legacy, no-tabs */
+/* eslint-disable indent, no-tabs */
 'use strict';
 require('../common');
 
