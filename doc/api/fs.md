@@ -137,7 +137,7 @@ support. If `filename` is provided, it will be provided as a `Buffer` if
 fs.watch('./tmp', {encoding: 'buffer'}, (eventType, filename) => {
   if (filename)
     console.log(filename);
-    // Prints: <Buffer ...>
+  // Prints: <Buffer ...>
 });
 ```
 

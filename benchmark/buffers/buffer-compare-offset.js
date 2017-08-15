@@ -50,7 +50,7 @@ function main(conf) {
   const iter = (conf.millions >>> 0) * 1e6;
   const size = (conf.size >>> 0);
   const method = conf.method === 'slice' ?
-      compareUsingSlice : compareUsingOffset;
+    compareUsingSlice : compareUsingOffset;
   method(Buffer.alloc(size, 'a'),
          Buffer.alloc(size, 'b'),
          size >> 1,
