@@ -62,42 +62,47 @@ function writeFile(config, format) {
  * @returns {void}
  */
 function installModules(config) {
-    let modules = [];
+    const modules = {};
 
     // Create a list of modules which should be installed based on config
     if (config.plugins) {
-        modules = modules.concat(config.plugins.map(name => `eslint-plugin-${name}`));
+        for (const plugin of config.plugins) {
+            modules[`eslint-plugin-${plugin}`] = "latest";
+        }
     }
     if (config.extends && config.extends.indexOf("eslint:") === -1) {
-        modules.push(`eslint-config-${config.extends}`);
+        const moduleName = `eslint-config-${config.extends}`;
+
+        log.info(`Checking peerDependencies of ${moduleName}`);
+        modules[moduleName] = "latest";
+        Object.assign(
+            modules,
+            npmUtil.fetchPeerDependencies(`${moduleName}@latest`)
+        );
     }
 
-    // Determine which modules are already installed
-    if (modules.length === 0) {
+    // If no modules, do nothing.
+    if (Object.keys(modules).length === 0) {
         return;
     }
 
     // Add eslint to list in case user does not have it installed locally
-    modules.unshift("eslint");
+    modules.eslint = modules.eslint || "latest";
 
-    const installStatus = npmUtil.checkDevDeps(modules);
+    // Mark to show messages if it's new installation of eslint.
+    const installStatus = npmUtil.checkDevDeps(["eslint"]);
 
-    // Install packages which aren't already installed
-    const modulesToInstall = Object.keys(installStatus).filter(module => {
-        const notInstalled = installStatus[module] === false;
-
-        if (module === "eslint" && notInstalled) {
-            log.info("Local ESLint installation not found.");
-            config.installedESLint = true;
-        }
-
-        return notInstalled;
-    });
-
-    if (modulesToInstall.length > 0) {
-        log.info(`Installing ${modulesToInstall.join(", ")}`);
-        npmUtil.installSyncSaveDev(modulesToInstall);
+    if (installStatus.eslint === false) {
+        log.info("Local ESLint installation not found.");
+        config.installedESLint = true;
     }
+
+    // Install packages
+    const modulesToInstall = Object.keys(modules).map(name => `${name}@${modules[name]}`);
+
+    log.info(`Installing ${modulesToInstall.join(", ")}`);
+
+    npmUtil.installSyncSaveDev(modulesToInstall);
 }
 
 /**
@@ -265,9 +270,9 @@ function processAnswers(answers) {
 function getConfigForStyleGuide(guide) {
     const guides = {
         google: { extends: "google" },
-        airbnb: { extends: "airbnb", plugins: ["react", "jsx-a11y", "import"] },
-        "airbnb-base": { extends: "airbnb-base", plugins: ["import"] },
-        standard: { extends: "standard", plugins: ["standard", "promise"] }
+        airbnb: { extends: "airbnb" },
+        "airbnb-base": { extends: "airbnb-base" },
+        standard: { extends: "standard" }
     };
 
     if (!guides[guide]) {

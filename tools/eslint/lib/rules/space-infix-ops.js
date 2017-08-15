@@ -106,11 +106,10 @@ module.exports = {
          * @private
          */
         function checkBinary(node) {
-            if (node.left.typeAnnotation) {
-                return;
-            }
+            const leftNode = (node.left.typeAnnotation) ? node.left.typeAnnotation : node.left;
+            const rightNode = node.right;
 
-            const nonSpacedNode = getFirstNonSpacedToken(node.left, node.right);
+            const nonSpacedNode = getFirstNonSpacedToken(leftNode, rightNode);
 
             if (nonSpacedNode) {
                 if (!(int32Hint && sourceCode.getText(node).substr(-2) === "|0")) {
@@ -143,8 +142,11 @@ module.exports = {
          * @private
          */
         function checkVar(node) {
-            if (node.init) {
-                const nonSpacedNode = getFirstNonSpacedToken(node.id, node.init);
+            const leftNode = (node.id.typeAnnotation) ? node.id.typeAnnotation : node.id;
+            const rightNode = node.init;
+
+            if (rightNode) {
+                const nonSpacedNode = getFirstNonSpacedToken(leftNode, rightNode);
 
                 if (nonSpacedNode) {
                     report(node, nonSpacedNode);
