@@ -1170,15 +1170,16 @@ added: v6.0.0
 Property for checking and controlling whether a FIPS compliant crypto provider is
 currently in use. Setting to true requires a FIPS build of Node.js.
 
-### crypto.createCipher(algorithm, password)
+### crypto.createCipher(algorithm, password, options)
 <!-- YAML
 added: v0.1.94
 -->
 - `algorithm` {string}
 - `password` {string | Buffer | TypedArray | DataView}
+- `options` {string}
 
 Creates and returns a `Cipher` object that uses the given `algorithm` and
-`password`.
+`password`. Optional `options` argument controls stream behavior via [OpenSSL Options](#openssl-options).
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
@@ -1200,13 +1201,14 @@ In line with OpenSSL's recommendation to use pbkdf2 instead of
 their own using [`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][]
 to create the `Cipher` object.
 
-### crypto.createCipheriv(algorithm, key, iv)
+### crypto.createCipheriv(algorithm, key, iv, options)
 - `algorithm` {string}
 - `key` {string | Buffer | TypedArray | DataView}
 - `iv` {string | Buffer | TypedArray | DataView}
+- `options` {string}
 
 Creates and returns a `Cipher` object, with the given `algorithm`, `key` and
-initialization vector (`iv`).
+initialization vector (`iv`). Optional `options` argument controls stream behavior via [OpenSSL Options](#openssl-options).
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
@@ -1234,15 +1236,16 @@ value.
 Returns a `tls.SecureContext`, as-if [`tls.createSecureContext()`][] had been
 called.
 
-### crypto.createDecipher(algorithm, password)
+### crypto.createDecipher(algorithm, password, options)
 <!-- YAML
 added: v0.1.94
 -->
 - `algorithm` {string}
 - `password` {string | Buffer | TypedArray | DataView}
+- `options` {string}
 
 Creates and returns a `Decipher` object that uses the given `algorithm` and
-`password` (key).
+`password` (key). Optional `options` argument controls stream behavior via [OpenSSL Options](#openssl-options).
 
 The implementation of `crypto.createDecipher()` derives keys using the OpenSSL
 function [`EVP_BytesToKey`][] with the digest algorithm set to MD5, one
@@ -1256,16 +1259,17 @@ In line with OpenSSL's recommendation to use pbkdf2 instead of
 their own using [`crypto.pbkdf2()`][] and to use [`crypto.createDecipheriv()`][]
 to create the `Decipher` object.
 
-### crypto.createDecipheriv(algorithm, key, iv)
+### crypto.createDecipheriv(algorithm, key, iv, options)
 <!-- YAML
 added: v0.1.94
 -->
 - `algorithm` {string}
 - `key` {string | Buffer | TypedArray | DataView}
 - `iv` {string | Buffer | TypedArray | DataView}
+- `options` {string}
 
 Creates and returns a `Decipher` object that uses the given `algorithm`, `key`
-and initialization vector (`iv`).
+and initialization vector (`iv`). Optional `options` argument controls stream behavior via [OpenSSL Options](#openssl-options).
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
@@ -1333,14 +1337,15 @@ predefined curve specified by the `curveName` string. Use
 OpenSSL releases, `openssl ecparam -list_curves` will also display the name
 and description of each available elliptic curve.
 
-### crypto.createHash(algorithm)
+### crypto.createHash(algorithm, options)
 <!-- YAML
 added: v0.1.92
 -->
 - `algorithm` {string}
+- `options` {string}
 
 Creates and returns a `Hash` object that can be used to generate hash digests
-using the given `algorithm`.
+using the given `algorithm`. Optional `options` argument controls stream behavior via [OpenSSL Options](#openssl-options).
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
@@ -1367,14 +1372,15 @@ input.on('readable', () => {
 });
 ```
 
-### crypto.createHmac(algorithm, key)
+### crypto.createHmac(algorithm, key, options)
 <!-- YAML
 added: v0.1.94
 -->
 - `algorithm` {string}
 - `key` {string | Buffer | TypedArray | DataView}
+- `options` {string}
 
-Creates and returns an `Hmac` object that uses the given `algorithm` and `key`.
+Creates and returns an `Hmac` object that uses the given `algorithm` and `key`. Optional `options` argument controls stream behavior via [OpenSSL Options](#openssl-options).
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
@@ -1403,25 +1409,27 @@ input.on('readable', () => {
 });
 ```
 
-### crypto.createSign(algorithm)
+### crypto.createSign(algorithm, options)
 <!-- YAML
 added: v0.1.92
 -->
 - `algorithm` {string}
+- `options` {string}
 
 Creates and returns a `Sign` object that uses the given `algorithm`.
 Use [`crypto.getHashes()`][] to obtain an array of names of the available
-signing algorithms.
+signing algorithms. Optional `options` argument controls stream behavior via [OpenSSL Options](#openssl-options).
 
-### crypto.createVerify(algorithm)
+### crypto.createVerify(algorithm, options)
 <!-- YAML
 added: v0.1.92
 -->
 - `algorithm` {string}
+- `options` {string}
 
 Creates and returns a `Verify` object that uses the given algorithm.
 Use [`crypto.getHashes()`][] to obtain an array of names of the available
-signing algorithms.
+signing algorithms. Optional `options` argument controls stream behavior via [OpenSSL Options](#openssl-options).
 
 ### crypto.getCiphers()
 <!-- YAML
