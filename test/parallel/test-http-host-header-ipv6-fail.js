@@ -12,7 +12,7 @@
 const common = require('../common');
 
 if (!common.hasIPv6)
-  console.error('Skipping test, no IPv6 support');
+  common.skip('Skipping test, no IPv6 support');
 
 const assert = require('assert');
 const http = require('http');

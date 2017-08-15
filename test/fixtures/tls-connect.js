@@ -12,10 +12,9 @@ const util = require('util');
 module.exports = exports = checkCrypto;
 
 function checkCrypto() {
-  if (!common.hasCrypto) {
+  if (!common.hasCrypto)
     common.skip('missing crypto');
-    process.exit(0);
-  }
+
   return exports;
 }
 
