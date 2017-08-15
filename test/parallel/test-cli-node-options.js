@@ -29,7 +29,8 @@ disallow('--');
 disallow('--no_warnings'); // Node options don't allow '_' instead of '-'.
 
 function disallow(opt) {
-  const options = { env: { NODE_OPTIONS: opt } };
+  const options = { env: Object.assign({}, process.env,
+                                       { NODE_OPTIONS: opt }) };
   exec(process.execPath, options, common.mustCall(function(err) {
     const message = err.message.split(/\r?\n/)[1];
     const expect = `${process.execPath}: ${opt} is not allowed in NODE_OPTIONS`;
@@ -71,7 +72,7 @@ function expect(opt, want) {
   const printB = require.resolve('../fixtures/printB.js');
   const argv = [printB];
   const opts = {
-    env: { NODE_OPTIONS: opt },
+    env: Object.assign({}, process.env, { NODE_OPTIONS: opt }),
     maxBuffer: 1000000000,
   };
   exec(process.execPath, argv, opts, common.mustCall(function(err, stdout) {

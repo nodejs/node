@@ -26,9 +26,10 @@ const argv = ['--set', 'algo=sha256',
               '--set', 'v=crypto',
               '--set', 'writes=1',
               'crypto'];
-const env = Object.assign({}, process.env,
-                          { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
-const child = fork(runjs, argv, { env });
+
+const child = fork(runjs, argv, { env: Object.assign({}, process.env, {
+  NODEJS_BENCHMARK_ZERO_ALLOWED: 1 }) });
+
 child.on('exit', (code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
