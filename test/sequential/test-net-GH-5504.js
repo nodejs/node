@@ -49,7 +49,7 @@ function parent() {
   const node = process.execPath;
 
   const s = spawn(node, [__filename, 'server'], {
-    env: Object.assign(process.env, {
+    env: Object.assign({}, process.env, {
       NODE_DEBUG: 'net'
     })
   });

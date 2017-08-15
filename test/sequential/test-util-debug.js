@@ -26,7 +26,7 @@ function test(environ, shouldWrite) {
 
   const spawn = require('child_process').spawn;
   const child = spawn(process.execPath, [__filename, 'child'], {
-    env: Object.assign(process.env, { NODE_DEBUG: environ })
+    env: Object.assign({}, process.env, { NODE_DEBUG: environ })
   });
 
   expectErr = expectErr.split('%PID%').join(child.pid);
