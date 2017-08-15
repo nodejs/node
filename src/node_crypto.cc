@@ -283,9 +283,10 @@ void ThrowCryptoError(Environment* env,
     if (err_buf) {
       char tmpStr[256] = { };
       ERR_error_string_n(err_buf, tmpStr, sizeof(tmpStr));
-      errorStack->Set(i, String::NewFromUtf8(env->isolate(), tmpStr,
+      errorStack->Set(env->context(), i,
+                      String::NewFromUtf8(env->isolate(), tmpStr,
                                              v8::NewStringType::kNormal)
-                                                .ToLocalChecked());
+                                                .ToLocalChecked()).FromJust();
     }
     es->top -= 1;
   }
