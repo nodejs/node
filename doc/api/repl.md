@@ -40,6 +40,7 @@ The following special commands are supported by all REPL instances:
   `> .load ./file/to/load.js`
 * `.editor` - Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel)
 * `.load-editor` - Load a file and enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel)
+  `> .load-editor ./file/to/load.js`
 
 <!-- eslint-skip -->
 ```js
