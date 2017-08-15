@@ -37,15 +37,15 @@ example, buffers/buffer-read.js has the following configuration:
 <!-- eslint-disable strict, no-undef, no-unused-vars -->
 ```js
 var bench = common.createBenchmark(main, {
-    noAssert: [false, true],
-    buffer: ['fast', 'slow'],
-    type: ['UInt8', 'UInt16LE', 'UInt16BE',
-           'UInt32LE', 'UInt32BE',
-           'Int8', 'Int16LE', 'Int16BE',
-           'Int32LE', 'Int32BE',
-           'FloatLE', 'FloatBE',
-           'DoubleLE', 'DoubleBE'],
-    millions: [1]
+  noAssert: [false, true],
+  buffer: ['fast', 'slow'],
+  type: ['UInt8', 'UInt16LE', 'UInt16BE',
+         'UInt32LE', 'UInt32BE',
+         'Int8', 'Int16LE', 'Int16BE',
+         'Int32LE', 'Int32BE',
+         'FloatLE', 'FloatBE',
+         'DoubleLE', 'DoubleBE'],
+  millions: [1]
 });
 ```
 The runner takes one item from each of the property array value to build a list

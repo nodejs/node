@@ -221,7 +221,7 @@ double-backslashes, such as:
 
 ```js
 net.createServer().listen(
-    path.join('\\\\?\\pipe', process.cwd(), 'myctl'));
+  path.join('\\\\?\\pipe', process.cwd(), 'myctl'));
 ```
 
 The parameter `backlog` behaves the same as in
