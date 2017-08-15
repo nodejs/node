@@ -262,20 +262,16 @@ void ThrowCryptoError(Environment* env,
     ERR_error_string_n(err, errmsg, sizeof(errmsg));
     message = String::NewFromUtf8(env->isolate(), errmsg,
                                   v8::NewStringType::kNormal)
-                                    .ToLocalChecked();
+                                      .ToLocalChecked();
   } else {
     message = String::NewFromUtf8(env->isolate(), default_message,
                                   v8::NewStringType::kNormal)
-                                    .ToLocalChecked();
+                                      .ToLocalChecked();
   }
 
   Local<Value> exception_v = Exception::Error(message);
   CHECK(!exception_v.IsEmpty());
-  // Add the openSSLErrorStack property to the exception object.
   Local<Object> exception = exception_v.As<Object>();
-  Local<String> key = String::NewFromUtf8(env->isolate(), "openSSLErrorStack",
-                                          v8::NewStringType::kInternalized)
-                                            .ToLocalChecked();
   Local<Array> errorStack = Array::New(env->isolate());
 
   ERR_STATE *es = ERR_get_state();
@@ -289,17 +285,18 @@ void ThrowCryptoError(Environment* env,
       ERR_error_string_n(err_buf, tmpStr, sizeof(tmpStr));
       errorStack->Set(i, String::NewFromUtf8(env->isolate(), tmpStr,
                                              v8::NewStringType::kNormal)
-                                              .ToLocalChecked());
+                                                .ToLocalChecked());
     }
     es->top -= 1;
   }
 
-  // Adding the new property that will look like the following:
+  // Add the openSSLErrorStack property to the exception object.
+  // The new property will look like the following:
   // openSSLErrorStack: [
   // 'error:0906700D:PEM routines:PEM_ASN1_read_bio:ASN1 lib',
   // 'error:0D07803A:asn1 encoding routines:ASN1_ITEM_EX_D2I:nested asn1 error'
   // ]
-  exception->Set(env->context(), key, errorStack).FromJust();
+  exception->Set(env->openssl_error_stack(), errorStack);
   env->isolate()->ThrowException(exception);
 }
 

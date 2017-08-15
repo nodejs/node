@@ -240,6 +240,7 @@ assert.throws(function() {
   if ((err instanceof Error) &&
       /digest too big for rsa key$/.test(err) &&
       err.openSSLErrorStack !== undefined &&
+      Array.isArray(err.openSSLErrorStack) &&
       err.openSSLErrorStack.length === 0) {
     return true;
   }
@@ -265,6 +266,7 @@ assert.throws(function() {
   if ((err instanceof Error) &&
       /asn1 encoding routines:ASN1_CHECK_TLEN:wrong tag/.test(err) &&
       err.openSSLErrorStack !== undefined &&
+      Array.isArray(err.openSSLErrorStack) &&
       err.openSSLErrorStack.length > 0) {
     return true;
   }
