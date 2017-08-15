@@ -4,7 +4,7 @@ const assert = require('assert');
 
 const spawn = require('child_process').spawn;
 const child = spawn(process.execPath, [], {
-  env: Object.assign(process.env, {
+  env: Object.assign({}, process.env, {
     NODE_DEBUG: process.argv[2]
   })
 });
