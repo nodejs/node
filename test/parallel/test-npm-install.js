@@ -39,11 +39,12 @@ const pkgPath = path.join(installDir, 'package.json');
 
 fs.writeFileSync(pkgPath, pkgContent);
 
-const env = Object.create(process.env);
-env['PATH'] = path.dirname(process.execPath);
-env['NPM_CONFIG_PREFIX'] = path.join(npmSandbox, 'npm-prefix');
-env['NPM_CONFIG_TMP'] = path.join(npmSandbox, 'npm-tmp');
-env['HOME'] = path.join(npmSandbox, 'home');
+const env = common.envPlus({
+  PATH: path.dirname(process.execPath),
+  NPM_CONFIG_PREFIX: path.join(npmSandbox, 'npm-prefix'),
+  NPM_CONFIG_TMP: path.join(npmSandbox, 'npm-tmp'),
+  HOME: path.join(npmSandbox, 'home'),
+});
 
 const proc = spawn(process.execPath, args, {
   cwd: installDir,

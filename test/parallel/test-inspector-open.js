@@ -13,7 +13,7 @@ const url = require('url');
 if (process.env.BE_CHILD)
   return beChild();
 
-const child = fork(__filename, { env: { BE_CHILD: 1 } });
+const child = fork(__filename, { env: common.envPlus({ BE_CHILD: 1 }) });
 
 child.once('message', common.mustCall((msg) => {
   assert.strictEqual(msg.cmd, 'started');

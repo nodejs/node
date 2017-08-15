@@ -50,6 +50,12 @@ Platform normalizes the `dd` command
 
 Check if there is more than 1gb of total memory.
 
+### envPlus(additionalEnv)
+* return [&lt;Object>]
+
+Returns `process.env` plus `additionalEnv`. Used to pass a temporarily modified
+environment to a child process.
+
 ### expectsError([fn, ]settings[, exact])
 * `fn` [&lt;Function>] a function that should throw.
 * `settings` [&lt;Object>]

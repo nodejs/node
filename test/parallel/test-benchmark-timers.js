@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 // Minimal test for timers benchmarks. This makes sure the benchmarks aren't
 // horribly broken but nothing more than that.
@@ -15,10 +15,9 @@ const argv = ['--set', 'type=depth',
               '--set', 'thousands=0.001',
               'timers'];
 
-const env = Object.assign({}, process.env,
-                          { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+const child = fork(runjs, argv, { env: common.envPlus({
+  NODEJS_BENCHMARK_ZERO_ALLOWED: 1 }) });
 
-const child = fork(runjs, argv, { env });
 child.on('exit', (code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
