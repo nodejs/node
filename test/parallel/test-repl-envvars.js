@@ -36,7 +36,7 @@ const tests = [
 ];
 
 function run(test) {
-  const env = test.env;
+  const env = Object.assign({}, process.env, test.env);
   const expected = test.expected;
   const opts = {
     terminal: true,

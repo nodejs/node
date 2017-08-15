@@ -34,9 +34,11 @@ Object.setPrototypeOf(env, {
 
 let child;
 if (common.isWindows) {
-  child = spawn('cmd.exe', ['/c', 'set'], {env: env});
+  child = spawn('cmd.exe', ['/c', 'set'],
+                Object.assign({}, process.env, { env: env }));
 } else {
-  child = spawn('/usr/bin/env', [], {env: env});
+  child = spawn('/usr/bin/env', [],
+                Object.assign({}, process.env, { env: env }));
 }
 
 
