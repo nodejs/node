@@ -44,7 +44,9 @@ function after(err, stdout, stderr) {
 if (!common.isWindows) {
   child = exec('/usr/bin/env', { env: { 'HELLO': 'WORLD' } }, after);
 } else {
-  child = exec('set', { env: { 'HELLO': 'WORLD' } }, after);
+  child = exec('set',
+               { env: Object.assign({}, process.env, { 'HELLO': 'WORLD' }) },
+               after);
 }
 
 child.stdout.setEncoding('utf8');
