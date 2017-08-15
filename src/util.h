@@ -93,14 +93,6 @@ template <typename T> using remove_reference = std::remove_reference<T>;
     }                                                                         \
   } while (0)
 
-// FIXME(bnoordhuis) cctests don't link in node::Abort() and node::Assert().
-#ifdef GTEST_DONT_DEFINE_ASSERT_EQ
-#undef ABORT
-#undef CHECK
-#define ABORT ABORT_NO_BACKTRACE
-#define CHECK assert
-#endif
-
 #ifdef NDEBUG
 #define ASSERT(expr)
 #else
