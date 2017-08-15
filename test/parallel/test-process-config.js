@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -32,14 +32,18 @@ assert(process.hasOwnProperty('config'));
 assert.strictEqual(Object(process.config), process.config);
 
 const configPath = path.resolve(__dirname, '..', '..', 'config.gypi');
-let config = fs.readFileSync(configPath, 'utf8');
+if (!fs.existsSync(configPath))
+  common.skip(`'config.gypi' not found (${configPath})`);
 
-// clean up comment at the first line
-config = config.split('\n').slice(1).join('\n').replace(/'/g, '"');
-config = JSON.parse(config, function(key, value) {
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  return value;
-});
+const configRaw = fs.readFileSync(configPath, 'utf8')
+  // clean up comment at the first line
+  .split('\n').slice(1).join('\n')
+  // normalize JSON
+  .replace(/'/g, '"').replace(/"(true|false)"/g, '$1');
+
+const config = JSON.parse(configRaw);
+
+if (config.variables.node_target_type === 'static_library')
+  common.skip(`'process.config' not relevant when building as static library`);
 
 assert.deepStrictEqual(config, process.config);
