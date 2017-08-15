@@ -1,11 +1,10 @@
 'use strict';
 // http://groups.google.com/group/nodejs/browse_thread/thread/f66cd3c960406919
 const common = require('../common');
-const assert = require('assert');
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
 
 if (process.argv[2] === 'request') {
   const http = require('http');

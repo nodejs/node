@@ -1,17 +1,12 @@
 'use strict';
-//
 
 const common = require('../common');
 
-if (!common.opensslCli) {
+if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
-  return;
-}
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const join = require('path').join;
 const net = require('net');

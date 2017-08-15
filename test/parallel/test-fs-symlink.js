@@ -13,7 +13,7 @@ if (common.isWindows) {
   // We'll only try to run symlink test if we have enough privileges.
   exec('whoami /priv', function(err, o) {
     if (err || !o.includes('SeCreateSymbolicLinkPrivilege')) {
-      common.skip('insufficient privileges');
+      common.printSkipMessage('insufficient privileges');
     }
   });
 }

@@ -3,10 +3,8 @@
 // certification between Starfield Class 2 and ValiCert Class 2
 
 const common = require('../common');
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const tls = require('tls');
 const socket = tls.connect(443, 'address.melissadata.net', function() {

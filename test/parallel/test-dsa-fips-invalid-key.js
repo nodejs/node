@@ -1,12 +1,9 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasFipsCrypto) {
+if (!common.hasFipsCrypto)
   common.skip('node compiled without FIPS OpenSSL.');
-  return;
-}
 
+const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
 

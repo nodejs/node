@@ -29,7 +29,8 @@ try {
   arrayBuffer = new ArrayBuffer(size);
 } catch (e) {
   if (e instanceof RangeError && acceptableOOMErrors.includes(e.message))
-    return common.skip(`Unable to allocate ${size} bytes for ArrayBuffer`);
+    common.skip(`Unable to allocate ${size} bytes for ArrayBuffer`);
+
   throw e;
 }
 
