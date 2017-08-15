@@ -127,8 +127,8 @@ inline v8::Local<v8::String> Environment::AsyncHooks::provider_string(int idx) {
 
 inline void Environment::AsyncHooks::push_ids(double async_id,
                                               double trigger_id) {
-  CHECK_GE(async_id, 0);
-  CHECK_GE(trigger_id, 0);
+  CHECK_GE(async_id, -1);
+  CHECK_GE(trigger_id, -1);
 
   ids_stack_.push({ uid_fields_[kCurrentAsyncId],
                     uid_fields_[kCurrentTriggerId] });
@@ -176,13 +176,14 @@ inline void Environment::AsyncHooks::clear_id_stack() {
 inline Environment::AsyncHooks::InitScope::InitScope(
     Environment* env, double init_trigger_id)
         : env_(env),
-          uid_fields_(env->async_hooks()->uid_fields()) {
-  env->async_hooks()->push_ids(uid_fields_[AsyncHooks::kCurrentAsyncId],
+          uid_fields_ref_(env->async_hooks()->uid_fields()) {
+  CHECK_GE(init_trigger_id, -1);
+  env->async_hooks()->push_ids(uid_fields_ref_[AsyncHooks::kCurrentAsyncId],
                                init_trigger_id);
 }
 
 inline Environment::AsyncHooks::InitScope::~InitScope() {
-  env_->async_hooks()->pop_ids(uid_fields_[AsyncHooks::kCurrentAsyncId]);
+  env_->async_hooks()->pop_ids(uid_fields_ref_[AsyncHooks::kCurrentAsyncId]);
 }
 
 inline Environment::AsyncHooks::ExecScope::ExecScope(
@@ -190,6 +191,8 @@ inline Environment::AsyncHooks::ExecScope::ExecScope(
         : env_(env),
           async_id_(async_id),
           disposed_(false) {
+  CHECK_GE(async_id, -1);
+  CHECK_GE(trigger_id, -1);
   env->async_hooks()->push_ids(async_id, trigger_id);
 }
 

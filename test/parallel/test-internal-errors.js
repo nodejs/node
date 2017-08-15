@@ -242,7 +242,7 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
-  errors.message('ERR_HTTP_HEADERS_SENT'),
+  errors.message('ERR_HTTP_HEADERS_SENT', ['render']),
   'Cannot render headers after they are sent to the client'
 );
 
@@ -252,11 +252,23 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
-  errors.message('ERR_INVALID_HTTP_TOKEN', ['Method']),
-  'Method must be a valid HTTP token'
+  errors.message('ERR_INVALID_HTTP_TOKEN', ['Method', 'foo']),
+  'Method must be a valid HTTP token ["foo"]'
 );
 
 assert.strictEqual(
   errors.message('ERR_UNESCAPED_CHARACTERS', ['Request path']),
   'Request path contains unescaped characters'
 );
+
+
+// Test error messages for async_hooks
+assert.strictEqual(
+  errors.message('ERR_ASYNC_CALLBACK', ['init']),
+  'init must be a function');
+assert.strictEqual(
+  errors.message('ERR_ASYNC_TYPE', [{}]),
+  'Invalid name for async "type": [object Object]');
+assert.strictEqual(
+  errors.message('ERR_INVALID_ASYNC_ID', ['asyncId', undefined]),
+  'Invalid asyncId value: undefined');

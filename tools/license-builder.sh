@@ -80,6 +80,8 @@ addlicense "cpplint.py" "tools/cpplint.py" \
 addlicense "ESLint" "tools/eslint" "$(cat ${rootdir}/tools/eslint/LICENSE)"
 addlicense "gtest" "deps/gtest" "$(cat ${rootdir}/deps/gtest/LICENSE)"
 
+# nghttp2
+addlicense "nghttp2" "deps/nghttp2" "$(cat ${rootdir}/deps/nghttp2/COPYING)"
 
 
 mv $tmplicense $licensefile
