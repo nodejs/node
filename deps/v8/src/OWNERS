@@ -1,2 +1,5 @@
-per-file i18n.*=cira@chromium.org
-per-file i18n.*=mnita@google.com
+per-file intl.*=cira@chromium.org
+per-file intl.*=mnita@google.com
+per-file intl.*=jshin@chromium.org
+per-file typing-asm.*=aseemgarg@chromium.org
+per-file typing-asm.*=bradnelson@chromium.org

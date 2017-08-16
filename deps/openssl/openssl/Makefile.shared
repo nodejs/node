@@ -272,7 +272,7 @@ link_o.cygwin:
 	SHLIB_SOVER=${LIBVERSION:+"-$(LIBVERSION)"}; \
 	ALLSYMSFLAGS='-Wl,--whole-archive'; \
 	NOALLSYMSFLAGS='-Wl,--no-whole-archive'; \
-	SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared $$base $$deffile -Wl,-s,-Bsymbolic"; \
+	SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared $$base $$deffile -Wl,-Bsymbolic"; \
 	$(LINK_SO_O)
 #for mingw target if def-file is in use dll-name should match library-name
 link_a.cygwin:
@@ -289,15 +289,15 @@ link_a.cygwin:
 		SHLIB_SOVER=32; \
 		extras="$(LIBNAME).def"; \
 		$(PERL) util/mkdef.pl 32 $$SHLIB > $$extras; \
-		base=; [ $(LIBNAME) = "crypto" ] && base=-Wl,--image-base,0x63000000; \
+		base=; [ $(LIBNAME) = "crypto" -a -n "$(FIPSCANLIB)" ] && base=-Wl,--image-base,0x63000000; \
 	fi; \
 	dll_name=$$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX; \
 	$(PERL) util/mkrc.pl $$dll_name | \
-		$(CROSS_COMPILE)windres -o rc.o; \
+		$(RC) -o rc.o; \
 	extras="$$extras rc.o"; \
 	ALLSYMSFLAGS='-Wl,--whole-archive'; \
 	NOALLSYMSFLAGS='-Wl,--no-whole-archive'; \
-	SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared $$base -Wl,-s,-Bsymbolic -Wl,--out-implib,lib$(LIBNAME).dll.a $$extras"; \
+	SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared $$base -Wl,-Bsymbolic -Wl,--out-implib,lib$(LIBNAME).dll.a $$extras"; \
 	[ -f apps/$$dll_name ] && rm apps/$$dll_name; \
 	[ -f test/$$dll_name ] && rm test/$$dll_name; \
 	$(LINK_SO_A) || exit 1; \

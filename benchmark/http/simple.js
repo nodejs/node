@@ -1,24 +1,30 @@
+'use strict';
 var common = require('../common.js');
 var PORT = common.PORT;
 
 var bench = common.createBenchmark(main, {
   // unicode confuses ab on os x.
   type: ['bytes', 'buffer'],
-  length: [4, 1024, 102400],
-  chunks: [0, 1, 4],  // chunks=0 means 'no chunked encoding'.
-  c: [50, 500]
+  len: [4, 1024, 102400],
+  chunks: [1, 4],
+  c: [50, 500],
+  chunkedEnc: ['true', 'false'],
+  res: ['normal', 'setHeader', 'setHeaderWH']
 });
 
 function main(conf) {
   process.env.PORT = PORT;
-  var spawn = require('child_process').spawn;
-  var server = require('../http_simple.js');
-  setTimeout(function() {
-    var path = '/' + conf.type + '/' + conf.length + '/' + conf.chunks;
-    var args = ['-d', '10s', '-t', 8, '-c', conf.c];
+  var server = require('../fixtures/simple-http-server.js')
+  .listen(process.env.PORT || common.PORT)
+  .on('listening', function() {
+    var path =
+      `/${conf.type}/${conf.len}/${conf.chunks}/${conf.res}/${conf.chunkedEnc}`;
 
-    bench.http(path, args, function() {
+    bench.http({
+      path: path,
+      connections: conf.c
+    }, function() {
       server.close();
     });
-  }, 2000);
+  });
 }

@@ -30,12 +30,12 @@ void ares_free_hostent(struct hostent *host)
   if (!host)
     return;
 
-  free((char *)(host->h_name));
+  ares_free((char *)(host->h_name));
   for (p = host->h_aliases; *p; p++)
-    free(*p);
-  free(host->h_aliases);
-  free(host->h_addr_list[0]); /* no matter if there is one or many entries,
+    ares_free(*p);
+  ares_free(host->h_aliases);
+  ares_free(host->h_addr_list[0]); /* no matter if there is one or many entries,
                                  there is only one malloc for all of them */
-  free(host->h_addr_list);
-  free(host);
+  ares_free(host->h_addr_list);
+  ares_free(host);
 }

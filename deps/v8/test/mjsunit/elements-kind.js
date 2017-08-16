@@ -25,22 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc --nostress-opt --typed-array-max_size_in-heap=2048
+// Flags: --allow-natives-syntax --expose-gc --nostress-opt --typed-array-max-size-in-heap=2048
 
 var elements_kind = {
   fast_smi_only             :  'fast smi only elements',
   fast                      :  'fast elements',
   fast_double               :  'fast double elements',
   dictionary                :  'dictionary elements',
-  external_int32            :  'external int8 elements',
-  external_uint8            :  'external uint8 elements',
-  external_int16            :  'external int16 elements',
-  external_uint16           :  'external uint16 elements',
-  external_int32            :  'external int32 elements',
-  external_uint32           :  'external uint32 elements',
-  external_float32          :  'external float32 elements',
-  external_float64          :  'external float64 elements',
-  external_uint8_clamped    :  'external uint8_clamped elements',
   fixed_int32               :  'fixed int8 elements',
   fixed_uint8               :  'fixed uint8 elements',
   fixed_int16               :  'fixed int16 elements',
@@ -58,34 +49,6 @@ function getKind(obj) {
   if (%HasFastDoubleElements(obj)) return elements_kind.fast_double;
   if (%HasDictionaryElements(obj)) return elements_kind.dictionary;
 
-  // Every external kind is also an external array.
-  if (%HasExternalInt8Elements(obj)) {
-    return elements_kind.external_int8;
-  }
-  if (%HasExternalUint8Elements(obj)) {
-    return elements_kind.external_uint8;
-  }
-  if (%HasExternalInt16Elements(obj)) {
-    return elements_kind.external_int16;
-  }
-  if (%HasExternalUint16Elements(obj)) {
-    return elements_kind.external_uint16;
-  }
-  if (%HasExternalInt32Elements(obj)) {
-    return elements_kind.external_int32;
-  }
-  if (%HasExternalUint32Elements(obj)) {
-    return elements_kind.external_uint32;
-  }
-  if (%HasExternalFloat32Elements(obj)) {
-    return elements_kind.external_float32;
-  }
-  if (%HasExternalFloat64Elements(obj)) {
-    return elements_kind.external_float64;
-  }
-  if (%HasExternalUint8ClampedElements(obj)) {
-    return elements_kind.external_uint8_clamped;
-  }
   if (%HasFixedInt8Elements(obj)) {
     return elements_kind.fixed_int8;
   }
@@ -164,15 +127,15 @@ function test_wrapper() {
   assertKind(elements_kind.fixed_uint8_clamped, new Uint8ClampedArray(512));
 
   var ab = new ArrayBuffer(128);
-  assertKind(elements_kind.external_int8,    new Int8Array(ab));
-  assertKind(elements_kind.external_uint8,   new Uint8Array(ab));
-  assertKind(elements_kind.external_int16,   new Int16Array(ab));
-  assertKind(elements_kind.external_uint16,  new Uint16Array(ab));
-  assertKind(elements_kind.external_int32,   new Int32Array(ab));
-  assertKind(elements_kind.external_uint32,  new Uint32Array(ab));
-  assertKind(elements_kind.external_float32, new Float32Array(ab));
-  assertKind(elements_kind.external_float64, new Float64Array(ab));
-  assertKind(elements_kind.external_uint8_clamped, new Uint8ClampedArray(ab));
+  assertKind(elements_kind.fixed_int8,    new Int8Array(ab));
+  assertKind(elements_kind.fixed_uint8,   new Uint8Array(ab));
+  assertKind(elements_kind.fixed_int16,   new Int16Array(ab));
+  assertKind(elements_kind.fixed_uint16,  new Uint16Array(ab));
+  assertKind(elements_kind.fixed_int32,   new Int32Array(ab));
+  assertKind(elements_kind.fixed_uint32,  new Uint32Array(ab));
+  assertKind(elements_kind.fixed_float32, new Float32Array(ab));
+  assertKind(elements_kind.fixed_float64, new Float64Array(ab));
+  assertKind(elements_kind.fixed_uint8_clamped, new Uint8ClampedArray(ab));
 
   // Crankshaft support for smi-only array elements.
   function monomorphic(array) {
@@ -196,7 +159,7 @@ function test_wrapper() {
 // The test is called in a wrapper function to eliminate the transition learning
 // feedback of AllocationSites.
 test_wrapper();
-%ClearFunctionTypeFeedback(test_wrapper);
+%ClearFunctionFeedback(test_wrapper);
 
 %NeverOptimizeFunction(construct_smis);
 

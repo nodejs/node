@@ -19,18 +19,27 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const spawnSync = require('child_process').spawnSync;
 
-var options = {stdio: ['pipe']};
-var child = common.spawnPwd(options);
+let options = { stdio: ['pipe'] };
+let child = common.spawnPwd(options);
 
-assert.notEqual(child.stdout, null);
-assert.notEqual(child.stderr, null);
+assert.notStrictEqual(child.stdout, null);
+assert.notStrictEqual(child.stderr, null);
 
-options = {stdio: 'ignore'};
+options = { stdio: 'ignore' };
 child = common.spawnPwd(options);
 
-assert.equal(child.stdout, null);
-assert.equal(child.stderr, null);
+assert.strictEqual(child.stdout, null);
+assert.strictEqual(child.stderr, null);
+
+options = { stdio: 'ignore' };
+child = spawnSync('cat', [], options);
+assert.deepStrictEqual(options, { stdio: 'ignore' });
+
+assert.throws(() => {
+  common.spawnPwd({ stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'ipc'] });
+}, common.expectsError({ code: 'ERR_IPC_ONE_PIPE', type: Error }));

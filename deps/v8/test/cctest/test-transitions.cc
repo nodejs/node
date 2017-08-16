@@ -10,7 +10,12 @@
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/factory.h"
+#include "src/field-type.h"
 #include "src/global-handles.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/field-type.h -> src/objects-inl.h
+#include "src/objects-inl.h"
+#include "src/transitions.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -19,16 +24,6 @@ using namespace v8::internal;
 //
 // Helper functions.
 //
-
-static void ConnectTransition(Handle<Map> parent,
-                              Handle<TransitionArray> transitions,
-                              Handle<Map> child) {
-  if (!parent->HasTransitionArray() || *transitions != parent->transitions()) {
-    parent->set_transitions(*transitions);
-  }
-  child->SetBackPointer(*parent);
-}
-
 
 TEST(TransitionArray_SimpleFieldTransitions) {
   CcTest::InitializeVM();
@@ -42,42 +37,44 @@ TEST(TransitionArray_SimpleFieldTransitions) {
 
   Handle<Map> map0 = Map::Create(isolate, 0);
   Handle<Map> map1 =
-      Map::CopyWithField(map0, name1, handle(HeapType::Any(), isolate),
-                         attributes, Representation::Tagged(),
-                         OMIT_TRANSITION).ToHandleChecked();
+      Map::CopyWithField(map0, name1, handle(FieldType::Any(), isolate),
+                         attributes, kMutable, Representation::Tagged(),
+                         OMIT_TRANSITION)
+          .ToHandleChecked();
   Handle<Map> map2 =
-      Map::CopyWithField(map0, name2, handle(HeapType::Any(), isolate),
-                         attributes, Representation::Tagged(),
-                         OMIT_TRANSITION).ToHandleChecked();
+      Map::CopyWithField(map0, name2, handle(FieldType::Any(), isolate),
+                         attributes, kMutable, Representation::Tagged(),
+                         OMIT_TRANSITION)
+          .ToHandleChecked();
 
-  CHECK(!map0->HasTransitionArray());
-  Handle<TransitionArray> transitions = TransitionArray::Allocate(isolate, 0);
-  CHECK(transitions->IsFullTransitionArray());
+  CHECK(map0->raw_transitions()->IsSmi());
 
-  int transition;
-  transitions =
-      transitions->Insert(map0, name1, map1, SIMPLE_PROPERTY_TRANSITION);
-  ConnectTransition(map0, transitions, map1);
-  CHECK(transitions->IsSimpleTransition());
-  transition = transitions->Search(FIELD, *name1, attributes);
-  CHECK_EQ(TransitionArray::kSimpleTransitionIndex, transition);
-  CHECK_EQ(*name1, transitions->GetKey(transition));
-  CHECK_EQ(*map1, transitions->GetTarget(transition));
+  TransitionArray::Insert(map0, name1, map1, SIMPLE_PROPERTY_TRANSITION);
+  CHECK(TransitionArray::IsSimpleTransition(map0->raw_transitions()));
+  CHECK_EQ(*map1,
+           TransitionArray::SearchTransition(*map0, kData, *name1, attributes));
+  CHECK_EQ(1, TransitionArray::NumberOfTransitions(map0->raw_transitions()));
+  CHECK_EQ(*name1, TransitionArray::GetKey(map0->raw_transitions(), 0));
+  CHECK_EQ(*map1, TransitionArray::GetTarget(map0->raw_transitions(), 0));
 
-  transitions =
-      transitions->Insert(map0, name2, map2, SIMPLE_PROPERTY_TRANSITION);
-  ConnectTransition(map0, transitions, map2);
-  CHECK(transitions->IsFullTransitionArray());
+  TransitionArray::Insert(map0, name2, map2, SIMPLE_PROPERTY_TRANSITION);
+  CHECK(TransitionArray::IsFullTransitionArray(map0->raw_transitions()));
 
-  transition = transitions->Search(FIELD, *name1, attributes);
-  CHECK_EQ(*name1, transitions->GetKey(transition));
-  CHECK_EQ(*map1, transitions->GetTarget(transition));
+  CHECK_EQ(*map1,
+           TransitionArray::SearchTransition(*map0, kData, *name1, attributes));
+  CHECK_EQ(*map2,
+           TransitionArray::SearchTransition(*map0, kData, *name2, attributes));
+  CHECK_EQ(2, TransitionArray::NumberOfTransitions(map0->raw_transitions()));
+  for (int i = 0; i < 2; i++) {
+    Name* key = TransitionArray::GetKey(map0->raw_transitions(), i);
+    Map* target = TransitionArray::GetTarget(map0->raw_transitions(), i);
+    CHECK((key == *name1 && target == *map1) ||
+          (key == *name2 && target == *map2));
+  }
 
-  transition = transitions->Search(FIELD, *name2, attributes);
-  CHECK_EQ(*name2, transitions->GetKey(transition));
-  CHECK_EQ(*map2, transitions->GetTarget(transition));
-
-  DCHECK(transitions->IsSortedNoDuplicates());
+#ifdef DEBUG
+  CHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#endif
 }
 
 
@@ -93,39 +90,44 @@ TEST(TransitionArray_FullFieldTransitions) {
 
   Handle<Map> map0 = Map::Create(isolate, 0);
   Handle<Map> map1 =
-      Map::CopyWithField(map0, name1, handle(HeapType::Any(), isolate),
-                         attributes, Representation::Tagged(),
-                         OMIT_TRANSITION).ToHandleChecked();
+      Map::CopyWithField(map0, name1, handle(FieldType::Any(), isolate),
+                         attributes, kMutable, Representation::Tagged(),
+                         OMIT_TRANSITION)
+          .ToHandleChecked();
   Handle<Map> map2 =
-      Map::CopyWithField(map0, name2, handle(HeapType::Any(), isolate),
-                         attributes, Representation::Tagged(),
-                         OMIT_TRANSITION).ToHandleChecked();
+      Map::CopyWithField(map0, name2, handle(FieldType::Any(), isolate),
+                         attributes, kMutable, Representation::Tagged(),
+                         OMIT_TRANSITION)
+          .ToHandleChecked();
 
-  CHECK(!map0->HasTransitionArray());
-  Handle<TransitionArray> transitions = TransitionArray::Allocate(isolate, 0);
-  CHECK(transitions->IsFullTransitionArray());
+  CHECK(map0->raw_transitions()->IsSmi());
 
-  int transition;
-  transitions = transitions->Insert(map0, name1, map1, PROPERTY_TRANSITION);
-  ConnectTransition(map0, transitions, map1);
-  CHECK(transitions->IsFullTransitionArray());
-  transition = transitions->Search(FIELD, *name1, attributes);
-  CHECK_EQ(*name1, transitions->GetKey(transition));
-  CHECK_EQ(*map1, transitions->GetTarget(transition));
+  TransitionArray::Insert(map0, name1, map1, PROPERTY_TRANSITION);
+  CHECK(TransitionArray::IsFullTransitionArray(map0->raw_transitions()));
+  CHECK_EQ(*map1,
+           TransitionArray::SearchTransition(*map0, kData, *name1, attributes));
+  CHECK_EQ(1, TransitionArray::NumberOfTransitions(map0->raw_transitions()));
+  CHECK_EQ(*name1, TransitionArray::GetKey(map0->raw_transitions(), 0));
+  CHECK_EQ(*map1, TransitionArray::GetTarget(map0->raw_transitions(), 0));
 
-  transitions = transitions->Insert(map0, name2, map2, PROPERTY_TRANSITION);
-  ConnectTransition(map0, transitions, map2);
-  CHECK(transitions->IsFullTransitionArray());
+  TransitionArray::Insert(map0, name2, map2, PROPERTY_TRANSITION);
+  CHECK(TransitionArray::IsFullTransitionArray(map0->raw_transitions()));
 
-  transition = transitions->Search(FIELD, *name1, attributes);
-  CHECK_EQ(*name1, transitions->GetKey(transition));
-  CHECK_EQ(*map1, transitions->GetTarget(transition));
+  CHECK_EQ(*map1,
+           TransitionArray::SearchTransition(*map0, kData, *name1, attributes));
+  CHECK_EQ(*map2,
+           TransitionArray::SearchTransition(*map0, kData, *name2, attributes));
+  CHECK_EQ(2, TransitionArray::NumberOfTransitions(map0->raw_transitions()));
+  for (int i = 0; i < 2; i++) {
+    Name* key = TransitionArray::GetKey(map0->raw_transitions(), i);
+    Map* target = TransitionArray::GetTarget(map0->raw_transitions(), i);
+    CHECK((key == *name1 && target == *map1) ||
+          (key == *name2 && target == *map2));
+  }
 
-  transition = transitions->Search(FIELD, *name2, attributes);
-  CHECK_EQ(*name2, transitions->GetKey(transition));
-  CHECK_EQ(*map2, transitions->GetTarget(transition));
-
-  DCHECK(transitions->IsSortedNoDuplicates());
+#ifdef DEBUG
+  CHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#endif
 }
 
 
@@ -141,32 +143,41 @@ TEST(TransitionArray_DifferentFieldNames) {
   PropertyAttributes attributes = NONE;
 
   Handle<Map> map0 = Map::Create(isolate, 0);
-  CHECK(!map0->HasTransitionArray());
-  Handle<TransitionArray> transitions = TransitionArray::Allocate(isolate, 0);
-  CHECK(transitions->IsFullTransitionArray());
+  CHECK(map0->raw_transitions()->IsSmi());
 
   for (int i = 0; i < PROPS_COUNT; i++) {
     EmbeddedVector<char, 64> buffer;
     SNPrintF(buffer, "prop%d", i);
     Handle<String> name = factory->InternalizeUtf8String(buffer.start());
     Handle<Map> map =
-        Map::CopyWithField(map0, name, handle(HeapType::Any(), isolate),
-                           attributes, Representation::Tagged(),
-                           OMIT_TRANSITION).ToHandleChecked();
+        Map::CopyWithField(map0, name, handle(FieldType::Any(), isolate),
+                           attributes, kMutable, Representation::Tagged(),
+                           OMIT_TRANSITION)
+            .ToHandleChecked();
     names[i] = name;
     maps[i] = map;
 
-    transitions = transitions->Insert(map0, name, map, PROPERTY_TRANSITION);
-    ConnectTransition(map0, transitions, map);
+    TransitionArray::Insert(map0, name, map, PROPERTY_TRANSITION);
   }
 
   for (int i = 0; i < PROPS_COUNT; i++) {
-    int transition = transitions->Search(FIELD, *names[i], attributes);
-    CHECK_EQ(*names[i], transitions->GetKey(transition));
-    CHECK_EQ(*maps[i], transitions->GetTarget(transition));
+    CHECK_EQ(*maps[i], TransitionArray::SearchTransition(
+                           *map0, kData, *names[i], attributes));
+  }
+  for (int i = 0; i < PROPS_COUNT; i++) {
+    Name* key = TransitionArray::GetKey(map0->raw_transitions(), i);
+    Map* target = TransitionArray::GetTarget(map0->raw_transitions(), i);
+    for (int j = 0; j < PROPS_COUNT; j++) {
+      if (*names[i] == key) {
+        CHECK_EQ(*maps[i], target);
+        break;
+      }
+    }
   }
 
-  DCHECK(transitions->IsSortedNoDuplicates());
+#ifdef DEBUG
+  CHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#endif
 }
 
 
@@ -177,9 +188,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
   Factory* factory = isolate->factory();
 
   Handle<Map> map0 = Map::Create(isolate, 0);
-  CHECK(!map0->HasTransitionArray());
-  Handle<TransitionArray> transitions = TransitionArray::Allocate(isolate, 0);
-  CHECK(transitions->IsFullTransitionArray());
+  CHECK(map0->raw_transitions()->IsSmi());
 
   const int ATTRS_COUNT = (READ_ONLY | DONT_ENUM | DONT_DELETE) + 1;
   STATIC_ASSERT(ATTRS_COUNT == 8);
@@ -191,25 +200,27 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
     PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
 
     Handle<Map> map =
-        Map::CopyWithField(map0, name, handle(HeapType::Any(), isolate),
-                           attributes, Representation::Tagged(),
-                           OMIT_TRANSITION).ToHandleChecked();
+        Map::CopyWithField(map0, name, FieldType::Any(isolate), attributes,
+                           kMutable, Representation::Tagged(), OMIT_TRANSITION)
+            .ToHandleChecked();
     attr_maps[i] = map;
 
-    transitions = transitions->Insert(map0, name, map, PROPERTY_TRANSITION);
-    ConnectTransition(map0, transitions, map);
+    TransitionArray::Insert(map0, name, map, PROPERTY_TRANSITION);
   }
 
   // Ensure that transitions for |name| field are valid.
   for (int i = 0; i < ATTRS_COUNT; i++) {
     PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
-
-    int transition = transitions->Search(FIELD, *name, attributes);
-    CHECK_EQ(*name, transitions->GetKey(transition));
-    CHECK_EQ(*attr_maps[i], transitions->GetTarget(transition));
+    CHECK_EQ(*attr_maps[i], TransitionArray::SearchTransition(
+                                *map0, kData, *name, attributes));
+    // All transitions use the same key, so this check doesn't need to
+    // care about ordering.
+    CHECK_EQ(*name, TransitionArray::GetKey(map0->raw_transitions(), i));
   }
 
-  DCHECK(transitions->IsSortedNoDuplicates());
+#ifdef DEBUG
+  CHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#endif
 }
 
 
@@ -224,9 +235,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   Handle<Map> maps[PROPS_COUNT];
 
   Handle<Map> map0 = Map::Create(isolate, 0);
-  CHECK(!map0->HasTransitionArray());
-  Handle<TransitionArray> transitions = TransitionArray::Allocate(isolate, 0);
-  CHECK(transitions->IsFullTransitionArray());
+  CHECK(map0->raw_transitions()->IsSmi());
 
   // Some number of fields.
   for (int i = 0; i < PROPS_COUNT; i++) {
@@ -234,14 +243,13 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
     SNPrintF(buffer, "prop%d", i);
     Handle<String> name = factory->InternalizeUtf8String(buffer.start());
     Handle<Map> map =
-        Map::CopyWithField(map0, name, handle(HeapType::Any(), isolate), NONE,
-                           Representation::Tagged(),
-                           OMIT_TRANSITION).ToHandleChecked();
+        Map::CopyWithField(map0, name, handle(FieldType::Any(), isolate), NONE,
+                           kMutable, Representation::Tagged(), OMIT_TRANSITION)
+            .ToHandleChecked();
     names[i] = name;
     maps[i] = map;
 
-    transitions = transitions->Insert(map0, name, map, PROPERTY_TRANSITION);
-    ConnectTransition(map0, transitions, map);
+    TransitionArray::Insert(map0, name, map, PROPERTY_TRANSITION);
   }
 
   const int ATTRS_COUNT = (READ_ONLY | DONT_ENUM | DONT_DELETE) + 1;
@@ -254,30 +262,44 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
     PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
 
     Handle<Map> map =
-        Map::CopyWithField(map0, name, handle(HeapType::Any(), isolate),
-                           attributes, Representation::Tagged(),
-                           OMIT_TRANSITION).ToHandleChecked();
+        Map::CopyWithField(map0, name, handle(FieldType::Any(), isolate),
+                           attributes, kMutable, Representation::Tagged(),
+                           OMIT_TRANSITION)
+            .ToHandleChecked();
     attr_maps[i] = map;
 
-    transitions = transitions->Insert(map0, name, map, PROPERTY_TRANSITION);
-    ConnectTransition(map0, transitions, map);
+    TransitionArray::Insert(map0, name, map, PROPERTY_TRANSITION);
   }
 
   // Ensure that transitions for |name| field are valid.
   for (int i = 0; i < ATTRS_COUNT; i++) {
-    PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
-
-    int transition = transitions->Search(FIELD, *name, attributes);
-    CHECK_EQ(*name, transitions->GetKey(transition));
-    CHECK_EQ(*attr_maps[i], transitions->GetTarget(transition));
+    PropertyAttributes attr = static_cast<PropertyAttributes>(i);
+    CHECK_EQ(*attr_maps[i],
+             TransitionArray::SearchTransition(*map0, kData, *name, attr));
   }
 
   // Ensure that info about the other fields still valid.
-  for (int i = 0; i < PROPS_COUNT; i++) {
-    int transition = transitions->Search(FIELD, *names[i], NONE);
-    CHECK_EQ(*names[i], transitions->GetKey(transition));
-    CHECK_EQ(*maps[i], transitions->GetTarget(transition));
+  CHECK_EQ(PROPS_COUNT + ATTRS_COUNT,
+           TransitionArray::NumberOfTransitions(map0->raw_transitions()));
+  for (int i = 0; i < PROPS_COUNT + ATTRS_COUNT; i++) {
+    Name* key = TransitionArray::GetKey(map0->raw_transitions(), i);
+    Map* target = TransitionArray::GetTarget(map0->raw_transitions(), i);
+    if (key == *name) {
+      // Attributes transition.
+      PropertyAttributes attributes =
+          target->GetLastDescriptorDetails().attributes();
+      CHECK_EQ(*attr_maps[static_cast<int>(attributes)], target);
+    } else {
+      for (int j = 0; j < PROPS_COUNT; j++) {
+        if (*names[j] == key) {
+          CHECK_EQ(*maps[j], target);
+          break;
+        }
+      }
+    }
   }
 
-  DCHECK(transitions->IsSortedNoDuplicates());
+#ifdef DEBUG
+  CHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#endif
 }

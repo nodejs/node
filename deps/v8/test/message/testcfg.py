@@ -36,6 +36,7 @@ from testrunner.objects import testcase
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 INVALID_FLAGS = ["--enable-slow-asserts"]
+MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 
 
 class MessageTestSuite(testsuite.TestSuite):
@@ -51,10 +52,16 @@ class MessageTestSuite(testsuite.TestSuite):
       files.sort()
       for filename in files:
         if filename.endswith(".js"):
-          testname = os.path.join(dirname[len(self.root) + 1:], filename[:-3])
+          fullpath = os.path.join(dirname, filename)
+          relpath = fullpath[len(self.root) + 1 : -3]
+          testname = relpath.replace(os.path.sep, "/")
           test = testcase.TestCase(self, testname)
           tests.append(test)
     return tests
+
+  def CreateVariantGenerator(self, variants):
+    return super(MessageTestSuite, self).CreateVariantGenerator(
+        variants + ["preparser"])
 
   def GetFlagsForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
@@ -63,6 +70,8 @@ class MessageTestSuite(testsuite.TestSuite):
     for match in flags_match:
       result += match.strip().split()
     result += context.mode_flags
+    if MODULE_PATTERN.search(source):
+      result.append("--module")
     result = [x for x in result if x not in INVALID_FLAGS]
     result.append(os.path.join(self.root, testcase.path + ".js"))
     return testcase.flags + result
@@ -75,16 +84,13 @@ class MessageTestSuite(testsuite.TestSuite):
   def _IgnoreLine(self, string):
     """Ignore empty lines, valgrind output, Android output."""
     if not string: return True
+    if not string.strip(): return True
     return (string.startswith("==") or string.startswith("**") or
-            string.startswith("ANDROID") or
-            # These five patterns appear in normal Native Client output.
-            string.startswith("DEBUG MODE ENABLED") or
-            string.startswith("tools/nacl-run.py") or
-            string.find("BYPASSING ALL ACL CHECKS") > 0 or
-            string.find("Native Client module will be loaded") > 0 or
-            string.find("NaClHostDescOpen:") > 0)
+            string.startswith("ANDROID"))
 
-  def IsFailureOutput(self, output, testpath):
+  def IsFailureOutput(self, testcase):
+    output = testcase.output
+    testpath = testcase.path
     expected_path = os.path.join(self.root, testpath + ".out")
     expected_lines = []
     # Can't use utils.ReadLinesFrom() here because it strips whitespace.
@@ -101,6 +107,7 @@ class MessageTestSuite(testsuite.TestSuite):
         expected_lines, actual_lines, fillvalue=''):
       pattern = re.escape(expected.rstrip() % env)
       pattern = pattern.replace("\\*", ".*")
+      pattern = pattern.replace("\\{NUMBER\\}", "\d(?:\.\d*)?")
       pattern = "^%s$" % pattern
       if not re.match(pattern, actual):
         return True

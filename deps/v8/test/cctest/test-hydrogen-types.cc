@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/hydrogen-types.h"
+#include "src/crankshaft/hydrogen-types.h"
 
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
-
 
 static const HType kTypes[] = {
   #define DECLARE_TYPE(Name, mask) HType::Name(),

@@ -8,7 +8,7 @@ set -e
 
 rm -rf release *.tgz || true
 mkdir release
-npm pack --loglevel error >/dev/null
+node ./bin/npm-cli.js pack --loglevel error >/dev/null
 mv *.tgz release
 cd release
 tar xzf *.tgz
@@ -18,12 +18,12 @@ mv package node_modules/npm
 
 # make the zip for windows users
 cp node_modules/npm/bin/*.cmd .
-zipname=npm-$(npm -v).zip
+zipname=npm-$(node ../bin/npm-cli.js -v).zip
 zip -q -9 -r -X "$zipname" *.cmd node_modules
 
 # make the tar for node's deps
 cd node_modules
-tarname=npm-$(npm -v).tgz
+tarname=npm-$(node ../../bin/npm-cli.js -v).tgz
 tar czf "$tarname" npm
 
 cd ..

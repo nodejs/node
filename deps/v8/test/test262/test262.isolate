@@ -1,0 +1,20 @@
+# Copyright 2015 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+{
+  'variables': {
+    'files': [
+      'data.tar',
+      'detachArrayBuffer.js',
+      'harness-adapt.js',
+      'harness-agent.js',
+      'test262.status',
+      'testcfg.py',
+      'local-tests/',
+    ],
+  },
+  'includes': [
+    '../../src/d8.isolate',
+    '../../tools/testrunner/testrunner.isolate',
+  ],
+}

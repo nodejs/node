@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-RAND_egd - query entropy gathering daemon
+RAND_egd, RAND_egd_bytes, RAND_query_egd_bytes - query entropy gathering daemon
 
 =head1 SYNOPSIS
 

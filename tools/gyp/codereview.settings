@@ -1,10 +1,6 @@
-# This file is used by gcl to get repository specific information.
-CODE_REVIEW_SERVER: codereview.chromium.org
+# This file is used by git cl to get repository specific information.
 CC_LIST: gyp-developer@googlegroups.com
-VIEW_VC: http://code.google.com/p/gyp/source/detail?r=
-TRY_ON_UPLOAD: True
-TRYSERVER_PROJECT: gyp
-TRYSERVER_PATCHLEVEL: 0
-TRYSERVER_ROOT: trunk
-TRYSERVER_SVN_URL: svn://svn.chromium.org/chrome-try/try-nacl
-
+CODE_REVIEW_SERVER: codereview.chromium.org
+GERRIT_HOST: True
+PROJECT: gyp
+VIEW_VC: https://chromium.googlesource.com/external/gyp/+/

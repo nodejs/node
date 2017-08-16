@@ -26,27 +26,18 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+from functools import wraps
 import json
 import os
 import sys
 import time
 
+from . import execution
 from . import junit_output
+from . import statusfile
 
 
 ABS_PATH_PREFIX = os.getcwd() + os.sep
-
-
-def EscapeCommand(command):
-  parts = []
-  for part in command:
-    if ' ' in part:
-      # Escape spaces.  We may need to escape more characters for this
-      # to work properly.
-      parts.append('"%s"' % part)
-    else:
-      parts.append(part)
-  return " ".join(parts)
 
 
 class ProgressIndicator(object):
@@ -54,16 +45,19 @@ class ProgressIndicator(object):
   def __init__(self):
     self.runner = None
 
+  def SetRunner(self, runner):
+    self.runner = runner
+
   def Starting(self):
     pass
 
   def Done(self):
     pass
 
-  def AboutToRun(self, test):
+  def HasRun(self, test, has_unexpected_output):
     pass
 
-  def HasRun(self, test, has_unexpected_output):
+  def Heartbeat(self):
     pass
 
   def PrintFailureHeader(self, test):
@@ -75,6 +69,42 @@ class ProgressIndicator(object):
       'label': test.GetLabel(),
       'negative': negative_marker
     }
+
+  def _EscapeCommand(self, test):
+    command = execution.GetCommand(test, self.runner.context)
+    parts = []
+    for part in command:
+      if ' ' in part:
+        # Escape spaces.  We may need to escape more characters for this
+        # to work properly.
+        parts.append('"%s"' % part)
+      else:
+        parts.append(part)
+    return " ".join(parts)
+
+
+class IndicatorNotifier(object):
+  """Holds a list of progress indicators and notifies them all on events."""
+  def __init__(self):
+    self.indicators = []
+
+  def Register(self, indicator):
+    self.indicators.append(indicator)
+
+
+# Forge all generic event-dispatching methods in IndicatorNotifier, which are
+# part of the ProgressIndicator interface.
+for func_name in ProgressIndicator.__dict__:
+  func = getattr(ProgressIndicator, func_name)
+  if callable(func) and not func.__name__.startswith('_'):
+    def wrap_functor(f):
+      @wraps(f)
+      def functor(self, *args, **kwargs):
+        """Generic event dispatcher."""
+        for indicator in self.indicators:
+          getattr(indicator, f.__name__)(*args, **kwargs)
+      return functor
+    setattr(IndicatorNotifier, func_name, wrap_functor(func))
 
 
 class SimpleProgressIndicator(ProgressIndicator):
@@ -93,7 +123,7 @@ class SimpleProgressIndicator(ProgressIndicator):
       if failed.output.stdout:
         print "--- stdout ---"
         print failed.output.stdout.strip()
-      print "Command: %s" % EscapeCommand(self.runner.GetCommand(failed))
+      print "Command: %s" % self._EscapeCommand(failed)
       if failed.output.HasCrashed():
         print "exit code: %d" % failed.output.exit_code
         print "--- CRASHED ---"
@@ -114,10 +144,6 @@ class SimpleProgressIndicator(ProgressIndicator):
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
 
-  def AboutToRun(self, test):
-    print 'Starting %s...' % test.GetLabel()
-    sys.stdout.flush()
-
   def HasRun(self, test, has_unexpected_output):
     if has_unexpected_output:
       if test.output.HasCrashed():
@@ -127,6 +153,11 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
     else:
       outcome = 'pass'
     print 'Done running %s: %s' % (test.GetLabel(), outcome)
+    sys.stdout.flush()
+
+  def Heartbeat(self):
+    print 'Still working...'
+    sys.stdout.flush()
 
 
 class DotsProgressIndicator(SimpleProgressIndicator):
@@ -163,10 +194,8 @@ class CompactProgressIndicator(ProgressIndicator):
     self.PrintProgress('Done')
     print ""  # Line break.
 
-  def AboutToRun(self, test):
-    self.PrintProgress(test.GetLabel())
-
   def HasRun(self, test, has_unexpected_output):
+    self.PrintProgress(test.GetLabel())
     if has_unexpected_output:
       self.ClearLine(self.last_status_length)
       self.PrintFailureHeader(test)
@@ -176,7 +205,7 @@ class CompactProgressIndicator(ProgressIndicator):
       stderr = test.output.stderr.strip()
       if len(stderr):
         print self.templates['stderr'] % stderr
-      print "Command: %s" % EscapeCommand(self.runner.GetCommand(test))
+      print "Command: %s" % self._EscapeCommand(test)
       if test.output.HasCrashed():
         print "exit code: %d" % test.output.exit_code
         print "--- CRASHED ---"
@@ -192,10 +221,12 @@ class CompactProgressIndicator(ProgressIndicator):
   def PrintProgress(self, name):
     self.ClearLine(self.last_status_length)
     elapsed = time.time() - self.start_time
+    progress = 0 if not self.runner.total else (
+        ((self.runner.total - self.runner.remaining) * 100) //
+          self.runner.total)
     status = self.templates['status_line'] % {
       'passed': self.runner.succeeded,
-      'remaining': (((self.runner.total - self.runner.remaining) * 100) //
-                    self.runner.total),
+      'progress': progress,
       'failed': len(self.runner.failed),
       'test': name,
       'mins': int(elapsed) / 60,
@@ -212,7 +243,7 @@ class ColorProgressIndicator(CompactProgressIndicator):
   def __init__(self):
     templates = {
       'status_line': ("[%(mins)02i:%(secs)02i|"
-                      "\033[34m%%%(remaining) 4d\033[0m|"
+                      "\033[34m%%%(progress) 4d\033[0m|"
                       "\033[32m+%(passed) 4d\033[0m|"
                       "\033[31m-%(failed) 4d\033[0m]: %(test)s"),
       'stdout': "\033[1m%s\033[0m",
@@ -228,7 +259,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 
   def __init__(self):
     templates = {
-      'status_line': ("[%(mins)02i:%(secs)02i|%%%(remaining) 4d|"
+      'status_line': ("[%(mins)02i:%(secs)02i|%%%(progress) 4d|"
                       "+%(passed) 4d|-%(failed) 4d]: %(test)s"),
       'stdout': '%s',
       'stderr': '%s',
@@ -241,29 +272,19 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 
 class JUnitTestProgressIndicator(ProgressIndicator):
 
-  def __init__(self, progress_indicator, junitout, junittestsuite):
-    self.progress_indicator = progress_indicator
+  def __init__(self, junitout, junittestsuite):
     self.outputter = junit_output.JUnitTestOutput(junittestsuite)
     if junitout:
       self.outfile = open(junitout, "w")
     else:
       self.outfile = sys.stdout
 
-  def Starting(self):
-    self.progress_indicator.runner = self.runner
-    self.progress_indicator.Starting()
-
   def Done(self):
-    self.progress_indicator.Done()
     self.outputter.FinishAndWrite(self.outfile)
     if self.outfile != sys.stdout:
       self.outfile.close()
 
-  def AboutToRun(self, test):
-    self.progress_indicator.AboutToRun(test)
-
   def HasRun(self, test, has_unexpected_output):
-    self.progress_indicator.HasRun(test, has_unexpected_output)
     fail_text = ""
     if has_unexpected_output:
       stdout = test.output.stdout.strip()
@@ -272,7 +293,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
       stderr = test.output.stderr.strip()
       if len(stderr):
         fail_text += "stderr:\n%s\n" % stderr
-      fail_text += "Command: %s" % EscapeCommand(self.runner.GetCommand(test))
+      fail_text += "Command: %s" % self._EscapeCommand(test)
       if test.output.HasCrashed():
         fail_text += "exit code: %d\n--- CRASHED ---" % test.output.exit_code
       if test.output.HasTimedOut():
@@ -285,39 +306,55 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 
 class JsonTestProgressIndicator(ProgressIndicator):
 
-  def __init__(self, progress_indicator, json_test_results, arch, mode):
-    self.progress_indicator = progress_indicator
+  def __init__(self, json_test_results, arch, mode, random_seed):
     self.json_test_results = json_test_results
     self.arch = arch
     self.mode = mode
+    self.random_seed = random_seed
     self.results = []
-
-  def Starting(self):
-    self.progress_indicator.runner = self.runner
-    self.progress_indicator.Starting()
+    self.tests = []
 
   def Done(self):
-    self.progress_indicator.Done()
     complete_results = []
     if os.path.exists(self.json_test_results):
       with open(self.json_test_results, "r") as f:
         # Buildbot might start out with an empty file.
         complete_results = json.loads(f.read() or "[]")
 
+    duration_mean = None
+    if self.tests:
+      # Get duration mean.
+      duration_mean = (
+          sum(t.duration for t in self.tests) / float(len(self.tests)))
+
+    # Sort tests by duration.
+    timed_tests = [t for t in self.tests if t.duration is not None]
+    timed_tests.sort(lambda a, b: cmp(b.duration, a.duration))
+    slowest_tests = [
+      {
+        "name": test.GetLabel(),
+        "flags": test.flags,
+        "command": self._EscapeCommand(test).replace(ABS_PATH_PREFIX, ""),
+        "duration": test.duration,
+        "marked_slow": statusfile.IsSlow(test.outcomes),
+      } for test in timed_tests[:20]
+    ]
+
     complete_results.append({
       "arch": self.arch,
       "mode": self.mode,
       "results": self.results,
+      "slowest_tests": slowest_tests,
+      "duration_mean": duration_mean,
+      "test_total": len(self.tests),
     })
 
     with open(self.json_test_results, "w") as f:
       f.write(json.dumps(complete_results))
 
-  def AboutToRun(self, test):
-    self.progress_indicator.AboutToRun(test)
-
   def HasRun(self, test, has_unexpected_output):
-    self.progress_indicator.HasRun(test, has_unexpected_output)
+    # Buffer all tests for sorting the durations in the end.
+    self.tests.append(test)
     if not has_unexpected_output:
       # Omit tests that run as expected. Passing tests of reruns after failures
       # will have unexpected_output to be reported here has well.
@@ -326,14 +363,73 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self.results.append({
       "name": test.GetLabel(),
       "flags": test.flags,
-      "command": EscapeCommand(self.runner.GetCommand(test)).replace(
-          ABS_PATH_PREFIX, ""),
+      "command": self._EscapeCommand(test).replace(ABS_PATH_PREFIX, ""),
       "run": test.run,
       "stdout": test.output.stdout,
       "stderr": test.output.stderr,
       "exit_code": test.output.exit_code,
       "result": test.suite.GetOutcome(test),
+      "expected": list(test.outcomes or ["PASS"]),
+      "duration": test.duration,
+
+      # TODO(machenbach): This stores only the global random seed from the
+      # context and not possible overrides when using random-seed stress.
+      "random_seed": self.random_seed,
+      "target_name": test.suite.shell(),
+      "variant": test.variant,
     })
+
+
+class FlakinessTestProgressIndicator(ProgressIndicator):
+
+  def __init__(self, json_test_results):
+    self.json_test_results = json_test_results
+    self.results = {}
+    self.summary = {
+      "PASS": 0,
+      "FAIL": 0,
+      "CRASH": 0,
+      "TIMEOUT": 0,
+    }
+    self.seconds_since_epoch = time.time()
+
+  def Done(self):
+    with open(self.json_test_results, "w") as f:
+      json.dump({
+        "interrupted": False,
+        "num_failures_by_type": self.summary,
+        "path_delimiter": "/",
+        "seconds_since_epoch": self.seconds_since_epoch,
+        "tests": self.results,
+        "version": 3,
+      }, f)
+
+  def HasRun(self, test, has_unexpected_output):
+    key = "/".join(
+        sorted(flag.lstrip("-")
+               for flag in self.runner.context.extra_flags + test.flags) +
+        ["test", test.GetLabel()],
+    )
+    outcome = test.suite.GetOutcome(test)
+    assert outcome in ["PASS", "FAIL", "CRASH", "TIMEOUT"]
+    if test.run == 1:
+      # First run of this test.
+      expected_outcomes = ([
+        expected
+        for expected in (test.outcomes or ["PASS"])
+        if expected in ["PASS", "FAIL", "CRASH", "TIMEOUT"]
+      ] or ["PASS"])
+      self.results[key] = {
+        "actual": outcome,
+        "expected": " ".join(expected_outcomes),
+        "times": [test.duration],
+      }
+      self.summary[outcome] = self.summary[outcome] + 1
+    else:
+      # This is a rerun and a previous result exists.
+      result = self.results[key]
+      result["actual"] = "%s %s" % (result["actual"], outcome)
+      result["times"].append(test.duration)
 
 
 PROGRESS_INDICATORS = {

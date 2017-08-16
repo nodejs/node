@@ -1,56 +1,66 @@
 // prune extraneous packages.
 
 module.exports = prune
+module.exports.Pruner = Pruner
 
-prune.usage = "npm prune"
+prune.usage = 'npm prune [[<@scope>/]<pkg>...] [--production]'
 
-var readInstalled = require("read-installed")
-  , npm = require("./npm.js")
-  , path = require("path")
-  , readJson = require("read-package-json")
-  , log = require("npmlog")
+var npm = require('./npm.js')
+var log = require('npmlog')
+var util = require('util')
+var moduleName = require('./utils/module-name.js')
+var Installer = require('./install.js').Installer
+var isExtraneous = require('./install/is-extraneous.js')
+var isOnlyDev = require('./install/is-only-dev.js')
+var removeDeps = require('./install/deps.js').removeDeps
+var loadExtraneous = require('./install/deps.js').loadExtraneous
+var chain = require('slide').chain
+var computeMetadata = require('./install/deps.js').computeMetadata
 
-prune.completion = require("./utils/completion/installed-deep.js")
+prune.completion = require('./utils/completion/installed-deep.js')
 
 function prune (args, cb) {
-  //check if is a valid package.json file
-  var jsonFile = path.resolve(npm.dir, "..", "package.json" )
-  readJson(jsonFile, log.warn, function (er) {
-    if (er) return cb(er)
-    next()
-  })
+  var dryrun = !!npm.config.get('dry-run')
+  new Pruner('.', dryrun, args).run(cb)
+}
 
-  function next() {
-    var opt = {
-      depth: npm.config.get("depth"),
-      dev: !npm.config.get("production") || npm.config.get("dev")
-    }
-    readInstalled(npm.prefix, opt, function (er, data) {
-      if (er) return cb(er)
-      prune_(args, data, cb)
-    })
+function Pruner (where, dryrun, args) {
+  Installer.call(this, where, dryrun, args)
+}
+util.inherits(Pruner, Installer)
+
+Pruner.prototype.loadAllDepsIntoIdealTree = function (cb) {
+  log.silly('uninstall', 'loadAllDepsIntoIdealTree')
+
+  var cg = this.progress['loadIdealTree:loadAllDepsIntoIdealTree']
+  var steps = []
+
+  computeMetadata(this.idealTree)
+  var self = this
+  var excludeDev = npm.config.get('production') || /^prod(uction)?$/.test(npm.config.get('only'))
+  function shouldPrune (child) {
+    if (isExtraneous(child)) return true
+    if (!excludeDev) return false
+    return isOnlyDev(child)
   }
+  function getModuleName (child) {
+    // wrapping because moduleName doesn't like extra args and we're called
+    // from map.
+    return moduleName(child)
+  }
+  function matchesArg (name) {
+    return self.args.length === 0 || self.args.indexOf(name) !== -1
+  }
+  function nameObj (name) {
+    return {name: name}
+  }
+  var toPrune = this.idealTree.children.filter(shouldPrune).map(getModuleName).filter(matchesArg).map(nameObj)
+
+  steps.push(
+    [removeDeps, toPrune, this.idealTree, null],
+    [loadExtraneous, this.idealTree, cg.newGroup('loadExtraneous')])
+  chain(steps, cb)
 }
 
-function prune_ (args, data, cb) {
-  npm.commands.unbuild(prunables(args, data, []), cb)
-}
-
-function prunables (args, data, seen) {
-  var deps = data.dependencies || {}
-  return Object.keys(deps).map(function (d) {
-    if (typeof deps[d] !== "object"
-        || seen.indexOf(deps[d]) !== -1) return null
-    seen.push(deps[d])
-    if (deps[d].extraneous
-        && (args.length === 0 || args.indexOf(d) !== -1)) {
-      var extra = deps[d]
-      delete deps[d]
-      return extra.path
-    }
-    return prunables(args, deps[d], seen)
-  }).filter(function (d) { return d !== null })
-  .reduce(function FLAT (l, r) {
-    return l.concat(Array.isArray(r) ? r.reduce(FLAT,[]) : r)
-  }, [])
-}
+Pruner.prototype.runPreinstallTopLevelLifecycles = function (cb) { cb() }
+Pruner.prototype.runPostinstallTopLevelLifecycles = function (cb) { cb() }

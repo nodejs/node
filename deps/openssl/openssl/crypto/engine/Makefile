@@ -22,13 +22,13 @@ LIBSRC= eng_err.c eng_lib.c eng_list.c eng_init.c eng_ctrl.c \
 	tb_rsa.c tb_dsa.c tb_ecdsa.c tb_dh.c tb_ecdh.c tb_rand.c tb_store.c \
 	tb_cipher.c tb_digest.c tb_pkmeth.c tb_asnmth.c \
 	eng_openssl.c eng_cnf.c eng_dyn.c eng_cryptodev.c \
-	eng_rsax.c eng_rdrand.c
+	eng_rdrand.c
 LIBOBJ= eng_err.o eng_lib.o eng_list.o eng_init.o eng_ctrl.o \
 	eng_table.o eng_pkey.o eng_fat.o eng_all.o \
 	tb_rsa.o tb_dsa.o tb_ecdsa.o tb_dh.o tb_ecdh.o tb_rand.o tb_store.o \
 	tb_cipher.o tb_digest.o tb_pkmeth.o tb_asnmth.o \
 	eng_openssl.o eng_cnf.o eng_dyn.o eng_cryptodev.o \
-	eng_rsax.o eng_rdrand.o
+	eng_rdrand.o
 
 SRC= $(LIBSRC)
 
@@ -70,6 +70,8 @@ tests:
 
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
+
+update: depend
 
 depend:
 	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...
@@ -265,20 +267,6 @@ eng_rdrand.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
 eng_rdrand.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 eng_rdrand.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h
 eng_rdrand.o: eng_rdrand.c
-eng_rsax.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
-eng_rsax.o: ../../include/openssl/bn.h ../../include/openssl/buffer.h
-eng_rsax.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
-eng_rsax.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
-eng_rsax.o: ../../include/openssl/ecdsa.h ../../include/openssl/engine.h
-eng_rsax.o: ../../include/openssl/err.h ../../include/openssl/evp.h
-eng_rsax.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
-eng_rsax.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
-eng_rsax.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
-eng_rsax.o: ../../include/openssl/pkcs7.h ../../include/openssl/rsa.h
-eng_rsax.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
-eng_rsax.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
-eng_rsax.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h
-eng_rsax.o: eng_rsax.c
 eng_table.o: ../../e_os.h ../../include/openssl/asn1.h
 eng_table.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
 eng_table.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h

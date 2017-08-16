@@ -19,24 +19,38 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var events = require('events');
-var domain = require('domain');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const events = require('events');
+const domain = require('domain');
 
-var errorCatched = false;
+{
+  const e = new events.EventEmitter();
+  const d = domain.create();
+  d.add(e);
+  d.on('error', common.mustCall(function(er) {
+    assert(er instanceof Error, 'error created');
+  }));
+  e.emit('error');
+}
 
-var e = new events.EventEmitter();
+for (const arg of [false, null, undefined]) {
+  const e = new events.EventEmitter();
+  const d = domain.create();
+  d.add(e);
+  d.on('error', common.mustCall(function(er) {
+    assert(er instanceof Error, 'error created');
+  }));
+  e.emit('error', arg);
+}
 
-var d = domain.create();
-d.add(e);
-d.on('error', function (er) {
-  assert(er instanceof Error, 'error created');
-  errorCatched = true;
-});
-
-e.emit('error');
-
-process.on('exit', function () {
-  assert(errorCatched, 'error got caught');
-});
+for (const arg of [42, 'fortytwo', true]) {
+  const e = new events.EventEmitter();
+  const d = domain.create();
+  d.add(e);
+  d.on('error', common.mustCall(function(er) {
+    assert.strictEqual(er, arg);
+  }));
+  e.emit('error', arg);
+}

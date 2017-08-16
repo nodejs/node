@@ -21,12 +21,13 @@
 
 #include "tcp_wrap.h"
 
+#include "connection_wrap.h"
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_wrap.h"
-#include "req_wrap.h"
+#include "connect_wrap.h"
 #include "stream_wrap.h"
 #include "util.h"
 #include "util-inl.h"
@@ -39,95 +40,57 @@ namespace node {
 using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
-using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
-using v8::PropertyAttribute;
 using v8::String;
-using v8::Undefined;
 using v8::Value;
 
-
-class TCPConnectWrap : public ReqWrap<uv_connect_t> {
- public:
-  TCPConnectWrap(Environment* env, Local<Object> req_wrap_obj);
-};
-
-
-TCPConnectWrap::TCPConnectWrap(Environment* env, Local<Object> req_wrap_obj)
-    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPWRAP) {
-  Wrap(req_wrap_obj, this);
-}
-
-
-static void NewTCPConnectWrap(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args.IsConstructCall());
-}
+using AsyncHooks = Environment::AsyncHooks;
 
 
 Local<Object> TCPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   EscapableHandleScope handle_scope(env->isolate());
+  AsyncHooks::InitScope init_scope(env, parent->get_id());
   CHECK_EQ(env->tcp_constructor_template().IsEmpty(), false);
   Local<Function> constructor = env->tcp_constructor_template()->GetFunction();
   CHECK_EQ(constructor.IsEmpty(), false);
-  Local<Value> ptr = External::New(env->isolate(), parent);
-  Local<Object> instance = constructor->NewInstance(1, &ptr);
-  CHECK_EQ(instance.IsEmpty(), false);
+  Local<Object> instance =
+      constructor->NewInstance(env->context()).ToLocalChecked();
   return handle_scope.Escape(instance);
 }
 
 
-void TCPWrap::Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context) {
+void TCPWrap::Initialize(Local<Object> target,
+                         Local<Value> unused,
+                         Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCP"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  enum PropertyAttribute attributes =
-      static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(env->fd_string(),
-                                     StreamWrap::GetFD,
-                                     nullptr,
-                                     Handle<Value>(),
-                                     v8::DEFAULT,
-                                     attributes);
-
   // Init properties
   t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "reading"),
                              Boolean::New(env->isolate(), false));
-  t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "owner"),
-                             Null(env->isolate()));
-  t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "onread"),
-                             Null(env->isolate()));
-  t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(),
-                                                 "onconnection"),
-                             Null(env->isolate()));
+  t->InstanceTemplate()->Set(env->owner_string(), Null(env->isolate()));
+  t->InstanceTemplate()->Set(env->onread_string(), Null(env->isolate()));
+  t->InstanceTemplate()->Set(env->onconnection_string(), Null(env->isolate()));
 
+  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+  env->SetProtoMethod(t, "asyncReset", AsyncWrap::AsyncReset);
 
   env->SetProtoMethod(t, "close", HandleWrap::Close);
 
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
+  env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
 
-  env->SetProtoMethod(t, "readStart", StreamWrap::ReadStart);
-  env->SetProtoMethod(t, "readStop", StreamWrap::ReadStop);
-  env->SetProtoMethod(t, "shutdown", StreamWrap::Shutdown);
-
-  env->SetProtoMethod(t, "writeBuffer", StreamWrap::WriteBuffer);
-  env->SetProtoMethod(t, "writeAsciiString", StreamWrap::WriteAsciiString);
-  env->SetProtoMethod(t, "writeUtf8String", StreamWrap::WriteUtf8String);
-  env->SetProtoMethod(t, "writeUcs2String", StreamWrap::WriteUcs2String);
-  env->SetProtoMethod(t, "writeBinaryString", StreamWrap::WriteBinaryString);
-  env->SetProtoMethod(t, "writev", StreamWrap::Writev);
+  StreamWrap::AddMethods(env, t, StreamBase::kFlagHasWritev);
 
   env->SetProtoMethod(t, "open", Open);
   env->SetProtoMethod(t, "bind", Bind);
@@ -135,8 +98,10 @@ void TCPWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "connect", Connect);
   env->SetProtoMethod(t, "bind6", Bind6);
   env->SetProtoMethod(t, "connect6", Connect6);
-  env->SetProtoMethod(t, "getsockname", GetSockName);
-  env->SetProtoMethod(t, "getpeername", GetPeerName);
+  env->SetProtoMethod(t, "getsockname",
+                      GetSockOrPeerName<TCPWrap, uv_tcp_getsockname>);
+  env->SetProtoMethod(t, "getpeername",
+                      GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   env->SetProtoMethod(t, "setNoDelay", SetNoDelay);
   env->SetProtoMethod(t, "setKeepAlive", SetKeepAlive);
 
@@ -148,17 +113,16 @@ void TCPWrap::Initialize(Handle<Object> target,
   env->set_tcp_constructor_template(t);
 
   // Create FunctionTemplate for TCPConnectWrap.
-  Local<FunctionTemplate> cwt =
-      FunctionTemplate::New(env->isolate(), NewTCPConnectWrap);
+  auto constructor = [](const FunctionCallbackInfo<Value>& args) {
+    CHECK(args.IsConstructCall());
+    ClearWrap(args.This());
+  };
+  auto cwt = FunctionTemplate::New(env->isolate(), constructor);
   cwt->InstanceTemplate()->SetInternalFieldCount(1);
+  env->SetProtoMethod(cwt, "getAsyncId", AsyncWrap::GetAsyncId);
   cwt->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap"),
               cwt->GetFunction());
-}
-
-
-uv_tcp_t* TCPWrap::UVHandle() {
-  return &handle_;
 }
 
 
@@ -168,25 +132,14 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
   // normal function.
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
-  TCPWrap* wrap;
-  if (args.Length() == 0) {
-    wrap = new TCPWrap(env, args.This(), nullptr);
-  } else if (args[0]->IsExternal()) {
-    void* ptr = args[0].As<External>()->Value();
-    wrap = new TCPWrap(env, args.This(), static_cast<AsyncWrap*>(ptr));
-  } else {
-    UNREACHABLE();
-  }
-  CHECK(wrap);
+  new TCPWrap(env, args.This());
 }
 
 
-TCPWrap::TCPWrap(Environment* env, Handle<Object> object, AsyncWrap* parent)
-    : StreamWrap(env,
-                 object,
-                 reinterpret_cast<uv_stream_t*>(&handle_),
-                 AsyncWrap::PROVIDER_TCPWRAP,
-                 parent) {
+TCPWrap::TCPWrap(Environment* env, Local<Object> object)
+    : ConnectionWrap(env,
+                     object,
+                     AsyncWrap::PROVIDER_TCPWRAP) {
   int r = uv_tcp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.
@@ -199,52 +152,11 @@ TCPWrap::~TCPWrap() {
 }
 
 
-void TCPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  struct sockaddr_storage address;
-
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-
-  CHECK(args[0]->IsObject());
-  Local<Object> out = args[0].As<Object>();
-
-  int addrlen = sizeof(address);
-  int err = uv_tcp_getsockname(&wrap->handle_,
-                               reinterpret_cast<sockaddr*>(&address),
-                               &addrlen);
-  if (err == 0) {
-    const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
-    AddressToJS(env, addr, out);
-  }
-
-  args.GetReturnValue().Set(err);
-}
-
-
-void TCPWrap::GetPeerName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  struct sockaddr_storage address;
-
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-
-  CHECK(args[0]->IsObject());
-  Local<Object> out = args[0].As<Object>();
-
-  int addrlen = sizeof(address);
-  int err = uv_tcp_getpeername(&wrap->handle_,
-                               reinterpret_cast<sockaddr*>(&address),
-                               &addrlen);
-  if (err == 0) {
-    const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
-    AddressToJS(env, addr, out);
-  }
-
-  args.GetReturnValue().Set(err);
-}
-
-
 void TCPWrap::SetNoDelay(const FunctionCallbackInfo<Value>& args) {
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
   int enable = static_cast<int>(args[0]->BooleanValue());
   int err = uv_tcp_nodelay(&wrap->handle_, enable);
   args.GetReturnValue().Set(err);
@@ -252,7 +164,10 @@ void TCPWrap::SetNoDelay(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
   int enable = args[0]->Int32Value();
   unsigned int delay = args[1]->Uint32Value();
   int err = uv_tcp_keepalive(&wrap->handle_, enable, delay);
@@ -262,7 +177,10 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
 
 #ifdef _WIN32
 void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
   bool enable = args[0]->BooleanValue();
   int err = uv_tcp_simultaneous_accepts(&wrap->handle_, enable);
   args.GetReturnValue().Set(err);
@@ -271,15 +189,21 @@ void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
   int fd = static_cast<int>(args[0]->IntegerValue());
   uv_tcp_open(&wrap->handle_, fd);
 }
 
 
 void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-  node::Utf8Value ip_address(args[0]);
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+  node::Utf8Value ip_address(args.GetIsolate(), args[0]);
   int port = args[1]->Int32Value();
   sockaddr_in addr;
   int err = uv_ip4_addr(*ip_address, port, &addr);
@@ -293,8 +217,11 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-  node::Utf8Value ip6_address(args[0]);
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+  node::Utf8Value ip6_address(args.GetIsolate(), args[0]);
   int port = args[1]->Int32Value();
   sockaddr_in6 addr;
   int err = uv_ip6_addr(*ip6_address, port, &addr);
@@ -308,7 +235,10 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
   int backlog = args[0]->Int32Value();
   int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
                       backlog,
@@ -317,89 +247,30 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
-  TCPWrap* tcp_wrap = static_cast<TCPWrap*>(handle->data);
-  CHECK_EQ(&tcp_wrap->handle_, reinterpret_cast<uv_tcp_t*>(handle));
-  Environment* env = tcp_wrap->env();
-
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  // We should not be getting this callback if someone as already called
-  // uv_close() on the handle.
-  CHECK_EQ(tcp_wrap->persistent().IsEmpty(), false);
-
-  Local<Value> argv[2] = {
-    Integer::New(env->isolate(), status),
-    Undefined(env->isolate())
-  };
-
-  if (status == 0) {
-    // Instantiate the client javascript object and handle.
-    Local<Object> client_obj =
-        Instantiate(env, static_cast<AsyncWrap*>(tcp_wrap));
-
-    // Unwrap the client javascript object.
-    TCPWrap* wrap = Unwrap<TCPWrap>(client_obj);
-    uv_stream_t* client_handle = reinterpret_cast<uv_stream_t*>(&wrap->handle_);
-    if (uv_accept(handle, client_handle))
-      return;
-
-    // Successful accept. Call the onconnection callback in JavaScript land.
-    argv[1] = client_obj;
-  }
-
-  tcp_wrap->MakeCallback(env->onconnection_string(), ARRAY_SIZE(argv), argv);
-}
-
-
-void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
-  TCPConnectWrap* req_wrap = static_cast<TCPConnectWrap*>(req->data);
-  TCPWrap* wrap = static_cast<TCPWrap*>(req->handle->data);
-  CHECK_EQ(req_wrap->env(), wrap->env());
-  Environment* env = wrap->env();
-
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  // The wrap and request objects should still be there.
-  CHECK_EQ(req_wrap->persistent().IsEmpty(), false);
-  CHECK_EQ(wrap->persistent().IsEmpty(), false);
-
-  Local<Object> req_wrap_obj = req_wrap->object();
-  Local<Value> argv[5] = {
-    Integer::New(env->isolate(), status),
-    wrap->object(),
-    req_wrap_obj,
-    v8::True(env->isolate()),
-    v8::True(env->isolate())
-  };
-
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
-
-  delete req_wrap;
-}
-
-
 void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
-  CHECK(args[2]->Uint32Value());
+  CHECK(args[2]->IsUint32());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value ip_address(args[1]);
+  node::Utf8Value ip_address(env->isolate(), args[1]);
   int port = args[2]->Uint32Value();
 
   sockaddr_in addr;
   int err = uv_ip4_addr(*ip_address, port, &addr);
 
   if (err == 0) {
-    TCPConnectWrap* req_wrap = new TCPConnectWrap(env, req_wrap_obj);
-    err = uv_tcp_connect(&req_wrap->req_,
+    env->set_init_trigger_id(wrap->get_id());
+    ConnectWrap* req_wrap =
+        new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
+    err = uv_tcp_connect(req_wrap->req(),
                          &wrap->handle_,
                          reinterpret_cast<const sockaddr*>(&addr),
                          AfterConnect);
@@ -415,22 +286,27 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
-  CHECK(args[2]->Uint32Value());
+  CHECK(args[2]->IsUint32());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value ip_address(args[1]);
+  node::Utf8Value ip_address(env->isolate(), args[1]);
   int port = args[2]->Int32Value();
 
   sockaddr_in6 addr;
   int err = uv_ip6_addr(*ip_address, port, &addr);
 
   if (err == 0) {
-    TCPConnectWrap* req_wrap = new TCPConnectWrap(env, req_wrap_obj);
-    err = uv_tcp_connect(&req_wrap->req_,
+    env->set_init_trigger_id(wrap->get_id());
+    ConnectWrap* req_wrap =
+        new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
+    err = uv_tcp_connect(req_wrap->req(),
                          &wrap->handle_,
                          reinterpret_cast<const sockaddr*>(&addr),
                          AfterConnect);

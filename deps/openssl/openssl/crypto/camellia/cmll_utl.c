@@ -1,4 +1,4 @@
-/* crypto/camellia/cmll_utl.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/camellia/cmll_utl.c */
 /* ====================================================================
  * Copyright (c) 2011 The OpenSSL Project.  All rights reserved.
  *
@@ -7,7 +7,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -48,17 +48,17 @@
  * ====================================================================
  *
  */
- 
+
 #include <openssl/opensslv.h>
 #include <openssl/crypto.h>
 #include <openssl/camellia.h>
 #include "cmll_locl.h"
 
 int Camellia_set_key(const unsigned char *userKey, const int bits,
-	CAMELLIA_KEY *key)
-	{
+                     CAMELLIA_KEY *key)
+{
 #ifdef OPENSSL_FIPS
-	fips_cipher_abort(Camellia);
+    fips_cipher_abort(Camellia);
 #endif
-	return private_Camellia_set_key(userKey, bits, key);
-	}
+    return private_Camellia_set_key(userKey, bits, key);
+}

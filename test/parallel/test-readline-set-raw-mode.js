@@ -19,21 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+require('../common');
+const assert = require('assert');
+const readline = require('readline');
+const Stream = require('stream');
 
-
-var assert = require('assert');
-var readline = require('readline');
-var Stream = require('stream');
-
-var stream = new Stream();
-var expectedRawMode = true;
-var rawModeCalled = false;
-var resumeCalled = false;
-var pauseCalled = false;
+const stream = new Stream();
+let expectedRawMode = true;
+let rawModeCalled = false;
+let resumeCalled = false;
+let pauseCalled = false;
 
 stream.setRawMode = function(mode) {
   rawModeCalled = true;
-  assert.equal(mode, expectedRawMode);
+  assert.strictEqual(mode, expectedRawMode);
 };
 stream.resume = function() {
   resumeCalled = true;
@@ -44,7 +44,7 @@ stream.pause = function() {
 
 // when the "readline" starts in "terminal" mode,
 // then setRawMode(true) should be called
-var rli = readline.createInterface({
+const rli = readline.createInterface({
   input: stream,
   output: stream,
   terminal: true
@@ -85,6 +85,6 @@ assert(rawModeCalled);
 assert(!resumeCalled);
 assert(pauseCalled);
 
-assert.deepEqual(stream.listeners('keypress'), []);
+assert.deepStrictEqual(stream.listeners('keypress'), []);
 // one data listener for the keypress events.
-assert.equal(stream.listeners('data').length, 1);
+assert.strictEqual(stream.listeners('data').length, 1);

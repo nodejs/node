@@ -25,7 +25,7 @@ Data types
 Public members
 ^^^^^^^^^^^^^^
 
-.. c:member:: void* uv_request_t.data
+.. c:member:: void* uv_req_t.data
 
     Space for user-defined arbitrary data. libuv does not use this field.
 

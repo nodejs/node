@@ -19,22 +19,22 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var cluster = require('cluster');
-var domain = require('domain');
+'use strict';
+require('../common');
+const cluster = require('cluster');
+const domain = require('domain');
 
 // RR is the default for v0.11.9+ so the following line is redundant:
 // cluster.schedulingPolicy = cluster.SCHED_RR;
 
 if (cluster.isWorker) {
-  var d = domain.create();
-  d.run(function () { });
+  const d = domain.create();
+  d.run(() => {});
 
-  var http = require('http');
-  http.Server(function() { }).listen(common.PORT, '127.0.0.1');
+  const http = require('http');
+  http.Server(() => {}).listen(0, '127.0.0.1');
 
 } else if (cluster.isMaster) {
-  var worker;
 
   //Kill worker when listening
   cluster.on('listening', function() {
@@ -47,5 +47,5 @@ if (cluster.isWorker) {
   });
 
   //Create worker
-  worker = cluster.fork();
+  const worker = cluster.fork();
 }

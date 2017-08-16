@@ -158,15 +158,7 @@ temporary/ephemeral DH parameters are used.
 
 =item SSL_OP_EPHEMERAL_RSA
 
-Always use ephemeral (temporary) RSA key when doing RSA operations
-(see L<SSL_CTX_set_tmp_rsa_callback(3)|SSL_CTX_set_tmp_rsa_callback(3)>).
-According to the specifications this is only done, when a RSA key
-can only be used for signature operations (namely under export ciphers
-with restricted RSA keylength). By setting this option, ephemeral
-RSA keys are always used. This option breaks compatibility with the
-SSL/TLS specifications and may lead to interoperability problems with
-clients and should therefore never be used. Ciphers with EDH (ephemeral
-Diffie-Hellman) key exchange should be used instead.
+This option is no longer implemented and is treated as no op.
 
 =item SSL_OP_CIPHER_SERVER_PREFERENCE
 
@@ -197,14 +189,24 @@ browser has a cert, it will crash/hang.  Works for 3.x and 4.xbeta
 =item SSL_OP_NO_SSLv2
 
 Do not use the SSLv2 protocol.
+As of OpenSSL 1.0.2g the B<SSL_OP_NO_SSLv2> option is set by default.
 
 =item SSL_OP_NO_SSLv3
 
 Do not use the SSLv3 protocol.
+It is recommended that applications should set this option.
 
 =item SSL_OP_NO_TLSv1
 
 Do not use the TLSv1 protocol.
+
+=item SSL_OP_NO_TLSv1_1
+
+Do not use the TLSv1.1 protocol.
+
+=item SSL_OP_NO_TLSv1_2
+
+Do not use the TLSv1.2 protocol.
 
 =item SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
 

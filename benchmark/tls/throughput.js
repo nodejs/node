@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var bench = common.createBenchmark(main, {
   dur: [5],
@@ -22,38 +23,39 @@ function main(conf) {
   var chunk;
   switch (type) {
     case 'buf':
-      chunk = new Buffer(size);
-      chunk.fill('b');
+      chunk = Buffer.alloc(size, 'b');
       break;
     case 'asc':
-      chunk = new Array(size + 1).join('a');
+      chunk = 'a'.repeat(size);
       encoding = 'ascii';
       break;
     case 'utf':
-      chunk = new Array(size/2 + 1).join('ü');
+      chunk = 'ü'.repeat(size / 2);
       encoding = 'utf8';
       break;
     default:
       throw new Error('invalid type');
   }
 
-  options = { key: fs.readFileSync(cert_dir + '/test_key.pem'),
-              cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
-              ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
-              ciphers: 'AES256-GCM-SHA384' };
+  options = {
+    key: fs.readFileSync(`${cert_dir}/test_key.pem`),
+    cert: fs.readFileSync(`${cert_dir}/test_cert.pem`),
+    ca: [ fs.readFileSync(`${cert_dir}/test_ca.pem`) ],
+    ciphers: 'AES256-GCM-SHA384'
+  };
 
   server = tls.createServer(options, onConnection);
   setTimeout(done, dur * 1000);
+  var conn;
   server.listen(common.PORT, function() {
     var opt = { port: common.PORT, rejectUnauthorized: false };
-    var conn = tls.connect(opt, function() {
+    conn = tls.connect(opt, function() {
       bench.start();
       conn.on('drain', write);
       write();
     });
 
     function write() {
-      var i = 0;
       while (false !== conn.write(chunk, encoding));
     }
   });
@@ -68,8 +70,8 @@ function main(conf) {
   function done() {
     var mbits = (received * 8) / (1024 * 1024);
     bench.end(mbits);
-    conn.destroy();
+    if (conn)
+      conn.destroy();
     server.close();
   }
 }
-

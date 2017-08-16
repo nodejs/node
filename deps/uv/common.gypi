@@ -1,13 +1,9 @@
 {
   'variables': {
-    'visibility%': 'hidden',         # V8's visibility setting
     'target_arch%': 'ia32',          # set v8's target architecture
     'host_arch%': 'ia32',            # set v8's host architecture
     'uv_library%': 'static_library', # allow override to 'shared_library' for DLL/.so builds
-    'component%': 'static_library',  # NB. these names match with what V8 expects
     'msvs_multi_core_compile': '0',  # we do enable multicore compiles, but not using the V8 way
-    'gcc_version%': 'unknown',
-    'clang%': 0,
   },
 
   'target_defaults': {
@@ -15,7 +11,7 @@
     'configurations': {
       'Debug': {
         'defines': [ 'DEBUG', '_DEBUG' ],
-        'cflags': [ '-g', '-O0', '-fwrapv' ],
+        'cflags': [ '-g' ],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'target_conditions': [
@@ -39,9 +35,13 @@
           'OTHER_CFLAGS': [ '-Wno-strict-aliasing' ],
         },
         'conditions': [
-          ['OS != "win"', {
-            'defines': [ 'EV_VERIFY=2' ],
+          ['OS != "os390"', {
+            'cflags': [ '-O0', '-fwrapv' ]
           }],
+          ['OS == "android"', {
+            'cflags': [ '-fPIE' ],
+            'ldflags': [ '-fPIE', '-pie' ]
+          }]
         ]
       },
       'Release': {
@@ -49,9 +49,6 @@
         'cflags': [
           '-O3',
           '-fstrict-aliasing',
-          '-fomit-frame-pointer',
-          '-fdata-sections',
-          '-ffunction-sections',
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -82,6 +79,15 @@
             'LinkIncremental': 1, # disable incremental linking
           },
         },
+        'conditions': [
+          ['OS != "os390"', {
+            'cflags': [
+              '-fomit-frame-pointer',
+              '-fdata-sections',
+              '-ffunction-sections',
+            ],
+          }],
+        ]
       }
     },
     'msvs_settings': {
@@ -130,7 +136,7 @@
           }]
         ]
       }],
-      ['OS in "freebsd linux openbsd solaris android"', {
+      ['OS in "freebsd dragonflybsd linux openbsd solaris android"', {
         'cflags': [ '-Wall' ],
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions' ],
         'target_conditions': [
@@ -154,12 +160,9 @@
             'cflags': [ '-pthreads' ],
             'ldflags': [ '-pthreads' ],
           }],
-          [ 'OS not in "solaris android"', {
+          [ 'OS not in "solaris android os390"', {
             'cflags': [ '-pthread' ],
             'ldflags': [ '-pthread' ],
-          }],
-          [ 'visibility=="hidden" and (clang==1 or gcc_version >= 40)', {
-            'cflags': [ '-fvisibility=hidden' ],
           }],
         ],
       }],
@@ -172,9 +175,6 @@
           'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',        # -fno-exceptions
           'GCC_ENABLE_CPP_RTTI': 'NO',              # -fno-rtti
           'GCC_ENABLE_PASCAL_STRINGS': 'NO',        # No -mpascal-strings
-          # GCC_INLINES_ARE_PRIVATE_EXTERN maps to -fvisibility-inlines-hidden
-          'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
-          'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',      # -fvisibility=hidden
           'GCC_THREADSAFE_STATICS': 'NO',           # -fno-threadsafe-statics
           'PREBINDING': 'NO',                       # No -Wl,-prebind
           'USE_HEADERMAP': 'NO',
@@ -186,6 +186,7 @@
             '-Wendif-labels',
             '-W',
             '-Wno-unused-parameter',
+            '-Wstrict-prototypes',
           ],
         },
         'conditions': [

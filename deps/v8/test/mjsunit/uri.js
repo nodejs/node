@@ -88,3 +88,13 @@ test("\u1234\u0123\uabcd");
 test("abcd");
 test("ab<\u1234\u0123");
 test("ab\u1234<\u0123");
+
+
+(function TestDeleteCharCodeAt() {
+  assertEquals('abc', encodeURI('abc'));
+  assertEquals('abc', decodeURI('abc'));
+  assertTrue(delete String.prototype.charCodeAt);
+  assertTrue(delete String.prototype.charAt);
+  assertEquals('abc', encodeURI('abc'));
+  assertEquals('abc', decodeURI('abc'));
+})();

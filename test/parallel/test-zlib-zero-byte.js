@@ -19,30 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var zlib = require('zlib');
-var gz = zlib.Gzip()
-var emptyBuffer = new Buffer(0);
-var received = 0;
+const zlib = require('zlib');
+const gz = zlib.Gzip();
+const emptyBuffer = Buffer.alloc(0);
+let received = 0;
 gz.on('data', function(c) {
   received += c.length;
 });
-var ended = false;
-gz.on('end', function() {
-  ended = true;
-});
-var finished = false;
-gz.on('finish', function() {
-  finished = true;
-});
+
+gz.on('end', common.mustCall(function() {
+  assert.strictEqual(received, 20);
+}));
+gz.on('finish', common.mustCall());
 gz.write(emptyBuffer);
 gz.end();
-
-process.on('exit', function() {
-  assert.equal(received, 20);
-  assert(ended);
-  assert(finished);
-  console.log('ok');
-});

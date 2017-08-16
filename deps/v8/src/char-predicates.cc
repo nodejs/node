@@ -4,17 +4,17 @@
 
 #include "src/char-predicates.h"
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
 #include "unicode/urename.h"
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
 
 bool SupplementaryPlanes::IsIDStart(uc32 c) {
   DCHECK(c > 0xFFFF);
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
   // This only works for code points in the SMPs, since ICU does not exclude
   // code points with properties 'Pattern_Syntax' or 'Pattern_White_Space'.
   // Code points in the SMP do not have those properties.
@@ -22,13 +22,13 @@ bool SupplementaryPlanes::IsIDStart(uc32 c) {
 #else
   // This is incorrect, but if we don't have ICU, use this as fallback.
   return false;
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 }
 
 
 bool SupplementaryPlanes::IsIDPart(uc32 c) {
   DCHECK(c > 0xFFFF);
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
   // This only works for code points in the SMPs, since ICU does not exclude
   // code points with properties 'Pattern_Syntax' or 'Pattern_White_Space'.
   // Code points in the SMP do not have those properties.
@@ -36,7 +36,7 @@ bool SupplementaryPlanes::IsIDPart(uc32 c) {
 #else
   // This is incorrect, but if we don't have ICU, use this as fallback.
   return false;
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

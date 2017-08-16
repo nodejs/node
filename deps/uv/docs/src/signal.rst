@@ -62,13 +62,20 @@ Public members
 API
 ---
 
-.. c:function:: int uv_signal_init(uv_loop_t*, uv_signal_t* signal)
+.. c:function:: int uv_signal_init(uv_loop_t* loop, uv_signal_t* signal)
 
     Initialize the handle.
 
 .. c:function:: int uv_signal_start(uv_signal_t* signal, uv_signal_cb cb, int signum)
 
     Start the handle with the given callback, watching for the given signal.
+
+.. c:function:: int uv_signal_start_oneshot(uv_signal_t* signal, uv_signal_cb cb, int signum)
+
+    .. versionadded:: 1.12.0
+
+    Same functionality as :c:func:`uv_signal_start` but the signal handler is reset the moment
+    the signal is received.
 
 .. c:function:: int uv_signal_stop(uv_signal_t* signal)
 

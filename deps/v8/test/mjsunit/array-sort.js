@@ -445,6 +445,125 @@ function TestSortDoesNotDependOnArrayPrototypeSort() {
     fail('Should not call sort');
   };
   sortfn.call(arr);
+  // Restore for the next test
+  Array.prototype.sort = sortfn;
 }
 
 TestSortDoesNotDependOnArrayPrototypeSort();
+
+function TestSortToObject() {
+  Number.prototype[0] = 5;
+  Number.prototype[1] = 4;
+  Number.prototype.length = 2;
+  x = new Number(0);
+  assertEquals(0, Number(Array.prototype.sort.call(x)));
+  assertEquals(4, x[0]);
+  assertEquals(5, x[1]);
+  assertArrayEquals(["0", "1"], Object.getOwnPropertyNames(x));
+  // The following would throw if ToObject weren't called.
+  assertEquals(0, Number(Array.prototype.sort.call(0)));
+}
+TestSortToObject();
+
+function TestSortOnProxy() {
+  {
+    var p = new Proxy([2,1,3], {});
+    assertEquals([1,2,3], p.sort());
+  }
+
+  {
+    function f() { return arguments };
+    var a = f(2,1,3);
+    a.__proto__ = new Proxy({}, {});
+    assertEquals([1,2,3], [...(Array.prototype.sort.apply(a))]);
+  }
+}
+TestSortOnProxy();
+
+function TestSortOnNonExtensible() {
+  {
+    var arr = [1,,2];
+    Object.preventExtensions(arr);
+    assertThrows(() => arr.sort(), TypeError);
+    assertEquals(arr, [1,,2]);
+  }
+  {
+    var arr = [1,,undefined];
+    Object.preventExtensions(arr);
+    assertThrows(() => arr.sort(), TypeError);
+    assertFalse(arr.hasOwnProperty(1));
+    assertEquals(arr, [1,,undefined]);
+  }
+  {
+    var arr = [1,undefined,2];
+    Object.preventExtensions(arr);
+    arr.sort();
+    assertEquals(arr, [1,2,undefined]);
+  }
+}
+TestSortOnNonExtensible();
+
+
+// Test special prototypes
+(function testSortSpecialPrototypes() {
+  function test(proto, length, expected) {
+    var result = {
+       length: length,
+       __proto__: proto,
+     };
+    Array.prototype.sort.call(result);
+    assertEquals(expected.length, result.length, "result.length");
+    for (var i = 0; i<expected.length; i++) {
+      assertEquals(expected[i], result[i], "result["+i+"]");
+    }
+  }
+
+  (function fast() {
+    // Fast elements, non-empty
+    test(arguments, 0, []);
+    test(arguments, 1, [2]);
+    test(arguments, 2, [1, 2]);
+    test(arguments, 4, [1, 2, 3, 4]);
+    delete arguments[0]
+    // sort copies down the properties to the receiver, hence result[1]
+    // is read on the arguments through the hole on the receiver.
+    test(arguments, 2, [1, 1]);
+    arguments[0] = undefined;
+    test(arguments, 2, [1, undefined]);
+  })(2, 1, 4, 3);
+
+  (function fastSloppy(a) {
+    // Fast sloppy
+    test(arguments, 0, []);
+    test(arguments, 1, [2]);
+    test(arguments, 2, [1, 2]);
+    delete arguments[0]
+    test(arguments, 2, [1, 1]);
+    arguments[0] = undefined;
+    test(arguments, 2, [1, undefined]);
+  })(2, 1);
+
+  (function fastEmpty() {
+    test(arguments, 0, []);
+    test(arguments, 1, [undefined]);
+    test(arguments, 2, [undefined, undefined]);
+  })();
+
+  (function stringWrapper() {
+    // cannot redefine string wrapper properties
+    assertThrows(() => test(new String('cba'), 3, []), TypeError);
+  })();
+
+  (function typedArrys() {
+    test(new Int32Array(0), 0, []);
+    test(new Int32Array(1), 1, [0]);
+    var array = new Int32Array(3);
+    array[0] = 2;
+    array[1] = 1;
+    array[2] = 3;
+    test(array, 1, [2]);
+    test(array, 2, [1, 2]);
+    test(array, 3, [1, 2, 3]);
+  })()
+
+})();

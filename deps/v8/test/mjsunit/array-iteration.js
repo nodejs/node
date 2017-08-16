@@ -45,17 +45,22 @@
   // Use specified object as this object when calling the function.
   var o = { value: 42 }
   a = [1,42,3,42,4];
-  assertArrayEquals([42,42], a.filter(function(n) { return this.value == n }, o))
+  assertArrayEquals([42,42],
+      a.filter(function(n) { return this.value == n }, o))
 
   // Modify original array.
   a = [1,42,3,42,4];
-  assertArrayEquals([42,42], a.filter(function(n, index, array) { array[index] = 43; return 42 == n; }));
+  assertArrayEquals([42,42],
+      a.filter(function(n, index, array) {
+          array[index] = 43; return 42 == n;
+      }));
   assertArrayEquals([43,43,43,43,43], a);
 
   // Only loop through initial part of array eventhough elements are
   // added.
   a = [1,1];
-  assertArrayEquals([], a.filter(function(n, index, array) { array.push(n+1); return n == 2; }));
+  assertArrayEquals([],
+      a.filter(function(n, index, array) { array.push(n+1); return n == 2; }));
   assertArrayEquals([1,1,2,2], a);
 
   // Respect holes.
@@ -166,13 +171,19 @@
 
   // Modify original array.
   a = [0,1];
-  assertFalse(a.every(function(n, index, array) { array[index] = n + 1; return n == 1;}));
+  assertFalse(
+      a.every(function(n, index, array) {
+        array[index] = n + 1; return n == 1;
+      }));
   assertArrayEquals([1,1], a);
 
   // Only loop through initial part of array eventhough elements are
   // added.
   a = [1,1];
-  assertTrue(a.every(function(n, index, array) { array.push(n + 1); return n == 1;}));
+  assertTrue(
+      a.every(function(n, index, array) {
+        array.push(n + 1); return n == 1;
+      }));
   assertArrayEquals([1,1,2,2], a);
 
   // Respect holes.
@@ -221,14 +232,18 @@
   // Modify original array.
   a = [0,1,2,3,4];
   result = [1,2,3,4,5];
-  assertArrayEquals(result, a.map(function(n, index, array) { array[index] = n + 1; return n + 1;}));
+  assertArrayEquals(result,
+      a.map(function(n, index, array) {
+        array[index] = n + 1; return n + 1;
+      }));
   assertArrayEquals(result, a);
 
   // Only loop through initial part of array eventhough elements are
   // added.
   a = [0,1,2,3,4];
   result = [1,2,3,4,5];
-  assertArrayEquals(result, a.map(function(n, index, array) { array.push(n); return n + 1;}));
+  assertArrayEquals(result,
+      a.map(function(n, index, array) { array.push(n); return n + 1; }));
   assertArrayEquals([0,1,2,3,4,0,1,2,3,4], a);
 
   // Respect holes.
@@ -275,12 +290,15 @@
 
   // Modify original array.
   a = [0,1,2,3];
-  assertTrue(a.some(function(n, index, array) { array[index] = n + 1; return n == 2; }));
+  assertTrue(
+      a.some(function(n, index, array) {
+        array[index] = n + 1; return n == 2; }));
   assertArrayEquals([1,2,3,3], a);
 
   // Only loop through initial part when elements are added.
   a = [0,1,2];
-  assertFalse(a.some(function(n, index, array) { array.push(42); return n == 42; }));
+  assertFalse(
+      a.some(function(n, index, array) { array.push(42); return n == 42; }));
   assertArrayEquals([0,1,2,42,42,42], a);
 
   // Respect holes.

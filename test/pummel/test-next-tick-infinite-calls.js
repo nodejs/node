@@ -19,10 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
 
-var complete = 0;
+let complete = 0;
 
 // This will fail with:
 //  FATAL ERROR: JS Allocation failed - process out of memory

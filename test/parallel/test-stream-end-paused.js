@@ -19,15 +19,15 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var gotEnd = false;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
 // Make sure we don't miss the end event for paused 0-length streams
 
-var Readable = require('stream').Readable;
-var stream = new Readable();
-var calledRead = false;
+const Readable = require('stream').Readable;
+const stream = new Readable();
+let calledRead = false;
 stream._read = function() {
   assert(!calledRead);
   calledRead = true;
@@ -39,15 +39,12 @@ stream.on('data', function() {
 });
 stream.pause();
 
-setTimeout(function() {
-  stream.on('end', function() {
-    gotEnd = true;
-  });
+setTimeout(common.mustCall(function() {
+  stream.on('end', common.mustCall());
   stream.resume();
-});
+}), 1);
 
 process.on('exit', function() {
-  assert(gotEnd);
   assert(calledRead);
   console.log('ok');
 });

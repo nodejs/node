@@ -19,40 +19,30 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
 
-var assert = require('assert');
-var fs = require('fs');
-var net = require('net');
-var tls = require('tls');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-var ended = 0;
-
-var server = tls.createServer({
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const server = tls.createServer({
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 }, function(c) {
   // Send close-notify without shutting down TCP socket
-  if (c.ssl.shutdown() !== 1)
-    c.ssl.shutdown();
-}).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, {
+  if (c._handle.shutdownSSL() !== 1)
+    c._handle.shutdownSSL();
+}).listen(0, common.mustCall(function() {
+  const c = tls.connect(this.address().port, {
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
     // Ensure that we receive 'end' event anyway
-    c.on('end', function() {
-      ended++;
+    c.on('end', common.mustCall(function() {
       c.destroy();
       server.close();
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(ended, 1);
-});
+    }));
+  }));
+}));

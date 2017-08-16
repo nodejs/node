@@ -19,12 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
-var path = require('path'),
-    fs = require('fs'),
-    fn = path.join(common.fixturesDir, 'empty.txt');
+const fn = fixtures.path('empty.txt');
 
 fs.readFile(fn, function(err, data) {
   assert.ok(data);

@@ -1,0 +1,423 @@
+{
+  "name": "JSTests",
+  "run_count": 3,
+  "run_count_arm": 1,
+  "run_count_arm64": 1,
+  "timeout": 120,
+  "units": "score",
+  "total": true,
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "AsyncAwait",
+      "path": ["AsyncAwait"],
+      "main": "run.js",
+      "resources": [
+        "native.js",
+        "baseline-babel-es2017.js",
+        "baseline-naive-promises.js"
+      ],
+      "flags": ["--allow-natives-syntax"],
+      "results_regexp": "^%s\\-AsyncAwait\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "BaselineES2017"},
+        {"name": "BaselineNaivePromises"},
+        {"name": "Native"}
+      ]
+    },
+    {
+      "name": "Generators",
+      "path": ["Generators"],
+      "main": "run.js",
+      "resources": ["generators.js"],
+      "flags": ["--harmony-function-sent"],
+      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
+    },
+    {
+      "name": "RestParameters",
+      "path": ["RestParameters"],
+      "main": "run.js",
+      "resources": ["rest.js"],
+      "units": "score",
+      "results_regexp": "^%s\\-RestParameters\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Basic1"},
+        {"name": "ReturnArgsBabel"},
+        {"name": "ReturnArgsNative"}
+      ]
+    },
+    {
+      "name": "SpreadCalls",
+      "path": ["SpreadCalls"],
+      "main": "run.js",
+      "resources": ["spreadcalls.js"],
+      "units": "score",
+      "results_regexp": "^%s\\-SpreadCalls\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Call"},
+        {"name": "CallMethod"},
+        {"name": "CallNew"}
+      ]
+    },
+    {
+      "name": "Classes",
+      "path": ["Classes"],
+      "main": "run.js",
+      "resources": ["super.js", "default-constructor.js"],
+      "results_regexp": "^%s\\-Classes\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Super"},
+        {"name": "DefaultConstructor"}
+      ]
+    },
+    {
+      "name": "Closures",
+      "path": ["Closures"],
+      "main": "run.js",
+      "resources": ["closures.js"],
+      "flags": [],
+      "results_regexp": "^%s\\-Closures\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Closures"}
+      ]
+    },
+    {
+      "name": "ClosuresMarkForTierUp",
+      "path": ["Closures"],
+      "main": "run.js",
+      "resources": ["closures.js"],
+      "flags": ["--mark_shared_functions_for_tier_up"],
+      "results_regexp": "^%s\\-Closures\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Closures"}
+      ]
+    },
+    {
+      "name": "Collections",
+      "path": ["Collections"],
+      "main": "run.js",
+      "resources": [
+        "common.js",
+        "map.js",
+        "run.js",
+        "set.js",
+        "weakmap.js",
+        "weakset.js"
+      ],
+      "results_regexp": "^%s\\-Collections\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Map-Smi"},
+        {"name": "Map-String"},
+        {"name": "Map-Object"},
+        {"name": "Map-Iteration"},
+        {"name": "Set-Smi"},
+        {"name": "Set-String"},
+        {"name": "Set-Object"},
+        {"name": "Set-Iteration"},
+        {"name": "WeakMap"},
+        {"name": "WeakSet"}
+      ]
+    },
+    {
+      "name": "Iterators",
+      "path": ["Iterators"],
+      "main": "run.js",
+      "resources": ["forof.js"],
+      "results_regexp": "^%s\\-Iterators\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ForOf"}
+      ]
+    },
+    {
+      "name": "Strings",
+      "path": ["Strings"],
+      "main": "run.js",
+      "resources": ["harmony-string.js"],
+      "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+      "run_count": 1,
+      "timeout": 240,
+      "timeout_arm": 420,
+      "tests": [
+        {"name": "StringFunctions"}
+      ]
+    },
+    {
+      "name": "StringIterators",
+      "path": ["StringIterators"],
+      "main": "run.js",
+      "resources": ["string-iterator.js"],
+      "results_regexp": "^%s\\-StringIterators\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread_OneByteShort"},
+        {"name": "Spread_TwoByteShort"},
+        {"name": "Spread_WithSurrogatePairsShort"},
+        {"name": "ForOf_OneByteShort"},
+        {"name": "ForOf_TwoByteShort"},
+        {"name": "ForOf_WithSurrogatePairsShort"},
+        {"name": "ForOf_OneByteLong"},
+        {"name": "ForOf_TwoByteLong"},
+        {"name": "ForOf_WithSurrogatePairsLong"}
+      ]
+    },
+    {
+      "name": "Templates",
+      "path": ["Templates"],
+      "main": "run.js",
+      "resources": ["templates.js"],
+      "units": "score",
+      "results_regexp": "^%s\\-Templates\\(Score\\): (.+)$",
+      "total": true,
+      "tests": [
+        {"name": "Untagged"},
+        {"name": "LargeUntagged"},
+        {"name": "Tagged"}
+      ]
+    },
+    {
+      "name": "Object",
+      "path": ["Object"],
+      "main": "run.js",
+      "flags": ["--harmony"],
+      "resources": [
+        "assign.js",
+        "create.js",
+        "entries.js",
+        "values.js"
+      ],
+      "results_regexp": "^%s\\-Object\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Assign"},
+        {"name": "Create"},
+        {"name": "Entries"},
+        {"name": "EntriesMegamorphic"},
+        {"name": "Values"},
+        {"name": "ValuesMegamorphic"}
+      ]
+    },
+    {
+      "name": "Scope",
+      "path": ["Scope"],
+      "main": "run.js",
+      "resources": ["with.js"],
+      "results_regexp": "^%s\\-Scope\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "With"}
+      ]
+    },
+    {
+      "name": "Exceptions",
+      "path": ["Exceptions"],
+      "main": "run.js",
+      "resources": ["try-catch.js"],
+      "results_regexp": "^%s\\-Exceptions\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Try-Catch"}
+      ]
+    },
+    {
+      "name": "Keys",
+      "path": ["Keys"],
+      "main": "run.js",
+      "resources": ["keys.js"],
+      "results_regexp": "^%s\\-Keys\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Object.keys()"},
+        {"name": "for-in"},
+        {"name": "for-in hasOwnProperty()"},
+        {"name": "for (i < Object.keys().length)"},
+        {"name": "Object.keys().forEach()"},
+        {"name": "for (i < array.length)"},
+        {"name": "for (i < length)"}
+      ]
+    },
+    {
+      "name": "PropertyQueries",
+      "path": ["PropertyQueries"],
+      "main": "run.js",
+      "resources": ["property-queries.js"],
+      "results_regexp": "^%s\\-PropertyQueries\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "in--INTERN-prop"},
+        {"name": "in--DEINTERN-prop"},
+        {"name": "in--NE-INTERN-prop"},
+        {"name": "in--NE-DEINTERN-prop"},
+        {"name": "in--el"},
+        {"name": "in--el-str"},
+        {"name": "in--NE-el"},
+        {"name": "Object.hasOwnProperty--INTERN-prop"},
+        {"name": "Object.hasOwnProperty--DEINTERN-prop"},
+        {"name": "Object.hasOwnProperty--NE-INTERN-prop"},
+        {"name": "Object.hasOwnProperty--NE-DEINTERN-prop"},
+        {"name": "Object.hasOwnProperty--el"},
+        {"name": "Object.hasOwnProperty--el-str"},
+        {"name": "Object.hasOwnProperty--NE-el"}
+      ]
+    },
+    {
+      "name": "TypedArrays",
+      "path": ["TypedArrays"],
+      "results_regexp": "^TypedArrays\\-%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "CopyWithin",
+          "main": "run.js",
+          "resources": ["copywithin.js"],
+          "test_flags": ["copywithin"]
+        },
+        {
+          "name": "Constructor",
+          "main": "run.js",
+          "resources": ["constructor.js"],
+          "test_flags": ["constructor"]
+        },
+        {
+          "name": "Constructor--noTF",
+          "flags": ["--no-turbo"],
+          "results_regexp": "^TypedArrays\\-Constructor\\(Score\\): (.+)$",
+          "main": "run.js",
+          "resources": ["constructor.js"],
+          "test_flags": ["constructor"]
+        },
+        {
+          "name": "ConstructWithBuffer",
+          "main": "run.js",
+          "resources": ["construct-buffer.js"],
+          "test_flags": ["construct-buffer"]
+        },
+        {
+          "name": "ConstructWithBuffer--noTF",
+          "flags": ["--no-turbo"],
+          "results_regexp": "^TypedArrays\\-ConstructWithBuffer\\(Score\\): (.+)$",
+          "main": "run.js",
+          "resources": ["construct-buffer.js"],
+          "test_flags": ["construct-buffer"]
+        },
+        {
+          "name": "ConstructArrayLike",
+          "main": "run.js",
+          "resources": ["construct-arraylike.js"],
+          "test_flags": ["construct-arraylike"]
+        },
+        {
+          "name": "ConstructArrayLike--noTF",
+          "flags": ["--no-turbo"],
+          "results_regexp": "^TypedArrays\\-ConstructArrayLike\\(Score\\): (.+)$",
+          "main": "run.js",
+          "resources": ["construct-arraylike.js"],
+          "test_flags": ["construct-arraylike"]
+        },
+        {
+          "name": "ConstructByTypedArray",
+          "main": "run.js",
+          "resources": ["construct-typedarray.js"],
+          "test_flags": ["construct-typedarray"]
+        },
+        {
+          "name": "ConstructByTypedArray--noTF",
+          "flags": ["--no-turbo"],
+          "results_regexp": "^TypedArrays\\-ConstructByTypedArray\\(Score\\): (.+)$",
+          "main": "run.js",
+          "resources": ["construct-typedarray.js"],
+          "test_flags": ["construct-typedarray"]
+        },
+        {
+          "name": "ConstructBySameTypedArray",
+          "main": "run.js",
+          "resources": ["construct-same-typedarray.js"],
+          "test_flags": ["construct-same-typedarray"]
+        },
+        {
+          "name": "ConstructAllTypedArrays",
+          "main": "run.js",
+          "resources": ["construct-all-typedarrays.js"],
+          "test_flags": ["construct-all-typedarrays"]
+        },
+        {
+          "name": "Sort",
+          "main": "run.js",
+          "resources": ["sort.js"],
+          "test_flags": ["sort"]
+        }
+      ]
+    },
+    {
+      "name": "Array",
+      "path": ["Array"],
+      "main": "run.js",
+      "resources": [
+        "filter.js", "map.js"
+      ],
+      "results_regexp": "^%s\\-Array\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "NaiveFilterReplacement"},
+        {"name": "DoubleFilter"},
+        {"name": "SmiFilter"},
+        {"name": "FastFilter"},
+        {"name": "ObjectFilter"},
+        {"name": "NaiveMapReplacement"},
+        {"name": "DoubleMap"},
+        {"name": "SmiMap"},
+        {"name": "FastMap"},
+        {"name": "ObjectMap"}
+      ]
+    },
+    {
+      "name": "ForLoops",
+      "path": ["ForLoops"],
+      "main": "run.js",
+      "resources": [
+        "for_loop.js"
+      ],
+      "results_regexp": "^%s\\-ForLoop\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Let-Standard"},
+        {"name": "Var-Standard"}
+      ]
+    },
+    {
+      "name": "Modules",
+      "path": ["Modules"],
+      "main": "run.js",
+      "resources": ["basic-export.js", "basic-import.js", "basic-namespace.js", "value.js"],
+      "flags": [
+        "--allow-natives-syntax",
+        "--harmony-dynamic-import"
+      ],
+      "results_regexp": "^%s\\-Modules\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "BasicExport"},
+        {"name": "BasicImport"},
+        {"name": "BasicNamespace"}
+      ]
+    },
+    {
+      "name": "BytecodeHandlers",
+      "path": ["BytecodeHandlers"],
+      "main": "run.js",
+      "resources": [ "compare.js" ],
+      "flags": [ "--no-opt" ],
+      "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Smi-StrictEquals-True"},
+        {"name": "Smi-StrictEquals-False"},
+        {"name": "Number-StrictEquals-True"},
+        {"name": "Number-StrictEquals-False"},
+        {"name": "String-StrictEquals-True"},
+        {"name": "String-StrictEquals-False"},
+        {"name": "SmiString-StrictEquals"},
+        {"name": "Smi-Equals-True"},
+        {"name": "Smi-Equals-False"},
+        {"name": "Number-Equals-True"},
+        {"name": "Number-Equals-False"},
+        {"name": "String-Equals-True"},
+        {"name": "String-Equals-False"},
+        {"name": "ObjectNull-Equals"},
+        {"name": "SmiString-Equals"},
+        {"name": "Smi-RelationalCompare"},
+        {"name": "Number-RelationalCompare"},
+        {"name": "String-RelationalCompare"},
+        {"name": "SmiString-RelationalCompare"}
+      ]
+    }
+  ]
+}

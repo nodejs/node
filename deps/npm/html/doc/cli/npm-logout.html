@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+  <title>npm-logout</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-logout.html">
+  <script async=true src="../../static/toc.js"></script>
+
+  <body>
+    <div id="wrapper">
+
+<h1><a href="../cli/npm-logout.html">npm-logout</a></h1> <p>Log out of the registry</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm logout [--registry=&lt;url&gt;] [--scope=&lt;@scope&gt;]
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>When logged into a registry that supports token-based authentication, tell the
+server to end this token&#39;s session. This will invalidate the token everywhere
+you&#39;re using it, not just for the current environment.</p>
+<p>When logged into a legacy registry that uses username and password authentication, this will
+clear the credentials in your user configuration. In this case, it will <em>only</em> affect
+the current environment.</p>
+<p>If <code>--scope</code> is provided, this will find the credentials for the registry
+connected to that scope, if set.</p>
+<h2 id="configuration">CONFIGURATION</h2>
+<h3 id="registry">registry</h3>
+<p>Default: <a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a></p>
+<p>The base URL of the npm package registry. If <code>scope</code> is also specified,
+it takes precedence.</p>
+<h3 id="scope">scope</h3>
+<p>Default: The scope of your current project, if any, otherwise none.</p>
+<p>If specified, you will be logged out of the specified scope. See <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code>.</p>
+<pre><code>npm logout --scope=@myco
+</code></pre><h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../cli/npm-adduser.html">npm-adduser(1)</a></li>
+<li><a href="../misc/npm-registry.html">npm-registry(7)</a></li>
+<li><a href="../cli/npm-config.html">npm-config(1)</a></li>
+<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
+<li><a href="../files/npmrc.html">npmrc(5)</a></li>
+<li><a href="../cli/npm-whoami.html">npm-whoami(1)</a></li>
+</ul>
+
+</div>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-logout &mdash; npm@5.3.0</p>
+

@@ -1,0 +1,80 @@
+{
+  "_from": "lodash._baseindexof@*",
+  "_id": "lodash._baseindexof@3.1.0",
+  "_integrity": "sha1-/lK1OhxnYeQmGNZU5KJXie1hgiw=",
+  "_location": "/lodash._baseindexof",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "lodash._baseindexof@*",
+    "name": "lodash._baseindexof",
+    "escapedName": "lodash._baseindexof",
+    "rawSpec": "*",
+    "saveSpec": null,
+    "fetchSpec": "*"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/lodash._baseindexof/-/lodash._baseindexof-3.1.0.tgz",
+  "_shasum": "fe52b53a1c6761e42618d654e4a25789ed61822c",
+  "_shrinkwrap": null,
+  "_spec": "lodash._baseindexof@*",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "John-David Dalton",
+    "email": "john.david.dalton@gmail.com",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "John-David Dalton",
+      "email": "john.david.dalton@gmail.com",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "name": "Benjamin Tan",
+      "email": "demoneaux@gmail.com",
+      "url": "https://d10.github.io/"
+    },
+    {
+      "name": "Blaine Bublitz",
+      "email": "blaine@iceddev.com",
+      "url": "http://www.iceddev.com/"
+    },
+    {
+      "name": "Kit Cambridge",
+      "email": "github@kitcambridge.be",
+      "url": "http://kitcambridge.be/"
+    },
+    {
+      "name": "Mathias Bynens",
+      "email": "mathias@qiwi.be",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "dependencies": {},
+  "deprecated": false,
+  "description": "The modern build of lodash’s internal `baseIndexOf` as a module.",
+  "devDependencies": {},
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "license": "MIT",
+  "name": "lodash._baseindexof",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "3.1.0"
+}

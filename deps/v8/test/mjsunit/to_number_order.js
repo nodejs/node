@@ -56,6 +56,13 @@ x = "";
 assertEquals(1, Math.pow(v, w));
 assertEquals("hestfisk", x, "pow");
 
+x = "";
+var a = {valueOf: function() { x += "hest"; return 1/0; }};
+var b = {valueOf: function() { x += "fisk"; return 1}};
+assertEquals(1/0, Math.hypot(a, b));
+assertEquals("hestfisk", x, "hypot");
+
+
 var year = { valueOf: function() { x += 1; return 2007; } };
 var month = { valueOf: function() { x += 2; return 2; } };
 var date = { valueOf: function() { x += 3; return 4; } };

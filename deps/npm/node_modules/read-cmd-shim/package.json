@@ -1,0 +1,60 @@
+{
+  "_from": "read-cmd-shim@~1.0.1",
+  "_id": "read-cmd-shim@1.0.1",
+  "_integrity": "sha1-LV0Vd4ajfAVdIgd8MsU/gynpHHs=",
+  "_location": "/read-cmd-shim",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "read-cmd-shim@~1.0.1",
+    "name": "read-cmd-shim",
+    "escapedName": "read-cmd-shim",
+    "rawSpec": "~1.0.1",
+    "saveSpec": null,
+    "fetchSpec": "~1.0.1"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/read-cmd-shim/-/read-cmd-shim-1.0.1.tgz",
+  "_shasum": "2d5d157786a37c055d22077c32c53f8329e91c7b",
+  "_shrinkwrap": null,
+  "_spec": "read-cmd-shim@~1.0.1",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/npm/read-cmd-shim/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "graceful-fs": "^4.1.2"
+  },
+  "deprecated": false,
+  "description": "Figure out what a cmd-shim is pointing at. This acts as the equivalent of fs.readlink.",
+  "devDependencies": {
+    "cmd-shim": "^2.0.1",
+    "rimraf": "^2.4.3",
+    "standard": "^5.2.2",
+    "tap": "^1.4.1"
+  },
+  "homepage": "https://github.com/npm/read-cmd-shim#readme",
+  "license": "ISC",
+  "main": "index.js",
+  "name": "read-cmd-shim",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/read-cmd-shim.git"
+  },
+  "scripts": {
+    "test": "standard && tap test/*.js"
+  },
+  "version": "1.0.1"
+}

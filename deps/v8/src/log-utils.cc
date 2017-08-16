@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/log-utils.h"
+
+#include "src/assert-scope.h"
+#include "src/base/platform/platform.h"
+#include "src/objects-inl.h"
 #include "src/string-stream.h"
+#include "src/utils.h"
+#include "src/version.h"
 
 namespace v8 {
 namespace internal {
@@ -33,7 +37,6 @@ void Log::Initialize(const char* log_file_name) {
     FLAG_log_gc = true;
     FLAG_log_suspect = true;
     FLAG_log_handles = true;
-    FLAG_log_regexp = true;
     FLAG_log_internal_timer_events = true;
   }
 
@@ -48,6 +51,14 @@ void Log::Initialize(const char* log_file_name) {
       OpenTemporaryFile();
     } else {
       OpenFile(log_file_name);
+    }
+
+    if (output_handle_ != nullptr) {
+      Log::MessageBuilder msg(this);
+      msg.Append("v8-version,%d,%d,%d,%d,%d", Version::GetMajor(),
+                 Version::GetMinor(), Version::GetBuild(), Version::GetPatch(),
+                 Version::IsCandidate());
+      msg.WriteToLogFile();
     }
   }
 }
@@ -152,16 +163,14 @@ void Log::MessageBuilder::Append(String* str) {
   }
 }
 
-
 void Log::MessageBuilder::AppendAddress(Address addr) {
-  Append("0x%" V8PRIxPTR, addr);
+  Append("%p", static_cast<void*>(addr));
 }
-
 
 void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
   DCHECK(symbol);
   Append("symbol(");
-  if (!symbol->name()->IsUndefined()) {
+  if (!symbol->name()->IsUndefined(symbol->GetIsolate())) {
     Append("\"");
     AppendDetailed(String::cast(symbol->name()), false);
     Append("\" ");
@@ -231,4 +240,5 @@ void Log::MessageBuilder::WriteToLogFile() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

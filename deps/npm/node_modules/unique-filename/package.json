@@ -1,0 +1,63 @@
+{
+  "_from": "unique-filename@~1.1.0",
+  "_id": "unique-filename@1.1.0",
+  "_integrity": "sha1-0F8v5AMlYIcfMOk8vnNe6iAVFPM=",
+  "_location": "/unique-filename",
+  "_phantomChildren": {
+    "imurmurhash": "0.1.4"
+  },
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "unique-filename@~1.1.0",
+    "name": "unique-filename",
+    "escapedName": "unique-filename",
+    "rawSpec": "~1.1.0",
+    "saveSpec": null,
+    "fetchSpec": "~1.1.0"
+  },
+  "_requiredBy": [
+    "/",
+    "/cacache",
+    "/pacote"
+  ],
+  "_resolved": "https://registry.npmjs.org/unique-filename/-/unique-filename-1.1.0.tgz",
+  "_shasum": "d05f2fe4032560871f30e93cbe735eea201514f3",
+  "_shrinkwrap": null,
+  "_spec": "unique-filename@~1.1.0",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/iarna/unique-filename/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "unique-slug": "^2.0.0"
+  },
+  "deprecated": false,
+  "description": "Generate a unique filename for use in temporary directories or caches.",
+  "devDependencies": {
+    "standard": "^5.4.1",
+    "tap": "^2.3.1"
+  },
+  "homepage": "https://github.com/iarna/unique-filename",
+  "keywords": [],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "unique-filename",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/unique-filename.git"
+  },
+  "scripts": {
+    "test": "standard && tap test"
+  },
+  "version": "1.1.0"
+}

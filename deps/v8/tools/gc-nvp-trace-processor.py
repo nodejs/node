@@ -38,43 +38,13 @@
 
 
 from __future__ import with_statement
-import sys, types, re, subprocess, math
+import sys, types, subprocess, math
+import gc_nvp_common
 
 def flatten(l):
   flat = []
   for i in l: flat.extend(i)
   return flat
-
-def split_nvp(s):
-  t = {}
-  for (name, value) in re.findall(r"(\w+)=([-\w]+)", s):
-    try:
-      t[name] = int(value)
-    except ValueError:
-      t[name] = value
-
-  return t
-
-def parse_gc_trace(input):
-  trace = []
-  with open(input) as f:
-    for line in f:
-      info = split_nvp(line)
-      if info and 'pause' in info and info['pause'] > 0:
-        info['i'] = len(trace)
-        trace.append(info)
-  return trace
-
-def extract_field_names(script):
-  fields = { 'data': true, 'in': true }
-
-  for m in re.finditer(r"$(\w+)", script):
-    field_name = m.group(1)
-    if field_name not in fields:
-      fields[field] = field_count
-      field_count = field_count + 1
-
-  return fields
 
 def gnuplot(script):
   gnuplot = subprocess.Popen(["gnuplot"], stdin=subprocess.PIPE)
@@ -228,7 +198,7 @@ def scavenge_scope(r):
 
 
 def real_mutator(r):
-  return r['mutator'] - r['stepstook']
+  return r['mutator'] - r['steps_took']
 
 plots = [
   [
@@ -240,7 +210,7 @@ plots = [
          Item('Sweep', 'sweep', lc = 'blue'),
          Item('External', 'external', lc = '#489D43'),
          Item('Other', other_scope, lc = 'grey'),
-         Item('IGC Steps', 'stepstook', lc = '#FF6347'))
+         Item('IGC Steps', 'steps_took', lc = '#FF6347'))
   ],
   [
     Set('style fill solid 0.5 noborder'),
@@ -304,7 +274,7 @@ def count_nonzero(trace, field):
 
 
 def process_trace(filename):
-  trace = parse_gc_trace(filename)
+  trace = gc_nvp_common.parse_gc_trace(filename)
 
   marksweeps = filter(lambda r: r['gc'] == 'ms', trace)
   scavenges = filter(lambda r: r['gc'] == 's', trace)

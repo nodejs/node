@@ -19,20 +19,16 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var gotError = 0;
-
-process.on('exit', function() {
-  assert.equal(gotError, 2);
-});
-
-net.createServer(assert.fail).listen({fd:2}).on('error', onError);
-net.createServer(assert.fail).listen({fd:42}).on('error', onError);
+net.createServer(common.mustNotCall()).listen({ fd: 2 })
+  .on('error', common.mustCall(onError));
+net.createServer(common.mustNotCall()).listen({ fd: 42 })
+  .on('error', common.mustCall(onError));
 
 function onError(ex) {
-  assert.equal(ex.code, 'EINVAL');
-  gotError++;
+  assert.strictEqual(ex.code, 'EINVAL');
 }

@@ -20,8 +20,11 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_constants.h"
+#include "env.h"
+#include "env-inl.h"
 
 #include "uv.h"
+#include "zlib.h"
 
 #include <errno.h>
 #if !defined(_MSC_VER)
@@ -31,6 +34,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <limits>
 
 #if HAVE_OPENSSL
 # include <openssl/ec.h>
@@ -42,10 +46,16 @@
 
 namespace node {
 
-using v8::Handle;
+using v8::Local;
 using v8::Object;
 
-void DefineErrnoConstants(Handle<Object> target) {
+#if HAVE_OPENSSL
+const char* default_cipher_list = DEFAULT_CIPHER_LIST_CORE;
+#endif
+
+namespace {
+
+void DefineErrnoConstants(Local<Object> target) {
 #ifdef E2BIG
   NODE_DEFINE_CONSTANT(target, E2BIG);
 #endif
@@ -363,7 +373,7 @@ void DefineErrnoConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineWindowsErrorConstants(Handle<Object> target) {
+void DefineWindowsErrorConstants(Local<Object> target) {
 #ifdef WSAEINTR
   NODE_DEFINE_CONSTANT(target, WSAEINTR);
 #endif
@@ -597,7 +607,7 @@ void DefineWindowsErrorConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineSignalConstants(Handle<Object> target) {
+void DefineSignalConstants(Local<Object> target) {
 #ifdef SIGHUP
   NODE_DEFINE_CONSTANT(target, SIGHUP);
 #endif
@@ -733,6 +743,10 @@ void DefineSignalConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, SIGPWR);
 #endif
 
+#ifdef SIGINFO
+  NODE_DEFINE_CONSTANT(target, SIGINFO);
+#endif
+
 #ifdef SIGSYS
   NODE_DEFINE_CONSTANT(target, SIGSYS);
 #endif
@@ -742,7 +756,7 @@ void DefineSignalConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineOpenSSLConstants(Handle<Object> target) {
+void DefineOpenSSLConstants(Local<Object> target) {
 #ifdef SSL_OP_ALL
     NODE_DEFINE_CONSTANT(target, SSL_OP_ALL);
 #endif
@@ -881,6 +895,10 @@ void DefineOpenSSLConstants(Handle<Object> target) {
 
 # ifndef OPENSSL_NO_ENGINE
 
+# ifdef ENGINE_METHOD_RSA
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RSA);
+# endif
+
 # ifdef ENGINE_METHOD_DSA
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DSA);
 # endif
@@ -947,9 +965,14 @@ void DefineOpenSSLConstants(Handle<Object> target) {
     NODE_DEFINE_CONSTANT(target, DH_NOT_SUITABLE_GENERATOR);
 #endif
 
-#ifdef OPENSSL_NPN_NEGOTIATED
+#ifndef OPENSSL_NO_NEXTPROTONEG
 #define NPN_ENABLED 1
     NODE_DEFINE_CONSTANT(target, NPN_ENABLED);
+#endif
+
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+#define ALPN_ENABLED 1
+    NODE_DEFINE_CONSTANT(target, ALPN_ENABLED);
 #endif
 
 #ifdef RSA_PKCS1_PADDING
@@ -976,6 +999,18 @@ void DefineOpenSSLConstants(Handle<Object> target) {
     NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PSS_PADDING);
 #endif
 
+#ifdef RSA_PSS_SALTLEN_DIGEST
+    NODE_DEFINE_CONSTANT(target, RSA_PSS_SALTLEN_DIGEST);
+#endif
+
+#ifdef RSA_PSS_SALTLEN_MAX_SIGN
+    NODE_DEFINE_CONSTANT(target, RSA_PSS_SALTLEN_MAX_SIGN);
+#endif
+
+#ifdef RSA_PSS_SALTLEN_AUTO
+    NODE_DEFINE_CONSTANT(target, RSA_PSS_SALTLEN_AUTO);
+#endif
+
 #if HAVE_OPENSSL
   // NOTE: These are not defines
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_COMPRESSED);
@@ -986,7 +1021,7 @@ void DefineOpenSSLConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineSystemConstants(Handle<Object> target) {
+void DefineSystemConstants(Local<Object> target) {
   // file access modes
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);
@@ -1038,6 +1073,10 @@ void DefineSystemConstants(Handle<Object> target) {
 
 #ifdef O_EXCL
   NODE_DEFINE_CONSTANT(target, O_EXCL);
+#endif
+
+#ifdef O_NOATIME
+  NODE_DEFINE_CONSTANT(target, O_NOATIME);
 #endif
 
 #ifdef O_NOFOLLOW
@@ -1125,17 +1164,128 @@ void DefineSystemConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineUVConstants(Handle<Object> target) {
+void DefineUVConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, UV_UDP_REUSEADDR);
 }
 
-void DefineConstants(Handle<Object> target) {
-  DefineErrnoConstants(target);
-  DefineWindowsErrorConstants(target);
-  DefineSignalConstants(target);
-  DefineOpenSSLConstants(target);
-  DefineSystemConstants(target);
-  DefineUVConstants(target);
+void DefineCryptoConstants(Local<Object> target) {
+#if HAVE_OPENSSL
+  NODE_DEFINE_STRING_CONSTANT(target,
+                              "defaultCoreCipherList",
+                              DEFAULT_CIPHER_LIST_CORE);
+  NODE_DEFINE_STRING_CONSTANT(target,
+                              "defaultCipherList",
+                              default_cipher_list);
+#endif
+}
+
+void DefineZlibConstants(Local<Object> target) {
+  NODE_DEFINE_CONSTANT(target, Z_NO_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_PARTIAL_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_SYNC_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_FULL_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_FINISH);
+  NODE_DEFINE_CONSTANT(target, Z_BLOCK);
+
+  // return/error codes
+  NODE_DEFINE_CONSTANT(target, Z_OK);
+  NODE_DEFINE_CONSTANT(target, Z_STREAM_END);
+  NODE_DEFINE_CONSTANT(target, Z_NEED_DICT);
+  NODE_DEFINE_CONSTANT(target, Z_ERRNO);
+  NODE_DEFINE_CONSTANT(target, Z_STREAM_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_DATA_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_MEM_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_BUF_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_VERSION_ERROR);
+
+  NODE_DEFINE_CONSTANT(target, Z_NO_COMPRESSION);
+  NODE_DEFINE_CONSTANT(target, Z_BEST_SPEED);
+  NODE_DEFINE_CONSTANT(target, Z_BEST_COMPRESSION);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_COMPRESSION);
+  NODE_DEFINE_CONSTANT(target, Z_FILTERED);
+  NODE_DEFINE_CONSTANT(target, Z_HUFFMAN_ONLY);
+  NODE_DEFINE_CONSTANT(target, Z_RLE);
+  NODE_DEFINE_CONSTANT(target, Z_FIXED);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_STRATEGY);
+  NODE_DEFINE_CONSTANT(target, ZLIB_VERNUM);
+
+  enum node_zlib_mode {
+    NONE,
+    DEFLATE,
+    INFLATE,
+    GZIP,
+    GUNZIP,
+    DEFLATERAW,
+    INFLATERAW,
+    UNZIP
+  };
+
+  NODE_DEFINE_CONSTANT(target, DEFLATE);
+  NODE_DEFINE_CONSTANT(target, INFLATE);
+  NODE_DEFINE_CONSTANT(target, GZIP);
+  NODE_DEFINE_CONSTANT(target, GUNZIP);
+  NODE_DEFINE_CONSTANT(target, DEFLATERAW);
+  NODE_DEFINE_CONSTANT(target, INFLATERAW);
+  NODE_DEFINE_CONSTANT(target, UNZIP);
+
+  NODE_DEFINE_CONSTANT(target, Z_MIN_WINDOWBITS);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_WINDOWBITS);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_WINDOWBITS);
+  NODE_DEFINE_CONSTANT(target, Z_MIN_CHUNK);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_CHUNK);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_CHUNK);
+  NODE_DEFINE_CONSTANT(target, Z_MIN_MEMLEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_MEMLEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_MEMLEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_MIN_LEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_LEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_LEVEL);
+}
+
+}  // anonymous namespace
+
+void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
+  Environment* env = Environment::GetCurrent(isolate);
+
+  Local<Object> os_constants = Object::New(isolate);
+  CHECK(os_constants->SetPrototype(env->context(),
+                                   Null(env->isolate())).FromJust());
+
+  Local<Object> err_constants = Object::New(isolate);
+  CHECK(err_constants->SetPrototype(env->context(),
+                                    Null(env->isolate())).FromJust());
+
+  Local<Object> sig_constants = Object::New(isolate);
+  CHECK(sig_constants->SetPrototype(env->context(),
+                                    Null(env->isolate())).FromJust());
+
+  Local<Object> fs_constants = Object::New(isolate);
+  CHECK(fs_constants->SetPrototype(env->context(),
+                                   Null(env->isolate())).FromJust());
+
+  Local<Object> crypto_constants = Object::New(isolate);
+  CHECK(crypto_constants->SetPrototype(env->context(),
+                                       Null(env->isolate())).FromJust());
+
+  Local<Object> zlib_constants = Object::New(isolate);
+  CHECK(zlib_constants->SetPrototype(env->context(),
+                                     Null(env->isolate())).FromJust());
+
+  DefineErrnoConstants(err_constants);
+  DefineWindowsErrorConstants(err_constants);
+  DefineSignalConstants(sig_constants);
+  DefineUVConstants(os_constants);
+  DefineSystemConstants(fs_constants);
+  DefineOpenSSLConstants(crypto_constants);
+  DefineCryptoConstants(crypto_constants);
+  DefineZlibConstants(zlib_constants);
+
+  os_constants->Set(OneByteString(isolate, "errno"), err_constants);
+  os_constants->Set(OneByteString(isolate, "signals"), sig_constants);
+  target->Set(OneByteString(isolate, "os"), os_constants);
+  target->Set(OneByteString(isolate, "fs"), fs_constants);
+  target->Set(OneByteString(isolate, "crypto"), crypto_constants);
+  target->Set(OneByteString(isolate, "zlib"), zlib_constants);
 }
 
 }  // namespace node

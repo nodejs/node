@@ -97,7 +97,7 @@ class RecordWriteStub: public PlatformCodeStub {
     INCREMENTAL_COMPACTION
   };
 
-  virtual bool SometimesSetsUpAFrame() { return false; }
+  bool SometimesSetsUpAFrame() override { return false; }
 
   static Mode GetMode(Code* stub) {
     // Find the mode depending on the first two instructions.
@@ -130,16 +130,17 @@ class RecordWriteStub: public PlatformCodeStub {
   // so effectively a nop.
   static void Patch(Code* stub, Mode mode) {
     // We are going to patch the two first instructions of the stub.
-    PatchingAssembler patcher(
-        reinterpret_cast<Instruction*>(stub->instruction_start()), 2);
+    PatchingAssembler patcher(stub->GetIsolate(), stub->instruction_start(), 2);
     Instruction* instr1 = patcher.InstructionAt(0);
     Instruction* instr2 = patcher.InstructionAt(kInstructionSize);
     // Instructions must be either 'adr' or 'b'.
     DCHECK(instr1->IsPCRelAddressing() || instr1->IsUncondBranchImm());
     DCHECK(instr2->IsPCRelAddressing() || instr2->IsUncondBranchImm());
     // Retrieve the offsets to the labels.
-    int32_t offset_to_incremental_noncompacting = instr1->ImmPCOffset();
-    int32_t offset_to_incremental_compacting = instr2->ImmPCOffset();
+    auto offset_to_incremental_noncompacting =
+        static_cast<int32_t>(instr1->ImmPCOffset());
+    auto offset_to_incremental_compacting =
+        static_cast<int32_t>(instr2->ImmPCOffset());
 
     switch (mode) {
       case STORE_BUFFER_ONLY:
@@ -169,37 +170,7 @@ class RecordWriteStub: public PlatformCodeStub {
   // The 'object' and 'address' registers must be preserved.
   class RegisterAllocation {
    public:
-    RegisterAllocation(Register object,
-                       Register address,
-                       Register scratch)
-        : object_(object),
-          address_(address),
-          scratch0_(scratch),
-          saved_regs_(kCallerSaved),
-          saved_fp_regs_(kCallerSavedFP) {
-      DCHECK(!AreAliased(scratch, object, address));
-
-      // The SaveCallerSaveRegisters method needs to save caller-saved
-      // registers, but we don't bother saving MacroAssembler scratch registers.
-      saved_regs_.Remove(MacroAssembler::DefaultTmpList());
-      saved_fp_regs_.Remove(MacroAssembler::DefaultFPTmpList());
-
-      // We would like to require more scratch registers for this stub,
-      // but the number of registers comes down to the ones used in
-      // FullCodeGen::SetVar(), which is architecture independent.
-      // We allocate 2 extra scratch registers that we'll save on the stack.
-      CPURegList pool_available = GetValidRegistersForAllocation();
-      CPURegList used_regs(object, address, scratch);
-      pool_available.Remove(used_regs);
-      scratch1_ = Register(pool_available.PopLowestIndex());
-      scratch2_ = Register(pool_available.PopLowestIndex());
-
-      // The scratch registers will be restored by other means so we don't need
-      // to save them with the other caller saved registers.
-      saved_regs_.Remove(scratch0_);
-      saved_regs_.Remove(scratch1_);
-      saved_regs_.Remove(scratch2_);
-    }
+    RegisterAllocation(Register object, Register address, Register scratch);
 
     void Save(MacroAssembler* masm) {
       // We don't have to save scratch0_ because it was given to us as
@@ -275,9 +246,9 @@ class RecordWriteStub: public PlatformCodeStub {
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
-  virtual inline Major MajorKey() const FINAL OVERRIDE { return RecordWrite; }
+  inline Major MajorKey() const final { return RecordWrite; }
 
-  virtual void Generate(MacroAssembler* masm) OVERRIDE;
+  void Generate(MacroAssembler* masm) override;
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,
@@ -285,9 +256,7 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  void Activate(Code* code) {
-    code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
-  }
+  void Activate(Code* code) override;
 
   Register object() const {
     return Register::from_code(ObjectBits::decode(minor_key_));
@@ -328,7 +297,7 @@ class DirectCEntryStub: public PlatformCodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  bool NeedsImmovableCode() { return true; }
+  bool NeedsImmovableCode() override { return true; }
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DirectCEntry, PlatformCodeStub);
@@ -352,15 +321,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
                                      Handle<Name> name,
                                      Register scratch0);
 
-  static void GeneratePositiveLookup(MacroAssembler* masm,
-                                     Label* miss,
-                                     Label* done,
-                                     Register elements,
-                                     Register name,
-                                     Register scratch1,
-                                     Register scratch2);
-
-  virtual bool SometimesSetsUpAFrame() { return false; }
+  bool SometimesSetsUpAFrame() override { return false; }
 
  private:
   static const int kInlinedProbes = 4;
@@ -382,6 +343,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_CODE_STUBS_ARM64_H_

@@ -27,26 +27,13 @@
 
 
 import os
-import signal
 import subprocess
 import sys
-import tempfile
-import time
+from threading import Timer
 
 from ..local import utils
 from ..objects import output
 
-
-def KillProcessWithID(pid):
-  if utils.IsWindows():
-    os.popen('taskkill /T /F /PID %d' % pid)
-  else:
-    os.kill(pid, signal.SIGTERM)
-
-
-MAX_SLEEP_TIME = 0.1
-INITIAL_SLEEP_TIME = 0.0001
-SLEEP_TIME_FACTOR = 1.25
 
 SEM_INVALID_VALUE = -1
 SEM_NOGPFAULTERRORBOX = 0x0002  # Microsoft Platform SDK WinBase.h
@@ -63,7 +50,7 @@ def Win32SetErrorMode(mode):
   return prev_error_mode
 
 
-def RunProcess(verbose, timeout, args, **rest):
+def RunProcess(verbose, timeout, args, additional_env, **rest):
   if verbose: print "#", " ".join(args)
   popen_args = args
   prev_error_mode = SEM_INVALID_VALUE
@@ -75,77 +62,71 @@ def RunProcess(verbose, timeout, args, **rest):
     error_mode = SEM_NOGPFAULTERRORBOX
     prev_error_mode = Win32SetErrorMode(error_mode)
     Win32SetErrorMode(error_mode | prev_error_mode)
-  process = subprocess.Popen(
-    shell=utils.IsWindows(),
-    args=popen_args,
-    **rest
-  )
+
+  env = os.environ.copy()
+  env.update(additional_env)
+  # GTest shard information is read by the V8 tests runner. Make sure it
+  # doesn't leak into the execution of gtests we're wrapping. Those might
+  # otherwise apply a second level of sharding and as a result skip tests.
+  env.pop('GTEST_TOTAL_SHARDS', None)
+  env.pop('GTEST_SHARD_INDEX', None)
+
+  try:
+    process = subprocess.Popen(
+      args=popen_args,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+      env=env,
+      **rest
+    )
+  except Exception as e:
+    sys.stderr.write("Error executing: %s\n" % popen_args)
+    raise e
+
   if (utils.IsWindows() and prev_error_mode != SEM_INVALID_VALUE):
     Win32SetErrorMode(prev_error_mode)
-  # Compute the end time - if the process crosses this limit we
-  # consider it timed out.
-  if timeout is None: end_time = None
-  else: end_time = time.time() + timeout
-  timed_out = False
-  # Repeatedly check the exit code from the process in a
-  # loop and keep track of whether or not it times out.
-  exit_code = None
-  sleep_time = INITIAL_SLEEP_TIME
-  while exit_code is None:
-    if (not end_time is None) and (time.time() >= end_time):
-      # Kill the process and wait for it to exit.
-      KillProcessWithID(process.pid)
-      exit_code = process.wait()
-      timed_out = True
-    else:
-      exit_code = process.poll()
-      time.sleep(sleep_time)
-      sleep_time = sleep_time * SLEEP_TIME_FACTOR
-      if sleep_time > MAX_SLEEP_TIME:
-        sleep_time = MAX_SLEEP_TIME
-  return (exit_code, timed_out)
 
-
-def PrintError(string):
-  sys.stderr.write(string)
-  sys.stderr.write("\n")
-
-
-def CheckedUnlink(name):
-  # On Windows, when run with -jN in parallel processes,
-  # OS often fails to unlink the temp file. Not sure why.
-  # Need to retry.
-  # Idea from https://bugs.webkit.org/attachment.cgi?id=75982&action=prettypatch
-  retry_count = 0
-  while retry_count < 30:
+  def kill_process(process, timeout_result):
+    timeout_result[0] = True
     try:
-      os.unlink(name)
-      return
-    except OSError, e:
-      retry_count += 1
-      time.sleep(retry_count * 0.1)
-  PrintError("os.unlink() " + str(e))
+      if utils.IsWindows():
+        if verbose:
+          print "Attempting to kill process %d" % process.pid
+          sys.stdout.flush()
+        tk = subprocess.Popen(
+            'taskkill /T /F /PID %d' % process.pid,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout, stderr = tk.communicate()
+        if verbose:
+          print "Taskkill results for %d" % process.pid
+          print stdout
+          print stderr
+          print "Return code: %d" % tk.returncode
+          sys.stdout.flush()
+      else:
+        process.kill()
+    except OSError:
+      sys.stderr.write('Error: Process %s already ended.\n' % process.pid)
+
+  # Pseudo object to communicate with timer thread.
+  timeout_result = [False]
+
+  timer = Timer(timeout, kill_process, [process, timeout_result])
+  timer.start()
+  stdout, stderr = process.communicate()
+  timer.cancel()
+
+  return output.Output(
+      process.returncode,
+      timeout_result[0],
+      stdout.decode('utf-8', 'replace').encode('utf-8'),
+      stderr.decode('utf-8', 'replace').encode('utf-8'),
+      process.pid,
+  )
 
 
-def Execute(args, verbose=False, timeout=None):
-  try:
-    args = [ c for c in args if c != "" ]
-    (fd_out, outname) = tempfile.mkstemp()
-    (fd_err, errname) = tempfile.mkstemp()
-    (exit_code, timed_out) = RunProcess(
-      verbose,
-      timeout,
-      args=args,
-      stdout=fd_out,
-      stderr=fd_err
-    )
-  finally:
-    # TODO(machenbach): A keyboard interrupt before the assignment to
-    # fd_out|err can lead to reference errors here.
-    os.close(fd_out)
-    os.close(fd_err)
-    out = file(outname).read()
-    errors = file(errname).read()
-    CheckedUnlink(outname)
-    CheckedUnlink(errname)
-  return output.Output(exit_code, timed_out, out, errors)
+def Execute(args, verbose=False, timeout=None, env=None):
+  args = [ c for c in args if c != "" ]
+  return RunProcess(verbose, timeout, args, env or {})

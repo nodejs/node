@@ -1,0 +1,43 @@
+{
+  "_from": "p-finally@^1.0.0",
+  "_id": "p-finally@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-P7z7FbiZpEEjs0ttzBi3JDNqLK4=",
+  "_location": "/libnpx/yargs/os-locale/execa/p-finally",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "p-finally@^1.0.0",
+    "name": "p-finally",
+    "escapedName": "p-finally",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/os-locale/execa"
+  ],
+  "_resolved": "https://registry.npmjs.org/p-finally/-/p-finally-1.0.0.tgz",
+  "_shasum": "3fbcfb15b899a44123b34b6dcc18b724336a2cae",
+  "_shrinkwrap": null,
+  "_spec": "p-finally@^1.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/os-locale/node_modules/execa",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "> [`Promise#finally()`](https://github.com/tc39/proposal-promise-finally) [ponyfill](https://ponyfill.com) - Invoked when the promise is settled regardless of outcome",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "name": "p-finally",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "1.0.0"
+}

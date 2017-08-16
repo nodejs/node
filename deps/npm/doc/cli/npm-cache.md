@@ -8,48 +8,59 @@ npm-cache(1) -- Manipulates packages cache
     npm cache add <tarball url>
     npm cache add <name>@<version>
 
-    npm cache ls [<path>]
-
     npm cache clean [<path>]
+    aliases: npm cache clear, npm cache rm
+
+    npm cache verify
 
 ## DESCRIPTION
 
-Used to add, list, or clear the npm cache folder.
+Used to add, list, or clean the npm cache folder.
 
 * add:
   Add the specified package to the local cache.  This command is primarily
   intended to be used internally by npm, but it can provide a way to
   add data to the local installation cache explicitly.
 
-* ls:
-  Show the data in the cache.  Argument is a path to show in the cache
-  folder.  Works a bit like the `find` program, but limited by the
-  `depth` config.
-
 * clean:
-  Delete data out of the cache folder.  If an argument is provided, then
-  it specifies a subpath to delete.  If no argument is provided, then
-  the entire cache is cleared.
+  Delete all data out of the cache folder.
+
+* verify:
+  Verify the contents of the cache folder, garbage collecting any unneeded data,
+  and verifying the integrity of the cache index and all cached data.
 
 ## DETAILS
 
-npm stores cache data in the directory specified in `npm config get cache`.
-For each package that is added to the cache, three pieces of information are
-stored in `{cache}/{name}/{version}`:
+npm stores cache data in an opaque directory within the configured `cache`,
+named `_cacache`. This directory is a `cacache`-based content-addressable cache
+that stores all http request data as well as other package-related data. This
+directory is primarily accessed through `pacote`, the library responsible for
+all package fetching as of npm@5.
 
-* .../package/package.json:
-  The package.json file, as npm sees it.
-* .../package.tgz:
-  The tarball for that version.
+All data that passes through the cache is fully verified for integrity on both
+insertion and extraction. Cache corruption will either trigger an error, or
+signal to `pacote` that the data must be refetched, which it will do
+automatically. For this reason, it should never be necessary to clear the cache
+for any reason other than reclaiming disk space, thus why `clean` now requires
+`--force` to run.
 
-Additionally, whenever a registry request is made, a `.cache.json` file
-is placed at the corresponding URI, to store the ETag and the requested
-data.  This is stored in `{cache}/{hostname}/{path}/.cache.json`.
+There is currently no method exposed through npm to inspect or directly manage
+the contents of this cache. In order to access it, `cacache` must be used
+directly.
 
-Commands that make non-essential registry requests (such as `search` and
-`view`, or the completion scripts) generally specify a minimum timeout.
-If the `.cache.json` file is younger than the specified timeout, then
-they do not make an HTTP request to the registry.
+npm will not remove data by itself: the cache will grow as new packages are
+installed.
+
+## A NOTE ABOUT THE CACHE'S DESIGN
+
+The npm cache is strictly a cache: it should not be relied upon as a persistent
+and reliable data store for package data. npm makes no guarantee that a
+previously-cached piece of data will be available later, and will automatically
+delete corrupted contents. The primary guarantee that the cache makes is that,
+if it does return data, that data will be exactly the data that was inserted.
+
+To run an offline verification of existing cache contents, use `npm cache
+verify`.
 
 ## CONFIGURATION
 
@@ -68,3 +79,5 @@ The root cache folder.
 * npm-install(1)
 * npm-publish(1)
 * npm-pack(1)
+* https://npm.im/cacache
+* https://npm.im/pacote

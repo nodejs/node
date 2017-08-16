@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-gc --allow-natives-syntax --harmony-tostring
+// Flags: --expose-gc --allow-natives-syntax
 
 var symbols = []
 
@@ -86,6 +86,7 @@ TestPrototype()
 
 
 function TestConstructor() {
+  assertEquals(0, Symbol.length);
   assertSame(Function.prototype, Symbol.__proto__)
   assertFalse(Object === Symbol.prototype.constructor)
   assertFalse(Symbol === Object.prototype.constructor)
@@ -167,8 +168,8 @@ function TestEquality() {
     assertTrue(symbols[i] == symbols[i])
     assertFalse(symbols[i] === Object(symbols[i]))
     assertFalse(Object(symbols[i]) === symbols[i])
-    assertFalse(symbols[i] == Object(symbols[i]))
-    assertFalse(Object(symbols[i]) == symbols[i])
+    assertTrue(symbols[i] == Object(symbols[i]))
+    assertTrue(Object(symbols[i]) == symbols[i])
     assertTrue(symbols[i] === symbols[i].valueOf())
     assertTrue(symbols[i].valueOf() === symbols[i])
     assertTrue(symbols[i] == symbols[i].valueOf())
@@ -245,25 +246,20 @@ TestCall()
 function TestCollections() {
   var set = new Set
   var map = new Map
-  var weakmap = new WeakMap
   for (var i in symbols) {
     set.add(symbols[i])
     map.set(symbols[i], i)
-    weakmap.set(symbols[i], i)
   }
   assertEquals(symbols.length, set.size)
   assertEquals(symbols.length, map.size)
   for (var i in symbols) {
     assertTrue(set.has(symbols[i]))
     assertTrue(map.has(symbols[i]))
-    assertTrue(weakmap.has(symbols[i]))
     assertEquals(i, map.get(symbols[i]))
-    assertEquals(i, weakmap.get(symbols[i]))
   }
   for (var i in symbols) {
     assertTrue(set.delete(symbols[i]))
     assertTrue(map.delete(symbols[i]))
-    assertTrue(weakmap.delete(symbols[i]))
   }
   assertEquals(0, set.size)
   assertEquals(0, map.size)
@@ -357,7 +353,7 @@ function TestKeyDelete(obj) {
 }
 
 
-var objs = [{}, [], Object.create(null), Object(1), new Map, function(){}]
+var objs = [{}, [], Object.create({}), Object(1), new Map, function(){}]
 
 for (var i in objs) {
   var obj = objs[i]
@@ -446,8 +442,9 @@ TestGetOwnPropertySymbolsWithProto()
 
 function TestWellKnown() {
   var symbols = [
+    "hasInstance",
     // TODO(rossberg): reactivate once implemented.
-    // "hasInstance", "isConcatSpreadable", "isRegExp",
+    // "isConcatSpreadable", "isRegExp",
     "iterator", /* "toStringTag", */ "unscopables"
   ]
 
@@ -509,3 +506,63 @@ function TestGetOwnPropertySymbolsOnPrimitives() {
   assertEquals(Object.getOwnPropertySymbols("OK"), []);
 }
 TestGetOwnPropertySymbolsOnPrimitives();
+
+
+function TestComparison() {
+  function lt() { var a = Symbol(); var b = Symbol(); a < b; }
+  function gt() { var a = Symbol(); var b = Symbol(); a > b; }
+  function le() { var a = Symbol(); var b = Symbol(); a <= b; }
+  function ge() { var a = Symbol(); var b = Symbol(); a >= b; }
+  function lt_same() { var a = Symbol(); a < a; }
+  function gt_same() { var a = Symbol(); a > a; }
+  function le_same() { var a = Symbol(); a <= a; }
+  function ge_same() { var a = Symbol(); a >= a; }
+
+  var throwFuncs = [lt, gt, le, ge, lt_same, gt_same, le_same, ge_same];
+
+  for (var f of throwFuncs) {
+    assertThrows(f, TypeError);
+    %OptimizeFunctionOnNextCall(f);
+    assertThrows(f, TypeError);
+    assertThrows(f, TypeError);
+  }
+}
+TestComparison();
+
+
+// Make sure that throws occur in the context of the Symbol function.
+function TestContext() {
+  var r = Realm.create();
+  var rSymbol = Realm.eval(r, "Symbol");
+  var rError = Realm.eval(r, "TypeError");
+
+  function verifier(symbol, error) {
+    try {
+      new symbol();
+    } catch(e) {
+      return e.__proto__ === error.__proto__;
+    }
+    assertTrue(false);  // should never get here.
+  }
+
+  assertTrue(verifier(Symbol, TypeError()));
+  assertTrue(verifier(rSymbol, rError()));
+  assertFalse(verifier(Symbol, rError()));
+  assertFalse(verifier(rSymbol, TypeError()));
+}
+TestContext();
+
+
+function TestStringify(expected, input) {
+  assertEquals(expected, JSON.stringify(input));
+  assertEquals(expected, JSON.stringify(input, (key, value) => value));
+  assertEquals(JSON.stringify(input, null, "="),
+               JSON.stringify(input, (key, value) => value, "="));
+}
+
+TestStringify(undefined, Symbol("a"));
+TestStringify('[{}]', [Object(Symbol())]);
+var symbol_wrapper = Object(Symbol("a"))
+TestStringify('{}', symbol_wrapper);
+symbol_wrapper.a = 1;
+TestStringify('{"a":1}', symbol_wrapper);

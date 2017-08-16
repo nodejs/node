@@ -4,10 +4,10 @@
 
 EVP_MD_CTX_init, EVP_MD_CTX_create, EVP_DigestInit_ex, EVP_DigestUpdate,
 EVP_DigestFinal_ex, EVP_MD_CTX_cleanup, EVP_MD_CTX_destroy, EVP_MAX_MD_SIZE,
-EVP_MD_CTX_copy_ex, EVP_MD_CTX_copy, EVP_MD_type, EVP_MD_pkey_type, EVP_MD_size,
-EVP_MD_block_size, EVP_MD_CTX_md, EVP_MD_CTX_size, EVP_MD_CTX_block_size, EVP_MD_CTX_type,
-EVP_md_null, EVP_md2, EVP_md5, EVP_sha, EVP_sha1, EVP_sha224, EVP_sha256,
-EVP_sha384, EVP_sha512, EVP_dss, EVP_dss1, EVP_mdc2,
+EVP_MD_CTX_copy_ex, EVP_DigestInit, EVP_DigestFinal, EVP_MD_CTX_copy, EVP_MD_type,
+EVP_MD_pkey_type, EVP_MD_size, EVP_MD_block_size, EVP_MD_CTX_md, EVP_MD_CTX_size,
+EVP_MD_CTX_block_size, EVP_MD_CTX_type, EVP_md_null, EVP_md2, EVP_md5, EVP_sha, EVP_sha1,
+EVP_sha224, EVP_sha256, EVP_sha384, EVP_sha512, EVP_dss, EVP_dss1, EVP_mdc2,
 EVP_ripemd160, EVP_get_digestbyname, EVP_get_digestbynid, EVP_get_digestbyobj -
 EVP digest routines
 
@@ -270,7 +270,7 @@ and EVP_DigestFinal_ex() were added in OpenSSL 0.9.7.
 
 EVP_md_null(), EVP_md2(), EVP_md5(), EVP_sha(), EVP_sha1(),
 EVP_dss(), EVP_dss1(), EVP_mdc2() and EVP_ripemd160() were
-changed to return truely const EVP_MD * in OpenSSL 0.9.7.
+changed to return truly const EVP_MD * in OpenSSL 0.9.7.
 
 The link between digests and signing algorithms was fixed in OpenSSL 1.0 and
 later, so now EVP_sha1() can be used with RSA and DSA; there is no need to

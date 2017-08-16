@@ -1,0 +1,208 @@
+# Copyright 2016 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+v8_executable("unittests") {
+  testonly = true
+
+  sources = [
+    "../../test/common/wasm/wasm-macro-gen.h",
+    "../../testing/gmock-support.h",
+    "../../testing/gtest-support.h",
+    "api/access-check-unittest.cc",
+    "api/exception-unittest.cc",
+    "api/interceptor-unittest.cc",
+    "api/isolate-unittest.cc",
+    "api/remote-object-unittest.cc",
+    "api/v8-object-unittest.cc",
+    "asmjs/asm-scanner-unittest.cc",
+    "asmjs/asm-types-unittest.cc",
+    "asmjs/switch-logic-unittest.cc",
+    "base/atomic-utils-unittest.cc",
+    "base/bits-unittest.cc",
+    "base/cpu-unittest.cc",
+    "base/division-by-constant-unittest.cc",
+    "base/flags-unittest.cc",
+    "base/functional-unittest.cc",
+    "base/ieee754-unittest.cc",
+    "base/iterator-unittest.cc",
+    "base/logging-unittest.cc",
+    "base/platform/condition-variable-unittest.cc",
+    "base/platform/mutex-unittest.cc",
+    "base/platform/platform-unittest.cc",
+    "base/platform/semaphore-unittest.cc",
+    "base/platform/time-unittest.cc",
+    "base/sys-info-unittest.cc",
+    "base/utils/random-number-generator-unittest.cc",
+    "cancelable-tasks-unittest.cc",
+    "char-predicates-unittest.cc",
+    "compiler-dispatcher/compiler-dispatcher-job-unittest.cc",
+    "compiler-dispatcher/compiler-dispatcher-tracer-unittest.cc",
+    "compiler-dispatcher/compiler-dispatcher-unittest.cc",
+    "compiler-dispatcher/optimizing-compile-dispatcher-unittest.cc",
+    "compiler/branch-elimination-unittest.cc",
+    "compiler/bytecode-analysis-unittest.cc",
+    "compiler/checkpoint-elimination-unittest.cc",
+    "compiler/common-operator-reducer-unittest.cc",
+    "compiler/common-operator-unittest.cc",
+    "compiler/compiler-test-utils.h",
+    "compiler/control-equivalence-unittest.cc",
+    "compiler/control-flow-optimizer-unittest.cc",
+    "compiler/dead-code-elimination-unittest.cc",
+    "compiler/diamond-unittest.cc",
+    "compiler/effect-control-linearizer-unittest.cc",
+    "compiler/escape-analysis-unittest.cc",
+    "compiler/graph-reducer-unittest.cc",
+    "compiler/graph-reducer-unittest.h",
+    "compiler/graph-trimmer-unittest.cc",
+    "compiler/graph-unittest.cc",
+    "compiler/graph-unittest.h",
+    "compiler/instruction-selector-unittest.cc",
+    "compiler/instruction-selector-unittest.h",
+    "compiler/instruction-sequence-unittest.cc",
+    "compiler/instruction-sequence-unittest.h",
+    "compiler/instruction-unittest.cc",
+    "compiler/int64-lowering-unittest.cc",
+    "compiler/js-builtin-reducer-unittest.cc",
+    "compiler/js-create-lowering-unittest.cc",
+    "compiler/js-intrinsic-lowering-unittest.cc",
+    "compiler/js-operator-unittest.cc",
+    "compiler/js-typed-lowering-unittest.cc",
+    "compiler/linkage-tail-call-unittest.cc",
+    "compiler/live-range-builder.h",
+    "compiler/liveness-analyzer-unittest.cc",
+    "compiler/load-elimination-unittest.cc",
+    "compiler/loop-peeling-unittest.cc",
+    "compiler/machine-operator-reducer-unittest.cc",
+    "compiler/machine-operator-unittest.cc",
+    "compiler/node-cache-unittest.cc",
+    "compiler/node-matchers-unittest.cc",
+    "compiler/node-properties-unittest.cc",
+    "compiler/node-test-utils.cc",
+    "compiler/node-test-utils.h",
+    "compiler/node-unittest.cc",
+    "compiler/opcodes-unittest.cc",
+    "compiler/regalloc/live-range-unittest.cc",
+    "compiler/regalloc/move-optimizer-unittest.cc",
+    "compiler/regalloc/register-allocator-unittest.cc",
+    "compiler/schedule-unittest.cc",
+    "compiler/scheduler-rpo-unittest.cc",
+    "compiler/scheduler-unittest.cc",
+    "compiler/simplified-operator-reducer-unittest.cc",
+    "compiler/simplified-operator-unittest.cc",
+    "compiler/state-values-utils-unittest.cc",
+    "compiler/tail-call-optimization-unittest.cc",
+    "compiler/typed-optimization-unittest.cc",
+    "compiler/typer-unittest.cc",
+    "compiler/value-numbering-reducer-unittest.cc",
+    "compiler/zone-stats-unittest.cc",
+    "counters-unittest.cc",
+    "eh-frame-iterator-unittest.cc",
+    "eh-frame-writer-unittest.cc",
+    "heap/bitmap-unittest.cc",
+    "heap/concurrent-marking-deque-unittest.cc",
+    "heap/embedder-tracing-unittest.cc",
+    "heap/gc-idle-time-handler-unittest.cc",
+    "heap/gc-tracer-unittest.cc",
+    "heap/heap-unittest.cc",
+    "heap/item-parallel-job-unittest.cc",
+    "heap/marking-unittest.cc",
+    "heap/memory-reducer-unittest.cc",
+    "heap/scavenge-job-unittest.cc",
+    "heap/slot-set-unittest.cc",
+    "heap/spaces-unittest.cc",
+    "heap/unmapper-unittest.cc",
+    "heap/workstealing-marking-deque-unittest.cc",
+    "interpreter/bytecode-array-builder-unittest.cc",
+    "interpreter/bytecode-array-iterator-unittest.cc",
+    "interpreter/bytecode-array-random-iterator-unittest.cc",
+    "interpreter/bytecode-array-writer-unittest.cc",
+    "interpreter/bytecode-decoder-unittest.cc",
+    "interpreter/bytecode-node-unittest.cc",
+    "interpreter/bytecode-operands-unittest.cc",
+    "interpreter/bytecode-register-allocator-unittest.cc",
+    "interpreter/bytecode-register-optimizer-unittest.cc",
+    "interpreter/bytecode-source-info-unittest.cc",
+    "interpreter/bytecode-utils.h",
+    "interpreter/bytecodes-unittest.cc",
+    "interpreter/constant-array-builder-unittest.cc",
+    "interpreter/interpreter-assembler-unittest.cc",
+    "interpreter/interpreter-assembler-unittest.h",
+    "libplatform/default-platform-unittest.cc",
+    "libplatform/task-queue-unittest.cc",
+    "libplatform/worker-thread-unittest.cc",
+    "locked-queue-unittest.cc",
+    "object-unittest.cc",
+    "parser/preparser-unittest.cc",
+    "register-configuration-unittest.cc",
+    "run-all-unittests.cc",
+    "source-position-table-unittest.cc",
+    "test-helpers.cc",
+    "test-helpers.h",
+    "test-utils.cc",
+    "test-utils.h",
+    "unicode-unittest.cc",
+    "value-serializer-unittest.cc",
+    "wasm/control-transfer-unittest.cc",
+    "wasm/decoder-unittest.cc",
+    "wasm/function-body-decoder-unittest.cc",
+    "wasm/leb-helper-unittest.cc",
+    "wasm/loop-assignment-analysis-unittest.cc",
+    "wasm/module-decoder-unittest.cc",
+    "wasm/streaming-decoder-unittest.cc",
+    "wasm/wasm-macro-gen-unittest.cc",
+    "wasm/wasm-module-builder-unittest.cc",
+    "wasm/wasm-opcodes-unittest.cc",
+    "zone/segmentpool-unittest.cc",
+    "zone/zone-allocator-unittest.cc",
+    "zone/zone-chunk-list-unittest.cc",
+    "zone/zone-unittest.cc",
+  ]
+
+  if (v8_current_cpu == "arm") {
+    sources += [ "compiler/arm/instruction-selector-arm-unittest.cc" ]
+  } else if (v8_current_cpu == "arm64") {
+    sources += [ "compiler/arm64/instruction-selector-arm64-unittest.cc" ]
+  } else if (v8_current_cpu == "x86") {
+    sources += [ "compiler/ia32/instruction-selector-ia32-unittest.cc" ]
+  } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
+    sources += [ "compiler/mips/instruction-selector-mips-unittest.cc" ]
+  } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
+    sources += [ "compiler/mips64/instruction-selector-mips64-unittest.cc" ]
+  } else if (v8_current_cpu == "x64") {
+    sources += [ "compiler/x64/instruction-selector-x64-unittest.cc" ]
+  } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
+    sources += [ "compiler/ppc/instruction-selector-ppc-unittest.cc" ]
+  } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
+    sources += [ "compiler/s390/instruction-selector-s390-unittest.cc" ]
+  }
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  # TODO(machenbach): Translate from gyp.
+  #['OS=="aix"', {
+  #  'ldflags': [ '-Wl,-bbigtoc' ],
+  #}],
+
+  deps = [
+    "../..:v8_for_testing",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "//build/config:exe_and_shlib_deps",
+    "//build/win:default_exe_manifest",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  if (is_win) {
+    # This warning is benignly triggered by the U16 and U32 macros in
+    # bytecode-utils.h.
+    # C4309: 'static_cast': truncation of constant value
+    cflags = [ "/wd4309" ]
+  }
+}

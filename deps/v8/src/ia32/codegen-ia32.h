@@ -5,7 +5,6 @@
 #ifndef V8_IA32_CODEGEN_IA32_H_
 #define V8_IA32_CODEGEN_IA32_H_
 
-#include "src/ast.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -29,19 +28,7 @@ class StringCharLoadGenerator : public AllStatic {
 };
 
 
-class MathExpGenerator : public AllStatic {
- public:
-  static void EmitMathExp(MacroAssembler* masm,
-                          XMMRegister input,
-                          XMMRegister result,
-                          XMMRegister double_scratch,
-                          Register temp1,
-                          Register temp2);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
-};
-
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IA32_CODEGEN_IA32_H_

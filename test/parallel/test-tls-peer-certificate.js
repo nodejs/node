@@ -19,56 +19,42 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+require('../common');
+const fixtures = require('../common/fixtures');
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
-var util = require('util');
-var join = require('path').join;
-var spawn = require('child_process').spawn;
+// Verify that detailed getPeerCertificate() return value has all certs.
 
-var options = {
-  key: fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-key.pem')),
-  cert: fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-cert.pem')),
-  ca: [ fs.readFileSync(join(common.fixturesDir, 'keys', 'ca1-cert.pem')) ]
-};
-var verified = false;
+const {
+  assert, connect, debug, keys
+} = require(fixtures.path('tls-connect'));
 
-var server = tls.createServer(options, function(cleartext) {
-  cleartext.end('World');
-});
-server.listen(common.PORT, function() {
-  var socket = tls.connect({
-    port: common.PORT,
-    rejectUnauthorized: false
-  }, function() {
-    var peerCert = socket.getPeerCertificate();
-    assert.ok(!peerCert.issuerCertificate);
+connect({
+  client: { rejectUnauthorized: false },
+  server: keys.agent1,
+}, function(err, pair, cleanup) {
+  assert.ifError(err);
+  const socket = pair.client.conn;
+  let peerCert = socket.getPeerCertificate();
+  assert.ok(!peerCert.issuerCertificate);
 
-    // Verify that detailed return value has all certs
-    peerCert = socket.getPeerCertificate(true);
-    assert.ok(peerCert.issuerCertificate);
+  peerCert = socket.getPeerCertificate(true);
+  debug('peerCert:\n', peerCert);
 
-    common.debug(util.inspect(peerCert));
-    assert.equal(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
-    assert.equal(peerCert.serialNumber, '9A84ABCFB8A72ABE');
-    assert.deepEqual(peerCert.infoAccess['OCSP - URI'],
-                     [ 'http://ocsp.nodejs.org/' ]);
+  assert.ok(peerCert.issuerCertificate);
+  assert.strictEqual(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
+  assert.strictEqual(peerCert.serialNumber, '9A84ABCFB8A72AC0');
+  assert.strictEqual(peerCert.exponent, '0x10001');
+  assert.strictEqual(
+    peerCert.fingerprint,
+    '8D:06:3A:B3:E5:8B:85:29:72:4F:7D:1B:54:CD:95:19:3C:EF:6F:AA'
+  );
+  assert.deepStrictEqual(peerCert.infoAccess['OCSP - URI'],
+                         [ 'http://ocsp.nodejs.org/' ]);
 
-    var issuer = peerCert.issuerCertificate;
-    assert.ok(issuer.issuerCertificate === issuer);
-    assert.equal(issuer.serialNumber, 'B5090C899FC2FF93');
-    verified = true;
-    server.close();
-  });
-  socket.end('Hello');
-});
+  const issuer = peerCert.issuerCertificate;
+  assert.strictEqual(issuer.issuerCertificate, issuer);
+  assert.strictEqual(issuer.serialNumber, '8DF21C01468AF393');
 
-process.on('exit', function() {
-  assert.ok(verified);
+  return cleanup();
 });

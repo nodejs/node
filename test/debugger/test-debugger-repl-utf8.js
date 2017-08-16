@@ -19,9 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var script = common.fixturesDir + '/breakpoints_utf8.js';
+'use strict';
+const common = require('../common');
+const script = `${common.fixturesDir}/breakpoints_utf8.js`;
 process.env.NODE_DEBUGGER_TEST_SCRIPT = script;
 
 require('./test-debugger-repl.js');
-

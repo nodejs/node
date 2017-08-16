@@ -1,12 +1,21 @@
 
- apps/openssl.pod .... Documentation of OpenSSL `openssl' command
- crypto/crypto.pod ... Documentation of OpenSSL crypto.h+libcrypto.a
- ssl/ssl.pod ......... Documentation of OpenSSL ssl.h+libssl.a
- openssl.txt ......... Assembled documentation files for OpenSSL [not final]
- ssleay.txt .......... Assembled documentation of ancestor SSLeay [obsolete]
- standards.txt ....... Assembled pointers to standards, RFCs or internet drafts
-                       that are related to OpenSSL.
+README  This file
 
- An archive of HTML documents for the SSLeay library is available from
- http://www.columbia.edu/~ariel/ssleay/
+fingerprints.txt
+        PGP fingerprints of authoried release signers
 
+standards.txt
+        Pointers to standards, RFC's and IETF Drafts that are
+        related to OpenSSL.  Incomplete.
+
+HOWTO/
+        A few how-to documents; not necessarily up-to-date
+apps/
+        The openssl command-line tools; start with openssl.pod
+ssl/
+        The SSL library; start with ssl.pod
+crypto/
+        The cryptographic library; start with crypto.pod
+
+Formatted versions of the manpages (apps,ssl,crypto) can be found at
+        https://www.openssl.org/docs/manpages.html

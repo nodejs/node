@@ -19,23 +19,22 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const fs = require('fs');
 
 process.stdout.write('hello world\r\n');
 
-var stdin = process.openStdin();
+const stdin = process.openStdin();
 
 stdin.on('data', function(data) {
   process.stdout.write(data.toString());
 });
 
 stdin.on('end', function() {
-  // If stdin's fd will be closed - createServer may get it
-  var server = net.createServer(function() {
-  }).listen(common.PORT, function() {
-    assert(typeof server._handle.fd !== 'number' || server._handle.fd > 2);
-    server.close();
-  });
+  // If stdin's fd was closed, the next open() call would return 0.
+  var fd = fs.openSync(process.argv[1], 'r');
+  assert(fd > 2);
+  fs.closeSync(fd);
 });

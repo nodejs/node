@@ -19,50 +19,38 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
-var emptyFile = path.join(common.fixturesDir, 'empty.txt');
+const emptyFile = fixtures.path('empty.txt');
 
-fs.open(emptyFile, 'r', function (error, fd) {
+fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
+
   assert.ifError(error);
 
-  var read = fs.createReadStream(emptyFile, { 'fd': fd });
+  const read = fs.createReadStream(emptyFile, { fd });
 
-  read.once('data', function () {
-    throw new Error('data event should not emit');
-  });
+  read.once('data', common.mustNotCall('data event should not emit'));
 
-  var readEmit = false;
-  read.once('end', function () {
-    readEmit = true;
-    console.error('end event 1');
-  });
+  read.once('end', common.mustCall());
+}));
 
-  setTimeout(function () {
-    assert.equal(readEmit, true);
-  }, 50);
-});
+fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
 
-fs.open(emptyFile, 'r', function (error, fd) {
   assert.ifError(error);
 
-  var read = fs.createReadStream(emptyFile, { 'fd': fd });
+  const read = fs.createReadStream(emptyFile, { fd });
+
   read.pause();
 
-  read.once('data', function () {
-    throw new Error('data event should not emit');
-  });
+  read.once('data', common.mustNotCall('data event should not emit'));
 
-  var readEmit = false;
-  read.once('end', function () {
-    readEmit = true;
-    console.error('end event 2');
-  });
+  read.once('end', common.mustNotCall('end event should not emit'));
 
-  setTimeout(function () {
-    assert.equal(readEmit, false);
-  }, 50);
-});
+  setTimeout(common.mustCall(() => {
+    assert.strictEqual(read.isPaused(), true);
+  }), common.platformTimeout(50));
+}));

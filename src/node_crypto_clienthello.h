@@ -22,12 +22,15 @@
 #ifndef SRC_NODE_CRYPTO_CLIENTHELLO_H_
 #define SRC_NODE_CRYPTO_CLIENTHELLO_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
 
 #include <stddef.h>  // size_t
 #include <stdlib.h>  // nullptr
 
 namespace node {
+namespace crypto {
 
 class ClientHelloParser {
  public:
@@ -77,8 +80,6 @@ class ClientHelloParser {
   inline bool IsEnded() const;
 
  private:
-  static const uint8_t kSSL2TwoByteHeaderBit = 0x80;
-  static const uint8_t kSSL2HeaderMask = 0x3f;
   static const size_t kMaxTLSFrameLen = 16 * 1024 + 5;
   static const size_t kMaxSSLExFrameLen = 32 * 1024;
   static const uint8_t kServernameHostname = 0;
@@ -88,7 +89,6 @@ class ClientHelloParser {
   enum ParseState {
     kWaiting,
     kTLSHeader,
-    kSSL2Header,
     kPaused,
     kEnded
   };
@@ -113,13 +113,10 @@ class ClientHelloParser {
 
   bool ParseRecordHeader(const uint8_t* data, size_t avail);
   void ParseHeader(const uint8_t* data, size_t avail);
-  void ParseExtension(ExtensionType type,
+  void ParseExtension(const uint16_t type,
                       const uint8_t* data,
                       size_t len);
   bool ParseTLSClientHello(const uint8_t* data, size_t avail);
-#ifdef OPENSSL_NO_SSL2
-  bool ParseSSL2ClientHello(const uint8_t* data, size_t avail);
-#endif  // OPENSSL_NO_SSL2
 
   ParseState state_;
   OnHelloCb onhello_cb_;
@@ -137,6 +134,9 @@ class ClientHelloParser {
   const uint8_t* tls_ticket_;
 };
 
+}  // namespace crypto
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_CLIENTHELLO_H_

@@ -1,69 +1,223 @@
+'use strict'
+
 // npm pack <pkg>
 // Packs the specified package into a .tgz file, which can then
 // be installed.
 
-module.exports = pack
+const BB = require('bluebird')
 
-var npm = require("./npm.js")
-  , install = require("./install.js")
-  , cache = require("./cache.js")
-  , fs = require("graceful-fs")
-  , chain = require("slide").chain
-  , path = require("path")
-  , cwd = process.cwd()
-  , writeStream = require('fs-write-stream-atomic')
-  , cachedPackageRoot = require("./cache/cached-package-root.js")
+const cache = require('./cache')
+const cacache = require('cacache')
+const cp = require('child_process')
+const deprCheck = require('./utils/depr-check')
+const fpm = require('./fetch-package-metadata')
+const fs = require('graceful-fs')
+const install = require('./install')
+const lifecycle = BB.promisify(require('./utils/lifecycle'))
+const log = require('npmlog')
+const move = require('move-concurrently')
+const npm = require('./npm')
+const output = require('./utils/output')
+const pacoteOpts = require('./config/pacote')
+const path = require('path')
+const PassThrough = require('stream').PassThrough
+const pathIsInside = require('path-is-inside')
+const pipe = BB.promisify(require('mississippi').pipe)
+const prepublishWarning = require('./utils/warn-deprecated')('prepublish-on-install')
+const pinflight = require('promise-inflight')
+const readJson = BB.promisify(require('read-package-json'))
+const tarPack = BB.promisify(require('./utils/tar').pack)
+const writeStreamAtomic = require('fs-write-stream-atomic')
 
-pack.usage = "npm pack <pkg>"
+pack.usage = 'npm pack [[<@scope>/]<pkg>...]'
 
 // if it can be installed, it can be packed.
 pack.completion = install.completion
 
+module.exports = pack
 function pack (args, silent, cb) {
-  if (typeof cb !== "function") cb = silent, silent = false
+  const cwd = process.cwd()
+  if (typeof cb !== 'function') {
+    cb = silent
+    silent = false
+  }
 
-  if (args.length === 0) args = ["."]
+  if (args.length === 0) args = ['.']
 
-  chain(args.map(function (arg) { return function (cb) {
-    pack_(arg, cb)
-  }}), function (er, files) {
-    if (er || silent) return cb(er, files)
-    printFiles(files, cb)
-  })
-}
-
-function printFiles (files, cb) {
-  files = files.map(function (file) {
-    return path.relative(cwd, file)
-  })
-  console.log(files.join("\n"))
-  cb()
+  BB.all(
+    args.map((arg) => pack_(arg, cwd))
+  ).then((files) => {
+    if (!silent) {
+      output(files.map((f) => path.relative(cwd, f)).join('\n'))
+    }
+    cb(null, files)
+  }, cb)
 }
 
 // add to cache, then cp to the cwd
-function pack_ (pkg, cb) {
-  cache.add(pkg, null, null, false, function (er, data) {
-    if (er) return cb(er)
-
+function pack_ (pkg, dir) {
+  return BB.fromNode((cb) => fpm(pkg, dir, cb)).then((mani) => {
+    let name = mani.name[0] === '@'
     // scoped packages get special treatment
-    var name = data.name
-    if (name[0] === "@") name = name.substr(1).replace(/\//g, "-")
-    var fname = name + "-" + data.version + ".tgz"
-
-    var cached = path.join(cachedPackageRoot(data), "package.tgz")
-      , from = fs.createReadStream(cached)
-      , to = writeStream(fname)
-      , errState = null
-
-    from.on("error", cb_)
-    to.on("error", cb_)
-    to.on("close", cb_)
-    from.pipe(to)
-
-    function cb_ (er) {
-      if (errState) return
-      if (er) return cb(errState = er)
-      cb(null, fname)
-    }
+    ? mani.name.substr(1).replace(/\//g, '-')
+    : mani.name
+    const target = `${name}-${mani.version}.tgz`
+    return pinflight(target, () => {
+      if (mani._requested.type === 'directory') {
+        return prepareDirectory(mani._resolved).then(() => {
+          return packDirectory(mani, mani._resolved, target)
+        })
+      } else {
+        return cache.add(pkg).then((info) => {
+          return pipe(
+            cacache.get.stream.byDigest(pacoteOpts().cache, info.integrity || mani._integrity),
+            writeStreamAtomic(target)
+          )
+        }).then(() => target)
+      }
+    })
   })
+}
+
+module.exports.prepareDirectory = prepareDirectory
+function prepareDirectory (dir) {
+  return readJson(path.join(dir, 'package.json')).then((pkg) => {
+    if (!pkg.name) {
+      throw new Error('package.json requires a "name" field')
+    }
+    if (!pkg.version) {
+      throw new Error('package.json requires a valid "version" field')
+    }
+    if (!pathIsInside(dir, npm.tmp)) {
+      if (pkg.scripts && pkg.scripts.prepublish) {
+        prepublishWarning([
+          'As of npm@5, `prepublish` scripts are deprecated.',
+          'Use `prepare` for build steps and `prepublishOnly` for upload-only.',
+          'See the deprecation note in `npm help scripts` for more information.'
+        ])
+      }
+      if (npm.config.get('ignore-prepublish')) {
+        return lifecycle(pkg, 'prepare', dir).then(() => pkg)
+      } else {
+        return lifecycle(pkg, 'prepublish', dir).then(() => {
+          return lifecycle(pkg, 'prepare', dir)
+        }).then(() => pkg)
+      }
+    }
+    return pkg
+  })
+}
+
+module.exports.packDirectory = packDirectory
+function packDirectory (mani, dir, target) {
+  deprCheck(mani)
+  return readJson(path.join(dir, 'package.json')).then((pkg) => {
+    return lifecycle(pkg, 'prepack', dir)
+  }).then(() => {
+    return readJson(path.join(dir, 'package.json'))
+  }).then((pkg) => {
+    return cacache.tmp.withTmp(npm.tmp, {tmpPrefix: 'packing'}, (tmp) => {
+      const tmpTarget = path.join(tmp, path.basename(target))
+      return tarPack(tmpTarget, dir, pkg).then(() => {
+        return move(tmpTarget, target, {Promise: BB, fs})
+      }).then(() => {
+        return lifecycle(pkg, 'postpack', dir)
+      }).then(() => target)
+    })
+  })
+}
+
+const PASSTHROUGH_OPTS = [
+  'always-auth',
+  'auth-type',
+  'ca',
+  'cafile',
+  'cert',
+  'git',
+  'local-address',
+  'maxsockets',
+  'offline',
+  'prefer-offline',
+  'prefer-online',
+  'proxy',
+  'https-proxy',
+  'registry',
+  'send-metrics',
+  'sso-poll-frequency',
+  'sso-type',
+  'strict-ssl'
+]
+
+module.exports.packGitDep = packGitDep
+function packGitDep (manifest, dir) {
+  const stream = new PassThrough()
+  readJson(path.join(dir, 'package.json')).then((pkg) => {
+    if (pkg.scripts && pkg.scripts.prepare) {
+      log.verbose('prepareGitDep', `${manifest._spec}: installing devDeps and running prepare script.`)
+      const cliArgs = PASSTHROUGH_OPTS.reduce((acc, opt) => {
+        if (npm.config.get(opt, 'cli') != null) {
+          acc.push(`--${opt}=${npm.config.get(opt)}`)
+        }
+        return acc
+      }, [])
+      const child = cp.spawn(process.env.NODE || process.execPath, [
+        require.main.filename,
+        'install',
+        '--dev',
+        '--prod',
+        '--ignore-prepublish',
+        '--no-progress',
+        '--no-save'
+      ].concat(cliArgs), {
+        cwd: dir,
+        env: process.env
+      })
+      let errData = []
+      let errDataLen = 0
+      let outData = []
+      let outDataLen = 0
+      child.stdout.on('data', (data) => {
+        outData.push(data)
+        outDataLen += data.length
+        log.gauge.pulse('preparing git package')
+      })
+      child.stderr.on('data', (data) => {
+        errData.push(data)
+        errDataLen += data.length
+        log.gauge.pulse('preparing git package')
+      })
+      return BB.fromNode((cb) => {
+        child.on('error', cb)
+        child.on('exit', (code, signal) => {
+          if (code > 0) {
+            const err = new Error(`${signal}: npm exited with code ${code} while attempting to build ${manifest._requested}. Clone the repository manually and run 'npm install' in it for more information.`)
+            err.code = code
+            err.signal = signal
+            cb(err)
+          } else {
+            cb()
+          }
+        })
+      }).then(() => {
+        if (outDataLen > 0) log.silly('prepareGitDep', '1>', Buffer.concat(outData, outDataLen).toString())
+        if (errDataLen > 0) log.silly('prepareGitDep', '2>', Buffer.concat(errData, errDataLen).toString())
+      }, (err) => {
+        if (outDataLen > 0) log.error('prepareGitDep', '1>', Buffer.concat(outData, outDataLen).toString())
+        if (errDataLen > 0) log.error('prepareGitDep', '2>', Buffer.concat(errData, errDataLen).toString())
+        throw err
+      })
+    }
+  }).then(() => {
+    return readJson(path.join(dir, 'package.json'))
+  }).then((pkg) => {
+    return cacache.tmp.withTmp(npm.tmp, {
+      tmpPrefix: 'pacote-packing'
+    }, (tmp) => {
+      const tmpTar = path.join(tmp, 'package.tgz')
+      return packDirectory(manifest, dir, tmpTar).then(() => {
+        return pipe(fs.createReadStream(tmpTar), stream)
+      })
+    })
+  }).catch((err) => stream.emit('error', err))
+  return stream
 }

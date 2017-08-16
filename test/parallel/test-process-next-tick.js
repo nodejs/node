@@ -19,27 +19,30 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var N = 2;
-var tickCount = 0;
-var exceptionCount = 0;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const N = 2;
 
 function cb() {
-  ++tickCount;
   throw new Error();
 }
 
-for (var i = 0; i < N; ++i) {
-  process.nextTick(cb);
+for (let i = 0; i < N; ++i) {
+  process.nextTick(common.mustCall(cb));
 }
 
-process.on('uncaughtException', function() {
-  ++exceptionCount;
-});
+process.on('uncaughtException', common.mustCall(N));
 
 process.on('exit', function() {
   process.removeAllListeners('uncaughtException');
-  assert.equal(tickCount, N);
-  assert.equal(exceptionCount, N);
+});
+
+[null, 1, 'test', {}, [], Infinity, true].forEach((i) => {
+  assert.throws(() => process.nextTick(i),
+                common.expectsError({
+                  code: 'ERR_INVALID_CALLBACK',
+                  type: TypeError,
+                  message: 'Callback must be a function'
+                }));
 });

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
+#include "src/objects-inl.h"
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(Conditional) {
   FunctionTester T("(function(a) { return a ? 23 : 42; })");
@@ -104,67 +104,30 @@ TEST(ForStatement) {
   T.CheckCall(T.Val("str"), T.Val("str"), T.Val("str"));
 }
 
-
-static void TestForIn(const char* code) {
-  FunctionTester T(code);
-  T.CheckCall(T.undefined(), T.undefined());
-  T.CheckCall(T.undefined(), T.null());
-  T.CheckCall(T.undefined(), T.NewObject("({})"));
-  T.CheckCall(T.undefined(), T.Val(1));
-  T.CheckCall(T.Val("2"), T.Val("str"));
-  T.CheckCall(T.Val("a"), T.NewObject("({'a' : 1})"));
-  T.CheckCall(T.Val("2"), T.NewObject("([1, 2, 3])"));
-  T.CheckCall(T.Val("a"), T.NewObject("({'a' : 1, 'b' : 1})"), T.Val("b"));
-  T.CheckCall(T.Val("1"), T.NewObject("([1, 2, 3])"), T.Val("2"));
-}
-
-
-TEST(ForInStatement) {
-  // Variable assignment.
-  TestForIn(
-      "(function(a, b) {"
-      "var last;"
-      "for (var x in a) {"
-      "  if (b) { delete a[b]; b = undefined; }"
-      "  last = x;"
-      "}"
-      "return last;})");
-  // Indexed assignment.
-  TestForIn(
-      "(function(a, b) {"
-      "var array = [0, 1, undefined];"
-      "for (array[2] in a) {"
-      "  if (b) { delete a[b]; b = undefined; }"
-      "}"
-      "return array[2];})");
-  // Named assignment.
-  TestForIn(
-      "(function(a, b) {"
-      "var obj = {'a' : undefined};"
-      "for (obj.a in a) {"
-      "  if (b) { delete a[b]; b = undefined; }"
-      "}"
-      "return obj.a;})");
-}
-
-
-TEST(ForInContinueStatement) {
+TEST(ForOfContinueStatement) {
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
-      "  for (var x in a) {"
-      "    r += 'A-';"
+      "  for (var x of a) {"
+      "    r += x + '-';"
       "    if (b) continue;"
-      "    r += 'B-';"
+      "    r += 'X-';"
       "  }"
       "  return r;"
       "})";
   FunctionTester T(src);
 
-  T.CheckCall(T.Val("-A-B-"), T.NewObject("({x:1})"), T.false_value());
-  T.CheckCall(T.Val("-A-B-A-B-"), T.NewObject("({x:1,y:2})"), T.false_value());
-  T.CheckCall(T.Val("-A-"), T.NewObject("({x:1})"), T.true_value());
-  T.CheckCall(T.Val("-A-A-"), T.NewObject("({x:1,y:2})"), T.true_value());
+  CompileRun(
+      "function wrap(v) {"
+      "  var iterable = {};"
+      "  function next() { return { done:!v.length, value:v.shift() }; };"
+      "  iterable[Symbol.iterator] = function() { return { next:next }; };"
+      "  return iterable;"
+      "}");
+
+  T.CheckCall(T.Val("-"), T.NewObject("wrap([])"), T.true_value());
+  T.CheckCall(T.Val("-1-2-"), T.NewObject("wrap([1,2])"), T.true_value());
+  T.CheckCall(T.Val("-1-X-2-X-"), T.NewObject("wrap([1,2])"), T.false_value());
 }
 
 
@@ -355,3 +318,7 @@ TEST(EmptyFor) {
   T.CheckCall(T.Val(8126.1), T.Val(0.0), T.Val(8126.1));
   T.CheckCall(T.Val(1123.1), T.Val(0.0), T.Val(1123.1));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

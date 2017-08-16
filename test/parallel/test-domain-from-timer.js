@@ -19,21 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
+'use strict';
 // Simple tests of most basic domain functionality.
 
-var common = require('../common');
-var assert = require('assert');
+require('../common');
+const assert = require('assert');
 
 // timeouts call the callback directly from cc, so need to make sure the
 // domain will be used regardless
 setTimeout(function() {
-  var domain = require('domain');
-  var d = domain.create();
+  const domain = require('domain');
+  const d = domain.create();
   d.run(function() {
     process.nextTick(function() {
-      console.trace('in nexttick', process.domain === d)
-      assert.equal(process.domain, d);
+      console.trace('in nexttick', process.domain === d);
+      assert.strictEqual(process.domain, d);
     });
   });
-});
+}, 1);

@@ -19,26 +19,25 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+require('../common');
+const R = require('_stream_readable');
+const W = require('_stream_writable');
+const assert = require('assert');
 
-var common = require('../common.js');
-var R = require('_stream_readable');
-var W = require('_stream_writable');
-var assert = require('assert');
-
-var src = new R({encoding: 'base64'});
-var dst = new W();
-var hasRead = false;
-var accum = [];
-var timeout;
+const src = new R({ encoding: 'base64' });
+const dst = new W();
+let hasRead = false;
+const accum = [];
 
 src._read = function(n) {
-  if(!hasRead) {
+  if (!hasRead) {
     hasRead = true;
     process.nextTick(function() {
-      src.push(new Buffer('1'));
+      src.push(Buffer.from('1'));
       src.push(null);
     });
-  };
+  }
 };
 
 dst._write = function(chunk, enc, cb) {
@@ -47,12 +46,12 @@ dst._write = function(chunk, enc, cb) {
 };
 
 src.on('end', function() {
-  assert.equal(Buffer.concat(accum) + '', 'MQ==');
+  assert.strictEqual(String(Buffer.concat(accum)), 'MQ==');
   clearTimeout(timeout);
-})
+});
 
 src.pipe(dst);
 
-timeout = setTimeout(function() {
+const timeout = setTimeout(function() {
   assert.fail('timed out waiting for _write');
 }, 100);

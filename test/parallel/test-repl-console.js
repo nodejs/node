@@ -19,17 +19,15 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common'),
-    assert = require('assert'),
-    Stream = require('stream'),
-    repl = require('repl');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const repl = require('repl');
 
-// create a dummy stream that does nothing
-var stream = new Stream();
-stream.write = stream.pause = stream.resume = function(){};
-stream.readable = stream.writable = true;
+// Create a dummy stream that does nothing
+const stream = new common.ArrayStream();
 
-var r = repl.start({
+const r = repl.start({
   input: stream,
   output: stream,
   useGlobal: false
@@ -41,3 +39,6 @@ assert(r.context.console);
 
 // ensure that the repl console instance is not the global one
 assert.notStrictEqual(r.context.console, console);
+
+// ensure that the repl console instance does not have a setter
+assert.throws(() => r.context.console = 'foo', TypeError);

@@ -19,39 +19,34 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert'),
-    common = require('../common'),
-    fork = require('child_process').fork,
-    fork = require('child_process').fork;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const fork = require('child_process').fork;
+const fixtures = require('../common/fixtures');
 
-var cp = fork(common.fixturesDir + '/child-process-message-and-exit.js');
+const cp = fork(fixtures.path('child-process-message-and-exit.js'));
 
-var gotMessage = false,
-    gotExit = false,
-    gotClose = false;
+let gotMessage = false;
+let gotExit = false;
+let gotClose = false;
 
-cp.on('message', function(message) {
+cp.on('message', common.mustCall(function(message) {
   assert(!gotMessage);
   assert(!gotClose);
   assert.strictEqual(message, 'hello');
   gotMessage = true;
-});
+}));
 
-cp.on('exit', function() {
+cp.on('exit', common.mustCall(function() {
   assert(!gotExit);
   assert(!gotClose);
   gotExit = true;
-});
+}));
 
-cp.on('close', function() {
+cp.on('close', common.mustCall(function() {
   assert(gotMessage);
   assert(gotExit);
   assert(!gotClose);
   gotClose = true;
-});
-
-process.on('exit', function() {
-  assert(gotMessage);
-  assert(gotExit);
-  assert(gotClose);
-});
+}));

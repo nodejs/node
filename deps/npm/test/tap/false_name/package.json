@@ -1,8 +1,0 @@
-{
-  "name": "test-package",
-  "version": "0.0.0",
-  "main": "index.js",
-  "dependencies": {
-    "test-package-with-one-dep": "0.0.0"
-  }
-}

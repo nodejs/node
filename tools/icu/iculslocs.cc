@@ -52,9 +52,9 @@ Japanese, it doesn't *claim* to have Japanese.
 
 #include "string.h"
 #include "charstr.h"  // ICU internal header
-#include <unicode/ustdio.h>
 #include <unicode/ures.h>
 #include <unicode/udata.h>
+#include <unicode/putil.h>
 
 const char* PROG = "iculslocs";
 const char* NAME = U_ICUDATA_NAME;  // assume ICU data
@@ -68,36 +68,36 @@ CharString packageName;
 const char* locale = RES_INDEX;  // locale referring to our index
 
 void usage() {
-  u_printf("Usage: %s [options]\n", PROG);
-  u_printf(
+  printf("Usage: %s [options]\n", PROG);
+  printf(
       "This program lists and optionally regenerates the locale "
       "manifests\n"
       " in ICU 'res_index.res' files.\n");
-  u_printf(
+  printf(
       "  -i ICUDATA  Set ICUDATA dir to ICUDATA.\n"
       "    NOTE: this must be the first option given.\n");
-  u_printf("  -h          This Help\n");
-  u_printf("  -v          Verbose Mode on\n");
-  u_printf("  -l          List locales to stdout\n");
-  u_printf(
+  printf("  -h          This Help\n");
+  printf("  -v          Verbose Mode on\n");
+  printf("  -l          List locales to stdout\n");
+  printf(
       "               if Verbose mode, then missing (unopenable)"
       "locales\n"
       "               will be listed preceded by a '#'.\n");
-  u_printf(
+  printf(
       "  -b res_index.txt  Write 'corrected' bundle "
       "to res_index.txt\n"
       "                    missing bundles will be "
       "OMITTED\n");
-  u_printf(
+  printf(
       "  -T TREE     Choose tree TREE\n"
       "         (TREE should be one of: \n"
       "    ROOT, brkitr, coll, curr, lang, rbnf, region, zone)\n");
   // see ureslocs.h and elsewhere
-  u_printf(
+  printf(
       "  -N NAME     Choose name NAME\n"
       "         (default: '%s')\n",
       U_ICUDATA_NAME);
-  u_printf(
+  printf(
       "\nNOTE: for best results, this tool ought to be "
       "linked against\n"
       "stubdata. i.e. '%s -l' SHOULD return an error with "
@@ -105,13 +105,13 @@ void usage() {
       PROG);
 }
 
-#define ASSERT_SUCCESS(what)              \
-  if (U_FAILURE(status)) {                \
-    u_printf("%s:%d: %s: ERROR: %s %s\n", \
+#define ASSERT_SUCCESS(status, what)      \
+  if (U_FAILURE(*status)) {               \
+    printf("%s:%d: %s: ERROR: %s %s\n", \
              __FILE__,                    \
              __LINE__,                    \
              PROG,                        \
-             u_errorName(status),         \
+             u_errorName(*status),        \
              what);                       \
     return 1;                             \
   }
@@ -129,7 +129,7 @@ void calculatePackageName(UErrorCode* status) {
     }
   }
   if (VERBOSE) {
-    u_printf("packageName: %s\n", packageName.data());
+    printf("packageName: %s\n", packageName.data());
   }
 }
 
@@ -145,7 +145,7 @@ void calculatePackageName(UErrorCode* status) {
 int localeExists(const char* loc, UBool* exists) {
   UErrorCode status = U_ZERO_ERROR;
   if (VERBOSE > 1) {
-    u_printf("Trying to open %s:%s\n", packageName.data(), loc);
+    printf("Trying to open %s:%s\n", packageName.data(), loc);
   }
   LocalUResourceBundlePointer aResource(
       ures_openDirect(packageName.data(), loc, &status));
@@ -153,33 +153,33 @@ int localeExists(const char* loc, UBool* exists) {
   if (U_SUCCESS(status)) {
     *exists = true;
     if (VERBOSE > 1) {
-      u_printf("%s:%s existed!\n", packageName.data(), loc);
+      printf("%s:%s existed!\n", packageName.data(), loc);
     }
     return 0;
   } else if (status == U_MISSING_RESOURCE_ERROR) {
     *exists = false;
     if (VERBOSE > 1) {
-      u_printf("%s:%s did NOT exist (%s)!\n",
-               packageName.data(),
-               loc,
-               u_errorName(status));
+      printf("%s:%s did NOT exist (%s)!\n",
+             packageName.data(),
+             loc,
+             u_errorName(status));
     }
     return 0;  // "good" failure
   } else {
     // some other failure..
-    u_printf("%s:%d: %s: ERROR %s opening %s:%s for test.\n",
-             __FILE__,
-             __LINE__,
-             u_errorName(status),
-             packageName.data(),
-             loc);
+    printf("%s:%d: %s: ERROR %s opening %s for test.\n",
+           __FILE__,
+           __LINE__,
+           u_errorName(status),
+           packageName.data(),
+           loc);
     return 1;  // abort
   }
 }
 
-void printIndent(const LocalUFILEPointer& bf, int indent) {
+void printIndent(FILE* bf, int indent) {
   for (int i = 0; i < indent + 1; i++) {
-    u_fprintf(bf.getAlias(), "    ");
+    fprintf(bf, "    ");
   }
 }
 
@@ -189,41 +189,40 @@ void printIndent(const LocalUFILEPointer& bf, int indent) {
  * @return 0 for OK, 1 for err
  */
 int dumpAllButInstalledLocales(int lev,
-                               LocalUResourceBundlePointer& bund,
-                               LocalUFILEPointer& bf,
-                               UErrorCode& status) {
-  ures_resetIterator(bund.getAlias());
-  const UBool isTable = (UBool)(ures_getType(bund.getAlias()) == URES_TABLE);
+                               LocalUResourceBundlePointer* bund,
+                               FILE* bf,
+                               UErrorCode* status) {
+  ures_resetIterator(bund->getAlias());
   LocalUResourceBundlePointer t;
-  while (U_SUCCESS(status) && ures_hasNext(bund.getAlias())) {
-    t.adoptInstead(ures_getNextResource(bund.getAlias(), t.orphan(), &status));
-    ASSERT_SUCCESS("while processing table");
+  while (U_SUCCESS(*status) && ures_hasNext(bund->getAlias())) {
+    t.adoptInstead(ures_getNextResource(bund->getAlias(), t.orphan(), status));
+    ASSERT_SUCCESS(status, "while processing table");
     const char* key = ures_getKey(t.getAlias());
     if (VERBOSE > 1) {
-      u_printf("dump@%d: got key %s\n", lev, key);
+      printf("dump@%d: got key %s\n", lev, key);
     }
     if (lev == 0 && !strcmp(key, INSTALLEDLOCALES)) {
       if (VERBOSE > 1) {
-        u_printf("dump: skipping '%s' as it must be evaluated.\n", key);
+        printf("dump: skipping '%s' as it must be evaluated.\n", key);
       }
     } else {
       printIndent(bf, lev);
-      u_fprintf(bf.getAlias(), "%s", key);
+      fprintf(bf, "%s", key);
       switch (ures_getType(t.getAlias())) {
         case URES_STRING: {
           int32_t len = 0;
-          const UChar* s = ures_getString(t.getAlias(), &len, &status);
-          ASSERT_SUCCESS("getting string");
-          u_fprintf(bf.getAlias(), ":string {\"");
-          u_file_write(s, len, bf.getAlias());
-          u_fprintf(bf.getAlias(), "\"}");
+          const UChar* s = ures_getString(t.getAlias(), &len, status);
+          ASSERT_SUCCESS(status, "getting string");
+          fprintf(bf, ":string {\"");
+          fwrite(s, len, 1, bf);
+          fprintf(bf, "\"}");
         } break;
         default: {
-          u_printf("ERROR: unhandled type in dumpAllButInstalledLocales().\n");
+          printf("ERROR: unhandled type in dumpAllButInstalledLocales().\n");
           return 1;
         } break;
       }
-      u_fprintf(bf.getAlias(), "\n");
+      fprintf(bf, "\n");
     }
   }
   return 0;
@@ -232,65 +231,66 @@ int dumpAllButInstalledLocales(int lev,
 int list(const char* toBundle) {
   UErrorCode status = U_ZERO_ERROR;
 
-  LocalUFILEPointer bf;
+  FILE* bf = NULL;
 
   if (toBundle != NULL) {
     if (VERBOSE) {
-      u_printf("writing to bundle %s\n", toBundle);
+      printf("writing to bundle %s\n", toBundle);
     }
-    // we write UTF-8 with BOM only. No exceptions.
-    bf.adoptInstead(u_fopen(toBundle, "w", "en_US_POSIX", "UTF-8"));
-    if (bf.isNull()) {
-      u_printf("ERROR: Could not open '%s' for writing.\n", toBundle);
+    bf = fopen(toBundle, "wb");
+    if (bf == NULL) {
+      printf("ERROR: Could not open '%s' for writing.\n", toBundle);
       return 1;
     }
-    u_fputc(0xFEFF, bf.getAlias());  // write BOM
-    u_fprintf(bf.getAlias(), "// -*- Coding: utf-8; -*-\n//\n");
+    fprintf(bf, "\xEF\xBB\xBF");  // write UTF-8 BOM
+    fprintf(bf, "// -*- Coding: utf-8; -*-\n//\n");
   }
 
   // first, calculate the bundle name.
   calculatePackageName(&status);
-  ASSERT_SUCCESS("calculating package name");
+  ASSERT_SUCCESS(&status, "calculating package name");
 
   if (VERBOSE) {
-    u_printf("\"locale\": %s\n", locale);
+    printf("\"locale\": %s\n", locale);
   }
 
   LocalUResourceBundlePointer bund(
       ures_openDirect(packageName.data(), locale, &status));
-  ASSERT_SUCCESS("while opening the bundle");
+  ASSERT_SUCCESS(&status, "while opening the bundle");
   LocalUResourceBundlePointer installedLocales(
       ures_getByKey(bund.getAlias(), INSTALLEDLOCALES, NULL, &status));
-  ASSERT_SUCCESS("while fetching installed locales");
+  ASSERT_SUCCESS(&status, "while fetching installed locales");
 
   int32_t count = ures_getSize(installedLocales.getAlias());
   if (VERBOSE) {
-    u_printf("Locales: %d\n", count);
+    printf("Locales: %d\n", count);
   }
 
-  if (bf.isValid()) {
+  if (bf != NULL) {
     // write the HEADER
-    u_fprintf(bf.getAlias(),
-              "// Warning this file is automatically generated\n"
-              "// Updated by %s based on %s:%s.txt\n",
-              PROG,
-              packageName.data(),
-              locale);
-    u_fprintf(bf.getAlias(),
-              "%s:table(nofallback) {\n"
-              "    // First, everything besides InstalledLocales:\n",
-              locale);
-    if (dumpAllButInstalledLocales(0, bund, bf, status)) {
-      u_printf("Error dumping prolog for %s\n", toBundle);
+    fprintf(bf,
+            "// Warning this file is automatically generated\n"
+            "// Updated by %s based on %s:%s.txt\n",
+            PROG,
+            packageName.data(),
+            locale);
+    fprintf(bf,
+            "%s:table(nofallback) {\n"
+            "    // First, everything besides InstalledLocales:\n",
+            locale);
+    if (dumpAllButInstalledLocales(0, &bund, bf, &status)) {
+      printf("Error dumping prolog for %s\n", toBundle);
+      fclose(bf);
       return 1;
     }
-    ASSERT_SUCCESS("while writing prolog");  // in case an error was missed
+    // in case an error was missed
+    ASSERT_SUCCESS(&status, "while writing prolog");
 
-    u_fprintf(bf.getAlias(),
-              "    %s:table { // %d locales in input %s.res\n",
-              INSTALLEDLOCALES,
-              count,
-              locale);
+    fprintf(bf,
+            "    %s:table { // %d locales in input %s.res\n",
+            INSTALLEDLOCALES,
+            count,
+            locale);
   }
 
   // OK, now list them.
@@ -300,39 +300,42 @@ int list(const char* toBundle) {
   for (int32_t i = 0; i < count; i++) {
     subkey.adoptInstead(ures_getByIndex(
         installedLocales.getAlias(), i, subkey.orphan(), &status));
-    ASSERT_SUCCESS("while fetching an installed locale's name");
+    ASSERT_SUCCESS(&status, "while fetching an installed locale's name");
 
     const char* key = ures_getKey(subkey.getAlias());
     if (VERBOSE > 1) {
-      u_printf("@%d: %s\n", i, key);
+      printf("@%d: %s\n", i, key);
     }
     // now, see if the locale is installed..
 
     UBool exists;
     if (localeExists(key, &exists)) {
+      if (bf != NULL) fclose(bf);
       return 1;  // get out.
     }
     if (exists) {
       validCount++;
-      u_printf("%s\n", key);
-      if (bf.isValid()) {
-        u_fprintf(bf.getAlias(), "        %s {\"\"}\n", key);
+      printf("%s\n", key);
+      if (bf != NULL) {
+        fprintf(bf, "        %s {\"\"}\n", key);
       }
     } else {
-      if (bf.isValid()) {
-        u_fprintf(bf.getAlias(), "//      %s {\"\"}\n", key);
+      if (bf != NULL) {
+        fprintf(bf, "//      %s {\"\"}\n", key);
       }
       if (VERBOSE) {
-        u_printf("#%s\n", key);  // verbosity one - '' vs '#'
+        printf("#%s\n", key);  // verbosity one - '' vs '#'
       }
     }
   }
 
-  if (bf.isValid()) {
-    u_fprintf(bf.getAlias(), "    } // %d/%d valid\n", validCount, count);
+  if (bf != NULL) {
+    fprintf(bf, "    } // %d/%d valid\n", validCount, count);
     // write the HEADER
-    u_fprintf(bf.getAlias(), "}\n");
+    fprintf(bf, "}\n");
+    fclose(bf);
   }
+
   return 0;
 }
 
@@ -345,24 +348,24 @@ int main(int argc, const char* argv[]) {
       VERBOSE++;
     } else if (!strcmp(arg, "-i") && (argsLeft >= 1)) {
       if (i != 1) {
-        u_printf("ERROR: -i must be the first argument given.\n");
+        printf("ERROR: -i must be the first argument given.\n");
         usage();
         return 1;
       }
       const char* dir = argv[++i];
       u_setDataDirectory(dir);
       if (VERBOSE) {
-        u_printf("ICUDATA is now %s\n", dir);
+        printf("ICUDATA is now %s\n", dir);
       }
     } else if (!strcmp(arg, "-T") && (argsLeft >= 1)) {
       TREE = argv[++i];
       if (VERBOSE) {
-        u_printf("TREE is now %s\n", TREE);
+        printf("TREE is now %s\n", TREE);
       }
     } else if (!strcmp(arg, "-N") && (argsLeft >= 1)) {
       NAME = argv[++i];
       if (VERBOSE) {
-        u_printf("NAME is now %s\n", NAME);
+        printf("NAME is now %s\n", NAME);
       }
     } else if (!strcmp(arg, "-?") || !strcmp(arg, "-h")) {
       usage();
@@ -376,7 +379,7 @@ int main(int argc, const char* argv[]) {
         return 1;
       }
     } else {
-      u_printf("Unknown or malformed option: %s\n", arg);
+      printf("Unknown or malformed option: %s\n", arg);
       usage();
       return 1;
     }

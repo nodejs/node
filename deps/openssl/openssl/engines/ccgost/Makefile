@@ -32,7 +32,7 @@ lib: $(LIBOBJ)
 		$(MAKE) -f $(TOP)/Makefile.shared -e \
 			LIBNAME=$(LIBNAME) \
 			LIBEXTRAS='$(LIBOBJ)' \
-			LIBDEPS='-L$(TOP) -lcrypto' \
+			LIBDEPS='-L$(TOP) -lcrypto $(EX_LIBS)' \
 			link_o.$(SHLIB_TARGET); \
 	else \
 		$(AR) $(LIB) $(LIBOBJ); \
@@ -45,7 +45,10 @@ install:
 		set -e; \
 		echo installing $(LIBNAME); \
 		pfx=lib; \
-		if [ "$(PLATFORM)" != "Cygwin" ]; then \
+		if expr "$(PLATFORM)" : "Cygwin" >/dev/null; then \
+			sfx=".so"; \
+			cp cyg$(LIBNAME).dll $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/engines/$${pfx}$(LIBNAME)$$sfx.new; \
+		else \
 			case "$(CFLAGS)" in \
 			*DSO_BEOS*) sfx=".so";; \
 			*DSO_DLFCN*) sfx=`expr "$(SHLIB_EXT)" : '.*\(\.[a-z][a-z]*\)' \| ".so"`;; \
@@ -54,9 +57,6 @@ install:
 			*) sfx=".bad";; \
 			esac; \
 			cp $${pfx}$(LIBNAME)$$sfx $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/engines/$${pfx}$(LIBNAME)$$sfx.new; \
-		else \
-			sfx=".so"; \
-			cp cyg$(LIBNAME).dll $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/engines/$${pfx}$(LIBNAME)$$sfx.new; \
 		fi; \
 		chmod 555 $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/engines/$${pfx}$(LIBNAME)$$sfx.new; \
 		mv -f $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/engines/$${pfx}$(LIBNAME)$$sfx.new $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/engines/$${pfx}$(LIBNAME)$$sfx; \
@@ -66,16 +66,16 @@ links:
 
 tests:
 
-depend:
-	@if [ -z "$(THIS)" ]; then \
-	    $(MAKE) -f $(TOP)/Makefile reflect THIS=$@; \
-	else \
-	    $(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC); \
-	fi
+update: local_depend
+	@if [ -z "$(THIS)" ]; then $(MAKE) -f $(TOP)/Makefile reflect THIS=$@; fi
+
+depend: local_depend
+	@if [ -z "$(THIS)" ]; then $(MAKE) -f $(TOP)/Makefile reflect THIS=$@; fi
+local_depend:
+	@[ -z "$(THIS)" ] || $(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
 
 files:
-
-
+	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
 
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
@@ -262,8 +262,9 @@ gost_sign.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
 gost_sign.o: ../../include/openssl/dsa.h ../../include/openssl/e_os2.h
 gost_sign.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
 gost_sign.o: ../../include/openssl/ecdsa.h ../../include/openssl/engine.h
-gost_sign.o: ../../include/openssl/evp.h ../../include/openssl/lhash.h
-gost_sign.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
+gost_sign.o: ../../include/openssl/err.h ../../include/openssl/evp.h
+gost_sign.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
+gost_sign.o: ../../include/openssl/objects.h
 gost_sign.o: ../../include/openssl/opensslconf.h
 gost_sign.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 gost_sign.o: ../../include/openssl/pkcs7.h ../../include/openssl/rand.h

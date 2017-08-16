@@ -5,8 +5,16 @@
 #ifndef V8_COMPILATION_CACHE_H_
 #define V8_COMPILATION_CACHE_H_
 
+#include "src/allocation.h"
+#include "src/objects/compilation-cache.h"
+
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Handle;
+
+class RootVisitor;
 
 // The compilation cache consists of several generational sub-caches which uses
 // this class as a base class. A sub-cache contains a compilation cache tables
@@ -43,7 +51,7 @@ class CompilationSubCache {
   void Age();
 
   // GC support.
-  void Iterate(ObjectVisitor* v);
+  void Iterate(RootVisitor* v);
   void IterateFunctions(ObjectVisitor* v);
 
   // Clear this sub-cache evicting all its content.
@@ -70,24 +78,21 @@ class CompilationSubCache {
 // Sub-cache for scripts.
 class CompilationCacheScript : public CompilationSubCache {
  public:
-  CompilationCacheScript(Isolate* isolate, int generations);
+  explicit CompilationCacheScript(Isolate* isolate);
 
-  Handle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                    Handle<Object> name,
-                                    int line_offset,
-                                    int column_offset,
-                                    bool is_shared_cross_origin,
-                                    Handle<Context> context);
-  void Put(Handle<String> source,
-           Handle<Context> context,
-           Handle<SharedFunctionInfo> function_info);
+  InfoVectorPair Lookup(Handle<String> source, Handle<Object> name,
+                        int line_offset, int column_offset,
+                        ScriptOriginOptions resource_options,
+                        Handle<Context> context, LanguageMode language_mode);
+
+  void Put(Handle<String> source, Handle<Context> context,
+           LanguageMode language_mode, Handle<SharedFunctionInfo> function_info,
+           Handle<Cell> literals);
 
  private:
-  bool HasOrigin(Handle<SharedFunctionInfo> function_info,
-                 Handle<Object> name,
-                 int line_offset,
-                 int column_offset,
-                 bool is_shared_cross_origin);
+  bool HasOrigin(Handle<SharedFunctionInfo> function_info, Handle<Object> name,
+                 int line_offset, int column_offset,
+                 ScriptOriginOptions resource_options);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
 };
@@ -107,16 +112,17 @@ class CompilationCacheScript : public CompilationSubCache {
 // 4. The start position of the calling scope.
 class CompilationCacheEval: public CompilationSubCache {
  public:
-  CompilationCacheEval(Isolate* isolate, int generations)
-      : CompilationSubCache(isolate, generations) { }
+  explicit CompilationCacheEval(Isolate* isolate)
+      : CompilationSubCache(isolate, 1) {}
 
-  MaybeHandle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                         Handle<SharedFunctionInfo> outer_info,
-                                         StrictMode strict_mode,
-                                         int scope_position);
+  InfoVectorPair Lookup(Handle<String> source,
+                        Handle<SharedFunctionInfo> outer_info,
+                        Handle<Context> native_context,
+                        LanguageMode language_mode, int position);
 
   void Put(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-           Handle<SharedFunctionInfo> function_info, int scope_position);
+           Handle<SharedFunctionInfo> function_info,
+           Handle<Context> native_context, Handle<Cell> literals, int position);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheEval);
@@ -138,7 +144,6 @@ class CompilationCacheRegExp: public CompilationSubCache {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheRegExp);
 };
 
-
 // The compilation cache keeps shared function infos for compiled
 // scripts and evals. The shared function infos are looked up using
 // the source string as the key. For regular expressions the
@@ -148,16 +153,19 @@ class CompilationCache {
   // Finds the script shared function info for a source
   // string. Returns an empty handle if the cache doesn't contain a
   // script for the given source string with the right origin.
-  MaybeHandle<SharedFunctionInfo> LookupScript(
-      Handle<String> source, Handle<Object> name, int line_offset,
-      int column_offset, bool is_shared_cross_origin, Handle<Context> context);
+  InfoVectorPair LookupScript(Handle<String> source, Handle<Object> name,
+                              int line_offset, int column_offset,
+                              ScriptOriginOptions resource_options,
+                              Handle<Context> context,
+                              LanguageMode language_mode);
 
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
   // contain a script for the given source string.
-  MaybeHandle<SharedFunctionInfo> LookupEval(
-      Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-      Handle<Context> context, StrictMode strict_mode, int scope_position);
+  InfoVectorPair LookupEval(Handle<String> source,
+                            Handle<SharedFunctionInfo> outer_info,
+                            Handle<Context> context, LanguageMode language_mode,
+                            int position);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
@@ -166,15 +174,17 @@ class CompilationCache {
 
   // Associate the (source, kind) pair to the shared function
   // info. This may overwrite an existing mapping.
-  void PutScript(Handle<String> source,
-                 Handle<Context> context,
-                 Handle<SharedFunctionInfo> function_info);
+  void PutScript(Handle<String> source, Handle<Context> context,
+                 LanguageMode language_mode,
+                 Handle<SharedFunctionInfo> function_info,
+                 Handle<Cell> literals);
 
   // Associate the (source, context->closure()->shared(), kind) triple
   // with the shared function info. This may overwrite an existing mapping.
   void PutEval(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
                Handle<Context> context,
-               Handle<SharedFunctionInfo> function_info, int scope_position);
+               Handle<SharedFunctionInfo> function_info, Handle<Cell> literals,
+               int position);
 
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.
@@ -189,7 +199,7 @@ class CompilationCache {
   void Remove(Handle<SharedFunctionInfo> function_info);
 
   // GC support.
-  void Iterate(ObjectVisitor* v);
+  void Iterate(RootVisitor* v);
   void IterateFunctions(ObjectVisitor* v);
 
   // Notify the cache that a mark-sweep garbage collection is about to
@@ -206,7 +216,7 @@ class CompilationCache {
   explicit CompilationCache(Isolate* isolate);
   ~CompilationCache();
 
-  HashMap* EagerOptimizingSet();
+  base::HashMap* EagerOptimizingSet();
 
   // The number of sub caches covering the different types to cache.
   static const int kSubCacheCount = 4;
@@ -232,6 +242,7 @@ class CompilationCache {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILATION_CACHE_H_

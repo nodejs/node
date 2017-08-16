@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM64
 
 #define ARM64_DEFINE_FP_STATICS
@@ -93,9 +91,9 @@ static uint64_t RepeatBitsAcrossReg(unsigned reg_size,
 // met.
 uint64_t Instruction::ImmLogical() {
   unsigned reg_size = SixtyFourBits() ? kXRegSizeInBits : kWRegSizeInBits;
-  int64_t n = BitN();
-  int64_t imm_s = ImmSetBits();
-  int64_t imm_r = ImmRotate();
+  int32_t n = BitN();
+  int32_t imm_s = ImmSetBits();
+  int32_t imm_r = ImmRotate();
 
   // An integer is constructed from the n, imm_s and imm_r bits according to
   // the following table:
@@ -191,6 +189,9 @@ int64_t Instruction::ImmPCOffset() {
     // All PC-relative branches.
     // Relative branch offsets are instruction-size-aligned.
     offset = ImmBranch() << kInstructionSizeLog2;
+  } else if (IsUnresolvedInternalReference()) {
+    // Internal references are always word-aligned.
+    offset = ImmUnresolvedInternalReference() << kInstructionSizeLog2;
   } else {
     // Load literal (offset from PC).
     DCHECK(IsLdrLiteral());
@@ -208,7 +209,7 @@ Instruction* Instruction::ImmPCOffsetTarget() {
 
 
 bool Instruction::IsValidImmPCOffset(ImmBranchType branch_type,
-                                     int32_t offset) {
+                                     ptrdiff_t offset) {
   return is_intn(offset, ImmBranchRangeBitwidth(branch_type));
 }
 
@@ -217,29 +218,32 @@ bool Instruction::IsTargetInImmPCOffsetRange(Instruction* target) {
   return IsValidImmPCOffset(BranchType(), DistanceTo(target));
 }
 
-
-void Instruction::SetImmPCOffsetTarget(Instruction* target) {
+void Instruction::SetImmPCOffsetTarget(Assembler::IsolateData isolate_data,
+                                       Instruction* target) {
   if (IsPCRelAddressing()) {
-    SetPCRelImmTarget(target);
+    SetPCRelImmTarget(isolate_data, target);
   } else if (BranchType() != UnknownBranchType) {
     SetBranchImmTarget(target);
+  } else if (IsUnresolvedInternalReference()) {
+    SetUnresolvedInternalReferenceImmTarget(isolate_data, target);
   } else {
+    // Load literal (offset from PC).
     SetImmLLiteral(target);
   }
 }
 
-
-void Instruction::SetPCRelImmTarget(Instruction* target) {
+void Instruction::SetPCRelImmTarget(Assembler::IsolateData isolate_data,
+                                    Instruction* target) {
   // ADRP is not supported, so 'this' must point to an ADR instruction.
   DCHECK(IsAdr());
 
   ptrdiff_t target_offset = DistanceTo(target);
   Instr imm;
   if (Instruction::IsValidPCRelOffset(target_offset)) {
-    imm = Assembler::ImmPCRelAddress(target_offset);
+    imm = Assembler::ImmPCRelAddress(static_cast<int>(target_offset));
     SetInstructionBits(Mask(~ImmPCRel_mask) | imm);
   } else {
-    PatchingAssembler patcher(this,
+    PatchingAssembler patcher(isolate_data, reinterpret_cast<byte*>(this),
                               PatchingAssembler::kAdrFarPatchableNInstrs);
     patcher.PatchAdrFar(target_offset);
   }
@@ -248,9 +252,11 @@ void Instruction::SetPCRelImmTarget(Instruction* target) {
 
 void Instruction::SetBranchImmTarget(Instruction* target) {
   DCHECK(IsAligned(DistanceTo(target), kInstructionSize));
+  DCHECK(IsValidImmPCOffset(BranchType(),
+                            DistanceTo(target) >> kInstructionSizeLog2));
+  int offset = static_cast<int>(DistanceTo(target) >> kInstructionSizeLog2);
   Instr branch_imm = 0;
   uint32_t imm_mask = 0;
-  ptrdiff_t offset = DistanceTo(target) >> kInstructionSizeLog2;
   switch (BranchType()) {
     case CondBranchType: {
       branch_imm = Assembler::ImmCondBranch(offset);
@@ -277,11 +283,28 @@ void Instruction::SetBranchImmTarget(Instruction* target) {
   SetInstructionBits(Mask(~imm_mask) | branch_imm);
 }
 
+void Instruction::SetUnresolvedInternalReferenceImmTarget(
+    Assembler::IsolateData isolate_data, Instruction* target) {
+  DCHECK(IsUnresolvedInternalReference());
+  DCHECK(IsAligned(DistanceTo(target), kInstructionSize));
+  DCHECK(is_int32(DistanceTo(target) >> kInstructionSizeLog2));
+  int32_t target_offset =
+      static_cast<int32_t>(DistanceTo(target) >> kInstructionSizeLog2);
+  uint32_t high16 = unsigned_bitextract_32(31, 16, target_offset);
+  uint32_t low16 = unsigned_bitextract_32(15, 0, target_offset);
+
+  PatchingAssembler patcher(isolate_data, reinterpret_cast<byte*>(this), 2);
+  patcher.brk(high16);
+  patcher.brk(low16);
+}
+
 
 void Instruction::SetImmLLiteral(Instruction* source) {
+  DCHECK(IsLdrLiteral());
   DCHECK(IsAligned(DistanceTo(source), kInstructionSize));
-  ptrdiff_t offset = DistanceTo(source) >> kLoadLiteralScaleLog2;
-  Instr imm = Assembler::ImmLLiteral(offset);
+  DCHECK(Assembler::IsImmLLiteral(DistanceTo(source)));
+  Instr imm = Assembler::ImmLLiteral(
+      static_cast<int>(DistanceTo(source) >> kLoadLiteralScaleLog2));
   Instr mask = ImmLLiteral_mask;
 
   SetInstructionBits(Mask(~mask) | imm);
@@ -294,7 +317,7 @@ void Instruction::SetImmLLiteral(Instruction* source) {
 bool InstructionSequence::IsInlineData() const {
   // Inline data is encoded as a single movz instruction which writes to xzr
   // (x31).
-  return IsMovz() && SixtyFourBits() && (Rd() == xzr.code());
+  return IsMovz() && SixtyFourBits() && (Rd() == kZeroRegCode);
   // TODO(all): If we extend ::InlineData() to support bigger data, we need
   // to update this method too.
 }
@@ -312,6 +335,7 @@ uint64_t InstructionSequence::InlineData() const {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM64

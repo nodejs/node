@@ -53,7 +53,7 @@ function test(construct) {
   assertEquals(5, o.y);
   assertEquals(6, o.z);
   %DeoptimizeFunction(test_helper);
-  %ClearFunctionTypeFeedback(test_helper);
+  %ClearFunctionFeedback(test_helper);
 }
 
 function finalize_slack_tracking(construct) {

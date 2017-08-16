@@ -19,27 +19,26 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var tls = require('tls');
+const assert = require('assert');
+const tls = require('tls');
+const fs = require('fs');
 
-var key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
-var cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
+const key = fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`);
+const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`);
 
-tls.createServer({ key: key, cert: cert }, function(conn) {
+tls.createServer({ key: key, cert: cert }, common.mustCall(function(conn) {
   conn.end();
   this.close();
-}).listen(common.PORT, function() {
-  var options = { port: this.address().port, rejectUnauthorized: true };
+})).listen(0, common.mustCall(function() {
+  const options = { port: this.address().port, rejectUnauthorized: true };
   tls.connect(options).on('error', common.mustCall(function(err) {
-    assert.equal(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
-    assert.equal(err.message, 'unable to verify the first certificate');
+    assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+    assert.strictEqual(err.message, 'unable to verify the first certificate');
     this.destroy();
   }));
-});
+}));

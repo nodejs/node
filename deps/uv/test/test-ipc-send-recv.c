@@ -30,6 +30,8 @@ void spawn_helper(uv_pipe_t* channel,
                   uv_process_t* process,
                   const char* helper);
 
+void ipc_send_recv_helper_threadproc(void* arg);
+
 union handles {
   uv_handle_t handle;
   uv_stream_t stream;
@@ -38,16 +40,37 @@ union handles {
   uv_tty_t tty;
 };
 
-struct echo_ctx {
+struct test_ctx {
   uv_pipe_t channel;
+  uv_connect_t connect_req;
   uv_write_t write_req;
+  uv_write_t write_req2;
   uv_handle_type expected_type;
   union handles send;
+  union handles send2;
   union handles recv;
+  union handles recv2;
 };
 
-static struct echo_ctx ctx;
-static int num_recv_handles;
+struct echo_ctx {
+  uv_pipe_t listen;
+  uv_pipe_t channel;
+  uv_write_t write_req;
+  uv_write_t write_req2;
+  uv_handle_type expected_type;
+  union handles recv;
+  union handles recv2;
+};
+
+static struct test_ctx ctx;
+static struct echo_ctx ctx2;
+
+/* Used in write2_cb to decide if we need to cleanup or not */
+static int is_child_process;
+static int is_in_process;
+static int read_cb_count;
+static int recv_cb_count;
+static int write2_cb_called;
 
 
 static void alloc_cb(uv_handle_t* handle,
@@ -66,39 +89,58 @@ static void recv_cb(uv_stream_t* handle,
   uv_handle_type pending;
   uv_pipe_t* pipe;
   int r;
+  union handles* recv;
 
   pipe = (uv_pipe_t*) handle;
   ASSERT(pipe == &ctx.channel);
-  ASSERT(nread >= 0);
-  ASSERT(1 == uv_pipe_pending_count(pipe));
 
-  pending = uv_pipe_pending_type(pipe);
-  ASSERT(pending == ctx.expected_type);
+  do {
+    if (++recv_cb_count == 1) {
+      recv = &ctx.recv;
+    } else {
+      recv = &ctx.recv2;
+    }
 
-  if (pending == UV_NAMED_PIPE)
-    r = uv_pipe_init(ctx.channel.loop, &ctx.recv.pipe, 0);
-  else if (pending == UV_TCP)
-    r = uv_tcp_init(ctx.channel.loop, &ctx.recv.tcp);
-  else
-    abort();
-  ASSERT(r == 0);
+    /* Depending on the OS, the final recv_cb can be called after
+     * the child process has terminated which can result in nread
+     * being UV_EOF instead of the number of bytes read.  Since
+     * the other end of the pipe has closed this UV_EOF is an
+     * acceptable value. */
+    if (nread == UV_EOF) {
+      /* UV_EOF is only acceptable for the final recv_cb call */
+      ASSERT(recv_cb_count == 2);
+    } else {
+      ASSERT(nread >= 0);
+      ASSERT(uv_pipe_pending_count(pipe) > 0);
 
-  r = uv_accept(handle, &ctx.recv.stream);
-  ASSERT(r == 0);
+      pending = uv_pipe_pending_type(pipe);
+      ASSERT(pending == ctx.expected_type);
 
-  uv_close((uv_handle_t*)&ctx.channel, NULL);
-  uv_close(&ctx.send.handle, NULL);
-  uv_close(&ctx.recv.handle, NULL);
-  num_recv_handles++;
+      if (pending == UV_NAMED_PIPE)
+        r = uv_pipe_init(ctx.channel.loop, &recv->pipe, 0);
+      else if (pending == UV_TCP)
+        r = uv_tcp_init(ctx.channel.loop, &recv->tcp);
+      else
+        abort();
+      ASSERT(r == 0);
+
+      r = uv_accept(handle, &recv->stream);
+      ASSERT(r == 0);
+    }
+  } while (uv_pipe_pending_count(pipe) > 0);
+
+  /* Close after two writes received */
+  if (recv_cb_count == 2) {
+    uv_close((uv_handle_t*)&ctx.channel, NULL);
+  }
 }
 
-
-static int run_test(void) {
-  uv_process_t process;
-  uv_buf_t buf;
+static void connect_cb(uv_connect_t* req, int status) {
   int r;
+  uv_buf_t buf;
 
-  spawn_helper(&ctx.channel, &process, "ipc_send_recv_helper");
+  ASSERT(req == &ctx.connect_req);
+  ASSERT(status == 0);
 
   buf = uv_buf_init(".", 1);
   r = uv_write2(&ctx.write_req,
@@ -108,19 +150,56 @@ static int run_test(void) {
                 NULL);
   ASSERT(r == 0);
 
+  /* Perform two writes to the same pipe to make sure that on Windows we are
+   * not running into issue 505:
+   *   https://github.com/libuv/libuv/issues/505 */
+  buf = uv_buf_init(".", 1);
+  r = uv_write2(&ctx.write_req2,
+                (uv_stream_t*)&ctx.channel,
+                &buf, 1,
+                &ctx.send2.stream,
+                NULL);
+  ASSERT(r == 0);
+
   r = uv_read_start((uv_stream_t*)&ctx.channel, alloc_cb, recv_cb);
   ASSERT(r == 0);
+}
+
+static int run_test(int inprocess) {
+  uv_process_t process;
+  uv_thread_t tid;
+  int r;
+
+  if (inprocess) {
+    r = uv_thread_create(&tid, ipc_send_recv_helper_threadproc, (void *) 42);
+    ASSERT(r == 0);
+
+    uv_sleep(1000);
+
+    r = uv_pipe_init(uv_default_loop(), &ctx.channel, 1);
+    ASSERT(r == 0);
+
+    uv_pipe_connect(&ctx.connect_req, &ctx.channel, TEST_PIPENAME_3, connect_cb);
+  } else {
+    spawn_helper(&ctx.channel, &process, "ipc_send_recv_helper");
+
+    connect_cb(&ctx.connect_req, 0);
+  }
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
-  ASSERT(num_recv_handles == 1);
+  ASSERT(recv_cb_count == 2);
+
+  if (inprocess) {
+    r = uv_thread_join(&tid);
+    ASSERT(r == 0);
+  }
 
   return 0;
 }
 
-
-TEST_IMPL(ipc_send_recv_pipe) {
+static int run_ipc_send_recv_pipe(int inprocess) {
   int r;
 
   ctx.expected_type = UV_NAMED_PIPE;
@@ -131,15 +210,34 @@ TEST_IMPL(ipc_send_recv_pipe) {
   r = uv_pipe_bind(&ctx.send.pipe, TEST_PIPENAME);
   ASSERT(r == 0);
 
-  r = run_test();
+  r = uv_pipe_init(uv_default_loop(), &ctx.send2.pipe, 1);
+  ASSERT(r == 0);
+
+  r = uv_pipe_bind(&ctx.send2.pipe, TEST_PIPENAME_2);
+  ASSERT(r == 0);
+
+  r = run_test(inprocess);
   ASSERT(r == 0);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
+TEST_IMPL(ipc_send_recv_pipe) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
+  return run_ipc_send_recv_pipe(0);
+}
 
-TEST_IMPL(ipc_send_recv_tcp) {
+TEST_IMPL(ipc_send_recv_pipe_inprocess) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
+  return run_ipc_send_recv_pipe(1);
+}
+
+static int run_ipc_send_recv_tcp(int inprocess) {
   struct sockaddr_in addr;
   int r;
 
@@ -150,25 +248,51 @@ TEST_IMPL(ipc_send_recv_tcp) {
   r = uv_tcp_init(uv_default_loop(), &ctx.send.tcp);
   ASSERT(r == 0);
 
+  r = uv_tcp_init(uv_default_loop(), &ctx.send2.tcp);
+  ASSERT(r == 0);
+
   r = uv_tcp_bind(&ctx.send.tcp, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
-  r = run_test();
+  r = uv_tcp_bind(&ctx.send2.tcp, (const struct sockaddr*) &addr, 0);
+  ASSERT(r == 0);
+
+  r = run_test(inprocess);
   ASSERT(r == 0);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
+TEST_IMPL(ipc_send_recv_tcp) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
+  return run_ipc_send_recv_tcp(0);
+}
 
-/* Everything here runs in a child process. */
+TEST_IMPL(ipc_send_recv_tcp_inprocess) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
+  return run_ipc_send_recv_tcp(1);
+}
+
+
+/* Everything here runs in a child process or second thread. */
 
 static void write2_cb(uv_write_t* req, int status) {
   ASSERT(status == 0);
-  uv_close(&ctx.recv.handle, NULL);
-  uv_close((uv_handle_t*)&ctx.channel, NULL);
-}
 
+  /* After two successful writes in the child process, allow the child
+   * process to be closed. */
+  if (++write2_cb_called == 2 && (is_child_process || is_in_process)) {
+    uv_close(&ctx2.recv.handle, NULL);
+    uv_close(&ctx2.recv2.handle, NULL);
+    uv_close((uv_handle_t*)&ctx2.channel, NULL);
+    uv_close((uv_handle_t*)&ctx2.listen, NULL);
+  }
+}
 
 static void read_cb(uv_stream_t* handle,
                     ssize_t nread,
@@ -177,37 +301,104 @@ static void read_cb(uv_stream_t* handle,
   uv_pipe_t* pipe;
   uv_handle_type pending;
   int r;
+  union handles* recv;
+  uv_write_t* write_req;
+
+  if (nread == UV__EOF || nread == UV__ECONNABORTED) {
+    return;
+  }
 
   pipe = (uv_pipe_t*) handle;
-  ASSERT(pipe == &ctx.channel);
-  ASSERT(nread >= 0);
-  ASSERT(1 == uv_pipe_pending_count(pipe));
+  do {
+    if (++read_cb_count == 2) {
+      recv = &ctx2.recv;
+      write_req = &ctx2.write_req;
+    } else {
+      recv = &ctx2.recv2;
+      write_req = &ctx2.write_req2;
+    }
 
-  pending = uv_pipe_pending_type(pipe);
-  ASSERT(pending == UV_NAMED_PIPE || pending == UV_TCP);
+    ASSERT(pipe == &ctx2.channel);
+    ASSERT(nread >= 0);
+    ASSERT(uv_pipe_pending_count(pipe) > 0);
 
-  wrbuf = uv_buf_init(".", 1);
+    pending = uv_pipe_pending_type(pipe);
+    ASSERT(pending == UV_NAMED_PIPE || pending == UV_TCP);
 
-  if (pending == UV_NAMED_PIPE)
-    r = uv_pipe_init(ctx.channel.loop, &ctx.recv.pipe, 0);
-  else if (pending == UV_TCP)
-    r = uv_tcp_init(ctx.channel.loop, &ctx.recv.tcp);
-  else
-    abort();
-  ASSERT(r == 0);
+    if (pending == UV_NAMED_PIPE)
+      r = uv_pipe_init(ctx2.channel.loop, &recv->pipe, 0);
+    else if (pending == UV_TCP)
+      r = uv_tcp_init(ctx2.channel.loop, &recv->tcp);
+    else
+      abort();
+    ASSERT(r == 0);
 
-  r = uv_accept(handle, &ctx.recv.stream);
-  ASSERT(r == 0);
+    r = uv_accept(handle, &recv->stream);
+    ASSERT(r == 0);
 
-  r = uv_write2(&ctx.write_req,
-                (uv_stream_t*)&ctx.channel,
-                &wrbuf,
-                1,
-                &ctx.recv.stream,
-                write2_cb);
+    wrbuf = uv_buf_init(".", 1);
+    r = uv_write2(write_req,
+                  (uv_stream_t*)&ctx2.channel,
+                  &wrbuf,
+                  1,
+                  &recv->stream,
+                  write2_cb);
+    ASSERT(r == 0);
+  } while (uv_pipe_pending_count(pipe) > 0);
+}
+
+static void send_recv_start(void) {
+  int r;
+  ASSERT(1 == uv_is_readable((uv_stream_t*)&ctx2.channel));
+  ASSERT(1 == uv_is_writable((uv_stream_t*)&ctx2.channel));
+  ASSERT(0 == uv_is_closing((uv_handle_t*)&ctx2.channel));
+
+  r = uv_read_start((uv_stream_t*)&ctx2.channel, alloc_cb, read_cb);
   ASSERT(r == 0);
 }
 
+static void listen_cb(uv_stream_t* handle, int status) {
+  int r;
+  ASSERT(handle == (uv_stream_t*)&ctx2.listen);
+  ASSERT(status == 0);
+
+  r = uv_accept((uv_stream_t*)&ctx2.listen, (uv_stream_t*)&ctx2.channel);
+  ASSERT(r == 0);
+
+  send_recv_start();
+}
+
+int run_ipc_send_recv_helper(uv_loop_t* loop, int inprocess) {
+  int r;
+
+  is_in_process = inprocess;
+
+  memset(&ctx2, 0, sizeof(ctx2));
+
+  r = uv_pipe_init(loop, &ctx2.listen, 0);
+  ASSERT(r == 0);
+
+  r = uv_pipe_init(loop, &ctx2.channel, 1);
+  ASSERT(r == 0);
+
+  if (inprocess) {
+    r = uv_pipe_bind(&ctx2.listen, TEST_PIPENAME_3);
+    ASSERT(r == 0);
+
+    r = uv_listen((uv_stream_t*)&ctx2.listen, SOMAXCONN, listen_cb);
+    ASSERT(r == 0);
+  } else {
+    r = uv_pipe_open(&ctx2.channel, 0);
+    ASSERT(r == 0);
+
+    send_recv_start();
+  }
+
+  r = uv_run(loop, UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+
+  return 0;
+}
 
 /* stdin is a duplex channel over which a handle is sent.
  * We receive it and send it back where it came from.
@@ -215,22 +406,23 @@ static void read_cb(uv_stream_t* handle,
 int ipc_send_recv_helper(void) {
   int r;
 
-  memset(&ctx, 0, sizeof(ctx));
-
-  r = uv_pipe_init(uv_default_loop(), &ctx.channel, 1);
-  ASSERT(r == 0);
-
-  uv_pipe_open(&ctx.channel, 0);
-  ASSERT(1 == uv_is_readable((uv_stream_t*)&ctx.channel));
-  ASSERT(1 == uv_is_writable((uv_stream_t*)&ctx.channel));
-  ASSERT(0 == uv_is_closing((uv_handle_t*)&ctx.channel));
-
-  r = uv_read_start((uv_stream_t*)&ctx.channel, alloc_cb, read_cb);
-  ASSERT(r == 0);
-
-  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  r = run_ipc_send_recv_helper(uv_default_loop(), 0);
   ASSERT(r == 0);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
+}
+
+void ipc_send_recv_helper_threadproc(void* arg) {
+  int r;
+  uv_loop_t loop;
+
+  r = uv_loop_init(&loop);
+  ASSERT(r == 0);
+
+  r = run_ipc_send_recv_helper(&loop, 1);
+  ASSERT(r == 0);
+
+  r = uv_loop_close(&loop);
+  ASSERT(r == 0);
 }

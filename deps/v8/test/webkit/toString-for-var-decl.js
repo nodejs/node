@@ -25,7 +25,7 @@ description(
 "This test checks for a couple of specific ways that bugs in toString() round trips have changed the meanings of functions with var declarations inside for loops."
 );
 
-function f1() { for (var j = 1 in []) {}  }
+function f1() { for (var j in []) {}  }
 var f2 = function () { for (var j = 1; j < 10; ++j) {}  }
 var f3 = function () { for (j = 1;j < 10; ++j) {}  }
 var f4 = function () { for (var j;;) {}  }

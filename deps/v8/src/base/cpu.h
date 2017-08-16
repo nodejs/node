@@ -13,6 +13,7 @@
 #ifndef V8_BASE_CPU_H_
 #define V8_BASE_CPU_H_
 
+#include "src/base/base-export.h"
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -28,7 +29,7 @@ namespace base {
 // architectures. For each architecture the file cpu_<arch>.cc contains the
 // implementation of these static functions.
 
-class CPU FINAL {
+class V8_BASE_EXPORT CPU final {
  public:
   CPU();
 
@@ -47,7 +48,11 @@ class CPU FINAL {
   static const int NVIDIA = 0x4e;
   static const int QUALCOMM = 0x51;
   int architecture() const { return architecture_; }
+  int variant() const { return variant_; }
+  static const int NVIDIA_DENVER = 0x0;
   int part() const { return part_; }
+
+  // ARM-specific part codes
   static const int ARM_CORTEX_A5 = 0xc05;
   static const int ARM_CORTEX_A7 = 0xc07;
   static const int ARM_CORTEX_A8 = 0xc08;
@@ -55,8 +60,26 @@ class CPU FINAL {
   static const int ARM_CORTEX_A12 = 0xc0c;
   static const int ARM_CORTEX_A15 = 0xc0f;
 
+  // Denver-specific part code
+  static const int NVIDIA_DENVER_V10 = 0x002;
+
+  // PPC-specific part codes
+  enum {
+    PPC_POWER5,
+    PPC_POWER6,
+    PPC_POWER7,
+    PPC_POWER8,
+    PPC_POWER9,
+    PPC_G4,
+    PPC_G5,
+    PPC_PA6T
+  };
+
   // General features
   bool has_fpu() const { return has_fpu_; }
+  int icache_line_size() const { return icache_line_size_; }
+  int dcache_line_size() const { return dcache_line_size_; }
+  static const int UNKNOWN_CACHE_LINE_SIZE = 0;
 
   // x86 features
   bool has_cmov() const { return has_cmov_; }
@@ -68,6 +91,17 @@ class CPU FINAL {
   bool has_ssse3() const { return has_ssse3_; }
   bool has_sse41() const { return has_sse41_; }
   bool has_sse42() const { return has_sse42_; }
+  bool has_osxsave() const { return has_osxsave_; }
+  bool has_avx() const { return has_avx_; }
+  bool has_fma3() const { return has_fma3_; }
+  bool has_bmi1() const { return has_bmi1_; }
+  bool has_bmi2() const { return has_bmi2_; }
+  bool has_lzcnt() const { return has_lzcnt_; }
+  bool has_popcnt() const { return has_popcnt_; }
+  bool is_atom() const { return is_atom_; }
+  bool has_non_stop_time_stamp_counter() const {
+    return has_non_stop_time_stamp_counter_;
+  }
 
   // arm features
   bool has_idiva() const { return has_idiva_; }
@@ -79,6 +113,7 @@ class CPU FINAL {
 
   // mips features
   bool is_fp64_mode() const { return is_fp64_mode_; }
+  bool has_msa() const { return has_msa_; }
 
  private:
   char vendor_[13];
@@ -90,7 +125,10 @@ class CPU FINAL {
   int type_;
   int implementer_;
   int architecture_;
+  int variant_;
   int part_;
+  int icache_line_size_;
+  int dcache_line_size_;
   bool has_fpu_;
   bool has_cmov_;
   bool has_sahf_;
@@ -101,6 +139,14 @@ class CPU FINAL {
   bool has_ssse3_;
   bool has_sse41_;
   bool has_sse42_;
+  bool is_atom_;
+  bool has_osxsave_;
+  bool has_avx_;
+  bool has_fma3_;
+  bool has_bmi1_;
+  bool has_bmi2_;
+  bool has_lzcnt_;
+  bool has_popcnt_;
   bool has_idiva_;
   bool has_neon_;
   bool has_thumb2_;
@@ -108,8 +154,11 @@ class CPU FINAL {
   bool has_vfp3_;
   bool has_vfp3_d32_;
   bool is_fp64_mode_;
+  bool has_non_stop_time_stamp_counter_;
+  bool has_msa_;
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_CPU_H_

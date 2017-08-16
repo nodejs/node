@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS
 
 #include "src/assembler.h"
 #include "src/frames.h"
 #include "src/mips/assembler-mips-inl.h"
 #include "src/mips/assembler-mips.h"
+#include "src/mips/frames-mips.h"
 
 namespace v8 {
 namespace internal {
@@ -31,12 +30,7 @@ Register StubFailureTrampolineFrame::constant_pool_pointer_register() {
 }
 
 
-Object*& ExitFrame::constant_pool_slot() const {
-  UNREACHABLE();
-  return Memory::Object_at(NULL);
-}
-
-
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_MIPS

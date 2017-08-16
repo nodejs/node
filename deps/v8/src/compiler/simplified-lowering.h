@@ -14,46 +14,76 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class SimplifiedLowering FINAL {
+// Forward declarations.
+class RepresentationChanger;
+class RepresentationSelector;
+class SourcePositionTable;
+class TypeCache;
+
+class SimplifiedLowering final {
  public:
-  explicit SimplifiedLowering(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
+  SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
+                     SourcePositionTable* source_positions);
   ~SimplifiedLowering() {}
 
   void LowerAllNodes();
 
-  // TODO(titzer): These are exposed for direct testing. Use a friend class.
-  void DoLoadField(Node* node);
-  void DoStoreField(Node* node);
-  // TODO(turbofan): The output_type can be removed once the result of the
+  void DoMax(Node* node, Operator const* op, MachineRepresentation rep);
+  void DoMin(Node* node, Operator const* op, MachineRepresentation rep);
+  void DoJSToNumberTruncatesToFloat64(Node* node,
+                                      RepresentationSelector* selector);
+  void DoJSToNumberTruncatesToWord32(Node* node,
+                                     RepresentationSelector* selector);
+  // TODO(turbofan): The representation can be removed once the result of the
   // representation analysis is stored in the node bounds.
-  void DoLoadElement(Node* node, MachineType output_type);
-  void DoStoreElement(Node* node);
-  void DoStringAdd(Node* node);
-  void DoStringEqual(Node* node);
-  void DoStringLessThan(Node* node);
-  void DoStringLessThanOrEqual(Node* node);
+  void DoLoadBuffer(Node* node, MachineRepresentation rep,
+                    RepresentationChanger* changer);
+  void DoStoreBuffer(Node* node);
+  void DoShift(Node* node, Operator const* op, Type* rhs_type);
+  void DoStringToNumber(Node* node);
+  void DoIntegral32ToBit(Node* node);
+  void DoOrderedNumberToBit(Node* node);
+  void DoNumberToBit(Node* node);
+  void DoIntegerToUint8Clamped(Node* node);
+  void DoNumberToUint8Clamped(Node* node);
+  void DoSigned32ToUint8Clamped(Node* node);
+  void DoUnsigned32ToUint8Clamped(Node* node);
 
  private:
-  JSGraph* jsgraph_;
+  JSGraph* const jsgraph_;
+  Zone* const zone_;
+  TypeCache const& type_cache_;
+  SetOncePointer<Node> to_number_code_;
+  SetOncePointer<Operator const> to_number_operator_;
 
-  Node* SmiTag(Node* node);
-  Node* IsTagged(Node* node);
-  Node* Untag(Node* node);
-  Node* OffsetMinusTagConstant(int32_t offset);
-  Node* ComputeIndex(const ElementAccess& access, Node* const key);
-  Node* StringComparison(Node* node, bool requires_ordering);
+  // TODO(danno): SimplifiedLowering shouldn't know anything about the source
+  // positions table, but must for now since there currently is no other way to
+  // pass down source position information to nodes created during
+  // lowering. Once this phase becomes a vanilla reducer, it should get source
+  // position information via the SourcePositionWrapper like all other reducers.
+  SourcePositionTable* source_positions_;
+
+  Node* Float64Round(Node* const node);
+  Node* Float64Sign(Node* const node);
+  Node* Int32Abs(Node* const node);
   Node* Int32Div(Node* const node);
   Node* Int32Mod(Node* const node);
+  Node* Int32Sign(Node* const node);
   Node* Uint32Div(Node* const node);
   Node* Uint32Mod(Node* const node);
 
+  Node* ToNumberCode();
+  Operator const* ToNumberOperator();
+
   friend class RepresentationSelector;
 
+  Isolate* isolate() { return jsgraph_->isolate(); }
   Zone* zone() { return jsgraph_->zone(); }
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph()->graph(); }
   CommonOperatorBuilder* common() { return jsgraph()->common(); }
   MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
+  SimplifiedOperatorBuilder* simplified() { return jsgraph()->simplified(); }
 };
 
 }  // namespace compiler

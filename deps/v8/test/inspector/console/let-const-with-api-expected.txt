@@ -1,0 +1,20 @@
+Tests how let and const interact with command line api
+first "let a = 1;" result: wasThrown = false
+second "let a = 1;" result: wasThrown = true
+exception message: Uncaught SyntaxError: Identifier 'a' has already been declared
+    at <anonymous>:1:1
+{"result":{"type":"number","value":42,"description":"42"}}
+function dir(value) { [Command Line API] }
+function dirxml(value) { [Command Line API] }
+function keys(object) { [Command Line API] }
+function values(object) { [Command Line API] }
+function profile(title) { [Command Line API] }
+function profileEnd(title) { [Command Line API] }
+function inspect(object) { [Command Line API] }
+function copy(value) { [Command Line API] }
+function clear() { [Command Line API] }
+function debug(function) { [Command Line API] }
+function undebug(function) { [Command Line API] }
+function monitor(function) { [Command Line API] }
+function unmonitor(function) { [Command Line API] }
+function table(data, [columns]) { [Command Line API] }

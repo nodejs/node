@@ -29,7 +29,6 @@
 
 // Test Math.max with negative zero as input.
 for (var i = 0; i < 5; i++) Math.max(0, 0);
-%OptimizeFunctionOnNextCall(Math.max);
 Math.max(0, 0);
 
 var r = Math.max(-0, -0);

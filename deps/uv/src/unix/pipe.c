@@ -44,31 +44,25 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   struct sockaddr_un saddr;
   const char* pipe_fname;
   int sockfd;
-  int bound;
   int err;
 
   pipe_fname = NULL;
-  sockfd = -1;
-  bound = 0;
-  err = -EINVAL;
 
   /* Already bound? */
   if (uv__stream_fd(handle) >= 0)
     return -EINVAL;
 
   /* Make a copy of the file name, it outlives this function's scope. */
-  pipe_fname = strdup(name);
-  if (pipe_fname == NULL) {
-    err = -ENOMEM;
-    goto out;
-  }
+  pipe_fname = uv__strdup(name);
+  if (pipe_fname == NULL)
+    return -ENOMEM;
 
   /* We've got a copy, don't touch the original any more. */
   name = NULL;
 
   err = uv__socket(AF_UNIX, SOCK_STREAM, 0);
   if (err < 0)
-    goto out;
+    goto err_socket;
   sockfd = err;
 
   memset(&saddr, 0, sizeof saddr);
@@ -81,23 +75,19 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
     /* Convert ENOENT to EACCES for compatibility with Windows. */
     if (err == -ENOENT)
       err = -EACCES;
-    goto out;
+
+    uv__close(sockfd);
+    goto err_socket;
   }
-  bound = 1;
 
   /* Success. */
+  handle->flags |= UV_HANDLE_BOUND;
   handle->pipe_fname = pipe_fname; /* Is a strdup'ed copy. */
   handle->io_watcher.fd = sockfd;
   return 0;
 
-out:
-  if (bound) {
-    /* unlink() before uv__close() to avoid races. */
-    assert(pipe_fname != NULL);
-    unlink(pipe_fname);
-  }
-  uv__close(sockfd);
-  free((void*)pipe_fname);
+err_socket:
+  uv__free((void*)pipe_fname);
   return err;
 }
 
@@ -106,12 +96,20 @@ int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
   if (uv__stream_fd(handle) == -1)
     return -EINVAL;
 
+#if defined(__MVS__)
+  /* On zOS, backlog=0 has undefined behaviour */
+  if (backlog == 0)
+    backlog = 1;
+  else if (backlog < 0)
+    backlog = SOMAXCONN;
+#endif
+
   if (listen(uv__stream_fd(handle), backlog))
     return -errno;
 
   handle->connection_cb = cb;
   handle->io_watcher.cb = uv__server_io;
-  uv__io_start(handle->loop, &handle->io_watcher, UV__POLLIN);
+  uv__io_start(handle->loop, &handle->io_watcher, POLLIN);
   return 0;
 }
 
@@ -125,7 +123,7 @@ void uv__pipe_close(uv_pipe_t* handle) {
      * another thread or process.
      */
     unlink(handle->pipe_fname);
-    free((void*)handle->pipe_fname);
+    uv__free((void*)handle->pipe_fname);
     handle->pipe_fname = NULL;
   }
 
@@ -134,9 +132,13 @@ void uv__pipe_close(uv_pipe_t* handle) {
 
 
 int uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
-#if defined(__APPLE__)
   int err;
 
+  err = uv__nonblock(fd, 1);
+  if (err)
+    return err;
+
+#if defined(__APPLE__)
   err = uv__stream_try_select((uv_stream_t*) handle, &fd);
   if (err)
     return err;
@@ -158,7 +160,6 @@ void uv_pipe_connect(uv_connect_t* req,
   int r;
 
   new_sock = (uv__stream_fd(handle) == -1);
-  err = -EINVAL;
 
   if (new_sock) {
     err = uv__socket(AF_UNIX, SOCK_STREAM, 0);
@@ -180,6 +181,14 @@ void uv_pipe_connect(uv_connect_t* req,
 
   if (r == -1 && errno != EINPROGRESS) {
     err = -errno;
+#if defined(__CYGWIN__) || defined(__MSYS__)
+    /* EBADF is supposed to mean that the socket fd is bad, but
+       Cygwin reports EBADF instead of ENOTSOCK when the file is
+       not a socket.  We do not expect to see a bad fd here
+       (e.g. due to new_sock), so translate the error.  */
+    if (err == -EBADF)
+      err = -ENOTSOCK;
+#endif
     goto out;
   }
 
@@ -191,7 +200,7 @@ void uv_pipe_connect(uv_connect_t* req,
   }
 
   if (err == 0)
-    uv__io_start(handle->loop, &handle->io_watcher, UV__POLLIN | UV__POLLOUT);
+    uv__io_start(handle->loop, &handle->io_watcher, POLLIN | POLLOUT);
 
 out:
   handle->delayed_error = err;
@@ -206,41 +215,60 @@ out:
   if (err)
     uv__io_feed(handle->loop, &handle->io_watcher);
 
-  /* Mimic the Windows pipe implementation, always
-   * return 0 and let the callback handle errors.
-   */
 }
 
 
-int uv_pipe_getsockname(const uv_pipe_t* handle, char* buf, size_t* len) {
+typedef int (*uv__peersockfunc)(int, struct sockaddr*, socklen_t*);
+
+
+static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
+                                    uv__peersockfunc func,
+                                    char* buffer,
+                                    size_t* size) {
   struct sockaddr_un sa;
   socklen_t addrlen;
   int err;
 
   addrlen = sizeof(sa);
   memset(&sa, 0, addrlen);
-  err = getsockname(uv__stream_fd(handle), (struct sockaddr*) &sa, &addrlen);
+  err = func(uv__stream_fd(handle), (struct sockaddr*) &sa, &addrlen);
   if (err < 0) {
-    *len = 0;
+    *size = 0;
     return -errno;
   }
 
+#if defined(__linux__)
   if (sa.sun_path[0] == 0)
     /* Linux abstract namespace */
     addrlen -= offsetof(struct sockaddr_un, sun_path);
   else
-    addrlen = strlen(sa.sun_path) + 1;
+#endif
+    addrlen = strlen(sa.sun_path);
 
 
-  if (addrlen > *len) {
-    *len = addrlen;
+  if (addrlen >= *size) {
+    *size = addrlen + 1;
     return UV_ENOBUFS;
   }
 
-  memcpy(buf, sa.sun_path, addrlen);
-  *len = addrlen;
+  memcpy(buffer, sa.sun_path, addrlen);
+  *size = addrlen;
+
+  /* only null-terminate if it's not an abstract socket */
+  if (buffer[0] != '\0')
+    buffer[addrlen] = '\0';
 
   return 0;
+}
+
+
+int uv_pipe_getsockname(const uv_pipe_t* handle, char* buffer, size_t* size) {
+  return uv__pipe_getsockpeername(handle, getsockname, buffer, size);
+}
+
+
+int uv_pipe_getpeername(const uv_pipe_t* handle, char* buffer, size_t* size) {
+  return uv__pipe_getsockpeername(handle, getpeername, buffer, size);
 }
 
 

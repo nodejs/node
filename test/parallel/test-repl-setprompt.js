@@ -19,31 +19,31 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common'),
-    assert = require('assert'),
-    spawn = require('child_process').spawn,
-    os = require('os'),
-    util = require('util');
+'use strict';
+require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const os = require('os');
 
-var args = [
+const args = [
   '-e',
   'var e = new (require("repl")).REPLServer("foo.. "); e.context.e = e;',
 ];
 
-var p = "bar.. ";
+const p = 'bar.. ';
 
-var child = spawn(process.execPath, args);
+const child = spawn(process.execPath, args);
 
 child.stdout.setEncoding('utf8');
 
-var data = '';
-child.stdout.on('data', function(d) { data += d });
+let data = '';
+child.stdout.on('data', function(d) { data += d; });
 
-child.stdin.end(util.format("e.setPrompt('%s');%s", p, os.EOL));
+child.stdin.end(`e.setPrompt("${p}");${os.EOL}`);
 
 child.on('close', function(code, signal) {
   assert.strictEqual(code, 0);
   assert.ok(!signal);
-  var lines = data.split(/\n/);
+  const lines = data.split('\n');
   assert.strictEqual(lines.pop(), p);
 });

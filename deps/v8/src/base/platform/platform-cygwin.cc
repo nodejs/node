@@ -19,91 +19,50 @@
 #undef MAP_TYPE
 
 #include "src/base/macros.h"
+#include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
 #include "src/base/win32-headers.h"
 
 namespace v8 {
 namespace base {
 
+class CygwinTimezoneCache : public PosixTimezoneCache {
+  const char* LocalTimezone(double time) override;
 
-const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
+  double LocalTimeOffset() override;
+
+  ~CygwinTimezoneCache() override {}
+};
+
+const char* CygwinTimezoneCache::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
-  struct tm* t = localtime(&tv);
+  struct tm tm;
+  struct tm* t = localtime_r(&tv, &tm);
   if (NULL == t) return "";
   return tzname[0];  // The location of the timezone string on Cygwin.
 }
 
-
-double OS::LocalTimeOffset(TimezoneCache* cache) {
+double CygwinTimezoneCache::LocalTimeOffset() {
   // On Cygwin, struct tm does not contain a tm_gmtoff field.
   time_t utc = time(NULL);
   DCHECK(utc != -1);
-  struct tm* loc = localtime(&utc);
+  struct tm tm;
+  struct tm* loc = localtime_r(&utc, &tm);
   DCHECK(loc != NULL);
   // time - localtime includes any daylight savings offset, so subtract it.
   return static_cast<double>((mktime(loc) - utc) * msPerSecond -
                              (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
 
-
-void* OS::Allocate(const size_t requested,
-                   size_t* allocated,
-                   bool is_executable) {
+void* OS::Allocate(const size_t requested, size_t* allocated,
+                   OS::MemoryPermission access) {
   const size_t msize = RoundUp(requested, sysconf(_SC_PAGESIZE));
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+  int prot = GetProtectionFromMemoryPermission(access);
   void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
   return mbase;
-}
-
-
-class PosixMemoryMappedFile : public OS::MemoryMappedFile {
- public:
-  PosixMemoryMappedFile(FILE* file, void* memory, int size)
-    : file_(file), memory_(memory), size_(size) { }
-  virtual ~PosixMemoryMappedFile();
-  virtual void* memory() { return memory_; }
-  virtual int size() { return size_; }
- private:
-  FILE* file_;
-  void* memory_;
-  int size_;
-};
-
-
-OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
-  FILE* file = fopen(name, "r+");
-  if (file == NULL) return NULL;
-
-  fseek(file, 0, SEEK_END);
-  int size = ftell(file);
-
-  void* memory =
-      mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
-  return new PosixMemoryMappedFile(file, memory, size);
-}
-
-
-OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
-    void* initial) {
-  FILE* file = fopen(name, "w+");
-  if (file == NULL) return NULL;
-  int result = fwrite(initial, size, 1, file);
-  if (result < 1) {
-    fclose(file);
-    return NULL;
-  }
-  void* memory =
-      mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
-  return new PosixMemoryMappedFile(file, memory, size);
-}
-
-
-PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) munmap(memory_, size_);
-  fclose(file_);
 }
 
 
@@ -300,4 +259,5 @@ bool VirtualMemory::HasLazyCommits() {
   return false;
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

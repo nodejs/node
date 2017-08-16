@@ -19,23 +19,17 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
 
-var timeouts = 0;
-var Timer = process.binding('timer_wrap').Timer;
-var kOnTimeout = Timer.kOnTimeout;
+const Timer = process.binding('timer_wrap').Timer;
+const kOnTimeout = Timer.kOnTimeout;
 
-var t = new Timer();
+const t = new Timer();
 
-t.start(1000, 0);
+t.start(1000);
 
-t[kOnTimeout] = function() {
-  timeouts++;
+t[kOnTimeout] = common.mustCall(function() {
   console.log('timeout');
   t.close();
-};
-
-process.on('exit', function() {
-  assert.equal(1, timeouts);
 });

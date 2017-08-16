@@ -34,7 +34,6 @@ using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -186,9 +185,9 @@ void SyncProcessStdioPipe::Close() {
 }
 
 
-Local<Object> SyncProcessStdioPipe::GetOutputAsBuffer() const {
+Local<Object> SyncProcessStdioPipe::GetOutputAsBuffer(Environment* env) const {
   size_t length = OutputLength();
-  Local<Object> js_buffer = Buffer::New(length);
+  Local<Object> js_buffer = Buffer::New(env, length).ToLocalChecked();
   CopyOutput(Buffer::Data(js_buffer));
   return js_buffer;
 }
@@ -342,6 +341,14 @@ void SyncProcessStdioPipe::WriteCallback(uv_write_t* req, int result) {
 void SyncProcessStdioPipe::ShutdownCallback(uv_shutdown_t* req, int result) {
   SyncProcessStdioPipe* self =
       reinterpret_cast<SyncProcessStdioPipe*>(req->handle->data);
+
+  // On AIX, OS X and the BSDs, calling shutdown() on one end of a pipe
+  // when the other end has closed the connection fails with ENOTCONN.
+  // Libuv is not the right place to handle that because it can't tell
+  // if the error is genuine but we here can.
+  if (result == UV_ENOTCONN)
+    result = 0;
+
   self->OnShutdownDone(result);
 }
 
@@ -353,16 +360,18 @@ void SyncProcessStdioPipe::CloseCallback(uv_handle_t* handle) {
 }
 
 
-void SyncProcessRunner::Initialize(Handle<Object> target,
-                                   Handle<Value> unused,
-                                   Handle<Context> context) {
+void SyncProcessRunner::Initialize(Local<Object> target,
+                                   Local<Value> unused,
+                                   Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "spawn", Spawn);
 }
 
 
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
-  SyncProcessRunner p(Environment::GetCurrent(args));
+  Environment* env = Environment::GetCurrent(args);
+  env->PrintSyncTrace();
+  SyncProcessRunner p(env);
   Local<Value> result = p.Run(args[0]);
   args.GetReturnValue().Set(result);
 }
@@ -497,7 +506,7 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   r = uv_run(uv_loop_, UV_RUN_DEFAULT);
   if (r < 0)
     // We can't handle uv_run failure.
-    abort();
+    ABORT();
 
   // If we get here the process should have exited.
   CHECK_GE(exit_status_, 0);
@@ -513,14 +522,19 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
     // Close the process handle when ExitCallback was not called.
     uv_handle_t* uv_process_handle =
         reinterpret_cast<uv_handle_t*>(&uv_process_);
-    if (!uv_is_closing(uv_process_handle))
+
+    // Close the process handle if it is still open. The handle type also
+    // needs to be checked because TryInitializeAndRunLoop() won't spawn a
+    // process if input validation fails.
+    if (uv_process_handle->type == UV_PROCESS &&
+        !uv_is_closing(uv_process_handle))
       uv_close(uv_process_handle, nullptr);
 
     // Give closing watchers a chance to finish closing and get their close
     // callbacks called.
     int r = uv_run(uv_loop_, UV_RUN_DEFAULT);
     if (r < 0)
-      abort();
+      ABORT();
 
     CHECK_EQ(uv_loop_close(uv_loop_), 0);
     delete uv_loop_;
@@ -657,12 +671,17 @@ Local<Object> SyncProcessRunner::BuildResultObject() {
                    Integer::New(env()->isolate(), GetError()));
   }
 
-  if (exit_status_ >= 0)
-    js_result->Set(env()->status_string(),
-        Number::New(env()->isolate(), static_cast<double>(exit_status_)));
-  else
+  if (exit_status_ >= 0) {
+    if (term_signal_ > 0) {
+      js_result->Set(env()->status_string(), Null(env()->isolate()));
+    } else {
+      js_result->Set(env()->status_string(),
+          Number::New(env()->isolate(), static_cast<double>(exit_status_)));
+    }
+  } else {
     // If exit_status_ < 0 the process was never started because of some error.
     js_result->Set(env()->status_string(), Null(env()->isolate()));
+  }
 
   if (term_signal_ > 0)
     js_result->Set(env()->signal_string(),
@@ -692,7 +711,7 @@ Local<Array> SyncProcessRunner::BuildOutputArray() {
   for (uint32_t i = 0; i < stdio_count_; i++) {
     SyncProcessStdioPipe* h = stdio_pipes_[i];
     if (h != nullptr && h->writable())
-      js_output->Set(i, h->GetOutputAsBuffer());
+      js_output->Set(i, h->GetOutputAsBuffer(env()));
     else
       js_output->Set(i, Null(env()->isolate()));
   }
@@ -741,17 +760,17 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   }
   Local<Value> js_uid = js_options->Get(env()->uid_string());
   if (IsSet(js_uid)) {
-    if (!CheckRange<uv_uid_t>(js_uid))
-      return UV_EINVAL;
-    uv_process_options_.uid = static_cast<uv_gid_t>(js_uid->Int32Value());
+    CHECK(js_uid->IsInt32());
+    const int32_t uid = js_uid->Int32Value(env()->context()).FromJust();
+    uv_process_options_.uid = static_cast<uv_uid_t>(uid);
     uv_process_options_.flags |= UV_PROCESS_SETUID;
   }
 
   Local<Value> js_gid = js_options->Get(env()->gid_string());
   if (IsSet(js_gid)) {
-    if (!CheckRange<uv_gid_t>(js_gid))
-      return UV_EINVAL;
-    uv_process_options_.gid = static_cast<uv_gid_t>(js_gid->Int32Value());
+    CHECK(js_gid->IsInt32());
+    const int32_t gid = js_gid->Int32Value(env()->context()).FromJust();
+    uv_process_options_.gid = static_cast<uv_gid_t>(gid);
     uv_process_options_.flags |= UV_PROCESS_SETGID;
   }
 
@@ -765,28 +784,21 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
 
   Local<Value> js_timeout = js_options->Get(env()->timeout_string());
   if (IsSet(js_timeout)) {
-    if (!js_timeout->IsNumber())
-      return UV_EINVAL;
+    CHECK(js_timeout->IsNumber());
     int64_t timeout = js_timeout->IntegerValue();
-    if (timeout < 0)
-      return UV_EINVAL;
     timeout_ = static_cast<uint64_t>(timeout);
   }
 
   Local<Value> js_max_buffer = js_options->Get(env()->max_buffer_string());
   if (IsSet(js_max_buffer)) {
-    if (!CheckRange<uint32_t>(js_max_buffer))
-      return UV_EINVAL;
-    max_buffer_ = js_max_buffer->Uint32Value();
+    CHECK(js_max_buffer->IsNumber());
+    max_buffer_ = js_max_buffer->NumberValue();
   }
 
   Local<Value> js_kill_signal = js_options->Get(env()->kill_signal_string());
   if (IsSet(js_kill_signal)) {
-    if (!js_kill_signal->IsInt32())
-      return UV_EINVAL;
+    CHECK(js_kill_signal->IsInt32());
     kill_signal_ = js_kill_signal->Int32Value();
-    if (kill_signal_ == 0)
-      return UV_EINVAL;
   }
 
   Local<Value> js_stdio = js_options->Get(env()->stdio_string());
@@ -927,27 +939,6 @@ bool SyncProcessRunner::IsSet(Local<Value> value) {
 }
 
 
-template <typename t>
-bool SyncProcessRunner::CheckRange(Local<Value> js_value) {
-  if ((t) -1 > 0) {
-    // Unsigned range check.
-    if (!js_value->IsUint32())
-      return false;
-    if (js_value->Uint32Value() & ~((t) ~0))
-      return false;
-
-  } else {
-    // Signed range check.
-    if (!js_value->IsInt32())
-      return false;
-    if (js_value->Int32Value() & ~((t) ~0))
-      return false;
-  }
-
-  return true;
-}
-
-
 int SyncProcessRunner::CopyJsString(Local<Value> js_value,
                                     const char** target) {
   Isolate* isolate = env()->isolate();
@@ -958,7 +949,7 @@ int SyncProcessRunner::CopyJsString(Local<Value> js_value,
   if (js_value->IsString())
     js_string = js_value.As<String>();
   else
-    js_string = js_value->ToString();
+    js_string = js_value->ToString(env()->isolate());
 
   // Include space for null terminator byte.
   size = StringBytes::StorageSize(isolate, js_string, UTF8) + 1;
@@ -992,7 +983,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   // needed - it's okay since we cloned the original object.
   for (uint32_t i = 0; i < length; i++) {
     if (!js_array->Get(i)->IsString())
-      js_array->Set(i, js_array->Get(i)->ToString());
+      js_array->Set(i, js_array->Get(i)->ToString(env()->isolate()));
   }
 
   // Index has a pointer to every string element, plus one more for a final
@@ -1004,7 +995,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   data_size = 0;
   for (uint32_t i = 0; i < length; i++) {
     data_size += StringBytes::StorageSize(isolate, js_array->Get(i), UTF8) + 1;
-    data_size = ROUND_UP(data_size, sizeof(void*));  // NOLINT(runtime/sizeof)
+    data_size = ROUND_UP(data_size, sizeof(void*));
   }
 
   buffer = new char[list_size + data_size];
@@ -1020,8 +1011,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
                                       js_array->Get(i),
                                       UTF8);
     buffer[data_offset++] = '\0';
-    data_offset = ROUND_UP(data_offset,
-                           sizeof(void*));  // NOLINT(runtime/sizeof)
+    data_offset = ROUND_UP(data_offset, sizeof(void*));
   }
 
   list[length] = nullptr;

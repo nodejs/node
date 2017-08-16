@@ -38,8 +38,10 @@ OBJDUMP_BIN = "/usr/bin/objdump"
 if not os.path.exists(OBJDUMP_BIN):
   OBJDUMP_BIN = "objdump"
 
-
-_COMMON_DISASM_OPTIONS = ["-M", "intel-mnemonic", "-C"]
+# -M intel-mnemonic selects Intel syntax.
+# -C demangles.
+# -z disables skipping over sections of zeroes.
+_COMMON_DISASM_OPTIONS = ["-M", "intel-mnemonic", "-C", "-z"]
 
 _DISASM_HEADER_RE = re.compile(r"[a-f0-9]+\s+<.*:$")
 _DISASM_LINE_RE = re.compile(r"\s*([a-f0-9]+):\s*(\S.*)")
@@ -60,7 +62,9 @@ def GetDisasmLines(filename, offset, size, arch, inplace, arch_flags=""):
     # Create a temporary file containing a copy of the code.
     assert arch in _ARCH_MAP, "Unsupported architecture '%s'" % arch
     arch_flags = arch_flags + " " +  _ARCH_MAP[arch]
-    tmp_name = tempfile.mktemp(".v8code")
+    tmp_file = tempfile.NamedTemporaryFile(prefix=".v8code", delete=False)
+    tmp_name = tmp_file.name
+    tmp_file.close()
     command = "dd if=%s of=%s bs=1 count=%d skip=%d && " \
               "%s %s -D -b binary %s %s" % (
       filename, tmp_name, size, offset,

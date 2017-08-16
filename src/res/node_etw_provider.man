@@ -7,6 +7,7 @@
             <provider name="NodeJS-ETW-provider"
                 guid="{77754E9B-264B-4D8D-B981-E4135C1ECB0C}"
                 symbol="NODE_ETW_PROVIDER"
+                message="$(string.NodeJS-ETW-provider.name)"
                 resourceFileName="node.exe"
                 messageFileName="node.exe">
 
@@ -90,64 +91,95 @@
                         opcode="NODE_HTTP_SERVER_REQUEST"
                         template="node_http_server_request"
                         symbol="NODE_HTTP_SERVER_REQUEST_EVENT"
+                        message="$(string.NodeJS-ETW-provider.event.1.message)"
                         level="win:Informational"/>
                     <event value="2"
                         opcode="NODE_HTTP_SERVER_RESPONSE"
                         template="node_connection"
                         symbol="NODE_HTTP_SERVER_RESPONSE_EVENT"
+                        message="$(string.NodeJS-ETW-provider.event.2.message)"
                         level="win:Informational"/>
                     <event value="3"
                         opcode="NODE_HTTP_CLIENT_REQUEST"
                         template="node_http_client_request"
                         symbol="NODE_HTTP_CLIENT_REQUEST_EVENT"
+                        message="$(string.NodeJS-ETW-provider.event.3.message)"
                         level="win:Informational"/>
                     <event value="4"
                         opcode="NODE_HTTP_CLIENT_RESPONSE"
                         template="node_connection"
                         symbol="NODE_HTTP_CLIENT_RESPONSE_EVENT"
+                        message="$(string.NodeJS-ETW-provider.event.4.message)"
                         level="win:Informational"/>
                     <event value="5"
                         opcode="NODE_NET_SERVER_CONNECTION"
                         template="node_connection"
                         symbol="NODE_NET_SERVER_CONNECTION_EVENT"
+                        message="$(string.NodeJS-ETW-provider.event.5.message)"
                         level="win:Informational"/>
                     <event value="6"
                         opcode="NODE_NET_STREAM_END"
                         template="node_connection"
                         symbol="NODE_NET_STREAM_END_EVENT"
+                        message="$(string.NodeJS-ETW-provider.event.6.message)"
                         level="win:Informational"/>
                     <event value="7"
                         opcode="NODE_GC_START"
                         template="node_gc"
                         symbol="NODE_GC_START_EVENT"
+                        message="$(string.NodeJS-ETW-provider.event.7.message)"
                         level="win:Informational"/>
                     <event value="8"
                         opcode="NODE_GC_DONE"
                         template="node_gc"
                         symbol="NODE_GC_DONE_EVENT"
+                        message="$(string.NodeJS-ETW-provider.event.8.message)"
                         level="win:Informational"/>
                     <event value="9"
                         level="win:Informational"
                         opcode="MethodLoad"
                         symbol="MethodLoad"
+                        message="$(string.NodeJS-ETW-provider.event.9.message)"
                         task="MethodRuntime"
                         template="MethodLoadUnload"/>
                     <event value="21"
                         opcode="NODE_V8SYMBOL_REMOVE"
                         template="V8AddressChange"
                         symbol="NODE_V8SYMBOL_REMOVE_EVENT"
+                        message="$(string.NodeJS-ETW-provider.event.21.message)"
                         level="win:Informational" />
                     <event value="22"
                         opcode="NODE_V8SYMBOL_MOVE"
                         template="V8AddressChange"
                         symbol="NODE_V8SYMBOL_MOVE_EVENT"
+                        message="$(string.NodeJS-ETW-provider.event.22.message)"
                         level="win:Informational" />
                     <event value="23"
                         opcode="NODE_V8SYMBOL_RESET"
                         symbol="NODE_V8SYMBOL_RESET_EVENT"
+                        message="$(string.NodeJS-ETW-provider.event.23.message)"
                         level="win:Informational" />
                 </events>
             </provider>
         </events>
     </instrumentation>
+    <localization>
+        <resources culture="en-US">
+            <stringTable>
+                <string id="NodeJS-ETW-provider.name" value="Node.js ETW Provider"/>
+                <string id="NodeJS-ETW-provider.event.1.message" value="Node.js HTTP Server Request%nMethod: %2%nRemote: %6%nPort: %5%nURL: %1"/>
+                <string id="NodeJS-ETW-provider.event.2.message" value="Node.js HTTP Server Response%nRemote: %3%nPort: %2"/>
+                <string id="NodeJS-ETW-provider.event.3.message" value="Node.js HTTP Client Request%nMethod: %2%nRemote: %5%nPort: %4%nURL: %1"/>
+                <string id="NodeJS-ETW-provider.event.4.message" value="Node.js HTTP Client Response%nRemote: %3%nPort: %2"/>
+                <string id="NodeJS-ETW-provider.event.5.message" value="Node.js Net Server Connection%nRemote: %3%nPort: %2"/>
+                <string id="NodeJS-ETW-provider.event.6.message" value="Node.js Net Stream End%nRemote: %3%nPort: %2"/>
+                <string id="NodeJS-ETW-provider.event.7.message" value="Node.js Garbage Collection Start"/>
+                <string id="NodeJS-ETW-provider.event.8.message" value="Node.js Garbage Collection Done"/>
+                <string id="NodeJS-ETW-provider.event.9.message" value="Node.js Function Compiled: %10"/>
+                <string id="NodeJS-ETW-provider.event.21.message" value="Node.js V8 Symbol Remove"/>
+                <string id="NodeJS-ETW-provider.event.22.message" value="Node.js V8 Symbol Move"/>
+                <string id="NodeJS-ETW-provider.event.23.message" value="Node.js V8 Symbol Reset"/>
+            </stringTable>
+        </resources>
+    </localization>
 </instrumentationManifest>

@@ -19,47 +19,33 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-
-var spawn = require('child_process').spawn;
-
-var pwd_called = false;
-var childClosed = false;
-var childExited = false;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
 function pwd(callback) {
-  var output = '';
-  var child = common.spawnPwd();
+  let output = '';
+  const child = common.spawnPwd();
 
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', function(s) {
-    console.log('stdout: ' + JSON.stringify(s));
+    console.log(`stdout: ${JSON.stringify(s)}`);
     output += s;
   });
 
-  child.on('exit', function(c) {
-    console.log('exit: ' + c);
-    assert.equal(0, c);
-    childExited = true;
-  });
+  child.on('exit', common.mustCall(function(c) {
+    console.log(`exit: ${c}`);
+    assert.strictEqual(0, c);
+  }));
 
-  child.on('close', function () {
+  child.on('close', common.mustCall(function() {
     callback(output);
-    pwd_called = true;
-    childClosed = true;
-  });
+  }));
 }
 
 
 pwd(function(result) {
   console.dir(result);
-  assert.equal(true, result.length > 1);
-  assert.equal('\n', result[result.length - 1]);
-});
-
-process.on('exit', function() {
-  assert.equal(true, pwd_called);
-  assert.equal(true, childExited);
-  assert.equal(true, childClosed);
+  assert.strictEqual(true, result.length > 1);
+  assert.strictEqual('\n', result[result.length - 1]);
 });

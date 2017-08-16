@@ -25,17 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --max-opt-count=100 --noalways-opt
-// Flags: --nocollect-maps
-
-// We specify max-opt-count because we opt/deopt the same function many
-// times.
-
-// We specify nocollect-maps because in gcstress we can end up deoptimizing
-// a function in a gc in the stack guard at the beginning of the (optimized)
-// function due to leftover map clearing work that results in deoptimizing
-// dependent code from those maps. The choice is to insert strategic gc()
-// calls or specify this flag.
+// Flags: --allow-natives-syntax --noalways-opt --opt
 
 // It's nice to run this in other browsers too.
 var standalone = false;
@@ -70,7 +60,7 @@ if (standalone) {
     %OptimizeFunctionOnNextCall(name);
   }
   clearFunctionTypeFeedback = function(name) {
-    %ClearFunctionTypeFeedback(name);
+    %ClearFunctionFeedback(name);
   }
   deoptimizeFunction = function(name) {
     %DeoptimizeFunction(name);
@@ -87,17 +77,39 @@ function base_getter_test(create_func) {
   ap.__defineGetter__(0, function() { calls++; return 0; });
 
   foo(a);
+  assertUnoptimized(foo);
+  // Smi and Double elements transition the KeyedLoadIC to Generic state
+  // here, because they miss twice with the same map when loading the hole.
+  // For FAST_HOLEY_ELEMENTS, however, the IC knows how to convert the hole
+  // to undefined if the prototype is the original array prototype, so it
+  // stays monomorphic for now...
   foo(a);
   foo(a);
   delete a[0];
 
   assertEquals(0, calls);
   a.__proto__ = ap;
+  // ...and later becomes polymorphic when it sees a second map. Optimized
+  // code will therefore inline the elements access, and deopt right away
+  // when it loads the hole from index [0].
+  // Possible solutions:
+  // - remove the convert_hole_to_undefined flag from the IC, to force it
+  //   into generic state for all elements kinds. Cost: slower ICs in code
+  //   that doesn't get optimized.
+  // - teach Turbofan about the same trick: for holey elements with the
+  //   original array prototype, convert hole to undefined inline. Cost:
+  //   larger optimized code size, because the loads for different maps with
+  //   the same elements kind can no longer be consolidated if they handle
+  //   the hole differently.
+  // - call "foo" twice after setting a.__proto__ and before optimizing it;
+  //   this is the simplest fix so let's do that for now.
   foo(a);
   assertEquals(1, calls);
-  optimize(foo);
   foo(a);
   assertEquals(2, calls);
+  optimize(foo);
+  foo(a);
+  assertEquals(3, calls);
   assertOptimized(foo);
 
   // Testcase: getter "deep" in prototype chain.
@@ -165,6 +177,15 @@ function base_getter_test(create_func) {
   bar(a);
   assertOptimized(bar);
   assertEquals(1, calls);
+
+  // Reset the state of foo and bar.
+  clearFunctionTypeFeedback(foo);
+  deoptimizeFunction(foo);
+  clearFunctionTypeFeedback(foo);
+
+  clearFunctionTypeFeedback(bar);
+  deoptimizeFunction(bar);
+  clearFunctionTypeFeedback(bar);
 }
 
 // Verify that map transitions don't confuse us.

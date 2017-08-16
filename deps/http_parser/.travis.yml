@@ -10,4 +10,4 @@ script:
 notifications:
   email: false
   irc:
-    - "irc.freenode.net#libuv"
+    - "irc.freenode.net#node-ci"

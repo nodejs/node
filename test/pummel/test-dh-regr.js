@@ -19,21 +19,24 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var crypto = require('crypto');
+const assert = require('assert');
+const crypto = require('crypto');
 
-var p = crypto.createDiffieHellman(256).getPrime();
+const p = crypto.createDiffieHellman(1024).getPrime();
 
-for (var i = 0; i < 2000; i++) {
-  var a = crypto.createDiffieHellman(p),
-      b = crypto.createDiffieHellman(p);
+for (let i = 0; i < 2000; i++) {
+  const a = crypto.createDiffieHellman(p);
+  const b = crypto.createDiffieHellman(p);
 
   a.generateKeys();
   b.generateKeys();
 
-  assert.deepEqual(
+  assert.deepStrictEqual(
     a.computeSecret(b.getPublicKey()),
     b.computeSecret(a.getPublicKey()),
     'secrets should be equal!'

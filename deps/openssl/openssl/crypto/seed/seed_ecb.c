@@ -1,4 +1,4 @@
-/* crypto/seed/seed_ecb.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/seed/seed_ecb.c */
 /* ====================================================================
  * Copyright (c) 2007 The OpenSSL Project.  All rights reserved.
  *
@@ -7,7 +7,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -51,10 +51,11 @@
 
 #include <openssl/seed.h>
 
-void SEED_ecb_encrypt(const unsigned char *in, unsigned char *out, const SEED_KEY_SCHEDULE *ks, int enc) 
-	{
-	if (enc)
-		SEED_encrypt(in, out, ks);
-	else
-		SEED_decrypt(in, out, ks);
-	}
+void SEED_ecb_encrypt(const unsigned char *in, unsigned char *out,
+                      const SEED_KEY_SCHEDULE *ks, int enc)
+{
+    if (enc)
+        SEED_encrypt(in, out, ks);
+    else
+        SEED_decrypt(in, out, ks);
+}

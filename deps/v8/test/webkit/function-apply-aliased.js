@@ -20,6 +20,7 @@
 // ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Flags: --stack-size=100
 
 description(
 "This tests that we can correctly call Function.prototype.apply"
@@ -66,19 +67,6 @@ shouldBe("myFunctionWithApply.aliasedApply(myObject, ['arg1'])", '[myObject, "my
 shouldBe("myFunctionWithApply.apply(myObject, arg1Array)", '[myFunctionWithApply, "myFunctionWithApply.apply", myObject]');
 shouldBe("forwarder(myFunctionWithApply, myObject, arg1Array)", '[myFunctionWithApply, "myFunctionWithApply.apply", myObject]');
 shouldBe("myFunctionWithApply.aliasedApply(myObject, arg1Array)", '[myObject, "myFunctionWithApply", "arg1"]');
-
-function stackOverflowTest() {
-    try {
-        var a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
-        stackOverflowTest();
-    } catch(e) {
-        // Blow the stack with a sparse array
-        shouldThrow("myFunction.apply(null, new Array(5000000))");
-        // Blow the stack with a sparse array that is sufficiently large to cause int overflow
-        shouldThrow("myFunction.apply(null, new Array(1 << 30))");
-    }
-}
-stackOverflowTest();
 
 // Blow the stack recursing with arguments
 shouldThrow("recurseArguments.apply(null, new Array(50000))");

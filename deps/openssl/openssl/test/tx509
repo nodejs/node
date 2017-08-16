@@ -9,70 +9,77 @@ else
 fi
 
 echo testing X509 conversions
-cp $t fff.p
+cp $t x509-fff.p
 
 echo "p -> d"
-$cmd -in fff.p -inform p -outform d >f.d
+$cmd -in x509-fff.p -inform p -outform d >x509-f.d
 if [ $? != 0 ]; then exit 1; fi
 echo "p -> n"
-$cmd -in fff.p -inform p -outform n >f.n
+$cmd -in x509-fff.p -inform p -outform n >x509-f.n
 if [ $? != 0 ]; then exit 1; fi
 echo "p -> p"
-$cmd -in fff.p -inform p -outform p >f.p
+$cmd -in x509-fff.p -inform p -outform p >x509-f.p
 if [ $? != 0 ]; then exit 1; fi
 
 echo "d -> d"
-$cmd -in f.d -inform d -outform d >ff.d1
+$cmd -in x509-f.d -inform d -outform d >x509-ff.d1
 if [ $? != 0 ]; then exit 1; fi
 echo "n -> d"
-$cmd -in f.n -inform n -outform d >ff.d2
+$cmd -in x509-f.n -inform n -outform d >x509-ff.d2
 if [ $? != 0 ]; then exit 1; fi
 echo "p -> d"
-$cmd -in f.p -inform p -outform d >ff.d3
+$cmd -in x509-f.p -inform p -outform d >x509-ff.d3
 if [ $? != 0 ]; then exit 1; fi
 
 echo "d -> n"
-$cmd -in f.d -inform d -outform n >ff.n1
+$cmd -in x509-f.d -inform d -outform n >x509-ff.n1
 if [ $? != 0 ]; then exit 1; fi
 echo "n -> n"
-$cmd -in f.n -inform n -outform n >ff.n2
+$cmd -in x509-f.n -inform n -outform n >x509-ff.n2
 if [ $? != 0 ]; then exit 1; fi
 echo "p -> n"
-$cmd -in f.p -inform p -outform n >ff.n3
+$cmd -in x509-f.p -inform p -outform n >x509-ff.n3
 if [ $? != 0 ]; then exit 1; fi
 
 echo "d -> p"
-$cmd -in f.d -inform d -outform p >ff.p1
+$cmd -in x509-f.d -inform d -outform p >x509-ff.p1
 if [ $? != 0 ]; then exit 1; fi
 echo "n -> p"
-$cmd -in f.n -inform n -outform p >ff.p2
+$cmd -in x509-f.n -inform n -outform p >x509-ff.p2
 if [ $? != 0 ]; then exit 1; fi
 echo "p -> p"
-$cmd -in f.p -inform p -outform p >ff.p3
+$cmd -in x509-f.p -inform p -outform p >x509-ff.p3
 if [ $? != 0 ]; then exit 1; fi
 
-cmp fff.p f.p
+cmp x509-fff.p x509-f.p
 if [ $? != 0 ]; then exit 1; fi
-cmp fff.p ff.p1
+cmp x509-fff.p x509-ff.p1
 if [ $? != 0 ]; then exit 1; fi
-cmp fff.p ff.p2
+cmp x509-fff.p x509-ff.p2
 if [ $? != 0 ]; then exit 1; fi
-cmp fff.p ff.p3
-if [ $? != 0 ]; then exit 1; fi
-
-cmp f.n ff.n1
-if [ $? != 0 ]; then exit 1; fi
-cmp f.n ff.n2
-if [ $? != 0 ]; then exit 1; fi
-cmp f.n ff.n3
+cmp x509-fff.p x509-ff.p3
 if [ $? != 0 ]; then exit 1; fi
 
-cmp f.p ff.p1
+cmp x509-f.n x509-ff.n1
 if [ $? != 0 ]; then exit 1; fi
-cmp f.p ff.p2
+cmp x509-f.n x509-ff.n2
 if [ $? != 0 ]; then exit 1; fi
-cmp f.p ff.p3
+cmp x509-f.n x509-ff.n3
 if [ $? != 0 ]; then exit 1; fi
 
-/bin/rm -f f.* ff.* fff.*
+cmp x509-f.p x509-ff.p1
+if [ $? != 0 ]; then exit 1; fi
+cmp x509-f.p x509-ff.p2
+if [ $? != 0 ]; then exit 1; fi
+cmp x509-f.p x509-ff.p3
+if [ $? != 0 ]; then exit 1; fi
+
+echo "Parsing test certificates"
+
+$cmd -in certs/pss1.pem -text -noout >/dev/null
+if [ $? != 0 ]; then exit 1; fi
+
+echo OK
+
+/bin/rm -f x509-f.* x509-ff.* x509-fff.*
 exit 0

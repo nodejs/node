@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/arm64/decoder-arm64.h"
@@ -81,6 +79,7 @@ VISITOR_LIST(DEFINE_VISITOR_CALLERS)
 #undef DEFINE_VISITOR_CALLERS
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM64

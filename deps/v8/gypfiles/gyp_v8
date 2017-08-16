@@ -1,0 +1,197 @@
+#!/usr/bin/env python
+#
+# Copyright 2012 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# This script is wrapper for V8 that adds some support for how GYP
+# is invoked by V8 beyond what can be done in the gclient hooks.
+
+import argparse
+import glob
+import gyp_environment
+import os
+import platform
+import shlex
+import subprocess
+import sys
+import vs_toolchain
+
+script_dir = os.path.dirname(os.path.realpath(__file__))
+v8_root = os.path.abspath(os.path.join(script_dir, os.pardir))
+
+sys.path.insert(0, os.path.join(v8_root, 'tools', 'gyp', 'pylib'))
+import gyp
+
+# Add paths so that pymod_do_main(...) can import files.
+sys.path.insert(
+    1, os.path.abspath(os.path.join(v8_root, 'tools', 'generate_shim_headers')))
+
+
+def GetOutputDirectory():
+  """Returns the output directory that GYP will use."""
+
+  # Handle command line generator flags.
+  parser = argparse.ArgumentParser()
+  parser.add_argument('-G', dest='genflags', default=[], action='append')
+  genflags = parser.parse_known_args()[0].genflags
+
+  # Handle generator flags from the environment.
+  genflags += shlex.split(os.environ.get('GYP_GENERATOR_FLAGS', ''))
+
+  needle = 'output_dir='
+  for item in genflags:
+    if item.startswith(needle):
+      return item[len(needle):]
+
+  return 'out'
+
+
+def additional_include_files(args=[]):
+  """
+  Returns a list of additional (.gypi) files to include, without
+  duplicating ones that are already specified on the command line.
+  """
+  # Determine the include files specified on the command line.
+  # This doesn't cover all the different option formats you can use,
+  # but it's mainly intended to avoid duplicating flags on the automatic
+  # makefile regeneration which only uses this format.
+  specified_includes = set()
+  for arg in args:
+    if arg.startswith('-I') and len(arg) > 2:
+      specified_includes.add(os.path.realpath(arg[2:]))
+
+  result = []
+  def AddInclude(path):
+    if os.path.realpath(path) not in specified_includes:
+      result.append(path)
+
+  # Always include standalone.gypi
+  AddInclude(os.path.join(v8_root, 'gypfiles', 'standalone.gypi'))
+
+  # Optionally add supplemental .gypi files if present.
+  supplements = glob.glob(os.path.join(v8_root, '*', 'supplement.gypi'))
+  for supplement in supplements:
+    AddInclude(supplement)
+
+  return result
+
+
+def run_gyp(args):
+  rc = gyp.main(args)
+
+  vs2013_runtime_dll_dirs = vs_toolchain.SetEnvironmentAndGetRuntimeDllDirs()
+  if vs2013_runtime_dll_dirs:
+    x64_runtime, x86_runtime = vs2013_runtime_dll_dirs
+    vs_toolchain.CopyVsRuntimeDlls(
+      os.path.join(v8_root, GetOutputDirectory()),
+      (x86_runtime, x64_runtime))
+
+  if rc != 0:
+    print 'Error running GYP'
+    sys.exit(rc)
+
+
+if __name__ == '__main__':
+  args = sys.argv[1:]
+
+  gyp_chromium_no_action = os.environ.get('GYP_CHROMIUM_NO_ACTION')
+  if gyp_chromium_no_action == '1':
+    print 'Skipping gyp_v8 due to GYP_CHROMIUM_NO_ACTION env var.'
+    sys.exit(0)
+
+  running_as_hook = '--running-as-hook'
+  if running_as_hook in args and gyp_chromium_no_action != '0':
+    print 'GYP is now disabled by default in runhooks.\n'
+    print 'If you really want to run this, either run '
+    print '`python gypfiles/gyp_v8` explicitly by hand '
+    print 'or set the environment variable GYP_CHROMIUM_NO_ACTION=0.'
+    sys.exit(0)
+
+  if running_as_hook in args:
+    args.remove(running_as_hook)
+
+  gyp_environment.set_environment()
+
+  # This could give false positives since it doesn't actually do real option
+  # parsing.  Oh well.
+  gyp_file_specified = False
+  for arg in args:
+    if arg.endswith('.gyp'):
+      gyp_file_specified = True
+      break
+
+  # If we didn't get a file, check an env var, and then fall back to
+  # assuming 'all.gyp' from the same directory as the script.
+  if not gyp_file_specified:
+    gyp_file = os.environ.get('V8_GYP_FILE')
+    if gyp_file:
+      # Note that V8_GYP_FILE values can't have backslashes as
+      # path separators even on Windows due to the use of shlex.split().
+      args.extend(shlex.split(gyp_file))
+    else:
+      args.append(os.path.join(script_dir, 'all.gyp'))
+
+  args.extend(['-I' + i for i in additional_include_files(args)])
+
+  # There shouldn't be a circular dependency relationship between .gyp files
+  args.append('--no-circular-check')
+
+  # Set the GYP DEPTH variable to the root of the V8 project.
+  args.append('--depth=' + os.path.relpath(v8_root))
+
+  # If V8_GYP_SYNTAX_CHECK is set to 1, it will invoke gyp with --check
+  # to enfore syntax checking.
+  syntax_check = os.environ.get('V8_GYP_SYNTAX_CHECK')
+  if syntax_check and int(syntax_check):
+    args.append('--check')
+
+  print 'Updating projects from gyp files...'
+  sys.stdout.flush()
+
+  # Generate for the architectures supported on the given platform.
+  gyp_args = list(args)
+  gyp_args.extend(['-D', 'gyp_output_dir=' + GetOutputDirectory()])
+  gyp_generators = os.environ.get('GYP_GENERATORS', '')
+  if platform.system() == 'Linux' and gyp_generators != 'ninja':
+    # Work around for crbug.com/331475.
+    for f in glob.glob(os.path.join(v8_root, 'out', 'Makefile.*')):
+      os.unlink(f)
+    # --generator-output defines where the Makefile goes.
+    gyp_args.append('--generator-output=out')
+    # -Goutput_dir defines where the build output goes, relative to the
+    # Makefile. Set it to . so that the build output doesn't end up in out/out.
+    gyp_args.append('-Goutput_dir=.')
+
+  gyp_defines = os.environ.get('GYP_DEFINES', '')
+
+  # Automatically turn on crosscompile support for platforms that need it.
+  if all(('ninja' in gyp_generators,
+          'OS=android' in gyp_defines,
+          'GYP_CROSSCOMPILE' not in os.environ)):
+    os.environ['GYP_CROSSCOMPILE'] = '1'
+
+  run_gyp(gyp_args)

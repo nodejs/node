@@ -1,0 +1,69 @@
+{
+  "_from": "once@~1.3.0",
+  "_id": "once@1.3.3",
+  "_integrity": "sha1-suJhVXzkwxTsgwTz+oJmPkKXyiA=",
+  "_location": "/mississippi/duplexify/end-of-stream/once",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "once@~1.3.0",
+    "name": "once",
+    "escapedName": "once",
+    "rawSpec": "~1.3.0",
+    "saveSpec": null,
+    "fetchSpec": "~1.3.0"
+  },
+  "_requiredBy": [
+    "/mississippi/duplexify/end-of-stream"
+  ],
+  "_resolved": "https://registry.npmjs.org/once/-/once-1.3.3.tgz",
+  "_shasum": "b2e261557ce4c314ec8304f3fa82663e4297ca20",
+  "_shrinkwrap": null,
+  "_spec": "once@~1.3.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/mississippi/node_modules/duplexify/node_modules/end-of-stream",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/isaacs/once/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "wrappy": "1"
+  },
+  "deprecated": false,
+  "description": "Run a function exactly one time",
+  "devDependencies": {
+    "tap": "^1.2.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "once.js"
+  ],
+  "homepage": "https://github.com/isaacs/once#readme",
+  "keywords": [
+    "once",
+    "function",
+    "one",
+    "single"
+  ],
+  "license": "ISC",
+  "main": "once.js",
+  "name": "once",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/once.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "1.3.3"
+}

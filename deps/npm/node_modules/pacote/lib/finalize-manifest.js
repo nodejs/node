@@ -1,0 +1,255 @@
+'use strict'
+
+const BB = require('bluebird')
+
+const cacache = require('cacache')
+const cacheKey = require('./util/cache-key')
+const fetchFromManifest = require('./fetch').fromManifest
+const finished = BB.promisify(require('mississippi').finished)
+const gunzip = require('./util/gunzip-maybe')
+const minimatch = require('minimatch')
+const normalize = require('normalize-package-data')
+const optCheck = require('./util/opt-check')
+const path = require('path')
+const pipe = BB.promisify(require('mississippi').pipe)
+const ssri = require('ssri')
+const tar = require('tar-stream')
+
+// `finalizeManifest` takes as input the various kinds of manifests that
+// manifest handlers ('lib/handlers/*/manifest.js') return, and makes sure they
+// are:
+//
+// * filled out with any required data that the handler couldn't fill in
+// * formatted consistently
+// * cached so we don't have to repeat this work more than necessary
+//
+// The biggest thing this package might do is do a full tarball extraction in
+// order to find missing bits of metadata required by the npm installer. For
+// example, it will fill in `_shrinkwrap`, `_integrity`, and other details that
+// the plain manifest handlers would require a tarball to fill out. If a
+// handler returns everything necessary, this process is skipped.
+//
+// If we get to the tarball phase, the corresponding tarball handler for the
+// requested type will be invoked and the entire tarball will be read from the
+// stream.
+//
+module.exports = finalizeManifest
+function finalizeManifest (pkg, spec, opts) {
+  const key = finalKey(pkg, spec)
+  opts = optCheck(opts)
+
+  const cachedManifest = (opts.cache && key && !opts.preferOnline && !opts.fullMetadata)
+  ? cacache.get.info(opts.cache, key, opts)
+  : BB.resolve(null)
+
+  return cachedManifest.then(cached => {
+    if (cached && cached.metadata.manifest) {
+      return new Manifest(cached.metadata.manifest)
+    } else {
+      return tarballedProps(pkg, spec, opts).then(props => {
+        return pkg && pkg.name
+        ? new Manifest(pkg, props, opts.fullMetadata)
+        : new Manifest(props, null, opts.fullMetadata)
+      }).then(manifest => {
+        const cacheKey = key || finalKey(manifest, spec)
+        if (!opts.cache || !cacheKey) {
+          return manifest
+        } else {
+          opts.metadata = {
+            id: manifest._id,
+            manifest,
+            type: 'finalized-manifest'
+          }
+          return cacache.put(
+            opts.cache, cacheKey, '.', opts
+          ).then(() => manifest)
+        }
+      })
+    }
+  })
+}
+
+module.exports.Manifest = Manifest
+function Manifest (pkg, fromTarball, fullMetadata) {
+  fromTarball = fromTarball || {}
+  if (fullMetadata) {
+    Object.assign(this, pkg)
+  }
+  this.name = pkg.name
+  this.version = pkg.version
+  this.engines = pkg.engines || fromTarball.engines
+  this.cpu = pkg.cpu || fromTarball.cpu
+  this.os = pkg.os || fromTarball.os
+  this.dependencies = pkg.dependencies || {}
+  this.optionalDependencies = pkg.optionalDependencies || {}
+  this.devDependencies = pkg.devDependencies || {}
+  const bundled = (
+    pkg.bundledDependencies ||
+    pkg.bundleDependencies ||
+    false
+  )
+  this.bundleDependencies = bundled
+  this.peerDependencies = pkg.peerDependencies || {}
+  this.deprecated = pkg.deprecated || false
+
+  // These depend entirely on each handler
+  this._resolved = pkg._resolved
+
+  // Not all handlers (or registries) provide these out of the box,
+  // and if they don't, we need to extract and read the tarball ourselves.
+  // These are details required by the installer.
+  this._integrity = pkg._integrity || fromTarball._integrity
+  this._shasum = pkg._shasum
+  this._shrinkwrap = pkg._shrinkwrap || fromTarball._shrinkwrap || null
+  this.bin = pkg.bin || fromTarball.bin || null
+
+  if (this.bin && Array.isArray(this.bin)) {
+    // Code yanked from read-package-json.
+    const m = (pkg.directories && pkg.directories.bin) || '.'
+    this.bin = this.bin.reduce((acc, mf) => {
+      if (mf && mf.charAt(0) !== '.') {
+        const f = path.basename(mf)
+        acc[f] = path.join(m, mf)
+      }
+      return acc
+    }, {})
+  }
+
+  this._id = null
+
+  // TODO - freezing and inextensibility pending npm changes. See test suite.
+  // Object.preventExtensions(this)
+  normalize(this)
+
+  // I don't want this why did you give it to me. Go away. 🔥🔥🔥🔥
+  delete this.readme
+
+  // Object.freeze(this)
+}
+
+// Some things aren't filled in by standard manifest fetching.
+// If this function needs to do its work, it will grab the
+// package tarball, extract it, and take whatever it needs
+// from the stream.
+function tarballedProps (pkg, spec, opts) {
+  const needsShrinkwrap = (!pkg || (
+    pkg._hasShrinkwrap !== false &&
+    !pkg._shrinkwrap
+  ))
+  const needsBin = !!(!pkg || (
+    !pkg.bin &&
+    pkg.directories &&
+    pkg.directories.bin
+  ))
+  const needsHash = !pkg || (!pkg._integrity && pkg._integrity !== false)
+  const needsManifest = !pkg || !pkg.name
+  const needsExtract = needsShrinkwrap || needsBin || needsManifest
+  if (!needsShrinkwrap && !needsBin && !needsHash && !needsManifest) {
+    return BB.resolve({})
+  } else {
+    opts = optCheck(opts)
+    const tarStream = fetchFromManifest(pkg, spec, opts)
+    const extracted = needsExtract && tar.extract()
+    extracted && extracted.on('entry', (h, str, next) => {
+      // Drain it
+      str.on('data', () => {}).on('end', next).on('error', next)
+    })
+    return BB.join(
+      needsShrinkwrap && jsonFromStream('npm-shrinkwrap.json', extracted),
+      needsManifest && jsonFromStream('package.json', extracted),
+      needsBin && getPaths(extracted),
+      needsHash && ssri.fromStream(tarStream, { algorithms: ['sha1'] }),
+      needsExtract && pipe(tarStream, gunzip(), extracted),
+      (sr, mani, paths, hash) => {
+        const extraProps = mani || {}
+        delete extraProps._resolved
+        // drain out the rest of the tarball
+        tarStream.unpipe()
+        tarStream.on('data', () => {})
+        // if we have directories.bin, we need to collect any matching files
+        // to add to bin
+        if (paths && paths.length) {
+          const dirBin = mani
+          ? (mani && mani.directories && mani.directories.bin)
+          : (pkg && pkg.directories && pkg.directories.bin)
+          if (dirBin) {
+            extraProps.bin = {}
+            paths.forEach(filePath => {
+              if (minimatch(filePath, dirBin + '/**')) {
+                const relative = path.relative(dirBin, filePath)
+                if (relative && relative[0] !== '.') {
+                  extraProps.bin[path.basename(relative)] = path.join(dirBin, relative)
+                }
+              }
+            })
+          }
+        }
+        return Object.assign(extraProps, {
+          _shrinkwrap: sr,
+          _resolved: (mani && mani._resolved) ||
+          (pkg && pkg._resolved) ||
+          spec.fetchSpec,
+          _integrity: hash && hash.toString()
+        })
+      }
+    )
+  }
+}
+
+function jsonFromStream (filename, dataStream) {
+  return BB.fromNode(cb => {
+    dataStream.on('error', cb)
+    dataStream.on('finish', cb)
+    dataStream.on('entry', function handler (header, stream, next) {
+      const filePath = header.name.replace(/[^/]+\//, '')
+      if (filePath !== filename) {
+        next()
+      } else {
+        let data = ''
+        stream.on('data', d => { data += d })
+        stream.on('error', cb)
+        finished(stream).then(() => {
+          dataStream.removeListener('entry', handler)
+          try {
+            cb(null, JSON.parse(data))
+            next()
+          } catch (err) {
+            cb(err)
+          }
+        }, err => {
+          dataStream.removeListener('entry', handler)
+          cb(err)
+        })
+      }
+    })
+  })
+}
+
+function getPaths (dataStream) {
+  return BB.fromNode(cb => {
+    let paths = []
+    dataStream.on('error', cb)
+    dataStream.on('finish', () => cb(null, paths))
+    dataStream.on('entry', function handler (header, stream, next) {
+      const filePath = header.name.replace(/[^/]+\//, '')
+      stream.on('data', () => {})
+      paths.push(filePath)
+      next()
+    })
+  })
+}
+
+function finalKey (pkg, spec) {
+  if (pkg && pkg._uniqueResolved) {
+    // git packages have a unique, identifiable id, but no tar sha
+    return cacheKey(`${spec.type}-manifest`, pkg._uniqueResolved)
+  } else {
+    return (
+      pkg && pkg._integrity &&
+      cacheKey(
+        `${spec.type}-manifest`,
+        `${pkg._resolved}:${ssri.stringify(pkg._integrity)}`
+      )
+    )
+  }
+}

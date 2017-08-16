@@ -80,6 +80,7 @@ class Instrument: public DecoderVisitor {
   uint64_t sample_period_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_INSTRUMENT_ARM64_H_

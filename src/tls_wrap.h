@@ -22,13 +22,15 @@
 #ifndef SRC_TLS_WRAP_H_
 #define SRC_TLS_WRAP_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
 #include "node_crypto.h"  // SSLWrap
 
 #include "async-wrap.h"
 #include "env.h"
-#include "queue.h"
 #include "stream_wrap.h"
+#include "util.h"
 #include "v8.h"
 
 #include <openssl/ssl.h>
@@ -36,44 +38,47 @@
 namespace node {
 
 // Forward-declarations
-class NodeBIO;
 class WriteWrap;
 namespace crypto {
-  class SecureContext;
+class SecureContext;
+class NodeBIO;
 }
 
-class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
-                     public StreamWrapCallbacks,
-                     public AsyncWrap {
+class TLSWrap : public AsyncWrap,
+                public crypto::SSLWrap<TLSWrap>,
+                public StreamBase {
  public:
-  ~TLSCallbacks() override;
+  ~TLSWrap() override;
 
-  static void Initialize(v8::Handle<v8::Object> target,
-                         v8::Handle<v8::Value> unused,
-                         v8::Handle<v8::Context> context);
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Value> unused,
+                         v8::Local<v8::Context> context);
 
-  const char* Error() const override;
-  void ClearError() override;
-  int TryWrite(uv_buf_t** bufs, size_t* count) override;
+  void* Cast() override;
+  int GetFD() override;
+  bool IsAlive() override;
+  bool IsClosing() override;
+
+  // JavaScript functions
+  int ReadStart() override;
+  int ReadStop() override;
+
+  int DoShutdown(ShutdownWrap* req_wrap) override;
   int DoWrite(WriteWrap* w,
               uv_buf_t* bufs,
               size_t count,
-              uv_stream_t* send_handle,
-              uv_write_cb cb) override;
-  void AfterWrite(WriteWrap* w) override;
-  void DoAlloc(uv_handle_t* handle,
-               size_t suggested_size,
-               uv_buf_t* buf) override;
-  void DoRead(uv_stream_t* handle,
-              ssize_t nread,
-              const uv_buf_t* buf,
-              uv_handle_type pending) override;
-  int DoShutdown(ShutdownWrap* req_wrap, uv_shutdown_cb cb) override;
+              uv_stream_t* send_handle) override;
+  const char* Error() const override;
+  void ClearError() override;
 
   void NewSessionDoneCb();
 
+  size_t self_size() const override { return sizeof(*this); }
+
+  void clear_stream() { stream_ = nullptr; }
+
  protected:
-  static const int kClearOutChunkSize = 1024;
+  static const int kClearOutChunkSize = 16384;
 
   // Maximum number of bytes for hello parser
   static const int kMaxHelloLength = 16384;
@@ -87,31 +92,29 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   // Write callback queue's item
   class WriteItem {
    public:
-    WriteItem(WriteWrap* w, uv_write_cb cb) : w_(w), cb_(cb) {
+    explicit WriteItem(WriteWrap* w) : w_(w) {
     }
     ~WriteItem() {
       w_ = nullptr;
-      cb_ = nullptr;
     }
 
     WriteWrap* w_;
-    uv_write_cb cb_;
-    QUEUE member_;
+    ListNode<WriteItem> member_;
   };
 
-  TLSCallbacks(Environment* env,
-               Kind kind,
-               v8::Handle<v8::Object> sc,
-               StreamWrapCallbacks* old);
+  TLSWrap(Environment* env,
+          Kind kind,
+          StreamBase* stream,
+          crypto::SecureContext* sc);
 
   static void SSLInfoCallback(const SSL* ssl_, int where, int ret);
   void InitSSL();
   void EncOut();
-  static void EncOutCb(uv_write_t* req, int status);
+  static void EncOutCb(WriteWrap* req_wrap, int status);
   bool ClearIn();
   void ClearOut();
   void MakePending();
-  bool InvokeQueued(int status);
+  bool InvokeQueued(int status, const char* error_str = nullptr);
 
   inline void Cycle() {
     // Prevent recursion
@@ -125,6 +128,26 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
     }
   }
 
+  AsyncWrap* GetAsyncWrap() override;
+  bool IsIPCPipe() override;
+
+  // Resource implementation
+  static void OnAfterWriteImpl(WriteWrap* w, void* ctx);
+  static void OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx);
+  static void OnReadImpl(ssize_t nread,
+                         const uv_buf_t* buf,
+                         uv_handle_type pending,
+                         void* ctx);
+  static void OnAfterWriteSelf(WriteWrap* w, void* ctx);
+  static void OnAllocSelf(size_t size, uv_buf_t* buf, void* ctx);
+  static void OnReadSelf(ssize_t nread,
+                         const uv_buf_t* buf,
+                         uv_handle_type pending,
+                         void* ctx);
+  static void OnDestructImpl(void* ctx);
+
+  void DoRead(ssize_t nread, const uv_buf_t* buf, uv_handle_type pending);
+
   // If |msg| is not nullptr, caller is responsible for calling `delete[] *msg`.
   v8::Local<v8::Value> GetSSLError(int status, int* err, const char** msg);
 
@@ -135,8 +158,9 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   static void SetVerifyMode(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableSessionCallbacks(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void EnableHelloParser(
+  static void EnableCertCb(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DestroySSL(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -145,15 +169,14 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
   crypto::SecureContext* sc_;
-  v8::Persistent<v8::Object> sc_handle_;
+  StreamBase* stream_;
   BIO* enc_in_;
   BIO* enc_out_;
-  NodeBIO* clear_in_;
-  uv_write_t write_req_;
+  crypto::NodeBIO* clear_in_;
   size_t write_size_;
-  size_t write_queue_size_;
-  QUEUE write_item_queue_;
-  QUEUE pending_write_items_;
+  typedef ListHead<WriteItem, &WriteItem::member_> WriteItemList;
+  WriteItemList write_item_queue_;
+  WriteItemList pending_write_items_;
   bool started_;
   bool established_;
   bool shutdown_;
@@ -163,12 +186,10 @@ class TLSCallbacks : public crypto::SSLWrap<TLSCallbacks>,
   // If true - delivered EOF to the js-land, either after `close_notify`, or
   // after the `UV_EOF` on socket.
   bool eof_;
-
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  v8::Persistent<v8::Value> sni_context_;
-#endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_TLS_WRAP_H_

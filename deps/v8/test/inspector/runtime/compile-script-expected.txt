@@ -1,0 +1,67 @@
+Tests Runtime.compileScript
+Compiling script: foo1.js
+         persist: false
+compilation result: 
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 2
+            exception : {
+                className : SyntaxError
+                description : SyntaxError: Unexpected end of input
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 1
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+    }
+}
+-----
+Compiling script: foo2.js
+         persist: true
+Debugger.scriptParsed: foo2.js
+compilation result: 
+{
+    id : <messageId>
+    result : {
+        scriptId : <scriptId>
+    }
+}
+-----
+Compiling script: foo3.js
+         persist: false
+compilation result: 
+{
+    id : <messageId>
+    result : {
+    }
+}
+-----
+Compiling script: foo4.js
+         persist: false
+compilation result: 
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 13
+            exception : {
+                className : SyntaxError
+                description : SyntaxError: Unexpected identifier
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+    }
+}
+-----

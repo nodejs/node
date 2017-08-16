@@ -13,7 +13,7 @@ AR=		ar r
 CFLAGS= $(INCLUDES) $(CFLAG)
 
 GENERAL=Makefile README
-TEST=
+TEST=v3nametest.c
 APPS=
 
 LIB=$(TOP)/libcrypto.a
@@ -22,13 +22,13 @@ v3_prn.c v3_utl.c v3err.c v3_genn.c v3_alt.c v3_skey.c v3_akey.c v3_pku.c \
 v3_int.c v3_enum.c v3_sxnet.c v3_cpols.c v3_crld.c v3_purp.c v3_info.c \
 v3_ocsp.c v3_akeya.c v3_pmaps.c v3_pcons.c v3_ncons.c v3_pcia.c v3_pci.c \
 pcy_cache.c pcy_node.c pcy_data.c pcy_map.c pcy_tree.c pcy_lib.c \
-v3_asid.c v3_addr.c
+v3_asid.c v3_addr.c v3_scts.c
 LIBOBJ= v3_bcons.o v3_bitst.o v3_conf.o v3_extku.o v3_ia5.o v3_lib.o \
 v3_prn.o v3_utl.o v3err.o v3_genn.o v3_alt.o v3_skey.o v3_akey.o v3_pku.o \
 v3_int.o v3_enum.o v3_sxnet.o v3_cpols.o v3_crld.o v3_purp.o v3_info.o \
 v3_ocsp.o v3_akeya.o v3_pmaps.o v3_pcons.o v3_ncons.o v3_pcia.o v3_pci.o \
 pcy_cache.o pcy_node.o pcy_data.o pcy_map.o pcy_tree.o pcy_lib.o \
-v3_asid.o v3_addr.o
+v3_asid.o v3_addr.o v3_scts.o
 
 SRC= $(LIBSRC)
 
@@ -70,6 +70,8 @@ tests:
 
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
+
+update: depend
 
 depend:
 	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...
@@ -533,6 +535,20 @@ v3_purp.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
 v3_purp.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
 v3_purp.o: ../../include/openssl/x509_vfy.h ../../include/openssl/x509v3.h
 v3_purp.o: ../cryptlib.h v3_purp.c
+v3_scts.o: ../../e_os.h ../../include/openssl/asn1.h
+v3_scts.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
+v3_scts.o: ../../include/openssl/conf.h ../../include/openssl/crypto.h
+v3_scts.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h
+v3_scts.o: ../../include/openssl/ecdh.h ../../include/openssl/ecdsa.h
+v3_scts.o: ../../include/openssl/err.h ../../include/openssl/evp.h
+v3_scts.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
+v3_scts.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
+v3_scts.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+v3_scts.o: ../../include/openssl/pkcs7.h ../../include/openssl/safestack.h
+v3_scts.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
+v3_scts.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
+v3_scts.o: ../../include/openssl/x509_vfy.h ../../include/openssl/x509v3.h
+v3_scts.o: ../cryptlib.h v3_scts.c
 v3_skey.o: ../../e_os.h ../../include/openssl/asn1.h
 v3_skey.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
 v3_skey.o: ../../include/openssl/conf.h ../../include/openssl/crypto.h

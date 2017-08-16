@@ -25,43 +25,92 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-function TryGetPrototypeOfNonObject(x) {
-  var caught = 0;
-  try {
-      Object.getPrototypeOf(x);
-  } catch (e) {
-    caught = e;
-  }
-
-  assertTrue(caught instanceof TypeError);
-};
-
-function GetPrototypeOfObject(x) {
-  assertDoesNotThrow(Object.getPrototypeOf(x));
-  assertNotNull(Object.getPrototypeOf(x));
-  assertEquals(Object.getPrototypeOf(x), x.__proto__);
+function assertPrototypeOf(func, expected) {
+  assertEquals(expected, Object.getPrototypeOf(func));
 }
 
+
+assertThrows(function() {
+  Object.getPrototypeOf(undefined);
+}, TypeError);
+
+
+assertThrows(function() {
+  Object.getPrototypeOf(null);
+}, TypeError);
+
+
 function F(){};
-
-// Non object
-var x = 10;
-
-// Object
 var y = new F();
 
-// Make sure that TypeError exceptions are thrown when non-objects are passed
-// as argument
-TryGetPrototypeOfNonObject(0);
-TryGetPrototypeOfNonObject(null);
-TryGetPrototypeOfNonObject('Testing');
-TryGetPrototypeOfNonObject(x);
+assertPrototypeOf(y, F.prototype);
+assertPrototypeOf(F, Function.prototype);
 
-// Make sure the real objects have this method and that it returns the
-// actual prototype object. Also test for Functions and RegExp.
-GetPrototypeOfObject(this);
-GetPrototypeOfObject(y);
-GetPrototypeOfObject({x:5});
-GetPrototypeOfObject(F);
-GetPrototypeOfObject(RegExp);
+assertPrototypeOf({x: 5}, Object.prototype);
+assertPrototypeOf({x: 5, __proto__: null}, null);
+
+assertPrototypeOf([1, 2], Array.prototype);
+
+
+assertPrototypeOf(1, Number.prototype);
+assertPrototypeOf(true, Boolean.prototype);
+assertPrototypeOf(false, Boolean.prototype);
+assertPrototypeOf('str', String.prototype);
+assertPrototypeOf(Symbol(), Symbol.prototype);
+
+
+var errorFunctions = [
+  EvalError,
+  RangeError,
+  ReferenceError,
+  SyntaxError,
+  TypeError,
+  URIError,
+];
+
+for (var f of errorFunctions) {
+  assertPrototypeOf(f, Error);
+  assertPrototypeOf(new f(), f.prototype);
+}
+
+
+// Builtin constructors.
+var functions = [
+  Array,
+  ArrayBuffer,
+  Boolean,
+  // DataView,
+  Date,
+  Error,
+  // Float32Array, prototype is %TypedArray%
+  // Float64Array,
+  Function,
+  // Int16Array,
+  // Int32Array,
+  // Int8Array,
+  Map,
+  Number,
+  Object,
+  // Promise,
+  RegExp,
+  Set,
+  String,
+  // Symbol, not constructible
+  // Uint16Array,
+  // Uint32Array,
+  // Uint8Array,
+  // Uint8ClampedArray,
+  WeakMap,
+  WeakSet,
+];
+
+for (var f of functions) {
+  assertPrototypeOf(f, Function.prototype);
+  assertPrototypeOf(new f(), f.prototype);
+}
+
+var p = new Promise(function() {});
+assertPrototypeOf(p, Promise.prototype);
+
+var dv = new DataView(new ArrayBuffer());
+assertPrototypeOf(dv, DataView.prototype);

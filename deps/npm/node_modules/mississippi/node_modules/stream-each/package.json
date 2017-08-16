@@ -1,0 +1,59 @@
+{
+  "_from": "stream-each@^1.1.0",
+  "_id": "stream-each@1.2.0",
+  "_integrity": "sha1-HpXUdXP1gNgU3A/4zQ9m8c5TyZE=",
+  "_location": "/mississippi/stream-each",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "stream-each@^1.1.0",
+    "name": "stream-each",
+    "escapedName": "stream-each",
+    "rawSpec": "^1.1.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.1.0"
+  },
+  "_requiredBy": [
+    "/mississippi"
+  ],
+  "_resolved": "https://registry.npmjs.org/stream-each/-/stream-each-1.2.0.tgz",
+  "_shasum": "1e95d47573f580d814dc0ff8cd0f66f1ce53c991",
+  "_shrinkwrap": null,
+  "_spec": "stream-each@^1.1.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/mississippi",
+  "author": {
+    "name": "Mathias Buus",
+    "url": "@mafintosh"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/mafintosh/stream-each/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "end-of-stream": "^1.1.0",
+    "stream-shift": "^1.0.0"
+  },
+  "deprecated": false,
+  "description": "Iterate all the data in a stream",
+  "devDependencies": {
+    "standard": "^5.3.1",
+    "tape": "^4.2.1",
+    "through2": "^2.0.0"
+  },
+  "homepage": "https://github.com/mafintosh/stream-each",
+  "license": "MIT",
+  "main": "index.js",
+  "name": "stream-each",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mafintosh/stream-each.git"
+  },
+  "scripts": {
+    "test": "standard && tape test.js"
+  },
+  "version": "1.2.0"
+}

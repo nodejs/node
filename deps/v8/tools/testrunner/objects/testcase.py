@@ -29,20 +29,25 @@
 from . import output
 
 class TestCase(object):
-  def __init__(self, suite, path, flags=[], dependency=None):
-    self.suite = suite  # TestSuite object
-    self.path = path    # string, e.g. 'div-mod', 'test-api/foo'
-    self.flags = flags  # list of strings, flags specific to this test case
-    self.dependency = dependency  # |path| for testcase that must be run first
-    self.outcomes = None
+  def __init__(self, suite, path, variant=None, flags=None,
+               override_shell=None):
+    self.suite = suite        # TestSuite object
+    self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
+    self.flags = flags or []  # list of strings, flags specific to this test
+    self.variant = variant    # name of the used testing variant
+    self.override_shell = override_shell
+    self.outcomes = frozenset([])
     self.output = None
     self.id = None  # int, used to map result back to TestCase instance
     self.duration = None  # assigned during execution
     self.run = 1  # The nth time this test is executed.
+    self.env = {}
 
-  def CopyAddingFlags(self, flags):
-    copy = TestCase(self.suite, self.path, self.flags + flags, self.dependency)
+  def CopyAddingFlags(self, variant, flags):
+    copy = TestCase(self.suite, self.path, variant, self.flags + flags,
+                    self.override_shell)
     copy.outcomes = self.outcomes
+    copy.env = self.env
     return copy
 
   def PackTask(self):
@@ -51,17 +56,19 @@ class TestCase(object):
     and returns them as a JSON serializable object.
     """
     assert self.id is not None
-    return [self.suitename(), self.path, self.flags,
-            self.dependency, list(self.outcomes or []), self.id]
+    return [self.suitename(), self.path, self.variant, self.flags,
+            self.override_shell, list(self.outcomes or []),
+            self.id, self.env]
 
   @staticmethod
   def UnpackTask(task):
     """Creates a new TestCase object based on packed task data."""
     # For the order of the fields, refer to PackTask() above.
-    test = TestCase(str(task[0]), task[1], task[2], task[3])
-    test.outcomes = set(task[4])
-    test.id = task[5]
+    test = TestCase(str(task[0]), task[1], task[2], task[3], task[4])
+    test.outcomes = frozenset(task[5])
+    test.id = task[6]
     test.run = 1
+    test.env = task[7]
     return test
 
   def SetSuiteObject(self, suites):
@@ -83,3 +90,27 @@ class TestCase(object):
 
   def GetLabel(self):
     return self.suitename() + "/" + self.suite.CommonTestName(self)
+
+  def shell(self):
+    if self.override_shell:
+      return self.override_shell
+    return self.suite.shell()
+
+  def __getstate__(self):
+    """Representation to pickle test cases.
+
+    The original suite won't be sent beyond process boundaries. Instead
+    send the name only and retrieve a process-local suite later.
+    """
+    return dict(self.__dict__, suite=self.suite.name)
+
+  def __cmp__(self, other):
+    # Make sure that test cases are sorted correctly if sorted without
+    # key function. But using a key function is preferred for speed.
+    return cmp(
+        (self.suite.name, self.path, self.flags),
+        (other.suite.name, other.path, other.flags),
+    )
+
+  def __str__(self):
+    return "[%s/%s  %s]" % (self.suite.name, self.path, self.flags)

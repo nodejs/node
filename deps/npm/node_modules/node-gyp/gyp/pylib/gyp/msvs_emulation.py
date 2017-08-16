@@ -12,9 +12,13 @@ import re
 import subprocess
 import sys
 
+from gyp.common import OrderedSet
+import gyp.MSVSUtil
 import gyp.MSVSVersion
 
+
 windows_quoter_regex = re.compile(r'(\\*)"')
+
 
 def QuoteForRspFile(arg):
   """Quote a command line argument so that it appears as one argument when
@@ -131,6 +135,54 @@ def _FindDirectXInstallation():
   return dxsdk_dir
 
 
+def GetGlobalVSMacroEnv(vs_version):
+  """Get a dict of variables mapping internal VS macro names to their gyp
+  equivalents. Returns all variables that are independent of the target."""
+  env = {}
+  # '$(VSInstallDir)' and '$(VCInstallDir)' are available when and only when
+  # Visual Studio is actually installed.
+  if vs_version.Path():
+    env['$(VSInstallDir)'] = vs_version.Path()
+    env['$(VCInstallDir)'] = os.path.join(vs_version.Path(), 'VC') + '\\'
+  # Chromium uses DXSDK_DIR in include/lib paths, but it may or may not be
+  # set. This happens when the SDK is sync'd via src-internal, rather than
+  # by typical end-user installation of the SDK. If it's not set, we don't
+  # want to leave the unexpanded variable in the path, so simply strip it.
+  dxsdk_dir = _FindDirectXInstallation()
+  env['$(DXSDK_DIR)'] = dxsdk_dir if dxsdk_dir else ''
+  # Try to find an installation location for the Windows DDK by checking
+  # the WDK_DIR environment variable, may be None.
+  env['$(WDK_DIR)'] = os.environ.get('WDK_DIR', '')
+  return env
+
+def ExtractSharedMSVSSystemIncludes(configs, generator_flags):
+  """Finds msvs_system_include_dirs that are common to all targets, removes
+  them from all targets, and returns an OrderedSet containing them."""
+  all_system_includes = OrderedSet(
+      configs[0].get('msvs_system_include_dirs', []))
+  for config in configs[1:]:
+    system_includes = config.get('msvs_system_include_dirs', [])
+    all_system_includes = all_system_includes & OrderedSet(system_includes)
+  if not all_system_includes:
+    return None
+  # Expand macros in all_system_includes.
+  env = GetGlobalVSMacroEnv(GetVSVersion(generator_flags))
+  expanded_system_includes = OrderedSet([ExpandMacros(include, env)
+                                         for include in all_system_includes])
+  if any(['$' in include for include in expanded_system_includes]):
+    # Some path relies on target-specific variables, bail.
+    return None
+
+  # Remove system includes shared by all targets from the targets.
+  for config in configs:
+    includes = config.get('msvs_system_include_dirs', [])
+    if includes:  # Don't insert a msvs_system_include_dirs key if not needed.
+      # This must check the unexpanded includes list:
+      new_includes = [i for i in includes if i not in all_system_includes]
+      config['msvs_system_include_dirs'] = new_includes
+  return expanded_system_includes
+
+
 class MsvsSettings(object):
   """A class that understands the gyp 'msvs_...' values (especially the
   msvs_settings field). They largely correpond to the VS2008 IDE DOM. This
@@ -139,11 +191,6 @@ class MsvsSettings(object):
   def __init__(self, spec, generator_flags):
     self.spec = spec
     self.vs_version = GetVSVersion(generator_flags)
-    self.dxsdk_dir = _FindDirectXInstallation()
-
-    # Try to find an installation location for the Windows DDK by checking
-    # the WDK_DIR environment variable, may be None.
-    self.wdk_dir = os.environ.get('WDK_DIR')
 
     supported_fields = [
         ('msvs_configuration_attributes', dict),
@@ -163,6 +210,30 @@ class MsvsSettings(object):
 
     self.msvs_cygwin_dirs = spec.get('msvs_cygwin_dirs', ['.'])
 
+    unsupported_fields = [
+        'msvs_prebuild',
+        'msvs_postbuild',
+    ]
+    unsupported = []
+    for field in unsupported_fields:
+      for config in configs.values():
+        if field in config:
+          unsupported += ["%s not supported (target %s)." %
+                          (field, spec['target_name'])]
+    if unsupported:
+      raise Exception('\n'.join(unsupported))
+
+  def GetExtension(self):
+    """Returns the extension for the target, with no leading dot.
+
+    Uses 'product_extension' if specified, otherwise uses MSVS defaults based on
+    the target type.
+    """
+    ext = self.spec.get('product_extension', None)
+    if ext:
+      return ext
+    return gyp.MSVSUtil.TARGET_TYPE_EXT.get(self.spec['type'], '')
+
   def GetVSMacroEnv(self, base_to_build=None, config=None):
     """Get a dict of variables mapping internal VS macro names to their gyp
     equivalents."""
@@ -170,29 +241,24 @@ class MsvsSettings(object):
     target_name = self.spec.get('product_prefix', '') + \
         self.spec.get('product_name', self.spec['target_name'])
     target_dir = base_to_build + '\\' if base_to_build else ''
+    target_ext = '.' + self.GetExtension()
+    target_file_name = target_name + target_ext
+
     replacements = {
-        '$(OutDir)\\': target_dir,
-        '$(TargetDir)\\': target_dir,
-        '$(IntDir)': '$!INTERMEDIATE_DIR',
-        '$(InputPath)': '${source}',
         '$(InputName)': '${root}',
-        '$(ProjectName)': self.spec['target_name'],
-        '$(TargetName)': target_name,
+        '$(InputPath)': '${source}',
+        '$(IntDir)': '$!INTERMEDIATE_DIR',
+        '$(OutDir)\\': target_dir,
         '$(PlatformName)': target_platform,
         '$(ProjectDir)\\': '',
+        '$(ProjectName)': self.spec['target_name'],
+        '$(TargetDir)\\': target_dir,
+        '$(TargetExt)': target_ext,
+        '$(TargetFileName)': target_file_name,
+        '$(TargetName)': target_name,
+        '$(TargetPath)': os.path.join(target_dir, target_file_name),
     }
-    # '$(VSInstallDir)' and '$(VCInstallDir)' are available when and only when
-    # Visual Studio is actually installed.
-    if self.vs_version.Path():
-      replacements['$(VSInstallDir)'] = self.vs_version.Path()
-      replacements['$(VCInstallDir)'] = os.path.join(self.vs_version.Path(),
-                                                     'VC') + '\\'
-    # Chromium uses DXSDK_DIR in include/lib paths, but it may or may not be
-    # set. This happens when the SDK is sync'd via src-internal, rather than
-    # by typical end-user installation of the SDK. If it's not set, we don't
-    # want to leave the unexpanded variable in the path, so simply strip it.
-    replacements['$(DXSDK_DIR)'] = self.dxsdk_dir if self.dxsdk_dir else ''
-    replacements['$(WDK_DIR)'] = self.wdk_dir if self.wdk_dir else ''
+    replacements.update(GetGlobalVSMacroEnv(self.vs_version))
     return replacements
 
   def ConvertVSMacros(self, s, base_to_build=None, config=None):
@@ -272,6 +338,15 @@ class MsvsSettings(object):
       ('VCCLCompilerTool', 'AdditionalIncludeDirectories'), config, default=[]))
     return [self.ConvertVSMacros(p, config=config) for p in includes]
 
+  def AdjustMidlIncludeDirs(self, midl_include_dirs, config):
+    """Updates midl_include_dirs to expand VS specific paths, and adds the
+    system include dirs used for platform SDK and similar."""
+    config = self._TargetConfig(config)
+    includes = midl_include_dirs + self.msvs_system_include_dirs[config]
+    includes.extend(self._Setting(
+      ('VCMIDLTool', 'AdditionalIncludeDirectories'), config, default=[]))
+    return [self.ConvertVSMacros(p, config=config) for p in includes]
+
   def GetComputedDefines(self, config):
     """Returns the set of defines that are injected to the defines list based
     on other VS settings."""
@@ -324,13 +399,29 @@ class MsvsSettings(object):
     output_file = self._Setting(('VCLinkerTool', 'ProgramDatabaseFile'), config)
     generate_debug_info = self._Setting(
         ('VCLinkerTool', 'GenerateDebugInformation'), config)
-    if generate_debug_info:
+    if generate_debug_info == 'true':
       if output_file:
         return expand_special(self.ConvertVSMacros(output_file, config=config))
       else:
         return default
     else:
       return None
+
+  def GetNoImportLibrary(self, config):
+    """If NoImportLibrary: true, ninja will not expect the output to include
+    an import library."""
+    config = self._TargetConfig(config)
+    noimplib = self._Setting(('NoImportLibrary',), config)
+    return noimplib == 'true'
+
+  def GetAsmflags(self, config):
+    """Returns the flags that need to be added to ml invocations."""
+    config = self._TargetConfig(config)
+    asmflags = []
+    safeseh = self._Setting(('MASM', 'UseSafeExceptionHandlers'), config)
+    if safeseh == 'true':
+      asmflags.append('/safeseh')
+    return asmflags
 
   def GetCflags(self, config):
     """Returns the flags that need to be added to .c and .cc compilations."""
@@ -348,9 +439,15 @@ class MsvsSettings(object):
     cl('OmitFramePointers', map={'false': '-', 'true': ''}, prefix='/Oy')
     cl('EnableIntrinsicFunctions', map={'false': '-', 'true': ''}, prefix='/Oi')
     cl('FavorSizeOrSpeed', map={'1': 't', '2': 's'}, prefix='/O')
+    cl('FloatingPointModel',
+        map={'0': 'precise', '1': 'strict', '2': 'fast'}, prefix='/fp:',
+        default='0')
+    cl('CompileAsManaged', map={'false': '', 'true': '/clr'})
     cl('WholeProgramOptimization', map={'true': '/GL'})
     cl('WarningLevel', prefix='/W')
     cl('WarnAsError', map={'true': '/WX'})
+    cl('CallingConvention',
+        map={'0': 'd', '1': 'r', '2': 'z', '3': 'v'}, prefix='/G')
     cl('DebugInformationFormat',
         map={'1': '7', '3': 'i', '4': 'I'}, prefix='/Z')
     cl('RuntimeTypeInfo', map={'true': '/GR', 'false': '/GR-'})
@@ -366,20 +463,17 @@ class MsvsSettings(object):
         map={'false': '-', 'true': ''}, prefix='/Zc:wchar_t')
     cl('EnablePREfast', map={'true': '/analyze'})
     cl('AdditionalOptions', prefix='')
+    cl('EnableEnhancedInstructionSet',
+        map={'1': 'SSE', '2': 'SSE2', '3': 'AVX', '4': 'IA32', '5': 'AVX2'},
+        prefix='/arch:')
     cflags.extend(['/FI' + f for f in self._Setting(
         ('VCCLCompilerTool', 'ForcedIncludeFiles'), config, default=[])])
-    if self.vs_version.short_name in ('2013', '2013e'):
+    if self.vs_version.short_name in ('2013', '2013e', '2015'):
       # New flag required in 2013 to maintain previous PDB behavior.
       cflags.append('/FS')
     # ninja handles parallelism by itself, don't have the compiler do it too.
     cflags = filter(lambda x: not x.startswith('/MP'), cflags)
     return cflags
-
-  def GetPrecompiledHeader(self, config, gyp_to_build_path):
-    """Returns an object that handles the generation of precompiled header
-    build steps."""
-    config = self._TargetConfig(config)
-    return _PchHelper(self, config, gyp_to_build_path)
 
   def _GetPchFlags(self, config, extension):
     """Get the flags to be added to the cflags for precompiled header support.
@@ -425,7 +519,8 @@ class MsvsSettings(object):
     libflags.extend(self._GetAdditionalLibraryDirectories(
         'VCLibrarianTool', config, gyp_to_build_path))
     lib('LinkTimeCodeGeneration', map={'true': '/LTCG'})
-    lib('TargetMachine', map={'1': 'X86', '17': 'X64'}, prefix='/MACHINE:')
+    lib('TargetMachine', map={'1': 'X86', '17': 'X64', '3': 'ARM'},
+        prefix='/MACHINE:')
     lib('AdditionalOptions')
     return libflags
 
@@ -468,7 +563,8 @@ class MsvsSettings(object):
                           'VCLinkerTool', append=ldflags)
     self._GetDefFileAsLdflags(ldflags, gyp_to_build_path)
     ld('GenerateDebugInformation', map={'true': '/DEBUG'})
-    ld('TargetMachine', map={'1': 'X86', '17': 'X64'}, prefix='/MACHINE:')
+    ld('TargetMachine', map={'1': 'X86', '17': 'X64', '3': 'ARM'},
+       prefix='/MACHINE:')
     ldflags.extend(self._GetAdditionalLibraryDirectories(
         'VCLinkerTool', config, gyp_to_build_path))
     ld('DelayLoadDLLs', prefix='/DELAYLOAD:')
@@ -498,6 +594,15 @@ class MsvsSettings(object):
             '2': 'WINDOWS%s' % minimum_required_version},
        prefix='/SUBSYSTEM:')
 
+    stack_reserve_size = self._Setting(
+        ('VCLinkerTool', 'StackReserveSize'), config, default='')
+    if stack_reserve_size:
+      stack_commit_size = self._Setting(
+          ('VCLinkerTool', 'StackCommitSize'), config, default='')
+      if stack_commit_size:
+        stack_commit_size = ',' + stack_commit_size
+      ldflags.append('/STACK:%s%s' % (stack_reserve_size, stack_commit_size))
+
     ld('TerminalServerAware', map={'1': ':NO', '2': ''}, prefix='/TSAWARE')
     ld('LinkIncremental', map={'1': ':NO', '2': ''}, prefix='/INCREMENTAL')
     ld('BaseAddress', prefix='/BASE:')
@@ -521,6 +626,14 @@ class MsvsSettings(object):
         map={'1': ':NO', '2': ''}, prefix='/LARGEADDRESSAWARE')
     # TODO(scottmg): This should sort of be somewhere else (not really a flag).
     ld('AdditionalDependencies', prefix='')
+
+    if self.GetArch(config) == 'x86':
+      safeseh_default = 'true'
+    else:
+      safeseh_default = None
+    ld('ImageHasSafeExceptionHandlers',
+        map={'false': ':NO', 'true': ''}, prefix='/SAFESEH',
+        default=safeseh_default)
 
     # If the base address is not specifically controlled, DYNAMICBASE should
     # be on by default.
@@ -708,10 +821,16 @@ class MsvsSettings(object):
         return True
     return False
 
-  def HasExplicitIdlRules(self, spec):
-    """Determine if there's an explicit rule for idl files. When there isn't we
-    need to generate implicit rules to build MIDL .idl files."""
-    return self._HasExplicitRuleForExtension(spec, 'idl')
+  def _HasExplicitIdlActions(self, spec):
+    """Determine if an action should not run midl for .idl files."""
+    return any([action.get('explicit_idl_action', 0)
+                for action in spec.get('actions', [])])
+
+  def HasExplicitIdlRulesOrActions(self, spec):
+    """Determine if there's an explicit rule or action for idl files. When
+    there isn't we need to generate implicit rules to build MIDL .idl files."""
+    return (self._HasExplicitRuleForExtension(spec, 'idl') or
+            self._HasExplicitIdlActions(spec))
 
   def HasExplicitAsmRules(self, spec):
     """Determine if there's an explicit rule for asm files. When there isn't we
@@ -774,7 +893,7 @@ class PrecompiledHeader(object):
   def GetObjDependencies(self, sources, objs, arch):
     """Given a list of sources files and the corresponding object files,
     returns a list of the pch files that should be depended upon. The
-    additional wrapping in the return value is for interface compatability
+    additional wrapping in the return value is for interface compatibility
     with make.py on Mac, and xcode_emulation.py."""
     assert arch is None
     if not self._PchHeader():
@@ -810,7 +929,8 @@ def GetVSVersion(generator_flags):
   global vs_version
   if not vs_version:
     vs_version = gyp.MSVSVersion.SelectVisualStudioVersion(
-        generator_flags.get('msvs_version', 'auto'))
+        generator_flags.get('msvs_version', 'auto'),
+        allow_fallback=False)
   return vs_version
 
 def _GetVsvarsSetupArgs(generator_flags, arch):
@@ -878,7 +998,8 @@ def _ExtractCLPath(output_of_where):
     if line.startswith('LOC:'):
       return line[len('LOC:'):].strip()
 
-def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags, open_out):
+def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags,
+                             system_includes, open_out):
   """It's not sufficient to have the absolute path to the compiler, linker,
   etc. on Windows, as those tools rely on .dlls being in the PATH. We also
   need to support both x86 and x64 compilers within the same build (to support
@@ -909,6 +1030,13 @@ def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags, open_out):
         args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     variables, _ = popen.communicate()
     env = _ExtractImportantEnvironment(variables)
+
+    # Inject system includes from gyp files into INCLUDE.
+    if system_includes:
+      system_includes = system_includes | OrderedSet(
+                                              env.get('INCLUDE', '').split(';'))
+      env['INCLUDE'] = ';'.join(system_includes)
+
     env_block = _FormatAsEnvironmentBlock(env)
     f = open_out(os.path.join(toplevel_build_dir, 'environment.' + arch), 'wb')
     f.write(env_block)

@@ -105,7 +105,7 @@ TEST(IsDenormal) {
 TEST(IsSpecial) {
   CHECK(Double(V8_INFINITY).IsSpecial());
   CHECK(Double(-V8_INFINITY).IsSpecial());
-  CHECK(Double(v8::base::OS::nan_value()).IsSpecial());
+  CHECK(Double(std::numeric_limits<double>::quiet_NaN()).IsSpecial());
   uint64_t bits = V8_2PART_UINT64_C(0xFFF12345, 00000000);
   CHECK(Double(bits).IsSpecial());
   // Denormals are not special:
@@ -128,7 +128,7 @@ TEST(IsSpecial) {
 TEST(IsInfinite) {
   CHECK(Double(V8_INFINITY).IsInfinite());
   CHECK(Double(-V8_INFINITY).IsInfinite());
-  CHECK(!Double(v8::base::OS::nan_value()).IsInfinite());
+  CHECK(!Double(std::numeric_limits<double>::quiet_NaN()).IsInfinite());
   CHECK(!Double(0.0).IsInfinite());
   CHECK(!Double(-0.0).IsInfinite());
   CHECK(!Double(1.0).IsInfinite());

@@ -1,98 +1,60 @@
 // Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
 
 #ifndef V8_HANDLES_INL_H_
 #define V8_HANDLES_INL_H_
 
 #include "src/api.h"
 #include "src/handles.h"
-#include "src/heap/heap.h"
 #include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
 
-template<typename T>
-Handle<T>::Handle(T* obj) {
-  location_ = HandleScope::CreateHandle(obj->GetIsolate(), obj);
-}
-
-
-template<typename T>
-Handle<T>::Handle(T* obj, Isolate* isolate) {
-  location_ = HandleScope::CreateHandle(isolate, obj);
-}
+HandleBase::HandleBase(Object* object, Isolate* isolate)
+    : location_(HandleScope::GetHandle(isolate, object)) {}
 
 
 template <typename T>
-inline bool Handle<T>::is_identical_to(const Handle<T> o) const {
-  // Dereferencing deferred handles to check object equality is safe.
-  SLOW_DCHECK(
-      (location_ == NULL || IsDereferenceAllowed(NO_DEFERRED_CHECK)) &&
-      (o.location_ == NULL || o.IsDereferenceAllowed(NO_DEFERRED_CHECK)));
-  if (location_ == o.location_) return true;
-  if (location_ == NULL || o.location_ == NULL) return false;
-  return *location_ == *o.location_;
+// Allocate a new handle for the object, do not canonicalize.
+Handle<T> Handle<T>::New(T* object, Isolate* isolate) {
+  return Handle(
+      reinterpret_cast<T**>(HandleScope::CreateHandle(isolate, object)));
 }
-
-
-template <typename T>
-inline T* Handle<T>::operator*() const {
-  SLOW_DCHECK(IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
-  return *bit_cast<T**>(location_);
-}
-
-template <typename T>
-inline T** Handle<T>::location() const {
-  SLOW_DCHECK(location_ == NULL ||
-              IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
-  return location_;
-}
-
-#ifdef DEBUG
-template <typename T>
-bool Handle<T>::IsDereferenceAllowed(DereferenceCheckMode mode) const {
-  DCHECK(location_ != NULL);
-  Object* object = *bit_cast<T**>(location_);
-  if (object->IsSmi()) return true;
-  HeapObject* heap_object = HeapObject::cast(object);
-  Heap* heap = heap_object->GetHeap();
-  Object** handle = reinterpret_cast<Object**>(location_);
-  Object** roots_array_start = heap->roots_array_start();
-  if (roots_array_start <= handle &&
-      handle < roots_array_start + Heap::kStrongRootListLength &&
-      heap->RootCanBeTreatedAsConstant(
-        static_cast<Heap::RootListIndex>(handle - roots_array_start))) {
-    return true;
-  }
-  if (!AllowHandleDereference::IsAllowed()) return false;
-  if (mode == INCLUDE_DEFERRED_CHECK &&
-      !AllowDeferredHandleDereference::IsAllowed()) {
-    // Accessing cells, maps and internalized strings is safe.
-    if (heap_object->IsCell()) return true;
-    if (heap_object->IsMap()) return true;
-    if (heap_object->IsInternalizedString()) return true;
-    return !heap->isolate()->IsDeferredHandle(handle);
-  }
-  return true;
-}
-#endif
-
 
 
 HandleScope::HandleScope(Isolate* isolate) {
-  HandleScopeData* current = isolate->handle_scope_data();
+  HandleScopeData* data = isolate->handle_scope_data();
   isolate_ = isolate;
-  prev_next_ = current->next;
-  prev_limit_ = current->limit;
-  current->level++;
+  prev_next_ = data->next;
+  prev_limit_ = data->limit;
+  data->level++;
+}
+
+template <typename T>
+Handle<T>::Handle(T* object, Isolate* isolate) : HandleBase(object, isolate) {}
+
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
+  return os << Brief(*handle);
 }
 
 
 HandleScope::~HandleScope() {
-  CloseScope(isolate_, prev_next_, prev_limit_);
+#ifdef DEBUG
+  if (FLAG_check_handle_count) {
+    int before = NumberOfHandles(isolate_);
+    CloseScope(isolate_, prev_next_, prev_limit_);
+    int after = NumberOfHandles(isolate_);
+    DCHECK(after - before < kCheckHandleThreshold);
+    DCHECK(before < kCheckHandleThreshold);
+  } else {
+#endif  // DEBUG
+    CloseScope(isolate_, prev_next_, prev_limit_);
+#ifdef DEBUG
+  }
+#endif  // DEBUG
 }
 
 
@@ -123,8 +85,8 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   // Throw away all handles in the current scope.
   CloseScope(isolate_, prev_next_, prev_limit_);
   // Allocate one handle in the parent scope.
-  DCHECK(current->level > 0);
-  Handle<T> result(CreateHandle<T>(isolate_, value));
+  DCHECK(current->level > current->sealed_level);
+  Handle<T> result(value, isolate_);
   // Reinitialize the current scope (so that it's ready
   // to be used or closed again).
   prev_next_ = current->next;
@@ -133,22 +95,27 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   return result;
 }
 
-
-template <typename T>
-T** HandleScope::CreateHandle(Isolate* isolate, T* value) {
+Object** HandleScope::CreateHandle(Isolate* isolate, Object* value) {
   DCHECK(AllowHandleAllocation::IsAllowed());
-  HandleScopeData* current = isolate->handle_scope_data();
+  HandleScopeData* data = isolate->handle_scope_data();
 
-  internal::Object** cur = current->next;
-  if (cur == current->limit) cur = Extend(isolate);
+  Object** result = data->next;
+  if (result == data->limit) result = Extend(isolate);
   // Update the current next field, set the value in the created
   // handle, and return the result.
-  DCHECK(cur < current->limit);
-  current->next = cur + 1;
+  DCHECK(result < data->limit);
+  data->next = result + 1;
 
-  T** result = reinterpret_cast<T**>(cur);
   *result = value;
   return result;
+}
+
+
+Object** HandleScope::GetHandle(Isolate* isolate, Object* value) {
+  DCHECK(AllowHandleAllocation::IsAllowed());
+  HandleScopeData* data = isolate->handle_scope_data();
+  CanonicalHandleScope* canonical = data->canonical_scope;
+  return canonical ? canonical->Lookup(value) : CreateHandle(isolate, value);
 }
 
 
@@ -159,10 +126,10 @@ inline SealHandleScope::SealHandleScope(Isolate* isolate) : isolate_(isolate) {
   HandleScopeData* current = isolate_->handle_scope_data();
   // Shrink the current handle scope to make it impossible to do
   // handle allocations without an explicit handle scope.
-  limit_ = current->limit;
+  prev_limit_ = current->limit;
   current->limit = current->next;
-  level_ = current->level;
-  current->level = 0;
+  prev_sealed_level_ = current->sealed_level;
+  current->sealed_level = current->level;
 }
 
 
@@ -170,14 +137,15 @@ inline SealHandleScope::~SealHandleScope() {
   // Restore state in current handle scope to re-enable handle
   // allocations.
   HandleScopeData* current = isolate_->handle_scope_data();
-  DCHECK_EQ(0, current->level);
-  current->level = level_;
   DCHECK_EQ(current->next, current->limit);
-  current->limit = limit_;
+  current->limit = prev_limit_;
+  DCHECK_EQ(current->level, current->sealed_level);
+  current->sealed_level = prev_sealed_level_;
 }
 
 #endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HANDLES_INL_H_

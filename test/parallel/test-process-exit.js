@@ -19,15 +19,16 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
 // calling .exit() from within "exit" should not overflow the call stack
-var nexits = 0;
+let nexits = 0;
 
 process.on('exit', function(code) {
-  assert.equal(nexits++, 0);
-  assert.equal(code, 0);
+  assert.strictEqual(nexits++, 0);
+  assert.strictEqual(code, 0);
   process.exit();
 });
 

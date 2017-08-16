@@ -29,6 +29,7 @@
 # if defined(__APPLE__) ||                                                    \
      defined(__DragonFly__) ||                                                \
      defined(__FreeBSD__) ||                                                  \
+     defined(__FreeBSD_kernel__) ||                                           \
      defined(__OpenBSD__) ||                                                  \
      defined(__NetBSD__)
 #  define HAVE_KQUEUE 1

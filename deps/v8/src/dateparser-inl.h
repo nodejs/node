@@ -5,15 +5,16 @@
 #ifndef V8_DATEPARSER_INL_H_
 #define V8_DATEPARSER_INL_H_
 
+#include "src/char-predicates-inl.h"
 #include "src/dateparser.h"
+#include "src/unicode-cache-inl.h"
 
 namespace v8 {
 namespace internal {
 
 template <typename Char>
-bool DateParser::Parse(Vector<Char> str,
-                       FixedArray* out,
-                       UnicodeCache* unicode_cache) {
+bool DateParser::Parse(Isolate* isolate, Vector<Char> str, FixedArray* out) {
+  UnicodeCache* unicode_cache = isolate->unicode_cache();
   DCHECK(out->length() >= OUTPUT_SIZE);
   InputReader<Char> in(unicode_cache, str);
   DateStringTokenizer<Char> scanner(&in);
@@ -74,10 +75,12 @@ bool DateParser::Parse(Vector<Char> str,
   if (next_unhandled_token.IsInvalid()) return false;
   bool has_read_number = !day.IsEmpty();
   // If there's anything left, continue with the legacy parser.
+  bool legacy_parser = false;
   for (DateToken token = next_unhandled_token;
        !token.IsEndOfInput();
        token = scanner.Next()) {
     if (token.IsNumber()) {
+      legacy_parser = true;
       has_read_number = true;
       int n = token.number();
       if (scanner.SkipSymbol(':')) {
@@ -113,6 +116,7 @@ bool DateParser::Parse(Vector<Char> str,
         scanner.SkipSymbol('-');
       }
     } else if (token.IsKeyword()) {
+      legacy_parser = true;
       // Parse a "word" (sequence of chars. >= 'A').
       KeywordType type = token.keyword_type();
       int value = token.keyword_value();
@@ -131,21 +135,34 @@ bool DateParser::Parse(Vector<Char> str,
         if (scanner.Peek().IsNumber()) return false;
       }
     } else if (token.IsAsciiSign() && (tz.IsUTC() || !time.IsEmpty())) {
+      legacy_parser = true;
       // Parse UTC offset (only after UTC or time).
       tz.SetSign(token.ascii_sign());
       // The following number may be empty.
       int n = 0;
+      int length = 0;
       if (scanner.Peek().IsNumber()) {
-        n = scanner.Next().number();
+        DateToken token = scanner.Next();
+        length = token.length();
+        n = token.number();
       }
       has_read_number = true;
 
       if (scanner.Peek().IsSymbol(':')) {
         tz.SetAbsoluteHour(n);
+        // TODO(littledan): Use minutes as part of timezone?
         tz.SetAbsoluteMinute(kNone);
-      } else {
+      } else if (length == 2 || length == 1) {
+        // Handle time zones like GMT-8
+        tz.SetAbsoluteHour(n);
+        tz.SetAbsoluteMinute(0);
+      } else if (length == 4 || length == 3) {
+        // Looks like the hhmm format
         tz.SetAbsoluteHour(n / 100);
         tz.SetAbsoluteMinute(n % 100);
+      } else {
+        // No need to accept time zones like GMT-12345
+        return false;
       }
     } else if ((token.IsAsciiSign() || token.IsSymbol(')')) &&
                has_read_number) {
@@ -156,7 +173,13 @@ bool DateParser::Parse(Vector<Char> str,
     }
   }
 
-  return day.Write(out) && time.Write(out) && tz.Write(out);
+  bool success = day.Write(out) && time.Write(out) && tz.Write(out);
+
+  if (legacy_parser && success) {
+    isolate->CountUsage(v8::Isolate::kLegacyDateParser);
+  }
+
+  return success;
 }
 
 
@@ -195,10 +218,31 @@ DateParser::DateToken DateParser::DateStringTokenizer<CharType>::Scan() {
 
 
 template <typename Char>
+bool DateParser::InputReader<Char>::SkipWhiteSpace() {
+  if (unicode_cache_->IsWhiteSpaceOrLineTerminator(ch_)) {
+    Next();
+    return true;
+  }
+  return false;
+}
+
+
+template <typename Char>
+bool DateParser::InputReader<Char>::SkipParentheses() {
+  if (ch_ != '(') return false;
+  int balance = 0;
+  do {
+    if (ch_ == ')') --balance;
+    else if (ch_ == '(') ++balance;
+    Next();
+  } while (balance > 0 && ch_);
+  return true;
+}
+
+
+template <typename Char>
 DateParser::DateToken DateParser::ParseES5DateTime(
-    DateStringTokenizer<Char>* scanner,
-    DayComposer* day,
-    TimeComposer* time,
+    DateStringTokenizer<Char>* scanner, DayComposer* day, TimeComposer* time,
     TimeZoneComposer* tz) {
   DCHECK(day->IsEmpty());
   DCHECK(time->IsEmpty());
@@ -299,13 +343,19 @@ DateParser::DateToken DateParser::ParseES5DateTime(
     }
     if (!scanner->Peek().IsEndOfInput()) return DateToken::Invalid();
   }
-  // Successfully parsed ES5 Date Time String. Default to UTC if no TZ given.
-  if (tz->IsEmpty()) tz->Set(0);
+  // Successfully parsed ES5 Date Time String.
+  // ES#sec-date-time-string-format Date Time String Format
+  // "When the time zone offset is absent, date-only forms are interpreted
+  //  as a UTC time and date-time forms are interpreted as a local time."
+  if (tz->IsEmpty() && time->IsEmpty()) {
+    tz->Set(0);
+  }
   day->set_iso_date();
   return DateToken::EndOfInput();
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_DATEPARSER_INL_H_

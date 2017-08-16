@@ -25,7 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
+// Flags: --allow-natives-syntax --expose-gc --ignition-osr --no-always-opt
+// Flags: --opt
 
 // IC and Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.
@@ -188,9 +189,7 @@ assertEquals(foo, array[2]);
 
 (function literals_after_osr() {
   var color = [0];
-  // Trigger OSR, if optimization is not disabled.
-  if (%GetOptimizationStatus(literals_after_osr) != 4) {
-    while (%GetOptimizationCount(literals_after_osr) == 0) {}
-  }
+  // Trigger OSR.
+  while (%GetOptimizationCount(literals_after_osr) == 0) {}
   return [color[0]];
 })();

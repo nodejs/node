@@ -1,0 +1,74 @@
+{
+  "_from": "lodash.union@~4.6.0",
+  "_id": "lodash.union@4.6.0",
+  "_integrity": "sha1-SLtQiECfFvGCFmZkHETdGqrjzYg=",
+  "_location": "/lodash.union",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "lodash.union@~4.6.0",
+    "name": "lodash.union",
+    "escapedName": "lodash.union",
+    "rawSpec": "~4.6.0",
+    "saveSpec": null,
+    "fetchSpec": "~4.6.0"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/lodash.union/-/lodash.union-4.6.0.tgz",
+  "_shasum": "48bb5088409f16f1821666641c44dd1aaae3cd88",
+  "_shrinkwrap": null,
+  "_spec": "lodash.union@~4.6.0",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "John-David Dalton",
+    "email": "john.david.dalton@gmail.com",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "John-David Dalton",
+      "email": "john.david.dalton@gmail.com",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "name": "Blaine Bublitz",
+      "email": "blaine.bublitz@gmail.com",
+      "url": "https://github.com/phated"
+    },
+    {
+      "name": "Mathias Bynens",
+      "email": "mathias@qiwi.be",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "dependencies": {},
+  "deprecated": false,
+  "description": "The lodash method `_.union` exported as a module.",
+  "devDependencies": {},
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "keywords": [
+    "lodash-modularized",
+    "union"
+  ],
+  "license": "MIT",
+  "name": "lodash.union",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "4.6.0"
+}

@@ -115,6 +115,11 @@ def WriteXmlIfChanged(content, path, encoding='utf-8', pretty=False,
   xml_string = XmlToString(content, encoding, pretty)
   if win32 and os.linesep != '\r\n':
     xml_string = xml_string.replace('\n', '\r\n')
+    
+  try:
+    xml_string = xml_string.encode(encoding)
+  except Exception:
+    xml_string = unicode(xml_string, 'latin-1').encode(encoding)
 
   # Get the old content
   try:

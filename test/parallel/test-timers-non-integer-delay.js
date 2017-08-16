@@ -19,6 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+const common = require('../common');
+
 /*
  * This test makes sure that non-integer timer delays do not make the process
  * hang. See https://github.com/joyent/node/issues/8065 and
@@ -35,16 +38,12 @@
  * it 100%.
  */
 
-var assert = require('assert');
+const TIMEOUT_DELAY = 1.1;
+let N = 50;
 
-var TIMEOUT_DELAY = 1.1;
-var NB_TIMEOUTS_FIRED = 50;
-
-var nbTimeoutFired = 0;
-var interval = setInterval(function() {
-  ++nbTimeoutFired;
-  if (nbTimeoutFired === NB_TIMEOUTS_FIRED) {
+const interval = setInterval(common.mustCall(() => {
+  if (--N === 0) {
     clearInterval(interval);
     process.exit(0);
   }
-}, TIMEOUT_DELAY);
+}, N), TIMEOUT_DELAY);

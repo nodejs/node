@@ -19,13 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var d = require('./d');
+const d = require('./d');
 
-var assert = require('assert');
+const assert = require('assert');
 
-var package = require('./package');
+const package = require('./package');
 
-assert.equal('world', package.hello);
+assert.strictEqual('world', package.hello);
 
 console.error('load fixtures/b/c.js');
 

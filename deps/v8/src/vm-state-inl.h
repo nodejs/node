@@ -8,6 +8,7 @@
 #include "src/vm-state.h"
 #include "src/log.h"
 #include "src/simulator.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -54,7 +55,6 @@ VMState<Tag>::~VMState() {
   isolate_->set_current_vm_state(previous_tag_);
 }
 
-
 ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
     : isolate_(isolate),
       callback_(callback),
@@ -63,10 +63,14 @@ ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
   scope_address_ = Simulator::current(isolate)->get_sp();
 #endif
   isolate_->set_external_callback_scope(this);
+  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
+                     "V8.ExternalCallback");
 }
 
 ExternalCallbackScope::~ExternalCallbackScope() {
   isolate_->set_external_callback_scope(previous_scope_);
+  TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
+                   "V8.ExternalCallback");
 }
 
 Address ExternalCallbackScope::scope_address() {
@@ -78,6 +82,7 @@ Address ExternalCallbackScope::scope_address() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_VM_STATE_INL_H_

@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <cmath>
 #include "src/globals.h"       // Required for V8_INFINITY
+#include "src/unicode-cache-inl.h"
 
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.
@@ -18,7 +19,7 @@
 #include "src/base/platform/platform.h"
 #include "src/conversions.h"
 #include "src/double.h"
-#include "src/scanner.h"
+#include "src/objects-inl.h"
 #include "src/strtod.h"
 
 namespace v8 {
@@ -56,7 +57,7 @@ inline unsigned int FastD2UI(double x) {
 #ifndef V8_TARGET_BIG_ENDIAN
     Address mantissa_ptr = reinterpret_cast<Address>(&x);
 #else
-    Address mantissa_ptr = reinterpret_cast<Address>(&x) + kIntSize;
+    Address mantissa_ptr = reinterpret_cast<Address>(&x) + kInt32Size;
 #endif
     // Copy least significant 32 bits of mantissa.
     memcpy(&result, mantissa_ptr, sizeof(result));
@@ -68,7 +69,7 @@ inline unsigned int FastD2UI(double x) {
 
 
 inline float DoubleToFloat32(double x) {
-  // TODO(yanggou): This static_cast is implementation-defined behaviour in C++,
+  // TODO(yangguo): This static_cast is implementation-defined behaviour in C++,
   // so we may need to do the conversion manually instead to match the spec.
   volatile float f = static_cast<float>(x);
   return f;
@@ -94,6 +95,132 @@ int32_t DoubleToInt32(double x) {
     if (exponent > 31) return 0;
     return d.Sign() * static_cast<int32_t>(d.Significand() << exponent);
   }
+}
+
+bool DoubleToSmiInteger(double value, int* smi_int_value) {
+  if (IsMinusZero(value)) return false;
+  int i = FastD2IChecked(value);
+  if (value != i || !Smi::IsValid(i)) return false;
+  *smi_int_value = i;
+  return true;
+}
+
+bool IsSmiDouble(double value) {
+  return !IsMinusZero(value) && value >= Smi::kMinValue &&
+         value <= Smi::kMaxValue && value == FastI2D(FastD2I(value));
+}
+
+
+bool IsInt32Double(double value) {
+  return !IsMinusZero(value) && value >= kMinInt && value <= kMaxInt &&
+         value == FastI2D(FastD2I(value));
+}
+
+
+bool IsUint32Double(double value) {
+  return !IsMinusZero(value) && value >= 0 && value <= kMaxUInt32 &&
+         value == FastUI2D(FastD2UI(value));
+}
+
+bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
+  const double k2Pow52 = 4503599627370496.0;
+  const uint32_t kValidTopBits = 0x43300000;
+  const uint64_t kBottomBitMask = V8_2PART_UINT64_C(0x00000000, FFFFFFFF);
+
+  // Add 2^52 to the double, to place valid uint32 values in the low-significant
+  // bits of the exponent, by effectively setting the (implicit) top bit of the
+  // significand. Note that this addition also normalises 0.0 and -0.0.
+  double shifted_value = value + k2Pow52;
+
+  // At this point, a valid uint32 valued double will be represented as:
+  //
+  // sign = 0
+  // exponent = 52
+  // significand = 1. 00...00 <value>
+  //       implicit^          ^^^^^^^ 32 bits
+  //                  ^^^^^^^^^^^^^^^ 52 bits
+  //
+  // Therefore, we can first check the top 32 bits to make sure that the sign,
+  // exponent and remaining significand bits are valid, and only then check the
+  // value in the bottom 32 bits.
+
+  uint64_t result = bit_cast<uint64_t>(shifted_value);
+  if ((result >> 32) == kValidTopBits) {
+    *uint32_value = result & kBottomBitMask;
+    return FastUI2D(result & kBottomBitMask) == value;
+  }
+  return false;
+}
+
+int32_t NumberToInt32(Object* number) {
+  if (number->IsSmi()) return Smi::cast(number)->value();
+  return DoubleToInt32(number->Number());
+}
+
+uint32_t NumberToUint32(Object* number) {
+  if (number->IsSmi()) return Smi::cast(number)->value();
+  return DoubleToUint32(number->Number());
+}
+
+uint32_t PositiveNumberToUint32(Object* number) {
+  if (number->IsSmi()) {
+    int value = Smi::cast(number)->value();
+    if (value <= 0) return 0;
+    return value;
+  }
+  DCHECK(number->IsHeapNumber());
+  double value = number->Number();
+  // Catch all values smaller than 1 and use the double-negation trick for NANs.
+  if (!(value >= 1)) return 0;
+  uint32_t max = std::numeric_limits<uint32_t>::max();
+  if (value < max) return static_cast<uint32_t>(value);
+  return max;
+}
+
+int64_t NumberToInt64(Object* number) {
+  if (number->IsSmi()) return Smi::cast(number)->value();
+  return static_cast<int64_t>(number->Number());
+}
+
+bool TryNumberToSize(Object* number, size_t* result) {
+  // Do not create handles in this function! Don't use SealHandleScope because
+  // the function can be used concurrently.
+  if (number->IsSmi()) {
+    int value = Smi::cast(number)->value();
+    DCHECK(static_cast<unsigned>(Smi::kMaxValue) <=
+           std::numeric_limits<size_t>::max());
+    if (value >= 0) {
+      *result = static_cast<size_t>(value);
+      return true;
+    }
+    return false;
+  } else {
+    DCHECK(number->IsHeapNumber());
+    double value = HeapNumber::cast(number)->value();
+    // If value is compared directly to the limit, the limit will be
+    // casted to a double and could end up as limit + 1,
+    // because a double might not have enough mantissa bits for it.
+    // So we might as well cast the limit first, and use < instead of <=.
+    double maxSize = static_cast<double>(std::numeric_limits<size_t>::max());
+    if (value >= 0 && value < maxSize) {
+      *result = static_cast<size_t>(value);
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+
+size_t NumberToSize(Object* number) {
+  size_t result = 0;
+  bool is_valid = TryNumberToSize(number, &result);
+  CHECK(is_valid);
+  return result;
+}
+
+
+uint32_t DoubleToUint32(double x) {
+  return static_cast<uint32_t>(DoubleToInt32(x));
 }
 
 
@@ -226,7 +353,7 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
   return std::ldexp(static_cast<double>(negative ? -number : number), exponent);
 }
 
-
+// ES6 18.2.5 parseInt(string, radix)
 template <class Iterator, class EndMark>
 double InternalStringToInt(UnicodeCache* unicode_cache,
                            Iterator current,
@@ -689,6 +816,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
   return (sign == NEGATIVE) ? -converted : converted;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CONVERSIONS_INL_H_

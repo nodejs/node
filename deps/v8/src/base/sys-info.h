@@ -6,12 +6,14 @@
 #define V8_BASE_SYS_INFO_H_
 
 #include <stdint.h>
+
+#include "src/base/base-export.h"
 #include "src/base/compiler-specific.h"
 
 namespace v8 {
 namespace base {
 
-class SysInfo FINAL {
+class V8_BASE_EXPORT SysInfo final {
  public:
   // Returns the number of logical processors/core on the current machine.
   static int NumberOfProcessors();

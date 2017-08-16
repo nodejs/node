@@ -14,7 +14,7 @@
 # the time being... Except that it has three code paths: pure integer
 # code suitable for any x86 CPU, MMX code suitable for PIII and later
 # and PCLMULQDQ suitable for Westmere and later. Improvement varies
-# from one benchmark and µ-arch to another. Below are interval values
+# from one benchmark and Âµ-arch to another. Below are interval values
 # for 163- and 571-bit ECDH benchmarks relative to compiler-generated
 # code:
 #
@@ -226,22 +226,22 @@ if ($sse2) {
 	&push	("edi");
 	&mov	($a,&wparam(1));
 	&mov	($b,&wparam(3));
-	&call	("_mul_1x1_mmx");	# a1·b1
+	&call	("_mul_1x1_mmx");	# a1Â·b1
 	&movq	("mm7",$R);
 
 	&mov	($a,&wparam(2));
 	&mov	($b,&wparam(4));
-	&call	("_mul_1x1_mmx");	# a0·b0
+	&call	("_mul_1x1_mmx");	# a0Â·b0
 	&movq	("mm6",$R);
 
 	&mov	($a,&wparam(1));
 	&mov	($b,&wparam(3));
 	&xor	($a,&wparam(2));
 	&xor	($b,&wparam(4));
-	&call	("_mul_1x1_mmx");	# (a0+a1)·(b0+b1)
+	&call	("_mul_1x1_mmx");	# (a0+a1)Â·(b0+b1)
 	&pxor	($R,"mm7");
 	&mov	($a,&wparam(0));
-	&pxor	($R,"mm6");		# (a0+a1)·(b0+b1)-a1·b1-a0·b0
+	&pxor	($R,"mm6");		# (a0+a1)Â·(b0+b1)-a1Â·b1-a0Â·b0
 
 	&movq	($A,$R);
 	&psllq	($R,32);
@@ -266,13 +266,13 @@ if ($sse2) {
 
 	&mov	($a,&wparam(1));
 	&mov	($b,&wparam(3));
-	&call	("_mul_1x1_ialu");	# a1·b1
+	&call	("_mul_1x1_ialu");	# a1Â·b1
 	&mov	(&DWP(8,"esp"),$lo);
 	&mov	(&DWP(12,"esp"),$hi);
 
 	&mov	($a,&wparam(2));
 	&mov	($b,&wparam(4));
-	&call	("_mul_1x1_ialu");	# a0·b0
+	&call	("_mul_1x1_ialu");	# a0Â·b0
 	&mov	(&DWP(0,"esp"),$lo);
 	&mov	(&DWP(4,"esp"),$hi);
 
@@ -280,7 +280,7 @@ if ($sse2) {
 	&mov	($b,&wparam(3));
 	&xor	($a,&wparam(2));
 	&xor	($b,&wparam(4));
-	&call	("_mul_1x1_ialu");	# (a0+a1)·(b0+b1)
+	&call	("_mul_1x1_ialu");	# (a0+a1)Â·(b0+b1)
 
 	&mov	("ebp",&wparam(0));
 		 @r=("ebx","ecx","edi","esi");

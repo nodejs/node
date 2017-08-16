@@ -33,10 +33,8 @@ namespace node {
 
 using v8::Array;
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -45,15 +43,19 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+namespace {
+
 class ProcessWrap : public HandleWrap {
  public:
-  static void Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context) {
+  static void Initialize(Local<Object> target,
+                         Local<Value> unused,
+                         Local<Context> context) {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"));
+
+    env->SetProtoMethod(constructor, "getAsyncId", AsyncWrap::GetAsyncId);
 
     env->SetProtoMethod(constructor, "close", HandleWrap::Close);
 
@@ -62,10 +64,13 @@ class ProcessWrap : public HandleWrap {
 
     env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
     env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
+    env->SetProtoMethod(constructor, "hasRef", HandleWrap::HasRef);
 
     target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"),
                 constructor->GetFunction());
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  private:
   static void New(const FunctionCallbackInfo<Value>& args) {
@@ -77,7 +82,7 @@ class ProcessWrap : public HandleWrap {
     new ProcessWrap(env, args.This());
   }
 
-  ProcessWrap(Environment* env, Handle<Object> object)
+  ProcessWrap(Environment* env, Local<Object> object)
       : HandleWrap(env,
                    object,
                    reinterpret_cast<uv_handle_t*>(&process_),
@@ -105,6 +110,7 @@ class ProcessWrap : public HandleWrap {
             UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE);
         Local<String> handle_key = env->handle_string();
         Local<Object> handle = stdio->Get(handle_key).As<Object>();
+        CHECK(!handle.IsEmpty());
         options->stdio[i].data.stream =
             reinterpret_cast<uv_stream_t*>(
                 Unwrap<PipeWrap>(handle)->UVHandle());
@@ -128,9 +134,10 @@ class ProcessWrap : public HandleWrap {
   static void Spawn(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
 
-    ProcessWrap* wrap = Unwrap<ProcessWrap>(args.Holder());
+    ProcessWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-    Local<Object> js_options = args[0]->ToObject();
+    Local<Object> js_options = args[0]->ToObject(env->isolate());
 
     uv_process_options_t options;
     memset(&options, 0, sizeof(uv_process_options_t));
@@ -139,40 +146,29 @@ class ProcessWrap : public HandleWrap {
 
     // options.uid
     Local<Value> uid_v = js_options->Get(env->uid_string());
-    if (uid_v->IsInt32()) {
-      int32_t uid = uid_v->Int32Value();
-      if (uid & ~((uv_uid_t) ~0)) {
-        return env->ThrowRangeError("options.uid is out of range");
-      }
+    if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
+      CHECK(uid_v->IsInt32());
+      const int32_t uid = uid_v->Int32Value(env->context()).FromJust();
       options.flags |= UV_PROCESS_SETUID;
-      options.uid = (uv_uid_t) uid;
-    } else if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
-      return env->ThrowTypeError("options.uid should be a number");
+      options.uid = static_cast<uv_uid_t>(uid);
     }
 
     // options.gid
     Local<Value> gid_v = js_options->Get(env->gid_string());
-    if (gid_v->IsInt32()) {
-      int32_t gid = gid_v->Int32Value();
-      if (gid & ~((uv_gid_t) ~0)) {
-        return env->ThrowRangeError("options.gid is out of range");
-      }
+    if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
+      CHECK(gid_v->IsInt32());
+      const int32_t gid = gid_v->Int32Value(env->context()).FromJust();
       options.flags |= UV_PROCESS_SETGID;
-      options.gid = (uv_gid_t) gid;
-    } else if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
-      return env->ThrowTypeError("options.gid should be a number");
+      options.gid = static_cast<uv_gid_t>(gid);
     }
 
     // TODO(bnoordhuis) is this possible to do without mallocing ?
 
     // options.file
     Local<Value> file_v = js_options->Get(env->file_string());
-    node::Utf8Value file(file_v->IsString() ? file_v : Local<Value>());
-    if (file.length() > 0) {
-      options.file = *file;
-    } else {
-      return env->ThrowTypeError("Bad argument");
-    }
+    CHECK(file_v->IsString());
+    node::Utf8Value file(env->isolate(), file_v);
+    options.file = *file;
 
     // options.args
     Local<Value> argv_v = js_options->Get(env->args_string());
@@ -182,15 +178,17 @@ class ProcessWrap : public HandleWrap {
       // Heap allocate to detect errors. +1 is for nullptr.
       options.args = new char*[argc + 1];
       for (int i = 0; i < argc; i++) {
-        node::Utf8Value arg(js_argv->Get(i));
+        node::Utf8Value arg(env->isolate(), js_argv->Get(i));
         options.args[i] = strdup(*arg);
+        CHECK_NE(options.args[i], nullptr);
       }
       options.args[argc] = nullptr;
     }
 
     // options.cwd
     Local<Value> cwd_v = js_options->Get(env->cwd_string());
-    node::Utf8Value cwd(cwd_v->IsString() ? cwd_v : Local<Value>());
+    node::Utf8Value cwd(env->isolate(),
+                        cwd_v->IsString() ? cwd_v : Local<Value>());
     if (cwd.length() > 0) {
       options.cwd = *cwd;
     }
@@ -198,12 +196,13 @@ class ProcessWrap : public HandleWrap {
     // options.env
     Local<Value> env_v = js_options->Get(env->env_pairs_string());
     if (!env_v.IsEmpty() && env_v->IsArray()) {
-      Local<Array> env = Local<Array>::Cast(env_v);
-      int envc = env->Length();
+      Local<Array> env_opt = Local<Array>::Cast(env_v);
+      int envc = env_opt->Length();
       options.env = new char*[envc + 1];  // Heap allocated to detect errors.
       for (int i = 0; i < envc; i++) {
-        node::Utf8Value pair(env->Get(i));
+        node::Utf8Value pair(env->isolate(), env_opt->Get(i));
         options.env[i] = strdup(*pair);
+        CHECK_NE(options.env[i], nullptr);
       }
       options.env[envc] = nullptr;
     }
@@ -248,7 +247,8 @@ class ProcessWrap : public HandleWrap {
   }
 
   static void Kill(const FunctionCallbackInfo<Value>& args) {
-    ProcessWrap* wrap = Unwrap<ProcessWrap>(args.Holder());
+    ProcessWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
     int signal = args[0]->Int32Value();
     int err = uv_process_kill(&wrap->process_, signal);
     args.GetReturnValue().Set(err);
@@ -270,13 +270,14 @@ class ProcessWrap : public HandleWrap {
       OneByteString(env->isolate(), signo_string(term_signal))
     };
 
-    wrap->MakeCallback(env->onexit_string(), ARRAY_SIZE(argv), argv);
+    wrap->MakeCallback(env->onexit_string(), arraysize(argv), argv);
   }
 
   uv_process_t process_;
 };
 
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(process_wrap, node::ProcessWrap::Initialize)

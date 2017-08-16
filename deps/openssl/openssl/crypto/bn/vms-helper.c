@@ -7,7 +7,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -60,9 +60,9 @@
 bn_div_words_abort(int i)
 {
 #ifdef BN_DEBUG
-#if !defined(OPENSSL_NO_STDIO) && !defined(OPENSSL_SYS_WIN16)
-	fprintf(stderr,"Division would overflow (%d)\n",i);
-#endif
-	abort();
+# if !defined(OPENSSL_NO_STDIO) && !defined(OPENSSL_SYS_WIN16)
+    fprintf(stderr, "Division would overflow (%d)\n", i);
+# endif
+    abort();
 #endif
 }

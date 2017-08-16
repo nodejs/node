@@ -19,15 +19,16 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common'),
-    assert = require('assert'),
-    repl = require('repl');
+'use strict';
+require('../common');
+const assert = require('assert');
+const repl = require('repl');
 
 // https://github.com/joyent/node/issues/3226
 
 require.cache.something = 1;
-assert.equal(require.cache.something, 1);
+assert.strictEqual(require.cache.something, 1);
 
 repl.start({ useGlobal: false }).close();
 
-assert.equal(require.cache.something, 1);
+assert.strictEqual(require.cache.something, 1);

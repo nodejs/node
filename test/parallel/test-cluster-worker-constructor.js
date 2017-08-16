@@ -19,31 +19,31 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
+'use strict';
 // test-cluster-worker-constructor.js
 // validates correct behavior of the cluster.Worker constructor
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var worker;
+require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+let worker;
 
 worker = new cluster.Worker();
-assert.equal(worker.suicide, undefined);
-assert.equal(worker.state, 'none');
-assert.equal(worker.id, 0);
-assert.equal(worker.process, undefined);
+assert.strictEqual(worker.exitedAfterDisconnect, undefined);
+assert.strictEqual(worker.state, 'none');
+assert.strictEqual(worker.id, 0);
+assert.strictEqual(worker.process, undefined);
 
 worker = new cluster.Worker({
   id: 3,
   state: 'online',
   process: process
 });
-assert.equal(worker.suicide, undefined);
-assert.equal(worker.state, 'online');
-assert.equal(worker.id, 3);
-assert.equal(worker.process, process);
+assert.strictEqual(worker.exitedAfterDisconnect, undefined);
+assert.strictEqual(worker.state, 'online');
+assert.strictEqual(worker.id, 3);
+assert.strictEqual(worker.process, process);
 
-worker = cluster.Worker.call({}, {id: 5});
+worker = cluster.Worker.call({}, { id: 5 });
 assert(worker instanceof cluster.Worker);
-assert.equal(worker.id, 5);
+assert.strictEqual(worker.id, 5);

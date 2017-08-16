@@ -86,7 +86,10 @@ ares_parse_soa_reply(const unsigned char *abuf, int alen,
   /* allocate result struct */
   soa = ares_malloc_data(ARES_DATATYPE_SOA_REPLY);
   if (!soa)
-    return ARES_ENOMEM;
+    {
+      status = ARES_ENOMEM;
+      goto failed_stat;
+    }
 
   /* nsname */
   status = ares__expand_name_for_response(aptr, abuf, alen, &soa->nsname, &len);
@@ -109,8 +112,8 @@ ares_parse_soa_reply(const unsigned char *abuf, int alen,
   soa->expire = DNS__32BIT(aptr + 3 * 4);
   soa->minttl = DNS__32BIT(aptr + 4 * 4);
 
-  free(qname);
-  free(rr_name);
+  ares_free(qname);
+  ares_free(rr_name);
 
   *soa_out = soa;
 
@@ -122,9 +125,9 @@ failed:
 failed_stat:
   ares_free_data(soa);
   if (qname)
-    free(qname);
+    ares_free(qname);
   if (rr_name)
-    free(rr_name);
+    ares_free(rr_name);
   return status;
 }
 

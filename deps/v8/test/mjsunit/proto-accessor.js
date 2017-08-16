@@ -29,6 +29,24 @@
 this.Symbol = typeof Symbol != 'undefined' ? Symbol : String;
 
 
+function TestSetProtoValueCyclic() {
+  var objects = [
+    Object.prototype, {},
+    Array.prototype, [],
+    Error.prototype, new TypeError,
+    // etc ...
+  ];
+  for (var i = 0; i < objects.length; i += 2) {
+    var object = objects[i];
+    var value = objects[i + 1];
+    assertThrows(function() {
+      object.__proto__ = value;
+    }, TypeError);
+  }
+};
+TestSetProtoValueCyclic();
+
+
 var desc = Object.getOwnPropertyDescriptor(Object.prototype, "__proto__");
 var getProto = desc.get;
 var setProto = desc.set;

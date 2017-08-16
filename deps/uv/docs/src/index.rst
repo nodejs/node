@@ -1,6 +1,6 @@
 
-Welcome to the libuv API documentation
-======================================
+Welcome to the libuv documentation
+==================================
 
 Overview
 --------
@@ -37,6 +37,18 @@ Features
 * Threading and synchronization primitives
 
 
+Documentation
+-------------
+
+.. toctree::
+   :maxdepth: 1
+
+   design
+   api
+   guide
+   upgrading
+
+
 Downloads
 ---------
 
@@ -46,49 +58,5 @@ libuv can be downloaded from `here <http://dist.libuv.org/dist/>`_.
 Installation
 ------------
 
-Installation instructions can be found on `the README <https://github.com/libuv/libuv/blob/master/README.md>`_.
+Installation instructions can be found in `the README <https://github.com/libuv/libuv/blob/master/README.md>`_.
 
-
-Upgrading
----------
-
-Migration guides for different libuv versions, starting with 1.0.
-
-.. toctree::
-   :maxdepth: 1
-
-   migration_010_100
-
-
-Documentation
--------------
-
-.. toctree::
-   :maxdepth: 1
-
-   design
-   errors
-   loop
-   handle
-   request
-   timer
-   prepare
-   check
-   idle
-   async
-   poll
-   signal
-   process
-   stream
-   tcp
-   pipe
-   tty
-   udp
-   fs_event
-   fs_poll
-   fs
-   threadpool
-   dns
-   dll
-   threading
-   misc

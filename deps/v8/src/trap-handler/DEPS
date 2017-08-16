@@ -1,0 +1,17 @@
+# In order to make it easier to audit the signal handler code, we use very
+# restrictive include rules to limit the amount of code that the signal handler
+# can depend on.
+
+include_rules = [
+  "-src",
+  "-include",
+  "+src/trap-handler",
+]
+
+specific_include_rules = {
+  "trap-handler.h": [
+    "+src/base/build_config.h",
+    "+src/globals.h",
+    "+src/flags.h",
+  ]
+}

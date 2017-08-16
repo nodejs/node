@@ -19,25 +19,20 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
 
-var Readable = require('_stream_readable');
-var EE = require('events').EventEmitter;
+const Readable = require('_stream_readable');
+const EE = require('events').EventEmitter;
 
-var oldStream = new EE();
-oldStream.pause = function(){};
-oldStream.resume = function(){};
+const oldStream = new EE();
+oldStream.pause = () => {};
+oldStream.resume = () => {};
 
-var newStream = new Readable().wrap(oldStream);
+const newStream = new Readable().wrap(oldStream);
 
-var ended = false;
 newStream
-  .on('readable', function(){})
-  .on('end', function(){ ended = true; });
+  .on('readable', () => {})
+  .on('end', common.mustCall());
 
 oldStream.emit('end');
-
-process.on('exit', function(){
-  assert.ok(ended);
-});

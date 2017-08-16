@@ -44,3 +44,7 @@ invalidValues.forEach(function(value) {
   assertTrue(error !== undefined);
   assertEquals('RangeError', error.name);
 });
+
+// https://code.google.com/p/chromium/issues/detail?id=537382
+
+assertEquals('11/11/1500', dtf.format(new Date(1500,10,11,12,0,0)));

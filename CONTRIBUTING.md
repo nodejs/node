@@ -1,482 +1,345 @@
-# CONTRIBUTING
+# Contributing to Node.js
 
-## ISSUE CONTRIBUTIONS
+## Code of Conduct
 
-When opening new issues or commenting on existing issues on this repository
-please make sure discussions are related to concrete technical issues with the
-`iojs` software.
+Please read the
+[Code of Conduct](https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md)
+which explains the minimum behavior expectations for Node.js contributors.
 
-Discussion of non-technical topics including subjects like intellectual
-property, trademark and high level project questions should move to the
-[node-forward discussion repository][] instead.
+## Issue Contributions
 
-## CODE CONTRIBUTIONS
+When opening issues or commenting on existing issues, please make sure
+discussions are related to concrete technical issues with Node.js.
 
-The io.js project welcomes new contributors.  This document will guide you
-through the process.
+* For general help using Node.js, please file an issue at the
+[Node.js help repository](https://github.com/nodejs/help/issues).
 
+* Discussion of non-technical topics (such as intellectual property and
+trademark) should use the
+[Technical Steering Committee (TSC) repository](https://github.com/nodejs/TSC/issues).
 
-### FORK
+## Code Contributions
 
-Fork the project [on GitHub](https://github.com/iojs/io.js) and check out
-your copy.
+This section will guide you through the contribution process.
 
-```sh
-$ git clone git@github.com:username/io.js.git
-$ cd io.js
-$ git remote add upstream git://github.com/iojs/io.js.git
+### Step 1: Fork
+
+Fork the project [on GitHub](https://github.com/nodejs/node) and clone your fork
+locally.
+
+```text
+$ git clone git@github.com:username/node.git
+$ cd node
+$ git remote add upstream https://github.com/nodejs/node.git
 ```
 
-Now decide if you want your feature or bug fix to go into the master branch
-or the stable branch.  As a rule of thumb, bug fixes go into the stable branch
-while new features go into the master branch.
+#### Which branch?
 
-The stable branch is effectively frozen; patches that change the io.js
-API/ABI or affect the run-time behavior of applications get rejected.
+For developing new features and bug fixes, the `master` branch should be pulled
+and built upon.
 
-The rules for the master branch are less strict; consult the
-[stability index page][] for details.
+#### Dependencies
 
-In a nutshell, modules are at varying levels of API stability.  Bug fixes are
-always welcome but API or behavioral  changes to modules at stability level 3
-and up are off-limits.
+Node.js has several bundled dependencies in the *deps/* and the *tools/*
+directories that are not part of the project proper. Changes to files in those
+directories should be sent to their respective projects. Do not send a patch to
+Node.js. We cannot accept such patches.
 
-io.js has several bundled dependencies in the deps/ and the tools/
-directories that are not part of the project proper.  Any changes to files
-in those directories or its subdirectories should be sent to their respective
-projects.  Do not send your patch to us, we cannot accept it.
+In case of doubt, open an issue in the
+[issue tracker](https://github.com/nodejs/node/issues/) or contact one of the
+[project Collaborators](https://github.com/nodejs/node/#current-project-team-members).
+Node.js has two IRC channels:
+[#Node.js](http://webchat.freenode.net/?channels=node.js) for general help and
+questions, and
+[#Node-dev](http://webchat.freenode.net/?channels=node-dev) for development of
+Node.js core specifically.
 
-In case of doubt, open an issue in the [issue tracker][], post your question
-to the [node.js mailing list][] or contact one of the [project maintainers][]
-on [IRC][].
+### Step 2: Branch
 
-Especially do so if you plan to work on something big.  Nothing is more
-frustrating than seeing your hard work go to waste because your vision
-does not align with that of a project maintainer.
+Create a branch and start hacking:
 
-
-### BRANCH
-
-Okay, so you have decided on the proper branch.  Create a feature branch
-and start hacking:
-
-```sh
-$ git checkout -b my-feature-branch -t origin/v0.12
+```text
+$ git checkout -b my-branch -t origin/master
 ```
 
-(Where v0.12 is the latest stable branch as of this writing.)
+Any text you write should follow the [Style Guide](doc/STYLE_GUIDE.md),
+including comments and API documentation.
 
-
-### COMMIT
+### Step 3: Commit
 
 Make sure git knows your name and email address:
 
-```sh
+```text
 $ git config --global user.name "J. Random User"
 $ git config --global user.email "j.random.user@example.com"
 ```
 
-Writing good commit logs is important.  A commit log should describe what
-changed and why.  Follow these guidelines when writing one:
+Add and commit:
 
-1. The first line should be 50 characters or less and contain a short
-   description of the change prefixed with the name of the changed
-   subsystem (e.g. "net: add localAddress and localPort to Socket").
+```text
+$ git add my/changed/files
+$ git commit
+```
+
+### Commit message guidelines
+
+The commit message should describe what changed and why.
+
+1. The first line should:
+   - contain a short description of the change
+   - be 50 characters or less
+   - be entirely in lowercase with the exception of proper nouns, acronyms, and
+   the words that refer to code, like function/variable names
+   - be prefixed with the name of the changed subsystem and start with an
+   imperative verb. Check the output of `git log --oneline files/you/changed` to
+   find out what subsystems your changes touch.
+
+   Examples:
+   - `net: add localAddress and localPort to Socket`
+   - `src: fix typos in node_lttng_provider.h`
+
+
 2. Keep the second line blank.
 3. Wrap all other lines at 72 columns.
 
-A good commit log looks like this:
+4. If your patch fixes an open issue, you can add a reference to it at the end
+of the log. Use the `Fixes:` prefix and the full issue URL. For other references
+use `Refs:`.
 
-```
-subsystem: explaining the commit in one line
+   Examples:
+   - `Fixes: https://github.com/nodejs/node/issues/1337`
+   - `Refs: http://eslint.org/docs/rules/space-in-parens.html`
+   - `Refs: https://github.com/nodejs/node/pull/3615`
+
+Sample complete commit message:
+
+```txt
+subsystem: explain the commit in one line
 
 Body of commit message is a few lines of text, explaining things
 in more detail, possibly giving some background about the issue
-being fixed, etc etc.
+being fixed, etc.
 
 The body of the commit message can be several paragraphs, and
 please do proper word-wrap and keep columns shorter than about
-72 characters or so. That way `git log` will show things
+72 characters or so. That way, `git log` will show things
 nicely even when it is indented.
+
+Fixes: https://github.com/nodejs/node/issues/1337
+Refs: http://eslint.org/docs/rules/space-in-parens.html
 ```
 
-The header line should be meaningful; it is what other people see when they
-run `git shortlog` or `git log --oneline`.
+### Step 4: Rebase
 
-Check the output of `git log --oneline files_that_you_changed` to find out
-what subsystem (or subsystems) your changes touch.
+Use `git rebase` (not `git merge`) to synchronize your work with the main
+repository.
 
-
-### REBASE
-
-Use `git rebase` (not `git merge`) to sync your work from time to time.
-
-```sh
+```text
 $ git fetch upstream
-$ git rebase upstream/v0.12  # or upstream/master
+$ git rebase upstream/master
 ```
 
+### Step 5: Test
 
-### TEST
+Bug fixes and features should come with tests. Read the
+[guide for writing tests in Node.js](./doc/guides/writing-tests.md). Looking at
+other tests to see how they should be structured can also help. Add your
+tests in the `test/parallel/` directory if you are unsure where to put them.
 
-Bug fixes and features should come with tests.  Add your tests in the
-test/simple/ directory.  Look at other tests to see how they should be
-structured (license boilerplate, common includes, etc.).
+To run the tests (including code linting) on Unix / macOS:
 
-```sh
-$ make jslint test
+```text
+$ ./configure && make -j4 test
 ```
 
-Make sure the linter is happy and that all tests pass.  Please, do not submit
-patches that fail either check.
+Windows:
 
-If you are updating tests and just want to run a single test to check it, you
-can use this syntax to run it exactly as the test harness would:
-
-```
-python tools/test.py -v --mode=release simple/test-stream2-transform
+```text
+> vcbuild test
 ```
 
-You can run tests directly with node:
+(See the [BUILDING.md](./BUILDING.md) for more details.)
 
-```
-node ./test/simple/test-streams2-transform.js
-```
+Make sure the linter does not report any issues and that all tests pass. Please
+do not submit patches that fail either check.
 
+If you want to run the linter without running tests, use
+`make lint`/`vcbuild lint`. It will run both JavaScript linting and
+C++ linting.
 
-### PUSH
+If you are updating tests and just want to run a single test to check it:
 
-```sh
-$ git push origin my-feature-branch
-```
-
-Go to https://github.com/username/io.js and select your feature branch.  Click
-the 'Pull Request' button and fill out the form.
-
-Pull requests are usually reviewed within a few days.  If there are comments
-to address, apply your changes in a separate commit and push that to your
-feature branch.  Post a comment in the pull request afterwards; GitHub does
-not send out notifications when you add commits.
-
-
-[stability index page]: https://github.com/joyent/node/blob/master/doc/api/documentation.markdown
-[issue tracker]: https://github.com/joyent/node/issues
-[node.js mailing list]: http://groups.google.com/group/nodejs
-[IRC]: http://webchat.freenode.net/?channels=io.js
-[project maintainers]: https://github.com/joyent/node/wiki/Project-Organization
-[node-forward discussion repository]: https://github.com/node-forward/discussions/issues
-
-# Contribution Policy
-
-Individuals making significant and valuable contributions are given
-commit-access to the project. These individuals are identified by the
-Technical Committee (TC) and discussed during the weekly TC meeting.
-
-If you make a significant contribution and are not considered for
-commit-access log an issue and it will be brought up in the next TC
-meeting.
-
-Internal pull-requests to solicit feedback are required for any other
-non-trivial contribution but left to the discretion of the
-contributor.
-
-Pull requests may be approved by any committer with sufficient
-expertise to take full responsibility for the change, according to the
-"Landing Patches" protocol described below.
-
-## Landing Patches
-
-- All bugfixes require a test case which demonstrates the defect.  The
-  test should *fail* before the change, and *pass* after the change.
-- Trivial changes (ie, those which fix bugs or improve performance
-  without affecting API or causing other wide-reaching impact) may be
-  landed immediately after review by a committer who did not write the
-  code, provided that no other committers object to the change.
-- If you are unsure, or if you are the author, have someone else
-  review the change.
-- For significant changes wait a full 48 hours (72 hours if it spans a
-  weekend) before merging so that active contributors who are
-  distributed throughout the world have a chance to weigh in.
-- Controversial changes and **very** significant changes should not be
-  merged until they have been discussed by the TC which will make any
-  final decisions.
-- Always include the `Reviewed-by: Your Name <your-email>` in the
-  commit message.
-- In commit messages also include `Fixes:` that either includes the
-  **full url** (e.g.  `https://github.com/iojs/io.js/issues/...`),
-  and/or the hash and commit message if the commit fixes a bug in a
-  previous commit.
-- PR's should include their full `PR-URL:` so it's easy to trace a
-  commit back to the conversation that lead up to that change.
-- Double check PR's to make sure the person's **full name** and email
-  address are correct before merging.
-- Except when updating dependencies, all commits should be self
-  contained.  Meaning, every commit should pass all tests. This makes
-  it much easier when bisecting to find a breaking change.
-
-### Direct instruction
-
-(Optional) Ensure that you are not in a borked `am`/`rebase` state
-
-```sh
-git am --abort
-git rebase --abort
+```text
+$ python tools/test.py -J --mode=release parallel/test-stream2-transform
 ```
 
-Checkout proper target branch
+If you want to check the other options, please refer to the help by using
+the `--help` option
 
-```sh
-git checkout v0.12
+```text
+$ python tools/test.py --help
 ```
 
-Update the tree
+You can usually run tests directly with node:
 
-```sh
-git fetch origin
-git merge --ff-only origin/v0.12
+```text
+$ ./node ./test/parallel/test-stream2-transform.js
 ```
 
-Apply external patches
+Remember to recompile with `make -j4` in between test runs if you change code in
+the `lib` or `src` directories.
 
-```sh
-curl https://github.com/iojs/io.js/pull/xxx.patch | git am --whitespace=fix
+### Step 6: Push
+
+```text
+$ git push origin my-branch
 ```
 
-Check and re-review the changes
+Pull requests are usually reviewed within a few days.
 
-```sh
-git diff origin/v0.12
+### Step 7: Discuss and update
+
+You will probably get feedback or requests for changes to your Pull Request.
+This is a big part of the submission process so don't be discouraged!
+
+To make changes to an existing Pull Request, make the changes to your branch.
+When you push that branch to your fork, GitHub will automatically update the
+Pull Request.
+
+You can push more commits to your branch:
+
+```text
+$ git add my/changed/files
+$ git commit
+$ git push origin my-branch
 ```
 
-Check number of commits and commit messages
+Or you can rebase against master:
 
-```sh
-git log origin/v0.12...v0.12
+```text
+$ git fetch --all
+$ git rebase origin/master
+$ git push --force-with-lease origin my-branch
 ```
 
-If there are multiple commits that relate to the same feature or
-one with a feature and separate with a test for that feature -
-you'll need to squash them (or strictly speaking `fixup`).
+Or you can amend the last commit (for example if you want to change the commit
+log).
 
-```sh
-git rebase -i origin/v0.12
+```text
+$ git add any/changed/files
+$ git commit --amend
+$ git push --force-with-lease origin my-branch
 ```
 
-This will open a screen like this (in the default shell editor):
+**Important:** The `git push --force-with-lease` command is one of the few ways
+to delete history in git. Before you use it, make sure you understand the risks.
+If in doubt, you can always ask for guidance in the Pull Request or on
+[IRC in the #node-dev channel](https://webchat.freenode.net?channels=node-dev&uio=d4).
 
-```sh
-pick 6928fc1 crypto: add feature A
-pick 8120c4c add test for feature A
-pick 51759dc feature B
-pick 7d6f433 test for feature B
+Feel free to post a comment in the Pull Request to ping reviewers if you are
+awaiting an answer on something. If you encounter words or acronyms that
+seem unfamiliar, refer to this
+[glossary](https://sites.google.com/a/chromium.org/dev/glossary).
 
-# Rebase f9456a2..7d6f433 onto f9456a2
-#
-# Commands:
-#  p, pick = use commit
-#  r, reword = use commit, but edit the commit message
-#  e, edit = use commit, but stop for amending
-#  s, squash = use commit, but meld into previous commit
-#  f, fixup = like "squash", but discard this commit's log message
-#  x, exec = run command (the rest of the line) using shell
-#
-# These lines can be re-ordered; they are executed from top to bottom.
-#
-# If you remove a line here THAT COMMIT WILL BE LOST.
-#
-# However, if you remove everything, the rebase will be aborted.
-#
-# Note that empty commits are commented out
-```
+Note that multiple commits often get squashed when they are landed (see the
+notes about [commit squashing](#commit-squashing)).
 
-Replace a couple of `pick`s with `fixup` to squash them into a previous commit:
+### Step 8: Landing
 
-```sh
-pick 6928fc1 crypto: add feature A
-fixup 8120c4c add test for feature A
-pick 51759dc feature B
-fixup 7d6f433 test for feature B
-```
+In order to land, a Pull Request needs to be reviewed and
+[approved](#getting-approvals-for-your-pull-request) by
+at least one Node.js Collaborator and pass a
+[CI (Continuous Integration) test run](#ci-testing).
+After that, as long as there are no objections
+from a Collaborator, the Pull Request can be merged. If you find your
+Pull Request waiting longer than you expect, see the
+[notes about the waiting time](#waiting-until-the-pull-request-gets-landed).
 
-Replace `pick` with `reword` to change the commit message:
+When a collaborator lands your Pull Request, they will post
+a comment to the Pull Request page mentioning the commit(s) it
+landed as. GitHub often shows the Pull Request as `Closed` at this
+point, but don't worry. If you look at the branch you raised your
+Pull Request against (probably `master`), you should see a commit with
+your name on it. Congratulations and thanks for your contribution!
 
-```sh
-reword 6928fc1 crypto: add feature A
-fixup 8120c4c add test for feature A
-reword 51759dc feature B
-fixup 7d6f433 test for feature B
-```
+## Additional Notes
 
-Save the file and close the editor, you'll be asked to enter new commit message
-for that commit, and everything else should go smoothly. Note that this is a
-good moment to fix incorrect commit logs, ensure that they are properly
-formatted, and add `Reviewed-By` line.
+### Commit Squashing
 
-Time to push it:
+When the commits in your Pull Request land, they will be squashed
+into one commit per logical change. Metadata will be added to the commit
+message (including links to the Pull Request, links to relevant issues,
+and the names of the reviewers). The commit history of your Pull Request,
+however, will stay intact on the Pull Request page.
 
-```sh
-git push origin v0.12
-```
+For the size of "one logical change",
+[0b5191f](https://github.com/nodejs/node/commit/0b5191f15d0f311c804d542b67e2e922d98834f8)
+can be a good example. It touches the implementation, the documentation,
+and the tests, but is still one logical change. In general, the tests should
+always pass when each individual commit lands on the master branch.
 
-# Governance
+### Getting Approvals for Your Pull Request
 
-This repository is jointly governed by a technical committee, commonly
-referred to as the "TC."
+A Pull Request is approved either by saying LGTM, which stands for
+"Looks Good To Me", or by using GitHub's Approve button.
+GitHub's Pull Request review feature can be used during the process.
+For more information, check out
+[the video tutorial](https://www.youtube.com/watch?v=HW0RPaJqm4g)
+or [the official documentation](https://help.github.com/articles/reviewing-changes-in-pull-requests/).
 
-The TC has final authority over this project including:
+After you push new changes to your branch, you need to get
+approval for these new changes again, even if GitHub shows "Approved"
+because the reviewers have hit the buttons before.
 
-* Technical direction
-* Project governance and process (including this policy)
-* Contribution policy
-* GitHub repository hosting
-* Conduct guidelines
+### CI Testing
 
-## Membership
+Every Pull Request needs to be tested
+to make sure that it works on the platforms that Node.js
+supports. This is done by running the code through the CI system.
 
-Initial membership invitations to the TC were given to individuals who
-had been active contributors to io.js, and who have significant
-experience with the management of the io.js project.  Membership is
-expected to evolve over time according to the needs of the project.
+Only a Collaborator can start a CI run. Usually one of them will do it
+for you as approvals for the Pull Request come in.
+If not, you can ask a Collaborator to start a CI run.
 
-Current membership is:
+### Waiting Until the Pull Request Gets Landed
 
-```
-Ben Noordhuis (@bnoordhuis)
-Bert Belder (@piscisaureus)
-Fedor Indutny (@indutny)
-Isaac Z. Schlueter (@isaacs)
-Nathan Rajlich (@TooTallNate)
-TJ Fontaine (@tjfontaine)
-Trevor Norris (@trevnorris)
-```
+A Pull Request needs to stay open for at least 48 hours (72 hours on a
+weekend) from when it is submitted, even after it gets approved and
+passes the CI. This is to make sure that everyone has a chance to
+weigh in. If the changes are trivial, collaborators may decide it
+doesn't need to wait. A Pull Request may well take longer to be
+merged in. All these precautions are important because Node.js is
+widely used, so don't be discouraged!
 
-TC seats are not time-limited.  There is no fixed size of the TC.
-However, the expected target is between 6 and 12, to ensure adequate
-coverage of important areas of expertise, balanced with the ability to
-make decisions efficiently.
+### Check Out the Collaborator's Guide
 
-There is no specific set of requirements or qualifications for TC
-membership beyond these rules.
+If you want to know more about the code review and the landing process,
+you can take a look at the
+[collaborator's guide](https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md).
 
-The TC may add contributors to the TC by unanimous consensus.
+<a id="developers-certificate-of-origin"></a>
+## Developer's Certificate of Origin 1.1
 
-A TC member may be removed from the TC by voluntary resignation, or by
-unanimous consensus of all other TC members.
+By making a contribution to this project, I certify that:
 
-Changes to TC membership should be posted in the agenda, and may be
-suggested as any other agenda item (see "TC Meetings" below).
+* (a) The contribution was created in whole or in part by me and I
+  have the right to submit it under the open source license
+  indicated in the file; or
 
-If an addition or removal is proposed during a meeting, and the full
-TC is not in attendance to participate, then the addition or removal
-is added to the agenda for the subsequent meeting.  This is to ensure
-that all members are given the opportunity to participate in all
-membership decisions.  If a TC member is unable to attend a meeting
-where a planned membership decision is being made, then their consent
-is assumed.
+* (b) The contribution is based upon previous work that, to the best
+  of my knowledge, is covered under an appropriate open source
+  license and I have the right under that license to submit that
+  work with modifications, whether created in whole or in part
+  by me, under the same open source license (unless I am
+  permitted to submit under a different license), as indicated
+  in the file; or
 
-No more than 1/3 of the TC members may be affiliated with the same
-employer.  If removal or resignation of a TC member, or a change of
-employment by a TC member, creates a situation where more than 1/3 of
-the TC membership shares an employer, then the situation must be
-immediately remedied by the resignation or removal of one or more TC
-members affiliated with the over-represented employer(s).
+* (c) The contribution was provided directly to me by some other
+  person who certified (a), (b) or (c) and I have not modified
+  it.
 
-## TC Meetings
-
-The TC meets weekly on a Google hangout. The meeting is run by a
-designated moderator, currently `Mikeal Rogers (@mikeal)`. Each
-meeting should be published to Youtube.
-
-Items are added to the TC agenda which are considered contentious or
-are modifications of governance, contribution policy, TC membership,
-or release process. The intention of the agenda is not to approve or
-review all patches, that should happen continuously on GitHub (see
-"Contribution Policy").
-
-Any community member or contributor can ask that something be added to
-the next meeting's agenda by logging a GitHub Issue. Any TC member or
-the moderator can add the item to the agenda by a simple +1. The
-moderator and the TC cannot veto or remove items.
-
-Prior to each TC meeting the moderator will email the Agenda to the
-TC. TC members can add any items they like to the agenda at the
-beginning of each meeting. The moderator and the TC cannot veto or
-remove items.
-
-TC may invite persons or representatives from certain projects to
-participate in a non-voting capacity. These invitees currently are:
-
-* A representative from [build](https://github.com/node-forward/build)
-  chosen by that project.
-
-The moderator is responsible for summarizing the discussion of each
-agenda item and send it as a pull request after the meeting.
-
-## Consensus Seeking Process
-
-The TC follows a [Consensus
-Seeking](http://en.wikipedia.org/wiki/Consensus-seeking_decision-making)
-decision making model.
-
-When an agenda item has appeared to reach a consensus the moderator
-will ask "Does anyone object?" as a final call for dissent from the
-consensus.
-
-If an agenda item cannot reach a consensus a TC member can call for
-either a closing vote or a vote to table the issue to the next
-meeting. The call for a vote must be seconded by a majority of the TC
-or else the discussion will continue. Simple majority wins.
-
-Note that changes to TC membership require unanimous consensus.  See
-"Membership" above.
-
-## Caine's requirements
-
-Hello!
-
-I am pleased to see your valuable contribution to this project. Would you
-please mind answering a couple of questions to help me classify this submission
-and/or gather required information for the core team members?
-
-### Questions:
-
-* _Issue-only_ Does this issue happen in core, or in some user-space
-  module from npm or other source? Please ensure that the test case
-  that reproduces this problem is not using any external dependencies.
-  If the error is not reproducible with just core modules - it is most
-  likely not a io.js problem. _Expected: `yes`_
-* Which part of core do you think it might be related to?
-  _One of: `debugger, http, assert, buffer, child_process, cluster, crypto,
-  dgram, dns, domain, events, fs, http, https, module, net, os, path,
-  querystring, readline, repl, smalloc, stream, timers, tls, url, util, vm,
-  zlib, c++, docs, other`_ (_label_)
-* Which versions of io.js do you think are affected by this?
-  _One of: `v0.10, v0.12, v1.0.0`_ (_label_)
-* _PR-only_ Does `make test` pass after applying this Pull Request.
-  _Expected: `yes`_
-* _PR-only_ Is the commit message properly formatted? (See
-  CONTRIBUTING.md for more information)
-  _Expected: `yes`_
-
-Please provide the answers in an ordered list like this:
-
-1. Answer for the first question
-2. Answer for the second question
-3. ...
-
-Note that I am just a bot with a limited human-reply parsing abilities,
-so please be very careful with numbers and don't skip the questions!
-
-_In case of success I will say:_ `...summoning the core team devs!`.
-
-_In case of validation problem I will say:_ `Sorry, but something is not right
-here:`.
-
-Truly yours,
-Caine.
-
-### Responsibilities
-
-* indutny: crypto, tls, https, child_process, c++
-* trevnorris: buffer, http, https, smalloc
-* bnoordhuis: http, cluster, child_process, dgram
+* (d) I understand and agree that this project and the contribution
+  are public and that a record of the contribution (including all
+  personal information I submit with it, including my sign-off) is
+  maintained indefinitely and may be redistributed consistent with
+  this project or the open source license(s) involved.

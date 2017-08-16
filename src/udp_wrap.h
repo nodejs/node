@@ -22,10 +22,13 @@
 #ifndef SRC_UDP_WRAP_H_
 #define SRC_UDP_WRAP_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "async-wrap.h"
 #include "env.h"
 #include "handle_wrap.h"
-#include "req_wrap.h"
+#include "req-wrap.h"
+#include "req-wrap-inl.h"
 #include "uv.h"
 #include "v8.h"
 
@@ -33,9 +36,9 @@ namespace node {
 
 class UDPWrap: public HandleWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target,
-                         v8::Handle<v8::Value> unused,
-                         v8::Handle<v8::Context> context);
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Value> unused,
+                         v8::Local<v8::Context> context);
   static void GetFD(v8::Local<v8::String>,
                     const v8::PropertyCallbackInfo<v8::Value>&);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -45,7 +48,6 @@ class UDPWrap: public HandleWrap {
   static void Send6(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecvStart(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecvStop(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetSockName(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddMembership(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DropMembership(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMulticastTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -57,8 +59,16 @@ class UDPWrap: public HandleWrap {
   static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
   uv_udp_t* UVHandle();
 
+  size_t self_size() const override { return sizeof(*this); }
+
  private:
-  UDPWrap(Environment* env, v8::Handle<v8::Object> object, AsyncWrap* parent);
+  typedef uv_udp_t HandleType;
+
+  template <typename T,
+            int (*F)(const typename T::HandleType*, sockaddr*, int*)>
+  friend void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>&);
+
+  UDPWrap(Environment* env, v8::Local<v8::Object> object);
 
   static void DoBind(const v8::FunctionCallbackInfo<v8::Value>& args,
                      int family);
@@ -81,5 +91,7 @@ class UDPWrap: public HandleWrap {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_UDP_WRAP_H_

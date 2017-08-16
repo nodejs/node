@@ -19,17 +19,29 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert');
-var common = require('../common');
-var tls = require('tls');
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
+const assert = require('assert');
+const tls = require('tls');
+
+function Done() {}
 
 function test1() {
-  var ciphers = '';
+  let ciphers = '';
+
   tls.createSecureContext = function(options) {
-    ciphers = options.ciphers
+    ciphers = options.ciphers;
+    throw new Done();
+  };
+
+  try {
+    tls.connect(common.PORT);
+  } catch (e) {
+    assert(e instanceof Done);
   }
-  var s = tls.connect(common.PORT);
-  s.destroy();
-  assert.equal(ciphers, tls.DEFAULT_CIPHERS);
+  assert.strictEqual(ciphers, tls.DEFAULT_CIPHERS);
 }
 test1();

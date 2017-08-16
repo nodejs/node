@@ -1,5 +1,93 @@
-Notes about the icu directory.
-===
+# Notes about the icu directory.
+
+## How to upgrade ICU
+
+- Make sure your node workspace is clean (clean `git status`) should be sufficient.
+- Configure Node with the specific [ICU version](http://icu-project.org/download) you want to upgrade to, for example:
+
+```shell
+./configure \
+    --with-intl=small-icu \
+    --with-icu-source=http://download.icu-project.org/files/icu4c/58.1/icu4c-58_1-src.tgz
+make
+```
+
+(The equivalent `vcbuild.bat` commands should work also. Note that we use the `.tgz` and not the `.zip` here,
+that is because of line endings.)
+
+- (note- may need to make changes in `icu-generic.gyp` or `tools/icu/patches` for
+version specific stuff)
+
+- Verify the node build works
+
+```shell
+make test-ci
+```
+
+Also running
+
+<!-- eslint-disable strict -->
+```js
+new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(9E8));
+```
+
+…Should return `January` not `enero`.
+(TODO here: improve [testing](https://github.com/nodejs/Intl/issues/16))
+
+
+- Now, copy `deps/icu` over to `deps/icu-small`
+
+```shell
+python tools/icu/shrink-icu-src.py
+```
+
+- Now, do a clean rebuild of node to test:
+
+(TODO: fix this when these options become default)
+
+```shell
+./configure --with-intl=small-icu --with-icu-source=deps/icu-small
+make
+```
+
+- Test this newly default-generated Node.js
+
+<!-- eslint-disable strict -->
+```js
+process.versions.icu;
+new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(9E8));
+```
+
+(should return your updated ICU version number, and also `January` again.)
+
+- You are ready to check in the updated `deps/small-icu`.
+This is a big commit, so make this a separate commit from other changes.
+
+- Now, rebuild the Node license.
+
+```shell
+# clean up - remove deps/icu
+make clean
+tools/license-builder.sh
+```
+
+- Now, fix the default URL for the `full-icu` build in `/configure`, in
+the `configure_intl()` function. It should match the ICU URL used in the
+first step.  When this is done, the following should build with full ICU.
+
+```shell
+# clean up
+rm -rf out deps/icu deps/icu4c*
+./configure --with-intl=full-icu --download=all
+make
+make test-ci
+```
+
+- commit the change to `configure` along with the updated `LICENSE` file.
+
+-----
+
+## Notes about these tools
 
 The files in this directory were written for the node.js effort. It's
 the intent of their author (Steven R. Loomis / srl295) to merge them

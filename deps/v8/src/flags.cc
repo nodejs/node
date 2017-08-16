@@ -2,26 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/flags.h"
+
 #include <cctype>
 #include <cstdlib>
 #include <sstream>
 
-#include "src/v8.h"
-
+#include "src/allocation.h"
 #include "src/assembler.h"
+#include "src/base/functional.h"
 #include "src/base/platform/platform.h"
+#include "src/list-inl.h"
 #include "src/ostreams.h"
+#include "src/utils.h"
+#include "src/wasm/wasm-limits.h"
 
 namespace v8 {
 namespace internal {
 
 // Define all of our flags.
 #define FLAG_MODE_DEFINE
-#include "src/flag-definitions.h"  // NOLINT
+#include "src/flag-definitions.h"  // NOLINT(build/include)
 
 // Define all of our flags default values.
 #define FLAG_MODE_DEFINE_DEFAULTS
-#include "src/flag-definitions.h"  // NOLINT
+#include "src/flag-definitions.h"  // NOLINT(build/include)
 
 namespace {
 
@@ -29,8 +34,15 @@ namespace {
 // to the actual flag, default value, comment, etc.  This is designed to be POD
 // initialized as to avoid requiring static constructors.
 struct Flag {
-  enum FlagType { TYPE_BOOL, TYPE_MAYBE_BOOL, TYPE_INT, TYPE_FLOAT,
-                  TYPE_STRING, TYPE_ARGS };
+  enum FlagType {
+    TYPE_BOOL,
+    TYPE_MAYBE_BOOL,
+    TYPE_INT,
+    TYPE_UINT,
+    TYPE_FLOAT,
+    TYPE_STRING,
+    TYPE_ARGS
+  };
 
   FlagType type_;           // What type of flag, bool, int, or string.
   const char* name_;        // Name of the flag, ex "my_flag".
@@ -58,6 +70,11 @@ struct Flag {
   int* int_variable() const {
     DCHECK(type_ == TYPE_INT);
     return reinterpret_cast<int*>(valptr_);
+  }
+
+  unsigned int* uint_variable() const {
+    DCHECK(type_ == TYPE_UINT);
+    return reinterpret_cast<unsigned int*>(valptr_);
   }
 
   double* float_variable() const {
@@ -93,6 +110,11 @@ struct Flag {
     return *reinterpret_cast<const int*>(defptr_);
   }
 
+  unsigned int uint_default() const {
+    DCHECK(type_ == TYPE_UINT);
+    return *reinterpret_cast<const unsigned int*>(defptr_);
+  }
+
   double float_default() const {
     DCHECK(type_ == TYPE_FLOAT);
     return *reinterpret_cast<const double*>(defptr_);
@@ -117,6 +139,8 @@ struct Flag {
         return maybe_bool_variable()->has_value == false;
       case TYPE_INT:
         return *int_variable() == int_default();
+      case TYPE_UINT:
+        return *uint_variable() == uint_default();
       case TYPE_FLOAT:
         return *float_variable() == float_default();
       case TYPE_STRING: {
@@ -145,6 +169,9 @@ struct Flag {
       case TYPE_INT:
         *int_variable() = int_default();
         break;
+      case TYPE_UINT:
+        *uint_variable() = uint_default();
+        break;
       case TYPE_FLOAT:
         *float_variable() = float_default();
         break;
@@ -160,7 +187,7 @@ struct Flag {
 
 Flag flags[] = {
 #define FLAG_MODE_META
-#include "src/flag-definitions.h"
+#include "src/flag-definitions.h"  // NOLINT(build/include)
 };
 
 const size_t num_flags = sizeof(flags) / sizeof(*flags);
@@ -173,6 +200,8 @@ static const char* Type2String(Flag::FlagType type) {
     case Flag::TYPE_BOOL: return "bool";
     case Flag::TYPE_MAYBE_BOOL: return "maybe_bool";
     case Flag::TYPE_INT: return "int";
+    case Flag::TYPE_UINT:
+      return "uint";
     case Flag::TYPE_FLOAT: return "float";
     case Flag::TYPE_STRING: return "string";
     case Flag::TYPE_ARGS: return "arguments";
@@ -194,6 +223,9 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {  // NOLINT
       break;
     case Flag::TYPE_INT:
       os << *flag.int_variable();
+      break;
+    case Flag::TYPE_UINT:
+      os << *flag.uint_variable();
       break;
     case Flag::TYPE_FLOAT:
       os << *flag.float_variable();
@@ -393,8 +425,26 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           *flag->maybe_bool_variable() = MaybeBoolFlag::Create(true, !is_bool);
           break;
         case Flag::TYPE_INT:
-          *flag->int_variable() = strtol(value, &endp, 10);  // NOLINT
+          *flag->int_variable() = static_cast<int>(strtol(value, &endp, 10));
           break;
+        case Flag::TYPE_UINT: {
+          // We do not use strtoul because it accepts negative numbers.
+          int64_t val = static_cast<int64_t>(strtoll(value, &endp, 10));
+          if (val < 0 || val > std::numeric_limits<unsigned int>::max()) {
+            PrintF(stderr,
+                   "Error: Value for flag %s of type %s is out of bounds "
+                   "[0-%" PRIu64
+                   "]\n"
+                   "Try --help for options\n",
+                   arg, Type2String(flag->type()),
+                   static_cast<uint64_t>(
+                       std::numeric_limits<unsigned int>::max()));
+            return_code = j;
+            break;
+          }
+          *flag->uint_variable() = static_cast<unsigned int>(val);
+          break;
+        }
         case Flag::TYPE_FLOAT:
           *flag->float_variable() = strtod(value, &endp);
           break;
@@ -425,6 +475,10 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
         PrintF(stderr, "Error: illegal value for flag %s of type %s\n"
                "Try --help for options\n",
                arg, Type2String(flag->type()));
+        if (is_bool_type) {
+          PrintF(stderr,
+                 "To set or unset a boolean flag, use --flag or --no-flag.\n");
+        }
         return_code = j;
         break;
       }
@@ -521,18 +575,19 @@ void FlagList::PrintHelp() {
 
   OFStream os(stdout);
   os << "Usage:\n"
-     << "  shell [options] -e string\n"
-     << "    execute string in V8\n"
-     << "  shell [options] file1 file2 ... filek\n"
-     << "    run JavaScript scripts in file1, file2, ..., filek\n"
-     << "  shell [options]\n"
-     << "  shell [options] --shell [file1 file2 ... filek]\n"
-     << "    run an interactive JavaScript shell\n"
-     << "  d8 [options] file1 file2 ... filek\n"
-     << "  d8 [options]\n"
-     << "  d8 [options] --shell [file1 file2 ... filek]\n"
-     << "    run the new debugging shell\n\n"
-     << "Options:\n";
+        "  shell [options] -e string\n"
+        "    execute string in V8\n"
+        "  shell [options] file1 file2 ... filek\n"
+        "    run JavaScript scripts in file1, file2, ..., filek\n"
+        "  shell [options]\n"
+        "  shell [options] --shell [file1 file2 ... filek]\n"
+        "    run an interactive JavaScript shell\n"
+        "  d8 [options] file1 file2 ... filek\n"
+        "  d8 [options]\n"
+        "  d8 [options] --shell [file1 file2 ... filek]\n"
+        "    run the new debugging shell\n\n"
+        "Options:\n";
+
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* f = &flags[i];
     os << "  --" << f->name() << " (" << f->comment() << ")\n"
@@ -542,11 +597,36 @@ void FlagList::PrintHelp() {
 }
 
 
+static uint32_t flag_hash = 0;
+
+
+void ComputeFlagListHash() {
+  std::ostringstream modified_args_as_string;
+#ifdef DEBUG
+  modified_args_as_string << "debug";
+#endif  // DEBUG
+  for (size_t i = 0; i < num_flags; ++i) {
+    Flag* current = &flags[i];
+    if (!current->IsDefault()) {
+      modified_args_as_string << i;
+      modified_args_as_string << *current;
+    }
+  }
+  std::string args(modified_args_as_string.str());
+  flag_hash = static_cast<uint32_t>(
+      base::hash_range(args.c_str(), args.c_str() + args.length()));
+}
+
+
 // static
 void FlagList::EnforceFlagImplications() {
 #define FLAG_MODE_DEFINE_IMPLICATIONS
-#include "src/flag-definitions.h"
+#include "src/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
+  ComputeFlagListHash();
 }
 
-} }  // namespace v8::internal
+
+uint32_t FlagList::Hash() { return flag_hash; }
+}  // namespace internal
+}  // namespace v8

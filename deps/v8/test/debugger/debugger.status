@@ -1,0 +1,97 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+[ALWAYS, {
+  # All tests in the bug directory are expected to fail.
+  'bugs/*': [FAIL],
+
+  # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
+  # not work, but we expect it to not crash.
+  'debug/debug-step-turbofan': [PASS, FAIL],
+
+  # Issue 3641: The new 'then' semantics suppress some exceptions.
+  # These tests may be changed or removed when 'chain' is deprecated.
+  'debug/es6/debug-promises/reject-with-throw-in-reject': [FAIL],
+  'debug/es6/debug-promises/reject-with-undefined-reject': [FAIL],
+  'debug/es6/debug-promises/reject-with-invalid-reject': [FAIL],
+
+  # Issue 5651: Context mismatch in ScopeIterator::Type() for eval default
+  # parameter value
+  'debug/es6/debug-scope-default-param-with-eval': [FAIL],
+
+  # Slow tests
+  'debug/debug-scopes': [PASS, SLOW],
+  'debug/debug-stepout-scope-part*': [PASS, SLOW],
+  'debug/ignition/debug-step-prefix-bytecodes': [PASS, SLOW],
+
+  # Too slow in debug mode and on slow platforms.
+  'regress/regress-2318': [PASS, SLOW, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
+}],  # ALWAYS
+
+##############################################################################
+['variant == stress or variant == noturbofan_stress', {
+  # TODO(jarin/mstarzinger): Functions with eval or debugger now get optimized
+  # with Turbofan, which has issues with the debugger issues.
+  'debug/debug-evaluate-locals': [FAIL],
+
+  # Very slow in stress mode.
+  'regress/regress-2318': [SKIP],
+}],  # variant == stress or variant == noturbofan_stress
+
+##############################################################################
+['gc_stress == True', {
+  # Skip tests not suitable for GC stress.
+  # Tests taking too long
+  'debug/debug-stepout-scope-part1': [SKIP],
+  'debug/debug-stepout-scope-part2': [SKIP],
+  'debug/debug-stepout-scope-part3': [SKIP],
+  'debug/debug-stepout-scope-part4': [SKIP],
+  'debug/debug-stepout-scope-part5': [SKIP],
+  'debug/debug-stepout-scope-part6': [SKIP],
+  'debug/debug-stepout-scope-part7': [SKIP],
+  'debug/debug-stepout-scope-part8': [SKIP],
+
+  # Async function tests taking too long
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5411
+  'debug/es8/async-debug-caught-exception-cases0': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases1': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases2': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases3': [SKIP],
+  'debug/es8/async-function-debug-scopes': [SKIP],
+}],  # 'gc_stress == True'
+
+##############################################################################
+['variant == turbofan_opt', {
+  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
+  'debug/debug-evaluate-locals': [FAIL],
+}],  # variant == turbofan_opt
+
+##############################################################################
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
+
+##############################################################################
+['arch == arm and not simulator_run', {
+  # Too slow on chromebooks.
+  'debug/ignition/debug-step-prefix-bytecodes': [SKIP],
+}],  # 'arch == arm and not simulator_run'
+
+##############################################################################
+['variant in [noturbofan, noturbofan_stress] and system == macos and asan', {
+  # Too slow for old pipeline and mac asan.
+  'debug/*': [SKIP],
+}],  # variant in [noturbofan, noturbofan_stress] and system == macos and asan
+
+##############################################################################
+['arch == s390 or arch == s390x', {
+
+  # Stack manipulations in LiveEdit is not implemented for this arch.
+  'debug/debug-liveedit-check-stack': [SKIP],
+  'debug/debug-liveedit-double-call': [SKIP],
+  'debug/debug-liveedit-stack-padding': [SKIP],
+  'debug/debug-liveedit-restart-frame': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
+]

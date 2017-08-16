@@ -19,48 +19,56 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const Countdown = require('../common/countdown');
 
-var expectedHeaders = {
+const expectedHeaders = {
   'DELETE': ['host', 'connection'],
   'GET': ['host', 'connection'],
   'HEAD': ['host', 'connection'],
   'OPTIONS': ['host', 'connection'],
-  'POST': ['host', 'connection', 'transfer-encoding'],
-  'PUT': ['host', 'connection', 'transfer-encoding']
+  'POST': ['host', 'connection', 'content-length'],
+  'PUT': ['host', 'connection', 'content-length']
 };
 
-var expectedMethods = Object.keys(expectedHeaders);
+const expectedMethods = Object.keys(expectedHeaders);
 
-var requestCount = 0;
+const countdown =
+  new Countdown(expectedMethods.length,
+                common.mustCall(() => server.close()));
 
-var server = http.createServer(function(req, res) {
-  requestCount++;
+const server = http.createServer(common.mustCall((req, res) => {
   res.end();
 
   assert(expectedHeaders.hasOwnProperty(req.method),
-         req.method + ' was an unexpected method');
+         `${req.method} was an unexpected method`);
 
-  var requestHeaders = Object.keys(req.headers);
-  requestHeaders.forEach(function(header) {
-    assert(expectedHeaders[req.method].indexOf(header.toLowerCase()) !== -1,
-           header + ' shoud not exist for method ' + req.method);
+  const requestHeaders = Object.keys(req.headers);
+  requestHeaders.forEach((header) => {
+    assert.strictEqual(
+      expectedHeaders[req.method].includes(header.toLowerCase()),
+      true,
+      `${header} should not exist for method ${req.method}`
+    );
   });
 
-  assert(requestHeaders.length === expectedHeaders[req.method].length,
-         'some headers were missing for method: ' + req.method);
+  assert.strictEqual(
+    requestHeaders.length,
+    expectedHeaders[req.method].length,
+    `some headers were missing for method: ${req.method}`
+  );
 
-  if (expectedMethods.length === requestCount)
-    server.close();
-});
+  countdown.dec();
+}, expectedMethods.length));
 
-server.listen(common.PORT, function() {
-  expectedMethods.forEach(function(method) {
+server.listen(0, common.mustCall(() => {
+  expectedMethods.forEach((method) => {
     http.request({
       method: method,
-      port: common.PORT
+      port: server.address().port
     }).end();
   });
-});
+}));

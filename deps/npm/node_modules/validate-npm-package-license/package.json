@@ -1,0 +1,66 @@
+{
+  "_from": "validate-npm-package-license@*",
+  "_id": "validate-npm-package-license@3.0.1",
+  "_integrity": "sha1-KAS6vnEq0zeUWaz74kdGqywwP7w=",
+  "_location": "/validate-npm-package-license",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "validate-npm-package-license@*",
+    "name": "validate-npm-package-license",
+    "escapedName": "validate-npm-package-license",
+    "rawSpec": "*",
+    "saveSpec": null,
+    "fetchSpec": "*"
+  },
+  "_requiredBy": [
+    "/",
+    "/init-package-json",
+    "/normalize-package-data"
+  ],
+  "_resolved": "https://registry.npmjs.org/validate-npm-package-license/-/validate-npm-package-license-3.0.1.tgz",
+  "_shasum": "2804babe712ad3379459acfbe24746ab2c303fbc",
+  "_shrinkwrap": null,
+  "_spec": "validate-npm-package-license@*",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "Kyle E. Mitchell",
+    "email": "kyle@kemitchell.com",
+    "url": "https://kemitchell.com"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/kemitchell/validate-npm-package-license.js/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "spdx-correct": "~1.0.0",
+    "spdx-expression-parse": "~1.0.0"
+  },
+  "deprecated": false,
+  "description": "Give me a string and I'll tell you if it's a valid npm package license string",
+  "devDependencies": {
+    "defence-cli": "^1.0.1",
+    "replace-require-self": "^1.0.0"
+  },
+  "homepage": "https://github.com/kemitchell/validate-npm-package-license.js#readme",
+  "keywords": [
+    "license",
+    "npm",
+    "package",
+    "validation"
+  ],
+  "license": "Apache-2.0",
+  "name": "validate-npm-package-license",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kemitchell/validate-npm-package-license.js.git"
+  },
+  "scripts": {
+    "test": "defence README.md | replace-require-self | node"
+  },
+  "version": "3.0.1"
+}

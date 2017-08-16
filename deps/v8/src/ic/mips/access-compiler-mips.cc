@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS
 
 #include "src/ic/access-compiler.h"
@@ -19,28 +17,25 @@ void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
   __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
-
-Register* PropertyAccessCompiler::load_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3, scratch4.
+void PropertyAccessCompiler::InitializePlatformSpecific(
+    AccessCompilerData* data) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  static Register registers[] = {receiver, name, a3, a0, t0, t1};
-  return registers;
-}
 
-
-Register* PropertyAccessCompiler::store_calling_convention() {
+  // Load calling convention.
   // receiver, name, scratch1, scratch2, scratch3.
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  DCHECK(a3.is(ElementTransitionAndStoreDescriptor::MapRegister()));
-  static Register registers[] = {receiver, name, a3, t0, t1};
-  return registers;
-}
+  Register load_registers[] = {receiver, name, a3, a0, t0};
 
+  // Store calling convention.
+  // receiver, name, scratch1, scratch2.
+  Register store_registers[] = {receiver, name, a3, t0};
+
+  data->Initialize(arraysize(load_registers), load_registers,
+                   arraysize(store_registers), store_registers);
+}
 
 #undef __
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_MIPS

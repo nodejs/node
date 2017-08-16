@@ -1,31 +1,30 @@
-var common = require('../common.js');
-var url = require('url');
-var v8 = require('v8');
+'use strict';
+const common = require('../common.js');
+const url = require('url');
+const hrefs = require('../fixtures/url-inputs.js').urls;
+hrefs.noscheme = 'some.ran/dom/url.thing?oh=yes#whoo';
 
-var bench = common.createBenchmark(main, {
-  type: ['one'],
-  n: [1e5],
+const paths = {
+  'up': '../../../../../etc/passwd',
+  'sibling': '../foo/bar?baz=boom',
+  'foo/bar': 'foo/bar',
+  'withscheme': 'http://nodejs.org',
+  'down': './foo/bar?baz'
+};
+
+const bench = common.createBenchmark(main, {
+  href: Object.keys(hrefs),
+  path: Object.keys(paths),
+  n: [1e5]
 });
 
 function main(conf) {
-  var type = conf.type;
-  var n = conf.n | 0;
-
-  var inputs = {
-    one: ['http://example.com/', '../../../../../etc/passwd'],
-  };
-  var input = inputs[type] || [];
-
-  // Force-optimize url.resolve() so that the benchmark doesn't get
-  // disrupted by the optimizer kicking in halfway through.
-  for (var name in inputs)
-    url.resolve(inputs[name][0], inputs[name][1]);
-
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(url.resolve)');
+  const n = conf.n | 0;
+  const href = hrefs[conf.href];
+  const path = paths[conf.path];
 
   bench.start();
   for (var i = 0; i < n; i += 1)
-    url.resolve(input[0], input[1]);
+    url.resolve(href, path);
   bench.end(n);
 }

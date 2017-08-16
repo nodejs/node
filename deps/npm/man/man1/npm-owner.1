@@ -1,13 +1,15 @@
-.TH "NPM\-OWNER" "1" "October 2014" "" ""
+.TH "NPM\-OWNER" "1" "July 2017" "" ""
 .SH "NAME"
 \fBnpm-owner\fR \- Manage package owners
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm owner ls <package name>
-npm owner add <user> <package name>
-npm owner rm <user> <package name>
+npm owner add <user> [<@scope>/]<pkg>
+npm owner rm <user> [<@scope>/]<pkg>
+npm owner ls [<@scope>/]<pkg>
+
+aliases: author
 .fi
 .RE
 .SH DESCRIPTION

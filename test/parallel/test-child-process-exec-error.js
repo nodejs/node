@@ -19,25 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var child_process = require('child_process');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const child_process = require('child_process');
 
-function test(fun, code) {
-  var errors = 0;
-
-  fun('does-not-exist', function(err) {
-    assert.equal(err.code, code);
-    assert(/does\-not\-exist/.test(err.cmd));
-    errors++;
-  });
-
-  process.on('exit', function() {
-    assert.equal(errors, 1);
-  });
+function test(fn, code) {
+  fn('does-not-exist', common.mustCall(function(err) {
+    assert.strictEqual(err.code, code);
+    assert(err.cmd.includes('does-not-exist'));
+  }));
 }
 
-if (process.platform === 'win32') {
+if (common.isWindows) {
   test(child_process.exec, 1); // exit code of cmd.exe
 } else {
   test(child_process.exec, 127); // exit code of /bin/sh

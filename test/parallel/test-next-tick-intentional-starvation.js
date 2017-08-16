@@ -19,8 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
 // this is the inverse of test-next-tick-starvation.
 // it verifies that process.nextTick will *always* come before other
@@ -29,14 +30,14 @@ var assert = require('assert');
 // WARNING: unsafe!
 process.maxTickDepth = Infinity;
 
-var ran = false;
-var starved = false;
-var start = +new Date();
-var timerRan = false;
+let ran = false;
+let starved = false;
+const start = +new Date();
+let timerRan = false;
 
 function spin() {
   ran = true;
-  var now = +new Date();
+  const now = +new Date();
   if (now - start > 100) {
     console.log('The timer is starving, just as we planned.');
     starved = true;

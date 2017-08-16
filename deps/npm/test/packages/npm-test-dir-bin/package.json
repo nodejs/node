@@ -1,4 +1,0 @@
-{ "name":"npm-test-dir-bin"
-, "version":"1.2.5"
-, "directories": { "bin": "./bin" }
-, "scripts": { "test": "node test.js" } }

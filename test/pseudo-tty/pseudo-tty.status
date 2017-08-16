@@ -1,0 +1,5 @@
+prefix pseudo-tty
+
+[$system==aix]
+# being investigated under https://github.com/nodejs/node/issues/9728
+test-tty-wrap              : FAIL, PASS

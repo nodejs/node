@@ -6,10 +6,12 @@
 #define V8_IC_STATE_H_
 
 #include "src/macro-assembler.h"
+#include "src/parsing/token.h"
 
 namespace v8 {
 namespace internal {
 
+class AstType;
 
 const int kMaxKeyedPolymorphism = 4;
 
@@ -17,60 +19,19 @@ const int kMaxKeyedPolymorphism = 4;
 class ICUtility : public AllStatic {
  public:
   // Clear the inline cache to initial state.
-  static void Clear(Isolate* isolate, Address address,
-                    ConstantPoolArray* constant_pool);
-  // Clear a vector-based inline cache to initial state.
-  template <class Nexus>
-  static void Clear(Isolate* isolate, Code::Kind kind, Code* host,
-                    Nexus* nexus);
+  static void Clear(Isolate* isolate, Address address, Address constant_pool);
 };
 
 
-class CallICState FINAL BASE_EMBEDDED {
- public:
-  explicit CallICState(ExtraICState extra_ic_state);
-
-  enum CallType { METHOD, FUNCTION };
-
-  CallICState(int argc, CallType call_type)
-      : argc_(argc), call_type_(call_type) {}
-
-  ExtraICState GetExtraICState() const;
-
-  static void GenerateAheadOfTime(Isolate*,
-                                  void (*Generate)(Isolate*,
-                                                   const CallICState&));
-
-  int arg_count() const { return argc_; }
-  CallType call_type() const { return call_type_; }
-
-  bool CallAsMethod() const { return call_type_ == METHOD; }
-
- private:
-  class ArgcBits : public BitField<int, 0, Code::kArgumentsBits> {};
-  class CallTypeBits : public BitField<CallType, Code::kArgumentsBits, 1> {};
-
-  const int argc_;
-  const CallType call_type_;
-};
-
-
-std::ostream& operator<<(std::ostream& os, const CallICState& s);
-
-
-// Mode to overwrite BinaryExpression values.
-enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
-
-class BinaryOpICState FINAL BASE_EMBEDDED {
+class BinaryOpICState final BASE_EMBEDDED {
  public:
   BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state);
-
-  BinaryOpICState(Isolate* isolate, Token::Value op, OverwriteMode mode)
+  BinaryOpICState(Isolate* isolate, Token::Value op)
       : op_(op),
-        mode_(mode),
         left_kind_(NONE),
         right_kind_(NONE),
         result_kind_(NONE),
+        fixed_right_arg_(Nothing<int>()),
         isolate_(isolate) {
     DCHECK_LE(FIRST_TOKEN, op);
     DCHECK_LE(op, LAST_TOKEN);
@@ -90,18 +51,11 @@ class BinaryOpICState FINAL BASE_EMBEDDED {
   }
 
   ExtraICState GetExtraICState() const;
+  std::string ToString() const;
 
   static void GenerateAheadOfTime(Isolate*,
                                   void (*Generate)(Isolate*,
                                                    const BinaryOpICState&));
-
-  bool CanReuseDoubleBox() const {
-    return (result_kind_ > SMI && result_kind_ <= NUMBER) &&
-           ((mode_ == OVERWRITE_LEFT && left_kind_ > SMI &&
-             left_kind_ <= NUMBER) ||
-            (mode_ == OVERWRITE_RIGHT && right_kind_ > SMI &&
-             right_kind_ <= NUMBER));
-  }
 
   // Returns true if the IC _could_ create allocation mementos.
   bool CouldCreateAllocationMementos() const {
@@ -131,44 +85,57 @@ class BinaryOpICState FINAL BASE_EMBEDDED {
   static const int LAST_TOKEN = Token::MOD;
 
   Token::Value op() const { return op_; }
-  OverwriteMode mode() const { return mode_; }
   Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
 
-  Type* GetLeftType(Zone* zone) const { return KindToType(left_kind_, zone); }
-  Type* GetRightType(Zone* zone) const { return KindToType(right_kind_, zone); }
-  Type* GetResultType(Zone* zone) const;
+  AstType* GetLeftType() const { return KindToType(left_kind_); }
+  AstType* GetRightType() const { return KindToType(right_kind_); }
+  AstType* GetResultType() const;
 
   void Update(Handle<Object> left, Handle<Object> right, Handle<Object> result);
 
   Isolate* isolate() const { return isolate_; }
 
+  enum Kind { NONE, SMI, INT32, NUMBER, STRING, GENERIC };
+  Kind kind() const {
+    return KindGeneralize(KindGeneralize(left_kind_, right_kind_),
+                          result_kind_);
+  }
+
  private:
   friend std::ostream& operator<<(std::ostream& os, const BinaryOpICState& s);
-
-  enum Kind { NONE, SMI, INT32, NUMBER, STRING, GENERIC };
 
   Kind UpdateKind(Handle<Object> object, Kind kind) const;
 
   static const char* KindToString(Kind kind);
-  static Type* KindToType(Kind kind, Zone* zone);
+  static AstType* KindToType(Kind kind);
   static bool KindMaybeSmi(Kind kind) {
     return (kind >= SMI && kind <= NUMBER) || kind == GENERIC;
+  }
+  static bool KindLessGeneralThan(Kind kind1, Kind kind2) {
+    if (kind1 == NONE) return true;
+    if (kind1 == kind2) return true;
+    if (kind2 == GENERIC) return true;
+    if (kind2 == STRING) return false;
+    return kind1 <= kind2;
+  }
+  static Kind KindGeneralize(Kind kind1, Kind kind2) {
+    if (KindLessGeneralThan(kind1, kind2)) return kind2;
+    if (KindLessGeneralThan(kind2, kind1)) return kind1;
+    return GENERIC;
   }
 
   // We truncate the last bit of the token.
   STATIC_ASSERT(LAST_TOKEN - FIRST_TOKEN < (1 << 4));
   class OpField : public BitField<int, 0, 4> {};
-  class OverwriteModeField : public BitField<OverwriteMode, 4, 2> {};
-  class ResultKindField : public BitField<Kind, 6, 3> {};
-  class LeftKindField : public BitField<Kind, 9, 3> {};
+  class ResultKindField : public BitField<Kind, 4, 3> {};
+  class LeftKindField : public BitField<Kind, 7, 3> {};
   // When fixed right arg is set, we don't need to store the right kind.
   // Thus the two fields can overlap.
-  class HasFixedRightArgField : public BitField<bool, 12, 1> {};
-  class FixedRightArgValueField : public BitField<int, 13, 4> {};
-  class RightKindField : public BitField<Kind, 13, 3> {};
+  class HasFixedRightArgField : public BitField<bool, 10, 1> {};
+  class FixedRightArgValueField : public BitField<int, 11, 4> {};
+  class RightKindField : public BitField<Kind, 11, 3> {};
 
   Token::Value op_;
-  OverwriteMode mode_;
   Kind left_kind_;
   Kind right_kind_;
   Kind result_kind_;
@@ -187,56 +154,35 @@ class CompareICState {
   //   ... < GENERIC
   //   SMI < NUMBER
   //   INTERNALIZED_STRING < STRING
-  //   KNOWN_OBJECT < OBJECT
+  //   INTERNALIZED_STRING < UNIQUE_NAME
+  //   KNOWN_RECEIVER < RECEIVER
   enum State {
     UNINITIALIZED,
+    BOOLEAN,
     SMI,
     NUMBER,
     STRING,
     INTERNALIZED_STRING,
-    UNIQUE_NAME,   // Symbol or InternalizedString
-    OBJECT,        // JSObject
-    KNOWN_OBJECT,  // JSObject with specific map (faster check)
+    UNIQUE_NAME,     // Symbol or InternalizedString
+    RECEIVER,        // JSReceiver
+    KNOWN_RECEIVER,  // JSReceiver with specific map (faster check)
     GENERIC
   };
 
-  static Type* StateToType(Zone* zone, State state,
-                           Handle<Map> map = Handle<Map>());
+  static AstType* StateToType(Zone* zone, State state,
+                              Handle<Map> map = Handle<Map>());
 
   static State NewInputState(State old_state, Handle<Object> value);
 
   static const char* GetStateName(CompareICState::State state);
 
-  static State TargetState(State old_state, State old_left, State old_right,
-                           Token::Value op, bool has_inlined_smi_code,
-                           Handle<Object> x, Handle<Object> y);
+  static State TargetState(Isolate* isolate, State old_state, State old_left,
+                           State old_right, Token::Value op,
+                           bool has_inlined_smi_code, Handle<Object> x,
+                           Handle<Object> y);
 };
 
-
-class LoadICState FINAL BASE_EMBEDDED {
- public:
-  explicit LoadICState(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
-
-  explicit LoadICState(ContextualMode mode)
-      : state_(ContextualModeBits::encode(mode)) {}
-
-  ExtraICState GetExtraICState() const { return state_; }
-
-  ContextualMode contextual_mode() const {
-    return ContextualModeBits::decode(state_);
-  }
-
-  static ContextualMode GetContextualMode(ExtraICState state) {
-    return LoadICState(state).contextual_mode();
-  }
-
- private:
-  class ContextualModeBits : public BitField<ContextualMode, 0, 1> {};
-  STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
-
-  const ExtraICState state_;
-};
-}
-}
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_STATE_H_

@@ -1,0 +1,66 @@
+{
+  "_from": "spdx-correct@~1.0.0",
+  "_id": "spdx-correct@1.0.2",
+  "_integrity": "sha1-SzBz2TP/UfORLwOsVRlJikFQ20A=",
+  "_location": "/validate-npm-package-license/spdx-correct",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "spdx-correct@~1.0.0",
+    "name": "spdx-correct",
+    "escapedName": "spdx-correct",
+    "rawSpec": "~1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "~1.0.0"
+  },
+  "_requiredBy": [
+    "/validate-npm-package-license"
+  ],
+  "_resolved": "https://registry.npmjs.org/spdx-correct/-/spdx-correct-1.0.2.tgz",
+  "_shasum": "4b3073d933ff51f3912f03ac5519498a4150db40",
+  "_shrinkwrap": null,
+  "_spec": "spdx-correct@~1.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/validate-npm-package-license",
+  "author": {
+    "name": "Kyle E. Mitchell",
+    "email": "kyle@kemitchell.com",
+    "url": "https://kemitchell.com"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/kemitchell/spdx-correct.js/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "spdx-license-ids": "^1.0.2"
+  },
+  "deprecated": false,
+  "description": "correct invalid SPDX identifiers",
+  "devDependencies": {
+    "defence-cli": "^1.0.1",
+    "replace-require-self": "^1.0.0",
+    "spdx-expression-parse": "^1.0.0",
+    "tape": "~4.0.0"
+  },
+  "homepage": "https://github.com/kemitchell/spdx-correct.js#readme",
+  "keywords": [
+    "SPDX",
+    "law",
+    "legal",
+    "license",
+    "metadata"
+  ],
+  "license": "Apache-2.0",
+  "name": "spdx-correct",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kemitchell/spdx-correct.js.git"
+  },
+  "scripts": {
+    "test": "defence README.md | replace-require-self | node && tape *.test.js"
+  },
+  "version": "1.0.2"
+}

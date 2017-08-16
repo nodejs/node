@@ -41,7 +41,7 @@ e.message = e;
 e.stack = "Does not occur in output";
 e.arguments = "Does not occur in output";
 e.type = "Does not occur in output";
-assertEquals('', e.toString());
+assertThrows(()=>e.toString(), RangeError);
 
 e = new Error();
 e.name = [ e ];

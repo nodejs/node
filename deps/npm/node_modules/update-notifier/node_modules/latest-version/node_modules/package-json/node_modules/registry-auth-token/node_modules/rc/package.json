@@ -1,0 +1,67 @@
+{
+  "_from": "rc@^1.1.6",
+  "_id": "rc@1.2.1",
+  "_integrity": "sha1-LgPo5C7kULjLPc5lvhv4l04d/ZU=",
+  "_location": "/update-notifier/latest-version/package-json/registry-auth-token/rc",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "rc@^1.1.6",
+    "name": "rc",
+    "escapedName": "rc",
+    "rawSpec": "^1.1.6",
+    "saveSpec": null,
+    "fetchSpec": "^1.1.6"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/registry-auth-token"
+  ],
+  "_resolved": "https://registry.npmjs.org/rc/-/rc-1.2.1.tgz",
+  "_shasum": "2e03e8e42ee450b8cb3dce65be1bf8974e1dfd95",
+  "_shrinkwrap": null,
+  "_spec": "rc@^1.1.6",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/registry-auth-token",
+  "author": {
+    "name": "Dominic Tarr",
+    "email": "dominic.tarr@gmail.com",
+    "url": "dominictarr.com"
+  },
+  "bin": {
+    "rc": "./index.js"
+  },
+  "browserify": "browser.js",
+  "bugs": {
+    "url": "https://github.com/dominictarr/rc/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "deep-extend": "~0.4.0",
+    "ini": "~1.3.0",
+    "minimist": "^1.2.0",
+    "strip-json-comments": "~2.0.1"
+  },
+  "deprecated": false,
+  "description": "hardwired configuration loader",
+  "devDependencies": {},
+  "homepage": "https://github.com/dominictarr/rc#readme",
+  "keywords": [
+    "config",
+    "rc",
+    "unix",
+    "defaults"
+  ],
+  "license": "(BSD-2-Clause OR MIT OR Apache-2.0)",
+  "main": "index.js",
+  "name": "rc",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dominictarr/rc.git"
+  },
+  "scripts": {
+    "test": "set -e; node test/test.js; node test/ini.js; node test/nested-env-vars.js"
+  },
+  "version": "1.2.1"
+}

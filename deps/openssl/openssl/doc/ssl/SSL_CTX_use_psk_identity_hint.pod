@@ -83,7 +83,12 @@ Return values from the server callback are interpreted as follows:
 
 =over 4
 
-=item > 0
+=item Z<>0
+
+PSK identity was not found. An "unknown_psk_identity" alert message
+will be sent and the connection setup fails.
+
+=item E<gt>0
 
 PSK identity was found and the server callback has provided the PSK
 successfully in parameter B<psk>. Return value is the length of
@@ -95,11 +100,6 @@ protocol to continue anyway, the callback must provide some random
 data to B<psk> and return the length of the random data, so the
 connection will fail with decryption_error before it will be finished
 completely.
-
-=item Z<>0
-
-PSK identity was not found. An "unknown_psk_identity" alert message
-will be sent and the connection setup fails.
 
 =back
 

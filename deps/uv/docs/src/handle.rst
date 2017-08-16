@@ -17,6 +17,34 @@ Data types
 
     The base libuv handle type.
 
+.. c:type:: uv_handle_type
+
+    The kind of the libuv handle.
+
+    ::
+
+        typedef enum {
+          UV_UNKNOWN_HANDLE = 0,
+          UV_ASYNC,
+          UV_CHECK,
+          UV_FS_EVENT,
+          UV_FS_POLL,
+          UV_HANDLE,
+          UV_IDLE,
+          UV_NAMED_PIPE,
+          UV_POLL,
+          UV_PREPARE,
+          UV_PROCESS,
+          UV_STREAM,
+          UV_TCP,
+          UV_TIMER,
+          UV_TTY,
+          UV_UDP,
+          UV_SIGNAL,
+          UV_FILE,
+          UV_HANDLE_TYPE_MAX
+        } uv_handle_type;
+
 .. c:type:: uv_any_handle
 
     Union of all handle types.
@@ -24,11 +52,27 @@ Data types
 .. c:type:: void (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
 
     Type definition for callback passed to :c:func:`uv_read_start` and
-    :c:func:`uv_udp_recv_start`. The user must fill the supplied :c:type:`uv_buf_t`
-    structure with whatever size, as long as it's > 0. A suggested size (65536 at the moment)
-    is provided, but it doesn't need to be honored. Setting the buffer's length to 0
-    will trigger a ``UV_ENOBUFS`` error in the :c:type:`uv_udp_recv_cb` or
+    :c:func:`uv_udp_recv_start`. The user must allocate memory and fill the supplied
+    :c:type:`uv_buf_t` structure. If NULL is assigned as the buffer's base or 0 as its length,
+    a ``UV_ENOBUFS`` error will be triggered in the :c:type:`uv_udp_recv_cb` or the
     :c:type:`uv_read_cb` callback.
+
+    A suggested size (65536 at the moment in most cases) is provided, but it's just an indication,
+    not related in any way to the pending data to be read. The user is free to allocate the amount
+    of memory they decide.
+
+    As an example, applications with custom allocation schemes such as using freelists, allocation
+    pools or slab based allocators may decide to use a different size which matches the memory
+    chunks they already have.
+
+    Example:
+
+    ::
+
+        static void my_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
+          buf->base = malloc(suggested_size);
+          buf->len = suggested_size;
+        }
 
 .. c:type:: void (*uv_close_cb)(uv_handle_t* handle)
 
@@ -41,6 +85,10 @@ Public members
 .. c:member:: uv_loop_t* uv_handle_t.loop
 
     Pointer to the :c:type:`uv_loop_t` where the handle is running on. Readonly.
+
+.. c:member:: uv_handle_type uv_handle_t.type
+
+    The :c:type:`uv_handle_type`, indicating the type of the underlying handle. Readonly.
 
 .. c:member:: void* uv_handle_t.data
 

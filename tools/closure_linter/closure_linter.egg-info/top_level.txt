@@ -1,1 +1,0 @@
-closure_linter

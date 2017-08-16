@@ -208,8 +208,8 @@ typename enable_if<std::numeric_limits<T>::is_integer &&
                        (sizeof(T) * 2 > sizeof(uintmax_t)),
                    T>::type
 CheckedMul(T x, T y, RangeConstraint* validity) {
-  // if either side is zero then the result will be zero.
-  if (!(x || y)) {
+  // If either side is zero then the result will be zero.
+  if (!x || !y) {
     return RANGE_VALID;
 
   } else if (x > 0) {

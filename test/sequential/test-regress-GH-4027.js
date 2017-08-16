@@ -19,23 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
-var filename = path.join(common.tmpDir, 'watched');
+common.refreshTmpDir();
+
+const filename = path.join(common.tmpDir, 'watched');
 fs.writeFileSync(filename, 'quis custodiet ipsos custodes');
-setTimeout(fs.unlinkSync, 100, filename);
 
-var seenEvent = 0;
-process.on('exit', function() {
-  assert.equal(seenEvent, 1);
-});
-
-fs.watchFile(filename, { interval: 50 }, function(curr, prev) {
-  assert.equal(prev.nlink, 1);
-  assert.equal(curr.nlink, 0);
+fs.watchFile(filename, { interval: 50 }, common.mustCall(function(curr, prev) {
+  assert.strictEqual(prev.nlink, 1);
+  assert.strictEqual(curr.nlink, 0);
   fs.unwatchFile(filename);
-  seenEvent++;
-});
+}));
+
+setTimeout(fs.unlinkSync, common.platformTimeout(300), filename);

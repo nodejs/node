@@ -38,6 +38,15 @@ function testFloor(expect, input) {
   %OptimizeFunctionOnNextCall(test);
   assertEquals(expect, test(input));
 
+  var test_double_input = new Function(
+      'n',
+      '"' + (test_id++) + '";return Math.floor(+n)');
+  assertEquals(expect, test_double_input(input));
+  assertEquals(expect, test_double_input(input));
+  assertEquals(expect, test_double_input(input));
+  %OptimizeFunctionOnNextCall(test_double_input);
+  assertEquals(expect, test_double_input(input));
+
   var test_double_output = new Function(
       'n',
       '"' + (test_id++) + '";return Math.floor(n) + -0.0');
@@ -46,6 +55,26 @@ function testFloor(expect, input) {
   assertEquals(expect, test_double_output(input));
   %OptimizeFunctionOnNextCall(test_double_output);
   assertEquals(expect, test_double_output(input));
+
+  var test_via_ceil = new Function(
+      'n',
+      '"' + (test_id++) + '";return -Math.ceil(-n)');
+  assertEquals(expect, test_via_ceil(input));
+  assertEquals(expect, test_via_ceil(input));
+  assertEquals(expect, test_via_ceil(input));
+  %OptimizeFunctionOnNextCall(test_via_ceil);
+  assertEquals(expect, test_via_ceil(input));
+
+  if (input >= 0) {
+    var test_via_trunc = new Function(
+        'n',
+        '"' + (test_id++) + '";return Math.trunc(n)');
+    assertEquals(expect, test_via_trunc(input));
+    assertEquals(expect, test_via_trunc(input));
+    assertEquals(expect, test_via_trunc(input));
+    %OptimizeFunctionOnNextCall(test_via_trunc);
+    assertEquals(expect, test_via_trunc(input));
+  }
 }
 
 function zero() {
@@ -82,6 +111,7 @@ function test() {
 
 
 // Test in a loop to cover the custom IC and GC-related issues.
-for (var i = 0; i < 100; i++) {
+for (var i = 0; i < 10; i++) {
   test();
+  new Array(i * 10000);
 }

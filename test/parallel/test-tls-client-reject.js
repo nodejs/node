@@ -19,78 +19,63 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
-var path = require('path');
+const assert = require('assert');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-var options = {
-  key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
-  cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
+const options = {
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
-var connectCount = 0;
-
-var server = tls.createServer(options, function(socket) {
-  ++connectCount;
+const server = tls.createServer(options, common.mustCall(function(socket) {
   socket.on('data', function(data) {
-    common.debug(data.toString());
-    assert.equal(data, 'ok');
+    console.error(data.toString());
+    assert.strictEqual(data.toString(), 'ok');
   });
-}).listen(common.PORT, function() {
+}, 3)).listen(0, function() {
   unauthorized();
 });
 
 function unauthorized() {
-  var socket = tls.connect({
-    port: common.PORT,
+  const socket = tls.connect({
+    port: server.address().port,
     servername: 'localhost',
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
     assert(!socket.authorized);
     socket.end();
     rejectUnauthorized();
-  });
-  socket.on('error', function(err) {
-    assert(false);
-  });
+  }));
+  socket.on('error', common.mustNotCall());
   socket.write('ok');
 }
 
 function rejectUnauthorized() {
-  var socket = tls.connect(common.PORT, {
+  const socket = tls.connect(server.address().port, {
     servername: 'localhost'
-  }, function() {
-    assert(false);
-  });
-  socket.on('error', function(err) {
-    common.debug(err);
+  }, common.mustNotCall());
+  socket.on('error', common.mustCall(function(err) {
+    console.error(err);
     authorized();
-  });
+  }));
   socket.write('ng');
 }
 
 function authorized() {
-  var socket = tls.connect(common.PORT, {
-    ca: [fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))],
+  const socket = tls.connect(server.address().port, {
+    ca: [fixtures.readSync('test_cert.pem')],
     servername: 'localhost'
-  }, function() {
+  }, common.mustCall(function() {
     assert(socket.authorized);
     socket.end();
     server.close();
-  });
-  socket.on('error', function(err) {
-    assert(false);
-  });
+  }));
+  socket.on('error', common.mustNotCall());
   socket.write('ok');
 }
-
-process.on('exit', function() {
-  assert.equal(connectCount, 3);
-});

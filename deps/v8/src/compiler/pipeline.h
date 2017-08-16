@@ -5,54 +5,82 @@
 #ifndef V8_COMPILER_PIPELINE_H_
 #define V8_COMPILER_PIPELINE_H_
 
-#include "src/v8.h"
-
-#include "src/compiler.h"
-
-// Note: TODO(turbofan) implies a performance improvement opportunity,
-//   and TODO(name) implies an incomplete implementation
+// Clients of this interface shouldn't depend on lots of compiler internals.
+// Do not include anything from src/compiler here!
+#include "src/globals.h"
+#include "src/objects.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
+
+class CompilationInfo;
+class CompilationJob;
+class RegisterConfiguration;
+
+namespace trap_handler {
+struct ProtectedInstructionData;
+}  // namespace trap_handler
+
 namespace compiler {
 
-// Clients of this interface shouldn't depend on lots of compiler internals.
+class CallDescriptor;
+class JSGraph;
 class Graph;
-class Linkage;
-class PipelineData;
+class InstructionSequence;
 class Schedule;
+class SourcePositionTable;
 
-class Pipeline {
+class Pipeline : public AllStatic {
  public:
-  explicit Pipeline(CompilationInfo* info) : info_(info) {}
+  // Returns a new compilation job for the given function.
+  static CompilationJob* NewCompilationJob(Handle<JSFunction> function,
+                                           bool has_script);
 
-  // Run the entire pipeline and generate a handle to a code object.
-  Handle<Code> GenerateCode();
+  // Returns a new compilation job for the WebAssembly compilation info.
+  static CompilationJob* NewWasmCompilationJob(
+      CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
+      SourcePositionTable* source_positions,
+      ZoneVector<trap_handler::ProtectedInstructionData>*
+          protected_instructions,
+      bool wasm_origin);
 
-  // Run the pipeline on a machine graph and generate code. If {schedule}
-  // is {NULL}, then compute a new schedule for code generation.
-  Handle<Code> GenerateCodeForMachineGraph(Linkage* linkage, Graph* graph,
-                                           Schedule* schedule = NULL);
+  // Run the pipeline on a machine graph and generate code. The {schedule} must
+  // be valid, hence the given {graph} does not need to be schedulable.
+  static Handle<Code> GenerateCodeForCodeStub(Isolate* isolate,
+                                              CallDescriptor* call_descriptor,
+                                              Graph* graph, Schedule* schedule,
+                                              Code::Flags flags,
+                                              const char* debug_name);
 
-  static inline bool SupportedBackend() { return V8_TURBOFAN_BACKEND != 0; }
-  static inline bool SupportedTarget() { return V8_TURBOFAN_TARGET != 0; }
+  // Run the entire pipeline and generate a handle to a code object suitable for
+  // testing.
+  static Handle<Code> GenerateCodeForTesting(CompilationInfo* info);
 
-  static void SetUp();
-  static void TearDown();
+  // Run the pipeline on a machine graph and generate code. If {schedule} is
+  // {nullptr}, then compute a new schedule for code generation.
+  static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
+                                             Graph* graph,
+                                             Schedule* schedule = nullptr);
+
+  // Run just the register allocator phases.
+  V8_EXPORT_PRIVATE static bool AllocateRegistersForTesting(
+      const RegisterConfiguration* config, InstructionSequence* sequence,
+      bool run_verifier);
+
+  // Run the pipeline on a machine graph and generate code. If {schedule} is
+  // {nullptr}, then compute a new schedule for code generation.
+  static Handle<Code> GenerateCodeForTesting(
+      CompilationInfo* info, CallDescriptor* call_descriptor, Graph* graph,
+      Schedule* schedule = nullptr,
+      SourcePositionTable* source_positions = nullptr);
 
  private:
-  CompilationInfo* info_;
-
-  CompilationInfo* info() const { return info_; }
-  Isolate* isolate() { return info_->isolate(); }
-
-  void ComputeSchedule(PipelineData* data);
-  void VerifyAndPrintGraph(Graph* graph, const char* phase,
-                           bool untyped = false);
-  Handle<Code> GenerateCode(Linkage* linkage, PipelineData* data);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Pipeline);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_PIPELINE_H_

@@ -155,8 +155,9 @@ BENCHMARK_IMPL(spawn) {
   uv_update_time(loop);
   end_time = uv_now(loop);
 
-  LOGF("spawn: %.0f spawns/s\n",
-       (double) N / (double) (end_time - start_time) * 1000.0);
+  fprintf(stderr, "spawn: %.0f spawns/s\n",
+          (double) N / (double) (end_time - start_time) * 1000.0);
+  fflush(stderr);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

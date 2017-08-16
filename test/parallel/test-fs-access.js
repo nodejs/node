@@ -1,99 +1,118 @@
-// Copyright io.js contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
+const readOnlyFile = path.join(common.tmpDir, 'read_only_file');
+const readWriteFile = path.join(common.tmpDir, 'read_write_file');
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var path = require('path');
-var doesNotExist = __filename + '__this_should_not_exist';
-var readOnlyFile = path.join(common.tmpDir, 'read_only_file');
-
-var removeFile = function(file) {
-  try {
-    fs.unlinkSync(file);
-  } catch (err) {
-    // Ignore error
-  }
-};
-
-var createReadOnlyFile = function(file) {
-  removeFile(file);
+function createFileWithPerms(file, mode) {
   fs.writeFileSync(file, '');
-  fs.chmodSync(file, 0444);
-};
+  fs.chmodSync(file, mode);
+}
 
-createReadOnlyFile(readOnlyFile);
+common.refreshTmpDir();
+createFileWithPerms(readOnlyFile, 0o444);
+createFileWithPerms(readWriteFile, 0o666);
 
-assert(typeof fs.F_OK === 'number');
-assert(typeof fs.R_OK === 'number');
-assert(typeof fs.W_OK === 'number');
-assert(typeof fs.X_OK === 'number');
+/*
+ * On non-Windows supported platforms, fs.access(readOnlyFile, W_OK, ...)
+ * always succeeds if node runs as the super user, which is sometimes the
+ * case for tests running on our continuous testing platform agents.
+ *
+ * In this case, this test tries to change its process user id to a
+ * non-superuser user so that the test that checks for write access to a
+ * read-only file can be more meaningful.
+ *
+ * The change of user id is done after creating the fixtures files for the same
+ * reason: the test may be run as the superuser within a directory in which
+ * only the superuser can create files, and thus it may need superuser
+ * priviledges to create them.
+ *
+ * There's not really any point in resetting the process' user id to 0 after
+ * changing it to 'nobody', since in the case that the test runs without
+ * superuser privilege, it is not possible to change its process user id to
+ * superuser.
+ *
+ * It can prevent the test from removing files created before the change of user
+ * id, but that's fine. In this case, it is the responsibility of the
+ * continuous integration platform to take care of that.
+ */
+let hasWriteAccessForReadonlyFile = false;
+if (!common.isWindows && process.getuid() === 0) {
+  hasWriteAccessForReadonlyFile = true;
+  try {
+    process.setuid('nobody');
+    hasWriteAccessForReadonlyFile = false;
+  } catch (err) {
+  }
+}
 
-fs.access(__filename, function(err) {
-  assert.strictEqual(err, null, 'error should not exist');
-});
+assert.strictEqual(typeof fs.F_OK, 'number');
+assert.strictEqual(typeof fs.R_OK, 'number');
+assert.strictEqual(typeof fs.W_OK, 'number');
+assert.strictEqual(typeof fs.X_OK, 'number');
 
-fs.access(__filename, fs.R_OK, function(err) {
-  assert.strictEqual(err, null, 'error should not exist');
-});
+fs.access(__filename, common.mustCall((err) => {
+  assert.ifError(err);
+}));
 
-fs.access(doesNotExist, function(err) {
-  assert.notEqual(err, null, 'error should exist');
+fs.access(__filename, fs.R_OK, common.mustCall((err) => {
+  assert.ifError(err);
+}));
+
+fs.access(doesNotExist, common.mustCall((err) => {
+  assert.notStrictEqual(err, null, 'error should exist');
   assert.strictEqual(err.code, 'ENOENT');
   assert.strictEqual(err.path, doesNotExist);
-});
+}));
 
-fs.access(readOnlyFile, fs.F_OK | fs.R_OK, function(err) {
-  assert.strictEqual(err, null, 'error should not exist');
-});
+fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall((err) => {
+  assert.ifError(err);
+}));
 
-fs.access(readOnlyFile, fs.W_OK, function(err) {
-  assert.notEqual(err, null, 'error should exist');
-  assert.strictEqual(err.path, readOnlyFile);
-});
+fs.access(readOnlyFile, fs.W_OK, common.mustCall((err) => {
+  if (hasWriteAccessForReadonlyFile) {
+    assert.ifError(err);
+  } else {
+    assert.notStrictEqual(err, null, 'error should exist');
+    assert.strictEqual(err.path, readOnlyFile);
+  }
+}));
 
-assert.throws(function() {
-  fs.access(100, fs.F_OK, function(err) {});
-}, /path must be a string/);
+assert.throws(() => {
+  fs.access(100, fs.F_OK, common.mustNotCall());
+}, /^TypeError: path must be a string or Buffer$/);
 
-assert.throws(function() {
+assert.throws(() => {
   fs.access(__filename, fs.F_OK);
-}, /callback must be a function/);
+}, /^TypeError: "callback" argument must be a function$/);
 
-assert.doesNotThrow(function() {
+assert.throws(() => {
+  fs.access(__filename, fs.F_OK, {});
+}, /^TypeError: "callback" argument must be a function$/);
+
+assert.doesNotThrow(() => {
   fs.accessSync(__filename);
 });
 
-assert.doesNotThrow(function() {
-  var mode = fs.F_OK | fs.R_OK | fs.W_OK;
+assert.doesNotThrow(() => {
+  const mode = fs.F_OK | fs.R_OK | fs.W_OK;
 
-  fs.accessSync(__filename, mode);
+  fs.accessSync(readWriteFile, mode);
 });
 
-assert.throws(function() {
-  fs.accessSync(doesNotExist);
-}, function (err) {
-  return err.code === 'ENOENT' && err.path === doesNotExist;
-});
-
-process.on('exit', function() {
-  removeFile(readOnlyFile);
-});
+assert.throws(
+  () => { fs.accessSync(doesNotExist); },
+  (err) => {
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.path, doesNotExist);
+    assert.strictEqual(
+      err.message,
+      `ENOENT: no such file or directory, access '${doesNotExist}'`
+    );
+    assert.strictEqual(err.constructor, Error);
+    return true;
+  }
+);

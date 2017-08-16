@@ -39,7 +39,7 @@ PASS Array.prototype.length is 6
 PASS Function.prototype.length is 0
 PASS String.prototype.length is 0
 PASS delete Array.prototype.length is false
-PASS delete Function.prototype.length is false
+PASS delete Function.prototype.length is true
 PASS delete String.prototype.length is false
 PASS foundArrayPrototypeLength is false
 PASS foundFunctionPrototypeLength is false

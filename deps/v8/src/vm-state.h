@@ -6,6 +6,7 @@
 #define V8_VM_STATE_H_
 
 #include "src/allocation.h"
+#include "src/counters.h"
 #include "src/isolate.h"
 
 namespace v8 {
@@ -33,7 +34,14 @@ class ExternalCallbackScope BASE_EMBEDDED {
   inline ExternalCallbackScope(Isolate* isolate, Address callback);
   inline ~ExternalCallbackScope();
   Address callback() { return callback_; }
-  Address* callback_address() { return &callback_; }
+  Address* callback_entrypoint_address() {
+    if (callback_ == nullptr) return nullptr;
+#if USES_FUNCTION_DESCRIPTORS
+    return FUNCTION_ENTRYPOINT_ADDRESS(callback_);
+#else
+    return &callback_;
+#endif
+  }
   ExternalCallbackScope* previous() { return previous_scope_; }
   inline Address scope_address();
 
@@ -46,7 +54,8 @@ class ExternalCallbackScope BASE_EMBEDDED {
 #endif
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 
 #endif  // V8_VM_STATE_H_

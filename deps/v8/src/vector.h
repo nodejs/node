@@ -20,9 +20,13 @@ template <typename T>
 class Vector {
  public:
   Vector() : start_(NULL), length_(0) {}
-  Vector(T* data, int length) : start_(data), length_(length) {
-    DCHECK(length == 0 || (length > 0 && data != NULL));
+
+  Vector(T* data, size_t length) : start_(data), length_(length) {
+    DCHECK(length == 0 || data != NULL);
   }
+
+  template <int N>
+  explicit Vector(T (&arr)[N]) : start_(arr), length_(N) {}
 
   static Vector<T> New(int length) {
     return Vector<T>(NewArray<T>(length), length);
@@ -30,15 +34,20 @@ class Vector {
 
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
-  Vector<T> SubVector(int from, int to) {
-    SLOW_DCHECK(to <= length_);
-    SLOW_DCHECK(from < to);
-    DCHECK(0 <= from);
+  Vector<T> SubVector(size_t from, size_t to) const {
+    DCHECK_LE(from, to);
+    DCHECK_LE(to, length_);
     return Vector<T>(start() + from, to - from);
   }
 
   // Returns the length of the vector.
-  int length() const { return length_; }
+  int length() const {
+    DCHECK(length_ <= static_cast<size_t>(std::numeric_limits<int>::max()));
+    return static_cast<int>(length_);
+  }
+
+  // Returns the length of the vector as a size_t.
+  size_t size() const { return length_; }
 
   // Returns whether or not the vector is empty.
   bool is_empty() const { return length_ == 0; }
@@ -47,12 +56,12 @@ class Vector {
   T* start() const { return start_; }
 
   // Access individual vector elements - checks bounds in debug mode.
-  T& operator[](int index) const {
-    DCHECK(0 <= index && index < length_);
+  T& operator[](size_t index) const {
+    DCHECK_LT(index, length_);
     return start_[index];
   }
 
-  const T& at(int index) const { return operator[](index); }
+  const T& at(size_t index) const { return operator[](index); }
 
   T& first() { return start_[0]; }
 
@@ -65,19 +74,39 @@ class Vector {
   // Returns a clone of this vector with a new backing store.
   Vector<T> Clone() const {
     T* result = NewArray<T>(length_);
-    for (int i = 0; i < length_; i++) result[i] = start_[i];
+    for (size_t i = 0; i < length_; i++) result[i] = start_[i];
     return Vector<T>(result, length_);
   }
 
-  void Sort(int (*cmp)(const T*, const T*)) {
-    std::sort(start(), start() + length(), RawComparer(cmp));
+  template <typename CompareFunction>
+  void Sort(CompareFunction cmp, size_t s, size_t l) {
+    std::sort(start() + s, start() + s + l, RawComparer<CompareFunction>(cmp));
+  }
+
+  template <typename CompareFunction>
+  void Sort(CompareFunction cmp) {
+    std::sort(start(), start() + length(), RawComparer<CompareFunction>(cmp));
   }
 
   void Sort() {
     std::sort(start(), start() + length());
   }
 
-  void Truncate(int length) {
+  template <typename CompareFunction>
+  void StableSort(CompareFunction cmp, size_t s, size_t l) {
+    std::stable_sort(start() + s, start() + s + l,
+                     RawComparer<CompareFunction>(cmp));
+  }
+
+  template <typename CompareFunction>
+  void StableSort(CompareFunction cmp) {
+    std::stable_sort(start(), start() + length(),
+                     RawComparer<CompareFunction>(cmp));
+  }
+
+  void StableSort() { std::stable_sort(start(), start() + length()); }
+
+  void Truncate(size_t length) {
     DCHECK(length <= length_);
     length_ = length;
   }
@@ -90,10 +119,13 @@ class Vector {
     length_ = 0;
   }
 
-  inline Vector<T> operator+(int offset) {
-    DCHECK(offset < length_);
+  inline Vector<T> operator+(size_t offset) {
+    DCHECK_LT(offset, length_);
     return Vector<T>(start_ + offset, length_ - offset);
   }
+
+  // Implicit conversion from Vector<T> to Vector<const T>.
+  inline operator Vector<const T>() { return Vector<const T>::cast(*this); }
 
   // Factory method for creating empty vectors.
   static Vector<T> empty() { return Vector<T>(NULL, 0); }
@@ -107,7 +139,7 @@ class Vector {
   bool operator==(const Vector<T>& other) const {
     if (length_ != other.length_) return false;
     if (start_ == other.start_) return true;
-    for (int i = 0; i < length_; ++i) {
+    for (size_t i = 0; i < length_; ++i) {
       if (start_[i] != other.start_[i]) {
         return false;
       }
@@ -120,17 +152,18 @@ class Vector {
 
  private:
   T* start_;
-  int length_;
+  size_t length_;
 
+  template <typename CookedComparer>
   class RawComparer {
    public:
-    explicit RawComparer(int (*cmp)(const T*, const T*)) : cmp_(cmp) {}
+    explicit RawComparer(CookedComparer cmp) : cmp_(cmp) {}
     bool operator()(const T& a, const T& b) {
       return cmp_(&a, &b) < 0;
     }
 
    private:
-    int (*cmp_)(const T*, const T*);
+    CookedComparer cmp_;
   };
 };
 
@@ -180,7 +213,12 @@ inline Vector<char> MutableCStrVector(char* data, int max) {
   return Vector<char>(data, (length < max) ? length : max);
 }
 
+template <typename T, int N>
+inline Vector<T> ArrayVector(T (&arr)[N]) {
+  return Vector<T>(arr);
+}
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_VECTOR_H_

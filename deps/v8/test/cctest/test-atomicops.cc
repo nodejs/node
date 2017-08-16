@@ -157,21 +157,11 @@ static void TestAtomicExchange() {
 
 template <class AtomicType>
 static void TestAtomicIncrementBounds() {
-  // Test at rollover boundary between int_max and int_min.
-  AtomicType test_val =
-      static_cast<AtomicType>(1) << (NUM_BITS(AtomicType) - 1);
-  AtomicType value = -1 ^ test_val;
-  AtomicType new_value = NoBarrier_AtomicIncrement(&value, 1);
-  CHECK_EQU(test_val, value);
-  CHECK_EQU(value, new_value);
-
-  NoBarrier_AtomicIncrement(&value, -1);
-  CHECK_EQU(-1 ^ test_val, value);
-
   // Test at 32-bit boundary for 64-bit atomic type.
-  test_val = static_cast<AtomicType>(1) << (NUM_BITS(AtomicType) / 2);
-  value = test_val - 1;
-  new_value = NoBarrier_AtomicIncrement(&value, 1);
+  AtomicType test_val = static_cast<AtomicType>(1)
+                        << (NUM_BITS(AtomicType) / 2);
+  AtomicType value = test_val - 1;
+  AtomicType new_value = NoBarrier_AtomicIncrement(&value, 1);
   CHECK_EQU(test_val, value);
   CHECK_EQU(value, new_value);
 
@@ -201,11 +191,6 @@ static void TestStore() {
   NoBarrier_Store(&value, kVal1);
   CHECK_EQU(kVal1, value);
   NoBarrier_Store(&value, kVal2);
-  CHECK_EQU(kVal2, value);
-
-  Acquire_Store(&value, kVal1);
-  CHECK_EQU(kVal1, value);
-  Acquire_Store(&value, kVal2);
   CHECK_EQU(kVal2, value);
 
   Release_Store(&value, kVal1);
@@ -248,11 +233,6 @@ static void TestLoad() {
   CHECK_EQU(kVal1, Acquire_Load(&value));
   value = kVal2;
   CHECK_EQU(kVal2, Acquire_Load(&value));
-
-  value = kVal1;
-  CHECK_EQU(kVal1, Release_Load(&value));
-  value = kVal2;
-  CHECK_EQU(kVal2, Release_Load(&value));
 }
 
 

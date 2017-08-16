@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --turbo-deoptimization
-
 function CheckStrictMode(code, exception) {
   assertDoesNotThrow(code);
   assertThrows("'use strict';\n" + code, exception);
@@ -168,18 +166,6 @@ assertThrows('\
     "use strict";\
   }', SyntaxError);
 
-// Duplicate data properties.
-CheckStrictMode("var x = { dupe : 1, nondupe: 3, dupe : 2 };", SyntaxError);
-CheckStrictMode("var x = { '1234' : 1, '2345' : 2, '1234' : 3 };", SyntaxError);
-CheckStrictMode("var x = { '1234' : 1, '2345' : 2, 1234 : 3 };", SyntaxError);
-CheckStrictMode("var x = { 3.14 : 1, 2.71 : 2, 3.14 : 3 };", SyntaxError);
-CheckStrictMode("var x = { 3.14 : 1, '3.14' : 2 };", SyntaxError);
-CheckStrictMode("var x = { \
-  123: 1, \
-  123.00000000000000000000000000000000000000000000000000000000000000000001: 2 \
-}", SyntaxError);
-
-// Non-conflicting data properties.
 (function StrictModeNonDuplicate() {
   "use strict";
   var x = { 123 : 1, "0123" : 2 };
@@ -190,37 +176,50 @@ CheckStrictMode("var x = { \
   };
 })();
 
-// Two getters (non-strict)
-assertThrows("var x = { get foo() { }, get foo() { } };", SyntaxError);
-assertThrows("var x = { get foo(){}, get 'foo'(){}};", SyntaxError);
-assertThrows("var x = { get 12(){}, get '12'(){}};", SyntaxError);
+// Duplicate data properties are allowed in ES6
+(function StrictModeDuplicateES6() {
+  'use strict';
+  var x = {
+    123: 1,
+    123.00000000000000000000000000000000000000000000000000000000000000000001: 2
+  };
+  var x = { dupe : 1, nondupe: 3, dupe : 2 };
+  var x = { '1234' : 1, '2345' : 2, '1234' : 3 };
+  var x = { '1234' : 1, '2345' : 2, 1234 : 3 };
+  var x = { 3.14 : 1, 2.71 : 2, 3.14 : 3 };
+  var x = { 3.14 : 1, '3.14' : 2 };
 
-// Two setters (non-strict)
-assertThrows("var x = { set foo(v) { }, set foo(v) { } };", SyntaxError);
-assertThrows("var x = { set foo(v) { }, set 'foo'(v) { } };", SyntaxError);
-assertThrows("var x = { set 13(v) { }, set '13'(v) { } };", SyntaxError);
+  var x = { get foo() { }, get foo() { } };
+  var x = { get foo(){}, get 'foo'(){}};
+  var x = { get 12(){}, get '12'(){}};
 
-// Setter and data (non-strict)
-assertThrows("var x = { foo: 'data', set foo(v) { } };", SyntaxError);
-assertThrows("var x = { set foo(v) { }, foo: 'data' };", SyntaxError);
-assertThrows("var x = { foo: 'data', set 'foo'(v) { } };", SyntaxError);
-assertThrows("var x = { set foo(v) { }, 'foo': 'data' };", SyntaxError);
-assertThrows("var x = { 'foo': 'data', set foo(v) { } };", SyntaxError);
-assertThrows("var x = { set 'foo'(v) { }, foo: 'data' };", SyntaxError);
-assertThrows("var x = { 'foo': 'data', set 'foo'(v) { } };", SyntaxError);
-assertThrows("var x = { set 'foo'(v) { }, 'foo': 'data' };", SyntaxError);
-assertThrows("var x = { 12: 1, set '12'(v){}};", SyntaxError);
-assertThrows("var x = { 12: 1, set 12(v){}};", SyntaxError);
-assertThrows("var x = { '12': 1, set '12'(v){}};", SyntaxError);
-assertThrows("var x = { '12': 1, set 12(v){}};", SyntaxError);
+  // Two setters
+  var x = { set foo(v) { }, set foo(v) { } };
+  var x = { set foo(v) { }, set 'foo'(v) { } };
+  var x = { set 13(v) { }, set '13'(v) { } };
 
-// Getter and data (non-strict)
-assertThrows("var x = { foo: 'data', get foo() { } };", SyntaxError);
-assertThrows("var x = { get foo() { }, foo: 'data' };", SyntaxError);
-assertThrows("var x = { 'foo': 'data', get foo() { } };", SyntaxError);
-assertThrows("var x = { get 'foo'() { }, 'foo': 'data' };", SyntaxError);
-assertThrows("var x = { '12': 1, get '12'(){}};", SyntaxError);
-assertThrows("var x = { '12': 1, get 12(){}};", SyntaxError);
+  // Setter and data
+  var x = { foo: 'data', set foo(v) { } };
+  var x = { set foo(v) { }, foo: 'data' };
+  var x = { foo: 'data', set 'foo'(v) { } };
+  var x = { set foo(v) { }, 'foo': 'data' };
+  var x = { 'foo': 'data', set foo(v) { } };
+  var x = { set 'foo'(v) { }, foo: 'data' };
+  var x = { 'foo': 'data', set 'foo'(v) { } };
+  var x = { set 'foo'(v) { }, 'foo': 'data' };
+  var x = { 12: 1, set '12'(v){}};
+  var x = { 12: 1, set 12(v){}};
+  var x = { '12': 1, set '12'(v){}};
+  var x = { '12': 1, set 12(v){}};
+
+  // Getter and data
+  var x = { foo: 'data', get foo() { } };
+  var x = { get foo() { }, foo: 'data' };
+  var x = { 'foo': 'data', get foo() { } };
+  var x = { get 'foo'() { }, 'foo': 'data' };
+  var x = { '12': 1, get '12'(){}};
+  var x = { '12': 1, get 12(){}};
+})();
 
 // Assignment to eval or arguments
 CheckStrictMode("function strict() { eval = undefined; }", SyntaxError);
@@ -284,19 +283,6 @@ CheckStrictMode("function strict() { print(--eval); }", SyntaxError);
 CheckStrictMode("function strict() { print(--arguments); }", SyntaxError);
 CheckStrictMode("function strict() { var x = --eval; }", SyntaxError);
 CheckStrictMode("function strict() { var x = --arguments; }", SyntaxError);
-
-// Use of const in strict mode is disallowed in anticipation of ES Harmony.
-CheckStrictMode("const x = 0;", SyntaxError);
-CheckStrictMode("for (const x = 0; false;) {}", SyntaxError);
-CheckStrictMode("function strict() { const x = 0; }", SyntaxError);
-
-// Strict mode only allows functions in SourceElements
-CheckStrictMode("if (true) { function invalid() {} }", SyntaxError);
-CheckStrictMode("for (;false;) { function invalid() {} }", SyntaxError);
-CheckStrictMode("{ function invalid() {} }", SyntaxError);
-CheckStrictMode("try { function invalid() {} } catch(e) {}", SyntaxError);
-CheckStrictMode("try { } catch(e) { function invalid() {} }", SyntaxError);
-CheckStrictMode("function outer() {{ function invalid() {} }}", SyntaxError);
 
 // Delete of an unqualified identifier
 CheckStrictMode("delete unqualified;", SyntaxError);
@@ -1022,7 +1008,7 @@ repeat(10, function() {
 })();
 
 
-function CheckPillDescriptor(func, name) {
+function CheckFunctionPillDescriptor(func, name) {
 
   function CheckPill(pill) {
     assertEquals("function", typeof pill);
@@ -1032,11 +1018,31 @@ function CheckPillDescriptor(func, name) {
     assertThrows(function() { 'use strict'; pill.property = "value"; },
                  TypeError);
     assertThrows(pill, TypeError);
-    assertEquals(pill.prototype, (function(){}).prototype);
-    var d = Object.getOwnPropertyDescriptor(pill, "prototype");
-    assertFalse(d.writable);
-    assertFalse(d.configurable);
-    assertFalse(d.enumerable);
+    assertEquals(undefined, pill.prototype);
+  }
+
+  // Poisoned accessors are no longer own properties
+  func = Object.getPrototypeOf(func);
+  var descriptor = Object.getOwnPropertyDescriptor(func, name);
+  CheckPill(descriptor.get)
+  CheckPill(descriptor.set);
+  assertFalse(descriptor.enumerable);
+  // In ES6, restricted function properties are configurable
+  assertTrue(descriptor.configurable);
+}
+
+
+function CheckArgumentsPillDescriptor(func, name) {
+
+  function CheckPill(pill) {
+    assertEquals("function", typeof pill);
+    assertInstanceof(pill, Function);
+    pill.property = "value";
+    assertEquals(pill.value, undefined);
+    assertThrows(function() { 'use strict'; pill.property = "value"; },
+                 TypeError);
+    assertThrows(pill, TypeError);
+    assertEquals(undefined, pill.prototype);
   }
 
   var descriptor = Object.getOwnPropertyDescriptor(func, name);
@@ -1068,12 +1074,12 @@ function CheckPillDescriptor(func, name) {
   assertThrows(function() { third.caller = 42; }, TypeError);
   assertThrows(function() { third.arguments = 42; }, TypeError);
 
-  CheckPillDescriptor(strict, "caller");
-  CheckPillDescriptor(strict, "arguments");
-  CheckPillDescriptor(another, "caller");
-  CheckPillDescriptor(another, "arguments");
-  CheckPillDescriptor(third, "caller");
-  CheckPillDescriptor(third, "arguments");
+  CheckFunctionPillDescriptor(strict, "caller");
+  CheckFunctionPillDescriptor(strict, "arguments");
+  CheckFunctionPillDescriptor(another, "caller");
+  CheckFunctionPillDescriptor(another, "arguments");
+  CheckFunctionPillDescriptor(third, "caller");
+  CheckFunctionPillDescriptor(third, "arguments");
 })();
 
 
@@ -1105,15 +1111,15 @@ function CheckPillDescriptor(func, name) {
   }
 
   var args = strict();
-  CheckPillDescriptor(args, "caller");
-  CheckPillDescriptor(args, "callee");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(args, "caller"));
+  CheckArgumentsPillDescriptor(args, "callee");
 
   args = strict(17, "value", strict);
   assertEquals(17, args[0])
   assertEquals("value", args[1])
   assertEquals(strict, args[2]);
-  CheckPillDescriptor(args, "caller");
-  CheckPillDescriptor(args, "callee");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(args, "caller"));
+  CheckArgumentsPillDescriptor(args, "callee");
 
   function outer() {
     "use strict";
@@ -1124,15 +1130,15 @@ function CheckPillDescriptor(func, name) {
   }
 
   var args = outer()();
-  CheckPillDescriptor(args, "caller");
-  CheckPillDescriptor(args, "callee");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(args, "caller"));
+  CheckArgumentsPillDescriptor(args, "callee");
 
   args = outer()(17, "value", strict);
   assertEquals(17, args[0])
   assertEquals("value", args[1])
   assertEquals(strict, args[2]);
-  CheckPillDescriptor(args, "caller");
-  CheckPillDescriptor(args, "callee");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(args, "caller"));
+  CheckArgumentsPillDescriptor(args, "callee");
 })();
 
 
@@ -1143,7 +1149,9 @@ function CheckPillDescriptor(func, name) {
 
   function strict() {
     "use strict";
-    return return_my_caller();
+    // Returning result via local variable to avoid tail call elimination.
+    var res = return_my_caller();
+    return res;
   }
   assertSame(null, strict());
 
@@ -1157,7 +1165,9 @@ function CheckPillDescriptor(func, name) {
 (function TestNonStrictFunctionCallerPill() {
   function strict(n) {
     "use strict";
-    return non_strict(n);
+    // Returning result via local variable to avoid tail call elimination.
+    var res = non_strict(n);
+    return res;
   }
 
   function recurse(n, then) {
@@ -1185,7 +1195,9 @@ function CheckPillDescriptor(func, name) {
 (function TestNonStrictFunctionCallerDescriptorPill() {
   function strict(n) {
     "use strict";
-    return non_strict(n);
+    // Returning result via local variable to avoid tail call elimination.
+    var res = non_strict(n);
+    return res;
   }
 
   function recurse(n, then) {

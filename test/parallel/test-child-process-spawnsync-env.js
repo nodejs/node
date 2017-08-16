@@ -19,17 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var cp = require('child_process');
+'use strict';
+require('../common');
+const assert = require('assert');
+const cp = require('child_process');
 
 if (process.argv[2] === 'child') {
   console.log(process.env.foo);
 } else {
-  var expected = 'bar';
-  var child = cp.spawnSync(process.execPath, [__filename, 'child'], {
-    env: {foo: expected}
+  const expected = 'bar';
+  const child = cp.spawnSync(process.execPath, [__filename, 'child'], {
+    env: Object.assign(process.env, { foo: expected })
   });
 
-  assert.equal(child.stdout.toString().trim(), expected);
+  assert.strictEqual(child.stdout.toString().trim(), expected);
 }

@@ -28,6 +28,7 @@
 #define UV_COMMON_H_
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stddef.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
@@ -40,24 +41,38 @@
 #include "tree.h"
 #include "queue.h"
 
+#if !defined(snprintf) && defined(_MSC_VER) && _MSC_VER < 1900
+extern int snprintf(char*, size_t, const char*, ...);
+#endif
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 #define container_of(ptr, type, member) \
   ((type *) ((char *) (ptr) - offsetof(type, member)))
 
+#define STATIC_ASSERT(expr)                                                   \
+  void uv__static_assert(int static_assert_failed[1 - 2 * !(expr)])
+
 #ifndef _WIN32
 enum {
+  UV__SIGNAL_ONE_SHOT = 0x80000,  /* On signal reception remove sighandler */
   UV__HANDLE_INTERNAL = 0x8000,
   UV__HANDLE_ACTIVE   = 0x4000,
   UV__HANDLE_REF      = 0x2000,
   UV__HANDLE_CLOSING  = 0 /* no-op on unix */
 };
 #else
-# define UV__HANDLE_INTERNAL  0x80
-# define UV__HANDLE_ACTIVE    0x40
-# define UV__HANDLE_REF       0x20
-# define UV__HANDLE_CLOSING   0x01
+# define UV__SIGNAL_ONE_SHOT_DISPATCHED   0x200
+# define UV__SIGNAL_ONE_SHOT              0x100
+# define UV__HANDLE_INTERNAL              0x80
+# define UV__HANDLE_ACTIVE                0x40
+# define UV__HANDLE_REF                   0x20
+# define UV__HANDLE_CLOSING               0x01
 #endif
+
+int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap);
+
+void uv__loop_close(uv_loop_t* loop);
 
 int uv__tcp_bind(uv_tcp_t* tcp,
                  const struct sockaddr* addr,
@@ -188,7 +203,7 @@ void uv__fs_scandir_cleanup(uv_fs_t* req);
   (((h)->flags & UV__HANDLE_REF) != 0)
 
 #if defined(_WIN32)
-# define uv__handle_platform_init(h)
+# define uv__handle_platform_init(h) ((h)->u.fd = -1)
 #else
 # define uv__handle_platform_init(h) ((h)->next_closing = NULL)
 #endif
@@ -202,5 +217,38 @@ void uv__fs_scandir_cleanup(uv_fs_t* req);
     uv__handle_platform_init(h);                                              \
   }                                                                           \
   while (0)
+
+/* Note: uses an open-coded version of SET_REQ_SUCCESS() because of
+ * a circular dependency between src/uv-common.h and src/win/internal.h.
+ */
+#if defined(_WIN32)
+# define UV_REQ_INIT(req, typ)                                                \
+  do {                                                                        \
+    (req)->type = (typ);                                                      \
+    (req)->u.io.overlapped.Internal = 0;  /* SET_REQ_SUCCESS() */             \
+  }                                                                           \
+  while (0)
+#else
+# define UV_REQ_INIT(req, typ)                                                \
+  do {                                                                        \
+    (req)->type = (typ);                                                      \
+  }                                                                           \
+  while (0)
+#endif
+
+#define uv__req_init(loop, req, typ)                                          \
+  do {                                                                        \
+    UV_REQ_INIT(req, typ);                                                    \
+    uv__req_register(loop, req);                                              \
+  }                                                                           \
+  while (0)
+
+/* Allocator prototypes */
+void *uv__calloc(size_t count, size_t size);
+char *uv__strdup(const char* s);
+char *uv__strndup(const char* s, size_t n);
+void* uv__malloc(size_t size);
+void uv__free(void* ptr);
+void* uv__realloc(void* ptr, size_t size);
 
 #endif /* UV_COMMON_H_ */

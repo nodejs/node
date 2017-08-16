@@ -94,6 +94,37 @@ function testAnonymousMethod() {
   (function () { FAIL }).call([1, 2, 3]);
 }
 
+function testFunctionName() {
+  function gen(name, counter) {
+    var f = function foo() {
+      if (counter === 0) {
+        FAIL;
+      }
+      gen(name, counter - 1)();
+    }
+    if (counter === 4) {
+      Object.defineProperty(f, 'name', {get: function(){ throw 239; }});
+    } else if (counter == 3) {
+      Object.defineProperty(f, 'name', {value: 'boo' + '_' + counter});
+    } else {
+      Object.defineProperty(f, 'name', {writable: true});
+      if (counter === 2)
+        f.name = 42;
+      else
+        f.name = name + '_' + counter;
+    }
+    return f;
+  }
+  gen('foo', 4)();
+}
+
+function testFunctionInferredName() {
+  var f = function() {
+    FAIL;
+  }
+  f();
+}
+
 function CustomError(message, stripPoint) {
   this.message = message;
   Error.captureStackTrace(this, stripPoint);
@@ -182,27 +213,11 @@ function testErrorsDuringFormatting() {
   Nasty.prototype.foo = function () { throw new RangeError(); };
   var n = new Nasty();
   n.__defineGetter__('constructor', function () { CONS_FAIL; });
-  var threw = false;
-  try {
-    n.foo();
-  } catch (e) {
-    threw = true;
-    assertTrue(e.stack.indexOf('<error: ReferenceError') != -1,
-               "ErrorsDuringFormatting didn't contain error: ReferenceError");
-  }
-  assertTrue(threw, "ErrorsDuringFormatting didn't throw");
-  threw = false;
+  assertThrows(()=>n.foo(), RangeError);
   // Now we can't even format the message saying that we couldn't format
   // the stack frame.  Put that in your pipe and smoke it!
   ReferenceError.prototype.toString = function () { NESTED_FAIL; };
-  try {
-    n.foo();
-  } catch (e) {
-    threw = true;
-    assertTrue(e.stack.indexOf('<error>') != -1,
-               "ErrorsDuringFormatting didn't contain <error>");
-  }
-  assertTrue(threw, "ErrorsDuringFormatting didnt' throw (2)");
+  assertThrows(()=>n.foo(), RangeError);
 }
 
 
@@ -237,16 +252,19 @@ function testTraceNativeConversion(nativeFunc) {
 
 
 function testOmittedBuiltin(throwing, omitted) {
+  var reached = false;
   try {
     throwing();
-    assertUnreachable(omitted);
+    reached = true;
   } catch (e) {
     assertTrue(e.stack.indexOf(omitted) < 0, omitted);
+  } finally {
+    assertFalse(reached);
   }
 }
 
 
-testTrace("testArrayNative", testArrayNative, ["Array.map (native)"]);
+testTrace("testArrayNative", testArrayNative, ["Array.map"]);
 testTrace("testNested", testNested, ["at one", "at two", "at three"]);
 testTrace("testMethodNameInference", testMethodNameInference, ["at Foo.bar"]);
 testTrace("testImplicitConversion", testImplicitConversion, ["at Nirk.valueOf"]);
@@ -261,6 +279,9 @@ testTrace("testValue", testValue, ["at Number.causeError"]);
 testTrace("testConstructor", testConstructor, ["new Plonk"]);
 testTrace("testRenamedMethod", testRenamedMethod, ["Wookie.a$b$c$d [as d]"]);
 testTrace("testAnonymousMethod", testAnonymousMethod, ["Array.<anonymous>"]);
+testTrace("testFunctionName", testFunctionName,
+    [" at foo_0 ", " at foo_1", " at foo ", " at boo_3 ", " at foo "]);
+testTrace("testFunctionInferredName", testFunctionInferredName, [" at f "]);
 testTrace("testDefaultCustomError", testDefaultCustomError,
     ["hep-hey", "new CustomError"],
     ["collectStackTrace"]);
@@ -273,13 +294,10 @@ testUnintendedCallerCensorship();
 testErrorsDuringFormatting();
 
 testTraceNativeConversion(String);  // Does ToString on argument.
-testTraceNativeConversion(Number);  // Does ToNumber on argument.
 testTraceNativeConversion(RegExp);  // Does ToString on argument.
 
 testTraceNativeConstructor(String);  // Does ToString on argument.
-testTraceNativeConstructor(Number);  // Does ToNumber on argument.
 testTraceNativeConstructor(RegExp);  // Does ToString on argument.
-testTraceNativeConstructor(Date);    // Does ToNumber on argument.
 
 // Omitted because QuickSort has builtins object as receiver, and is non-native
 // builtin.
@@ -287,22 +305,18 @@ testOmittedBuiltin(function(){ [thrower, 2].sort(function (a,b) {
                                                      (b < a) - (a < b); });
                    }, "QuickSort");
 
-// Omitted because ADD from runtime.js is non-native builtin.
-testOmittedBuiltin(function(){ thrower + 2; }, "ADD");
-
+var reached = false;
 var error = new Error();
-error.toString = function() { assertUnreachable(); };
+error.toString = function() { reached = true; };
 error.stack;
+assertFalse(reached);
 
+reached = false;
 error = new Error();
-error.name = { toString: function() { assertUnreachable(); }};
-error.message = { toString: function() {  assertUnreachable(); }};
+Array.prototype.push = function(x) { reached = true; };
+Array.prototype.join = function(x) { reached = true; };
 error.stack;
-
-error = new Error();
-Array.prototype.push = function(x) { assertUnreachable(); };
-Array.prototype.join = function(x) { assertUnreachable(); };
-error.stack;
+assertFalse(reached);
 
 var fired = false;
 error = new Error({ toString: function() { fired = true; } });
@@ -351,3 +365,75 @@ my_error = new Error();
 var stolen_getter = Object.getOwnPropertyDescriptor(my_error, 'stack').get;
 Object.defineProperty(fake_error, 'stack', { get: stolen_getter });
 assertEquals(undefined, fake_error.stack);
+
+// Check that overwriting the stack property during stack trace formatting
+// does not crash.
+error = new Error();
+error.__defineGetter__("name", function() { error.stack = "abc"; });
+assertEquals("abc", error.stack);
+
+error = new Error();
+error.__defineGetter__("name", function() { delete error.stack; });
+assertEquals(undefined, error.stack);
+
+// Check that repeated trace collection does not crash.
+error = new Error();
+Error.captureStackTrace(error);
+
+// Check property descriptor.
+var o = {};
+Error.captureStackTrace(o);
+assertEquals([], Object.keys(o));
+var desc = Object.getOwnPropertyDescriptor(o, "stack");
+assertFalse(desc.enumerable);
+assertTrue(desc.configurable);
+assertTrue(desc.writable);
+
+// Check that exceptions thrown within prepareStackTrace throws an exception.
+Error.prepareStackTrace = function(e, frames) { throw 42; }
+
+var x = {}
+assertThrows(() => Error.captureStackTrace(x));
+
+// Check that we don't crash when CaptureSimpleStackTrace returns undefined.
+var o = {};
+var oldStackTraceLimit = Error.stackTraceLimit;
+Error.stackTraceLimit = "not a number";
+Error.captureStackTrace(o);
+Error.stackTraceLimit = oldStackTraceLimit;
+
+// Check that we don't crash when a callsite's function's script is empty.
+Error.prepareStackTrace = function(e, frames) {
+  assertEquals(undefined, frames[0].getEvalOrigin());
+}
+try {
+  DataView();
+  assertUnreachable();
+} catch (e) {
+  assertEquals(undefined, e.stack);
+}
+
+// Check that a tight recursion in prepareStackTrace throws when accessing
+// stack. Trying again without a custom formatting function formats correctly.
+var err = new Error("abc");
+Error.prepareStackTrace = () => Error.prepareStackTrace();
+try {
+  err.stack;
+  assertUnreachable();
+} catch (e) {
+  err = e;
+}
+
+Error.prepareStackTrace = undefined;
+assertTrue(
+    err.stack.indexOf("RangeError: Maximum call stack size exceeded") != -1);
+assertTrue(err.stack.indexOf("prepareStackTrace") != -1);
+
+// Check that the callsite constructor throws.
+
+Error.prepareStackTrace = (e,s) => s;
+var constructor = new Error().stack[0].constructor;
+
+assertThrows(() => constructor.call());
+assertThrows(() => constructor.call(
+    null, {}, () => undefined, {valueOf() { return 0 }}, false));

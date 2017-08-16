@@ -12,25 +12,27 @@
 # The module implements "4-bit" GCM GHASH function and underlying
 # single multiplication operation in GF(2^128). "4-bit" means that it
 # uses 256 bytes per-key table [+64/128 bytes fixed table]. It has two
-# code paths: vanilla x86 and vanilla MMX. Former will be executed on
-# 486 and Pentium, latter on all others. MMX GHASH features so called
+# code paths: vanilla x86 and vanilla SSE. Former will be executed on
+# 486 and Pentium, latter on all others. SSE GHASH features so called
 # "528B" variant of "4-bit" method utilizing additional 256+16 bytes
 # of per-key storage [+512 bytes shared table]. Performance results
 # are for streamed GHASH subroutine and are expressed in cycles per
 # processed byte, less is better:
 #
-#		gcc 2.95.3(*)	MMX assembler	x86 assembler
+#		gcc 2.95.3(*)	SSE assembler	x86 assembler
 #
 # Pentium	105/111(**)	-		50
 # PIII		68 /75		12.2		24
 # P4		125/125		17.8		84(***)
 # Opteron	66 /70		10.1		30
 # Core2		54 /67		8.4		18
+# Atom		105/105		16.8		53
+# VIA Nano	69 /71		13.0		27
 #
 # (*)	gcc 3.4.x was observed to generate few percent slower code,
 #	which is one of reasons why 2.95.3 results were chosen,
 #	another reason is lack of 3.4.x results for older CPUs;
-#	comparison with MMX results is not completely fair, because C
+#	comparison with SSE results is not completely fair, because C
 #	results are for vanilla "256B" implementation, while
 #	assembler results are for "528B";-)
 # (**)	second number is result for code compiled with -fPIC flag,
@@ -40,8 +42,8 @@
 #
 # To summarize, it's >2-5 times faster than gcc-generated code. To
 # anchor it to something else SHA1 assembler processes one byte in
-# 11-13 cycles on contemporary x86 cores. As for choice of MMX in
-# particular, see comment at the end of the file...
+# ~7 cycles on contemporary x86 cores. As for choice of MMX/SSE
+# in particular, see comment at the end of the file...
 
 # May 2010
 #
@@ -112,6 +114,16 @@
 # on Sandy Bridge. Strangely enough attempt to modify 64-bit code in
 # similar manner resulted in almost 20% degradation on Sandy Bridge,
 # where original 64-bit code processes one byte in 1.95 cycles.
+
+#####################################################################
+# For reference, AMD Bulldozer processes one byte in 1.98 cycles in
+# 32-bit mode and 1.89 in 64-bit.
+
+# February 2013
+#
+# Overhaul: aggregate Karatsuba post-processing, improve ILP in
+# reduction_alg9. Resulting performance is 1.96 cycles per byte on
+# Westmere, 1.95 - on Sandy/Ivy Bridge, 1.76 - on Bulldozer.
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
@@ -346,7 +358,7 @@ $S=12;		# shift factor for rem_4bit
 # effective address calculation and finally merge of value to Z.hi.
 # Reference to rem_4bit is scheduled so late that I had to >>4
 # rem_4bit elements. This resulted in 20-45% procent improvement
-# on contemporary µ-archs.
+# on contemporary Âµ-archs.
 {
     my $cnt;
     my $rem_4bit = "eax";
@@ -822,17 +834,18 @@ $len="ebx";
 &static_label("bswap");
 
 sub clmul64x64_T2 {	# minimal "register" pressure
-my ($Xhi,$Xi,$Hkey)=@_;
+my ($Xhi,$Xi,$Hkey,$HK)=@_;
 
 	&movdqa		($Xhi,$Xi);		#
 	&pshufd		($T1,$Xi,0b01001110);
-	&pshufd		($T2,$Hkey,0b01001110);
+	&pshufd		($T2,$Hkey,0b01001110)	if (!defined($HK));
 	&pxor		($T1,$Xi);		#
-	&pxor		($T2,$Hkey);
+	&pxor		($T2,$Hkey)		if (!defined($HK));
+			$HK=$T2			if (!defined($HK));
 
 	&pclmulqdq	($Xi,$Hkey,0x00);	#######
 	&pclmulqdq	($Xhi,$Hkey,0x11);	#######
-	&pclmulqdq	($T1,$T2,0x00);		#######
+	&pclmulqdq	($T1,$HK,0x00);		#######
 	&xorps		($T1,$Xi);		#
 	&xorps		($T1,$Xhi);		#
 
@@ -879,31 +892,32 @@ if (1) {		# Algorithm 9 with <<1 twist.
 			# below. Algorithm 9 was therefore chosen for
 			# further optimization...
 
-sub reduction_alg9 {	# 17/13 times faster than Intel version
+sub reduction_alg9 {	# 17/11 times faster than Intel version
 my ($Xhi,$Xi) = @_;
 
 	# 1st phase
-	&movdqa		($T1,$Xi);		#
+	&movdqa		($T2,$Xi);		#
+	&movdqa		($T1,$Xi);
+	&psllq		($Xi,5);
+	&pxor		($T1,$Xi);		#
 	&psllq		($Xi,1);
 	&pxor		($Xi,$T1);		#
-	&psllq		($Xi,5);		#
-	&pxor		($Xi,$T1);		#
 	&psllq		($Xi,57);		#
-	&movdqa		($T2,$Xi);		#
+	&movdqa		($T1,$Xi);		#
 	&pslldq		($Xi,8);
-	&psrldq		($T2,8);		#
-	&pxor		($Xi,$T1);
-	&pxor		($Xhi,$T2);		#
+	&psrldq		($T1,8);		#	
+	&pxor		($Xi,$T2);
+	&pxor		($Xhi,$T1);		#
 
 	# 2nd phase
 	&movdqa		($T2,$Xi);
+	&psrlq		($Xi,1);
+	&pxor		($Xhi,$T2);		#
+	&pxor		($T2,$Xi);
 	&psrlq		($Xi,5);
 	&pxor		($Xi,$T2);		#
 	&psrlq		($Xi,1);		#
-	&pxor		($Xi,$T2);		#
-	&pxor		($T2,$Xhi);
-	&psrlq		($Xi,1);		#
-	&pxor		($Xi,$T2);		#
+	&pxor		($Xi,$Xhi)		#
 }
 
 &function_begin_B("gcm_init_clmul");
@@ -937,8 +951,14 @@ my ($Xhi,$Xi) = @_;
 	&clmul64x64_T2	($Xhi,$Xi,$Hkey);
 	&reduction_alg9	($Xhi,$Xi);
 
+	&pshufd		($T1,$Hkey,0b01001110);
+	&pshufd		($T2,$Xi,0b01001110);
+	&pxor		($T1,$Hkey);		# Karatsuba pre-processing
 	&movdqu		(&QWP(0,$Htbl),$Hkey);	# save H
+	&pxor		($T2,$Xi);		# Karatsuba pre-processing
 	&movdqu		(&QWP(16,$Htbl),$Xi);	# save H^2
+	&palignr	($T2,$T1,8);		# low part is H.lo^H.hi
+	&movdqu		(&QWP(32,$Htbl),$T2);	# save Karatsuba "salt"
 
 	&ret		();
 &function_end_B("gcm_init_clmul");
@@ -956,8 +976,9 @@ my ($Xhi,$Xi) = @_;
 	&movdqa		($T3,&QWP(0,$const));
 	&movups		($Hkey,&QWP(0,$Htbl));
 	&pshufb		($Xi,$T3);
+	&movups		($T2,&QWP(32,$Htbl));
 
-	&clmul64x64_T2	($Xhi,$Xi,$Hkey);
+	&clmul64x64_T2	($Xhi,$Xi,$Hkey,$T2);
 	&reduction_alg9	($Xhi,$Xi);
 
 	&pshufb		($Xi,$T3);
@@ -994,79 +1015,109 @@ my ($Xhi,$Xi) = @_;
 	&movdqu		($Xn,&QWP(16,$inp));	# Ii+1
 	&pshufb		($T1,$T3);
 	&pshufb		($Xn,$T3);
+	&movdqu		($T3,&QWP(32,$Htbl));
 	&pxor		($Xi,$T1);		# Ii+Xi
 
-	&clmul64x64_T2	($Xhn,$Xn,$Hkey);	# H*Ii+1
-	&movups		($Hkey,&QWP(16,$Htbl));	# load H^2
-
+	&pshufd		($T1,$Xn,0b01001110);	# H*Ii+1
+	&movdqa		($Xhn,$Xn);
+	&pxor		($T1,$Xn);		#
 	&lea		($inp,&DWP(32,$inp));	# i+=2
+
+	&pclmulqdq	($Xn,$Hkey,0x00);	#######
+	&pclmulqdq	($Xhn,$Hkey,0x11);	#######
+	&pclmulqdq	($T1,$T3,0x00);		#######
+	&movups		($Hkey,&QWP(16,$Htbl));	# load H^2
+	&nop		();
+
 	&sub		($len,0x20);
 	&jbe		(&label("even_tail"));
+	&jmp		(&label("mod_loop"));
 
-&set_label("mod_loop");
-	&clmul64x64_T2	($Xhi,$Xi,$Hkey);	# H^2*(Ii+Xi)
-	&movdqu		($T1,&QWP(0,$inp));	# Ii
+&set_label("mod_loop",32);
+	&pshufd		($T2,$Xi,0b01001110);	# H^2*(Ii+Xi)
+	&movdqa		($Xhi,$Xi);
+	&pxor		($T2,$Xi);		#
+	&nop		();
+
+	&pclmulqdq	($Xi,$Hkey,0x00);	#######
+	&pclmulqdq	($Xhi,$Hkey,0x11);	#######
+	&pclmulqdq	($T2,$T3,0x10);		#######
 	&movups		($Hkey,&QWP(0,$Htbl));	# load H
 
-	&pxor		($Xi,$Xn);		# (H*Ii+1) + H^2*(Ii+Xi)
-	&pxor		($Xhi,$Xhn);
+	&xorps		($Xi,$Xn);		# (H*Ii+1) + H^2*(Ii+Xi)
+	&movdqa		($T3,&QWP(0,$const));
+	&xorps		($Xhi,$Xhn);
+	 &movdqu	($Xhn,&QWP(0,$inp));	# Ii
+	&pxor		($T1,$Xi);		# aggregated Karatsuba post-processing
+	 &movdqu	($Xn,&QWP(16,$inp));	# Ii+1
+	&pxor		($T1,$Xhi);		#
 
-	&movdqu		($Xn,&QWP(16,$inp));	# Ii+1
-	&pshufb		($T1,$T3);
-	&pshufb		($Xn,$T3);
+	 &pshufb	($Xhn,$T3);
+	&pxor		($T2,$T1);		#
 
-	&movdqa		($T3,$Xn);		#&clmul64x64_TX	($Xhn,$Xn,$Hkey); H*Ii+1
-	&movdqa		($Xhn,$Xn);
-	 &pxor		($Xhi,$T1);		# "Ii+Xi", consume early
+	&movdqa		($T1,$T2);		#
+	&psrldq		($T2,8);
+	&pslldq		($T1,8);		#
+	&pxor		($Xhi,$T2);
+	&pxor		($Xi,$T1);		#
+	 &pshufb	($Xn,$T3);
+	 &pxor		($Xhi,$Xhn);		# "Ii+Xi", consume early
 
-	  &movdqa	($T1,$Xi);		#&reduction_alg9($Xhi,$Xi); 1st phase
+	&movdqa		($Xhn,$Xn);		#&clmul64x64_TX	($Xhn,$Xn,$Hkey); H*Ii+1
+	  &movdqa	($T2,$Xi);		#&reduction_alg9($Xhi,$Xi); 1st phase
+	  &movdqa	($T1,$Xi);
+	  &psllq	($Xi,5);
+	  &pxor		($T1,$Xi);		#
 	  &psllq	($Xi,1);
 	  &pxor		($Xi,$T1);		#
-	  &psllq	($Xi,5);		#
-	  &pxor		($Xi,$T1);		#
 	&pclmulqdq	($Xn,$Hkey,0x00);	#######
+	&movups		($T3,&QWP(32,$Htbl));
 	  &psllq	($Xi,57);		#
-	  &movdqa	($T2,$Xi);		#
+	  &movdqa	($T1,$Xi);		#
 	  &pslldq	($Xi,8);
-	  &psrldq	($T2,8);		#	
-	  &pxor		($Xi,$T1);
-	&pshufd		($T1,$T3,0b01001110);
-	  &pxor		($Xhi,$T2);		#
-	&pxor		($T1,$T3);
-	&pshufd		($T3,$Hkey,0b01001110);
-	&pxor		($T3,$Hkey);		#
-
-	&pclmulqdq	($Xhn,$Hkey,0x11);	#######
+	  &psrldq	($T1,8);		#	
+	  &pxor		($Xi,$T2);
+	  &pxor		($Xhi,$T1);		#
+	&pshufd		($T1,$Xhn,0b01001110);
 	  &movdqa	($T2,$Xi);		# 2nd phase
+	  &psrlq	($Xi,1);
+	&pxor		($T1,$Xhn);
+	  &pxor		($Xhi,$T2);		#
+	&pclmulqdq	($Xhn,$Hkey,0x11);	#######
+	&movups		($Hkey,&QWP(16,$Htbl));	# load H^2
+	  &pxor		($T2,$Xi);
 	  &psrlq	($Xi,5);
 	  &pxor		($Xi,$T2);		#
 	  &psrlq	($Xi,1);		#
-	  &pxor		($Xi,$T2);		#
-	  &pxor		($T2,$Xhi);
-	  &psrlq	($Xi,1);		#
-	  &pxor		($Xi,$T2);		#
-
+	  &pxor		($Xi,$Xhi)		#
 	&pclmulqdq	($T1,$T3,0x00);		#######
-	&movups		($Hkey,&QWP(16,$Htbl));	# load H^2
-	&xorps		($T1,$Xn);		#
-	&xorps		($T1,$Xhn);		#
-
-	&movdqa		($T3,$T1);		#
-	&psrldq		($T1,8);
-	&pslldq		($T3,8);		#
-	&pxor		($Xhn,$T1);
-	&pxor		($Xn,$T3);		#
-	&movdqa		($T3,&QWP(0,$const));
 
 	&lea		($inp,&DWP(32,$inp));
 	&sub		($len,0x20);
 	&ja		(&label("mod_loop"));
 
 &set_label("even_tail");
-	&clmul64x64_T2	($Xhi,$Xi,$Hkey);	# H^2*(Ii+Xi)
+	&pshufd		($T2,$Xi,0b01001110);	# H^2*(Ii+Xi)
+	&movdqa		($Xhi,$Xi);
+	&pxor		($T2,$Xi);		#
 
-	&pxor		($Xi,$Xn);		# (H*Ii+1) + H^2*(Ii+Xi)
-	&pxor		($Xhi,$Xhn);
+	&pclmulqdq	($Xi,$Hkey,0x00);	#######
+	&pclmulqdq	($Xhi,$Hkey,0x11);	#######
+	&pclmulqdq	($T2,$T3,0x10);		#######
+	&movdqa		($T3,&QWP(0,$const));
+
+	&xorps		($Xi,$Xn);		# (H*Ii+1) + H^2*(Ii+Xi)
+	&xorps		($Xhi,$Xhn);
+	&pxor		($T1,$Xi);		# aggregated Karatsuba post-processing
+	&pxor		($T1,$Xhi);		#
+
+	&pxor		($T2,$T1);		#
+
+	&movdqa		($T1,$T2);		#
+	&psrldq		($T2,8);
+	&pslldq		($T1,8);		#
+	&pxor		($Xhi,$T2);
+	&pxor		($Xi,$T1);		#
 
 	&reduction_alg9	($Xhi,$Xi);
 
@@ -1273,13 +1324,6 @@ my ($Xhi,$Xi)=@_;
 &set_label("bswap",64);
 	&data_byte(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0);
 	&data_byte(1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0xc2);	# 0x1c2_polynomial
-}}	# $sse2
-
-&set_label("rem_4bit",64);
-	&data_word(0,0x0000<<$S,0,0x1C20<<$S,0,0x3840<<$S,0,0x2460<<$S);
-	&data_word(0,0x7080<<$S,0,0x6CA0<<$S,0,0x48C0<<$S,0,0x54E0<<$S);
-	&data_word(0,0xE100<<$S,0,0xFD20<<$S,0,0xD940<<$S,0,0xC560<<$S);
-	&data_word(0,0x9180<<$S,0,0x8DA0<<$S,0,0xA9C0<<$S,0,0xB5E0<<$S);
 &set_label("rem_8bit",64);
 	&data_short(0x0000,0x01C2,0x0384,0x0246,0x0708,0x06CA,0x048C,0x054E);
 	&data_short(0x0E10,0x0FD2,0x0D94,0x0C56,0x0918,0x08DA,0x0A9C,0x0B5E);
@@ -1313,6 +1357,13 @@ my ($Xhi,$Xi)=@_;
 	&data_short(0xA7D0,0xA612,0xA454,0xA596,0xA0D8,0xA11A,0xA35C,0xA29E);
 	&data_short(0xB5E0,0xB422,0xB664,0xB7A6,0xB2E8,0xB32A,0xB16C,0xB0AE);
 	&data_short(0xBBF0,0xBA32,0xB874,0xB9B6,0xBCF8,0xBD3A,0xBF7C,0xBEBE);
+}}	# $sse2
+
+&set_label("rem_4bit",64);
+	&data_word(0,0x0000<<$S,0,0x1C20<<$S,0,0x3840<<$S,0,0x2460<<$S);
+	&data_word(0,0x7080<<$S,0,0x6CA0<<$S,0,0x48C0<<$S,0,0x54E0<<$S);
+	&data_word(0,0xE100<<$S,0,0xFD20<<$S,0,0xD940<<$S,0,0xC560<<$S);
+	&data_word(0,0x9180<<$S,0,0x8DA0<<$S,0,0xA9C0<<$S,0,0xB5E0<<$S);
 }}}	# !$x86only
 
 &asciz("GHASH for x86, CRYPTOGAMS by <appro\@openssl.org>");

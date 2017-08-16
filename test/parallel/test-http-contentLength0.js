@@ -19,22 +19,23 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var http = require('http');
+'use strict';
+require('../common');
+const http = require('http');
 
 // Simple test of Node's HTTP Client choking on a response
 // with a 'Content-Length: 0 ' response header.
 // I.E. a space character after the 'Content-Length' throws an `error` event.
 
 
-var s = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Length': '0 '});
+const s = http.createServer(function(req, res) {
+  res.writeHead(200, { 'Content-Length': '0 ' });
   res.end();
 });
-s.listen(common.PORT, function() {
+s.listen(0, function() {
 
-  var request = http.request({ port: common.PORT }, function(response) {
-    console.log('STATUS: ' + response.statusCode);
+  const request = http.request({ port: this.address().port }, (response) => {
+    console.log(`STATUS: ${response.statusCode}`);
     s.close();
     response.resume();
   });

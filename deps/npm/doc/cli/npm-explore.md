@@ -3,7 +3,7 @@ npm-explore(1) -- Browse an installed package
 
 ## SYNOPSIS
 
-    npm explore <name> [ -- <cmd>]
+    npm explore <pkg> [ -- <command>]
 
 ## DESCRIPTION
 

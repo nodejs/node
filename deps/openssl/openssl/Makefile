@@ -4,16 +4,16 @@
 ## Makefile for OpenSSL
 ##
 
-VERSION=1.0.1j
+VERSION=1.0.2l
 MAJOR=1
-MINOR=0.1
+MINOR=0.2
 SHLIB_VERSION_NUMBER=1.0.0
 SHLIB_VERSION_HISTORY=
 SHLIB_MAJOR=1
 SHLIB_MINOR=0.0
 SHLIB_EXT=
 PLATFORM=dist
-OPTIONS= no-ec_nistp_64_gcc_128 no-gmp no-jpake no-krb5 no-md2 no-rc5 no-rfc3779 no-sctp no-shared no-store no-unit-test no-zlib no-zlib-dynamic static-engine
+OPTIONS= no-ec_nistp_64_gcc_128 no-gmp no-jpake no-krb5 no-libunbound no-md2 no-rc5 no-rfc3779 no-sctp no-shared no-ssl-trace no-ssl2 no-store no-unit-test no-weak-ssl-ciphers no-zlib no-zlib-dynamic static-engine
 CONFIGURE_ARGS=dist
 SHLIB_TARGET=
 
@@ -61,17 +61,18 @@ OPENSSLDIR=/usr/local/ssl
 
 CC= cc
 CFLAG= -O
-DEPFLAG= -DOPENSSL_NO_EC_NISTP_64_GCC_128 -DOPENSSL_NO_GMP -DOPENSSL_NO_JPAKE -DOPENSSL_NO_MD2 -DOPENSSL_NO_RC5 -DOPENSSL_NO_RFC3779 -DOPENSSL_NO_SCTP -DOPENSSL_NO_STORE -DOPENSSL_NO_UNIT_TEST
+DEPFLAG= -DOPENSSL_NO_EC_NISTP_64_GCC_128 -DOPENSSL_NO_GMP -DOPENSSL_NO_JPAKE -DOPENSSL_NO_LIBUNBOUND -DOPENSSL_NO_MD2 -DOPENSSL_NO_RC5 -DOPENSSL_NO_RFC3779 -DOPENSSL_NO_SCTP -DOPENSSL_NO_SSL_TRACE -DOPENSSL_NO_SSL2 -DOPENSSL_NO_STORE -DOPENSSL_NO_UNIT_TEST -DOPENSSL_NO_WEAK_SSL_CIPHERS
 PEX_LIBS= 
 EX_LIBS= 
 EXE_EXT= 
 ARFLAGS= 
 AR= ar $(ARFLAGS) r
 RANLIB= /usr/bin/ranlib
+RC= windres
 NM= nm
 PERL= /usr/bin/perl
 TAR= tar
-TARFLAGS= --no-recursion --record-size=10240
+TARFLAGS= --no-recursion
 MAKEDEPPROG=makedepend
 LIBDIR=lib
 
@@ -90,6 +91,7 @@ PROCESSOR=
 # CPUID module collects small commonly used assembler snippets
 CPUID_OBJ= mem_clr.o
 BN_ASM= bn_asm.o
+EC_ASM= 
 DES_ENC= des_enc.o fcrypt_b.o
 AES_ENC= aes_core.o aes_cbc.o
 BF_ENC= bf_enc.o
@@ -181,12 +183,11 @@ SHARED_LDFLAGS=
 GENERAL=        Makefile
 BASENAME=       openssl
 NAME=           $(BASENAME)-$(VERSION)
-TARFILE=        $(NAME).tar
-WTARFILE=       $(NAME)-win.tar
+TARFILE=        ../$(NAME).tar
 EXHEADER=       e_os2.h
 HEADER=         e_os.h
 
-all: Makefile build_all openssl.pc libssl.pc libcrypto.pc
+all: Makefile build_all
 
 # as we stick to -e, CLEARENV ensures that local variables in lower
 # Makefiles remain local and variable. $${VAR+VAR} is tribute to Korn
@@ -202,12 +203,16 @@ CLEARENV=	TOP= && unset TOP $${LIB+LIB} $${LIBS+LIBS}	\
 		$${ASFLAGS+ASFLAGS} $${AFLAGS+AFLAGS}		\
 		$${LDCMD+LDCMD} $${LDFLAGS+LDFLAGS} $${SCRIPTS+SCRIPTS}	\
 		$${SHAREDCMD+SHAREDCMD} $${SHAREDFLAGS+SHAREDFLAGS}	\
-		$${SHARED_LIB+SHARED_LIB} $${LIBEXTRAS+LIBEXTRAS}
+		$${SHARED_LIB+SHARED_LIB} $${LIBEXTRAS+LIBEXTRAS}	\
+		$${APPS+APPS}
 
-BUILDENV=	PLATFORM='$(PLATFORM)' PROCESSOR='$(PROCESSOR)' \
+# LC_ALL=C ensures that error [and other] messages are delivered in
+# same language for uniform treatment.
+BUILDENV=	LC_ALL=C PLATFORM='$(PLATFORM)' PROCESSOR='$(PROCESSOR)'\
 		CC='$(CC)' CFLAG='$(CFLAG)' 			\
 		AS='$(CC)' ASFLAG='$(CFLAG) -c'			\
 		AR='$(AR)' NM='$(NM)' RANLIB='$(RANLIB)'	\
+		RC='$(RC)'              			\
 		CROSS_COMPILE='$(CROSS_COMPILE)'	\
 		PERL='$(PERL)' ENGDIRS='$(ENGDIRS)'		\
 		SDIRS='$(SDIRS)' LIBRPATH='$(INSTALLTOP)/$(LIBDIR)'	\
@@ -223,8 +228,8 @@ BUILDENV=	PLATFORM='$(PLATFORM)' PROCESSOR='$(PROCESSOR)' \
 		EXE_EXT='$(EXE_EXT)' SHARED_LIBS='$(SHARED_LIBS)'	\
 		SHLIB_EXT='$(SHLIB_EXT)' SHLIB_TARGET='$(SHLIB_TARGET)'	\
 		PEX_LIBS='$(PEX_LIBS)' EX_LIBS='$(EX_LIBS)'	\
-		CPUID_OBJ='$(CPUID_OBJ)'			\
-		BN_ASM='$(BN_ASM)' DES_ENC='$(DES_ENC)' 	\
+		CPUID_OBJ='$(CPUID_OBJ)' BN_ASM='$(BN_ASM)'	\
+		EC_ASM='$(EC_ASM)' DES_ENC='$(DES_ENC)' 	\
 		AES_ENC='$(AES_ENC)' CMLL_ENC='$(CMLL_ENC)'	\
 		BF_ENC='$(BF_ENC)' CAST_ENC='$(CAST_ENC)'	\
 		RC4_ENC='$(RC4_ENC)' RC5_ENC='$(RC5_ENC)'	\
@@ -270,21 +275,25 @@ reflect:
 	@[ -n "$(THIS)" ] && $(CLEARENV) && $(MAKE) $(THIS) -e $(BUILDENV)
 
 sub_all: build_all
+
 build_all: build_libs build_apps build_tests build_tools
 
-build_libs: build_crypto build_ssl build_engines
+build_libs: build_libcrypto build_libssl openssl.pc
+
+build_libcrypto: build_crypto build_engines libcrypto.pc
+build_libssl: build_ssl libssl.pc
 
 build_crypto:
 	@dir=crypto; target=all; $(BUILD_ONE_CMD)
-build_ssl:
+build_ssl: build_crypto
 	@dir=ssl; target=all; $(BUILD_ONE_CMD)
-build_engines:
+build_engines: build_crypto
 	@dir=engines; target=all; $(BUILD_ONE_CMD)
-build_apps:
+build_apps: build_libs
 	@dir=apps; target=all; $(BUILD_ONE_CMD)
-build_tests:
+build_tests: build_libs
 	@dir=test; target=all; $(BUILD_ONE_CMD)
-build_tools:
+build_tools: build_libs
 	@dir=tools; target=all; $(BUILD_ONE_CMD)
 
 all_testapps: build_libs build_testapps
@@ -328,7 +337,7 @@ clean-shared:
 			done; \
 		fi; \
 		( set -x; rm -f lib$$i$(SHLIB_EXT) ); \
-		if [ "$(PLATFORM)" = "Cygwin" ]; then \
+		if expr "$(PLATFORM)" : "Cygwin" >/dev/null; then \
 			( set -x; rm -f cyg$$i$(SHLIB_EXT) lib$$i$(SHLIB_EXT).a ); \
 		fi; \
 	done
@@ -362,6 +371,7 @@ libcrypto.pc: Makefile
 	    echo 'exec_prefix=$${prefix}'; \
 	    echo 'libdir=$${exec_prefix}/$(LIBDIR)'; \
 	    echo 'includedir=$${prefix}/include'; \
+	    echo 'enginesdir=$${libdir}/engines'; \
 	    echo ''; \
 	    echo 'Name: OpenSSL-libcrypto'; \
 	    echo 'Description: OpenSSL cryptography library'; \
@@ -377,11 +387,11 @@ libssl.pc: Makefile
 	    echo 'libdir=$${exec_prefix}/$(LIBDIR)'; \
 	    echo 'includedir=$${prefix}/include'; \
 	    echo ''; \
-	    echo 'Name: OpenSSL'; \
+	    echo 'Name: OpenSSL-libssl'; \
 	    echo 'Description: Secure Sockets Layer and cryptography libraries'; \
 	    echo 'Version: '$(VERSION); \
-	    echo 'Requires: '; \
-	    echo 'Libs: -L$${libdir} -lssl -lcrypto'; \
+	    echo 'Requires.private: libcrypto'; \
+	    echo 'Libs: -L$${libdir} -lssl'; \
 	    echo 'Libs.private: $(EX_LIBS)'; \
 	    echo 'Cflags: -I$${includedir} $(KRB5_INCLUDES)' ) > libssl.pc
 
@@ -394,10 +404,7 @@ openssl.pc: Makefile
 	    echo 'Name: OpenSSL'; \
 	    echo 'Description: Secure Sockets Layer and cryptography libraries and tools'; \
 	    echo 'Version: '$(VERSION); \
-	    echo 'Requires: '; \
-	    echo 'Libs: -L$${libdir} -lssl -lcrypto'; \
-	    echo 'Libs.private: $(EX_LIBS)'; \
-	    echo 'Cflags: -I$${includedir} $(KRB5_INCLUDES)' ) > openssl.pc
+	    echo 'Requires: libssl libcrypto' ) > openssl.pc
 
 Makefile: Makefile.org Configure config
 	@echo "Makefile is older than Makefile.org, Configure or config."
@@ -418,6 +425,14 @@ clean:	libclean
 	do \
 	rm -fr $$i/*; \
 	done
+
+distclean: clean
+	-$(RM) `find . -name .git -prune -o -type l -print`
+	$(RM) apps/CA.pl
+	$(RM) test/evptests.txt test/newkey.pem test/testkey.pem test/testreq.pem
+	$(RM) tools/c_rehash
+	$(RM) crypto/opensslconf.h
+	$(RM) Makefile Makefile.bak
 
 makefile.one: files
 	$(PERL) util/mk1mf.pl >makefile.one; \
@@ -461,6 +476,9 @@ tests: rehash
 report:
 	@$(PERL) util/selftest.pl
 
+update: errors stacks util/libeay.num util/ssleay.num TABLE
+	@set -e; target=update; $(RECURSIVE_BUILD_CMD)
+
 depend:
 	@set -e; target=depend; $(RECURSIVE_BUILD_CMD)
 
@@ -485,60 +503,44 @@ util/libeay.num::
 util/ssleay.num::
 	$(PERL) util/mkdef.pl ssl update
 
-crypto/objects/obj_dat.h: crypto/objects/obj_dat.pl crypto/objects/obj_mac.h
-	$(PERL) crypto/objects/obj_dat.pl crypto/objects/obj_mac.h crypto/objects/obj_dat.h
-crypto/objects/obj_mac.h: crypto/objects/objects.pl crypto/objects/objects.txt crypto/objects/obj_mac.num
-	$(PERL) crypto/objects/objects.pl crypto/objects/objects.txt crypto/objects/obj_mac.num crypto/objects/obj_mac.h
-crypto/objects/obj_xref.h: crypto/objects/objxref.pl crypto/objects/obj_xref.txt crypto/objects/obj_mac.num
-	$(PERL) crypto/objects/objxref.pl crypto/objects/obj_mac.num crypto/objects/obj_xref.txt >crypto/objects/obj_xref.h
-
-apps/openssl-vms.cnf: apps/openssl.cnf
-	$(PERL) VMS/VMSify-conf.pl < apps/openssl.cnf > apps/openssl-vms.cnf
-
-crypto/bn/bn_prime.h: crypto/bn/bn_prime.pl
-	$(PERL) crypto/bn/bn_prime.pl >crypto/bn/bn_prime.h
-
-
 TABLE: Configure
 	(echo 'Output of `Configure TABLE'"':"; \
 	$(PERL) Configure TABLE) > TABLE
-
-update: errors stacks util/libeay.num util/ssleay.num crypto/objects/obj_dat.h crypto/objects/obj_xref.h apps/openssl-vms.cnf crypto/bn/bn_prime.h TABLE depend
 
 # Build distribution tar-file. As the list of files returned by "find" is
 # pretty long, on several platforms a "too many arguments" error or similar
 # would occur. Therefore the list of files is temporarily stored into a file
 # and read directly, requiring GNU-Tar. Call "make TAR=gtar dist" if the normal
 # tar does not support the --files-from option.
-tar:
+TAR_COMMAND=$(TAR) $(TARFLAGS) --files-from $(TARFILE).list \
+	                       --owner 0 --group 0 \
+			       --transform 's|^|$(NAME)/|' \
+			       -cvf -
+
+$(TARFILE).list:
+	find * \! -name STATUS \! -name TABLE \! -name '*.o' \! -name '*.a' \
+	       \! -name '*.so' \! -name '*.so.*'  \! -name 'openssl' \
+	       \( \! -name '*test' -o -name bctest -o -name pod2mantest \) \
+	       \! -name '.#*' \! -name '*~' \! -type l \
+	    | sort > $(TARFILE).list
+
+tar: $(TARFILE).list
 	find . -type d -print | xargs chmod 755
 	find . -type f -print | xargs chmod a+r
 	find . -type f -perm -0100 -print | xargs chmod a+x
-	find * \! -path CVS/\* \! -path \*/CVS/\* \! -name CVS \! -name .cvsignore \! -name STATUS \! -name TABLE | sort > ../$(TARFILE).list; \
-	$(TAR) $(TARFLAGS) --files-from ../$(TARFILE).list -cvf - | \
-	tardy --user_number=0  --user_name=openssl \
-	      --group_number=0 --group_name=openssl \
-	      --prefix=openssl-$(VERSION) - |\
-	gzip --best >../$(TARFILE).gz; \
-	rm -f ../$(TARFILE).list; \
-	ls -l ../$(TARFILE).gz
+	$(TAR_COMMAND) | gzip --best > $(TARFILE).gz
+	rm -f $(TARFILE).list
+	ls -l $(TARFILE).gz
 
-tar-snap:
-	@$(TAR) $(TARFLAGS) -cvf - \
-		`find * \! -path CVS/\* \! -path \*/CVS/\* \! -name CVS \! -name .cvsignore \! -name STATUS \! -name TABLE \! -name '*.o' \! -name '*.a' \! -name '*.so' \! -name '*.so.*'  \! -name 'openssl' \! -name '*test' \! -name '.#*' \! -name '*~' | sort` |\
-	tardy --user_number=0  --user_name=openssl \
-	      --group_number=0 --group_name=openssl \
-	      --prefix=openssl-$(VERSION) - > ../$(TARFILE);\
-	ls -l ../$(TARFILE)
+tar-snap: $(TARFILE).list
+	$(TAR_COMMAND) > $(TARFILE)
+	rm -f $(TARFILE).list
+	ls -l $(TARFILE)
 
 dist:   
 	$(PERL) Configure dist
-	@$(MAKE) dist_pem_h
 	@$(MAKE) SDIRS='$(SDIRS)' clean
-	@$(MAKE) TAR='$(TAR)' TARFLAGS='$(TARFLAGS)' tar
-
-dist_pem_h:
-	(cd crypto/pem; $(MAKE) -e $(BUILDENV) pem.h; $(MAKE) clean)
+	@$(MAKE) TAR='$(TAR)' TARFLAGS='$(TARFLAGS)' $(DISTTARVARS) tar
 
 install: all install_docs install_sw
 
@@ -573,17 +575,17 @@ install_sw:
 		do \
 			if [ -f "$$i" -o -f "$$i.a" ]; then \
 			(       echo installing $$i; \
-				if [ "$(PLATFORM)" != "Cygwin" ]; then \
-					cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/$$i.new; \
-					chmod 555 $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/$$i.new; \
-					mv -f $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/$$i.new $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/$$i; \
-				else \
+				if expr "$(PLATFORM)" : "Cygwin" >/dev/null; then \
 					c=`echo $$i | sed 's/^lib\(.*\)\.dll\.a/cyg\1-$(SHLIB_VERSION_NUMBER).dll/'`; \
 					cp $$c $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c.new; \
 					chmod 755 $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c.new; \
 					mv -f $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c.new $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c; \
 					cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/$$i.new; \
 					chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/$$i.new; \
+					mv -f $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/$$i.new $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/$$i; \
+				else \
+					cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/$$i.new; \
+					chmod 555 $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/$$i.new; \
 					mv -f $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/$$i.new $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/$$i; \
 				fi ); \
 				if expr $(PLATFORM) : 'mingw' > /dev/null; then \
@@ -617,6 +619,10 @@ install_sw:
 
 install_html_docs:
 	here="`pwd`"; \
+	filecase=; \
+	case "$(PLATFORM)" in DJGPP|Cygwin*|mingw*|darwin*-*-cc) \
+		filecase=-i; \
+	esac; \
 	for subdir in apps crypto ssl; do \
 		mkdir -p $(INSTALL_PREFIX)$(HTMLDIR)/$$subdir; \
 		for i in doc/$$subdir/*.pod; do \
@@ -645,9 +651,9 @@ install_docs:
 	@pod2man="`cd ./util; ./pod2mantest $(PERL)`"; \
 	here="`pwd`"; \
 	filecase=; \
-	if [ "$(PLATFORM)" = "DJGPP" -o "$(PLATFORM)" = "Cygwin" -o "$(PLATFORM)" = "mingw" ]; then \
+	case "$(PLATFORM)" in DJGPP|Cygwin*|mingw*|darwin*-*-cc) \
 		filecase=-i; \
-	fi; \
+	esac; \
 	set -e; for i in doc/apps/*.pod; do \
 		fn=`basename $$i .pod`; \
 		sec=`$(PERL) util/extract-section.pl 1 < $$i`; \

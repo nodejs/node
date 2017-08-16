@@ -61,8 +61,8 @@ fi
 src=$1
 dest=$2
 name=$(basename ${src%.*})
-date=$(date -u +'%Y-%M-%d %H:%m:%S')
-version=$(node cli.js -v)
+date=$(date -u +'%Y-%m-%d %H:%M:%S')
+version=$(node bin/npm-cli.js -v)
 
 mkdir -p $(dirname $dest)
 
@@ -103,22 +103,15 @@ case $dest in
     | man_replace_tokens > $dest
     exit $?
     ;;
-
-  html/partial/*.html)
-    url=${dest/html\/partial\//}
-		cat $src | ./node_modules/.bin/marked | html_replace_tokens $url > $dest
-		;;
-
-	html/*.html)
+  *.html)
     url=${dest/html\//}
     (cat html/dochead.html && \
-     cat $src && \
+     cat $src | ./node_modules/.bin/marked &&
      cat html/docfoot.html)\
     | html_replace_tokens $url \
     > $dest
     exit $?
     ;;
-
   *)
     echo "Invalid destination type: $dest" >&2
     exit 1

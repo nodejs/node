@@ -19,31 +19,26 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var fs = require('fs');
-var dgram = require('dgram');
-var callbacks = 0;
-var client, timer, buf, len, offset;
+const dgram = require('dgram');
+const client = dgram.createSocket('udp4');
 
+const buf = Buffer.allocUnsafe(256);
+const offset = 20;
+const len = buf.length - offset;
 
-client = dgram.createSocket('udp4');
-
-buf = new Buffer(256);
-offset = 20;
-
-len = buf.length - offset;
-
-
-client.send(buf, offset, len, common.PORT, "127.0.0.1", function (err, bytes) {
-    assert.notEqual(bytes, buf.length);
-    assert.equal(bytes, buf.length - offset);
-    clearTimeout(timer);
-    client.close();
+const messageSent = common.mustCall(function messageSent(err, bytes) {
+  assert.ifError(err);
+  assert.notStrictEqual(bytes, buf.length);
+  assert.strictEqual(bytes, buf.length - offset);
+  client.close();
 });
 
-timer = setTimeout(function() {
-  throw new Error('Timeout');
-}, 200);
+client.bind(0, () => client.send(buf, offset, len,
+                                 client.address().port,
+                                 '127.0.0.1',
+                                 messageSent));

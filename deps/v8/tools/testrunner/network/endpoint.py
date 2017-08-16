@@ -93,6 +93,7 @@ def Execute(workspace, ctx, tests, sock, server):
     suite = testsuite.TestSuite.LoadTestSuite(
         os.path.join(workspace, "test", root))
     if suite:
+      suite.SetupWorkingDirectory()
       suites.append(suite)
 
   suites_dict = {}

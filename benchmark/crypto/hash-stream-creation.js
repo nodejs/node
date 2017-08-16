@@ -1,5 +1,6 @@
 // throughput benchmark
 // creates a single hasher, then pushes a bunch of data through it
+'use strict';
 var common = require('../common.js');
 var crypto = require('crypto');
 
@@ -14,32 +15,28 @@ var bench = common.createBenchmark(main, {
 
 function main(conf) {
   var api = conf.api;
-  if (api === 'stream' && process.version.match(/^v0\.[0-8]\./)) {
+  if (api === 'stream' && /^v0\.[0-8]\./.test(process.version)) {
     console.error('Crypto streams not available until v0.10');
     // use the legacy, just so that we can compare them.
     api = 'legacy';
   }
 
-  var crypto = require('crypto');
-  var assert = require('assert');
-
   var message;
   var encoding;
   switch (conf.type) {
     case 'asc':
-      message = new Array(conf.len + 1).join('a');
+      message = 'a'.repeat(conf.len);
       encoding = 'ascii';
       break;
     case 'utf':
-      message = new Array(conf.len / 2 + 1).join('ü');
+      message = 'ü'.repeat(conf.len / 2);
       encoding = 'utf8';
       break;
     case 'buf':
-      message = new Buffer(conf.len);
-      message.fill('b');
+      message = Buffer.alloc(conf.len, 'b');
       break;
     default:
-      throw new Error('unknown message type: ' + conf.type);
+      throw new Error(`unknown message type: ${conf.type}`);
   }
 
   var fn = api === 'stream' ? streamWrite : legacyWrite;
@@ -60,7 +57,7 @@ function legacyWrite(algo, message, encoding, writes, len, outEnc) {
 
     // include buffer creation costs for older versions
     if (outEnc === 'buffer' && typeof res === 'string')
-      res = new Buffer(res, 'binary');
+      res = Buffer.from(res, 'binary');
   }
 
   bench.end(gbits);

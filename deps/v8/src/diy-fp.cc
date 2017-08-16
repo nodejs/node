@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-#include "src/base/logging.h"
 #include "src/diy-fp.h"
-#include "src/globals.h"
+
+#include <stdint.h>
 
 namespace v8 {
 namespace internal {
@@ -33,4 +32,5 @@ void DiyFp::Multiply(const DiyFp& other) {
   f_ = result_f;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

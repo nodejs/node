@@ -1,0 +1,14 @@
+## Test-specific linter rules
+
+rules:
+  # ECMAScript 6
+  # http://eslint.org/docs/rules/#ecmascript-6
+  no-var: error
+  prefer-const: error
+
+  # Custom rules in tools/eslint-rules
+  prefer-assert-iferror: error
+  prefer-assert-methods: error
+  prefer-common-mustnotcall: error
+  ## common module is mandatory in tests
+  required-modules: [error, common]

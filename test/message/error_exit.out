@@ -1,14 +1,15 @@
 Exiting with code=1
-
 assert.js:*
-  throw new assert.AssertionError({
-        ^
-AssertionError: 1 == 2
+  throw new errors.AssertionError({
+  ^
+
+AssertionError [ERR_ASSERTION]: 1 === 2
     at Object.<anonymous> (*test*message*error_exit.js:*:*)
     at Module._compile (module.js:*:*)
     at Object.Module._extensions..js (module.js:*:*)
     at Module.load (module.js:*:*)
+    at tryModuleLoad (module.js:*:*)
     at Function.Module._load (module.js:*:*)
     at Function.Module.runMain (module.js:*:*)
-    at startup (node.js:*:*)
-    at node.js:*:*
+    at startup (bootstrap_node.js:*:*)
+    at bootstrap_node.js:*:*

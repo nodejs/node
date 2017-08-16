@@ -19,94 +19,70 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+/* eslint-disable strict */
+require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var binaryString = '';
-for (var i = 255; i >= 0; i--) {
-  var s = '\'\\' + i.toString(8) + '\'';
-  var S = eval(s);
-  common.error(s +
-               ' ' +
-               JSON.stringify(S) +
-               ' ' +
-               JSON.stringify(String.fromCharCode(i)) +
-               ' ' +
-               S.charCodeAt(0));
-  assert.ok(S.charCodeAt(0) == i);
-  assert.ok(S == String.fromCharCode(i));
+let binaryString = '';
+for (let i = 255; i >= 0; i--) {
+  const s = `'\\${i.toString(8)}'`;
+  const S = eval(s);
+  assert.strictEqual(S.charCodeAt(0), i);
+  assert.strictEqual(S, String.fromCharCode(i));
   binaryString += S;
 }
 
 // safe constructor
-var echoServer = net.Server(function(connection) {
-  console.error('SERVER got connection');
-  connection.setEncoding('binary');
+const echoServer = net.Server(function(connection) {
+  connection.setEncoding('latin1');
   connection.on('data', function(chunk) {
-    common.error('SERVER recved: ' + JSON.stringify(chunk));
-    connection.write(chunk, 'binary');
+    connection.write(chunk, 'latin1');
   });
   connection.on('end', function() {
-    console.error('SERVER ending');
     connection.end();
   });
 });
-echoServer.listen(common.PORT);
+echoServer.listen(0);
 
-var recv = '';
+let recv = '';
 
 echoServer.on('listening', function() {
-  console.error('SERVER listening');
-  var j = 0;
-  var c = net.createConnection({
-    port: common.PORT
+  let j = 0;
+  const c = net.createConnection({
+    port: this.address().port
   });
 
-  c.setEncoding('binary');
+  c.setEncoding('latin1');
   c.on('data', function(chunk) {
-    console.error('CLIENT data %j', chunk);
-    var n = j + chunk.length;
+    const n = j + chunk.length;
     while (j < n && j < 256) {
-      common.error('CLIENT write ' + j);
-      c.write(String.fromCharCode(j), 'binary');
+      c.write(String.fromCharCode(j), 'latin1');
       j++;
     }
     if (j === 256) {
-      console.error('CLIENT ending');
       c.end();
     }
     recv += chunk;
   });
 
   c.on('connect', function() {
-    console.error('CLIENT connected, writing');
     c.write(binaryString, 'binary');
   });
 
   c.on('close', function() {
-    console.error('CLIENT closed');
-    console.dir(recv);
     echoServer.close();
-  });
-
-  c.on('finish', function() {
-    console.error('CLIENT finished');
   });
 });
 
 process.on('exit', function() {
-  console.log('recv: ' + JSON.stringify(recv));
+  assert.strictEqual(2 * 256, recv.length);
 
-  assert.equal(2 * 256, recv.length);
+  const a = recv.split('');
 
-  var a = recv.split('');
+  const first = a.slice(0, 256).reverse().join('');
 
-  var first = a.slice(0, 256).reverse().join('');
-  console.log('first: ' + JSON.stringify(first));
+  const second = a.slice(256, 2 * 256).join('');
 
-  var second = a.slice(256, 2 * 256).join('');
-  console.log('second: ' + JSON.stringify(second));
-
-  assert.equal(first, second);
+  assert.strictEqual(first, second);
 });

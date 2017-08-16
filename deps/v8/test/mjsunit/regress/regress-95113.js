@@ -31,8 +31,8 @@ function get_double_array() {
   var a = new Array(100000);
   var i = 0;
   while (!%HasFastDoubleElements(a)) {
-    a[i] = i;
-    i += 0.5;
+    a[i] = i + 0.1;
+    i += 1;
   }
   assertTrue(%HasFastDoubleElements(a));
   a.length = 1;

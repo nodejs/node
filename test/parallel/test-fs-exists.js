@@ -19,25 +19,24 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var f = __filename;
-var exists;
-var doesNotExist;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const { URL } = require('url');
+const f = __filename;
 
-fs.exists(f, function(y) {
-  exists = y;
-});
+fs.exists(f, common.mustCall(function(y) {
+  assert.strictEqual(y, true);
+}));
 
-fs.exists(f + '-NO', function(y) {
-  doesNotExist = y;
-});
+fs.exists(`${f}-NO`, common.mustCall(function(y) {
+  assert.strictEqual(y, false);
+}));
+
+fs.exists(new URL('https://foo'), common.mustCall(function(y) {
+  assert.strictEqual(y, false);
+}));
 
 assert(fs.existsSync(f));
-assert(!fs.existsSync(f + '-NO'));
-
-process.on('exit', function() {
-  assert.strictEqual(exists, true);
-  assert.strictEqual(doesNotExist, false);
-});
+assert(!fs.existsSync(`${f}-NO`));

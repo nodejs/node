@@ -19,24 +19,22 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-try {
-  var crypto = require('crypto');
-} catch (e) {
-  console.log('Skipping test, compiled without crypto support.');
-  return;
-}
+const assert = require('assert');
+const crypto = require('crypto');
+const domain = require('domain');
 
 function test(fn) {
-  var ex = new Error('BAM');
-  var d = domain.create();
+  const ex = new Error('BAM');
+  const d = domain.create();
   d.on('error', common.mustCall(function(err) {
-    assert.equal(err, ex);
+    assert.strictEqual(err, ex);
   }));
-  var cb = common.mustCall(function() {
+  const cb = common.mustCall(function() {
     throw ex;
   });
   d.run(cb);

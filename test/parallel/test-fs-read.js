@@ -19,30 +19,37 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+const filepath = path.join(common.fixturesDir, 'x.txt');
+const fd = fs.openSync(filepath, 'r');
 
+const expected = Buffer.from('xyz\n');
 
+function test(bufferAsync, bufferSync, expected) {
+  fs.read(fd,
+          bufferAsync,
+          0,
+          expected.length,
+          0,
+          common.mustCall((err, bytesRead) => {
+            assert.ifError(err);
+            assert.strictEqual(bytesRead, expected.length);
+            assert.deepStrictEqual(bufferAsync, expected);
+          }));
 
-var common = require('../common');
-var assert = require('assert');
-var path = require('path'),
-    fs = require('fs'),
-    filepath = path.join(common.fixturesDir, 'x.txt'),
-    fd = fs.openSync(filepath, 'r'),
-    expected = 'xyz\n',
-    readCalled = 0;
+  const r = fs.readSync(fd, bufferSync, 0, expected.length, 0);
+  assert.deepStrictEqual(bufferSync, expected);
+  assert.strictEqual(r, expected.length);
+}
 
-fs.read(fd, expected.length, 0, 'utf-8', function(err, str, bytesRead) {
-  readCalled++;
+test(Buffer.allocUnsafe(expected.length),
+     Buffer.allocUnsafe(expected.length),
+     expected);
 
-  assert.ok(!err);
-  assert.equal(str, expected);
-  assert.equal(bytesRead, expected.length);
-});
-
-var r = fs.readSync(fd, expected.length, 0, 'utf-8');
-assert.equal(r[0], expected);
-assert.equal(r[1], expected.length);
-
-process.on('exit', function() {
-  assert.equal(readCalled, 1);
-});
+test(new Uint8Array(expected.length),
+     new Uint8Array(expected.length),
+     Uint8Array.from(expected));

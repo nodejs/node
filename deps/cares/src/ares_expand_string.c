@@ -54,7 +54,7 @@ int ares_expand_string(const unsigned char *encoded,
 
   encoded++;
 
-  *s = malloc(elen.uns+1);
+  *s = ares_malloc(elen.uns+1);
   if (*s == NULL)
     return ARES_ENOMEM;
   q = *s;

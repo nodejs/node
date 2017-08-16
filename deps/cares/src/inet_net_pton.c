@@ -151,7 +151,7 @@ inet_net_pton_ipv4(const char *src, unsigned char *dst, size_t size)
 
   /* If nothing was written to the destination, we found no address. */
   if (dst == odst)
-    goto enoent;
+    goto enoent;  /* LCOV_EXCL_LINE: all valid paths above increment dst */
   /* If no CIDR spec was given, infer width from net class. */
   if (bits == -1) {
     if (*odst >= 240)       /* Class E */

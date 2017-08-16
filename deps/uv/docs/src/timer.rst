@@ -42,6 +42,9 @@ API
     If `repeat` is non-zero, the callback fires first after `timeout`
     milliseconds and then repeatedly after `repeat` milliseconds.
 
+    .. note::
+        Does not update the event loop's concept of "now". See :c:func:`uv_update_time` for more information.
+
 .. c:function:: int uv_timer_stop(uv_timer_t* handle)
 
     Stop the timer, the callback will not be called anymore.
@@ -54,7 +57,15 @@ API
 
 .. c:function:: void uv_timer_set_repeat(uv_timer_t* handle, uint64_t repeat)
 
-    Set the repeat value in milliseconds.
+    Set the repeat interval value in milliseconds. The timer will be scheduled
+    to run on the given interval, regardless of the callback execution
+    duration, and will follow normal timer semantics in the case of a
+    time-slice overrun.
+
+    For example, if a 50ms repeating timer first runs for 17ms, it will be
+    scheduled to run again 33ms later. If other tasks consume more than the
+    33ms following the first timer callback, then the callback will run as soon
+    as possible.
 
     .. note::
         If the repeat value is set from a timer callback it does not immediately take effect.

@@ -7,9 +7,16 @@
 
 #include "include/v8.h"
 #include "src/allocation.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/base/platform/time.h"
 #include "src/globals.h"
+#include "src/isolate.h"
 #include "src/objects.h"
+#include "src/runtime/runtime.h"
+#include "src/tracing/trace-event.h"
+#include "src/tracing/traced-value.h"
+#include "src/tracing/tracing-category-observer.h"
 
 namespace v8 {
 namespace internal {
@@ -195,6 +202,8 @@ class Histogram {
     lookup_done_ = false;
   }
 
+  const char* name() { return name_; }
+
  protected:
   // Returns the handle to the histogram.
   void* GetHistogram() {
@@ -205,7 +214,6 @@ class Histogram {
     return histogram_;
   }
 
-  const char* name() { return name_; }
   Isolate* isolate() const { return isolate_; }
 
  private:
@@ -223,13 +231,16 @@ class Histogram {
 // A HistogramTimer allows distributions of results to be created.
 class HistogramTimer : public Histogram {
  public:
-  HistogramTimer() { }
-  HistogramTimer(const char* name,
-                 int min,
-                 int max,
-                 int num_buckets,
-                 Isolate* isolate)
-      : Histogram(name, min, max, num_buckets, isolate) {}
+  enum Resolution {
+    MILLISECOND,
+    MICROSECOND
+  };
+
+  HistogramTimer() {}
+  HistogramTimer(const char* name, int min, int max, Resolution resolution,
+                 int num_buckets, Isolate* isolate)
+      : Histogram(name, min, max, num_buckets, isolate),
+        resolution_(resolution) {}
 
   // Start the timer.
   void Start();
@@ -249,6 +260,7 @@ class HistogramTimer : public Histogram {
 
  private:
   base::ElapsedTimer timer_;
+  Resolution resolution_;
 };
 
 // Helper class for scoping a HistogramTimer.
@@ -291,144 +303,789 @@ class HistogramTimerScope BASE_EMBEDDED {
 #endif
 };
 
+
+// A histogram timer that can aggregate events within a larger scope.
+//
+// Intended use of this timer is to have an outer (aggregating) and an inner
+// (to be aggregated) scope, where the inner scope measure the time of events,
+// and all those inner scope measurements will be summed up by the outer scope.
+// An example use might be to aggregate the time spent in lazy compilation
+// while running a script.
+//
+// Helpers:
+// - AggregatingHistogramTimerScope, the "outer" scope within which
+//     times will be summed up.
+// - AggregatedHistogramTimerScope, the "inner" scope which defines the
+//     events to be timed.
+class AggregatableHistogramTimer : public Histogram {
+ public:
+  AggregatableHistogramTimer() {}
+  AggregatableHistogramTimer(const char* name, int min, int max,
+                             int num_buckets, Isolate* isolate)
+      : Histogram(name, min, max, num_buckets, isolate) {}
+
+  // Start/stop the "outer" scope.
+  void Start() { time_ = base::TimeDelta(); }
+  void Stop() { AddSample(static_cast<int>(time_.InMicroseconds())); }
+
+  // Add a time value ("inner" scope).
+  void Add(base::TimeDelta other) { time_ += other; }
+
+ private:
+  base::TimeDelta time_;
+};
+
+// A helper class for use with AggregatableHistogramTimer. This is the
+// // outer-most timer scope used with an AggregatableHistogramTimer. It will
+// // aggregate the information from the inner AggregatedHistogramTimerScope.
+class AggregatingHistogramTimerScope {
+ public:
+  explicit AggregatingHistogramTimerScope(AggregatableHistogramTimer* histogram)
+      : histogram_(histogram) {
+    histogram_->Start();
+  }
+  ~AggregatingHistogramTimerScope() { histogram_->Stop(); }
+
+ private:
+  AggregatableHistogramTimer* histogram_;
+};
+
+// A helper class for use with AggregatableHistogramTimer, the "inner" scope
+// // which defines the events to be timed.
+class AggregatedHistogramTimerScope {
+ public:
+  explicit AggregatedHistogramTimerScope(AggregatableHistogramTimer* histogram)
+      : histogram_(histogram) {
+    timer_.Start();
+  }
+  ~AggregatedHistogramTimerScope() { histogram_->Add(timer_.Elapsed()); }
+
+ private:
+  base::ElapsedTimer timer_;
+  AggregatableHistogramTimer* histogram_;
+};
+
+
+// AggretatedMemoryHistogram collects (time, value) sample pairs and turns
+// them into time-uniform samples for the backing historgram, such that the
+// backing histogram receives one sample every T ms, where the T is controlled
+// by the FLAG_histogram_interval.
+//
+// More formally: let F be a real-valued function that maps time to sample
+// values. We define F as a linear interpolation between adjacent samples. For
+// each time interval [x; x + T) the backing histogram gets one sample value
+// that is the average of F(t) in the interval.
+template <typename Histogram>
+class AggregatedMemoryHistogram {
+ public:
+  AggregatedMemoryHistogram()
+      : is_initialized_(false),
+        start_ms_(0.0),
+        last_ms_(0.0),
+        aggregate_value_(0.0),
+        last_value_(0.0),
+        backing_histogram_(NULL) {}
+
+  explicit AggregatedMemoryHistogram(Histogram* backing_histogram)
+      : AggregatedMemoryHistogram() {
+    backing_histogram_ = backing_histogram;
+  }
+
+  // Invariants that hold before and after AddSample if
+  // is_initialized_ is true:
+  //
+  // 1) For we processed samples that came in before start_ms_ and sent the
+  // corresponding aggregated samples to backing histogram.
+  // 2) (last_ms_, last_value_) is the last received sample.
+  // 3) last_ms_ < start_ms_ + FLAG_histogram_interval.
+  // 4) aggregate_value_ is the average of the function that is constructed by
+  // linearly interpolating samples received between start_ms_ and last_ms_.
+  void AddSample(double current_ms, double current_value);
+
+ private:
+  double Aggregate(double current_ms, double current_value);
+  bool is_initialized_;
+  double start_ms_;
+  double last_ms_;
+  double aggregate_value_;
+  double last_value_;
+  Histogram* backing_histogram_;
+};
+
+
+template <typename Histogram>
+void AggregatedMemoryHistogram<Histogram>::AddSample(double current_ms,
+                                                     double current_value) {
+  if (!is_initialized_) {
+    aggregate_value_ = current_value;
+    start_ms_ = current_ms;
+    last_value_ = current_value;
+    last_ms_ = current_ms;
+    is_initialized_ = true;
+  } else {
+    const double kEpsilon = 1e-6;
+    const int kMaxSamples = 1000;
+    if (current_ms < last_ms_ + kEpsilon) {
+      // Two samples have the same time, remember the last one.
+      last_value_ = current_value;
+    } else {
+      double sample_interval_ms = FLAG_histogram_interval;
+      double end_ms = start_ms_ + sample_interval_ms;
+      if (end_ms <= current_ms + kEpsilon) {
+        // Linearly interpolate between the last_ms_ and the current_ms.
+        double slope = (current_value - last_value_) / (current_ms - last_ms_);
+        int i;
+        // Send aggregated samples to the backing histogram from the start_ms
+        // to the current_ms.
+        for (i = 0; i < kMaxSamples && end_ms <= current_ms + kEpsilon; i++) {
+          double end_value = last_value_ + (end_ms - last_ms_) * slope;
+          double sample_value;
+          if (i == 0) {
+            // Take aggregate_value_ into account.
+            sample_value = Aggregate(end_ms, end_value);
+          } else {
+            // There is no aggregate_value_ for i > 0.
+            sample_value = (last_value_ + end_value) / 2;
+          }
+          backing_histogram_->AddSample(static_cast<int>(sample_value + 0.5));
+          last_value_ = end_value;
+          last_ms_ = end_ms;
+          end_ms += sample_interval_ms;
+        }
+        if (i == kMaxSamples) {
+          // We hit the sample limit, ignore the remaining samples.
+          aggregate_value_ = current_value;
+          start_ms_ = current_ms;
+        } else {
+          aggregate_value_ = last_value_;
+          start_ms_ = last_ms_;
+        }
+      }
+      aggregate_value_ = current_ms > start_ms_ + kEpsilon
+                             ? Aggregate(current_ms, current_value)
+                             : aggregate_value_;
+      last_value_ = current_value;
+      last_ms_ = current_ms;
+    }
+  }
+}
+
+
+template <typename Histogram>
+double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
+                                                       double current_value) {
+  double interval_ms = current_ms - start_ms_;
+  double value = (current_value + last_value_) / 2;
+  // The aggregate_value_ is the average for [start_ms_; last_ms_].
+  // The value is the average for [last_ms_; current_ms].
+  // Return the weighted average of the aggregate_value_ and the value.
+  return aggregate_value_ * ((last_ms_ - start_ms_) / interval_ms) +
+         value * ((current_ms - last_ms_) / interval_ms);
+}
+
+class RuntimeCallCounter final {
+ public:
+  explicit RuntimeCallCounter(const char* name)
+      : name_(name), count_(0), time_(0) {}
+  V8_NOINLINE void Reset();
+  V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
+  void Add(RuntimeCallCounter* other);
+
+  const char* name() const { return name_; }
+  int64_t count() const { return count_; }
+  base::TimeDelta time() const {
+    return base::TimeDelta::FromMicroseconds(time_);
+  }
+  void Increment() { count_++; }
+  void Add(base::TimeDelta delta) { time_ += delta.InMicroseconds(); }
+
+ private:
+  RuntimeCallCounter() {}
+
+  const char* name_;
+  int64_t count_;
+  // Stored as int64_t so that its initialization can be deferred.
+  int64_t time_;
+
+  friend class RuntimeCallStats;
+};
+
+// RuntimeCallTimer is used to keep track of the stack of currently active
+// timers used for properly measuring the own time of a RuntimeCallCounter.
+class RuntimeCallTimer final {
+ public:
+  RuntimeCallCounter* counter() { return counter_; }
+  void set_counter(RuntimeCallCounter* counter) { counter_ = counter; }
+  RuntimeCallTimer* parent() const { return parent_.Value(); }
+  void set_parent(RuntimeCallTimer* timer) { parent_.SetValue(timer); }
+  const char* name() const { return counter_->name(); }
+
+  inline bool IsStarted();
+
+  inline void Start(RuntimeCallCounter* counter, RuntimeCallTimer* parent);
+  void Snapshot();
+  inline RuntimeCallTimer* Stop();
+
+ private:
+  inline void Pause(base::TimeTicks now);
+  inline void Resume(base::TimeTicks now);
+  inline void CommitTimeToCounter();
+  inline base::TimeTicks Now();
+
+  RuntimeCallCounter* counter_ = nullptr;
+  base::AtomicValue<RuntimeCallTimer*> parent_;
+  base::TimeTicks start_ticks_;
+  base::TimeDelta elapsed_;
+};
+
+#define FOR_EACH_API_COUNTER(V)                            \
+  V(ArrayBuffer_Cast)                                      \
+  V(ArrayBuffer_Neuter)                                    \
+  V(ArrayBuffer_New)                                       \
+  V(Array_CloneElementAt)                                  \
+  V(Array_New)                                             \
+  V(BooleanObject_BooleanValue)                            \
+  V(BooleanObject_New)                                     \
+  V(Context_New)                                           \
+  V(Context_NewRemoteContext)                              \
+  V(DataView_New)                                          \
+  V(Date_DateTimeConfigurationChangeNotification)          \
+  V(Date_New)                                              \
+  V(Date_NumberValue)                                      \
+  V(Debug_Call)                                            \
+  V(Error_New)                                             \
+  V(External_New)                                          \
+  V(Float32Array_New)                                      \
+  V(Float64Array_New)                                      \
+  V(Function_Call)                                         \
+  V(Function_New)                                          \
+  V(Function_NewInstance)                                  \
+  V(FunctionTemplate_GetFunction)                          \
+  V(FunctionTemplate_New)                                  \
+  V(FunctionTemplate_NewRemoteInstance)                    \
+  V(FunctionTemplate_NewWithCache)                         \
+  V(FunctionTemplate_NewWithFastHandler)                   \
+  V(Int16Array_New)                                        \
+  V(Int32Array_New)                                        \
+  V(Int8Array_New)                                         \
+  V(JSON_Parse)                                            \
+  V(JSON_Stringify)                                        \
+  V(Map_AsArray)                                           \
+  V(Map_Clear)                                             \
+  V(Map_Delete)                                            \
+  V(Map_Get)                                               \
+  V(Map_Has)                                               \
+  V(Map_New)                                               \
+  V(Map_Set)                                               \
+  V(Message_GetEndColumn)                                  \
+  V(Message_GetLineNumber)                                 \
+  V(Message_GetSourceLine)                                 \
+  V(Message_GetStartColumn)                                \
+  V(Module_FinishDynamicImportSuccess)                     \
+  V(Module_FinishDynamicImportFailure)                     \
+  V(Module_Evaluate)                                       \
+  V(Module_Instantiate)                                    \
+  V(NumberObject_New)                                      \
+  V(NumberObject_NumberValue)                              \
+  V(Object_CallAsConstructor)                              \
+  V(Object_CallAsFunction)                                 \
+  V(Object_CreateDataProperty)                             \
+  V(Object_DefineOwnProperty)                              \
+  V(Object_DefineProperty)                                 \
+  V(Object_Delete)                                         \
+  V(Object_DeleteProperty)                                 \
+  V(Object_ForceSet)                                       \
+  V(Object_Get)                                            \
+  V(Object_GetOwnPropertyDescriptor)                       \
+  V(Object_GetOwnPropertyNames)                            \
+  V(Object_GetPropertyAttributes)                          \
+  V(Object_GetPropertyNames)                               \
+  V(Object_GetRealNamedProperty)                           \
+  V(Object_GetRealNamedPropertyAttributes)                 \
+  V(Object_GetRealNamedPropertyAttributesInPrototypeChain) \
+  V(Object_GetRealNamedPropertyInPrototypeChain)           \
+  V(Object_HasOwnProperty)                                 \
+  V(Object_HasRealIndexedProperty)                         \
+  V(Object_HasRealNamedCallbackProperty)                   \
+  V(Object_HasRealNamedProperty)                           \
+  V(Object_Int32Value)                                     \
+  V(Object_IntegerValue)                                   \
+  V(Object_New)                                            \
+  V(Object_NumberValue)                                    \
+  V(Object_ObjectProtoToString)                            \
+  V(Object_Set)                                            \
+  V(Object_SetAccessor)                                    \
+  V(Object_SetIntegrityLevel)                              \
+  V(Object_SetPrivate)                                     \
+  V(Object_SetPrototype)                                   \
+  V(ObjectTemplate_New)                                    \
+  V(ObjectTemplate_NewInstance)                            \
+  V(Object_ToArrayIndex)                                   \
+  V(Object_ToDetailString)                                 \
+  V(Object_ToInt32)                                        \
+  V(Object_ToInteger)                                      \
+  V(Object_ToNumber)                                       \
+  V(Object_ToObject)                                       \
+  V(Object_ToString)                                       \
+  V(Object_ToUint32)                                       \
+  V(Object_Uint32Value)                                    \
+  V(Persistent_New)                                        \
+  V(Private_New)                                           \
+  V(Promise_Catch)                                         \
+  V(Promise_Chain)                                         \
+  V(Promise_HasRejectHandler)                              \
+  V(Promise_Resolver_New)                                  \
+  V(Promise_Resolver_Resolve)                              \
+  V(Promise_Result)                                        \
+  V(Promise_Status)                                        \
+  V(Promise_Then)                                          \
+  V(Proxy_New)                                             \
+  V(RangeError_New)                                        \
+  V(ReferenceError_New)                                    \
+  V(RegExp_New)                                            \
+  V(ScriptCompiler_Compile)                                \
+  V(ScriptCompiler_CompileFunctionInContext)               \
+  V(ScriptCompiler_CompileUnbound)                         \
+  V(Script_Run)                                            \
+  V(Set_Add)                                               \
+  V(Set_AsArray)                                           \
+  V(Set_Clear)                                             \
+  V(Set_Delete)                                            \
+  V(Set_Has)                                               \
+  V(Set_New)                                               \
+  V(SharedArrayBuffer_New)                                 \
+  V(String_Concat)                                         \
+  V(String_NewExternalOneByte)                             \
+  V(String_NewExternalTwoByte)                             \
+  V(String_NewFromOneByte)                                 \
+  V(String_NewFromTwoByte)                                 \
+  V(String_NewFromUtf8)                                    \
+  V(StringObject_New)                                      \
+  V(StringObject_StringValue)                              \
+  V(String_Write)                                          \
+  V(String_WriteUtf8)                                      \
+  V(Symbol_New)                                            \
+  V(SymbolObject_New)                                      \
+  V(SymbolObject_SymbolValue)                              \
+  V(SyntaxError_New)                                       \
+  V(TryCatch_StackTrace)                                   \
+  V(TypeError_New)                                         \
+  V(Uint16Array_New)                                       \
+  V(Uint32Array_New)                                       \
+  V(Uint8Array_New)                                        \
+  V(Uint8ClampedArray_New)                                 \
+  V(UnboundScript_GetId)                                   \
+  V(UnboundScript_GetLineNumber)                           \
+  V(UnboundScript_GetName)                                 \
+  V(UnboundScript_GetSourceMappingURL)                     \
+  V(UnboundScript_GetSourceURL)                            \
+  V(Value_InstanceOf)                                      \
+  V(Value_TypeOf)                                          \
+  V(ValueDeserializer_ReadHeader)                          \
+  V(ValueDeserializer_ReadValue)                           \
+  V(ValueSerializer_WriteValue)
+
+#define FOR_EACH_MANUAL_COUNTER(V)                  \
+  V(AccessorGetterCallback)                         \
+  V(AccessorNameGetterCallback)                     \
+  V(AccessorNameGetterCallback_ArrayLength)         \
+  V(AccessorNameGetterCallback_BoundFunctionLength) \
+  V(AccessorNameGetterCallback_BoundFunctionName)   \
+  V(AccessorNameGetterCallback_FunctionPrototype)   \
+  V(AccessorNameGetterCallback_StringLength)        \
+  V(AccessorNameSetterCallback)                     \
+  V(CompileCodeLazy)                                \
+  V(CompileDeserialize)                             \
+  V(CompileEval)                                    \
+  V(CompileFullCode)                                \
+  V(CompileAnalyse)                                 \
+  V(CompileBackgroundIgnition)                      \
+  V(CompileFunction)                                \
+  V(CompileGetFromOptimizedCodeMap)                 \
+  V(CompileGetUnoptimizedCode)                      \
+  V(CompileIgnition)                                \
+  V(CompileIgnitionFinalization)                    \
+  V(CompileInnerFunction)                           \
+  V(CompileRenumber)                                \
+  V(CompileRewriteReturnResult)                     \
+  V(CompileScopeAnalysis)                           \
+  V(CompileScript)                                  \
+  V(CompileSerialize)                               \
+  V(CompileWaitForDispatcher)                       \
+  V(DeoptimizeCode)                                 \
+  V(FunctionCallback)                               \
+  V(GC)                                             \
+  V(GC_AllAvailableGarbage)                         \
+  V(GC_IncrementalMarkingJob)                       \
+  V(GC_IncrementalMarkingObserver)                  \
+  V(GC_SlowAllocateRaw)                             \
+  V(GCEpilogueCallback)                             \
+  V(GCPrologueCallback)                             \
+  V(GenericNamedPropertyDefinerCallback)            \
+  V(GenericNamedPropertyDeleterCallback)            \
+  V(GenericNamedPropertyDescriptorCallback)         \
+  V(GenericNamedPropertyQueryCallback)              \
+  V(GenericNamedPropertySetterCallback)             \
+  V(GetMoreDataCallback)                            \
+  V(IndexedPropertyDefinerCallback)                 \
+  V(IndexedPropertyDeleterCallback)                 \
+  V(IndexedPropertyDescriptorCallback)              \
+  V(IndexedPropertyGetterCallback)                  \
+  V(IndexedPropertyQueryCallback)                   \
+  V(IndexedPropertySetterCallback)                  \
+  V(InvokeApiInterruptCallbacks)                    \
+  V(InvokeFunctionCallback)                         \
+  V(JS_Execution)                                   \
+  V(Map_SetPrototype)                               \
+  V(Map_TransitionToAccessorProperty)               \
+  V(Map_TransitionToDataProperty)                   \
+  V(Object_DeleteProperty)                          \
+  V(OptimizeCode)                                   \
+  V(ParseArrowFunctionLiteral)                      \
+  V(ParseBackgroundArrowFunctionLiteral)            \
+  V(ParseBackgroundFunctionLiteral)                 \
+  V(ParseEval)                                      \
+  V(ParseFunction)                                  \
+  V(ParseFunctionLiteral)                           \
+  V(ParseProgram)                                   \
+  V(PreParseArrowFunctionLiteral)                   \
+  V(PreParseBackgroundArrowFunctionLiteral)         \
+  V(PreParseBackgroundNoVariableResolution)         \
+  V(PreParseBackgroundWithVariableResolution)       \
+  V(PreParseNoVariableResolution)                   \
+  V(PreParseWithVariableResolution)                 \
+  V(PropertyCallback)                               \
+  V(PrototypeMap_TransitionToAccessorProperty)      \
+  V(PrototypeMap_TransitionToDataProperty)          \
+  V(PrototypeObject_DeleteProperty)                 \
+  V(RecompileConcurrent)                            \
+  V(RecompileSynchronous)                           \
+  V(TestCounter1)                                   \
+  V(TestCounter2)                                   \
+  V(TestCounter3)                                   \
+  /* Dummy counter for the unexpected stub miss. */ \
+  V(UnexpectedStubMiss)
+
+#define FOR_EACH_HANDLER_COUNTER(V)              \
+  V(KeyedLoadIC_LoadIndexedStringStub)           \
+  V(KeyedLoadIC_LoadIndexedInterceptorStub)      \
+  V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)    \
+  V(KeyedLoadIC_LoadElementDH)                   \
+  V(KeyedLoadIC_SlowStub)                        \
+  V(KeyedStoreIC_ElementsTransitionAndStoreStub) \
+  V(KeyedStoreIC_KeyedStoreSloppyArgumentsStub)  \
+  V(KeyedStoreIC_SlowStub)                       \
+  V(KeyedStoreIC_StoreFastElementStub)           \
+  V(KeyedStoreIC_StoreElementStub)               \
+  V(LoadIC_FunctionPrototypeStub)                \
+  V(LoadIC_HandlerCacheHit_Accessor)             \
+  V(LoadIC_LoadAccessorDH)                       \
+  V(LoadIC_LoadAccessorFromPrototypeDH)          \
+  V(LoadIC_LoadApiGetterDH)                      \
+  V(LoadIC_LoadApiGetterFromPrototypeDH)         \
+  V(LoadIC_LoadCallback)                         \
+  V(LoadIC_LoadConstantDH)                       \
+  V(LoadIC_LoadConstantFromPrototypeDH)          \
+  V(LoadIC_LoadFieldDH)                          \
+  V(LoadIC_LoadFieldFromPrototypeDH)             \
+  V(LoadIC_LoadGlobalDH)                         \
+  V(LoadIC_LoadGlobalFromPrototypeDH)            \
+  V(LoadIC_LoadIntegerIndexedExoticDH)           \
+  V(LoadIC_LoadInterceptorDH)                    \
+  V(LoadIC_LoadNonMaskingInterceptorDH)          \
+  V(LoadIC_LoadInterceptorFromPrototypeDH)       \
+  V(LoadIC_LoadNonexistentDH)                    \
+  V(LoadIC_LoadNormalDH)                         \
+  V(LoadIC_LoadNormalFromPrototypeDH)            \
+  V(LoadIC_LoadScriptContextFieldStub)           \
+  V(LoadIC_LoadViaGetter)                        \
+  V(LoadIC_NonReceiver)                          \
+  V(LoadIC_Premonomorphic)                       \
+  V(LoadIC_SlowStub)                             \
+  V(LoadIC_StringLengthStub)                     \
+  V(StoreIC_HandlerCacheHit_Accessor)            \
+  V(StoreIC_NonReceiver)                         \
+  V(StoreIC_Premonomorphic)                      \
+  V(StoreIC_SlowStub)                            \
+  V(StoreIC_StoreCallback)                       \
+  V(StoreIC_StoreFieldDH)                        \
+  V(StoreIC_StoreGlobalDH)                       \
+  V(StoreIC_StoreGlobalTransitionDH)             \
+  V(StoreIC_StoreInterceptorStub)                \
+  V(StoreIC_StoreNormalDH)                       \
+  V(StoreIC_StoreScriptContextFieldStub)         \
+  V(StoreIC_StoreTransitionDH)                   \
+  V(StoreIC_StoreViaSetter)
+
+class RuntimeCallStats final : public ZoneObject {
+ public:
+  typedef RuntimeCallCounter RuntimeCallStats::*CounterId;
+  V8_EXPORT_PRIVATE RuntimeCallStats();
+
+#define CALL_RUNTIME_COUNTER(name) RuntimeCallCounter name;
+  FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
+  RuntimeCallCounter Runtime_##name;
+  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
+#define CALL_BUILTIN_COUNTER(name) RuntimeCallCounter Builtin_##name;
+  BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+#define CALL_BUILTIN_COUNTER(name) RuntimeCallCounter API_##name;
+  FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+#define CALL_BUILTIN_COUNTER(name) RuntimeCallCounter Handler_##name;
+  FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+
+  static const CounterId counters[];
+  static const int counters_count;
+
+  // Starting measuring the time for a function. This will establish the
+  // connection to the parent counter for properly calculating the own times.
+  V8_EXPORT_PRIVATE static void Enter(RuntimeCallStats* stats,
+                                      RuntimeCallTimer* timer,
+                                      CounterId counter_id);
+
+  // Leave a scope for a measured runtime function. This will properly add
+  // the time delta to the current_counter and subtract the delta from its
+  // parent.
+  V8_EXPORT_PRIVATE static void Leave(RuntimeCallStats* stats,
+                                      RuntimeCallTimer* timer);
+
+  // Set counter id for the innermost measurement. It can be used to refine
+  // event kind when a runtime entry counter is too generic.
+  V8_EXPORT_PRIVATE static void CorrectCurrentCounterId(RuntimeCallStats* stats,
+                                                        CounterId counter_id);
+
+  V8_EXPORT_PRIVATE void Reset();
+  // Add all entries from another stats object.
+  void Add(RuntimeCallStats* other);
+  V8_EXPORT_PRIVATE void Print(std::ostream& os);
+  V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
+
+  RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
+  RuntimeCallCounter* current_counter() { return current_counter_.Value(); }
+  bool InUse() { return in_use_; }
+
+ private:
+  // Top of a stack of active timers.
+  base::AtomicValue<RuntimeCallTimer*> current_timer_;
+  // Active counter object associated with current timer.
+  base::AtomicValue<RuntimeCallCounter*> current_counter_;
+  // Used to track nested tracing scopes.
+  bool in_use_;
+};
+
+#define CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats, counter_name) \
+  do {                                                                   \
+    if (V8_UNLIKELY(FLAG_runtime_stats)) {                               \
+      RuntimeCallStats::CorrectCurrentCounterId(                         \
+          runtime_call_stats, &RuntimeCallStats::counter_name);          \
+    }                                                                    \
+  } while (false)
+
+#define TRACE_HANDLER_STATS(isolate, counter_name)                          \
+  CHANGE_CURRENT_RUNTIME_COUNTER(isolate->counters()->runtime_call_stats(), \
+                                 Handler_##counter_name)
+
+// A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
+// the time of C++ scope.
+class RuntimeCallTimerScope {
+ public:
+  inline RuntimeCallTimerScope(Isolate* isolate,
+                               RuntimeCallStats::CounterId counter_id);
+  // This constructor is here just to avoid calling GetIsolate() when the
+  // stats are disabled and the isolate is not directly available.
+  inline RuntimeCallTimerScope(HeapObject* heap_object,
+                               RuntimeCallStats::CounterId counter_id);
+  inline RuntimeCallTimerScope(RuntimeCallStats* stats,
+                               RuntimeCallStats::CounterId counter_id);
+
+  inline ~RuntimeCallTimerScope() {
+    if (V8_UNLIKELY(stats_ != nullptr)) {
+      RuntimeCallStats::Leave(stats_, &timer_);
+    }
+  }
+
+ private:
+  V8_INLINE void Initialize(RuntimeCallStats* stats,
+                            RuntimeCallStats::CounterId counter_id) {
+    stats_ = stats;
+    RuntimeCallStats::Enter(stats_, &timer_, counter_id);
+  }
+
+  RuntimeCallStats* stats_ = nullptr;
+  RuntimeCallTimer timer_;
+};
+
 #define HISTOGRAM_RANGE_LIST(HR)                                              \
   /* Generic range histograms */                                              \
+  HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)        \
   HR(gc_idle_time_allotted_in_ms, V8.GCIdleTimeAllottedInMS, 0, 10000, 101)   \
   HR(gc_idle_time_limit_overshot, V8.GCIdleTimeLimit.Overshot, 0, 10000, 101) \
-  HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000, 101)
+  HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000,    \
+     101)                                                                     \
+  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)             \
+  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)        \
+  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                      \
+  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)    \
+  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                  \
+  HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                         \
+  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)        \
+  /* Asm/Wasm. */                                                             \
+  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 100000, \
+     51)                                                                      \
+  HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1,       \
+     100000, 51)                                                              \
+  HR(array_buffer_big_allocations, V8.ArrayBufferLargeAllocations, 0, 4096,   \
+     13)                                                                      \
+  HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096, 13)
 
-#define HISTOGRAM_TIMER_LIST(HT)                             \
-  /* Garbage collection timers. */                           \
-  HT(gc_compactor, V8.GCCompactor)                           \
-  HT(gc_scavenger, V8.GCScavenger)                           \
-  HT(gc_context, V8.GCContext) /* GC context cleanup time */ \
-  HT(gc_idle_notification, V8.GCIdleNotification)            \
-  HT(gc_incremental_marking, V8.GCIncrementalMarking)        \
-  HT(gc_low_memory_notification, V8.GCLowMemoryNotification) \
-  /* Parsing timers. */                                      \
-  HT(parse, V8.Parse)                                        \
-  HT(parse_lazy, V8.ParseLazy)                               \
-  HT(pre_parse, V8.PreParse)                                 \
-  /* Total compilation times. */                             \
-  HT(compile, V8.Compile)                                    \
-  HT(compile_eval, V8.CompileEval)                           \
-  /* Serialization as part of compilation (code caching) */  \
-  HT(compile_serialize, V8.CompileSerialize)                 \
-  HT(compile_deserialize, V8.CompileDeserialize)
+#define HISTOGRAM_TIMER_LIST(HT)                                               \
+  /* Garbage collection timers. */                                             \
+  HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                         \
+  HT(gc_finalize, V8.GCFinalizeMC, 10000, MILLISECOND)                         \
+  HT(gc_finalize_reduce_memory, V8.GCFinalizeMCReduceMemory, 10000,            \
+     MILLISECOND)                                                              \
+  HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
+  HT(gc_context, V8.GCContext, 10000,                                          \
+     MILLISECOND) /* GC context cleanup time */                                \
+  HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)          \
+  HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)      \
+  HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,        \
+     MILLISECOND)                                                              \
+  HT(gc_incremental_marking_finalize, V8.GCIncrementalMarkingFinalize, 10000,  \
+     MILLISECOND)                                                              \
+  HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,            \
+     MILLISECOND)                                                              \
+  /* Compilation times. */                                                     \
+  HT(compile, V8.CompileMicroSeconds, 1000000, MICROSECOND)                    \
+  HT(compile_eval, V8.CompileEvalMicroSeconds, 1000000, MICROSECOND)           \
+  /* Serialization as part of compilation (code caching) */                    \
+  HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND)  \
+  HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,          \
+     MICROSECOND)                                                              \
+  /* Total compilation time incl. caching/parsing */                           \
+  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)       \
+  /* Total JavaScript execution time (including callbacks and runtime calls */ \
+  HT(execute, V8.Execute, 1000000, MICROSECOND)                                \
+  /* Asm/Wasm */                                                               \
+  HT(wasm_instantiate_asm_module_time,                                         \
+     V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
+  HT(wasm_instantiate_wasm_module_time,                                        \
+     V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
+  HT(wasm_decode_asm_module_time, V8.WasmDecodeModuleMicroSeconds.asm,         \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_decode_wasm_module_time, V8.WasmDecodeModuleMicroSeconds.wasm,       \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_decode_asm_function_time, V8.WasmDecodeFunctionMicroSeconds.asm,     \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_decode_wasm_function_time, V8.WasmDecodeFunctionMicroSeconds.wasm,   \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_compile_asm_module_time, V8.WasmCompileModuleMicroSeconds.asm,       \
+     10000000, MICROSECOND)                                                    \
+  HT(wasm_compile_wasm_module_time, V8.WasmCompileModuleMicroSeconds.wasm,     \
+     10000000, MICROSECOND)                                                    \
+  HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000,  \
+     MICROSECOND)                                                              \
+  HT(asm_wasm_translation_time, V8.AsmWasmTranslationMicroSeconds, 1000000,    \
+     MICROSECOND)                                                              \
+  HT(wasm_lazy_compilation_time, V8.WasmLazyCompilationMicroSeconds, 1000000,  \
+     MICROSECOND)
 
+#define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
+  AHT(compile_lazy, V8.CompileLazyMicroSeconds)
 
-#define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
-  /* Heap fragmentation. */                                           \
-  HP(external_fragmentation_total,                                    \
-     V8.MemoryExternalFragmentationTotal)                             \
-  HP(external_fragmentation_old_pointer_space,                        \
-     V8.MemoryExternalFragmentationOldPointerSpace)                   \
-  HP(external_fragmentation_old_data_space,                           \
-     V8.MemoryExternalFragmentationOldDataSpace)                      \
-  HP(external_fragmentation_code_space,                               \
-     V8.MemoryExternalFragmentationCodeSpace)                         \
-  HP(external_fragmentation_map_space,                                \
-     V8.MemoryExternalFragmentationMapSpace)                          \
-  HP(external_fragmentation_cell_space,                               \
-     V8.MemoryExternalFragmentationCellSpace)                         \
-  HP(external_fragmentation_property_cell_space,                      \
-     V8.MemoryExternalFragmentationPropertyCellSpace)                 \
-  HP(external_fragmentation_lo_space,                                 \
-     V8.MemoryExternalFragmentationLoSpace)                           \
-  /* Percentages of heap committed to each space. */                  \
-  HP(heap_fraction_new_space,                                         \
-     V8.MemoryHeapFractionNewSpace)                                   \
-  HP(heap_fraction_old_pointer_space,                                 \
-     V8.MemoryHeapFractionOldPointerSpace)                            \
-  HP(heap_fraction_old_data_space,                                    \
-     V8.MemoryHeapFractionOldDataSpace)                               \
-  HP(heap_fraction_code_space,                                        \
-     V8.MemoryHeapFractionCodeSpace)                                  \
-  HP(heap_fraction_map_space,                                         \
-     V8.MemoryHeapFractionMapSpace)                                   \
-  HP(heap_fraction_cell_space,                                        \
-     V8.MemoryHeapFractionCellSpace)                                  \
-  HP(heap_fraction_property_cell_space,                               \
-     V8.MemoryHeapFractionPropertyCellSpace)                          \
-  HP(heap_fraction_lo_space,                                          \
-     V8.MemoryHeapFractionLoSpace)                                    \
-  /* Percentage of crankshafted codegen. */                           \
-  HP(codegen_fraction_crankshaft,                                     \
-     V8.CodegenFractionCrankshaft)                                    \
+#define HISTOGRAM_PERCENTAGE_LIST(HP)                                          \
+  /* Heap fragmentation. */                                                    \
+  HP(external_fragmentation_total, V8.MemoryExternalFragmentationTotal)        \
+  HP(external_fragmentation_old_space, V8.MemoryExternalFragmentationOldSpace) \
+  HP(external_fragmentation_code_space,                                        \
+     V8.MemoryExternalFragmentationCodeSpace)                                  \
+  HP(external_fragmentation_map_space, V8.MemoryExternalFragmentationMapSpace) \
+  HP(external_fragmentation_lo_space, V8.MemoryExternalFragmentationLoSpace)   \
+  /* Percentages of heap committed to each space. */                           \
+  HP(heap_fraction_new_space, V8.MemoryHeapFractionNewSpace)                   \
+  HP(heap_fraction_old_space, V8.MemoryHeapFractionOldSpace)                   \
+  HP(heap_fraction_code_space, V8.MemoryHeapFractionCodeSpace)                 \
+  HP(heap_fraction_map_space, V8.MemoryHeapFractionMapSpace)                   \
+  HP(heap_fraction_lo_space, V8.MemoryHeapFractionLoSpace)
 
+#define HISTOGRAM_LEGACY_MEMORY_LIST(HM)                                      \
+  HM(heap_sample_total_committed, V8.MemoryHeapSampleTotalCommitted)          \
+  HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)                    \
+  HM(heap_sample_map_space_committed, V8.MemoryHeapSampleMapSpaceCommitted)   \
+  HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
+  HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
 
-#define HISTOGRAM_MEMORY_LIST(HM)                                     \
-  HM(heap_sample_total_committed, V8.MemoryHeapSampleTotalCommitted)  \
-  HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)            \
-  HM(heap_sample_map_space_committed,                                 \
-     V8.MemoryHeapSampleMapSpaceCommitted)                            \
-  HM(heap_sample_cell_space_committed,                                \
-     V8.MemoryHeapSampleCellSpaceCommitted)                           \
-  HM(heap_sample_property_cell_space_committed,                       \
-     V8.MemoryHeapSamplePropertyCellSpaceCommitted)                   \
-  HM(heap_sample_code_space_committed,                                \
-     V8.MemoryHeapSampleCodeSpaceCommitted)                           \
-  HM(heap_sample_maximum_committed,                                   \
-     V8.MemoryHeapSampleMaximumCommitted)                             \
-
+#define HISTOGRAM_MEMORY_LIST(HM)                                  \
+  HM(memory_heap_committed, V8.MemoryHeapCommitted)                \
+  HM(memory_heap_used, V8.MemoryHeapUsed)                          \
+  /* Asm/Wasm */                                                   \
+  HM(wasm_decode_asm_module_peak_memory_bytes,                     \
+     V8.WasmDecodeModulePeakMemoryBytes.asm)                       \
+  HM(wasm_decode_wasm_module_peak_memory_bytes,                    \
+     V8.WasmDecodeModulePeakMemoryBytes.wasm)                      \
+  HM(wasm_compile_function_peak_memory_bytes,                      \
+     V8.WasmCompileFunctionPeakMemoryBytes)                        \
+  HM(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm)    \
+  HM(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm)  \
+  HM(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm)  \
+  HM(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm)   \
+  HM(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm) \
+  HM(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm)       \
+  HM(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm)     \
+  HM(asm_wasm_translation_peak_memory_bytes,                       \
+     V8.AsmWasmTranslationPeakMemoryBytes)
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
 // Intellisense to crash.  It was broken into two macros (each of length 40
 // lines) rather than one macro (of length about 80 lines) to work around
 // this problem.  Please avoid using recursive macros of this length when
 // possible.
-#define STATS_COUNTER_LIST_1(SC)                                      \
-  /* Global Handle Count*/                                            \
-  SC(global_handles, V8.GlobalHandles)                                \
-  /* OS Memory allocated */                                           \
-  SC(memory_allocated, V8.OsMemoryAllocated)                          \
-  SC(normalized_maps, V8.NormalizedMaps)                              \
-  SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)            \
-  SC(elements_to_dictionary, V8.ObjectElementsToDictionary)           \
-  SC(alive_after_last_gc, V8.AliveAfterLastGC)                        \
-  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                    \
-  SC(objs_since_last_full, V8.ObjsSinceLastFull)                      \
-  SC(string_table_capacity, V8.StringTableCapacity)                   \
-  SC(number_of_symbols, V8.NumberOfSymbols)                           \
-  SC(script_wrappers, V8.ScriptWrappers)                              \
-  SC(call_initialize_stubs, V8.CallInitializeStubs)                   \
-  SC(call_premonomorphic_stubs, V8.CallPreMonomorphicStubs)           \
-  SC(call_normal_stubs, V8.CallNormalStubs)                           \
-  SC(call_megamorphic_stubs, V8.CallMegamorphicStubs)                 \
-  SC(inlined_copied_elements, V8.InlinedCopiedElements)              \
-  SC(arguments_adaptors, V8.ArgumentsAdaptors)                        \
-  SC(compilation_cache_hits, V8.CompilationCacheHits)                 \
-  SC(compilation_cache_misses, V8.CompilationCacheMisses)             \
-  SC(string_ctor_calls, V8.StringConstructorCalls)                    \
-  SC(string_ctor_conversions, V8.StringConstructorConversions)        \
-  SC(string_ctor_cached_number, V8.StringConstructorCachedNumber)     \
-  SC(string_ctor_string_value, V8.StringConstructorStringValue)       \
-  SC(string_ctor_gc_required, V8.StringConstructorGCRequired)         \
-  /* Amount of evaled source code. */                                 \
-  SC(total_eval_size, V8.TotalEvalSize)                               \
-  /* Amount of loaded source code. */                                 \
-  SC(total_load_size, V8.TotalLoadSize)                               \
-  /* Amount of parsed source code. */                                 \
-  SC(total_parse_size, V8.TotalParseSize)                             \
-  /* Amount of source code skipped over using preparsing. */          \
-  SC(total_preparse_skipped, V8.TotalPreparseSkipped)                 \
-  /* Number of symbol lookups skipped using preparsing */             \
-  SC(total_preparse_symbols_skipped, V8.TotalPreparseSymbolSkipped)   \
-  /* Amount of compiled source code. */                               \
-  SC(total_compile_size, V8.TotalCompileSize)                         \
-  /* Amount of source code compiled with the full codegen. */         \
-  SC(total_full_codegen_source_size, V8.TotalFullCodegenSourceSize)   \
-  /* Number of contexts created from scratch. */                      \
-  SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)    \
-  /* Number of contexts created by partial snapshot. */               \
-  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)      \
-  /* Number of code objects found from pc. */                         \
-  SC(pc_to_code, V8.PcToCode)                                         \
-  SC(pc_to_code_cached, V8.PcToCodeCached)                            \
-  /* The store-buffer implementation of the write barrier. */         \
-  SC(store_buffer_compactions, V8.StoreBufferCompactions)             \
+#define STATS_COUNTER_LIST_1(SC)                                    \
+  /* Global Handle Count*/                                          \
+  SC(global_handles, V8.GlobalHandles)                              \
+  /* OS Memory allocated */                                         \
+  SC(memory_allocated, V8.OsMemoryAllocated)                        \
+  SC(maps_normalized, V8.MapsNormalized)                            \
+  SC(maps_created, V8.MapsCreated)                                  \
+  SC(elements_transitions, V8.ObjectElementsTransitions)            \
+  SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)          \
+  SC(elements_to_dictionary, V8.ObjectElementsToDictionary)         \
+  SC(alive_after_last_gc, V8.AliveAfterLastGC)                      \
+  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                  \
+  SC(objs_since_last_full, V8.ObjsSinceLastFull)                    \
+  SC(string_table_capacity, V8.StringTableCapacity)                 \
+  SC(number_of_symbols, V8.NumberOfSymbols)                         \
+  SC(script_wrappers, V8.ScriptWrappers)                            \
+  SC(inlined_copied_elements, V8.InlinedCopiedElements)             \
+  SC(arguments_adaptors, V8.ArgumentsAdaptors)                      \
+  SC(compilation_cache_hits, V8.CompilationCacheHits)               \
+  SC(compilation_cache_misses, V8.CompilationCacheMisses)           \
+  /* Amount of evaled source code. */                               \
+  SC(total_eval_size, V8.TotalEvalSize)                             \
+  /* Amount of loaded source code. */                               \
+  SC(total_load_size, V8.TotalLoadSize)                             \
+  /* Amount of parsed source code. */                               \
+  SC(total_parse_size, V8.TotalParseSize)                           \
+  /* Amount of source code skipped over using preparsing. */        \
+  SC(total_preparse_skipped, V8.TotalPreparseSkipped)               \
+  /* Amount of compiled source code. */                             \
+  SC(total_compile_size, V8.TotalCompileSize)                       \
+  /* Amount of source code compiled with the full codegen. */       \
+  SC(total_full_codegen_source_size, V8.TotalFullCodegenSourceSize) \
+  /* Number of contexts created from scratch. */                    \
+  SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)  \
+  /* Number of contexts created by partial snapshot. */             \
+  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)    \
+  /* Number of code objects found from pc. */                       \
+  SC(pc_to_code, V8.PcToCode)                                       \
+  SC(pc_to_code_cached, V8.PcToCodeCached)                          \
+  /* The store-buffer implementation of the write barrier. */       \
   SC(store_buffer_overflows, V8.StoreBufferOverflows)
-
 
 #define STATS_COUNTER_LIST_2(SC)                                               \
   /* Number of code stubs. */                                                  \
@@ -443,40 +1100,20 @@ class HistogramTimerScope BASE_EMBEDDED {
      V8.GCCompactorCausedByOldspaceExhaustion)                                 \
   SC(gc_last_resort_from_js, V8.GCLastResortFromJS)                            \
   SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)                  \
-  /* How is the generic keyed-load stub used? */                               \
-  SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                           \
-  SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)                     \
-  SC(keyed_load_generic_lookup_cache, V8.KeyedLoadGenericLookupCache)          \
-  SC(keyed_load_generic_slow, V8.KeyedLoadGenericSlow)                         \
-  SC(keyed_load_polymorphic_stubs, V8.KeyedLoadPolymorphicStubs)               \
-  SC(keyed_load_external_array_slow, V8.KeyedLoadExternalArraySlow)            \
-  /* How is the generic keyed-call stub used? */                               \
-  SC(keyed_call_generic_smi_fast, V8.KeyedCallGenericSmiFast)                  \
-  SC(keyed_call_generic_smi_dict, V8.KeyedCallGenericSmiDict)                  \
-  SC(keyed_call_generic_lookup_cache, V8.KeyedCallGenericLookupCache)          \
-  SC(keyed_call_generic_lookup_dict, V8.KeyedCallGenericLookupDict)            \
-  SC(keyed_call_generic_slow, V8.KeyedCallGenericSlow)                         \
-  SC(keyed_call_generic_slow_load, V8.KeyedCallGenericSlowLoad)                \
-  SC(named_load_global_stub, V8.NamedLoadGlobalStub)                           \
-  SC(named_store_global_inline, V8.NamedStoreGlobalInline)                     \
-  SC(named_store_global_inline_miss, V8.NamedStoreGlobalInlineMiss)            \
-  SC(keyed_store_polymorphic_stubs, V8.KeyedStorePolymorphicStubs)             \
-  SC(keyed_store_external_array_slow, V8.KeyedStoreExternalArraySlow)          \
-  SC(store_normal_miss, V8.StoreNormalMiss)                                    \
-  SC(store_normal_hit, V8.StoreNormalHit)                                      \
-  SC(cow_arrays_created_stub, V8.COWArraysCreatedStub)                         \
+  SC(ic_keyed_load_generic_smi, V8.ICKeyedLoadGenericSmi)                      \
+  SC(ic_keyed_load_generic_symbol, V8.ICKeyedLoadGenericSymbol)                \
+  SC(ic_keyed_load_generic_slow, V8.ICKeyedLoadGenericSlow)                    \
+  SC(ic_named_load_global_stub, V8.ICNamedLoadGlobalStub)                      \
+  SC(ic_store_normal_miss, V8.ICStoreNormalMiss)                               \
+  SC(ic_store_normal_hit, V8.ICStoreNormalHit)                                 \
+  SC(ic_binary_op_miss, V8.ICBinaryOpMiss)                                     \
+  SC(ic_compare_miss, V8.ICCompareMiss)                                        \
+  SC(ic_call_miss, V8.ICCallMiss)                                              \
+  SC(ic_keyed_call_miss, V8.ICKeyedCallMiss)                                   \
+  SC(ic_store_miss, V8.ICStoreMiss)                                            \
+  SC(ic_keyed_store_miss, V8.ICKeyedStoreMiss)                                 \
   SC(cow_arrays_created_runtime, V8.COWArraysCreatedRuntime)                   \
   SC(cow_arrays_converted, V8.COWArraysConverted)                              \
-  SC(call_miss, V8.CallMiss)                                                   \
-  SC(keyed_call_miss, V8.KeyedCallMiss)                                        \
-  SC(load_miss, V8.LoadMiss)                                                   \
-  SC(keyed_load_miss, V8.KeyedLoadMiss)                                        \
-  SC(call_const, V8.CallConst)                                                 \
-  SC(call_const_fast_api, V8.CallConstFastApi)                                 \
-  SC(call_const_interceptor, V8.CallConstInterceptor)                          \
-  SC(call_const_interceptor_fast_api, V8.CallConstInterceptorFastApi)          \
-  SC(call_global_inline, V8.CallGlobalInline)                                  \
-  SC(call_global_inline_miss, V8.CallGlobalInlineMiss)                         \
   SC(constructed_objects, V8.ConstructedObjects)                               \
   SC(constructed_objects_runtime, V8.ConstructedObjectsRuntime)                \
   SC(negative_lookups, V8.NegativeLookups)                                     \
@@ -484,39 +1121,26 @@ class HistogramTimerScope BASE_EMBEDDED {
   SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes)             \
   SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)             \
   SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)           \
-  SC(array_function_runtime, V8.ArrayFunctionRuntime)                          \
-  SC(array_function_native, V8.ArrayFunctionNative)                            \
-  SC(for_in, V8.ForIn)                                                         \
   SC(enum_cache_hits, V8.EnumCacheHits)                                        \
   SC(enum_cache_misses, V8.EnumCacheMisses)                                    \
-  SC(zone_segment_bytes, V8.ZoneSegmentBytes)                                  \
   SC(fast_new_closure_total, V8.FastNewClosureTotal)                           \
-  SC(fast_new_closure_try_optimized, V8.FastNewClosureTryOptimized)            \
-  SC(fast_new_closure_install_optimized, V8.FastNewClosureInstallOptimized)    \
   SC(string_add_runtime, V8.StringAddRuntime)                                  \
   SC(string_add_native, V8.StringAddNative)                                    \
   SC(string_add_runtime_ext_to_one_byte, V8.StringAddRuntimeExtToOneByte)      \
   SC(sub_string_runtime, V8.SubStringRuntime)                                  \
   SC(sub_string_native, V8.SubStringNative)                                    \
-  SC(string_add_make_two_char, V8.StringAddMakeTwoChar)                        \
   SC(string_compare_native, V8.StringCompareNative)                            \
   SC(string_compare_runtime, V8.StringCompareRuntime)                          \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                              \
   SC(regexp_entry_native, V8.RegExpEntryNative)                                \
   SC(number_to_string_native, V8.NumberToStringNative)                         \
   SC(number_to_string_runtime, V8.NumberToStringRuntime)                       \
-  SC(math_acos, V8.MathAcos)                                                   \
-  SC(math_asin, V8.MathAsin)                                                   \
-  SC(math_atan, V8.MathAtan)                                                   \
-  SC(math_atan2, V8.MathAtan2)                                                 \
-  SC(math_exp, V8.MathExp)                                                     \
-  SC(math_floor, V8.MathFloor)                                                 \
-  SC(math_log, V8.MathLog)                                                     \
-  SC(math_pow, V8.MathPow)                                                     \
-  SC(math_round, V8.MathRound)                                                 \
-  SC(math_sqrt, V8.MathSqrt)                                                   \
+  SC(math_exp_runtime, V8.MathExpRuntime)                                      \
+  SC(math_log_runtime, V8.MathLogRuntime)                                      \
+  SC(math_pow_runtime, V8.MathPowRuntime)                                      \
   SC(stack_interrupts, V8.StackInterrupts)                                     \
   SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                          \
+  SC(runtime_calls, V8.RuntimeCalls)                                           \
   SC(bounds_checks_eliminated, V8.BoundsChecksEliminated)                      \
   SC(bounds_checks_hoisted, V8.BoundsChecksHoisted)                            \
   SC(soft_deopts_requested, V8.SoftDeoptsRequested)                            \
@@ -528,32 +1152,25 @@ class HistogramTimerScope BASE_EMBEDDED {
   SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)               \
   SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)               \
   SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                         \
-  SC(old_pointer_space_bytes_available,                                        \
-     V8.MemoryOldPointerSpaceBytesAvailable)                                   \
-  SC(old_pointer_space_bytes_committed,                                        \
-     V8.MemoryOldPointerSpaceBytesCommitted)                                   \
-  SC(old_pointer_space_bytes_used, V8.MemoryOldPointerSpaceBytesUsed)          \
-  SC(old_data_space_bytes_available, V8.MemoryOldDataSpaceBytesAvailable)      \
-  SC(old_data_space_bytes_committed, V8.MemoryOldDataSpaceBytesCommitted)      \
-  SC(old_data_space_bytes_used, V8.MemoryOldDataSpaceBytesUsed)                \
+  SC(old_space_bytes_available, V8.MemoryOldSpaceBytesAvailable)               \
+  SC(old_space_bytes_committed, V8.MemoryOldSpaceBytesCommitted)               \
+  SC(old_space_bytes_used, V8.MemoryOldSpaceBytesUsed)                         \
   SC(code_space_bytes_available, V8.MemoryCodeSpaceBytesAvailable)             \
   SC(code_space_bytes_committed, V8.MemoryCodeSpaceBytesCommitted)             \
   SC(code_space_bytes_used, V8.MemoryCodeSpaceBytesUsed)                       \
   SC(map_space_bytes_available, V8.MemoryMapSpaceBytesAvailable)               \
   SC(map_space_bytes_committed, V8.MemoryMapSpaceBytesCommitted)               \
   SC(map_space_bytes_used, V8.MemoryMapSpaceBytesUsed)                         \
-  SC(cell_space_bytes_available, V8.MemoryCellSpaceBytesAvailable)             \
-  SC(cell_space_bytes_committed, V8.MemoryCellSpaceBytesCommitted)             \
-  SC(cell_space_bytes_used, V8.MemoryCellSpaceBytesUsed)                       \
-  SC(property_cell_space_bytes_available,                                      \
-     V8.MemoryPropertyCellSpaceBytesAvailable)                                 \
-  SC(property_cell_space_bytes_committed,                                      \
-     V8.MemoryPropertyCellSpaceBytesCommitted)                                 \
-  SC(property_cell_space_bytes_used, V8.MemoryPropertyCellSpaceBytesUsed)      \
   SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)                 \
   SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)                 \
-  SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)
-
+  SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)                           \
+  /* Total code size (including metadata) of baseline code or bytecode. */     \
+  SC(total_baseline_code_size, V8.TotalBaselineCodeSize)                       \
+  /* Total count of functions compiled using the baseline compiler. */         \
+  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)               \
+  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)                      \
+  SC(wasm_reloc_size, V8.WasmRelocBytes)                                       \
+  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
 
 // This file contains all the v8 counters that are in use.
 class Counters {
@@ -563,10 +1180,15 @@ class Counters {
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
-#define HT(name, caption) \
+#define HT(name, caption, max, res) \
   HistogramTimer* name() { return &name##_; }
   HISTOGRAM_TIMER_LIST(HT)
 #undef HT
+
+#define AHT(name, caption) \
+  AggregatableHistogramTimer* name() { return &name##_; }
+  AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+#undef AHT
 
 #define HP(name, caption) \
   Histogram* name() { return &name##_; }
@@ -575,6 +1197,14 @@ class Counters {
 
 #define HM(name, caption) \
   Histogram* name() { return &name##_; }
+  HISTOGRAM_LEGACY_MEMORY_LIST(HM)
+  HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
+
+#define HM(name, caption)                                     \
+  AggregatedMemoryHistogram<Histogram>* aggregated_##name() { \
+    return &aggregated_##name##_;                             \
+  }
   HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
 
@@ -615,13 +1245,17 @@ class Counters {
 #undef SC
 
   enum Id {
-#define RATE_ID(name, caption) k_##name,
+#define RATE_ID(name, caption, max, res) k_##name,
     HISTOGRAM_TIMER_LIST(RATE_ID)
 #undef RATE_ID
+#define AGGREGATABLE_ID(name, caption) k_##name,
+    AGGREGATABLE_HISTOGRAM_TIMER_LIST(AGGREGATABLE_ID)
+#undef AGGREGATABLE_ID
 #define PERCENTAGE_ID(name, caption) k_##name,
     HISTOGRAM_PERCENTAGE_LIST(PERCENTAGE_ID)
 #undef PERCENTAGE_ID
 #define MEMORY_ID(name, caption) k_##name,
+    HISTOGRAM_LEGACY_MEMORY_LIST(MEMORY_ID)
     HISTOGRAM_MEMORY_LIST(MEMORY_ID)
 #undef MEMORY_ID
 #define COUNTER_ID(name, caption) k_##name,
@@ -648,16 +1282,23 @@ class Counters {
 
   void ResetCounters();
   void ResetHistograms();
+  void InitializeHistograms();
+
+  RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
 
  private:
 #define HR(name, caption, min, max, num_buckets) Histogram name##_;
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
-#define HT(name, caption) \
-  HistogramTimer name##_;
+#define HT(name, caption, max, res) HistogramTimer name##_;
   HISTOGRAM_TIMER_LIST(HT)
 #undef HT
+
+#define AHT(name, caption) \
+  AggregatableHistogramTimer name##_;
+  AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+#undef AHT
 
 #define HP(name, caption) \
   Histogram name##_;
@@ -666,6 +1307,12 @@ class Counters {
 
 #define HM(name, caption) \
   Histogram name##_;
+  HISTOGRAM_LEGACY_MEMORY_LIST(HM)
+  HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
+
+#define HM(name, caption) \
+  AggregatedMemoryHistogram<Histogram> aggregated_##name##_;
   HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
 
@@ -699,6 +1346,8 @@ class Counters {
   CODE_AGE_LIST_COMPLETE(SC)
 #undef SC
 
+  RuntimeCallStats runtime_call_stats_;
+
   friend class Isolate;
 
   explicit Counters(Isolate* isolate);
@@ -706,6 +1355,7 @@ class Counters {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COUNTERS_H_

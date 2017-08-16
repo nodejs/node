@@ -7,6 +7,7 @@ npm-debug.log
 /test/packages/npm-test-depends-on-spark/which-spark.log
 /test/packages/test-package/random-data.txt
 /test/root
+/test/npm_cache
 node_modules/marked
 node_modules/ronn
 node_modules/tap
@@ -27,3 +28,7 @@ html/*.png
 *.pyc
 
 /test/tap/builtin-config
+
+.nyc_output
+
+npm-shrinkwrap.json

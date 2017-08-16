@@ -46,21 +46,28 @@ function AddProps(obj) {
 
 
 function DoProtoMagic(proto, set__proto__) {
+  var receiver;
   if (set__proto__) {
-    (new Sub()).__proto__ = proto;
+    receiver = new Sub();
+    receiver.__proto__ = proto;
   } else {
     Sub.prototype = proto;
-    // Need to instantiate Sub to mark .prototype as prototype.
-    new Sub();
+    // Need to instantiate Sub to mark .prototype as prototype. Make sure the
+    // instantiated object is used so that the allocation is not optimized away.
+    receiver = new Sub();
   }
+  // Prototypes are made fast when ICs encounter them.
+  function ic() { return typeof receiver.foo; }
+  ic();
+  ic();
 }
 
 
-function test(use_new, add_first, set__proto__, same_map_as) {
+function test(use_new, add_first, set__proto__) {
   var proto = use_new ? new Super() : {};
 
   // New object is fast.
-  assertTrue(%HasFastProperties(proto));
+  assertTrue(use_new || %HasFastProperties(proto));
 
   if (add_first) {
     AddProps(proto);
@@ -74,16 +81,8 @@ function test(use_new, add_first, set__proto__, same_map_as) {
     // Still fast
     assertTrue(%HasFastProperties(proto));
     AddProps(proto);
-    if (set__proto__) {
-      // After we add all those properties it went slow mode again :-(
-      assertFalse(%HasFastProperties(proto));
-    } else {
-      // .prototype keeps it fast.
-      assertTrue(%HasFastProperties(proto));
-    }
-  }
-  if (same_map_as && !add_first && set__proto__) {
-    assertTrue(%HaveSameMap(same_map_as, proto));
+    // Still fast.
+    assertTrue(%HasFastProperties(proto));
   }
   return proto;
 }
@@ -96,19 +95,18 @@ for (var i = 0; i < 4; i++) {
   var use_new = ((i & 2) != 0);
 
   test(use_new, true, set__proto__);
-
-  var last = test(use_new, false, set__proto__);
-  test(use_new, false, set__proto__, last);
+  test(use_new, false, set__proto__);
 }
 
 
 var x = {a: 1, b: 2, c: 3};
 var o = { __proto__: x };
-assertTrue(%HasFastProperties(x));
+assertFalse(%HasFastProperties(x));
 for (key in x) {
   assertTrue(key == 'a');
   break;
 }
+assertTrue(%HasFastProperties(x));
 delete x.b;
 for (key in x) {
   assertTrue(key == 'a');

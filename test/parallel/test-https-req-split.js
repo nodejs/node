@@ -19,43 +19,39 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var common = require('../common');
-var assert = require('assert');
-var https = require('https');
-var tls = require('tls');
-var fs = require('fs');
+const https = require('https');
 
-var seen_req = false;
+const tls = require('tls');
+const fs = require('fs');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const options = {
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
 };
 
 // Force splitting incoming data
 tls.SLAB_BUFFER_SIZE = 1;
 
-var server = https.createServer(options);
-server.on('upgrade', function(req, socket, upgrade) {
+const server = https.createServer(options);
+server.on('upgrade', common.mustCall(function(req, socket, upgrade) {
   socket.on('data', function(data) {
-    throw new Error('Unexpected data: ' + data);
+    throw new Error(`Unexpected data: ${data}`);
   });
   socket.end('HTTP/1.1 200 Ok\r\n\r\n');
-  seen_req = true;
-});
+}));
 
-server.listen(common.PORT, function() {
-  var req = https.request({
+server.listen(0, function() {
+  const req = https.request({
     host: '127.0.0.1',
-    port: common.PORT,
+    port: this.address().port,
     agent: false,
     headers: {
       Connection: 'Upgrade',
@@ -67,9 +63,4 @@ server.listen(common.PORT, function() {
   });
 
   req.end();
-});
-
-process.on('exit', function() {
-  assert(seen_req);
-  console.log('ok');
 });

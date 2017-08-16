@@ -72,7 +72,7 @@ my $i=@_[0];
 my $seed=defined(@_[1])?@_[1]:0;
 my $scale=$seed<0?-8:8;
 my $j=($i&1)*2;
-my $s0=@S[($j)%4],$s1=@S[($j+1)%4],$s2=@S[($j+2)%4],$s3=@S[($j+3)%4];
+my ($s0,$s1,$s2,$s3)=(@S[($j)%4],@S[($j+1)%4],@S[($j+2)%4],@S[($j+3)%4]);
 
 $code.=<<___;
 	xor	$s0,$t0				# t0^=key[0]
@@ -409,7 +409,7 @@ Camellia_Ekeygen:
 	push	%r15
 .Lkey_prologue:
 
-	mov	%rdi,$keyend		# put away arguments, keyBitLength
+	mov	%edi,${keyend}d		# put away arguments, keyBitLength
 	mov	%rdx,$out		# keyTable
 
 	mov	0(%rsi),@S[0]		# load 0-127 bits

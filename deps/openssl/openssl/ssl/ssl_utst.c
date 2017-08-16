@@ -1,5 +1,6 @@
 /* ssl_utst.c */
-/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+/*
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */
 /* ====================================================================
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -56,18 +57,16 @@
 
 #ifndef OPENSSL_NO_UNIT_TEST
 
-
-static const struct openssl_ssl_test_functions ssl_test_functions =
-	{
-	ssl_init_wbio_buffer,
-	ssl3_setup_buffers,
-	tls1_process_heartbeat,
-	dtls1_process_heartbeat
-	};
+static const struct openssl_ssl_test_functions ssl_test_functions = {
+    ssl_init_wbio_buffer,
+    ssl3_setup_buffers,
+    tls1_process_heartbeat,
+    dtls1_process_heartbeat
+};
 
 const struct openssl_ssl_test_functions *SSL_test_functions(void)
-	{
-	return &ssl_test_functions;
-	}
+{
+    return &ssl_test_functions;
+}
 
 #endif

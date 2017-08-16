@@ -45,8 +45,7 @@ int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
   handle->async_cb = async_cb;
 
   req = &handle->async_req;
-  uv_req_init(loop, req);
-  req->type = UV_WAKEUP;
+  UV_REQ_INIT(req, UV_WAKEUP);
   req->data = handle;
 
   uv__handle_start(handle);

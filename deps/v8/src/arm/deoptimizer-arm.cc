@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
+#include "src/assembler-inl.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
+#include "src/objects-inl.h"
+#include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
@@ -21,30 +22,40 @@ int Deoptimizer::patch_size() {
 }
 
 
+void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
+  // Empty because there is no need for relocation information for the code
+  // patching in Deoptimizer::PatchCodeForDeoptimization below.
+}
+
+
 void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   Address code_start_address = code->instruction_start();
   // Invalidate the relocation information, as it will become invalid by the
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
-  if (FLAG_zap_code_space) {
-    // Fail hard and early if we enter this code object again.
-    byte* pointer = code->FindCodeAgeSequence();
-    if (pointer != NULL) {
-      pointer += kNoCodeAgeSequenceLength;
-    } else {
-      pointer = code->instruction_start();
-    }
-    CodePatcher patcher(pointer, 1);
-    patcher.masm()->bkpt(0);
+  // Fail hard and early if we enter this code object again.
+  byte* pointer = code->FindCodeAgeSequence();
+  if (pointer != NULL) {
+    pointer += kNoCodeAgeSequenceLength;
+  } else {
+    pointer = code->instruction_start();
+  }
 
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
-    int osr_offset = data->OsrPcOffset()->value();
-    if (osr_offset > 0) {
-      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
-      osr_patcher.masm()->bkpt(0);
-    }
+  {
+    PatchingAssembler patcher(Assembler::IsolateData(isolate), pointer, 1);
+    patcher.bkpt(0);
+    patcher.FlushICache(isolate);
+  }
+
+  DeoptimizationInputData* data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  int osr_offset = data->OsrPcOffset()->value();
+  if (osr_offset > 0) {
+    PatchingAssembler patcher(Assembler::IsolateData(isolate),
+                              code_start_address + osr_offset, 1);
+    patcher.bkpt(0);
+    patcher.FlushICache(isolate);
   }
 
   DeoptimizationInputData* deopt_data =
@@ -60,42 +71,18 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
     // We need calls to have a predictable size in the unoptimized code, but
     // this is optimized code, so we don't have to have a predictable size.
-    int call_size_in_bytes =
-        MacroAssembler::CallSizeNotPredictableCodeSize(isolate,
-                                                       deopt_entry,
-                                                       RelocInfo::NONE32);
+    int call_size_in_bytes = MacroAssembler::CallDeoptimizerSize();
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
     DCHECK(call_size_in_bytes % Assembler::kInstrSize == 0);
     DCHECK(call_size_in_bytes <= patch_size());
-    CodePatcher patcher(call_address, call_size_in_words);
-    patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
+    CodePatcher patcher(isolate, call_address, call_size_in_words);
+    patcher.masm()->CallDeoptimizer(deopt_entry);
     DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
     DCHECK(call_address + patch_size() <= code->instruction_end());
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
-  }
-}
-
-
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, i * 4);
-  }
-  input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint32_at(tos + i));
   }
 }
 
@@ -113,23 +100,16 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
 
 void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
-    double double_value = input_->GetDoubleRegister(i);
+    Float64 double_value = input_->GetDoubleRegister(i);
     output_frame->SetDoubleRegister(i, double_value);
   }
 }
-
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
-  // There is no dynamic alignment padding on ARM in the input frame.
-  return false;
-}
-
 
 #define __ masm()->
 
 // This code tries to be close to ia32 code so that any changes can be
 // easily ported.
-void Deoptimizer::EntryGenerator::Generate() {
+void Deoptimizer::TableEntryGenerator::Generate() {
   GeneratePrologue();
 
   // Save all general purpose registers before messing with them.
@@ -138,29 +118,41 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Everything but pc, lr and ip which will be saved but not restored.
   RegList restored_regs = kJSCallerSaved | kCalleeSaved | ip.bit();
 
-  const int kDoubleRegsSize =
-      kDoubleSize * DwVfpRegister::kMaxNumAllocatableRegisters;
+  const int kDoubleRegsSize = kDoubleSize * DwVfpRegister::kMaxNumRegisters;
+  const int kFloatRegsSize = kFloatSize * SwVfpRegister::kMaxNumRegisters;
 
   // Save all allocatable VFP registers before messing with them.
-  DCHECK(kDoubleRegZero.code() == 14);
-  DCHECK(kScratchDoubleReg.code() == 15);
+  DCHECK(kDoubleRegZero.code() == 13);
+  DCHECK(kScratchDoubleReg.code() == 14);
 
-  // Check CPU flags for number of registers, setting the Z condition flag.
-  __ CheckFor32DRegs(ip);
+  {
+    // We use a run-time check for VFP32DREGS.
+    CpuFeatureScope scope(masm(), VFP32DREGS,
+                          CpuFeatureScope::kDontCheckSupported);
 
-  // Push registers d0-d13, and possibly d16-d31, on the stack.
-  // If d16-d31 are not pushed, decrease the stack pointer instead.
-  __ vstm(db_w, sp, d16, d31, ne);
-  __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
-  __ vstm(db_w, sp, d0, d13);
+    // Check CPU flags for number of registers, setting the Z condition flag.
+    __ CheckFor32DRegs(ip);
+
+    // Push registers d0-d15, and possibly d16-d31, on the stack.
+    // If d16-d31 are not pushed, decrease the stack pointer instead.
+    __ vstm(db_w, sp, d16, d31, ne);
+    __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
+    __ vstm(db_w, sp, d0, d15);
+
+    // Push registers s0-s31 on the stack.
+    __ vstm(db_w, sp, s0, s31);
+  }
 
   // Push all 16 registers (needed to populate FrameDescription::registers_).
   // TODO(1588) Note that using pc with stm is deprecated, so we should perhaps
   // handle this a bit differently.
   __ stm(db_w, sp, restored_regs  | sp.bit() | lr.bit() | pc.bit());
 
+  __ mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  __ str(fp, MemOperand(ip));
+
   const int kSavedRegistersAreaSize =
-      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize;
+      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
 
   // Get the bailout id from the stack.
   __ ldr(r2, MemOperand(sp, kSavedRegistersAreaSize));
@@ -176,7 +168,12 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Allocate a new deoptimizer object.
   // Pass four arguments in r0 to r3 and fifth argument on stack.
   __ PrepareCallCFunction(6, r5);
+  __ mov(r0, Operand(0));
+  Label context_check;
+  __ ldr(r1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(r1, &context_check);
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ mov(r1, Operand(type()));  // bailout type,
   // r2: bailout id already loaded.
   // r3: code address or 0 already loaded.
@@ -204,11 +201,25 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Copy VFP registers to
   // double_registers_[DoubleRegister::kMaxNumAllocatableRegisters]
   int double_regs_offset = FrameDescription::double_registers_offset();
-  for (int i = 0; i < DwVfpRegister::kMaxNumAllocatableRegisters; ++i) {
-    int dst_offset = i * kDoubleSize + double_regs_offset;
-    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    int dst_offset = code * kDoubleSize + double_regs_offset;
+    int src_offset =
+        code * kDoubleSize + kNumberOfRegisters * kPointerSize + kFloatRegsSize;
     __ vldr(d0, sp, src_offset);
     __ vstr(d0, r1, dst_offset);
+  }
+
+  // Copy VFP registers to
+  // float_registers_[FloatRegister::kMaxNumAllocatableRegisters]
+  int float_regs_offset = FrameDescription::float_registers_offset();
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    int dst_offset = code * kFloatSize + float_regs_offset;
+    int src_offset = code * kFloatSize + kNumberOfRegisters * kPointerSize;
+    __ ldr(r2, MemOperand(sp, src_offset));
+    __ str(r2, MemOperand(r1, dst_offset));
   }
 
   // Remove the bailout id and the saved registers from the stack.
@@ -246,6 +257,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
   __ pop(r0);  // Restore deoptimizer object (class Deoptimizer).
 
+  __ ldr(sp, MemOperand(r0, Deoptimizer::caller_frame_top_offset()));
+
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
@@ -273,18 +286,12 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ cmp(r4, r1);
   __ b(lt, &outer_push_loop);
 
-  // Check CPU flags for number of registers, setting the Z condition flag.
-  __ CheckFor32DRegs(ip);
-
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
-  int src_offset = FrameDescription::double_registers_offset();
-  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
-    if (i == kDoubleRegZero.code()) continue;
-    if (i == kScratchDoubleReg.code()) continue;
-
-    const DwVfpRegister reg = DwVfpRegister::from_code(i);
-    __ vldr(reg, r1, src_offset, i < 16 ? al : ne);
-    src_offset += kDoubleSize;
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    DwVfpRegister reg = DwVfpRegister::from_code(code);
+    int src_offset = code * kDoubleSize + double_regs_offset;
+    __ vldr(reg, r1, src_offset);
   }
 
   // Push state, pc, and continuation from the last output frame.
@@ -320,15 +327,50 @@ void Deoptimizer::EntryGenerator::Generate() {
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
-  Label done;
-  for (int i = 0; i < count(); i++) {
-    int start = masm()->pc_offset();
-    USE(start);
-    __ mov(ip, Operand(i));
-    __ b(&done);
-    DCHECK(masm()->pc_offset() - start == table_entry_size_);
+
+  // We need to be able to generate immediates up to kMaxNumberOfEntries. On
+  // ARMv7, we can use movw (with a maximum immediate of 0xffff). On ARMv6, we
+  // need two instructions.
+  STATIC_ASSERT((kMaxNumberOfEntries - 1) <= 0xffff);
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    CpuFeatureScope scope(masm(), ARMv7);
+    Label done;
+    for (int i = 0; i < count(); i++) {
+      int start = masm()->pc_offset();
+      USE(start);
+      __ movw(ip, i);
+      __ b(&done);
+      DCHECK_EQ(table_entry_size_, masm()->pc_offset() - start);
+    }
+    __ bind(&done);
+  } else {
+    // We want to keep table_entry_size_ == 8 (since this is the common case),
+    // but we need two instructions to load most immediates over 0xff. To handle
+    // this, we set the low byte in the main table, and then set the high byte
+    // in a separate table if necessary.
+    Label high_fixes[256];
+    int high_fix_max = (count() - 1) >> 8;
+    DCHECK_GT(arraysize(high_fixes), static_cast<size_t>(high_fix_max));
+    for (int i = 0; i < count(); i++) {
+      int start = masm()->pc_offset();
+      USE(start);
+      __ mov(ip, Operand(i & 0xff));  // Set the low byte.
+      __ b(&high_fixes[i >> 8]);      // Jump to the secondary table.
+      DCHECK_EQ(table_entry_size_, masm()->pc_offset() - start);
+    }
+    // Generate the secondary table, to set the high byte.
+    for (int high = 1; high <= high_fix_max; high++) {
+      __ bind(&high_fixes[high]);
+      __ orr(ip, ip, Operand(high << 8));
+      // If this isn't the last entry, emit a branch to the end of the table.
+      // The last entry can just fall through.
+      if (high < high_fix_max) __ b(&high_fixes[0]);
+    }
+    // Bind high_fixes[0] last, for indices like 0x00**. This case requires no
+    // fix-up, so for (common) small tables we can jump here, then just fall
+    // through with no additional branch.
+    __ bind(&high_fixes[0]);
   }
-  __ bind(&done);
   __ push(ip);
 }
 
@@ -344,11 +386,12 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 
 
 void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
-  DCHECK(FLAG_enable_ool_constant_pool);
-  SetFrameSlot(offset, value);
+  // No embedded constant pool support.
+  UNREACHABLE();
 }
 
 
 #undef __
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

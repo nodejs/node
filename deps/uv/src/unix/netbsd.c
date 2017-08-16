@@ -27,14 +27,11 @@
 
 #include <kvm.h>
 #include <paths.h>
-#include <ifaddrs.h>
 #include <unistd.h>
 #include <time.h>
 #include <stdlib.h>
 #include <fcntl.h>
 
-#include <net/if.h>
-#include <net/if_dl.h>
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -43,25 +40,15 @@
 #include <unistd.h>
 #include <time.h>
 
-#undef NANOSEC
-#define NANOSEC ((uint64_t) 1e9)
-
 static char *process_title;
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   return uv__kqueue_init(loop);
 }
 
 
 void uv__platform_loop_delete(uv_loop_t* loop) {
-}
-
-
-uint64_t uv__hrtime(uv_clocktype_t type) {
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (((uint64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
 }
 
 
@@ -83,7 +70,7 @@ int uv_exepath(char* buffer, size_t* size) {
   size_t cb;
   pid_t mypid;
 
-  if (buffer == NULL || size == NULL)
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
   mypid = getpid();
@@ -131,15 +118,15 @@ uint64_t uv_get_total_memory(void) {
 
 
 char** uv_setup_args(int argc, char** argv) {
-  process_title = argc ? strdup(argv[0]) : NULL;
+  process_title = argc ? uv__strdup(argv[0]) : NULL;
   return argv;
 }
 
 
 int uv_set_process_title(const char* title) {
-  if (process_title) free(process_title);
+  if (process_title) uv__free(process_title);
 
-  process_title = strdup(title);
+  process_title = uv__strdup(title);
   setproctitle("%s", title);
 
   return 0;
@@ -147,13 +134,23 @@ int uv_set_process_title(const char* title) {
 
 
 int uv_get_process_title(char* buffer, size_t size) {
+  size_t len;
+
+  if (buffer == NULL || size == 0)
+    return -EINVAL;
+
   if (process_title) {
-    strncpy(buffer, process_title, size);
+    len = strlen(process_title) + 1;
+
+    if (size < len)
+      return -ENOBUFS;
+
+    memcpy(buffer, process_title, len);
   } else {
-    if (size > 0) {
-      buffer[0] = '\0';
-    }
+    len = 0;
   }
+
+  buffer[len] = '\0';
 
   return 0;
 }
@@ -234,17 +231,17 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cpuspeed = 0;
 
   size = numcpus * CPUSTATES * sizeof(*cp_times);
-  cp_times = malloc(size);
+  cp_times = uv__malloc(size);
   if (cp_times == NULL)
     return -ENOMEM;
 
   if (sysctlbyname("kern.cp_time", cp_times, &size, NULL, 0))
     return -errno;
 
-  *cpu_infos = malloc(numcpus * sizeof(**cpu_infos));
+  *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
   if (!(*cpu_infos)) {
-    free(cp_times);
-    free(*cpu_infos);
+    uv__free(cp_times);
+    uv__free(*cpu_infos);
     return -ENOMEM;
   }
 
@@ -255,11 +252,11 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cpu_info->cpu_times.sys = (uint64_t)(cp_times[CP_SYS+cur]) * multiplier;
     cpu_info->cpu_times.idle = (uint64_t)(cp_times[CP_IDLE+cur]) * multiplier;
     cpu_info->cpu_times.irq = (uint64_t)(cp_times[CP_INTR+cur]) * multiplier;
-    cpu_info->model = strdup(model);
+    cpu_info->model = uv__strdup(model);
     cpu_info->speed = (int)(cpuspeed/(uint64_t) 1e6);
     cur += CPUSTATES;
   }
-  free(cp_times);
+  uv__free(cp_times);
   return 0;
 }
 
@@ -268,101 +265,8 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   int i;
 
   for (i = 0; i < count; i++) {
-    free(cpu_infos[i].model);
+    uv__free(cpu_infos[i].model);
   }
 
-  free(cpu_infos);
-}
-
-
-int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
-  struct ifaddrs *addrs, *ent;
-  uv_interface_address_t* address;
-  int i;
-  struct sockaddr_dl *sa_addr;
-
-  if (getifaddrs(&addrs))
-    return -errno;
-
-  *count = 0;
-
-  /* Count the number of interfaces */
-  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)) ||
-        (ent->ifa_addr == NULL) ||
-        (ent->ifa_addr->sa_family != PF_INET)) {
-      continue;
-    }
-    (*count)++;
-  }
-
-  *addresses = malloc(*count * sizeof(**addresses));
-
-  if (!(*addresses))
-    return -ENOMEM;
-
-  address = *addresses;
-
-  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)))
-      continue;
-
-    if (ent->ifa_addr == NULL)
-      continue;
-
-    if (ent->ifa_addr->sa_family != PF_INET)
-      continue;
-
-    address->name = strdup(ent->ifa_name);
-
-    if (ent->ifa_addr->sa_family == AF_INET6) {
-      address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
-    } else {
-      address->address.address4 = *((struct sockaddr_in*) ent->ifa_addr);
-    }
-
-    if (ent->ifa_netmask->sa_family == AF_INET6) {
-      address->netmask.netmask6 = *((struct sockaddr_in6*) ent->ifa_netmask);
-    } else {
-      address->netmask.netmask4 = *((struct sockaddr_in*) ent->ifa_netmask);
-    }
-
-    address->is_internal = !!(ent->ifa_flags & IFF_LOOPBACK);
-
-    address++;
-  }
-
-  /* Fill in physical addresses for each interface */
-  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)) ||
-        (ent->ifa_addr == NULL) ||
-        (ent->ifa_addr->sa_family != AF_LINK)) {
-      continue;
-    }
-
-    address = *addresses;
-
-    for (i = 0; i < (*count); i++) {
-      if (strcmp(address->name, ent->ifa_name) == 0) {
-        sa_addr = (struct sockaddr_dl*)(ent->ifa_addr);
-        memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
-      }
-      address++;
-    }
-  }
-
-  freeifaddrs(addrs);
-
-  return 0;
-}
-
-
-void uv_free_interface_addresses(uv_interface_address_t* addresses, int count) {
-  int i;
-
-  for (i = 0; i < count; i++) {
-    free(addresses[i].name);
-  }
-
-  free(addresses);
+  uv__free(cpu_infos);
 }

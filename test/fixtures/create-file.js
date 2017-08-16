@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var fs = require('fs');
+const fs = require('fs');
 
 var file_name = process.argv[2];
 var file_size = parseInt(process.argv[3]);

@@ -1,0 +1,43 @@
+{
+  "_from": "code-point-at@^1.0.0",
+  "_id": "code-point-at@1.1.0",
+  "_inBundle": false,
+  "_integrity": "sha1-DQcLTQQ6W+ozovGkDi7bPZpMz3c=",
+  "_location": "/libnpx/yargs/cliui/string-width/code-point-at",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "code-point-at@^1.0.0",
+    "name": "code-point-at",
+    "escapedName": "code-point-at",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/cliui/string-width"
+  ],
+  "_resolved": "https://registry.npmjs.org/code-point-at/-/code-point-at-1.1.0.tgz",
+  "_shasum": "0d070b4d043a5bea33a2f1a40e2edb3d9a4ccf77",
+  "_shrinkwrap": null,
+  "_spec": "code-point-at@^1.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/cliui/node_modules/string-width",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "> ES2015 [`String#codePointAt()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/codePointAt) [ponyfill](https://ponyfill.com)",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "^0.16.0"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "name": "code-point-at",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "1.1.0"
+}

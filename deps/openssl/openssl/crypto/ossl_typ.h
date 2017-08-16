@@ -6,7 +6,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -53,33 +53,33 @@
  */
 
 #ifndef HEADER_OPENSSL_TYPES_H
-#define HEADER_OPENSSL_TYPES_H
+# define HEADER_OPENSSL_TYPES_H
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
-#include <openssl/e_os2.h>
+# include <openssl/e_os2.h>
 
-#ifdef NO_ASN1_TYPEDEFS
-#define ASN1_INTEGER		ASN1_STRING
-#define ASN1_ENUMERATED		ASN1_STRING
-#define ASN1_BIT_STRING		ASN1_STRING
-#define ASN1_OCTET_STRING	ASN1_STRING
-#define ASN1_PRINTABLESTRING	ASN1_STRING
-#define ASN1_T61STRING		ASN1_STRING
-#define ASN1_IA5STRING		ASN1_STRING
-#define ASN1_UTCTIME		ASN1_STRING
-#define ASN1_GENERALIZEDTIME	ASN1_STRING
-#define ASN1_TIME		ASN1_STRING
-#define ASN1_GENERALSTRING	ASN1_STRING
-#define ASN1_UNIVERSALSTRING	ASN1_STRING
-#define ASN1_BMPSTRING		ASN1_STRING
-#define ASN1_VISIBLESTRING	ASN1_STRING
-#define ASN1_UTF8STRING		ASN1_STRING
-#define ASN1_BOOLEAN		int
-#define ASN1_NULL		int
-#else
+# ifdef NO_ASN1_TYPEDEFS
+#  define ASN1_INTEGER            ASN1_STRING
+#  define ASN1_ENUMERATED         ASN1_STRING
+#  define ASN1_BIT_STRING         ASN1_STRING
+#  define ASN1_OCTET_STRING       ASN1_STRING
+#  define ASN1_PRINTABLESTRING    ASN1_STRING
+#  define ASN1_T61STRING          ASN1_STRING
+#  define ASN1_IA5STRING          ASN1_STRING
+#  define ASN1_UTCTIME            ASN1_STRING
+#  define ASN1_GENERALIZEDTIME    ASN1_STRING
+#  define ASN1_TIME               ASN1_STRING
+#  define ASN1_GENERALSTRING      ASN1_STRING
+#  define ASN1_UNIVERSALSTRING    ASN1_STRING
+#  define ASN1_BMPSTRING          ASN1_STRING
+#  define ASN1_VISIBLESTRING      ASN1_STRING
+#  define ASN1_UTF8STRING         ASN1_STRING
+#  define ASN1_BOOLEAN            int
+#  define ASN1_NULL               int
+# else
 typedef struct asn1_string_st ASN1_INTEGER;
 typedef struct asn1_string_st ASN1_ENUMERATED;
 typedef struct asn1_string_st ASN1_BIT_STRING;
@@ -98,23 +98,25 @@ typedef struct asn1_string_st ASN1_UTF8STRING;
 typedef struct asn1_string_st ASN1_STRING;
 typedef int ASN1_BOOLEAN;
 typedef int ASN1_NULL;
-#endif
+# endif
+
+typedef struct asn1_object_st ASN1_OBJECT;
 
 typedef struct ASN1_ITEM_st ASN1_ITEM;
 typedef struct asn1_pctx_st ASN1_PCTX;
 
-#ifdef OPENSSL_SYS_WIN32
-#undef X509_NAME
-#undef X509_EXTENSIONS
-#undef X509_CERT_PAIR
-#undef PKCS7_ISSUER_AND_SERIAL
-#undef OCSP_REQUEST
-#undef OCSP_RESPONSE
-#endif
+# ifdef OPENSSL_SYS_WIN32
+#  undef X509_NAME
+#  undef X509_EXTENSIONS
+#  undef X509_CERT_PAIR
+#  undef PKCS7_ISSUER_AND_SERIAL
+#  undef OCSP_REQUEST
+#  undef OCSP_RESPONSE
+# endif
 
-#ifdef BIGNUM
-#undef BIGNUM
-#endif
+# ifdef BIGNUM
+#  undef BIGNUM
+# endif
 typedef struct bignum_st BIGNUM;
 typedef struct bignum_ctx BN_CTX;
 typedef struct bn_blinding_st BN_BLINDING;
@@ -176,6 +178,8 @@ typedef struct engine_st ENGINE;
 typedef struct ssl_st SSL;
 typedef struct ssl_ctx_st SSL_CTX;
 
+typedef struct comp_method_st COMP_METHOD;
+
 typedef struct X509_POLICY_NODE_st X509_POLICY_NODE;
 typedef struct X509_POLICY_LEVEL_st X509_POLICY_LEVEL;
 typedef struct X509_POLICY_TREE_st X509_POLICY_TREE;
@@ -187,17 +191,17 @@ typedef struct ISSUING_DIST_POINT_st ISSUING_DIST_POINT;
 typedef struct NAME_CONSTRAINTS_st NAME_CONSTRAINTS;
 
   /* If placed in pkcs12.h, we end up with a circular depency with pkcs7.h */
-#define DECLARE_PKCS12_STACK_OF(type) /* Nothing */
-#define IMPLEMENT_PKCS12_STACK_OF(type) /* Nothing */
+# define DECLARE_PKCS12_STACK_OF(type)/* Nothing */
+# define IMPLEMENT_PKCS12_STACK_OF(type)/* Nothing */
 
 typedef struct crypto_ex_data_st CRYPTO_EX_DATA;
 /* Callback types for crypto.h */
-typedef int CRYPTO_EX_new(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
-					int idx, long argl, void *argp);
-typedef void CRYPTO_EX_free(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
-					int idx, long argl, void *argp);
-typedef int CRYPTO_EX_dup(CRYPTO_EX_DATA *to, CRYPTO_EX_DATA *from, void *from_d, 
-					int idx, long argl, void *argp);
+typedef int CRYPTO_EX_new (void *parent, void *ptr, CRYPTO_EX_DATA *ad,
+                           int idx, long argl, void *argp);
+typedef void CRYPTO_EX_free (void *parent, void *ptr, CRYPTO_EX_DATA *ad,
+                             int idx, long argl, void *argp);
+typedef int CRYPTO_EX_dup (CRYPTO_EX_DATA *to, CRYPTO_EX_DATA *from,
+                           void *from_d, int idx, long argl, void *argp);
 
 typedef struct ocsp_req_ctx_st OCSP_REQ_CTX;
 typedef struct ocsp_response_st OCSP_RESPONSE;
@@ -206,4 +210,4 @@ typedef struct ocsp_responder_id_st OCSP_RESPID;
 #ifdef  __cplusplus
 }
 #endif
-#endif /* def HEADER_OPENSSL_TYPES_H */
+#endif                          /* def HEADER_OPENSSL_TYPES_H */

@@ -5,7 +5,6 @@
 #ifndef V8_ARM64_CODEGEN_ARM64_H_
 #define V8_ARM64_CODEGEN_ARM64_H_
 
-#include "src/ast.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -27,22 +26,7 @@ class StringCharLoadGenerator : public AllStatic {
   DISALLOW_COPY_AND_ASSIGN(StringCharLoadGenerator);
 };
 
-
-class MathExpGenerator : public AllStatic {
- public:
-  static void EmitMathExp(MacroAssembler* masm,
-                          DoubleRegister input,
-                          DoubleRegister result,
-                          DoubleRegister double_scratch1,
-                          DoubleRegister double_scratch2,
-                          Register temp1,
-                          Register temp2,
-                          Register temp3);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
-};
-
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_CODEGEN_ARM64_H_

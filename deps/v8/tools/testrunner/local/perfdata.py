@@ -118,3 +118,29 @@ class PerfDataManager(object):
       if not mode in modes:
         modes[mode] = PerfDataStore(self.datadir, arch, mode)
       return modes[mode]
+
+
+class NullPerfDataStore(object):
+  def UpdatePerfData(self, test):
+    pass
+
+  def FetchPerfData(self, test):
+    return None
+
+
+class NullPerfDataManager(object):
+  def __init__(self):
+    pass
+
+  def GetStore(self, *args, **kwargs):
+    return NullPerfDataStore()
+
+  def close(self):
+    pass
+
+
+def GetPerfDataManager(context, datadir):
+  if context.use_perf_data:
+    return PerfDataManager(datadir)
+  else:
+    return NullPerfDataManager()

@@ -19,26 +19,20 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
 
-var https = require('https');
-var http = require('http');
-var gotHttpsResp = false;
-var gotHttpResp = false;
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-process.on('exit', function() {
-  assert(gotHttpsResp);
-  assert(gotHttpResp);
-  console.log('ok');
-});
+const https = require('https');
 
-https.get('https://www.google.com/', function(res) {
-  gotHttpsResp = true;
+const http = require('http');
+
+https.get('https://www.google.com/', common.mustCall(function(res) {
   res.resume();
-});
+}));
 
-http.get('http://www.google.com/', function(res) {
-  gotHttpResp = true;
+http.get('http://www.google.com/', common.mustCall(function(res) {
   res.resume();
-});
+}));

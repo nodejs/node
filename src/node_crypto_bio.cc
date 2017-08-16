@@ -23,9 +23,11 @@
 #include "openssl/bio.h"
 #include "util.h"
 #include "util-inl.h"
+#include <limits.h>
 #include <string.h>
 
 namespace node {
+namespace crypto {
 
 const BIO_METHOD NodeBIO::method = {
   BIO_TYPE_MEM,
@@ -45,6 +47,26 @@ BIO* NodeBIO::New() {
   // The const_cast doesn't violate const correctness.  OpenSSL's usage of
   // BIO_METHOD is effectively const but BIO_new() takes a non-const argument.
   return BIO_new(const_cast<BIO_METHOD*>(&method));
+}
+
+
+BIO* NodeBIO::NewFixed(const char* data, size_t len) {
+  BIO* bio = New();
+
+  if (bio == nullptr ||
+      len > INT_MAX ||
+      BIO_write(bio, data, len) != static_cast<int>(len) ||
+      BIO_set_mem_eof_return(bio, 0) != 1) {
+    BIO_free(bio);
+    return nullptr;
+  }
+
+  return bio;
+}
+
+
+void NodeBIO::AssignEnvironment(Environment* env) {
+  env_ = env;
 }
 
 
@@ -164,9 +186,10 @@ int NodeBIO::Gets(BIO* bio, char* out, int size) {
 }
 
 
-long NodeBIO::Ctrl(BIO* bio, int cmd, long num, void* ptr) {
+long NodeBIO::Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
+                   void* ptr) {
   NodeBIO* nbio;
-  long ret;
+  long ret;  // NOLINT(runtime/int)
 
   nbio = FromBIO(bio);
   ret = 1;
@@ -188,7 +211,6 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num, void* ptr) {
       break;
     case BIO_C_SET_BUF_MEM:
       CHECK(0 && "Can't use SET_BUF_MEM_PTR with NodeBIO");
-      abort();
       break;
     case BIO_C_GET_BUF_MEM_PTR:
       CHECK(0 && "Can't use GET_BUF_MEM_PTR with NodeBIO");
@@ -420,7 +442,7 @@ void NodeBIO::TryAllocateForWrite(size_t hint) {
                              kThroughputBufferLength;
     if (len < hint)
       len = hint;
-    Buffer* next = new Buffer(len);
+    Buffer* next = new Buffer(env_, len);
 
     if (w == nullptr) {
       next->next_ = next;
@@ -467,4 +489,5 @@ NodeBIO::~NodeBIO() {
   write_head_ = nullptr;
 }
 
+}  // namespace crypto
 }  // namespace node

@@ -105,10 +105,19 @@ Public members
 API
 ---
 
-.. c:function:: int uv_udp_init(uv_loop_t*, uv_udp_t* handle)
+.. c:function:: int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle)
 
     Initialize a new UDP handle. The actual socket is created lazily.
     Returns 0 on success.
+
+.. c:function:: int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags)
+
+    Initialize the handle with the specified flags. At the moment the lower 8 bits
+    of the `flags` parameter are used as the socket domain. A socket will be created
+    for the given domain. If the specified domain is ``AF_UNSPEC`` no socket is created,
+    just like :c:func:`uv_udp_init`.
+
+    .. versionadded:: 1.7.0
 
 .. c:function:: int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock)
 
@@ -119,6 +128,12 @@ API
     contract (works in unconnected mode, supports sendmsg()/recvmsg(), etc).
     In other words, other datagram-type sockets like raw sockets or netlink
     sockets can also be passed to this function.
+
+    .. versionchanged:: 1.2.1 the file descriptor is set to non-blocking mode.
+
+    .. note::
+        The passed file descriptor or SOCKET is not checked for its type, but
+        it's required that it represents a valid datagram socket.
 
 .. c:function:: int uv_udp_bind(uv_udp_t* handle, const struct sockaddr* addr, unsigned int flags)
 

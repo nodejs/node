@@ -50,14 +50,14 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "Joyent, Inc"
+            VALUE "CompanyName", "Node.js"
             VALUE "ProductName", "Node.js"
-            VALUE "FileDescription", "Node.js: Evented I/O for V8 JavaScript"
-            VALUE "FileVersion", NODE_VERSION_STRING
-            VALUE "ProductVersion", NODE_VERSION_STRING
+            VALUE "FileDescription", "Node.js: Server-side JavaScript"
+            VALUE "FileVersion", NODE_EXE_VERSION
+            VALUE "ProductVersion", NODE_EXE_VERSION
             VALUE "OriginalFilename", "node.exe"
             VALUE "InternalName", "node"
-            VALUE "LegalCopyright", "Copyright Joyent, Inc. and other Node contributors. MIT license."
+            VALUE "LegalCopyright", "Copyright Node.js contributors. MIT license."
         END
     END
     BLOCK "VarFileInfo"

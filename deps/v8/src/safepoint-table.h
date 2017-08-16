@@ -6,9 +6,10 @@
 #define V8_SAFEPOINT_TABLE_H_
 
 #include "src/allocation.h"
-#include "src/heap/heap.h"
+#include "src/assert-scope.h"
+#include "src/utils.h"
 #include "src/v8memory.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -216,6 +217,10 @@ class SafepointTableBuilder BASE_EMBEDDED {
 
   uint32_t EncodeExceptPC(const DeoptimizationInfo& info, unsigned index);
 
+  bool IsIdenticalExceptForPc(int index1, int index2) const;
+  // If all entries are identical, replace them by 1 entry with pc = kMaxUInt32.
+  void RemoveDuplicates();
+
   ZoneList<DeoptimizationInfo> deoptimization_info_;
   ZoneList<unsigned> deopt_index_list_;
   ZoneList<ZoneList<int>*> indexes_;
@@ -230,6 +235,7 @@ class SafepointTableBuilder BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(SafepointTableBuilder);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_SAFEPOINT_TABLE_H_

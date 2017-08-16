@@ -14,11 +14,11 @@ require "uplink-common.pl";
 for ($i=1;$i<=$N;$i++) {
 &function_begin_B("_\$lazy${i}");
 	&lea	("eax",&DWP(&label("OPENSSL_UplinkTable")));
-	&push	("eax");
 	&push	($i);
+	&push	("eax");
 	&call	(&label("OPENSSL_Uplink"));
-	&add	("esp",8);
 	&pop	("eax");
+	&add	("esp",4);
 	&jmp_ptr(&DWP(4*$i,"eax"));
 &function_end_B("_\$lazy${i}");
 }

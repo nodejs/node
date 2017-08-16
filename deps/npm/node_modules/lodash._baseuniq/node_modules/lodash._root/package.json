@@ -1,0 +1,70 @@
+{
+  "_from": "lodash._root@~3.0.0",
+  "_id": "lodash._root@3.0.1",
+  "_integrity": "sha1-+6HEUkwZ7ppfgTa0YJ8BfPTe1pI=",
+  "_location": "/lodash._baseuniq/lodash._root",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "lodash._root@~3.0.0",
+    "name": "lodash._root",
+    "escapedName": "lodash._root",
+    "rawSpec": "~3.0.0",
+    "saveSpec": null,
+    "fetchSpec": "~3.0.0"
+  },
+  "_requiredBy": [
+    "/lodash._baseuniq"
+  ],
+  "_resolved": "https://registry.npmjs.org/lodash._root/-/lodash._root-3.0.1.tgz",
+  "_shasum": "fba1c4524c19ee9a5f8136b4609f017cf4ded692",
+  "_shrinkwrap": null,
+  "_spec": "lodash._root@~3.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/lodash._baseuniq",
+  "author": {
+    "name": "John-David Dalton",
+    "email": "john.david.dalton@gmail.com",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "John-David Dalton",
+      "email": "john.david.dalton@gmail.com",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "name": "Blaine Bublitz",
+      "email": "blaine@iceddev.com",
+      "url": "https://github.com/phated"
+    },
+    {
+      "name": "Mathias Bynens",
+      "email": "mathias@qiwi.be",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "dependencies": {},
+  "deprecated": false,
+  "description": "The internal lodash function `root` exported as a module.",
+  "devDependencies": {},
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "license": "MIT",
+  "name": "lodash._root",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "3.0.1"
+}

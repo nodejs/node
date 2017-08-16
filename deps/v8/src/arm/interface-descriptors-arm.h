@@ -20,7 +20,7 @@ class PlatformInterfaceDescriptor {
  private:
   TargetAddressStorageMode storage_mode_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_INTERFACE_DESCRIPTORS_ARM_H_

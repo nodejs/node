@@ -19,28 +19,29 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert'),
-    common = require('../common'),
-    fs = require('fs'),
-    path = require('path'),
-    dirName = path.resolve(common.fixturesDir, 'test-readfile-unlink'),
-    fileName = path.resolve(dirName, 'test.bin');
+'use strict';
+require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const fixtures = require('../common/fixtures');
 
-var buf = new Buffer(512 * 1024);
-buf.fill(42);
+const dirName = fixtures.path('test-readfile-unlink');
+const fileName = path.resolve(dirName, 'test.bin');
+const buf = Buffer.alloc(512 * 1024, 42);
 
 try {
   fs.mkdirSync(dirName);
 } catch (e) {
   // Ignore if the directory already exists.
-  if (e.code != 'EEXIST') throw e;
+  if (e.code !== 'EEXIST') throw e;
 }
 
 fs.writeFileSync(fileName, buf);
 
 fs.readFile(fileName, function(err, data) {
   assert.ifError(err);
-  assert(data.length == buf.length);
+  assert.strictEqual(data.length, buf.length);
   assert.strictEqual(buf[0], 42);
 
   fs.unlinkSync(fileName);

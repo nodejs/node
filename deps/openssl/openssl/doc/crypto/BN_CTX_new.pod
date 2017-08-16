@@ -10,9 +10,12 @@ BN_CTX_new, BN_CTX_init, BN_CTX_free - allocate and free BN_CTX structures
 
  BN_CTX *BN_CTX_new(void);
 
+ void BN_CTX_free(BN_CTX *c);
+
+Deprecated:
+
  void BN_CTX_init(BN_CTX *c);
 
- void BN_CTX_free(BN_CTX *c);
 
 =head1 DESCRIPTION
 
@@ -22,8 +25,7 @@ is rather expensive when used in conjunction with repeated subroutine
 calls, the B<BN_CTX> structure is used.
 
 BN_CTX_new() allocates and initializes a B<BN_CTX>
-structure. BN_CTX_init() initializes an existing uninitialized
-B<BN_CTX>.
+structure. 
 
 BN_CTX_free() frees the components of the B<BN_CTX>, and if it was
 created by BN_CTX_new(), also the structure itself.
@@ -31,6 +33,8 @@ If L<BN_CTX_start(3)|BN_CTX_start(3)> has been used on the B<BN_CTX>,
 L<BN_CTX_end(3)|BN_CTX_end(3)> must be called before the B<BN_CTX>
 may be freed by BN_CTX_free().
 
+BN_CTX_init() (deprecated) initializes an existing uninitialized B<BN_CTX>.
+This should not be used for new programs. Use BN_CTX_new() instead.
 
 =head1 RETURN VALUES
 

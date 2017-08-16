@@ -217,8 +217,15 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
     if (instr->Bit(28) == 0) {
       if (instr->Bit(29) == 0) {
         if (instr->Bit(26) == 0) {
-          // TODO(all): VisitLoadStoreExclusive.
-          V::VisitUnimplemented(instr);
+          if (instr->Mask(0xA08000) == 0x800000 ||
+              instr->Mask(0xA00000) == 0xA00000) {
+            V::VisitUnallocated(instr);
+          } else if (instr->Mask(0x808000) == 0) {
+            // Load/Store exclusive without acquire/release are unimplemented.
+            V::VisitUnimplemented(instr);
+          } else {
+            V::VisitLoadStoreAcquireRelease(instr);
+          }
         } else {
           DecodeAdvSIMDLoadStore(instr);
         }
@@ -231,7 +238,8 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
             if (instr->Mask(0xC4400000) == 0xC0400000) {
               V::VisitUnallocated(instr);
             } else {
-              V::VisitLoadStorePairNonTemporal(instr);
+              // Nontemporals are unimplemented.
+              V::VisitUnimplemented(instr);
             }
           } else {
             V::VisitLoadStorePairPostIndex(instr);
@@ -643,6 +651,7 @@ void Decoder<V>::DecodeAdvSIMDDataProcessing(Instruction* instr) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_DECODER_ARM64_INL_H_

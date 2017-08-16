@@ -49,7 +49,7 @@ Object.defineProperty(o2, "foo1", {get:getter});
 foo(o1);
 foo(o1);
 foo(o2);
-%ClearFunctionTypeFeedback(foo2);
+%ClearFunctionFeedback(foo2);
 foo2(o2);
 foo2(o2);
 foo2(o3);

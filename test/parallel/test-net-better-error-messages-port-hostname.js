@@ -1,13 +1,15 @@
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
 
-var c = net.createConnection(common.PORT, 'blah.blah');
+// Using port 0 as hostname used is already invalid.
+const c = net.createConnection(0, '***');
 
-c.on('connect', assert.fail);
+c.on('connect', common.mustNotCall());
 
 c.on('error', common.mustCall(function(e) {
-  assert.equal(e.code, 'ENOTFOUND');
-  assert.equal(e.port, common.PORT);
-  assert.equal(e.hostname, 'blah.blah');
+  assert.strictEqual(e.code, 'ENOTFOUND');
+  assert.strictEqual(e.port, 0);
+  assert.strictEqual(e.hostname, '***');
 }));

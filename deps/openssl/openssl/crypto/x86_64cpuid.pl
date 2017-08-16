@@ -24,7 +24,7 @@ print<<___;
 	call	OPENSSL_cpuid_setup
 
 .hidden	OPENSSL_ia32cap_P
-.comm	OPENSSL_ia32cap_P,8,4
+.comm	OPENSSL_ia32cap_P,16,4
 
 .text
 
@@ -53,12 +53,13 @@ OPENSSL_rdtsc:
 .size	OPENSSL_rdtsc,.-OPENSSL_rdtsc
 
 .globl	OPENSSL_ia32_cpuid
-.type	OPENSSL_ia32_cpuid,\@abi-omnipotent
+.type	OPENSSL_ia32_cpuid,\@function,1
 .align	16
 OPENSSL_ia32_cpuid:
 	mov	%rbx,%r8		# save %rbx
 
 	xor	%eax,%eax
+	mov	%eax,8(%rdi)		# clear extended feature flags
 	cpuid
 	mov	%eax,%r11d		# max value for standard query level
 
@@ -155,6 +156,15 @@ OPENSSL_ia32_cpuid:
 	or	%ecx,%r9d		# merge AMD XOP flag
 
 	mov	%edx,%r10d		# %r9d:%r10d is copy of %ecx:%edx
+
+	cmp	\$7,%r11d
+	jb	.Lno_extended_info
+	mov	\$7,%eax
+	xor	%ecx,%ecx
+	cpuid
+	mov	%ebx,8(%rdi)		# save extended feature flags
+.Lno_extended_info:
+
 	bt	\$27,%r9d		# check OSXSAVE bit
 	jnc	.Lclear_avx
 	xor	%ecx,%ecx		# XCR0
@@ -165,6 +175,7 @@ OPENSSL_ia32_cpuid:
 .Lclear_avx:
 	mov	\$0xefffe7ff,%eax	# ~(1<<28|1<<12|1<<11)
 	and	%eax,%r9d		# clear AVX, FMA and AMD XOP bits
+	andl	\$0xffffffdf,8(%rdi)	# cleax AVX2, ~(1<<5)
 .Ldone:
 	shl	\$32,%r9
 	mov	%r10d,%eax
@@ -279,6 +290,21 @@ OPENSSL_ia32_rdrand:
 	cmove	%rcx,%rax
 	ret
 .size	OPENSSL_ia32_rdrand,.-OPENSSL_ia32_rdrand
+
+.globl	OPENSSL_ia32_rdseed
+.type	OPENSSL_ia32_rdseed,\@abi-omnipotent
+.align	16
+OPENSSL_ia32_rdseed:
+	mov	\$8,%ecx
+.Loop_rdseed:
+	rdseed	%rax
+	jc	.Lbreak_rdseed
+	loop	.Loop_rdseed
+.Lbreak_rdseed:
+	cmp	\$0,%rax
+	cmove	%rcx,%rax
+	ret
+.size	OPENSSL_ia32_rdseed,.-OPENSSL_ia32_rdseed
 ___
 
 close STDOUT;	# flush

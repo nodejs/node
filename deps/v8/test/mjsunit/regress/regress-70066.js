@@ -120,7 +120,7 @@ function test8() {
 }
 
 assertEquals(true, test8(), "test8");
-assertThrows("x", "test8");  // Global x should be deleted.
+assertThrows("x");  // Global x should be deleted.
 
 
 // Delete on a property that is not found anywhere.
@@ -128,7 +128,7 @@ function test9() {
   with ({}) { return delete x; }
 }
 
-assertThrows("x", "test9");  // Make sure it's not there.
+assertThrows("x");  // Make sure it's not there.
 assertEquals(true, test9(), "test9");
 
 

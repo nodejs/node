@@ -17,5 +17,7 @@ test('it does the thing it says it does', function(t) {
           '/tmp/foo_134/xyz')
   t.equal(cf("/tmp", "https://foo:134/xyz-rev/baz"),
           '/tmp/foo_134/xyz-rev/baz')
+  t.equal(cf("/tmp", "git://foo:134/xyz-rev/baz.git#master"),
+          '/tmp/foo_134/xyz-rev/baz.git/master')
   t.end();
 });;

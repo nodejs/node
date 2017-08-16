@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="de-de" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+    <!-- See https://msdn.microsoft.com/en-us/goglobal/bb964664.aspx -->
+    <String Id="LocaleId">1031</String>
+
+    <String Id="WelcomeDlgDescription">Dieser Installationsassistent wird [ProductName] auf Ihrem Computer installieren.</String>
+    <String Id="InstallDirDlgDescription">Wählen Sie einen anderen Installationsort oder klicken Sie auf Weiter zum installieren.</String>
+
+    <String Id="MajorUpgrade_DowngradeErrorMessage">Eine neuere Version von [ProductName] ist bereits installiert. Der Installationsassistent wird jetzt geschlossen.</String>
+
+    <!-- References like [ProductName] or $(var.ProductName) don't seem to work in Title attributes -->
+    <String Id="NodeRuntime_Title">Node.js-Laufzeitumgebung</String>
+    <String Id="NodeRuntime_Description">Installation der [ProductName]-Laufzeitumgebung (node.exe).</String>
+
+    <String Id="NodePerfCtrSupport_Title">Performance Counter</String>
+    <String Id="NodePerfCtrSupport_Description">Installiert Unterstützung für [ProductName]-spezifische Performance Counter.</String>
+
+    <String Id="NodeEtwSupport_Title">Event Tracing (ETW)</String>
+    <String Id="NodeEtwSupport_Description">Installiert Unterstützung für Event Tracing (ETW)-Events, generiert von [ProductName].</String>
+
+    <String Id="npm_Title">npm-Paketmanager</String>
+    <String Id="npm_Description">Installiert npm, den empfohlenen Paketmanager für [ProductName].</String>
+
+    <String Id="DocumentationShortcuts_Title">Link zur Online-Dokumentation</String>
+    <String Id="DocumentationShortcuts_Description">Fügt Startmenü-Einträge zur Online-Dokumentation von [ProductName] [FullVersion] und zur [ProductName]-Website hinzu.</String>
+
+    <String Id="EnvironmentPath_Title">Hinzufügen zu PATH</String>
+    <String Id="EnvironmentPath_Description">Fügt [ProductName], npm und globale durch npm installierte Module zur PATH-Umgebungsvariable hinzu.</String>
+
+    <String Id="EnvironmentPathNode_Title">Node.js und npm</String>
+    <String Id="EnvironmentPathNode_Description">Fügt [ProductName] und npm (falls installiert) zur PATH-Umgebungsvariable hinzu.</String>
+
+    <String Id="EnvironmentPathNpmModules_Title">npm-Module</String>
+    <String Id="EnvironmentPathNpmModules_Description">Fügt globale durch npm installierte Module zur PATH-Umgebungsvariable hinzu. Diese Option funktioniert nur für den aktuellen Benutzer, andere Benutzer müssen ihre PATH-Umgebungsvariable selbst manuell aktualisieren.</String>
+
+    <!-- References like [ProductName] are not resolved for Property tags -->
+    <String Id="WIXUI_EXITDIALOGOPTIONALTEXT">Node.js wurde erfolgreich installiert.</String>
+</WixLocalization>

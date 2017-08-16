@@ -37,77 +37,48 @@ struct cancel_info {
   uv_timer_t timer_handle;
 };
 
-static uv_cond_t signal_cond;
-static uv_mutex_t signal_mutex;
-static uv_mutex_t wait_mutex;
-static unsigned num_threads;
 static unsigned fs_cb_called;
-static unsigned work_cb_called;
 static unsigned done_cb_called;
 static unsigned done2_cb_called;
 static unsigned timer_cb_called;
+static uv_work_t pause_reqs[4];
+static uv_sem_t pause_sems[ARRAY_SIZE(pause_reqs)];
 
 
 static void work_cb(uv_work_t* req) {
-  uv_mutex_lock(&signal_mutex);
-  uv_cond_signal(&signal_cond);
-  uv_mutex_unlock(&signal_mutex);
-
-  uv_mutex_lock(&wait_mutex);
-  uv_mutex_unlock(&wait_mutex);
-
-  work_cb_called++;
+  uv_sem_wait(pause_sems + (req - pause_reqs));
 }
 
 
 static void done_cb(uv_work_t* req, int status) {
-  done_cb_called++;
-  free(req);
+  uv_sem_destroy(pause_sems + (req - pause_reqs));
 }
 
 
 static void saturate_threadpool(void) {
-  uv_work_t* req;
+  uv_loop_t* loop;
+  char buf[64];
+  size_t i;
 
-  ASSERT(0 == uv_cond_init(&signal_cond));
-  ASSERT(0 == uv_mutex_init(&signal_mutex));
-  ASSERT(0 == uv_mutex_init(&wait_mutex));
+  snprintf(buf,
+           sizeof(buf),
+           "UV_THREADPOOL_SIZE=%lu",
+           (unsigned long)ARRAY_SIZE(pause_reqs));
+  putenv(buf);
 
-  uv_mutex_lock(&signal_mutex);
-  uv_mutex_lock(&wait_mutex);
-
-  for (num_threads = 0; /* empty */; num_threads++) {
-    req = malloc(sizeof(*req));
-    ASSERT(req != NULL);
-    ASSERT(0 == uv_queue_work(uv_default_loop(), req, work_cb, done_cb));
-
-    /* Expect to get signalled within 350 ms, otherwise assume that
-     * the thread pool is saturated. As with any timing dependent test,
-     * this is obviously not ideal.
-     */
-    if (uv_cond_timedwait(&signal_cond,
-                          &signal_mutex,
-                          (uint64_t) (350 * 1e6))) {
-      ASSERT(0 == uv_cancel((uv_req_t*) req));
-      break;
-    }
+  loop = uv_default_loop();
+  for (i = 0; i < ARRAY_SIZE(pause_reqs); i += 1) {
+    ASSERT(0 == uv_sem_init(pause_sems + i, 0));
+    ASSERT(0 == uv_queue_work(loop, pause_reqs + i, work_cb, done_cb));
   }
 }
 
 
 static void unblock_threadpool(void) {
-  uv_mutex_unlock(&signal_mutex);
-  uv_mutex_unlock(&wait_mutex);
-}
+  size_t i;
 
-
-static void cleanup_threadpool(void) {
-  ASSERT(done_cb_called == num_threads + 1);  /* +1 == cancelled work req. */
-  ASSERT(work_cb_called == num_threads);
-
-  uv_cond_destroy(&signal_cond);
-  uv_mutex_destroy(&signal_mutex);
-  uv_mutex_destroy(&wait_mutex);
+  for (i = 0; i < ARRAY_SIZE(pause_reqs); i += 1)
+    uv_sem_post(pause_sems + i);
 }
 
 
@@ -166,12 +137,9 @@ static void timer_cb(uv_timer_t* handle) {
 }
 
 
-static void nop_work_cb(uv_work_t* req) {
-}
-
-
 static void nop_done_cb(uv_work_t* req, int status) {
-  req->data = "OK";
+  ASSERT(status == UV_ECANCELED);
+  done_cb_called++;
 }
 
 
@@ -202,8 +170,6 @@ TEST_IMPL(threadpool_cancel_getaddrinfo) {
   ASSERT(0 == uv_timer_start(&ci.timer_handle, timer_cb, 10, 0));
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(1 == timer_cb_called);
-
-  cleanup_threadpool();
 
   MAKE_VALGRIND_HAPPY();
   return 0;
@@ -241,8 +207,6 @@ TEST_IMPL(threadpool_cancel_getnameinfo) {
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(1 == timer_cb_called);
 
-  cleanup_threadpool();
-
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
@@ -267,8 +231,6 @@ TEST_IMPL(threadpool_cancel_work) {
   ASSERT(1 == timer_cb_called);
   ASSERT(ARRAY_SIZE(reqs) == done2_cb_called);
 
-  cleanup_threadpool();
-
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
@@ -276,13 +238,15 @@ TEST_IMPL(threadpool_cancel_work) {
 
 TEST_IMPL(threadpool_cancel_fs) {
   struct cancel_info ci;
-  uv_fs_t reqs[25];
+  uv_fs_t reqs[26];
   uv_loop_t* loop;
   unsigned n;
+  uv_buf_t iov;
 
   INIT_CANCEL_INFO(&ci, reqs);
   loop = uv_default_loop();
   saturate_threadpool();
+  iov = uv_buf_init(NULL, 0);
 
   /* Needs to match ARRAY_SIZE(fs_reqs). */
   n = 0;
@@ -300,9 +264,10 @@ TEST_IMPL(threadpool_cancel_fs) {
   ASSERT(0 == uv_fs_lstat(loop, reqs + n++, "/", fs_cb));
   ASSERT(0 == uv_fs_mkdir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_open(loop, reqs + n++, "/", 0, 0, fs_cb));
-  ASSERT(0 == uv_fs_read(loop, reqs + n++, 0, NULL, 0, 0, fs_cb));
+  ASSERT(0 == uv_fs_read(loop, reqs + n++, 0, &iov, 1, 0, fs_cb));
   ASSERT(0 == uv_fs_scandir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_readlink(loop, reqs + n++, "/", fs_cb));
+  ASSERT(0 == uv_fs_realpath(loop, reqs + n++, "/", fs_cb));
   ASSERT(0 == uv_fs_rename(loop, reqs + n++, "/", "/", fs_cb));
   ASSERT(0 == uv_fs_mkdir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_sendfile(loop, reqs + n++, 0, 0, 0, 0, fs_cb));
@@ -310,7 +275,7 @@ TEST_IMPL(threadpool_cancel_fs) {
   ASSERT(0 == uv_fs_symlink(loop, reqs + n++, "/", "/", 0, fs_cb));
   ASSERT(0 == uv_fs_unlink(loop, reqs + n++, "/", fs_cb));
   ASSERT(0 == uv_fs_utime(loop, reqs + n++, "/", 0, 0, fs_cb));
-  ASSERT(0 == uv_fs_write(loop, reqs + n++, 0, NULL, 0, 0, fs_cb));
+  ASSERT(0 == uv_fs_write(loop, reqs + n++, 0, &iov, 1, 0, fs_cb));
   ASSERT(n == ARRAY_SIZE(reqs));
 
   ASSERT(0 == uv_timer_init(loop, &ci.timer_handle));
@@ -319,7 +284,6 @@ TEST_IMPL(threadpool_cancel_fs) {
   ASSERT(n == fs_cb_called);
   ASSERT(1 == timer_cb_called);
 
-  cleanup_threadpool();
 
   MAKE_VALGRIND_HAPPY();
   return 0;
@@ -329,30 +293,15 @@ TEST_IMPL(threadpool_cancel_fs) {
 TEST_IMPL(threadpool_cancel_single) {
   uv_loop_t* loop;
   uv_work_t req;
-  int cancelled;
-  int i;
 
+  saturate_threadpool();
   loop = uv_default_loop();
-  for (i = 0; i < 5000; i++) {
-    req.data = NULL;
-    ASSERT(0 == uv_queue_work(loop, &req, nop_work_cb, nop_done_cb));
-
-    cancelled = uv_cancel((uv_req_t*) &req);
-    if (cancelled == 0)
-      break;
-
-    ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
-  }
-
-  if (cancelled != 0) {
-    fputs("Failed to cancel a work req in 5,000 iterations, giving up.\n",
-          stderr);
-    return 1;
-  }
-
-  ASSERT(req.data == NULL);
+  ASSERT(0 == uv_queue_work(loop, &req, (uv_work_cb) abort, nop_done_cb));
+  ASSERT(0 == uv_cancel((uv_req_t*) &req));
+  ASSERT(0 == done_cb_called);
+  unblock_threadpool();
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
-  ASSERT(req.data != NULL);  /* Should have been updated by nop_done_cb(). */
+  ASSERT(1 == done_cb_called);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

@@ -19,33 +19,29 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+'use strict';
+const common = require('../common');
+if (common.isWindows)
+  common.skip('not reliable on Windows');
 
-if (process.platform === 'win32') {
-  console.log('Skipping test, not reliable on Windows.');
-  process.exit(0);
-}
+if (process.getuid() === 0)
+  common.skip('as this test should not be run as `root`');
 
-if (process.getuid() === 0) {
-  console.log('Do not run this test as root.');
-  process.exit(0);
-}
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 if (cluster.isMaster) {
   // Master opens and binds the socket and shares it with the worker.
   cluster.schedulingPolicy = cluster.SCHED_NONE;
   cluster.fork().on('exit', common.mustCall(function(exitCode) {
-    assert.equal(exitCode, 0);
+    assert.strictEqual(exitCode, 0);
   }));
-}
-else {
-  var s = net.createServer(assert.fail);
-  s.listen(42, assert.fail.bind(null, 'listen should have failed'));
+} else {
+  const s = net.createServer(common.mustNotCall());
+  s.listen(42, common.mustNotCall('listen should have failed'));
   s.on('error', common.mustCall(function(err) {
-    assert.equal(err.code, 'EACCES');
+    assert.strictEqual(err.code, 'EACCES');
     process.disconnect();
   }));
 }

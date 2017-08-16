@@ -19,17 +19,16 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 
-var common = require('../common.js');
-var assert = require('assert');
-
-var util = require('util');
-var stream = require('stream');
+require('../common');
+const util = require('util');
+const stream = require('stream');
 
 
-var Read = function() {
+function Read() {
   stream.Readable.call(this);
-};
+}
 util.inherits(Read, stream.Readable);
 
 Read.prototype._read = function(size) {
@@ -38,9 +37,9 @@ Read.prototype._read = function(size) {
 };
 
 
-var Write = function() {
+function Write() {
   stream.Writable.call(this);
-};
+}
 util.inherits(Write, stream.Writable);
 
 Write.prototype._write = function(buffer, encoding, cb) {
@@ -48,10 +47,10 @@ Write.prototype._write = function(buffer, encoding, cb) {
   this.emit('alldone');
 };
 
-var read = new Read();
-var write = new Write();
+const read = new Read();
+const write = new Write();
 
-write.once('error', function(err) {});
+write.once('error', () => {});
 write.once('alldone', function(err) {
   console.log('ok');
 });
@@ -61,4 +60,3 @@ process.on('exit', function(c) {
 });
 
 read.pipe(write);
-

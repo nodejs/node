@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --deopt_every_n_garbage_collections=1
+// Flags: --allow-natives-syntax --deopt-every-n-garbage-collections=1
 
 function foo(a, b) {
   var l = a.length;

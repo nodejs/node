@@ -15,6 +15,7 @@ SSL_CTX_sess_set_cache_size, SSL_CTX_sess_get_cache_size - manipulate session ca
 
 SSL_CTX_sess_set_cache_size() sets the size of the internal session cache
 of context B<ctx> to B<t>.
+This value is a hint and not an absolute; see the notes below.
 
 SSL_CTX_sess_get_cache_size() returns the currently valid session cache size.
 
@@ -25,8 +26,9 @@ currently 1024*20, so that up to 20000 sessions can be held. This size
 can be modified using the SSL_CTX_sess_set_cache_size() call. A special
 case is the size 0, which is used for unlimited size.
 
-When the maximum number of sessions is reached, no more new sessions are
-added to the cache. New space may be added by calling
+If adding the session makes the cache exceed its size, then unused
+sessions are dropped from the end of the cache.
+Cache space may also be reclaimed by calling
 L<SSL_CTX_flush_sessions(3)|SSL_CTX_flush_sessions(3)> to remove
 expired sessions.
 

@@ -5,131 +5,88 @@
 #ifndef V8_COMPILER_AST_GRAPH_BUILDER_H_
 #define V8_COMPILER_AST_GRAPH_BUILDER_H_
 
-#include "src/v8.h"
-
-#include "src/ast.h"
-#include "src/compiler/graph-builder.h"
+#include "src/ast/ast.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/liveness-analyzer.h"
+#include "src/compiler/state-values-utils.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class BitVector;
+class CompilationInfo;
+
 namespace compiler {
 
+// Forward declarations.
 class ControlBuilder;
 class Graph;
 class LoopAssignmentAnalysis;
 class LoopBuilder;
+class Node;
+
 
 // The AstGraphBuilder produces a high-level IR graph, based on an
 // underlying AST. The produced graph can either be compiled into a
 // stand-alone function or be wired into another graph for the purposes
 // of function inlining.
-class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
+// This AstVistor is not final, and provides the AstVisitor methods as virtual
+// methods so they can be specialized by subclasses.
+class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
  public:
-  AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph);
+  AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
+                  CallFrequency invocation_frequency,
+                  LoopAssignmentAnalysis* loop_assignment = nullptr);
+  virtual ~AstGraphBuilder() {}
 
   // Creates a graph by visiting the entire AST.
-  bool CreateGraph();
+  bool CreateGraph(bool stack_check = true);
 
- protected:
-  class AstContext;
-  class AstEffectContext;
-  class AstValueContext;
-  class AstTestContext;
-  class BreakableScope;
-  class ContextScope;
-  class Environment;
-
-  Environment* environment() {
-    return reinterpret_cast<Environment*>(
-        StructuredGraphBuilder::environment());
+  // Helpers to create new control nodes.
+  Node* NewIfTrue() { return NewNode(common()->IfTrue()); }
+  Node* NewIfFalse() { return NewNode(common()->IfFalse()); }
+  Node* NewMerge() { return NewNode(common()->Merge(1), true); }
+  Node* NewLoop() { return NewNode(common()->Loop(1), true); }
+  Node* NewBranch(Node* condition, BranchHint hint = BranchHint::kNone) {
+    return NewNode(common()->Branch(hint), condition);
   }
 
-  AstContext* ast_context() const { return ast_context_; }
-  BreakableScope* breakable() const { return breakable_; }
-  ContextScope* execution_context() const { return execution_context_; }
-
-  void set_ast_context(AstContext* ctx) { ast_context_ = ctx; }
-  void set_breakable(BreakableScope* brk) { breakable_ = brk; }
-  void set_execution_context(ContextScope* ctx) { execution_context_ = ctx; }
-
-  // Support for control flow builders. The concrete type of the environment
-  // depends on the graph builder, but environments themselves are not virtual.
-  typedef StructuredGraphBuilder::Environment BaseEnvironment;
-  virtual BaseEnvironment* CopyEnvironment(BaseEnvironment* env) OVERRIDE;
-
-  // TODO(mstarzinger): The pipeline only needs to be a friend to access the
-  // function context. Remove as soon as the context is a parameter.
-  friend class Pipeline;
-
-  // Getters for values in the activation record.
-  Node* GetFunctionClosure();
-  Node* GetFunctionContext();
-
-  //
-  // The following build methods all generate graph fragments and return one
-  // resulting node. The operand stack height remains the same, variables and
-  // other dependencies tracked by the environment might be mutated though.
-  //
-
-  // Builder to create a local function context.
-  Node* BuildLocalFunctionContext(Node* context, Node* closure);
-
-  // Builder to create an arguments object if it is used.
-  Node* BuildArgumentsObject(Variable* arguments);
-
-  // Builders for variable load and assignment.
-  Node* BuildVariableAssignment(Variable* var, Node* value, Token::Value op,
-                                BailoutId bailout_id,
-                                OutputFrameStateCombine state_combine =
-                                    OutputFrameStateCombine::Ignore());
-  Node* BuildVariableDelete(Variable* var, BailoutId bailout_id,
-                            OutputFrameStateCombine state_combine);
-  Node* BuildVariableLoad(Variable* var, BailoutId bailout_id,
-                          const VectorSlotPair& feedback,
-                          ContextualMode mode = CONTEXTUAL);
-
-  // Builders for accessing the function context.
-  Node* BuildLoadBuiltinsObject();
-  Node* BuildLoadGlobalObject();
-  Node* BuildLoadClosure();
-  Node* BuildLoadObjectField(Node* object, int offset);
-
-  // Builders for automatic type conversion.
-  Node* BuildToBoolean(Node* value);
-
-  // Builders for error reporting at runtime.
-  Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
-
-  // Builders for dynamic hole-checks at runtime.
-  Node* BuildHoleCheckSilent(Node* value, Node* for_hole, Node* not_hole);
-  Node* BuildHoleCheckThrow(Node* value, Variable* var, Node* not_hole,
-                            BailoutId bailout_id);
-
-  // Builders for binary operations.
-  Node* BuildBinaryOp(Node* left, Node* right, Token::Value op);
-
-  // Builder for stack-check guards.
-  Node* BuildStackCheck();
-
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
+ protected:
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   // Visiting functions for AST nodes make this an AstVisitor.
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list is overridden.
-  virtual void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
+  void VisitDeclarations(Declaration::List* declarations);
 
  private:
+  class AstContext;
+  class AstEffectContext;
+  class AstValueContext;
+  class AstTestContext;
+  class ContextScope;
+  class ControlScope;
+  class ControlScopeForBreakable;
+  class ControlScopeForIteration;
+  class Environment;
+  friend class ControlBuilder;
+
+  Isolate* isolate_;
+  Zone* local_zone_;
   CompilationInfo* info_;
-  AstContext* ast_context_;
   JSGraph* jsgraph_;
+  CallFrequency const invocation_frequency_;
+  Environment* environment_;
+  AstContext* ast_context_;
 
   // List of global declarations for functions and variables.
-  ZoneList<Handle<Object> > globals_;
+  ZoneVector<Handle<Object>> globals_;
 
-  // Stack of breakable statements entered by the visitor.
-  BreakableScope* breakable_;
+  // Stack of control scopes currently entered by the visitor.
+  ControlScope* execution_control_;
 
   // Stack of context objects pushed onto the chain by the visitor.
   ContextScope* execution_context_;
@@ -138,24 +95,261 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
 
+  // Temporary storage for building node input lists.
+  int input_buffer_size_;
+  Node** input_buffer_;
+
+  // Optimization to cache loaded feedback vector.
+  SetOncePointer<Node> feedback_vector_;
+
+  // Optimization to cache empty frame state.
+  SetOncePointer<Node> empty_frame_state_;
+
+  // Control nodes that exit the function body.
+  ZoneVector<Node*> exit_controls_;
+
   // Result of loop assignment analysis performed before graph creation.
   LoopAssignmentAnalysis* loop_assignment_analysis_;
 
-  CompilationInfo* info() const { return info_; }
-  inline StrictMode strict_mode() const;
-  JSGraph* jsgraph() { return jsgraph_; }
-  JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
-  ZoneList<Handle<Object> >* globals() { return &globals_; }
+  // Cache for StateValues nodes for frame states.
+  StateValuesCache state_values_cache_;
 
-  // Current scope during visitation.
-  inline Scope* current_scope() const;
+  // Analyzer of local variable liveness.
+  LivenessAnalyzer liveness_analyzer_;
+
+  // Function info for frame state construction.
+  const FrameStateFunctionInfo* const frame_state_function_info_;
+
+  // Growth increment for the temporary buffer used to construct input lists to
+  // new nodes.
+  static const int kInputBufferSizeIncrement = 64;
+
+  Zone* local_zone() const { return local_zone_; }
+  Environment* environment() const { return environment_; }
+  AstContext* ast_context() const { return ast_context_; }
+  ControlScope* execution_control() const { return execution_control_; }
+  ContextScope* execution_context() const { return execution_context_; }
+  CommonOperatorBuilder* common() const { return jsgraph_->common(); }
+  CompilationInfo* info() const { return info_; }
+  Isolate* isolate() const { return isolate_; }
+  LanguageMode language_mode() const;
+  JSGraph* jsgraph() { return jsgraph_; }
+  Graph* graph() { return jsgraph_->graph(); }
+  Zone* graph_zone() { return graph()->zone(); }
+  JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
+  ZoneVector<Handle<Object>>* globals() { return &globals_; }
+  Scope* current_scope() const;
+  Node* current_context() const;
+  LivenessAnalyzer* liveness_analyzer() { return &liveness_analyzer_; }
+  const FrameStateFunctionInfo* frame_state_function_info() const {
+    return frame_state_function_info_;
+  }
+
+  void set_environment(Environment* env) { environment_ = env; }
+  void set_ast_context(AstContext* ctx) { ast_context_ = ctx; }
+  void set_execution_control(ControlScope* ctrl) { execution_control_ = ctrl; }
+  void set_execution_context(ContextScope* ctx) { execution_context_ = ctx; }
+
+  // Create the main graph body by visiting the AST.
+  void CreateGraphBody(bool stack_check);
+
+  // Get or create the node that represents the incoming function closure.
+  Node* GetFunctionClosureForContext();
+  Node* GetFunctionClosure();
+
+  // Get or create the node that represents the incoming function context.
+  Node* GetFunctionContext();
+
+  // Get or create the node that represents the empty frame state.
+  Node* GetEmptyFrameState();
+
+  // Node creation helpers.
+  Node* NewNode(const Operator* op, bool incomplete = false) {
+    return MakeNode(op, 0, static_cast<Node**>(nullptr), incomplete);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1) {
+    return MakeNode(op, 1, &n1, false);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2) {
+    Node* buffer[] = {n1, n2};
+    return MakeNode(op, arraysize(buffer), buffer, false);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
+    Node* buffer[] = {n1, n2, n3};
+    return MakeNode(op, arraysize(buffer), buffer, false);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
+    Node* buffer[] = {n1, n2, n3, n4};
+    return MakeNode(op, arraysize(buffer), buffer, false);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5) {
+    Node* buffer[] = {n1, n2, n3, n4, n5};
+    return MakeNode(op, arraysize(buffer), buffer, false);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5, Node* n6) {
+    Node* nodes[] = {n1, n2, n3, n4, n5, n6};
+    return MakeNode(op, arraysize(nodes), nodes, false);
+  }
+
+  Node* NewNode(const Operator* op, int value_input_count, Node** value_inputs,
+                bool incomplete = false) {
+    return MakeNode(op, value_input_count, value_inputs, incomplete);
+  }
+
+  // Creates a new Phi node having {count} input values.
+  Node* NewPhi(int count, Node* input, Node* control);
+  Node* NewEffectPhi(int count, Node* input, Node* control);
+
+  // Helpers for merging control, effect or value dependencies.
+  Node* MergeControl(Node* control, Node* other);
+  Node* MergeEffect(Node* value, Node* other, Node* control);
+  Node* MergeValue(Node* value, Node* other, Node* control);
+
+  // The main node creation chokepoint. Adds context, frame state, effect,
+  // and control dependencies depending on the operator.
+  Node* MakeNode(const Operator* op, int value_input_count, Node** value_inputs,
+                 bool incomplete);
+
+  // Helper to indicate a node exits the function body.
+  void UpdateControlDependencyToLeaveFunction(Node* exit);
+
+  // Prepare information for lazy deoptimization. This information is attached
+  // to the given node and the output value produced by the node is combined.
+  // Conceptually this frame state is "after" a given operation.
+  void PrepareFrameState(Node* node, BailoutId ast_id,
+                         OutputFrameStateCombine framestate_combine =
+                             OutputFrameStateCombine::Ignore());
+
+  // Prepare information for eager deoptimization. This information is carried
+  // by dedicated {Checkpoint} nodes that are wired into the effect chain.
+  // Conceptually this frame state is "before" a given operation.
+  void PrepareEagerCheckpoint(BailoutId ast_id);
+
+  BitVector* GetVariablesAssignedInLoop(IterationStatement* stmt);
+
+  // Check if the given statement is an OSR entry.
+  // If so, record the stack height into the compilation and return {true}.
+  bool CheckOsrEntry(IterationStatement* stmt);
+
+  // Computes local variable liveness and replaces dead variables in
+  // frame states with the undefined values.
+  void ClearNonLiveSlotsInFrameStates();
+
+  Node** EnsureInputBufferSize(int size);
 
   // Named and keyed loads require a VectorSlotPair for successful lowering.
-  VectorSlotPair CreateVectorSlotPair(FeedbackVectorICSlot slot) const;
+  VectorSlotPair CreateVectorSlotPair(FeedbackSlot slot) const;
+
+  // Computes the frequency for JSCall and JSConstruct nodes.
+  CallFrequency ComputeCallFrequency(FeedbackSlot slot) const;
+
+  // ===========================================================================
+  // The following build methods all generate graph fragments and return one
+  // resulting node. The operand stack height remains the same, variables and
+  // other dependencies tracked by the environment might be mutated though.
+
+  // Builders to create local function, script and block contexts.
+  Node* BuildLocalActivationContext(Node* context);
+  Node* BuildLocalFunctionContext(Scope* scope);
+  Node* BuildLocalScriptContext(Scope* scope);
+  Node* BuildLocalBlockContext(Scope* scope);
+
+  // Builder to create an arguments object if it is used.
+  Node* BuildArgumentsObject(Variable* arguments);
+
+  // Builders for variable load and assignment.
+  Node* BuildVariableAssignment(Variable* variable, Node* value,
+                                Token::Value op, const VectorSlotPair& slot,
+                                BailoutId bailout_id,
+                                OutputFrameStateCombine framestate_combine =
+                                    OutputFrameStateCombine::Ignore());
+  Node* BuildVariableDelete(Variable* variable, BailoutId bailout_id,
+                            OutputFrameStateCombine framestate_combine);
+  Node* BuildVariableLoad(Variable* variable, BailoutId bailout_id,
+                          const VectorSlotPair& feedback,
+                          OutputFrameStateCombine framestate_combine,
+                          TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
+
+  // Builders for property loads and stores.
+  Node* BuildKeyedLoad(Node* receiver, Node* key,
+                       const VectorSlotPair& feedback);
+  Node* BuildNamedLoad(Node* receiver, Handle<Name> name,
+                       const VectorSlotPair& feedback);
+  Node* BuildKeyedStore(Node* receiver, Node* key, Node* value,
+                        const VectorSlotPair& feedback);
+  Node* BuildNamedStore(Node* receiver, Handle<Name> name, Node* value,
+                        const VectorSlotPair& feedback);
+  Node* BuildNamedStoreOwn(Node* receiver, Handle<Name> name, Node* value,
+                           const VectorSlotPair& feedback);
+
+  // Builders for global variable loads and stores.
+  Node* BuildGlobalLoad(Handle<Name> name, const VectorSlotPair& feedback,
+                        TypeofMode typeof_mode);
+  Node* BuildGlobalStore(Handle<Name> name, Node* value,
+                         const VectorSlotPair& feedback);
+
+  // Builders for accessing the function context.
+  Node* BuildLoadGlobalObject();
+  Node* BuildLoadNativeContextField(int index);
+
+  // Builders for automatic type conversion.
+  Node* BuildToBoolean(Node* input, TypeFeedbackId feedback_id);
+  Node* BuildToObject(Node* input, BailoutId bailout_id);
+
+  // Builder for adding the [[HomeObject]] to a value if the value came from a
+  // function literal and needs a home object. Do nothing otherwise.
+  Node* BuildSetHomeObject(Node* value, Node* home_object,
+                           LiteralProperty* property, int slot_number = 0);
+
+  // Builders for error reporting at runtime.
+  Node* BuildThrowError(Node* exception, BailoutId bailout_id);
+  Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
+  Node* BuildThrowConstAssignError(BailoutId bailout_id);
+
+  // Builders for dynamic hole-checks at runtime.
+  Node* BuildHoleCheckThenThrow(Node* value, Variable* var, Node* not_hole,
+                                BailoutId bailout_id);
+  Node* BuildHoleCheckElseThrow(Node* value, Variable* var, Node* for_hole,
+                                BailoutId bailout_id);
+
+  // Builders for non-local control flow.
+  Node* BuildReturn(Node* return_value);
+  Node* BuildThrow(Node* exception_value);
+
+  // Builders for binary operations.
+  Node* BuildBinaryOp(Node* left, Node* right, Token::Value op,
+                      TypeFeedbackId feedback_id);
 
   // Process arguments to a call by popping {arity} elements off the operand
   // stack and build a call node using the given call operator.
   Node* ProcessArguments(const Operator* op, int arity);
+
+  // ===========================================================================
+  // The following build methods have the same contract as the above ones, but
+  // they can also return {nullptr} to indicate that no fragment was built. Note
+  // that these are optimizations, disabling any of them should still produce
+  // correct graphs.
+
+  // Optimization for variable load from global object.
+  Node* TryLoadGlobalConstant(Handle<Name> name);
+
+  // Optimizations for automatic type conversion.
+  Node* TryFastToBoolean(Node* input);
+
+  // ===========================================================================
+  // The following visitation methods all recursively visit a subtree of the
+  // underlying AST and extent the graph. The operand stack is mutated in a way
+  // consistent with other compilers:
+  //  - Expressions pop operands and push result, depending on {AstContext}.
+  //  - Statements keep the operand stack balanced.
 
   // Visit statements.
   void VisitIfNotNull(Statement* stmt);
@@ -166,10 +360,15 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   void VisitForEffect(Expression* expr);
   void VisitForValue(Expression* expr);
   void VisitForValueOrNull(Expression* expr);
+  void VisitForValueOrTheHole(Expression* expr);
   void VisitForValues(ZoneList<Expression*>* exprs);
 
   // Common for all IterationStatement bodies.
-  void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop, int);
+  void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop,
+                          BailoutId stack_check_id);
+
+  // Dispatched from VisitCall.
+  void VisitCallSuper(Call* expr);
 
   // Dispatched from VisitCallRuntime.
   void VisitCallJSRuntime(CallRuntime* expr);
@@ -180,20 +379,23 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   void VisitTypeof(UnaryOperation* expr);
   void VisitNot(UnaryOperation* expr);
 
+  // Dispatched from VisitTypeof, VisitLiteralCompareTypeof.
+  void VisitTypeofExpression(Expression* expr);
+
   // Dispatched from VisitBinaryOperation.
   void VisitComma(BinaryOperation* expr);
   void VisitLogicalExpression(BinaryOperation* expr);
   void VisitArithmeticExpression(BinaryOperation* expr);
 
-  // Dispatched from VisitForInStatement.
-  void VisitForInAssignment(Expression* expr, Node* value);
+  // Dispatched from VisitCompareOperation.
+  void VisitLiteralCompareNil(CompareOperation* expr, Expression* sub_expr,
+                              Node* nil_value);
+  void VisitLiteralCompareTypeof(CompareOperation* expr, Expression* sub_expr,
+                                 Handle<String> check);
 
-  // Builds deoptimization for a given node.
-  void PrepareFrameState(
-      Node* node, BailoutId ast_id,
-      OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore());
-
-  BitVector* GetVariablesAssignedInLoop(IterationStatement* stmt);
+  // Dispatched from VisitObjectLiteral.
+  void VisitObjectLiteralAccessor(Node* home_object,
+                                  ObjectLiteralProperty* property);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstGraphBuilder);
@@ -208,38 +410,34 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
 //
 //  [parameters (+receiver)] [locals] [operand stack]
 //
-class AstGraphBuilder::Environment
-    : public StructuredGraphBuilder::Environment {
+class AstGraphBuilder::Environment : public ZoneObject {
  public:
-  Environment(AstGraphBuilder* builder, Scope* scope, Node* control_dependency);
-  Environment(const Environment& copy);
+  Environment(AstGraphBuilder* builder, DeclarationScope* scope,
+              Node* control_dependency);
 
   int parameters_count() const { return parameters_count_; }
   int locals_count() const { return locals_count_; }
+  int context_chain_length() { return static_cast<int>(contexts_.size()); }
   int stack_height() {
     return static_cast<int>(values()->size()) - parameters_count_ -
            locals_count_;
   }
 
-  // Operations on parameter or local variables. The parameter indices are
-  // shifted by 1 (receiver is parameter index -1 but environment index 0).
-  void Bind(Variable* variable, Node* node) {
-    DCHECK(variable->IsStackAllocated());
-    if (variable->IsParameter()) {
-      values()->at(variable->index() + 1) = node;
-    } else {
-      DCHECK(variable->IsStackLocal());
-      values()->at(variable->index() + parameters_count_) = node;
-    }
-  }
-  Node* Lookup(Variable* variable) {
-    DCHECK(variable->IsStackAllocated());
-    if (variable->IsParameter()) {
-      return values()->at(variable->index() + 1);
-    } else {
-      DCHECK(variable->IsStackLocal());
-      return values()->at(variable->index() + parameters_count_);
-    }
+  // Operations on parameter or local variables.
+  void Bind(Variable* variable, Node* node);
+  Node* Lookup(Variable* variable);
+  void MarkAllLocalsLive();
+
+  // Raw operations on parameter variables.
+  void RawParameterBind(int index, Node* node);
+  Node* RawParameterLookup(int index);
+
+  // Operations on the context chain.
+  Node* Context() const { return contexts_.back(); }
+  void PushContext(Node* context) { contexts()->push_back(context); }
+  void PopContext() { contexts()->pop_back(); }
+  void TrimContextChain(int trim_to_length) {
+    contexts()->resize(trim_to_length);
   }
 
   // Operations on the operand stack.
@@ -272,175 +470,120 @@ class AstGraphBuilder::Environment
     DCHECK(depth >= 0 && depth <= stack_height());
     values()->erase(values()->end() - depth, values()->end());
   }
+  void TrimStack(int trim_to_height) {
+    int depth = stack_height() - trim_to_height;
+    DCHECK(depth >= 0 && depth <= stack_height());
+    values()->erase(values()->end() - depth, values()->end());
+  }
 
   // Preserve a checkpoint of the environment for the IR graph. Any
   // further mutation of the environment will not affect checkpoints.
-  Node* Checkpoint(BailoutId ast_id, OutputFrameStateCombine combine);
+  Node* Checkpoint(BailoutId ast_id, OutputFrameStateCombine combine =
+                                         OutputFrameStateCombine::Ignore(),
+                   bool node_has_exception = false);
 
- protected:
-  AstGraphBuilder* builder() const {
-    return reinterpret_cast<AstGraphBuilder*>(
-        StructuredGraphBuilder::Environment::builder());
+  // Inserts a loop exit control node and renames the environment.
+  // This is useful for loop peeling to insert phis at loop exits.
+  void PrepareForLoopExit(Node* loop, BitVector* assigned_variables);
+
+  // Control dependency tracked by this environment.
+  Node* GetControlDependency() { return control_dependency_; }
+  void UpdateControlDependency(Node* dependency) {
+    control_dependency_ = dependency;
   }
 
- private:
-  void UpdateStateValues(Node** state_values, int offset, int count);
+  // Effect dependency tracked by this environment.
+  Node* GetEffectDependency() { return effect_dependency_; }
+  void UpdateEffectDependency(Node* dependency) {
+    effect_dependency_ = dependency;
+  }
 
+  // Mark this environment as being unreachable.
+  void MarkAsUnreachable() {
+    UpdateControlDependency(builder()->jsgraph()->Dead());
+    liveness_block_ = nullptr;
+  }
+  bool IsMarkedAsUnreachable() {
+    return GetControlDependency()->opcode() == IrOpcode::kDead;
+  }
+
+  // Merge another environment into this one.
+  void Merge(Environment* other);
+
+  // Copies this environment at a control-flow split point.
+  Environment* CopyForConditional();
+
+  // Copies this environment to a potentially unreachable control-flow point.
+  Environment* CopyAsUnreachable();
+
+  // Copies this environment at a loop header control-flow point.
+  Environment* CopyForLoop(BitVector* assigned, bool is_osr = false);
+
+  // Copies this environment for Osr entry. This only produces environment
+  // of the right shape, the caller is responsible for filling in the right
+  // values and dependencies.
+  Environment* CopyForOsrEntry();
+
+ private:
+  AstGraphBuilder* builder_;
   int parameters_count_;
   int locals_count_;
+  LivenessAnalyzerBlock* liveness_block_;
+  NodeVector values_;
+  NodeVector contexts_;
+  Node* control_dependency_;
+  Node* effect_dependency_;
   Node* parameters_node_;
   Node* locals_node_;
   Node* stack_node_;
+
+  explicit Environment(Environment* copy,
+                       LivenessAnalyzerBlock* liveness_block);
+  Environment* CopyAndShareLiveness();
+  void UpdateStateValues(Node** state_values, int offset, int count);
+  Zone* zone() const { return builder_->local_zone(); }
+  Graph* graph() const { return builder_->graph(); }
+  AstGraphBuilder* builder() const { return builder_; }
+  CommonOperatorBuilder* common() { return builder_->common(); }
+  NodeVector* values() { return &values_; }
+  NodeVector* contexts() { return &contexts_; }
+  LivenessAnalyzerBlock* liveness_block() { return liveness_block_; }
+  bool IsLivenessAnalysisEnabled();
+  bool IsLivenessBlockConsistent();
+
+  // Prepare environment to be used as loop header.
+  void PrepareForLoop(BitVector* assigned);
+  void PrepareForOsrEntry();
 };
 
-
-// Each expression in the AST is evaluated in a specific context. This context
-// decides how the evaluation result is passed up the visitor.
-class AstGraphBuilder::AstContext BASE_EMBEDDED {
+class AstGraphBuilderWithPositions final : public AstGraphBuilder {
  public:
-  bool IsEffect() const { return kind_ == Expression::kEffect; }
-  bool IsValue() const { return kind_ == Expression::kValue; }
-  bool IsTest() const { return kind_ == Expression::kTest; }
+  AstGraphBuilderWithPositions(Zone* local_zone, CompilationInfo* info,
+                               JSGraph* jsgraph,
+                               CallFrequency invocation_frequency,
+                               LoopAssignmentAnalysis* loop_assignment,
+                               SourcePositionTable* source_positions,
+                               int inlining_id = SourcePosition::kNotInlined);
 
-  // Determines how to combine the frame state with the value
-  // that is about to be plugged into this AstContext.
-  OutputFrameStateCombine GetStateCombine() {
-    return IsEffect() ? OutputFrameStateCombine::Ignore()
-                      : OutputFrameStateCombine::Push();
+  bool CreateGraph(bool stack_check = true) {
+    SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
+    return AstGraphBuilder::CreateGraph(stack_check);
   }
 
-  // Plug a node into this expression context.  Call this function in tail
-  // position in the Visit functions for expressions.
-  virtual void ProduceValue(Node* value) = 0;
-
-  // Unplugs a node from this expression context.  Call this to retrieve the
-  // result of another Visit function that already plugged the context.
-  virtual Node* ConsumeValue() = 0;
-
-  // Shortcut for "context->ProduceValue(context->ConsumeValue())".
-  void ReplaceValue() { ProduceValue(ConsumeValue()); }
-
- protected:
-  AstContext(AstGraphBuilder* owner, Expression::Context kind);
-  virtual ~AstContext();
-
-  AstGraphBuilder* owner() const { return owner_; }
-  Environment* environment() const { return owner_->environment(); }
-
-// We want to be able to assert, in a context-specific way, that the stack
-// height makes sense when the context is filled.
-#ifdef DEBUG
-  int original_height_;
-#endif
+#define DEF_VISIT(type)                                                  \
+  void Visit##type(type* node) override {                                \
+    SourcePositionTable::Scope pos(                                      \
+        source_positions_,                                               \
+        SourcePosition(node->position(), start_position_.InliningId())); \
+    AstGraphBuilder::Visit##type(node);                                  \
+  }
+  AST_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
 
  private:
-  Expression::Context kind_;
-  AstGraphBuilder* owner_;
-  AstContext* outer_;
+  SourcePositionTable* const source_positions_;
+  SourcePosition const start_position_;
 };
-
-
-// Context to evaluate expression for its side effects only.
-class AstGraphBuilder::AstEffectContext FINAL : public AstContext {
- public:
-  explicit AstEffectContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kEffect) {}
-  virtual ~AstEffectContext();
-  virtual void ProduceValue(Node* value) OVERRIDE;
-  virtual Node* ConsumeValue() OVERRIDE;
-};
-
-
-// Context to evaluate expression for its value (and side effects).
-class AstGraphBuilder::AstValueContext FINAL : public AstContext {
- public:
-  explicit AstValueContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kValue) {}
-  virtual ~AstValueContext();
-  virtual void ProduceValue(Node* value) OVERRIDE;
-  virtual Node* ConsumeValue() OVERRIDE;
-};
-
-
-// Context to evaluate expression for a condition value (and side effects).
-class AstGraphBuilder::AstTestContext FINAL : public AstContext {
- public:
-  explicit AstTestContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kTest) {}
-  virtual ~AstTestContext();
-  virtual void ProduceValue(Node* value) OVERRIDE;
-  virtual Node* ConsumeValue() OVERRIDE;
-};
-
-
-// Scoped class tracking breakable statements entered by the visitor. Allows to
-// properly 'break' and 'continue' iteration statements as well as to 'break'
-// from blocks within switch statements.
-class AstGraphBuilder::BreakableScope BASE_EMBEDDED {
- public:
-  BreakableScope(AstGraphBuilder* owner, BreakableStatement* target,
-                 ControlBuilder* control, int drop_extra)
-      : owner_(owner),
-        target_(target),
-        next_(owner->breakable()),
-        control_(control),
-        drop_extra_(drop_extra) {
-    owner_->set_breakable(this);  // Push.
-  }
-
-  ~BreakableScope() {
-    owner_->set_breakable(next_);  // Pop.
-  }
-
-  // Either 'break' or 'continue' the target statement.
-  void BreakTarget(BreakableStatement* target);
-  void ContinueTarget(BreakableStatement* target);
-
- private:
-  AstGraphBuilder* owner_;
-  BreakableStatement* target_;
-  BreakableScope* next_;
-  ControlBuilder* control_;
-  int drop_extra_;
-
-  // Find the correct scope for the target statement. Note that this also drops
-  // extra operands from the environment for each scope skipped along the way.
-  BreakableScope* FindBreakable(BreakableStatement* target);
-};
-
-
-// Scoped class tracking context objects created by the visitor. Represents
-// mutations of the context chain within the function body and allows to
-// change the current {scope} and {context} during visitation.
-class AstGraphBuilder::ContextScope BASE_EMBEDDED {
- public:
-  ContextScope(AstGraphBuilder* owner, Scope* scope, Node* context)
-      : owner_(owner),
-        next_(owner->execution_context()),
-        outer_(owner->current_context()),
-        scope_(scope) {
-    owner_->set_execution_context(this);  // Push.
-    owner_->set_current_context(context);
-  }
-
-  ~ContextScope() {
-    owner_->set_execution_context(next_);  // Pop.
-    owner_->set_current_context(outer_);
-  }
-
-  // Current scope during visitation.
-  Scope* scope() const { return scope_; }
-
- private:
-  AstGraphBuilder* owner_;
-  ContextScope* next_;
-  Node* outer_;
-  Scope* scope_;
-};
-
-Scope* AstGraphBuilder::current_scope() const {
-  return execution_context_->scope();
-}
 
 }  // namespace compiler
 }  // namespace internal

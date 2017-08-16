@@ -19,57 +19,49 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 // Create an ssl server.  First connection, validate that not resume.
 // Cache session and close connection.  Use session on second connection.
 // ASSERT resumption.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
+const assert = require('assert');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
+const options = {
+  key: fixtures.readKey('agent2-key.pem'),
+  cert: fixtures.readKey('agent2-cert.pem')
 };
 
-var big = new Buffer(2 * 1024 * 1024);
-var connections = 0;
-var bytesRead = 0;
-
-big.fill('Y');
+const big = Buffer.alloc(2 * 1024 * 1024, 'Y');
 
 // create server
-var server = tls.createServer(options, function(socket) {
+const server = tls.createServer(options, common.mustCall(function(socket) {
   socket.end(big);
   socket.destroySoon();
-  connections++;
-});
+}));
 
 // start listening
-server.listen(common.PORT, function() {
-  var client = tls.connect({
-    port: common.PORT,
+server.listen(0, common.mustCall(function() {
+  const client = tls.connect({
+    port: this.address().port,
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
+    let bytesRead = 0;
+
     client.on('readable', function() {
-      var d = client.read();
+      const d = client.read();
       if (d)
         bytesRead += d.length;
     });
 
-    client.on('end', function() {
+    client.on('end', common.mustCall(function() {
       server.close();
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(1, connections);
-  assert.equal(big.length, bytesRead);
-});
+      assert.strictEqual(big.length, bytesRead);
+    }));
+  }));
+}));

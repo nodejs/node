@@ -29,6 +29,19 @@
  * @fileoverview Test concat on small and large arrays
  */
 
+
+(function testStringWrapperConcat() {
+  var concat = Array.prototype.concat;
+  var str = new String('abcd');
+  assertEquals([1,2,3,new String('abcd')], [1, 2, 3].concat(str));
+  assertEquals([new String("abcd")], concat.call(str));
+
+  var array = [1, 2, 3];
+  array.__proto__ = str;
+  array.length = 4;
+  assertEquals([1,2,3,'d'], concat.call(array));
+})()
+
 var poses;
 
 poses = [140, 4000000000];

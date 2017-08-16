@@ -1,0 +1,74 @@
+{
+  "_from": "lodash.without@~4.4.0",
+  "_id": "lodash.without@4.4.0",
+  "_integrity": "sha1-PNRXSgC2e643OpS3SHcmQFB7eqw=",
+  "_location": "/lodash.without",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "lodash.without@~4.4.0",
+    "name": "lodash.without",
+    "escapedName": "lodash.without",
+    "rawSpec": "~4.4.0",
+    "saveSpec": null,
+    "fetchSpec": "~4.4.0"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/lodash.without/-/lodash.without-4.4.0.tgz",
+  "_shasum": "3cd4574a00b67bae373a94b748772640507b7aac",
+  "_shrinkwrap": null,
+  "_spec": "lodash.without@~4.4.0",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "John-David Dalton",
+    "email": "john.david.dalton@gmail.com",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "John-David Dalton",
+      "email": "john.david.dalton@gmail.com",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "name": "Blaine Bublitz",
+      "email": "blaine.bublitz@gmail.com",
+      "url": "https://github.com/phated"
+    },
+    {
+      "name": "Mathias Bynens",
+      "email": "mathias@qiwi.be",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "dependencies": {},
+  "deprecated": false,
+  "description": "The lodash method `_.without` exported as a module.",
+  "devDependencies": {},
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "keywords": [
+    "lodash-modularized",
+    "without"
+  ],
+  "license": "MIT",
+  "name": "lodash.without",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "4.4.0"
+}

@@ -27,21 +27,12 @@
 
 [
 [ALWAYS, {
-  # The following tests use getDefaultTimeZone().
-  'date-format/resolved-options': [FAIL],
-  'date-format/timezone': [FAIL],
-  'general/v8Intl-exists': [FAIL],
-
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
-
-  # BUG(2899): default locale for search fails on mac and on android.
-  'collator/default-locale': [['system == macos or arch == android_arm or arch == android_ia32', FAIL]],
-
-  # BUG(v8:3454).
-  'date-format/parse-MMMdy': [FAIL],
-  'date-format/parse-mdyhms': [FAIL],
-  'number-format/parse-decimal': [FAIL],
-  'number-format/parse-percent': [FAIL],
 }],  # ALWAYS
+
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
+
 ]

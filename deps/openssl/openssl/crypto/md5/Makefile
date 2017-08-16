@@ -52,6 +52,9 @@ md5-ia64.s: asm/md5-ia64.S
 	$(CC) $(CFLAGS) -E asm/md5-ia64.S | \
 	$(PERL) -ne 's/;\s+/;\n/g; print;' > $@
 
+md5-sparcv9.S:	asm/md5-sparcv9.pl
+	$(PERL) asm/md5-sparcv9.pl $@ $(CFLAGS)
+
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
 
@@ -76,6 +79,8 @@ tests:
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 
+update: depend
+
 depend:
 	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...
 	$(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
@@ -85,7 +90,7 @@ dclean:
 	mv -f Makefile.new $(MAKEFILE)
 
 clean:
-	rm -f *.s *.o *.obj lib tags core .pure .nfs* *.old *.bak fluff
+	rm -f *.s *.S *.o *.obj lib tags core .pure .nfs* *.old *.bak fluff
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 

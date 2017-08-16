@@ -19,7 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+require('../common');
 process.domain = null;
-timer = setTimeout(function() {
-  console.log("this console.log statement should not make node crash");
+setTimeout(function() {
+  console.log('this console.log statement should not make node crash');
 }, 1);

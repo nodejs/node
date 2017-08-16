@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/allocation-site-scopes.h"
+#include "src/factory.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -76,4 +79,5 @@ bool AllocationSiteUsageContext::ShouldCreateMemento(Handle<JSObject> object) {
   return false;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

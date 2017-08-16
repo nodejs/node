@@ -19,30 +19,29 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var tls = require('tls');
-var fs = require('fs');
-var join = require('path').join;
+const assert = require('assert');
+const tls = require('tls');
+const cluster = require('cluster');
+const fixtures = require('../common/fixtures');
 
-var workerCount = 4;
-var expectedReqCount = 16;
+const workerCount = 4;
+const expectedReqCount = 16;
 
 if (cluster.isMaster) {
-  var reusedCount = 0;
-  var reqCount = 0;
-  var lastSession = null;
-  var shootOnce = false;
+  let reusedCount = 0;
+  let reqCount = 0;
+  let lastSession = null;
+  let shootOnce = false;
+  let workerPort = null;
 
   function shoot() {
-    console.error('[master] connecting');
-    var c = tls.connect(common.PORT, {
+    console.error('[master] connecting', workerPort);
+    const c = tls.connect(workerPort, {
       session: lastSession,
       rejectUnauthorized: false
     }, function() {
@@ -60,13 +59,13 @@ if (cluster.isMaster) {
   }
 
   function fork() {
-    var worker = cluster.fork();
-    var workerReqCount = 0;
-    worker.on('message', function(msg) {
+    const worker = cluster.fork();
+    worker.on('message', function({ msg, port }) {
       console.error('[master] got %j', msg);
       if (msg === 'reused') {
         ++reusedCount;
       } else if (msg === 'listening' && !shootOnce) {
+        workerPort = port || workerPort;
         shootOnce = true;
         shoot();
       }
@@ -76,37 +75,37 @@ if (cluster.isMaster) {
       console.error('[master] worker died');
     });
   }
-  for (var i = 0; i < workerCount; i++) {
+  for (let i = 0; i < workerCount; i++) {
     fork();
   }
 
   process.on('exit', function() {
-    assert.equal(reqCount, expectedReqCount);
-    assert.equal(reusedCount + 1, reqCount);
+    assert.strictEqual(reqCount, expectedReqCount);
+    assert.strictEqual(reusedCount + 1, reqCount);
   });
   return;
 }
 
-var keyFile = join(common.fixturesDir, 'agent.key');
-var certFile = join(common.fixturesDir, 'agent.crt');
-var key = fs.readFileSync(keyFile);
-var cert = fs.readFileSync(certFile);
-var options = {
-  key: key,
-  cert: cert
-};
+const key = fixtures.readSync('agent.key');
+const cert = fixtures.readSync('agent.crt');
 
-var server = tls.createServer(options, function(c) {
+const options = { key, cert };
+
+const server = tls.createServer(options, function(c) {
   if (c.isSessionReused()) {
-    process.send('reused');
+    process.send({ msg: 'reused' });
   } else {
-    process.send('not-reused');
+    process.send({ msg: 'not-reused' });
   }
   c.end();
 });
 
-server.listen(common.PORT, function() {
-  process.send('listening');
+server.listen(0, function() {
+  const { port } = server.address();
+  process.send({
+    msg: 'listening',
+    port,
+  });
 });
 
 process.on('message', function listener(msg) {

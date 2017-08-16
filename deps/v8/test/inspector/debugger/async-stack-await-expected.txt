@@ -1,0 +1,42 @@
+Checks that async stacks works for async/await
+foo2 (test.js:15:2)
+-- async function --
+foo2 (test.js:13:19)
+test (test.js:24:8)
+(anonymous) (expr.js:0:0)
+
+foo2 (test.js:17:2)
+-- async function --
+foo2 (test.js:13:19)
+test (test.js:24:8)
+(anonymous) (expr.js:0:0)
+
+foo1 (test.js:9:2)
+foo2 (test.js:18:8)
+-- async function --
+foo2 (test.js:13:19)
+test (test.js:24:8)
+(anonymous) (expr.js:0:0)
+
+foo1 (test.js:9:2)
+-- Promise.resolve --
+foo2 (test.js:19:43)
+-- async function --
+foo2 (test.js:13:19)
+test (test.js:24:8)
+(anonymous) (expr.js:0:0)
+
+foo2 (test.js:20:2)
+-- async function --
+foo2 (test.js:13:19)
+test (test.js:24:8)
+(anonymous) (expr.js:0:0)
+
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}

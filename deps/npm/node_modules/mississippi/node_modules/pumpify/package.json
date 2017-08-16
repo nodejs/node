@@ -1,0 +1,67 @@
+{
+  "_from": "pumpify@^1.3.3",
+  "_id": "pumpify@1.3.5",
+  "_integrity": "sha1-G2ccYZlAq8rqwK0OOjwWS+dgmTs=",
+  "_location": "/mississippi/pumpify",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "pumpify@^1.3.3",
+    "name": "pumpify",
+    "escapedName": "pumpify",
+    "rawSpec": "^1.3.3",
+    "saveSpec": null,
+    "fetchSpec": "^1.3.3"
+  },
+  "_requiredBy": [
+    "/mississippi"
+  ],
+  "_resolved": "https://registry.npmjs.org/pumpify/-/pumpify-1.3.5.tgz",
+  "_shasum": "1b671c619940abcaeac0ad0e3a3c164be760993b",
+  "_shrinkwrap": null,
+  "_spec": "pumpify@^1.3.3",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/mississippi",
+  "author": {
+    "name": "Mathias Buus"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/mafintosh/pumpify/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "duplexify": "^3.1.2",
+    "inherits": "^2.0.1",
+    "pump": "^1.0.0"
+  },
+  "deprecated": false,
+  "description": "Combine an array of streams into a single duplex stream using pump and duplexify",
+  "devDependencies": {
+    "tape": "^2.13.3",
+    "through2": "^0.5.1"
+  },
+  "homepage": "https://github.com/mafintosh/pumpify",
+  "keywords": [
+    "pump",
+    "duplexify",
+    "duplex",
+    "streams",
+    "stream",
+    "pipeline",
+    "combine"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "pumpify",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mafintosh/pumpify.git"
+  },
+  "scripts": {
+    "test": "tape test.js"
+  },
+  "version": "1.3.5"
+}

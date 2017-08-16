@@ -26,9 +26,11 @@ B<openssl> B<ocsp>
 [B<-no_nonce>]
 [B<-url URL>]
 [B<-host host:n>]
+[B<-header name value>]
 [B<-path>]
 [B<-CApath dir>]
 [B<-CAfile file>]
+[B<-no_alt_chains>]
 [B<-VAfile file>]
 [B<-validity_period n>]
 [B<-status_age n>]
@@ -40,6 +42,7 @@ B<openssl> B<ocsp>
 [B<-no_cert_verify>]
 [B<-no_chain>]
 [B<-no_cert_checks>]
+[B<-no_explicit>]
 [B<-port num>]
 [B<-index file>]
 [B<-CA file>]
@@ -133,10 +136,26 @@ if the B<host> option is present then the OCSP request is sent to the host
 B<hostname> on port B<port>. B<path> specifies the HTTP path name to use
 or "/" by default.
 
+=item B<-header name value>
+
+If sending a request to an OCSP server, then the specified header name and
+value are added to the HTTP request.  Note that the B<name> and B<value> must
+be specified as two separate parameters, not as a single quoted string, and
+that the header name does not have the trailing colon.
+Some OCSP responders require a Host header; use this flag to provide it.
+
+=item B<-timeout seconds>
+
+connection timeout to the OCSP responder in seconds
+
 =item B<-CAfile file>, B<-CApath pathname>
 
 file or pathname containing trusted CA certificates. These are used to verify
 the signature on the OCSP response.
+
+=item B<-no_alt_chains>
+
+See L<B<verify>|verify(1)> manual page for details.
 
 =item B<-verify_other file>
 
@@ -184,6 +203,10 @@ testing purposes.
 
 do not use certificates in the response as additional untrusted CA
 certificates.
+
+=item B<-no_explicit>
+
+do not explicitly trust the root CA if it is set to be trusted for OCSP signing.
 
 =item B<-no_cert_checks>
 
@@ -297,8 +320,9 @@ CA certificate in the request. If there is a match and the OCSPSigning
 extended key usage is present in the OCSP responder certificate then the
 OCSP verify succeeds.
 
-Otherwise the root CA of the OCSP responders CA is checked to see if it
-is trusted for OCSP signing. If it is the OCSP verify succeeds.
+Otherwise, if B<-no_explicit> is B<not> set the root CA of the OCSP responders
+CA is checked to see if it is trusted for OCSP signing. If it is the OCSP
+verify succeeds.
 
 If none of these checks is successful then the OCSP verify fails.
 
@@ -369,3 +393,9 @@ second file.
 
  openssl ocsp -index demoCA/index.txt -rsigner rcert.pem -CA demoCA/cacert.pem
      -reqin req.der -respout resp.der
+
+=head1 HISTORY
+
+The -no_alt_chains options was first added to OpenSSL 1.0.2b.
+
+=cut

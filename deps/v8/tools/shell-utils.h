@@ -27,6 +27,8 @@
 
 // Utility functions used by parser-shell.
 
+#include "src/globals.h"
+
 #include <stdio.h>
 
 namespace v8 {
@@ -44,7 +46,7 @@ const byte* ReadFileAndRepeat(const char* name, int* size, int repeat) {
   if (file == NULL) return NULL;
 
   fseek(file, 0, SEEK_END);
-  int file_size = ftell(file);
+  int file_size = static_cast<int>(ftell(file));
   rewind(file);
 
   *size = file_size * repeat;
@@ -64,4 +66,5 @@ const byte* ReadFileAndRepeat(const char* name, int* size, int repeat) {
   return chars;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

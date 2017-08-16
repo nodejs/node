@@ -1,15 +1,15 @@
 
 .. _fs:
 
-Filesystem operations
-=====================
+File system operations
+======================
 
-libuv provides a wide variety of cross-platform sync and async filesystem
+libuv provides a wide variety of cross-platform sync and async file system
 operations. All functions defined in this document take a callback, which is
 allowed to be NULL. If the callback is NULL the request is completed synchronously,
 otherwise it will be performed asynchronously.
 
-All file operations are run on the threadpool, see :ref:`threadpool` for information
+All file operations are run on the threadpool. See :ref:`threadpool` for information
 on the threadpool size.
 
 
@@ -18,7 +18,7 @@ Data types
 
 .. c:type:: uv_fs_t
 
-    Filesystem request type.
+    File system request type.
 
 .. c:type:: uv_timespec_t
 
@@ -58,7 +58,7 @@ Data types
 
 .. c:type:: uv_fs_type
 
-    Filesystem request type.
+    File system request type.
 
     ::
 
@@ -91,7 +91,8 @@ Data types
             UV_FS_SYMLINK,
             UV_FS_READLINK,
             UV_FS_CHOWN,
-            UV_FS_FCHOWN
+            UV_FS_FCHOWN,
+            UV_FS_REALPATH
         } uv_fs_type;
 
 .. c:type:: uv_dirent_t
@@ -162,94 +163,115 @@ API
 
 .. c:function:: int uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)
 
-    Equivalent to ``close(2)``.
+    Equivalent to :man:`close(2)`.
 
 .. c:function:: int uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, int mode, uv_fs_cb cb)
 
-    Equivalent to ``open(2)``.
+    Equivalent to :man:`open(2)`.
+
+    .. note::
+        On Windows libuv uses `CreateFileW` and thus the file is always opened
+        in binary mode. Because of this the O_BINARY and O_TEXT flags are not
+        supported.
 
 .. c:function:: int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file file, const uv_buf_t bufs[], unsigned int nbufs, int64_t offset, uv_fs_cb cb)
 
-    Equivalent to ``preadv(2)``.
+    Equivalent to :man:`preadv(2)`.
 
 .. c:function:: int uv_fs_unlink(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
-    Equivalent to ``unlink(2)``.
+    Equivalent to :man:`unlink(2)`.
 
 .. c:function:: int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file file, const uv_buf_t bufs[], unsigned int nbufs, int64_t offset, uv_fs_cb cb)
 
-    Equivalent to ``pwritev(2)``.
+    Equivalent to :man:`pwritev(2)`.
 
 .. c:function:: int uv_fs_mkdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode, uv_fs_cb cb)
 
-    Equivalent to ``mkdir(2)``.
+    Equivalent to :man:`mkdir(2)`.
 
     .. note::
         `mode` is currently not implemented on Windows.
 
 .. c:function:: int uv_fs_mkdtemp(uv_loop_t* loop, uv_fs_t* req, const char* tpl, uv_fs_cb cb)
 
-    Equivalent to ``mkdtemp(3)``.
+    Equivalent to :man:`mkdtemp(3)`.
+
+    .. note::
+        The result can be found as a null terminated string at `req->path`.
 
 .. c:function:: int uv_fs_rmdir(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
-    Equivalent to ``rmdir(2)``.
+    Equivalent to :man:`rmdir(2)`.
 
 .. c:function:: int uv_fs_scandir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, uv_fs_cb cb)
 .. c:function:: int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent)
 
-    Equivalent to ``scandir(3)``, with a slightly different API. Once the callback
+    Equivalent to :man:`scandir(3)`, with a slightly different API. Once the callback
     for the request is called, the user can use :c:func:`uv_fs_scandir_next` to
     get `ent` populated with the next directory entry data. When there are no
     more entries ``UV_EOF`` will be returned.
+
+    .. note::
+        Unlike `scandir(3)`, this function does not return the "." and ".." entries.
+
+    .. note::
+        On Linux, getting the type of an entry is only supported by some file systems (btrfs, ext2,
+        ext3 and ext4 at the time of this writing), check the :man:`getdents(2)` man page.
 
 .. c:function:: int uv_fs_stat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 .. c:function:: int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)
 .. c:function:: int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
-    Equivalent to ``(f/l)stat(2)``.
+    Equivalent to :man:`stat(2)`, :man:`fstat(2)` and :man:`lstat(2)` respectively.
 
 .. c:function:: int uv_fs_rename(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb)
 
-    Equivalent to ``rename(2)``.
+    Equivalent to :man:`rename(2)`.
 
 .. c:function:: int uv_fs_fsync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)
 
-    Equivalent to ``fsync(2)``.
+    Equivalent to :man:`fsync(2)`.
 
 .. c:function:: int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)
 
-    Equivalent to ``fdatasync(2)``.
+    Equivalent to :man:`fdatasync(2)`.
 
 .. c:function:: int uv_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req, uv_file file, int64_t offset, uv_fs_cb cb)
 
-    Equivalent to ``ftruncate(2)``.
+    Equivalent to :man:`ftruncate(2)`.
 
 .. c:function:: int uv_fs_sendfile(uv_loop_t* loop, uv_fs_t* req, uv_file out_fd, uv_file in_fd, int64_t in_offset, size_t length, uv_fs_cb cb)
 
-    Limited equivalent to ``sendfile(2)``.
+    Limited equivalent to :man:`sendfile(2)`.
 
 .. c:function:: int uv_fs_access(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode, uv_fs_cb cb)
 
-    Equivalent to ``access(2)`` on Unix. Windows uses ``GetFileAttributesW()``.
+    Equivalent to :man:`access(2)` on Unix. Windows uses ``GetFileAttributesW()``.
 
 .. c:function:: int uv_fs_chmod(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode, uv_fs_cb cb)
 .. c:function:: int uv_fs_fchmod(uv_loop_t* loop, uv_fs_t* req, uv_file file, int mode, uv_fs_cb cb)
 
-    Equivalent to ``(f)chmod(2)``.
+    Equivalent to :man:`chmod(2)` and :man:`fchmod(2)` respectively.
 
 .. c:function:: int uv_fs_utime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime, double mtime, uv_fs_cb cb)
 .. c:function:: int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file file, double atime, double mtime, uv_fs_cb cb)
 
-    Equivalent to ``(f)utime(s)(2)``.
+    Equivalent to :man:`utime(2)` and :man:`futime(2)` respectively.
+
+    .. note::
+      AIX: This function only works for AIX 7.1 and newer. It can still be called on older
+      versions but will return ``UV_ENOSYS``.
+
+    .. versionchanged:: 1.10.0 sub-second precission is supported on Windows
 
 .. c:function:: int uv_fs_link(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb)
 
-    Equivalent to ``link(2)``.
+    Equivalent to :man:`link(2)`.
 
 .. c:function:: int uv_fs_symlink(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, int flags, uv_fs_cb cb)
 
-    Equivalent to ``symlink(2)``.
+    Equivalent to :man:`symlink(2)`.
 
     .. note::
         On Windows the `flags` parameter can be specified to control how the symlink will
@@ -258,18 +280,59 @@ API
             * ``UV_FS_SYMLINK_DIR``: indicates that `path` points to a directory.
 
             * ``UV_FS_SYMLINK_JUNCTION``: request that the symlink is created
-              using junktion points.
+              using junction points.
 
 .. c:function:: int uv_fs_readlink(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
-    Equivalent to ``readlink(2)``.
+    Equivalent to :man:`readlink(2)`.
+
+.. c:function:: int uv_fs_realpath(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
+
+    Equivalent to :man:`realpath(3)` on Unix. Windows uses `GetFinalPathNameByHandle <https://msdn.microsoft.com/en-us/library/windows/desktop/aa364962(v=vs.85).aspx>`_.
+
+    .. warning::
+        This function has certain platform-specific caveats that were discovered when used in Node.
+
+        * macOS and other BSDs: this function will fail with UV_ELOOP if more than 32 symlinks are
+          found while resolving the given path.  This limit is hardcoded and cannot be sidestepped.
+        * Windows: while this function works in the common case, there are a number of corner cases
+          where it doesn't:
+
+          - Paths in ramdisk volumes created by tools which sidestep the Volume Manager (such as ImDisk)
+            cannot be resolved.
+          - Inconsistent casing when using drive letters.
+          - Resolved path bypasses subst'd drives.
+
+        While this function can still be used, it's not recommended if scenarios such as the
+        above need to be supported.
+
+        The background story and some more details on these issues can be checked
+        `here <https://github.com/nodejs/node/issues/7726>`_.
+
+    .. note::
+      This function is not implemented on Windows XP and Windows Server 2003.
+      On these systems, UV_ENOSYS is returned.
+
+    .. versionadded:: 1.8.0
 
 .. c:function:: int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb)
 .. c:function:: int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb)
 
-    Equivalent to ``(f)chown(2)``.
+    Equivalent to :man:`chown(2)` and :man:`fchown(2)` respectively.
 
     .. note::
         These functions are not implemented on Windows.
 
 .. seealso:: The :c:type:`uv_req_t` API functions also apply.
+
+Helper functions
+----------------
+
+.. c:function:: uv_os_fd_t uv_get_osfhandle(int fd)
+
+   For a file descriptor in the C runtime, get the OS-dependent handle.
+   On UNIX, returns the ``fd`` intact. On Windows, this calls `_get_osfhandle <https://msdn.microsoft.com/en-us/library/ks2530z6.aspx>`_.
+   Note that the return value is still owned by the C runtime,
+   any attempts to close it or to use it after closing the fd may lead to malfunction.
+
+    .. versionadded:: 1.12.0

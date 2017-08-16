@@ -49,6 +49,27 @@ try {
   assertTrue(/Object or null/.test(e));
 }
 
+try {
+  Object.create(null, this);
+  assertTrue(false);
+} catch(e) {
+  assertTrue(/Property description/.test(e))
+}
+
+try {
+  Object.create(null, [1, 2, 3]);
+  assertTrue(false);
+} catch(e) {
+  assertTrue(/Property description/.test(e))
+}
+
+try {
+  Object.create(null, new Proxy([1, 2, 3], {}));
+  assertTrue(false);
+} catch(e) {
+  assertTrue(/Property description/.test(e))
+}
+
 var ctr = 0;
 var ctr2 = 0;
 var ctr3 = 0;
@@ -248,3 +269,14 @@ for (x in sonOfTricky) {
   sum += sonOfTricky[x];
 }
 assertEquals(16, sum);
+
+
+(function createWithEmptyProtoInfoCreateMap() {
+  var proto = {a:1};
+  var instance = {__proto__: proto };
+  // Try force creation of prototype info on proto by loading a proto property.
+  assertEquals(instance.a, 1);
+  var result = Object.create(proto, {});
+  assertEquals(result.a, 1);
+  assertEquals(result.__proto__, proto);
+})()

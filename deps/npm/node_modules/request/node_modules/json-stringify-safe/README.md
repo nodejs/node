@@ -47,3 +47,6 @@ stringify.getSerialize(serializer, decycler)
 
 Returns a serializer that can be used elsewhere.  This is the actual
 function that's passed to JSON.stringify.
+
+**Note** that the function returned from `getSerialize` is stateful for now, so
+do **not** use it more than once.

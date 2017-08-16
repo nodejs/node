@@ -48,6 +48,8 @@ cmll-x86.s:	asm/cmll-x86.pl ../perlasm/x86asm.pl
 	$(PERL) asm/cmll-x86.pl $(PERLASM_SCHEME) $(CFLAGS) $(PROCESSOR) > $@
 cmll-x86_64.s:  asm/cmll-x86_64.pl
 	$(PERL) asm/cmll-x86_64.pl $(PERLASM_SCHEME) > $@
+cmllt4-sparcv9.s: asm/cmllt4-sparcv9.pl ../perlasm/sparcv9_modes.pl
+	$(PERL) asm/cmllt4-sparcv9.pl $(CFLAGS) > $@
 
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
@@ -72,6 +74,8 @@ tests:
 
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
+
+update: depend
 
 depend:
 	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...

@@ -23,20 +23,20 @@
 
 description("Make sure that we correctly identify parse errors in object literals");
 
-shouldThrow("({a:1, get a(){}})");
-shouldThrow("({a:1, set a(v){}})");
-shouldThrow("({get a(){}, a:1})");
-shouldThrow("({set a(v){}, a:1})");
-shouldThrow("({get a(){}, get a(){}})");
-shouldThrow("({set a(v){}, set a(v){}})");
-shouldThrow("({set a(v){}, get a(){}, set a(v){}})");
-shouldThrow("(function(){({a:1, get a(){}})})");
-shouldThrow("(function(){({a:1, set a(v){}})})");
-shouldThrow("(function(){({get a(){}, a:1})})");
-shouldThrow("(function(){({set a(v){}, a:1})})");
-shouldThrow("(function(){({get a(){}, get a(){}})})");
-shouldThrow("(function(){({set a(v){}, set a(v){}})})");
-shouldThrow("(function(){({set a(v){}, get a(){}, set a(v){}})})");
+shouldBeTrue("({a:1, get a(){}}), true");
+shouldBeTrue("({a:1, set a(v){}}), true");
+shouldBeTrue("({get a(){}, a:1}), true");
+shouldBeTrue("({set a(v){}, a:1}), true");
+shouldBeTrue("({get a(){}, get a(){}}), true");
+shouldBeTrue("({set a(v){}, set a(v){}}), true");
+shouldBeTrue("({set a(v){}, get a(){}, set a(v){}}), true");
+shouldBeTrue("(function(){({a:1, get a(){}})}), true");
+shouldBeTrue("(function(){({a:1, set a(v){}})}), true");
+shouldBeTrue("(function(){({get a(){}, a:1})}), true");
+shouldBeTrue("(function(){({set a(v){}, a:1})}), true");
+shouldBeTrue("(function(){({get a(){}, get a(){}})}), true");
+shouldBeTrue("(function(){({set a(v){}, set a(v){}})}), true");
+shouldBeTrue("(function(){({set a(v){}, get a(){}, set a(v){}})}), true");
 shouldBeTrue("({a:1, a:1, a:1}), true");
 shouldBeTrue("({get a(){}, set a(v){}}), true");
 shouldBeTrue("({set a(v){}, get a(){}}), true");

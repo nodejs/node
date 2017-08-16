@@ -29,15 +29,11 @@
 
 var x = 1;
 function global_function() { return 'global'; }
-const const_uninitialized;
-const const_initialized = function() { return "const_global"; }
 
 // Test loading across an eval call that does not shadow variables.
 function testNoShadowing() {
   var y = 2;
   function local_function() { return 'local'; }
-  const local_const_uninitialized;
-  const local_const_initialized = function() { return "const_local"; }
   function f() {
     eval('1');
     assertEquals(1, x);
@@ -45,44 +41,12 @@ function testNoShadowing() {
     assertEquals(2, y);
     assertEquals('global', global_function());
     assertEquals('local', local_function());
-    var exception = false;
-    try {
-      const_uninitialized();
-    } catch(e) {
-      exception = true;
-    }
-    assertTrue(exception);
-    assertEquals('const_global', const_initialized());
-    exception = false;
-    try {
-      local_const_uninitialized();
-    } catch(e) {
-      exception = true;
-    }
-    assertTrue(exception);
-    assertEquals('const_local', local_const_initialized());
     function g() {
       assertEquals(1, x);
       try { typeof(asdf); } catch(e) { assertUnreachable(); }
       assertEquals(2, y);
       assertEquals('global', global_function());
       assertEquals('local', local_function());
-      var exception = false;
-      try {
-        const_uninitialized();
-      } catch(e) {
-        exception = true;
-      }
-      assertTrue(exception);
-      assertEquals('const_global', const_initialized());
-      exception = false;
-      try {
-        local_const_uninitialized();
-      } catch(e) {
-        exception = true;
-      }
-      assertTrue(exception);
-      assertEquals('const_local', local_const_initialized());
     }
     g();
   }

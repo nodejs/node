@@ -21,6 +21,7 @@
 
 #include "uv.h"
 #include "task.h"
+#include <string.h>
 
 static uv_async_t async_handle;
 static uv_check_t check_handle;
@@ -43,6 +44,14 @@ static void check_cb(uv_check_t* handle) {
 
 
 TEST_IMPL(async_null_cb) {
+  /*
+   * Fill async_handle with garbage values.
+   * uv_async_init() should properly initialize struct fields regardless of
+   * initial values.
+   * This is added to verify paddings between fields do not affect behavior.
+   */
+  memset(&async_handle, 0xff, sizeof(async_handle));
+
   ASSERT(0 == uv_async_init(uv_default_loop(), &async_handle, NULL));
   ASSERT(0 == uv_check_init(uv_default_loop(), &check_handle));
   ASSERT(0 == uv_check_start(&check_handle, check_cb));

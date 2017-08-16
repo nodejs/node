@@ -19,51 +19,30 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const net = require('net');
+const http = require('http');
 
-var net = require('net'),
-    util = require('util'),
-    http = require('http');
-
-var errorCount = 0;
-var eofCount = 0;
-
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   socket.end();
 });
 
-server.on('listening', function() {
-  var client = http.createClient(common.PORT);
+server.on('listening', common.mustCall(function() {
+  const client = http.createClient(common.PORT);
 
-  client.on('error', function(err) {
-    // We should receive one error
-    console.log('ERROR! ' + err.message);
-    errorCount++;
-  });
+  client.on('error', common.mustCall());
+  client.on('end', common.mustCall());
 
-  client.on('end', function() {
-    // When we remove the old Client interface this will most likely have to be
-    // changed.
-    console.log('EOF!');
-    eofCount++;
-  });
-
-  var request = client.request('GET', '/', {'host': 'localhost'});
+  const request = client.request('GET', '/', { 'host': 'localhost' });
   request.end();
   request.on('response', function(response) {
-    console.log('STATUS: ' + response.statusCode);
+    console.log(`STATUS: ${response.statusCode}`);
   });
-});
+}));
 
 server.listen(common.PORT);
 
 setTimeout(function() {
   server.close();
 }, 500);
-
-
-process.on('exit', function() {
-  assert.equal(1, errorCount);
-  assert.equal(1, eofCount);
-});

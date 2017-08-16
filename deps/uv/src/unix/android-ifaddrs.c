@@ -1,6 +1,6 @@
 /*
 Copyright (c) 2013, Kenneth MacKay
-Copyright (c) 2014, Emergya (Cloud4all, FP7/2007-2013 grant agreement n° 289016)
+Copyright (c) 2014, Emergya (Cloud4all, FP7/2007-2013 grant agreement #289016)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -24,6 +24,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "android-ifaddrs.h"
+#include "uv-common.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -136,8 +137,8 @@ static struct nlmsghdr *getNetlinkResponse(int p_socket, int *p_size, int *p_don
     {
         int l_read;
 
-        free(l_buffer);
-        l_buffer = malloc(l_size);
+        uv__free(l_buffer);
+        l_buffer = uv__malloc(l_size);
         if (l_buffer == NULL)
         {
             return NULL;
@@ -147,7 +148,7 @@ static struct nlmsghdr *getNetlinkResponse(int p_socket, int *p_size, int *p_don
         *p_size = l_read;
         if(l_read == -2)
         {
-            free(l_buffer);
+            uv__free(l_buffer);
             return NULL;
         }
         if(l_read >= 0)
@@ -169,7 +170,7 @@ static struct nlmsghdr *getNetlinkResponse(int p_socket, int *p_size, int *p_don
 
                 if(l_hdr->nlmsg_type == NLMSG_ERROR)
                 {
-                    free(l_buffer);
+                    uv__free(l_buffer);
                     return NULL;
                 }
             }
@@ -182,7 +183,7 @@ static struct nlmsghdr *getNetlinkResponse(int p_socket, int *p_size, int *p_don
 
 static NetlinkList *newListItem(struct nlmsghdr *p_data, unsigned int p_size)
 {
-    NetlinkList *l_item = malloc(sizeof(NetlinkList));
+    NetlinkList *l_item = uv__malloc(sizeof(NetlinkList));
     if (l_item == NULL)
     {
         return NULL;
@@ -201,8 +202,8 @@ static void freeResultList(NetlinkList *p_list)
     {
         l_cur = p_list;
         p_list = p_list->m_next;
-        free(l_cur->m_data);
-        free(l_cur);
+        uv__free(l_cur->m_data);
+        uv__free(l_cur);
     }
 }
 
@@ -348,7 +349,7 @@ static int interpretLink(struct nlmsghdr *p_hdr, struct ifaddrs **p_resultList)
         }
     }
 
-    l_entry = malloc(sizeof(struct ifaddrs) + sizeof(int) + l_nameSize + l_addrSize + l_dataSize);
+    l_entry = uv__malloc(sizeof(struct ifaddrs) + sizeof(int) + l_nameSize + l_addrSize + l_dataSize);
     if (l_entry == NULL)
     {
         return -1;
@@ -477,7 +478,7 @@ static int interpretAddr(struct nlmsghdr *p_hdr, struct ifaddrs **p_resultList, 
         }
     }
 
-    l_entry = malloc(sizeof(struct ifaddrs) + l_nameSize + l_addrSize);
+    l_entry = uv__malloc(sizeof(struct ifaddrs) + l_nameSize + l_addrSize);
     if (l_entry == NULL)
     {
         return -1;
@@ -697,6 +698,6 @@ void freeifaddrs(struct ifaddrs *ifa)
     {
         l_cur = ifa;
         ifa = ifa->ifa_next;
-        free(l_cur);
+        uv__free(l_cur);
     }
 }

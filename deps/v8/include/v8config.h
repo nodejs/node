@@ -5,6 +5,8 @@
 #ifndef V8CONFIG_H_
 #define V8CONFIG_H_
 
+// clang-format off
+
 // Platform headers for feature detection below.
 #if defined(__ANDROID__)
 # include <sys/cdefs.h>
@@ -42,8 +44,8 @@
     ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) >=   \
      ((major) * 10000 + (minor) * 100 + (patchlevel)))
 #elif defined(__GNUC__) && defined(__GNUC_MINOR__)
-# define V8_GNUC_PREREQ(major, minor, patchlevel)       \
-    ((__GNUC__ * 10000 + __GNUC_MINOR__) >=             \
+# define V8_GNUC_PREREQ(major, minor, patchlevel)      \
+    ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100) >=      \
      ((major) * 10000 + (minor) * 100 + (patchlevel)))
 #else
 # define V8_GNUC_PREREQ(major, minor, patchlevel) 0
@@ -61,12 +63,12 @@
 //  V8_OS_FREEBSD       - FreeBSD
 //  V8_OS_LINUX         - Linux
 //  V8_OS_MACOSX        - Mac OS X
-//  V8_OS_NACL          - Native Client
 //  V8_OS_NETBSD        - NetBSD
 //  V8_OS_OPENBSD       - OpenBSD
 //  V8_OS_POSIX         - POSIX compatible (mostly everything except Windows)
 //  V8_OS_QNX           - QNX Neutrino
 //  V8_OS_SOLARIS       - Sun Solaris and OpenSolaris
+//  V8_OS_AIX           - AIX
 //  V8_OS_WIN           - Microsoft Windows
 
 #if defined(__ANDROID__)
@@ -77,9 +79,6 @@
 # define V8_OS_BSD 1
 # define V8_OS_MACOSX 1
 # define V8_OS_POSIX 1
-#elif defined(__native_client__)
-# define V8_OS_NACL 1
-# define V8_OS_POSIX 1
 #elif defined(__CYGWIN__)
 # define V8_OS_CYGWIN 1
 # define V8_OS_POSIX 1
@@ -89,6 +88,9 @@
 #elif defined(__sun)
 # define V8_OS_POSIX 1
 # define V8_OS_SOLARIS 1
+#elif defined(_AIX)
+#define V8_OS_POSIX 1
+#define V8_OS_AIX 1
 #elif defined(__FreeBSD__)
 # define V8_OS_BSD 1
 # define V8_OS_FREEBSD 1
@@ -120,6 +122,7 @@
 //  V8_LIBC_BIONIC  - Bionic libc
 //  V8_LIBC_BSD     - BSD libc derivate
 //  V8_LIBC_GLIBC   - GNU C library
+//  V8_LIBC_UCLIBC  - uClibc
 //
 // Note that testing for libc must be done using #if not #ifdef. For example,
 // to test for the GNU C library, use:
@@ -132,6 +135,9 @@
 #elif defined(__BIONIC__)
 # define V8_LIBC_BIONIC 1
 # define V8_LIBC_BSD 1
+#elif defined(__UCLIBC__)
+// Must test for UCLIBC before GLIBC, as UCLIBC pretends to be GLIBC.
+# define V8_LIBC_UCLIBC 1
 #elif defined(__GLIBC__) || defined(__GNU_LIBRARY__)
 # define V8_LIBC_GLIBC 1
 #else
@@ -142,22 +148,17 @@
 // -----------------------------------------------------------------------------
 // Compiler detection
 //
-//  V8_CC_CLANG   - Clang
-//  V8_CC_GNU     - GNU C++
+//  V8_CC_GNU     - GCC, or clang in gcc mode
 //  V8_CC_INTEL   - Intel C++
 //  V8_CC_MINGW   - Minimalist GNU for Windows
 //  V8_CC_MINGW32 - Minimalist GNU for Windows (mingw32)
 //  V8_CC_MINGW64 - Minimalist GNU for Windows (mingw-w64)
-//  V8_CC_MSVC    - Microsoft Visual C/C++
+//  V8_CC_MSVC    - Microsoft Visual C/C++, or clang in cl.exe mode
 //
 // C++11 feature detection
 //
 //  V8_HAS_CXX11_ALIGNAS        - alignas specifier supported
 //  V8_HAS_CXX11_ALIGNOF        - alignof(type) operator supported
-//  V8_HAS_CXX11_STATIC_ASSERT  - static_assert() supported
-//  V8_HAS_CXX11_DELETE         - deleted functions supported
-//  V8_HAS_CXX11_FINAL          - final marker supported
-//  V8_HAS_CXX11_OVERRIDE       - override marker supported
 //
 // Compiler-specific feature detection
 //
@@ -168,6 +169,7 @@
 //                                        supported
 //  V8_HAS_ATTRIBUTE_DEPRECATED         - __attribute__((deprecated)) supported
 //  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
+//  V8_HAS_ATTRIBUTE_NORETURN           - __attribute__((noreturn)) supported
 //  V8_HAS_ATTRIBUTE_UNUSED             - __attribute__((unused)) supported
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
@@ -179,10 +181,12 @@
 //  V8_HAS_BUILTIN_POPCOUNT             - __builtin_popcount() supported
 //  V8_HAS_BUILTIN_SADD_OVERFLOW        - __builtin_sadd_overflow() supported
 //  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
+//  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
 //  V8_HAS_DECLSPEC_ALIGN               - __declspec(align(n)) supported
 //  V8_HAS_DECLSPEC_DEPRECATED          - __declspec(deprecated) supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
-//  V8_HAS___FINAL                      - __final supported in non-C++11 mode
+//  V8_HAS_DECLSPEC_SELECTANY           - __declspec(selectany) supported
+//  V8_HAS_DECLSPEC_NORETURN            - __declspec(noreturn) supported
 //  V8_HAS___FORCEINLINE                - __forceinline supported
 //
 // Note that testing for compilers and/or features must be done using #if
@@ -193,7 +197,9 @@
 
 #if defined(__clang__)
 
-# define V8_CC_CLANG 1
+#if defined(__GNUC__)  // Clang in gcc mode.
+# define V8_CC_GNU 1
+#endif
 
 // Clang defines __alignof__ as alias for __alignof
 # define V8_HAS___ALIGNOF 1
@@ -203,6 +209,7 @@
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
+# define V8_HAS_ATTRIBUTE_NORETURN (__has_attribute(noreturn))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
@@ -215,20 +222,22 @@
 # define V8_HAS_BUILTIN_POPCOUNT (__has_builtin(__builtin_popcount))
 # define V8_HAS_BUILTIN_SADD_OVERFLOW (__has_builtin(__builtin_sadd_overflow))
 # define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
+# define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
 
 # define V8_HAS_CXX11_ALIGNAS (__has_feature(cxx_alignas))
-# define V8_HAS_CXX11_STATIC_ASSERT (__has_feature(cxx_static_assert))
-# define V8_HAS_CXX11_DELETE (__has_feature(cxx_deleted_functions))
-# define V8_HAS_CXX11_FINAL (__has_feature(cxx_override_control))
-# define V8_HAS_CXX11_OVERRIDE (__has_feature(cxx_override_control))
 
 #elif defined(__GNUC__)
 
 # define V8_CC_GNU 1
-// Intel C++ also masquerades as GCC 3.2.0
-# define V8_CC_INTEL (defined(__INTEL_COMPILER))
-# define V8_CC_MINGW32 (defined(__MINGW32__))
-# define V8_CC_MINGW64 (defined(__MINGW64__))
+# if defined(__INTEL_COMPILER)  // Intel C++ also masquerades as GCC 3.2.0
+#  define V8_CC_INTEL 1
+# endif
+# if defined(__MINGW32__)
+#  define V8_CC_MINGW32 1
+# endif
+# if defined(__MINGW64__)
+#  define V8_CC_MINGW64 1
+# endif
 # define V8_CC_MINGW (V8_CC_MINGW32 || V8_CC_MINGW64)
 
 # define V8_HAS___ALIGNOF__ (V8_GNUC_PREREQ(4, 3, 0))
@@ -241,6 +250,7 @@
 # define V8_HAS_ATTRIBUTE_DEPRECATED (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE (V8_GNUC_PREREQ(4, 5, 0))
 # define V8_HAS_ATTRIBUTE_NOINLINE (V8_GNUC_PREREQ(3, 4, 0))
+# define V8_HAS_ATTRIBUTE_NORETURN (V8_GNUC_PREREQ(2, 5, 0))
 # define V8_HAS_ATTRIBUTE_UNUSED (V8_GNUC_PREREQ(2, 95, 0))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (V8_GNUC_PREREQ(4, 3, 0))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
@@ -252,36 +262,21 @@
 # define V8_HAS_BUILTIN_FRAME_ADDRESS (V8_GNUC_PREREQ(2, 96, 0))
 # define V8_HAS_BUILTIN_POPCOUNT (V8_GNUC_PREREQ(3, 4, 0))
 
-// g++ requires -std=c++0x or -std=gnu++0x to support C++11 functionality
-// without warnings (functionality used by the macros below).  These modes
-// are detectable by checking whether __GXX_EXPERIMENTAL_CXX0X__ is defined or,
-// more standardly, by checking whether __cplusplus has a C++11 or greater
-// value. Current versions of g++ do not correctly set __cplusplus, so we check
-// both for forward compatibility.
-# if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
+# if __cplusplus >= 201103L
 #  define V8_HAS_CXX11_ALIGNAS (V8_GNUC_PREREQ(4, 8, 0))
 #  define V8_HAS_CXX11_ALIGNOF (V8_GNUC_PREREQ(4, 8, 0))
-#  define V8_HAS_CXX11_STATIC_ASSERT (V8_GNUC_PREREQ(4, 3, 0))
-#  define V8_HAS_CXX11_DELETE (V8_GNUC_PREREQ(4, 4, 0))
-#  define V8_HAS_CXX11_OVERRIDE (V8_GNUC_PREREQ(4, 7, 0))
-#  define V8_HAS_CXX11_FINAL (V8_GNUC_PREREQ(4, 7, 0))
-# else
-// '__final' is a non-C++11 GCC synonym for 'final', per GCC r176655.
-#  define V8_HAS___FINAL (V8_GNUC_PREREQ(4, 7, 0))
 # endif
+#endif
 
-#elif defined(_MSC_VER)
-
+#if defined(_MSC_VER)
 # define V8_CC_MSVC 1
-
 # define V8_HAS___ALIGNOF 1
-
-# define V8_HAS_CXX11_FINAL 1
-# define V8_HAS_CXX11_OVERRIDE 1
 
 # define V8_HAS_DECLSPEC_ALIGN 1
 # define V8_HAS_DECLSPEC_DEPRECATED 1
 # define V8_HAS_DECLSPEC_NOINLINE 1
+# define V8_HAS_DECLSPEC_SELECTANY 1
+# define V8_HAS_DECLSPEC_NORETURN 1
 
 # define V8_HAS___FORCEINLINE 1
 
@@ -316,17 +311,44 @@
 #endif
 
 
-// A macro to mark classes or functions as deprecated.
-#if defined(V8_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE
-# define V8_DEPRECATED(message, declarator) \
-declarator __attribute__((deprecated(message)))
-#elif defined(V8_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED
-# define V8_DEPRECATED(message, declarator) \
-declarator __attribute__((deprecated))
-#elif defined(V8_DEPRECATION_WARNINGS) && V8_HAS_DECLSPEC_DEPRECATED
-# define V8_DEPRECATED(message, declarator) __declspec(deprecated) declarator
+// A macro used to tell the compiler that a particular function never returns.
+// Use like:
+//   V8_NORETURN void MyAbort() { abort(); }
+#if V8_HAS_ATTRIBUTE_NORETURN
+# define V8_NORETURN __attribute__((noreturn))
+#elif V8_HAS_DECLSPEC_NORETURN
+# define V8_NORETURN __declspec(noreturn)
 #else
-# define V8_DEPRECATED(message, declarator) declarator
+# define V8_NORETURN /* NOT SUPPORTED */
+#endif
+
+
+// A macro (V8_DEPRECATED) to mark classes or functions as deprecated.
+#if defined(V8_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE
+#define V8_DEPRECATED(message, declarator) \
+  declarator __attribute__((deprecated(message)))
+#elif defined(V8_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED
+#define V8_DEPRECATED(message, declarator) \
+  declarator __attribute__((deprecated))
+#elif defined(V8_DEPRECATION_WARNINGS) && V8_HAS_DECLSPEC_DEPRECATED
+#define V8_DEPRECATED(message, declarator) __declspec(deprecated) declarator
+#else
+#define V8_DEPRECATED(message, declarator) declarator
+#endif
+
+
+// A macro (V8_DEPRECATE_SOON) to make it easier to see what will be deprecated.
+#if defined(V8_IMMINENT_DEPRECATION_WARNINGS) && \
+    V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE
+#define V8_DEPRECATE_SOON(message, declarator) \
+  declarator __attribute__((deprecated(message)))
+#elif defined(V8_IMMINENT_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED
+#define V8_DEPRECATE_SOON(message, declarator) \
+  declarator __attribute__((deprecated))
+#elif defined(V8_IMMINENT_DEPRECATION_WARNINGS) && V8_HAS_DECLSPEC_DEPRECATED
+#define V8_DEPRECATE_SOON(message, declarator) __declspec(deprecated) declarator
+#else
+#define V8_DEPRECATE_SOON(message, declarator) declarator
 #endif
 
 
@@ -337,26 +359,6 @@ declarator __attribute__((deprecated))
 #else
 # define V8_UNLIKELY(condition) (condition)
 # define V8_LIKELY(condition) (condition)
-#endif
-
-
-// A macro to specify that a method is deleted from the corresponding class.
-// Any attempt to use the method will always produce an error at compile time
-// when this macro can be implemented (i.e. if the compiler supports C++11).
-// If the current compiler does not support C++11, use of the annotated method
-// will still cause an error, but the error will most likely occur at link time
-// rather than at compile time. As a backstop, method declarations using this
-// macro should be private.
-// Use like:
-//   class A {
-//    private:
-//     A(const A& other) V8_DELETE;
-//     A& operator=(const A& other) V8_DELETE;
-//   };
-#if V8_HAS_CXX11_DELETE
-# define V8_DELETE = delete
-#else
-# define V8_DELETE /* NOT SUPPORTED */
 #endif
 
 
@@ -411,5 +413,16 @@ declarator __attribute__((deprecated))
 namespace v8 { template <typename T> class AlignOfHelper { char c; T t; }; }
 # define V8_ALIGNOF(type) (sizeof(::v8::AlignOfHelper<type>) - sizeof(type))
 #endif
+
+// Annotate a function indicating the caller must examine the return value.
+// Use like:
+//   int foo() WARN_UNUSED_RESULT;
+#if V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT
+#define V8_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#else
+#define V8_WARN_UNUSED_RESULT /* NOT SUPPORTED */
+#endif
+
+// clang-format on
 
 #endif  // V8CONFIG_H_

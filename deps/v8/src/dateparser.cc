@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/dateparser.h"
+
+#include "src/char-predicates-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -80,7 +81,12 @@ bool DateParser::TimeComposer::Write(FixedArray* output) {
   }
 
   if (!IsHour(hour) || !IsMinute(minute) ||
-      !IsSecond(second) || !IsMillisecond(millisecond)) return false;
+      !IsSecond(second) || !IsMillisecond(millisecond)) {
+    // A 24th hour is allowed if minutes, seconds, and milliseconds are 0
+    if (hour != 24 || minute != 0 || second != 0 || millisecond != 0) {
+      return false;
+    }
+  }
 
   output->set(HOUR, Smi::FromInt(hour));
   output->set(MINUTE, Smi::FromInt(minute));
@@ -94,8 +100,15 @@ bool DateParser::TimeZoneComposer::Write(FixedArray* output) {
   if (sign_ != kNone) {
     if (hour_ == kNone) hour_ = 0;
     if (minute_ == kNone) minute_ = 0;
-    int total_seconds = sign_ * (hour_ * 3600 + minute_ * 60);
-    if (!Smi::IsValid(total_seconds)) return false;
+    // Avoid signed integer overflow (undefined behavior) by doing unsigned
+    // arithmetic.
+    unsigned total_seconds_unsigned = hour_ * 3600U + minute_ * 60U;
+    if (total_seconds_unsigned > Smi::kMaxValue) return false;
+    int total_seconds = static_cast<int>(total_seconds_unsigned);
+    if (sign_ < 0) {
+      total_seconds = -total_seconds;
+    }
+    DCHECK(Smi::IsValid(total_seconds));
     output->set(UTC_OFFSET, Smi::FromInt(total_seconds));
   } else {
     output->set_null(UTC_OFFSET);
@@ -187,4 +200,5 @@ int DateParser::ReadMilliseconds(DateToken token) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

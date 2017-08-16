@@ -34,6 +34,7 @@ import signal
 import string
 import subprocess
 import gyp.common
+import gyp.xcode_emulation
 
 generator_default_variables = {
   'EXECUTABLE_PREFIX': '',
@@ -55,7 +56,7 @@ generator_default_variables = {
   'CONFIGURATION_NAME': '${configuration}',
 }
 
-FULL_PATH_VARS = ('${CMAKE_SOURCE_DIR}', '${builddir}', '${obj}')
+FULL_PATH_VARS = ('${CMAKE_CURRENT_LIST_DIR}', '${builddir}', '${obj}')
 
 generator_supports_multiple_toolsets = True
 generator_wants_static_library_dependencies_adjusted = True
@@ -103,7 +104,7 @@ def NormjoinPathForceCMakeSource(base_path, rel_path):
   if any([rel_path.startswith(var) for var in FULL_PATH_VARS]):
     return rel_path
   # TODO: do we need to check base_path for absolute variables as well?
-  return os.path.join('${CMAKE_SOURCE_DIR}',
+  return os.path.join('${CMAKE_CURRENT_LIST_DIR}',
                       os.path.normpath(os.path.join(base_path, rel_path)))
 
 
@@ -150,20 +151,17 @@ def SetFileProperty(output, source_name, property_name, values, sep):
   output.write('")\n')
 
 
-def SetFilesProperty(output, source_names, property_name, values, sep):
+def SetFilesProperty(output, variable, property_name, values, sep):
   """Given a set of source files, sets the given property on them."""
-  output.write('set_source_files_properties(\n')
-  for source_name in source_names:
-    output.write('  ')
-    output.write(source_name)
-    output.write('\n')
-  output.write(' PROPERTIES\n  ')
+  output.write('set_source_files_properties(')
+  WriteVariable(output, variable)
+  output.write(' PROPERTIES ')
   output.write(property_name)
   output.write(' "')
   for value in values:
     output.write(CMakeStringEscape(value))
     output.write(sep)
-  output.write('"\n)\n')
+  output.write('")\n')
 
 
 def SetTargetProperty(output, target_name, property_name, values, sep=''):
@@ -216,7 +214,7 @@ def WriteVariable(output, variable_name, prepend=None):
   output.write('}')
 
 
-class CMakeTargetType:
+class CMakeTargetType(object):
   def __init__(self, command, modifier, property_modifier):
     self.command = command
     self.modifier = modifier
@@ -236,11 +234,11 @@ def StringToCMakeTargetName(a):
   """Converts the given string 'a' to a valid CMake target name.
 
   All invalid characters are replaced by '_'.
-  Invalid for cmake: ' ', '/', '(', ')'
+  Invalid for cmake: ' ', '/', '(', ')', '"'
   Invalid for make: ':'
   Invalid for unknown reasons but cause failures: '.'
   """
-  return a.translate(string.maketrans(' /():.', '______'))
+  return a.translate(string.maketrans(' /():."', '_______'))
 
 
 def WriteActions(target_name, actions, extra_sources, extra_deps,
@@ -296,7 +294,7 @@ def WriteActions(target_name, actions, extra_sources, extra_deps,
     WriteVariable(output, inputs_name)
     output.write('\n')
 
-    output.write('  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/')
+    output.write('  WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/')
     output.write(path_to_gyp)
     output.write('\n')
 
@@ -401,9 +399,9 @@ def WriteRules(target_name, rules, extra_sources, extra_deps,
       output.write(NormjoinPath(path_to_gyp, rule_source))
       output.write('\n')
 
-      # CMAKE_SOURCE_DIR is where the CMakeLists.txt lives.
+      # CMAKE_CURRENT_LIST_DIR is where the CMakeLists.txt lives.
       # The cwd is the current build directory.
-      output.write('  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/')
+      output.write('  WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/')
       output.write(path_to_gyp)
       output.write('\n')
 
@@ -464,7 +462,7 @@ def WriteCopies(target_name, copies, extra_deps, path_to_gyp, output):
     extra_deps.append(copy_name)
     return
 
-  class Copy:
+  class Copy(object):
     def __init__(self, ext, command):
       self.cmake_inputs = []
       self.cmake_outputs = []
@@ -488,7 +486,7 @@ def WriteCopies(target_name, copies, extra_deps, path_to_gyp, output):
 
       copy = file_copy if os.path.basename(src) else dir_copy
 
-      copy.cmake_inputs.append(NormjoinPath(path_to_gyp, src))
+      copy.cmake_inputs.append(NormjoinPathForceCMakeSource(path_to_gyp, src))
       copy.cmake_outputs.append(NormjoinPathForceCMakeSource(path_to_gyp, dst))
       copy.gyp_inputs.append(src)
       copy.gyp_outputs.append(dst)
@@ -525,7 +523,7 @@ def WriteCopies(target_name, copies, extra_deps, path_to_gyp, output):
       WriteVariable(output, copy.inputs_name, ' ')
   output.write('\n')
 
-  output.write('WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/')
+  output.write('WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/')
   output.write(path_to_gyp)
   output.write('\n')
 
@@ -611,8 +609,8 @@ class CMakeNamer(object):
 
 
 def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
-                options, generator_flags, all_qualified_targets, output):
-
+                options, generator_flags, all_qualified_targets, flavor,
+                output):
   # The make generator does this always.
   # TODO: It would be nice to be able to tell CMake all dependencies.
   circular_libs = generator_flags.get('circular', True)
@@ -636,9 +634,19 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
   spec = target_dicts.get(qualified_target, {})
   config = spec.get('configurations', {}).get(config_to_use, {})
 
+  xcode_settings = None
+  if flavor == 'mac':
+    xcode_settings = gyp.xcode_emulation.XcodeSettings(spec)
+
   target_name = spec.get('target_name', '<missing target name>')
   target_type = spec.get('type', '<missing target type>')
   target_toolset = spec.get('toolset')
+
+  cmake_target_type = cmake_target_type_from_gyp_target_type.get(target_type)
+  if cmake_target_type is None:
+    print ('Target %s has unknown target type %s, skipping.' %
+          (        target_name,               target_type  ) )
+    return
 
   SetVariable(output, 'TARGET', target_name)
   SetVariable(output, 'TOOLSET', target_toolset)
@@ -667,27 +675,89 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
   srcs = spec.get('sources', [])
 
   # Gyp separates the sheep from the goats based on file extensions.
-  def partition(l, p):
-    return reduce(lambda x, e: x[not p(e)].append(e) or x, l, ([], []))
-  compilable_srcs, other_srcs = partition(srcs, Compilable)
+  # A full separation is done here because of flag handing (see below).
+  s_sources = []
+  c_sources = []
+  cxx_sources = []
+  linkable_sources = []
+  other_sources = []
+  for src in srcs:
+    _, ext = os.path.splitext(src)
+    src_type = COMPILABLE_EXTENSIONS.get(ext, None)
+    src_norm_path = NormjoinPath(path_from_cmakelists_to_gyp, src);
+
+    if src_type == 's':
+      s_sources.append(src_norm_path)
+    elif src_type == 'cc':
+      c_sources.append(src_norm_path)
+    elif src_type == 'cxx':
+      cxx_sources.append(src_norm_path)
+    elif Linkable(ext):
+      linkable_sources.append(src_norm_path)
+    else:
+      other_sources.append(src_norm_path)
+
+  for extra_source in extra_sources:
+    src, real_source = extra_source
+    _, ext = os.path.splitext(real_source)
+    src_type = COMPILABLE_EXTENSIONS.get(ext, None)
+
+    if src_type == 's':
+      s_sources.append(src)
+    elif src_type == 'cc':
+      c_sources.append(src)
+    elif src_type == 'cxx':
+      cxx_sources.append(src)
+    elif Linkable(ext):
+      linkable_sources.append(src)
+    else:
+      other_sources.append(src)
+
+  s_sources_name = None
+  if s_sources:
+    s_sources_name = cmake_target_name + '__asm_srcs'
+    SetVariableList(output, s_sources_name, s_sources)
+
+  c_sources_name = None
+  if c_sources:
+    c_sources_name = cmake_target_name + '__c_srcs'
+    SetVariableList(output, c_sources_name, c_sources)
+
+  cxx_sources_name = None
+  if cxx_sources:
+    cxx_sources_name = cmake_target_name + '__cxx_srcs'
+    SetVariableList(output, cxx_sources_name, cxx_sources)
+
+  linkable_sources_name = None
+  if linkable_sources:
+    linkable_sources_name = cmake_target_name + '__linkable_srcs'
+    SetVariableList(output, linkable_sources_name, linkable_sources)
+
+  other_sources_name = None
+  if other_sources:
+    other_sources_name = cmake_target_name + '__other_srcs'
+    SetVariableList(output, other_sources_name, other_sources)
 
   # CMake gets upset when executable targets provide no sources.
-  if target_type == 'executable' and not compilable_srcs and not extra_sources:
-    print ('Executable %s has no complilable sources, treating as "none".' %
-                       target_name                                         )
-    target_type = 'none'
+  # http://www.cmake.org/pipermail/cmake/2010-July/038461.html
+  dummy_sources_name = None
+  has_sources = (s_sources_name or
+                 c_sources_name or
+                 cxx_sources_name or
+                 linkable_sources_name or
+                 other_sources_name)
+  if target_type == 'executable' and not has_sources:
+    dummy_sources_name = cmake_target_name + '__dummy_srcs'
+    SetVariable(output, dummy_sources_name,
+                "${obj}.${TOOLSET}/${TARGET}/genc/dummy.c")
+    output.write('if(NOT EXISTS "')
+    WriteVariable(output, dummy_sources_name)
+    output.write('")\n')
+    output.write('  file(WRITE "')
+    WriteVariable(output, dummy_sources_name)
+    output.write('" "")\n')
+    output.write("endif()\n")
 
-  cmake_target_type = cmake_target_type_from_gyp_target_type.get(target_type)
-  if cmake_target_type is None:
-    print ('Target %s has unknown target type %s, skipping.' %
-          (        target_name,               target_type  ) )
-    return
-
-  other_srcs_name = None
-  if other_srcs:
-    other_srcs_name = cmake_target_name + '__other_srcs'
-    SetVariableList(output, other_srcs_name,
-        [NormjoinPath(path_from_cmakelists_to_gyp, src) for src in other_srcs])
 
   # CMake is opposed to setting linker directories and considers the practice
   # of setting linker directories dangerous. Instead, it favors the use of
@@ -713,37 +783,54 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
     output.write(' ')
     output.write(cmake_target_type.modifier)
 
-  if other_srcs_name:
-    WriteVariable(output, other_srcs_name, ' ')
-
-  output.write('\n')
-
-  for src in compilable_srcs:
-    output.write('  ')
-    output.write(NormjoinPath(path_from_cmakelists_to_gyp, src))
-    output.write('\n')
-  for extra_source in extra_sources:
-    output.write('  ')
-    src, _ = extra_source
-    output.write(NormjoinPath(path_from_cmakelists_to_gyp, src))
-    output.write('\n')
+  if s_sources_name:
+    WriteVariable(output, s_sources_name, ' ')
+  if c_sources_name:
+    WriteVariable(output, c_sources_name, ' ')
+  if cxx_sources_name:
+    WriteVariable(output, cxx_sources_name, ' ')
+  if linkable_sources_name:
+    WriteVariable(output, linkable_sources_name, ' ')
+  if other_sources_name:
+    WriteVariable(output, other_sources_name, ' ')
+  if dummy_sources_name:
+    WriteVariable(output, dummy_sources_name, ' ')
 
   output.write(')\n')
 
+  # Let CMake know if the 'all' target should depend on this target.
+  exclude_from_all = ('TRUE' if qualified_target not in all_qualified_targets
+                             else 'FALSE')
+  SetTargetProperty(output, cmake_target_name,
+                      'EXCLUDE_FROM_ALL', exclude_from_all)
+  for extra_target_name in extra_deps:
+    SetTargetProperty(output, extra_target_name,
+                        'EXCLUDE_FROM_ALL', exclude_from_all)
+
   # Output name and location.
   if target_type != 'none':
+    # Link as 'C' if there are no other files
+    if not c_sources and not cxx_sources:
+      SetTargetProperty(output, cmake_target_name, 'LINKER_LANGUAGE', ['C'])
+
     # Mark uncompiled sources as uncompiled.
-    if other_srcs_name:
+    if other_sources_name:
       output.write('set_source_files_properties(')
-      WriteVariable(output, other_srcs_name, '')
+      WriteVariable(output, other_sources_name, '')
       output.write(' PROPERTIES HEADER_FILE_ONLY "TRUE")\n')
+
+    # Mark object sources as linkable.
+    if linkable_sources_name:
+      output.write('set_source_files_properties(')
+      WriteVariable(output, other_sources_name, '')
+      output.write(' PROPERTIES EXTERNAL_OBJECT "TRUE")\n')
 
     # Output directory
     target_output_directory = spec.get('product_dir')
     if target_output_directory is None:
       if target_type in ('executable', 'loadable_module'):
         target_output_directory = generator_default_variables['PRODUCT_DIR']
-      elif target_type in ('shared_library'):
+      elif target_type == 'shared_library':
         target_output_directory = '${builddir}/lib.${TOOLSET}'
       elif spec.get('standalone_static_library', False):
         target_output_directory = generator_default_variables['PRODUCT_DIR']
@@ -804,122 +891,98 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
                                        cmake_target_output_basename)
     SetFileProperty(output, cmake_target_output, 'GENERATED', ['TRUE'], '')
 
-  # Let CMake know if the 'all' target should depend on this target.
-  exclude_from_all = ('TRUE' if qualified_target not in all_qualified_targets
-                             else 'FALSE')
-  SetTargetProperty(output, cmake_target_name,
-                      'EXCLUDE_FROM_ALL', exclude_from_all)
-  for extra_target_name in extra_deps:
-    SetTargetProperty(output, extra_target_name,
-                        'EXCLUDE_FROM_ALL', exclude_from_all)
+    # Includes
+    includes = config.get('include_dirs')
+    if includes:
+      # This (target include directories) is what requires CMake 2.8.8
+      includes_name = cmake_target_name + '__include_dirs'
+      SetVariableList(output, includes_name,
+          [NormjoinPathForceCMakeSource(path_from_cmakelists_to_gyp, include)
+           for include in includes])
+      output.write('set_property(TARGET ')
+      output.write(cmake_target_name)
+      output.write(' APPEND PROPERTY INCLUDE_DIRECTORIES ')
+      WriteVariable(output, includes_name, '')
+      output.write(')\n')
 
-  # Includes
-  includes = config.get('include_dirs')
-  if includes:
-    # This (target include directories) is what requires CMake 2.8.8
-    includes_name = cmake_target_name + '__include_dirs'
-    SetVariableList(output, includes_name,
-        [NormjoinPathForceCMakeSource(path_from_cmakelists_to_gyp, include)
-         for include in includes])
-    output.write('set_property(TARGET ')
-    output.write(cmake_target_name)
-    output.write(' APPEND PROPERTY INCLUDE_DIRECTORIES ')
-    WriteVariable(output, includes_name, '')
-    output.write(')\n')
-
-  # Defines
-  defines = config.get('defines')
-  if defines is not None:
-    SetTargetProperty(output,
+    # Defines
+    defines = config.get('defines')
+    if defines is not None:
+      SetTargetProperty(output,
                         cmake_target_name,
                         'COMPILE_DEFINITIONS',
                         defines,
                         ';')
 
-  # Compile Flags - http://www.cmake.org/Bug/view.php?id=6493
-  # CMake currently does not have target C and CXX flags.
-  # So, instead of doing...
+    # Compile Flags - http://www.cmake.org/Bug/view.php?id=6493
+    # CMake currently does not have target C and CXX flags.
+    # So, instead of doing...
 
-  # cflags_c = config.get('cflags_c')
-  # if cflags_c is not None:
-  #   SetTargetProperty(output, cmake_target_name,
-  #                       'C_COMPILE_FLAGS', cflags_c, ' ')
+    # cflags_c = config.get('cflags_c')
+    # if cflags_c is not None:
+    #   SetTargetProperty(output, cmake_target_name,
+    #                       'C_COMPILE_FLAGS', cflags_c, ' ')
 
-  # cflags_cc = config.get('cflags_cc')
-  # if cflags_cc is not None:
-  #   SetTargetProperty(output, cmake_target_name,
-  #                       'CXX_COMPILE_FLAGS', cflags_cc, ' ')
+    # cflags_cc = config.get('cflags_cc')
+    # if cflags_cc is not None:
+    #   SetTargetProperty(output, cmake_target_name,
+    #                       'CXX_COMPILE_FLAGS', cflags_cc, ' ')
 
-  # Instead we must...
-  s_sources = []
-  c_sources = []
-  cxx_sources = []
-  for src in srcs:
-    _, ext = os.path.splitext(src)
-    src_type = COMPILABLE_EXTENSIONS.get(ext, None)
+    # Instead we must...
+    cflags = config.get('cflags', [])
+    cflags_c = config.get('cflags_c', [])
+    cflags_cxx = config.get('cflags_cc', [])
+    if xcode_settings:
+      cflags = xcode_settings.GetCflags(config_to_use)
+      cflags_c = xcode_settings.GetCflagsC(config_to_use)
+      cflags_cxx = xcode_settings.GetCflagsCC(config_to_use)
+      #cflags_objc = xcode_settings.GetCflagsObjC(config_to_use)
+      #cflags_objcc = xcode_settings.GetCflagsObjCC(config_to_use)
 
-    if src_type == 's':
-      s_sources.append(NormjoinPath(path_from_cmakelists_to_gyp, src))
+    if (not cflags_c or not c_sources) and (not cflags_cxx or not cxx_sources):
+      SetTargetProperty(output, cmake_target_name, 'COMPILE_FLAGS', cflags, ' ')
 
-    if src_type == 'cc':
-      c_sources.append(NormjoinPath(path_from_cmakelists_to_gyp, src))
-
-    if src_type == 'cxx':
-      cxx_sources.append(NormjoinPath(path_from_cmakelists_to_gyp, src))
-
-  for extra_source in extra_sources:
-    src, real_source = extra_source
-    _, ext = os.path.splitext(real_source)
-    src_type = COMPILABLE_EXTENSIONS.get(ext, None)
-
-    if src_type == 's':
-      s_sources.append(NormjoinPath(path_from_cmakelists_to_gyp, src))
-
-    if src_type == 'cc':
-      c_sources.append(NormjoinPath(path_from_cmakelists_to_gyp, src))
-
-    if src_type == 'cxx':
-      cxx_sources.append(NormjoinPath(path_from_cmakelists_to_gyp, src))
-
-  cflags = config.get('cflags', [])
-  cflags_c = config.get('cflags_c', [])
-  cflags_cxx = config.get('cflags_cc', [])
-  if c_sources and not (s_sources or cxx_sources):
-    flags = []
-    flags.extend(cflags)
-    flags.extend(cflags_c)
-    SetTargetProperty(output, cmake_target_name, 'COMPILE_FLAGS', flags, ' ')
-
-  elif cxx_sources and not (s_sources or c_sources):
-    flags = []
-    flags.extend(cflags)
-    flags.extend(cflags_cxx)
-    SetTargetProperty(output, cmake_target_name, 'COMPILE_FLAGS', flags, ' ')
-
-  else:
-    if s_sources and cflags:
-      SetFilesProperty(output, s_sources, 'COMPILE_FLAGS', cflags, ' ')
-
-    if c_sources and (cflags or cflags_c):
+    elif c_sources and not (s_sources or cxx_sources):
       flags = []
       flags.extend(cflags)
       flags.extend(cflags_c)
-      SetFilesProperty(output, c_sources, 'COMPILE_FLAGS', flags, ' ')
+      SetTargetProperty(output, cmake_target_name, 'COMPILE_FLAGS', flags, ' ')
 
-    if cxx_sources and (cflags or cflags_cxx):
+    elif cxx_sources and not (s_sources or c_sources):
       flags = []
       flags.extend(cflags)
       flags.extend(cflags_cxx)
-      SetFilesProperty(output, cxx_sources, 'COMPILE_FLAGS', flags, ' ')
+      SetTargetProperty(output, cmake_target_name, 'COMPILE_FLAGS', flags, ' ')
 
-  # Have assembly link as c if there are no other files
-  if not c_sources and not cxx_sources and s_sources:
-    SetTargetProperty(output, cmake_target_name, 'LINKER_LANGUAGE', ['C'])
+    else:
+      # TODO: This is broken, one cannot generally set properties on files,
+      # as other targets may require different properties on the same files.
+      if s_sources and cflags:
+        SetFilesProperty(output, s_sources_name, 'COMPILE_FLAGS', cflags, ' ')
 
-  # Linker flags
-  ldflags = config.get('ldflags')
-  if ldflags is not None:
-    SetTargetProperty(output, cmake_target_name, 'LINK_FLAGS', ldflags, ' ')
+      if c_sources and (cflags or cflags_c):
+        flags = []
+        flags.extend(cflags)
+        flags.extend(cflags_c)
+        SetFilesProperty(output, c_sources_name, 'COMPILE_FLAGS', flags, ' ')
+
+      if cxx_sources and (cflags or cflags_cxx):
+        flags = []
+        flags.extend(cflags)
+        flags.extend(cflags_cxx)
+        SetFilesProperty(output, cxx_sources_name, 'COMPILE_FLAGS', flags, ' ')
+
+    # Linker flags
+    ldflags = config.get('ldflags')
+    if ldflags is not None:
+      SetTargetProperty(output, cmake_target_name, 'LINK_FLAGS', ldflags, ' ')
+
+    # XCode settings
+    xcode_settings = config.get('xcode_settings', {})
+    for xcode_setting, xcode_value in xcode_settings.viewitems():
+      SetTargetProperty(output, cmake_target_name,
+                        "XCODE_ATTRIBUTE_%s" % xcode_setting, xcode_value,
+                        '' if isinstance(xcode_value, str) else ' ')
 
   # Note on Dependencies and Libraries:
   # CMake wants to handle link order, resolving the link line up front.
@@ -985,7 +1048,7 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
       output.write(cmake_target_name)
       output.write('\n')
       if static_deps:
-        write_group = circular_libs and len(static_deps) > 1
+        write_group = circular_libs and len(static_deps) > 1 and flavor != 'mac'
         if write_group:
           output.write('-Wl,--start-group\n')
         for dep in gyp.common.uniquer(static_deps):
@@ -1001,9 +1064,9 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
           output.write('\n')
       if external_libs:
         for lib in gyp.common.uniquer(external_libs):
-          output.write('  ')
-          output.write(lib)
-          output.write('\n')
+          output.write('  "')
+          output.write(RemovePrefix(lib, "$(SDKROOT)"))
+          output.write('"\n')
 
       output.write(')\n')
 
@@ -1015,6 +1078,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
                             params, config_to_use):
   options = params['options']
   generator_flags = params['generator_flags']
+  flavor = gyp.common.GetFlavor(params)
 
   # generator_dir: relative path from pwd to where make puts build files.
   # Makes migrating from make to cmake easier, cmake doesn't put anything here.
@@ -1040,12 +1104,38 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
   output.write('cmake_minimum_required(VERSION 2.8.8 FATAL_ERROR)\n')
   output.write('cmake_policy(VERSION 2.8.8)\n')
 
-  _, project_target, _ = gyp.common.ParseQualifiedTarget(target_list[-1])
+  gyp_file, project_target, _ = gyp.common.ParseQualifiedTarget(target_list[-1])
   output.write('project(')
   output.write(project_target)
   output.write(')\n')
 
   SetVariable(output, 'configuration', config_to_use)
+
+  ar = None
+  cc = None
+  cxx = None
+
+  make_global_settings = data[gyp_file].get('make_global_settings', [])
+  build_to_top = gyp.common.InvertRelativePath(build_dir,
+                                               options.toplevel_dir)
+  for key, value in make_global_settings:
+    if key == 'AR':
+      ar = os.path.join(build_to_top, value)
+    if key == 'CC':
+      cc = os.path.join(build_to_top, value)
+    if key == 'CXX':
+      cxx = os.path.join(build_to_top, value)
+
+  ar = gyp.common.GetEnvironFallback(['AR_target', 'AR'], ar)
+  cc = gyp.common.GetEnvironFallback(['CC_target', 'CC'], cc)
+  cxx = gyp.common.GetEnvironFallback(['CXX_target', 'CXX'], cxx)
+
+  if ar:
+    SetVariable(output, 'CMAKE_AR', ar)
+  if cc:
+    SetVariable(output, 'CMAKE_C_COMPILER', cc)
+  if cxx:
+    SetVariable(output, 'CMAKE_CXX_COMPILER', cxx)
 
   # The following appears to be as-yet undocumented.
   # http://public.kitware.com/Bug/view.php?id=8392
@@ -1053,7 +1143,10 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
   # ASM-ATT does not support .S files.
   # output.write('enable_language(ASM-ATT)\n')
 
-  SetVariable(output, 'builddir', '${CMAKE_BINARY_DIR}')
+  if cc:
+    SetVariable(output, 'CMAKE_ASM_COMPILER', cc)
+
+  SetVariable(output, 'builddir', '${CMAKE_CURRENT_BINARY_DIR}')
   SetVariable(output, 'obj', '${builddir}/obj')
   output.write('\n')
 
@@ -1064,6 +1157,13 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
   # and depend on the name of the extracted .o files.
   output.write('set(CMAKE_C_OUTPUT_EXTENSION_REPLACE 1)\n')
   output.write('set(CMAKE_CXX_OUTPUT_EXTENSION_REPLACE 1)\n')
+  output.write('\n')
+
+  # Force ninja to use rsp files. Otherwise link and ar lines can get too long,
+  # resulting in 'Argument list too long' errors.
+  # However, rsp files don't work correctly on Mac.
+  if flavor != 'mac':
+    output.write('set(CMAKE_NINJA_FORCE_RESPONSE_FILE 1)\n')
   output.write('\n')
 
   namer = CMakeNamer(target_list)
@@ -1078,8 +1178,13 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
       all_qualified_targets.add(qualified_target)
 
   for qualified_target in target_list:
+    if flavor == 'mac':
+      gyp_file, _, _ = gyp.common.ParseQualifiedTarget(qualified_target)
+      spec = target_dicts[qualified_target]
+      gyp.xcode_emulation.MergeGlobalXcodeSettingsToSpec(data[gyp_file], spec)
+
     WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
-                options, generator_flags, all_qualified_targets, output)
+                options, generator_flags, all_qualified_targets, flavor, output)
 
   output.close()
 

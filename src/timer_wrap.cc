@@ -30,12 +30,11 @@
 #include <stdint.h>
 
 namespace node {
+namespace {
 
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -46,9 +45,9 @@ const uint32_t kOnTimeout = 0;
 
 class TimerWrap : public HandleWrap {
  public:
-  static void Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context) {
+  static void Initialize(Local<Object> target,
+                         Local<Value> unused,
+                         Local<Context> context) {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
@@ -58,19 +57,21 @@ class TimerWrap : public HandleWrap {
 
     env->SetTemplateMethod(constructor, "now", Now);
 
+    env->SetProtoMethod(constructor, "getAsyncId", AsyncWrap::GetAsyncId);
+
     env->SetProtoMethod(constructor, "close", HandleWrap::Close);
     env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
     env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
+    env->SetProtoMethod(constructor, "hasRef", HandleWrap::HasRef);
 
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
-    env->SetProtoMethod(constructor, "setRepeat", SetRepeat);
-    env->SetProtoMethod(constructor, "getRepeat", GetRepeat);
-    env->SetProtoMethod(constructor, "again", Again);
 
     target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Timer"),
                 constructor->GetFunction());
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  private:
   static void New(const FunctionCallbackInfo<Value>& args) {
@@ -82,7 +83,7 @@ class TimerWrap : public HandleWrap {
     new TimerWrap(env, args.This());
   }
 
-  TimerWrap(Environment* env, Handle<Object> object)
+  TimerWrap(Environment* env, Local<Object> object)
       : HandleWrap(env,
                    object,
                    reinterpret_cast<uv_handle_t*>(&handle_),
@@ -94,42 +95,20 @@ class TimerWrap : public HandleWrap {
   static void Start(const FunctionCallbackInfo<Value>& args) {
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
+    CHECK(HandleWrap::IsAlive(wrap));
+
     int64_t timeout = args[0]->IntegerValue();
-    int64_t repeat = args[1]->IntegerValue();
-    int err = uv_timer_start(&wrap->handle_, OnTimeout, timeout, repeat);
+    int err = uv_timer_start(&wrap->handle_, OnTimeout, timeout, 0);
     args.GetReturnValue().Set(err);
   }
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
+    CHECK(HandleWrap::IsAlive(wrap));
+
     int err = uv_timer_stop(&wrap->handle_);
     args.GetReturnValue().Set(err);
-  }
-
-  static void Again(const FunctionCallbackInfo<Value>& args) {
-    TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
-
-    int err = uv_timer_again(&wrap->handle_);
-    args.GetReturnValue().Set(err);
-  }
-
-  static void SetRepeat(const FunctionCallbackInfo<Value>& args) {
-    TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
-
-    int64_t repeat = args[0]->IntegerValue();
-    uv_timer_set_repeat(&wrap->handle_, repeat);
-    args.GetReturnValue().Set(0);
-  }
-
-  static void GetRepeat(const FunctionCallbackInfo<Value>& args) {
-    TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
-
-    int64_t repeat = uv_timer_get_repeat(&wrap->handle_);
-    if (repeat <= 0xfffffff)
-      args.GetReturnValue().Set(static_cast<uint32_t>(repeat));
-    else
-      args.GetReturnValue().Set(static_cast<double>(repeat));
   }
 
   static void OnTimeout(uv_timer_t* handle) {
@@ -144,6 +123,8 @@ class TimerWrap : public HandleWrap {
     Environment* env = Environment::GetCurrent(args);
     uv_update_time(env->event_loop());
     uint64_t now = uv_now(env->event_loop());
+    CHECK(now >= env->timer_base());
+    now -= env->timer_base();
     if (now <= 0xfffffff)
       args.GetReturnValue().Set(static_cast<uint32_t>(now));
     else
@@ -154,6 +135,7 @@ class TimerWrap : public HandleWrap {
 };
 
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(timer_wrap, node::TimerWrap::Initialize)

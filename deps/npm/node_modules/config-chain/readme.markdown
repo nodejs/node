@@ -2,6 +2,15 @@
 
 USE THIS MODULE TO LOAD ALL YOUR CONFIGURATIONS
 
+## NOTE: Feature Freeze
+
+[![locked](http://badges.github.io/stability-badges/dist/locked.svg)](http://github.com/badges/stability-badges)
+
+This module is frozen.
+
+In general, I'd recommend using [rc](https://github.com/dominictarr/rc) instead,
+but as [npm](https://github.com/npmjs/npm) depends on this, it cannot be changed.
+
 ``` js
 
   //npm install config-chain

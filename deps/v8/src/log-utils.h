@@ -5,7 +5,14 @@
 #ifndef V8_LOG_UTILS_H_
 #define V8_LOG_UTILS_H_
 
+#include <stdio.h>
+
+#include <cstdarg>
+
 #include "src/allocation.h"
+#include "src/base/compiler-specific.h"
+#include "src/base/platform/mutex.h"
+#include "src/flags.h"
 
 namespace v8 {
 namespace internal {
@@ -22,10 +29,10 @@ class Log {
   void stop() { is_stopped_ = true; }
 
   static bool InitLogAtStart() {
-    return FLAG_log || FLAG_log_api || FLAG_log_code || FLAG_log_gc
-        || FLAG_log_handles || FLAG_log_suspect || FLAG_log_regexp
-        || FLAG_ll_prof || FLAG_perf_basic_prof || FLAG_perf_jit_prof
-        || FLAG_log_internal_timer_events;
+    return FLAG_log || FLAG_log_api || FLAG_log_code || FLAG_log_gc ||
+           FLAG_log_handles || FLAG_log_suspect || FLAG_ll_prof ||
+           FLAG_perf_basic_prof || FLAG_perf_prof ||
+           FLAG_log_internal_timer_events || FLAG_prof_cpp || FLAG_trace_ic;
   }
 
   // Frees all resources acquired in Initialize and Open... functions.
@@ -56,10 +63,10 @@ class Log {
     ~MessageBuilder() { }
 
     // Append string data to the log message.
-    void Append(const char* format, ...);
+    void PRINTF_FORMAT(2, 3) Append(const char* format, ...);
 
     // Append string data to the log message.
-    void AppendVA(const char* format, va_list args);
+    void PRINTF_FORMAT(2, 0) AppendVA(const char* format, va_list args);
 
     // Append a character to the log message.
     void Append(const char c);
@@ -103,9 +110,9 @@ class Log {
 
   // Implementation of writing to a log file.
   int WriteToFile(const char* msg, int length) {
-    DCHECK(output_handle_ != NULL);
+    DCHECK_NOT_NULL(output_handle_);
     size_t rv = fwrite(msg, 1, length, output_handle_);
-    DCHECK(static_cast<size_t>(length) == rv);
+    DCHECK_EQ(length, rv);
     USE(rv);
     fflush(output_handle_);
     return length;
@@ -132,6 +139,7 @@ class Log {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_LOG_UTILS_H_

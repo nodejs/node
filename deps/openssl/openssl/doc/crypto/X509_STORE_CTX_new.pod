@@ -39,10 +39,15 @@ X509_STORE_CTX_free() completely frees up B<ctx>. After this call B<ctx>
 is no longer valid.
 
 X509_STORE_CTX_init() sets up B<ctx> for a subsequent verification operation.
-The trusted certificate store is set to B<store>, the end entity certificate
-to be verified is set to B<x509> and a set of additional certificates (which
-will be untrusted but may be used to build the chain) in B<chain>. Any or
-all of the B<store>, B<x509> and B<chain> parameters can be B<NULL>.
+It must be called before each call to X509_verify_cert(), i.e. a B<ctx> is only
+good for one call to X509_verify_cert(); if you want to verify a second
+certificate with the same B<ctx> then you must call X509_STORE_CTX_cleanup()
+and then X509_STORE_CTX_init() again before the second call to
+X509_verify_cert(). The trusted certificate store is set to B<store>, the end
+entity certificate to be verified is set to B<x509> and a set of additional
+certificates (which will be untrusted but may be used to build the chain) in
+B<chain>. Any or all of the B<store>, B<x509> and B<chain> parameters can be
+B<NULL>.
 
 X509_STORE_CTX_trusted_stack() sets the set of trusted certificates of B<ctx>
 to B<sk>. This is an alternative way of specifying trusted certificates 

@@ -19,20 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common.js');
-var assert = require('assert');
-var zlib = require('zlib');
+'use strict';
+const common = require('../common');
+const zlib = require('zlib');
 
-var closed = false;
-
-zlib.gzip('hello', function(err, out) {
-  var unzip = zlib.createGunzip();
+zlib.gzip('hello', common.mustCall(function(err, out) {
+  const unzip = zlib.createGunzip();
   unzip.write(out);
-  unzip.close(function() {
-    closed = true;
-  });
-});
-
-process.on('exit', function() {
-  assert(closed);
-});
+  unzip.close(common.mustCall());
+}));

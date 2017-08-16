@@ -38,7 +38,7 @@ for (var i = 0; i < 3; ++i) {
 assertEquals(0, x);
 
 (function check() {
-  Promise.resolve().chain(function() {
+  Promise.resolve().then(function() {
     // Delay check until all handlers have run.
     if (y < 3) check(); else assertEquals(6, x);
   }).catch(function(e) { %AbortJS("FAILURE: " + e) });

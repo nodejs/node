@@ -31,10 +31,9 @@
 # char arrays. It is used for embedded JavaScript code in the V8
 # library.
 
-import os, re, sys, string
+import os, re
 import optparse
 import jsmin
-import bz2
 import textwrap
 
 
@@ -69,6 +68,9 @@ def ReadFile(filename):
 
 EVAL_PATTERN = re.compile(r'\beval\s*\(')
 WITH_PATTERN = re.compile(r'\bwith\s*\(')
+INVALID_ERROR_MESSAGE_PATTERN = re.compile(
+    r'Make(?!Generic)\w*Error\(([kA-Z]\w+)')
+NEW_ERROR_PATTERN = re.compile(r'new \$\w*Error\((?!\))')
 
 def Validate(lines):
   # Because of simplified context setup, eval and with is not
@@ -77,7 +79,11 @@ def Validate(lines):
     raise Error("Eval disallowed in natives.")
   if WITH_PATTERN.search(lines):
     raise Error("With statements disallowed in natives.")
-
+  invalid_error = INVALID_ERROR_MESSAGE_PATTERN.search(lines)
+  if invalid_error:
+    raise Error("Unknown error message template '%s'" % invalid_error.group(1))
+  if NEW_ERROR_PATTERN.search(lines):
+    raise Error("Error constructed without message template.")
   # Pass lines through unchanged.
   return lines
 
@@ -101,6 +107,9 @@ def ExpandMacroDefinition(lines, pos, name_pattern, macro, expander):
     mapping = { }
     def add_arg(str):
       # Remember to expand recursively in the arguments
+      if arg_index[0] >= len(macro.args):
+        lineno = lines.count(os.linesep, 0, start) + 1
+        raise Error('line %s: Too many arguments for macro "%s"' % (lineno, name_pattern.pattern))
       replacement = expander(str.strip())
       mapping[macro.args[arg_index[0]]] = replacement
       arg_index[0] += 1
@@ -136,10 +145,12 @@ class TextMacro:
     self.args = args
     self.body = body
   def expand(self, mapping):
-    result = self.body
-    for key, value in mapping.items():
-        result = result.replace(key, value)
-    return result
+    # Keys could be substrings of earlier values. To avoid unintended
+    # clobbering, apply all replacements simultaneously.
+    any_key_pattern = "|".join(re.escape(k) for k in mapping.iterkeys())
+    def replace(match):
+      return mapping[match.group(0)]
+    return re.sub(any_key_pattern, replace, self.body)
 
 class PythonMacro:
   def __init__(self, args, fun):
@@ -151,7 +162,7 @@ class PythonMacro:
       args.append(mapping[arg])
     return str(self.fun(*args))
 
-CONST_PATTERN = re.compile(r'^const\s+([a-zA-Z0-9_]+)\s*=\s*([^;]*);$')
+CONST_PATTERN = re.compile(r'^define\s+([a-zA-Z0-9_]+)\s*=\s*([^;]*);$')
 MACRO_PATTERN = re.compile(r'^macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
 PYTHON_MACRO_PATTERN = re.compile(r'^python\s+macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
 
@@ -188,6 +199,21 @@ def ReadMacros(lines):
           raise Error("Illegal line: " + line)
   return (constants, macros)
 
+
+TEMPLATE_PATTERN = re.compile(r'^\s+T\(([A-Z][a-zA-Z0-9]*),')
+
+def ReadMessageTemplates(lines):
+  templates = []
+  index = 0
+  for line in lines.split('\n'):
+    template_match = TEMPLATE_PATTERN.match(line)
+    if template_match:
+      name = "k%s" % template_match.group(1)
+      value = index
+      index = index + 1
+      templates.append((re.compile("\\b%s\\b" % name), value))
+  return templates
+
 INLINE_MACRO_PATTERN = re.compile(r'macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\n')
 INLINE_MACRO_END_PATTERN = re.compile(r'endmacro\s*\n')
 
@@ -218,7 +244,7 @@ def ExpandInlineMacros(lines):
     lines = ExpandMacroDefinition(lines, pos, name_pattern, macro, non_expander)
 
 
-INLINE_CONSTANT_PATTERN = re.compile(r'const\s+([a-zA-Z0-9_]+)\s*=\s*([^;\n]+)[;\n]')
+INLINE_CONSTANT_PATTERN = re.compile(r'define\s+([a-zA-Z0-9_]+)\s*=\s*([^;\n]+);\n')
 
 def ExpandInlineConstants(lines):
   pos = 0
@@ -247,15 +273,13 @@ HEADER_TEMPLATE = """\
 // javascript source files or the GYP script.
 
 #include "src/v8.h"
-#include "src/natives.h"
+#include "src/snapshot/natives.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
 
 %(sources_declaration)s\
-
-%(raw_sources_declaration)s\
 
   template <>
   int NativesCollection<%(type)s>::GetBuiltinsCount() {
@@ -274,13 +298,8 @@ namespace internal {
   }
 
   template <>
-  int NativesCollection<%(type)s>::GetRawScriptsSize() {
-    return %(raw_total_length)i;
-  }
-
-  template <>
-  Vector<const char> NativesCollection<%(type)s>::GetRawScriptSource(int index) {
-%(get_raw_script_source_cases)s\
+  Vector<const char> NativesCollection<%(type)s>::GetScriptSource(int index) {
+%(get_script_source_cases)s\
     return Vector<const char>("", 0);
   }
 
@@ -291,32 +310,15 @@ namespace internal {
   }
 
   template <>
-  Vector<const byte> NativesCollection<%(type)s>::GetScriptsSource() {
-    return Vector<const byte>(sources, %(total_length)i);
+  Vector<const char> NativesCollection<%(type)s>::GetScriptsSource() {
+    return Vector<const char>(sources, %(total_length)i);
   }
-
-  template <>
-  void NativesCollection<%(type)s>::SetRawScriptsSource(Vector<const char> raw_source) {
-    DCHECK(%(raw_total_length)i == raw_source.length());
-    raw_sources = raw_source.start();
-  }
-
 }  // internal
 }  // v8
 """
 
 SOURCES_DECLARATION = """\
-  static const byte sources[] = { %s };
-"""
-
-
-RAW_SOURCES_COMPRESSION_DECLARATION = """\
-  static const char* raw_sources = NULL;
-"""
-
-
-RAW_SOURCES_DECLARATION = """\
-  static const char* raw_sources = reinterpret_cast<const char*>(sources);
+  static const char sources[] = { %s };
 """
 
 
@@ -325,8 +327,8 @@ GET_INDEX_CASE = """\
 """
 
 
-GET_RAW_SCRIPT_SOURCE_CASE = """\
-    if (index == %(i)i) return Vector<const char>(raw_sources + %(offset)i, %(raw_length)i);
+GET_SCRIPT_SOURCE_CASE = """\
+    if (index == %(i)i) return Vector<const char>(sources + %(offset)i, %(source_length)i);
 """
 
 
@@ -335,21 +337,25 @@ GET_SCRIPT_NAME_CASE = """\
 """
 
 
-def BuildFilterChain(macro_filename):
+def BuildFilterChain(macro_filename, message_template_file):
   """Build the chain of filter functions to be applied to the sources.
 
   Args:
     macro_filename: Name of the macro file, if any.
 
   Returns:
-    A function (string -> string) that reads a source file and processes it.
+    A function (string -> string) that processes a source file.
   """
-  filter_chain = [ReadFile]
+  filter_chain = []
 
   if macro_filename:
     (consts, macros) = ReadMacros(ReadFile(macro_filename))
-    filter_chain.append(lambda l: ExpandConstants(l, consts))
     filter_chain.append(lambda l: ExpandMacros(l, macros))
+    filter_chain.append(lambda l: ExpandConstants(l, consts))
+
+  if message_template_file:
+    message_templates = ReadMessageTemplates(ReadFile(message_template_file))
+    filter_chain.append(lambda l: ExpandConstants(l, message_templates))
 
   filter_chain.extend([
     RemoveCommentsAndTrailingWhitespace,
@@ -364,6 +370,8 @@ def BuildFilterChain(macro_filename):
 
   return reduce(chain, filter_chain)
 
+def BuildExtraFilterChain():
+  return lambda x: RemoveCommentsAndTrailingWhitespace(Validate(x))
 
 class Sources:
   def __init__(self):
@@ -373,18 +381,25 @@ class Sources:
 
 
 def IsDebuggerFile(filename):
-  return filename.endswith("-debugger.js")
+  return "debug" in filename
 
 def IsMacroFile(filename):
   return filename.endswith("macros.py")
 
+def IsMessageTemplateFile(filename):
+  return filename.endswith("messages.h")
 
-def PrepareSources(source_files):
+
+def PrepareSources(source_files, native_type, emit_js):
   """Read, prepare and assemble the list of source files.
 
   Args:
-    sources: List of Javascript-ish source files. A file named macros.py
+    source_files: List of JavaScript-ish source files. A file named macros.py
         will be treated as a list of macros.
+    native_type: String corresponding to a NativeType enum value, allowing us
+        to treat different types of sources differently.
+    emit_js: True if we should skip the byte conversion and just leave the
+        sources as JS strings.
 
   Returns:
     An instance of Sources.
@@ -396,26 +411,48 @@ def PrepareSources(source_files):
     source_files.remove(macro_files[0])
     macro_file = macro_files[0]
 
-  filters = BuildFilterChain(macro_file)
+  message_template_file = None
+  message_template_files = filter(IsMessageTemplateFile, source_files)
+  assert len(message_template_files) in [0, 1]
+  if message_template_files:
+    source_files.remove(message_template_files[0])
+    message_template_file = message_template_files[0]
+
+  filters = None
+  if native_type in ("EXTRAS", "EXPERIMENTAL_EXTRAS"):
+    filters = BuildExtraFilterChain()
+  else:
+    filters = BuildFilterChain(macro_file, message_template_file)
 
   # Sort 'debugger' sources first.
   source_files = sorted(source_files,
                         lambda l,r: IsDebuggerFile(r) - IsDebuggerFile(l))
 
+  source_files_and_contents = [(f, ReadFile(f)) for f in source_files]
+
+  # Have a single not-quite-empty source file if there are none present;
+  # otherwise you get errors trying to compile an empty C++ array.
+  # It cannot be empty (or whitespace, which gets trimmed to empty), as
+  # the deserialization code assumes each file is nonempty.
+  if not source_files_and_contents:
+    source_files_and_contents = [("dummy.js", "(function() {})")]
+
   result = Sources()
-  for source in source_files:
+
+  for (source, contents) in source_files_and_contents:
     try:
-      lines = filters(source)
+      lines = filters(contents)
     except Error as e:
       raise Error("In file %s:\n%s" % (source, str(e)))
 
-    result.modules.append(lines);
+    result.modules.append(lines)
 
     is_debugger = IsDebuggerFile(source)
-    result.is_debugger_id.append(is_debugger);
+    result.is_debugger_id.append(is_debugger)
 
     name = os.path.basename(source)[:-3]
-    result.names.append(name if not is_debugger else name[:-9]);
+    result.names.append(name)
+
   return result
 
 
@@ -440,7 +477,7 @@ def BuildMetadata(sources, source_bytes, native_type):
   # Loop over modules and build up indices into the source blob:
   get_index_cases = []
   get_script_name_cases = []
-  get_raw_script_source_cases = []
+  get_script_source_cases = []
   offset = 0
   for i in xrange(len(sources.modules)):
     native_name = "native %s.js" % sources.names[i]
@@ -450,51 +487,25 @@ def BuildMetadata(sources, source_bytes, native_type):
         "name": native_name,
         "length": len(native_name),
         "offset": offset,
-        "raw_length": len(sources.modules[i]),
+        "source_length": len(sources.modules[i]),
     }
     get_index_cases.append(GET_INDEX_CASE % d)
     get_script_name_cases.append(GET_SCRIPT_NAME_CASE % d)
-    get_raw_script_source_cases.append(GET_RAW_SCRIPT_SOURCE_CASE % d)
+    get_script_source_cases.append(GET_SCRIPT_SOURCE_CASE % d)
     offset += len(sources.modules[i])
   assert offset == len(raw_sources)
-
-  # If we have the raw sources we can declare them accordingly.
-  have_raw_sources = source_bytes == raw_sources
-  raw_sources_declaration = (RAW_SOURCES_DECLARATION
-      if have_raw_sources else RAW_SOURCES_COMPRESSION_DECLARATION)
 
   metadata = {
     "builtin_count": len(sources.modules),
     "debugger_count": sum(sources.is_debugger_id),
     "sources_declaration": SOURCES_DECLARATION % ToCArray(source_bytes),
-    "raw_sources_declaration": raw_sources_declaration,
-    "raw_total_length": sum(map(len, sources.modules)),
     "total_length": total_length,
     "get_index_cases": "".join(get_index_cases),
-    "get_raw_script_source_cases": "".join(get_raw_script_source_cases),
+    "get_script_source_cases": "".join(get_script_source_cases),
     "get_script_name_cases": "".join(get_script_name_cases),
     "type": native_type,
   }
   return metadata
-
-
-def CompressMaybe(sources, compression_type):
-  """Take the prepared sources and generate a sequence of bytes.
-
-  Args:
-    sources: A Sources instance with the prepared sourced.
-    compression_type: string, describing the desired compression.
-
-  Returns:
-    A sequence of bytes.
-  """
-  sources_bytes = "".join(sources.modules)
-  if compression_type == "off":
-    return sources_bytes
-  elif compression_type == "bz2":
-    return bz2.compress(sources_bytes)
-  else:
-    raise Error("Unknown compression type %s." % compression_type)
 
 
 def PutInt(blob_file, value):
@@ -545,40 +556,50 @@ def WriteStartupBlob(sources, startup_blob):
   output.close()
 
 
-def JS2C(source, target, native_type, compression_type, raw_file, startup_blob):
-  sources = PrepareSources(source)
-  sources_bytes = CompressMaybe(sources, compression_type)
-  metadata = BuildMetadata(sources, sources_bytes, native_type)
+def JS2C(sources, target, native_type, raw_file, startup_blob, emit_js):
+  prepared_sources = PrepareSources(sources, native_type, emit_js)
+  sources_output = "".join(prepared_sources.modules)
+  metadata = BuildMetadata(prepared_sources, sources_output, native_type)
 
   # Optionally emit raw file.
   if raw_file:
     output = open(raw_file, "w")
-    output.write(sources_bytes)
+    output.write(sources_output)
     output.close()
 
   if startup_blob:
-    WriteStartupBlob(sources, startup_blob);
+    WriteStartupBlob(prepared_sources, startup_blob)
 
   # Emit resulting source file.
   output = open(target, "w")
-  output.write(HEADER_TEMPLATE % metadata)
+  if emit_js:
+    output.write(sources_output)
+  else:
+    output.write(HEADER_TEMPLATE % metadata)
   output.close()
 
 
 def main():
   parser = optparse.OptionParser()
-  parser.add_option("--raw", action="store",
+  parser.add_option("--raw",
                     help="file to write the processed sources array to.")
-  parser.add_option("--startup_blob", action="store",
+  parser.add_option("--startup_blob",
                     help="file to write the startup blob to.")
-  parser.set_usage("""js2c out.cc type compression sources.js ...
-      out.cc: C code to be generated.
-      type: type parameter for NativesCollection template.
-      compression: type of compression used. [off|bz2]
-      sources.js: JS internal sources or macros.py.""")
+  parser.add_option("--js",
+                    help="writes a JS file output instead of a C file",
+                    action="store_true", default=False, dest='js')
+  parser.add_option("--nojs", action="store_false", default=False, dest='js')
+  parser.set_usage("""js2c out.cc type sources.js ...
+        out.cc: C code to be generated.
+        type: type parameter for NativesCollection template.
+        sources.js: JS internal sources or macros.py.""")
   (options, args) = parser.parse_args()
-
-  JS2C(args[3:], args[0], args[1], args[2], options.raw, options.startup_blob)
+  JS2C(args[2:],
+       args[0],
+       args[1],
+       options.raw,
+       options.startup_blob,
+       options.js)
 
 
 if __name__ == "__main__":

@@ -185,6 +185,7 @@ static void loop_creating_worker(void* context) {
     ASSERT(r == 0);
 
     uv_loop_close(loop);
+    free(loop);
 
     increment_counter(&loop_creation_counter);
   } while (!stop);
@@ -192,6 +193,13 @@ static void loop_creating_worker(void* context) {
 
 
 TEST_IMPL(signal_multiple_loops) {
+#if defined(__CYGWIN__) || defined(__MSYS__)
+  /* FIXME: This test needs more investigation.  Somehow the `read` in
+     uv__signal_lock fails spuriously with EACCES or even EAGAIN even
+     though it is supposed to be blocking.  Also the test hangs during
+     thread setup occasionally.  */
+  RETURN_SKIP("FIXME: This test needs more investigation on Cygwin");
+#endif
   uv_thread_t loop_creating_threads[NUM_LOOP_CREATING_THREADS];
   uv_thread_t signal_handling_threads[NUM_SIGNAL_HANDLING_THREADS];
   enum signal_action action;

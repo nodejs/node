@@ -1,6 +1,7 @@
-/* crypto/o_str.h -*- mode:C; c-file-style: "eay" -*- */
-/* Written by Richard Levitte (richard@levitte.org) for the OpenSSL
- * project 2003.
+/* crypto/o_str.h */
+/*
+ * Written by Richard Levitte (richard@levitte.org) for the OpenSSL project
+ * 2003.
  */
 /* ====================================================================
  * Copyright (c) 2003 The OpenSSL Project.  All rights reserved.
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -57,12 +58,12 @@
  */
 
 #ifndef HEADER_O_STR_H
-#define HEADER_O_STR_H
+# define HEADER_O_STR_H
 
-#include <stddef.h>		/* to get size_t */
+# include <stddef.h>            /* to get size_t */
 
 int OPENSSL_strcasecmp(const char *str1, const char *str2);
 int OPENSSL_strncasecmp(const char *str1, const char *str2, size_t n);
-int OPENSSL_memcmp(const void *p1,const void *p2,size_t n);
+int OPENSSL_memcmp(const void *p1, const void *p2, size_t n);
 
 #endif

@@ -5,10 +5,12 @@
 #ifndef V8_V8_DEBUG_H_
 #define V8_V8_DEBUG_H_
 
-#include "v8.h"
+#include "v8.h"  // NOLINT(build/include)
 
 /**
- * Debugger support for the V8 JavaScript engine.
+ * ATTENTION: The debugger API exposed by this file is deprecated and will be
+ *            removed by the end of 2017. Please use the V8 inspector declared
+ *            in include/v8-inspector.h instead.
  */
 namespace v8 {
 
@@ -16,15 +18,10 @@ namespace v8 {
 enum DebugEvent {
   Break = 1,
   Exception = 2,
-  NewFunction = 3,
-  BeforeCompile = 4,
-  AfterCompile  = 5,
-  CompileError = 6,
-  PromiseEvent = 7,
-  AsyncTaskEvent = 8,
-  BreakForCommand = 9
+  AfterCompile = 3,
+  CompileError = 4,
+  AsyncTaskEvent = 5,
 };
-
 
 class V8_EXPORT Debug {
  public:
@@ -61,20 +58,20 @@ class V8_EXPORT Debug {
      * callbacks as their content becomes invalid. These objects are from the
      * debugger event that started the debug message loop.
      */
-    virtual Handle<Object> GetExecutionState() const = 0;
-    virtual Handle<Object> GetEventData() const = 0;
+    virtual Local<Object> GetExecutionState() const = 0;
+    virtual Local<Object> GetEventData() const = 0;
 
     /**
      * Get the debugger protocol JSON.
      */
-    virtual Handle<String> GetJSON() const = 0;
+    virtual Local<String> GetJSON() const = 0;
 
     /**
      * Get the context active when the debug event happened. Note this is not
      * the current active context as the JavaScript part of the debugger is
      * running in its own context which is entered at this point.
      */
-    virtual Handle<Context> GetEventContext() const = 0;
+    virtual Local<Context> GetEventContext() const = 0;
 
     /**
      * Client data passed with the corresponding request if any. This is the
@@ -90,7 +87,6 @@ class V8_EXPORT Debug {
     virtual ~Message() {}
   };
 
-
   /**
    * An event details object passed to the debug event listener.
    */
@@ -105,28 +101,28 @@ class V8_EXPORT Debug {
      * Access to execution state and event data of the debug event. Don't store
      * these cross callbacks as their content becomes invalid.
      */
-    virtual Handle<Object> GetExecutionState() const = 0;
-    virtual Handle<Object> GetEventData() const = 0;
+    virtual Local<Object> GetExecutionState() const = 0;
+    virtual Local<Object> GetEventData() const = 0;
 
     /**
      * Get the context active when the debug event happened. Note this is not
      * the current active context as the JavaScript part of the debugger is
      * running in its own context which is entered at this point.
      */
-    virtual Handle<Context> GetEventContext() const = 0;
+    virtual Local<Context> GetEventContext() const = 0;
 
     /**
      * Client data passed with the corresponding callback when it was
      * registered.
      */
-    virtual Handle<Value> GetCallbackData() const = 0;
+    virtual Local<Value> GetCallbackData() const = 0;
 
     /**
-     * Client data passed to DebugBreakForCommand function. The
-     * debugger takes ownership of the data and will delete it even if
-     * there is no message handler.
+     * This is now a dummy that returns nullptr.
      */
     virtual ClientData* GetClientData() const = 0;
+
+    virtual Isolate* GetIsolate() const = 0;
 
     virtual ~EventDetails() {}
   };
@@ -136,128 +132,117 @@ class V8_EXPORT Debug {
    *
    * \param event_details object providing information about the debug event
    *
-   * A EventCallback2 does not take possession of the event data,
+   * A EventCallback does not take possession of the event data,
    * and must not rely on the data persisting after the handler returns.
    */
   typedef void (*EventCallback)(const EventDetails& event_details);
 
   /**
-   * Debug message callback function.
-   *
-   * \param message the debug message handler message object
-   *
-   * A MessageHandler2 does not take possession of the message data,
-   * and must not rely on the data persisting after the handler returns.
+   * This is now a no-op.
    */
   typedef void (*MessageHandler)(const Message& message);
 
-  /**
-   * Callback function for the host to ensure debug messages are processed.
-   */
-  typedef void (*DebugMessageDispatchHandler)();
-
-  static bool SetDebugEventListener(EventCallback that,
-                                    Handle<Value> data = Handle<Value>());
+  V8_DEPRECATED("No longer supported", static bool SetDebugEventListener(
+                                           Isolate* isolate, EventCallback that,
+                                           Local<Value> data = Local<Value>()));
 
   // Schedule a debugger break to happen when JavaScript code is run
   // in the given isolate.
-  static void DebugBreak(Isolate* isolate);
+  V8_DEPRECATED("No longer supported",
+                static void DebugBreak(Isolate* isolate));
 
   // Remove scheduled debugger break in given isolate if it has not
   // happened yet.
-  static void CancelDebugBreak(Isolate* isolate);
+  V8_DEPRECATED("No longer supported",
+                static void CancelDebugBreak(Isolate* isolate));
 
   // Check if a debugger break is scheduled in the given isolate.
-  static bool CheckDebugBreak(Isolate* isolate);
+  V8_DEPRECATED("No longer supported",
+                static bool CheckDebugBreak(Isolate* isolate));
 
-  // Break execution of JavaScript in the given isolate (this method
-  // can be invoked from a non-VM thread) for further client command
-  // execution on a VM thread. Client data is then passed in
-  // EventDetails to EventCallback2 at the moment when the VM actually
-  // stops.
-  static void DebugBreakForCommand(Isolate* isolate, ClientData* data);
+  // This is now a no-op.
+  V8_DEPRECATED("No longer supported",
+                static void SetMessageHandler(Isolate* isolate,
+                                              MessageHandler handler));
 
-  // Message based interface. The message protocol is JSON.
-  static void SetMessageHandler(MessageHandler handler);
-
-  static void SendCommand(Isolate* isolate,
-                          const uint16_t* command, int length,
-                          ClientData* client_data = NULL);
-
- /**
-  * Run a JavaScript function in the debugger.
-  * \param fun the function to call
-  * \param data passed as second argument to the function
-  * With this call the debugger is entered and the function specified is called
-  * with the execution state as the first argument. This makes it possible to
-  * get access to information otherwise not available during normal JavaScript
-  * execution e.g. details on stack frames. Receiver of the function call will
-  * be the debugger context global object, however this is a subject to change.
-  * The following example shows a JavaScript function which when passed to
-  * v8::Debug::Call will return the current line of JavaScript execution.
-  *
-  * \code
-  *   function frame_source_line(exec_state) {
-  *     return exec_state.frame(0).sourceLine();
-  *   }
-  * \endcode
-  */
-  static Local<Value> Call(v8::Handle<v8::Function> fun,
-                           Handle<Value> data = Handle<Value>());
+  // This is now a no-op.
+  V8_DEPRECATED("No longer supported",
+                static void SendCommand(Isolate* isolate,
+                                        const uint16_t* command, int length,
+                                        ClientData* client_data = NULL));
 
   /**
-   * Returns a mirror object for the given object.
+   * Run a JavaScript function in the debugger.
+   * \param fun the function to call
+   * \param data passed as second argument to the function
+   * With this call the debugger is entered and the function specified is called
+   * with the execution state as the first argument. This makes it possible to
+   * get access to information otherwise not available during normal JavaScript
+   * execution e.g. details on stack frames. Receiver of the function call will
+   * be the debugger context global object, however this is a subject to change.
+   * The following example shows a JavaScript function which when passed to
+   * v8::Debug::Call will return the current line of JavaScript execution.
+   *
+   * \code
+   *   function frame_source_line(exec_state) {
+   *     return exec_state.frame(0).sourceLine();
+   *   }
+   * \endcode
    */
-  static Local<Value> GetMirror(v8::Handle<v8::Value> obj);
+  V8_DEPRECATED("No longer supported",
+                static MaybeLocal<Value> Call(
+                    Local<Context> context, v8::Local<v8::Function> fun,
+                    Local<Value> data = Local<Value>()));
 
-  /**
-   * Makes V8 process all pending debug messages.
-   *
-   * From V8 point of view all debug messages come asynchronously (e.g. from
-   * remote debugger) but they all must be handled synchronously: V8 cannot
-   * do 2 things at one time so normal script execution must be interrupted
-   * for a while.
-   *
-   * Generally when message arrives V8 may be in one of 3 states:
-   * 1. V8 is running script; V8 will automatically interrupt and process all
-   * pending messages;
-   * 2. V8 is suspended on debug breakpoint; in this state V8 is dedicated
-   * to reading and processing debug messages;
-   * 3. V8 is not running at all or has called some long-working C++ function;
-   * by default it means that processing of all debug messages will be deferred
-   * until V8 gets control again; however, embedding application may improve
-   * this by manually calling this method.
-   *
-   * Technically this method in many senses is equivalent to executing empty
-   * script:
-   * 1. It does nothing except for processing all pending debug messages.
-   * 2. It should be invoked with the same precautions and from the same context
-   * as V8 script would be invoked from, because:
-   *   a. with "evaluate" command it can do whatever normal script can do,
-   *   including all native calls;
-   *   b. no other thread should call V8 while this method is running
-   *   (v8::Locker may be used here).
-   *
-   * "Evaluate" debug command behavior currently is not specified in scope
-   * of this method.
-   */
-  static void ProcessDebugMessages();
+  // This is now a no-op.
+  V8_DEPRECATED("No longer supported",
+                static void ProcessDebugMessages(Isolate* isolate));
 
   /**
    * Debugger is running in its own context which is entered while debugger
    * messages are being dispatched. This is an explicit getter for this
    * debugger context. Note that the content of the debugger context is subject
-   * to change.
+   * to change. The Context exists only when the debugger is active, i.e. at
+   * least one DebugEventListener or MessageHandler is set.
    */
-  static Local<Context> GetDebugContext();
+  V8_DEPRECATED("Use v8-inspector",
+                static Local<Context> GetDebugContext(Isolate* isolate));
 
+  /**
+   * While in the debug context, this method returns the top-most non-debug
+   * context, if it exists.
+   */
+  V8_DEPRECATED(
+      "No longer supported",
+      static MaybeLocal<Context> GetDebuggedContext(Isolate* isolate));
 
   /**
    * Enable/disable LiveEdit functionality for the given Isolate
    * (default Isolate if not provided). V8 will abort if LiveEdit is
    * unexpectedly used. LiveEdit is enabled by default.
    */
-  static void SetLiveEditEnabled(Isolate* isolate, bool enable);
+  V8_DEPRECATED("No longer supported",
+                static void SetLiveEditEnabled(Isolate* isolate, bool enable));
+
+  /**
+   * Returns array of internal properties specific to the value type. Result has
+   * the following format: [<name>, <value>,...,<name>, <value>]. Result array
+   * will be allocated in the current context.
+   */
+  V8_DEPRECATED("No longer supported",
+                static MaybeLocal<Array> GetInternalProperties(
+                    Isolate* isolate, Local<Value> value));
+
+  /**
+   * Defines if the ES2015 tail call elimination feature is enabled or not.
+   * The change of this flag triggers deoptimization of all functions that
+   * contain calls at tail position.
+   */
+  V8_DEPRECATED("No longer supported",
+                static bool IsTailCallEliminationEnabled(Isolate* isolate));
+  V8_DEPRECATED("No longer supported",
+                static void SetTailCallEliminationEnabled(Isolate* isolate,
+                                                          bool enabled));
 };
 
 

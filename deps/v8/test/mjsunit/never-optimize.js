@@ -25,39 +25,35 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt --no-always-opt
 
 function o1() {
 }
 
-if (%GetOptimizationStatus(o1) != 4) {
-  // 4 == optimization disabled.
-  o1(); o1();
-  %OptimizeFunctionOnNextCall(o1);
-  o1();
+o1(); o1();
+%OptimizeFunctionOnNextCall(o1);
+o1();
 
-  // Check that the given function was optimized.
-  assertOptimized(o1);
+// Check that the given function was optimized.
+assertOptimized(o1);
 
-  // Test the %NeverOptimizeFunction runtime call.
-  %NeverOptimizeFunction(u1);
-  function u1() {
-  }
-
-  function u2() {
-    u1();
-  }
-
-  u1(); u1();
-  u2(); u2();
-
-  %OptimizeFunctionOnNextCall(u1);
-  %OptimizeFunctionOnNextCall(u2);
-
-  u1(); u1();
-  u2(); u2();
-
-  // 2 => not optimized.
-  assertUnoptimized(u1);
-  assertOptimized(u2);
+// Test the %NeverOptimizeFunction runtime call.
+%NeverOptimizeFunction(u1);
+function u1() {
 }
+
+function u2() {
+  u1();
+}
+
+u1(); u1();
+u2(); u2();
+
+%OptimizeFunctionOnNextCall(u1);
+%OptimizeFunctionOnNextCall(u2);
+
+u1(); u1();
+u2(); u2();
+
+assertUnoptimized(u1);
+assertOptimized(u2);

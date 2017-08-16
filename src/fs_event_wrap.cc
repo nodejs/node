@@ -27,6 +27,7 @@
 #include "util-inl.h"
 #include "node.h"
 #include "handle_wrap.h"
+#include "string_bytes.h"
 
 #include <stdlib.h>
 
@@ -35,42 +36,47 @@ namespace node {
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Value;
 
+namespace {
+
 class FSEventWrap: public HandleWrap {
  public:
-  static void Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context);
+  static void Initialize(Local<Object> target,
+                         Local<Value> unused,
+                         Local<Context> context);
   static void New(const FunctionCallbackInfo<Value>& args);
   static void Start(const FunctionCallbackInfo<Value>& args);
   static void Close(const FunctionCallbackInfo<Value>& args);
 
+  size_t self_size() const override { return sizeof(*this); }
+
  private:
-  FSEventWrap(Environment* env, Handle<Object> object);
-  virtual ~FSEventWrap() override;
+  static const encoding kDefaultEncoding = UTF8;
+
+  FSEventWrap(Environment* env, Local<Object> object);
+  ~FSEventWrap() override;
 
   static void OnEvent(uv_fs_event_t* handle, const char* filename, int events,
     int status);
 
   uv_fs_event_t handle_;
-  bool initialized_;
+  bool initialized_ = false;
+  enum encoding encoding_ = kDefaultEncoding;
 };
 
 
-FSEventWrap::FSEventWrap(Environment* env, Handle<Object> object)
+FSEventWrap::FSEventWrap(Environment* env, Local<Object> object)
     : HandleWrap(env,
                  object,
                  reinterpret_cast<uv_handle_t*>(&handle_),
-                 AsyncWrap::PROVIDER_FSEVENTWRAP) {
-  initialized_ = false;
-}
+                 AsyncWrap::PROVIDER_FSEVENTWRAP) {}
 
 
 FSEventWrap::~FSEventWrap() {
@@ -78,19 +84,21 @@ FSEventWrap::~FSEventWrap() {
 }
 
 
-void FSEventWrap::Initialize(Handle<Object> target,
-                             Handle<Value> unused,
-                             Handle<Context> context) {
+void FSEventWrap::Initialize(Local<Object> target,
+                             Local<Value> unused,
+                             Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
+  auto fsevent_string = FIXED_ONE_BYTE_STRING(env->isolate(), "FSEvent");
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(env->fsevent_string());
+  t->SetClassName(fsevent_string);
 
+  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
   env->SetProtoMethod(t, "start", Start);
   env->SetProtoMethod(t, "close", Close);
 
-  target->Set(env->fsevent_string(), t->GetFunction());
+  target->Set(fsevent_string, t->GetFunction());
 }
 
 
@@ -104,17 +112,23 @@ void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
 void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
+  FSEventWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  CHECK_EQ(wrap->initialized_, false);
 
-  if (args.Length() < 1 || !args[0]->IsString()) {
-    return env->ThrowTypeError("Bad arguments");
-  }
+  static const char kErrMsg[] = "filename must be a string or Buffer";
+  if (args.Length() < 1)
+    return env->ThrowTypeError(kErrMsg);
 
-  node::Utf8Value path(args[0]);
+  BufferValue path(env->isolate(), args[0]);
+  if (*path == nullptr)
+    return env->ThrowTypeError(kErrMsg);
 
   unsigned int flags = 0;
   if (args[2]->IsTrue())
     flags |= UV_FS_EVENT_RECURSIVE;
+
+  wrap->encoding_ = ParseEncoding(env->isolate(), args[3], kDefaultEncoding);
 
   int err = uv_fs_event_init(wrap->env()->event_loop(), &wrap->handle_);
   if (err == 0) {
@@ -166,7 +180,6 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
     event_string = env->change_string();
   } else {
     CHECK(0 && "bad fs events flag");
-    abort();
   }
 
   Local<Value> argv[] = {
@@ -176,15 +189,30 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   };
 
   if (filename != nullptr) {
-    argv[2] = OneByteString(env->isolate(), filename);
+    Local<Value> error;
+    MaybeLocal<Value> fn = StringBytes::Encode(env->isolate(),
+                                               filename,
+                                               wrap->encoding_,
+                                               &error);
+    if (fn.IsEmpty()) {
+      argv[0] = Integer::New(env->isolate(), UV_EINVAL);
+      argv[2] = StringBytes::Encode(env->isolate(),
+                                    filename,
+                                    strlen(filename),
+                                    BUFFER,
+                                    &error).ToLocalChecked();
+    } else {
+      argv[2] = fn.ToLocalChecked();
+    }
   }
 
-  wrap->MakeCallback(env->onchange_string(), ARRAY_SIZE(argv), argv);
+  wrap->MakeCallback(env->onchange_string(), arraysize(argv), argv);
 }
 
 
 void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
-  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
+  FSEventWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   if (wrap == nullptr || wrap->initialized_ == false)
     return;
@@ -193,6 +221,7 @@ void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleWrap::Close(args);
 }
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(fs_event_wrap, node::FSEventWrap::Initialize)

@@ -58,7 +58,7 @@ exports.unlock = function (path, cb) {
   debug('unlock', path)
   // best-effort.  unlocking an already-unlocked lock is a noop
   delete locks[path]
-  fs.unlink(path, function (unlinkEr) { cb() })
+  fs.unlink(path, function (unlinkEr) { cb && cb() })
 }
 
 exports.unlockSync = function (path) {

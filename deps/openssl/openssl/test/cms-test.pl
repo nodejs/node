@@ -58,19 +58,32 @@ my $redir = " 2> cms.err > cms.out";
 # Make VMS work
 if ( $^O eq "VMS" && -f "OSSLX:openssl.exe" ) {
     $ossl_path = "pipe mcr OSSLX:openssl";
+    $null_path = "NL:";
+    # On VMS, the lowest 3 bits of the exit code indicates severity
+    # 1 is success (perl translates it to 0 for $?), 2 is error
+    # (perl doesn't translate it)
+    $failure_code = 512;	# 2 << 8 = 512
 }
 # Make MSYS work
 elsif ( $^O eq "MSWin32" && -f "../apps/openssl.exe" ) {
     $ossl_path = "cmd /c ..\\apps\\openssl";
+    $null_path = "NUL";
+    $failure_code = 256;
 }
 elsif ( -f "../apps/openssl$ENV{EXE_EXT}" ) {
     $ossl_path = "../util/shlib_wrap.sh ../apps/openssl";
+    $null_path = "/dev/null";
+    $failure_code = 256;
 }
 elsif ( -f "..\\out32dll\\openssl.exe" ) {
     $ossl_path = "..\\out32dll\\openssl.exe";
+    $null_path = "NUL";
+    $failure_code = 256;
 }
 elsif ( -f "..\\out32\\openssl.exe" ) {
     $ossl_path = "..\\out32\\openssl.exe";
+    $null_path = "NUL";
+    $failure_code = 256;
 }
 else {
     die "Can't find OpenSSL executable";
@@ -82,8 +95,53 @@ my $smdir    = "smime-certs";
 my $halt_err = 1;
 
 my $badcmd = 0;
+my $no_ec;
+my $no_ec2m;
+my $no_ecdh;
 my $ossl8 = `$ossl_path version -v` =~ /0\.9\.8/;
 
+system ("$ossl_path no-ec > $null_path");
+if ($? == 0)
+	{
+	$no_ec = 1;
+	}
+elsif ($? == $failure_code)
+	{
+	$no_ec = 0;
+	}
+else
+	{
+	die "Error checking for EC support\n";
+	}
+    
+system ("$ossl_path no-ec2m > $null_path");
+if ($? == 0)
+	{
+	$no_ec2m = 1;
+	}
+elsif ($? == $failure_code)
+	{
+	$no_ec2m = 0;
+	}
+else
+	{
+	die "Error checking for EC2M support\n";
+	}
+
+system ("$ossl_path no-ec > $null_path");
+if ($? == 0)
+	{
+	$no_ecdh = 1;
+	}
+elsif ($? == $failure_code)
+	{
+	$no_ecdh = 0;
+	}
+else
+	{
+	die "Error checking for ECDH support\n";
+	}
+    
 my @smime_pkcs7_tests = (
 
     [
@@ -341,6 +399,93 @@ my @smime_cms_comp_tests = (
 
 );
 
+my @smime_cms_param_tests = (
+    [
+        "signed content test streaming PEM format, RSA keys, PSS signature",
+        "-sign -in smcont.txt -outform PEM -nodetach"
+          . " -signer $smdir/smrsa1.pem -keyopt rsa_padding_mode:pss"
+	  . " -out test.cms",
+        "-verify -in test.cms -inform PEM "
+          . " \"-CAfile\" $smdir/smroot.pem -out smtst.txt"
+    ],
+
+    [
+        "signed content test streaming PEM format, RSA keys, PSS signature, no attributes",
+        "-sign -in smcont.txt -outform PEM -nodetach -noattr"
+          . " -signer $smdir/smrsa1.pem -keyopt rsa_padding_mode:pss"
+	  . " -out test.cms",
+        "-verify -in test.cms -inform PEM "
+          . " \"-CAfile\" $smdir/smroot.pem -out smtst.txt"
+    ],
+
+    [
+        "signed content test streaming PEM format, RSA keys, PSS signature, SHA384 MGF1",
+        "-sign -in smcont.txt -outform PEM -nodetach"
+          . " -signer $smdir/smrsa1.pem -keyopt rsa_padding_mode:pss"
+	  . " -keyopt rsa_mgf1_md:sha384 -out test.cms",
+        "-verify -in test.cms -inform PEM "
+          . " \"-CAfile\" $smdir/smroot.pem -out smtst.txt"
+    ],
+
+    [
+"enveloped content test streaming S/MIME format, OAEP default parameters",
+        "-encrypt -in smcont.txt"
+          . " -stream -out test.cms"
+          . " -recip $smdir/smrsa1.pem -keyopt rsa_padding_mode:oaep",
+        "-decrypt -recip $smdir/smrsa1.pem -in test.cms -out smtst.txt"
+    ],
+
+    [
+"enveloped content test streaming S/MIME format, OAEP SHA256",
+        "-encrypt -in smcont.txt"
+          . " -stream -out test.cms"
+          . " -recip $smdir/smrsa1.pem -keyopt rsa_padding_mode:oaep"
+	  . " -keyopt rsa_oaep_md:sha256",
+        "-decrypt -recip $smdir/smrsa1.pem -in test.cms -out smtst.txt"
+    ],
+
+    [
+"enveloped content test streaming S/MIME format, ECDH",
+        "-encrypt -in smcont.txt"
+          . " -stream -out test.cms"
+          . " -recip $smdir/smec1.pem",
+        "-decrypt -recip $smdir/smec1.pem -in test.cms -out smtst.txt"
+    ],
+
+    [
+"enveloped content test streaming S/MIME format, ECDH, key identifier",
+        "-encrypt -keyid -in smcont.txt"
+          . " -stream -out test.cms"
+          . " -recip $smdir/smec1.pem",
+        "-decrypt -recip $smdir/smec1.pem -in test.cms -out smtst.txt"
+    ],
+
+    [
+"enveloped content test streaming S/MIME format, ECDH, AES128, SHA256 KDF",
+        "-encrypt -in smcont.txt"
+          . " -stream -out test.cms"
+          . " -recip $smdir/smec1.pem -aes128 -keyopt ecdh_kdf_md:sha256",
+        "-decrypt -recip $smdir/smec1.pem -in test.cms -out smtst.txt"
+    ],
+
+    [
+"enveloped content test streaming S/MIME format, ECDH, K-283, cofactor DH",
+        "-encrypt -in smcont.txt"
+          . " -stream -out test.cms"
+          . " -recip $smdir/smec2.pem -aes128"
+	  . " -keyopt ecdh_kdf_md:sha256 -keyopt ecdh_cofactor_mode:1",
+        "-decrypt -recip $smdir/smec2.pem -in test.cms -out smtst.txt"
+    ],
+
+    [
+"enveloped content test streaming S/MIME format, X9.42 DH",
+        "-encrypt -in smcont.txt"
+          . " -stream -out test.cms"
+          . " -recip $smdir/smdh.pem -aes128",
+        "-decrypt -recip $smdir/smdh.pem -in test.cms -out smtst.txt"
+    ]
+);
+
 print "CMS => PKCS#7 compatibility tests\n";
 
 run_smime_tests( \$badcmd, \@smime_pkcs7_tests, $cmscmd, $pk7cmd );
@@ -353,6 +498,9 @@ print "CMS <=> CMS consistency tests\n";
 
 run_smime_tests( \$badcmd, \@smime_pkcs7_tests, $cmscmd, $cmscmd );
 run_smime_tests( \$badcmd, \@smime_cms_tests,   $cmscmd, $cmscmd );
+
+print "CMS <=> CMS consistency tests, modified key parameters\n";
+run_smime_tests( \$badcmd, \@smime_cms_param_tests,   $cmscmd, $cmscmd );
 
 if ( `$ossl_path version -f` =~ /ZLIB/ ) {
     run_smime_tests( \$badcmd, \@smime_cms_comp_tests, $cmscmd, $cmscmd );
@@ -389,6 +537,21 @@ sub run_smime_tests {
 		$tnam =~ s/streaming//;	
 		$rscmd =~ s/-stream//;	
 		$rvcmd =~ s/-stream//;
+		}
+	if ($no_ec && $tnam =~ /ECDH/)
+		{
+		print "$tnam: skipped, EC disabled\n";
+		next;
+		}
+	if ($no_ecdh && $tnam =~ /ECDH/)
+		{
+		print "$tnam: skipped, ECDH disabled\n";
+		next;
+		}
+	if ($no_ec2m && $tnam =~ /K-283/)
+		{
+		print "$tnam: skipped, EC2M disabled\n";
+		next;
 		}
         system("$scmd$rscmd$redir");
         if ($?) {

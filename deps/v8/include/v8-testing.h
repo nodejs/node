@@ -5,7 +5,7 @@
 #ifndef V8_V8_TEST_H_
 #define V8_V8_TEST_H_
 
-#include "v8.h"
+#include "v8.h"  // NOLINT(build/include)
 
 /**
  * Testing support for the V8 JavaScript engine.
@@ -39,7 +39,7 @@ class V8_EXPORT Testing {
   /**
    * Force deoptimization of all functions.
    */
-  static void DeoptimizeAll();
+  static void DeoptimizeAll(Isolate* isolate);
 };
 
 

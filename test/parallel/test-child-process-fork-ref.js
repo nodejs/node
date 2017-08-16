@@ -19,9 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var fork = require('child_process').fork;
+'use strict';
+require('../common');
+const assert = require('assert');
+const fork = require('child_process').fork;
 
 if (process.argv[2] === 'child') {
   process.send('1');
@@ -31,27 +32,28 @@ if (process.argv[2] === 'child') {
     process.send('2');
   }, 200);
 
-  process.on('disconnect', function () {
+  process.on('disconnect', function() {
     process.stdout.write('3');
   });
 
 } else {
-  var child = fork(__filename, ['child'], {silent: true});
+  const child = fork(__filename, ['child'], { silent: true });
 
-  var ipc = [], stdout = '';
+  const ipc = [];
+  let stdout = '';
 
-  child.on('message', function (msg) {
+  child.on('message', function(msg) {
     ipc.push(msg);
 
     if (msg === '2') child.disconnect();
   });
 
-  child.stdout.on('data', function (chunk) {
+  child.stdout.on('data', function(chunk) {
     stdout += chunk;
   });
 
-  child.once('exit', function () {
-    assert.deepEqual(ipc, ['1', '2']);
-    assert.equal(stdout, '3');
+  child.once('exit', function() {
+    assert.deepStrictEqual(ipc, ['1', '2']);
+    assert.strictEqual(stdout, '3');
   });
 }

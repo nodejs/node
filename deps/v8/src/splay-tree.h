@@ -198,6 +198,7 @@ class SplayTree {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_SPLAY_TREE_H_

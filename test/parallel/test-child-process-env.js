@@ -19,37 +19,37 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 
-var isWindows = process.platform === 'win32';
-
-var env = {
+const env = {
   'HELLO': 'WORLD'
 };
-env.__proto__ = {
+Object.setPrototypeOf(env, {
   'FOO': 'BAR'
-};
+});
 
-if (isWindows) {
-  var child = spawn('cmd.exe', ['/c', 'set'], {env: env});
+let child;
+if (common.isWindows) {
+  child = spawn('cmd.exe', ['/c', 'set'], { env: env });
 } else {
-  var child = spawn('/usr/bin/env', [], {env: env});
+  child = spawn('/usr/bin/env', [], { env: env });
 }
 
 
-var response = '';
+let response = '';
 
 child.stdout.setEncoding('utf8');
 
 child.stdout.on('data', function(chunk) {
-  console.log('stdout: ' + chunk);
+  console.log(`stdout: ${chunk}`);
   response += chunk;
 });
 
 process.on('exit', function() {
-  assert.ok(response.indexOf('HELLO=WORLD') >= 0);
-  assert.ok(response.indexOf('FOO=BAR') >= 0);
+  assert.ok(response.includes('HELLO=WORLD'));
+  assert.ok(response.includes('FOO=BAR'));
 });

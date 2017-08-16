@@ -1,0 +1,73 @@
+{
+  "_from": "lodash._baseuniq@~4.6.0",
+  "_id": "lodash._baseuniq@4.6.0",
+  "_integrity": "sha1-DrtE5FaBSveQXGIS+iybLVG4Qeg=",
+  "_location": "/lodash._baseuniq",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "lodash._baseuniq@~4.6.0",
+    "name": "lodash._baseuniq",
+    "escapedName": "lodash._baseuniq",
+    "rawSpec": "~4.6.0",
+    "saveSpec": null,
+    "fetchSpec": "~4.6.0"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/lodash._baseuniq/-/lodash._baseuniq-4.6.0.tgz",
+  "_shasum": "0ebb44e456814af7905c6212fa2c9b2d51b841e8",
+  "_shrinkwrap": null,
+  "_spec": "lodash._baseuniq@~4.6.0",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "John-David Dalton",
+    "email": "john.david.dalton@gmail.com",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "John-David Dalton",
+      "email": "john.david.dalton@gmail.com",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "name": "Blaine Bublitz",
+      "email": "blaine.bublitz@gmail.com",
+      "url": "https://github.com/phated"
+    },
+    {
+      "name": "Mathias Bynens",
+      "email": "mathias@qiwi.be",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "dependencies": {
+    "lodash._createset": "~4.0.0",
+    "lodash._root": "~3.0.0"
+  },
+  "deprecated": false,
+  "description": "The internal lodash function `baseUniq` exported as a module.",
+  "devDependencies": {},
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "license": "MIT",
+  "name": "lodash._baseuniq",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "4.6.0"
+}

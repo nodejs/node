@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+  <title>npm-orgs</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <link rel="canonical" href="https://www.npmjs.org/doc/misc/npm-orgs.html">
+  <script async=true src="../../static/toc.js"></script>
+
+  <body>
+    <div id="wrapper">
+
+<h1><a href="../misc/npm-orgs.html">npm-orgs</a></h1> <p>Working with Teams &amp; Orgs</p>
+<h2 id="description">DESCRIPTION</h2>
+<p>There are three levels of org users:</p>
+<ol>
+<li>Super admin, controls billing &amp; adding people to the org.</li>
+<li>Team admin, manages team membership &amp; package access.</li>
+<li>Developer, works on packages they are given access to.  </li>
+</ol>
+<p>The super admin is the only person who can add users to the org because it impacts the monthly bill. The super admin will use the website to manage membership. Every org has a <code>developers</code> team that all users are automatically added to.</p>
+<p>The team admin is the person who manages team creation, team membership, and package access for teams. The team admin grants package access to teams, not individuals.</p>
+<p>The developer will be able to access packages based on the teams they are on. Access is either read-write or read-only.</p>
+<p>There are two main commands:</p>
+<ol>
+<li><code>npm team</code> see <a href="../cli/npm-team.html">npm-team(1)</a> for more details</li>
+<li><code>npm access</code> see <a href="../cli/npm-access.html">npm-access(1)</a> for more details</li>
+</ol>
+<h2 id="team-admins-create-teams">Team Admins create teams</h2>
+<ul>
+<li>Check who you’ve added to your org:</li>
+</ul>
+<pre><code>npm team ls &lt;org&gt;:developers
+</code></pre><ul>
+<li><p>Each org is automatically given a <code>developers</code> team, so you can see the whole list of team members in your org. This team automatically gets read-write access to all packages, but you can change that with the <code>access</code> command.</p>
+</li>
+<li><p>Create a new team:</p>
+</li>
+</ul>
+<pre><code>npm team create &lt;org:team&gt;
+</code></pre><ul>
+<li>Add members to that team:</li>
+</ul>
+<pre><code>npm team add &lt;org:team&gt; &lt;user&gt;
+</code></pre><h2 id="publish-a-package-and-adjust-package-access">Publish a package and adjust package access</h2>
+<ul>
+<li>In package directory, run</li>
+</ul>
+<pre><code>npm init --scope=&lt;org&gt;
+</code></pre><p>to scope it for your org &amp; publish as usual</p>
+<ul>
+<li>Grant access:  </li>
+</ul>
+<pre><code>npm access grant &lt;read-only|read-write&gt; &lt;org:team&gt; [&lt;package&gt;]
+</code></pre><ul>
+<li>Revoke access:</li>
+</ul>
+<pre><code>npm access revoke &lt;org:team&gt; [&lt;package&gt;]
+</code></pre><h2 id="monitor-your-package-access">Monitor your package access</h2>
+<ul>
+<li>See what org packages a team member can access:</li>
+</ul>
+<pre><code>npm access ls-packages &lt;org&gt; &lt;user&gt;
+</code></pre><ul>
+<li>See packages available to a specific team:</li>
+</ul>
+<pre><code>npm access ls-packages &lt;org:team&gt;
+</code></pre><ul>
+<li>Check which teams are collaborating on a package:</li>
+</ul>
+<pre><code>npm access ls-collaborators &lt;pkg&gt;
+</code></pre><h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../cli/npm-team.html">npm-team(1)</a></li>
+<li><a href="../cli/npm-access.html">npm-access(1)</a></li>
+<li><a href="../misc/npm-scope.html">npm-scope(7)</a></li>
+</ul>
+
+</div>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-orgs &mdash; npm@5.3.0</p>
+

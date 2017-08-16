@@ -19,12 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
-var common = require('../common');
-var assert = require('assert');
-var util = require('util');
+'use strict';
+require('../common');
 
 console.log([
   '_______________________________________________50',
@@ -70,4 +66,3 @@ console.log([
   '_____________________________________________2050',
   '_____________________________________________2100'
 ].join('\n'));
-

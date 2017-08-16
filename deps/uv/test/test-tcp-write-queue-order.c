@@ -46,13 +46,13 @@ static void close_cb(uv_handle_t* handle) {
   close_cb_called++;
 }
 
-void timer_cb(uv_timer_t* handle) {
+static void timer_cb(uv_timer_t* handle) {
   uv_close((uv_handle_t*) &client, close_cb);
   uv_close((uv_handle_t*) &server, close_cb);
   uv_close((uv_handle_t*) &incoming, close_cb);
 }
 
-void write_cb(uv_write_t* req, int status) {
+static void write_cb(uv_write_t* req, int status) {
   if (status == 0)
     write_callbacks++;
   else if (status == UV_ECANCELED)
@@ -89,6 +89,9 @@ static void connection_cb(uv_stream_t* tcp, int status) {
   ASSERT(0 == uv_tcp_init(tcp->loop, &incoming));
   ASSERT(0 == uv_accept(tcp, (uv_stream_t*) &incoming));
 
+  ASSERT(0 == uv_timer_init(uv_default_loop(), &timer));
+  ASSERT(0 == uv_timer_start(&timer, timer_cb, 1, 0));
+
   connection_cb_called++;
 }
 
@@ -107,6 +110,7 @@ static void start_server(void) {
 TEST_IMPL(tcp_write_queue_order) {
   uv_connect_t connect_req;
   struct sockaddr_in addr;
+  int buffer_size = 16 * 1024;
 
   start_server();
 
@@ -117,9 +121,7 @@ TEST_IMPL(tcp_write_queue_order) {
                              &client,
                              (struct sockaddr*) &addr,
                              connect_cb));
-
-  ASSERT(0 == uv_timer_init(uv_default_loop(), &timer));
-  ASSERT(0 == uv_timer_start(&timer, timer_cb, 100, 0));
+  ASSERT(0 == uv_send_buffer_size((uv_handle_t*) &client, &buffer_size));
 
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 

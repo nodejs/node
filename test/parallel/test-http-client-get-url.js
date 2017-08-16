@@ -19,26 +19,29 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const url = require('url');
+const URL = url.URL;
+const testPath = '/foo?bar';
 
-var seen_req = false;
-
-var server = http.createServer(function(req, res) {
-  assert.equal('GET', req.method);
-  assert.equal('/foo?bar', req.url);
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+const server = http.createServer(common.mustCall((req, res) => {
+  assert.strictEqual('GET', req.method);
+  assert.strictEqual(testPath, req.url);
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.write('hello\n');
   res.end();
-  server.close();
-  seen_req = true;
-});
+}, 3));
 
-server.listen(common.PORT, function() {
-  http.get('http://127.0.0.1:' + common.PORT + '/foo?bar');
-});
-
-process.on('exit', function() {
-  assert(seen_req);
-});
+server.listen(0, common.localhostIPv4, common.mustCall(() => {
+  const u = `http://${common.localhostIPv4}:${server.address().port}${testPath}`;
+  http.get(u, common.mustCall(() => {
+    http.get(url.parse(u), common.mustCall(() => {
+      http.get(new URL(u), common.mustCall(() => {
+        server.close();
+      }));
+    }));
+  }));
+}));

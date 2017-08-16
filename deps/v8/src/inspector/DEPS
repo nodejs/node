@@ -1,0 +1,14 @@
+include_rules = [
+  "-src",
+  "-include/v8-debug.h",
+  "+src/base/atomicops.h",
+  "+src/base/macros.h",
+  "+src/base/logging.h",
+  "+src/base/platform/platform.h",
+  "+src/conversions.h",
+  "+src/unicode-cache.h",
+  "+src/inspector",
+  "+src/tracing",
+  "+src/debug/debug-interface.h",
+  "+src/debug/interface-types.h",
+]

@@ -5,7 +5,6 @@
 #ifndef V8_X87_CODEGEN_X87_H_
 #define V8_X87_CODEGEN_X87_H_
 
-#include "src/ast.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -28,6 +27,7 @@ class StringCharLoadGenerator : public AllStatic {
   DISALLOW_COPY_AND_ASSIGN(StringCharLoadGenerator);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X87_CODEGEN_X87_H_

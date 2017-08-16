@@ -1,0 +1,58 @@
+{
+  "_from": "debuglog@*",
+  "_id": "debuglog@1.0.1",
+  "_integrity": "sha1-qiT/uaw9+aI1GDfPstJ5NgzXhJI=",
+  "_location": "/debuglog",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "debuglog@*",
+    "name": "debuglog",
+    "escapedName": "debuglog",
+    "rawSpec": "*",
+    "saveSpec": null,
+    "fetchSpec": "*"
+  },
+  "_requiredBy": [
+    "/",
+    "/read-installed",
+    "/read-package-tree",
+    "/readdir-scoped-modules"
+  ],
+  "_resolved": "https://registry.npmjs.org/debuglog/-/debuglog-1.0.1.tgz",
+  "_shasum": "aa24ffb9ac3df9a2351837cfb2d279360cd78492",
+  "_shrinkwrap": null,
+  "_spec": "debuglog@*",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "Sam Roberts",
+    "email": "sam@strongloop.com"
+  },
+  "bin": null,
+  "browser": {
+    "util": false
+  },
+  "bugs": {
+    "url": "https://github.com/sam-github/node-debuglog/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "backport of util.debuglog from node v0.11",
+  "devDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+  "homepage": "https://github.com/sam-github/node-debuglog#readme",
+  "license": "MIT",
+  "main": "debuglog.js",
+  "name": "debuglog",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sam-github/node-debuglog.git"
+  },
+  "version": "1.0.1"
+}

@@ -19,7 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
+'use strict';
+require('../common');
 
 // This test *only* verifies that invoking the stdin getter does not
 // cause node to hang indefinitely.

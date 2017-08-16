@@ -19,13 +19,15 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+require('../common');
 process.env.NODE_FORCE_READLINE = 1;
 
-var repl = require('./helper-debugger-repl.js');
+const repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('breakpoints.js');
 
-var addTest = repl.addTest;
+const addTest = repl.addTest;
 
 // next
 addTest('n', [

@@ -19,46 +19,44 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var spawnSync = require('child_process').spawnSync;
+const spawnSync = require('child_process').spawnSync;
 
-var TIMER = 100;
-var SLEEP = 1000;
-
-var timeout = 0;
-
-setTimeout(function() {
-  timeout = process.hrtime(start);
-  assert.ok(stop, 'timer should not fire before process exits');
-  assert.strictEqual(timeout[0], 1, 'timer should take as long as sleep');
-}, TIMER);
-
-console.log('sleep started');
-var start = process.hrtime();
-var ret = spawnSync('sleep', ['1']);
-var stop = process.hrtime(start);
+// Echo does different things on Windows and Unix, but in both cases, it does
+// more-or-less nothing if there are no parameters
+const ret = spawnSync('sleep', ['0']);
 assert.strictEqual(ret.status, 0, 'exit status should be zero');
-console.log('sleep exited', stop);
-assert.strictEqual(stop[0], 1, 'sleep should not take longer or less than 1 second');
 
 // Error test when command does not exist
-var ret_err = spawnSync('command_does_not_exist');
-assert.strictEqual(ret_err.error.code, 'ENOENT');
+const ret_err = spawnSync('command_does_not_exist', ['bar']).error;
 
-// Verify that the cwd option works - GH #7824
-(function() {
-  var response;
-  var cwd;
+assert.strictEqual(ret_err.code, 'ENOENT');
+assert.strictEqual(ret_err.errno, 'ENOENT');
+assert.strictEqual(ret_err.syscall, 'spawnSync command_does_not_exist');
+assert.strictEqual(ret_err.path, 'command_does_not_exist');
+assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
 
-  if (process.platform === 'win32') {
-    cwd = 'c:\\';
-    response = spawnSync('cmd.exe', ['/c', 'cd'], {cwd: cwd});
-  } else {
-    cwd = '/';
-    response = spawnSync('pwd', [], {cwd: cwd});
-  }
+{
+  // Test the cwd option
+  const cwd = common.rootDir;
+  const response = common.spawnSyncPwd({ cwd });
 
   assert.strictEqual(response.stdout.toString().trim(), cwd);
-})();
+}
+
+{
+  // Test the encoding option
+  const noEncoding = common.spawnSyncPwd();
+  const bufferEncoding = common.spawnSyncPwd({ encoding: 'buffer' });
+  const utf8Encoding = common.spawnSyncPwd({ encoding: 'utf8' });
+
+  assert.deepStrictEqual(noEncoding.output, bufferEncoding.output);
+  assert.deepStrictEqual([
+    null,
+    noEncoding.stdout.toString(),
+    noEncoding.stderr.toString()
+  ], utf8Encoding.output);
+}

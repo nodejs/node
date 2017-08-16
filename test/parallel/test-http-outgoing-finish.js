@@ -19,10 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
 http.createServer(function(req, res) {
   req.resume();
@@ -30,9 +31,9 @@ http.createServer(function(req, res) {
     write(res);
   });
   this.close();
-}).listen(common.PORT, function() {
-  var req = http.request({
-    port: common.PORT,
+}).listen(0, function() {
+  const req = http.request({
+    port: this.address().port,
     method: 'PUT'
   });
   write(req);
@@ -41,12 +42,11 @@ http.createServer(function(req, res) {
   });
 });
 
-var buf = new Buffer(1024 * 16);
-buf.fill('x');
+const buf = Buffer.alloc(1024 * 16, 'x');
 function write(out) {
-  var name = out.constructor.name;
-  var finishEvent = false;
-  var endCb = false;
+  const name = out.constructor.name;
+  let finishEvent = false;
+  let endCb = false;
 
   // first, write until it gets some backpressure
   while (out.write(buf)) {}
@@ -60,7 +60,7 @@ function write(out) {
     finishEvent = true;
     console.error('%s finish event', name);
     process.nextTick(function() {
-      assert(endCb, name + ' got finish event before endcb!');
+      assert(endCb, `${name} got finish event before endcb!`);
       console.log('ok - %s finishEvent', name);
     });
   });
@@ -69,7 +69,7 @@ function write(out) {
     endCb = true;
     console.error('%s endCb', name);
     process.nextTick(function() {
-      assert(finishEvent, name + ' got endCb event before finishEvent!');
+      assert(finishEvent, `${name} got endCb event before finishEvent!`);
       console.log('ok - %s endCb', name);
     });
   });

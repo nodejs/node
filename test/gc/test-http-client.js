@@ -1,69 +1,63 @@
+'use strict';
 // just a simple http server and client.
 
+const common = require('../common');
+
 function serverHandler(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Hello World\n');
 }
 
-var http  = require('http'),
-    weak    = require('weak'),
-    done    = 0,
-    count   = 0,
-    countGC = 0,
-    todo    = 500,
-    common = require('../common.js'),
-    assert = require('assert'),
-    PORT = common.PORT;
+const http = require('http');
+const weak = require(`./build/${common.buildType}/binding`);
+const todo = 500;
+let done = 0;
+let count = 0;
+let countGC = 0;
 
-console.log('We should do '+ todo +' requests');
+console.log(`We should do ${todo} requests`);
 
-var http = require('http');
-var server = http.createServer(serverHandler);
-server.listen(PORT, getall);
+const server = http.createServer(serverHandler);
+server.listen(0, getall);
 
 
 function getall() {
   if (count >= todo)
     return;
 
-  (function(){
+  (function() {
     function cb(res) {
       res.resume();
-      console.error('in cb')
-      done+=1;
-      res.on('end', gc);
+      console.error('in cb');
+      done += 1;
+      res.on('end', global.gc);
     }
 
-    var req = http.get({
+    const req = http.get({
       hostname: 'localhost',
       pathname: '/',
-      port: PORT
-    }, cb)
+      port: server.address().port
+    }, cb);
 
     count++;
     weak(req, afterGC);
-  })()
+  })();
 
   setImmediate(getall);
 }
 
-for (var i = 0; i < 10; i++)
+for (let i = 0; i < 10; i++)
   getall();
 
-function afterGC(){
-  countGC ++;
+function afterGC() {
+  countGC++;
 }
 
-setInterval(status, 1000).unref();
+setInterval(status, 100).unref();
 
 function status() {
-  gc();
+  global.gc();
   console.log('Done: %d/%d', done, todo);
   console.log('Collected: %d/%d', countGC, count);
-  if (done === todo) {
-    console.log('All should be collected now.');
-    assert(count === countGC);
-    process.exit(0);
-  }
+  if (countGC === todo) server.close();
 }
-

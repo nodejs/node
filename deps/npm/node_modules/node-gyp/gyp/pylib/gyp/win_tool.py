@@ -13,6 +13,7 @@ import os
 import re
 import shutil
 import subprocess
+import stat
 import string
 import sys
 
@@ -48,7 +49,8 @@ class WinTool(object):
     for arg in args:
       m = _LINK_EXE_OUT_ARG.match(arg)
       if m:
-        endpoint_name = '%s_%d' % (m.group('out'), os.getpid())
+        endpoint_name = re.sub(r'\W+', '',
+            '%s_%d' % (m.group('out'), os.getpid()))
         break
 
     if endpoint_name is None:
@@ -88,9 +90,19 @@ class WinTool(object):
     """Emulation of rm -rf out && cp -af in out."""
     if os.path.exists(dest):
       if os.path.isdir(dest):
-        shutil.rmtree(dest)
+        def _on_error(fn, path, excinfo):
+          # The operation failed, possibly because the file is set to
+          # read-only. If that's why, make it writable and try the op again.
+          if not os.access(path, os.W_OK):
+            os.chmod(path, stat.S_IWRITE)
+          fn(path)
+        shutil.rmtree(dest, onerror=_on_error)
       else:
+        if not os.access(dest, os.W_OK):
+          # Attempt to make the file writable before deleting it.
+          os.chmod(dest, stat.S_IWRITE)
         os.unlink(dest)
+
     if os.path.isdir(source):
       shutil.copytree(source, dest)
     else:
@@ -104,14 +116,16 @@ class WinTool(object):
     env = self._GetEnv(arch)
     if use_separate_mspdbsrv == 'True':
       self._UseSeparateMspdbsrv(env, args)
-    link = subprocess.Popen(args,
+    link = subprocess.Popen([args[0].replace('/', '\\')] + list(args[1:]),
                             shell=True,
                             env=env,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT)
     out, _ = link.communicate()
     for line in out.splitlines():
-      if not line.startswith('   Creating library '):
+      if (not line.startswith('   Creating library ') and
+          not line.startswith('Generating code') and
+          not line.startswith('Finished generating code')):
         print line
     return link.returncode
 
@@ -236,19 +250,17 @@ class WinTool(object):
     # Processing C:\Program Files (x86)\Microsoft SDKs\...\include\objidl.idl
     # objidl.idl
     lines = out.splitlines()
-    prefix = 'Processing '
-    processing = set(os.path.basename(x) for x in lines if x.startswith(prefix))
+    prefixes = ('Processing ', '64 bit Processing ')
+    processing = set(os.path.basename(x)
+                     for x in lines if x.startswith(prefixes))
     for line in lines:
-      if not line.startswith(prefix) and line not in processing:
+      if not line.startswith(prefixes) and line not in processing:
         print line
     return popen.returncode
 
   def ExecAsmWrapper(self, arch, *args):
     """Filter logo banner from invocations of asm.exe."""
     env = self._GetEnv(arch)
-    # MSVS doesn't assemble x64 asm files.
-    if arch == 'environment.x64':
-      return 0
     popen = subprocess.Popen(args, shell=True, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     out, _ = popen.communicate()
@@ -286,6 +298,17 @@ class WinTool(object):
     args = open(rspfile).read()
     dir = dir[0] if dir else None
     return subprocess.call(args, shell=True, env=env, cwd=dir)
+
+  def ExecClCompile(self, project_dir, selected_files):
+    """Executed by msvs-ninja projects when the 'ClCompile' target is used to
+    build selected C/C++ files."""
+    project_dir = os.path.relpath(project_dir, BASE_DIR)
+    selected_files = selected_files.split(';')
+    ninja_targets = [os.path.join(project_dir, filename) + '^^'
+        for filename in selected_files]
+    cmd = ['ninja.exe']
+    cmd.extend(ninja_targets)
+    return subprocess.call(cmd, shell=True, cwd=BASE_DIR)
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv[1:]))

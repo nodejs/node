@@ -5,21 +5,21 @@
  * This package is an SSL implementation written
  * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
- * 
+ *
  * This library is free for commercial and non-commercial use as long as
  * the following conditions are aheared to.  The following conditions
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
  * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- * 
+ *
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
  * If this package is used in a product, Eric Young should be given attribution
  * as the author of the parts of the library used.
  * This can be in the form of a textual message at program startup or
  * in documentation (online or textual) provided with the package.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -34,10 +34,10 @@
  *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from 
+ * 4. If you include any Windows specific code (or a derivative thereof) from
  *    the apps directory (application code) you must include an acknowledgement:
  *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -49,7 +49,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * The licence and distribution terms for any publically available version or
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
@@ -65,146 +65,147 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
-
 int X509_CRL_get_ext_count(X509_CRL *x)
-	{
-	return(X509v3_get_ext_count(x->crl->extensions));
-	}
+{
+    return (X509v3_get_ext_count(x->crl->extensions));
+}
 
 int X509_CRL_get_ext_by_NID(X509_CRL *x, int nid, int lastpos)
-	{
-	return(X509v3_get_ext_by_NID(x->crl->extensions,nid,lastpos));
-	}
+{
+    return (X509v3_get_ext_by_NID(x->crl->extensions, nid, lastpos));
+}
 
 int X509_CRL_get_ext_by_OBJ(X509_CRL *x, ASN1_OBJECT *obj, int lastpos)
-	{
-	return(X509v3_get_ext_by_OBJ(x->crl->extensions,obj,lastpos));
-	}
+{
+    return (X509v3_get_ext_by_OBJ(x->crl->extensions, obj, lastpos));
+}
 
 int X509_CRL_get_ext_by_critical(X509_CRL *x, int crit, int lastpos)
-	{
-	return(X509v3_get_ext_by_critical(x->crl->extensions,crit,lastpos));
-	}
+{
+    return (X509v3_get_ext_by_critical(x->crl->extensions, crit, lastpos));
+}
 
 X509_EXTENSION *X509_CRL_get_ext(X509_CRL *x, int loc)
-	{
-	return(X509v3_get_ext(x->crl->extensions,loc));
-	}
+{
+    return (X509v3_get_ext(x->crl->extensions, loc));
+}
 
 X509_EXTENSION *X509_CRL_delete_ext(X509_CRL *x, int loc)
-	{
-	return(X509v3_delete_ext(x->crl->extensions,loc));
-	}
+{
+    return (X509v3_delete_ext(x->crl->extensions, loc));
+}
 
 void *X509_CRL_get_ext_d2i(X509_CRL *x, int nid, int *crit, int *idx)
 {
-	return X509V3_get_d2i(x->crl->extensions, nid, crit, idx);
+    return X509V3_get_d2i(x->crl->extensions, nid, crit, idx);
 }
 
 int X509_CRL_add1_ext_i2d(X509_CRL *x, int nid, void *value, int crit,
-							unsigned long flags)
+                          unsigned long flags)
 {
-	return X509V3_add1_i2d(&x->crl->extensions, nid, value, crit, flags);
+    return X509V3_add1_i2d(&x->crl->extensions, nid, value, crit, flags);
 }
 
 int X509_CRL_add_ext(X509_CRL *x, X509_EXTENSION *ex, int loc)
-	{
-	return(X509v3_add_ext(&(x->crl->extensions),ex,loc) != NULL);
-	}
+{
+    return (X509v3_add_ext(&(x->crl->extensions), ex, loc) != NULL);
+}
 
 int X509_get_ext_count(X509 *x)
-	{
-	return(X509v3_get_ext_count(x->cert_info->extensions));
-	}
+{
+    return (X509v3_get_ext_count(x->cert_info->extensions));
+}
 
 int X509_get_ext_by_NID(X509 *x, int nid, int lastpos)
-	{
-	return(X509v3_get_ext_by_NID(x->cert_info->extensions,nid,lastpos));
-	}
+{
+    return (X509v3_get_ext_by_NID(x->cert_info->extensions, nid, lastpos));
+}
 
 int X509_get_ext_by_OBJ(X509 *x, ASN1_OBJECT *obj, int lastpos)
-	{
-	return(X509v3_get_ext_by_OBJ(x->cert_info->extensions,obj,lastpos));
-	}
+{
+    return (X509v3_get_ext_by_OBJ(x->cert_info->extensions, obj, lastpos));
+}
 
 int X509_get_ext_by_critical(X509 *x, int crit, int lastpos)
-	{
-	return(X509v3_get_ext_by_critical(x->cert_info->extensions,crit,lastpos));
-	}
+{
+    return (X509v3_get_ext_by_critical
+            (x->cert_info->extensions, crit, lastpos));
+}
 
 X509_EXTENSION *X509_get_ext(X509 *x, int loc)
-	{
-	return(X509v3_get_ext(x->cert_info->extensions,loc));
-	}
+{
+    return (X509v3_get_ext(x->cert_info->extensions, loc));
+}
 
 X509_EXTENSION *X509_delete_ext(X509 *x, int loc)
-	{
-	return(X509v3_delete_ext(x->cert_info->extensions,loc));
-	}
+{
+    return (X509v3_delete_ext(x->cert_info->extensions, loc));
+}
 
 int X509_add_ext(X509 *x, X509_EXTENSION *ex, int loc)
-	{
-	return(X509v3_add_ext(&(x->cert_info->extensions),ex,loc) != NULL);
-	}
+{
+    return (X509v3_add_ext(&(x->cert_info->extensions), ex, loc) != NULL);
+}
 
 void *X509_get_ext_d2i(X509 *x, int nid, int *crit, int *idx)
 {
-	return X509V3_get_d2i(x->cert_info->extensions, nid, crit, idx);
+    return X509V3_get_d2i(x->cert_info->extensions, nid, crit, idx);
 }
 
 int X509_add1_ext_i2d(X509 *x, int nid, void *value, int crit,
-							unsigned long flags)
+                      unsigned long flags)
 {
-	return X509V3_add1_i2d(&x->cert_info->extensions, nid, value, crit,
-							flags);
+    return X509V3_add1_i2d(&x->cert_info->extensions, nid, value, crit,
+                           flags);
 }
 
 int X509_REVOKED_get_ext_count(X509_REVOKED *x)
-	{
-	return(X509v3_get_ext_count(x->extensions));
-	}
+{
+    return (X509v3_get_ext_count(x->extensions));
+}
 
 int X509_REVOKED_get_ext_by_NID(X509_REVOKED *x, int nid, int lastpos)
-	{
-	return(X509v3_get_ext_by_NID(x->extensions,nid,lastpos));
-	}
+{
+    return (X509v3_get_ext_by_NID(x->extensions, nid, lastpos));
+}
 
 int X509_REVOKED_get_ext_by_OBJ(X509_REVOKED *x, ASN1_OBJECT *obj,
-	     int lastpos)
-	{
-	return(X509v3_get_ext_by_OBJ(x->extensions,obj,lastpos));
-	}
+                                int lastpos)
+{
+    return (X509v3_get_ext_by_OBJ(x->extensions, obj, lastpos));
+}
 
 int X509_REVOKED_get_ext_by_critical(X509_REVOKED *x, int crit, int lastpos)
-	{
-	return(X509v3_get_ext_by_critical(x->extensions,crit,lastpos));
-	}
+{
+    return (X509v3_get_ext_by_critical(x->extensions, crit, lastpos));
+}
 
 X509_EXTENSION *X509_REVOKED_get_ext(X509_REVOKED *x, int loc)
-	{
-	return(X509v3_get_ext(x->extensions,loc));
-	}
+{
+    return (X509v3_get_ext(x->extensions, loc));
+}
 
 X509_EXTENSION *X509_REVOKED_delete_ext(X509_REVOKED *x, int loc)
-	{
-	return(X509v3_delete_ext(x->extensions,loc));
-	}
+{
+    return (X509v3_delete_ext(x->extensions, loc));
+}
 
 int X509_REVOKED_add_ext(X509_REVOKED *x, X509_EXTENSION *ex, int loc)
-	{
-	return(X509v3_add_ext(&(x->extensions),ex,loc) != NULL);
-	}
+{
+    return (X509v3_add_ext(&(x->extensions), ex, loc) != NULL);
+}
 
 void *X509_REVOKED_get_ext_d2i(X509_REVOKED *x, int nid, int *crit, int *idx)
 {
-	return X509V3_get_d2i(x->extensions, nid, crit, idx);
+    return X509V3_get_d2i(x->extensions, nid, crit, idx);
 }
 
 int X509_REVOKED_add1_ext_i2d(X509_REVOKED *x, int nid, void *value, int crit,
-							unsigned long flags)
+                              unsigned long flags)
 {
-	return X509V3_add1_i2d(&x->extensions, nid, value, crit, flags);
+    return X509V3_add1_i2d(&x->extensions, nid, value, crit, flags);
 }
 
 IMPLEMENT_STACK_OF(X509_EXTENSION)
+
 IMPLEMENT_ASN1_SET_OF(X509_EXTENSION)

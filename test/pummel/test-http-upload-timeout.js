@@ -19,14 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 // This tests setTimeout() by having multiple clients connecting and sending
 // data in random intervals. Clients are also randomly disconnecting until there
 // are no more clients left. If no false timeout occurs, this test has passed.
-var common = require('../common'),
-    assert = require('assert'),
-    http = require('http'),
-    server = http.createServer(),
-    connections = 0;
+const common = require('../common');
+const http = require('http');
+const server = http.createServer();
+let connections = 0;
 
 server.on('request', function(req, res) {
   req.socket.setTimeout(1000);
@@ -37,7 +37,7 @@ server.on('request', function(req, res) {
     connections--;
     res.writeHead(200);
     res.end('done\n');
-    if (connections == 0) {
+    if (connections === 0) {
       server.close();
     }
   });
@@ -45,18 +45,18 @@ server.on('request', function(req, res) {
 });
 
 server.listen(common.PORT, '127.0.0.1', function() {
-  for (var i = 0; i < 10; i++) {
+  for (let i = 0; i < 10; i++) {
     connections++;
 
     setTimeout(function() {
-      var request = http.request({
+      const request = http.request({
         port: common.PORT,
         method: 'POST',
         path: '/'
       });
 
       function ping() {
-        var nextPing = (Math.random() * 900).toFixed();
+        const nextPing = (Math.random() * 900).toFixed();
         if (nextPing > 600) {
           request.end();
           return;

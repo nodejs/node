@@ -30,11 +30,12 @@
 // See:
 // http://people.mozilla.org/~jorendorff/es6-draft.html#sec-generatorfunction-objects
 
-function f() { }
+function f() { "use strict"; }
 function* g() { yield 1; }
 var GeneratorFunctionPrototype = Object.getPrototypeOf(g);
 var GeneratorFunction = GeneratorFunctionPrototype.constructor;
 var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
+var IteratorPrototype = Object.getPrototypeOf(GeneratorObjectPrototype);
 
 // A generator function should have the same set of properties as any
 // other function.
@@ -52,16 +53,7 @@ function TestGeneratorFunctionInstance() {
     var f_desc = Object.getOwnPropertyDescriptor(f, prop);
     var g_desc = Object.getOwnPropertyDescriptor(g, prop);
     assertEquals(f_desc.configurable, g_desc.configurable, prop);
-    if (prop === 'arguments' || prop === 'caller') {
-      // Unlike sloppy functions, which have read-only data arguments and caller
-      // properties, sloppy generators have a poison pill implemented via
-      // accessors
-      assertFalse('writable' in g_desc, prop);
-      assertTrue(g_desc.get instanceof Function, prop);
-      assertEquals(g_desc.get, g_desc.set, prop);
-    } else {
-      assertEquals(f_desc.writable, g_desc.writable, prop);
-    }
+    assertEquals(f_desc.writable, g_desc.writable, prop);
     assertEquals(f_desc.enumerable, g_desc.enumerable, prop);
   }
 }
@@ -78,6 +70,23 @@ function TestGeneratorFunctionPrototype() {
              Object.getPrototypeOf(GeneratorFunctionPrototype));
   assertSame(GeneratorFunctionPrototype,
              Object.getPrototypeOf(function* () {}));
+  assertSame("object", typeof GeneratorFunctionPrototype);
+
+  var constructor_desc = Object.getOwnPropertyDescriptor(
+      GeneratorFunctionPrototype, "constructor");
+  assertTrue(constructor_desc !== undefined);
+  assertSame(GeneratorFunction, constructor_desc.value);
+  assertFalse(constructor_desc.writable);
+  assertFalse(constructor_desc.enumerable);
+  assertTrue(constructor_desc.configurable);
+
+  var prototype_desc = Object.getOwnPropertyDescriptor(
+      GeneratorFunctionPrototype, "prototype");
+  assertTrue(prototype_desc !== undefined);
+  assertSame(GeneratorObjectPrototype, prototype_desc.value);
+  assertFalse(prototype_desc.writable);
+  assertFalse(prototype_desc.enumerable);
+  assertTrue(prototype_desc.configurable);
 }
 TestGeneratorFunctionPrototype();
 
@@ -85,12 +94,12 @@ TestGeneratorFunctionPrototype();
 // Functions that we associate with generator objects are actually defined by
 // a common prototype.
 function TestGeneratorObjectPrototype() {
-  assertSame(Object.prototype,
+  assertSame(IteratorPrototype,
              Object.getPrototypeOf(GeneratorObjectPrototype));
   assertSame(GeneratorObjectPrototype,
              Object.getPrototypeOf((function*(){yield 1}).prototype));
 
-  var expected_property_names = ["next", "throw", "constructor"];
+  var expected_property_names = ["next", "return", "throw", "constructor"];
   var found_property_names =
       Object.getOwnPropertyNames(GeneratorObjectPrototype);
 
@@ -99,15 +108,26 @@ function TestGeneratorObjectPrototype() {
 
   assertArrayEquals(expected_property_names, found_property_names);
 
-  iterator_desc = Object.getOwnPropertyDescriptor(GeneratorObjectPrototype,
-      Symbol.iterator);
-  assertTrue(iterator_desc !== undefined);
-  assertFalse(iterator_desc.writable);
-  assertFalse(iterator_desc.enumerable);
-  assertFalse(iterator_desc.configurable);
+  var constructor_desc = Object.getOwnPropertyDescriptor(
+      GeneratorObjectPrototype, "constructor");
+  assertTrue(constructor_desc !== undefined);
+  assertFalse(constructor_desc.writable);
+  assertFalse(constructor_desc.enumerable);
+  assertTrue(constructor_desc.configurable);
 
-  // The generator object's "iterator" function is just the identity.
-  assertSame(iterator_desc.value.call(42), 42);
+  var next_desc = Object.getOwnPropertyDescriptor(GeneratorObjectPrototype,
+      "next");
+  assertTrue(next_desc !== undefined);
+  assertTrue(next_desc.writable);
+  assertFalse(next_desc.enumerable);
+  assertTrue(next_desc.configurable);
+
+  var throw_desc = Object.getOwnPropertyDescriptor(GeneratorObjectPrototype,
+      "throw");
+  assertTrue(throw_desc !== undefined);
+  assertTrue(throw_desc.writable);
+  assertFalse(throw_desc.enumerable);
+  assertTrue(throw_desc.configurable);
 }
 TestGeneratorObjectPrototype();
 
@@ -129,6 +149,13 @@ function TestGeneratorFunction() {
 
   assertTrue((new GeneratorFunction()) instanceof GeneratorFunction);
   assertTrue(GeneratorFunction() instanceof GeneratorFunction);
+
+  // ES6 draft 04-14-15, section 25.2.2.2
+  var prototype_desc = Object.getOwnPropertyDescriptor(GeneratorFunction,
+      "prototype");
+  assertFalse(prototype_desc.writable);
+  assertFalse(prototype_desc.enumerable);
+  assertFalse(prototype_desc.configurable);
 }
 TestGeneratorFunction();
 
@@ -136,7 +163,6 @@ TestGeneratorFunction();
 function TestPerGeneratorPrototype() {
   assertTrue((function*(){}).prototype !== (function*(){}).prototype);
   assertTrue((function*(){}).prototype !== g.prototype);
-  assertTrue(g.prototype instanceof GeneratorFunctionPrototype);
   assertSame(GeneratorObjectPrototype, Object.getPrototypeOf(g.prototype));
   assertTrue(!(g.prototype instanceof Function));
   assertSame(typeof (g.prototype), "object");

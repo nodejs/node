@@ -2,45 +2,40 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_X64
 
 #include "src/ic/access-compiler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-
 void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
                                               Handle<Code> code) {
   __ jmp(code, RelocInfo::CODE_TARGET);
 }
 
-
-Register* PropertyAccessCompiler::load_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3, scratch4.
+void PropertyAccessCompiler::InitializePlatformSpecific(
+    AccessCompilerData* data) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  static Register registers[] = {receiver, name, rax, rbx, rdi, r8};
-  return registers;
-}
 
-
-Register* PropertyAccessCompiler::store_calling_convention() {
+  // Load calling convention.
   // receiver, name, scratch1, scratch2, scratch3.
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  DCHECK(rbx.is(ElementTransitionAndStoreDescriptor::MapRegister()));
-  static Register registers[] = {receiver, name, rbx, rdi, r8};
-  return registers;
-}
+  Register load_registers[] = {receiver, name, rax, rbx, rdi};
 
+  // Store calling convention.
+  // receiver, name, scratch1, scratch2.
+  Register store_registers[] = {receiver, name, rbx, rdi};
+
+  data->Initialize(arraysize(load_registers), load_registers,
+                   arraysize(store_registers), store_registers);
+}
 
 #undef __
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_X64

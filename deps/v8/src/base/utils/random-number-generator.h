@@ -5,6 +5,7 @@
 #ifndef V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_
 #define V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_
 
+#include "src/base/base-export.h"
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -12,10 +13,16 @@ namespace base {
 
 // -----------------------------------------------------------------------------
 // RandomNumberGenerator
-//
-// This class is used to generate a stream of pseudorandom numbers. The class
-// uses a 48-bit seed, which is modified using a linear congruential formula.
-// (See Donald Knuth, The Art of Computer Programming, Volume 3, Section 3.2.1.)
+
+// This class is used to generate a stream of pseudo-random numbers. The class
+// uses a 64-bit seed, which is passed through MurmurHash3 to create two 64-bit
+// state values. This pair of state values is then used in xorshift128+.
+// The resulting stream of pseudo-random numbers has a period length of 2^128-1.
+// See Marsaglia: http://www.jstatsoft.org/v08/i14/paper
+// And Vigna: http://vigna.di.unimi.it/ftp/papers/xorshiftplus.pdf
+// NOTE: Any changes to the algorithm must be tested against TestU01.
+//       Please find instructions for this in the internal repository.
+
 // If two instances of RandomNumberGenerator are created with the same seed, and
 // the same sequence of method calls is made for each, they will generate and
 // return identical sequences of numbers.
@@ -25,7 +32,7 @@ namespace base {
 // https://code.google.com/p/v8/issues/detail?id=2905
 // This class is neither reentrant nor threadsafe.
 
-class RandomNumberGenerator FINAL {
+class V8_BASE_EXPORT RandomNumberGenerator final {
  public:
   // EntropySource is used as a callback function when V8 needs a source of
   // entropy.
@@ -83,6 +90,27 @@ class RandomNumberGenerator FINAL {
 
   int64_t initial_seed() const { return initial_seed_; }
 
+  // Static and exposed for external use.
+  static inline double ToDouble(uint64_t state0, uint64_t state1) {
+    // Exponent for double values for [1.0 .. 2.0)
+    static const uint64_t kExponentBits = V8_UINT64_C(0x3FF0000000000000);
+    static const uint64_t kMantissaMask = V8_UINT64_C(0x000FFFFFFFFFFFFF);
+    uint64_t random = ((state0 + state1) & kMantissaMask) | kExponentBits;
+    return bit_cast<double>(random) - 1;
+  }
+
+  // Static and exposed for external use.
+  static inline void XorShift128(uint64_t* state0, uint64_t* state1) {
+    uint64_t s1 = *state0;
+    uint64_t s0 = *state1;
+    *state0 = s0;
+    s1 ^= s1 << 23;
+    s1 ^= s1 >> 17;
+    s1 ^= s0;
+    s1 ^= s0 >> 26;
+    *state1 = s1;
+  }
+
  private:
   static const int64_t kMultiplier = V8_2PART_UINT64_C(0x5, deece66d);
   static const int64_t kAddend = 0xb;
@@ -90,10 +118,14 @@ class RandomNumberGenerator FINAL {
 
   int Next(int bits) WARN_UNUSED_RESULT;
 
+  static uint64_t MurmurHash3(uint64_t);
+
   int64_t initial_seed_;
-  int64_t seed_;
+  uint64_t state0_;
+  uint64_t state1_;
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_

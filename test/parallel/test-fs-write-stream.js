@@ -19,32 +19,33 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
-var path = require('path'),
-    fs = require('fs');
+const file = path.join(common.tmpDir, 'write.txt');
 
-var file = path.join(common.tmpDir, 'write.txt');
+common.refreshTmpDir();
 
-(function() {
-  var stream = fs.WriteStream(file),
-      _fs_close = fs.close;
+{
+  const stream = fs.WriteStream(file);
+  const _fs_close = fs.close;
 
   fs.close = function(fd) {
     assert.ok(fd, 'fs.close must not be called without an undefined fd.');
     fs.close = _fs_close;
-  }
+  };
   stream.destroy();
-})();
+}
 
-(function() {
-  var stream = fs.createWriteStream(file);
+{
+  const stream = fs.createWriteStream(file);
 
   stream.on('drain', function() {
     assert.fail('\'drain\' event must not be emitted before ' +
                 'stream.write() has been called at least once.');
   });
   stream.destroy();
-})();
-
+}

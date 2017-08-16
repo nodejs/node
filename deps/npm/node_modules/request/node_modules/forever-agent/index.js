@@ -6,6 +6,17 @@ var util = require('util')
   , net = require('net')
   , tls = require('tls')
   , AgentSSL = require('https').Agent
+  
+function getConnectionName(host, port) {  
+  var name = ''
+  if (typeof host === 'string') {
+    name = host + ':' + port
+  } else {
+    // For node.js v012.0 and iojs-v1.5.1, host is an object. And any existing localAddress is part of the connection name.
+    name = host.host + ':' + host.port + ':' + (host.localAddress ? (host.localAddress + ':') : ':')
+  }
+  return name
+}    
 
 function ForeverAgent(options) {
   var self = this
@@ -16,7 +27,8 @@ function ForeverAgent(options) {
   self.maxSockets = self.options.maxSockets || Agent.defaultMaxSockets
   self.minSockets = self.options.minSockets || ForeverAgent.defaultMinSockets
   self.on('free', function(socket, host, port) {
-    var name = host + ':' + port
+    var name = getConnectionName(host, port)
+
     if (self.requests[name] && self.requests[name].length) {
       self.requests[name].shift().onSocket(socket)
     } else if (self.sockets[name].length < self.minSockets) {
@@ -47,7 +59,14 @@ ForeverAgent.defaultMinSockets = 5
 ForeverAgent.prototype.createConnection = net.createConnection
 ForeverAgent.prototype.addRequestNoreuse = Agent.prototype.addRequest
 ForeverAgent.prototype.addRequest = function(req, host, port) {
-  var name = host + ':' + port
+  var name = getConnectionName(host, port)
+  
+  if (typeof host !== 'string') {
+    var options = host
+    port = options.port
+    host = options.host
+  }
+
   if (this.freeSockets[name] && this.freeSockets[name].length > 0 && !req.useChunkedEncodingByDefault) {
     var idleSocket = this.freeSockets[name].pop()
     idleSocket.removeListener('error', idleSocket._onIdleError)

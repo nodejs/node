@@ -1,0 +1,66 @@
+{
+  "_from": "hosted-git-info@2.5.0",
+  "_id": "hosted-git-info@2.5.0",
+  "_inBundle": false,
+  "_integrity": "sha512-pNgbURSuab90KbTqvRPsseaTxOJCZBD0a7t+haSN33piP9cCM4l0CqdzAif2hUqm716UovKB2ROmiabGAKVXyg==",
+  "_location": "/hosted-git-info",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "hosted-git-info@2.5.0",
+    "name": "hosted-git-info",
+    "escapedName": "hosted-git-info",
+    "rawSpec": "2.5.0",
+    "saveSpec": null,
+    "fetchSpec": "2.5.0"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/",
+    "/normalize-package-data",
+    "/npm-package-arg"
+  ],
+  "_resolved": "https://registry.npmjs.org/hosted-git-info/-/hosted-git-info-2.5.0.tgz",
+  "_shasum": "6d60e34b3abbc8313062c3b798ef8d901a07af3c",
+  "_spec": "hosted-git-info@2.5.0",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/hosted-git-info/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Provides metadata and conversions from repository urls for Github, Bitbucket and Gitlab",
+  "devDependencies": {
+    "standard": "^9.0.2",
+    "tap": "^10.3.0"
+  },
+  "files": [
+    "index.js",
+    "git-host.js",
+    "git-host-info.js"
+  ],
+  "homepage": "https://github.com/npm/hosted-git-info",
+  "keywords": [
+    "git",
+    "github",
+    "bitbucket",
+    "gitlab"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "hosted-git-info",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/hosted-git-info.git"
+  },
+  "scripts": {
+    "test": "standard && tap -J --coverage test/*.js"
+  },
+  "version": "2.5.0"
+}

@@ -1,0 +1,34 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+
+##############################################################################
+['variant != default', {
+  # Issue 6166.
+  'debugger/asm-js-breakpoint-during-exec': [PASS, FAIL],
+  # Issue 6167.
+  'debugger/eval-scopes': [PASS, FAIL],
+  'debugger/scope-skip-variables-with-empty-name': [PASS, FAIL],
+  'debugger/update-call-frame-scopes': [PASS, FAIL],
+  'debugger/side-effect-free-debug-evaluate': [PASS, FAIL],
+  # Issue 6170. Crash.
+  'cpu-profiler/console-profile': [SKIP],
+  'cpu-profiler/console-profile-end-parameterless-crash': [SKIP],
+  # Issue 6171. Timeout.
+  'debugger/set-blackbox-patterns': [SKIP],
+}],  # variant != default
+
+##############################################################################
+['variant == noturbofan', {
+  # Crashes due to missing source position in ToBooleanICStub?
+  'runtime/command-line-api': [SKIP],
+}],  # variant == noturbofan
+
+##############################################################################
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
+
+]

@@ -1,0 +1,69 @@
+{
+  "_from": "imurmurhash@*",
+  "_id": "imurmurhash@0.1.4",
+  "_integrity": "sha1-khi5srkoojixPcT7a21XbyMUU+o=",
+  "_location": "/imurmurhash",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "imurmurhash@*",
+    "name": "imurmurhash",
+    "escapedName": "imurmurhash",
+    "rawSpec": "*",
+    "saveSpec": null,
+    "fetchSpec": "*"
+  },
+  "_requiredBy": [
+    "/",
+    "/fs-write-stream-atomic",
+    "/unique-filename/unique-slug",
+    "/write-file-atomic"
+  ],
+  "_resolved": "https://registry.npmjs.org/imurmurhash/-/imurmurhash-0.1.4.tgz",
+  "_shasum": "9218b9b2b928a238b13dc4fb6b6d576f231453ea",
+  "_shrinkwrap": null,
+  "_spec": "imurmurhash@*",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "Jens Taylor",
+    "email": "jensyt@gmail.com",
+    "url": "https://github.com/homebrewing"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/jensyt/imurmurhash-js/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "An incremental implementation of MurmurHash3",
+  "devDependencies": {},
+  "engines": {
+    "node": ">=0.8.19"
+  },
+  "files": [
+    "imurmurhash.js",
+    "imurmurhash.min.js",
+    "package.json",
+    "README.md"
+  ],
+  "homepage": "https://github.com/jensyt/imurmurhash-js",
+  "keywords": [
+    "murmur",
+    "murmurhash",
+    "murmurhash3",
+    "hash",
+    "incremental"
+  ],
+  "license": "MIT",
+  "main": "imurmurhash.js",
+  "name": "imurmurhash",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jensyt/imurmurhash-js.git"
+  },
+  "version": "0.1.4"
+}

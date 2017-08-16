@@ -113,7 +113,7 @@ PASS str.match(re).toString() is 'Chapter 3.4.5.1,Chapter 3.4.5.1,.1'
 PASS str.match(/d/gi).toString() is 'D,d'
 PASS /\u0061/.source is '\\u0061'
 PASS 'abc'.match(/\u0062/).toString() is 'b'
-PASS Object.prototype.toString.apply(RegExp.prototype) is '[object RegExp]'
+FAIL Object.prototype.toString.apply(RegExp.prototype) should be [object RegExp]. Was [object Object].
 PASS typeof RegExp.prototype.toString() is 'string'
 PASS new RegExp().toString() is '/(?:)/'
 PASS (new RegExp('(?:)')).source is '(?:)'

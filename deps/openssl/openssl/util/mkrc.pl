@@ -57,7 +57,7 @@ BEGIN
             VALUE "ProductVersion", "$version\\0"
             // Optional:
             //VALUE "Comments", "\\0"
-            VALUE "LegalCopyright", "Copyright © 1998-2006 The OpenSSL Project. Copyright © 1995-1998 Eric A. Young, Tim J. Hudson. All rights reserved.\\0"
+            VALUE "LegalCopyright", "Copyright Â© 1998-2006 The OpenSSL Project. Copyright Â© 1995-1998 Eric A. Young, Tim J. Hudson. All rights reserved.\\0"
             //VALUE "LegalTrademarks", "\\0"
             //VALUE "PrivateBuild", "\\0"
             //VALUE "SpecialBuild", "\\0"

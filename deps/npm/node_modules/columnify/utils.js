@@ -108,33 +108,46 @@ function splitIntoLines(str, max) {
  * @return String
  */
 
-function splitLongWords(str, max, truncationChar, result) {
+function splitLongWords(str, max, truncationChar) {
   str = str.trim()
-  result = result || []
-  if (!str) return result.join(' ') || ''
+  var result = []
   var words = str.split(' ')
-  var word = words.shift() || str
-  if (wcwidth(word) > max) {
-    // slice is based on length no wcwidth
-    var i = 0
-    var wwidth = 0
-    var limit = max - wcwidth(truncationChar)
-    while (i < word.length) {
-      var w = wcwidth(word.charAt(i))
-      if(w + wwidth > limit)
-        break
-      wwidth += w
-      ++i
+  var remainder = ''
+
+  var truncationWidth = wcwidth(truncationChar)
+
+  while (remainder || words.length) {
+    if (remainder) {
+      var word = remainder
+      remainder = ''
+    } else {
+      var word = words.shift()
     }
 
-    var remainder = word.slice(i) // get remainder
-    words.unshift(remainder) // save remainder for next loop
+    if (wcwidth(word) > max) {
+      // slice is based on length no wcwidth
+      var i = 0
+      var wwidth = 0
+      var limit = max - truncationWidth
+      while (i < word.length) {
+        var w = wcwidth(word.charAt(i))
+        if (w + wwidth > limit) {
+          break
+        }
+        wwidth += w
+        ++i
+      }
 
-    word = word.slice(0, i) // grab truncated word
-    word += truncationChar // add trailing … or whatever
+      remainder = word.slice(i) // get remainder
+      // save remainder for next loop
+
+      word = word.slice(0, i) // grab truncated word
+      word += truncationChar // add trailing … or whatever
+    }
+    result.push(word)
   }
-  result.push(word)
-  return splitLongWords(words.join(' '), max, truncationChar, result)
+
+  return result.join(' ')
 }
 
 

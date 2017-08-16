@@ -1,13 +1,36 @@
 include_rules = [
+  "+base/trace_event/common/trace_event_common.h",
   "+src",
+  "-src/asmjs",
+  "+src/asmjs/asm-js.h",
   "-src/compiler",
   "+src/compiler/pipeline.h",
+  "+src/compiler/code-assembler.h",
+  "+src/compiler/wasm-compiler.h",
+  "-src/heap",
+  "+src/heap/heap.h",
+  "+src/heap/heap-inl.h",
+  "-src/inspector",
+  "-src/interpreter",
+  "+src/interpreter/bytecode-array-accessor.h",
+  "+src/interpreter/bytecode-array-iterator.h",
+  "+src/interpreter/bytecode-array-random-iterator.h",
+  "+src/interpreter/bytecode-decoder.h",
+  "+src/interpreter/bytecode-flags.h",
+  "+src/interpreter/bytecode-register.h",
+  "+src/interpreter/bytecodes.h",
+  "+src/interpreter/interpreter.h",
+  "+src/interpreter/setup-interpreter.h",
+  "-src/trap-handler",
+  "+src/trap-handler/trap-handler.h",
+  "+testing/gtest/include/gtest/gtest_prod.h",
   "-src/libplatform",
   "-include/libplatform"
 ]
 
 specific_include_rules = {
-  "(mksnapshot|d8)\.cc": [
+  "d8\.cc": [
     "+include/libplatform/libplatform.h",
+    "+include/libplatform/v8-tracing.h",
   ],
 }

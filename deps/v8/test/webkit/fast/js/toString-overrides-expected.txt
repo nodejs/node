@@ -35,6 +35,5 @@ FAIL [/r/].toLocaleString() should be toString2. Threw exception TypeError: stri
 PASS caught is true
 PASS successfullyParsed is true
 
-
 TEST COMPLETE
 

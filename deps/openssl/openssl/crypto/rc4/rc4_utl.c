@@ -1,4 +1,4 @@
-/* crypto/rc4/rc4_utl.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/rc4/rc4_utl.c */
 /* ====================================================================
  * Copyright (c) 2011 The OpenSSL Project.  All rights reserved.
  *
@@ -7,7 +7,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -54,9 +54,9 @@
 #include <openssl/rc4.h>
 
 void RC4_set_key(RC4_KEY *key, int len, const unsigned char *data)
-	{
+{
 #ifdef OPENSSL_FIPS
-	fips_cipher_abort(RC4);
+    fips_cipher_abort(RC4);
 #endif
-	private_RC4_set_key(key, len, data);
-	}
+    private_RC4_set_key(key, len, data);
+}

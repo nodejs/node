@@ -33,10 +33,8 @@
   'dfg-inline-arguments-become-int32': [PASS, FAIL],
   'dfg-inline-arguments-reset': [PASS, FAIL],
   'dfg-inline-arguments-reset-changetype': [PASS, FAIL],
-  # TODO(turbofan): We run out of stack earlier on 64-bit for now.
-  'fast/js/deep-recursion-test': [PASS, NO_VARIANTS],
-  # TODO(bmeurer,svenpanne): Investigate test failure.
-  'fast/js/toString-number': [SKIP],
+  # Irregexp interpreter overflows stack. We should just not crash.
+  'fast/js/regexp-stack-overflow': [PASS, FAIL],
 }],  # ALWAYS
 ['mode == debug', {
   # Too slow in debug mode.
@@ -44,20 +42,55 @@
   'dfg-double-vote-fuzz': [SKIP],
   'reentrant-caching': [SKIP],
   'sort-large-array': [SKIP],
-  # Too slow on windows with --nocrankshaft.
-  # TODO(mstarzinger): Too slow with TF.
-  'array-iterate-backwards': [PASS, NO_VARIANTS],
+  # Too slow with --enable-slow-asserts.
+  'array-iterate-backwards': [SKIP],
 }],  # 'mode == debug'
 ['simulator', {
   # Skip tests that timeout with turbofan.
-  'dfg-int-overflow-in-loop': [PASS, NO_VARIANTS],
   'array-iterate-backwards': [PASS, NO_VARIANTS],
   'function-apply-aliased': [SKIP],
-}],  # 'simulator'
-['arch == arm64 and simulator_run == True', {
-  'dfg-int-overflow-in-loop': [SKIP],
-}],  # 'arch == arm64 and simulator_run == True'
 
+  # Skip tests that are too slow for simulators.
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # 'simulator'
+['arch == arm64 and simulator_run', {
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # 'arch == arm64 and simulator_run'
+['dcheck_always_on == True and (arch == arm or arch == arm64)', {
+  # Doesn't work with gcc 4.6 on arm or arm64 for some reason.
+  'reentrant-caching': [SKIP],
+}],  # 'dcheck_always_on == True and (arch == arm or arch == arm64)'
+['arch == mips', {
+  # Too slow for mips big-endian boards on bots (no FPU).
+  'dfg-int-overflow-in-loop': [SKIP],
+}], # 'arch == mips'
+['(arch == ppc or arch == ppc64) and simulator_run', {
+  # Too slow.
+  'dfg-int-overflow-in-loop': [SKIP],
+}], # 'arch == ppc or arch == ppc64'
+['arch == s390 or arch == s390x', {
+  # Too slow.
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
+['arch == x87', {
+  # Too slow.
+  'dfg-negative-array-index': [SKIP],
+}], # 'arch == x87'
+
+##############################################################################
+['asan == True', {
+  # Skip tests not suitable for ASAN.
+  'fast/js/excessive-comma-usage': [SKIP],
+
+  # BUG(v8:4499).
+  'run-json-stringify': [SKIP],
+}],  # 'asan == True'
+
+##############################################################################
+['isolates', {
+  # BUG(v8:4499).
+  '*': [SKIP],
+}],  # 'isolates'
 
 ##############################################################################
 ['gc_stress == True', {
@@ -66,9 +99,37 @@
 }],  # 'gc_stress == True'
 
 ['gc_stress == True and mode == debug', {
-  # Skip tests that timout with turbofan.
-  'array-iterate-backwards': [PASS, NO_VARIANTS]
+  # Skip tests that timeout.
 }],  # 'gc_stress == True and mode == debug'
+
+##############################################################################
+['arch == arm64 and msan', {
+  # Stack size too large with masm on Arm64.
+  'fast/js/excessive-comma-usage': [SKIP],
+}],  # arch == arm64 and msan
+
+##############################################################################
+['gcov_coverage', {
+  # Tests taking too long or getting too large call stacks.
+  'fast/js/excessive-comma-usage': [SKIP],
+  'run-json-stringify': [SKIP],
+}],  # 'gcov_coverage'
+
+##############################################################################
+['variant == asm_wasm', {
+  # Stack size too large with asm.js validator.
+  'fast/js/excessive-comma-usage': [SKIP],
+}],  # variant == asm_wasm
+
+##############################################################################
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
+
+##############################################################################
+['no_i18n == True', {
+  'fast/js/string-capitalization': [FAIL],
+}],  # variant == wasm_traps
 
 ##############################################################################
 ]

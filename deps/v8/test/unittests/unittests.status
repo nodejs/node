@@ -3,4 +3,19 @@
 # found in the LICENSE file.
 
 [
+[ALWAYS, {
+    # BUG(5677): Real timers are flaky
+    'RuntimeCallStatsTest.*': [SKIP],
+}], # ALWAYS
+
+['arch == x87', {
+  'Ieee754.Expm1': [SKIP],
+  'Ieee754.Cos': [SKIP],
+  'Ieee754.Tan': [SKIP],
+  'Ieee754.Acosh': [SKIP],
+  'Ieee754.Asinh': [SKIP],
+  'MoveOptimizerTest.RemovesRedundantExplicit': [SKIP],
+  'RegisterAllocatorTest.CanAllocateFPRegisters': [SKIP],
+}],  # 'arch == x87'
+
 ]

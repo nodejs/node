@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var PORT = common.PORT;
 
@@ -6,11 +7,12 @@ if (cluster.isMaster) {
   var bench = common.createBenchmark(main, {
     // unicode confuses ab on os x.
     type: ['bytes', 'buffer'],
-    length: [4, 1024, 102400],
+    len: [4, 1024, 102400],
     c: [50, 500]
   });
 } else {
-  require('../http_simple.js');
+  var port = parseInt(process.env.PORT || PORT);
+  require('../fixtures/simple-http-server.js').listen(port);
 }
 
 function main(conf) {
@@ -25,10 +27,12 @@ function main(conf) {
       return;
 
     setTimeout(function() {
-      var path = '/' + conf.type + '/' + conf.length;
-      var args = ['-d', '10s', '-t', 8, '-c', conf.c];
+      var path = `/${conf.type}/${conf.len}`;
 
-      bench.http(path, args, function() {
+      bench.http({
+        path: path,
+        connections: conf.c
+      }, function() {
         w1.destroy();
         w2.destroy();
       });

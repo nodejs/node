@@ -19,44 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
-}
+if (!common.opensslCli)
+  common.skip('missing openssl-cli');
 
-var assert = require('assert');
-var exec = require('child_process').exec;
-var tls = require('tls');
-var fs = require('fs');
+const assert = require('assert');
+const tls = require('tls');
+const exec = require('child_process').exec;
+const fs = require('fs');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
-  ciphers: 'ECDHE-RSA-RC4-SHA',
+const options = {
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`),
+  ciphers: 'ECDHE-RSA-AES128-SHA',
   ecdhCurve: false
 };
 
-var nconns = 0;
+const server = tls.createServer(options, common.mustNotCall());
 
-process.on('exit', function() {
-  assert.equal(nconns, 0);
-});
+server.listen(0, '127.0.0.1', common.mustCall(function() {
+  let cmd = `"${common.opensslCli}" s_client -cipher ${
+    options.ciphers} -connect 127.0.0.1:${this.address().port}`;
 
-var server = tls.createServer(options, function(conn) {
-  conn.end();
-  nconns++;
-});
+  // for the performance and stability issue in s_client on Windows
+  if (common.isWindows)
+    cmd += ' -no_rand_screen';
 
-server.listen(common.PORT, '127.0.0.1', function() {
-  var cmd = common.opensslCli + ' s_client -cipher ' + options.ciphers +
-            ' -connect 127.0.0.1:' + common.PORT;
-
-  exec(cmd, function(err, stdout, stderr) {
+  exec(cmd, common.mustCall(function(err, stdout, stderr) {
     // Old versions of openssl will still exit with 0 so we
     // can't just check if err is not null.
-    assert.notEqual(stderr.indexOf('handshake failure'), -1);
+    assert(stderr.includes('handshake failure'));
     server.close();
-  });
-});
+  }));
+}));

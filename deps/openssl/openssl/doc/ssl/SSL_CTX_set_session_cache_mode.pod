@@ -30,7 +30,7 @@ server. It can only send exactly one id.  The server then either
 agrees to reuse the session or it starts a full handshake (to create a new
 session).
 
-A server will lookup up the session in its internal session storage. If the
+A server will look up the session in its internal session storage. If the
 session is not found in internal storage or lookups for the internal storage
 have been deactivated (SSL_SESS_CACHE_NO_INTERNAL_LOOKUP), the server will try
 the external storage if available.

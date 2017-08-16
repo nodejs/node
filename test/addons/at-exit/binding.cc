@@ -1,11 +1,9 @@
-#undef NDEBUG
 #include <assert.h>
 #include <stdlib.h>
 #include <node.h>
 #include <v8.h>
 
 using node::AtExit;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -16,12 +14,10 @@ static int at_exit_cb1_called = 0;
 static int at_exit_cb2_called = 0;
 
 static void at_exit_cb1(void* arg) {
-  // FIXME(bnoordhuis) Isolate::GetCurrent() is on its way out.
-  Isolate* isolate = Isolate::GetCurrent();
+  Isolate* isolate = static_cast<Isolate*>(arg);
   HandleScope handle_scope(isolate);
-  assert(arg == 0);
   Local<Object> obj = Object::New(isolate);
-  assert(!obj.IsEmpty()); // assert VM is still alive
+  assert(!obj.IsEmpty());  // Assert VM is still alive.
   assert(obj->IsObject());
   at_exit_cb1_called++;
 }
@@ -36,11 +32,11 @@ static void sanity_check(void) {
   assert(at_exit_cb2_called == 2);
 }
 
-void init(Handle<Object> target) {
-  AtExit(at_exit_cb1);
+void init(Local<Object> exports) {
+  AtExit(at_exit_cb1, exports->GetIsolate());
   AtExit(at_exit_cb2, cookie);
   AtExit(at_exit_cb2, cookie);
   atexit(sanity_check);
 }
 
-NODE_MODULE(binding, init);
+NODE_MODULE(binding, init)

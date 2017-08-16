@@ -7,7 +7,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -53,8 +53,10 @@
  *
  */
 
-/* Support for deprecated functions goes here - static linkage will only slurp
- * this code if applications are using them directly. */
+/*
+ * Support for deprecated functions goes here - static linkage will only
+ * slurp this code if applications are using them directly.
+ */
 
 #include <stdio.h>
 #include <time.h>
@@ -62,51 +64,52 @@
 #include "bn_lcl.h"
 #include <openssl/rand.h>
 
-static void *dummy=&dummy;
+static void *dummy = &dummy;
 
 #ifndef OPENSSL_NO_DEPRECATED
 BIGNUM *BN_generate_prime(BIGNUM *ret, int bits, int safe,
-	const BIGNUM *add, const BIGNUM *rem,
-	void (*callback)(int,int,void *), void *cb_arg)
-	{
-	BN_GENCB cb;
-	BIGNUM *rnd=NULL;
-	int found = 0;
+                          const BIGNUM *add, const BIGNUM *rem,
+                          void (*callback) (int, int, void *), void *cb_arg)
+{
+    BN_GENCB cb;
+    BIGNUM *rnd = NULL;
+    int found = 0;
 
-	BN_GENCB_set_old(&cb, callback, cb_arg);
+    BN_GENCB_set_old(&cb, callback, cb_arg);
 
-	if (ret == NULL)
-		{
-		if ((rnd=BN_new()) == NULL) goto err;
-		}
-	else
-		rnd=ret;
-	if(!BN_generate_prime_ex(rnd, bits, safe, add, rem, &cb))
-		goto err;
+    if (ret == NULL) {
+        if ((rnd = BN_new()) == NULL)
+            goto err;
+    } else
+        rnd = ret;
+    if (!BN_generate_prime_ex(rnd, bits, safe, add, rem, &cb))
+        goto err;
 
-	/* we have a prime :-) */
-	found = 1;
-err:
-	if (!found && (ret == NULL) && (rnd != NULL)) BN_free(rnd);
-	return(found ? rnd : NULL);
-	}
+    /* we have a prime :-) */
+    found = 1;
+ err:
+    if (!found && (ret == NULL) && (rnd != NULL))
+        BN_free(rnd);
+    return (found ? rnd : NULL);
+}
 
-int BN_is_prime(const BIGNUM *a, int checks, void (*callback)(int,int,void *),
-	BN_CTX *ctx_passed, void *cb_arg)
-	{
-	BN_GENCB cb;
-	BN_GENCB_set_old(&cb, callback, cb_arg);
-	return BN_is_prime_ex(a, checks, ctx_passed, &cb);
-	}
+int BN_is_prime(const BIGNUM *a, int checks,
+                void (*callback) (int, int, void *), BN_CTX *ctx_passed,
+                void *cb_arg)
+{
+    BN_GENCB cb;
+    BN_GENCB_set_old(&cb, callback, cb_arg);
+    return BN_is_prime_ex(a, checks, ctx_passed, &cb);
+}
 
 int BN_is_prime_fasttest(const BIGNUM *a, int checks,
-		void (*callback)(int,int,void *),
-		BN_CTX *ctx_passed, void *cb_arg,
-		int do_trial_division)
-	{
-	BN_GENCB cb;
-	BN_GENCB_set_old(&cb, callback, cb_arg);
-	return BN_is_prime_fasttest_ex(a, checks, ctx_passed,
-				do_trial_division, &cb);
-	}
+                         void (*callback) (int, int, void *),
+                         BN_CTX *ctx_passed, void *cb_arg,
+                         int do_trial_division)
+{
+    BN_GENCB cb;
+    BN_GENCB_set_old(&cb, callback, cb_arg);
+    return BN_is_prime_fasttest_ex(a, checks, ctx_passed,
+                                   do_trial_division, &cb);
+}
 #endif

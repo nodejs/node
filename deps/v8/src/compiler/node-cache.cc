@@ -6,12 +6,20 @@
 
 #include <cstring>
 
-#include "src/zone.h"
-#include "src/zone-containers.h"
+#include "src/globals.h"
+#include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+namespace {
+
+enum { kInitialSize = 16u, kLinearProbe = 5u };
+
+}  // namespace
+
 
 template <typename Key, typename Hash, typename Pred>
 struct NodeCache<Key, Hash, Pred>::Entry {
@@ -29,7 +37,7 @@ bool NodeCache<Key, Hash, Pred>::Resize(Zone* zone) {
   size_t old_size = size_ + kLinearProbe;
   size_ *= 4;
   size_t num_entries = size_ + kLinearProbe;
-  entries_ = zone->NewArray<Entry>(static_cast<int>(num_entries));
+  entries_ = zone->NewArray<Entry>(num_entries);
   memset(entries_, 0, sizeof(Entry) * num_entries);
 
   // Insert the old entries into the new block.
@@ -59,7 +67,7 @@ Node** NodeCache<Key, Hash, Pred>::Find(Zone* zone, Key key) {
   if (!entries_) {
     // Allocate the initial entries and insert the first entry.
     size_t num_entries = kInitialSize + kLinearProbe;
-    entries_ = zone->NewArray<Entry>(static_cast<int>(num_entries));
+    entries_ = zone->NewArray<Entry>(num_entries);
     size_ = kInitialSize;
     memset(entries_, 0, sizeof(Entry) * num_entries);
     Entry* entry = &entries_[hash & (kInitialSize - 1)];
@@ -92,17 +100,23 @@ Node** NodeCache<Key, Hash, Pred>::Find(Zone* zone, Key key) {
 
 
 template <typename Key, typename Hash, typename Pred>
-void NodeCache<Key, Hash, Pred>::GetCachedNodes(NodeVector* nodes) {
+void NodeCache<Key, Hash, Pred>::GetCachedNodes(ZoneVector<Node*>* nodes) {
   if (entries_) {
     for (size_t i = 0; i < size_ + kLinearProbe; i++) {
-      if (entries_[i].value_ != NULL) nodes->push_back(entries_[i].value_);
+      if (entries_[i].value_) nodes->push_back(entries_[i].value_);
     }
   }
 }
 
-template class NodeCache<int64_t>;
-template class NodeCache<int32_t>;
-template class NodeCache<void*>;
+
+// -----------------------------------------------------------------------------
+// Instantiations
+
+template class V8_EXPORT_PRIVATE NodeCache<int32_t>;
+template class V8_EXPORT_PRIVATE NodeCache<int64_t>;
+
+template class V8_EXPORT_PRIVATE NodeCache<RelocInt32Key>;
+template class V8_EXPORT_PRIVATE NodeCache<RelocInt64Key>;
 
 }  // namespace compiler
 }  // namespace internal

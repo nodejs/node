@@ -32,7 +32,7 @@ L ECDSA		crypto/ecdsa/ecdsa.h		crypto/ecdsa/ecs_err.c
 L ECDH		crypto/ecdh/ecdh.h		crypto/ecdh/ech_err.c
 L STORE		crypto/store/store.h		crypto/store/str_err.c
 L TS		crypto/ts/ts.h			crypto/ts/ts_err.c
-L HMAC		crypto/hmac/hmac.h		crypto/hmac/hmac_err.c
+#L HMAC		crypto/hmac/hmac.h		crypto/hmac/hmac_err.c
 L CMS		crypto/cms/cms.h		crypto/cms/cms_err.c
 L JPAKE		crypto/jpake/jpake.h		crypto/jpake/jpake_err.c
 
@@ -41,6 +41,7 @@ L NONE		crypto/x509/x509_vfy.h		NONE
 L NONE		crypto/ec/ec_lcl.h		NONE
 L NONE		crypto/asn1/asn_lcl.h		NONE
 L NONE		crypto/cms/cms_lcl.h		NONE
+L NONE		ssl/ssl_locl.h			NONE
 
 
 F RSAREF_F_RSA_BN2BIN

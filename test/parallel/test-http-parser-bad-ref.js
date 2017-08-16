@@ -1,29 +1,30 @@
+'use strict';
 // Run this program with valgrind or efence with --expose_gc to expose the
 // problem.
 
 // Flags: --expose_gc
 
-var common = require('../common');
-var assert = require('assert');
-var HTTPParser = process.binding('http_parser').HTTPParser;
+require('../common');
+const assert = require('assert');
+const HTTPParser = process.binding('http_parser').HTTPParser;
 
-var kOnHeaders = HTTPParser.kOnHeaders | 0;
-var kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
-var kOnBody = HTTPParser.kOnBody | 0;
-var kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
+const kOnHeaders = HTTPParser.kOnHeaders | 0;
+const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
+const kOnBody = HTTPParser.kOnBody | 0;
+const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 
-var headersComplete = 0;
-var messagesComplete = 0;
+let headersComplete = 0;
+let messagesComplete = 0;
 
 function flushPool() {
-  new Buffer(Buffer.poolSize - 1);
-  gc();
+  Buffer.allocUnsafe(Buffer.poolSize - 1);
+  global.gc();
 }
 
 function demoBug(part1, part2) {
   flushPool();
 
-  var parser = new HTTPParser('REQUEST');
+  const parser = new HTTPParser('REQUEST');
 
   parser.headers = [];
   parser.url = '';
@@ -38,7 +39,7 @@ function demoBug(part1, part2) {
     console.log('url', info.url);
   };
 
-  parser[kOnBody] = function(b, start, len) { };
+  parser[kOnBody] = () => {};
 
   parser[kOnMessageComplete] = function() {
     messagesComplete++;
@@ -48,7 +49,7 @@ function demoBug(part1, part2) {
   // We use a function to eliminate references to the Buffer b
   // We want b to be GCed. The parser will hold a bad reference to it.
   (function() {
-    var b = Buffer(part1);
+    const b = Buffer.from(part1);
     flushPool();
 
     console.log('parse the first part of the message');
@@ -58,7 +59,7 @@ function demoBug(part1, part2) {
   flushPool();
 
   (function() {
-    var b = Buffer(part2);
+    const b = Buffer.from(part2);
 
     console.log('parse the second part of the message');
     parser.execute(b, 0, b.length);
@@ -80,7 +81,7 @@ demoBug('POST /1/22 HTTP/1.1\r\n' +
         'pong');
 
 process.on('exit', function() {
-  assert.equal(2, headersComplete);
-  assert.equal(2, messagesComplete);
+  assert.strictEqual(2, headersComplete);
+  assert.strictEqual(2, messagesComplete);
   console.log('done!');
 });

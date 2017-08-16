@@ -102,7 +102,8 @@ TEST_IMPL(handle_fileno) {
 
   tty_fd = get_tty_fd();
   if (tty_fd < 0) {
-    LOGF("Cannot open a TTY fd");
+    fprintf(stderr, "Cannot open a TTY fd");
+    fflush(stderr);
   } else {
     r = uv_tty_init(loop, &tty, tty_fd, 0);
     ASSERT(r == 0);

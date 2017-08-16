@@ -20,11 +20,8 @@ This document will tell you what it puts where.
 ### prefix Configuration
 
 The `prefix` config defaults to the location where node is installed.
-On most systems, this is `/usr/local`, and most of the time is the same
-as node's `process.installPrefix`.
-
-On windows, this is the exact location of the node.exe binary.  On Unix
-systems, it's one level up, since node is typically installed at
+On most systems, this is `/usr/local`. On Windows, it's `%AppData%\npm`.
+On Unix systems, it's one level up, since node is typically installed at
 `{prefix}/bin/node` rather than `{prefix}/node.exe`.
 
 When the `global` flag is set, npm installs things into this prefix.
@@ -45,7 +42,7 @@ Global installs on Windows go to `{prefix}/node_modules` (that is, no
 Scoped packages are installed the same way, except they are grouped together
 in a sub-folder of the relevant `node_modules` folder with the name of that
 scope prefix by the @ symbol, e.g. `npm install @myorg/package` would place
-the package in `{prefix}/node_modules/@myorg/package`. See `scopes(7)` for
+the package in `{prefix}/node_modules/@myorg/package`. See `scope(7)` for
 more details.
 
 If you wish to `require()` a package, then install it locally.
@@ -206,7 +203,6 @@ cannot be found elsewhere.  See `package.json(5)` for more information.
 
 ## SEE ALSO
 
-* npm-faq(7)
 * package.json(5)
 * npm-install(1)
 * npm-pack(1)

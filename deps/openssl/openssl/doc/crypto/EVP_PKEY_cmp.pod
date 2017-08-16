@@ -21,12 +21,14 @@ parameters of B<pkey> are missing and 0 if they are present or the algorithm
 doesn't use parameters.
 
 The function EVP_PKEY_copy_parameters() copies the parameters from key
-B<from> to key B<to>.
+B<from> to key B<to>. An error is returned if the parameters are missing in
+B<from> or present in both B<from> and B<to> and mismatch. If the parameters
+in B<from> and B<to> are both present and match this function has no effect.
 
-The funcion EVP_PKEY_cmp_parameters() compares the parameters of keys
+The function EVP_PKEY_cmp_parameters() compares the parameters of keys
 B<a> and B<b>.
 
-The funcion EVP_PKEY_cmp() compares the public key components and paramters
+The function EVP_PKEY_cmp() compares the public key components and paramters
 (if present) of keys B<a> and B<b>.
 
 =head1 NOTES

@@ -24,6 +24,7 @@ function Entry (header, extended, global) {
   this._ending = false
   this._ended = false
   this._remaining = 0
+  this._abort = false
   this._queue = []
   this._index = 0
   this._queueLen = 0
@@ -207,6 +208,12 @@ Entry.prototype._setProps = function () {
 
   // size is special, since it signals when the file needs to end.
   this._remaining = props.size
+}
+
+// the parser may not call write if _abort is true. 
+// useful for skipping data from some files quickly.
+Entry.prototype.abort = function(){
+  this._abort = true
 }
 
 Entry.prototype.warn = fstream.warn

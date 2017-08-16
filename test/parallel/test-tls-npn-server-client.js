@@ -19,26 +19,23 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.features.tls_npn) {
-  console.error('Skipping because node compiled without OpenSSL or ' +
-                'with old OpenSSL version.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common'),
-    assert = require('assert'),
-    fs = require('fs'),
-    tls = require('tls');
+if (!process.features.tls_npn)
+  common.skip('Skipping because node compiled without NPN feature of OpenSSL.');
 
-function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
-}
+const assert = require('assert');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
 function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
+  return fixtures.readKey(`${n}.pem`);
 }
 
-var serverOptions = {
+const serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   crl: loadPEM('ca2-crl'),
@@ -52,30 +49,28 @@ var serverOptions = {
   NPNProtocols: ['a', 'b', 'c']
 };
 
-var serverPort = common.PORT;
-
-var clientsOptions = [{
-  port: serverPort,
+const clientsOptions = [{
+  port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   NPNProtocols: ['a', 'b', 'c'],
   rejectUnauthorized: false
-},{
-  port: serverPort,
+}, {
+  port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   NPNProtocols: ['c', 'b', 'e'],
   rejectUnauthorized: false
-},{
-  port: serverPort,
+}, {
+  port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   rejectUnauthorized: false
-},{
-  port: serverPort,
+}, {
+  port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
@@ -83,23 +78,24 @@ var clientsOptions = [{
   rejectUnauthorized: false
 }];
 
-var serverResults = [],
-    clientsResults = [];
+const serverResults = [];
+const clientsResults = [];
 
-var server = tls.createServer(serverOptions, function(c) {
+const server = tls.createServer(serverOptions, function(c) {
   serverResults.push(c.npnProtocol);
 });
-server.listen(serverPort, startTest);
+server.listen(0, startTest);
 
 function startTest() {
   function connectClient(options, callback) {
-    var client = tls.connect(options, function() {
+    options.port = server.address().port;
+    const client = tls.connect(options, function() {
       clientsResults.push(client.npnProtocol);
       client.destroy();
 
       callback();
     });
-  };
+  }
 
   connectClient(clientsOptions[0], function() {
     connectClient(clientsOptions[1], function() {
@@ -113,10 +109,10 @@ function startTest() {
 }
 
 process.on('exit', function() {
-  assert.equal(serverResults[0], clientsResults[0]);
-  assert.equal(serverResults[1], clientsResults[1]);
-  assert.equal(serverResults[2], 'http/1.1');
-  assert.equal(clientsResults[2], false);
-  assert.equal(serverResults[3], 'first-priority-unsupported');
-  assert.equal(clientsResults[3], false);
+  assert.strictEqual(serverResults[0], clientsResults[0]);
+  assert.strictEqual(serverResults[1], clientsResults[1]);
+  assert.strictEqual(serverResults[2], 'http/1.1');
+  assert.strictEqual(clientsResults[2], false);
+  assert.strictEqual(serverResults[3], 'first-priority-unsupported');
+  assert.strictEqual(clientsResults[3], false);
 });

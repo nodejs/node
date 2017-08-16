@@ -15,11 +15,8 @@ namespace base {
 #if V8_OS_POSIX
 
 ConditionVariable::ConditionVariable() {
-  // TODO(bmeurer): The test for V8_LIBRT_NOT_AVAILABLE is a temporary
-  // hack to support cross-compiling Chrome for Android in AOSP. Remove
-  // this once AOSP is fixed.
 #if (V8_OS_FREEBSD || V8_OS_NETBSD || V8_OS_OPENBSD || \
-     (V8_OS_LINUX && V8_LIBC_GLIBC)) && !V8_LIBRT_NOT_AVAILABLE
+     (V8_OS_LINUX && V8_LIBC_GLIBC))
   // On Free/Net/OpenBSD and Linux with glibc we can change the time
   // source for pthread_cond_timedwait() to use the monotonic clock.
   pthread_condattr_t attr;
@@ -39,6 +36,19 @@ ConditionVariable::ConditionVariable() {
 
 
 ConditionVariable::~ConditionVariable() {
+#if defined(V8_OS_MACOSX)
+  // This hack is necessary to avoid a fatal pthreads subsystem bug in the
+  // Darwin kernel. http://crbug.com/517681.
+  {
+    Mutex lock;
+    LockGuard<Mutex> l(&lock);
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = 1;
+    pthread_cond_timedwait_relative_np(&native_handle_, &lock.native_handle(),
+                                       &ts);
+  }
+#endif
   int result = pthread_cond_destroy(&native_handle_);
   DCHECK_EQ(0, result);
   USE(result);
@@ -81,11 +91,8 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
   result = pthread_cond_timedwait_relative_np(
       &native_handle_, &mutex->native_handle(), &ts);
 #else
-  // TODO(bmeurer): The test for V8_LIBRT_NOT_AVAILABLE is a temporary
-  // hack to support cross-compiling Chrome for Android in AOSP. Remove
-  // this once AOSP is fixed.
 #if (V8_OS_FREEBSD || V8_OS_NETBSD || V8_OS_OPENBSD || \
-     (V8_OS_LINUX && V8_LIBC_GLIBC)) && !V8_LIBRT_NOT_AVAILABLE
+     (V8_OS_LINUX && V8_LIBC_GLIBC))
   // On Free/Net/OpenBSD and Linux with glibc we can change the time
   // source for pthread_cond_timedwait() to use the monotonic clock.
   result = clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -182,7 +189,7 @@ void ConditionVariable::NativeHandle::Post(Event* event, bool result) {
 
   // Remove the event from the wait list.
   for (Event** wep = &waitlist_;; wep = &(*wep)->next_) {
-    DCHECK_NE(NULL, *wep);
+    DCHECK(*wep);
     if (*wep == event) {
       *wep = event->next_;
       break;
@@ -270,8 +277,8 @@ void ConditionVariable::Wait(Mutex* mutex) {
   mutex->Unlock();
 
   // Wait on the wait event.
-  while (!event->WaitFor(INFINITE))
-    ;
+  while (!event->WaitFor(INFINITE)) {
+  }
 
   // Reaquire the user mutex.
   mutex->Lock();
@@ -319,4 +326,5 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
 
 #endif  // V8_OS_POSIX
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

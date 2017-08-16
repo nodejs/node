@@ -1,25 +1,37 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef V8_UTILS_INL_H_
 #define V8_UTILS_INL_H_
 
-#include "src/list-inl.h"
+#include "src/utils.h"
+
+#include "include/v8-platform.h"
+#include "src/base/platform/time.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
 
-template<typename T, int growth_factor, int max_growth>
-void Collector<T, growth_factor, max_growth>::Reset() {
-  for (int i = chunks_.length() - 1; i >= 0; i--) {
-    chunks_.at(i).Dispose();
-  }
-  chunks_.Rewind(0);
-  index_ = 0;
-  size_ = 0;
-}
+class TimedScope {
+ public:
+  explicit TimedScope(double* result)
+      : start_(TimestampMs()), result_(result) {}
 
-} }  // namespace v8::internal
+  ~TimedScope() { *result_ = TimestampMs() - start_; }
+
+ private:
+  static inline double TimestampMs() {
+    return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
+           static_cast<double>(base::Time::kMillisecondsPerSecond);
+  }
+
+  double start_;
+  double* result_;
+};
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_UTILS_INL_H_

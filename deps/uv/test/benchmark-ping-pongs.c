@@ -80,7 +80,8 @@ static void pinger_close_cb(uv_handle_t* handle) {
   pinger_t* pinger;
 
   pinger = (pinger_t*)handle->data;
-  LOGF("ping_pongs: %d roundtrips/s\n", (1000 * pinger->pongs) / TIME);
+  fprintf(stderr, "ping_pongs: %d roundtrips/s\n", (1000 * pinger->pongs) / TIME);
+  fflush(stderr);
 
   free(pinger);
 

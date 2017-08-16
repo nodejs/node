@@ -19,13 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var spawnSync = require('child_process').spawnSync;
+const spawnSync = require('child_process').spawnSync;
 
-var TIMER = 200;
-var SLEEP = 1000;
+const TIMER = 200;
+const SLEEP = common.platformTimeout(5000);
 
 switch (process.argv[2]) {
   case 'child':
@@ -35,11 +36,11 @@ switch (process.argv[2]) {
     }, SLEEP);
     break;
   default:
-    var start = Date.now();
-    var ret = spawnSync(process.execPath, [__filename, 'child'], {timeout: TIMER});
+    const start = Date.now();
+    const ret = spawnSync(process.execPath, [__filename, 'child'],
+                          { timeout: TIMER });
     assert.strictEqual(ret.error.errno, 'ETIMEDOUT');
-    console.log(ret);
-    var end = Date.now() - start;
+    const end = Date.now() - start;
     assert(end < SLEEP);
     assert(ret.status > 128 || ret.signal);
     break;

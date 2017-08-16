@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var SlowBuffer = require('buffer').SlowBuffer;
 
@@ -6,7 +7,7 @@ var bench = common.createBenchmark(main, {
   n: [1024]
 });
 
-var buf = new Buffer(1024);
+var buf = Buffer.allocUnsafe(1024);
 var slowBuf = new SlowBuffer(1024);
 
 function main(conf) {

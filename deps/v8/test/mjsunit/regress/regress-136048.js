@@ -26,9 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 try {
-  /foo/\u0069
+  eval("/foo/\\u0069")
 } catch (e) {
   assertEquals(
-      "SyntaxError: Invalid flags supplied to RegExp constructor '\\u0069'",
+      "SyntaxError: Invalid regular expression flags",
       e.toString());
 }

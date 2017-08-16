@@ -1,4 +1,6 @@
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
 assert.throws(
   function() {
@@ -7,10 +9,10 @@ assert.throws(
   /No such module: test/
 );
 
-assert.doesNotThrow(function () {
+assert.doesNotThrow(function() {
   process.binding('buffer');
 }, function(err) {
-  if ( (err instanceof Error) ) {
+  if (err instanceof Error) {
     return true;
   }
-}, "unexpected error");
+}, 'unexpected error');

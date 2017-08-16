@@ -19,46 +19,32 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var immediateThis, intervalThis, timeoutThis,
-    immediateArgsThis, intervalArgsThis, timeoutArgsThis;
+const immediateHandler = setImmediate(common.mustCall(function() {
+  assert.strictEqual(this, immediateHandler);
+}));
 
-var immediateHandler = setImmediate(function () {
-  immediateThis = this;
-});
+const immediateArgsHandler = setImmediate(common.mustCall(function() {
+  assert.strictEqual(this, immediateArgsHandler);
+}), 'args ...');
 
-var immediateArgsHandler = setImmediate(function () {
-  immediateArgsThis = this;
-}, "args ...");
-
-var intervalHandler = setInterval(function () {
+const intervalHandler = setInterval(common.mustCall(function() {
   clearInterval(intervalHandler);
+  assert.strictEqual(this, intervalHandler);
+}), 1);
 
-  intervalThis = this;
-});
-
-var intervalArgsHandler = setInterval(function () {
+const intervalArgsHandler = setInterval(common.mustCall(function() {
   clearInterval(intervalArgsHandler);
+  assert.strictEqual(this, intervalArgsHandler);
+}), 1, 'args ...');
 
-  intervalArgsThis = this;
-}, 0, "args ...");
+const timeoutHandler = setTimeout(common.mustCall(function() {
+  assert.strictEqual(this, timeoutHandler);
+}), 1);
 
-var timeoutHandler = setTimeout(function () {
-  timeoutThis = this;
-});
-
-var timeoutArgsHandler = setTimeout(function () {
-  timeoutArgsThis = this;
-}, 0, "args ...");
-
-process.once('exit', function () {
-  assert.strictEqual(immediateThis, immediateHandler);
-  assert.strictEqual(immediateArgsThis, immediateArgsHandler);
-
-  assert.strictEqual(intervalThis, intervalHandler);
-  assert.strictEqual(intervalArgsThis, intervalArgsHandler);
-
-  assert.strictEqual(timeoutThis, timeoutHandler);
-  assert.strictEqual(timeoutArgsThis, timeoutArgsHandler);
-});
+const timeoutArgsHandler = setTimeout(common.mustCall(function() {
+  assert.strictEqual(this, timeoutArgsHandler);
+}), 1, 'args ...');

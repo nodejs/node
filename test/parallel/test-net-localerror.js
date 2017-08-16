@@ -19,43 +19,26 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+'use strict';
+require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var server = net.createServer(function(socket) {
-  assert.ok(false, 'no clients should connect');
-}).listen(common.PORT).on('listening', function() {
-  server.unref();
+// Using port 0 as localPort / localAddress is already invalid.
+connect({
+  host: 'localhost',
+  port: 0,
+  localPort: 'foobar',
+}, /^TypeError: "localPort" option should be a number: foobar$/);
 
-  function test1(next) {
-    connect({
-      host: '127.0.0.1',
-      port: common.PORT,
-      localPort: 'foobar',
-    },
-    'localPort should be a number: foobar',
-    next);
-  }
+connect({
+  host: 'localhost',
+  port: 0,
+  localAddress: 'foobar',
+}, /^TypeError: "localAddress" option must be a valid IP: foobar$/);
 
-  function test2(next) {
-    connect({
-      host: '127.0.0.1',
-      port: common.PORT,
-      localAddress: 'foobar',
-    },
-    'localAddress should be a valid IP: foobar',
-    next)
-  }
-
-  test1(test2);
-})
-
-function connect(opts, msg, cb) {
-  var client = net.connect(opts).on('connect', function() {
-    assert.ok(false, 'we should never connect');
-  }).on('error', function(err) {
-    assert.strictEqual(err.message, msg);
-    if (cb) cb();
-  });
+function connect(opts, msg) {
+  assert.throws(() => {
+    net.connect(opts);
+  }, msg);
 }
