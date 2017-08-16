@@ -82,8 +82,6 @@ char *BN_bn2hex(const BIGNUM *a)
     p = buf;
     if (a->neg)
         *(p++) = '-';
-    if (BN_is_zero(a))
-        *(p++) = '0';
     for (i = a->top - 1; i >= 0; i--) {
         for (j = BN_BITS2 - 8; j >= 0; j -= 8) {
             /* strip leading zeros */
