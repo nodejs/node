@@ -45,7 +45,7 @@ const debug = require("debug")("eslint:cli-engine");
  * @property {string} cwd The value to use for the current working directory.
  * @property {string[]} envs An array of environments to load.
  * @property {string[]} extensions An array of file extensions to check.
- * @property {boolean} fix Execute in autofix mode.
+ * @property {boolean|Function} fix Execute in autofix mode. If a function, should return a boolean.
  * @property {string[]} globals An array of global variables to declare.
  * @property {boolean} ignore False disables use of .eslintignore.
  * @property {string} ignorePath The ignore file to use instead of .eslintignore.
@@ -135,7 +135,7 @@ function calculateStatsPerRun(results) {
  * @param {string} text The source code to check.
  * @param {Object} configHelper The configuration options for ESLint.
  * @param {string} filename An optional string representing the texts filename.
- * @param {boolean} fix Indicates if fixes should be processed.
+ * @param {boolean|Function} fix Indicates if fixes should be processed.
  * @param {boolean} allowInlineConfig Allow/ignore comments that change config.
  * @param {Linter} linter Linter context
  * @returns {LintResult} The results for linting on this text.
@@ -195,7 +195,8 @@ function processText(text, configHelper, filename, fix, allowInlineConfig, linte
         if (fix) {
             fixedResult = linter.verifyAndFix(text, config, {
                 filename,
-                allowInlineConfig
+                allowInlineConfig,
+                fix
             });
             messages = fixedResult.messages;
         } else {

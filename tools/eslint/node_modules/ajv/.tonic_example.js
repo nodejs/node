@@ -1,5 +1,5 @@
 var Ajv = require('ajv');
-var ajv = Ajv({allErrors: true});
+var ajv = new Ajv({allErrors: true});
 
 var schema = {
   "properties": {

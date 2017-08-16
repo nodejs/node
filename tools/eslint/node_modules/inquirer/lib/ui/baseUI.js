@@ -18,8 +18,10 @@ var UI = module.exports = function (opt) {
   this.onForceClose = this.onForceClose.bind(this);
 
   // Make sure new prompt start on a newline when closing
-  this.rl.on('SIGINT', this.onForceClose);
   process.on('exit', this.onForceClose);
+
+  // Terminate process on SIGINT (which will call process.on('exit') in return)
+  this.rl.on('SIGINT', this.onForceClose);
 };
 
 /**
@@ -29,6 +31,7 @@ var UI = module.exports = function (opt) {
 
 UI.prototype.onForceClose = function () {
   this.close();
+  process.kill(process.pid, 'SIGINT');
   console.log('');
 };
 
