@@ -192,7 +192,7 @@ added: v8.4.0
 -->
 
 The `'remoteSettings'` event is emitted when a new SETTINGS frame is received
-from the connected peer. When invoked, the handle function will receive a copy
+from the connected peer. When invoked, the handler function will receive a copy
 of the remote settings.
 
 ```js
@@ -1725,7 +1725,7 @@ those to lower-case (e.g. `content-type`) upon transmission.
 
 Header field-names *must only* contain one or more of the following ASCII
 characters: `a`-`z`, `A`-`Z`, `0`-`9`, `!`, `#`, `$`, `%`, `&`, `'`, `*`, `+`,
-`-`, `.`, `^`, `_`, `` (backtick), `|`, and `~`.
+`-`, `.`, `^`, `_`, `` ` `` (backtick), `|`, and `~`.
 
 Using invalid characters within an HTTP header field name will cause the
 stream to be closed with a protocol error being reported.
@@ -1883,12 +1883,12 @@ const server = createSecureServer(
 
 function onRequest(req, res) {
   // detects if it is a HTTPS request or HTTP/2
-  const { socket: { alpnProtocol } } = request.httpVersion === '2.0' ?
-    request.stream.session : request;
-  response.writeHead(200, { 'content-type': 'application/json' });
-  response.end(JSON.stringify({
+  const { socket: { alpnProtocol } } = req.httpVersion === '2.0' ?
+    req.stream.session : req;
+  res.writeHead(200, { 'content-type': 'application/json' });
+  res.end(JSON.stringify({
     alpnProtocol,
-    httpVersion: request.httpVersion
+    httpVersion: req.httpVersion
   }));
 }
 ```
