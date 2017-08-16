@@ -1,28 +1,46 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
 
-const keyBuff = fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`);
-const certBuff = fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`);
-const keyBuff2 = fs.readFileSync(`${common.fixturesDir}/keys/ec-key.pem`);
-const certBuff2 = fs.readFileSync(`${common.fixturesDir}/keys/ec-cert.pem`);
-const caCert = fs.readFileSync(`${common.fixturesDir}/keys/ca1-cert.pem`);
-const caCert2 = fs.readFileSync(`${common.fixturesDir}/keys/ca2-cert.pem`);
+function toArrayBuffer(buf) {
+  const ab = new ArrayBuffer(buf.length);
+  const view = new Uint8Array(ab);
+  return buf.map((b, i) => view[i] = b);
+}
+
+function toDataView(buf) {
+  const ab = new ArrayBuffer(buf.length);
+  const view = new DataView(ab);
+  return buf.map((b, i) => view[i] = b);
+}
+
+const keyBuff = fixtures.readKey('agent1-key.pem');
+const certBuff = fixtures.readKey('agent1-cert.pem');
+const keyBuff2 = fixtures.readKey('ec-key.pem');
+const certBuff2 = fixtures.readKey('ec-cert.pem');
+const caCert = fixtures.readKey('ca1-cert.pem');
+const caCert2 = fixtures.readKey('ca2-cert.pem');
 const keyStr = keyBuff.toString();
 const certStr = certBuff.toString();
 const keyStr2 = keyBuff2.toString();
 const certStr2 = certBuff2.toString();
 const caCertStr = caCert.toString();
 const caCertStr2 = caCert2.toString();
-const invalidKeyRE = /^The "key" argument must be one of type string or buffer$/;
-const invalidCertRE = /^The "cert" argument must be one of type string or buffer$/;
+const keyArrBuff = toArrayBuffer(keyBuff);
+const certArrBuff = toArrayBuffer(certBuff);
+const caArrBuff = toArrayBuffer(caCert);
+const keyDataView = toDataView(keyBuff);
+const certDataView = toDataView(certBuff);
+const caArrDataView = toDataView(caCert);
+const invalidKeyRE = /^The "key" argument must be one of type string, Buffer, TypedArray, or DataView$/;
+const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, TypedArray, or DataView$/;
 
 // Checks to ensure tls.createServer doesn't throw an error
 // Format ['key', 'cert']
@@ -34,6 +52,12 @@ const invalidCertRE = /^The "cert" argument must be one of type string or buffer
   [false, certStr],
   [keyStr, false],
   [false, false],
+  [keyArrBuff, certArrBuff],
+  [keyArrBuff, false],
+  [false, certArrBuff],
+  [keyDataView, certDataView],
+  [keyDataView, false],
+  [false, certDataView],
   [[keyBuff, keyBuff2], [certBuff, certBuff2]],
   [[keyStr, keyStr2], [certStr, certStr2]],
   [[keyStr, keyStr2], false],
@@ -56,6 +80,10 @@ const invalidCertRE = /^The "cert" argument must be one of type string or buffer
   [keyBuff, true, invalidCertRE],
   [true, certStr, invalidKeyRE],
   [keyStr, true, invalidCertRE],
+  [true, certArrBuff, invalidKeyRE],
+  [keyArrBuff, true, invalidCertRE],
+  [true, certDataView, invalidKeyRE],
+  [keyDataView, true, invalidCertRE],
   [true, true, invalidCertRE],
   [true, false, invalidKeyRE],
   [false, true, invalidCertRE],
@@ -92,6 +120,8 @@ const invalidCertRE = /^The "cert" argument must be one of type string or buffer
   [keyBuff, certBuff, [caCert, caCert2]],
   [keyBuff, certBuff, caCertStr],
   [keyBuff, certBuff, [caCertStr, caCertStr2]],
+  [keyBuff, certBuff, caArrBuff],
+  [keyBuff, certBuff, caArrDataView],
   [keyBuff, certBuff, false],
 ].map((params) => {
   assert.doesNotThrow(() => {
@@ -121,6 +151,6 @@ const invalidCertRE = /^The "cert" argument must be one of type string or buffer
   }, common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: /^The "ca" argument must be one of type string or buffer$/
+    message: /^The "ca" argument must be one of type string, Buffer, TypedArray, or DataView$/
   }));
 });
