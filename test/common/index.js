@@ -262,7 +262,7 @@ Object.defineProperty(exports, 'hasFipsCrypto', {
 
 {
   const iFaces = os.networkInterfaces();
-  const re = /lo/;
+  const re = exports.isWindows ? /Loopback Pseudo-Interface/ : /lo/;
   exports.hasIPv6 = Object.keys(iFaces).some(function(name) {
     return re.test(name) && iFaces[name].some(function(info) {
       return info.family === 'IPv6';
