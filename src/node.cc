@@ -4567,7 +4567,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
         if (uv_run(env.event_loop(), UV_RUN_NOWAIT) != 0)
           more = true;
       }
-    } while (more == true);
+    } while (more);
   }
 
   env.set_trace_sync_io(false);
