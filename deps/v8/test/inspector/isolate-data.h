@@ -68,6 +68,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   void DumpAsyncTaskStacksStateForTest();
   void FireContextCreated(v8::Local<v8::Context> context, int context_group_id);
   void FireContextDestroyed(v8::Local<v8::Context> context);
+  void FreeContext(v8::Local<v8::Context> context);
 
  private:
   struct VectorCompare {
