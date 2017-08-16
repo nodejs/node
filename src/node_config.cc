@@ -6,7 +6,6 @@
 #include "util-inl.h"
 #include "node_debug_options.h"
 
-
 namespace node {
 
 using v8::Boolean;
