@@ -50,18 +50,6 @@ enum nghttp2_session_type {
   NGHTTP2_SESSION_CLIENT
 };
 
-static inline const char* SessionTypeName(nghttp2_session_type type) {
-  switch (type) {
-    case NGHTTP2_SESSION_SERVER: return "server";
-    case NGHTTP2_SESSION_CLIENT: return "client";
-    default:
-      // This should never happen
-      ABORT();
-  }
-}
-
-#define SESSION_TYPE_NAME(session) SessionTypeName(session->session_type_)
-
 enum nghttp2_shutdown_flags {
   NGHTTP2_SHUTDOWN_FLAG_GRACEFUL
 };
@@ -115,6 +103,16 @@ class Nghttp2Session {
   inline void MarkDestroying();
   bool IsDestroying() {
     return destroying_;
+  }
+
+  inline const char* TypeName(nghttp2_session_type type) {
+    switch (type) {
+      case NGHTTP2_SESSION_SERVER: return "server";
+      case NGHTTP2_SESSION_CLIENT: return "client";
+      default:
+        // This should never happen
+        ABORT();
+    }
   }
 
   // Returns the pointer to the identified stream, or nullptr if
