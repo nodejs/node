@@ -835,7 +835,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `flags` {string}
-  * `defaultEncoding` {string}
+  * `encoding` {string}
   * `fd` {integer}
   * `mode` {integer}
   * `autoClose` {boolean}
@@ -848,7 +848,7 @@ Returns a new [`WriteStream`][] object. (See [Writable Stream][]).
 ```js
 const defaults = {
   flags: 'w',
-  defaultEncoding: 'utf8',
+  encoding: 'utf8',
   fd: null,
   mode: 0o666,
   autoClose: true
@@ -858,7 +858,7 @@ const defaults = {
 `options` may also include a `start` option to allow writing data at
 some position past the beginning of the file.  Modifying a file rather
 than replacing it may require a `flags` mode of `r+` rather than the
-default mode `w`. The `defaultEncoding` can be any one of those accepted by
+default mode `w`. The `encoding` can be any one of those accepted by
 [`Buffer`][].
 
 If `autoClose` is set to true (default behavior) on `error` or `end`
