@@ -47,6 +47,8 @@ class InspectedContext {
   friend class V8InspectorImpl;
   InspectedContext(V8InspectorImpl*, const V8ContextInfo&, int contextId);
 
+  class WeakCallbackData;
+
   V8InspectorImpl* m_inspector;
   v8::Global<v8::Context> m_context;
   int m_contextId;
@@ -56,6 +58,7 @@ class InspectedContext {
   const String16 m_auxData;
   std::unordered_set<int> m_reportedSessionIds;
   std::unordered_map<int, std::unique_ptr<InjectedScript>> m_injectedScripts;
+  WeakCallbackData* m_weakCallbackData;
 
   DISALLOW_COPY_AND_ASSIGN(InspectedContext);
 };
