@@ -400,7 +400,7 @@ function parseAPIHeader(text) {
 
   text = text.replace(
     STABILITY_TEXT_REG_EXP,
-    `<pre class="${classNames}"><a href="${docsUrl}">$1 $2</a>$3</pre>`
+    `<div class="${classNames}"><a href="${docsUrl}">$1 $2</a>$3</div>`
   );
   return text;
 }
