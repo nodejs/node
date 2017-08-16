@@ -11,6 +11,7 @@ cd "$( dirname "${BASH_SOURCE[0]}" )"
 rm -rf eslint
 mkdir eslint-tmp
 cd eslint-tmp
+npm init --yes
 
 npm install --global-style --no-bin-links --production eslint@latest
 cd node_modules/eslint
