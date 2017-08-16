@@ -6,12 +6,12 @@
 #include "util-inl.h"
 #include "node_debug_options.h"
 
-
 namespace node {
 
 using v8::Boolean;
 using v8::Context;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
@@ -26,24 +26,24 @@ using v8::Value;
 
 #define READONLY_BOOLEAN_PROPERTY(str)                                        \
   do {                                                                        \
-    target->DefineOwnProperty(env->context(),                                 \
-                              OneByteString(env->isolate(), str),             \
-                              True(env->isolate()), ReadOnly).FromJust();     \
+    target->DefineOwnProperty(context,                                        \
+                              FIXED_ONE_BYTE_STRING(isolate, str),            \
+                              True(isolate), ReadOnly).FromJust();            \
   } while (0)
 
 #define READONLY_PROPERTY(obj, name, value)                                   \
   do {                                                                        \
     obj->DefineOwnProperty(env->context(),                                    \
-                           OneByteString(env->isolate(), name),               \
-                           value,                                             \
-                           ReadOnly).FromJust();                              \
+                           FIXED_ONE_BYTE_STRING(isolate, name),              \
+                           value, ReadOnly).FromJust();                       \
   } while (0)
-
 
 static void InitConfig(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
+
 #ifdef NODE_HAVE_I18N_SUPPORT
 
   READONLY_BOOLEAN_PROPERTY("hasIntl");
@@ -52,10 +52,13 @@ static void InitConfig(Local<Object> target,
   READONLY_BOOLEAN_PROPERTY("hasSmallICU");
 #endif  // NODE_HAVE_SMALL_ICU
 
-  target->DefineOwnProperty(env->context(),
-                            OneByteString(env->isolate(), "icuDataDir"),
-                            OneByteString(env->isolate(), icu_data_dir.data()))
-      .FromJust();
+  target->DefineOwnProperty(
+      context,
+      FIXED_ONE_BYTE_STRING(isolate, "icuDataDir"),
+      String::NewFromUtf8(isolate,
+                          icu_data_dir.data(),
+                          v8::NewStringType::kNormal).ToLocalChecked(),
+      ReadOnly).FromJust();
 
 #endif  // NODE_HAVE_I18N_SUPPORT
 
@@ -64,37 +67,6 @@ static void InitConfig(Local<Object> target,
 
   if (config_pending_deprecation)
     READONLY_BOOLEAN_PROPERTY("pendingDeprecation");
-
-  if (!config_warning_file.empty()) {
-    Local<String> name = OneByteString(env->isolate(), "warningFile");
-    Local<String> value = String::NewFromUtf8(env->isolate(),
-                                              config_warning_file.data(),
-                                              v8::NewStringType::kNormal,
-                                              config_warning_file.size())
-                                                .ToLocalChecked();
-    target->DefineOwnProperty(env->context(), name, value).FromJust();
-  }
-
-  Local<Object> debugOptions = Object::New(env->isolate());
-
-  target->DefineOwnProperty(env->context(),
-                            OneByteString(env->isolate(), "debugOptions"),
-                            debugOptions).FromJust();
-
-  debugOptions->DefineOwnProperty(env->context(),
-                            OneByteString(env->isolate(), "host"),
-                            String::NewFromUtf8(env->isolate(),
-                            debug_options.host_name().c_str())).FromJust();
-
-  debugOptions->DefineOwnProperty(env->context(),
-                            OneByteString(env->isolate(), "port"),
-                            Integer::New(env->isolate(),
-                            debug_options.port())).FromJust();
-
-  debugOptions->DefineOwnProperty(env->context(),
-                            OneByteString(env->isolate(), "inspectorEnabled"),
-                            Boolean::New(env->isolate(),
-                            debug_options.inspector_enabled())).FromJust();
 
   if (config_expose_internals)
     READONLY_BOOLEAN_PROPERTY("exposeInternals");
@@ -105,6 +77,43 @@ static void InitConfig(Local<Object> target,
   READONLY_PROPERTY(target,
                     "bits",
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
+
+  if (!config_warning_file.empty()) {
+    target->DefineOwnProperty(
+        context,
+        FIXED_ONE_BYTE_STRING(isolate, "warningFile"),
+        String::NewFromUtf8(isolate,
+                            config_warning_file.data(),
+                            v8::NewStringType::kNormal).ToLocalChecked(),
+        ReadOnly).FromJust();
+  }
+
+  Local<Object> debugOptions = Object::New(isolate);
+
+  target->DefineOwnProperty(
+      context,
+      FIXED_ONE_BYTE_STRING(isolate, "debugOptions"),
+      debugOptions, ReadOnly).FromJust();
+
+  debugOptions->DefineOwnProperty(
+      context,
+      FIXED_ONE_BYTE_STRING(isolate, "host"),
+      String::NewFromUtf8(isolate,
+                          debug_options.host_name().c_str(),
+                          v8::NewStringType::kNormal).ToLocalChecked(),
+      ReadOnly).FromJust();
+
+  debugOptions->DefineOwnProperty(
+      context,
+      FIXED_ONE_BYTE_STRING(isolate, "port"),
+      Integer::New(isolate, debug_options.port()),
+      ReadOnly).FromJust();
+
+  debugOptions->DefineOwnProperty(
+      context,
+      FIXED_ONE_BYTE_STRING(isolate, "inspectorEnabled"),
+      Boolean::New(isolate, debug_options.inspector_enabled()), ReadOnly)
+          .FromJust();
 }  // InitConfig
 
 }  // namespace node
