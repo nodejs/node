@@ -26,7 +26,7 @@ console.log('\n\nCompiling:');
 
 var FUNCTION_NAME = /function\s+anonymous\s*\(it[^)]*\)\s*{/;
 var OUT_EMPTY_STRING = /out\s*\+=\s*'\s*';/g;
-var ISTANBUL = /\'(istanbul[^']+)\';/g;
+var ISTANBUL = /'(istanbul[^']+)';/g;
 var ERROR_KEYWORD = /\$errorKeyword/g;
 var ERROR_KEYWORD_OR = /\$errorKeyword\s+\|\|/g;
 var VARS = [
@@ -42,7 +42,7 @@ files.forEach(function (f) {
   var code = doT.compile(template, defs);
   code = code.toString()
              .replace(OUT_EMPTY_STRING, '')
-             .replace(FUNCTION_NAME, 'function generate_' + keyword + '(it, $keyword) {')
+             .replace(FUNCTION_NAME, 'function generate_' + keyword + '(it, $keyword, $ruleType) {')
              .replace(ISTANBUL, '/* $1 */');
   removeAlwaysFalsyInOr();
   VARS.forEach(removeUnusedVar);

@@ -1,7 +1,5 @@
 # bail [![Build Status][travis-badge]][travis] [![Coverage Status][codecov-badge]][codecov]
 
-<!--lint disable heading-increment list-item-spacing-->
-
 :warning: Throw a given error.
 
 ## Installation
@@ -42,9 +40,9 @@ Throw a given error.
 
 ## Related
 
-*   [`noop`][noop];
-*   [`noop2`][noop2];
-*   [`noop3`][noop3];
+*   [`noop`][noop]
+*   [`noop2`][noop2]
+*   [`noop3`][noop3]
 
 ## License
 
