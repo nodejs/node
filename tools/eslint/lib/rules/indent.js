@@ -304,6 +304,18 @@ class OffsetStorage {
     }
 
     /**
+     * Sets the desired offset of a token, ignoring the usual collapsing behavior.
+     * **WARNING**: This is usually not what you want to use. See `setDesiredOffset` instead.
+     * @param {Token} token The token
+     * @param {Token} offsetFrom The token that `token` should be offset from
+     * @param {number} offset The desired indent level
+     * @returns {void}
+     */
+    forceSetDesiredOffset(token, offsetFrom, offset) {
+        this.desiredOffsets[token.range[0]] = { offset, from: offsetFrom };
+    }
+
+    /**
     * Sets the desired offset of multiple tokens
     * @param {Token[]} tokens A list of tokens. These tokens should be consecutive.
     * @param {Token} offsetFrom The token that this is offset from
@@ -373,18 +385,6 @@ class OffsetStorage {
      */
     getFirstDependency(token) {
         return this.desiredOffsets[token.range[0]].from;
-    }
-
-    /**
-     * Increases the offset for a token from its parent by the given amount
-     * @param {Token} token The token whose offset should be increased
-     * @param {number} amount The number of indent levels that the offset should increase by
-     * @returns {void}
-     */
-    increaseOffset(token, amount) {
-        const currentOffsetInfo = this.desiredOffsets[token.range[0]];
-
-        this.desiredOffsets[token.range[0]] = { offset: currentOffsetInfo.offset + amount, from: currentOffsetInfo.from };
     }
 }
 
@@ -738,7 +738,7 @@ module.exports = {
                     const firstTokenOfPreviousElement = previousElement && getFirstToken(previousElement);
 
                     if (previousElement && sourceCode.getLastToken(previousElement).loc.start.line > startToken.loc.end.line) {
-                        offsets.matchIndentOf(firstTokenOfPreviousElement, getFirstToken(element));
+                        offsets.setDesiredOffsets(getTokensAndComments(element), firstTokenOfPreviousElement, 0);
                     }
                 }
             });
@@ -813,7 +813,7 @@ module.exports = {
                  */
                 const lastToken = sourceCode.getLastToken(node);
 
-                if (astUtils.isSemicolonToken(lastToken)) {
+                if (node.type !== "EmptyStatement" && astUtils.isSemicolonToken(lastToken)) {
                     offsets.matchIndentOf(lastParentToken, lastToken);
                 }
             }
@@ -884,7 +884,7 @@ module.exports = {
 
             parameterParens.add(openingParen);
             parameterParens.add(closingParen);
-            offsets.matchIndentOf(sourceCode.getLastToken(node.callee), openingParen);
+            offsets.matchIndentOf(sourceCode.getTokenBefore(openingParen), openingParen);
 
             addElementListIndent(node.arguments, openingParen, closingParen, options.CallExpression.arguments);
         }
@@ -1018,7 +1018,7 @@ module.exports = {
                 const nodeTokens = getTokensAndComments(node);
                 const tokensFromOperator = nodeTokens.slice(lodash.sortedIndexBy(nodeTokens, operator, token => token.range[0]));
 
-                offsets.setDesiredOffsets(tokensFromOperator, sourceCode.getFirstToken(node.left), 1);
+                offsets.setDesiredOffsets(tokensFromOperator, sourceCode.getLastToken(node.left), 1);
                 offsets.ignoreToken(tokensFromOperator[0]);
                 offsets.ignoreToken(tokensFromOperator[1]);
             },
@@ -1274,7 +1274,35 @@ module.exports = {
             VariableDeclaration(node) {
                 const variableIndent = options.VariableDeclarator.hasOwnProperty(node.kind) ? options.VariableDeclarator[node.kind] : DEFAULT_VARIABLE_INDENT;
 
-                offsets.setDesiredOffsets(getTokensAndComments(node), sourceCode.getFirstToken(node), variableIndent);
+                if (node.declarations[node.declarations.length - 1].loc.start.line > node.loc.start.line) {
+
+                    /*
+                     * VariableDeclarator indentation is a bit different from other forms of indentation, in that the
+                     * indentation of an opening bracket sometimes won't match that of a closing bracket. For example,
+                     * the following indentations are correct:
+                     *
+                     * var foo = {
+                     *   ok: true
+                     * };
+                     *
+                     * var foo = {
+                     *     ok: true,
+                     *   },
+                     *   bar = 1;
+                     *
+                     * Account for when exiting the AST (after indentations have already been set for the nodes in
+                     * the declaration) by manually increasing the indentation level of the tokens in this declarator
+                     * on the same line as the start of the declaration, provided that there are declarators that
+                     * follow this one.
+                     */
+                    getTokensAndComments(node).forEach((token, index, tokens) => {
+                        if (index !== 0) {
+                            offsets.forceSetDesiredOffset(token, tokens[0], variableIndent);
+                        }
+                    });
+                } else {
+                    offsets.setDesiredOffsets(getTokensAndComments(node), sourceCode.getFirstToken(node), variableIndent);
+                }
                 const lastToken = sourceCode.getLastToken(node);
 
                 if (astUtils.isSemicolonToken(lastToken)) {
@@ -1285,43 +1313,12 @@ module.exports = {
             VariableDeclarator(node) {
                 if (node.init) {
                     const equalOperator = sourceCode.getTokenBefore(node.init, astUtils.isNotOpeningParenToken);
-                    const tokenAfterOperator = sourceCode.getTokenAfter(equalOperator);
+                    const tokensAfterOperator = sourceCode.getTokensAfter(equalOperator, token => token.range[1] <= node.range[1]);
 
                     offsets.ignoreToken(equalOperator);
-                    offsets.ignoreToken(tokenAfterOperator);
-                    offsets.matchIndentOf(equalOperator, tokenAfterOperator);
-                    offsets.matchIndentOf(sourceCode.getFirstToken(node), equalOperator);
-                }
-            },
-
-            "VariableDeclarator:exit"(node) {
-
-                /*
-                 * VariableDeclarator indentation is a bit different from other forms of indentation, in that the
-                 * indentation of an opening bracket sometimes won't match that of a closing bracket. For example,
-                 * the following indentations are correct:
-                 *
-                 * var foo = {
-                 *   ok: true
-                 * };
-                 *
-                 * var foo = {
-                 *     ok: true,
-                 *   },
-                 *   bar = 1;
-                 *
-                 * Account for when exiting the AST (after indentations have already been set for the nodes in
-                 * the declaration) by manually increasing the indentation level of the tokens in the first declarator if the
-                 * parent declaration has more than one declarator.
-                 */
-                if (node.parent.declarations.length > 1 && node.parent.declarations[0] === node && node.init) {
-                    const valueTokens = new Set(getTokensAndComments(node.init));
-
-                    valueTokens.forEach(token => {
-                        if (!valueTokens.has(offsets.getFirstDependency(token))) {
-                            offsets.increaseOffset(token, options.VariableDeclarator[node.parent.kind]);
-                        }
-                    });
+                    offsets.ignoreToken(tokensAfterOperator[0]);
+                    offsets.setDesiredOffsets(tokensAfterOperator, equalOperator, 1);
+                    offsets.matchIndentOf(sourceCode.getLastToken(node.id), equalOperator);
                 }
             },
 
@@ -1366,13 +1363,14 @@ module.exports = {
 
             JSXExpressionContainer(node) {
                 const openingCurly = sourceCode.getFirstToken(node);
-                const firstExpressionToken = sourceCode.getFirstToken(node.expression);
+                const closingCurly = sourceCode.getLastToken(node);
 
-                if (firstExpressionToken) {
-                    offsets.setDesiredOffset(firstExpressionToken, openingCurly, 1);
-                }
-
-                offsets.matchIndentOf(openingCurly, sourceCode.getLastToken(node));
+                offsets.setDesiredOffsets(
+                    sourceCode.getTokensBetween(openingCurly, closingCurly, { includeComments: true }),
+                    openingCurly,
+                    1
+                );
+                offsets.matchIndentOf(openingCurly, closingCurly);
             },
 
             "Program:exit"() {

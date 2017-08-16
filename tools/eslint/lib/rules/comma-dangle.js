@@ -81,49 +81,49 @@ module.exports = {
             category: "Stylistic Issues",
             recommended: false
         },
-
         fixable: "code",
-
-        schema: [
-            {
-                defs: {
-                    value: {
-                        enum: [
-                            "always",
-                            "always-multiline",
-                            "only-multiline",
-                            "never"
-                        ]
-                    },
-                    valueWithIgnore: {
-                        anyOf: [
-                            {
-                                $ref: "#/defs/value"
-                            },
-                            {
-                                enum: ["ignore"]
-                            }
-                        ]
-                    }
+        schema: {
+            definitions: {
+                value: {
+                    enum: [
+                        "always-multiline",
+                        "always",
+                        "never",
+                        "only-multiline"
+                    ]
                 },
-                anyOf: [
-                    {
-                        $ref: "#/defs/value"
-                    },
-                    {
-                        type: "object",
-                        properties: {
-                            arrays: { $refs: "#/defs/valueWithIgnore" },
-                            objects: { $refs: "#/defs/valueWithIgnore" },
-                            imports: { $refs: "#/defs/valueWithIgnore" },
-                            exports: { $refs: "#/defs/valueWithIgnore" },
-                            functions: { $refs: "#/defs/valueWithIgnore" }
+                valueWithIgnore: {
+                    enum: [
+                        "always-multiline",
+                        "always",
+                        "ignore",
+                        "never",
+                        "only-multiline"
+                    ]
+                }
+            },
+            type: "array",
+            items: [
+                {
+                    oneOf: [
+                        {
+                            $ref: "#/definitions/value"
                         },
-                        additionalProperties: false
-                    }
-                ]
-            }
-        ]
+                        {
+                            type: "object",
+                            properties: {
+                                arrays: { $ref: "#/definitions/valueWithIgnore" },
+                                objects: { $ref: "#/definitions/valueWithIgnore" },
+                                imports: { $ref: "#/definitions/valueWithIgnore" },
+                                exports: { $ref: "#/definitions/valueWithIgnore" },
+                                functions: { $ref: "#/definitions/valueWithIgnore" }
+                            },
+                            additionalProperties: false
+                        }
+                    ]
+                }
+            ]
+        }
     },
 
     create(context) {
