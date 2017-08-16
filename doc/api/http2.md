@@ -69,7 +69,7 @@ req.end();
 
 ### Class: Http2Session
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Extends: {EventEmitter}
@@ -103,14 +103,14 @@ solely on the API of the `Http2Session`.
 
 #### Event: 'close'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'close'` event is emitted once the `Http2Session` has been terminated.
 
 #### Event: 'connect'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'connect'` event is emitted once the `Http2Session` has been successfully
@@ -120,7 +120,7 @@ connected to the remote peer and communication may begin.
 
 #### Event: 'error'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'error'` event is emitted when an error occurs during the processing of
@@ -128,7 +128,7 @@ an `Http2Session`.
 
 #### Event: 'frameError'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'frameError'` event is emitted when an error occurs while attempting to
@@ -150,7 +150,7 @@ immediately following the `'frameError'` event.
 
 #### Event: 'goaway'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'goaway'` event is emitted when a GOAWAY frame is received. When invoked,
@@ -167,7 +167,7 @@ the handler function will receive three arguments:
 
 #### Event: 'localSettings'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'localSettings'` event is emitted when an acknowledgement SETTINGS frame
@@ -188,7 +188,7 @@ session.on('localSettings', (settings) => {
 
 #### Event: 'remoteSettings'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'remoteSettings'` event is emitted when a new SETTINGS frame is received
@@ -203,7 +203,7 @@ session.on('remoteSettings', (settings) => {
 
 #### Event: 'stream'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'stream'` event is emitted when a new `Http2Stream` is created. When
@@ -256,7 +256,7 @@ server.listen(80);
 
 #### Event: 'socketError'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'socketError'` event is emitted when an `'error'` is emitted on the
@@ -269,7 +269,7 @@ registered that will, by default, forward the event on to the owning
 
 #### Event: 'timeout'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 After the `http2session.setTimeout()` method is used to set the timeout period
@@ -283,7 +283,7 @@ session.on('timeout', () => { /** .. **/ });
 
 #### http2session.destroy()
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Returns: {undefined}
@@ -293,7 +293,7 @@ Immediately terminates the `Http2Session` and the associated `net.Socket` or
 
 #### http2session.destroyed
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {boolean}
@@ -303,7 +303,7 @@ longer be used, otherwise `false`.
 
 #### http2session.localSettings
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {[Settings Object][]}
@@ -313,7 +313,7 @@ A prototype-less object describing the current local settings of this
 
 #### http2session.pendingSettingsAck
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {boolean}
@@ -325,7 +325,7 @@ frames have been acknowledged.
 
 #### http2session.remoteSettings
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {[Settings Object][]}
@@ -335,7 +335,7 @@ A prototype-less object describing the current remote settings of this
 
 #### http2session.request(headers[, options])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `headers` {[Headers Object][]}
@@ -392,7 +392,7 @@ fields.
 
 #### http2session.rstStream(stream, code)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * stream {Http2Stream}
@@ -405,7 +405,7 @@ Sends an `RST_STREAM` frame to the connected HTTP/2 peer, causing the given
 
 #### http2session.setTimeout(msecs, callback)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `msecs` {number}
@@ -418,7 +418,7 @@ registered as a listener on the `'timeout'` event.
 
 #### http2session.shutdown(options[, callback])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `options` {Object}
@@ -460,7 +460,7 @@ session.shutdown({
 
 #### http2session.socket
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {net.Socket|tls.TLSSocket}
@@ -474,7 +474,7 @@ details.
 
 #### http2session.state
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {Object}
@@ -492,7 +492,7 @@ An object describing the current status of this `Http2Session`.
 
 #### http2session.priority(stream, options)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `stream` {Http2Stream}
@@ -514,7 +514,7 @@ Updates the priority for the given `Http2Stream` instance.
 
 #### http2session.settings(settings)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `settings` {[Settings Object][]}
@@ -534,7 +534,7 @@ pending.
 
 #### http2session.type
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {number}
@@ -546,7 +546,7 @@ client.
 
 ### Class: Http2Stream
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Extends: {Duplex}
@@ -619,7 +619,7 @@ destroyed.
 
 #### Event: 'aborted'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'aborted'` event is emitted whenever a `Http2Stream` instance is
@@ -630,7 +630,7 @@ writable side has not been ended.
 
 #### Event: 'error'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'error'` event is emitted when an error occurs during the processing of
@@ -638,7 +638,7 @@ an `Http2Stream`.
 
 #### Event: 'frameError'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'frameError'` event is emitted when an error occurs while attempting to
@@ -649,7 +649,7 @@ error code. The `Http2Stream` instance will be destroyed immediately after the
 
 #### Event: 'streamClosed'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'streamClosed'` event is emitted when the `Http2Stream` is destroyed. Once
@@ -661,7 +661,7 @@ code specified when closing the stream. If the code is any value other than
 
 #### Event: 'timeout'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'timeout'` event is emitted after no activity is received for this
@@ -670,7 +670,7 @@ The `'timeout'` event is emitted after no activity is received for this
 
 #### Event: 'trailers'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'trailers'` event is emitted when a block of headers associated with
@@ -685,7 +685,7 @@ stream.on('trailers', (headers, flags) => {
 
 #### http2stream.aborted
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {boolean}
@@ -695,7 +695,7 @@ the `'aborted'` event will have been emitted.
 
 #### http2stream.destroyed
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {boolean}
@@ -705,7 +705,7 @@ usable.
 
 #### http2stream.priority(options)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `options` {Object}
@@ -726,7 +726,7 @@ Updates the priority for this `Http2Stream` instance.
 
 #### http2stream.rstCode
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {number}
@@ -738,7 +738,7 @@ calling `http2stream.rstStream()`, or `http2stream.destroy()`. Will be
 
 #### http2stream.rstStream(code)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * code {number} Unsigned 32-bit integer identifying the error code. Defaults to
@@ -750,7 +750,7 @@ Sends an `RST_STREAM` frame to the connected HTTP/2 peer, causing this
 
 #### http2stream.rstWithNoError()
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Returns: {undefined}
@@ -759,7 +759,7 @@ Shortcut for `http2stream.rstStream()` using error code `0x00` (No Error).
 
 #### http2stream.rstWithProtocolError() {
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Returns: {undefined}
@@ -768,7 +768,7 @@ Shortcut for `http2stream.rstStream()` using error code `0x01` (Protocol Error).
 
 #### http2stream.rstWithCancel() {
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Returns: {undefined}
@@ -777,7 +777,7 @@ Shortcut for `http2stream.rstStream()` using error code `0x08` (Cancel).
 
 #### http2stream.rstWithRefuse() {
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Returns: {undefined}
@@ -786,7 +786,7 @@ Shortcut for `http2stream.rstStream()` using error code `0x07` (Refused Stream).
 
 #### http2stream.rstWithInternalError() {
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Returns: {undefined}
@@ -795,7 +795,7 @@ Shortcut for `http2stream.rstStream()` using error code `0x02` (Internal Error).
 
 #### http2stream.session
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {Http2Sesssion}
@@ -805,7 +805,7 @@ value will be `undefined` after the `Http2Stream` instance is destroyed.
 
 #### http2stream.setTimeout(msecs, callback)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `msecs` {number}
@@ -824,7 +824,7 @@ req.setTimeout(5000, () => req.rstStreamWithCancel());
 
 #### http2stream.state
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {Object}
@@ -839,7 +839,7 @@ A current state of this `Http2Stream`.
 
 ### Class: ClientHttp2Stream
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Extends {Http2Stream}
@@ -851,7 +851,7 @@ the client.
 
 #### Event: 'headers'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'headers'` event is emitted when an additional block of headers is received
@@ -867,7 +867,7 @@ stream.on('headers', (headers, flags) => {
 
 #### Event: 'push'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'push'` event is emitted when response headers for a Server Push stream
@@ -882,7 +882,7 @@ stream.on('push', (headers, flags) => {
 
 #### Event: 'response'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'response'` event is emitted when a response `HEADERS` frame has been
@@ -903,7 +903,7 @@ req.on('response', (headers, flags) => {
 
 ### Class: ServerHttp2Stream
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Extends: {Http2Stream}
@@ -915,7 +915,7 @@ provide additional methods such as `http2stream.pushStream()` and
 
 #### http2stream.additionalHeaders(headers)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `headers` {[Headers Object][]}
@@ -925,7 +925,7 @@ Sends an additional informational `HEADERS` frame to the connected HTTP/2 peer.
 
 #### http2stream.headersSent
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {boolean}
@@ -934,7 +934,7 @@ Boolean (read-only). True if headers were sent, false otherwise.
 
 #### http2stream.pushAllowed
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Value: {boolean}
@@ -946,7 +946,7 @@ accepts push streams, `false` otherwise. Settings are the same for every
 
 #### http2stream.pushStream(headers[, options], callback)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `headers` {[Headers Object][]}
@@ -982,7 +982,7 @@ server.on('stream', (stream) => {
 
 #### http2stream.respond([headers[, options]])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `headers` {[Headers Object][]}
@@ -1027,7 +1027,7 @@ fields.
 
 #### http2stream.respondWithFD(fd[, headers[, options]])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `fd` {number} A readable file descriptor
@@ -1111,7 +1111,7 @@ fields.
 
 #### http2stream.respondWithFile(path[, headers[, options]])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `path` {string|Buffer|URL}
@@ -1203,14 +1203,14 @@ fields.
 
 ### Class: Http2Server
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Extends: {net.Server}
 
 #### Event: 'sessionError'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'sessionError'` event is emitted when an `'error'` event is emitted by
@@ -1219,7 +1219,7 @@ an `Http2Session` object. If no listener is registered for this event, an
 
 #### Event: 'socketError'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'socketError'` event is emitted when a `'socketError'` event is emitted by
@@ -1227,7 +1227,7 @@ an `Http2Session` associated with the server.
 
 #### Event: 'stream'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'stream'` event is emitted when a `'stream'` event has been emitted by
@@ -1258,7 +1258,7 @@ server.on('stream', (stream, headers, flags) => {
 
 #### Event: 'request'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `request` {http2.Http2ServerRequest}
@@ -1269,7 +1269,7 @@ per session. See the [Compatibility API](compatiblity-api).
 
 #### Event: 'timeout'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'timeout'` event is emitted when there is no activity on the Server for
@@ -1277,14 +1277,14 @@ a given number of milliseconds set using `http2server.setTimeout()`.
 
 ### Class: Http2SecureServer
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Extends: {tls.Server}
 
 #### Event: 'sessionError'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'sessionError'` event is emitted when an `'error'` event is emitted by
@@ -1293,7 +1293,7 @@ an `Http2Session` object. If no listener is registered for this event, an
 
 #### Event: 'socketError'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'socketError'` event is emitted when a `'socketError'` event is emitted by
@@ -1301,7 +1301,7 @@ an `Http2Session` associated with the server.
 
 #### Event: 'unknownProtocol'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'unknownProtocol'` event is emitted when a connecting client fails to
@@ -1311,7 +1311,7 @@ the connection is terminated. See the
 
 #### Event: 'stream'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'stream'` event is emitted when a `'stream'` event has been emitted by
@@ -1344,7 +1344,7 @@ server.on('stream', (stream, headers, flags) => {
 
 #### Event: 'request'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `request` {http2.Http2ServerRequest}
@@ -1355,12 +1355,12 @@ per session. See the [Compatibility API](compatiblity-api).
 
 #### Event: 'timeout'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 ### http2.createServer(options[, onRequestHandler])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `options` {Object}
@@ -1415,7 +1415,7 @@ server.listen(80);
 
 ### http2.createSecureServer(options[, onRequestHandler])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `options` {Object}
@@ -1481,7 +1481,7 @@ server.listen(80);
 
 ### http2.connect(authority[, options][, listener])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `authority` {string|URL}
@@ -1532,7 +1532,7 @@ client.destroy();
 
 ### http2.constants
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 #### Error Codes for RST_STREAM and GOAWAY
@@ -1560,7 +1560,7 @@ a given number of milliseconds set using `http2server.setTimeout()`.
 
 ### http2.getDefaultSettings()
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Returns: {[Settings Object][]}
@@ -1571,7 +1571,7 @@ so instances returned may be safely modified for use.
 
 ### http2.getPackedSettings(settings)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `settings` {[Settings Object][]}
@@ -1592,7 +1592,7 @@ console.log(packed.toString('base64'));
 
 ### http2.getUnpackedSettings(buf)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `buf` {Buffer|Uint8Array} The packed settings
@@ -1898,7 +1898,7 @@ HTTP/2.
 
 ### Class: http2.Http2ServerRequest
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 A `Http2ServerRequest` object is created by [`http2.Server`][] or
@@ -1911,7 +1911,7 @@ following additional events, methods, and properties.
 
 #### Event: 'aborted'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 The `'aborted'` event is emitted whenever a `Http2ServerRequest` instance is
@@ -1922,7 +1922,7 @@ abnormally aborted in mid-communication.
 
 #### Event: 'close'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 Indicates that the underlying [`Http2Stream`][] was closed.
@@ -1930,7 +1930,7 @@ Just like `'end'`, this event occurs only once per response.
 
 #### request.destroy([error])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `error` {Error}
@@ -1943,7 +1943,7 @@ It does nothing if the stream was already destroyed.
 
 #### request.headers
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {Object}
@@ -1966,7 +1966,7 @@ See [Headers Object][].
 
 ### request.httpVersion
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {string}
@@ -1980,7 +1980,7 @@ Also `message.httpVersionMajor` is the first integer and
 
 #### request.method
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {string}
@@ -1990,7 +1990,7 @@ The request method as a string. Read only. Example:
 
 #### request.rawHeaders
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {Array}
@@ -2019,7 +2019,7 @@ console.log(request.rawHeaders);
 
 #### request.rawTrailers
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {Array}
@@ -2029,7 +2029,7 @@ received.  Only populated at the `'end'` event.
 
 #### request.setTimeout(msecs, callback)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `msecs` {number}
@@ -2041,7 +2041,7 @@ Returns `request`.
 
 #### request.socket
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {net.Socket}
@@ -2056,7 +2056,7 @@ data transfers are managed by HTTP/2 and data might be lost.
 
 #### request.stream
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {http2.Http2Stream}
@@ -2065,7 +2065,7 @@ The [`Http2Stream`][] object backing the request.
 
 #### request.trailers
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {Object}
@@ -2074,7 +2074,7 @@ The request/response trailers object. Only populated at the `'end'` event.
 
 #### request.url
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {string}
@@ -2141,7 +2141,7 @@ Url {
 
 ### Class: http2.Http2ServerResponse
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 This object is created internally by an HTTP server--not by the user. It is
@@ -2152,7 +2152,7 @@ interface. This is an [`EventEmitter`][] with the following events:
 
 ### Event: 'close'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 Indicates that the underlying [`Http2Stream`]() was terminated before
@@ -2160,7 +2160,7 @@ Indicates that the underlying [`Http2Stream`]() was terminated before
 
 ### Event: 'finish'
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 Emitted when the response has been sent. More specifically, this event is
@@ -2172,7 +2172,7 @@ After this event, no more events will be emitted on the response object.
 
 ### response.addTrailers(headers)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `headers` {Object}
@@ -2185,7 +2185,7 @@ will result in a [`TypeError`][] being thrown.
 
 ### response.connection
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {net.Socket}
@@ -2194,7 +2194,7 @@ See [`response.socket`][].
 
 ### response.end([data][, encoding][, callback])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `data` {string|Buffer}
@@ -2213,7 +2213,7 @@ is finished.
 
 ### response.finished
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {boolean}
@@ -2223,7 +2223,7 @@ as `false`. After [`response.end()`][] executes, the value will be `true`.
 
 ### response.getHeader(name)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `name` {string}
@@ -2240,7 +2240,7 @@ const contentType = response.getHeader('content-type');
 
 ### response.getHeaderNames()
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Returns: {Array}
@@ -2260,7 +2260,7 @@ const headerNames = response.getHeaderNames();
 
 ### response.getHeaders()
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * Returns: {Object}
@@ -2288,7 +2288,7 @@ const headers = response.getHeaders();
 
 ### response.hasHeader(name)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `name` {string}
@@ -2305,7 +2305,7 @@ const hasContentType = response.hasHeader('content-type');
 
 ### response.headersSent
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {boolean}
@@ -2314,7 +2314,7 @@ Boolean (read-only). True if headers were sent, false otherwise.
 
 ### response.removeHeader(name)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `name` {string}
@@ -2329,7 +2329,7 @@ response.removeHeader('Content-Encoding');
 
 ### response.sendDate
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {boolean}
@@ -2342,7 +2342,7 @@ in responses.
 
 ### response.setHeader(name, value)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `name` {string}
@@ -2383,7 +2383,7 @@ const server = http2.createServer((req, res) => {
 
 ### response.setTimeout(msecs[, callback])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `msecs` {number}
@@ -2402,7 +2402,7 @@ Returns `response`.
 
 ### response.socket
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {net.Socket}
@@ -2426,7 +2426,7 @@ const server = http2.createServer((req, res) => {
 
 ### response.statusCode
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {number}
@@ -2446,7 +2446,7 @@ status code which was sent out.
 
 ### response.statusMessage
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {string}
@@ -2456,7 +2456,7 @@ an empty string.
 
 #### response.stream
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * {http2.Http2Stream}
@@ -2465,7 +2465,7 @@ The [`Http2Stream`][] object backing the response.
 
 ### response.write(chunk[, encoding][, callback])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `chunk` {string|Buffer}
@@ -2503,7 +2503,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 
 ### response.writeContinue()
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 Throws an error as the `'continue'` flow is not current implemented. Added for
@@ -2511,7 +2511,7 @@ parity with [HTTP/1]().
 
 ### response.writeHead(statusCode[, statusMessage][, headers])
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 * `statusCode` {number}
@@ -2567,7 +2567,7 @@ will result in a [`TypeError`][] being thrown.
 
 ### response.createPushResponse(headers, callback)
 <!-- YAML
-added: REPLACEME
+added: v8.4.0
 -->
 
 Call [`stream.pushStream()`][] with the given headers, and wraps the

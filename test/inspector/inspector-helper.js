@@ -4,21 +4,92 @@ const assert = require('assert');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 const url = require('url');
 
+const _MAINSCRIPT = path.join(common.fixturesDir, 'loop.js');
 const DEBUG = false;
 const TIMEOUT = 15 * 1000;
-const EXPECT_ALIVE_SYMBOL = Symbol('isAlive');
-const DONT_EXPECT_RESPONSE_SYMBOL = Symbol('dontExpectResponse');
-const mainScript = path.join(common.fixturesDir, 'loop.js');
 
-function send(socket, message, id, callback) {
-  const msg = JSON.parse(JSON.stringify(message)); // Clone!
-  msg['id'] = id;
+function spawnChildProcess(inspectorFlags, scriptContents, scriptFile) {
+  const args = [].concat(inspectorFlags);
+  if (scriptContents) {
+    args.push('-e', scriptContents);
+  } else {
+    args.push(scriptFile);
+  }
+  const child = spawn(process.execPath, args);
+
+  const handler = tearDown.bind(null, child);
+  process.on('exit', handler);
+  process.on('uncaughtException', handler);
+  process.on('unhandledRejection', handler);
+  process.on('SIGINT', handler);
+
+  return child;
+}
+
+function makeBufferingDataCallback(dataCallback) {
+  let buffer = Buffer.alloc(0);
+  return (data) => {
+    const newData = Buffer.concat([buffer, data]);
+    const str = newData.toString('utf8');
+    const lines = str.replace(/\r/g, '').split('\n');
+    if (str.endsWith('\n'))
+      buffer = Buffer.alloc(0);
+    else
+      buffer = Buffer.from(lines.pop(), 'utf8');
+    for (const line of lines)
+      dataCallback(line);
+  };
+}
+
+function tearDown(child, err) {
+  child.kill();
+  if (err) {
+    console.error(err);
+    process.exit(1);
+  }
+}
+
+function parseWSFrame(buffer) {
+  // Protocol described in https://tools.ietf.org/html/rfc6455#section-5
+  let message = null;
+  if (buffer.length < 2)
+    return { length: 0, message };
+  if (buffer[0] === 0x88 && buffer[1] === 0x00) {
+    return { length: 2, message, closed: true };
+  }
+  assert.strictEqual(0x81, buffer[0]);
+  let dataLen = 0x7F & buffer[1];
+  let bodyOffset = 2;
+  if (buffer.length < bodyOffset + dataLen)
+    return 0;
+  if (dataLen === 126) {
+    dataLen = buffer.readUInt16BE(2);
+    bodyOffset = 4;
+  } else if (dataLen === 127) {
+    assert(buffer[2] === 0 && buffer[3] === 0, 'Inspector message too big');
+    dataLen = buffer.readUIntBE(4, 6);
+    bodyOffset = 10;
+  }
+  if (buffer.length < bodyOffset + dataLen)
+    return { length: 0, message };
+  const jsonPayload =
+    buffer.slice(bodyOffset, bodyOffset + dataLen).toString('utf8');
+  try {
+    message = JSON.parse(jsonPayload);
+  } catch (e) {
+    console.error(`JSON.parse() failed for: ${jsonPayload}`);
+    throw e;
+  }
   if (DEBUG)
-    console.log('[sent]', JSON.stringify(msg));
-  const messageBuf = Buffer.from(JSON.stringify(msg));
+    console.log('[received]', JSON.stringify(message));
+  return { length: bodyOffset + dataLen, message };
+}
+
+function formatWSFrame(message) {
+  const messageBuf = Buffer.from(JSON.stringify(message));
 
   const wsHeaderBuf = Buffer.allocUnsafe(16);
   wsHeaderBuf.writeUInt8(0x81, 0);
@@ -43,513 +114,297 @@ function send(socket, message, id, callback) {
 
   for (let i = 0; i < messageBuf.length; i++)
     messageBuf[i] = messageBuf[i] ^ (1 << (i % 4));
-  socket.write(
-    Buffer.concat([wsHeaderBuf.slice(0, maskOffset + 4), messageBuf]),
-    callback);
+
+  return Buffer.concat([wsHeaderBuf.slice(0, maskOffset + 4), messageBuf]);
 }
 
-function sendEnd(socket) {
-  socket.write(Buffer.from([0x88, 0x80, 0x2D, 0x0E, 0x1E, 0xFA]));
-}
+class InspectorSession {
+  constructor(socket, instance) {
+    this._instance = instance;
+    this._socket = socket;
+    this._nextId = 1;
+    this._commandResponsePromises = new Map();
+    this._unprocessedNotifications = [];
+    this._notificationCallback = null;
+    this._scriptsIdsByUrl = new Map();
 
-function parseWSFrame(buffer, handler) {
-  // Protocol described in https://tools.ietf.org/html/rfc6455#section-5
-  if (buffer.length < 2)
-    return 0;
-  if (buffer[0] === 0x88 && buffer[1] === 0x00) {
-    handler(null);
-    return 2;
-  }
-  assert.strictEqual(0x81, buffer[0]);
-  let dataLen = 0x7F & buffer[1];
-  let bodyOffset = 2;
-  if (buffer.length < bodyOffset + dataLen)
-    return 0;
-  if (dataLen === 126) {
-    dataLen = buffer.readUInt16BE(2);
-    bodyOffset = 4;
-  } else if (dataLen === 127) {
-    assert(buffer[2] === 0 && buffer[3] === 0, 'Inspector message too big');
-    dataLen = buffer.readUIntBE(4, 6);
-    bodyOffset = 10;
-  }
-  if (buffer.length < bodyOffset + dataLen)
-    return 0;
-  const jsonPayload =
-    buffer.slice(bodyOffset, bodyOffset + dataLen).toString('utf8');
-  let message;
-  try {
-    message = JSON.parse(jsonPayload);
-  } catch (e) {
-    console.error(`JSON.parse() failed for: ${jsonPayload}`);
-    throw e;
-  }
-  if (DEBUG)
-    console.log('[received]', JSON.stringify(message));
-  handler(message);
-  return bodyOffset + dataLen;
-}
+    let buffer = Buffer.alloc(0);
+    socket.on('data', (data) => {
+      buffer = Buffer.concat([buffer, data]);
+      do {
+        const { length, message, closed } = parseWSFrame(buffer);
+        if (!length)
+          break;
 
-function tearDown(child, err) {
-  child.kill();
-  if (err instanceof Error) {
-    console.error(err.stack);
-    process.exit(1);
-  }
-}
-
-function checkHttpResponse(host, port, path, callback, errorcb) {
-  const req = http.get({ host, port, path }, function(res) {
-    let response = '';
-    res.setEncoding('utf8');
-    res
-      .on('data', (data) => response += data.toString())
-      .on('end', () => {
-        let err = null;
-        let json = undefined;
-        try {
-          json = JSON.parse(response);
-        } catch (e) {
-          err = e;
-          err.response = response;
+        if (closed) {
+          socket.write(Buffer.from([0x88, 0x00]));  // WS close frame
         }
-        callback(err, json);
-      });
-  });
-  if (errorcb)
-    req.on('error', errorcb);
-}
-
-function makeBufferingDataCallback(dataCallback) {
-  let buffer = Buffer.alloc(0);
-  return (data) => {
-    const newData = Buffer.concat([buffer, data]);
-    const str = newData.toString('utf8');
-    const lines = str.split('\n');
-    if (str.endsWith('\n'))
-      buffer = Buffer.alloc(0);
-    else
-      buffer = Buffer.from(lines.pop(), 'utf8');
-    for (const line of lines)
-      dataCallback(line);
-  };
-}
-
-function timeout(message, multiplicator) {
-  return setTimeout(common.mustNotCall(message),
-                    TIMEOUT * (multiplicator || 1));
-}
-
-function TestSession(socket, harness) {
-  this.mainScriptPath = harness.mainScriptPath;
-  this.mainScriptId = null;
-
-  this.harness_ = harness;
-  this.socket_ = socket;
-  this.expectClose_ = false;
-  this.scripts_ = {};
-  this.messagefilter_ = null;
-  this.responseCheckers_ = {};
-  this.lastId_ = 0;
-  this.messages_ = {};
-  this.expectedId_ = 1;
-  this.lastMessageResponseCallback_ = null;
-  this.closeCallback_ = null;
-
-  let buffer = Buffer.alloc(0);
-  socket.on('data', (data) => {
-    buffer = Buffer.concat([buffer, data]);
-    let consumed;
-    do {
-      consumed = parseWSFrame(buffer, this.processMessage_.bind(this));
-      if (consumed)
-        buffer = buffer.slice(consumed);
-    } while (consumed);
-  }).on('close', () => {
-    assert(this.expectClose_, 'Socket closed prematurely');
-    this.closeCallback_ && this.closeCallback_();
-  });
-}
-
-TestSession.prototype.scriptUrlForId = function(id) {
-  return this.scripts_[id];
-};
-
-TestSession.prototype.processMessage_ = function(message) {
-  if (message === null) {
-    sendEnd(this.socket_);
-    return;
+        buffer = buffer.slice(length);
+        if (message)
+          this._onMessage(message);
+      } while (true);
+    });
+    this._terminationPromise = new Promise((resolve) => {
+      socket.once('close', resolve);
+    });
   }
 
-  const method = message['method'];
-  if (method === 'Debugger.scriptParsed') {
-    const script = message['params'];
-    const scriptId = script['scriptId'];
-    const url = script['url'];
-    this.scripts_[scriptId] = url;
-    if (url === mainScript)
-      this.mainScriptId = scriptId;
+  waitForServerDisconnect() {
+    return this._terminationPromise;
   }
-  this.messagefilter_ && this.messagefilter_(message);
-  const id = message['id'];
-  if (id) {
-    this.expectedId_++;
-    if (this.responseCheckers_[id]) {
-      const messageJSON = JSON.stringify(message);
-      const idJSON = JSON.stringify(this.messages_[id]);
-      assert(message['result'], `${messageJSON} (response to ${idJSON})`);
-      this.responseCheckers_[id](message['result']);
-      delete this.responseCheckers_[id];
-    }
-    const messageJSON = JSON.stringify(message);
-    const idJSON = JSON.stringify(this.messages_[id]);
-    assert(!message['error'], `${messageJSON} (replying to ${idJSON})`);
-    delete this.messages_[id];
-    if (id === this.lastId_) {
-      this.lastMessageResponseCallback_ && this.lastMessageResponseCallback_();
-      this.lastMessageResponseCallback_ = null;
-    }
-  }
-};
 
-TestSession.prototype.sendAll_ = function(commands, callback) {
-  if (!commands.length) {
-    callback();
-  } else {
-    let id = ++this.lastId_;
-    let command = commands[0];
-    if (command instanceof Array) {
-      this.responseCheckers_[id] = command[1];
-      command = command[0];
-    }
-    if (command instanceof Function)
-      command = command();
-    if (!command[DONT_EXPECT_RESPONSE_SYMBOL]) {
-      this.messages_[id] = command;
+  disconnect() {
+    this._socket.destroy();
+  }
+
+  _onMessage(message) {
+    if (message.id) {
+      const { resolve, reject } = this._commandResponsePromises.get(message.id);
+      this._commandResponsePromises.delete(message.id);
+      if (message.result)
+        resolve(message.result);
+      else
+        reject(message.error);
     } else {
-      id += 100000;
-      this.lastId_--;
-    }
-    send(this.socket_, command, id,
-         () => this.sendAll_(commands.slice(1), callback));
-  }
-};
-
-TestSession.prototype.sendInspectorCommands = function(commands) {
-  if (!(commands instanceof Array))
-    commands = [commands];
-  return this.enqueue((callback) => {
-    let timeoutId = null;
-    this.lastMessageResponseCallback_ = () => {
-      timeoutId && clearTimeout(timeoutId);
-      callback();
-    };
-    this.sendAll_(commands, () => {
-      timeoutId = setTimeout(() => {
-        assert.fail(`Messages without response: ${
-          Object.keys(this.messages_).join(', ')}`);
-      }, TIMEOUT);
-    });
-  });
-};
-
-TestSession.prototype.sendCommandsAndExpectClose = function(commands) {
-  if (!(commands instanceof Array))
-    commands = [commands];
-  return this.enqueue((callback) => {
-    let timeoutId = null;
-    let done = false;
-    this.expectClose_ = true;
-    this.closeCallback_ = function() {
-      if (timeoutId)
-        clearTimeout(timeoutId);
-      done = true;
-      callback();
-    };
-    this.sendAll_(commands, () => {
-      if (!done) {
-        timeoutId = timeout('Session still open');
+      if (message.method === 'Debugger.scriptParsed') {
+        const script = message['params'];
+        const scriptId = script['scriptId'];
+        const url = script['url'];
+        this._scriptsIdsByUrl.set(scriptId, url);
+        if (url === _MAINSCRIPT)
+          this.mainScriptId = scriptId;
       }
-    });
-  });
-};
 
-TestSession.prototype.createCallbackWithTimeout_ = function(message) {
-  const promise = new Promise((resolve) => {
-    this.enqueue((callback) => {
-      const timeoutId = timeout(message);
-      resolve(() => {
-        clearTimeout(timeoutId);
-        callback();
-      });
-    });
-  });
-  return () => promise.then((callback) => callback());
-};
-
-TestSession.prototype.expectMessages = function(expects) {
-  if (!(expects instanceof Array)) expects = [ expects ];
-
-  const callback = this.createCallbackWithTimeout_(
-    `Matching response was not received:\n${expects[0]}`);
-  this.messagefilter_ = (message) => {
-    if (expects[0](message))
-      expects.shift();
-    if (!expects.length) {
-      this.messagefilter_ = null;
-      callback();
+      if (this._notificationCallback) {
+        // In case callback needs to install another
+        const callback = this._notificationCallback;
+        this._notificationCallback = null;
+        callback(message);
+      } else {
+        this._unprocessedNotifications.push(message);
+      }
     }
-  };
-  return this;
-};
+  }
 
-TestSession.prototype.expectStderrOutput = function(regexp) {
-  this.harness_.addStderrFilter(
-    regexp,
-    this.createCallbackWithTimeout_(`Timed out waiting for ${regexp}`));
-  return this;
-};
+  _sendMessage(message) {
+    const msg = JSON.parse(JSON.stringify(message)); // Clone!
+    msg['id'] = this._nextId++;
+    if (DEBUG)
+      console.log('[sent]', JSON.stringify(msg));
 
-TestSession.prototype.runNext_ = function() {
-  if (this.task_) {
-    setImmediate(() => {
-      this.task_(() => {
-        this.task_ = this.task_.next_;
-        this.runNext_();
-      });
+    const responsePromise = new Promise((resolve, reject) => {
+      this._commandResponsePromises.set(msg['id'], { resolve, reject });
     });
+
+    return new Promise(
+      (resolve) => this._socket.write(formatWSFrame(msg), resolve))
+      .then(() => responsePromise);
   }
-};
 
-TestSession.prototype.enqueue = function(task) {
-  if (!this.task_) {
-    this.task_ = task;
-    this.runNext_();
-  } else {
-    let t = this.task_;
-    while (t.next_)
-      t = t.next_;
-    t.next_ = task;
+  send(commands) {
+    if (Array.isArray(commands)) {
+      // Multiple commands means the response does not matter. There might even
+      // never be a response.
+      return Promise
+        .all(commands.map((command) => this._sendMessage(command)))
+        .then(() => {});
+    } else {
+      return this._sendMessage(commands);
+    }
   }
-  return this;
-};
 
-TestSession.prototype.disconnect = function(childDone) {
-  return this.enqueue((callback) => {
-    this.expectClose_ = true;
-    this.socket_.destroy();
-    console.log('[test]', 'Connection terminated');
-    callback();
-  }, childDone);
-};
+  waitForNotification(methodOrPredicate, description) {
+    const desc = description || methodOrPredicate;
+    const message = `Timed out waiting for matching notification (${desc}))`;
+    return common.fires(
+      this._asyncWaitForNotification(methodOrPredicate), message, TIMEOUT);
+  }
 
-TestSession.prototype.expectClose = function() {
-  return this.enqueue((callback) => {
-    this.expectClose_ = true;
-    callback();
-  });
-};
+  async _asyncWaitForNotification(methodOrPredicate) {
+    function matchMethod(notification) {
+      return notification.method === methodOrPredicate;
+    }
+    const predicate =
+        typeof methodOrPredicate === 'string' ? matchMethod : methodOrPredicate;
+    let notification = null;
+    do {
+      if (this._unprocessedNotifications.length) {
+        notification = this._unprocessedNotifications.shift();
+      } else {
+        notification = await new Promise(
+          (resolve) => this._notificationCallback = resolve);
+      }
+    } while (!predicate(notification));
+    return notification;
+  }
 
-TestSession.prototype.assertClosed = function() {
-  return this.enqueue((callback) => {
-    assert.strictEqual(this.closed_, true);
-    callback();
-  });
-};
-
-TestSession.prototype.testHttpResponse = function(path, check) {
-  return this.enqueue((callback) =>
-    checkHttpResponse(null, this.harness_.port, path, (err, response) => {
-      check.call(this, err, response);
-      callback();
-    }));
-};
-
-
-function Harness(port, childProcess) {
-  this.port = port;
-  this.mainScriptPath = mainScript;
-  this.stderrFilters_ = [];
-  this.process_ = childProcess;
-  this.result_ = {};
-  this.running_ = true;
-
-  childProcess.stdout.on('data', makeBufferingDataCallback(
-    (line) => console.log('[out]', line)));
-
-
-  childProcess.stderr.on('data', makeBufferingDataCallback((message) => {
-    const pending = [];
-    console.log('[err]', message);
-    for (const filter of this.stderrFilters_)
-      if (!filter(message)) pending.push(filter);
-    this.stderrFilters_ = pending;
-  }));
-  childProcess.on('exit', (code, signal) => {
-    this.result_ = { code, signal };
-    this.running_ = false;
-  });
-}
-
-Harness.prototype.addStderrFilter = function(regexp, callback) {
-  this.stderrFilters_.push((message) => {
-    if (message.match(regexp)) {
-      callback();
+  _isBreakOnLineNotification(message, line, url) {
+    if ('Debugger.paused' === message['method']) {
+      const callFrame = message['params']['callFrames'][0];
+      const location = callFrame['location'];
+      assert.strictEqual(url, this._scriptsIdsByUrl.get(location['scriptId']));
+      assert.strictEqual(line, location['lineNumber']);
       return true;
     }
-  });
-};
-
-Harness.prototype.assertStillAlive = function() {
-  assert.strictEqual(this.running_, true,
-                     `Child died: ${JSON.stringify(this.result_)}`);
-};
-
-Harness.prototype.run_ = function() {
-  setImmediate(() => {
-    if (!this.task_[EXPECT_ALIVE_SYMBOL])
-      this.assertStillAlive();
-    this.task_(() => {
-      this.task_ = this.task_.next_;
-      if (this.task_)
-        this.run_();
-    });
-  });
-};
-
-Harness.prototype.enqueue_ = function(task, expectAlive) {
-  task[EXPECT_ALIVE_SYMBOL] = !!expectAlive;
-  if (!this.task_) {
-    this.task_ = task;
-    this.run_();
-  } else {
-    let chain = this.task_;
-    while (chain.next_)
-      chain = chain.next_;
-    chain.next_ = task;
   }
-  return this;
-};
 
-Harness.prototype.testHttpResponse = function(host, path, check, errorcb) {
-  return this.enqueue_((doneCallback) => {
-    function wrap(callback) {
-      if (callback) {
-        return function() {
-          callback(...arguments);
-          doneCallback();
-        };
+  waitForBreakOnLine(line, url) {
+    return this
+      .waitForNotification(
+        (notification) =>
+          this._isBreakOnLineNotification(notification, line, url),
+        `break on ${url}:${line}`)
+      .then((notification) =>
+        notification.params.callFrames[0].scopeChain[0].object.objectId);
+  }
+
+  _matchesConsoleOutputNotification(notification, type, values) {
+    if (!Array.isArray(values))
+      values = [ values ];
+    if ('Runtime.consoleAPICalled' === notification['method']) {
+      const params = notification['params'];
+      if (params['type'] === type) {
+        let i = 0;
+        for (const value of params['args']) {
+          if (value['value'] !== values[i++])
+            return false;
+        }
+        return i === values.length;
       }
     }
-    checkHttpResponse(host, this.port, path, wrap(check), wrap(errorcb));
-  });
-};
-
-Harness.prototype.wsHandshake = function(devtoolsUrl, tests, readyCallback) {
-  http.get({
-    port: this.port,
-    path: url.parse(devtoolsUrl).path,
-    headers: {
-      'Connection': 'Upgrade',
-      'Upgrade': 'websocket',
-      'Sec-WebSocket-Version': 13,
-      'Sec-WebSocket-Key': 'key=='
-    }
-  }).on('upgrade', (message, socket) => {
-    const session = new TestSession(socket, this);
-    if (!(tests instanceof Array))
-      tests = [tests];
-    function enqueue(tests) {
-      session.enqueue((sessionCb) => {
-        if (tests.length) {
-          tests[0](session);
-          session.enqueue((cb2) => {
-            enqueue(tests.slice(1));
-            cb2();
-          });
-        } else {
-          readyCallback();
-        }
-        sessionCb();
-      });
-    }
-    enqueue(tests);
-  }).on('response', common.mustNotCall('Upgrade was not received'));
-};
-
-Harness.prototype.runFrontendSession = function(tests) {
-  return this.enqueue_((callback) => {
-    checkHttpResponse(null, this.port, '/json/list', (err, response) => {
-      assert.ifError(err);
-      this.wsHandshake(response[0]['webSocketDebuggerUrl'], tests, callback);
-    });
-  });
-};
-
-Harness.prototype.expectShutDown = function(errorCode) {
-  this.enqueue_((callback) => {
-    if (this.running_) {
-      const timeoutId = timeout('Have not terminated');
-      this.process_.on('exit', (code, signal) => {
-        clearTimeout(timeoutId);
-        assert.strictEqual(errorCode, code, JSON.stringify({ code, signal }));
-        callback();
-      });
-    } else {
-      assert.strictEqual(errorCode, this.result_.code);
-      callback();
-    }
-  }, true);
-};
-
-Harness.prototype.kill = function() {
-  return this.enqueue_((callback) => {
-    this.process_.kill();
-    callback();
-  });
-};
-
-exports.startNodeForInspectorTest = function(callback,
-                                             inspectorFlags = ['--inspect-brk'],
-                                             scriptContents = '',
-                                             scriptFile = mainScript) {
-  const args = [].concat(inspectorFlags);
-  if (scriptContents) {
-    args.push('-e', scriptContents);
-  } else {
-    args.push(scriptFile);
   }
 
-  const child = spawn(process.execPath, args);
+  waitForConsoleOutput(type, values) {
+    const desc = `Console output matching ${JSON.stringify(values)}`;
+    return this.waitForNotification(
+      (notification) => this._matchesConsoleOutputNotification(notification,
+                                                               type, values),
+      desc);
+  }
 
-  const timeoutId = timeout('Child process did not start properly', 4);
+  async runToCompletion() {
+    console.log('[test]', 'Verify node waits for the frontend to disconnect');
+    await this.send({ 'method': 'Debugger.resume' });
+    await this.waitForNotification((notification) => {
+      return notification.method === 'Runtime.executionContextDestroyed' &&
+        notification.params.executionContextId === 1;
+    });
+    while ((await this._instance.nextStderrString()) !==
+              'Waiting for the debugger to disconnect...');
+    await this.disconnect();
+  }
+}
 
-  let found = false;
+class NodeInstance {
+  constructor(inspectorFlags = ['--inspect-brk=0'],
+              scriptContents = '',
+              scriptFile = _MAINSCRIPT) {
+    this._portCallback = null;
+    this.portPromise = new Promise((resolve) => this._portCallback = resolve);
+    this._process = spawnChildProcess(inspectorFlags, scriptContents,
+                                      scriptFile);
+    this._running = true;
+    this._stderrLineCallback = null;
+    this._unprocessedStderrLines = [];
 
-  const dataCallback = makeBufferingDataCallback((text) => {
-    clearTimeout(timeoutId);
-    console.log('[err]', text);
-    if (found) return;
-    const match = text.match(/Debugger listening on ws:\/\/.+:(\d+)\/.+/);
-    found = true;
-    child.stderr.removeListener('data', dataCallback);
-    assert.ok(match, text);
-    callback(new Harness(match[1], child));
-  });
+    this._process.stdout.on('data', makeBufferingDataCallback(
+      (line) => console.log('[out]', line)));
 
-  child.stderr.on('data', dataCallback);
+    this._process.stderr.on('data', makeBufferingDataCallback(
+      (message) => this.onStderrLine(message)));
 
-  const handler = tearDown.bind(null, child);
+    this._shutdownPromise = new Promise((resolve) => {
+      this._process.once('exit', (exitCode, signal) => {
+        resolve({ exitCode, signal });
+        this._running = false;
+      });
+    });
+  }
 
-  process.on('exit', handler);
-  process.on('uncaughtException', handler);
-  process.on('SIGINT', handler);
-};
+  onStderrLine(line) {
+    console.log('[err]', line);
+    if (this._portCallback) {
+      const matches = line.match(/Debugger listening on ws:\/\/.+:(\d+)\/.+/);
+      if (matches)
+        this._portCallback(matches[1]);
+      this._portCallback = null;
+    }
+    if (this._stderrLineCallback) {
+      this._stderrLineCallback(line);
+      this._stderrLineCallback = null;
+    } else {
+      this._unprocessedStderrLines.push(line);
+    }
+  }
 
-exports.mainScriptSource = function() {
-  return fs.readFileSync(mainScript, 'utf8');
-};
+  httpGet(host, path) {
+    console.log('[test]', `Testing ${path}`);
+    return this.portPromise.then((port) => new Promise((resolve, reject) => {
+      const req = http.get({ host, port, path }, (res) => {
+        let response = '';
+        res.setEncoding('utf8');
+        res
+          .on('data', (data) => response += data.toString())
+          .on('end', () => {
+            resolve(response);
+          });
+      });
+      req.on('error', reject);
+    })).then((response) => {
+      try {
+        return JSON.parse(response);
+      } catch (e) {
+        e.body = response;
+        throw e;
+      }
+    });
+  }
 
-exports.markMessageNoResponse = function(message) {
-  message[DONT_EXPECT_RESPONSE_SYMBOL] = true;
+  wsHandshake(devtoolsUrl) {
+    return this.portPromise.then((port) => new Promise((resolve) => {
+      http.get({
+        port,
+        path: url.parse(devtoolsUrl).path,
+        headers: {
+          'Connection': 'Upgrade',
+          'Upgrade': 'websocket',
+          'Sec-WebSocket-Version': 13,
+          'Sec-WebSocket-Key': 'key=='
+        }
+      }).on('upgrade', (message, socket) => {
+        resolve(new InspectorSession(socket, this));
+      }).on('response', common.mustNotCall('Upgrade was not received'));
+    }));
+  }
+
+  async connectInspectorSession() {
+    console.log('[test]', 'Connecting to a child Node process');
+    const response = await this.httpGet(null, '/json/list');
+    const url = response[0]['webSocketDebuggerUrl'];
+    return await this.wsHandshake(url);
+  }
+
+  expectShutdown() {
+    return this._shutdownPromise;
+  }
+
+  nextStderrString() {
+    if (this._unprocessedStderrLines.length)
+      return Promise.resolve(this._unprocessedStderrLines.shift());
+    return new Promise((resolve) => this._stderrLineCallback = resolve);
+  }
+
+  kill() {
+    this._process.kill();
+  }
+}
+
+function readMainScriptSource() {
+  return fs.readFileSync(_MAINSCRIPT, 'utf8');
+}
+
+module.exports = {
+  mainScriptPath: _MAINSCRIPT,
+  readMainScriptSource,
+  NodeInstance
 };
