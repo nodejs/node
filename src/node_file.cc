@@ -571,6 +571,9 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   node::Utf8Value path(env->isolate(), args[0]);
 
+  if (strlen(*path) != path.length())
+    return;  // Contains a nul byte.
+
   uv_fs_t open_req;
   const int fd = uv_fs_open(loop, &open_req, *path, O_RDONLY, 0, nullptr);
   uv_fs_req_cleanup(&open_req);
