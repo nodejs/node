@@ -252,7 +252,6 @@
         'src/node_file.cc',
         'src/node_http_parser.cc',
         'src/node_os.cc',
-        'src/node_revert.cc',
         'src/node_url.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
@@ -887,7 +886,6 @@
         '<(OBJ_PATH)/string_search.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/stream_base.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/node_constants.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_revert.<(OBJ_SUFFIX)',
       ],
 
       'defines': [

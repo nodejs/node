@@ -162,6 +162,9 @@ static node_module* modlist_builtin;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
 
+// Bit flag used to track security reverts (see node_revert.h)
+unsigned int reverted = 0;
+
 #if defined(NODE_HAVE_I18N_SUPPORT)
 // Path to ICU data (for i18n / Intl)
 static std::string icu_data_dir;  // NOLINT(runtime/string)
@@ -3413,11 +3416,11 @@ void SetupProcessObject(Environment* env,
   // --security-revert flags
 #define V(code, _, __)                                                        \
   do {                                                                        \
-    if (IsReverted(REVERT_ ## code)) {                                        \
+    if (IsReverted(SECURITY_REVERT_ ## code)) {                               \
       READONLY_PROPERTY(process, "REVERT_" #code, True(env->isolate()));      \
     }                                                                         \
   } while (0);
-  REVERSIONS(V)
+  SECURITY_REVERSIONS(V)
 #undef V
 
   size_t exec_path_len = 2 * PATH_MAX;

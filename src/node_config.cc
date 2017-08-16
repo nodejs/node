@@ -3,7 +3,6 @@
 #include "env-inl.h"
 #include "util-inl.h"
 
-
 namespace node {
 
 using v8::Context;
