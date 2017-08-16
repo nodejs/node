@@ -272,10 +272,10 @@ void ThrowCryptoError(Environment* env,
   Local<Value> exception_v = Exception::Error(message);
   CHECK(!exception_v.IsEmpty());
   Local<Object> exception = exception_v.As<Object>();
-  Local<Array> errorStack = Array::New(env->isolate());
+  Local<Array> error_stack = Array::New(env->isolate());
 
   ERR_STATE *es = ERR_get_state();
-  // Build the errorStack array to be added to openSSLErrorStack property.
+  // Build the error_stack array to be added to openSSLErrorStack property.
   for (unsigned int i = 0; es->bottom != es->top
         && (es->err_flags[es->top] & ERR_FLAG_MARK) == 0; i++) {
     unsigned long err_buf = es->err_buffer[es->top];  // NOLINT(runtime/int)
@@ -283,7 +283,7 @@ void ThrowCryptoError(Environment* env,
     if (err_buf) {
       char tmpStr[256] = { };
       ERR_error_string_n(err_buf, tmpStr, sizeof(tmpStr));
-      errorStack->Set(env->context(), i,
+      error_stack->Set(env->context(), i,
                       String::NewFromUtf8(env->isolate(), tmpStr,
                                              v8::NewStringType::kNormal)
                                                 .ToLocalChecked()).FromJust();
@@ -297,7 +297,7 @@ void ThrowCryptoError(Environment* env,
   // 'error:0906700D:PEM routines:PEM_ASN1_read_bio:ASN1 lib',
   // 'error:0D07803A:asn1 encoding routines:ASN1_ITEM_EX_D2I:nested asn1 error'
   // ]
-  exception->Set(env->openssl_error_stack(), errorStack);
+  exception->Set(env->openssl_error_stack(), error_stack);
   env->isolate()->ThrowException(exception);
 }
 
