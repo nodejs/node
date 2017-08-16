@@ -1176,7 +1176,7 @@ added: v0.1.94
 -->
 - `algorithm` {string}
 - `password` {string | Buffer | TypedArray | DataView}
-- `options` {object} combined [OpenSSL options][] and [`stream.transform` options][]
+- `options` {Object} [`stream.transform` options][]
 
 Creates and returns a `Cipher` object that uses the given `algorithm` and
 `password`. Optional `options` argument controls stream behavior.
@@ -1205,7 +1205,7 @@ to create the `Cipher` object.
 - `algorithm` {string}
 - `key` {string | Buffer | TypedArray | DataView}
 - `iv` {string | Buffer | TypedArray | DataView}
-- `options` {object} combined [OpenSSL options][] and [`stream.transform` options][]
+- `options` {Object} [`stream.transform` options][]
 
 Creates and returns a `Cipher` object, with the given `algorithm`, `key` and
 initialization vector (`iv`). Optional `options` argument controls stream behavior.
@@ -1242,7 +1242,7 @@ added: v0.1.94
 -->
 - `algorithm` {string}
 - `password` {string | Buffer | TypedArray | DataView}
-- `options` {object} combined [OpenSSL options][] and [`stream.transform` options][]
+- `options` {Object} [`stream.transform` options][]
 
 Creates and returns a `Decipher` object that uses the given `algorithm` and
 `password` (key). Optional `options` argument controls stream behavior.
@@ -1266,7 +1266,7 @@ added: v0.1.94
 - `algorithm` {string}
 - `key` {string | Buffer | TypedArray | DataView}
 - `iv` {string | Buffer | TypedArray | DataView}
-- `options` {object} combined [OpenSSL options][] and [`stream.transform` options][]
+- `options` {Object} [`stream.transform` options][]
 
 Creates and returns a `Decipher` object that uses the given `algorithm`, `key`
 and initialization vector (`iv`). Optional `options` argument controls stream 
@@ -1343,7 +1343,7 @@ and description of each available elliptic curve.
 added: v0.1.92
 -->
 - `algorithm` {string}
-- `options` {object} combined [OpenSSL options][] and [`stream.transform` options][]
+- `options` {Object} [`stream.transform` options][]
 
 Creates and returns a `Hash` object that can be used to generate hash digests
 using the given `algorithm`. Optional `options` argument controls stream 
@@ -1380,7 +1380,7 @@ added: v0.1.94
 -->
 - `algorithm` {string}
 - `key` {string | Buffer | TypedArray | DataView}
-- `options` {object} combined [OpenSSL options][] and [`stream.transform` options][]
+- `options` {Object} [`stream.transform` options][]
 
 Creates and returns an `Hmac` object that uses the given `algorithm` and `key`.
 Optional `options` argument controls stream behavior.
@@ -1417,22 +1417,24 @@ input.on('readable', () => {
 added: v0.1.92
 -->
 - `algorithm` {string}
-- `options` {object} combined [OpenSSL options][] and [`stream.transform` options][]
+- `options` {Object} [`stream.Writable` options][]
 
 Creates and returns a `Sign` object that uses the given `algorithm`.
 Use [`crypto.getHashes()`][] to obtain an array of names of the available
-signing algorithms. Optional `options` argument controls stream behavior.
+signing algorithms. Optional `options` argument controls the 
+`stream.Writable` behavior.
 
 ### crypto.createVerify(algorithm[, options])
 <!-- YAML
 added: v0.1.92
 -->
 - `algorithm` {string}
-- `options` {object} combined [OpenSSL options][] and [`stream.transform` options][]
+- `options` {Object} [`stream.Writable` options][]
 
 Creates and returns a `Verify` object that uses the given algorithm.
 Use [`crypto.getHashes()`][] to obtain an array of names of the available
-signing algorithms. Optional `options` argument controls stream behavior.
+signing algorithms. Optional `options` argument controls the 
+`stream.Writable` behavior.
 
 ### crypto.getCiphers()
 <!-- YAML
@@ -2216,16 +2218,16 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_BytesToKey.html
 [`cipher.final()`]: #crypto_cipher_final_outputencoding
 [`cipher.update()`]: #crypto_cipher_update_data_inputencoding_outputencoding
-[`crypto.createCipher()`]: #crypto_crypto_createcipher_algorithm_password
-[`crypto.createCipheriv()`]: #crypto_crypto_createcipheriv_algorithm_key_iv
-[`crypto.createDecipher()`]: #crypto_crypto_createdecipher_algorithm_password
-[`crypto.createDecipheriv()`]: #crypto_crypto_createdecipheriv_algorithm_key_iv
+[`crypto.createCipher()`]: #crypto_crypto_createcipher_algorithm_password_options
+[`crypto.createCipheriv()`]: #crypto_crypto_createcipheriv_algorithm_key_iv_options
+[`crypto.createDecipher()`]: #crypto_crypto_createdecipher_algorithm_password_options
+[`crypto.createDecipheriv()`]: #crypto_crypto_createdecipheriv_algorithm_key_iv_options
 [`crypto.createDiffieHellman()`]: #crypto_crypto_creatediffiehellman_prime_primeencoding_generator_generatorencoding
 [`crypto.createECDH()`]: #crypto_crypto_createecdh_curvename
-[`crypto.createHash()`]: #crypto_crypto_createhash_algorithm
-[`crypto.createHmac()`]: #crypto_crypto_createhmac_algorithm_key
-[`crypto.createSign()`]: #crypto_crypto_createsign_algorithm
-[`crypto.createVerify()`]: #crypto_crypto_createverify_algorithm
+[`crypto.createHash()`]: #crypto_crypto_createhash_algorithm_options
+[`crypto.createHmac()`]: #crypto_crypto_createhmac_algorithm_key_options
+[`crypto.createSign()`]: #crypto_crypto_createsign_algorithm_options
+[`crypto.createVerify()`]: #crypto_crypto_createverify_algorithm_options
 [`crypto.getCurves()`]: #crypto_crypto_getcurves
 [`crypto.getHashes()`]: #crypto_crypto_gethashes
 [`crypto.pbkdf2()`]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
@@ -2243,6 +2245,8 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`hmac.update()`]: #crypto_hmac_update_data_inputencoding
 [`sign.sign()`]: #crypto_sign_sign_privatekey_outputformat
 [`sign.update()`]: #crypto_sign_update_data_inputencoding
+[`stream.transform` options]: stream.html#stream_new_stream_transform_options
+[`stream.Writable` options]: stream.html#stream_constructor_new_stream_writable_options
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`verify.update()`]: #crypto_verifier_update_data_inputencoding
 [`verify.verify()`]: #crypto_verifier_verify_object_signature_signatureformat
@@ -2252,11 +2256,10 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
+[OpenSSL options]: #openssl-options
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
 [stream]: stream.html
-[OpenSSL options]: #openssl-options
-[`stream.transform` options]: stream.html#stream_new_stream_transform_options
