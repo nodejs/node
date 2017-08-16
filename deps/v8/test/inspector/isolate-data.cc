@@ -303,6 +303,13 @@ void IsolateData::FireContextDestroyed(v8::Local<v8::Context> context) {
   inspector_->contextDestroyed(context);
 }
 
+void IsolateData::FreeContext(v8::Local<v8::Context> context) {
+  int context_group_id = GetContextGroupId(context);
+  auto it = contexts_.find(context_group_id);
+  if (it == contexts_.end()) return;
+  contexts_.erase(it);
+}
+
 std::vector<int> IsolateData::GetSessionIds(int context_group_id) {
   std::vector<int> result;
   for (auto& it : sessions_) {
