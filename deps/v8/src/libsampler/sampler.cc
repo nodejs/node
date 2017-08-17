@@ -450,11 +450,17 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->sp = reinterpret_cast<void*>(mcontext.gregs[29]);
   state->fp = reinterpret_cast<void*>(mcontext.gregs[30]);
 #elif V8_HOST_ARCH_PPC
+#if V8_LIBC_GLIBC
   state->pc = reinterpret_cast<void*>(ucontext->uc_mcontext.regs->nip);
-  state->sp =
-      reinterpret_cast<void*>(ucontext->uc_mcontext.regs->gpr[PT_R1]);
-  state->fp =
-      reinterpret_cast<void*>(ucontext->uc_mcontext.regs->gpr[PT_R31]);
+  state->sp = reinterpret_cast<void*>(ucontext->uc_mcontext.regs->gpr[PT_R1]);
+  state->fp = reinterpret_cast<void*>(ucontext->uc_mcontext.regs->gpr[PT_R31]);
+#else
+  // Some C libraries, notably Musl, define regs member as a void pointer,
+  // so gp_regs is used instead.
+  state->pc = reinterpret_cast<void*>(ucontext->uc_mcontext.gp_regs[32]);
+  state->sp = reinterpret_cast<void*>(ucontext->uc_mcontext.gp_regs[1]);
+  state->fp = reinterpret_cast<void*>(ucontext->uc_mcontext.gp_regs[31]);
+#endif
 #elif V8_HOST_ARCH_S390
 #if V8_TARGET_ARCH_32_BIT
   // 31-bit target will have bit 0 (MSB) of the PSW set to denote addressing
