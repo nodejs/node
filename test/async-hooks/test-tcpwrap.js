@@ -38,7 +38,7 @@ const server = net
 // Calling net.connect creates another TCPWRAP synchronously
 {
   net.connect(
-    { port: server.address().port, host: server.address().address },
+    { port: server.address().port, host: '::1' },
     common.mustCall(onconnected));
   const tcps = hooks.activitiesOfTypes('TCPWRAP');
   assert.strictEqual(tcps.length, 2);
