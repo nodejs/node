@@ -43,7 +43,7 @@ function onheadersComplete() {
                    'when onheadersComplete called');
 }
 
-function onbody(buf, start, len) {
+function onbody() {
   checkInvocations(httpparser, { init: 1, before: 2, after: 1 },
                    'when onbody called');
   tick(1, common.mustCall(tick1));

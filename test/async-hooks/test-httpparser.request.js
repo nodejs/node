@@ -9,7 +9,6 @@ const { checkInvocations } = require('./hook-checks');
 const binding = process.binding('http_parser');
 const HTTPParser = binding.HTTPParser;
 
-const CRLF = '\r\n';
 const REQUEST = HTTPParser.REQUEST;
 
 const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
@@ -19,7 +18,7 @@ const hooks = initHooks();
 hooks.enable();
 
 const request = Buffer.from(
-  'GET /hello HTTP/1.1' + CRLF + CRLF
+  'GET /hello HTTP/1.1\r\n\r\n'
 );
 
 const parser = new HTTPParser(REQUEST);
