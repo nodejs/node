@@ -59,12 +59,13 @@ assert.strictEqual(test_general.testNapiTypeof(null), 'null');
 
 // Ensure that garbage collecting an object with a wrapped native item results
 // in the finalize callback being called.
-var w = {};
+let w = {};
 test_general.wrap(w, []);
 w = null;
 global.gc();
 assert.strictEqual(test_general.derefItemWasCalled(), true,
-  'deref_item() was called upon garbage collecting a wrapped object');
+                   'deref_item() was called upon garbage collecting a ' +
+                   'wrapped object');
 
 // Assert that wrapping twice fails.
 const x = {};
@@ -83,10 +84,10 @@ assert.doesNotThrow(function() {
 
 // Ensure that removing a wrap and garbage collecting does not fire the
 // finalize callback.
-var z = {};
+let z = {};
 test_general.testFinalizeWrap(z);
 test_general.removeWrap(z);
 z = null;
 global.gc();
 assert.strictEqual(test_general.finalizeWasCalled(), false,
-  'finalize callback was not called upon garbage collection');
+                   'finalize callback was not called upon garbage collection');
