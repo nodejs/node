@@ -166,6 +166,10 @@ inline bool Environment::AsyncHooks::pop_ids(double async_id) {
   return !ids_stack_.empty();
 }
 
+inline size_t Environment::AsyncHooks::stack_size() {
+  return ids_stack_.size();
+}
+
 inline void Environment::AsyncHooks::clear_id_stack() {
   while (!ids_stack_.empty())
     ids_stack_.pop();
