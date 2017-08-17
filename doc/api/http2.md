@@ -2598,3 +2598,5 @@ if the stream is closed.
 [Readable Stream]: stream.html#stream_class_stream_readable
 [`ServerRequest`]: #http2_class_server_request
 [`stream.pushStream()`]: #http2_stream-pushstream
+[`http2.Server`]: #http2_class_http2server
+[`http2.SecureServer`]: #http2_class_http2secureserver
