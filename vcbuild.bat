@@ -107,7 +107,7 @@ if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
 if /i "%1"=="enable-vtune"  set enable_vtune_arg=1&goto arg-ok
 if /i "%1"=="dll"           set dll=1&goto arg-ok
-if /i "%1"=="static"           set enable_static=1&goto arg-ok
+if /i "%1"=="static"        set enable_static=1&goto arg-ok
 if /i "%1"=="no-NODE-OPTIONS"	set no_NODE_OPTIONS=1&goto arg-ok
 if /i "%1"=="debug-http2"   set debug_http2=1&goto arg-ok
 if /i "%1"=="debug-nghttp2" set debug_nghttp2=1&goto arg-ok
@@ -445,8 +445,9 @@ if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
+REM when building a static library there's no binary to run tests
+if defined enable_static goto test-v8
 call :run-python tools\test.py %test_args%
-goto test-v8
 
 :test-v8
 if not defined custom_v8_test goto cpplint
@@ -494,6 +495,7 @@ set "localcppfilelist=%localcppfilelist% %1"
 goto exit
 
 :jslint
+if defined enable_static goto exit
 if defined jslint_ci goto jslint-ci
 if not defined jslint goto exit
 if not exist tools\eslint\bin\eslint.js goto no-lint
