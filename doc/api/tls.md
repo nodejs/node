@@ -905,6 +905,9 @@ port or host argument.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/6569
+    description: The `options` parameter can now include `clientCertEngine`.
   - version: v7.3.0
     pr-url: https://github.com/nodejs/node/pull/10294
     description: If the `key` option is an array, individual entries do not
@@ -959,8 +962,6 @@ changes:
     certificate can match or chain to.
     For self-signed certificates, the certificate is its own CA, and must be
     provided.
-  * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
-    CRLs (Certificate Revocation Lists).
   * `ciphers` {string} Optional cipher suite specification, replacing the
     default.  For more information, see [modifying the default cipher suite][].
   * `honorCipherOrder` {boolean} Attempt to use the server's cipher suite
@@ -974,20 +975,24 @@ changes:
     [`crypto.getCurves()`][] to obtain a list of available curve names. On
     recent releases, `openssl ecparam -list_curves` will also display the name
     and description of each available elliptic curve.
+  * `clientCertEngine` {string} Optional name of an OpenSSL engine which can
+    provide the client certificate.
+  * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
+    CRLs (Certificate Revocation Lists).
   * `dhparam` {string|Buffer} Diffie Hellman parameters, required for
     [Perfect Forward Secrecy][]. Use `openssl dhparam` to create the parameters.
     The key length must be greater than or equal to 1024 bits, otherwise an
     error will be thrown. It is strongly recommended to use 2048 bits or larger
     for stronger security. If omitted or invalid, the parameters are silently
     discarded and DHE ciphers will not be available.
-  * `secureProtocol` {string} Optional SSL method to use, default is
-    `"SSLv23_method"`. The possible values are listed as [SSL_METHODS][], use
-    the function names as strings. For example, `"SSLv3_method"` to force SSL
-    version 3.
   * `secureOptions` {number} Optionally affect the OpenSSL protocol behavior,
     which is not usually necessary. This should be used carefully if at all!
     Value is a numeric bitmask of the `SSL_OP_*` options from
     [OpenSSL Options][].
+  * `secureProtocol` {string} Optional SSL method to use, default is
+    `"SSLv23_method"`. The possible values are listed as [SSL_METHODS][], use
+    the function names as strings. For example, `"SSLv3_method"` to force SSL
+    version 3.
   * `sessionIdContext` {string} Optional opaque identifier used by servers to
     ensure session state is not shared between applications. Unused by clients.
 
@@ -1015,6 +1020,9 @@ publicly trusted list of CAs as given in
 <!-- YAML
 added: v0.3.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/6569
+    description: The `options` parameter can now include `clientCertEngine`.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11984
     description: The `ALPNProtocols` and `NPNProtocols` options can
@@ -1025,6 +1033,8 @@ changes:
 -->
 
 * `options` {Object}
+  * `clientCertEngine` {string} Optional name of an OpenSSL engine which can
+    provide the client certificate.
   * `handshakeTimeout` {number} Abort the connection if the SSL/TLS handshake
     does not finish in the specified number of milliseconds. Defaults to `120`
     seconds. A `'tlsClientError'` is emitted on the `tls.Server` object whenever
