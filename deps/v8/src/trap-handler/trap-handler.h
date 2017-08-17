@@ -65,7 +65,7 @@ inline bool UseTrapHandler() {
   return FLAG_wasm_trap_handler && V8_TRAP_HANDLER_SUPPORTED;
 }
 
-extern THREAD_LOCAL bool g_thread_in_wasm_code;
+extern THREAD_LOCAL int g_thread_in_wasm_code;
 
 inline bool IsThreadInWasm() { return g_thread_in_wasm_code; }
 
