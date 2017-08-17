@@ -979,6 +979,10 @@ if (typeof Symbol !== 'undefined') {
 {
   const x = new Array(101).fill();
   assert(!util.inspect(x, { maxArrayLength: 101 }).endsWith('1 more item ]'));
+  assert.strictEqual(
+    util.inspect(x, { maxArrayLength: -1 }),
+    '[ ... 101 more items ]'
+  );
 }
 
 {
