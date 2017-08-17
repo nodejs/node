@@ -285,7 +285,7 @@ end:
 
     GetTrailers(session, handle, stream, flags);
   }
-  assert(offset <= length);
+  CHECK(offset <= length);
   return offset;
 }
 
@@ -296,7 +296,7 @@ inline ssize_t Nghttp2Session::OnSelectPadding(nghttp2_session *session,
                                                size_t maxPayloadLen,
                                                void *user_data) {
   Nghttp2Session *handle = static_cast<Nghttp2Session *>(user_data);
-  assert(handle->HasGetPaddingCallback());
+  CHECK(handle->HasGetPaddingCallback());
   ssize_t padding = handle->GetPadding(frame->hd.length, maxPayloadLen);
   DEBUG_HTTP2("Nghttp2Session %s: using padding, size: %d\n",
               handle->TypeName(), padding);
@@ -547,7 +547,7 @@ inline void Nghttp2Session::MarkDestroying() {
 }
 
 inline int Nghttp2Session::Free() {
-  assert(session_ != nullptr);
+  CHECK(session_ != nullptr);
   DEBUG_HTTP2("Nghttp2Session %s: freeing session\n", TypeName());
   // Stop the loop
   uv_prepare_stop(&prep_);
