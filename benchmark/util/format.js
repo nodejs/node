@@ -10,7 +10,7 @@ const types = [
   'no-replace'
 ];
 const bench = common.createBenchmark(main, {
-  n: [1e6],
+  n: [2e6],
   type: types
 });
 
