@@ -2600,3 +2600,14 @@ if the stream is closed.
 [`stream.pushStream()`]: #http2_stream-pushstream
 [`http2.Server`]: #http2_class_http2server
 [`http2.SecureServer`]: #http2_class_http2secureserver
+[`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
+[Writable Stream]: stream.html#stream_writable_streams
+[`EventEmitter`]: events.html#events_class_eventemitter
+[`response.end()`]: http.html#http_response_end_data_encoding_callback
+[`response.socket`]: http.html#http_response_socket
+[`TypeError`]: errors.html#errors_class_typeerror
+[`response.write(data, encoding)`]: http.html#http_response_write_chunk_encoding_callback
+[`response.write()`]: http.html#http_response_write_chunk_encoding_callback
+[`response.setHeader()`]: http.html#http_response_setheader_name_value
+[`response.writeHead()`]: http.html#http_response_writehead_statuscode_statusmessage_headers
+
