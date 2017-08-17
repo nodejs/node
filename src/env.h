@@ -400,6 +400,7 @@ class Environment {
 
     inline void push_ids(double async_id, double trigger_id);
     inline bool pop_ids(double async_id);
+    inline size_t stack_size();
     inline void clear_id_stack();  // Used in fatal exceptions.
 
     // Used to propagate the trigger_id to the constructor of any newly created
