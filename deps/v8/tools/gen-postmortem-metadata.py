@@ -72,6 +72,7 @@ consts_misc = [
     { 'name': 'ConsStringTag',          'value': 'kConsStringTag' },
     { 'name': 'ExternalStringTag',      'value': 'kExternalStringTag' },
     { 'name': 'SlicedStringTag',        'value': 'kSlicedStringTag' },
+    { 'name': 'ThinStringTag',          'value': 'kThinStringTag' },
 
     { 'name': 'HeapObjectTag',          'value': 'kHeapObjectTag' },
     { 'name': 'HeapObjectTagMask',      'value': 'kHeapObjectTagMask' },
