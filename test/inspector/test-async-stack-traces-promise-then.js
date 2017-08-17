@@ -2,7 +2,8 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 common.skipIf32Bits();
-const helper = require('./inspector-helper');
+common.crashOnUnhandledRejection();
+const { NodeInstance } = require('./inspector-helper');
 const assert = require('assert');
 
 const script = `runTest();
@@ -17,53 +18,52 @@ function runTest() {
 }
 `;
 
-helper.startNodeForInspectorTest(runTests,
-                                 `--inspect-brk=${common.PORT}`,
-                                 script);
-
-function runTests(harness) {
-  harness.runFrontendSession([
-    helper.setupDebugger,
-    (session) => {
-      console.error('[test] Waiting for break1');
-      session.expectMessages(debuggerPausedAt('break1', 'runTest:3'));
-    },
-    (session) => {
-      console.error('[test] Waiting for break2');
-      session
-        .sendInspectorCommands({ method: 'Debugger.resume' })
-        .expectMessages(debuggerPausedAt('break2', 'runTest:6'));
-    },
-    (session) => {
-      console.log('[test] Disconnecting the debugging session');
-      session.disconnect(true);
-    }
+async function runTests() {
+  const instance = new NodeInstance(undefined, script);
+  const session = await instance.connectInspectorSession();
+  await session.send([
+    { 'method': 'Runtime.enable' },
+    { 'method': 'Debugger.enable' },
+    { 'method': 'Debugger.setAsyncCallStackDepth',
+      'params': { 'maxDepth': 10 } },
+    { 'method': 'Debugger.setBlackboxPatterns',
+      'params': { 'patterns': [] } },
+    { 'method': 'Runtime.runIfWaitingForDebugger' }
   ]);
-  // no need to kill the debugged process, it will quit naturally
 
-  function debuggerPausedAt(functionName, previousTickLocation) {
-    return function(msg) {
-      if (msg.method !== 'Debugger.paused') return;
+  console.error('[test] Waiting for break1');
+  debuggerPausedAt(await session.waitForBreakOnLine(4, '[eval]'),
+                   'break1', 'runTest:3');
 
-      assert(
-        !!msg.params.asyncStackTrace,
-        `${Object.keys(msg.params)} contains "asyncStackTrace" property`);
+  await session.send({ 'method': 'Debugger.resume' });
 
-      assert.strictEqual(msg.params.callFrames[0].functionName, functionName);
-      assert.strictEqual(msg.params.asyncStackTrace.description, 'PROMISE');
+  console.error('[test] Waiting for break2');
+  debuggerPausedAt(await session.waitForBreakOnLine(7, '[eval]'),
+                   'break2', 'runTest:6');
 
-      const frameLocations = msg.params.asyncStackTrace.callFrames.map(
-        (frame) => `${frame.functionName}:${frame.lineNumber}`);
-      assertArrayIncludes(frameLocations, previousTickLocation);
-      return true;
-    };
-  }
-
-  function assertArrayIncludes(actual, expected) {
-    const expectedString = JSON.stringify(expected);
-    const actualString = JSON.stringify(actual);
-    assert(
-      actual.includes(expected),
-      `Expected ${actualString} to contain ${expectedString}.`);
-  }
+  await session.runToCompletion();
+  assert.strictEqual(0, (await instance.expectShutdown()).exitCode);
 }
+
+function debuggerPausedAt(msg, functionName, previousTickLocation) {
+  assert(
+    !!msg.params.asyncStackTrace,
+    `${Object.keys(msg.params)} contains "asyncStackTrace" property`);
+
+  assert.strictEqual(msg.params.callFrames[0].functionName, functionName);
+  assert.strictEqual(msg.params.asyncStackTrace.description, 'PROMISE');
+
+  const frameLocations = msg.params.asyncStackTrace.callFrames.map(
+    (frame) => `${frame.functionName}:${frame.lineNumber}`);
+  assertArrayIncludes(frameLocations, previousTickLocation);
+}
+
+function assertArrayIncludes(actual, expected) {
+  const expectedString = JSON.stringify(expected);
+  const actualString = JSON.stringify(actual);
+  assert(
+    actual.includes(expected),
+    `Expected ${actualString} to contain ${expectedString}.`);
+}
+
+runTests();

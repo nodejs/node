@@ -3,19 +3,14 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 common.skipIf32Bits();
 common.crashOnUnhandledRejection();
-const { NodeInstance } = require('./inspector-helper.js');
+const { NodeInstance } = require('../inspector/inspector-helper.js');
 const assert = require('assert');
 
-const script = `
-setTimeout(() => {
-  debugger;
-  process.exitCode = 55;
-}, 50);
-`;
+const script = 'setInterval(() => { debugger; }, 50);';
 
 async function checkAsyncStackTrace(session) {
   console.error('[test]', 'Verify basic properties of asyncStackTrace');
-  const paused = await session.waitForBreakOnLine(2, '[eval]');
+  const paused = await session.waitForBreakOnLine(0, '[eval]');
   assert(paused.params.asyncStackTrace,
          `${Object.keys(paused.params)} contains "asyncStackTrace" property`);
   assert(paused.params.asyncStackTrace.description, 'Timeout');
@@ -24,7 +19,7 @@ async function checkAsyncStackTrace(session) {
 }
 
 async function runTests() {
-  const instance = new NodeInstance(undefined, script);
+  const instance = new NodeInstance(['--inspect=0'], script);
   const session = await instance.connectInspectorSession();
   await session.send([
     { 'method': 'Runtime.enable' },
@@ -38,8 +33,9 @@ async function runTests() {
 
   await checkAsyncStackTrace(session);
 
-  await session.runToCompletion();
-  assert.strictEqual(55, (await instance.expectShutdown()).exitCode);
+  console.error('[test]', 'Stopping child instance');
+  session.disconnect();
+  instance.kill();
 }
 
 runTests();
