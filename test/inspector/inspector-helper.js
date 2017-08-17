@@ -325,9 +325,10 @@ class NodeInstance {
     console.log('[err]', line);
     if (this._portCallback) {
       const matches = line.match(/Debugger listening on ws:\/\/.+:(\d+)\/.+/);
-      if (matches)
+      if (matches) {
         this._portCallback(matches[1]);
-      this._portCallback = null;
+        this._portCallback = null;
+      }
     }
     if (this._stderrLineCallback) {
       this._stderrLineCallback(line);
