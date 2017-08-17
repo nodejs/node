@@ -450,6 +450,13 @@ void AsyncWrap::PopAsyncIds(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void AsyncWrap::AsyncIdStackSize(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(
+      static_cast<double>(env->async_hooks()->stack_size()));
+}
+
+
 void AsyncWrap::ClearIdStack(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->async_hooks()->clear_id_stack();
@@ -486,6 +493,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "setupHooks", SetupHooks);
   env->SetMethod(target, "pushAsyncIds", PushAsyncIds);
   env->SetMethod(target, "popAsyncIds", PopAsyncIds);
+  env->SetMethod(target, "asyncIdStackSize", AsyncIdStackSize);
   env->SetMethod(target, "clearIdStack", ClearIdStack);
   env->SetMethod(target, "addIdToDestroyList", QueueDestroyId);
   env->SetMethod(target, "enablePromiseHook", EnablePromiseHook);
