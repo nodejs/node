@@ -8,50 +8,52 @@ const assert = require('assert');
 
 const script = `
 process._rawDebug('Waiting until a signal enables the inspector...');
-let waiting = setInterval(setupIntervalIfDebugged, 50);
+let waiting = setInterval(waitUntilDebugged, 50);
 
-function setupIntervalIfDebugged() {
+function waitUntilDebugged() {
   if (!process.binding('inspector').isEnabled()) return;
   clearInterval(waiting);
-  // It seems that AsyncTask tracking engine may not be initialised yet
-  // when isEnabled() flag changes to true, therefore we need to introduce
-  // a small delay. Using a timeout would be brittle and it would unnecesarily
-  // slow down the test on most machines.
-  // Triggering a debugger break is a faster and more reliable way.
+  // At this point, even though the Inspector is enabled, the default async
+  // call stack depth is 0. We need a chance to call
+  // Debugger.setAsyncCallStackDepth *before* activating the actual timer for
+  // async stack traces to work. Directly using a debugger statement would be
+  // too brittle, and using a longer timeout would unnecesarily slow down the
+  // test on most machines. Triggering a debugger break through an interval is
+  // a faster and more reliable way.
   process._rawDebug('Signal received, waiting for debugger setup');
   waiting = setInterval(() => { debugger; }, 50);
 }
 
 // This function is called by the inspector client (session)
-function setupIntervalWithBreak() {
+function setupTimeoutWithBreak() {
   clearInterval(waiting);
-  process._rawDebug('Debugger ready, setting up interval with a break');
-  setInterval(() => { debugger; }, 50);
+  process._rawDebug('Debugger ready, setting up timeout with a break');
+  setTimeout(() => { debugger; }, 50);
 }
 `;
 
 async function waitForInitialSetup(session) {
   console.error('[test]', 'Waiting for initial setup');
-  await session.waitForBreakOnLine(13, '[eval]');
+  await session.waitForBreakOnLine(15, '[eval]');
 }
 
-async function setupOwnInterval(session) {
-  console.error('[test]', 'Setting up our own interval');
+async function setupTimeoutForStackTrace(session) {
+  console.error('[test]', 'Setting up timeout for async stack trace');
   await session.send([
     { 'method': 'Runtime.evaluate',
-      'params': { expression: 'setupIntervalWithBreak()' } },
+      'params': { expression: 'setupTimeoutWithBreak()' } },
     { 'method': 'Debugger.resume' }
   ]);
 }
 
 async function checkAsyncStackTrace(session) {
   console.error('[test]', 'Verify basic properties of asyncStackTrace');
-  const paused = await session.waitForBreakOnLine(20, '[eval]');
+  const paused = await session.waitForBreakOnLine(22, '[eval]');
   assert(paused.params.asyncStackTrace,
          `${Object.keys(paused.params)} contains "asyncStackTrace" property`);
   assert(paused.params.asyncStackTrace.description, 'Timeout');
   assert(paused.params.asyncStackTrace.callFrames
-           .some((frame) => frame.functionName === 'setupIntervalWithBreak'));
+           .some((frame) => frame.functionName === 'setupTimeoutWithBreak'));
 }
 
 async function runTests() {
@@ -68,7 +70,7 @@ async function runTests() {
   ]);
 
   await waitForInitialSetup(session);
-  await setupOwnInterval(session);
+  await setupTimeoutForStackTrace(session);
   await checkAsyncStackTrace(session);
 
   console.error('[test]', 'Stopping child instance');

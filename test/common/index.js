@@ -749,7 +749,6 @@ exports.skipIfInspectorDisabled = function skipIfInspectorDisabled() {
 exports.skipIf32Bits = function skipIf32Bits() {
   if (process.binding('config').bits < 64) {
     exports.skip('The tested feature is not available in 32bit builds');
-    process.exit(0);
   }
 };
 
