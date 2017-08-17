@@ -98,7 +98,8 @@ async function testBreakpoint(session) {
          `Script source is wrong: ${scriptSource}`);
 
   await session.waitForConsoleOutput('log', ['A message', 5]);
-  const scopeId = await session.waitForBreakOnLine(5, mainScriptPath);
+  const paused = await session.waitForBreakOnLine(5, mainScriptPath);
+  const scopeId = paused.params.callFrames[0].scopeChain[0].object.objectId;
 
   console.log('[test]', 'Verify we can read current application state');
   const response = await session.send({
