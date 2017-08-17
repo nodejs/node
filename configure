@@ -1419,6 +1419,8 @@ config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
   'USE_XCODE': str(int(options.use_xcode or 0)),
   'PYTHON': sys.executable,
+  'NODE_TARGET_TYPE': variables['node_target_type'] if options.enable_static \
+      else '',
 }
 
 if options.prefix:
