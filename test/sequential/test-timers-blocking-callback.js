@@ -37,10 +37,6 @@ let timeCallbackScheduled;
 // not present (if the host is sufficiently busy that the timers are delayed 
 // significantly). However, they fail 100% of the time when the bug *is*
 // present, so to increase reliability, allow for a small number of retries.
-// (Keep it small because as currently written, one failure could result in
-// multiple simultaneous retries of the test. Don't want to timer-bomb
-// ourselves. Observed failures are infrequent anyway, so only a small number of
-// retries is hopefully more than sufficient.)
 let retries = 2;
 
 function initTest() {
@@ -88,15 +84,24 @@ function testAddingTimerToEmptyTimersList(callback) {
 }
 
 function testAddingTimerToNonEmptyTimersList() {
+  // If both timers fail and attempt a retry, only actually do anything for one
+  // of them.
+  let retryOK = true;
+  const retry = () => {
+    if (retryOK)
+      testAddingTimerToNonEmptyTimersList();
+    retryOK = false;
+  };
+
   initTest();
   // Call setTimeout twice with the same timeout to make
   // sure the timers list is not empty when blockingCallback is called.
   setTimeout(
-    blockingCallback.bind(null, testAddingTimerToNonEmptyTimersList),
+    blockingCallback.bind(null, retry),
     TIMEOUT
   );
   setTimeout(
-    blockingCallback.bind(null, testAddingTimerToNonEmptyTimersList),
+    blockingCallback.bind(null, retry),
     TIMEOUT
   );
 }
