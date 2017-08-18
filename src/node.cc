@@ -197,9 +197,6 @@ unsigned int reverted = 0;
 std::string icu_data_dir;  // NOLINT(runtime/string)
 #endif
 
-// N-API is in experimental state, disabled by default.
-bool load_napi_modules = false;
-
 // used by C++ modules as well
 bool no_deprecation = false;
 
@@ -2703,27 +2700,22 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
     env->ThrowError("Module did not self-register.");
     return;
   }
-  if (mp->nm_version != NODE_MODULE_VERSION) {
-    char errmsg[1024];
-    if (mp->nm_version == -1) {
-      snprintf(errmsg,
-               sizeof(errmsg),
-               "The module '%s'"
-               "\nwas compiled against the ABI-stable Node.js API (N-API)."
-               "\nThis feature is experimental and must be enabled on the "
-               "\ncommand-line by adding --napi-modules.",
-               *filename);
-    } else {
-      snprintf(errmsg,
-               sizeof(errmsg),
-               "The module '%s'"
-               "\nwas compiled against a different Node.js version using"
-               "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
-               "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
-               "re-installing\nthe module (for instance, using `npm rebuild` "
-               "or `npm install`).",
-               *filename, mp->nm_version, NODE_MODULE_VERSION);
+  if (mp->nm_version == -1) {
+    if (env->EmitNapiWarning()) {
+      ProcessEmitWarning(env, "N-API is an experimental feature and could "
+                         "change at any time.");
     }
+  } else if (mp->nm_version != NODE_MODULE_VERSION) {
+    char errmsg[1024];
+    snprintf(errmsg,
+             sizeof(errmsg),
+             "The module '%s'"
+             "\nwas compiled against a different Node.js version using"
+             "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
+             "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
+             "re-installing\nthe module (for instance, using `npm rebuild` "
+             "or `npm install`).",
+             *filename, mp->nm_version, NODE_MODULE_VERSION);
 
     // NOTE: `mp` is allocated inside of the shared library's memory, calling
     // `dlclose` will deallocate it
@@ -3822,7 +3814,8 @@ static void PrintHelp() {
          "  --throw-deprecation        throw an exception on deprecations\n"
          "  --pending-deprecation      emit pending deprecation warnings\n"
          "  --no-warnings              silence all process warnings\n"
-         "  --napi-modules             load N-API modules\n"
+         "  --napi-modules             load N-API modules (no-op - option\n"
+         "                             kept for compatibility)\n"
          "  --abort-on-uncaught-exception\n"
          "                             aborting instead of exiting causes a\n"
          "                             core file to be generated for analysis\n"
@@ -4080,7 +4073,7 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--no-deprecation") == 0) {
       no_deprecation = true;
     } else if (strcmp(arg, "--napi-modules") == 0) {
-      load_napi_modules = true;
+      // no-op
     } else if (strcmp(arg, "--no-warnings") == 0) {
       no_process_warnings = true;
     } else if (strcmp(arg, "--trace-warnings") == 0) {
@@ -4734,11 +4727,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   }
 
   env.set_trace_sync_io(trace_sync_io);
-
-  if (load_napi_modules) {
-    ProcessEmitWarning(&env, "N-API is an experimental feature "
-        "and could change at any time.");
-  }
 
   {
     SealHandleScope seal(isolate);
