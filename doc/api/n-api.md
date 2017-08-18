@@ -1844,7 +1844,7 @@ insufficient, the returned string will be truncated.
 terminator.
 
 Returns `napi_ok` if the API succeeded. If a non-String `napi_value`
-x is passed in it returns `napi_string_expected`.
+is passed in it returns `napi_string_expected`.
 
 This API returns the UTF8-encoded string corresponding the value passed in.
 
