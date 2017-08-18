@@ -63,7 +63,7 @@ function blockingCallback(retry, callback) {
         retries--;
         return retry(callback);
       }
-      assert.fail(`timeout delayed by more than 100ms (${latestDelay}ms)`);
+      assert.fail(`timeout delayed by more than 100% (${latestDelay}ms)`);
     }
     if (callback)
       return callback();
