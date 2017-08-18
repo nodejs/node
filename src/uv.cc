@@ -29,7 +29,6 @@ namespace {
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
-using v8::Integer;
 using v8::Local;
 using v8::Object;
 using v8::Value;
@@ -51,9 +50,8 @@ void InitializeUV(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "errname"),
               env->NewFunctionTemplate(ErrName)->GetFunction());
-#define V(name, _)                                                            \
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UV_" # name),            \
-              Integer::New(env->isolate(), UV_ ## name));
+
+#define V(name, _) NODE_DEFINE_CONSTANT(target, UV_##name);
   UV_ERRNO_MAP(V)
 #undef V
 }
