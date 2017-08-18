@@ -26,7 +26,9 @@ napi_value TestCallFunction(napi_env env, napi_callback_info info) {
   return result;
 }
 
-void TestFunctionName(napi_env env, napi_callback_info info) {}
+napi_value TestFunctionName(napi_env env, napi_callback_info info) {
+  return NULL;
+}
 
 napi_value Init(napi_env env, napi_value exports) {
   napi_value fn1;
