@@ -1383,7 +1383,7 @@ resource.
 [`writable._write()`][stream-_write].
 
 *Note*: This function MUST NOT be called by application code directly. It
-should be implemented by child classes, and called only by the internal Writable
+should be implemented by child classes, and called by the internal Writable
 class methods only.
 
 The `callback` method must be called to signal either that the write completed
@@ -1418,7 +1418,7 @@ user programs.
   argument) to be invoked when processing is complete for the supplied chunks.
 
 *Note*: This function MUST NOT be called by application code directly. It
-should be implemented by child classes, and called only by the internal Writable
+should be implemented by child classes, and called by the internal Writable
 class methods only.
 
 The `writable._writev()` method may be implemented in addition to
@@ -1573,7 +1573,7 @@ const myReadable = new Readable({
 * `size` {number} Number of bytes to read asynchronously
 
 *Note*: This function MUST NOT be called by application code directly. It
-should be implemented by child classes, and called only by the internal Readable
+should be implemented by child classes, and called by the internal Readable
 class methods only.
 
 All Readable stream implementations must provide an implementation of the
@@ -1974,7 +1974,7 @@ after all data has been output, which occurs after the callback in
   argument and data) to be called when remaining data has been flushed.
 
 *Note*: This function MUST NOT be called by application code directly. It
-should be implemented by child classes, and called only by the internal Readable
+should be implemented by child classes, and called by the internal Readable
 class methods only.
 
 In some cases, a transform operation may need to emit an additional bit of
@@ -2009,7 +2009,7 @@ user programs.
   processed.
 
 *Note*: This function MUST NOT be called by application code directly. It
-should be implemented by child classes, and called only by the internal Readable
+should be implemented by child classes, and called by the internal Readable
 class methods only.
 
 All Transform stream implementations must provide a `_transform()`
