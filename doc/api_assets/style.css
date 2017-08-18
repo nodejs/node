@@ -95,6 +95,7 @@ em code {
   font-family: "Lato", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
   padding: 1em;
   line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .api_stability * {
