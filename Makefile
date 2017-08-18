@@ -503,14 +503,14 @@ gen-doc =	\
 		else \
 			cd tools/doc && node ../../$(NPM) install; \
 		fi;\
-	[ -x $(NODE) ] && $(NODE) $(gen-json) || node
+	[ -x $(NODE) ] && $(NODE) $(1) || node $(1)
 
 out/doc/api/%.json: doc/api/%.md
-	$(gen-doc) $(gen-json)
+	$(call gen-doc, $(gen-json))
 
 # check if ./node is actually set, else use user pre-installed binary
 out/doc/api/%.html: doc/api/%.md
-	$(gen-doc) $(gen-html)
+	$(call gen-doc, $(gen-html))
 
 docopen: $(apidocs_html)
 	@$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html
