@@ -23,20 +23,27 @@
 namespace node {
 namespace inspector {
 namespace {
+
+using node::FatalError;
+
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
+using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Name;
 using v8::NewStringType;
 using v8::Object;
 using v8::Persistent;
 using v8::String;
+using v8::Undefined;
 using v8::Value;
 
 using v8_inspector::StringBuffer;
@@ -495,11 +502,9 @@ class InspectorTimerHandle {
 
 class NodeInspectorClient : public V8InspectorClient {
  public:
-  NodeInspectorClient(node::Environment* env,
-                      v8::Platform* platform) : env_(env),
-                                                platform_(platform),
-                                                terminated_(false),
-                                                running_nested_loop_(false) {
+  NodeInspectorClient(node::Environment* env, node::NodePlatform* platform)
+      : env_(env), platform_(platform), terminated_(false),
+        running_nested_loop_(false) {
     client_ = V8Inspector::create(env->isolate(), this);
     contextCreated(env->context(), "Node.js Main Context");
   }
@@ -511,8 +516,7 @@ class NodeInspectorClient : public V8InspectorClient {
     terminated_ = false;
     running_nested_loop_ = true;
     while (!terminated_ && channel_->waitForFrontendMessage()) {
-      while (v8::platform::PumpMessageLoop(platform_, env_->isolate()))
-        {}
+      platform_->FlushForegroundTasksInternal();
     }
     terminated_ = false;
     running_nested_loop_ = false;
@@ -616,9 +620,31 @@ class NodeInspectorClient : public V8InspectorClient {
     timers_.erase(data);
   }
 
+  // Async stack traces instrumentation.
+  void AsyncTaskScheduled(const StringView& task_name, void* task,
+                          bool recurring) {
+    client_->asyncTaskScheduled(task_name, task, recurring);
+  }
+
+  void AsyncTaskCanceled(void* task) {
+    client_->asyncTaskCanceled(task);
+  }
+
+  void AsyncTaskStarted(void* task) {
+    client_->asyncTaskStarted(task);
+  }
+
+  void AsyncTaskFinished(void* task) {
+    client_->asyncTaskFinished(task);
+  }
+
+  void AllAsyncTasksCanceled() {
+    client_->allAsyncTasksCanceled();
+  }
+
  private:
   node::Environment* env_;
-  v8::Platform* platform_;
+  node::NodePlatform* platform_;
   bool terminated_;
   bool running_nested_loop_;
   std::unique_ptr<V8Inspector> client_;
@@ -637,7 +663,7 @@ Agent::Agent(Environment* env) : parent_env_(env),
 Agent::~Agent() {
 }
 
-bool Agent::Start(v8::Platform* platform, const char* path,
+bool Agent::Start(node::NodePlatform* platform, const char* path,
                   const DebugOptions& options) {
   path_ = path == nullptr ? "" : path;
   debug_options_ = options;
@@ -676,9 +702,21 @@ bool Agent::StartIoThread(bool wait_for_connect) {
   }
 
   v8::Isolate* isolate = parent_env_->isolate();
+  HandleScope handle_scope(isolate);
+
+  // Enable tracking of async stack traces
+  if (!enable_async_hook_function_.IsEmpty()) {
+    Local<Function> enable_fn = enable_async_hook_function_.Get(isolate);
+    auto context = parent_env_->context();
+    auto result = enable_fn->Call(context, Undefined(isolate), 0, nullptr);
+    if (result.IsEmpty()) {
+      FatalError(
+        "node::InspectorAgent::StartIoThread",
+        "Cannot enable Inspector's AsyncHook, please report this.");
+    }
+  }
 
   // Send message to enable debug in workers
-  HandleScope handle_scope(isolate);
   Local<Object> process_object = parent_env_->process_object();
   Local<Value> emit_fn =
       process_object->Get(FIXED_ONE_BYTE_STRING(isolate, "emit"));
@@ -717,10 +755,40 @@ void Agent::Stop() {
   if (io_ != nullptr) {
     io_->Stop();
     io_.reset();
+    enabled_ = false;
+  }
+
+  v8::Isolate* isolate = parent_env_->isolate();
+  HandleScope handle_scope(isolate);
+
+  // Disable tracking of async stack traces
+  if (!disable_async_hook_function_.IsEmpty()) {
+    Local<Function> disable_fn = disable_async_hook_function_.Get(isolate);
+    auto result = disable_fn->Call(parent_env_->context(),
+      Undefined(parent_env_->isolate()), 0, nullptr);
+    if (result.IsEmpty()) {
+      FatalError(
+        "node::InspectorAgent::Stop",
+        "Cannot disable Inspector's AsyncHook, please report this.");
+    }
   }
 }
 
 void Agent::Connect(InspectorSessionDelegate* delegate) {
+  if (!enabled_) {
+    // Enable tracking of async stack traces
+    v8::Isolate* isolate = parent_env_->isolate();
+    HandleScope handle_scope(isolate);
+    auto context = parent_env_->context();
+    Local<Function> enable_fn = enable_async_hook_function_.Get(isolate);
+    auto result = enable_fn->Call(context, Undefined(isolate), 0, nullptr);
+    if (result.IsEmpty()) {
+      FatalError(
+        "node::InspectorAgent::Connect",
+        "Cannot enable Inspector's AsyncHook, please report this.");
+    }
+  }
+
   enabled_ = true;
   client_->connectFrontend(delegate);
 }
@@ -773,6 +841,34 @@ void Agent::PauseOnNextJavascriptStatement(const std::string& reason) {
     channel->schedulePauseOnNextStatement(reason);
 }
 
+void Agent::RegisterAsyncHook(Isolate* isolate,
+                              v8::Local<v8::Function> enable_function,
+                              v8::Local<v8::Function> disable_function) {
+  enable_async_hook_function_.Reset(isolate, enable_function);
+  disable_async_hook_function_.Reset(isolate, disable_function);
+}
+
+void Agent::AsyncTaskScheduled(const StringView& task_name, void* task,
+                               bool recurring) {
+  client_->AsyncTaskScheduled(task_name, task, recurring);
+}
+
+void Agent::AsyncTaskCanceled(void* task) {
+  client_->AsyncTaskCanceled(task);
+}
+
+void Agent::AsyncTaskStarted(void* task) {
+  client_->AsyncTaskStarted(task);
+}
+
+void Agent::AsyncTaskFinished(void* task) {
+  client_->AsyncTaskFinished(task);
+}
+
+void Agent::AllAsyncTasksCanceled() {
+  client_->AllAsyncTasksCanceled();
+}
+
 void Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   inspector::Agent* agent = env->inspector_agent();
@@ -810,6 +906,59 @@ void Url(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(OneByteString(env->isolate(), url.c_str()));
 }
 
+static void* GetAsyncTask(int64_t asyncId) {
+  // The inspector assumes that when other clients use its asyncTask* API,
+  // they use real pointers, or at least something aligned like real pointer.
+  // In general it means that our task_id should always be even.
+  //
+  // On 32bit platforms, the 64bit asyncId would get truncated when converted
+  // to a 32bit pointer. However, the javascript part will never enable
+  // the async_hook on 32bit platforms, therefore the truncation will never
+  // happen in practice.
+  return reinterpret_cast<void*>(asyncId << 1);
+}
+
+template<void (Agent::*asyncTaskFn)(void*)>
+static void InvokeAsyncTaskFnWithId(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsNumber());
+  int64_t task_id = args[0]->IntegerValue(env->context()).FromJust();
+  (env->inspector_agent()->*asyncTaskFn)(GetAsyncTask(task_id));
+}
+
+static void AsyncTaskScheduledWrapper(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsString());
+  Local<String> task_name = args[0].As<String>();
+  String::Value task_name_value(task_name);
+  StringView task_name_view(*task_name_value, task_name_value.length());
+
+  CHECK(args[1]->IsNumber());
+  int64_t task_id = args[1]->IntegerValue(env->context()).FromJust();
+  void* task = GetAsyncTask(task_id);
+
+  CHECK(args[2]->IsBoolean());
+  bool recurring = args[2]->BooleanValue(env->context()).FromJust();
+
+  env->inspector_agent()->AsyncTaskScheduled(task_name_view, task, recurring);
+}
+
+static void RegisterAsyncHookWrapper(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsFunction());
+  v8::Local<v8::Function> enable_function = args[0].As<Function>();
+  CHECK(args[1]->IsFunction());
+  v8::Local<v8::Function> disable_function = args[1].As<Function>();
+  env->inspector_agent()->RegisterAsyncHook(env->isolate(),
+    enable_function, disable_function);
+}
+
+static void IsEnabled(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(env->inspector_agent()->enabled());
+}
 
 // static
 void Agent::InitInspector(Local<Object> target, Local<Value> unused,
@@ -830,6 +979,17 @@ void Agent::InitInspector(Local<Object> target, Local<Value> unused,
   env->SetMethod(target, "connect", ConnectJSBindingsSession);
   env->SetMethod(target, "open", Open);
   env->SetMethod(target, "url", Url);
+
+  env->SetMethod(target, "asyncTaskScheduled", AsyncTaskScheduledWrapper);
+  env->SetMethod(target, "asyncTaskCanceled",
+      InvokeAsyncTaskFnWithId<&Agent::AsyncTaskCanceled>);
+  env->SetMethod(target, "asyncTaskStarted",
+      InvokeAsyncTaskFnWithId<&Agent::AsyncTaskStarted>);
+  env->SetMethod(target, "asyncTaskFinished",
+      InvokeAsyncTaskFnWithId<&Agent::AsyncTaskFinished>);
+
+  env->SetMethod(target, "registerAsyncHook", RegisterAsyncHookWrapper);
+  env->SetMethod(target, "isEnabled", IsEnabled);
 }
 
 void Agent::RequestIoThreadStart() {

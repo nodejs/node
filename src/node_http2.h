@@ -472,24 +472,48 @@ class ExternalHeader :
     return vec_.len;
   }
 
-  static Local<String> New(Isolate* isolate, nghttp2_rcbuf* buf) {
-    EscapableHandleScope scope(isolate);
+  static inline
+  MaybeLocal<String> GetInternalizedString(Environment* env,
+                                           const nghttp2_vec& vec) {
+    return String::NewFromOneByte(env->isolate(),
+                                  vec.base,
+                                  v8::NewStringType::kInternalized,
+                                  vec.len);
+  }
+
+  template<bool may_internalize>
+  static MaybeLocal<String> New(Environment* env, nghttp2_rcbuf* buf) {
+    if (nghttp2_rcbuf_is_static(buf)) {
+      auto& static_str_map = env->isolate_data()->http2_static_strs;
+      v8::Eternal<v8::String>& eternal = static_str_map[buf];
+      if (eternal.IsEmpty()) {
+        Local<String> str =
+            GetInternalizedString(env, nghttp2_rcbuf_get_buf(buf))
+                .ToLocalChecked();
+        eternal.Set(env->isolate(), str);
+        return str;
+      }
+      return eternal.Get(env->isolate());
+    }
+
     nghttp2_vec vec = nghttp2_rcbuf_get_buf(buf);
     if (vec.len == 0) {
       nghttp2_rcbuf_decref(buf);
-      return scope.Escape(String::Empty(isolate));
+      return String::Empty(env->isolate());
+    }
+
+    if (may_internalize && vec.len < 64) {
+      // This is a short header name, so there is a good chance V8 already has
+      // it internalized.
+      return GetInternalizedString(env, vec);
     }
 
     ExternalHeader* h_str = new ExternalHeader(buf);
-    MaybeLocal<String> str = String::NewExternalOneByte(isolate, h_str);
-    isolate->AdjustAmountOfExternalAllocatedMemory(vec.len);
-
-    if (str.IsEmpty()) {
+    MaybeLocal<String> str = String::NewExternalOneByte(env->isolate(), h_str);
+    if (str.IsEmpty())
       delete h_str;
-      return scope.Escape(String::Empty(isolate));
-    }
 
-    return scope.Escape(str.ToLocalChecked());
+    return str;
   }
 
  private:

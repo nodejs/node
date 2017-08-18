@@ -53,6 +53,66 @@ class ConvertableToTraceFormat {
 };
 
 /**
+ * V8 Tracing controller.
+ *
+ * Can be implemented by an embedder to record trace events from V8.
+ */
+class TracingController {
+ public:
+  virtual ~TracingController() = default;
+
+  /**
+   * Called by TRACE_EVENT* macros, don't call this directly.
+   * The name parameter is a category group for example:
+   * TRACE_EVENT0("v8,parse", "V8.Parse")
+   * The pointer returned points to a value with zero or more of the bits
+   * defined in CategoryGroupEnabledFlags.
+   **/
+  virtual const uint8_t* GetCategoryGroupEnabled(const char* name) {
+    static uint8_t no = 0;
+    return &no;
+  }
+
+  /**
+   * Adds a trace event to the platform tracing system. This function call is
+   * usually the result of a TRACE_* macro from trace_event_common.h when
+   * tracing and the category of the particular trace are enabled. It is not
+   * advisable to call this function on its own; it is really only meant to be
+   * used by the trace macros. The returned handle can be used by
+   * UpdateTraceEventDuration to update the duration of COMPLETE events.
+   */
+  virtual uint64_t AddTraceEvent(
+      char phase, const uint8_t* category_enabled_flag, const char* name,
+      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
+      const char** arg_names, const uint8_t* arg_types,
+      const uint64_t* arg_values,
+      std::unique_ptr<ConvertableToTraceFormat>* arg_convertables,
+      unsigned int flags) {
+    return 0;
+  }
+
+  /**
+   * Sets the duration field of a COMPLETE trace event. It must be called with
+   * the handle returned from AddTraceEvent().
+   **/
+  virtual void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
+                                        const char* name, uint64_t handle) {}
+
+  class TraceStateObserver {
+   public:
+    virtual ~TraceStateObserver() = default;
+    virtual void OnTraceEnabled() = 0;
+    virtual void OnTraceDisabled() = 0;
+  };
+
+  /** Adds tracing state change observer. */
+  virtual void AddTraceStateObserver(TraceStateObserver*) {}
+
+  /** Removes tracing state change observer. */
+  virtual void RemoveTraceStateObserver(TraceStateObserver*) {}
+};
+
+/**
  * V8 Platform abstraction layer.
  *
  * The embedder has to provide an implementation of this interface before
@@ -135,6 +195,20 @@ class Platform {
    * the epoch.
    **/
   virtual double MonotonicallyIncreasingTime() = 0;
+  typedef void (*StackTracePrinter)();
+
+  /**
+   * Returns a function pointer that print a stack trace of the current stack
+   * on invocation. Disables printing of the stack trace if nullptr.
+   */
+  virtual StackTracePrinter GetStackTracePrinter() { return nullptr; }
+
+  /**
+   * Returns an instance of a v8::TracingController. This must be non-nullptr.
+   */
+  virtual TracingController* GetTracingController() = 0;
+
+  // DEPRECATED methods, use TracingController interface instead.
 
   /**
    * Called by TRACE_EVENT* macros, don't call this directly.
@@ -200,26 +274,13 @@ class Platform {
   virtual void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
                                         const char* name, uint64_t handle) {}
 
-  class TraceStateObserver {
-   public:
-    virtual ~TraceStateObserver() = default;
-    virtual void OnTraceEnabled() = 0;
-    virtual void OnTraceDisabled() = 0;
-  };
+  typedef v8::TracingController::TraceStateObserver TraceStateObserver;
 
   /** Adds tracing state change observer. */
   virtual void AddTraceStateObserver(TraceStateObserver*) {}
 
   /** Removes tracing state change observer. */
   virtual void RemoveTraceStateObserver(TraceStateObserver*) {}
-
-  typedef void (*StackTracePrinter)();
-
-  /**
-   * Returns a function pointer that print a stack trace of the current stack
-   * on invocation. Disables printing of the stack trace if nullptr.
-   */
-  virtual StackTracePrinter GetStackTracePrinter() { return nullptr; }
 };
 
 }  // namespace v8

@@ -28,7 +28,6 @@
 #include "node.h"
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
-#include "tree.h"
 #include "util.h"
 #include "util-inl.h"
 #include "uv.h"
@@ -37,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
+#include <unordered_set>
 
 #if defined(__ANDROID__) || \
     defined(__MINGW32__) || \
@@ -122,10 +122,22 @@ struct node_ares_task {
   ChannelWrap* channel;
   ares_socket_t sock;
   uv_poll_t poll_watcher;
-  RB_ENTRY(node_ares_task) node;
 };
 
-RB_HEAD(node_ares_task_list, node_ares_task);
+struct TaskHash {
+  size_t operator()(node_ares_task* a) const {
+    return std::hash<ares_socket_t>()(a->sock);
+  }
+};
+
+struct TaskEqual {
+  inline bool operator()(node_ares_task* a, node_ares_task* b) const {
+    return a->sock == b->sock;
+  }
+};
+
+using node_ares_task_list =
+    std::unordered_set<node_ares_task*, TaskHash, TaskEqual>;
 
 class ChannelWrap : public AsyncWrap {
  public:
@@ -169,8 +181,6 @@ ChannelWrap::ChannelWrap(Environment* env,
     query_last_ok_(true),
     is_servers_default_(true),
     library_inited_(false) {
-  RB_INIT(&task_list_);
-
   MakeWeak<ChannelWrap>(this);
 
   Setup();
@@ -222,25 +232,12 @@ GetNameInfoReqWrap::~GetNameInfoReqWrap() {
 }
 
 
-int cmp_ares_tasks(const node_ares_task* a, const node_ares_task* b) {
-  if (a->sock < b->sock)
-    return -1;
-  if (a->sock > b->sock)
-    return 1;
-  return 0;
-}
-
-
-RB_GENERATE_STATIC(node_ares_task_list, node_ares_task, node, cmp_ares_tasks)
-
-
-
 /* This is called once per second by loop->timer. It is used to constantly */
 /* call back into c-ares for possibly processing timeouts. */
 void ChannelWrap::AresTimeout(uv_timer_t* handle) {
   ChannelWrap* channel = static_cast<ChannelWrap*>(handle->data);
   CHECK_EQ(channel->timer_handle(), handle);
-  CHECK_EQ(false, RB_EMPTY(channel->task_list()));
+  CHECK_EQ(false, channel->task_list()->empty());
   ares_process_fd(channel->cares_channel(), ARES_SOCKET_BAD, ARES_SOCKET_BAD);
 }
 
@@ -306,7 +303,9 @@ void ares_sockstate_cb(void* data,
 
   node_ares_task lookup_task;
   lookup_task.sock = sock;
-  task = RB_FIND(node_ares_task_list, channel->task_list(), &lookup_task);
+  auto it = channel->task_list()->find(&lookup_task);
+
+  task = (it == channel->task_list()->end()) ? nullptr : *it;
 
   if (read || write) {
     if (!task) {
@@ -315,7 +314,7 @@ void ares_sockstate_cb(void* data,
       /* If this is the first socket then start the timer. */
       uv_timer_t* timer_handle = channel->timer_handle();
       if (!uv_is_active(reinterpret_cast<uv_handle_t*>(timer_handle))) {
-        CHECK(RB_EMPTY(channel->task_list()));
+        CHECK(channel->task_list()->empty());
         uv_timer_start(timer_handle, ChannelWrap::AresTimeout, 1000, 1000);
       }
 
@@ -327,7 +326,7 @@ void ares_sockstate_cb(void* data,
         return;
       }
 
-      RB_INSERT(node_ares_task_list, channel->task_list(), task);
+      channel->task_list()->insert(task);
     }
 
     /* This should never fail. If it fails anyway, the query will eventually */
@@ -343,11 +342,11 @@ void ares_sockstate_cb(void* data,
     CHECK(task &&
           "When an ares socket is closed we should have a handle for it");
 
-    RB_REMOVE(node_ares_task_list, channel->task_list(), task);
+    channel->task_list()->erase(it);
     uv_close(reinterpret_cast<uv_handle_t*>(&task->poll_watcher),
              ares_poll_close_cb);
 
-    if (RB_EMPTY(channel->task_list())) {
+    if (channel->task_list()->empty()) {
       uv_timer_stop(channel->timer_handle());
     }
   }

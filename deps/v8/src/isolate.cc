@@ -2455,6 +2455,7 @@ void Isolate::Deinit() {
   }
 
   heap_.mark_compact_collector()->EnsureSweepingCompleted();
+  heap_.memory_allocator()->unmapper()->WaitUntilCompleted();
 
   DumpAndResetStats();
 

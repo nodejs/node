@@ -33,6 +33,7 @@
 #include "src/api.h"
 #include "src/base/platform/platform.h"
 #include "src/deoptimizer.h"
+#include "src/libplatform/default-platform.h"
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/profiler/profiler-listener.h"
@@ -2152,7 +2153,8 @@ TEST(TracingCpuProfiler) {
   i::V8::SetPlatformForTesting(default_platform);
 
   v8::platform::tracing::TracingController tracing_controller;
-  v8::platform::SetTracingController(default_platform, &tracing_controller);
+  static_cast<v8::platform::DefaultPlatform*>(default_platform)
+      ->SetTracingController(&tracing_controller);
 
   CpuProfileEventChecker* event_checker = new CpuProfileEventChecker();
   TraceBuffer* ring_buffer =

@@ -14,19 +14,10 @@
 // Forward declaration to break recursive dependency chain with src/env.h.
 namespace node {
 class Environment;
+class NodePlatform;
 }  // namespace node
 
-namespace v8 {
-class Context;
-template <typename V>
-class FunctionCallbackInfo;
-template<typename T>
-class Local;
-class Message;
-class Object;
-class Platform;
-class Value;
-}  // namespace v8
+#include "v8.h"
 
 namespace v8_inspector {
 class StringView;
@@ -52,7 +43,7 @@ class Agent {
   ~Agent();
 
   // Create client_, may create io_ if option enabled
-  bool Start(v8::Platform* platform, const char* path,
+  bool Start(node::NodePlatform* platform, const char* path,
              const DebugOptions& options);
   // Stop and destroy io_
   void Stop();
@@ -66,6 +57,18 @@ class Agent {
   void WaitForDisconnect();
   void FatalException(v8::Local<v8::Value> error,
                       v8::Local<v8::Message> message);
+
+  // Async stack traces instrumentation.
+  void AsyncTaskScheduled(const v8_inspector::StringView& taskName, void* task,
+                          bool recurring);
+  void AsyncTaskCanceled(void* task);
+  void AsyncTaskStarted(void* task);
+  void AsyncTaskFinished(void* task);
+  void AllAsyncTasksCanceled();
+
+  void RegisterAsyncHook(v8::Isolate* isolate,
+    v8::Local<v8::Function> enable_function,
+    v8::Local<v8::Function> disable_function);
 
   // These methods are called by the WS protocol and JS binding to create
   // inspector sessions.  The inspector responds by using the delegate to send
@@ -107,6 +110,9 @@ class Agent {
   std::string path_;
   DebugOptions debug_options_;
   int next_context_number_;
+
+  v8::Persistent<v8::Function> enable_async_hook_function_;
+  v8::Persistent<v8::Function> disable_async_hook_function_;
 };
 
 }  // namespace inspector

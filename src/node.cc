@@ -23,6 +23,7 @@
 #include "node_buffer.h"
 #include "node_constants.h"
 #include "node_javascript.h"
+#include "node_platform.h"
 #include "node_version.h"
 #include "node_internals.h"
 #include "node_revert.h"
@@ -250,22 +251,26 @@ node::DebugOptions debug_options;
 
 static struct {
 #if NODE_USE_V8_PLATFORM
-  void Initialize(int thread_pool_size) {
-    platform_ = v8::platform::CreateDefaultPlatform(
-        thread_pool_size,
-        v8::platform::IdleTaskSupport::kDisabled,
-        v8::platform::InProcessStackDumping::kDisabled);
+  void Initialize(int thread_pool_size, uv_loop_t* loop) {
+    tracing_agent_ =
+        trace_enabled ? new tracing::Agent() : nullptr;
+    platform_ = new NodePlatform(thread_pool_size, loop,
+        trace_enabled ? tracing_agent_->GetTracingController() : nullptr);
     V8::InitializePlatform(platform_);
-    tracing::TraceEventHelper::SetCurrentPlatform(platform_);
-  }
-
-  void PumpMessageLoop(Isolate* isolate) {
-    v8::platform::PumpMessageLoop(platform_, isolate);
+    tracing::TraceEventHelper::SetTracingController(
+        trace_enabled ? tracing_agent_->GetTracingController() : nullptr);
   }
 
   void Dispose() {
+    platform_->Shutdown();
     delete platform_;
     platform_ = nullptr;
+    delete tracing_agent_;
+    tracing_agent_ = nullptr;
+  }
+
+  void DrainVMTasks() {
+    platform_->DrainBackgroundTasks();
   }
 
 #if HAVE_INSPECTOR
@@ -283,21 +288,19 @@ static struct {
 #endif  // HAVE_INSPECTOR
 
   void StartTracingAgent() {
-    CHECK(tracing_agent_ == nullptr);
-    tracing_agent_ = new tracing::Agent();
-    tracing_agent_->Start(platform_, trace_enabled_categories);
+    tracing_agent_->Start(trace_enabled_categories);
   }
 
   void StopTracingAgent() {
     tracing_agent_->Stop();
   }
 
-  v8::Platform* platform_;
   tracing::Agent* tracing_agent_;
+  NodePlatform* platform_;
 #else  // !NODE_USE_V8_PLATFORM
-  void Initialize(int thread_pool_size) {}
-  void PumpMessageLoop(Isolate* isolate) {}
+  void Initialize(int thread_pool_size, uv_loop_t* loop) {}
   void Dispose() {}
+  void DrainVMTasks() {}
   bool StartInspector(Environment *env, const char* script_path,
                       const node::DebugOptions& options) {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
@@ -4554,19 +4557,14 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     SealHandleScope seal(isolate);
     bool more;
     do {
-      v8_platform.PumpMessageLoop(isolate);
-      more = uv_run(env.event_loop(), UV_RUN_ONCE);
+      uv_run(env.event_loop(), UV_RUN_DEFAULT);
 
-      if (more == false) {
-        v8_platform.PumpMessageLoop(isolate);
-        EmitBeforeExit(&env);
+      EmitBeforeExit(&env);
 
-        // Emit `beforeExit` if the loop became alive either after emitting
-        // event, or after running some callbacks.
-        more = uv_loop_alive(env.event_loop());
-        if (uv_run(env.event_loop(), UV_RUN_NOWAIT) != 0)
-          more = true;
-      }
+      v8_platform.DrainVMTasks();
+      // Emit `beforeExit` if the loop became alive either after emitting
+      // event, or after running some callbacks.
+      more = uv_loop_alive(env.event_loop());
     } while (more == true);
   }
 
@@ -4576,6 +4574,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   RunAtExit(&env);
   uv_key_delete(&thread_local_env);
 
+  v8_platform.DrainVMTasks();
   WaitForInspectorDisconnect(&env);
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
@@ -4664,7 +4663,7 @@ int Start(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif  // HAVE_OPENSSL
 
-  v8_platform.Initialize(v8_thread_pool_size);
+  v8_platform.Initialize(v8_thread_pool_size, uv_default_loop());
   // Enable tracing when argv has --trace-events-enabled.
   if (trace_enabled) {
     fprintf(stderr, "Warning: Trace event is an experimental feature "
@@ -4681,6 +4680,12 @@ int Start(int argc, char** argv) {
   v8_initialized = false;
   V8::Dispose();
 
+  // uv_run cannot be called from the time before the beforeExit callback
+  // runs until the program exits unless the event loop has any referenced
+  // handles after beforeExit terminates. This prevents unrefed timers
+  // that happen to terminate during shutdown from being run unsafely.
+  // Since uv_run cannot be called, uv_async handles held by the platform
+  // will never be fully cleaned up.
   v8_platform.Dispose();
 
   delete[] exec_argv;

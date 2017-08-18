@@ -30,12 +30,15 @@ enum class MessageLoopBehavior : bool {
  * If |idle_task_support| is enabled then the platform will accept idle
  * tasks (IdleTasksEnabled will return true) and will rely on the embedder
  * calling v8::platform::RunIdleTasks to process the idle tasks.
+ * If |tracing_controller| is nullptr, the default platform will create a
+ * v8::platform::TracingController instance and use it.
  */
 V8_PLATFORM_EXPORT v8::Platform* CreateDefaultPlatform(
     int thread_pool_size = 0,
     IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled,
     InProcessStackDumping in_process_stack_dumping =
-        InProcessStackDumping::kEnabled);
+        InProcessStackDumping::kEnabled,
+    v8::TracingController* tracing_controller = nullptr);
 
 /**
  * Pumps the message loop for the given isolate.
@@ -67,6 +70,8 @@ V8_PLATFORM_EXPORT void RunIdleTasks(v8::Platform* platform,
  * Attempts to set the tracing controller for the given platform.
  *
  * The |platform| has to be created using |CreateDefaultPlatform|.
+ *
+ * DEPRECATED: Will be removed soon.
  */
 V8_PLATFORM_EXPORT void SetTracingController(
     v8::Platform* platform,

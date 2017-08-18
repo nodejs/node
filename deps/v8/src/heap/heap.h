@@ -1016,6 +1016,8 @@ class Heap {
   // Returns whether SetUp has been called.
   bool HasBeenSetUp();
 
+  bool use_tasks() const { return use_tasks_; }
+
   // ===========================================================================
   // Getters for spaces. =======================================================
   // ===========================================================================
@@ -2374,6 +2376,8 @@ class Heap {
   LocalEmbedderHeapTracer* local_embedder_heap_tracer_;
 
   bool fast_promotion_mode_;
+
+  bool use_tasks_;
 
   // Used for testing purposes.
   bool force_oom_;
