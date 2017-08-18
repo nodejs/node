@@ -37,8 +37,7 @@ using v8::Value;
 void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   int err = args[0]->Int32Value();
-  if (err >= 0)
-    return env->ThrowError("err >= 0");
+  CHECK_LT(err, 0);
   const char* name = uv_err_name(err);
   args.GetReturnValue().Set(OneByteString(env->isolate(), name));
 }
