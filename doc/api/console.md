@@ -286,6 +286,32 @@ If formatting elements (e.g. `%d`) are not found in the first string then
 [`util.inspect()`][] is called on each argument and the resulting string
 values are concatenated. See [`util.format()`][] for more information.
 
+### console.group([...label])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `label` {any}
+
+Increases indentation of subsequent lines by two spaces.
+
+If one or more `label`s are provided, those are printed first without the
+additional indentation.
+
+### console.groupCollapsed()
+<!-- YAML
+  added: REPLACEME
+-->
+
+An alias for [`console.group()`][].
+
+### console.groupEnd()
+<!-- YAML
+added: REPLACEME
+-->
+
+Decreases indentation of subsequent lines by two spaces.
+
 ### console.info([data][, ...args])
 <!-- YAML
 added: v0.1.100
@@ -390,6 +416,7 @@ added: v0.1.100
 The `console.warn()` function is an alias for [`console.error()`][].
 
 [`console.error()`]: #console_console_error_data_args
+[`console.group()`]: #console_console_group_label
 [`console.log()`]: #console_console_log_data_args
 [`console.time()`]: #console_console_time_label
 [`console.timeEnd()`]: #console_console_timeend_label
