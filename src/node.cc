@@ -167,9 +167,6 @@ static node_module* modlist_addon;
 static std::string icu_data_dir;  // NOLINT(runtime/string)
 #endif
 
-// N-API is in experimental state, disabled by default.
-bool load_napi_modules = false;
-
 // used by C++ modules as well
 bool no_deprecation = false;
 
@@ -2503,22 +2500,17 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     env->ThrowError("Module did not self-register.");
     return;
   }
-  if (mp->nm_version != NODE_MODULE_VERSION) {
-    char errmsg[1024];
-    if (mp->nm_version == -1) {
-      snprintf(errmsg,
-               sizeof(errmsg),
-               "The module '%s'"
-               "\nwas compiled against the ABI-stable Node.js API (N-API)."
-               "\nThis feature is experimental and must be enabled on the "
-               "\ncommand-line by adding --napi-modules.",
-               *filename);
-    } else {
-      snprintf(errmsg,
-               sizeof(errmsg),
-               "Module version mismatch. Expected %d, got %d.",
-               NODE_MODULE_VERSION, mp->nm_version);
+  if (mp->nm_version == -1) {
+    if (env->EmitNapiWarning()) {
+      ProcessEmitWarning(env, "N-API is an experimental feature and could "
+                         "change at any time.");
     }
+  } else if (mp->nm_version != NODE_MODULE_VERSION) {
+    char errmsg[1024];
+    snprintf(errmsg,
+             sizeof(errmsg),
+             "Module version mismatch. Expected %d, got %d.",
+             NODE_MODULE_VERSION, mp->nm_version);
 
     // NOTE: `mp` is allocated inside of the shared library's memory, calling
     // `uv_dlclose` will deallocate it
@@ -3733,7 +3725,8 @@ static void PrintHelp() {
          "  --throw-deprecation   throw an exception anytime a deprecated "
          "function is used\n"
          "  --no-warnings         silence all process warnings\n"
-         "  --napi-modules        load N-API modules\n"
+         "  --napi-modules        load N-API modules (no-op - option kept for "
+         "                        compatibility)\n"
          "  --trace-warnings      show stack traces on process warnings\n"
          "  --redirect-warnings=path\n"
          "                        write warnings to path instead of stderr\n"
@@ -3980,7 +3973,7 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--no-deprecation") == 0) {
       no_deprecation = true;
     } else if (strcmp(arg, "--napi-modules") == 0) {
-      load_napi_modules = true;
+      // no-op
     } else if (strcmp(arg, "--no-warnings") == 0) {
       no_process_warnings = true;
     } else if (strcmp(arg, "--trace-warnings") == 0) {
@@ -4878,11 +4871,6 @@ static void StartNodeInstance(void* arg) {
     // Enable debugger
     if (instance_data->use_debug_agent())
       EnableDebug(env);
-
-    if (load_napi_modules) {
-      ProcessEmitWarning(env, "N-API is an experimental feature "
-          "and could change at any time.");
-    }
 
     {
       SealHandleScope seal(isolate);
