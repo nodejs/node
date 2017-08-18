@@ -71,13 +71,16 @@ if (common.isWindows) {
   mode_sync = 0o644;
 }
 
-const file1 = path.join(common.fixturesDir, 'a.js');
-const file2 = path.join(common.fixturesDir, 'a1.js');
+common.refreshTmpDir();
+
+const file1 = path.join(common.tmpDir, 'a.js');
+const file2 = path.join(common.tmpDir, 'a1.js');
+
+// Create file1.
+fs.closeSync(fs.openSync(file1, 'w'));
 
 fs.chmod(file1, mode_async.toString(8), common.mustCall((err) => {
   assert.ifError(err);
-
-  console.log(fs.statSync(file1).mode);
 
   if (common.isWindows) {
     assert.ok((fs.statSync(file1).mode & 0o777) & mode_async);
@@ -93,13 +96,11 @@ fs.chmod(file1, mode_async.toString(8), common.mustCall((err) => {
   }
 }));
 
-fs.open(file2, 'a', common.mustCall((err, fd) => {
+fs.open(file2, 'w', common.mustCall((err, fd) => {
   assert.ifError(err);
 
   fs.fchmod(fd, mode_async.toString(8), common.mustCall((err) => {
     assert.ifError(err);
-
-    console.log(fs.fstatSync(fd).mode);
 
     if (common.isWindows) {
       assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_async);
@@ -122,13 +123,11 @@ fs.open(file2, 'a', common.mustCall((err, fd) => {
 if (fs.lchmod) {
   const link = path.join(common.tmpDir, 'symbolic-link');
 
-  common.refreshTmpDir();
   fs.symlinkSync(file2, link);
 
   fs.lchmod(link, mode_async, common.mustCall((err) => {
     assert.ifError(err);
 
-    console.log(fs.lstatSync(link).mode);
     assert.strictEqual(mode_async, fs.lstatSync(link).mode & 0o777);
 
     fs.lchmodSync(link, mode_sync);
