@@ -1007,7 +1007,7 @@ static inline void Copy(Environment* env,
 }
 
 static inline Local<Array> Copy(Environment* env,
-                                std::vector<std::string> vec) {
+                                const std::vector<std::string>& vec) {
   Isolate* isolate = env->isolate();
   Local<Array> ary = Array::New(isolate, vec.size());
   for (size_t n = 0; n < vec.size(); n++)
