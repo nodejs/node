@@ -213,6 +213,12 @@ bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
   return true;
 }
 
+bool Environment::EmitNapiWarning() {
+  bool current_value = emit_napi_warning_;
+  emit_napi_warning_ = false;
+  return current_value;
+}
+
 void Environment::EnvPromiseHook(v8::PromiseHookType type,
                                  v8::Local<v8::Promise> promise,
                                  v8::Local<v8::Value> parent) {
