@@ -535,6 +535,8 @@ class Environment {
 
   static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
 
+  bool EmitNapiWarning();
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -566,6 +568,7 @@ class Environment {
   bool using_domains_;
   bool printed_error_;
   bool trace_sync_io_;
+  bool emit_napi_warning_;
   size_t makecallback_cntr_;
   int64_t async_wrap_uid_;
   std::vector<int64_t> destroy_ids_list_;

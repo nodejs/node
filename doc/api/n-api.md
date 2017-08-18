@@ -63,14 +63,6 @@ For example:
 #include <node_api.h>
 ```
 
-As the feature is experimental it must be enabled with the
-following command line
-[option](https://nodejs.org/dist/latest-v8.x/docs/api/cli.html#cli_napi_modules):
-
-```bash
---napi-modules
-```
-
 ## Basic N-API Data Types
 
 N-API exposes the following fundamental datatypes as abstractions that are
