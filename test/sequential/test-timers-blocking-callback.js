@@ -59,7 +59,7 @@ function blockingCallback(retry, callback) {
     // But they are guaranteed to be at least 100ms late given the bug in
     // https://github.com/nodejs/node-v0.x-archive/issues/15447 and
     // https://github.com/nodejs/node-v0.x-archive/issues/9333.
-    if (latestDelay > TIMEOUT * 2) {
+    if (latestDelay >= TIMEOUT * 2) {
       if (retries > 0) {
         retries--;
         return retry(callback);
