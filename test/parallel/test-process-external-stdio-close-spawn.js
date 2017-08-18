@@ -22,7 +22,7 @@ if (process.argv[2] === 'child') {
   });
 
   child.on('close', common.mustCall((exitCode, signal) => {
-    assert.strictEqual(exitCode, 0, 'exit successfully');
+    assert.strictEqual(exitCode, 0);
     assert.strictEqual(signal, null);
   }));
 
