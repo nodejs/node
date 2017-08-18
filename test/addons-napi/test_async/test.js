@@ -15,7 +15,7 @@ if (process.argv[2] === 'child') {
   return;
 }
 const p = child_process.spawnSync(
-  process.execPath, [ '--napi-modules', __filename, 'child' ]);
+  process.execPath, [ __filename, 'child' ]);
 assert.ifError(p.error);
 assert.ok(p.stderr.toString().includes(testException));
 
