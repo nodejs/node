@@ -512,6 +512,33 @@ your pull request shows the purple merged status then you should still
 add the "Landed in <commit hash>..<commit hash>" comment if you added
 multiple commits.
 
+### Troubleshooting
+
+Sometimes, when running `git push upstream master`, you may get an error message
+like this:
+
+```console
+To https://github.com/nodejs/node
+ ! [rejected]              master -> master (fetch first)
+error: failed to push some refs to 'https://github.com/nodejs/node'
+hint: Updates were rejected because the remote contains work that you do
+hint: not have locally. This is usually caused by another repository pushing
+hint: to the same ref. You may want to first integrate the remote changes
+hint: (e.g., 'git pull ...') before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+```
+
+That means a commit has landed since your last rebase against `upstream/master`.
+To fix this, fetch, rebase, run the tests again (to make sure no interactions
+between your changes and the new changes cause any problems), and push again:
+
+```sh
+git fetch upstream
+git rebase upstream/master
+make -j4 test
+git push upstream master
+```
+
 ### I Just Made a Mistake
 
 * Ping a CTC member.
