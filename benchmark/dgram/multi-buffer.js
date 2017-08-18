@@ -64,7 +64,7 @@ function server() {
     }, dur * 1000);
   });
 
-  socket.on('message', function(buf, rinfo) {
+  socket.on('message', function() {
     received++;
   });
 
