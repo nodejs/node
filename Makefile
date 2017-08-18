@@ -193,8 +193,14 @@ v8:
 	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 test: all
+	$(MAKE) test-build
+	$(MAKE) test-run
+
+test-build:
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
+
+test-run:
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
 		$(CI_JS_SUITES) \
