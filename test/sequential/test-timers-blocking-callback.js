@@ -33,13 +33,14 @@ let nbBlockingCallbackCalls;
 let latestDelay;
 let timeCallbackScheduled;
 
-// These tests are somewhat probablistic so they may fail even when the bug is
-// not present. However, they fail 100% of the time when the bug *is* present,
-// so to increase reliability, allow for a small number of retries. (Keep it
-// small because as currently written, one failure could result in multiple
-// simultaneous retries of the test. Don't want to timer-bomb ourselves.
-// Observed failures are infrequent anyway, so only a small number of retries
-// is hopefully more than sufficient.)
+// These tests are timing dependent so they may fail even when the bug is
+// not present (if the host is sufficiently busy that the timers are delayed 
+// significantly). However, they fail 100% of the time when the bug *is*
+// present, so to increase reliability, allow for a small number of retries.
+// (Keep it small because as currently written, one failure could result in
+// multiple simultaneous retries of the test. Don't want to timer-bomb
+// ourselves. Observed failures are infrequent anyway, so only a small number of
+// retries is hopefully more than sufficient.)
 let retries = 2;
 
 function initTest() {
