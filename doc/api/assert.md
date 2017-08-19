@@ -46,12 +46,11 @@ Primitive values are compared with the [Abstract Equality Comparison][]
 
 Only [enumerable "own" properties][] are considered. The
 [`assert.deepEqual()`][] implementation does not test the
-[`[[Prototype]]`][prototype-spec] of objects, attached symbols, or
-non-enumerable properties — for such checks, consider using
-[`assert.deepStrictEqual()`][] instead. This can lead to some
-potentially surprising results. For example, the following example does not
-throw an `AssertionError` because the properties on the [`RegExp`][] object are
-not enumerable:
+[`[[Prototype]]`][prototype-spec] of objects or enumerable own [`Symbol`][]
+properties. For such checks, consider using [assert.deepStrictEqual()][]
+instead. [`assert.deepEqual()`][] can have potentially surprising results. The
+following example does not throw an `AssertionError` because the properties on
+the [RegExp][] object are not enumerable:
 
 ```js
 // WARNING: This does not throw an AssertionError!
@@ -110,6 +109,9 @@ parameter is an instance of an `Error` then it will be thrown instead of the
 added: v1.2.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/15169
+    description: Enumerable symbol properties are now compared.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/15036
     description: NaN is now compared using the [SameValueZero][] comparison.
   - version: v8.5.0
@@ -132,7 +134,7 @@ changes:
 * `expected` {any}
 * `message` {any}
 
-Generally identical to `assert.deepEqual()` with a few exceptions:
+Similar to `assert.deepEqual()` with the following exceptions:
 
 1. Primitive values besides `NaN` are compared using the [Strict Equality
    Comparison][] ( `===` ). Set and Map values, Map keys and `NaN` are compared
@@ -143,6 +145,7 @@ Generally identical to `assert.deepEqual()` with a few exceptions:
 3. [Type tags][Object.prototype.toString()] of objects should be the same.
 4. [Object wrappers][] are compared both as objects and unwrapped values.
 5. `0` and `-0` are not considered equal.
+6. Enumerable own [`Symbol`][] properties are compared as well.
 
 ```js
 const assert = require('assert');
@@ -185,6 +188,13 @@ assert.deepStrictEqual(-0, -0);
 // OK
 assert.deepStrictEqual(0, -0);
 // AssertionError: 0 deepStrictEqual -0
+
+const symbol1 = Symbol();
+const symbol2 = Symbol();
+assert.deepStrictEqual({ [symbol1]: 1 }, { [symbol1]: 1 });
+// OK, because it is the same symbol on both objects.
+assert.deepStrictEqual({ [symbol1]: 1 }, { [symbol2]: 1 });
+// Fails because symbol1 !== symbol2!
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
@@ -712,6 +722,7 @@ For more information, see
 [`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
 [`RegExp`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
 [`Set`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Set
+[`Symbol`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Symbol
 [`TypeError`]: errors.html#errors_class_typeerror
 [`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
