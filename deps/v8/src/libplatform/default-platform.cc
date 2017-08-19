@@ -47,25 +47,25 @@ v8::Platform* CreateDefaultPlatform(int thread_pool_size,
 
 bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate,
                      MessageLoopBehavior behavior) {
-  return reinterpret_cast<DefaultPlatform*>(platform)->PumpMessageLoop(
-      isolate, behavior);
+  return static_cast<DefaultPlatform*>(platform)->PumpMessageLoop(isolate,
+                                                                  behavior);
 }
 
 void EnsureEventLoopInitialized(v8::Platform* platform, v8::Isolate* isolate) {
-  return reinterpret_cast<DefaultPlatform*>(platform)
-      ->EnsureEventLoopInitialized(isolate);
+  return static_cast<DefaultPlatform*>(platform)->EnsureEventLoopInitialized(
+      isolate);
 }
 
 void RunIdleTasks(v8::Platform* platform, v8::Isolate* isolate,
                   double idle_time_in_seconds) {
-  reinterpret_cast<DefaultPlatform*>(platform)->RunIdleTasks(
-      isolate, idle_time_in_seconds);
+  static_cast<DefaultPlatform*>(platform)->RunIdleTasks(isolate,
+                                                        idle_time_in_seconds);
 }
 
 void SetTracingController(
     v8::Platform* platform,
     v8::platform::tracing::TracingController* tracing_controller) {
-  return reinterpret_cast<DefaultPlatform*>(platform)->SetTracingController(
+  return static_cast<DefaultPlatform*>(platform)->SetTracingController(
       tracing_controller);
 }
 
