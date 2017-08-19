@@ -105,7 +105,7 @@ static void InitConfig(Local<Object> target,
 
   debugOptions->DefineOwnProperty(
       context,
-      FIXED_ONE_BYTE_STRING(isolate, "port"),
+      env->port_string(),
       Integer::New(isolate, debug_options.port()),
       ReadOnly).FromJust();
 

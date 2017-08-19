@@ -18,6 +18,7 @@ using v8::HandleScope;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 
@@ -212,7 +213,9 @@ void JSStream::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "JSStream"));
+  Local<String> jsStreamString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "JSStream");
+  t->SetClassName(jsStreamString);
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
   env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
@@ -226,8 +229,7 @@ void JSStream::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "emitEOF", EmitEOF);
 
   StreamBase::AddMethods<JSStream>(env, t, StreamBase::kFlagHasWritev);
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "JSStream"),
-              t->GetFunction());
+  target->Set(jsStreamString, t->GetFunction());
   env->set_jsstream_constructor_template(t);
 }
 
