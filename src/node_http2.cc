@@ -1212,7 +1212,7 @@ void Initialize(Local<Object> target,
       env->NewFunctionTemplate(Http2Session::New);
   session->SetClassName(http2SessionClassName);
   session->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(session, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, session);
   env->SetProtoMethod(session, "consume",
                       Http2Session::Consume);
   env->SetProtoMethod(session, "destroy",

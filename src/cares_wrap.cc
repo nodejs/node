@@ -2189,7 +2189,7 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> aiw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   aiw->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(aiw, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, aiw);
   Local<String> addrInfoWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap");
   aiw->SetClassName(addrInfoWrapString);
@@ -2198,7 +2198,7 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> niw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   niw->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(niw, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, niw);
   Local<String> nameInfoWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap");
   niw->SetClassName(nameInfoWrapString);
@@ -2207,7 +2207,7 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> qrw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   qrw->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(qrw, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, qrw);
   Local<String> queryWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap");
   qrw->SetClassName(queryWrapString);
@@ -2216,7 +2216,7 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> channel_wrap =
       env->NewFunctionTemplate(ChannelWrap::New);
   channel_wrap->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(channel_wrap, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, channel_wrap);
 
   env->SetProtoMethod(channel_wrap, "queryAny", Query<QueryAnyWrap>);
   env->SetProtoMethod(channel_wrap, "queryA", Query<QueryAWrap>);

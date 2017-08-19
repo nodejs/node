@@ -72,7 +72,7 @@ void PipeWrap::Initialize(Local<Object> target,
   t->SetClassName(pipeString);
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, t);
 
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
@@ -104,7 +104,7 @@ void PipeWrap::Initialize(Local<Object> target,
   };
   auto cwt = FunctionTemplate::New(env->isolate(), constructor);
   cwt->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(cwt, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, cwt);
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "PipeConnectWrap");
   cwt->SetClassName(wrapString);
