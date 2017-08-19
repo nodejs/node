@@ -1483,7 +1483,7 @@ void InitFs(Local<Object> target,
   Local<FunctionTemplate> fst =
       FunctionTemplate::New(env->isolate(), NewFSReqWrap);
   fst->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(fst, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, fst);
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap");
   fst->SetClassName(wrapString);

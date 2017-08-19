@@ -52,7 +52,7 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
       FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher");
   t->SetClassName(statWatcherString);
 
-  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, t);
   env->SetProtoMethod(t, "start", StatWatcher::Start);
   env->SetProtoMethod(t, "stop", StatWatcher::Stop);
 

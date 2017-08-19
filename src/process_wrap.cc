@@ -57,7 +57,7 @@ class ProcessWrap : public HandleWrap {
         FIXED_ONE_BYTE_STRING(env->isolate(), "Process");
     constructor->SetClassName(processString);
 
-    env->SetProtoMethod(constructor, "getAsyncId", AsyncWrap::GetAsyncId);
+    AsyncWrap::AddWrapMethods(env, constructor);
 
     env->SetProtoMethod(constructor, "close", HandleWrap::Close);
 
