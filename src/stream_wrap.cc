@@ -70,7 +70,7 @@ void StreamWrap::Initialize(Local<Object> target,
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap");
   sw->SetClassName(wrapString);
-  env->SetProtoMethod(sw, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, sw);
   target->Set(wrapString, sw->GetFunction());
 
   Local<FunctionTemplate> ww =
@@ -79,7 +79,7 @@ void StreamWrap::Initialize(Local<Object> target,
   Local<String> writeWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap");
   ww->SetClassName(writeWrapString);
-  env->SetProtoMethod(ww, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, ww);
   target->Set(writeWrapString, ww->GetFunction());
   env->set_write_wrap_constructor_function(ww->GetFunction());
 }

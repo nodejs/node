@@ -218,7 +218,7 @@ void JSStream::Initialize(Local<Object> target,
   t->SetClassName(jsStreamString);
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, t);
 
   env->SetProtoMethod(t, "doAlloc", DoAlloc);
   env->SetProtoMethod(t, "doRead", DoRead);
