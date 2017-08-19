@@ -21,10 +21,11 @@ keys.forEach((key) => {
 });
 
 [0, 1, 'test', {}, [], Infinity, -Infinity, NaN].forEach((key) => {
-  assert.throws(() => util._errnoException(key),
-                common.expectsError({
-                  code: 'ERR_INVALID_ARG_TYPE',
-                  type: TypeError,
-                  message: 'The "err" argument must be of type negative number'
-                }));
+  common.expectsError(
+    () => util._errnoException(key),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "err" argument must be of type negative number'
+    });
 });
