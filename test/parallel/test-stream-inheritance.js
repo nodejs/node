@@ -56,3 +56,8 @@ common.expectsError(
     message: 'undefined does not inherit from CustomWritable'
   }
 );
+
+class OtherCustomWritable extends Writable {}
+
+assert(!(new OtherCustomWritable() instanceof CustomWritable));
+assert(!(new CustomWritable() instanceof OtherCustomWritable));
