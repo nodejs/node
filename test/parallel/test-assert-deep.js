@@ -129,23 +129,23 @@ function assertDeepAndStrictEqual(a, b) {
   assert.deepStrictEqual(b, a);
 }
 
-function assertNotDeepOrStrict(a, b) {
-  assert.throws(() => assert.deepEqual(a, b), re`${a} deepEqual ${b}`);
-  assert.throws(() => assert.deepStrictEqual(a, b),
+function assertNotDeepOrStrict(a, b, err) {
+  assert.throws(() => assert.deepEqual(a, b), err || re`${a} deepEqual ${b}`);
+  assert.throws(() => assert.deepStrictEqual(a, b), err ||
                 re`${a} deepStrictEqual ${b}`);
 
-  assert.throws(() => assert.deepEqual(b, a), re`${b} deepEqual ${a}`);
-  assert.throws(() => assert.deepStrictEqual(b, a),
+  assert.throws(() => assert.deepEqual(b, a), err || re`${b} deepEqual ${a}`);
+  assert.throws(() => assert.deepStrictEqual(b, a), err ||
                 re`${b} deepStrictEqual ${a}`);
 }
 
-function assertOnlyDeepEqual(a, b) {
+function assertOnlyDeepEqual(a, b, err) {
   assert.doesNotThrow(() => assert.deepEqual(a, b));
-  assert.throws(() => assert.deepStrictEqual(a, b),
+  assert.throws(() => assert.deepStrictEqual(a, b), err ||
                 re`${a} deepStrictEqual ${b}`);
 
   assert.doesNotThrow(() => assert.deepEqual(b, a));
-  assert.throws(() => assert.deepStrictEqual(b, a),
+  assert.throws(() => assert.deepStrictEqual(b, a), err ||
                 re`${b} deepStrictEqual ${a}`);
 }
 
@@ -468,5 +468,17 @@ assertOnlyDeepEqual(
 
 assertDeepAndStrictEqual([1, , , 3], [1, , , 3]);
 assertOnlyDeepEqual([1, , , 3], [1, , , 3, , , ]);
+
+// Handle different error messages
+{
+  const err1 = new Error('foo1');
+  const err2 = new Error('foo2');
+  const err3 = new TypeError('foo1');
+  assertNotDeepOrStrict(err1, err2, assert.AssertionError);
+  assertNotDeepOrStrict(err1, err3, assert.AssertionError);
+  // TODO: evaluate if this should throw or not. The same applies for RegExp
+  // Date and any object that has the same keys but not the same prototype.
+  assertOnlyDeepEqual(err1, {}, assert.AssertionError);
+}
 
 /* eslint-enable */
