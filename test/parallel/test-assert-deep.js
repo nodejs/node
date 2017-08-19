@@ -507,5 +507,8 @@ assert.doesNotThrow(
   boxedSymbol.slow = true;
   assertNotDeepOrStrict(boxedSymbol, {});
 }
+// Minus zero
+assertOnlyDeepEqual(0, -0);
+assertDeepAndStrictEqual(-0, -0);
 
 /* eslint-enable */
