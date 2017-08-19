@@ -69,7 +69,7 @@ class PageParallelJob {
   void Run(int num_tasks, Callback per_task_data_callback) {
     if (num_items_ == 0) return;
     DCHECK_GE(num_tasks, 1);
-    uint32_t task_ids[kMaxNumberOfTasks];
+    CancelableTaskManager::Id task_ids[kMaxNumberOfTasks];
     const int max_num_tasks = Min(
         kMaxNumberOfTasks,
         static_cast<int>(
