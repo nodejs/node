@@ -468,6 +468,13 @@ void AsyncWrap::QueueDestroyId(const FunctionCallbackInfo<Value>& args) {
   PushBackDestroyId(Environment::GetCurrent(args), args[0]->NumberValue());
 }
 
+void AsyncWrap::AddWrapMethods(Environment* env,
+                               Local<FunctionTemplate> constructor,
+                               int flag) {
+  env->SetProtoMethod(constructor, "getAsyncId", AsyncWrap::GetAsyncId);
+  if (flag & kFlagHasReset)
+    env->SetProtoMethod(constructor, "asyncReset", AsyncWrap::AsyncReset);
+}
 
 void AsyncWrap::Initialize(Local<Object> target,
                            Local<Value> unused,
