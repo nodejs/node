@@ -35,11 +35,11 @@ assert.ok(!(undefined instanceof Writable));
 function CustomWritable() {
   assert.ok(
     this instanceof CustomWritable,
-    `${this} does not inherits from CustomWritable`
+    `${this} does not inherit from CustomWritable`
   );
   assert.ok(
     this instanceof Writable,
-    `${this} does not inherits from Writable`
+    `${this} does not inherit from Writable`
   );
 }
 
@@ -53,6 +53,6 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: 'undefined does not inherits from CustomWritable'
+    message: 'undefined does not inherit from CustomWritable'
   }
 );
