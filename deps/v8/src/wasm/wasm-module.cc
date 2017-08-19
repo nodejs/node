@@ -2695,10 +2695,6 @@ void wasm::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
 // foreground task. All other tasks (e.g. decoding and validating, the majority
 // of the work of compilation) can be background tasks.
 // TODO(wasm): factor out common parts of this with the synchronous pipeline.
-//
-// Note: In predictable mode, DoSync and DoAsync execute the referenced function
-// immediately before returning. Thus we handle the predictable mode specially,
-// e.g. when we synchronizing tasks or when we delete the AyncCompileJob.
 class AsyncCompileJob {
   // TODO(ahaas): Fix https://bugs.chromium.org/p/v8/issues/detail?id=6263 to
   // make sure that d8 does not shut down before the AsyncCompileJob is
@@ -2761,14 +2757,14 @@ class AsyncCompileJob {
     RejectPromise(isolate_, context_, thrower, module_promise_);
     // The AsyncCompileJob is finished, we resolved the promise, we do not need
     // the data anymore. We can delete the AsyncCompileJob object.
-    if (!FLAG_verify_predictable) delete this;
+    delete this;
   }
 
   void AsyncCompileSucceeded(Handle<Object> result) {
     ResolvePromise(isolate_, context_, module_promise_, result);
     // The AsyncCompileJob is finished, we resolved the promise, we do not need
     // the data anymore. We can delete the AsyncCompileJob object.
-    if (!FLAG_verify_predictable) delete this;
+    delete this;
   }
 
   enum TaskType { SYNC, ASYNC };
@@ -2975,9 +2971,7 @@ class AsyncCompileJob {
         // TODO(ahaas): Limit the number of outstanding compilation units to be
         // finished to reduce memory overhead.
       }
-      // Special handling for predictable mode, see above.
-      if (!FLAG_verify_predictable)
-        job_->helper_->module_->pending_tasks.get()->Signal();
+      job_->helper_->module_->pending_tasks.get()->Signal();
     }
   };
 
@@ -3026,12 +3020,9 @@ class AsyncCompileJob {
       // Bump next_unit_, such that background tasks stop processing the queue.
       job_->helper_->next_unit_.SetValue(
           job_->helper_->compilation_units_.size());
-      // Special handling for predictable mode, see above.
-      if (!FLAG_verify_predictable) {
-        for (size_t i = 0; i < job_->num_background_tasks_; ++i) {
-          // We wait for it to finish.
-          job_->helper_->module_->pending_tasks.get()->Wait();
-        }
+      for (size_t i = 0; i < job_->num_background_tasks_; ++i) {
+        // We wait for it to finish.
+        job_->helper_->module_->pending_tasks.get()->Wait();
       }
       if (thrower_.error()) {
         job_->DoSync<FailCompile>(std::move(thrower_));
@@ -3194,8 +3185,6 @@ void wasm::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
   auto job = new AsyncCompileJob(isolate, std::move(copy), bytes.length(),
                                  handle(isolate->context()), promise);
   job->Start();
-  // Special handling for predictable mode, see above.
-  if (FLAG_verify_predictable) delete job;
 }
 
 Handle<Code> wasm::CompileLazy(Isolate* isolate) {
