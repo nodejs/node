@@ -19,19 +19,27 @@ function main(conf) {
   if (port !== undefined && address !== undefined) {
     bench.start();
     for (let i = 0; i < n; i++) {
-      dgram.createSocket('udp4').bind(port, address).unref();
+      dgram.createSocket('udp4').bind(port, address)
+        .on('error', () => {})
+        .unref();
     }
     bench.end(n);
   } else if (port !== undefined) {
     bench.start();
     for (let i = 0; i < n; i++) {
-      dgram.createSocket('udp4').bind(port).unref();
+      dgram.createSocket('udp4')
+        .bind(port)
+        .on('error', () => {})
+        .unref();
     }
     bench.end(n);
   } else if (port === undefined && address === undefined) {
     bench.start();
     for (let i = 0; i < n; i++) {
-      dgram.createSocket('udp4').bind().unref();
+      dgram.createSocket('udp4')
+        .bind()
+        .on('error', () => {})
+        .unref();
     }
     bench.end(n);
   }
