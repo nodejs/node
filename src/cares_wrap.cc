@@ -2190,28 +2190,28 @@ void Initialize(Local<Object> target,
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   aiw->InstanceTemplate()->SetInternalFieldCount(1);
   env->SetProtoMethod(aiw, "getAsyncId", AsyncWrap::GetAsyncId);
-  aiw->SetClassName(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap"),
-              aiw->GetFunction());
+  Local<String> addrInfoWrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap");
+  aiw->SetClassName(addrInfoWrapString);
+  target->Set(addrInfoWrapString, aiw->GetFunction());
 
   Local<FunctionTemplate> niw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   niw->InstanceTemplate()->SetInternalFieldCount(1);
   env->SetProtoMethod(niw, "getAsyncId", AsyncWrap::GetAsyncId);
-  niw->SetClassName(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"),
-              niw->GetFunction());
+  Local<String> nameInfoWrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap");
+  niw->SetClassName(nameInfoWrapString);
+  target->Set(nameInfoWrapString, niw->GetFunction());
 
   Local<FunctionTemplate> qrw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   qrw->InstanceTemplate()->SetInternalFieldCount(1);
   env->SetProtoMethod(qrw, "getAsyncId", AsyncWrap::GetAsyncId);
-  qrw->SetClassName(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"),
-              qrw->GetFunction());
+  Local<String> queryWrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap");
+  qrw->SetClassName(queryWrapString);
+  target->Set(queryWrapString, qrw->GetFunction());
 
   Local<FunctionTemplate> channel_wrap =
       env->NewFunctionTemplate(ChannelWrap::New);
@@ -2235,10 +2235,10 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(channel_wrap, "setServers", SetServers);
   env->SetProtoMethod(channel_wrap, "cancel", Cancel);
 
-  channel_wrap->SetClassName(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "ChannelWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ChannelWrap"),
-              channel_wrap->GetFunction());
+  Local<String> channelWrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "ChannelWrap");
+  channel_wrap->SetClassName(channelWrapString);
+  target->Set(channelWrapString, channel_wrap->GetFunction());
 }
 
 }  // anonymous namespace

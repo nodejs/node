@@ -67,18 +67,20 @@ void StreamWrap::Initialize(Local<Object> target,
   Local<FunctionTemplate> sw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   sw->InstanceTemplate()->SetInternalFieldCount(1);
-  sw->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap"));
+  Local<String> wrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap");
+  sw->SetClassName(wrapString);
   env->SetProtoMethod(sw, "getAsyncId", AsyncWrap::GetAsyncId);
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap"),
-              sw->GetFunction());
+  target->Set(wrapString, sw->GetFunction());
 
   Local<FunctionTemplate> ww =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   ww->InstanceTemplate()->SetInternalFieldCount(1);
-  ww->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap"));
+  Local<String> writeWrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap");
+  ww->SetClassName(writeWrapString);
   env->SetProtoMethod(ww, "getAsyncId", AsyncWrap::GetAsyncId);
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap"),
-              ww->GetFunction());
+  target->Set(writeWrapString, ww->GetFunction());
   env->set_write_wrap_constructor_function(ww->GetFunction());
 }
 
