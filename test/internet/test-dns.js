@@ -388,12 +388,12 @@ TEST(function test_resolveTxt_failure(done) {
 
 
 TEST(function test_lookup_failure(done) {
-  const req = dns.lookup('does.not.exist', 4, function(err, ip, family) {
+  const req = dns.lookup('this.hostname.is.invalid', 4, (err, ip, family) => {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, dns.NOTFOUND);
     assert.strictEqual(err.errno, 'ENOTFOUND');
     assert.ok(!/ENOENT/.test(err.message));
-    assert.ok(/does\.not\.exist/.test(err.message));
+    assert.ok(err.message.includes('this.hostname.is.invalid'));
 
     done();
   });
@@ -511,11 +511,11 @@ TEST(function test_reverse_failure(done) {
 
 
 TEST(function test_lookup_failure(done) {
-  const req = dns.lookup('nosuchhostimsure', function(err) {
+  const req = dns.lookup('this.hostname.is.invalid', (err) => {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
-    assert.strictEqual(err.hostname, 'nosuchhostimsure');
-    assert.ok(/nosuchhostimsure/.test(err.message));
+    assert.strictEqual(err.hostname, 'this.hostname.is.invalid');
+    assert.ok(err.message.includes('this.hostname.is.invalid'));
 
     done();
   });
@@ -525,7 +525,7 @@ TEST(function test_lookup_failure(done) {
 
 
 TEST(function test_resolve_failure(done) {
-  const req = dns.resolve4('nosuchhostimsure', function(err) {
+  const req = dns.resolve4('this.hostname.is.invalid', (err) => {
     assert(err instanceof Error);
 
     switch (err.code) {
@@ -537,8 +537,8 @@ TEST(function test_resolve_failure(done) {
         break;
     }
 
-    assert.strictEqual(err.hostname, 'nosuchhostimsure');
-    assert.ok(/nosuchhostimsure/.test(err.message));
+    assert.strictEqual(err.hostname, 'this.hostname.is.invalid');
+    assert.ok(err.message.includes('this.hostname.is.invalid'));
 
     done();
   });

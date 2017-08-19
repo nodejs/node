@@ -70,9 +70,7 @@ Depending on host platform, the selection of toolchains may vary.
 
 #### Windows
 
-* Building Node: Visual Studio 2015 or Visual C++ Build Tools 2015 or newer
-* Building native add-ons: Visual Studio 2013 or Visual C++ Build Tools 2015
-  or newer
+* Visual Studio 2015 or Visual C++ Build Tools 2015 or newer
 
 ## Building Node.js on supported platforms
 
@@ -134,7 +132,7 @@ This will build Node.js first (if necessary) and then use it to build the docs:
 $ make doc
 ```
 
-If you have an existing Node.js you can build just the docs with:
+If you have an existing Node.js build, you can build just the docs with:
 
 ```console
 $ NODE=/path/to/node make doc-only

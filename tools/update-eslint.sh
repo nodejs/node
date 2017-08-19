@@ -11,11 +11,12 @@ cd "$( dirname "${BASH_SOURCE[0]}" )"
 rm -rf eslint
 mkdir eslint-tmp
 cd eslint-tmp
+npm init --yes
 
-npm install --global-style --no-bin-links --production eslint@latest
+npm install --global-style --no-bin-links --production --no-package-lock eslint@latest
 cd node_modules/eslint
 
-npm install --no-bin-links --production eslint-plugin-markdown@next
+npm install --no-bin-links --production --no-package-lock eslint-plugin-markdown@next
 cd ../..
 
 # Install dmn if it is not in path.
