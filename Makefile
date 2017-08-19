@@ -199,9 +199,9 @@ test: all
 test-build:
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
+	$(MAKE) cctest
 
 test-run:
-	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES)
