@@ -110,6 +110,9 @@ parameter is an instance of an `Error` then it will be thrown instead of the
 added: v1.2.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: zero is now compared using the [Object.is][] comparison.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/15036
     description: NaN is now compared using the [SameValueZero][] comparison.
   - version: REPLACEME
@@ -144,6 +147,7 @@ Generally identical to `assert.deepEqual()` with a few exceptions:
   the [Strict Equality Comparison][] too.
 3. [Type tags][Object.prototype.toString()] of objects should be the same.
 4. [Object wrappers][] are compared both as objects and unwrapped values.
+5. `0` and `-0` are not considered equal.
 
 ```js
 const assert = require('assert');
@@ -181,6 +185,11 @@ assert.deepStrictEqual(new Number(1), new Number(2));
 // Fails because the wrapped number is unwrapped and compared as well.
 assert.deepStrictEqual(new String('foo'), Object('foo'));
 // OK because the object and the string are identical when unwrapped.
+
+assert.deepStrictEqual(-0, -0);
+// OK
+assert.deepStrictEqual(0, -0);
+// AssertionError: 0 deepStrictEqual -0
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
