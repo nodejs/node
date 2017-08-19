@@ -1206,8 +1206,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "nghttp2ErrorString", HttpErrorString);
 
   Local<String> http2SessionClassName =
-    String::NewFromUtf8(isolate, "Http2Session",
-                        v8::NewStringType::kInternalized).ToLocalChecked();
+    FIXED_ONE_BYTE_STRING(isolate, "Http2Session");
 
   Local<FunctionTemplate> session =
       env->NewFunctionTemplate(Http2Session::New);
