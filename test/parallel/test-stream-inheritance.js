@@ -49,3 +49,8 @@ Object.setPrototypeOf(CustomWritable.prototype, Writable.prototype);
 new CustomWritable();
 
 assert.throws(CustomWritable, /AssertionError: undefined does not inherit from CustomWritable/);
+
+class OtherCustomWritable extends Writable {}
+
+assert(!(new OtherCustomWritable() instanceof CustomWritable));
+assert(!(new CustomWritable() instanceof OtherCustomWritable));
