@@ -404,4 +404,7 @@ assertOnlyDeepEqual(
   assertDeepAndStrictEqual(m3, m4);
 }
 
+assertDeepAndStrictEqual([1, , , 3], [1, , , 3]);
+assertOnlyDeepEqual([1, , , 3], [1, , , 3, , , ]);
+
 /* eslint-enable */
