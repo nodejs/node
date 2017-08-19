@@ -108,6 +108,9 @@ parameter is undefined, a default error message is assigned.
 added: v1.2.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/15036
+    description: NaN is now compared using the [SameValueZero][] comparison.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
   - version: v8.0.0
@@ -129,9 +132,10 @@ changes:
 
 Generally identical to `assert.deepEqual()` with three exceptions:
 
-1. Primitive values are compared using the [Strict Equality Comparison][]
-  ( `===` ). Set values and Map keys are compared using the [SameValueZero][]
-  comparison. (Which means they are free of the [caveats][]).
+1. Primitive values besides `NaN` are compared using the [Strict Equality
+   Comparison][] ( `===` ). Set and Map values, Map keys and `NaN` are compared
+   using the [SameValueZero][] comparison (which means they are free of the
+   [caveats][]).
 2. [`[[Prototype]]`][prototype-spec] of objects are compared using
   the [Strict Equality Comparison][] too.
 3. [Type tags][Object.prototype.toString()] of objects should be the same.
@@ -164,6 +168,8 @@ assert.deepEqual(date, fakeDate);
 assert.deepStrictEqual(date, fakeDate);
 // AssertionError: 2017-03-11T14:25:31.849Z deepStrictEqual Date {}
 // Different type tags
+assert.deepStrictEqual(NaN, NaN);
+// OK, because of the SameValueZero comparison
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
@@ -412,6 +418,9 @@ parameter is undefined, a default error message is assigned.
 <!-- YAML
 added: v1.2.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/15036
+    description: NaN is now compared using the [SameValueZero][] comparison.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
