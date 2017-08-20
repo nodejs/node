@@ -240,6 +240,12 @@ class Nghttp2Session {
                                   int32_t id,
                                   uint32_t code,
                                   void* user_data);
+  static inline int OnInvalidHeader(nghttp2_session* session,
+                                    const nghttp2_frame* frame,
+                                    nghttp2_rcbuf* name,
+                                    nghttp2_rcbuf* value,
+                                    uint8_t flags,
+                                    void* user_data);
   static inline int OnDataChunkReceived(nghttp2_session* session,
                                         uint8_t flags,
                                         int32_t id,

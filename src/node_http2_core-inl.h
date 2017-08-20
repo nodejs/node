@@ -140,6 +140,16 @@ inline int Nghttp2Session::OnFrameNotSent(nghttp2_session *session,
   return 0;
 }
 
+inline int Nghttp2Session::OnInvalidHeader(nghttp2_session* session,
+                                           const nghttp2_frame* frame,
+                                           nghttp2_rcbuf* name,
+                                           nghttp2_rcbuf* value,
+                                           uint8_t flags,
+                                           void* user_data) {
+  // Ignore invalid header fields by default.
+  return 0;
+}
+
 // Called when nghttp2 closes a stream, either in response to an RST_STREAM
 // frame or the stream closing naturally on it's own
 inline int Nghttp2Session::OnStreamClose(nghttp2_session *session,
@@ -910,6 +920,8 @@ Nghttp2Session::Callbacks::Callbacks(bool kHasGetPaddingCallback) {
     callbacks, OnDataChunkReceived);
   nghttp2_session_callbacks_set_on_frame_not_send_callback(
     callbacks, OnFrameNotSent);
+  nghttp2_session_callbacks_set_on_invalid_header_callback2(
+    callbacks, OnInvalidHeader);
 
 #ifdef NODE_DEBUG_HTTP2
   nghttp2_session_callbacks_set_error_callback(
