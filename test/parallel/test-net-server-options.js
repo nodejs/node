@@ -1,6 +1,6 @@
 'use strict';
-const assert = require('assert');
 const common = require('../common');
+const assert = require('assert');
 const net = require('net');
 
 assert.throws(function() { net.createServer('path'); },

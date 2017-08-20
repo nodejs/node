@@ -21,8 +21,12 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const net = require('net');
+
+const connect = (opts, code, type) => common.expectsError(
+  () => net.connect(opts),
+  { code, type }
+);
 
 connect({
   host: 'localhost',
@@ -35,8 +39,3 @@ connect({
   port: 0,
   localPort: 'foobar',
 }, 'ERR_INVALID_ARG_TYPE', TypeError);
-
-function connect(opts, code, type) {
-  assert.throws(() => net.connect(opts),
-                common.expectsError({ code: code, type: type }));
-}

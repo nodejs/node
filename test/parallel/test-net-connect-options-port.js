@@ -27,12 +27,10 @@ const net = require('net');
 
 // Test wrong type of ports
 {
-  function portTypeError() {
-    return common.expectsError({
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
-    });
-  }
+  const portTypeError = common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  }, 96);
 
   syncFailToConnect(true, portTypeError);
   syncFailToConnect(false, portTypeError);
@@ -43,12 +41,10 @@ const net = require('net');
 
 // Test out of range ports
 {
-  function portRangeError() {
-    return common.expectsError({
-      code: 'ERR_SOCKET_BAD_PORT',
-      type: RangeError
-    });
-  }
+  const portRangeError = common.expectsError({
+    code: 'ERR_SOCKET_BAD_PORT',
+    type: RangeError
+  }, 168);
 
   syncFailToConnect('', portRangeError);
   syncFailToConnect(' ', portRangeError);
@@ -137,7 +133,7 @@ function syncFailToConnect(port, assertErr, optOnly) {
     const portArgBlocks = doConnect([port], () => common.mustNotCall());
     for (const block of portArgBlocks) {
       assert.throws(block,
-                    assertErr(),
+                    assertErr,
                     `${block.name}(${port})`);
     }
 
@@ -146,7 +142,7 @@ function syncFailToConnect(port, assertErr, optOnly) {
                                         () => common.mustNotCall());
     for (const block of portHostArgBlocks) {
       assert.throws(block,
-                    assertErr(),
+                    assertErr,
                     `${block.name}(${port}, 'localhost')`);
     }
   }
@@ -155,7 +151,7 @@ function syncFailToConnect(port, assertErr, optOnly) {
                                   () => common.mustNotCall());
   for (const block of portOptBlocks) {
     assert.throws(block,
-                  assertErr(),
+                  assertErr,
                   `${block.name}({port: ${port}})`);
   }
 
@@ -164,7 +160,7 @@ function syncFailToConnect(port, assertErr, optOnly) {
                                       () => common.mustNotCall());
   for (const block of portHostOptBlocks) {
     assert.throws(block,
-                  assertErr(),
+                  assertErr,
                   `${block.name}({port: ${port}, host: 'localhost'})`);
   }
 }
