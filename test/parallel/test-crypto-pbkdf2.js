@@ -55,9 +55,11 @@ function ondone(err, key) {
 }
 
 // Error path should not leak memory (check with valgrind).
-assert.throws(function() {
+common.expectsError(function() {
   crypto.pbkdf2('password', 'salt', 1, 20, null);
-}, /^Error: No callback provided to pbkdf2$/);
+}, {
+  code: 'ERR_INVALID_CALLBACK',
+});
 
 // Should not work with Infinity key length
 assert.throws(function() {
@@ -95,10 +97,16 @@ assert.doesNotThrow(() => {
   }));
 });
 
-assert.throws(() => {
+common.expectsError(function() {
   crypto.pbkdf2('password', 'salt', 8, 8, common.mustNotCall());
-}, /^TypeError: The "digest" argument is required and must not be undefined$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: /"digest"/,
+});
 
-assert.throws(() => {
+common.expectsError(function() {
   crypto.pbkdf2Sync('password', 'salt', 8, 8);
-}, /^TypeError: The "digest" argument is required and must not be undefined$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: /"digest"/,
+});

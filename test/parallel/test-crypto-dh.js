@@ -22,24 +22,29 @@ assert.strictEqual(secret2.toString('base64'), secret1);
 assert.strictEqual(dh1.verifyError, 0);
 assert.strictEqual(dh2.verifyError, 0);
 
-const argumentsError =
-  /^TypeError: First argument should be number, string, Buffer, TypedArray, or DataView$/;
-
-assert.throws(() => {
+common.expectsError(function() {
   crypto.createDiffieHellman([0x1, 0x2]);
-}, argumentsError);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+});
 
-assert.throws(() => {
+common.expectsError(function() {
   crypto.createDiffieHellman(() => { });
-}, argumentsError);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+});
 
-assert.throws(() => {
+common.expectsError(function() {
   crypto.createDiffieHellman(/abc/);
-}, argumentsError);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+});
 
-assert.throws(() => {
+common.expectsError(function() {
   crypto.createDiffieHellman({});
-}, argumentsError);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+});
 
 // Create "another dh1" using generated keys from dh1,
 // and compute secret again
@@ -198,9 +203,12 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   firstByte = ecdh1.getPublicKey('buffer', 'hybrid')[0];
   assert(firstByte === 6 || firstByte === 7);
   // format value should be string
-  assert.throws(() => {
+  common.expectsError(function() {
     ecdh1.getPublicKey('buffer', 10);
-  }, /^TypeError: Bad format: 10$/);
+  }, {
+    code: 'ERR_INVALID_OPT_VALUE',
+    message: /"format"/,
+  });
 
   // ECDH should check that point is on curve
   const ecdh3 = crypto.createECDH('secp256k1');
@@ -331,6 +339,9 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
 }
 
 // invalid test: curve argument is undefined
-assert.throws(() => {
+common.expectsError(function() {
   crypto.createECDH();
-}, /^TypeError: "curve" argument should be a string$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: /"curve"/,
+});
