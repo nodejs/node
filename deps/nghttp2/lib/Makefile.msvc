@@ -50,7 +50,7 @@ IMP_D	:= $(OBJ_DIR)/nghttp2d.lib
 TARGETS := $(LIB_R) $(DLL_R) $(IMP_R) \
           $(LIB_D) $(DLL_D) $(IMP_D)
 
-EXT_LIBS =
+EXT_LIBS = 
 
 NGHTTP2_PDB_R := $(OBJ_DIR)/nghttp2.pdb
 NGHTTP2_PDB_D := $(OBJ_DIR)/nghttp2d.pdb
@@ -121,7 +121,7 @@ $(OBJ_DIR):
 
 install: includes/nghttp2/nghttp2.h includes/nghttp2/nghttp2ver.h \
          $(TARGETS) \
-         copy_headers_and_libs install_nghttp2_pyd_$(USE_CYTHON)
+         copy_headers_and_libs install_nghttp2_pyd_$(USE_CYTHON) 
 
 #
 # This MUST be done before using the 'install_nghttp2_pyd_1' rule.
@@ -144,14 +144,14 @@ $(LIB_D): $(NGHTTP2_OBJ_D)
 
 $(IMP_R): $(DLL_R)
 
-$(DLL_R): $(NGHTTP2_OBJ_R) $(OBJ_DIR)/r_nghttp2.res
+$(DLL_R): $(NGHTTP2_OBJ_R) $(OBJ_DIR)/r_nghttp2.res 
 	$(LD) $(LDFLAGS) -dll -out:$@ -implib:$(IMP_R) $(NGHTTP2_OBJ_R) -PDB:$(NGHTTP2_PDB_R) $(OBJ_DIR)/r_nghttp2.res $(EXT_LIBS)
 	mt -nologo -manifest $@.manifest -outputresource:$@\;2
 	@echo
 
 $(IMP_D): $(DLL_D)
-
-$(DLL_D): $(NGHTTP2_OBJ_D) $(OBJ_DIR)/d_nghttp2.res
+	
+$(DLL_D): $(NGHTTP2_OBJ_D) $(OBJ_DIR)/d_nghttp2.res 
 	$(LD) $(LDFLAGS) -dll -out:$@ -implib:$(IMP_D) $(NGHTTP2_OBJ_D) -PDB:$(NGHTTP2_PDB_D) $(OBJ_DIR)/d_nghttp2.res $(EXT_LIBS)
 	mt -nologo -manifest $@.manifest -outputresource:$@\;2
 	@echo
@@ -174,7 +174,7 @@ build_nghttp2_pyd_1: $(addprefix ../python/, setup.py nghttp2.pyx)
 	python setup.py build_ext -i -f bdist_wininst
 
 install_nghttp2_pyd_0: ;
-
+		
 install_nghttp2_pyd_1: $(addprefix ../python/, setup.py nghttp2.pyx)
 	cd ../python ; \
 	pip install .
