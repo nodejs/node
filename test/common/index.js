@@ -709,6 +709,11 @@ exports.expectsError = function expectsError(fn, settings, exact) {
       assert(error instanceof type,
              `${error.name} is not instance of ${type.name}`);
     }
+    if ('code' in settings) {
+      const code = settings.code;
+      assert.strictEqual(error.code, code,
+                         `Code ${error.code} does not match ${code}`);
+    }
     if ('message' in settings) {
       const message = settings.message;
       if (typeof message === 'string') {
