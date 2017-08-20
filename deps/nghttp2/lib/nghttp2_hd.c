@@ -662,9 +662,9 @@ static int hd_context_init(nghttp2_hd_context *context, nghttp2_mem *mem) {
   context->mem = mem;
   context->bad = 0;
   context->hd_table_bufsize_max = NGHTTP2_HD_DEFAULT_MAX_BUFFER_SIZE;
-  rv = hd_ringbuf_init(&context->hd_table, context->hd_table_bufsize_max /
-                                               NGHTTP2_HD_ENTRY_OVERHEAD,
-                       mem);
+  rv = hd_ringbuf_init(
+      &context->hd_table,
+      context->hd_table_bufsize_max / NGHTTP2_HD_ENTRY_OVERHEAD, mem);
   if (rv != 0) {
     return rv;
   }
