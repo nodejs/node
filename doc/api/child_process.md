@@ -686,7 +686,7 @@ exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
 throw an [`Error`][] that will include the full result of the underlying
-[`spawnSync()`][].
+[`child_process.spawnSync()`][].
 
 ### child_process.execSync(command[, options])
 <!-- YAML
@@ -1339,7 +1339,6 @@ unavailable.
 [`process.on('disconnect')`]: process.html#process_event_disconnect
 [`process.on('message')`]: process.html#process_event_message
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
-[`spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
 [`stdio`]: #child_process_options_stdio
 [`util.promisify()`]: util.html#util_util_promisify_original
 [Default Windows Shell]: #child_process_default_windows_shell
