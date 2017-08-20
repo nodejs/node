@@ -311,7 +311,7 @@ struct nghttp2_session {
   /* Unacked local SETTINGS_MAX_CONCURRENT_STREAMS value. We use this
      to refuse the incoming stream if it exceeds this value. */
   uint32_t pending_local_max_concurrent_stream;
-  /* The bitwose OR of zero or more of nghttp2_typemask to indicate
+  /* The bitwise OR of zero or more of nghttp2_typemask to indicate
      that the default handling of extension frame is enabled. */
   uint32_t builtin_recv_ext_types;
   /* Unacked local ENABLE_PUSH value.  We use this to refuse
