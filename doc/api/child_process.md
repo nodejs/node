@@ -685,8 +685,8 @@ does not exit, the parent process will still wait until the child process has
 exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
-throw.  The [`Error`][] object will contain the entire result from
-[`child_process.spawnSync()`][]
+throw an [`Error`][] that will include the full result of the underlying
+[`child_process.spawnSync()`][].
 
 ### child_process.execSync(command[, options])
 <!-- YAML
