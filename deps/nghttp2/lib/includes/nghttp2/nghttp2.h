@@ -472,9 +472,9 @@ NGHTTP2_EXTERN nghttp2_vec nghttp2_rcbuf_get_buf(nghttp2_rcbuf *rcbuf);
 /**
  * @function
  *
- * Returns 1 if the underlying buffer is statically allocated,
- * and 0 otherwise. This can be useful for language bindings that wish to avoid
- * creating duplicate strings for these buffers.
+ * Returns nonzero if the underlying buffer is statically allocated,
+ * and 0 otherwise. This can be useful for language bindings that wish
+ * to avoid creating duplicate strings for these buffers.
  */
 NGHTTP2_EXTERN int nghttp2_rcbuf_is_static(const nghttp2_rcbuf *rcbuf);
 
@@ -1750,11 +1750,12 @@ typedef int (*nghttp2_on_header_callback2)(nghttp2_session *session,
  * The parameter and behaviour are similar to
  * :type:`nghttp2_on_header_callback`.  The difference is that this
  * callback is only invoked when a invalid header name/value pair is
- * received which is silently ignored if this callback is not set.
- * Only invalid regular header field are passed to this callback.  In
- * other words, invalid pseudo header field is not passed to this
- * callback.  Also header fields which includes upper cased latter are
- * also treated as error without passing them to this callback.
+ * received which is treated as stream error if this callback is not
+ * set.  Only invalid regular header field are passed to this
+ * callback.  In other words, invalid pseudo header field is not
+ * passed to this callback.  Also header fields which includes upper
+ * cased latter are also treated as error without passing them to this
+ * callback.
  *
  * This callback is only considered if HTTP messaging validation is
  * turned on (which is on by default, see
@@ -1763,10 +1764,13 @@ typedef int (*nghttp2_on_header_callback2)(nghttp2_session *session,
  * With this callback, application inspects the incoming invalid
  * field, and it also can reset stream from this callback by returning
  * :enum:`NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE`.  By default, the
- * error code is :enum:`NGHTTP2_INTERNAL_ERROR`.  To change the error
+ * error code is :enum:`NGHTTP2_PROTOCOL_ERROR`.  To change the error
  * code, call `nghttp2_submit_rst_stream()` with the error code of
  * choice in addition to returning
  * :enum:`NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE`.
+ *
+ * If 0 is returned, the header field is ignored, and the stream is
+ * not reset.
  */
 typedef int (*nghttp2_on_invalid_header_callback)(
     nghttp2_session *session, const nghttp2_frame *frame, const uint8_t *name,
@@ -2457,7 +2461,10 @@ nghttp2_option_set_no_recv_client_magic(nghttp2_option *option, int val);
  * <https://tools.ietf.org/html/rfc7540#section-8>`_.  See
  * :ref:`http-messaging` section for details.  For those applications
  * who use nghttp2 library as non-HTTP use, give nonzero to |val| to
- * disable this enforcement.
+ * disable this enforcement.  Please note that disabling this feature
+ * does not change the fundamental client and server model of HTTP.
+ * That is, even if the validation is disabled, only client can send
+ * requests.
  */
 NGHTTP2_EXTERN void nghttp2_option_set_no_http_messaging(nghttp2_option *option,
                                                          int val);
@@ -3811,9 +3818,8 @@ nghttp2_submit_response(nghttp2_session *session, int32_t stream_id,
  * Submits trailer fields HEADERS against the stream |stream_id|.
  *
  * The |nva| is an array of name/value pair :type:`nghttp2_nv` with
- * |nvlen| elements.  The application is responsible not to include
- * pseudo-header fields (header field whose name starts with ":") in
- * |nva|.
+ * |nvlen| elements.  The application must not include pseudo-header
+ * fields (headers whose names starts with ":") in |nva|.
  *
  * This function creates copies of all name/value pairs in |nva|.  It
  * also lower-cases all names in |nva|.  The order of elements in
