@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const Console = require('console').Console;
 
-let stdout, stderr;
+let c, stdout, stderr;
 
 function setup() {
   stdout = '';
@@ -16,6 +16,8 @@ function setup() {
   common.hijackStderr(function(data) {
     stderr += data;
   });
+
+  c = new Console(process.stdout, process.stderr);
 }
 
 function teardown() {
@@ -36,18 +38,18 @@ function teardown() {
 
   const expectedErr = '    More of level 3\n';
 
-  console.log('This is the outer level');
-  console.group();
-  console.log('Level 2');
-  console.group();
-  console.log('Level 3');
-  console.warn('More of level 3');
-  console.groupEnd();
-  console.log('Back to level 2');
-  console.groupEnd();
-  console.log('Back to the outer level');
-  console.groupEnd();
-  console.log('Still at the outer level');
+  c.log('This is the outer level');
+  c.group();
+  c.log('Level 2');
+  c.group();
+  c.log('Level 3');
+  c.warn('More of level 3');
+  c.groupEnd();
+  c.log('Back to level 2');
+  c.groupEnd();
+  c.log('Back to the outer level');
+  c.groupEnd();
+  c.log('Still at the outer level');
 
   assert.strictEqual(stdout, expectedOut);
   assert.strictEqual(stderr, expectedErr);
@@ -63,12 +65,11 @@ function teardown() {
                       'But the second one does not\n';
   const expectedErr = '';
 
-  const c1 = new Console(process.stdout, process.stderr);
   const c2 = new Console(process.stdout, process.stderr);
-  c1.log('No indentation');
+  c.log('No indentation');
   c2.log('None here either');
-  c1.group();
-  c1.log('Now the first console is indenting');
+  c.group();
+  c.log('Now the first console is indenting');
   c2.log('But the second one does not');
 
   assert.strictEqual(stdout, expectedOut);
@@ -83,8 +84,26 @@ function teardown() {
                       '  And this is the data for that label\n';
   const expectedErr = '';
 
-  console.group('This is a label');
-  console.log('And this is the data for that label');
+  c.group('This is a label');
+  c.log('And this is the data for that label');
+
+  assert.strictEqual(stdout, expectedOut);
+  assert.strictEqual(stderr, expectedErr);
+  teardown();
+}
+
+// Check that console.groupCollapsed() is an alias of console.group()
+{
+  setup();
+  const expectedOut = 'Label\n' +
+                      '  Level 2\n' +
+                      '    Level 3\n';
+  const expectedErr = '';
+
+  c.groupCollapsed('Label');
+  c.log('Level 2');
+  c.groupCollapsed();
+  c.log('Level 3');
 
   assert.strictEqual(stdout, expectedOut);
   assert.strictEqual(stderr, expectedErr);
