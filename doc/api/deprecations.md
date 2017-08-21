@@ -710,6 +710,16 @@ function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
 instead. For backwards compatibility with Node.js prior to version 6.4.0, both
 may be specified.
 
+<a id="DEP00XX"></a>
+### DEP00XX: path.\_makeLong()
+
+Type: Documentation-only
+
+The internal `path._makeLong()` was not intended for public use. However,
+userland modules have found it useful. The internal API has been deprecated
+and replaced with an identical, public `path.toNamespacedPath()` method.
+
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer

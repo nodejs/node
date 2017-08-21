@@ -543,6 +543,21 @@ On Windows:
 accepted as path segment separators; however, the `path` methods only add
 backward slashes (`\`).
 
+## path.toNamespacedPath(path)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string}
+* Returns: {string}
+
+On Windows systems only, returns an equivalent [namespace-prefixed path][] for
+the given `path`. If `path` is not a string, `path` will be returned without
+modifications.
+
+This method is meaningful only on Windows system. On posix systems, the
+method is non-operational and always returns `path` without modifications.
+
 ## path.win32
 <!-- YAML
 added: v0.11.15
@@ -559,3 +574,4 @@ of the `path` methods.
 [`path.sep`]: #path_path_sep
 [`path.win32`]: #path_path_win32
 [MSDN-Rel-Path]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx#fully_qualified_vs._relative_paths
+[namespace-prefixed path]: https://msdn.microsoft.com/library/windows/desktop/aa365247(v=vs.85).aspx#namespaces

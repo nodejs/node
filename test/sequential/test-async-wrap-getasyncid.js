@@ -118,7 +118,7 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
   req.oncomplete = () => { };
 
   testUninitialized(req, 'FSReqWrap');
-  binding.access(path._makeLong('../'), fs.F_OK, req);
+  binding.access(path.toNamespacedPath('../'), fs.F_OK, req);
   testInitialized(req, 'FSReqWrap');
 
   const StatWatcher = binding.StatWatcher;
