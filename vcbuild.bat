@@ -445,9 +445,10 @@ if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
-call :run-python tools\test.py %test_args%
-goto test-v8
-
+if not defined enable_static (
+  call :run-python tools\test.py %test_args%
+  goto test-v8
+)
 :test-v8
 if not defined custom_v8_test goto cpplint
 call tools/test-v8.bat
