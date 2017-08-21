@@ -104,10 +104,6 @@ class StreamWrap : public HandleWrap, public StreamBase {
   static void OnRead(uv_stream_t* handle,
                      ssize_t nread,
                      const uv_buf_t* buf);
-  static void OnReadCommon(uv_stream_t* handle,
-                           ssize_t nread,
-                           const uv_buf_t* buf,
-                           uv_handle_type pending);
   static void AfterWrite(uv_write_t* req, int status);
   static void AfterShutdown(uv_shutdown_t* req, int status);
 
