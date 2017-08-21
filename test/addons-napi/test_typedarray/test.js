@@ -44,7 +44,7 @@ const arrayTypes = [ Int8Array, Uint8Array, Uint8ClampedArray, Int16Array,
                      Uint16Array, Int32Array, Uint32Array, Float32Array,
                      Float64Array ];
 
-arrayTypes.forEach((currentType, key) => {
+arrayTypes.forEach((currentType) => {
   const template = Reflect.construct(currentType, buffer);
   const theArray = test_typedarray.CreateTypedArray(template, buffer);
 
