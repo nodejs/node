@@ -46,7 +46,7 @@ added: v6.3.0
 
 Returns an object containing commonly used operating system specific constants
 for error codes, process signals, and so on. The specific constants currently
-defined are described in [OS Constants][].
+defined are described in [OS Constants](#os_os_constants_1).
 
 ## os.cpus()
 <!-- YAML
