@@ -286,19 +286,24 @@ If formatting elements (e.g. `%d`) are not found in the first string then
 [`util.inspect()`][] is called on each argument and the resulting string
 values are concatenated. See [`util.format()`][] for more information.
 
-### console.group()
+### console.group([...label])
 <!-- YAML
 added: REPLACEME
 -->
 
-Increases indentation of subsequent lines by one tab (`\t`).
+* `label` {any}
+
+Increases indentation of subsequent lines by two spaces.
+
+If one or more `label`s are provided, those are printed first without the
+additional indentation.
 
 ### console.groupEnd()
 <!-- YAML
 added: REPLACEME
 -->
 
-Decreases indentation of subsequent lines by one tab (`\t`).
+Decreases indentation of subsequent lines by two spaces.
 
 ### console.info([data][, ...args])
 <!-- YAML

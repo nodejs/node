@@ -23,6 +23,7 @@ function teardown() {
   common.restoreStderr();
 }
 
+// Basic group() functionality
 {
   setup();
   const expectedOut = 'This is the outer level\n' +
@@ -69,6 +70,21 @@ function teardown() {
   c1.group();
   c1.log('Now the first console is indenting');
   c2.log('But the second one does not');
+
+  assert.strictEqual(stdout, expectedOut);
+  assert.strictEqual(stderr, expectedErr);
+  teardown();
+}
+
+// Make sure labels work.
+{
+  setup();
+  const expectedOut = 'This is a label\n' +
+                      '  And this is the data for that label\n';
+  const expectedErr = '';
+
+  console.group('This is a label');
+  console.log('And this is the data for that label');
 
   assert.strictEqual(stdout, expectedOut);
   assert.strictEqual(stderr, expectedErr);
