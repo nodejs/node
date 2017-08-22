@@ -344,24 +344,21 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
   }
 }
 
-const argumentExpected = common.expectsError({
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "val" argument must be one of type ' +
-           'string, buffer, or uint8Array'
-}, 3);
-
-assert.throws(() => {
-  b.indexOf(() => { });
-}, argumentExpected);
-
-assert.throws(() => {
-  b.indexOf({});
-}, argumentExpected);
-
-assert.throws(() => {
-  b.indexOf([]);
-}, argumentExpected);
+[
+  () => {},
+  {},
+  []
+].forEach((val) => {
+  common.expectsError(
+    () => b.indexOf(val),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "value" argument must be one of type string, ' +
+               `buffer, or uint8Array. Received type ${typeof val}`
+    }
+  );
+});
 
 // Test weird offset arguments.
 // The following offsets coerce to NaN or 0, searching the whole Buffer
