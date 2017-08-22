@@ -1502,15 +1502,15 @@ unsigned int SecureContext::PskClientCallback(SSL *ssl,
   Local<Object> obj = ret.As<Object>();
 
   Local<Value> psk_buf = obj->Get(env->psk_string());
-  assert(Buffer::HasInstance(psk_buf));
+  CHECK(psk_buf->IsArrayBufferView());
   size_t psk_len = Buffer::Length(psk_buf);
-  assert(psk_len <= max_psk_len);
+  CHECK_LE(psk_len, max_psk_len);
   memcpy(psk, Buffer::Data(psk_buf), psk_len);
 
   Local<Value> identity_buf = obj->Get(env->identity_string());
-  assert(Buffer::HasInstance(identity_buf));
+  CHECK(identity_buf->IsArrayBufferView());
   size_t identity_len = Buffer::Length(identity_buf);
-  assert(identity_len <= max_identity_len);
+  CHECK_LE(identity_len, max_identity_len);
   memcpy(identity, Buffer::Data(identity_buf), identity_len);
   assert(identity[identity_len - 1] == '\0');
 
