@@ -1391,7 +1391,7 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
 void SecureContext::SetPskIdentity(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap = Unwrap<SecureContext>(args.Holder());
 
-  if (args.Length() != 1 || !args[0]->IsString()) {
+  if (!args[0]->IsString()) {
     return wrap->env()->ThrowTypeError("Argument must be a string");
   }
 
