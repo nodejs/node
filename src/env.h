@@ -154,6 +154,11 @@ struct PackageConfig {
   V(duration_string, "duration")                                              \
   V(emit_warning_string, "emitWarning")                                       \
   V(exchange_string, "exchange")                                              \
+  V(enumerable_string, "enumerable")                                          \
+  V(identity_string, "identity")                                              \
+  V(idle_string, "idle")                                                      \
+  V(irq_string, "irq")                                                        \
+  V(enablepush_string, "enablePush")                                          \
   V(encoding_string, "encoding")                                              \
   V(entries_string, "entries")                                                \
   V(entry_type_string, "entryType")                                           \
@@ -223,6 +228,7 @@ struct PackageConfig {
   V(onmessage_string, "onmessage")                                            \
   V(onnewsession_string, "onnewsession")                                      \
   V(onocspresponse_string, "onocspresponse")                                  \
+  V(onpskexchange_string, "onpskexchange")                                    \
   V(ongoawaydata_string, "ongoawaydata")                                      \
   V(onorigin_string, "onorigin")                                              \
   V(onpriority_string, "onpriority")                                          \
@@ -257,6 +263,8 @@ struct PackageConfig {
   V(promise_string, "promise")                                                \
   V(pubkey_string, "pubkey")                                                  \
   V(query_string, "query")                                                    \
+  V(produce_cached_data_string, "produceCachedData")                          \
+  V(psk_string, "psk")                                                        \
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
   V(readable_string, "readable")                                              \

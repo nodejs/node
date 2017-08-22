@@ -115,6 +115,29 @@ SNI (Server Name Indication) are TLS handshake extensions:
 * SNI - Allows the use of one TLS server for multiple hostnames with different
   SSL certificates.
 
+*Note*: Use of ALPN is recommended over NPN. The NPN extension has never been
+formally defined or documented and generally not recommended for use.
+
+### Pre-shared keys
+
+<!-- type=misc -->
+
+TLS-PSK support is also available as an alternative to normal certificate-based
+authentication. TLS-PSK uses a pre-shared key instead of certificates to
+authenticate a TLS connection, providing mutual authentication.
+
+TLS-PSK and public key infrastructure are not mutually exclusive; clients and
+servers can accommodate both, with the variety determined by the normal cipher
+negotiation step.
+
+Note that TLS-PSK is only a good choice where means exist to securely share a
+key with every connecting machine, so it does not replace PKI for the majority
+of TLS uses.
+
+The TLS-PSK implementation in OpenSSL has also seen many security flaws in
+recent years, mostly because it is used only by a minority of applications.
+Please consider all alternative solutions before switching to PSK ciphers.
+
 ### Client-initiated renegotiation attack mitigation
 
 <!-- type=misc -->
@@ -884,6 +907,20 @@ changes:
     verified against the list of supplied CAs. An `'error'` event is emitted if
     verification fails; `err.code` contains the OpenSSL error code. **Default:**
     `true`.
+  * `pskCallback(hint)` {Function} When negotiating TLS-PSK, this optional
+    function is called with the identity hint provided by the server. If the
+    client should continue to negotiate PSK ciphers, the return value of this
+    function must be an object in the form `{psk: <string|buffer>, identity:
+    <string>}`. Note that PSK ciphers are disabled by default, and using
+    TLS-PSK thus requires explicitly specifying a cipher suite with the
+    `ciphers` option. Additionally, it may be necessary to disable
+    `rejectUnauthorized` when not intending to use certificates.
+  * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
+    An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
+    `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
+    format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
+    first byte is the length of the next protocol name. Passing an array is
+    usually much simpler, e.g. `['hello', 'world']`.
   * `ALPNProtocols`: {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing the supported ALPN protocols. `Buffer`s should have
@@ -1167,8 +1204,8 @@ changes:
   * `ticketKeys`: A 48-byte `Buffer` instance consisting of a 16-byte prefix,
     a 16-byte HMAC key, and a 16-byte AES key. This can be used to accept TLS
     session tickets on multiple instances of the TLS server.
-  * ...: Any [`tls.createSecureContext()`][] option can be provided. For
-    servers, the identity options (`pfx` or `key`/`cert`) are usually required.
+  * ...: Any [`tls.createSecureContext()`][] options can be provided. For
+    servers, the identity options (`pfx`, `key`/`cert` or `pskCallback`) are usually required.
 * `secureConnectionListener` {Function}
 
 Creates a new [`tls.Server`][]. The `secureConnectionListener`, if provided, is
@@ -1326,6 +1363,14 @@ changes:
   certificate from a connecting client. Only applies when `isServer` is `true`.
 * `rejectUnauthorized` {boolean} If not `false` a server automatically reject
   clients with invalid certificates. Only applies when `isServer` is `true`.
+* `pskCallback(identity)` {Function} When negotiating TLS-PSK, this optional
+  function is called with the identity provided by the client. If the server
+  should continue to negotiate PSK ciphers, the return value of this function
+  must be an object in the form `{psk: <string|buffer>}`. Note that PSK ciphers
+  are disabled by default, and using TLS-PSK thus requires explicitly
+  specifying a cipher suite with the `ciphers` option.
+* `pskIdentity`: {string} The identity hint to send to clients when
+  negotiating TLS-PSK.
 * `options`
   * `secureContext`: A TLS context object from [`tls.createSecureContext()`][]
   * `isServer`: If `true` the TLS socket will be instantiated in server-mode.
