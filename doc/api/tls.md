@@ -911,10 +911,12 @@ changes:
     function is called with the identity hint provided by the server. If the
     client should continue to negotiate PSK ciphers, the return value of this
     function must be an object in the form `{psk: <string|buffer>, identity:
-    <string>}`. Note that PSK ciphers are disabled by default, and using
+    <string>}`.
+    * *Note*: PSK ciphers are disabled by default, and using
     TLS-PSK thus requires explicitly specifying a cipher suite with the
     `ciphers` option. Additionally, it may be necessary to disable
     `rejectUnauthorized` when not intending to use certificates.
+    * *Note*: `identity` must use UTF-8 encoding.
   * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
@@ -1371,6 +1373,7 @@ changes:
   specifying a cipher suite with the `ciphers` option.
 * `pskIdentity`: {string} The identity hint to send to clients when
   negotiating TLS-PSK.
+  * *Note*: Must use UTF-8 encoding.
 * `options`
   * `secureContext`: A TLS context object from [`tls.createSecureContext()`][]
   * `isServer`: If `true` the TLS socket will be instantiated in server-mode.
