@@ -20,7 +20,7 @@ let connections = 0;
 const server = tls.createServer({
   ciphers: CIPHERS,
   pskIdentity: IDENTITY,
-  pskCallback: (identity) => {
+  pskCallback(identity) {
     if (identity === IDENTITY) {
       return {
         psk: Buffer.from(KEY, 'hex')

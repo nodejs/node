@@ -74,7 +74,7 @@ function startClient() {
   const s = tls.connect(common.PORT, {
     ciphers: CIPHERS,
     rejectUnauthorized: false,
-    pskCallback: (hint) => {
+    pskCallback(hint) {
       if (hint === IDENTITY) {
         return {
           identity: IDENTITY,
@@ -96,6 +96,4 @@ process.on('exit', () => {
   assert.strictEqual(0, serverExitCode);
   assert.strictEqual('WAIT-SERVER-CLOSE', state);
   assert.ok(gotWriteCallback);
-
-  console.log(serverExitCode, state, gotWriteCallback)
 });
