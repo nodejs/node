@@ -192,45 +192,49 @@ deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, -1]), [0, 0, 0, 0]);
 
 
 // Check exceptions
-assert.throws(
-  () => buf1.fill(0, -1),
-  common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' }));
-assert.throws(
-  () => buf1.fill(0, 0, buf1.length + 1),
-  common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' }));
-assert.throws(
-  () => buf1.fill('', -1),
-  common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' }));
-assert.throws(
-  () => buf1.fill('', 0, buf1.length + 1),
-  common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' }));
-assert.throws(
+[
+  [0, -1],
+  [0, 0, buf1.length + 1],
+  ['', -1],
+  ['', 0, buf1.length + 1]
+].forEach((args) => {
+  common.expectsError(
+    () => buf1.fill(...args),
+    { code: 'ERR_INDEX_OUT_OF_RANGE' }
+  );
+});
+
+common.expectsError(
   () => buf1.fill('a', 0, buf1.length, 'node rocks!'),
-  common.expectsError({
+  {
     code: 'ERR_UNKNOWN_ENCODING',
     type: TypeError,
     message: 'Unknown encoding: node rocks!'
-  }));
-assert.throws(
-  () => buf1.fill('a', 0, 0, NaN),
-  common.expectsError({
-    code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "encoding" argument must be of type string'
-  }));
-assert.throws(
-  () => buf1.fill('a', 0, 0, null),
-  common.expectsError({
-    code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "encoding" argument must be of type string'
-  }));
-assert.throws(
+  }
+);
+
+[
+  ['a', 0, 0, NaN],
+  ['a', 0, 0, null]
+].forEach((args) => {
+  common.expectsError(
+    () => buf1.fill(...args),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "encoding" argument must be of type ' +
+      `string. Received type ${args[3] === null ? 'null' : typeof args[3]}`
+    }
+  );
+});
+
+common.expectsError(
   () => buf1.fill('a', 0, 0, 'foo'),
-  common.expectsError({
+  {
     code: 'ERR_UNKNOWN_ENCODING',
     type: TypeError,
     message: 'Unknown encoding: foo'
-  }));
-
+  }
+);
 
 function genBuffer(size, args) {
   const b = Buffer.allocUnsafe(size);

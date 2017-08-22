@@ -69,5 +69,6 @@ assert.throws(() => a.compare(b, -Infinity, Infinity), oor);
 assert.throws(() => a.compare(), common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "target" argument must be one of type buffer or uint8Array'
+  message: 'The "target" argument must be one of ' +
+           'type buffer or uint8Array. Received type undefined'
 }));
