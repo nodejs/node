@@ -487,7 +487,7 @@ by the `NODE_REPL_HISTORY` variable, as documented in the
 
 ### Using the Node.js REPL with advanced line-editors
 
-For advanced line-editors, start Node.js with the environmental variable
+For advanced line-editors, start Node.js with the environment variable
 `NODE_NO_READLINE=1`. This will start the main and debugger REPL in canonical
 terminal settings which will allow you to use with `rlwrap`.
 
