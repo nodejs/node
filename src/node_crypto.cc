@@ -1424,24 +1424,37 @@ unsigned int SecureContext::PskServerCallback(SSL *ssl,
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
 
+  MaybeLocal<String> hint_str = String::NewFromUtf8(
+    isolate,
+    identity,
+    v8::NewStringType::kNormal,
+    strlen(identity));
+
+  if (hint_str.IsEmpty()) {
+    return 0;
+  }
+
   Local<Value> argv[] = {
-    String::NewFromUtf8(isolate,
-                        identity,
-                        String::kNormalString,
-                        strlen(identity)),
+    hint_str.ToLocalChecked(),
     Integer::NewFromUnsigned(isolate, max_psk_len),
     Integer::NewFromUnsigned(isolate, 0)
   };
 
   Local<Value> value = sc->object()->Get(env->onpskexchange_string());
 
-  Local<Value> ret;
+  MaybeLocal<Value> maybe_ret;
   if (value->IsFunction()) {
     Local<Function> func = Local<Function>::Cast(value);
-    ret = func->Call(sc->object(), arraysize(argv), argv);
+    maybe_ret = func->Call(env->context(), sc->object(), arraysize(argv), argv);
   } else {
     return 0;
   }
+
+  if (maybe_ret.IsEmpty()) {
+    return 0;
+  }
+
+  Local<Value> ret = maybe_ret.ToLocalChecked();
 
   // The result is expected to be an object. If it isn't, then return 0,
   // indicating the identity wasn't found.
@@ -1479,20 +1492,33 @@ unsigned int SecureContext::PskClientCallback(SSL *ssl,
     Integer::NewFromUnsigned(isolate, max_identity_len)
   };
   if (hint != nullptr) {
-    argv[0] = String::NewFromUtf8(isolate,
-                                  hint,
-                                  String::kNormalString,
-                                  strlen(hint));
+    MaybeLocal<String> hint_str = String::NewFromUtf8(
+      isolate,
+      hint,
+      v8::NewStringType::kNormal,
+      strlen(hint));
+
+    if (hint_str.IsEmpty()) {
+      return 0;
+    }
+
+    argv[0] = hint_str.ToLocalChecked();
   }
   Local<Value> value = sc->object()->Get(env->onpskexchange_string());
 
-  Local<Value> ret;
+  MaybeLocal<Value> maybe_ret;
   if (value->IsFunction()) {
     Local<Function> func = Local<Function>::Cast(value);
-    ret = func->Call(sc->object(), arraysize(argv), argv);
+    maybe_ret = func->Call(env->context(), sc->object(), arraysize(argv), argv);
   } else {
     return 0;
   }
+
+  if (maybe_ret.IsEmpty()) {
+    return 0;
+  }
+
+  Local<Value> ret = maybe_ret.ToLocalChecked();
 
   // The result is expected to be an object. If it isn't, then return 0,
   // indicating the identity wasn't found.
