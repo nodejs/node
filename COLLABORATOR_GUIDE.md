@@ -8,7 +8,7 @@
    - [Internal vs. Public API](#internal-vs-public-api)
    - [Breaking Changes](#breaking-changes)
    - [Deprecations](#deprecations)
-   - [Involving the CTC](#involving-the-ctc)
+   - [Involving the TSC](#involving-the-TSC)
 * [Landing Pull Requests](#landing-pull-requests)
    - [Technical HOWTO](#technical-howto)
    - [I Just Made a Mistake](#i-just-made-a-mistake)
@@ -30,7 +30,7 @@ pull requests to the Node.js project.
 Collaborators should feel free to take full responsibility for
 managing issues and pull requests they feel qualified to handle, as
 long as this is done while being mindful of these guidelines, the
-opinions of other Collaborators and guidance of the CTC.
+opinions of other Collaborators and guidance of the TSC.
 
 Collaborators may **close** any issue or pull request they believe is
 not relevant for the future of the Node.js project. Where this is
@@ -46,7 +46,7 @@ necessary.
 
 All modifications to the Node.js code and documentation should be
 performed via GitHub pull requests, including modifications by
-Collaborators and CTC members.
+Collaborators and TSC members.
 
 All pull requests must be reviewed and accepted by a Collaborator with
 sufficient expertise who is able to take full responsibility for the
@@ -70,16 +70,16 @@ For non-breaking changes, if there is no disagreement amongst
 Collaborators, a pull request may be landed given appropriate review.
 Where there is discussion amongst Collaborators, consensus should be
 sought if possible. The lack of consensus may indicate the need to
-elevate discussion to the CTC for resolution (see below).
+elevate discussion to the TSC for resolution (see below).
 
 Breaking changes (that is, pull requests that require an increase in
 the major version number, known as `semver-major` changes) must be
-elevated for review by the CTC. This does not necessarily mean that the
-PR must be put onto the CTC meeting agenda. If multiple CTC members
+elevated for review by the TSC. This does not necessarily mean that the
+PR must be put onto the TSC meeting agenda. If multiple TSC members
 approve (`LGTM`) the PR and no Collaborators oppose the PR, it can be
-landed. Where there is disagreement among CTC members or objections
+landed. Where there is disagreement among TSC members or objections
 from one or more Collaborators, `semver-major` pull requests should be
-put on the CTC meeting agenda.
+put on the TSC meeting agenda.
 
 All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
@@ -150,7 +150,7 @@ Exception to each of these points can be made if use or behavior of a given
 internal API can be demonstrated to be sufficiently relied upon by the Node.js
 ecosystem such that any changes would cause too much breakage. The threshold
 for what qualifies as "too much breakage" is to be decided on a case-by-case
-basis by the CTC.
+basis by the TSC.
 
 If it is determined that a currently undocumented object, property, method,
 argument, or event *should* be documented, then a pull request adding the
@@ -171,7 +171,7 @@ making and reviewing such changes. Before landing such commits, an effort
 must be made to determine the potential impact of the change in the ecosystem
 by analyzing current use and by validating such changes through ecosystem
 testing using the [Canary in the Goldmine](https://github.com/nodejs/citgm)
-tool. If a change cannot be made without ecosystem breakage, then CTC review is
+tool. If a change cannot be made without ecosystem breakage, then TSC review is
 required before landing the change as anything less than semver-major.
 
 If a determination is made that a particular internal API (for instance, an
@@ -183,7 +183,7 @@ breaking changes are made.
 ### Breaking Changes
 
 Backwards-incompatible changes may land on the master branch at any time after
-sufficient review by collaborators and approval of at least two CTC members.
+sufficient review by collaborators and approval of at least two TSC members.
 
 Examples of breaking changes include, but are not necessarily limited to,
 removal or redefinition of existing API arguments, changing return values
@@ -209,7 +209,7 @@ Exception to this rule is given in the following cases:
 Such changes *must* be handled as semver-major changes but MAY be landed
 without a [Deprecation cycle](#deprecation-cycle).
 
-From time-to-time, in particularly exceptional cases, the CTC may be asked to
+From time-to-time, in particularly exceptional cases, the TSC may be asked to
 consider and approve additional exceptions to this rule.
 
 Purely additive changes (e.g. adding new events to EventEmitter
@@ -244,7 +244,7 @@ Specifically:
   * Resolving critical security issues.
   * Fixing a critical bug (e.g. fixing a memory leak) requires a breaking
     change.
-  * There is CTC consensus that the change is required.
+  * There is TSC consensus that the change is required.
 * If a breaking commit does accidentally land in a Current or LTS branch, an
   attempt to fix the issue will be made before the next release; If no fix is
   provided then the commit will be reverted.
@@ -320,7 +320,7 @@ operation of running code and therefore should not be viewed as breaking
 changes.
 
 Runtime Deprecations and End-of-life APIs (internal or public) *must* be
-handled as semver-major changes unless there is CTC consensus to land the
+handled as semver-major changes unless there is TSC consensus to land the
 deprecation as a semver-minor.
 
 All Documentation-Only and Runtime deprecations will be assigned a unique
@@ -346,10 +346,10 @@ request adding the deprecation lands in master). All deprecations included in
 a Node.js release should be listed prominently in the "Notable Changes" section
 of the release notes.
 
-### Involving the CTC
+### Involving the TSC
 
-Collaborators may opt to elevate pull requests or issues to the CTC for
-discussion by assigning the `ctc-review` label. This should be done
+Collaborators may opt to elevate pull requests or issues to the TSC for
+discussion by assigning the `tsc-review` label. This should be done
 where a pull request:
 
 - has a significant impact on the codebase,
@@ -357,7 +357,7 @@ where a pull request:
 - has failed to reach consensus amongst the Collaborators who are
   actively participating in the discussion.
 
-The CTC should serve as the final arbiter where required.
+The TSC should serve as the final arbiter where required.
 
 ## Landing Pull Requests
 
@@ -567,7 +567,7 @@ git push upstream master
 
 ### I Just Made a Mistake
 
-* Ping a CTC member.
+* Ping a TSC member.
 * `#node-dev` on freenode
 * With `git`, there's a way to override remote trees by force pushing
 (`git push -f`). This should generally be seen as forbidden (since
@@ -596,9 +596,9 @@ Once a Current branch enters LTS, changes in that branch are limited to bug
 fixes, security updates, possible npm updates, documentation updates, and
 certain performance improvements that can be demonstrated to not break existing
 applications. Semver-minor changes are only permitted if required for bug fixes
-and then only on a case-by-case basis with LTS WG and possibly Core Technical
-Committee (CTC) review. Semver-major changes are permitted only if required for
-security related fixes.
+and then only on a case-by-case basis with LTS WG and possibly Technical
+Steering Committee (TSC) review. Semver-major changes are permitted only if
+required for security related fixes.
 
 Once a Current branch moves into Maintenance mode, only **critical** bugs,
 **critical** security fixes, and documentation updates will be permitted.
@@ -606,7 +606,7 @@ Once a Current branch moves into Maintenance mode, only **critical** bugs,
 #### Landing semver-minor commits in LTS
 
 The default policy is to not land semver-minor or higher commits in any LTS
-branch. However, the LTS WG or CTC can evaluate any individual semver-minor
+branch. However, the LTS WG or TSC can evaluate any individual semver-minor
 commit and decide whether a special exception ought to be made. It is
 expected that such exceptions would be evaluated, in part, on the scope
 and impact of the changes on the code, the risk to ecosystem stability
@@ -616,7 +616,7 @@ commit will have for the ecosystem.
 Any collaborator who feels a semver-minor commit should be landed in an LTS
 branch should attach the `lts-agenda` label to the pull request. The LTS WG
 will discuss the issue and, if necessary, will escalate the issue up to the
-CTC for further discussion.
+TSC for further discussion.
 
 #### How are LTS Branches Managed?
 
