@@ -1445,9 +1445,9 @@ added: v8.0.0
 -->
 
 * `callback` {Function} Call this function (optionally with an error
-  argument) when you are done writing any remaining data.
+  argument) when finished writing any remaining data.
 
-Note: `_final()` **must not** be called directly.  It MAY be implemented
+The `_final()` method **must not** be called directly. It may be implemented
 by child classes, and if so, will be called by the internal Writable
 class methods only.
 

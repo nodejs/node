@@ -25,7 +25,7 @@ const assert = require('assert');
 const { execSync } = require('child_process');
 
 const errorMessagesByPlatform = {
-  win32: ['%1 is not a valid Win32 application'],
+  win32: ['is not a valid Win32 application'],
   linux: ['file too short', 'Exec format error'],
   sunos: ['unknown file type', 'not an ELF file'],
   darwin: ['file too short'],
