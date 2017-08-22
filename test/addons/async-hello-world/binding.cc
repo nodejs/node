@@ -44,7 +44,7 @@ void AfterAsync(uv_work_t* r) {
   v8::Local<v8::Object> global = isolate->GetCurrentContext()->Global();
   v8::Local<v8::Function> callback =
       v8::Local<v8::Function>::New(isolate, req->callback);
-  
+
   if (use_makecallback) {
     v8::Local<v8::Value> ret =
         node::MakeCallback(isolate, global, callback, 2, argv);
@@ -62,6 +62,7 @@ void AfterAsync(uv_work_t* r) {
     node::FatalException(isolate, try_catch);
   }
 }
+
 template <bool use_makecallback>
 void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
