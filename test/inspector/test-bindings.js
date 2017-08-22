@@ -33,14 +33,25 @@ function debuggerPausedCallback(session, notification) {
   checkScope(session, scopeId);
 }
 
-function testNoCrashWithExceptionInCallback() {
+function waitForWarningSkipAsyncStackTraces(resolve) {
+  process.once('warning', function(warning) {
+    if (warning.code === 'INSPECTOR_ASYNC_STACK_TRACES_NOT_AVAILABLE') {
+      waitForWarningSkipAsyncStackTraces(resolve);
+    } else {
+      resolve(warning);
+    }
+  });
+}
+
+async function testNoCrashWithExceptionInCallback() {
   // There is a deliberate exception in the callback
   const session = new inspector.Session();
   session.connect();
   const error = new Error('We expect this');
-  assert.throws(() => {
-    session.post('Console.enable', () => { throw error; });
-  }, (e) => e === error);
+  console.log('Expecting warning to be emitted');
+  const promise = new Promise(waitForWarningSkipAsyncStackTraces);
+  session.post('Console.enable', () => { throw error; });
+  assert.strictEqual(await promise, error);
   session.disconnect();
 }
 
@@ -97,10 +108,33 @@ function testSampleDebugSession() {
   assert.throws(() => session.post('Debugger.enable'), (e) => !!e);
 }
 
-testNoCrashWithExceptionInCallback();
-testSampleDebugSession();
-let breakpointHit = false;
-scopeCallback = () => (breakpointHit = true);
-debuggedFunction();
-assert.strictEqual(breakpointHit, false);
-testSampleDebugSession();
+async function testNoCrashConsoleLogBeforeThrow() {
+  const session = new inspector.Session();
+  session.connect();
+  let attempt = 1;
+  process.on('warning', common.mustCall(3));
+  session.on('inspectorNotification', () => {
+    if (attempt++ > 3)
+      return;
+    console.log('console.log in handler');
+    throw new Error('Exception in handler');
+  });
+  session.post('Runtime.enable');
+  console.log('Did not crash');
+  session.disconnect();
+}
+
+common.crashOnUnhandledRejection();
+
+async function doTests() {
+  await testNoCrashWithExceptionInCallback();
+  testSampleDebugSession();
+  let breakpointHit = false;
+  scopeCallback = () => (breakpointHit = true);
+  debuggedFunction();
+  assert.strictEqual(breakpointHit, false);
+  testSampleDebugSession();
+  await testNoCrashConsoleLogBeforeThrow();
+}
+
+doTests();
