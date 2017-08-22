@@ -1,10 +1,8 @@
 'use strict';
 const common = require('../common');
 
-if (!common.opensslCli) {
-  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
-  return;
-}
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
 const assert = require('assert');
 
@@ -14,8 +12,6 @@ const spawn = require('child_process').spawn;
 const CIPHERS = 'PSK+HIGH';
 const KEY = 'd731ef57be09e5204f0b205b60627028';
 const IDENTITY = 'TestUser';
-
-let connections = 0;
 
 const server = tls.createServer({
   ciphers: CIPHERS,
@@ -29,9 +25,7 @@ const server = tls.createServer({
   }
 });
 
-server.on('connection', (socket) => {
-  connections++;
-});
+server.on('connection', common.mustCall((socket) => {}, 1));
 
 server.on('secureConnection', (socket) => {
   socket.write('hello\r\n');
@@ -80,7 +74,6 @@ server.listen(common.PORT, () => {
 });
 
 process.on('exit', () => {
-  assert.strictEqual(1, connections);
   assert.ok(gotHello);
   assert.ok(sentWorld);
   assert.ok(gotWorld);

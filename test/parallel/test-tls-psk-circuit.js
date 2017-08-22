@@ -1,10 +1,8 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
-  return;
-}
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
 const assert = require('assert');
 const tls = require('tls');
@@ -25,7 +23,6 @@ const CLIENT_IDENTITIES = [
 ];
 const TEST_DATA = 'Hello from test!';
 
-let serverConnections = 0;
 const clientResults = [];
 const connectingIds = [];
 
@@ -39,13 +36,12 @@ const serverOptions = {
   }
 };
 
-const server = tls.createServer(serverOptions, (c) => {
-  serverConnections++;
+const server = tls.createServer(serverOptions, common.mustCall((c) => {
   c.once('data', (data) => {
     assert.strictEqual(data.toString(), TEST_DATA);
     c.end(data);
   });
-});
+}, 3));
 server.listen(common.PORT, startTest);
 
 function startTest() {
@@ -89,7 +85,6 @@ function startTest() {
 }
 
 process.on('exit', () => {
-  assert.strictEqual(serverConnections, 3);
   assert.deepStrictEqual(clientResults, [
     'connect', 'connect', 'socket hang up', 'socket hang up', 'connect'
   ]);
