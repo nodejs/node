@@ -1446,28 +1446,21 @@ unsigned int SecureContext::PskServerCallback(SSL* ssl,
                                                    argv,
                                                    {0, 0});
 
-  if (maybe_ret.IsEmpty())
-    return 0;
 
-  Local<Value> ret = maybe_ret.ToLocalChecked();
-
-  // The result is expected to be an object. If it isn't, then return 0,
-  // indicating the identity wasn't found.
-  if (!ret->IsObject()) {
+  Local<Value> ret;
+  if (!maybe_ret.ToLocal(&ret) || !ret->IsObject())
     return 0;
-  }
   Local<Object> obj = ret.As<Object>();
 
-  Local<Value> psk_val = obj->Get(env->context(),
-                                  env->psk_string()).ToLocalChecked();
-  if (!psk_val->IsString())
+  MaybeLocal<Value> maybe_psk_val = obj->Get(env->context(), env->psk_string());
+  Local<Value> psk_val;
+  if (!maybe_psk_val.ToLocal(&psk_val) || !psk_val->IsString())
     return 0;
-
   Local<String> psk_str = psk_val.As<String>();
 
   Local<String> enc = String::Empty(isolate);
   StringBytes::InlineDecoder decoder;
-  if (!decoder.Decode(env, psk_str, enc, HEX))
+  if (!decoder.Decode(env, psk_str, enc, HEX).FromMaybe(false))
     return 0;
 
   char* psk_buf = decoder.out();
@@ -1518,28 +1511,20 @@ unsigned int SecureContext::PskClientCallback(SSL* ssl,
                                                    argv,
                                                    {0, 0});
 
-  if (maybe_ret.IsEmpty())
+  Local<Value> ret;
+  if (!maybe_ret.ToLocal(&ret) || !ret->IsObject())
     return 0;
-
-  Local<Value> ret = maybe_ret.ToLocalChecked();
-
-  // The result is expected to be an object. If it isn't, then return 0,
-  // indicating the identity wasn't found.
-  if (!ret->IsObject())
-    return 0;
-
   Local<Object> obj = ret.As<Object>();
 
-  Local<Value> psk_val = obj->Get(env->context(),
-                                  env->psk_string()).ToLocalChecked();
-  if (!psk_val->IsString())
+  MaybeLocal<Value> maybe_psk_val = obj->Get(env->context(), env->psk_string());
+  Local<Value> psk_val;
+  if (!maybe_psk_val.ToLocal(&psk_val) || !psk_val->IsString())
     return 0;
-
   Local<String> psk_str = psk_val.As<String>();
 
   Local<String> enc = String::Empty(isolate);
   StringBytes::InlineDecoder decoder;
-  if (!decoder.Decode(env, psk_str, enc, HEX))
+  if (!decoder.Decode(env, psk_str, enc, HEX).FromMaybe(false))
     return 0;
 
   char* psk_buf = decoder.out();
@@ -1550,13 +1535,13 @@ unsigned int SecureContext::PskClientCallback(SSL* ssl,
 
   memcpy(psk, psk_buf, psk_len);
 
-  Local<Value> identity_val = obj->Get(
-    env->context(),
-    env->identity_string()).ToLocalChecked();
-  if (!identity_val->IsString())
+  MaybeLocal<Value> maybe_identity_val =
+      obj->Get(env->context(), env->identity_string());
+  Local<Value> identity_val;
+  if (!maybe_identity_val.ToLocal(&identity_val) || !identity_val->IsString())
     return 0;
-
   Local<String> identity_str = identity_val.As<String>();
+
   size_t identity_len = identity_str->Length();
   String::Utf8Value identity_buf(isolate, identity_str);
 

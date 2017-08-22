@@ -53,15 +53,8 @@
 #include <openssl/rand.h>
 #include <openssl/pkcs12.h>
 
-#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
-# define NODE__HAVE_TLSEXT_STATUS_CB
-#endif  // !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
-
-// TLS-PSK support requires OpenSSL v1.0.0 or later built with PSK enabled
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
 #ifndef OPENSSL_NO_PSK
 #define OPENSSL_PSK_SUPPORT
-#endif
 #endif
 
 namespace node {
@@ -191,15 +184,15 @@ class SecureContext : public BaseObject {
   static void EnablePskCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static unsigned int PskServerCallback(SSL *ssl,
-                                        const char *identity,
-                                        unsigned char *psk,
+  static unsigned int PskServerCallback(SSL* ssl,
+                                        const char* identity,
+                                        unsigned char* psk,
                                         unsigned int max_psk_len);
-  static unsigned int PskClientCallback(SSL *ssl,
-                                        const char *hint,
-                                        char *identity,
+  static unsigned int PskClientCallback(SSL* ssl,
+                                        const char* hint,
+                                        char* identity,
                                         unsigned int max_identity_len,
-                                        unsigned char *psk,
+                                        unsigned char* psk,
                                         unsigned int max_psk_len);
 #endif
 

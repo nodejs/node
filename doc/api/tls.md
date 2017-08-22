@@ -912,13 +912,12 @@ changes:
     client should continue to negotiate PSK ciphers, the return value of this
     function must be an object in the form `{psk: <string>, identity:
     <string>}`.
-    * *Note*: PSK ciphers are disabled by default, and using
-    TLS-PSK thus requires explicitly specifying a cipher suite with the
-    `ciphers` option. Additionally, it may be necessary to disable
-    `rejectUnauthorized` if a client attempts to specify a certificate for the
-    session.
-    * *Note*: `psk` must be a hexadecimal string,
-    `identity` must use UTF-8 encoding.
+    Note that PSK ciphers are disabled by default, and using TLS-PSK thus
+    requires explicitly specifying a cipher suite with the `ciphers` option.
+    Additionally, it may be necessary to disable `rejectUnauthorized` if a
+    client attempts to specify a certificate for the session.
+    Note that `psk` must be a hexadecimal string, `identity` must use UTF-8
+    encoding.
   * `ALPNProtocols`: {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing the supported ALPN protocols. `Buffer`s should have
@@ -1202,7 +1201,7 @@ changes:
   * `ticketKeys`: A 48-byte `Buffer` instance consisting of a 16-byte prefix,
     a 16-byte HMAC key, and a 16-byte AES key. This can be used to accept TLS
     session tickets on multiple instances of the TLS server.
-  * ...: Any [`tls.createSecureContext()`][] options can be provided. For
+  * ...: Any [`tls.createSecureContext()`][] option can be provided. For
     servers, the identity options (`pfx`, `key`/`cert` or `pskCallback`)
     are usually required.
 * `secureConnectionListener` {Function}
