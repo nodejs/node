@@ -68,6 +68,8 @@ using v8::DontDelete;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::External;
+using v8::False;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -1420,17 +1422,26 @@ unsigned int SecureContext::PskServerCallback(SSL *ssl,
 
   Environment* env = sc->env();
   Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
 
   Local<Value> argv[] = {
-    String::NewFromUtf8(isolate, identity),
+    String::NewFromUtf8(isolate,
+                        identity,
+                        String::kNormalString,
+                        strlen(identity)),
     Integer::NewFromUnsigned(isolate, max_psk_len),
     Integer::NewFromUnsigned(isolate, 0)
   };
-  Local<Value> ret = node::MakeCallback(env->isolate(),
-                                        sc->object(),
-                                        env->onpskexchange_string(),
-                                        arraysize(argv),
-                                        argv);
+
+  Local<Value> value = sc->object()->Get(env->onpskexchange_string());
+
+  Local<Value> ret;
+  if (value->IsFunction()) {
+    Local<Function> func = Local<Function>::Cast(value);
+    ret = func->Call(sc->object(), arraysize(argv), argv);
+  } else {
+    return 0;
+  }
 
   // The result is expected to be an object. If it isn't, then return 0,
   // indicating the identity wasn't found.
@@ -1439,10 +1450,11 @@ unsigned int SecureContext::PskServerCallback(SSL *ssl,
   }
   Local<Object> obj = ret.As<Object>();
 
-  Local<Value> psk_buf = obj->Get(env->psk_string());
-  assert(Buffer::HasInstance(psk_buf));
+  Local<Value> psk_buf = obj->Get(env->context(),
+                                  env->psk_string()).ToLocalChecked();
+  CHECK(psk_buf->IsArrayBufferView());
   size_t psk_len = Buffer::Length(psk_buf);
-  assert(psk_len <= max_psk_len);
+  CHECK_LE(psk_len, max_psk_len);
   memcpy(psk, Buffer::Data(psk_buf), max_psk_len);
 
   return psk_len;
@@ -1459,6 +1471,7 @@ unsigned int SecureContext::PskClientCallback(SSL *ssl,
 
   Environment* env = sc->env();
   Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
 
   Local<Value> argv[] = {
     Null(isolate),
@@ -1466,13 +1479,20 @@ unsigned int SecureContext::PskClientCallback(SSL *ssl,
     Integer::NewFromUnsigned(isolate, max_identity_len)
   };
   if (hint != nullptr) {
-    argv[0] = String::NewFromUtf8(isolate, hint);
+    argv[0] = String::NewFromUtf8(isolate,
+                                  hint,
+                                  String::kNormalString,
+                                  strlen(hint));
   }
-  Local<Value> ret = node::MakeCallback(env->isolate(),
-                                        sc->object(),
-                                        env->onpskexchange_string(),
-                                        arraysize(argv),
-                                        argv);
+  Local<Value> value = sc->object()->Get(env->onpskexchange_string());
+
+  Local<Value> ret;
+  if (value->IsFunction()) {
+    Local<Function> func = Local<Function>::Cast(value);
+    ret = func->Call(sc->object(), arraysize(argv), argv);
+  } else {
+    return 0;
+  }
 
   // The result is expected to be an object. If it isn't, then return 0,
   // indicating the identity wasn't found.
