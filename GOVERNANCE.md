@@ -8,10 +8,17 @@ Committee (CTC) which is responsible for high-level guidance of the project.
 The [nodejs/node](https://github.com/nodejs/node) GitHub repository is
 maintained by Collaborators who are added by the CTC on an ongoing basis.
 
+A Collaborator is defined as any individual having commit access to any
+respository in the Node.js GitHub Organization.
+
 Individuals identified by the CTC as making significant and valuable
-contributions are made Collaborators and given commit access to the project. If
-you make a significant contribution and are not considered for commit access,
-log an issue or contact a CTC member directly.
+contributions across any Node.js repository may be made Collaborators and given
+commit access to the project. Consideration should be given to more than just
+code commits and pull requests. Responding to issues, contributing to
+documentation, work on the website and various community efforts should be
+considered as well. If individuals making such contributions do not believe
+they have been considered for commit access, they may log an issue or contact a
+CTC member directly.
 
 Modifications of the contents of the nodejs/node repository are made on
 a collaborative basis. Anybody with a GitHub account may propose a
