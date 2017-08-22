@@ -43,7 +43,7 @@ onboarding session.
     * Use [https://github.com/notifications](https://github.com/notifications) or set up email
     * Watching the main repo will flood your inbox (several hundred notifications on typical weekdays), so be prepared
 
-  * `#node-dev` on [webchat.freenode.net](https://webchat.freenode.net/) is the best place to interact with the CTC / other Collaborators
+  * `#node-dev` on [webchat.freenode.net](https://webchat.freenode.net/) is the best place to interact with the TSC / other Collaborators
     * If there are any questions after the session, a good place to ask is there!
     * Presence is not mandatory, but please drop a note there if force-pushing to `master`
 
@@ -67,7 +67,7 @@ onboarding session.
 
   * [**See "Labels"**](./onboarding-extras.md#labels)
     * There is [a bot](https://github.com/nodejs-github-bot/github-bot) that applies subsystem labels (for example, `doc`, `test`, `assert`, or `buffer`) so that we know what parts of the code base the pull request modifies. It is not perfect, of course. Feel free to apply relevant labels and remove irrelevant labels from pull requests and issues.
-    * Use the `ctc-review` label if a topic is controversial or isn't coming to
+    * Use the `tsc-review` label if a topic is controversial or isn't coming to
       a conclusion after an extended time.
     * `semver-{minor,major}`:
       * If a change has the remote *chance* of breaking something, use the `semver-major` label
@@ -166,7 +166,7 @@ onboarding session.
   * Almost any mistake you could make can be fixed or reverted.
   * The existing Collaborators trust you and are grateful for your help!
   * Other repositories:
-    * [https://github.com/nodejs/CTC](https://github.com/nodejs/CTC)
+    * [https://github.com/nodejs/TSC](https://github.com/nodejs/TSC)
     * [https://github.com/nodejs/build](https://github.com/nodejs/build)
     * [https://github.com/nodejs/nodejs.org](https://github.com/nodejs/nodejs.org)
     * [https://github.com/nodejs/readable-stream](https://github.com/nodejs/readable-stream)
