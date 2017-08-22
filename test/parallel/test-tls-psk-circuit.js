@@ -62,7 +62,7 @@ function startTest() {
       client.on('close', next);
     });
 
-    let errored = false
+    let errored = false;
     client.on('error', (err) => {
       if (!errored) {
         clientResults.push(err.message);
