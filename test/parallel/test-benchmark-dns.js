@@ -15,7 +15,9 @@ const env = Object.assign({}, process.env,
                           { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
 
 const child = fork(runjs,
-                   ['--set', 'n=5e4',
+                   ['--set', 'n=1',
+                    '--set', 'all=false',
+                    '--set', 'name=127.0.0.1',
                     'dns'],
                    { env });
 

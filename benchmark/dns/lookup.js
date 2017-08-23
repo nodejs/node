@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {
 function main(conf) {
   const name = conf.name;
   const n = +conf.n;
-  const all = !!conf.all;
+  const all = conf.all === 'true' ? true : false;
   var i = 0;
 
   if (all) {
