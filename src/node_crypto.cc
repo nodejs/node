@@ -1463,12 +1463,21 @@ unsigned int SecureContext::PskServerCallback(SSL *ssl,
   }
   Local<Object> obj = ret.As<Object>();
 
-  Local<Value> psk_buf = obj->Get(env->context(),
+  Local<Value> psk_val = obj->Get(env->context(),
                                   env->psk_string()).ToLocalChecked();
-  CHECK(psk_buf->IsArrayBufferView());
-  size_t psk_len = Buffer::Length(psk_buf);
+  CHECK(psk_val->IsString());
+  Local<String> psk_str = psk_val.As<String>();
+
+  Local<String> enc = String::Empty(isolate);
+  StringBytes::InlineDecoder decoder;
+  if (!decoder.Decode(env, psk_str, enc, HEX))
+    return 0;
+
+  char* psk_buf = decoder.out();
+  size_t psk_len = decoder.size();
+
   CHECK_LE(psk_len, max_psk_len);
-  memcpy(psk, Buffer::Data(psk_buf), max_psk_len);
+  memcpy(psk, psk_buf, psk_len);
 
   return psk_len;
 }
@@ -1527,18 +1536,33 @@ unsigned int SecureContext::PskClientCallback(SSL *ssl,
   }
   Local<Object> obj = ret.As<Object>();
 
-  Local<Value> psk_buf = obj->Get(env->psk_string());
-  CHECK(psk_buf->IsArrayBufferView());
-  size_t psk_len = Buffer::Length(psk_buf);
-  CHECK_LE(psk_len, max_psk_len);
-  memcpy(psk, Buffer::Data(psk_buf), psk_len);
+  Local<Value> psk_val = obj->Get(env->context(),
+                                  env->psk_string()).ToLocalChecked();
+  CHECK(psk_val->IsString());
+  Local<String> psk_str = psk_val.As<String>();
 
-  Local<Value> identity_buf = obj->Get(env->identity_string());
-  CHECK(identity_buf->IsArrayBufferView());
-  size_t identity_len = Buffer::Length(identity_buf);
+  Local<String> enc = String::Empty(isolate);
+  StringBytes::InlineDecoder decoder;
+  if (!decoder.Decode(env, psk_str, enc, HEX))
+    return 0;
+
+  char* psk_buf = decoder.out();
+  size_t psk_len = decoder.size();
+
+  CHECK_LE(psk_len, max_psk_len);
+  memcpy(psk, psk_buf, psk_len);
+
+  Local<Value> identity_val = obj->Get(
+    env->context(),
+    env->identity_string()).ToLocalChecked();
+  CHECK(identity_val->IsString());
+
+  Local<String> identity_str = identity_val.As<String>();
+  size_t identity_len = identity_str->Length();
+  String::Utf8Value identity_buf(identity_str);
+
   CHECK_LE(identity_len, max_identity_len);
-  memcpy(identity, Buffer::Data(identity_buf), identity_len);
-  assert(identity[identity_len - 1] == '\0');
+  memcpy(identity, *identity_buf, identity_len);
 
   return psk_len;
 }
