@@ -10,6 +10,7 @@ const configs = {
 };
 
 const bench = common.createBenchmark(main, configs);
+const noop = () => {};
 
 function main(conf) {
   const n = +conf.n;
@@ -20,7 +21,7 @@ function main(conf) {
     bench.start();
     for (let i = 0; i < n; i++) {
       dgram.createSocket('udp4').bind(port, address)
-        .on('error', () => {})
+        .on('error', noop)
         .unref();
     }
     bench.end(n);
@@ -29,7 +30,7 @@ function main(conf) {
     for (let i = 0; i < n; i++) {
       dgram.createSocket('udp4')
         .bind(port)
-        .on('error', () => {})
+        .on('error', noop)
         .unref();
     }
     bench.end(n);
@@ -38,7 +39,7 @@ function main(conf) {
     for (let i = 0; i < n; i++) {
       dgram.createSocket('udp4')
         .bind()
-        .on('error', () => {})
+        .on('error', noop)
         .unref();
     }
     bench.end(n);
