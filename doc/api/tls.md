@@ -913,14 +913,14 @@ changes:
   * `pskCallback(hint)` {Function} When negotiating TLS-PSK, this optional
     function is called with the identity hint provided by the server. If the
     client should continue to negotiate PSK ciphers, the return value of this
-    function must be an object in the form `{psk: <string|buffer>, identity:
+    function must be an object in the form `{psk: <string>, identity:
     <string>}`.
     * *Note*: PSK ciphers are disabled by default, and using
     TLS-PSK thus requires explicitly specifying a cipher suite with the
     `ciphers` option. Additionally, it may be necessary to disable
     `rejectUnauthorized` if a client attempts to specify a certificate for the
     session.
-    * *Note*: `identity` must use UTF-8 encoding.
+    * *Note*: `psk` must be a hexadecimal string, `identity` must use UTF-8 encoding.
   * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
@@ -1369,12 +1369,17 @@ changes:
   certificate from a connecting client. Only applies when `isServer` is `true`.
 * `rejectUnauthorized` {boolean} If not `false` a server automatically reject
   clients with invalid certificates. Only applies when `isServer` is `true`.
-* `pskCallback(identity)` {Function} When negotiating TLS-PSK, this optional
-  function is called with the identity provided by the client. If the server
-  should continue to negotiate PSK ciphers, the return value of this function
-  must be an object in the form `{psk: <string|buffer>}`. Note that PSK ciphers
-  are disabled by default, and using TLS-PSK thus requires explicitly
-  specifying a cipher suite with the `ciphers` option.
+* `pskCallback(hint)` {Function} When negotiating TLS-PSK, this optional
+   function is called with the identity hint provided by the server. If the
+   client should continue to negotiate PSK ciphers, the return value of this
+   function must be an object in the form `{psk: <string>, identity:
+   <string>}`.
+   * *Note*: PSK ciphers are disabled by default, and using
+   TLS-PSK thus requires explicitly specifying a cipher suite with the
+   `ciphers` option. Additionally, it may be necessary to disable
+   `rejectUnauthorized` if a client attempts to specify a certificate for the
+   session.
+   * *Note*: `psk` must be a hexadecimal string.
 * `pskIdentity`: {string} The identity hint to send to clients when
   negotiating TLS-PSK.
   * *Note*: Must use UTF-8 encoding.

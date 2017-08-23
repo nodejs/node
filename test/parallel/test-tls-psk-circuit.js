@@ -9,8 +9,8 @@ const tls = require('tls');
 
 const CIPHERS = 'PSK+HIGH';
 const USERS = {
-  UserA: Buffer.from('d731ef57be09e5204f0b205b60627028', 'hex'),
-  UserB: Buffer.from('82072606b502b0f4025e90eb75fe137d', 'hex')
+  UserA: 'd731ef57be09e5204f0b205b60627028',
+  UserB: '82072606b502b0f4025e90eb75fe137d'
 };
 const CLIENT_IDENTITIES = [
   { psk: USERS.UserA, identity: 'UserA' },

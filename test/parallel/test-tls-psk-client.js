@@ -53,7 +53,6 @@ server.stdout.on('data', (s) => {
   }
 });
 
-
 const timeout = setTimeout(() => {
   server.kill();
   process.exit(1);
@@ -76,7 +75,7 @@ function startClient() {
       if (hint === IDENTITY) {
         return {
           identity: IDENTITY,
-          psk: Buffer.from(KEY, 'hex')
+          psk: KEY
         };
       }
     }

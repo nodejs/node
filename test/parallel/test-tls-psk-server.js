@@ -19,7 +19,7 @@ const server = tls.createServer({
   pskCallback(identity) {
     if (identity === IDENTITY) {
       return {
-        psk: Buffer.from(KEY, 'hex')
+        psk: KEY
       };
     }
   }
