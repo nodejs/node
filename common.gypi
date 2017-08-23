@@ -60,9 +60,9 @@
         'V8_BASE': '<(PRODUCT_DIR)/libv8_base.a',
       }],
       ['openssl_fips != ""', {
-        'OPENSSL_PRODUCT': 'libcrypto.a',
+        'OPENSSL_PRODUCT': '<(STATIC_LIB_PREFIX)crypto<(STATIC_LIB_SUFFIX)',
       }, {
-        'OPENSSL_PRODUCT': 'libopenssl.a',
+        'OPENSSL_PRODUCT': '<(STATIC_LIB_PREFIX)openssl<(STATIC_LIB_SUFFIX)',
       }],
       ['OS=="mac"', {
         'clang%': 1,
