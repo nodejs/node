@@ -5,15 +5,15 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
 const options = {
   pfx: [
     {
-      buffer: fs.readFileSync(`${common.fixturesDir}/keys/agent1-pfx.pem`),
+      buffer: fixtures.readKey('agent1-pfx.pem'),
       passphrase: 'sample'
     },
-    fs.readFileSync(`${common.fixturesDir}/keys/ec-pfx.pem`)
+    fixtures.readKey('ec-pfx.pem')
   ]
 };
 
