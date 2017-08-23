@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 
 const assert = require('assert');
 
@@ -76,9 +76,12 @@ let options = {
   input: 1234
 };
 
+const expectedError =
+  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 1);
+
 assert.throws(function() {
   spawnSync('cat', [], options);
-}, /TypeError:.*should be Buffer, Uint8Array or string not number/);
+}, expectedError);
 
 
 options = {
