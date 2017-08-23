@@ -1208,6 +1208,19 @@ added: v8.4.0
 
 * Extends: {net.Server}
 
+In `Http2Server`, there is no `'clientError'` event as there is in
+HTTP1. However, there are `'socketError'`, `'sessionError'`,  and
+`'streamError'`, for error happened on the socket, session or stream
+respectively.
+
+#### Event: 'socketError'
+<!-- YAML
+added: v8.4.0
+-->
+
+The `'socketError'` event is emitted when a `'socketError'` event is emitted by
+an `Http2Session` associated with the server.
+
 #### Event: 'sessionError'
 <!-- YAML
 added: v8.4.0
@@ -1217,13 +1230,15 @@ The `'sessionError'` event is emitted when an `'error'` event is emitted by
 an `Http2Session` object. If no listener is registered for this event, an
 `'error'` event is emitted.
 
-#### Event: 'socketError'
+#### Event: 'streamError'
 <!-- YAML
-added: v8.4.0
+added: REPLACEME
 -->
 
-The `'socketError'` event is emitted when a `'socketError'` event is emitted by
-an `Http2Session` associated with the server.
+* `socket` {http2.ServerHttp2Stream}
+
+If an `ServerHttp2Stream` emits an `'error'` event, it will be forwarded here.
+The stream will already be destroyed when this event is triggered.
 
 #### Event: 'stream'
 <!-- YAML
