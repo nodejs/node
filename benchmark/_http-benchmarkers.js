@@ -179,7 +179,7 @@ http_benchmarkers.forEach((benchmarker) => {
   }
 });
 
-exports.run = function(options, callback) {
+exports.run = (options, callback) => {
   options = Object.assign({
     port: exports.PORT,
     path: '/',
@@ -188,19 +188,16 @@ exports.run = function(options, callback) {
     benchmarker: exports.default_http_benchmarker
   }, options);
   if (!options.benchmarker) {
-    callback(new Error('Could not locate required http benchmarker. See ' +
-                       `${requirementsURL} for further instructions.`));
+    callback(new Error(`Could not locate required http benchmarker. See ${`${requirementsURL} for further instructions.`}`));
     return;
   }
   const benchmarker = benchmarkers[options.benchmarker];
   if (!benchmarker) {
-    callback(new Error(`Requested benchmarker '${options.benchmarker}' ` +
-                       'is  not supported'));
+    callback(new Error(`${`Requested benchmarker '${options.benchmarker}' `}is  not supported`));
     return;
   }
   if (!benchmarker.present) {
-    callback(new Error(`Requested benchmarker '${options.benchmarker}' ` +
-                       'is  not installed'));
+    callback(new Error(`${`Requested benchmarker '${options.benchmarker}' `}is  not installed`));
     return;
   }
 
@@ -213,7 +210,7 @@ exports.run = function(options, callback) {
   let stdout = '';
   child.stdout.on('data', (chunk) => stdout += chunk.toString());
 
-  child.once('close', function(code) {
+  child.once('close', code => {
     const elapsed = process.hrtime(benchmarker_start);
     if (code) {
       let error_message = `${options.benchmarker} failed with ${code}.`;
