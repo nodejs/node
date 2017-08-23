@@ -42,7 +42,7 @@ typedef struct {
   nghttp2_pq_entry **q;
   /* Memory allocator */
   nghttp2_mem *mem;
-  /* The number of items sotred */
+  /* The number of items stored */
   size_t length;
   /* The maximum number of items this pq can store. This is
      automatically extended when length is reached to this value. */

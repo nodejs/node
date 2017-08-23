@@ -672,6 +672,9 @@ int nghttp2_frame_pack_altsvc(nghttp2_bufs *bufs, nghttp2_extension *frame) {
   nghttp2_buf *buf;
   nghttp2_ext_altsvc *altsvc;
 
+  /* This is required with --disable-assert. */
+  (void)rv;
+
   altsvc = frame->payload;
 
   buf = &bufs->head->buf;
