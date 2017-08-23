@@ -893,7 +893,7 @@ invoked with two arguments: an Object containing the received
 For example:
 
 ```js
-const http2 = require('http');
+const http2 = require('http2');
 const client = http2.connect('https://localhost');
 const req = client.request({ ':path': '/' });
 req.on('response', (headers, flags) => {

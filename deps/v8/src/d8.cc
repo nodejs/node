@@ -191,75 +191,64 @@ class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
   }
 };
 
-
-// Predictable v8::Platform implementation. All background and foreground
-// tasks are run immediately, delayed tasks are not executed at all.
+// Predictable v8::Platform implementation. Background tasks and idle tasks are
+// disallowed, and the time reported by {MonotonicallyIncreasingTime} is
+// deterministic.
 class PredictablePlatform : public Platform {
- public:
-  PredictablePlatform() {}
+public:
+ explicit PredictablePlatform(std::unique_ptr<Platform> platform)
+     : platform_(std::move(platform)) {
+   DCHECK_NOT_NULL(platform_);
+ }
 
-  void CallOnBackgroundThread(Task* task,
-                              ExpectedRuntime expected_runtime) override {
-    task->Run();
-    delete task;
-  }
+ void CallOnBackgroundThread(Task* task,
+                             ExpectedRuntime expected_runtime) override {
+   // It's not defined when background tasks are being executed, so we can just
+   // execute them right away.
+   task->Run();
+   delete task;
+ }
 
-  void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    task->Run();
-    delete task;
-  }
+ void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
+   platform_->CallOnForegroundThread(isolate, task);
+ }
 
-  void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
-                                     double delay_in_seconds) override {
-    delete task;
-  }
+ void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
+                                    double delay_in_seconds) override {
+   platform_->CallDelayedOnForegroundThread(isolate, task, delay_in_seconds);
+ }
 
-  void CallIdleOnForegroundThread(v8::Isolate* isolate,
-                                  IdleTask* task) override {
-    UNREACHABLE();
-  }
+ void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override {
+   UNREACHABLE();
+ }
 
-  bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
+ bool IdleTasksEnabled(Isolate* isolate) override { return false; }
 
-  double MonotonicallyIncreasingTime() override {
-    return synthetic_time_in_sec_ += 0.00001;
-  }
+ double MonotonicallyIncreasingTime() override {
+   return synthetic_time_in_sec_ += 0.00001;
+ }
 
-  v8::TracingController* GetTracingController() override {
-    return platform_->GetTracingController();
-  }
+ v8::TracingController* GetTracingController() override {
+   return platform_->GetTracingController();
+ }
 
-  using Platform::AddTraceEvent;
-  uint64_t AddTraceEvent(char phase, const uint8_t* categoryEnabledFlag,
-                         const char* name, const char* scope, uint64_t id,
-                         uint64_t bind_id, int numArgs, const char** argNames,
-                         const uint8_t* argTypes, const uint64_t* argValues,
-                         unsigned int flags) override {
-    return 0;
-  }
+ Platform* platform() const { return platform_.get(); }
 
-  void UpdateTraceEventDuration(const uint8_t* categoryEnabledFlag,
-                                const char* name, uint64_t handle) override {}
+private:
+ double synthetic_time_in_sec_ = 0.0;
+ std::unique_ptr<Platform> platform_;
 
-  const uint8_t* GetCategoryGroupEnabled(const char* name) override {
-    static uint8_t no = 0;
-    return &no;
-  }
-
-  const char* GetCategoryGroupName(
-      const uint8_t* categoryEnabledFlag) override {
-    static const char* dummy = "dummy";
-    return dummy;
-  }
-
- private:
-  double synthetic_time_in_sec_ = 0.0;
-
-  DISALLOW_COPY_AND_ASSIGN(PredictablePlatform);
+ DISALLOW_COPY_AND_ASSIGN(PredictablePlatform);
 };
 
 
 v8::Platform* g_platform = NULL;
+
+v8::Platform* GetDefaultPlatform() {
+  return i::FLAG_verify_predictable
+             ? static_cast<PredictablePlatform*>(g_platform)->platform()
+             : g_platform;
+}
 
 static Local<Value> Throw(Isolate* isolate, const char* message) {
   return isolate->ThrowException(
@@ -1389,8 +1378,6 @@ void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
                  const_cast<v8::FunctionCallbackInfo<v8::Value>*>(&args));
 }
 
-// Note that both WaitUntilDone and NotifyDone are no-op when
-// --verify-predictable. See comment in Shell::EnsureEventLoopInitialized.
 void Shell::WaitUntilDone(const v8::FunctionCallbackInfo<v8::Value>& args) {
   SetWaitUntilDone(args.GetIsolate(), true);
 }
@@ -2767,13 +2754,8 @@ void Shell::CollectGarbage(Isolate* isolate) {
 }
 
 void Shell::EnsureEventLoopInitialized(Isolate* isolate) {
-  // When using PredictablePlatform (i.e. FLAG_verify_predictable),
-  // we don't need event loop support, because tasks are completed
-  // immediately - both background and foreground ones.
-  if (!i::FLAG_verify_predictable) {
-    v8::platform::EnsureEventLoopInitialized(g_platform, isolate);
-    SetWaitUntilDone(isolate, false);
-  }
+  v8::platform::EnsureEventLoopInitialized(GetDefaultPlatform(), isolate);
+  SetWaitUntilDone(isolate, false);
 }
 
 void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
@@ -2792,29 +2774,32 @@ bool Shell::IsWaitUntilDone(Isolate* isolate) {
 }
 
 void Shell::CompleteMessageLoop(Isolate* isolate) {
-  // See comment in EnsureEventLoopInitialized.
-  if (i::FLAG_verify_predictable) return;
+  Platform* platform = GetDefaultPlatform();
   while (v8::platform::PumpMessageLoop(
-      g_platform, isolate,
+      platform, isolate,
       Shell::IsWaitUntilDone(isolate)
           ? platform::MessageLoopBehavior::kWaitForWork
           : platform::MessageLoopBehavior::kDoNotWait)) {
     isolate->RunMicrotasks();
   }
-  v8::platform::RunIdleTasks(g_platform, isolate,
-                             50.0 / base::Time::kMillisecondsPerSecond);
+  if (platform->IdleTasksEnabled(isolate)) {
+    v8::platform::RunIdleTasks(platform, isolate,
+                               50.0 / base::Time::kMillisecondsPerSecond);
+  }
 }
 
 void Shell::EmptyMessageQueues(Isolate* isolate) {
-  if (i::FLAG_verify_predictable) return;
+  Platform* platform = GetDefaultPlatform();
   // Pump the message loop until it is empty.
   while (v8::platform::PumpMessageLoop(
-      g_platform, isolate, platform::MessageLoopBehavior::kDoNotWait)) {
+      platform, isolate, platform::MessageLoopBehavior::kDoNotWait)) {
     isolate->RunMicrotasks();
   }
   // Run the idle tasks.
-  v8::platform::RunIdleTasks(g_platform, isolate,
-                             50.0 / base::Time::kMillisecondsPerSecond);
+  if (platform->IdleTasksEnabled(isolate)) {
+    v8::platform::RunIdleTasks(platform, isolate,
+                               50.0 / base::Time::kMillisecondsPerSecond);
+  }
 }
 
 class Serializer : public ValueSerializer::Delegate {
@@ -3067,8 +3052,19 @@ int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
 
+  v8::platform::InProcessStackDumping in_process_stack_dumping =
+      options.disable_in_process_stack_traces
+          ? v8::platform::InProcessStackDumping::kDisabled
+          : v8::platform::InProcessStackDumping::kEnabled;
+
+  g_platform = v8::platform::CreateDefaultPlatform(
+      0, v8::platform::IdleTaskSupport::kEnabled, in_process_stack_dumping);
+  if (i::FLAG_verify_predictable) {
+    g_platform = new PredictablePlatform(std::unique_ptr<Platform>(g_platform));
+  }
+
   platform::tracing::TracingController* tracing_controller = nullptr;
-  if (options.trace_enabled) {
+  if (options.trace_enabled && !i::FLAG_verify_predictable) {
     trace_file.open("v8_trace.json");
     tracing_controller = new platform::tracing::TracingController();
     platform::tracing::TraceBuffer* trace_buffer =
@@ -3076,19 +3072,8 @@ int Shell::Main(int argc, char* argv[]) {
             platform::tracing::TraceBuffer::kRingBufferChunks,
             platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
     tracing_controller->Initialize(trace_buffer);
+    platform::SetTracingController(g_platform, tracing_controller);
   }
-
-  v8::platform::InProcessStackDumping in_process_stack_dumping =
-      options.disable_in_process_stack_traces
-          ? v8::platform::InProcessStackDumping::kDisabled
-          : v8::platform::InProcessStackDumping::kEnabled;
-
-  g_platform = i::FLAG_verify_predictable
-                   ? new PredictablePlatform()
-                   : v8::platform::CreateDefaultPlatform(
-                         0, v8::platform::IdleTaskSupport::kEnabled,
-                         in_process_stack_dumping,
-                         tracing_controller);
 
   v8::V8::InitializePlatform(g_platform);
   v8::V8::Initialize();
@@ -3136,6 +3121,7 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   Isolate* isolate = Isolate::New(create_params);
+
   D8Console console(isolate);
   {
     Isolate::Scope scope(isolate);
@@ -3205,9 +3191,6 @@ int Shell::Main(int argc, char* argv[]) {
   V8::Dispose();
   V8::ShutdownPlatform();
   delete g_platform;
-  if (i::FLAG_verify_predictable) {
-    delete tracing_controller;
-  }
 
   return result;
 }
