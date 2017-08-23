@@ -7,10 +7,14 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
+# https://github.com/nodejs/node/issues/12803
+test-fs-chmod                 : PASS,FLAKY
 
 [$system==linux]
 
 [$system==macos]
+# https://github.com/nodejs/node/issues/12803
+test-fs-chmod                 : PASS,FLAKY
 
 [$arch==arm || $arch==arm64]
 test-npm-install:      PASS,FLAKY
