@@ -10,11 +10,12 @@ const fork = require('child_process').fork;
 const fixtures = require('../common/fixtures');
 
 const childScript = fixtures.path('child-process-spawn-node');
-const errorRegexp = /^TypeError: Incorrect value of stdio option:/;
 const malFormedOpts = { stdio: '33' };
 const payload = { hello: 'world' };
 
-assert.throws(() => fork(childScript, malFormedOpts), errorRegexp);
+common.expectsError(
+  () => fork(childScript, malFormedOpts),
+  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError });
 
 function test(stringVariant) {
   const child = fork(childScript, { stdio: stringVariant });
