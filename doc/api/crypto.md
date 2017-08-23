@@ -1555,6 +1555,10 @@ crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
 An array of supported digest functions can be retrieved using
 [`crypto.getHashes()`][].
 
+Note that this API uses libuv's threadpool, which can have surprising and
+negative performance implications for some applications, see the
+[`UV_THREADPOOL_SIZE`][] documentation for more information.
+
 ### crypto.pbkdf2Sync(password, salt, iterations, keylen, digest)
 <!-- YAML
 added: v0.9.3
@@ -1719,6 +1723,10 @@ This should normally never take longer than a few milliseconds. The only time
 when generating the random bytes may conceivably block for a longer period of
 time is right after boot, when the whole system is still low on entropy.
 
+Note that this API uses libuv's threadpool, which can have surprising and
+negative performance implications for some applications, see the
+[`UV_THREADPOOL_SIZE`][] documentation for more information.
+
 ### crypto.randomFillSync(buffer[, offset][, size])
 <!-- YAML
 added: v7.10.0
@@ -1778,6 +1786,10 @@ crypto.randomFill(buf, 5, 5, (err, buf) => {
   console.log(buf.toString('hex'));
 });
 ```
+
+Note that this API uses libuv's threadpool, which can have surprising and
+negative performance implications for some applications, see the
+[`UV_THREADPOOL_SIZE`][] documentation for more information.
 
 ### crypto.setEngine(engine[, flags])
 <!-- YAML
@@ -2204,6 +2216,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
 [`Buffer`]: buffer.html
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_BytesToKey.html
+[`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
 [`cipher.final()`]: #crypto_cipher_final_outputencoding
 [`cipher.update()`]: #crypto_cipher_update_data_inputencoding_outputencoding
 [`crypto.createCipher()`]: #crypto_crypto_createcipher_algorithm_password

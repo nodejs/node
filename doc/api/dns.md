@@ -620,15 +620,16 @@ but note that changing these files will change the behavior of _all other
 programs running on the same operating system_.
 
 Though the call to `dns.lookup()` will be asynchronous from JavaScript's
-perspective, it is implemented as a synchronous call to getaddrinfo(3) that
-runs on libuv's threadpool. Because libuv's threadpool has a fixed size, it
-means that if for whatever reason the call to getaddrinfo(3) takes a long
-time, other operations that could run on libuv's threadpool (such as filesystem
-operations) will experience degraded performance. In order to mitigate this
-issue, one potential solution is to increase the size of libuv's threadpool by
-setting the `'UV_THREADPOOL_SIZE'` environment variable to a value greater than
-`4` (its current default value). For more information on libuv's threadpool, see
-[the official libuv documentation][].
+perspective, it is implemented as a synchronous call to getaddrinfo(3) that runs
+on libuv's threadpool. This can have surprising negative performance
+implications for some applications, see the [`UV_THREADPOOL_SIZE`][]
+documentation for more information.
+
+Note that various networking APIs will call `dns.lookup()` internally to resolve
+host names. If that is an issue, consider resolving the hostname to and address
+using `dns.resolve()` and using the address instead of a host name. Also, some
+networking APIs (such as [`socket.connect()`][] and [`dgram.createSocket()`][])
+allow the default resolver, `dns.lookup()`, to be replaced.
 
 ### `dns.resolve()`, `dns.resolve*()` and `dns.reverse()`
 
@@ -644,6 +645,8 @@ They do not use the same set of configuration files than what [`dns.lookup()`][]
 uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
 [`Error`]: errors.html#errors_class_error
+[`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
+[`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`dns.getServers()`]: #dns_dns_getservers
 [`dns.lookup()`]: #dns_dns_lookup_hostname_options_callback
 [`dns.resolve()`]: #dns_dns_resolve_hostname_rrtype_callback
@@ -660,6 +663,7 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dns.resolveTxt()`]: #dns_dns_resolvetxt_hostname_callback
 [`dns.reverse()`]: #dns_dns_reverse_ip_callback
 [`dns.setServers()`]: #dns_dns_setservers_servers
+[`socket.connect()`]: net.html#net_socket_connect_options_connectlistener
 [`util.promisify()`]: util.html#util_util_promisify_original
 [DNS error codes]: #dns_error_codes
 [Implementation considerations section]: #dns_implementation_considerations
