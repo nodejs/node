@@ -10,7 +10,7 @@ if (common.hasFipsCrypto)
 
 const runBenchmark = require('../common/benchmarks');
 
-runBenchmark('cluster',
+runBenchmark('crypto',
              [
                'n=1',
                'algo=sha256',
