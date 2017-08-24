@@ -642,6 +642,11 @@ Node.js was unable to watch for the `SIGINT` signal.
 
 A child process was closed before the parent received a reply.
 
+<a id="ERR_CHILD_PROCESS_IPC_REQUIRED"></a>
+### ERR_CHILD_PROCESS_IPC_REQUIRED
+
+Used when a child process is being forked without specifying an IPC channel.
+
 <a id="ERR_CONSOLE_WRITABLE_STREAM"></a>
 ### ERR_CONSOLE_WRITABLE_STREAM
 

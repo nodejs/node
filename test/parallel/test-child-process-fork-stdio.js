@@ -21,7 +21,7 @@ if (process.argv[2] === 'child') {
 } else {
   common.expectsError(
     () => cp.fork(__filename, { stdio: ['pipe', 'pipe', 'pipe', 'pipe'] }),
-    { code: 'ERR_INVALID_OPT_VALUE', type: TypeError });
+    { code: 'ERR_CHILD_PROCESS_IPC_REQUIRED', type: Error });
 
   let ipc = '';
   let stderr = '';
