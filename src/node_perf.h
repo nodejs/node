@@ -49,6 +49,12 @@ NODE_EXTERN inline void MarkPerformanceMilestone(
     env->performance_state()->milestones[milestone] = PERFORMANCE_NOW();
   }
 
+NODE_EXTERN Local<Object> CreateMark(Environment* env, const char* name);
+NODE_EXTERN Local<Object> CreateMeasure(Environment* env,
+                                        const char* name,
+                                        const char* startMark,
+                                        const char* endMark);
+
 class PerformanceEntry : public BaseObject {
  public:
   // Used for temporary storage of performance entry details when the

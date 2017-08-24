@@ -536,6 +536,16 @@ NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
                                                napi_async_work work);
 
 
+// Methods for performance user timing
+NAPI_EXTERN napi_status napi_performance_mark(
+    napi_env env,
+    const char* name);
+NAPI_EXTERN napi_status napi_performance_measure(
+    napi_env env,
+    const char* name,
+    const char* start,
+    const char* end);
+
 // version management
 NAPI_EXTERN napi_status napi_get_version(napi_env env, uint32_t* result);
 

@@ -60,22 +60,26 @@ void PerformanceEntry::NotifyObservers(Environment* env,
                                           1, &argv);
 }
 
-void Mark(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+Local<Object> CreateMark(Environment* env, const char* name) {
   Local<Context> context = env->context();
-  Isolate* isolate = env->isolate();
-  Utf8Value name(isolate, args[0]);
   uint64_t now = PERFORMANCE_NOW();
   auto marks = env->performance_marks();
-  (*marks)[*name] = now;
+  (*marks)[name] = now;
 
   // TODO(jasnell): Once Tracing API is fully implemented, this should
   // record a trace event also.
 
   Local<Function> fn = env->performance_entry_template();
   Local<Object> obj = fn->NewInstance(context).ToLocalChecked();
-  new PerformanceEntry(env, obj, *name, "mark", now, now);
-  args.GetReturnValue().Set(obj);
+  new PerformanceEntry(env, obj, name, "mark", now, now);
+  return obj;
+}
+
+void Mark(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Utf8Value name(isolate, args[0]);
+  args.GetReturnValue().Set(CreateMark(env, *name));
 }
 
 inline uint64_t GetPerformanceMark(Environment* env, std::string name) {
@@ -84,29 +88,27 @@ inline uint64_t GetPerformanceMark(Environment* env, std::string name) {
   return res != marks->end() ? res->second : 0;
 }
 
-void Measure(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+Local<Object> CreateMeasure(Environment* env,
+                            const char* name,
+                            const char* startMark,
+                            const char* endMark) {
   Local<Context> context = env->context();
-  Isolate* isolate = env->isolate();
-  Utf8Value name(isolate, args[0]);
-  Utf8Value startMark(isolate, args[1]);
-  Utf8Value endMark(isolate, args[2]);
 
   double* milestones = env->performance_state()->milestones;
 
   uint64_t startTimestamp = timeOrigin;
-  uint64_t start = GetPerformanceMark(env, *startMark);
+  uint64_t start = GetPerformanceMark(env, startMark);
   if (start != 0) {
     startTimestamp = start;
   } else {
-    PerformanceMilestone milestone = ToPerformanceMilestoneEnum(*startMark);
+    PerformanceMilestone milestone = ToPerformanceMilestoneEnum(startMark);
     if (milestone != NODE_PERFORMANCE_MILESTONE_INVALID)
       startTimestamp = milestones[milestone];
   }
 
-  uint64_t endTimestamp = GetPerformanceMark(env, *endMark);
+  uint64_t endTimestamp = GetPerformanceMark(env, endMark);
   if (endTimestamp == 0) {
-    PerformanceMilestone milestone = ToPerformanceMilestoneEnum(*endMark);
+    PerformanceMilestone milestone = ToPerformanceMilestoneEnum(endMark);
     if (milestone != NODE_PERFORMANCE_MILESTONE_INVALID)
       endTimestamp = milestones[milestone];
   }
@@ -119,9 +121,18 @@ void Measure(const FunctionCallbackInfo<Value>& args) {
 
   Local<Function> fn = env->performance_entry_template();
   Local<Object> obj = fn->NewInstance(context).ToLocalChecked();
-  new PerformanceEntry(env, obj, *name, "measure",
+  new PerformanceEntry(env, obj, name, "measure",
                        startTimestamp, endTimestamp);
-  args.GetReturnValue().Set(obj);
+  return obj;
+}
+
+void Measure(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Utf8Value name(isolate, args[0]);
+  Utf8Value startMark(isolate, args[1]);
+  Utf8Value endMark(isolate, args[2]);
+  args.GetReturnValue().Set(CreateMeasure(env, *name, *startMark, *endMark));
 }
 
 void GetPerformanceEntryName(const Local<String> prop,
