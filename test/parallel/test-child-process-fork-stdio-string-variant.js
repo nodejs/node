@@ -13,10 +13,9 @@ const childScript = fixtures.path('child-process-spawn-node');
 const malFormedOpts = { stdio: '33' };
 const payload = { hello: 'world' };
 
-const expectedError =
-  common.expectsError({ code: 'ERR_INVALID_OPT_VALUE', type: TypeError });
-
-assert.throws(() => fork(childScript, malFormedOpts), expectedError);
+common.expectsError(
+  () => fork(childScript, malFormedOpts),
+  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError });
 
 function test(stringVariant) {
   const child = fork(childScript, { stdio: stringVariant });

@@ -19,12 +19,9 @@ if (process.argv[2] === 'child') {
     process.send(data);
   });
 } else {
-  const expectedError =
-    common.expectsError({ code: 'ERR_INVALID_OPT_VALUE', type: TypeError });
-
-  assert.throws(() => {
-    cp.fork(__filename, { stdio: ['pipe', 'pipe', 'pipe', 'pipe'] });
-  }, expectedError);
+  common.expectsError(
+    () => cp.fork(__filename, { stdio: ['pipe', 'pipe', 'pipe', 'pipe'] }),
+    { code: 'ERR_INVALID_OPT_VALUE', type: TypeError });
 
   let ipc = '';
   let stderr = '';

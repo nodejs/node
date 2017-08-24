@@ -76,13 +76,9 @@ let options = {
   input: 1234
 };
 
-const expectedError =
-  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 1);
-
-assert.throws(function() {
-  spawnSync('cat', [], options);
-}, expectedError);
-
+common.expectsError(
+  () => spawnSync('cat', [], options),
+  { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 1);
 
 options = {
   input: 'hello world'
