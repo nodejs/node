@@ -1118,6 +1118,8 @@ added: v8.4.0
 * `headers` {[Headers Object][]}
 * `options` {Object}
   * `statCheck` {Function}
+  * `onError` {Function} Callback function invoked in the case of an
+    Error before send
   * `getTrailers` {Function} Callback function invoked to collect trailer
     headers.
   * `offset` {number} The offset position at which to begin reading
@@ -1146,6 +1148,16 @@ server.on('stream', (stream) => {
   function statCheck(stat, headers) {
     headers['last-modified'] = stat.mtime.toUTCString();
   }
+
+  function onError(err) {
+    if (err.code === 'ENOENT') {
+      stream.respond({ ':status': 404 });
+    } else {
+      stream.respond({ ':status': 500 });
+    }
+    stream.end();
+  }
+
   stream.respondWithFile('/some/file',
                          { 'content-type': 'text/plain' },
                          { statCheck });
@@ -1177,6 +1189,10 @@ The `content-length` header field will be automatically set.
 The `offset` and `length` options may be used to limit the response to a
 specific range subset. This can be used, for instance, to support HTTP Range
 requests.
+
+The `options.onError` function may also be used to handle all the errors
+that could happen before the delivery of the file is initiated. The
+default behavior is to destroy the stream.
 
 When set, the `options.getTrailers()` function is called immediately after
 queuing the last chunk of payload data to be sent. The callback is passed a
