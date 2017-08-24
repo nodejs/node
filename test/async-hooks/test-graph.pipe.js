@@ -14,7 +14,7 @@ sleep
   .on('exit', common.mustCall(onsleepExit))
   .on('close', common.mustCall(onsleepClose));
 
-function onsleepExit(code) {}
+function onsleepExit() {}
 
 function onsleepClose() {}
 
