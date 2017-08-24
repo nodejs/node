@@ -15,5 +15,13 @@ Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 - [ ] documentation is changed or added
 - [ ] commit message follows [commit guidelines](https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#commit-message-guidelines)
 
+<!--
+Please also uncheck this box if you would like other contributors not to fix up
+minor changes such as style issues, typos, etc. with the PR for you,
+rather than asking you to address these by yourself.
+-->
+
+- [ ] I would prefer to address minor change requests myself
+
 ##### Affected core subsystem(s)
 <!-- Provide affected core subsystem(s) (like doc, cluster, crypto, etc). -->
