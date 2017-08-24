@@ -894,7 +894,7 @@ in object mode.
 The optional `size` argument specifies a specific number of bytes to read. If
 `size` bytes are not available to be read, `null` will be returned *unless*
 the stream has ended, in which case all of the data remaining in the internal
-buffer will be returned (*even if it exceeds `size` bytes*).
+buffer will be returned.
 
 If the `size` argument is not specified, all of the data contained in the
 internal buffer will be returned.
