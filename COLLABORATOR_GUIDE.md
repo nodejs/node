@@ -263,6 +263,20 @@ multiple commits. Commit metadata and the reason for the revert should be
 appended. Commit message rules about line length and subsystem can be ignored.
 A Pull Request should be raised and approved like any other change.
 
+### Introducing New Modules
+
+Semver-minor commits that introduce new core modules should be treated with
+extra care.
+
+* First, the name of the new core module should not conflict with any existing
+  module in the ecosystem unless an agreement with the owner of those modules
+  is reached to transfer ownership.
+* PRs that introduce new core modules must be landed as semver-minor commits.
+* New core modules must be landed initially as `Experimental` and must go
+  through at least one release cycle before being moved out of experimental.
+* It is recommended to give PRs introducing new core modules more time for
+  review than the typical 48/72 hour review used for other commits.
+
 ### Deprecations
 
 Deprecation refers to the identification of Public APIs that should no longer
