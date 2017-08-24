@@ -207,6 +207,10 @@ assert.strictEqual(
   errors.message('ERR_INVALID_ARG_TYPE', [['a', 'b', 'c'], 'not d']),
   'The "a", "b", "c" arguments must not be of type d');
 
+// Test ERR_INVALID_FD_TYPE
+assert.strictEqual(errors.message('ERR_INVALID_FD_TYPE', ['a']),
+                   'Unsupported fd type: a');
+
 // Test ERR_INVALID_URL_SCHEME
 assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', ['file']),
                    'The URL must be of scheme file');
