@@ -3334,6 +3334,56 @@ the `complete` callback will be invoked with a status value of
 `napi_cancelled`. The work should not be deleted before the `complete`
 callback invocation, even if it has been successfully cancelled.
 
+## Performance API
+
+### *napi_performance_mark*
+<!-- YAML
+added: REPLACEME
+-->
+```C
+napi_status napi_performance_mark(napi_env env,
+                                  const char* utf8name);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] utf8name`: The name of the performance entry mark to create.
+
+Returns `napi_ok`.
+
+Creates a new Mark performance entry in the [Performance API][] timeline.
+
+```C
+  napi_performance_mark(env, "A");
+```
+
+### *napi_performance_measure*
+<!-- YAML
+added: REPLACEME
+-->
+```C
+napi_status napi_performance_measure(napi_env env,
+                                     const char* utf8name
+                                     const char* utf8start,
+                                     const char* utf8end);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] utf8name`: The name of the performance entry measure to create.
+- `[in] utf8start`: The name of the starting performance entry mark.
+- `[in] utf8end`: The name of the ending performance entry mark.
+
+Returns `napi_ok`.
+
+Creates a new Measure performance entry measuring the duration between the two
+identified marks.
+
+```C
+  napi_performance_mark(env, "A");
+  // do something time consuming
+  napi_performance_mark(env, "B");
+  napi_performance_measure(env, "A to B", "A", "B");
+```
+
 ## Version Management
 
 ### napi_get_node_version
@@ -3403,6 +3453,7 @@ support it:
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [Object Lifetime Management]: #n_api_object_lifetime_management
 [Object Wrap]: #n_api_object_wrap
+[Performance API]: perf_hooks.html
 [Section 9.1.6]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
 [Section 12.5.5]: https://tc39.github.io/ecma262/#sec-typeof-operator
 [Section 24.3]: https://tc39.github.io/ecma262/#sec-dataview-objects

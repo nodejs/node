@@ -18,6 +18,7 @@
 #include "node_api.h"
 #include "node_internals.h"
 #include "util.h"
+#include "node_perf.h"
 
 #define NAPI_VERSION  1
 
@@ -3331,4 +3332,32 @@ napi_status napi_cancel_async_work(napi_env env, napi_async_work work) {
   CALL_UV(env, uv_cancel(reinterpret_cast<uv_req_t*>(w->Request())));
 
   return napi_clear_last_error(env);
+}
+
+// Methods for performance timing
+napi_status napi_performance_mark(napi_env env,
+                                  const char* name) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, name);
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  node::Environment* environ = node::Environment::GetCurrent(context);
+  node::performance::CreateMark(environ, name);
+  return napi_ok;
+}
+
+napi_status napi_performance_measure(
+    napi_env env,
+    const char* name,
+    const char* start,
+    const char* end) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, name);
+  CHECK_ARG(env, start);
+  CHECK_ARG(env, end);
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  node::Environment* environ = node::Environment::GetCurrent(context);
+  node::performance::CreateMeasure(environ, name, start, end);
+  return napi_ok;
 }
