@@ -67,11 +67,12 @@ enum Http2PaddingBufferFields {
 };
 
 struct http2_state {
+  // doubles first so that they are always sizeof(double)-aligned
+  double session_state_buffer[IDX_SESSION_STATE_COUNT];
+  double stream_state_buffer[IDX_STREAM_STATE_COUNT];
   uint32_t padding_buffer[PADDING_BUF_FIELD_COUNT];
   uint32_t options_buffer[IDX_OPTIONS_FLAGS + 1];
   uint32_t settings_buffer[IDX_SETTINGS_COUNT + 1];
-  double session_state_buffer[IDX_SESSION_STATE_COUNT];
-  double stream_state_buffer[IDX_STREAM_STATE_COUNT];
 };
 
 Freelist<nghttp2_data_chunk_t, FREELIST_MAX>
