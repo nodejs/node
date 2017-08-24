@@ -5,12 +5,9 @@ const common = require('../common');
 const errors = require('internal/errors');
 const assert = require('assert');
 
-const errMessages = {
-  objectString: /^'object' === 'string'$/,
-  booleanString: /^'boolean' === 'string'$/,
-  numberString: /^'number' === 'string'$/,
-  invalidKey: /^An invalid error message key was used: TEST_FOO_KEY\.$/,
-};
+function invalidKey(key) {
+  return new RegExp(`^An invalid error message key was used: ${key}\\.$`);
+}
 
 errors.E('TEST_ERROR_1', 'Error for testing purposes: %s');
 errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`);
@@ -50,86 +47,86 @@ assert.throws(
   () => new errors.Error('TEST_FOO_KEY'),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.invalidKey
+    message: invalidKey('TEST_FOO_KEY')
   }));
 // Calling it twice yields same result (using the key does not create it)
 assert.throws(
   () => new errors.Error('TEST_FOO_KEY'),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.invalidKey
+    message: invalidKey('TEST_FOO_KEY')
   }));
 assert.throws(
   () => new errors.Error(1),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.numberString
+    message: invalidKey(1)
   }));
 assert.throws(
   () => new errors.Error({}),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.objectString
+    message: invalidKey('\\[object Object\\]')
   }));
 assert.throws(
   () => new errors.Error([]),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.objectString
+    message: invalidKey('')
   }));
 assert.throws(
   () => new errors.Error(true),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.booleanString
+    message: invalidKey('true')
   }));
 assert.throws(
   () => new errors.TypeError(1),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.numberString
+    message: invalidKey(1)
   }));
 assert.throws(
   () => new errors.TypeError({}),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.objectString
+    message: invalidKey('\\[object Object\\]')
   }));
 assert.throws(
   () => new errors.TypeError([]),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.objectString
+    message: invalidKey('')
   }));
 assert.throws(
   () => new errors.TypeError(true),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.booleanString
+    message: invalidKey('true')
   }));
 assert.throws(
   () => new errors.RangeError(1),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.numberString
+    message: invalidKey(1)
   }));
 assert.throws(
   () => new errors.RangeError({}),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.objectString
+    message: invalidKey('\\[object Object\\]')
   }));
 assert.throws(
   () => new errors.RangeError([]),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.objectString
+    message: invalidKey('')
   }));
 assert.throws(
   () => new errors.RangeError(true),
   common.expectsError({
     code: 'ERR_ASSERTION',
-    message: errMessages.booleanString
+    message: invalidKey('true')
   }));
 
 
