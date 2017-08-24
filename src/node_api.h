@@ -543,6 +543,20 @@ NAPI_EXTERN
 napi_status napi_get_node_version(napi_env env,
                                   const napi_node_version** version);
 
+// Promises
+NAPI_EXTERN napi_status napi_create_promise(napi_env env,
+                                            napi_deferred* deferred,
+                                            napi_value* promise);
+NAPI_EXTERN napi_status napi_resolve_deferred(napi_env env,
+                                              napi_deferred deferred,
+                                              napi_value resolution);
+NAPI_EXTERN napi_status napi_reject_deferred(napi_env env,
+                                             napi_deferred deferred,
+                                             napi_value rejection);
+NAPI_EXTERN napi_status napi_is_promise(napi_env env,
+                                        napi_value promise,
+                                        bool* is_promise);
+
 EXTERN_C_END
 
 #endif  // SRC_NODE_API_H_
