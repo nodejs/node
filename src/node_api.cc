@@ -223,6 +223,14 @@ V8EscapableHandleScopeFromJsEscapableHandleScope(
 static_assert(sizeof(v8::Local<v8::Value>) == sizeof(napi_value),
   "Cannot convert between v8::Local<v8::Value> and napi_value");
 
+napi_deferred JsDeferredFromV8Persistent(v8::Persistent<v8::Value>* local) {
+  return reinterpret_cast<napi_deferred>(local);
+}
+
+v8::Persistent<v8::Value>* V8PersistentFromJsDeferred(napi_deferred local) {
+  return reinterpret_cast<v8::Persistent<v8::Value>*>(local);
+}
+
 napi_value JsValueFromV8LocalValue(v8::Local<v8::Value> local) {
   return reinterpret_cast<napi_value>(*local);
 }
@@ -777,6 +785,33 @@ napi_status Unwrap(napi_env env,
   *result = unwrappedValue.As<v8::External>()->Value();
 
   return napi_ok;
+}
+
+napi_status ConcludeDeferred(napi_env env,
+                             napi_deferred deferred,
+                             napi_value result,
+                             bool is_resolved) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
+  v8::Persistent<v8::Value>* deferred_ref =
+      V8PersistentFromJsDeferred(deferred);
+  v8::Local<v8::Value> v8_deferred =
+      v8::Local<v8::Value>::New(env->isolate, *deferred_ref);
+
+  auto v8_resolver = v8::Local<v8::Promise::Resolver>::Cast(v8_deferred);
+
+  v8::Maybe<bool> success = is_resolved ?
+      v8_resolver->Resolve(context, v8impl::V8LocalValueFromJsValue(result)) :
+      v8_resolver->Reject(context, v8impl::V8LocalValueFromJsValue(result));
+
+  deferred_ref->Reset();
+  delete deferred_ref;
+
+  RETURN_STATUS_IF_FALSE(env, success.FromMaybe(false), napi_generic_failure);
+
+  return GET_RETURN_STATUS(env);
 }
 
 }  // end of namespace v8impl
@@ -3332,6 +3367,49 @@ napi_status napi_cancel_async_work(napi_env env, napi_async_work work) {
   uvimpl::Work* w = reinterpret_cast<uvimpl::Work*>(work);
 
   CALL_UV(env, uv_cancel(reinterpret_cast<uv_req_t*>(w->Request())));
+
+  return napi_clear_last_error(env);
+}
+
+NAPI_EXTERN napi_status napi_create_promise(napi_env env,
+                                            napi_deferred* deferred,
+                                            napi_value* promise) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, deferred);
+  CHECK_ARG(env, promise);
+
+  auto maybe = v8::Promise::Resolver::New(env->isolate->GetCurrentContext());
+  CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
+
+  auto v8_resolver = maybe.ToLocalChecked();
+  auto v8_deferred = new v8::Persistent<v8::Value>();
+  v8_deferred->Reset(env->isolate, v8_resolver);
+
+  *deferred = v8impl::JsDeferredFromV8Persistent(v8_deferred);
+  *promise = v8impl::JsValueFromV8LocalValue(v8_resolver->GetPromise());
+  return GET_RETURN_STATUS(env);
+}
+
+NAPI_EXTERN napi_status napi_resolve_deferred(napi_env env,
+                                              napi_deferred deferred,
+                                              napi_value resolution) {
+  return v8impl::ConcludeDeferred(env, deferred, resolution, true);
+}
+
+NAPI_EXTERN napi_status napi_reject_deferred(napi_env env,
+                                             napi_deferred deferred,
+                                             napi_value resolution) {
+  return v8impl::ConcludeDeferred(env, deferred, resolution, false);
+}
+
+NAPI_EXTERN napi_status napi_is_promise(napi_env env,
+                                        napi_value promise,
+                                        bool* is_promise) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, promise);
+  CHECK_ARG(env, is_promise);
+
+  *is_promise = v8impl::V8LocalValueFromJsValue(promise)->IsPromise();
 
   return napi_clear_last_error(env);
 }
