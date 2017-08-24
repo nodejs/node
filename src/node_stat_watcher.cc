@@ -39,6 +39,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 
@@ -47,14 +48,15 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(StatWatcher::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher"));
+  Local<String> statWatcherString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher");
+  t->SetClassName(statWatcherString);
 
-  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, t);
   env->SetProtoMethod(t, "start", StatWatcher::Start);
   env->SetProtoMethod(t, "stop", StatWatcher::Stop);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher"),
-              t->GetFunction());
+  target->Set(statWatcherString, t->GetFunction());
 }
 
 

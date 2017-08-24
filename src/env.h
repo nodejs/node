@@ -36,6 +36,7 @@
 #include "node.h"
 
 #include <list>
+#include <map>
 #include <stdint.h>
 #include <vector>
 #include <stack>
@@ -104,6 +105,7 @@ struct http2_state;
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
   V(channel_string, "channel")                                                \
+  V(constants_string, "constants")                                            \
   V(oncertcb_string, "oncertcb")                                              \
   V(onclose_string, "_onclose")                                               \
   V(code_string, "code")                                                      \
@@ -303,6 +305,8 @@ struct http2_state;
   V(module_load_list_array, v8::Array)                                        \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
+  V(performance_entry_callback, v8::Function)                                 \
+  V(performance_entry_template, v8::Function)                                 \
   V(process_object, v8::Object)                                               \
   V(promise_reject_function, v8::Function)                                    \
   V(promise_wrap_template, v8::ObjectTemplate)                                \
@@ -611,6 +615,17 @@ class Environment {
   inline double* fs_stats_field_array() const;
   inline void set_fs_stats_field_array(double* fields);
 
+  inline performance::performance_state* performance_state();
+  inline std::map<std::string, uint64_t>* performance_marks();
+
+  static inline Environment* from_performance_check_handle(uv_check_t* handle);
+  static inline Environment* from_performance_idle_handle(uv_idle_t* handle);
+  static inline Environment* from_performance_prepare_handle(
+      uv_prepare_t* handle);
+  inline uv_check_t* performance_check_handle();
+  inline uv_idle_t* performance_idle_handle();
+  inline uv_prepare_t* performance_prepare_handle();
+
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);
@@ -690,6 +705,10 @@ class Environment {
   uv_timer_t destroy_ids_timer_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
+  uv_prepare_t performance_prepare_handle_;
+  uv_check_t performance_check_handle_;
+  uv_idle_t performance_idle_handle_;
+
   AsyncHooks async_hooks_;
   DomainFlag domain_flag_;
   TickInfo tick_info_;
@@ -700,6 +719,10 @@ class Environment {
   bool abort_on_uncaught_exception_;
   size_t makecallback_cntr_;
   std::vector<double> destroy_ids_list_;
+
+  performance::performance_state* performance_state_ = nullptr;
+  std::map<std::string, uint64_t> performance_marks_;
+
 #if HAVE_INSPECTOR
   inspector::Agent inspector_agent_;
 #endif

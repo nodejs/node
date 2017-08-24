@@ -71,18 +71,18 @@ void TCPWrap::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCP"));
+  Local<String> tcpString = FIXED_ONE_BYTE_STRING(env->isolate(), "TCP");
+  t->SetClassName(tcpString);
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
   // Init properties
-  t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "reading"),
+  t->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "reading"),
                              Boolean::New(env->isolate(), false));
   t->InstanceTemplate()->Set(env->owner_string(), Null(env->isolate()));
   t->InstanceTemplate()->Set(env->onread_string(), Null(env->isolate()));
   t->InstanceTemplate()->Set(env->onconnection_string(), Null(env->isolate()));
 
-  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
-  env->SetProtoMethod(t, "asyncReset", AsyncWrap::AsyncReset);
+  AsyncWrap::AddWrapMethods(env, t, AsyncWrap::kFlagHasReset);
 
   env->SetProtoMethod(t, "close", HandleWrap::Close);
 
@@ -109,7 +109,7 @@ void TCPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "setSimultaneousAccepts", SetSimultaneousAccepts);
 #endif
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TCP"), t->GetFunction());
+  target->Set(tcpString, t->GetFunction());
   env->set_tcp_constructor_template(t);
 
   // Create FunctionTemplate for TCPConnectWrap.
@@ -119,10 +119,11 @@ void TCPWrap::Initialize(Local<Object> target,
   };
   auto cwt = FunctionTemplate::New(env->isolate(), constructor);
   cwt->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(cwt, "getAsyncId", AsyncWrap::GetAsyncId);
-  cwt->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap"),
-              cwt->GetFunction());
+  AsyncWrap::AddWrapMethods(env, cwt);
+  Local<String> wrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap");
+  cwt->SetClassName(wrapString);
+  target->Set(wrapString, cwt->GetFunction());
 }
 
 

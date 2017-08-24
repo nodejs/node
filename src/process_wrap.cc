@@ -53,9 +53,11 @@ class ProcessWrap : public HandleWrap {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
-    constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"));
+    Local<String> processString =
+        FIXED_ONE_BYTE_STRING(env->isolate(), "Process");
+    constructor->SetClassName(processString);
 
-    env->SetProtoMethod(constructor, "getAsyncId", AsyncWrap::GetAsyncId);
+    AsyncWrap::AddWrapMethods(env, constructor);
 
     env->SetProtoMethod(constructor, "close", HandleWrap::Close);
 
@@ -66,8 +68,7 @@ class ProcessWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
     env->SetProtoMethod(constructor, "hasRef", HandleWrap::HasRef);
 
-    target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"),
-                constructor->GetFunction());
+    target->Set(processString, constructor->GetFunction());
   }
 
   size_t self_size() const override { return sizeof(*this); }

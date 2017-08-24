@@ -41,6 +41,7 @@ using v8::FunctionTemplate;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 
@@ -49,11 +50,13 @@ void TTYWrap::Initialize(Local<Object> target,
                          Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
+  Local<String> ttyString = FIXED_ONE_BYTE_STRING(env->isolate(), "TTY");
+
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"));
+  t->SetClassName(ttyString);
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, t);
 
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
@@ -68,7 +71,7 @@ void TTYWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "isTTY", IsTTY);
   env->SetMethod(target, "guessHandleType", GuessHandleType);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"), t->GetFunction());
+  target->Set(ttyString, t->GetFunction());
   env->set_tty_constructor_template(t);
 }
 

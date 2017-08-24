@@ -196,15 +196,23 @@ void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
  public:
-  GetAddrInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+  GetAddrInfoReqWrap(Environment* env,
+                     Local<Object> req_wrap_obj,
+                     bool verbatim);
   ~GetAddrInfoReqWrap();
 
   size_t self_size() const override { return sizeof(*this); }
+  bool verbatim() const { return verbatim_; }
+
+ private:
+  const bool verbatim_;
 };
 
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
-                                       Local<Object> req_wrap_obj)
-    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETADDRINFOREQWRAP) {
+                                       Local<Object> req_wrap_obj,
+                                       bool verbatim)
+    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETADDRINFOREQWRAP)
+    , verbatim_(verbatim) {
   Wrap(req_wrap_obj, this);
 }
 
@@ -1811,70 +1819,38 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   };
 
   if (status == 0) {
-    // Success
-    struct addrinfo *address;
     int n = 0;
-
-    // Create the response array.
     Local<Array> results = Array::New(env->isolate());
 
-    char ip[INET6_ADDRSTRLEN];
-    const char *addr;
+    auto add = [&] (bool want_ipv4, bool want_ipv6) {
+      for (auto p = res; p != nullptr; p = p->ai_next) {
+        CHECK_EQ(p->ai_socktype, SOCK_STREAM);
 
-    // Iterate over the IPv4 responses again this time creating javascript
-    // strings for each IP and filling the results array.
-    address = res;
-    while (address) {
-      CHECK_EQ(address->ai_socktype, SOCK_STREAM);
+        const char* addr;
+        if (want_ipv4 && p->ai_family == AF_INET) {
+          addr = reinterpret_cast<char*>(
+              &(reinterpret_cast<struct sockaddr_in*>(p->ai_addr)->sin_addr));
+        } else if (want_ipv6 && p->ai_family == AF_INET6) {
+          addr = reinterpret_cast<char*>(
+              &(reinterpret_cast<struct sockaddr_in6*>(p->ai_addr)->sin6_addr));
+        } else {
+          continue;
+        }
 
-      // Ignore random ai_family types.
-      if (address->ai_family == AF_INET) {
-        // Juggle pointers
-        addr = reinterpret_cast<char*>(&(reinterpret_cast<struct sockaddr_in*>(
-            address->ai_addr)->sin_addr));
-        int err = uv_inet_ntop(address->ai_family,
-                               addr,
-                               ip,
-                               INET6_ADDRSTRLEN);
-        if (err)
+        char ip[INET6_ADDRSTRLEN];
+        if (uv_inet_ntop(p->ai_family, addr, ip, sizeof(ip)))
           continue;
 
-        // Create JavaScript string
         Local<String> s = OneByteString(env->isolate(), ip);
         results->Set(n, s);
         n++;
       }
+    };
 
-      // Increment
-      address = address->ai_next;
-    }
-
-    // Iterate over the IPv6 responses putting them in the array.
-    address = res;
-    while (address) {
-      CHECK_EQ(address->ai_socktype, SOCK_STREAM);
-
-      // Ignore random ai_family types.
-      if (address->ai_family == AF_INET6) {
-        // Juggle pointers
-        addr = reinterpret_cast<char*>(&(reinterpret_cast<struct sockaddr_in6*>(
-            address->ai_addr)->sin6_addr));
-        int err = uv_inet_ntop(address->ai_family,
-                               addr,
-                               ip,
-                               INET6_ADDRSTRLEN);
-        if (err)
-          continue;
-
-        // Create JavaScript string
-        Local<String> s = OneByteString(env->isolate(), ip);
-        results->Set(n, s);
-        n++;
-      }
-
-      // Increment
-      address = address->ai_next;
-    }
+    const bool verbatim = req_wrap->verbatim();
+    add(true, verbatim);
+    if (verbatim == false)
+      add(false, true);
 
     // No responses were found to return
     if (n == 0) {
@@ -1965,6 +1941,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
   CHECK(args[2]->IsInt32());
+  CHECK(args[4]->IsBoolean());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(env->isolate(), args[1]);
 
@@ -1985,7 +1962,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
     CHECK(0 && "bad address family");
   }
 
-  GetAddrInfoReqWrap* req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj);
+  auto req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj, args[4]->IsTrue());
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
@@ -2189,34 +2166,34 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> aiw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   aiw->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(aiw, "getAsyncId", AsyncWrap::GetAsyncId);
-  aiw->SetClassName(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap"),
-              aiw->GetFunction());
+  AsyncWrap::AddWrapMethods(env, aiw);
+  Local<String> addrInfoWrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap");
+  aiw->SetClassName(addrInfoWrapString);
+  target->Set(addrInfoWrapString, aiw->GetFunction());
 
   Local<FunctionTemplate> niw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   niw->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(niw, "getAsyncId", AsyncWrap::GetAsyncId);
-  niw->SetClassName(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"),
-              niw->GetFunction());
+  AsyncWrap::AddWrapMethods(env, niw);
+  Local<String> nameInfoWrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap");
+  niw->SetClassName(nameInfoWrapString);
+  target->Set(nameInfoWrapString, niw->GetFunction());
 
   Local<FunctionTemplate> qrw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   qrw->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(qrw, "getAsyncId", AsyncWrap::GetAsyncId);
-  qrw->SetClassName(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"),
-              qrw->GetFunction());
+  AsyncWrap::AddWrapMethods(env, qrw);
+  Local<String> queryWrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap");
+  qrw->SetClassName(queryWrapString);
+  target->Set(queryWrapString, qrw->GetFunction());
 
   Local<FunctionTemplate> channel_wrap =
       env->NewFunctionTemplate(ChannelWrap::New);
   channel_wrap->InstanceTemplate()->SetInternalFieldCount(1);
-  env->SetProtoMethod(channel_wrap, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, channel_wrap);
 
   env->SetProtoMethod(channel_wrap, "queryAny", Query<QueryAnyWrap>);
   env->SetProtoMethod(channel_wrap, "queryA", Query<QueryAWrap>);
@@ -2235,10 +2212,10 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(channel_wrap, "setServers", SetServers);
   env->SetProtoMethod(channel_wrap, "cancel", Cancel);
 
-  channel_wrap->SetClassName(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "ChannelWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ChannelWrap"),
-              channel_wrap->GetFunction());
+  Local<String> channelWrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "ChannelWrap");
+  channel_wrap->SetClassName(channelWrapString);
+  target->Set(channelWrapString, channel_wrap->GetFunction());
 }
 
 }  // anonymous namespace

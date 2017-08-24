@@ -9,7 +9,7 @@ const testException = 'test_async_cb_exception';
 // Exception thrown from async completion callback.
 // (Tested in a spawned process because the exception is fatal.)
 if (process.argv[2] === 'child') {
-  test_async.Test(1, common.mustCall(function(err, val) {
+  test_async.Test(1, common.mustCall(function() {
     throw new Error(testException);
   }));
   return;

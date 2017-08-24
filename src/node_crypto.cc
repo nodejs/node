@@ -312,7 +312,9 @@ bool EntropySource(unsigned char* buffer, size_t length) {
 void SecureContext::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(SecureContext::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext"));
+  Local<String> secureContextString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext");
+  t->SetClassName(secureContextString);
 
   env->SetProtoMethod(t, "init", SecureContext::Init);
   env->SetProtoMethod(t, "setKey", SecureContext::SetKey);
@@ -359,8 +361,7 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
       static_cast<PropertyAttribute>(ReadOnly | DontDelete),
       AccessorSignature::New(env->isolate(), t));
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext"),
-              t->GetFunction());
+  target->Set(secureContextString, t->GetFunction());
   env->set_secure_context_constructor_template(t);
 }
 
@@ -2728,7 +2729,7 @@ void Connection::Initialize(Environment* env, Local<Object> target) {
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Connection"));
 
-  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, t);
   env->SetProtoMethod(t, "encIn", Connection::EncIn);
   env->SetProtoMethod(t, "clearOut", Connection::ClearOut);
   env->SetProtoMethod(t, "clearIn", Connection::ClearIn);
@@ -6136,14 +6137,14 @@ void InitCrypto(Local<Object> target,
 
   Local<FunctionTemplate> pb = FunctionTemplate::New(env->isolate());
   pb->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "PBKDF2"));
-  env->SetProtoMethod(pb, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, pb);
   Local<ObjectTemplate> pbt = pb->InstanceTemplate();
   pbt->SetInternalFieldCount(1);
   env->set_pbkdf2_constructor_template(pbt);
 
   Local<FunctionTemplate> rb = FunctionTemplate::New(env->isolate());
   rb->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "RandomBytes"));
-  env->SetProtoMethod(rb, "getAsyncId", AsyncWrap::GetAsyncId);
+  AsyncWrap::AddWrapMethods(env, rb);
   Local<ObjectTemplate> rbt = rb->InstanceTemplate();
   rbt->SetInternalFieldCount(1);
   env->set_randombytes_constructor_template(rbt);

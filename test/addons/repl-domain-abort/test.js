@@ -47,7 +47,7 @@ const lines = [
 const dInput = new stream.Readable();
 const dOutput = new stream.Writable();
 
-dInput._read = function _read(size) {
+dInput._read = function _read() {
   while (lines.length > 0 && this.push(lines.shift()));
   if (lines.length === 0)
     this.push(null);
