@@ -2,20 +2,6 @@
 
 require('../common');
 
-// Minimal test for arrays benchmarks. This makes sure the benchmarks aren't
-// horribly broken but nothing more than that.
+const runBenchmark = require('../common/benchmark');
 
-const assert = require('assert');
-const fork = require('child_process').fork;
-const path = require('path');
-
-const runjs = path.join(__dirname, '..', '..', 'benchmark', 'run.js');
-const argv = ['--set', 'n=1',
-              '--set', 'type=Array',
-              'arrays'];
-
-const child = fork(runjs, argv);
-child.on('exit', (code, signal) => {
-  assert.strictEqual(code, 0);
-  assert.strictEqual(signal, null);
-});
+runBenchmark('arrays', ['n=1', 'type=Array']);
