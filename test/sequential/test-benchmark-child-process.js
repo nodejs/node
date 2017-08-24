@@ -1,5 +1,7 @@
 'use strict';
 
+require('../common');
+
 const runBenchmark = require('../common/benchmarks');
 
 runBenchmark('child_process',

@@ -1,3 +1,5 @@
+/* eslint-disable required-modules */
+
 'use strict';
 
 const assert = require('assert');
