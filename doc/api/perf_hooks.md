@@ -3,6 +3,8 @@
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 The Performance Timing API provides an implementation of the
 [W3C Performance Timeline][] specification. The purpose of the API
 is to support collection of high resolution performance metrics.
