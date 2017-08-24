@@ -61,8 +61,9 @@ enum PerformanceEntryType {
   } while (0);
 
 struct performance_state {
-  uint32_t observers[NODE_PERFORMANCE_ENTRY_TYPE_INVALID];
+  // doubles first so that they are always sizeof(double)-aligned
   double milestones[NODE_PERFORMANCE_MILESTONE_INVALID];
+  uint32_t observers[NODE_PERFORMANCE_ENTRY_TYPE_INVALID];
 };
 
 }  // namespace performance
