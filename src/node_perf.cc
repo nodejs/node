@@ -224,7 +224,7 @@ inline void MarkGarbageCollectionEnd(Isolate* isolate,
 
 inline void SetupGarbageCollectionTracking(Isolate* isolate) {
   isolate->AddGCPrologueCallback(MarkGarbageCollectionStart);
-  isolate->AddGCPrologueCallback(MarkGarbageCollectionEnd);
+  isolate->AddGCEpilogueCallback(MarkGarbageCollectionEnd);
 }
 
 inline Local<Value> GetName(Local<Function> fn) {
