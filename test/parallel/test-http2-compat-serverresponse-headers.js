@@ -42,13 +42,20 @@ server.listen(0, common.mustCall(function() {
     response.removeHeader(denormalised);
     assert.strictEqual(response.hasHeader(denormalised), false);
 
-    assert.throws(function() {
-      response.setHeader(':status', 'foobar');
-    }, common.expectsError({
-      code: 'ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED',
-      type: Error,
-      message: 'Cannot set HTTP/2 pseudo-headers'
-    }));
+    [
+      ':status',
+      ':method',
+      ':path',
+      ':authority',
+      ':scheme'
+    ].forEach((header) => assert.throws(
+      () => response.setHeader(header, 'foobar'),
+      common.expectsError({
+        code: 'ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED',
+        type: Error,
+        message: 'Cannot set HTTP/2 pseudo-headers'
+      })
+    ));
     assert.throws(function() {
       response.setHeader(real, null);
     }, common.expectsError({
