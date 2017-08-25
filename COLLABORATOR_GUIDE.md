@@ -278,8 +278,8 @@ New core modules must remain Experimental until a semver-major release.
 
 It is recommended to give PRs introducing new core modules at least one week
 for review. For new modules that involve significant effort, non-trivial
-additions to Node.js or significant new capabilities, an [EPS][] is
-recommended but not required.
+additions to Node.js or significant new capabilities, an
+[Enhancement Proposal][] is recommended but not required.
 
 ### Deprecations
 
@@ -661,4 +661,4 @@ LTS working group and the Release team.
 
 [backporting guide]: doc/guides/backporting-to-release-lines.md
 [Stability Index]: https://github.com/nodejs/node/pull/doc/api/documentation.md#stability-index
-[EPS]: https://github.com/nodejs/node-eps
+[Enhancement Proposal]: https://github.com/nodejs/node-eps
