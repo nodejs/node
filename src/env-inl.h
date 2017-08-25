@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "aliased_buffer.h"
 #include "env.h"
 #include "node.h"
 #include "util.h"
@@ -82,8 +83,8 @@ inline uint32_t* IsolateData::zero_fill_field() const {
 
 inline Environment::AsyncHooks::AsyncHooks(v8::Isolate* isolate)
     : isolate_(isolate),
-      fields_(),
-      uid_fields_() {
+      fields_(isolate, kFieldsCount),
+      uid_fields_(isolate, kUidFieldsCount) {
   v8::HandleScope handle_scope(isolate_);
 
   // kAsyncUidCntr should start at 1 because that'll be the id the execution
@@ -105,7 +106,8 @@ inline Environment::AsyncHooks::AsyncHooks(v8::Isolate* isolate)
 #undef V
 }
 
-inline uint32_t* Environment::AsyncHooks::fields() {
+inline AliasedBuffer<uint32_t, v8::Uint32Array>&
+Environment::AsyncHooks::fields() {
   return fields_;
 }
 
@@ -113,7 +115,8 @@ inline int Environment::AsyncHooks::fields_count() const {
   return kFieldsCount;
 }
 
-inline double* Environment::AsyncHooks::uid_fields() {
+inline AliasedBuffer<double, v8::Float64Array>&
+Environment::AsyncHooks::uid_fields() {
   return uid_fields_;
 }
 
@@ -147,7 +150,7 @@ inline bool Environment::AsyncHooks::pop_ids(double async_id) {
     fprintf(stderr,
             "Error: async hook stack has become corrupted ("
             "actual: %.f, expected: %.f)\n",
-            uid_fields_[kCurrentAsyncId],
+            uid_fields_.GetValue(kCurrentAsyncId),
             async_id);
     Environment* env = Environment::GetCurrent(isolate_);
     DumpBacktrace(stderr);
@@ -346,7 +349,7 @@ inline Environment::~Environment() {
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
-  free(http2_state_buffer_);
+  delete http2_state_;
   free(performance_state_);
 }
 
@@ -445,7 +448,9 @@ inline std::vector<double>* Environment::destroy_ids_list() {
 }
 
 inline double Environment::new_async_id() {
-  return ++async_hooks()->uid_fields()[AsyncHooks::kAsyncUidCntr];
+  async_hooks()->uid_fields()[AsyncHooks::kAsyncUidCntr] =
+    async_hooks()->uid_fields()[AsyncHooks::kAsyncUidCntr] + 1;
+  return async_hooks()->uid_fields()[AsyncHooks::kAsyncUidCntr];
 }
 
 inline double Environment::current_async_id() {
@@ -457,7 +462,8 @@ inline double Environment::trigger_id() {
 }
 
 inline double Environment::get_init_trigger_id() {
-  double* uid_fields = async_hooks()->uid_fields();
+  AliasedBuffer<double, v8::Float64Array>& uid_fields =
+    async_hooks()->uid_fields();
   double tid = uid_fields[AsyncHooks::kInitTriggerId];
   uid_fields[AsyncHooks::kInitTriggerId] = 0;
   if (tid <= 0) tid = current_async_id();
@@ -497,13 +503,13 @@ inline void Environment::set_http_parser_buffer(char* buffer) {
   http_parser_buffer_ = buffer;
 }
 
-inline http2::http2_state* Environment::http2_state_buffer() const {
-  return http2_state_buffer_;
+inline http2::http2_state* Environment::http2_state() const {
+  return http2_state_;
 }
 
-inline void Environment::set_http2_state_buffer(http2::http2_state* buffer) {
-  CHECK_EQ(http2_state_buffer_, nullptr);  // Should be set only once.
-  http2_state_buffer_ = buffer;
+inline void Environment::set_http2_state(http2::http2_state* buffer) {
+  CHECK_EQ(http2_state_, nullptr);  // Should be set only once.
+  http2_state_ = buffer;
 }
 
 inline double* Environment::fs_stats_field_array() const {

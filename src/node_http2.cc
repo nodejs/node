@@ -1,10 +1,11 @@
+#include "aliased_buffer.h"
 #include "node.h"
 #include "node_buffer.h"
 #include "node_http2.h"
+#include "node_http2_state.h"
 
 namespace node {
 
-using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
 using v8::Float64Array;
@@ -16,64 +17,6 @@ using v8::Uint32Array;
 using v8::Undefined;
 
 namespace http2 {
-
-enum Http2SettingsIndex {
-  IDX_SETTINGS_HEADER_TABLE_SIZE,
-  IDX_SETTINGS_ENABLE_PUSH,
-  IDX_SETTINGS_INITIAL_WINDOW_SIZE,
-  IDX_SETTINGS_MAX_FRAME_SIZE,
-  IDX_SETTINGS_MAX_CONCURRENT_STREAMS,
-  IDX_SETTINGS_MAX_HEADER_LIST_SIZE,
-  IDX_SETTINGS_COUNT
-};
-
-enum Http2SessionStateIndex {
-  IDX_SESSION_STATE_EFFECTIVE_LOCAL_WINDOW_SIZE,
-  IDX_SESSION_STATE_EFFECTIVE_RECV_DATA_LENGTH,
-  IDX_SESSION_STATE_NEXT_STREAM_ID,
-  IDX_SESSION_STATE_LOCAL_WINDOW_SIZE,
-  IDX_SESSION_STATE_LAST_PROC_STREAM_ID,
-  IDX_SESSION_STATE_REMOTE_WINDOW_SIZE,
-  IDX_SESSION_STATE_OUTBOUND_QUEUE_SIZE,
-  IDX_SESSION_STATE_HD_DEFLATE_DYNAMIC_TABLE_SIZE,
-  IDX_SESSION_STATE_HD_INFLATE_DYNAMIC_TABLE_SIZE,
-  IDX_SESSION_STATE_COUNT
-};
-
-enum Http2StreamStateIndex {
-  IDX_STREAM_STATE,
-  IDX_STREAM_STATE_WEIGHT,
-  IDX_STREAM_STATE_SUM_DEPENDENCY_WEIGHT,
-  IDX_STREAM_STATE_LOCAL_CLOSE,
-  IDX_STREAM_STATE_REMOTE_CLOSE,
-  IDX_STREAM_STATE_LOCAL_WINDOW_SIZE,
-  IDX_STREAM_STATE_COUNT
-};
-
-enum Http2OptionsIndex {
-  IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE,
-  IDX_OPTIONS_MAX_RESERVED_REMOTE_STREAMS,
-  IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH,
-  IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS,
-  IDX_OPTIONS_PADDING_STRATEGY,
-  IDX_OPTIONS_FLAGS
-};
-
-enum Http2PaddingBufferFields {
-  PADDING_BUF_FRAME_LENGTH,
-  PADDING_BUF_MAX_PAYLOAD_LENGTH,
-  PADDING_BUF_RETURN_VALUE,
-  PADDING_BUF_FIELD_COUNT
-};
-
-struct http2_state {
-  // doubles first so that they are always sizeof(double)-aligned
-  double session_state_buffer[IDX_SESSION_STATE_COUNT];
-  double stream_state_buffer[IDX_STREAM_STATE_COUNT];
-  uint32_t padding_buffer[PADDING_BUF_FIELD_COUNT];
-  uint32_t options_buffer[IDX_OPTIONS_FLAGS + 1];
-  uint32_t settings_buffer[IDX_SETTINGS_COUNT + 1];
-};
 
 Freelist<nghttp2_data_chunk_t, FREELIST_MAX>
     data_chunk_free_list;
@@ -92,7 +35,8 @@ Nghttp2Session::Callbacks Nghttp2Session::callback_struct_saved[2] = {
 Http2Options::Http2Options(Environment* env) {
   nghttp2_option_new(&options_);
 
-  uint32_t* buffer = env->http2_state_buffer()->options_buffer;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+      env->http2_state()->options_buffer;
   uint32_t flags = buffer[IDX_OPTIONS_FLAGS];
 
   if (flags & (1 << IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE)) {
@@ -124,7 +68,7 @@ Http2Options::Http2Options(Environment* env) {
   if (flags & (1 << IDX_OPTIONS_PADDING_STRATEGY)) {
     padding_strategy_type strategy =
         static_cast<padding_strategy_type>(
-            buffer[IDX_OPTIONS_PADDING_STRATEGY]);
+            buffer.GetValue(IDX_OPTIONS_PADDING_STRATEGY));
     SetPaddingStrategy(strategy);
   }
 }
@@ -149,7 +93,8 @@ ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
   Context::Scope context_scope(context);
 
   if (object()->Has(context, env()->ongetpadding_string()).FromJust()) {
-    uint32_t* buffer = env()->http2_state_buffer()->padding_buffer;
+    AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+        env()->http2_state()->padding_buffer;
     buffer[PADDING_BUF_FRAME_LENGTH] = frameLen;
     buffer[PADDING_BUF_MAX_PAYLOAD_LENGTH] = maxPayloadLen;
     MakeCallback(env()->ongetpadding_string(), 0, nullptr);
@@ -190,7 +135,8 @@ void PackSettings(const FunctionCallbackInfo<Value>& args) {
   std::vector<nghttp2_settings_entry> entries;
   entries.reserve(6);
 
-  uint32_t* buffer = env->http2_state_buffer()->settings_buffer;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+      env->http2_state()->settings_buffer;
   uint32_t flags = buffer[IDX_SETTINGS_COUNT];
 
   if (flags & (1 << IDX_SETTINGS_HEADER_TABLE_SIZE)) {
@@ -250,7 +196,9 @@ void PackSettings(const FunctionCallbackInfo<Value>& args) {
 void RefreshDefaultSettings(const FunctionCallbackInfo<Value>& args) {
   DEBUG_HTTP2("Http2Session: refreshing default settings\n");
   Environment* env = Environment::GetCurrent(args);
-  uint32_t* buffer = env->http2_state_buffer()->settings_buffer;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+      env->http2_state()->settings_buffer;
+
   buffer[IDX_SETTINGS_HEADER_TABLE_SIZE] =
       DEFAULT_SETTINGS_HEADER_TABLE_SIZE;
   buffer[IDX_SETTINGS_ENABLE_PUSH] =
@@ -276,7 +224,8 @@ void RefreshSettings(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args[0].As<Object>());
   nghttp2_session* s = session->session();
 
-  uint32_t* buffer = env->http2_state_buffer()->settings_buffer;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+      env->http2_state()->settings_buffer;
   buffer[IDX_SETTINGS_HEADER_TABLE_SIZE] =
       fn(s, NGHTTP2_SETTINGS_HEADER_TABLE_SIZE);
   buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS] =
@@ -297,7 +246,8 @@ void RefreshSessionState(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsObject());
-  double* buffer = env->http2_state_buffer()->session_state_buffer;
+  AliasedBuffer<double, v8::Float64Array>& buffer =
+      env->http2_state()->session_state_buffer;
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args[0].As<Object>());
   nghttp2_session* s = session->session();
@@ -334,7 +284,8 @@ void RefreshStreamState(const FunctionCallbackInfo<Value>& args) {
   nghttp2_session* s = session->session();
   Nghttp2Stream* stream;
 
-  double* buffer = env->http2_state_buffer()->stream_state_buffer;
+  AliasedBuffer<double, v8::Float64Array>& buffer =
+      env->http2_state()->stream_state_buffer;
 
   if ((stream = session->FindStream(id)) == nullptr) {
     buffer[IDX_STREAM_STATE] = NGHTTP2_STREAM_STATE_IDLE;
@@ -446,7 +397,8 @@ void Http2Session::SubmitSettings(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   Environment* env = session->env();
 
-  uint32_t* buffer = env->http2_state_buffer()->settings_buffer;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+      env->http2_state()->settings_buffer;
   uint32_t flags = buffer[IDX_SETTINGS_COUNT];
 
   std::vector<nghttp2_settings_entry> entries;
@@ -1177,26 +1129,27 @@ void Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
 
-  http2_state* state = Calloc<http2_state>(1);
-  env->set_http2_state_buffer(state);
-  auto state_ab = ArrayBuffer::New(isolate, state, sizeof(*state));
+  http2_state* state = new http2_state(isolate);
+  env->set_http2_state(state);
 
-#define SET_STATE_TYPEDARRAY(name, type, field)                         \
-  target->Set(context,                                                  \
-              FIXED_ONE_BYTE_STRING(isolate, (name)),                   \
-              type::New(state_ab,                                       \
-                               offsetof(http2_state, field),            \
-                               arraysize(state->field)))                \
-                                   .FromJust()
+#define SET_STATE_TYPEDARRAY(name, field)             \
+  target->Set(context,                                \
+              FIXED_ONE_BYTE_STRING(isolate, (name)), \
+              (field)).FromJust()
 
   // Initialize the buffer used for padding callbacks
-  SET_STATE_TYPEDARRAY("paddingBuffer", Uint32Array, padding_buffer);
+  SET_STATE_TYPEDARRAY(
+    "paddingBuffer", state->padding_buffer.GetJSArray());
   // Initialize the buffer used to store the session state
-  SET_STATE_TYPEDARRAY("sessionState", Float64Array, session_state_buffer);
+  SET_STATE_TYPEDARRAY(
+    "sessionState", state->session_state_buffer.GetJSArray());
   // Initialize the buffer used to store the stream state
-  SET_STATE_TYPEDARRAY("streamState", Float64Array, stream_state_buffer);
-  SET_STATE_TYPEDARRAY("settingsBuffer", Uint32Array, settings_buffer);
-  SET_STATE_TYPEDARRAY("optionsBuffer", Uint32Array, options_buffer);
+  SET_STATE_TYPEDARRAY(
+    "streamState", state->stream_state_buffer.GetJSArray());
+  SET_STATE_TYPEDARRAY(
+    "settingsBuffer", state->settings_buffer.GetJSArray());
+  SET_STATE_TYPEDARRAY(
+    "optionsBuffer", state->options_buffer.GetJSArray());
 #undef SET_STATE_TYPEDARRAY
 
   NODE_DEFINE_CONSTANT(target, PADDING_BUF_FRAME_LENGTH);

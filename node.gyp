@@ -228,6 +228,7 @@
         'src/util.cc',
         'src/uv.cc',
         # headers to make for a more pleasant IDE experience
+        'src/aliased_buffer.h',
         'src/async-wrap.h',
         'src/async-wrap-inl.h',
         'src/base-object.h',
@@ -246,6 +247,7 @@
         'src/node_constants.h',
         'src/node_debug_options.h',
         'src/node_http2.h',
+        'src/node_http2_state.h',
         'src/node_internals.h',
         'src/node_javascript.h',
         'src/node_mutex.h',
@@ -650,6 +652,8 @@
       'sources': [
         'src/node_platform.cc',
         'src/node_platform.h',
+        'test/cctest/node_test_fixture.cc',
+        'test/cctest/test_aliased_buffer.cc',
         'test/cctest/test_base64.cc',
         'test/cctest/test_environment.cc',
         'test/cctest/test_util.cc',
