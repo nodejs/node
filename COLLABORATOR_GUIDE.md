@@ -268,14 +268,18 @@ A Pull Request should be raised and approved like any other change.
 Semver-minor commits that introduce new core modules should be treated with
 extra care.
 
-* First, the name of the new core module should not conflict with any existing
-  module in the ecosystem unless an agreement with the owner of those modules
-  is reached to transfer ownership.
-* PRs that introduce new core modules must be landed as semver-minor commits.
-* New core modules must be landed initially as `Experimental` and must go
-  through at least one release cycle before being moved out of experimental.
-* It is recommended to give PRs introducing new core modules more time for
-  review than the typical 48/72 hour review used for other commits.
+The name of the new core module should not conflict with any existing 
+module in the ecosystem unless a written agreement with the owner of those
+modules is reached to transfer ownership.
+
+New core modules must be landed with a [Stability Index][] of Experimental.
+Pull requests proposing new core modules must still be marked semver-minor.
+New core modules must remain Experimental until a semver-major release.
+
+It is recommended to give PRs introducing new core modules at least one week
+for review. For new modules that involve significant effort, non-trivial
+additions to Node.js or significant new capabilities, an [EPS][] is
+recommended but not required.
 
 ### Deprecations
 
@@ -656,3 +660,5 @@ release. This process of making a release will be a collaboration between the
 LTS working group and the Release team.
 
 [backporting guide]: doc/guides/backporting-to-release-lines.md
+[Stability Index]: https://github.com/nodejs/node/pull/doc/api/documentation.md#stability-index
+[EPS]: https://github.com/nodejs/node-eps
