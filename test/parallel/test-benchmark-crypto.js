@@ -8,7 +8,7 @@ if (!common.hasCrypto)
 if (common.hasFipsCrypto)
   common.skip('some benchmarks are FIPS-incompatible');
 
-const runBenchmark = require('../common/benchmarks');
+const runBenchmark = require('../common/benchmark');
 
 runBenchmark('crypto',
              [

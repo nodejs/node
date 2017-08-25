@@ -2,6 +2,6 @@
 
 require('../common');
 
-const runBenchmark = require('../common/benchmarks');
+const runBenchmark = require('../common/benchmark');
 
 runBenchmark('os', ['n=1']);

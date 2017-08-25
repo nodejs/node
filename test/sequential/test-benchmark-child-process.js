@@ -2,7 +2,7 @@
 
 require('../common');
 
-const runBenchmark = require('../common/benchmarks');
+const runBenchmark = require('../common/benchmark');
 
 runBenchmark('child_process',
              [
