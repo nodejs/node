@@ -298,6 +298,10 @@ copy /Y ..\deps\npm\bin\npm node-v%FULLVERSION%-win-%target_arch%\ > nul
 if errorlevel 1 echo Cannot copy npm && goto package_error
 copy /Y ..\deps\npm\bin\npm.cmd node-v%FULLVERSION%-win-%target_arch%\ > nul
 if errorlevel 1 echo Cannot copy npm.cmd && goto package_error
+copy /Y ..\deps\npm\bin\npx node-v%FULLVERSION%-win-%target_arch%\ > nul
+if errorlevel 1 echo Cannot copy npx && goto package_error
+copy /Y ..\deps\npm\bin\npx.cmd node-v%FULLVERSION%-win-%target_arch%\ > nul
+if errorlevel 1 echo Cannot copy npx.cmd && goto package_error
 copy /Y ..\tools\msvs\nodevars.bat node-v%FULLVERSION%-win-%target_arch%\ > nul
 if errorlevel 1 echo Cannot copy nodevars.bat && goto package_error
 if not defined noetw (
