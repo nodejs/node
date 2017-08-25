@@ -272,6 +272,10 @@ The name of the new core module should not conflict with any existing
 module in the ecosystem unless a written agreement with the owner of those
 modules is reached to transfer ownership.
 
+If the new module name is free, a Collaborator should register a placeholder
+in the module registry as soon as possible, linking to the pull request that
+introduces the new core module.
+
 Pull requests introducing new core modules:
 
 * Must be left open for at least one week for review.
