@@ -272,14 +272,18 @@ The name of the new core module should not conflict with any existing
 module in the ecosystem unless a written agreement with the owner of those
 modules is reached to transfer ownership.
 
-New core modules must be landed with a [Stability Index][] of Experimental.
-Pull requests proposing new core modules must still be marked semver-minor.
-New core modules must remain Experimental until a semver-major release.
+Pull requests introducing new core modules:
 
-Pull requests introducing new core modules must be left open for at least
-one week for review. For new modules that involve significant effort,
-non-trivial additions to Node.js or significant new capabilities, an
-[Enhancement Proposal][] is recommended but not required.
+* Must be left open for at least one week for review.
+* Must be labeled using the `ctc-review` label.
+* Must have signoff from at least two CTC members.
+
+New core modules must be landed with a [Stability Index][] of Experimental,
+and must remain Experimental until a semver-major release.
+
+For new modules that involve significant effort, non-trivial additions to
+Node.js or significant new capabilities, an [Enhancement Proposal][] is
+recommended but not required.
 
 ### Deprecations
 
