@@ -10,13 +10,19 @@ if (process.argv[2] === 'child') {
   process.abort();
 } else {
   const child = cp.spawnSync(`${process.execPath}`, [`${__filename}`, 'child']);
-  const frames =
-      child.stderr.toString().trimRight().split('\n').map((s) => s.trim());
+  const stderr = child.stderr.toString();
 
   assert.strictEqual(child.stdout.toString(), '');
-  assert.ok(frames.length > 0);
-  // All frames should start with a frame number.
-  assert.ok(frames.every((frame, index) => frame.startsWith(`${index + 1}:`)));
-  // At least some of the frames should include the binary name.
-  assert.ok(frames.some((frame) => frame.includes(`[${process.execPath}]`)));
+  // stderr will be empty for systems that don't support backtraces.
+  if (stderr !== '') {
+    const frames = stderr.trimRight().split('\n').map((s) => s.trim());
+
+    if (!frames.every((frame, index) => frame.startsWith(`${index + 1}:`))) {
+      assert.fail(`Each frame should start with a frame number:\n${stderr}`);
+    }
+
+    if (!frames.some((frame) => frame.includes(`[${process.execPath}]`))) {
+      assert.fail(`Some frames should include the binary name:\n${stderr}`);
+    }
+  }
 }
