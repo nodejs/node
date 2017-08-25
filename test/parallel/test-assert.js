@@ -743,3 +743,12 @@ assert.throws(() => {
       }));
   });
 }
+
+common.expectsError(
+  () => assert.strictEqual(new Error('foo'), new Error('foobar')),
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: /^'Error: foo' === 'Error: foobar'$/
+  }
+);
