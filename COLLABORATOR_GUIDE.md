@@ -276,9 +276,9 @@ New core modules must be landed with a [Stability Index][] of Experimental.
 Pull requests proposing new core modules must still be marked semver-minor.
 New core modules must remain Experimental until a semver-major release.
 
-It is recommended to give PRs introducing new core modules at least one week
-for review. For new modules that involve significant effort, non-trivial
-additions to Node.js or significant new capabilities, an
+Pull requests introducing new core modules must be left open for at least
+one week for review. For new modules that involve significant effort,
+non-trivial additions to Node.js or significant new capabilities, an
 [Enhancement Proposal][] is recommended but not required.
 
 ### Deprecations
