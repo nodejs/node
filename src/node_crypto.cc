@@ -1517,7 +1517,7 @@ unsigned int SecureContext::PskClientCallback(SSL *ssl,
 
   MaybeLocal<Value> maybe_ret;
   if (value->IsFunction()) {
-    Local<Function> func = Local<Function>::Cast(value);
+    Local<Function> func = value.As<Function>();
     maybe_ret = func->Call(env->context(), sc->object(), arraysize(argv), argv);
   } else {
     return 0;
