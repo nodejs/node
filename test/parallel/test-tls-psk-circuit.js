@@ -42,20 +42,22 @@ const server = tls.createServer(serverOptions, common.mustCall((c) => {
     c.end(data);
   });
 }, 3));
-server.listen(common.PORT, startTest);
+server.listen(0, function() {
+  startTest(this.address().port);
+});
 
-function startTest() {
+function startTest(port) {
   function connectClient(options, next) {
-    const client = tls.connect(common.PORT, 'localhost', options, () => {
+    const client = tls.connect(port, 'localhost', options, () => {
       clientResults.push('connect');
 
       client.end(TEST_DATA);
 
-      client.on('data', (data) => {
+      client.on('data', common.mustCallAtLeast((data) => {
         assert.strictEqual(data.toString(), TEST_DATA);
-      });
+      }));
 
-      client.on('close', next);
+      client.on('close', common.mustCall(next));
     });
 
     let errored = false;

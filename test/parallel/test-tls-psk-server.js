@@ -40,10 +40,10 @@ let sentWorld = false;
 let gotWorld = false;
 let opensslExitCode = -1;
 
-server.listen(common.PORT, () => {
+server.listen(0, function() {
   const client = spawn(common.opensslCli, [
     's_client',
-    '-connect', '127.0.0.1:' + common.PORT,
+    '-connect', '127.0.0.1:' + this.address().port,
     '-cipher', CIPHERS,
     '-psk', KEY,
     '-psk_identity', IDENTITY
