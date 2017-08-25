@@ -66,7 +66,7 @@ struct Argv {
   int nr_args_;
 };
 
-uv_loop_t current_loop;
+extern uv_loop_t current_loop;
 
 class NodeTestFixture : public ::testing::Test {
  public:

@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "aliased_buffer.h"
 #include "ares.h"
 #if HAVE_INSPECTOR
 #include "inspector_agent.h"
@@ -34,6 +35,7 @@
 #include "uv.h"
 #include "v8.h"
 #include "node.h"
+#include "node_http2_state.h"
 
 #include <list>
 #include <map>
@@ -45,10 +47,6 @@
 struct nghttp2_rcbuf;
 
 namespace node {
-
-namespace http2 {
-struct http2_state;
-}
 
 // Pick an index that's hopefully out of the way when we're embedded inside
 // another application. Performance-wise or memory-wise it doesn't matter:
@@ -390,10 +388,12 @@ class Environment {
 
     AsyncHooks() = delete;
 
-    inline uint32_t* fields();
+    inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
     inline int fields_count() const;
-    inline double* uid_fields();
+
+    inline AliasedBuffer<double, v8::Float64Array>& uid_fields();
     inline int uid_fields_count() const;
+
     inline v8::Local<v8::String> provider_string(int idx);
 
     inline void push_ids(double async_id, double trigger_id);
@@ -412,7 +412,7 @@ class Environment {
 
      private:
       Environment* env_;
-      double* uid_fields_ref_;
+      AliasedBuffer<double, v8::Float64Array> uid_fields_ref_;
 
       DISALLOW_COPY_AND_ASSIGN(InitScope);
     };
@@ -447,9 +447,9 @@ class Environment {
     std::stack<struct node_async_ids> ids_stack_;
     // Attached to a Uint32Array that tracks the number of active hooks for
     // each type.
-    uint32_t fields_[kFieldsCount];
+    AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
     // Attached to a Float64Array that tracks the state of async resources.
-    double uid_fields_[kUidFieldsCount];
+    AliasedBuffer<double, v8::Float64Array> uid_fields_;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncHooks);
   };
@@ -608,8 +608,8 @@ class Environment {
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
 
-  inline http2::http2_state* http2_state_buffer() const;
-  inline void set_http2_state_buffer(http2::http2_state* buffer);
+  inline http2::http2_state* http2_state() const;
+  inline void set_http2_state(http2::http2_state * state);
 
   inline double* fs_stats_field_array() const;
   inline void set_fs_stats_field_array(double* fields);
@@ -736,7 +736,7 @@ class Environment {
   double* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
-  http2::http2_state* http2_state_buffer_ = nullptr;
+  http2::http2_state* http2_state_ = nullptr;
 
   double* fs_stats_field_array_;
 

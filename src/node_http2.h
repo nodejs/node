@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node_http2_core-inl.h"
+#include "node_http2_state.h"
 #include "stream_base-inl.h"
 #include "string_bytes.h"
 
