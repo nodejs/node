@@ -27,7 +27,7 @@ const listenOnPort = [
   const assertPort = () => {
     return common.expectsError({
       code: 'ERR_SOCKET_BAD_PORT',
-      type: Error
+      type: RangeError
     });
   };
 
@@ -60,7 +60,7 @@ const listenOnPort = [
     assert.throws(block,
                   common.expectsError({
                     code: 'ERR_INVALID_OPT_VALUE',
-                    type: TypeError,
+                    type: Error,
                     message: /^The value "{.*}" is invalid for option "options"$/
                   }));
   }

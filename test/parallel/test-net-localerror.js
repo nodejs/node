@@ -34,7 +34,7 @@ connect({
   host: 'localhost',
   port: 0,
   localAddress: 'foobar',
-}, 'ERR_INVALID_IP_ADDRESS', Error);
+}, 'ERR_INVALID_IP_ADDRESS', TypeError);
 
 connect({
   host: 'localhost',
