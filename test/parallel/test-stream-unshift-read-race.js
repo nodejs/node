@@ -70,7 +70,10 @@ r._read = function(n) {
 function pushError() {
   assert.throws(function() {
     r.push(Buffer.allocUnsafe(1));
-  }, /^Error: stream\.push\(\) after EOF$/);
+  }, common.expectsError({
+    type: Error,
+    message: 'stream.push() after EOF'
+  }));
 }
 
 
