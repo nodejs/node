@@ -81,6 +81,26 @@ AsyncResource::~AsyncResource() {
   object.Reset();
 }
 
+async_context EmitAsyncInit(v8::Isolate* isolate,
+                            v8::Local<v8::Object> resource,
+                            v8::Local<v8::String> name,
+                            async_id trigger_async_id) {
+  return async_context();
+}
+
+void EmitAsyncDestroy(v8::Isolate* isolate,
+                      async_context asyncContext) {
+}
+
+v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
+                                       v8::Local<v8::Object> recv,
+                                       v8::Local<v8::Function> callback,
+                                       int argc,
+                                       v8::Local<v8::Value>* argv,
+                                       async_context asyncContext) {
+  return node::MakeCallback(isolate, recv, callback, argc, argv);
+}
+
 }  // end of namespace node
 
 CallbackScope::CallbackScope(node::AsyncResource* work) :

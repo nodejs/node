@@ -41,7 +41,8 @@ The documentation for N-API is structured as follows:
 * [Working with JavaScript Properties][]
 * [Working with JavaScript Functions][]
 * [Object Wrap][]
-* [Asynchronous Operations][]
+* [Simple Asynchronous Operations][]
+* [Custom Asynchronous Operations][]
 * [Promises][]
 * [Script Execution][]
 
@@ -264,7 +265,7 @@ It is intended only for logging purposes.
 added: v8.0.0
 -->
 ```C
-NAPI_EXTERN napi_status
+napi_status
 napi_get_last_error_info(napi_env env,
                          const napi_extended_error_info** result);
 ```
@@ -515,8 +516,8 @@ This API returns a JavaScript RangeError with the text provided.
 added: v8.0.0
 -->
 ```C
-NAPI_EXTERN napi_status napi_get_and_clear_last_exception(napi_env env,
-                                                          napi_value* result);
+napi_status napi_get_and_clear_last_exception(napi_env env,
+                                              napi_value* result);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -531,7 +532,7 @@ This API returns true if an exception is pending.
 added: v8.0.0
 -->
 ```C
-NAPI_EXTERN napi_status napi_is_exception_pending(napi_env env, bool* result);
+napi_status napi_is_exception_pending(napi_env env, bool* result);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -551,7 +552,7 @@ thrown to immediately terminate the process.
 added: REPLACEME
 -->
 ```C
-NAPI_EXTERN NAPI_NO_RETURN void napi_fatal_error(const char* location, const char* message);
+NAPI_NO_RETURN void napi_fatal_error(const char* location, const char* message);
 ```
 
 - `[in] location`: Optional location at which the error occurred.
@@ -718,10 +719,10 @@ reverse order from which they were created.
 added: v8.0.0
 -->
 ```C
-NAPI_EXTERN napi_status napi_escape_handle(napi_env env,
-                                           napi_escapable_handle_scope scope,
-                                           napi_value escapee,
-                                           napi_value* result);
+napi_status napi_escape_handle(napi_env env,
+                               napi_escapable_handle_scope scope,
+                               napi_value escapee,
+                               napi_value* result);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -1478,10 +1479,10 @@ of the ECMAScript Language Specification.
 added: v8.0.0
 -->
 ```C
-NAPI_EXTERN napi_status napi_create_string_latin1(napi_env env,
-                                                  const char* str,
-                                                  size_t length,
-                                                  napi_value* result);
+napi_status napi_create_string_latin1(napi_env env,
+                                      const char* str,
+                                      size_t length,
+                                      napi_value* result);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -1811,11 +1812,11 @@ JavaScript Number
 added: v8.0.0
 -->
 ```C
-NAPI_EXTERN napi_status napi_get_value_string_latin1(napi_env env,
-                                                     napi_value value,
-                                                     char* buf,
-                                                     size_t bufsize,
-                                                     size_t* result)
+napi_status napi_get_value_string_latin1(napi_env env,
+                                         napi_value value,
+                                         char* buf,
+                                         size_t bufsize,
+                                         size_t* result)
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -2790,8 +2791,8 @@ in as arguments to the function.
 Returns `napi_ok` if the API succeeded.
 
 This method allows a JavaScript function object to be called from a native
-add-on. This is an primary mechanism of calling back *from* the add-on's
-native code *into* JavaScript. For special cases like calling into JavaScript
+add-on. This is the primary mechanism of calling back *from* the add-on's
+native code *into* JavaScript. For the special case of calling into JavaScript
 after an async operation, see [`napi_make_callback`][].
 
 A sample use case might look as follows. Consider the following JavaScript
@@ -3003,39 +3004,6 @@ status = napi_new_instance(env, constructor, argc, argv, &value);
 
 Returns `napi_ok` if the API succeeded.
 
-### *napi_make_callback*
-<!-- YAML
-added: v8.0.0
--->
-```C
-napi_status napi_make_callback(napi_env env,
-                               napi_value recv,
-                               napi_value func,
-                               int argc,
-                               const napi_value* argv,
-                               napi_value* result)
-```
-
-- `[in] env`: The environment that the API is invoked under.
-- `[in] recv`: The `this` object passed to the called function.
-- `[in] func`: `napi_value` representing the JavaScript function
-to be invoked.
-- `[in] argc`: The count of elements in the `argv` array.
-- `[in] argv`: Array of JavaScript values as `napi_value`
-representing the arguments to the function.
-- `[out] result`: `napi_value` representing the JavaScript object returned.
-
-Returns `napi_ok` if the API succeeded.
-
-This method allows a JavaScript function object to be called from a native
-add-on. This API is similar to `napi_call_function`. However, it is used to call
-*from* native code back *into* JavaScript *after* returning from an async
-operation (when there is no other script on the stack). It is a fairly simple
-wrapper around `node::MakeCallback`.
-
-For an example on how to use `napi_make_callback`, see the section on
-[Asynchronous Operations][].
-
 ## Object Wrap
 
 N-API offers a way to "wrap" C++ classes and instances so that the class
@@ -3214,7 +3182,7 @@ restoring the JavaScript object's prototype chain. If a finalize callback was
 associated with the wrapping, it will no longer be called when the JavaScript
 object becomes garbage-collected.
 
-## Asynchronous Operations
+## Simple Asynchronous Operations
 
 Addon modules often need to leverage async helpers from libuv as part of their
 implementation. This allows them to schedule work to be executed asynchronously
@@ -3250,8 +3218,8 @@ Once created the async worker can be queued
 for execution using the [`napi_queue_async_work`][] function:
 
 ```C
-NAPI_EXTERN napi_status napi_queue_async_work(napi_env env,
-                                              napi_async_work work);
+napi_status napi_queue_async_work(napi_env env,
+                                  napi_async_work work);
 ```
 
 [`napi_cancel_async_work`][] can be used if  the work needs
@@ -3271,7 +3239,6 @@ changes:
     description: Added `async_resource` and `async_resource_name` parameters.
 -->
 ```C
-NAPI_EXTERN
 napi_status napi_create_async_work(napi_env env,
                                    napi_value async_resource,
                                    napi_value async_resource_name,
@@ -3314,8 +3281,8 @@ for more information.
 added: v8.0.0
 -->
 ```C
-NAPI_EXTERN napi_status napi_delete_async_work(napi_env env,
-                                               napi_async_work work);
+napi_status napi_delete_async_work(napi_env env,
+                                   napi_async_work work);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -3330,8 +3297,8 @@ This API frees a previously allocated work object.
 added: v8.0.0
 -->
 ```C
-NAPI_EXTERN napi_status napi_queue_async_work(napi_env env,
-                                              napi_async_work work);
+napi_status napi_queue_async_work(napi_env env,
+                                  napi_async_work work);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -3347,8 +3314,8 @@ for execution.
 added: v8.0.0
 -->
 ```C
-NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
-                                               napi_async_work work);
+napi_status napi_cancel_async_work(napi_env env,
+                                   napi_async_work work);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -3362,6 +3329,93 @@ cancelled and `napi_generic_failure` will be returned. If successful,
 the `complete` callback will be invoked with a status value of
 `napi_cancelled`. The work should not be deleted before the `complete`
 callback invocation, even if it has been successfully cancelled.
+
+## Custom Asynchronous Operations
+The simple asynchronous work APIs above may not be appropriate for every
+scenario, because with those the async execution still happens on the main
+event loop. When using any other async mechanism, the following APIs are
+necessary to ensure an async operation is properly tracked by the runtime.
+
+### *napi_async_init**
+<!-- YAML
+added: REPLACEME
+-->
+```C
+napi_status napi_async_init(napi_env env,
+                            napi_value async_resource,
+                            napi_value async_resource_name,
+                            napi_async_context* result)
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] async_resource`: An optional object associated with the async work
+  that will be passed to possible `async_hooks` [`init` hooks][].
+- `[in] async_resource_name`: Required identifier for the kind of resource
+  that is being provided for diagnostic information exposed by the
+  `async_hooks` API.
+- `[out] result`: The initialized async context.
+
+Returns `napi_ok` if the API succeeded.
+
+### *napi_async_destroy**
+<!-- YAML
+added: REPLACEME
+-->
+```C
+napi_status napi_async_destroy(napi_env env,
+                               napi_async_context async_context);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] async_context`: The async context to be destroyed.
+
+Returns `napi_ok` if the API succeeded.
+
+### *napi_make_callback*
+<!-- YAML
+added: v8.0.0
+changes:
+  - version: REPLACEME
+    description: Added `async_context` parameter.
+-->
+```C
+napi_status napi_make_callback(napi_env env,
+                               napi_async_context async_context,
+                               napi_value recv,
+                               napi_value func,
+                               int argc,
+                               const napi_value* argv,
+                               napi_value* result)
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] async_context`: Context for the async operation that is
+   invoking the callback. This should normally be a value previously
+   obtained from [`napi_async_init`][]. However `NULL` is also allowed,
+   which indicates the current async context (if any) is to be used
+   for the callback.
+- `[in] recv`: The `this` object passed to the called function.
+- `[in] func`: `napi_value` representing the JavaScript function
+to be invoked.
+- `[in] argc`: The count of elements in the `argv` array.
+- `[in] argv`: Array of JavaScript values as `napi_value`
+representing the arguments to the function.
+- `[out] result`: `napi_value` representing the JavaScript object returned.
+
+Returns `napi_ok` if the API succeeded.
+
+This method allows a JavaScript function object to be called from a native
+add-on. This API is similar to `napi_call_function`. However, it is used to call
+*from* native code back *into* JavaScript *after* returning from an async
+operation (when there is no other script on the stack). It is a fairly simple
+wrapper around `node::MakeCallback`.
+
+Note it is *not* necessary to use `napi_make_callback` from within a
+`napi_async_complete_callback`; in that situation the callback's async
+context has already been set up, so a direct call to `napi_call_function`
+is sufficient and appropriate. Use of the `napi_make_callback` function
+may be required when implementing custom async behavior that does not use
+`napi_create_async_work`.
 
 ## Version Management
 
@@ -3378,7 +3432,6 @@ typedef struct {
   const char* release;
 } napi_node_version;
 
-NAPI_EXTERN
 napi_status napi_get_node_version(napi_env env,
                                   const napi_node_version** version);
 ```
@@ -3399,8 +3452,8 @@ The returned buffer is statically allocated and does not need to be freed.
 added: REPLACEME
 -->
 ```C
-NAPI_EXTERN napi_status napi_get_version(napi_env env,
-                                         uint32_t* result);
+napi_status napi_get_version(napi_env env,
+                             uint32_t* result);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -3508,9 +3561,9 @@ deferred = NULL;
 added: REPLACEME
 -->
 ```C
-NAPI_EXTERN napi_status napi_create_promise(napi_env env,
-                                            napi_deferred* deferred,
-                                            napi_value* promise);
+napi_status napi_create_promise(napi_env env,
+                                napi_deferred* deferred,
+                                napi_value* promise);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -3528,9 +3581,9 @@ This API creates a deferred object and a JavaScript promise.
 added: REPLACEME
 -->
 ```C
-NAPI_EXTERN napi_status napi_resolve_deferred(napi_env env,
-                                              napi_deferred deferred,
-                                              napi_value resolution);
+napi_status napi_resolve_deferred(napi_env env,
+                                  napi_deferred deferred,
+                                  napi_value resolution);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -3551,9 +3604,9 @@ The deferred object is freed upon successful completion.
 added: REPLACEME
 -->
 ```C
-NAPI_EXTERN napi_status napi_reject_deferred(napi_env env,
-                                             napi_deferred deferred,
-                                             napi_value rejection);
+napi_status napi_reject_deferred(napi_env env,
+                                 napi_deferred deferred,
+                                 napi_value rejection);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -3574,9 +3627,9 @@ The deferred object is freed upon successful completion.
 added: REPLACEME
 -->
 ```C
-NAPI_EXTERN napi_status napi_is_promise(napi_env env,
-                                        napi_value promise,
-                                        bool* is_promise);
+napi_status napi_is_promise(napi_env env,
+                            napi_value promise,
+                            bool* is_promise);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -3604,7 +3657,8 @@ NAPI_EXTERN napi_status napi_run_script(napi_env env,
 - `[out] result`: The value resulting from having executed the script.
 
 [Promises]: #n_api_promises
-[Asynchronous Operations]: #n_api_asynchronous_operations
+[Simple Asynchronous Operations]: #n_api_asynchronous_operations
+[Custom Asynchronous Operations]: #n_api_custom_asynchronous_operations
 [Basic N-API Data Types]: #n_api_basic_n_api_data_types
 [ECMAScript Language Specification]: https://tc39.github.io/ecma262/
 [Error Handling]: #n_api_error_handling

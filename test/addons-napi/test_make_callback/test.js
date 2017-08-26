@@ -7,7 +7,6 @@ const binding = require(`./build/${common.buildType}/binding`);
 const makeCallback = binding.makeCallback;
 
 function myMultiArgFunc(arg1, arg2, arg3) {
-  console.log(`MyFunc was called with ${arguments.length} arguments`);
   assert.strictEqual(arg1, 1);
   assert.strictEqual(arg2, 2);
   assert.strictEqual(arg3, 3);

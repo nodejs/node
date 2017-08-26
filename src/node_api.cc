@@ -2770,7 +2770,52 @@ napi_status napi_instanceof(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+napi_status napi_async_init(napi_env env,
+                            napi_value async_resource,
+                            napi_value async_resource_name,
+                            napi_async_context* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, async_resource_name);
+  CHECK_ARG(env, result);
+
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  v8::Local<v8::Object> v8_resource;
+  if (async_resource != nullptr) {
+    CHECK_TO_OBJECT(env, context, v8_resource, async_resource);
+  } else {
+    v8_resource = v8::Object::New(isolate);
+  }
+
+  v8::Local<v8::String> v8_resource_name;
+  CHECK_TO_STRING(env, context, v8_resource_name, async_resource_name);
+
+  // TODO(jasongin): Consider avoiding allocation here by using
+  // a tagged pointer with 2×31 bit fields instead.
+  node::async_context* async_context = new node::async_context();
+
+  *async_context = node::EmitAsyncInit(isolate, v8_resource, v8_resource_name);
+  *result = reinterpret_cast<napi_async_context>(async_context);
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_async_destroy(napi_env env,
+                               napi_async_context async_context) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, async_context);
+
+  v8::Isolate* isolate = env->isolate;
+  node::async_context* node_async_context =
+      reinterpret_cast<node::async_context*>(async_context);
+  node::EmitAsyncDestroy(isolate, *node_async_context);
+
+  return napi_clear_last_error(env);
+}
+
 napi_status napi_make_callback(napi_env env,
+                               napi_async_context async_context,
                                napi_value recv,
                                napi_value func,
                                size_t argc,
@@ -2791,12 +2836,22 @@ napi_status napi_make_callback(napi_env env,
   v8::Local<v8::Function> v8func;
   CHECK_TO_FUNCTION(env, v8func, func);
 
-  v8::Local<v8::Value> callback_result = node::MakeCallback(
+  node::async_context* node_async_context =
+    reinterpret_cast<node::async_context*>(async_context);
+  if (node_async_context == nullptr) {
+    static node::async_context empty_context = { 0, 0 };
+    node_async_context = &empty_context;
+  }
+
+  v8::MaybeLocal<v8::Value> callback_result = node::MakeCallback(
       isolate, v8recv, v8func, argc,
-      reinterpret_cast<v8::Local<v8::Value>*>(const_cast<napi_value*>(argv)));
+      reinterpret_cast<v8::Local<v8::Value>*>(const_cast<napi_value*>(argv)),
+      *node_async_context);
+  CHECK_MAYBE_EMPTY(env, callback_result, napi_generic_failure);
 
   if (result != nullptr) {
-    *result = v8impl::JsValueFromV8LocalValue(callback_result);
+    *result = v8impl::JsValueFromV8LocalValue(
+        callback_result.ToLocalChecked());
   }
 
   return GET_RETURN_STATUS(env);
