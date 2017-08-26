@@ -12,8 +12,8 @@ napi_value MakeCallback(napi_env env, napi_callback_info info) {
   napi_value recv = args[0];
   napi_value func = args[1];
 
-  napi_make_callback(env,
-      recv, func, 0 /* argc */, nullptr /* argv */, nullptr /* result */);
+  napi_make_callback(env, nullptr /* async_context */,
+    recv, func, 0 /* argc */, nullptr /* argv */, nullptr /* result */);
 
   return recv;
 }
