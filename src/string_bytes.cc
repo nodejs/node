@@ -35,6 +35,28 @@
 // use external string resources.
 #define EXTERN_APEX 0xFBEE9
 
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
+    defined(__DragonFly__)
+# include <sys/endian.h>
+#elif defined(__APPLE__) || defined(_WIN32)
+# define __BIG_ENDIAN 0x1000
+# define __LITTLE_ENDIAN 0x0001
+# define __BYTE_ORDER __LITTLE_ENDIAN
+#elif defined(sun) || defined(__sun) || defined(_AIX)
+# ifdef defined(sun) || defined(__sun)
+#  include <sys/isa_defs.h>
+# endif
+# define __BIG_ENDIAN 0x1000
+# define __LITTLE_ENDIAN 0x0001
+# ifdef _BIG_ENDIAN
+#  define __BYTE_ORDER __BIG_ENDIAN
+# else
+#  define __BYTE_ORDER __LITTLE_ENDIAN
+# endif
+#else
+# include <endian.h>
+#endif
+
 // TODO(addaleax): These should all have better error messages. In particular,
 // they should mention what the actual limits are.
 #define SB_MALLOC_FAILED_ERROR \
@@ -652,20 +674,108 @@ static void force_ascii(const char* src, char* dst, size_t len) {
 }
 
 
-static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
+#define pack(byte) (static_cast<uint8_t>(byte) * 0x01010101u)
+uint32_t nibbles_to_hex(uint32_t nibbles) {
+  const uint32_t ascii09 = nibbles + pack('0');
+  const uint32_t correction = pack('a' - '0' - 10);
+
+  const uint32_t tmp = nibbles + pack(128 - 10);
+  const uint32_t msb = tmp & pack(0x80);
+  const uint32_t mask = msb - (msb >> 7);
+
+  return ascii09 + (mask & correction);
+}
+
+
+#define byte_to_hex(src, dst, i, val)                                          \
+  do {                                                                         \
+    val = static_cast<uint8_t>(src[i]);                                        \
+    dst[i * 2] = hex[val >> 4];                                                \
+    dst[i * 2 + 1] = hex[val & 15];                                            \
+    if (slen == i + 1) return;                                                 \
+  } while (0)
+
+static void hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
   // We know how much we'll write, just make sure that there's space.
   CHECK(dlen >= slen * 2 &&
       "not enough space provided for hex encode");
 
-  dlen = slen * 2;
-  for (uint32_t i = 0, k = 0; k < dlen; i += 1, k += 2) {
+  // Process smaller inputs first
+  {
+    if (slen == 0) return;
     static const char hex[] = "0123456789abcdef";
-    uint8_t val = static_cast<uint8_t>(src[i]);
-    dst[k + 0] = hex[val >> 4];
-    dst[k + 1] = hex[val & 15];
+    uint8_t val;
+    byte_to_hex(src, dst, 0, val);
+    byte_to_hex(src, dst, 1, val);
+    byte_to_hex(src, dst, 2, val);
+    byte_to_hex(src, dst, 3, val);
+    byte_to_hex(src, dst, 4, val);
+    byte_to_hex(src, dst, 5, val);
+    byte_to_hex(src, dst, 6, val);
+    byte_to_hex(src, dst, 7, val);
+    byte_to_hex(src, dst, 8, val);
+    byte_to_hex(src, dst, 9, val);
+    byte_to_hex(src, dst, 10, val);
+    byte_to_hex(src, dst, 11, val);
+    byte_to_hex(src, dst, 12, val);
+    byte_to_hex(src, dst, 13, val);
+    byte_to_hex(src, dst, 14, val);
+    byte_to_hex(src, dst, 15, val);
   }
 
-  return dlen;
+  size_t i = 0;
+  size_t d = 32;
+  size_t nb = 16;
+  uint16_t* src16 = reinterpret_cast<uint16_t*>(const_cast<char*>(src + 16));
+  size_t alignment = reinterpret_cast<uintptr_t>(src16) % sizeof(*src16);
+
+  if (alignment != 0) {
+    while (alignment < sizeof(*src16) && nb < slen) {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+      uint32_t val = nibbles_to_hex(((src[nb] & 0xf0) >> 4) |   // 0x0000000f
+                                    ((src[nb] & 0x0f) << 8));   // 0x00000f00
+#else
+      uint32_t val = nibbles_to_hex(((src[nb] & 0xf0) << 20) |  // 0x0f000000
+                                    ((src[nb] & 0x0f) << 16));  // 0x000f0000
+#endif
+      memcpy(dst + d, &val, 2);
+      d += 2;
+      ++nb;
+      ++alignment;
+    }
+    src16 = reinterpret_cast<uint16_t*>(const_cast<char*>(src + nb));
+    ASSERT_EQ(reinterpret_cast<uintptr_t>(src16) % sizeof(*src16), 0);
+  }
+
+  while (slen - nb >= 2) {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    uint32_t val = nibbles_to_hex(((src16[i] & 0xf000) << 4) |   // 0x000f0000
+                                  ((src16[i] & 0x0f00) << 16) |  // 0x0f000000
+                                  ((src16[i] & 0x00f0) >> 4) |   // 0x0000000f
+                                  ((src16[i] & 0x000f) << 8));   // 0x00000f00
+#else
+    uint32_t val = nibbles_to_hex(((src16[i] & 0xf000) << 12) |  // 0x0f000000
+                                  ((src16[i] & 0x0f00) << 8) |   // 0x000f0000
+                                  ((src16[i] & 0x00f0) << 4) |   // 0x00000f00
+                                  ((src16[i] & 0x000f)));        // 0x0000000f
+#endif
+    memcpy(dst + d, &val, 4);
+    ++i;
+    nb += 2;
+    d += 4;
+  }
+
+  // Process possible leftover byte
+  if (nb < slen) {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    uint32_t val = nibbles_to_hex(((src[nb] & 0xf0) >> 4) |   // 0x0000000f
+                                  ((src[nb] & 0x0f) << 8));   // 0x00000f00
+#else
+    uint32_t val = nibbles_to_hex(((src[nb] & 0xf0) << 20) |  // 0x0f000000
+                                  ((src[nb] & 0x0f) << 16));  // 0x000f0000
+#endif
+    memcpy(dst + d, &val, 2);
+  }
 }
 
 
@@ -751,8 +861,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
         *error = SB_MALLOC_FAILED_ERROR;
         return MaybeLocal<Value>();
       }
-      size_t written = hex_encode(buf, buflen, dst, dlen);
-      CHECK_EQ(written, dlen);
+      hex_encode(buf, buflen, dst, dlen);
 
       return ExternOneByteString::New(isolate, dst, dlen, error);
     }
