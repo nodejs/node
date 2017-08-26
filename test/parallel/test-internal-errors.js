@@ -199,6 +199,16 @@ assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
                                   ['a', 'b', null]),
                    'The "a" argument must be of type b. Received type null');
+assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'not b']),
+                   'The "a" argument must not be of type b');
+assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a.b', 'not c']),
+                   'The "a.b" property must not be of type c');
+assert.strictEqual(
+  errors.message('ERR_INVALID_ARG_TYPE', ['first argument', 'c']),
+  'The first argument must be of type c');
+assert.strictEqual(
+  errors.message('ERR_INVALID_ARG_TYPE', [['a', 'b', 'c'], 'not d']),
+  'The "a", "b", "c" arguments must not be of type d');
 
 // Test ERR_INVALID_URL_SCHEME
 assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', ['file']),
