@@ -31,7 +31,7 @@ const typeParser = require('./type-parser.js');
 module.exports = toHTML;
 
 const STABILITY_TEXT_REG_EXP = /(.*:)\s*(\d)([\s\S]*)/;
-const DOC_CREATED_REG_EXP = /<!--introduced_in( )?=( )?v([0-9]+)\.([0-9]+)\.([0-9]+)-->/;
+const DOC_CREATED_REG_EXP = /<!--\s*introduced_in\s*=\s*v([0-9]+)\.([0-9]+)\.([0-9]+)\s*-->/;
 
 // customized heading without id attribute
 const renderer = new marked.Renderer();
@@ -219,7 +219,7 @@ function altDocs(filename) {
     { num: '5.x' },
     { num: '4.x', lts: true },
     { num: '0.12.x' },
-    { num: '0.10.x' },
+    { num: '0.10.x' }
   ];
 
   const host = 'https://nodejs.org';
