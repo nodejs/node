@@ -36,9 +36,14 @@ fs.readFile(httpUrl, common.expectsError({
 
 // pct-encoded characters in the path will be decoded and checked
 fs.readFile(new URL('file:///c:/tmp/%00test'), common.mustCall((err) => {
-  assert(err);
-  assert.strictEqual(err.message,
-                     'Path must be a string without null bytes');
+  common.expectsError(
+    () => {
+      throw err;
+    },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: Error
+    });
 }));
 
 if (common.isWindows) {

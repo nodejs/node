@@ -1,22 +1,29 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const fs = require('fs');
 
-const expectedError = /^TypeError: filename prefix is required$/;
 const prefixValues = [undefined, null, 0, true, false, 1, ''];
 
 function fail(value) {
-  assert.throws(
-    () => fs.mkdtempSync(value, {}),
-    expectedError
-  );
+  common.expectsError(
+    () => {
+      fs.mkdtempSync(value, {});
+    },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    });
 }
 
 function failAsync(value) {
-  assert.throws(
-    () => fs.mkdtemp(value, common.mustNotCall()), expectedError
-  );
+  common.expectsError(
+    () => {
+      fs.mkdtemp(value, common.mustNotCall());
+    },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    });
 }
 
 prefixValues.forEach((prefixValue) => {
