@@ -31,7 +31,7 @@ const typeParser = require('./type-parser.js');
 module.exports = toHTML;
 
 const STABILITY_TEXT_REG_EXP = /(.*:)\s*(\d)([\s\S]*)/;
-const DOC_CREATED_REG_EXP = /<!--introduced_in=v([0-9]+).([0-9]+).([0-9]+)-->/;
+const DOC_CREATED_REG_EXP = /<!--introduced_in( )?=( )?v([0-9]+)\.([0-9]+)\.([0-9]+)-->/;
 
 // customized heading without id attribute
 const renderer = new marked.Renderer();
@@ -199,16 +199,17 @@ function altDocs(filename) {
   let html = '';
 
   if (!docCreated) {
-    console.error('Failed to add alternative version links');
+    console.error(`Failed to add alternative version links to ${filename}`);
     return html;
   }
 
   function lte(v) {
-    if (docCreated[1] > v.num[0])
+    const ns = v.num.split('.');
+    if (docCreated[1] > +ns[0])
       return false;
-    if (docCreated[1] < v.num[0])
+    if (docCreated[1] < +ns[0])
       return true;
-    return docCreated[2] <= v.num.substr(2, 2);
+    return docCreated[2] <= +ns[1];
   }
 
   const versions = [
