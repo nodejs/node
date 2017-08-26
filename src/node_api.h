@@ -318,14 +318,6 @@ NAPI_EXTERN napi_status napi_instanceof(napi_env env,
                                         napi_value constructor,
                                         bool* result);
 
-// Napi version of node::MakeCallback(...)
-NAPI_EXTERN napi_status napi_make_callback(napi_env env,
-                                           napi_value recv,
-                                           napi_value func,
-                                           size_t argc,
-                                           const napi_value* argv,
-                                           napi_value* result);
-
 // Methods to work with napi_callbacks
 
 // Gets all callback info in a single call. (Ugly, but faster.)
@@ -535,6 +527,22 @@ NAPI_EXTERN napi_status napi_queue_async_work(napi_env env,
 NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
                                                napi_async_work work);
 
+// Methods for custom handling of async operations
+NAPI_EXTERN napi_status napi_async_init(napi_env env,
+                                        napi_value async_resource,
+                                        napi_value async_resource_name,
+                                        napi_async_context* result);
+
+NAPI_EXTERN napi_status napi_async_destroy(napi_env env,
+                                           napi_async_context async_context);
+
+NAPI_EXTERN napi_status napi_make_callback(napi_env env,
+                                           napi_async_context async_context,
+                                           napi_value recv,
+                                           napi_value func,
+                                           size_t argc,
+                                           const napi_value* argv,
+                                           napi_value* result);
 
 // version management
 NAPI_EXTERN napi_status napi_get_version(napi_env env, uint32_t* result);
