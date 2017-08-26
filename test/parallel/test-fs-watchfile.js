@@ -6,13 +6,23 @@ const fs = require('fs');
 const path = require('path');
 
 // Basic usage tests.
-assert.throws(function() {
-  fs.watchFile('./some-file');
-}, /^Error: "watchFile\(\)" requires a listener function$/);
+common.expectsError(
+  () => {
+    fs.watchFile('./some-file');
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  });
 
-assert.throws(function() {
-  fs.watchFile('./another-file', {}, 'bad listener');
-}, /^Error: "watchFile\(\)" requires a listener function$/);
+common.expectsError(
+  () => {
+    fs.watchFile('./another-file', {}, 'bad listener');
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  });
 
 assert.throws(function() {
   fs.watchFile(new Object(), common.mustNotCall());

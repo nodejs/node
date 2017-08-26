@@ -85,13 +85,23 @@ assert.throws(() => {
   fs.access(100, fs.F_OK, common.mustNotCall());
 }, /^TypeError: path must be a string or Buffer$/);
 
-assert.throws(() => {
-  fs.access(__filename, fs.F_OK);
-}, /^TypeError: "callback" argument must be a function$/);
+common.expectsError(
+  () => {
+    fs.access(__filename, fs.F_OK);
+  },
+  {
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  });
 
-assert.throws(() => {
-  fs.access(__filename, fs.F_OK, {});
-}, /^TypeError: "callback" argument must be a function$/);
+common.expectsError(
+  () => {
+    fs.access(__filename, fs.F_OK, {});
+  },
+  {
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  });
 
 assert.doesNotThrow(() => {
   fs.accessSync(__filename);

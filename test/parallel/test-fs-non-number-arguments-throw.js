@@ -13,20 +13,32 @@ fs.writeFileSync(tempFile, 'abc\ndef');
 const sanity = 'def';
 const saneEmitter = fs.createReadStream(tempFile, { start: 4, end: 6 });
 
-assert.throws(function() {
-  fs.createReadStream(tempFile, { start: '4', end: 6 });
-}, /^TypeError: "start" option must be a Number$/,
-              "start as string didn't throw an error for createReadStream");
+common.expectsError(
+  () => {
+    fs.createReadStream(tempFile, { start: '4', end: 6 });
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  });
 
-assert.throws(function() {
-  fs.createReadStream(tempFile, { start: 4, end: '6' });
-}, /^TypeError: "end" option must be a Number$/,
-              "end as string didn't throw an error for createReadStream");
+common.expectsError(
+  () => {
+    fs.createReadStream(tempFile, { start: 4, end: '6' });
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  });
 
-assert.throws(function() {
-  fs.createWriteStream(tempFile, { start: '4' });
-}, /^TypeError: "start" option must be a Number$/,
-              "start as string didn't throw an error for createWriteStream");
+common.expectsError(
+  () => {
+    fs.createWriteStream(tempFile, { start: '4' });
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  });
 
 saneEmitter.on('data', common.mustCall(function(data) {
   assert.strictEqual(
