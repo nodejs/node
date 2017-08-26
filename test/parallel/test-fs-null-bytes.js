@@ -26,17 +26,27 @@ const fs = require('fs');
 const URL = require('url').URL;
 
 function check(async, sync) {
-  const expected = /Path must be a string without null bytes/;
   const argsSync = Array.prototype.slice.call(arguments, 2);
   const argsAsync = argsSync.concat((er) => {
-    assert(er && expected.test(er.message));
-    assert.strictEqual(er.code, 'ENOENT');
+    common.expectsError(
+      () => {
+        throw er;
+      },
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: Error
+      });
   });
 
   if (sync) {
-    assert.throws(() => {
-      sync.apply(null, argsSync);
-    }, expected);
+    common.expectsError(
+      () => {
+        sync.apply(null, argsSync);
+      },
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: Error,
+      });
   }
 
   if (async) {
