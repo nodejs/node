@@ -53,7 +53,7 @@ def ReadFile(filename):
     lines = file.read()
   finally:
     file.close()
-  return lines
+  return StripComments(lines)
 
 
 def ReadLines(filename):
@@ -65,6 +65,88 @@ def ReadLines(filename):
     if len(line) > 0:
       result.append(line)
   return result
+
+
+def StripComments(source):
+  chars = source.decode('utf-8')
+  result = []
+  index = 0
+  string_mode = None  # None or one of ('\'', '"', '`')
+  escape_mode = False
+
+  while index < len(chars):
+    char = chars[index]
+
+    # TODO(aqrln): support comments inside placeholders
+    # of ES6 template literals
+    if char in ('\'', '"', '`'):
+      if char == string_mode and not escape_mode:
+        string_mode = None
+      elif string_mode is None:
+        string_mode = char
+
+    # Skip comments only if they are not preceded by odd number of backslashes
+    # (which is indicated by escape_mode). This is needed for some regular
+    # expressions that have endings mistakenly considered to be comments by
+    # IsCommentStart function, e.g.: /\//
+    # Regex detection is rather complicated, so here's a workaround for it.
+    # And it really doesn't matter much for situations when a backslash is
+    # followed by a real comment (whether //-style or /* */-style) since they
+    # are syntax errors anyway, so let it crash with the proper exception at
+    # run time as it would when there was no comment stripping.
+    if not string_mode and not escape_mode and IsCommentStart(chars, index):
+      index, line_breaks = SkipComments(chars, index)
+      result.extend('\n' * line_breaks)
+    else:
+      result.append(char)
+      index += 1
+
+    # If we encounter a sequence of backslashes, toggle the escape mode
+    # for each backslash and turn it off when the sequence is over.
+    if char == '\\':
+      escape_mode = not escape_mode
+    else:
+      escape_mode = False
+
+  return u''.join(result).encode('utf-8')
+
+
+def IsCommentStart(chars, index):
+  return chars[index] == '/' and \
+         index + 1 < len(chars) and \
+         chars[index + 1] in ('/', '*')
+
+
+def SkipComments(chars, index):
+  line_breaks = 0
+  next_char = chars[index + 1]
+  if next_char == '/':
+    index = SkipToLineEnd(chars, index)
+  elif next_char == '*':
+    index, line_breaks = SkipMultilineComment(chars, index)
+  return index, line_breaks
+
+
+def SkipToLineEnd(chars, index):
+  while index < len(chars) and chars[index] != '\n':
+    index += 1
+  return index
+
+
+def SkipMultilineComment(chars, index):
+  line_breaks = 0
+  size = len(chars)
+  index += 2
+  while index < size:
+    char = chars[index]
+    next_index = index + 1
+    if char == '\n':
+      line_breaks += 1
+    if char == '*' and next_index < size and chars[next_index] == '/':
+      index += 2
+      break
+    index += 1
+  return index, line_breaks
 
 
 def ExpandConstants(lines, constants):
