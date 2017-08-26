@@ -28,8 +28,8 @@ const MULTICASTS = {
   IPv4: ['224.0.0.115', '224.0.0.116', '224.0.0.117'],
   IPv6: ['ff02::1:115', 'ff02::1:116', 'ff02::1:117']
 };
-const LOOPBACK = {IPv4: '127.0.0.1', IPv6: '::1'};
-const ANY = {IPv4: '0.0.0.0', IPv6: '::'};
+const LOOPBACK = { IPv4: '127.0.0.1', IPv6: '::1' };
+const ANY = { IPv4: '0.0.0.0', IPv6: '::' };
 const FAM = 'IPv4';
 
 // Windows wont bind on multicasts so its filtering is by port.
@@ -38,7 +38,7 @@ for (let i = 0; i < MULTICASTS[FAM].length; i++) {
   PORTS[MULTICASTS[FAM][i]] = common.PORT + (common.isWindows ? i : 0);
 }
 
-const UDP = {IPv4: 'udp4', IPv6: 'udp6'};
+const UDP = { IPv4: 'udp4', IPv6: 'udp6' };
 
 const TIMEOUT = common.platformTimeout(5000);
 const NOW = Date.now();
@@ -56,19 +56,22 @@ const interfaceAddress = ((networkInterfaces) => {
         if (FAM === 'IPv6')
           interfaceAddress += `${interfaceAddress}%${name}`;
         return interfaceAddress;
-      }}}})(networkInterfaces);
+      }
+    }
+  }
+})(networkInterfaces);
 
 assert.ok(interfaceAddress);
 
 const messages = [
-  {tail: 'First message to send', mcast: MULTICASTS[FAM][0], rcv: true},
-  {tail: 'Second message to send', mcast: MULTICASTS[FAM][0], rcv: true},
-  {tail: 'Third message to send', mcast: MULTICASTS[FAM][1], rcv: true,
-   newAddr: interfaceAddress},
-  {tail: 'Fourth message to send', mcast: MULTICASTS[FAM][2]},
-  {tail: 'Fifth message to send', mcast: MULTICASTS[FAM][1], rcv: true},
-  {tail: 'Sixth message to send', mcast: MULTICASTS[FAM][2], rcv: true,
-   newAddr: LOOPBACK[FAM]}
+  { tail: 'First message to send', mcast: MULTICASTS[FAM][0], rcv: true },
+  { tail: 'Second message to send', mcast: MULTICASTS[FAM][0], rcv: true },
+  { tail: 'Third message to send', mcast: MULTICASTS[FAM][1], rcv: true,
+    newAddr: interfaceAddress },
+  { tail: 'Fourth message to send', mcast: MULTICASTS[FAM][2] },
+  { tail: 'Fifth message to send', mcast: MULTICASTS[FAM][1], rcv: true },
+  { tail: 'Sixth message to send', mcast: MULTICASTS[FAM][2], rcv: true,
+    newAddr: LOOPBACK[FAM] }
 ];
 
 
@@ -101,11 +104,11 @@ if (process.argv[2] !== 'child') {
                                                   m.mcast === MULTICAST)
                                    .map((m) => TMPL(m.tail));
     const worker = fork(process.argv[1],
-                     ['child',
-                      IFACE,
-                      MULTICAST,
-                      messagesNeeded.length,
-                      NOW]);
+                        ['child',
+                         IFACE,
+                         MULTICAST,
+                         messagesNeeded.length,
+                         NOW]);
     workers[worker.pid] = worker;
 
     worker.messagesReceived = [];
@@ -115,7 +118,7 @@ if (process.argv[2] !== 'child') {
     worker.on('exit', function(code, signal) {
       // Don't consider this a true death if the worker has finished
       // successfully or if the exit code is 0.
-      if (worker.isDone || code == 0) {
+      if (worker.isDone || code === 0) {
         return;
       }
 
@@ -177,8 +180,9 @@ if (process.argv[2] !== 'child') {
                           worker.pid,
                           count);
 
-            assert.equal(count, worker.messagesNeeded.length,
-                         'A worker received an invalid multicast message');
+            assert.strictEqual(count, worker.messagesNeeded.length,
+                               'A worker received ' +
+                               'an invalid multicast message');
           });
 
           clearTimeout(timer);
@@ -225,7 +229,7 @@ if (process.argv[2] !== 'child') {
       PORTS[msg.mcast],
       msg.mcast,
       function(err) {
-        if (err) throw err;
+        assert.ifError(err);
         console.error('[PARENT] sent %s to %s:%s',
                       util.inspect(buf.toString()),
                       msg.mcast, PORTS[msg.mcast]);
@@ -267,18 +271,18 @@ if (process.argv[2] === 'child') {
 
     let closecb;
 
-    if (receivedMessages.length == NEEDEDMSGS) {
+    if (receivedMessages.length === NEEDEDMSGS) {
       listenSocket.close();
       closecb = () => process.exit();
     }
 
-    process.send({message: buf.toString()}, closecb);
+    process.send({ message: buf.toString() }, closecb);
   });
 
 
   listenSocket.on('listening', function() {
     listenSocket.addMembership(MULTICAST, IFACE);
-    process.send({listening: true});
+    process.send({ listening: true });
   });
 
   if (common.isWindows)

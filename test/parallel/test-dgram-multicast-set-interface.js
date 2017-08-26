@@ -35,7 +35,7 @@ const dgram = require('dgram');
     // Try to set with an invalid interfaceAddress (wrong address class)
     try {
       socket.setMulticastInterface('::');
-      throw ('Not detected.');
+      throw new Error('Not detected.');
     } catch (e) {
       console.error(`setMulticastInterface: wrong family error is: ${e}`);
     }
@@ -66,7 +66,7 @@ const dgram = require('dgram');
     // Try to set with an invalid interfaceAddress (non-unicast)
     assert.throws(() => {
       socket.setMulticastInterface('224.0.0.2');
-    });
+    }, /Error/);
 
     socket.close();
   }));
@@ -117,4 +117,3 @@ if (!common.hasIPv6) {
     socket.close();
   }));
 }
-
