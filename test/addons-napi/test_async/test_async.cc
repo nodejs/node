@@ -61,7 +61,7 @@ void Complete(napi_env env, napi_status status, void* data) {
 
   napi_value result;
   NAPI_CALL_RETURN_VOID(env,
-    napi_make_callback(env, global, callback, 2, argv, &result));
+    napi_call_function(env, global, callback, 2, argv, &result));
 
   NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, c->_callback));
   NAPI_CALL_RETURN_VOID(env, napi_delete_async_work(env, c->_request));
@@ -116,7 +116,7 @@ void CancelComplete(napi_env env, napi_status status, void* data) {
     NAPI_CALL_RETURN_VOID(env, napi_get_global(env, &global));
     napi_value result;
     NAPI_CALL_RETURN_VOID(env,
-      napi_make_callback(env, global, callback, 0, nullptr, &result));
+      napi_call_function(env, global, callback, 0, nullptr, &result));
   }
 
   NAPI_CALL_RETURN_VOID(env, napi_delete_async_work(env, c->_request));
