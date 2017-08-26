@@ -10,9 +10,9 @@ SyntaxError: Strict mode code may not include a with statement
     at evalScript (bootstrap_node.js:*:*)
     at Socket.<anonymous> (bootstrap_node.js:*:*)
     at emitNone (events.js:*:*)
+    at _emit (events.js:*:*)
     at Socket.emit (events.js:*:*)
     at endReadableNT (_stream_readable.js:*:*)
-    at _combinedTickCallback (internal/process/next_tick.js:*:*)
 42
 42
 [stdin]:1
@@ -28,8 +28,8 @@ Error: hello
     at evalScript (bootstrap_node.js:*:*)
     at Socket.<anonymous> (bootstrap_node.js:*:*)
     at emitNone (events.js:*:*)
+    at _emit (events.js:*:*)
     at Socket.emit (events.js:*:*)
-    at endReadableNT (_stream_readable.js:*:*)
 [stdin]:1
 throw new Error("hello")
 ^
@@ -43,8 +43,8 @@ Error: hello
     at evalScript (bootstrap_node.js:*:*)
     at Socket.<anonymous> (bootstrap_node.js:*:*)
     at emitNone (events.js:*:*)
+    at _emit (events.js:*:*)
     at Socket.emit (events.js:*:*)
-    at endReadableNT (_stream_readable.js:*:*)
 100
 [stdin]:1
 var x = 100; y = x;
@@ -59,8 +59,8 @@ ReferenceError: y is not defined
     at evalScript (bootstrap_node.js:*:*)
     at Socket.<anonymous> (bootstrap_node.js:*:*)
     at emitNone (events.js:*:*)
+    at _emit (events.js:*:*)
     at Socket.emit (events.js:*:*)
-    at endReadableNT (_stream_readable.js:*:*)
 
 [stdin]:1
 var ______________________________________________; throw 10
