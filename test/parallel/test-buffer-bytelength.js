@@ -5,17 +5,22 @@ const assert = require('assert');
 const SlowBuffer = require('buffer').SlowBuffer;
 const vm = require('vm');
 
-// coerce values to string
-const errMsg = common.expectsError({
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "string" argument must be one of type string, ' +
-           'buffer, or arrayBuffer'
-}, 4);
-assert.throws(() => { Buffer.byteLength(32, 'latin1'); }, errMsg);
-assert.throws(() => { Buffer.byteLength(NaN, 'utf8'); }, errMsg);
-assert.throws(() => { Buffer.byteLength({}, 'latin1'); }, errMsg);
-assert.throws(() => { Buffer.byteLength(); }, errMsg);
+[
+  [32, 'latin1'],
+  [NaN, 'utf8'],
+  [{}, 'latin1'],
+  []
+].forEach((args) => {
+  common.expectsError(
+    () => Buffer.byteLength(...args),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "string" argument must be one of type string, ' +
+               `buffer, or arrayBuffer. Received type ${typeof args[0]}`
+    }
+  );
+});
 
 assert.strictEqual(Buffer.byteLength('', undefined, true), -1);
 

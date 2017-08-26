@@ -9,9 +9,21 @@ The [nodejs/node](https://github.com/nodejs/node) GitHub repository is
 maintained by Collaborators who are added by the CTC on an ongoing basis.
 
 Individuals identified by the CTC as making significant and valuable
-contributions are made Collaborators and given commit access to the project. If
-you make a significant contribution and are not considered for commit access,
-log an issue or contact a CTC member directly.
+contributions across any Node.js repository may be made Collaborators and given
+commit access to the project. Activities taken into consideration include (but
+are not limited to) the quality of:
+
+* code commits and pull requests
+* documentation commits and pull requests
+* comments on issues and pull requests
+* contributions to the Node.js website
+* assistance provided to end users and novice contributors
+* participation in Working Groups
+* other participation in the wider Node.js community
+
+If individuals making valuable contributions do not believe they have been
+considered for commit access, they may log an issue or contact a CTC member
+directly.
 
 Modifications of the contents of the nodejs/node repository are made on
 a collaborative basis. Anybody with a GitHub account may propose a

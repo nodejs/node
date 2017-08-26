@@ -109,3 +109,39 @@ function teardown() {
   assert.strictEqual(stderr, expectedErr);
   teardown();
 }
+
+// Check that multiline strings and object output are indented properly.
+{
+  setup();
+  const expectedOut = 'not indented\n' +
+                      '  indented\n' +
+                      '  also indented\n' +
+                      "  { also: 'a',\n" +
+                      "    multiline: 'object',\n" +
+                      "    should: 'be',\n" +
+                      "    indented: 'properly',\n" +
+                      "    kthx: 'bai' }\n";
+  const expectedErr = '';
+
+  c.log('not indented');
+  c.group();
+  c.log('indented\nalso indented');
+  c.log({ also: 'a',
+          multiline: 'object',
+          should: 'be',
+          indented: 'properly',
+          kthx: 'bai' });
+
+  assert.strictEqual(stdout, expectedOut);
+  assert.strictEqual(stderr, expectedErr);
+  teardown();
+}
+
+// Check that the kGroupIndent symbol property is not enumerable
+{
+  const keys = Reflect.ownKeys(console)
+                      .filter((val) => console.propertyIsEnumerable(val))
+                      .map((val) => val.toString());
+  assert(!keys.includes('Symbol(groupIndent)'),
+         'groupIndent should not be enumerable');
+}

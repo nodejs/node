@@ -41,5 +41,6 @@ assert.throws(() => Buffer.compare('abc', Buffer.alloc(1)), errMsg);
 assert.throws(() => Buffer.alloc(1).compare('abc'), common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "target" argument must be one of type buffer or uint8Array'
+  message: 'The "target" argument must be one of ' +
+           'type buffer or uint8Array. Received type string'
 }));

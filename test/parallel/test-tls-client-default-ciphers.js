@@ -37,11 +37,8 @@ function test1() {
     throw new Done();
   };
 
-  try {
-    tls.connect(common.PORT);
-  } catch (e) {
-    assert(e instanceof Done);
-  }
+  assert.throws(tls.connect, Done);
+
   assert.strictEqual(ciphers, tls.DEFAULT_CIPHERS);
 }
 test1();

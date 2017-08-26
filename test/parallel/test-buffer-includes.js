@@ -148,7 +148,7 @@ assert(twoByteString.includes(
 assert(!twoByteString.includes('\u03a3', -2, 'ucs2'));
 
 const mixedByteStringUcs2 =
-    Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395', 'ucs2');
+  Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395', 'ucs2');
 assert(mixedByteStringUcs2.includes('bc', 0, 'ucs2'));
 assert(mixedByteStringUcs2.includes('\u03a3', 0, 'ucs2'));
 assert(!mixedByteStringUcs2.includes('\u0396', 0, 'ucs2'));
@@ -261,7 +261,7 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
     const length = lengths[lengthIndex];
 
     const patternBufferUcs2 =
-        allCharsBufferUcs2.slice(index, index + length);
+      allCharsBufferUcs2.slice(index, index + length);
     assert.ok(
       allCharsBufferUcs2.includes(patternBufferUcs2, 0, 'ucs2'));
 
@@ -271,21 +271,21 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   }
 }
 
-const expectedError = common.expectsError({
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "val" argument must be one of type ' +
-           'string, buffer, or uint8Array'
-}, 3);
-assert.throws(() => {
-  b.includes(() => {});
-}, expectedError);
-assert.throws(() => {
-  b.includes({});
-}, expectedError);
-assert.throws(() => {
-  b.includes([]);
-}, expectedError);
+[
+  () => { },
+  {},
+  []
+].forEach((val) => {
+  common.expectsError(
+    () => b.includes(val),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "value" argument must be one of type string, ' +
+               `buffer, or uint8Array. Received type ${typeof val}`
+    }
+  );
+});
 
 // test truncation of Number arguments to uint8
 {

@@ -36,18 +36,19 @@ deepStrictEqual(
 );
 
 [
-  {},
-  new Boolean(true),
-  { valueOf() { return null; } },
-  { valueOf() { return undefined; } },
-  { valueOf: null },
-  Object.create(null)
-].forEach((input) => {
+  [{}, 'object'],
+  [new Boolean(true), 'boolean'],
+  [{ valueOf() { return null; } }, 'object'],
+  [{ valueOf() { return undefined; } }, 'object'],
+  [{ valueOf: null }, 'object'],
+  [Object.create(null), 'object']
+].forEach(([input, actualType]) => {
   const err = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The first argument must be one of type string, buffer, ' +
-    'arrayBuffer, array, or array-like object'
+             'arrayBuffer, array, or array-like object. Received ' +
+             `type ${actualType}`
   });
   throws(() => Buffer.from(input), err);
 });
