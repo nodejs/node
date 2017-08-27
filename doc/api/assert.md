@@ -134,7 +134,7 @@ changes:
 * `expected` {any}
 * `message` {any}
 
-Generally identical to `assert.deepEqual()` with three exceptions:
+Generally identical to `assert.deepEqual()` with a few exceptions:
 
 1. Primitive values besides `NaN` are compared using the [Strict Equality
    Comparison][] ( `===` ). Set and Map values, Map keys and `NaN` are compared
@@ -143,6 +143,7 @@ Generally identical to `assert.deepEqual()` with three exceptions:
 2. [`[[Prototype]]`][prototype-spec] of objects are compared using
   the [Strict Equality Comparison][] too.
 3. [Type tags][Object.prototype.toString()] of objects should be the same.
+4. [Object wrappers][] are compared both as objects and unwrapped values.
 
 ```js
 const assert = require('assert');
@@ -172,8 +173,14 @@ assert.deepEqual(date, fakeDate);
 assert.deepStrictEqual(date, fakeDate);
 // AssertionError: 2017-03-11T14:25:31.849Z deepStrictEqual Date {}
 // Different type tags
+
 assert.deepStrictEqual(NaN, NaN);
 // OK, because of the SameValueZero comparison
+
+assert.deepStrictEqual(new Number(1), new Number(2));
+// Fails because the wrapped number is unwrapped and compared as well.
+assert.deepStrictEqual(new String('foo'), Object('foo'));
+// OK because the object and the string are identical when unwrapped.
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
@@ -711,3 +718,4 @@ For more information, see
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [mdn-equality-guide]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Equality_comparisons_and_sameness
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
+[Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
