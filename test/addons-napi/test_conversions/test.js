@@ -103,7 +103,6 @@ assert.strictEqual(0, test.toNumber([]));
 assert.strictEqual(0, test.toNumber(false));
 assert.strictEqual(0, test.toNumber(null));
 assert.strictEqual(0, test.toNumber(''));
-assert.ok(Number.isNaN(test.toNumber(Number.NaN)));
 assert.ok(Number.isNaN(test.toNumber({})));
 assert.ok(Number.isNaN(test.toNumber(undefined)));
 assert.throws(() => test.toNumber(testSym), TypeError);
