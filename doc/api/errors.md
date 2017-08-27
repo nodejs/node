@@ -1141,6 +1141,11 @@ are most likely an indication of a bug within Node.js itself.
 Used when the V8 BreakIterator API is used but the full ICU data set is not
 installed.
 
+<a id="ERR_VALUE_OUT_OF_RANGE"></a>
+### ERR_VALUE_OUT_OF_RANGE
+
+Used when a given value is out of the accepted range.
+
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
