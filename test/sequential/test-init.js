@@ -23,7 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 const child = require('child_process');
-const path = require('path');
+const fixtures = require('../common/fixtures');
 
 if (process.env['TEST_INIT']) {
   return process.stdout.write('Loaded successfully!');
@@ -57,6 +57,6 @@ function test(file, expected) {
   // ensures that `node fs` does not mistakenly load the native 'fs' module
   // instead of the desired file and that the fs module loads as
   // expected in node
-  process.chdir(path.join(common.fixturesDir, 'test-init-native'));
+  process.chdir(fixtures.path('test-init-native'));
   test('fs', 'fs loaded successfully');
 }

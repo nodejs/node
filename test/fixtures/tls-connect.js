@@ -9,8 +9,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const fs = require('fs');
-const join = require('path').join;
+const fixtures = require('../common/fixtures');
 const tls = require('tls');
 const util = require('util');
 
@@ -33,15 +32,11 @@ const keys = exports.keys = {
 function load(cert, issuer) {
   issuer = issuer || cert; // Assume self-signed if no issuer
   const id = {
-    key: read(cert + '-key.pem'),
-    cert: read(cert + '-cert.pem'),
-    ca: read(issuer + '-cert.pem'),
+    key: fixtures.readKey(cert + '-key.pem', 'binary'),
+    cert: fixtures.readKey(cert + '-cert.pem', 'binary'),
+    ca: fixtures.readKey(issuer + '-cert.pem', 'binary'),
   };
   return id;
-}
-
-function read(file) {
-  return fs.readFileSync(join(common.fixturesDir, 'keys', file), 'binary');
 }
 
 exports.connect = function connect(options, callback) {
