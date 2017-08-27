@@ -3352,10 +3352,7 @@ void CipherBase::Init(const char* cipher_type,
   if (mode == EVP_CIPH_WRAP_MODE)
     EVP_CIPHER_CTX_set_flags(&ctx_, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
 
-  if (!EVP_CIPHER_CTX_set_key_length(&ctx_, key_len)) {
-    EVP_CIPHER_CTX_cleanup(&ctx_);
-    return env()->ThrowError("Invalid key length");
-  }
+  CHECK_EQ(1, EVP_CIPHER_CTX_set_key_length(&ctx_, key_len));
 
   EVP_CipherInit_ex(&ctx_,
                     nullptr,
