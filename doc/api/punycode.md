@@ -6,6 +6,8 @@ changes:
     description: Accessing this module will now emit a deprecation warning.
 -->
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 0 - Deprecated
 
 **The version of the punycode module bundled in Node.js is being deprecated**.
