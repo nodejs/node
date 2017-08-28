@@ -196,11 +196,9 @@ function replaceInText(text) {
 }
 
 function altDocs(filename) {
-  let html = '';
-
   if (!docCreated) {
     console.error(`Failed to add alternative version links to ${filename}`);
-    return html;
+    return '';
   }
 
   function lte(v) {
