@@ -1,28 +1,33 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const http = require('http');
-const spawn = require('child_process').spawn;
+const { createServer, get } = require('http');
+const { spawn } = require('child_process');
 
 if (process.argv[2] === 'child') {
-  const server = http.createServer(common.mustCall((req, res) => {
-    res.end('hello');
-  }));
-
+  // sub-process
+  const server = createServer(common.mustCall((_, res) => res.end('h')));
   server.listen(0, common.mustCall((s) => {
-    const rr = http.get(
-      { port: server.address().port },
-      common.mustCall((d) => {
-        // This bad input (0) should abort the parser and the process
-        rr.parser.consume(0);
-        server.close();
-      }));
+    const rr = get({ port: server.address().port }, common.mustCall(() => {
+      // This bad input (0) should abort the parser and the process
+      rr.parser.consume(0);
+      // This line should be unreachanble.
+      assert.fail('this should be unreachable');
+    }));
   }));
 } else {
-  const child = spawn(process.execPath, [__filename, 'child'],
-                      { stdio: 'inherit' });
+  // super-proces
+  const child = spawn(process.execPath, [__filename, 'child']);
+  child.stdout.on('data', common.mustNotCall());
+
+  let stderr = '';
+  child.stderr.on('data', common.mustCallAtLeast((data) => {
+    assert(Buffer.isBuffer(data));
+    stderr += data.toString('utf8');
+  }, 1));
   child.on('exit', common.mustCall((code, signal) => {
-    assert(common.nodeProcessAborted(code, signal),
-           'process should have aborted, but did not');
+    assert(stderr.includes('failed'), `stderr: ${stderr}`);
+    const didAbort = common.nodeProcessAborted(code, signal);
+    assert(didAbort, `process did not abort, code:${code} signal:${signal}`);
   }));
 }

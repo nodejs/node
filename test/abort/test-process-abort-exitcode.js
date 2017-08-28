@@ -14,7 +14,7 @@ if (process.argv[2] === 'child') {
   const child = spawn(process.execPath, [__filename, 'child']);
   child.on('exit', common.mustCall((code, signal) => {
     if (common.isWindows) {
-      assert.strictEqual(code, 3);
+      assert.strictEqual(code, 134);
       assert.strictEqual(signal, null);
     } else {
       assert.strictEqual(code, null);
