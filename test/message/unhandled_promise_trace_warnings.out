@@ -21,7 +21,6 @@
     at getAsynchronousRejectionWarningObject (internal/process/promises.js:*)
     at rejectionHandled (internal/process/promises.js:*)
     at *
-    at Promise.then *
     at Promise.catch *
     at Immediate.setImmediate [as _onImmediate] (*test*message*unhandled_promise_trace_warnings.js:*)
     at *
