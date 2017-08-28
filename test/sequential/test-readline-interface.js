@@ -21,7 +21,7 @@
 
 // Flags: --expose_internals
 'use strict';
-require('../common');
+const common = require('../common');
 
 // These test cases are in `sequential` rather than the analogous test file in
 // `parallel` because they become unrelaible under load. The unreliability under
@@ -82,5 +82,29 @@ FakeInput.prototype.end = () => {};
     });
     assert.strictEqual(callCount, expectedLines.length);
     rli.close();
+  }
+
+  // Emit one line event when the delay between \r and \n is
+  // over the default crlfDelay but within the setting value.
+  {
+    const fi = new FakeInput();
+    const delay = 125;
+    const crlfDelay = common.platformTimeout(1000);
+    const rli = new readline.Interface({
+      input: fi,
+      output: fi,
+      terminal: terminal,
+      crlfDelay
+    });
+    let callCount = 0;
+    rli.on('line', function(line) {
+      callCount++;
+    });
+    fi.emit('data', '\r');
+    setTimeout(common.mustCall(() => {
+      fi.emit('data', '\n');
+      assert.strictEqual(callCount, 1);
+      rli.close();
+    }), delay);
   }
 });
