@@ -21,7 +21,7 @@ const env = Object.assign({}, process.env, {
 });
 
 const opts = {
-  env: common.envPlus(env),
+  env: env,
   silent: true,
 };
 let stderr = '';

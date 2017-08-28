@@ -18,7 +18,8 @@ const path = require('path');
 
 const runjs = path.join(__dirname, '..', '..', 'benchmark', 'run.js');
 
-const env = common.envPlus({ NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+const env = Object.assign({}, process.env,
+                          { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
 
 const child = fork(runjs, ['--set', 'benchmarker=test-double',
                            '--set', 'c=1',

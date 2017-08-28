@@ -182,10 +182,6 @@ if (exports.isLinux) {
   ];
 }
 
-exports.envPlus = function(additionalEnv) {
-  return Object.assign({}, process.env, additionalEnv);
-};
-
 Object.defineProperty(exports, 'inFreeBSDJail', {
   get: function() {
     if (inFreeBSDJail !== null) return inFreeBSDJail;

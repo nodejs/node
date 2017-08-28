@@ -36,7 +36,7 @@ if (process.argv[2] === 'child') {
   const testFixturesDir = path.join(common.fixturesDir,
                                     path.basename(__filename, '.js'));
 
-  const env = common.envPlus({});
+  const env = Object.assign({}, process.env);
   // Turn on module debug to aid diagnosing failures.
   env['NODE_DEBUG'] = 'module';
   // Unset NODE_PATH.

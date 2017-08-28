@@ -39,7 +39,7 @@ const pkgPath = path.join(installDir, 'package.json');
 
 fs.writeFileSync(pkgPath, pkgContent);
 
-const env = common.envPlus({
+const env = Object.assign({}, process.env, {
   PATH: path.dirname(process.execPath),
   NPM_CONFIG_PREFIX: path.join(npmSandbox, 'npm-prefix'),
   NPM_CONFIG_TMP: path.join(npmSandbox, 'npm-tmp'),

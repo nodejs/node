@@ -27,7 +27,7 @@ const argv = ['--set', 'algo=sha256',
               '--set', 'writes=1',
               'crypto'];
 
-const child = fork(runjs, argv, { env: common.envPlus({
+const child = fork(runjs, argv, { env: Object.assign({}, process.env, {
   NODEJS_BENCHMARK_ZERO_ALLOWED: 1 }) });
 
 child.on('exit', (code, signal) => {

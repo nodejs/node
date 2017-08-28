@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const http = require('http');
 const fork = require('child_process').fork;
 
@@ -44,7 +44,7 @@ if (process.env.NODE_TEST_FORK_PORT) {
   });
   server.listen(0, function() {
     fork(__filename, {
-      env: common.envPlus({
+      env: Object.assign({}, process.env, {
         NODE_TEST_FORK_PORT: this.address().port
       })
     });
