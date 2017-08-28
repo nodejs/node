@@ -561,6 +561,9 @@ th > *:last-child, td > *:last-child {
   #content {
     font-size: 3.5em;
   }
+  #gtoc {
+    font-size: 0.6em;
+  }
 }
 
 @media print {
