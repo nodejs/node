@@ -36,18 +36,11 @@ server.on('listening', common.mustCall(() => {
   req.destroy(err);
 
   req.on('error', common.mustCall((err) => {
-    const fn = err.code === 'ERR_HTTP2_STREAM_ERROR' ?
-      common.expectsError({
-        code: 'ERR_HTTP2_STREAM_ERROR',
-        type: Error,
-        message: 'Stream closed with error code 2'
-      }) :
-      common.expectsError({
-        type: Error,
-        message: 'test'
-      });
-    fn(err);
-  }, 2));
+    common.expectsError({
+      type: Error,
+      message: 'test'
+    })(err);
+  }));
 
   req.on('streamClosed', common.mustCall((code) => {
     assert.strictEqual(req.rstCode, NGHTTP2_INTERNAL_ERROR);

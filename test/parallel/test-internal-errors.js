@@ -257,6 +257,11 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
+  errors.message('ERR_VALUE_OUT_OF_RANGE', ['A', 'some values', 'B']),
+  'The value of "A" must be some values. Received "B"'
+);
+
+assert.strictEqual(
   errors.message('ERR_UNESCAPED_CHARACTERS', ['Request path']),
   'Request path contains unescaped characters'
 );
