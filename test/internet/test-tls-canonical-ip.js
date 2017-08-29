@@ -16,3 +16,10 @@ assert.strictEqual(tls.canonicalIp('fe80::'), 'fe80:0:0:0:0:0:0:0');
 assert.strictEqual(
   tls.canonicalIp('fe80::0000:0010:0001'),
   'fe80:0:0:0:0:0:10:1');
+assert.strictEqual(
+  tls.canonicalIp('0001:2222:3333:4444:5555:6666:7777:0088'),
+  '1:2222:3333:4444:5555:6666:7777:88');
+
+assert.strictEqual(
+  tls.canonicalIp('0001:2222:3333:4444:5555:6666::'),
+  '1:2222:3333:4444:5555:6666:0:0');
