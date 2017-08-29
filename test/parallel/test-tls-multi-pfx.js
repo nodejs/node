@@ -10,7 +10,7 @@ const fixtures = require('../common/fixtures');
 const options = {
   pfx: [
     {
-      buffer: fixtures.readKey('agent1-pfx.pem'),
+      buf: fixtures.readKey('agent1-pfx.pem'),
       passphrase: 'sample'
     },
     fixtures.readKey('ec-pfx.pem')
