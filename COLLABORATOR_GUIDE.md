@@ -263,6 +263,32 @@ multiple commits. Commit metadata and the reason for the revert should be
 appended. Commit message rules about line length and subsystem can be ignored.
 A Pull Request should be raised and approved like any other change.
 
+### Introducing New Modules
+
+Semver-minor commits that introduce new core modules should be treated with
+extra care.
+
+The name of the new core module should not conflict with any existing
+module in the ecosystem unless a written agreement with the owner of those
+modules is reached to transfer ownership.
+
+If the new module name is free, a Collaborator should register a placeholder
+in the module registry as soon as possible, linking to the pull request that
+introduces the new core module.
+
+Pull requests introducing new core modules:
+
+* Must be left open for at least one week for review.
+* Must be labeled using the `ctc-review` label.
+* Must have signoff from at least two CTC members.
+
+New core modules must be landed with a [Stability Index][] of Experimental,
+and must remain Experimental until a semver-major release.
+
+For new modules that involve significant effort, non-trivial additions to
+Node.js or significant new capabilities, an [Enhancement Proposal][] is
+recommended but not required.
+
 ### Deprecations
 
 Deprecation refers to the identification of Public APIs that should no longer
@@ -642,3 +668,5 @@ release. This process of making a release will be a collaboration between the
 LTS working group and the Release team.
 
 [backporting guide]: doc/guides/backporting-to-release-lines.md
+[Stability Index]: https://github.com/nodejs/node/pull/doc/api/documentation.md#stability-index
+[Enhancement Proposal]: https://github.com/nodejs/node-eps
