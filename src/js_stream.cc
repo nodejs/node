@@ -230,7 +230,6 @@ void JSStream::Initialize(Local<Object> target,
 
   StreamBase::AddMethods<JSStream>(env, t, StreamBase::kFlagHasWritev);
   target->Set(jsStreamString, t->GetFunction());
-  env->set_jsstream_constructor_template(t);
 }
 
 }  // namespace node
