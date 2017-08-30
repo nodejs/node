@@ -295,13 +295,11 @@ struct http2_state;
   V(async_hooks_before_function, v8::Function)                                \
   V(async_hooks_after_function, v8::Function)                                 \
   V(binding_cache_object, v8::Object)                                         \
-  V(buffer_constructor_function, v8::Function)                                \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
   V(domain_array, v8::Array)                                                  \
   V(domains_stack_array, v8::Array)                                           \
   V(inspector_console_api_object, v8::Object)                                 \
-  V(jsstream_constructor_template, v8::FunctionTemplate)                      \
   V(module_load_list_array, v8::Array)                                        \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
@@ -318,7 +316,6 @@ struct http2_state;
   V(tcp_constructor_template, v8::FunctionTemplate)                           \
   V(tick_callback_function, v8::Function)                                     \
   V(tls_wrap_constructor_function, v8::Function)                              \
-  V(tls_wrap_constructor_template, v8::FunctionTemplate)                      \
   V(tty_constructor_template, v8::FunctionTemplate)                           \
   V(udp_constructor_function, v8::Function)                                   \
   V(url_constructor_function, v8::Function)                                   \
