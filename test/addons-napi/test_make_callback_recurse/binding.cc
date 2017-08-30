@@ -13,19 +13,17 @@ napi_value MakeCallback(napi_env env, napi_callback_info info) {
   napi_value func = args[1];
 
   napi_make_callback(env,
-    recv, func, 0 /* argc */, nullptr /* argv */, nullptr /* result */);
+      recv, func, 0 /* argc */, nullptr /* argv */, nullptr /* result */);
 
   return recv;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_value fn;
-  NAPI_CALL_RETURN_VOID(env,
-    napi_create_function(env, NULL, MakeCallback, NULL, &fn));
-  NAPI_CALL_RETURN_VOID(env,
-    napi_set_named_property(env, exports, "makeCallback", fn));
+  NAPI_CALL(env, napi_create_function(env, NULL, MakeCallback, NULL, &fn));
+  NAPI_CALL(env, napi_set_named_property(env, exports, "makeCallback", fn));
+  return exports;
 }
-
 
 }  // namespace
 
