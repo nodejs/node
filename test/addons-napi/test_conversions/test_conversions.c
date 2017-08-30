@@ -130,7 +130,7 @@ napi_value ToString(napi_env env, napi_callback_info info) {
   return output;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("asBool", AsBool),
     DECLARE_NAPI_PROPERTY("asInt32", AsInt32),
@@ -144,8 +144,10 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("toString", ToString),
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
-    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+  NAPI_CALL(env, napi_define_properties(
+      env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+
+  return exports;
 }
 
 NAPI_MODULE(addon, Init)

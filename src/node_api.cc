@@ -829,11 +829,17 @@ void napi_module_register_cb(v8::Local<v8::Object> exports,
   // one is found.
   napi_env env = v8impl::GetEnv(context);
 
-  mod->nm_register_func(
-    env,
-    v8impl::JsValueFromV8LocalValue(exports),
-    v8impl::JsValueFromV8LocalValue(module),
-    mod->nm_priv);
+  napi_value _exports =
+      mod->nm_register_func(env, v8impl::JsValueFromV8LocalValue(exports));
+
+  // If register function returned a non-null exports object different from
+  // the exports object we passed it, set that as the "exports" property of
+  // the module.
+  if (_exports != nullptr &&
+      _exports != v8impl::JsValueFromV8LocalValue(exports)) {
+    napi_value _module = v8impl::JsValueFromV8LocalValue(module);
+    napi_set_named_property(env, _module, "exports", _exports);
+  }
 }
 
 #ifndef EXTERNAL_NAPI

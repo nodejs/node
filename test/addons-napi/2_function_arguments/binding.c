@@ -15,7 +15,7 @@ napi_value Add(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, args[1], &valuetype1));
 
   NAPI_ASSERT(env, valuetype0 == napi_number && valuetype1 == napi_number,
-    "Wrong argument type. Numbers expected.");
+      "Wrong argument type. Numbers expected.");
 
   double value0;
   NAPI_CALL(env, napi_get_value_double(env, args[0], &value0));
@@ -29,9 +29,10 @@ napi_value Add(napi_env env, napi_callback_info info) {
   return sum;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor desc = DECLARE_NAPI_PROPERTY("add", Add);
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(env, exports, 1, &desc));
+  NAPI_CALL(env, napi_define_properties(env, exports, 1, &desc));
+  return exports;
 }
 
 NAPI_MODULE(addon, Init)

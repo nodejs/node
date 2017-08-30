@@ -29,7 +29,7 @@ napi_value Add(napi_env env, napi_callback_info info) {
   return sum;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   MyObject::Init(env);
 
   napi_property_descriptor desc[] = {
@@ -37,8 +37,10 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("add", Add),
   };
 
-  NAPI_CALL_RETURN_VOID(env,
-    napi_define_properties(env, exports, sizeof(desc) / sizeof(*desc), desc));
+  NAPI_CALL(env,
+      napi_define_properties(env, exports, sizeof(desc) / sizeof(*desc), desc));
+
+  return exports;
 }
 
 NAPI_MODULE(addon, Init)
