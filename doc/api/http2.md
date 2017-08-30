@@ -1549,7 +1549,7 @@ const options = {
   cert: fs.readFileSync('server-cert.pem')
 };
 
-// Create a plain-text HTTP/2 server
+// Create a secure HTTP/2 server
 const server = http2.createSecureServer(options);
 
 server.on('stream', (stream, headers) => {
