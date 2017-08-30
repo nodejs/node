@@ -1294,28 +1294,24 @@ def configure_intl(o):
   if not icu_ver_major:
     print('Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
     sys.exit(1)
-  icu_endianness = sys.byteorder[0];
+  icu_endianness = sys.byteorder[0]
   o['variables']['icu_ver_major'] = icu_ver_major
   o['variables']['icu_endianness'] = icu_endianness
   icu_data_file_l = 'icudt%s%s.dat' % (icu_ver_major, 'l')
   icu_data_file = 'icudt%s%s.dat' % (icu_ver_major, icu_endianness)
   # relative to configure
-  icu_data_path = os.path.join(icu_full_path,
-                               'source/data/in',
-                               icu_data_file_l)
+  icu_in_path = os.path.join(icu_full_path, 'source', 'data', 'in')
+  icu_data_path = os.path.join(icu_in_path, icu_data_file_l)
   # relative to dep..
-  icu_data_in = os.path.join('..','..', icu_full_path, 'source/data/in', icu_data_file_l)
+  icu_data_in = os.path.join('..', '..', icu_in_path, icu_data_file_l)
   if not os.path.isfile(icu_data_path) and icu_endianness != 'l':
     # use host endianness
-    icu_data_path = os.path.join(icu_full_path,
-                                 'source/data/in',
-                                 icu_data_file)
+    icu_data_path = icu_data_path.replace(icu_data_file_l, icu_data_file)
     # relative to dep..
-    icu_data_in = os.path.join('..', icu_full_path, 'source/data/in',
-                               icu_data_file)
+    icu_data_in = icu_data_in.replace(icu_data_file_l, icu_data_file)
   # this is the input '.dat' file to use .. icudt*.dat
   # may be little-endian if from a icu-project.org tarball
-  o['variables']['icu_data_in'] = icu_data_in
+  o['variables']['icu_data_in'] = icu_data_in.replace('\\', '/') # for GYP
   # this is the icudt*.dat file which node will be using (platform endianness)
   o['variables']['icu_data_file'] = icu_data_file
   if not os.path.isfile(icu_data_path):
