@@ -13,13 +13,13 @@ napi_value TestGetElement(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
 
   NAPI_ASSERT(env, valuetype0 == napi_object,
-    "Wrong type of arguments. Expects an array as first argument.");
+      "Wrong type of arguments. Expects an array as first argument.");
 
   napi_valuetype valuetype1;
   NAPI_CALL(env, napi_typeof(env, args[1], &valuetype1));
 
   NAPI_ASSERT(env, valuetype1 == napi_number,
-    "Wrong type of arguments. Expects an integer as second argument.");
+      "Wrong type of arguments. Expects an integer as second argument.");
 
   napi_value array = args[0];
   int32_t index;
@@ -56,13 +56,13 @@ napi_value TestHasElement(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
 
   NAPI_ASSERT(env, valuetype0 == napi_object,
-    "Wrong type of arguments. Expects an array as first argument.");
+      "Wrong type of arguments. Expects an array as first argument.");
 
   napi_valuetype valuetype1;
   NAPI_CALL(env, napi_typeof(env, args[1], &valuetype1));
 
   NAPI_ASSERT(env, valuetype1 == napi_number,
-    "Wrong type of arguments. Expects an integer as second argument.");
+      "Wrong type of arguments. Expects an integer as second argument.");
 
   napi_value array = args[0];
   int32_t index;
@@ -94,12 +94,12 @@ napi_value TestDeleteElement(napi_env env, napi_callback_info info) {
   napi_valuetype valuetype0;
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
   NAPI_ASSERT(env, valuetype0 == napi_object,
-    "Wrong type of arguments. Expects an array as first argument.");
+      "Wrong type of arguments. Expects an array as first argument.");
 
   napi_valuetype valuetype1;
   NAPI_CALL(env, napi_typeof(env, args[1], &valuetype1));
   NAPI_ASSERT(env, valuetype1 == napi_number,
-    "Wrong type of arguments. Expects an integer as second argument.");
+      "Wrong type of arguments. Expects an integer as second argument.");
 
   napi_value array = args[0];
   int32_t index;
@@ -130,7 +130,7 @@ napi_value New(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
 
   NAPI_ASSERT(env, valuetype0 == napi_object,
-    "Wrong type of arguments. Expects an array as first argument.");
+      "Wrong type of arguments. Expects an array as first argument.");
 
   napi_value ret;
   NAPI_CALL(env, napi_create_array(env, &ret));
@@ -158,7 +158,7 @@ napi_value NewWithLength(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
 
   NAPI_ASSERT(env, valuetype0 == napi_number,
-    "Wrong type of arguments. Expects an integer the first argument.");
+      "Wrong type of arguments. Expects an integer the first argument.");
 
   int32_t array_length;
   NAPI_CALL(env, napi_get_value_int32(env, args[0], &array_length));
@@ -169,7 +169,7 @@ napi_value NewWithLength(napi_env env, napi_callback_info info) {
   return ret;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("TestGetElement", TestGetElement),
     DECLARE_NAPI_PROPERTY("TestHasElement", TestHasElement),
@@ -178,8 +178,10 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("NewWithLength", NewWithLength),
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
-    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+  NAPI_CALL(env, napi_define_properties(
+      env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+
+  return exports;
 }
 
 NAPI_MODULE(addon, Init)

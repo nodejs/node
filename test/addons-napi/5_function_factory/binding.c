@@ -11,15 +11,15 @@ napi_value MyFunction(napi_env env, napi_callback_info info) {
 napi_value CreateFunction(napi_env env, napi_callback_info info) {
   napi_value fn;
   NAPI_CALL(env,
-    napi_create_function(env, "theFunction", MyFunction, NULL, &fn));
+      napi_create_function(env, "theFunction", MyFunction, NULL, &fn));
 
   return fn;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
-  napi_property_descriptor desc =
-    DECLARE_NAPI_PROPERTY("exports", CreateFunction);
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(env, module, 1, &desc));
+napi_value Init(napi_env env, napi_value exports) {
+  NAPI_CALL(env,
+      napi_create_function(env, "exports", CreateFunction, NULL, &exports));
+  return exports;
 }
 
 NAPI_MODULE(addon, Init)

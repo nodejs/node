@@ -10,9 +10,10 @@ napi_value Method(napi_env env, napi_callback_info info) {
   return world;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor desc = DECLARE_NAPI_PROPERTY("hello", Method);
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(env, exports, 1, &desc));
+  NAPI_CALL(env, napi_define_properties(env, exports, 1, &desc));
+  return exports;
 }
 
 NAPI_MODULE(addon, Init)

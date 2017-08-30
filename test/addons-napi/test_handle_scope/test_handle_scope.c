@@ -54,19 +54,19 @@ napi_value NewScopeWithException(napi_env env, napi_callback_info info) {
 
   argc = 1;
   NAPI_CALL(env, napi_get_cb_info(
-    env, info, &argc, &exception_function, NULL, NULL));
+      env, info, &argc, &exception_function, NULL, NULL));
 
-	status = napi_call_function(
-    env, output, exception_function, 0, NULL, NULL);
+  status = napi_call_function(
+      env, output, exception_function, 0, NULL, NULL);
   NAPI_ASSERT(env, status == napi_pending_exception,
-    "Function should have thrown.");
+      "Function should have thrown.");
 
   // Closing a handle scope should still work while an exception is pending.
   NAPI_CALL(env, napi_close_handle_scope(env, scope));
   return NULL;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
     DECLARE_NAPI_PROPERTY("NewScope", NewScope),
     DECLARE_NAPI_PROPERTY("NewScopeEscape", NewScopeEscape),
@@ -74,8 +74,10 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("NewScopeWithException", NewScopeWithException),
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
-    env, exports, sizeof(properties) / sizeof(*properties), properties));
+  NAPI_CALL(env, napi_define_properties(
+      env, exports, sizeof(properties) / sizeof(*properties), properties));
+
+  return exports;
 }
 
 NAPI_MODULE(addon, Init)

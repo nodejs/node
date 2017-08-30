@@ -12,7 +12,7 @@ napi_value Test(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
 
   NAPI_ASSERT(env, valuetype0 == napi_function,
-    "Wrong type of arguments. Expects a function as first argument.");
+      "Wrong type of arguments. Expects a function as first argument.");
 
   napi_value* argv = args + 1;
   argc = argc - 1;
@@ -26,10 +26,11 @@ napi_value Test(napi_env env, napi_callback_info info) {
   return result;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_value fn;
-  NAPI_CALL_RETURN_VOID(env, napi_create_function(env, NULL, Test, NULL, &fn));
-  NAPI_CALL_RETURN_VOID(env, napi_set_named_property(env, exports, "Test", fn));
+  NAPI_CALL(env, napi_create_function(env, NULL, Test, NULL, &fn));
+  NAPI_CALL(env, napi_set_named_property(env, exports, "Test", fn));
+  return exports;
 }
 
 NAPI_MODULE(addon, Init)

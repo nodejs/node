@@ -1,7 +1,9 @@
 #include "myobject.h"
+#include "../common.h"
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   MyObject::Init(env, exports);
+  return exports;
 }
 
 NAPI_MODULE(addon, Init)

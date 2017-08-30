@@ -46,15 +46,17 @@ napi_value isPromise(napi_env env, napi_callback_info info) {
   return result;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("createPromise", createPromise),
     DECLARE_NAPI_PROPERTY("concludeCurrentPromise", concludeCurrentPromise),
     DECLARE_NAPI_PROPERTY("isPromise", isPromise),
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
-    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+  NAPI_CALL(env, napi_define_properties(
+      env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+
+  return exports;
 }
 
 NAPI_MODULE(addon, Init)
