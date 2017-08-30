@@ -127,6 +127,7 @@ class NodePlatform : public MultiIsolatePlatform {
                                      double delay_in_seconds) override;
   bool IdleTasksEnabled(v8::Isolate* isolate) override;
   double MonotonicallyIncreasingTime() override;
+  double CurrentClockTimeMillis() override;
   v8::TracingController* GetTracingController() override;
 
   void FlushForegroundTasks(v8::Isolate* isolate);
