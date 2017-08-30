@@ -26,9 +26,10 @@ server.on('listening', common.mustCall(() => {
 
   const client = h2.connect(`http://localhost:${server.address().port}`);
 
-  const req = client.request({ ':path': '/' });
+  client.on('goaway', common.mustCall());
+
+  const req = client.request();
 
   req.resume();
   req.on('end', common.mustCall(() => server.close()));
-  req.end();
 }));
