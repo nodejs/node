@@ -114,11 +114,11 @@ documentation of the latest stable version.
 
 ### Verifying Binaries
 
-Current, LTS and Nightly download directories all contain a _SHASUM256.txt_
+Current, LTS and Nightly download directories all contain a _SHASUMS256.txt_
 file that lists the SHA checksums for each file available for
 download.
 
-The _SHASUM256.txt_ can be downloaded using curl.
+The _SHASUMS256.txt_ can be downloaded using curl.
 
 ```console
 $ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
@@ -135,10 +135,10 @@ _(Where "node-vx.y.z.tar.gz" is the name of the file you have
 downloaded)_
 
 Additionally, Current and LTS releases (not Nightlies) have GPG signed
-copies of SHASUM256.txt files available as SHASUM256.txt.asc. You can use
+copies of SHASUMS256.txt files available as SHASUMS256.txt.asc. You can use
 `gpg` to verify that the file has not been tampered with.
 
-To verify a SHASUM256.txt.asc, you will first need to import all of
+To verify a SHASUMS256.txt.asc, you will first need to import all of
 the GPG keys of individuals authorized to create releases. They are
 listed at the bottom of this README under [Release Team](#release-team).
 Use a command such as this to import the keys:
