@@ -757,7 +757,7 @@ added: v8.4.0
 
 Shortcut for `http2stream.rstStream()` using error code `0x00` (No Error).
 
-#### http2stream.rstWithProtocolError() {
+#### http2stream.rstWithProtocolError()
 <!-- YAML
 added: v8.4.0
 -->
@@ -766,7 +766,7 @@ added: v8.4.0
 
 Shortcut for `http2stream.rstStream()` using error code `0x01` (Protocol Error).
 
-#### http2stream.rstWithCancel() {
+#### http2stream.rstWithCancel()
 <!-- YAML
 added: v8.4.0
 -->
@@ -775,7 +775,7 @@ added: v8.4.0
 
 Shortcut for `http2stream.rstStream()` using error code `0x08` (Cancel).
 
-#### http2stream.rstWithRefuse() {
+#### http2stream.rstWithRefuse()
 <!-- YAML
 added: v8.4.0
 -->
@@ -784,7 +784,7 @@ added: v8.4.0
 
 Shortcut for `http2stream.rstStream()` using error code `0x07` (Refused Stream).
 
-#### http2stream.rstWithInternalError() {
+#### http2stream.rstWithInternalError()
 <!-- YAML
 added: v8.4.0
 -->
