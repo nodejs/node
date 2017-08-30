@@ -849,6 +849,15 @@ used exclusively on HTTP/2 Clients. `Http2Stream` instances on the client
 provide events such as `'response'` and `'push'` that are only relevant on
 the client.
 
+#### Event: 'continue'
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted when the server sends a `100 Continue` status, usually because
+the request contained `Expect: 100-continue`. This is an instruction that
+the client should send the request body.
+
 #### Event: 'headers'
 <!-- YAML
 added: v8.4.0
@@ -1306,6 +1315,28 @@ added: v8.4.0
 The `'timeout'` event is emitted when there is no activity on the Server for
 a given number of milliseconds set using `http2server.setTimeout()`.
 
+#### Event: 'checkContinue'
+<!-- YAML
+added: REPLACEME
+-->
+
+* `request` {http2.Http2ServerRequest}
+* `response` {http2.Http2ServerResponse}
+
+If a [`'request'`][] listener is registered or [`'http2.createServer()'`][] is
+supplied a callback function, the `'checkContinue'` event is emitted each time
+a request with an HTTP `Expect: 100-continue` is received. If this event is
+not listened for, the server will automatically respond with a status
+`100 Continue` as appropriate.
+
+Handling this event involves calling [`response.writeContinue()`][] if the client
+should continue to send the request body, or generating an appropriate HTTP
+response (e.g. 400 Bad Request) if the client should not continue to send the
+request body.
+
+Note that when this event is emitted and handled, the [`'request'`][] event will
+not be emitted.
+
 ### Class: Http2SecureServer
 <!-- YAML
 added: v8.4.0
@@ -1388,6 +1419,28 @@ per session. See the [Compatibility API](compatiblity-api).
 <!-- YAML
 added: v8.4.0
 -->
+
+#### Event: 'checkContinue'
+<!-- YAML
+added: REPLACEME
+-->
+
+* `request` {http2.Http2ServerRequest}
+* `response` {http2.Http2ServerResponse}
+
+If a [`'request'`][] listener is registered or [`'http2.createSecureServer()'`][]
+is supplied a callback function, the `'checkContinue'` event is emitted each
+time a request with an HTTP `Expect: 100-continue` is received. If this event
+is not listened for, the server will automatically respond with a status
+`100 Continue` as appropriate.
+
+Handling this event involves calling [`response.writeContinue()`][] if the client
+should continue to send the request body, or generating an appropriate HTTP
+response (e.g. 400 Bad Request) if the client should not continue to send the
+request body.
+
+Note that when this event is emitted and handled, the [`'request'`][] event will
+not be emitted.
 
 ### http2.createServer(options[, onRequestHandler])
 <!-- YAML
@@ -2537,8 +2590,9 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 added: v8.4.0
 -->
 
-Throws an error as the `'continue'` flow is not current implemented. Added for
-parity with [HTTP/1]().
+Sends a status `100 Continue` to the client, indicating that the request body
+should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
+`Http2SecureServer`.
 
 ### response.writeHead(statusCode[, statusMessage][, headers])
 <!-- YAML
@@ -2618,6 +2672,7 @@ if the stream is closed.
 [Settings Object]: #http2_settings_object
 [Using options.selectPadding]: #http2_using_options_selectpadding
 [Writable Stream]: stream.html#stream_writable_streams
+[`'checkContinue'`]: #http2_event_checkcontinue
 [`'request'`]: #http2_event_request
 [`'unknownProtocol'`]: #http2_event_unknownprotocol
 [`ClientHttp2Stream`]: #http2_class_clienthttp2stream
@@ -2628,7 +2683,9 @@ if the stream is closed.
 [`ServerRequest`]: #http2_class_server_request
 [`TypeError`]: errors.html#errors_class_typeerror
 [`http2.SecureServer`]: #http2_class_http2secureserver
+[`http2.createSecureServer()`]: #http2_createsecureserver_options_onrequesthandler
 [`http2.Server`]: #http2_class_http2server
+[`http2.createServer()`]: #http2_createserver_options_onrequesthandler
 [`net.Socket`]: net.html#net_class_net_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http2_response_end_data_encoding_callback
@@ -2636,6 +2693,7 @@ if the stream is closed.
 [`response.socket`]: #http2_response_socket
 [`response.write()`]: #http2_response_write_chunk_encoding_callback
 [`response.write(data, encoding)`]: http.html#http_response_write_chunk_encoding_callback
+[`response.writeContinue()`]: #http2_response_writecontinue
 [`response.writeHead()`]: #http2_response_writehead_statuscode_statusmessage_headers
 [`stream.pushStream()`]: #http2_stream-pushstream
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
