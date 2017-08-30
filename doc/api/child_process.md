@@ -437,6 +437,8 @@ If not given, the default is to inherit the current working directory.
 Use `env` to specify environment variables that will be visible to the new
 process, the default is [`process.env`][].
 
+`undefined` values in `env` will be ignored.
+
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the
 exit code:
 
