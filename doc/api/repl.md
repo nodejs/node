@@ -452,6 +452,9 @@ changes:
   * `breakEvalOnSigint` - Stop evaluating the current piece of code when
     `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
     with a custom `eval` function. Defaults to `false`.
+  * `noUnderscore` - if set to `true`, the result of the repl's last expression
+    is no longer accessible via `_`.
+    * This also means assigning to `_` will not cause warnings.
 
 The `repl.start()` method creates and starts a `repl.REPLServer` instance.
 
@@ -498,7 +501,8 @@ environment variables:
    history will be persisted if history is available. Must be a positive number.
  - `NODE_REPL_MODE` - May be any of `sloppy`, `strict`, or `magic`. Defaults
    to `sloppy`, which will allow non-strict mode code to be run. `magic` is
-   **deprecated** and treated as an alias of `sloppy`.
+   **deprecated** and treated as an alias of `sloppy`. It is possible to
+   activate `noUnderscore` mode by appending `;noUnderscore` to the mode.
 
 ### Persistent History
 

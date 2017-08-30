@@ -67,7 +67,8 @@ const r2 = repl.start({
   ignoreUndefined: true,
   eval: evaler,
   writer: writer,
-  replMode: repl.REPL_MODE_STRICT
+  replMode: repl.REPL_MODE_STRICT,
+  noUnderscore: true
 });
 assert.strictEqual(r2.input, stream);
 assert.strictEqual(r2.output, stream);
@@ -79,6 +80,7 @@ assert.strictEqual(r2.useGlobal, true);
 assert.strictEqual(r2.ignoreUndefined, true);
 assert.strictEqual(r2.writer, writer);
 assert.strictEqual(r2.replMode, repl.REPL_MODE_STRICT);
+assert.strictEqual(r2.noUnderscore, true);
 
 // test r2 for backwards compact
 assert.strictEqual(r2.rli.input, stream);
