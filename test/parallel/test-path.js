@@ -432,6 +432,11 @@ assert.strictEqual(path.win32.normalize('C:..\\..\\abc\\..\\def'),
                    'C:..\\..\\def');
 assert.strictEqual(path.win32.normalize('C:\\.'), 'C:\\');
 assert.strictEqual(path.win32.normalize('file:stream'), 'file:stream');
+assert.strictEqual(path.win32.normalize('bar\\foo..\\..\\'), 'bar\\');
+assert.strictEqual(path.win32.normalize('bar\\foo..\\..'), 'bar');
+assert.strictEqual(path.win32.normalize('bar\\foo..\\..\\baz'), 'bar\\baz');
+assert.strictEqual(path.win32.normalize('bar\\foo..\\'), 'bar\\foo..\\');
+assert.strictEqual(path.win32.normalize('bar\\foo..'), 'bar\\foo..');
 
 assert.strictEqual(path.posix.normalize('./fixtures///b/../b/c.js'),
                    'fixtures/b/c.js');
@@ -441,6 +446,11 @@ assert.strictEqual(path.posix.normalize('a//b//./c'), 'a/b/c');
 assert.strictEqual(path.posix.normalize('a//b//.'), 'a/b');
 assert.strictEqual(path.posix.normalize('/a/b/c/../../../x/y/z'), '/x/y/z');
 assert.strictEqual(path.posix.normalize('///..//./foo/.//bar'), '/foo/bar');
+assert.strictEqual(path.posix.normalize('bar/foo../../'), 'bar/');
+assert.strictEqual(path.posix.normalize('bar/foo../..'), 'bar');
+assert.strictEqual(path.posix.normalize('bar/foo../../baz'), 'bar/baz');
+assert.strictEqual(path.posix.normalize('bar/foo../'), 'bar/foo../');
+assert.strictEqual(path.posix.normalize('bar/foo..'), 'bar/foo..');
 
 
 // path.resolve tests
