@@ -33,6 +33,12 @@ assert.throws(function() {
   require(`${common.fixturesDir}/throws_error`);
 }, /^Error: blah$/);
 
+// Requiring the module with null character in
+// path as first character of a component
+assert.throws(function() {
+  require('../\u0000on');
+}, /^Error: Cannot find module '[.]{2}\/'$/);
+
 // Requiring a module that does not exist should throw an
 // error with its `code` set to MODULE_NOT_FOUND
 assertModuleNotFound('/DOES_NOT_EXIST');
