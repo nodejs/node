@@ -25,9 +25,9 @@ void CreateOracleValues(NativeT* buf, size_t count) {
 
 template<class NativeT, class V8T>
 void WriteViaOperator(
-  AliasedBuffer<NativeT, V8T>& aliasedBuffer,  // NOLINT(runtime/references)
-  size_t size,
-  NativeT* oracle) {
+    AliasedBuffer<NativeT, V8T>& aliasedBuffer,  // NOLINT(runtime/references)
+    size_t size,
+    NativeT* oracle) {
   // write through the API
   for (size_t i = 0; i < size; i++) {
     aliasedBuffer[i] = oracle[i];
@@ -36,8 +36,8 @@ void WriteViaOperator(
 
 template<class NativeT, class V8T>
 void WriteViaSetValue(
-  AliasedBuffer<NativeT, V8T>& aliasedBuffer,  // NOLINT(runtime/references)
-  size_t size, NativeT* oracle) {
+    AliasedBuffer<NativeT, V8T>& aliasedBuffer,  // NOLINT(runtime/references)
+    size_t size, NativeT* oracle) {
   // write through the API
   for (size_t i = 0; i < size; i++) {
     aliasedBuffer.SetValue(i, oracle[i]);
@@ -46,15 +46,15 @@ void WriteViaSetValue(
 
 template<class NativeT, class V8T>
 void ReadAndValidate(
-  v8::Isolate* isolate,
-  v8::Local<v8::Context> context,
-  AliasedBuffer<NativeT, V8T>& aliasedBuffer,  // NOLINT(runtime/references)
-  size_t size,
-  NativeT* oracle) {
+    v8::Isolate* isolate,
+    v8::Local<v8::Context> context,
+    AliasedBuffer<NativeT, V8T>& aliasedBuffer,  // NOLINT(runtime/references)
+    size_t size,
+    NativeT* oracle) {
   // read through the API
   for (size_t i = 0; i < size; i++) {
-    NativeT v1 = (NativeT)aliasedBuffer[i];
-    NativeT v2 = (NativeT)aliasedBuffer.GetValue(i);
+    NativeT v1 = aliasedBuffer[i];
+    NativeT v2 = aliasedBuffer.GetValue(i);
     EXPECT_TRUE(v1 == oracle[i]);
     EXPECT_TRUE(v2 == oracle[i]);
   }
@@ -75,12 +75,10 @@ void ReadAndValidate(
     EXPECT_TRUE(v.IsEmpty() == false);
     v8::Local<v8::Value> v2 = v.ToLocalChecked();
     EXPECT_TRUE(v2->IsNumber());
-    // v8::MaybeLocal<v8::Number> v3 = v2->ToNumber();
-    // v8::Local<v8::Number> v4 = v3.ToLocalChecked();
-    // NativeT actualValue = *(reinterpret_cast<NativeT*>(&v4->Value()));
-    // EXPECT_TRUE((NativeT)(v4->Value()) == oracle[i]);
-    // TODO(@mike-kaufman)  figure out how to compare the value in the v8 array
-    // Expect_TRUE(*v.ToLocal() == v8NumberCreateFunction(oracle[i]);
+    v8::MaybeLocal<v8::Number> v3 = v2->ToNumber(context);
+    v8::Local<v8::Number> v4 = v3.ToLocalChecked();
+    NativeT actualValue = static_cast<NativeT>(v4->Value());
+    EXPECT_TRUE(actualValue == oracle[i]);
   }
 }
 
@@ -110,14 +108,14 @@ void ReadWriteTest(v8::Isolate* isolate) {
 }
 
 template<
-  class NativeT_A, class V8T_A,
-  class NativeT_B, class V8T_B,
-  class NativeT_C, class V8T_C>
+    class NativeT_A, class V8T_A,
+    class NativeT_B, class V8T_B,
+    class NativeT_C, class V8T_C>
 void SharedBufferTest(
-  v8::Isolate* isolate,
-  size_t count_A,
-  size_t count_B,
-  size_t count_C) {
+    v8::Isolate* isolate,
+    size_t count_A,
+    size_t count_B,
+    size_t count_C) {
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -127,13 +125,13 @@ void SharedBufferTest(
   size_t sizeInBytes_C = count_C * sizeof(NativeT_C);
 
   AliasedBuffer<uint8_t, v8::Uint8Array> rootBuffer(
-    isolate, sizeInBytes_A + sizeInBytes_B + sizeInBytes_C);
+      isolate, sizeInBytes_A + sizeInBytes_B + sizeInBytes_C);
   AliasedBuffer<NativeT_A, V8T_A> ab_A(
-    isolate, 0, count_A, rootBuffer);
+      isolate, 0, count_A, rootBuffer);
   AliasedBuffer<NativeT_B, V8T_B> ab_B(
-    isolate, sizeInBytes_A, count_B, rootBuffer);
+      isolate, sizeInBytes_A, count_B, rootBuffer);
   AliasedBuffer<NativeT_C, V8T_C> ab_C(
-    isolate, sizeInBytes_A + sizeInBytes_B, count_C, rootBuffer);
+      isolate, sizeInBytes_A + sizeInBytes_B, count_C, rootBuffer);
 
   NativeT_A* oracle_A = new NativeT_A[count_A];
   NativeT_B* oracle_B = new NativeT_B[count_B];
@@ -193,28 +191,28 @@ TEST_F(AliasBufferTest, Float64Array) {
 
 TEST_F(AliasBufferTest, SharedArrayBuffer1) {
   SharedBufferTest<
-    uint32_t, v8::Uint32Array,
-    double, v8::Float64Array,
-    int8_t, v8::Int8Array>(isolate_, 100, 80, 8);
+      uint32_t, v8::Uint32Array,
+      double, v8::Float64Array,
+      int8_t, v8::Int8Array>(isolate_, 100, 80, 8);
 }
 
 TEST_F(AliasBufferTest, SharedArrayBuffer2) {
   SharedBufferTest<
-    double, v8::Float64Array,
-    int8_t, v8::Int8Array,
-    double, v8::Float64Array>(isolate_, 100, 8, 8);
+      double, v8::Float64Array,
+      int8_t, v8::Int8Array,
+      double, v8::Float64Array>(isolate_, 100, 8, 8);
 }
 
 TEST_F(AliasBufferTest, SharedArrayBuffer3) {
   SharedBufferTest<
-    int8_t, v8::Int8Array,
-    int8_t, v8::Int8Array,
-    double, v8::Float64Array>(isolate_, 1, 7, 8);
+      int8_t, v8::Int8Array,
+      int8_t, v8::Int8Array,
+      double, v8::Float64Array>(isolate_, 1, 7, 8);
 }
 
 TEST_F(AliasBufferTest, SharedArrayBuffer4) {
   SharedBufferTest<
-    int8_t, v8::Int8Array,
-    int8_t, v8::Int8Array,
-    int32_t, v8::Int32Array>(isolate_, 1, 3, 1);
+      int8_t, v8::Int8Array,
+      int8_t, v8::Int8Array,
+      int32_t, v8::Int32Array>(isolate_, 1, 3, 1);
 }

@@ -35,8 +35,8 @@ Nghttp2Session::Callbacks Nghttp2Session::callback_struct_saved[2] = {
 Http2Options::Http2Options(Environment* env) {
   nghttp2_option_new(&options_);
 
-  AliasedBuffer<uint32_t, v8::Uint32Array> buffer =
-    env->http2_state()->options_buffer;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+      env->http2_state()->options_buffer;
   uint32_t flags = buffer[IDX_OPTIONS_FLAGS];
 
   if (flags & (1 << IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE)) {
@@ -93,8 +93,8 @@ ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
   Context::Scope context_scope(context);
 
   if (object()->Has(context, env()->ongetpadding_string()).FromJust()) {
-    AliasedBuffer<uint32_t, v8::Uint32Array> buffer =
-      env()->http2_state()->padding_buffer;
+    AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+        env()->http2_state()->padding_buffer;
     buffer[PADDING_BUF_FRAME_LENGTH] = frameLen;
     buffer[PADDING_BUF_MAX_PAYLOAD_LENGTH] = maxPayloadLen;
     MakeCallback(env()->ongetpadding_string(), 0, nullptr);
@@ -135,8 +135,8 @@ void PackSettings(const FunctionCallbackInfo<Value>& args) {
   std::vector<nghttp2_settings_entry> entries;
   entries.reserve(6);
 
-  AliasedBuffer<uint32_t, v8::Uint32Array> buffer =
-    env->http2_state()->settings_buffer;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+      env->http2_state()->settings_buffer;
   uint32_t flags = buffer[IDX_SETTINGS_COUNT];
 
   if (flags & (1 << IDX_SETTINGS_HEADER_TABLE_SIZE)) {
@@ -196,8 +196,8 @@ void PackSettings(const FunctionCallbackInfo<Value>& args) {
 void RefreshDefaultSettings(const FunctionCallbackInfo<Value>& args) {
   DEBUG_HTTP2("Http2Session: refreshing default settings\n");
   Environment* env = Environment::GetCurrent(args);
-  AliasedBuffer<uint32_t, v8::Uint32Array> buffer =
-    env->http2_state()->settings_buffer;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+      env->http2_state()->settings_buffer;
 
   buffer[IDX_SETTINGS_HEADER_TABLE_SIZE] =
       DEFAULT_SETTINGS_HEADER_TABLE_SIZE;
@@ -224,8 +224,8 @@ void RefreshSettings(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args[0].As<Object>());
   nghttp2_session* s = session->session();
 
-  AliasedBuffer<uint32_t, v8::Uint32Array> buffer =
-    env->http2_state()->settings_buffer;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+      env->http2_state()->settings_buffer;
   buffer[IDX_SETTINGS_HEADER_TABLE_SIZE] =
       fn(s, NGHTTP2_SETTINGS_HEADER_TABLE_SIZE);
   buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS] =
@@ -246,8 +246,8 @@ void RefreshSessionState(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsObject());
-  AliasedBuffer<double, v8::Float64Array> buffer =
-    env->http2_state()->session_state_buffer;
+  AliasedBuffer<double, v8::Float64Array>& buffer =
+      env->http2_state()->session_state_buffer;
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args[0].As<Object>());
   nghttp2_session* s = session->session();
@@ -284,8 +284,8 @@ void RefreshStreamState(const FunctionCallbackInfo<Value>& args) {
   nghttp2_session* s = session->session();
   Nghttp2Stream* stream;
 
-  AliasedBuffer<double, v8::Float64Array> buffer =
-    env->http2_state()->stream_state_buffer;
+  AliasedBuffer<double, v8::Float64Array>& buffer =
+      env->http2_state()->stream_state_buffer;
 
   if ((stream = session->FindStream(id)) == nullptr) {
     buffer[IDX_STREAM_STATE] = NGHTTP2_STREAM_STATE_IDLE;
@@ -397,8 +397,8 @@ void Http2Session::SubmitSettings(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   Environment* env = session->env();
 
-  AliasedBuffer<uint32_t, v8::Uint32Array> buffer =
-    env->http2_state()->settings_buffer;
+  AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+      env->http2_state()->settings_buffer;
   uint32_t flags = buffer[IDX_SETTINGS_COUNT];
 
   std::vector<nghttp2_settings_entry> entries;

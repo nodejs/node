@@ -349,7 +349,7 @@ inline Environment::~Environment() {
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
-  delete  http2_state_;
+  delete http2_state_;
   free(performance_state_);
 }
 
@@ -462,7 +462,7 @@ inline double Environment::trigger_id() {
 }
 
 inline double Environment::get_init_trigger_id() {
-  AliasedBuffer<double, v8::Float64Array> uid_fields =
+  AliasedBuffer<double, v8::Float64Array>& uid_fields =
     async_hooks()->uid_fields();
   double tid = uid_fields[AsyncHooks::kInitTriggerId];
   uid_fields[AsyncHooks::kInitTriggerId] = 0;
