@@ -10,7 +10,8 @@ good faith both with other contributors and with the community. No contribution
 is too small and all contributions are valued.
 
 This guide details the basic steps for getting started contributing to the
-Node.js project's core `nodejs/node` GitHub Repository.
+Node.js project's core `nodejs/node` GitHub Repository and describes what to
+expect throughout each step of the process.
 
 * [Code of Conduct](#code-of-conduct)
 * [Issues](#issues)
@@ -66,6 +67,22 @@ against the spirit of what that Code is intended to accomplish.
 Open, diverse and inclusive communities live and die on the basis of trust.
 Contributors can disagree with one another so long as they trust that those
 disagreements are in good faith and everyone is working towards a common goal.
+
+### Bad actors
+
+A *bad actor* is someone who repeatedly violates the *spirit* of the Code of
+Conduct through consistent failure to self-regulate the way in which they
+interact with other contributors in the project. In so doing, bad actors
+alienate other contributors, discourage collaboration, and generally reflect
+poorly on the project as a whole.
+
+Being a bad actor may be intentional or unintentional. Typically, unintentional
+bad behavior can be easily corrected by being quick to apologize and correct
+course *even if you are not entirely convinced you need to*. Giving other
+contributors the benefit of the doubt and have a sincere willingness to admit
+that you *might* be wrong is critical for any successful open collaboration.
+
+Don't be a bad actor.
 
 ## Issues
 
@@ -248,7 +265,7 @@ time to ensure that the changes follow the Node.js code style guide.
 
 Any documentation you write (including code comments and API documentation)
 should follow the [Style Guide](doc/STYLE_GUIDE.md). Code samples included
-in the API docs will also be checked when running `make lint` (or 
+in the API docs will also be checked when running `make lint` (or
 `vcbuild.bat lint` on Windows).
 
 #### Step 4: Commit
@@ -530,6 +547,156 @@ contributor to make the pull request better.
 Reviews that are dismissive or disrespectful of the contributor or any other
 reviewers are strictly counter to the [Code of Conduct][].
 
+When reviewing a pull request, the primary goals are for the codebase to improve
+and for the person submitting the request to succeed. Even if a pull request
+does not land, the submitters should come away from the experience feeling like
+their effort was not wasted or unappreciated. Every pull request from a new
+contributor is an opportunity to grow the community.
+
+#### Review a bit at a time.
+
+Do not overwhelm new contributors.
+
+It is tempting to micro-optimize and make everything about relative performance,
+perfect grammar, or exact style matches. Do not succumb to that temptation.
+
+Focus first on the most significant aspects of the change:
+
+1. Does this change make sense for Node.js?
+2. Does this change make Node.js better, even if only incrementally?
+3. Are there clear bugs or larger scale issues that need attending to?
+
+When changes are necessary, *request* them, do not *demand* them, and do not
+assume that the submitter already knows how to add a test or run a benchmark.
+
+Specific performance optimization techniques, coding styles and conventions
+change over time. The first impression you give to a new contributor never does.
+
+Nits (requests for small changes that are not essential) are fine, but try to
+avoid stalling the pull request. Most nits can typically be fixed by the
+Node.js Collaborator landing the pull request but they can also be an
+opportunity for the contributor to learn a bit more about the project.
+
+It is always good to clearly indicate nits when you comment: e.g.
+`Nit: change foo() to bar(). But this is not blocking.`
+
+#### Be aware of the person behind the code
+
+Be aware that *how* you communicate requests and reviews in your feedback can
+have a significant impact on the success of the pull request. Yes, we may land
+a particular change that makes Node.js better, but the individual might just
+not want to have anything to do with Node.js every again. The goal is not just
+having good code.
+
+#### Respect the minimum wait time for comments
+
+There is a minimum waiting time which we try to respect for non-trivial
+changes, so that people who may have important input in such a distributed
+project are able to respond.
+
+For non-trivial changes, pull requests must be left open for *at least* 48
+hours during the week, and 72 hours on a weekend. In most cases, when the
+PR is relatively small and focused on a narrow set of changes, these periods
+provide more than enough time to adequately review. Sometimes changes take far
+longer to review, or need more specialized review from subject matter experts.
+When in doubt, do not rush.
+
+Trivial changes, typically limited to small formatting changes or fixes to
+documentation, may be landed within the minimum 48 hour window.
+
+#### Abandoned or Stalled Pull Requests
+
+If a pull request appears to be abandoned or stalled, it is polite to first
+check with the contributor to see if they intend to continue the work before
+checking if the they would mind if you took it over (especially if it just has
+nits left). When doing so, it is courteous to give the original contributor
+credit for the work they started.
+
+#### Approving a change
+
+Any Node.js core Collaborator (any GitHub user with commit rights in the
+`nodejs/node` repository) is authorized to approve any other contributor's
+work. Collaborators are not permitted to approve their own pull requests.
+
+Collaborators indicate that they have reviewed and approve of the changes in
+a pull request either by using GitHub's Approval Workflow, which is preferred,
+or by leaving an `LGTM` ("Looks Good To Me") comment.
+
+When explicitly using the "Changes requested" component of the GitHub Approval
+Workflow, show empathy. That is, do not be rude or abrupt with your feedback
+and offer concrete suggestions for improvement, if possible. If you're not
+sure *how* a particular change can be improved, say so.
+
+Most importantly, after leaving such requests, it is courteous to make yourself
+available later to check whether your comments have been addressed.
+
+If you see that requested changes have been made, you can clear another
+collaborator's `Changes requested` review.
+
+Change requests that are vague, dismissive, or unconstructive may also be
+dismissed if requests for greater clarification go unanswered within a
+reasonable period of time.
+
+If you do not believe that the pull request should land at all, use
+`Changes requested` to indicate that you are considering some of your comments
+to block the PR from landing. When doing so, explain *why* you believe the
+pull request should not land along with an explanation of what may be an
+acceptable alternative course, if any.
+
+#### Accept that there are different opinions about what belongs in Node.js
+
+Opinions on this vary, even among the members of the Technical Steering
+Committee.
+
+One general rule of thumb is that if Node.js itself needs it (due to historic
+or functional reasons), then it belongs in Node.js. For instance, `url`
+parsing is in Node.js because of HTTP protocol support.
+
+Also, functionality that either cannot be implemented outside of core in any
+reasonable way, or only with significant pain.
+
+It is not uncommon for contributors to suggest new features they feel would
+make Node.js better. These may or may not make sense to add, but as with all
+changes, be courteous in how you communicate your stance on these. Comments
+that make the contributor feel like they should have "known better" or
+ridiculed for even trying run counter to the [Code of Conduct][].
+
+#### Performance isn't everything
+
+Node.js has always optimized for speed of execution. If a particular change
+can be shown to make some part of Node.js faster, it's quite likely to be
+accepted. Claims that a particular code request will make things faster will
+almost always be met by requests for performance benchmark results that
+demonstrate the improvement.
+
+That said, performance is not the only factor to consider. Node.js also
+optimizes in favor of not breaking existing code in the ecosystem, and not
+changing working functional code just for the sake of changing.
+
+If a particular pull request introduces a performance or functional
+regression, rather than simply rejecting the pull request, take the time to
+work *with* the contributor on improving the change. Offer feedback and
+advice on what would make the pull request acceptable, and do not assume that
+the contributor should already know how to do that. Be explicit in your
+feedback.
+
+#### Continuous Integration (CI) Testing:
+
+All pull requests that contain changes to code must be run through
+continuous integration (CI) testing at [https://ci.nodejs.org/][].
+
+Only Node.js core Collaborators with commit rights to the `nodejs/node`
+repository may start a CI testing run. The specific details of how to do
+this are included in the new Collaborator [Onboarding guide][].
+
+Ideally, the code change will pass ("be green") on all platform configurations
+supported by Node.js (there are over 30 platform configurations currently).
+This means that all tests pass and there are no linting errors. In reality,
+however, it is not uncommon for the CI infrastructure itself to fail on
+specific platforms or for so-called "flaky" tests to fail ("be red"). It is
+vital to visually inspect the results of all failed ("red") tests to determine
+whether the failure was caused by the changes in the pull request.
+
 ## Additional Notes
 
 ### Commit Squashing
@@ -590,7 +757,7 @@ you can take a look at the
 The following additional resources may be of assistance:
 
 * [How to create a Minimal, Complete, and Verifiable example](https://stackoverflow.com/help/mcve)
-* [core-validate-commit](https://github.com/evanlucas/core-validate-commit) - 
+* [core-validate-commit](https://github.com/evanlucas/core-validate-commit) -
   A utility that ensures commits follow the commit formatting guidelines.
 
 <a id="developers-certificate-of-origin"></a>
@@ -629,3 +796,5 @@ By making a contribution to this project, I certify that:
 [approved]: #getting-approvals-for-your-pull-request
 [CI (Continuous Integration) test run]: #ci-testing
 [notes about the waiting time]: #waiting-until-the-pull-request-gets-landed
+[https://ci.nodejs.org/]: https://ci.nodejs.org/
+[Onboarding guide]: ./docs/onboarding.md
