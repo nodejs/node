@@ -147,8 +147,8 @@ around it. Some contributors may have differing opinions about the issue,
 including whether the behavior being seen is a bug or a feature. This discussion
 is part of the process and should be kept focused, helpful and professional.
 
-Short, clipped responses--that provide neither additional context nor supporting
-detail--are not helpful or professional. To many, such responses are simply
+Short, clipped responses—that provide neither additional context nor supporting
+detail—are not helpful or professional. To many, such responses are simply
 annoying and unfriendly.
 
 Contributors are encouraged to help one another make forward progress as much
@@ -162,7 +162,7 @@ reach the correct outcome much faster.
 ### Resolving a Bug Report
 
 In the vast majority of cases, issues are resolved by opening a pull request.
-The process for opening an reviewing a pull request is similar to that of
+The process for opening and reviewing a pull request is similar to that of
 opening and triaging issues but carries with in a necessary review and approval
 workflow that ensures that the proposed changes meet the minimal quality and
 functional guidelines of the Node.js project.
@@ -246,7 +246,9 @@ If you are modifying code, please be sure to run `make lint` from time to
 time to ensure that the changes follow the Node.js code style guide.
 
 Any documentation you write (including code comments and API documentation)
-should follow the [Style Guide](doc/STYLE_GUIDE.md).
+should follow the [Style Guide](doc/STYLE_GUIDE.md). Code samples included
+in the API docs will also be checked when running `make lint` (or 
+`vsbuild.bat lint` on Windows).
 
 #### Step 4: Commit
 
@@ -457,7 +459,7 @@ $ git push --force-with-lease origin my-branch
 ```
 
 **Important:** The `git push --force-with-lease` command is one of the few ways
-to delete history in git. Before you use it, make sure you understand the risks.
+to delete history in `git`. Before you use it, make sure you understand the risks.
 If in doubt, you can always ask for guidance in the Pull Request or on
 [IRC in the #node-dev channel](https://webchat.freenode.net?channels=node-dev&uio=d4).
 
@@ -581,6 +583,14 @@ widely used, so don't be discouraged!
 If you want to know more about the code review and the landing process,
 you can take a look at the
 [collaborator's guide](https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md).
+
+### Helpful Resources
+
+The following additional resources may be of assistance:
+
+* [How to create a Minimal, Complete, and Verifiable example](https://stackoverflow.com/help/mcve)
+* [core-validate-commit](https://github.com/evanlucas/core-validate-commit) - 
+  A utility that ensures commits follow the commit formatting guidelines.
 
 <a id="developers-certificate-of-origin"></a>
 ## Developer's Certificate of Origin 1.1
