@@ -1316,7 +1316,7 @@ Local<Value> GetPromiseReason(Environment* env, Local<Value> promise) {
 
   // If fn is empty we'll almost certainly have to panic anyways
   return fn->Call(env->context(), Null(env->isolate()), 1,
-                       &internal_props).ToLocalChecked();
+                  &internal_props).ToLocalChecked();
 }
 
 
@@ -3785,12 +3785,6 @@ void LoadEnvironment(Environment* env) {
 
   // Add a reference to the global object
   Local<Object> global = env->context()->Global();
-
-  Local<Object> js_array_object = global->Get(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "Array")).As<Object>();
-  Local<Function> js_array_from_function = js_array_object->Get(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "from")).As<Function>();
-  env->set_array_from(js_array_from_function);
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
   InitDTrace(env, global);

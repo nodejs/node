@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 
 const p1 = new Promise((res, rej) => {
   consol.log('One'); // eslint-disable-line no-undef
@@ -20,7 +21,10 @@ new Promise((res, rej) => {
   }), 1);
 });
 
+process.on('unhandledRejection', () => {}); // Ignore
+process.on('rejectionHandled', () => {}); // Ignore
+
 process.on('uncaughtException', (err) =>
-    common.fail('Should not trigger uncaught exception'));
+  assert.fail('Should not trigger uncaught exception'));
 
 process.on('exit', () => process._rawDebug('exit event emitted'));

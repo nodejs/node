@@ -2,7 +2,8 @@
 
 // We should always have the stacktrace of the oldest rejection.
 
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 
 new Promise(function(res, rej) {
   consol.log('One'); // eslint-disable-line no-undef
@@ -12,7 +13,9 @@ new Promise(function(res, rej) {
   consol.log('Two'); // eslint-disable-line no-undef
 });
 
+process.on('unhandledRejection', () => {}); // Ignore
+
 process.on('uncaughtException', (err) =>
-    common.fail('Should not trigger uncaught exception'));
+  assert.fail('Should not trigger uncaught exception'));
 
 process.on('exit', () => process._rawDebug('exit event emitted'));

@@ -1,18 +1,18 @@
 'use strict';
 const common = require('../common');
 
-const expectedDeprecationWarning = 'Unhandled promise rejections are ' +
-                                   'deprecated. In the future, promise ' +
-                                   'rejections that are not handled will ' +
-                                   'terminate the Node.js process with a ' +
-                                   'non-zero exit code.';
+const expectedHandledWarning = 'Promise rejection was handled ' +
+                               'asynchronously (rejection id: 1)';
 const expectedPromiseWarning = 'Unhandled promise rejection (rejection id: ' +
                                '1): Symbol()';
 
 common.expectWarning({
-  DeprecationWarning: expectedDeprecationWarning,
   UnhandledPromiseRejectionWarning: expectedPromiseWarning,
+  PromiseRejectionHandledWarning: expectedHandledWarning
 });
 
 // ensure this doesn't crash
-Promise.reject(Symbol());
+const p = Promise.reject(Symbol());
+setTimeout(() => {
+  p.catch(() => {});
+}, 1);

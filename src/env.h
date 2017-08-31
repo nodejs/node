@@ -32,7 +32,6 @@
 #include "handle_wrap.h"
 #include "req-wrap.h"
 #include "track-promise.h"
-#include "tree.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
@@ -316,6 +315,7 @@ class ModuleWrap;
   V(performance_entry_callback, v8::Function)                                 \
   V(performance_entry_template, v8::Function)                                 \
   V(process_object, v8::Object)                                               \
+  V(promise_wrap_template, v8::ObjectTemplate)                                \
   V(promise_unhandled_rejection_function, v8::Function)                       \
   V(promise_unhandled_rejection, v8::Function)                                \
   V(push_values_to_array_function, v8::Function)                              \

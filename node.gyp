@@ -657,39 +657,7 @@
         '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
       ],
 
-      'libraries': [
-        '<(OBJ_GEN_PATH)/node_javascript.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_debug_options.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/async-wrap.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/env.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_buffer.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_i18n.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_url.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/debug-agent.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/util.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/string_bytes.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/string_search.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/stream_base.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_constants.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_revert.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)/agent.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)/node_trace_buffer.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)/node_trace_writer.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)/trace_event.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/track-promise.<(OBJ_SUFFIX)',
-      ],
-
-      'defines': [
-        # gtest's ASSERT macros conflict with our own.
-        'GTEST_DONT_DEFINE_ASSERT_EQ=1',
-        'GTEST_DONT_DEFINE_ASSERT_GE=1',
-        'GTEST_DONT_DEFINE_ASSERT_GT=1',
-        'GTEST_DONT_DEFINE_ASSERT_LE=1',
-        'GTEST_DONT_DEFINE_ASSERT_LT=1',
-        'GTEST_DONT_DEFINE_ASSERT_NE=1',
-        'NODE_WANT_INTERNALS=1',
-      ],
+      'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
       'sources': [
         'src/node_platform.cc',
@@ -727,6 +695,7 @@
             '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)node_trace_buffer.<(OBJ_SUFFIX)',
             '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)node_trace_writer.<(OBJ_SUFFIX)',
             '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)trace_event.<(OBJ_SUFFIX)',
+            '<(OBJ_PATH)<(OBJ_SEPARATOR)track-promise.<(OBJ_SUFFIX)',
           ],
         }],
         ['v8_enable_inspector==1', {
