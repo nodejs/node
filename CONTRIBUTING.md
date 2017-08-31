@@ -10,7 +10,7 @@ good faith both with other contributors and with the community. No contribution
 is too small and all contributions are valued.
 
 This guide details the basic steps for getting started contributing to the
-Node.js projects core `nodejs/node` GitHub Repository.
+Node.js project's core `nodejs/node` GitHub Repository.
 
 * [Code of Conduct](#code-of-conduct)
 * [Issues](#issues)
@@ -41,6 +41,7 @@ Node.js projects core `nodejs/node` GitHub Repository.
   * [Getting Approvals for your Pull Request](#getting-approvals-for-your-pull-request)
   * [CI Testing](#ci-testing)
   * [Waiting Until the Pull Request Gets Landed](#waiting-until-the-pull-request-gets-landed)
+  * [Check Out the Collaborator's Guide](#check-out-the-collaborators-guide)
 * [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin-11)
 
 ## Code of Conduct
@@ -50,18 +51,18 @@ expected to follow. This code describes the *minimum* behavior expectations
 for all contributors.
 
 As a contributor to Node.js, how you choose to act and interact towards your
-follow contributors, as well as to the community, will reflect back not only
+fellow contributors, as well as to the community, will reflect back not only
 on yourself but on the project as a whole. The Code of Conduct is designed and
 intended, above all else, to help establish a culture within the project that
 allows anyone and everyone who wants to continue to feel safe doing so.
 
 Should any individual act in any way that is considered in violation of the
-[Code of Conduct], corrective actions will be taken. It is possible, however,
+[Code of Conduct][], corrective actions will be taken. It is possible, however,
 for any individual to *act* in such a manner that is not in violation of the
 strict letter of the Code of Conduct guidelines while still going completely
 against the spirit of what that Code is intended to accomplish.
 
-Open, diverse and inclusive open communities live and die on the basis of trust.
+Open, diverse and inclusive communities live and die on the basis of trust.
 Contributors can disagree with one another so long as they trust that those
 disagreements are in good faith and everyone is working towards a common goal.
 
@@ -72,7 +73,7 @@ general discussions are made. For any issue, there are fundamentally three
 ways an individual can contribute:
 
 1. By opening the issue for discussion: For instance, if you believe that you
-   have uncovered a bug in Node.js, creating a new issue in the nodejs/node
+   have uncovered a bug in Node.js, creating a new issue in the `nodejs/node`
    issue tracker is the way to report it.
 2. By helping to triage the issue: This can be done either by providing
    supporting details (a test case that demonstrates a bug), or providing
