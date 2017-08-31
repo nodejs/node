@@ -42,6 +42,7 @@ Node.js project's core `nodejs/node` GitHub Repository.
   * [CI Testing](#ci-testing)
   * [Waiting Until the Pull Request Gets Landed](#waiting-until-the-pull-request-gets-landed)
   * [Check Out the Collaborator's Guide](#check-out-the-collaborators-guide)
+  * [Helpful Resources](#helpful-resources)
 * [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin-11)
 
 ## Code of Conduct
