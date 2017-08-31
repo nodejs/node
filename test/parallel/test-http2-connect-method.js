@@ -12,6 +12,8 @@ const { URL } = require('url');
 const {
   HTTP2_HEADER_METHOD,
   HTTP2_HEADER_AUTHORITY,
+  HTTP2_HEADER_SCHEME,
+  HTTP2_HEADER_PATH,
   NGHTTP2_CONNECT_ERROR
 } = http2.constants;
 
@@ -53,6 +55,40 @@ server.listen(0, common.mustCall(() => {
   proxy.listen(0, () => {
     const client = http2.connect(`http://localhost:${proxy.address().port}`);
 
+    // confirm that :authority is required and :scheme & :path are forbidden
+    assert.throws(
+      () => client.request({
+        [HTTP2_HEADER_METHOD]: 'CONNECT'
+      }),
+      common.expectsError({
+        code: 'ERR_HTTP2_CONNECT_AUTHORITY',
+        message: ':authority header is required for CONNECT requests'
+      })
+    );
+    assert.throws(
+      () => client.request({
+        [HTTP2_HEADER_METHOD]: 'CONNECT',
+        [HTTP2_HEADER_AUTHORITY]: `localhost:${port}`,
+        [HTTP2_HEADER_SCHEME]: 'http'
+      }),
+      common.expectsError({
+        code: 'ERR_HTTP2_CONNECT_SCHEME',
+        message: 'The :scheme header is forbidden for CONNECT requests'
+      })
+    );
+    assert.throws(
+      () => client.request({
+        [HTTP2_HEADER_METHOD]: 'CONNECT',
+        [HTTP2_HEADER_AUTHORITY]: `localhost:${port}`,
+        [HTTP2_HEADER_PATH]: '/'
+      }),
+      common.expectsError({
+        code: 'ERR_HTTP2_CONNECT_PATH',
+        message: 'The :path header is forbidden for CONNECT requests'
+      })
+    );
+
+    // valid CONNECT request
     const req = client.request({
       [HTTP2_HEADER_METHOD]: 'CONNECT',
       [HTTP2_HEADER_AUTHORITY]: `localhost:${port}`,
