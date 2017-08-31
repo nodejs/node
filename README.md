@@ -134,12 +134,12 @@ $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 _(Where "node-vx.y.z.tar.gz" is the name of the file you have
 downloaded)_
 
-Additionally, Current and LTS releases (not Nightlies) have GPG signed
-copies of SHASUMS256.txt files available as SHASUMS256.txt.asc. You can use
-`gpg` to verify that the file has not been tampered with.
+Additionally, Current and LTS releases (not Nightlies) have the GPG
+detached signature of SHASUMS256.txt available as SHASUMS256.txt.sig.
+You can use `gpg` to verify that SHASUMS256.txt has not been tampered with.
 
-To verify a SHASUMS256.txt.asc, you will first need to import all of
-the GPG keys of individuals authorized to create releases. They are
+To verify SHASUMS256.txt has not been altered, you will first need to import
+all of the GPG keys of individuals authorized to create releases. They are
 listed at the bottom of this README under [Release Team](#release-team).
 Use a command such as this to import the keys:
 
@@ -150,10 +150,17 @@ $ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C2
 _(See the bottom of this README for a full script to import active
 release keys)_
 
-You can then use `gpg --verify SHASUMS256.txt.asc` to verify that the
-file has been signed by an authorized member of the Node.js team.
+Next, download the SHASUMS256.txt.sig for the release:
 
-Once verified, use the SHASUMS256.txt.asc file to get the checksum for
+```console
+$ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt.sig
+```
+
+After downloading the appropriate SHASUMS256.txt and SHASUMS256.txt.sig files,
+you can then use `gpg --verify SHASUMS256.txt.sig SHASUMS256.txt` to verify
+that the file has been signed by an authorized member of the Node.js team.
+
+Once verified, use the SHASUMS256.txt file to get the checksum for
 the binary verification command above.
 
 ## Building Node.js
