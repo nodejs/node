@@ -33,7 +33,7 @@ expect throughout each step of the process.
     * [Step 6: Test](#step-6-test)
     * [Step 7: Push](#step-7-push)
     * [Step 8: Opening the Pull Request](#step-8-opening-the-pull-request)
-    * [Step 9: Discuss and Upadte](#step-9-discuss-and-update)
+    * [Step 9: Discuss and Update](#step-9-discuss-and-update)
       * [Approval and Request Changes Workflow](#approval-and-request-changes-workflow)
     * [Step 10: Landing](#step-10-landing)
   * [Reviewing Pull Requests](#reviewing-pull-requests)
@@ -69,6 +69,10 @@ Contributors can disagree with one another so long as they trust that those
 disagreements are in good faith and everyone is working towards a common goal.
 
 ### Bad actors
+
+All contributors to Node.js tacitly agree to abide by both the letter and
+spirit of the [Code of Conduct][]. Failure, or unwillingness, to do so will
+result in contributions being respectfully declined.
 
 A *bad actor* is someone who repeatedly violates the *spirit* of the Code of
 Conduct through consistent failure to self-regulate the way in which they
@@ -221,7 +225,7 @@ These are detailed in the [Building guide][].
 Once you have `git` and are sure you have all of the necessary dependencies,
 it's time to create a fork.
 
-Before getting started, it is recommend to configure `git` so that it knows
+Before getting started, it is recommended to configure `git` so that it knows
 who you are:
 
 ```text
@@ -348,14 +352,14 @@ $ git fetch upstream
 $ git rebase upstream/master
 ```
 
-The ensures that your working branch has the latest changes from `nodejs/node`
+This ensures that your working branch has the latest changes from `nodejs/node`
 master.
 
 #### Step 6: Test
 
 Bug fixes and features should always come with tests. A
 [guide for writing tests in Node.js](./doc/guides/writing-tests.md) has been
-provided to make the proces easier. Looking at other tests to see how they
+provided to make the process easier. Looking at other tests to see how they
 should be structured can also help.
 
 The `test` directory within the `nodejs/node` repository is complex and it is
@@ -477,9 +481,9 @@ $ git push --force-with-lease origin my-branch
 ```
 
 **Important:** The `git push --force-with-lease` command is one of the few ways
-to delete history in `git`. Before you use it, make sure you understand the risks.
-If in doubt, you can always ask for guidance in the Pull Request or on
-[IRC in the #node-dev channel](https://webchat.freenode.net?channels=node-dev&uio=d4).
+to delete history in `git`. Before you use it, make sure you understand the
+risks. If in doubt, you can always ask for guidance in the Pull Request or on
+[IRC in the #node-dev channel][].
 
 If you happen to make a mistake in any of your commits, do not worry. You can
 amend the last commit (for example if you want to change the commit log).
@@ -503,7 +507,7 @@ seem unfamiliar, refer to this
 All pull requests require "sign off" in order to land. Whenever a contributor
 reviews a pull request they may find specific details that they would like to
 see changed or fixed. These may be as simple as fixing a typo, or may involve
-substantive changes to the code you have written. In general, such request
+substantive changes to the code you have written. In general, such requests
 are intended to be helpful, but at times may come across as abrupt or unhelpful,
 especially requests to change things that do not include concrete suggestions
 on *how* to change them.
@@ -798,3 +802,4 @@ By making a contribution to this project, I certify that:
 [notes about the waiting time]: #waiting-until-the-pull-request-gets-landed
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
 [Onboarding guide]: ./docs/onboarding.md
+[IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
