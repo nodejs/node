@@ -1104,3 +1104,21 @@ if (typeof Symbol !== 'undefined') {
 }
 
 assert.doesNotThrow(() => util.inspect(process));
+
+{
+  // Assert bad util.inspect.styles does not make 'inspect' throw
+  const oldStyle = util.inspect.styles.date;
+  util.inspect.styles.date = 'foo';
+  assert.doesNotThrow(() => util.inspect(new Date(), { colors: true }));
+  util.inspect.styles.date = oldStyle;
+}
+
+{
+  // Assert util.inspect.styles accepts 'bright' colors
+  const oldStyle = util.inspect.styles.date;
+  util.inspect.styles.date = 'yellow;bright';
+  const ret = util.inspect(new Date(), { colors: true });
+  assert.strictEqual(ret.includes('33;1'), true);
+  assert.strictEqual(ret.includes('39;22'), true);
+  util.inspect.styles.date = oldStyle;
+}
