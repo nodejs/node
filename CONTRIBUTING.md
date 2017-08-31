@@ -1,44 +1,152 @@
 # Contributing to Node.js
 
+Contributions to Node.js may come in many forms. Some contribute code changes,
+others contribute docs, others help answer questions from users, help keep the
+infrastructure running, or seek out ways of advocating for Node.js users of all
+types.
+
+The Node.js project welcomes all contributions from anyone willing to work in
+good faith both with other contributors and with the community. No contribution
+is too small and all contributions are valued.
+
+This guide details the basic steps for getting started contributing to the
+Node.js projects core `nodejs/node` GitHub Repository.
+
 ## Code of Conduct
 
-Please read the
-[Code of Conduct](https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md)
-which explains the minimum behavior expectations for Node.js contributors.
+The Node.js project has a [Code of Conduct][] that *all* contributors are
+expected to follow. This code describes the *minimum* behavior expectations
+for all contributors.
 
-## Issue Contributions
+As a contributor to Node.js, how you choose to act and interact towards your
+follow contributors, as well as to the community, will reflect back not only
+on yourself but on the project as a whole. The Code of Conduct is designed and
+intended, above all else, to help establish a culture within the project that
+allows anyone and everyone who wants to continue to feel safe doing so.
 
-When opening issues or commenting on existing issues, please make sure
-discussions are related to concrete technical issues with Node.js.
+Should any individual act in any way that is considered in violation of the
+[Code of Conduct], corrective actions will be taken. It is possible, however,
+for any individual to *act* in such a manner that is not in violation of the
+strict letter of the Code of Conduct guidelines while still going completely
+against the spirit of what that Code is intended to accomplish.
 
-* For general help using Node.js, please file an issue at the
-[Node.js help repository](https://github.com/nodejs/help/issues).
+Open, diverse and inclusive open communities live and die on the basis of trust.
+Contributors can disagree with one another so long as they trust that those
+disagreements are in good faith and everyone is working towards a common goal.
 
-* Discussion of non-technical topics (such as intellectual property and
-trademark) should use the
-[Technical Steering Committee (TSC) repository](https://github.com/nodejs/TSC/issues).
+## Issues
 
-## Code Contributions
+Issues in `nodejs/node` are the primary means by which bug reports and
+general discussions are made. For any issue, there are fundamentally three
+ways an individual can contribute:
 
-This section will guide you through the contribution process.
+1. By opening the issue for discussion: For instance, if you believe that you
+   have uncovered a bug in Node.js, creating a new issue in the nodejs/node
+   issue tracker is the way to report it.
+2. By helping to triage the issue: This can be done either by providing
+   supporting details (a test case that demonstrates a bug), or providing
+   suggestions on how to address the issue.
+3. By helping to resolve the issue: Typically this is done either in the form
+   of demonstrating that the issue reported is not a problem after all, or more
+   often, by opening a Pull Request that changes some bit of something in
+   `nodejs/node` in a concrete and reviewable manner.
 
-### Step 1: Fork
+### Asking for General Help
 
-Fork the project [on GitHub](https://github.com/nodejs/node) and clone your fork
-locally.
+Because the level of activity in the `nodejs/node` repository is so high,
+questions or requests for general help using Node.js should be directed at
+the [Node.js help repository][].
 
-```text
-$ git clone git@github.com:username/node.git
-$ cd node
-$ git remote add upstream https://github.com/nodejs/node.git
+### Discussing non-technical topics
+
+Discussion of non-technical topics (such as intellectual property and trademark)
+should be directed to the [Technical Steering Committee (TSC) repository][].
+
+### Submitting a Bug Report
+
+When opening a new issue in the `nodejs/node` issue tracker, users will be
+presented with a basic template that should be filled in.
+
+```markdown
+<!--
+Thank you for reporting an issue.
+
+This issue tracker is for bugs and issues found within Node.js core.
+If you require more general support please file an issue on our help
+repo. https://github.com/nodejs/help
+
+
+Please fill in as much of the template below as you're able.
+
+Version: output of `node -v`
+Platform: output of `uname -a` (UNIX), or version and 32 or 64-bit (Windows)
+Subsystem: if known, please specify affected core module name
+
+If possible, please provide code that demonstrates the problem, keeping it as
+simple and free of external dependencies as you are able.
+-->
+
+* **Version**:
+* **Platform**:
+* **Subsystem**:
+
+<!-- Enter your issue details below this comment. -->
 ```
 
-#### Which branch?
+If you believe that you have uncovered a bug in Node.js, please fill out this
+form, following the template to the best of your ability. Do not worry if you
+cannot answer every detail, just fill in what you can.
 
-For developing new features and bug fixes, the `master` branch should be pulled
-and built upon.
+The two most important pieces of information we need in order to properly
+evaluate the report is a description of the behavior you are seeing and a simple
+test case we can use to recreate the problem on our own. If we cannot recreate
+the issue, it becomes impossible for us to fix.
 
-#### Dependencies
+In order to rule out the possibility of bugs introduced by userland code, test
+cases should be limited, as much as possible, to using *only* Node.js APIs.
+If the bug occurs only when you're using a specific userland module, there is
+a very good chance that either (a) the module has a bug or (b) something in
+Node.js changed that broke the module.
+
+### Triaging a Bug Report
+
+Once an issue has been opened, it is not uncommon for there to be discussion
+around it. Some contributors may have differing opinions about the issue,
+including whether the behavior being seen is a bug or a feature. This discussion
+is part of the process and should be kept focused, helpful and professional.
+
+Short, clipped responses that do not provide either additional context nor
+supporting detail are neither helpful nor professional. To many, such responses
+are simply annoying and unfriendly.
+
+Contributors are encouraged to help one another make forward progress as much
+as possible, empowering one another to solve issues collaboratively. If you
+choose to comment on an issue that you feel either is not a problem that needs
+to be fixed, or if you encounter information in an issue that you feel is
+incorrect, explain *why* you feel that way with additional supporting context,
+and be willing to be convinced that you may be wrong. By doing so, we can often
+reach the correct outcome much faster.
+
+### Resolving a Bug Report
+
+In the vast majority of cases, issues are resolved by opening a pull request.
+The process for opening an reviewing a pull request is simliar to that of
+opening and triaging issues but carries with in a necessary review and approval
+workflow that ensures that the proposed changes meet the minimal quality and
+functional guidelines of the Node.js project.
+
+## Pull Requests
+
+Pull Requests are the way in which concrete changes are made to the code,
+documentation, dependencies, and tools contained with the `nodejs/node`
+repository.
+
+There are two fundamental components of the Pull Request process: one concrete
+and technical, and one more process oriented. The concete and technical
+component involves the specific details of setting up your local environment
+so that you can make the actual changes. This is where we will start.
+
+### Dependencies
 
 Node.js has several bundled dependencies in the *deps/* and the *tools/*
 directories that are not part of the project proper. Changes to files in those
@@ -54,36 +162,78 @@ questions, and
 [#Node-dev](http://webchat.freenode.net/?channels=node-dev) for development of
 Node.js core specifically.
 
-### Step 2: Branch
+### Setting up your local environment
 
-Create a branch and start hacking:
+To get started, you will need to have `git` installed locally. Depending on
+your operating system, there are also a number of other dependencies required.
+These are detailed in the [Building guide][].
 
-```text
-$ git checkout -b my-branch -t origin/master
-```
+Once you have `git` and are sure you have all of the necessary dependencies,
+it's time to create a fork.
 
-Any text you write should follow the [Style Guide](doc/STYLE_GUIDE.md),
-including comments and API documentation.
-
-### Step 3: Commit
-
-Make sure git knows your name and email address:
+Before getting started, it is recommend to configure `git` so that it knows
+who you are:
 
 ```text
 $ git config --global user.name "J. Random User"
 $ git config --global user.email "j.random.user@example.com"
 ```
 
-Add and commit:
+#### Step 1: Fork
+
+Fork the project [on GitHub](https://github.com/nodejs/node) and clone your fork
+locally.
+
+```text
+$ git clone git@github.com:username/node.git
+$ cd node
+$ git remote add upstream https://github.com/nodejs/node.git
+$ git fetch upstream
+```
+
+#### Step 2: Branch
+
+As a best practice to keep your development environment as organized as
+possible, create local branches to work within. These should also be created
+directly off of the `master` branch.
+
+```text
+$ git checkout -b my-branch -t origin/master
+```
+
+### The Process of Making Changes
+
+#### Step 3: Code
+
+The vast majority of pull requests opened against the `nodejs/node`
+repository includes changes to either the C/C++ code contained in the `src`
+directory, the JavaScript code contained in the `lib` directory, the
+documentation in `docs/api` or tests within the `test` directory.
+
+If you are modifying code, please be sure to run `make lint` from time to
+time to ensure that the changes follow the Node.js code style guide.
+
+Any documentation you write (including code comments and API documentation)
+should follow the [Style Guide](doc/STYLE_GUIDE.md).
+
+#### Step 4: Commit
+
+It is a recommended best practice to keep your changes as logically grouped
+as possible within individual commits. There is no limit to the number of
+commits any single pull request may have, and many contributors find it easier
+to review changes that are split across multiple commits.
 
 ```text
 $ git add my/changed/files
 $ git commit
 ```
 
-### Commit message guidelines
+Note that multiple commits often get squashed when they are landed (see the
+notes about [commit squashing](#commit-squashing)).
 
-The commit message should describe what changed and why.
+##### Commit message guidelines
+
+A good commit message should describe what changed and why.
 
 1. The first line should:
    - contain a short description of the change
@@ -129,9 +279,16 @@ Fixes: https://github.com/nodejs/node/issues/1337
 Refs: http://eslint.org/docs/rules/space-in-parens.html
 ```
 
-### Step 4: Rebase
+If you are new to contributing to Node.js, please try to do your best at
+conforming to these guidelines but do not worry if you get something wrong.
+One of the existing contributors will help get things situated and the
+contributor landing the pull request will ensure that everything follows
+the project guidelines.
 
-Use `git rebase` (not `git merge`) to synchronize your work with the main
+#### Step 5: Rebase
+
+As a best practice, once you have committed your changes, it is a good idea
+to use `git rebase` (not `git merge`) to synchronize your work with the main
 repository.
 
 ```text
@@ -139,20 +296,29 @@ $ git fetch upstream
 $ git rebase upstream/master
 ```
 
-### Step 5: Test
+The ensures that your working branch has the latest changes from `nodejs/node`
+master.
 
-Bug fixes and features should come with tests. Read the
-[guide for writing tests in Node.js](./doc/guides/writing-tests.md). Looking at
-other tests to see how they should be structured can also help. Add your
-tests in the `test/parallel/` directory if you are unsure where to put them.
+#### Step 6: Test
 
-To run the tests (including code linting) on Unix / macOS:
+Bug fixes and features should always come with tests. A
+[guide for writing tests in Node.js](./doc/guides/writing-tests.md) has been
+provided to make the proces easier. Looking at other tests to see how they
+should be structured can also help.
+
+The `test` directory within the `nodejs/node` repository is complex and it is
+often not clear where a new test file should go. When in doubt, add new tests
+to the `test/parallel/` directory and the right location will be sorted out
+later.
+
+Before submitting your changes in a pull requests, always run the full Node.js
+test suite. To run the tests (including code linting) on Unix / macOS:
 
 ```text
 $ ./configure && make -j4 test
 ```
 
-Windows:
+And on Windows:
 
 ```text
 > vcbuild test
@@ -189,24 +355,59 @@ $ ./node ./test/parallel/test-stream2-transform.js
 Remember to recompile with `make -j4` in between test runs if you change code in
 the `lib` or `src` directories.
 
-### Step 6: Push
+#### Step 7: Push
+
+Once you are sure your commits are ready to go, with passing tests and linting,
+begin the process of opening a pull requests by pushing your working branch to
+your fork on GitHub.
 
 ```text
 $ git push origin my-branch
 ```
 
-Pull requests are usually reviewed within a few days.
+#### Step 8: Opening the Pull Request
 
-### Step 7: Discuss and update
+From within GitHub, opening a new Pull Request will present you with a template
+that should be filled out:
+
+```markdown
+<!--
+Thank you for your pull request. Please provide a description above and review
+the requirements below.
+
+Bug fixes and new features should include tests and possibly benchmarks.
+
+Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
+-->
+
+##### Checklist
+<!-- Remove items that do not apply. For completed items, change [ ] to [x]. -->
+
+- [ ] `make -j4 test` (UNIX), or `vcbuild test` (Windows) passes
+- [ ] tests and/or benchmarks are included
+- [ ] documentation is changed or added
+- [ ] commit message follows [commit guidelines](https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#commit-message-guidelines)
+
+##### Affected core subsystem(s)
+<!-- Provide affected core subsystem(s) (like doc, cluster, crypto, etc). -->
+```
+
+Please try to do your best at filling out the details but feel free to skip
+parts if you're not sure what to put.
+
+Once opened, pull requests are usually reviewed within a few days.
+
+#### Step 9: Discuss and update
 
 You will probably get feedback or requests for changes to your Pull Request.
-This is a big part of the submission process so don't be discouraged!
+This is a big part of the submission process so don't be discouraged! Some
+contributors may sign off on the pull request right away, others may have
+more detailed comments or feedback. This is a necessary part of the process
+in order to evaluate whether the changes are correct and necessary.
 
-To make changes to an existing Pull Request, make the changes to your branch.
-When you push that branch to your fork, GitHub will automatically update the
-Pull Request.
-
-You can push more commits to your branch:
+To make changes to an existing Pull Request, make the changes to your local
+branch, add a new commit with those changes, and push those to your fork.
+GitHub will automatically update the Pull Request.
 
 ```text
 $ git add my/changed/files
@@ -214,20 +415,12 @@ $ git commit
 $ git push origin my-branch
 ```
 
-Or you can rebase against master:
+It is also frequently necessary to synchronize your pull request with other
+changes that have landed in `master` by using `git rebase`:
 
 ```text
 $ git fetch --all
 $ git rebase origin/master
-$ git push --force-with-lease origin my-branch
-```
-
-Or you can amend the last commit (for example if you want to change the commit
-log).
-
-```text
-$ git add any/changed/files
-$ git commit --amend
 $ git push --force-with-lease origin my-branch
 ```
 
@@ -236,23 +429,48 @@ to delete history in git. Before you use it, make sure you understand the risks.
 If in doubt, you can always ask for guidance in the Pull Request or on
 [IRC in the #node-dev channel](https://webchat.freenode.net?channels=node-dev&uio=d4).
 
+If you happen to make a mistake in any of your commits, do not worry. You can
+amend the last commit (for example if you want to change the commit log).
+
+```text
+$ git add any/changed/files
+$ git commit --amend
+$ git push --force-with-lease origin my-branch
+```
+
+There are a number of more advanced mechanisms for managing commits using
+`git rebase` that can be used but are beyond the scope of this guide.
+
 Feel free to post a comment in the Pull Request to ping reviewers if you are
 awaiting an answer on something. If you encounter words or acronyms that
 seem unfamiliar, refer to this
 [glossary](https://sites.google.com/a/chromium.org/dev/glossary).
 
-Note that multiple commits often get squashed when they are landed (see the
-notes about [commit squashing](#commit-squashing)).
+##### Approval and Request Changes Workflow
 
-### Step 8: Landing
+All pull requests require "sign off" in order to land. Whenever a contributor
+reviews a pull request they may find specific details that they would like to
+see changed or fixed. These may be as simple as fixing a typo, or may involve
+substantive changes to the code you have written. In general, such request
+are intended to be helpful, but at times may come across as abrupt or unhelpful,
+especially requests to change things that do not include concrete suggestions
+on *how* to change them.
 
-In order to land, a Pull Request needs to be reviewed and
-[approved](#getting-approvals-for-your-pull-request) by
+Try not to be discouraged. If you feel that a particular review is unfair,
+say so, or contact one of the other contributors in the project and seek their
+input. Often such comments are the result of the reviewer having only taken a
+short amount of time to review and are not ill-intended. Such issues can often
+be resolved with a bit of patience. That said, reviewers should be expected to
+be helpful in their feedback, and feedback that is simply vague, dismissive and
+helpful is likely safe to ignore.
+
+#### Step 10: Landing
+
+In order to land, a Pull Request needs to be reviewed and [approved][] by
 at least one Node.js Collaborator and pass a
-[CI (Continuous Integration) test run](#ci-testing).
-After that, as long as there are no objections
-from a Collaborator, the Pull Request can be merged. If you find your
-Pull Request waiting longer than you expect, see the
+[CI (Continuous Integration) test run][]. After that, as long as there are no
+objections from other contributors, the Pull Request can be merged. If you find
+your Pull Request waiting longer than you expect, see the
 [notes about the waiting time](#waiting-until-the-pull-request-gets-landed).
 
 When a collaborator lands your Pull Request, they will post
@@ -262,11 +480,26 @@ point, but don't worry. If you look at the branch you raised your
 Pull Request against (probably `master`), you should see a commit with
 your name on it. Congratulations and thanks for your contribution!
 
+### Reviewing Pull Requests
+
+All Node.js contributors who choose to review and provide feedback on pull
+requests have a responsibility both the project and the individual making the
+contribution. Reviews and feedback must be helpful, insightful, and geared
+towards improving the contribution as opposed to simply blocking it or
+stopping it. If there are reasons why you feel the PR should not land, explain
+what those are. Do not expect to be able to block a pull request from advancing
+simply because you say "No" without giving an explanation. It is also important
+to be open to having your mind changed, and to being open to working with the
+contributor to make the pull request better.
+
+Reviews that are dismissive or disrespectful of the contributor or any other
+reviewers are strictly counter to the [Code of Conduct][].
+
 ## Additional Notes
 
 ### Commit Squashing
 
-When the commits in your Pull Request land, they will be squashed
+When the commits in your Pull Request land, they may be squashed
 into one commit per logical change. Metadata will be added to the commit
 message (including links to the Pull Request, links to relevant issues,
 and the names of the reviewers). The commit history of your Pull Request,
@@ -343,3 +576,13 @@ By making a contribution to this project, I certify that:
   personal information I submit with it, including my sign-off) is
   maintained indefinitely and may be redistributed consistent with
   this project or the open source license(s) involved.
+
+[Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
+[Node.js help repository]: https://github.com/nodejs/help/issues
+[Technical Steering Committee (TSC) repository]: https://github.com/nodejs/TSC/issues
+[Building guide]: ./BUILDING.md
+[on GitHub]: https://github.com/nodejs/node
+[guide for writing tests in Node.js]: ./doc/guides/writing-tests.md
+[approved]: #getting-approvals-for-your-pull-request
+[CI (Continuous Integration) test run]: #ci-testing
+[notes about the waiting time]: #waiting-until-the-pull-request-gets-landed
