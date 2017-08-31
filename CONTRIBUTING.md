@@ -248,7 +248,7 @@ time to ensure that the changes follow the Node.js code style guide.
 Any documentation you write (including code comments and API documentation)
 should follow the [Style Guide](doc/STYLE_GUIDE.md). Code samples included
 in the API docs will also be checked when running `make lint` (or 
-`vsbuild.bat lint` on Windows).
+`vcbuild.bat lint` on Windows).
 
 #### Step 4: Commit
 
