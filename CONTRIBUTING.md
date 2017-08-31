@@ -12,6 +12,37 @@ is too small and all contributions are valued.
 This guide details the basic steps for getting started contributing to the
 Node.js projects core `nodejs/node` GitHub Repository.
 
+* [Code of Conduct](#code-of-conduct)
+* [Issues](#issues)
+  * [Asking for General Help](#asking-for-general-help)
+  * [Discussing non-technical topics](#discussing-non-technical-topics)
+  * [Submitting a Bug Report](#submitting-a-bug-report)
+  * [Triaging a Bug Report](#triaging-a-bug-report)
+  * [Resolving a Bug Report](#resolving-a-bug-report)
+* [Pull Requests](#pull-requests)
+  * [Dependencies](#dependencies)
+  * [Setting up your local environment](#setting-up-your-local-environment)
+    * [Step 1: Fork](#step-1-fork)
+    * [Step 2: Branch](#step-2-branch)
+  * [The Process of Making Changes](#the-process-of-making-changes)
+    * [Step 3: Code](#step-3-code)
+    * [Step 4: Commit](#step-4-commit)
+      * [Commit message guidelines](#commit-message-guidelines)
+    * [Step 5: Rebase](#step-5-rebase)
+    * [Step 6: Test](#step-6-test)
+    * [Step 7: Push](#step-7-push)
+    * [Step 8: Opening the Pull Request](#step-8-opening-the-pull-request)
+    * [Step 9: Discuss and Upadte](#step-9-discuss-and-update)
+      * [Approval and Request Changes Workflow](#approval-and-request-changes-workflow)
+    * [Step 10: Landing](#step-10-landing)
+  * [Reviewing Pull Requests](#reviewing-pull-requests)
+* [Additional Notes](#additional-notes)
+  * [Commit Squashing](#commit-squashing)
+  * [Getting Approvals for your Pull Request](#getting-approvals-for-your-pull-request)
+  * [CI Testing](#ci-testing)
+  * [Waiting Until the Pull Request Gets Landed](#waiting-until-the-pull-request-gets-landed)
+* [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin-11)
+
 ## Code of Conduct
 
 The Node.js project has a [Code of Conduct][] that *all* contributors are
