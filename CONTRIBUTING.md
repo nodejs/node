@@ -147,9 +147,9 @@ around it. Some contributors may have differing opinions about the issue,
 including whether the behavior being seen is a bug or a feature. This discussion
 is part of the process and should be kept focused, helpful and professional.
 
-Short, clipped responses that do not provide either additional context nor
-supporting detail are neither helpful nor professional. To many, such responses
-are simply annoying and unfriendly.
+Short, clipped responses--that provide neither additional context nor supporting
+detail--are not helpful or professional. To many, such responses are simply
+annoying and unfriendly.
 
 Contributors are encouraged to help one another make forward progress as much
 as possible, empowering one another to solve issues collaboratively. If you
@@ -162,7 +162,7 @@ reach the correct outcome much faster.
 ### Resolving a Bug Report
 
 In the vast majority of cases, issues are resolved by opening a pull request.
-The process for opening an reviewing a pull request is simliar to that of
+The process for opening an reviewing a pull request is similar to that of
 opening and triaging issues but carries with in a necessary review and approval
 workflow that ensures that the proposed changes meet the minimal quality and
 functional guidelines of the Node.js project.
@@ -174,7 +174,7 @@ documentation, dependencies, and tools contained with the `nodejs/node`
 repository.
 
 There are two fundamental components of the Pull Request process: one concrete
-and technical, and one more process oriented. The concete and technical
+and technical, and one more process oriented. The concrete and technical
 component involves the specific details of setting up your local environment
 so that you can make the actual changes. This is where we will start.
 
@@ -343,7 +343,7 @@ often not clear where a new test file should go. When in doubt, add new tests
 to the `test/parallel/` directory and the right location will be sorted out
 later.
 
-Before submitting your changes in a pull requests, always run the full Node.js
+Before submitting your changes in a pull request, always run the full Node.js
 test suite. To run the tests (including code linting) on Unix / macOS:
 
 ```text
@@ -390,7 +390,7 @@ the `lib` or `src` directories.
 #### Step 7: Push
 
 Once you are sure your commits are ready to go, with passing tests and linting,
-begin the process of opening a pull requests by pushing your working branch to
+begin the process of opening a pull request by pushing your working branch to
 your fork on GitHub.
 
 ```text
