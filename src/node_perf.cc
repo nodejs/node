@@ -290,7 +290,7 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   v8::MaybeLocal<Object> instance = ctor->NewInstance(context);
   Local<Object> obj = instance.ToLocalChecked();
   for (idx = 0; idx < count; idx++) {
-    (void) obj->Set(context, idx, args[idx]);
+    obj->Set(context, idx, args[idx]).ToChecked();
   }
   new PerformanceEntry(env, obj, *name, "function", start, end);
 }
