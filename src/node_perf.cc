@@ -57,7 +57,7 @@ void PerformanceEntry::NotifyObservers(Environment* env,
   Local<Value> argv = entry->object();
   env->performance_entry_callback()->Call(context,
                                           v8::Undefined(isolate),
-                                          1, &argv);
+                                          1, &argv).ToLocalChecked();
 }
 
 void Mark(const FunctionCallbackInfo<Value>& args) {
@@ -290,7 +290,7 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   v8::MaybeLocal<Object> instance = ctor->NewInstance(context);
   Local<Object> obj = instance.ToLocalChecked();
   for (idx = 0; idx < count; idx++) {
-    obj->Set(context, idx, args[idx]);
+    obj->Set(context, idx, args[idx]).ToChecked();
   }
   new PerformanceEntry(env, obj, *name, "function", start, end);
 }
@@ -373,12 +373,12 @@ void Init(Local<Object> target,
   target->DefineOwnProperty(context,
                             FIXED_ONE_BYTE_STRING(isolate, "timeOrigin"),
                             v8::Number::New(isolate, timeOrigin / 1e6),
-                            attr);
+                            attr).ToChecked();
 
   target->DefineOwnProperty(context,
                             env->constants_string(),
                             constants,
-                            attr);
+                            attr).ToChecked();
 
   SetupGarbageCollectionTracking(isolate);
 }
