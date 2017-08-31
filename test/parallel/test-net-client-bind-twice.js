@@ -11,9 +11,9 @@ server1.listen(0, common.localhostIPv4, common.mustCall(() => {
   const server2 = net.createServer(common.mustNotCall());
   server2.listen(0, common.localhostIPv4, common.mustCall(() => {
     const client = net.connect({
-      host: server1.address().address,
+      host: common.localhostIPv4,
       port: server1.address().port,
-      localAddress: server2.address().address,
+      localAddress: common.localhostIPv4,
       localPort: server2.address().port
     }, common.mustNotCall());
 
