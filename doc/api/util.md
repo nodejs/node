@@ -457,7 +457,7 @@ console.log(arr); // logs the full array
 
 ## util.isDeepStrictEqual(val1, val2)
 <!-- YAML
-added: REPLACEME
+added: v9.0.0
 -->
 
 * `val1` {any}

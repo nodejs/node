@@ -43,6 +43,7 @@
 </table>
 
 * Other Versions
+  * [9.x](CHANGELOG_V9.md)
   * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
   * [5.x](CHANGELOG_V5.md)
@@ -78,7 +79,7 @@ This LTS release comes with 91 commits. This includes 29 which are test related,
 
 ### Notable Changes
 
-* **net**: 
+* **net**:
   - support passing undefined to listen() to match behavior in v4.x and v8.x (Sam Roberts) [#14234](https://github.com/nodejs/node/pull/14234)
 
 ### Commits
@@ -164,7 +165,7 @@ This LTS release comes with 91 commits. This includes 29 which are test related,
 * [[`c88f99f1f3`](https://github.com/nodejs/node/commit/c88f99f1f3)] - **test**: improvements to various http tests (James M Snell) [#14315](https://github.com/nodejs/node/pull/14315)
 * [[`860c6198c0`](https://github.com/nodejs/node/commit/860c6198c0)] - **test**: use ciphers supported by shared OpenSSL (Jérémy Lal) [#14566](https://github.com/nodejs/node/pull/14566)
 * [[`8b9a05c04b`](https://github.com/nodejs/node/commit/8b9a05c04b)] - **test**: read proper inspector message size (Bartosz Sosnowski) [#14596](https://github.com/nodejs/node/pull/14596)
-* [[`86497f1acc`](https://github.com/nodejs/node/commit/86497f1acc)] - **test**: mark inspector-port-zero-cluster as flaky (Refael Ackermann) 
+* [[`86497f1acc`](https://github.com/nodejs/node/commit/86497f1acc)] - **test**: mark inspector-port-zero-cluster as flaky (Refael Ackermann)
 * [[`8dfc2838c8`](https://github.com/nodejs/node/commit/8dfc2838c8)] - **test**: fix test-readline-interface (Azard) [#14677](https://github.com/nodejs/node/pull/14677)
 * [[`3a6392b283`](https://github.com/nodejs/node/commit/3a6392b283)] - **tls**: fix empty issuer/subject/infoAccess parsing (Ben Noordhuis) [#14473](https://github.com/nodejs/node/pull/14473)
 * [[`37dd2adbac`](https://github.com/nodejs/node/commit/37dd2adbac)] - **tools**: fix linter error in html.js (Michaël Zasso) [#15063](https://github.com/nodejs/node/pull/15063)

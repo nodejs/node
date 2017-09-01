@@ -6,6 +6,7 @@ release lines.
 
 Select a Node.js version below to view the changelog history:
 
+* [Node.js 9](doc/changelogs/CHANGELOG_V9.md)
 * [Node.js 8](doc/changelogs/CHANGELOG_V8.md)
 * [Node.js 7](doc/changelogs/CHANGELOG_V7.md)
 * [Node.js 6](doc/changelogs/CHANGELOG_V6.md)
@@ -20,12 +21,15 @@ release.
 
 <table>
 <tr>
+  <th title="Current"><a href="doc/changelogs/CHANGELOG_V9.md">9</a><sup>Current</sup></th>
   <th title="LTS Until 2019-12"><a href="doc/changelogs/CHANGELOG_V8.md">8</a><sup>LTS</sup></th>
-  <th title="Supported until 2016-07-01"><a href="doc/changelogs/CHANGELOG_V7.md">7</a><sup>-</sup></th>
   <th title="LTS Until 2019-04"><a href="doc/changelogs/CHANGELOG_V6.md">6</a><sup>LTS</sup></th>
   <th title="LTS Until 2018-04"><a href="doc/changelogs/CHANGELOG_V4.md">4</a><sup>LTS</sup></th>
 </tr>
 <tr>
+    <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V9.md#9.0.0">9.0.0</a></b><br/>
+    </td>
     <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V8.md#8.9.0">8.9.0</a></b><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.8.1">8.8.1</a><br/>
@@ -43,25 +47,6 @@ release.
 <a href="doc/changelogs/CHANGELOG_V8.md#8.1.1">8.1.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.1.0">8.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.0.0">8.0.0</a><br/>
-    </td>
-    <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V7.md#7.10.1">7.10.1</a></b><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.10.0">7.10.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.9.0">7.9.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.8.0">7.8.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.7.4">7.7.4</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.7.3">7.7.3</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.7.2">7.7.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.7.1">7.7.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.7.0">7.7.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.6.0">7.6.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.5.0">7.5.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.4.0">7.4.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.3.0">7.3.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.2.1">7.2.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.2.0">7.2.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.1.0">7.1.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V7.md#7.0.0">7.0.0</a><br/>
     </td>
   <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V6.md#6.11.5">6.11.5</a></b><br/>
