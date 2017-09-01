@@ -33,6 +33,15 @@ crypto.DEFAULT_ENCODING = 'buffer';
 // bump, we register a lot of exit listeners
 process.setMaxListeners(256);
 
+const errMessages = {
+  offsetNotNumber: /^TypeError: offset must be a number$/,
+  offsetOutOfRange: /^RangeError: offset out of range$/,
+  offsetNotUInt32: /^TypeError: offset must be a uint32$/,
+  sizeNotNumber: /^TypeError: size must be a number$/,
+  sizeNotUInt32: /^TypeError: size must be a uint32$/,
+  bufferTooSmall: /^RangeError: buffer too small$/,
+};
+
 const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
 [crypto.randomBytes, crypto.pseudoRandomBytes].forEach(function(f) {
   [-1, undefined, null, false, true, {}, []].forEach(function(value) {
@@ -41,10 +50,10 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
                   expectedErrorRegexp);
   });
 
-  [0, 1, 2, 4, 16, 256, 1024].forEach(function(len) {
+  [0, 1, 2, 4, 16, 256, 1024, 101.2].forEach(function(len) {
     f(len, common.mustCall(function(ex, buf) {
       assert.strictEqual(ex, null);
-      assert.strictEqual(buf.length, len);
+      assert.strictEqual(buf.length, Math.floor(len));
       assert.ok(Buffer.isBuffer(buf));
     }));
   });
@@ -139,14 +148,6 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     Buffer.alloc(10),
     new Uint8Array(new Array(10).fill(0))
   ];
-  const errMessages = {
-    offsetNotNumber: /^TypeError: offset must be a number$/,
-    offsetOutOfRange: /^RangeError: offset out of range$/,
-    offsetNotUInt32: /^TypeError: offset must be a uint32$/,
-    sizeNotNumber: /^TypeError: size must be a number$/,
-    sizeNotUInt32: /^TypeError: size must be a uint32$/,
-    bufferTooSmall: /^RangeError: buffer too small$/,
-  };
 
   const max = require('buffer').kMaxLength + 1;
 
@@ -264,4 +265,4 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
 // length exceeds max acceptable value"
 assert.throws(function() {
   crypto.randomBytes((-1 >>> 0) + 1);
-}, /^TypeError: size must be a number >= 0$/);
+}, errMessages.sizeNotUInt32);
