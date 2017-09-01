@@ -674,12 +674,12 @@ querystring.parse(str, '\n', '=');
 ```
 
 *Note*: This function is not completely equivalent to `querystring.parse()`. One
-difference is that `querystring.parse()` does URLDecoding:
+difference is that `querystring.parse()` does url encoding:
 
 ```sh
-> querystring.parse("%E5%A5%BD=1", "\n", "=");
+> querystring.parse('%E5%A5%BD=1', '\n', '=');
 { '好': '1' }
-> tls.parseCertString("%E5%A5%BD=1");
+> tls.parseCertString('%E5%A5%BD=1');
 { '%E5%A5%BD': '1' }
 ```
 
