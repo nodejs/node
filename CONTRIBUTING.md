@@ -192,8 +192,8 @@ reach the correct outcome much faster.
 
 ### Resolving a Bug Report
 
-In the vast majority of cases, issues are resolved by opening a pull request.
-The process for opening and reviewing a pull request is similar to that of
+In the vast majority of cases, issues are resolved by opening a Pull Request.
+The process for opening and reviewing a Pull Request is similar to that of
 opening and triaging issues, but carries with in a necessary review and approval
 workflow that ensures that the proposed changes meet the minimal quality and
 functional guidelines of the Node.js project.
@@ -268,7 +268,7 @@ $ git checkout -b my-branch -t origin/master
 
 #### Step 3: Code
 
-The vast majority of pull requests opened against the `nodejs/node`
+The vast majority of Pull Requests opened against the `nodejs/node`
 repository includes changes to either the C/C++ code contained in the `src`
 directory, the JavaScript code contained in the `lib` directory, the
 documentation in `docs/api` or tests within the `test` directory.
@@ -285,7 +285,7 @@ in the API docs will also be checked when running `make lint` (or
 
 It is a recommended best practice to keep your changes as logically grouped
 as possible within individual commits. There is no limit to the number of
-commits any single pull request may have, and many contributors find it easier
+commits any single Pull Request may have, and many contributors find it easier
 to review changes that are split across multiple commits.
 
 ```text
@@ -347,7 +347,7 @@ Refs: http://eslint.org/docs/rules/space-in-parens.html
 If you are new to contributing to Node.js, please try to do your best at
 conforming to these guidelines, but do not worry if you get something wrong.
 One of the existing contributors will help get things situated and the
-contributor landing the pull request will ensure that everything follows
+contributor landing the Pull Request will ensure that everything follows
 the project guidelines.
 
 #### Step 5: Rebase
@@ -376,7 +376,7 @@ often not clear where a new test file should go. When in doubt, add new tests
 to the `test/parallel/` directory and the right location will be sorted out
 later.
 
-Before submitting your changes in a pull request, always run the full Node.js
+Before submitting your changes in a Pull Request, always run the full Node.js
 test suite. To run the tests (including code linting) on Unix / macOS:
 
 ```text
@@ -423,7 +423,7 @@ the `lib` or `src` directories.
 #### Step 7: Push
 
 Once you are sure your commits are ready to go, with passing tests and linting,
-begin the process of opening a pull request by pushing your working branch to
+begin the process of opening a Pull Request by pushing your working branch to
 your fork on GitHub.
 
 ```text
@@ -437,7 +437,7 @@ that should be filled out:
 
 ```markdown
 <!--
-Thank you for your pull request. Please provide a description above and review
+Thank you for your Pull Request. Please provide a description above and review
 the requirements below.
 
 Bug fixes and new features should include tests and possibly benchmarks.
@@ -460,13 +460,13 @@ Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 Please try to do your best at filling out the details but feel free to skip
 parts if you're not sure what to put.
 
-Once opened, pull requests are usually reviewed within a few days.
+Once opened, Pull Requests are usually reviewed within a few days.
 
 #### Step 9: Discuss and update
 
 You will probably get feedback or requests for changes to your Pull Request.
 This is a big part of the submission process so don't be discouraged! Some
-contributors may sign off on the pull request right away, others may have
+contributors may sign off on the Pull Request right away, others may have
 more detailed comments or feedback. This is a necessary part of the process
 in order to evaluate whether the changes are correct and necessary.
 
@@ -480,7 +480,7 @@ $ git commit
 $ git push origin my-branch
 ```
 
-It is also frequently necessary to synchronize your pull request with other
+It is also frequently necessary to synchronize your Pull Request with other
 changes that have landed in `master` by using `git rebase`:
 
 ```text
@@ -513,8 +513,8 @@ seem unfamiliar, refer to this
 
 ##### Approval and Request Changes Workflow
 
-All pull requests require "sign off" in order to land. Whenever a contributor
-reviews a pull request they may find specific details that they would like to
+All Pull Requests require "sign off" in order to land. Whenever a contributor
+reviews a Pull Request they may find specific details that they would like to
 see changed or fixed. These may be as simple as fixing a typo, or may involve
 substantive changes to the code you have written. In general, such requests
 are intended to be helpful, but at times may come across as abrupt or unhelpful,
@@ -552,18 +552,18 @@ requests have a responsibility both the project and the individual making the
 contribution. Reviews and feedback must be helpful, insightful, and geared
 towards improving the contribution as opposed to simply blocking it or
 stopping it. If there are reasons why you feel the PR should not land, explain
-what those are. Do not expect to be able to block a pull request from advancing
+what those are. Do not expect to be able to block a Pull Request from advancing
 simply because you say "No" without giving an explanation. It is also important
 to be open to having your mind changed, and to being open to working with the
-contributor to make the pull request better.
+contributor to make the Pull Request better.
 
 Reviews that are dismissive or disrespectful of the contributor or any other
 reviewers are strictly counter to the [Code of Conduct][].
 
-When reviewing a pull request, the primary goals are for the codebase to improve
-and for the person submitting the request to succeed. Even if a pull request
+When reviewing a Pull Request, the primary goals are for the codebase to improve
+and for the person submitting the request to succeed. Even if a Pull Request
 does not land, the submitters should come away from the experience feeling like
-their effort was not wasted or unappreciated. Every pull request from a new
+their effort was not wasted or unappreciated. Every Pull Request from a new
 contributor is an opportunity to grow the community.
 
 #### Review a bit at a time.
@@ -586,8 +586,8 @@ Specific performance optimization techniques, coding styles and conventions
 change over time. The first impression you give to a new contributor never does.
 
 Nits (requests for small changes that are not essential) are fine, but try to
-avoid stalling the pull request. Most nits can typically be fixed by the
-Node.js Collaborator landing the pull request but they can also be an
+avoid stalling the Pull Request. Most nits can typically be fixed by the
+Node.js Collaborator landing the Pull Request but they can also be an
 opportunity for the contributor to learn a bit more about the project.
 
 It is always good to clearly indicate nits when you comment: e.g.
@@ -596,7 +596,7 @@ It is always good to clearly indicate nits when you comment: e.g.
 #### Be aware of the person behind the code
 
 Be aware that *how* you communicate requests and reviews in your feedback can
-have a significant impact on the success of the pull request. Yes, we may land
+have a significant impact on the success of the Pull Request. Yes, we may land
 a particular change that makes Node.js better, but the individual might just
 not want to have anything to do with Node.js every again. The goal is not just
 having good code.
@@ -607,7 +607,7 @@ There is a minimum waiting time which we try to respect for non-trivial
 changes, so that people who may have important input in such a distributed
 project are able to respond.
 
-For non-trivial changes, pull requests must be left open for *at least* 48
+For non-trivial changes, Pull Requests must be left open for *at least* 48
 hours during the week, and 72 hours on a weekend. In most cases, when the
 PR is relatively small and focused on a narrow set of changes, these periods
 provide more than enough time to adequately review. Sometimes changes take far
@@ -619,7 +619,7 @@ documentation, may be landed within the minimum 48 hour window.
 
 #### Abandoned or Stalled Pull Requests
 
-If a pull request appears to be abandoned or stalled, it is polite to first
+If a Pull Request appears to be abandoned or stalled, it is polite to first
 check with the contributor to see if they intend to continue the work before
 checking if the they would mind if you took it over (especially if it just has
 nits left). When doing so, it is courteous to give the original contributor
@@ -629,10 +629,10 @@ credit for the work they started.
 
 Any Node.js core Collaborator (any GitHub user with commit rights in the
 `nodejs/node` repository) is authorized to approve any other contributor's
-work. Collaborators are not permitted to approve their own pull requests.
+work. Collaborators are not permitted to approve their own Pull Requests.
 
 Collaborators indicate that they have reviewed and approve of the changes in
-a pull request either by using GitHub's Approval Workflow, which is preferred,
+a Pull Request either by using GitHub's Approval Workflow, which is preferred,
 or by leaving an `LGTM` ("Looks Good To Me") comment.
 
 When explicitly using the "Changes requested" component of the GitHub Approval
@@ -650,10 +650,10 @@ Change requests that are vague, dismissive, or unconstructive may also be
 dismissed if requests for greater clarification go unanswered within a
 reasonable period of time.
 
-If you do not believe that the pull request should land at all, use
+If you do not believe that the Pull Request should land at all, use
 `Changes requested` to indicate that you are considering some of your comments
 to block the PR from landing. When doing so, explain *why* you believe the
-pull request should not land along with an explanation of what may be an
+Pull Request should not land along with an explanation of what may be an
 acceptable alternative course, if any.
 
 #### Accept that there are different opinions about what belongs in Node.js
@@ -678,7 +678,7 @@ ridiculed for even trying run counter to the [Code of Conduct][].
 
 Node.js has always optimized for speed of execution. If a particular change
 can be shown to make some part of Node.js faster, it's quite likely to be
-accepted. Claims that a particular pull request will make things faster will
+accepted. Claims that a particular Pull Request will make things faster will
 almost always be met by requests for performance benchmark results that
 demonstrate the improvement.
 
@@ -686,16 +686,16 @@ That said, performance is not the only factor to consider. Node.js also
 optimizes in favor of not breaking existing code in the ecosystem, and not
 changing working functional code just for the sake of changing.
 
-If a particular pull request introduces a performance or functional
-regression, rather than simply rejecting the pull request, take the time to
+If a particular Pull Request introduces a performance or functional
+regression, rather than simply rejecting the Pull Request, take the time to
 work *with* the contributor on improving the change. Offer feedback and
-advice on what would make the pull request acceptable, and do not assume that
+advice on what would make the Pull Request acceptable, and do not assume that
 the contributor should already know how to do that. Be explicit in your
 feedback.
 
 #### Continuous Integration Testing
 
-All pull requests that contain changes to code must be run through
+All Pull Requests that contain changes to code must be run through
 continuous integration (CI) testing at [https://ci.nodejs.org/][].
 
 Only Node.js core Collaborators with commit rights to the `nodejs/node`
@@ -708,7 +708,7 @@ This means that all tests pass and there are no linting errors. In reality,
 however, it is not uncommon for the CI infrastructure itself to fail on
 specific platforms or for so-called "flaky" tests to fail ("be red"). It is
 vital to visually inspect the results of all failed ("red") tests to determine
-whether the failure was caused by the changes in the pull request.
+whether the failure was caused by the changes in the Pull Request.
 
 ## Additional Notes
 
