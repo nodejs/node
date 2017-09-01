@@ -11,7 +11,7 @@ const p = new Promise((res, rej) => {
 // trigger it "naturally".
 setTimeout(common.mustCall(() => {
   p.catch(() => {});
-  gc();
-  gc();
-  gc();
+  global.gc();
+  global.gc();
+  global.gc();
 }, 1), 2);

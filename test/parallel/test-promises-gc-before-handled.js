@@ -10,13 +10,13 @@ const p = new Promise((res, rej) => {
 // Manually call GC due to possible memory constraints with attempting to
 // trigger it "naturally".
 setTimeout(common.mustCall(() => {
-  gc();
-  gc();
-  gc();
+  global.gc();
+  global.gc();
+  global.gc();
   setTimeout(common.mustCall(() => {
-    gc();
-    gc();
-    gc();
+    global.gc();
+    global.gc();
+    global.gc();
     setTimeout(common.mustCall(() => {
       p.catch(() => {});
     }, 1), 250);
