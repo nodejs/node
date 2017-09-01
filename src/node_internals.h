@@ -137,6 +137,7 @@ struct sockaddr;
     V(util)                                                                   \
     V(uv)                                                                     \
     V(v8)                                                                     \
+    V(worker)                                                                 \
     V(zlib)
 
 #define NODE_BUILTIN_MODULES(V)                                               \
@@ -313,6 +314,10 @@ class FatalTryCatch : public v8::TryCatch {
  private:
   Environment* env_;
 };
+
+void ReportException(Environment* env,
+                     v8::Local<v8::Value> er,
+                     v8::Local<v8::Message> message);
 
 v8::Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...);
 v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,

@@ -1313,6 +1313,13 @@ but not provided in the `transferList` for that call.
 
 An [ES6 module][] could not be resolved.
 
+<a id="ERR_MISSING_PLATFORM_FOR_WORKER"></a>
+### ERR_MISSING_PLATFORM_FOR_WORKER
+
+The V8 platform used by this instance of Node.js does not support creating
+Workers. This is caused by lack of embedder support for Workers. In particular,
+this error will not occur with standard builds of Node.js.
+
 <a id="ERR_MODULE_RESOLUTION_LEGACY"></a>
 ### ERR_MODULE_RESOLUTION_LEGACY
 
@@ -1721,6 +1728,22 @@ The fulfilled value of a linking promise is not a `vm.Module` object.
 
 The current module's status does not allow for this operation. The specific
 meaning of the error depends on the specific function.
+
+<a id="ERR_WORKER_NEED_ABSOLUTE_PATH"></a>
+### ERR_WORKER_NEED_ABSOLUTE_PATH
+
+The path for the main script of a worker is not an absolute path.
+
+<a id="ERR_WORKER_UNSERIALIZABLE_ERROR"></a>
+### ERR_WORKER_UNSERIALIZABLE_ERROR
+
+All attempts at serializing an uncaught exception from a worker thread failed.
+
+<a id="ERR_WORKER_UNSUPPORTED_EXTENSION"></a>
+### ERR_WORKER_UNSUPPORTED_EXTENSION
+
+The pathname used for the main script of a worker has an
+unknown file extension.
 
 <a id="ERR_ZLIB_INITIALIZATION_FAILED"></a>
 ### ERR_ZLIB_INITIALIZATION_FAILED

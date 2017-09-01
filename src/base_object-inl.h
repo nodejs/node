@@ -65,6 +65,14 @@ v8::Local<v8::Object> BaseObject::object() {
   return PersistentToLocal(env_->isolate(), persistent_handle_);
 }
 
+v8::Local<v8::Object> BaseObject::object(v8::Isolate* isolate) {
+  v8::Local<v8::Object> handle = object();
+#ifdef DEBUG
+  CHECK_EQ(handle->CreationContext()->GetIsolate(), isolate);
+  CHECK_EQ(env_->isolate(), isolate);
+#endif
+  return handle;
+}
 
 Environment* BaseObject::env() const {
   return env_;
