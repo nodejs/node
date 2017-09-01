@@ -85,7 +85,7 @@ result in contributions being respectfully declined.
 
 A *bad actor* is someone who repeatedly violates the *spirit* of the Code of
 Conduct through consistent failure to self-regulate the way in which they
-interact with other contributors in the project. In so doing, bad actors
+interact with other contributors in the project. In doing so, bad actors
 alienate other contributors, discourage collaboration, and generally reflect
 poorly on the project as a whole.
 
@@ -194,7 +194,7 @@ reach the correct outcome much faster.
 
 In the vast majority of cases, issues are resolved by opening a pull request.
 The process for opening and reviewing a pull request is similar to that of
-opening and triaging issues but carries with in a necessary review and approval
+opening and triaging issues, but carries with in a necessary review and approval
 workflow that ensures that the proposed changes meet the minimal quality and
 functional guidelines of the Node.js project.
 
@@ -345,7 +345,7 @@ Refs: http://eslint.org/docs/rules/space-in-parens.html
 ```
 
 If you are new to contributing to Node.js, please try to do your best at
-conforming to these guidelines but do not worry if you get something wrong.
+conforming to these guidelines, but do not worry if you get something wrong.
 One of the existing contributors will help get things situated and the
 contributor landing the pull request will ensure that everything follows
 the project guidelines.
@@ -504,7 +504,7 @@ $ git push --force-with-lease origin my-branch
 ```
 
 There are a number of more advanced mechanisms for managing commits using
-`git rebase` that can be used but are beyond the scope of this guide.
+`git rebase` that can be used, but are beyond the scope of this guide.
 
 Feel free to post a comment in the Pull Request to ping reviewers if you are
 awaiting an answer on something. If you encounter words or acronyms that
@@ -678,7 +678,7 @@ ridiculed for even trying run counter to the [Code of Conduct][].
 
 Node.js has always optimized for speed of execution. If a particular change
 can be shown to make some part of Node.js faster, it's quite likely to be
-accepted. Claims that a particular code request will make things faster will
+accepted. Claims that a particular pull request will make things faster will
 almost always be met by requests for performance benchmark results that
 demonstrate the improvement.
 
