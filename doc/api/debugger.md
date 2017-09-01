@@ -125,18 +125,18 @@ It is also possible to set a breakpoint in a file (module) that
 is not loaded yet:
 
 ```txt
-$ node inspect test/fixtures/break-in-module/main.js
+$ node inspect main.js
 < Debugger listening on ws://127.0.0.1:9229/4e3db158-9791-4274-8909-914f7facf3bd
 < For help see https://nodejs.org/en/docs/inspector
 < Debugger attached.
-Break on start in test/fixtures/break-in-module/main.js:1
+Break on start in main.js:1
 > 1 (function (exports, require, module, __filename, __dirname) { const mod = require('./mod.js');
   2 mod.hello();
   3 mod.hello();
 debug> setBreakpoint('mod.js', 22)
 Warning: script 'mod.js' was not loaded yet.
 debug> c
-break in test/fixtures/break-in-module/mod.js:22
+break in mod.js:22
  20 // USE OR OTHER DEALINGS IN THE SOFTWARE.
  21
 >22 exports.hello = function() {
