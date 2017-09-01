@@ -67,6 +67,7 @@ namespace node {
   V(TTYWRAP)                                                                  \
   V(UDPSENDWRAP)                                                              \
   V(UDPWRAP)                                                                  \
+  V(WORKER)                                                                   \
   V(WRITEWRAP)                                                                \
   V(ZLIB)
 

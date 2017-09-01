@@ -38,6 +38,7 @@ common.crashOnUnhandledRejection();
     // TODO(addaleax): Test for these
     delete providers.STREAMPIPE;
     delete providers.MESSAGEPORT;
+    delete providers.WORKER;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)

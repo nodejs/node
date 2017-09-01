@@ -133,11 +133,15 @@ class MessagePort : public HandleWrap {
   void Start();
   // Stop processing messages on this port as a receiving end.
   void Stop();
+  // Stop processing messages on this port as a receiving end,
+  // and stop the event loop that this port is associated with.
+  void StopEventLoop();
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PostMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Drain(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // Turns `a` and `b` into siblings, i.e. connects the sending side of one
   // to the receiving side of the other. This is not thread-safe.
@@ -160,6 +164,7 @@ class MessagePort : public HandleWrap {
   inline uv_async_t* async();
 
   std::unique_ptr<MessagePortData> data_ = nullptr;
+  bool stop_event_loop_ = false;
 
   friend class MessagePortData;
 };
