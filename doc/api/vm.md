@@ -174,7 +174,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
 
 Creates a new ES `Module` object.
 
-*Note*: Properties assigned to the `import.meta` object that are objects may
+Properties assigned to the `import.meta` object that are objects may
 allow the `Module` to access information outside the specified `context`, if the
 object is created in the top level context. Use `vm.runInContext()` to create
 objects in a specific context.

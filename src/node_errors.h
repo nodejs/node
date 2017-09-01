@@ -34,6 +34,7 @@ namespace node {
   V(ERR_MISSING_ARGS, TypeError)                                             \
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                    \
   V(ERR_MISSING_MODULE, Error)                                               \
+  V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                  \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                 \
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                     \
   V(ERR_STRING_TOO_LONG, Error)                                              \
@@ -68,6 +69,9 @@ namespace node {
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")               \
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                               \
     "MessagePort was found in message but not listed in transferList")       \
+  V(ERR_MISSING_PLATFORM_FOR_WORKER,                                         \
+    "The V8 platform used by this instance of Node does not support "        \
+    "creating Workers")                                                      \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                        \
     "Script execution was interrupted by `SIGINT`")                          \
   V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER,                         \

@@ -79,6 +79,11 @@ void InternalCallbackScope::Close() {
   closed_ = true;
   HandleScope handle_scope(env_->isolate());
 
+  if (!env_->can_call_into_js()) return;
+  if (failed_ && !env_->is_main_thread() && env_->is_stopping_worker()) {
+    env_->async_hooks()->clear_async_id_stack();
+  }
+
   if (pushed_ids_)
     env_->async_hooks()->pop_async_id(async_context_.async_id);
 
