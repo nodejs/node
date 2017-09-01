@@ -582,11 +582,40 @@ void Environment::SetUnrefImmediate(native_immediate_callback cb,
 }
 
 inline bool Environment::can_call_into_js() const {
-  return can_call_into_js_;
+  return can_call_into_js_ && (is_main_thread() || !is_stopping_worker());
 }
 
 inline void Environment::set_can_call_into_js(bool can_call_into_js) {
   can_call_into_js_ = can_call_into_js;
+}
+
+inline bool Environment::is_main_thread() const {
+  return thread_id_ == 0;
+}
+
+inline double Environment::thread_id() const {
+  return thread_id_;
+}
+
+inline void Environment::set_thread_id(double id) {
+  thread_id_ = id;
+}
+
+inline worker::Worker* Environment::worker_context() const {
+  return worker_context_;
+}
+
+inline void Environment::set_worker_context(worker::Worker* context) {
+  CHECK_EQ(worker_context_, nullptr);  // Should be set only once.
+  worker_context_ = context;
+}
+
+inline void Environment::add_sub_worker_context(worker::Worker* context) {
+  sub_worker_contexts_.insert(context);
+}
+
+inline void Environment::remove_sub_worker_context(worker::Worker* context) {
+  sub_worker_contexts_.erase(context);
 }
 
 inline performance::performance_state* Environment::performance_state() {

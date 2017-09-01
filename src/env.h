@@ -55,6 +55,10 @@ namespace performance {
 class performance_state;
 }
 
+namespace worker {
+class Worker;
+}
+
 namespace loader {
 class ModuleWrap;
 
@@ -193,7 +197,10 @@ struct PackageConfig {
   V(mac_string, "mac")                                                        \
   V(main_string, "main")                                                      \
   V(max_buffer_string, "maxBuffer")                                           \
+  V(max_semi_space_size_string, "maxSemiSpaceSize")                           \
+  V(max_old_space_size_string, "maxOldSpaceSize")                             \
   V(message_string, "message")                                                \
+  V(message_port_string, "messagePort")                                       \
   V(message_port_constructor_string, "MessagePort")                           \
   V(minttl_string, "minttl")                                                  \
   V(modulus_string, "modulus")                                                \
@@ -280,6 +287,7 @@ struct PackageConfig {
   V(subject_string, "subject")                                                \
   V(subjectaltname_string, "subjectaltname")                                  \
   V(syscall_string, "syscall")                                                \
+  V(thread_id_string, "threadId")                                             \
   V(ticketkeycallback_string, "onticketkeycallback")                          \
   V(timeout_string, "timeout")                                                \
   V(tls_ticket_string, "tlsTicket")                                           \
@@ -328,6 +336,7 @@ struct PackageConfig {
   V(http2stream_constructor_template, v8::ObjectTemplate)                     \
   V(immediate_callback_function, v8::Function)                                \
   V(inspector_console_api_object, v8::Object)                                 \
+  V(message_port, v8::Object)                                                 \
   V(message_port_constructor_template, v8::FunctionTemplate)                  \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
@@ -601,6 +610,7 @@ class Environment {
 
   void RegisterHandleCleanups();
   void CleanupHandles();
+  void Exit(int code);
 
   // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
@@ -713,6 +723,18 @@ class Environment {
   // calling into JS is allowed from a VM perspective at this point.
   inline bool can_call_into_js() const;
   inline void set_can_call_into_js(bool can_call_into_js);
+
+  // TODO(addaleax): This should be inline.
+  bool is_stopping_worker() const;
+
+  inline bool is_main_thread() const;
+  inline double thread_id() const;
+  inline void set_thread_id(double id);
+  inline worker::Worker* worker_context() const;
+  inline void set_worker_context(worker::Worker* context);
+  inline void add_sub_worker_context(worker::Worker* context);
+  inline void remove_sub_worker_context(worker::Worker* context);
+  void stop_sub_worker_contexts();
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
@@ -855,12 +877,15 @@ class Environment {
   std::vector<double> destroy_async_id_list_;
 
   AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
-
   int should_not_abort_scope_counter_ = 0;
 
   std::unique_ptr<performance::performance_state> performance_state_;
   std::unordered_map<std::string, uint64_t> performance_marks_;
+
   bool can_call_into_js_ = true;
+  double thread_id_ = 0;
+  std::unordered_set<worker::Worker*> sub_worker_contexts_;
+
 
 #if HAVE_INSPECTOR
   std::unique_ptr<inspector::Agent> inspector_agent_;
@@ -892,6 +917,8 @@ class Environment {
 
   std::vector<std::unique_ptr<fs::FileHandleReadWrap>>
       file_handle_read_wrap_freelist_;
+
+  worker::Worker* worker_context_ = nullptr;
 
   struct ExitCallback {
     void (*cb_)(void* arg);
