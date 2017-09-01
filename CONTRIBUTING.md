@@ -457,7 +457,7 @@ Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 <!-- Provide affected core subsystem(s) (like doc, cluster, crypto, etc). -->
 ```
 
-Please try to do your best at filling out the details but feel free to skip
+Please try to do your best at filling out the details, but feel free to skip
 parts if you're not sure what to put.
 
 Once opened, Pull Requests are usually reviewed within a few days.
