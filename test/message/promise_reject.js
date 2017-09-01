@@ -15,8 +15,6 @@ setTimeout(common.mustCall(() => {
   global.gc();
 }), 2);
 
-process.on('unhandledRejection', () => {}); // Ignore
-
 process.on('uncaughtException', (err) => {
   assert.fail('Should not trigger uncaught exception');
 });

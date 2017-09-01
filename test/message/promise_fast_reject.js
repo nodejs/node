@@ -13,8 +13,6 @@ new Promise(function(res, rej) {
   consol.log('Two'); // eslint-disable-line no-undef
 });
 
-process.on('unhandledRejection', () => {}); // Ignore
-
 process.on('uncaughtException', (err) =>
   assert.fail('Should not trigger uncaught exception'));
 

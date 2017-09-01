@@ -6,6 +6,8 @@ const assert = require('assert');
 
 let expected_result, promise;
 
+process.on('unhandledRejection', () => {});
+
 // A resolution
 expected_result = 42;
 promise = test_promise.createPromise();

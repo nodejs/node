@@ -1,3 +1,4 @@
+(node:30196) UnhandledPromiseRejectionWarning: Unhandled promise rejection (rejection id: 1): Error: oops
 exit event emitted
 *test*message*promise_reject.js:*
 Promise.reject(new Error('oops'));

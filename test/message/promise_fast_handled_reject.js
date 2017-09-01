@@ -21,7 +21,6 @@ new Promise((res, rej) => {
   }), 1);
 });
 
-process.on('unhandledRejection', () => {}); // Ignore
 process.on('rejectionHandled', () => {}); // Ignore
 
 process.on('uncaughtException', (err) =>

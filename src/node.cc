@@ -1308,15 +1308,11 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
 
 
 Local<Value> GetPromiseReason(Environment* env, Local<Value> promise) {
-  Local<Function> fn = env->promise_unhandled_rejection();
-
-  Local<Value> internal_props =
+  Local<Array> internal_props =
       Debug::GetInternalProperties(env->isolate(),
-                                   promise).ToLocalChecked().As<Value>();
+                                   promise).ToLocalChecked().As<Array>();
 
-  // If fn is empty we'll almost certainly have to panic anyways
-  return fn->Call(env->context(), Null(env->isolate()), 1,
-                  &internal_props).ToLocalChecked();
+  return internal_props->Get(3);
 }
 
 
@@ -1375,15 +1371,13 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsFunction());
-  CHECK(args[2]->IsObject());
+  CHECK(args[1]->IsObject());
 
   isolate->SetPromiseRejectCallback(PromiseRejectCallback);
   env->set_promise_unhandled_rejection_function(args[0].As<Function>());
-  env->set_promise_unhandled_rejection(args[1].As<Function>());
 
-  env->SetMethod(args[2].As<Object>(), "trackPromise", TrackPromise);
-  env->SetMethod(args[2].As<Object>(), "untrackPromise", UntrackPromise);
+  env->SetMethod(args[1].As<Object>(), "trackPromise", TrackPromise);
+  env->SetMethod(args[1].As<Object>(), "untrackPromise", UntrackPromise);
 
   env->process_object()->Delete(
       env->context(),
