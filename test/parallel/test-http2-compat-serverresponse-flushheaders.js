@@ -15,8 +15,11 @@ const server = h2.createServer();
 server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
+    assert.strictEqual(response.headersSent, false);
     response.flushHeaders();
+    assert.strictEqual(response.headersSent, true);
     response.flushHeaders(); // Idempotent
+
     common.expectsError(() => {
       response.writeHead(400, { 'foo-bar': 'abc123' });
     }, {

@@ -80,6 +80,10 @@ server.listen(0, common.mustCall(function() {
     response.getHeaders()[fake] = fake;
     assert.strictEqual(response.hasHeader(fake), false);
 
+    assert.strictEqual(response.sendDate, true);
+    response.sendDate = false;
+    assert.strictEqual(response.sendDate, false);
+
     response.on('finish', common.mustCall(function() {
       server.close();
     }));
