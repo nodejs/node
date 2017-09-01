@@ -43,9 +43,9 @@ expect throughout each step of the process.
     * [Respect the minimum wait time for comments](#respect-the-minimum-wait-time-for-comments)
     * [Abandoned or Stalled Pull Requests](#abandoned-or-stalled-pull-requests)
     * [Approving a change](#approving-a-change)
-    * [Accept that there are different opinions about what belongs in Node.js](#accept-that-there-are-different-opinions-about-what-belongs-in-node-js)
+    * [Accept that there are different opinions about what belongs in Node.js](#accept-that-there-are-different-opinions-about-what-belongs-in-nodejs)
     * [Performance is not everything](#performance-is-not-everything)
-    * [Continuous Integration (CI) Testing](#continuous-integration-testing)
+    * [Continuous Integration Testing](#continuous-integration-testing)
 * [Additional Notes](#additional-notes)
   * [Commit Squashing](#commit-squashing)
   * [Getting Approvals for your Pull Request](#getting-approvals-for-your-pull-request)
@@ -194,7 +194,7 @@ reach the correct outcome much faster.
 
 In the vast majority of cases, issues are resolved by opening a Pull Request.
 The process for opening and reviewing a Pull Request is similar to that of
-opening and triaging issues, but carries with in a necessary review and approval
+opening and triaging issues, but carries with it a necessary review and approval
 workflow that ensures that the proposed changes meet the minimal quality and
 functional guidelines of the Node.js project.
 
@@ -547,8 +547,8 @@ your name on it. Congratulations and thanks for your contribution!
 
 ### Reviewing Pull Requests
 
-All Node.js contributors who choose to review and provide feedback on pull
-requests have a responsibility both the project and the individual making the
+All Node.js contributors who choose to review and provide feedback on Pull
+Requests have a responsibility both the project and the individual making the
 contribution. Reviews and feedback must be helpful, insightful, and geared
 towards improving the contribution as opposed to simply blocking it or
 stopping it. If there are reasons why you feel the PR should not land, explain
@@ -621,7 +621,7 @@ documentation, may be landed within the minimum 48 hour window.
 
 If a Pull Request appears to be abandoned or stalled, it is polite to first
 check with the contributor to see if they intend to continue the work before
-checking if the they would mind if you took it over (especially if it just has
+checking if they would mind if you took it over (especially if it just has
 nits left). When doing so, it is courteous to give the original contributor
 credit for the work they started.
 
@@ -679,7 +679,7 @@ ridiculed for even trying run counter to the [Code of Conduct][].
 Node.js has always optimized for speed of execution. If a particular change
 can be shown to make some part of Node.js faster, it's quite likely to be
 accepted. Claims that a particular Pull Request will make things faster will
-almost always be met by requests for performance benchmark results that
+almost always be met by requests for performance [benchmark results][] that
 demonstrate the improvement.
 
 That said, performance is not the only factor to consider. Node.js also
@@ -800,15 +800,16 @@ By making a contribution to this project, I certify that:
   maintained indefinitely and may be redistributed consistent with
   this project or the open source license(s) involved.
 
-[Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
-[Node.js help repository]: https://github.com/nodejs/help/issues
-[Technical Steering Committee (TSC) repository]: https://github.com/nodejs/TSC/issues
-[Building guide]: ./BUILDING.md
-[on GitHub]: https://github.com/nodejs/node
-[guide for writing tests in Node.js]: ./doc/guides/writing-tests.md
 [approved]: #getting-approvals-for-your-pull-request
+[benchmark results]: ./doc/guides/writing-and-running-benchmarks.md
+[Building guide]: ./BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
-[notes about the waiting time]: #waiting-until-the-pull-request-gets-landed
+[Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
+[guide for writing tests in Node.js]: ./doc/guides/writing-tests.md
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
-[Onboarding guide]: ./docs/onboarding.md
 [IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
+[Node.js help repository]: https://github.com/nodejs/help/issues
+[notes about the waiting time]: #waiting-until-the-pull-request-gets-landed
+[Onboarding guide]: ./doc/onboarding.md
+[on GitHub]: https://github.com/nodejs/node
+[Technical Steering Committee (TSC) repository]: https://github.com/nodejs/TSC/issues
