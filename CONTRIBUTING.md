@@ -14,6 +14,7 @@ Node.js project's core `nodejs/node` GitHub Repository and describes what to
 expect throughout each step of the process.
 
 * [Code of Conduct](#code-of-conduct)
+  * [Bad Actors](#bad-actors)
 * [Issues](#issues)
   * [Asking for General Help](#asking-for-general-help)
   * [Discussing non-technical topics](#discussing-non-technical-topics)
@@ -37,6 +38,14 @@ expect throughout each step of the process.
       * [Approval and Request Changes Workflow](#approval-and-request-changes-workflow)
     * [Step 10: Landing](#step-10-landing)
   * [Reviewing Pull Requests](#reviewing-pull-requests)
+    * [Review a bit at a time](#review-a-bit-at-a-time)
+    * [Be aware of the person behind the code](#be-aware-of-the-person-behind-the-code)
+    * [Respect the minimum wait time for comments](#respect-the-minimum-wait-time-for-comments)
+    * [Abandoned or Stalled Pull Requests](#abandoned-or-stalled-pull-requests)
+    * [Approving a change](#approving-a-change)
+    * [Accept that there are different opinions about what belongs in Node.js](#accept-that-there-are-different-opinions-about-what-belongs-in-node-js)
+    * [Performance is not everything](#performance-is-not-everything)
+    * [Continuous Integration (CI) Testing](#continuous-integration-testing)
 * [Additional Notes](#additional-notes)
   * [Commit Squashing](#commit-squashing)
   * [Getting Approvals for your Pull Request](#getting-approvals-for-your-pull-request)
@@ -665,7 +674,7 @@ changes, be courteous in how you communicate your stance on these. Comments
 that make the contributor feel like they should have "known better" or
 ridiculed for even trying run counter to the [Code of Conduct][].
 
-#### Performance isn't everything
+#### Performance is not everything
 
 Node.js has always optimized for speed of execution. If a particular change
 can be shown to make some part of Node.js faster, it's quite likely to be
@@ -684,7 +693,7 @@ advice on what would make the pull request acceptable, and do not assume that
 the contributor should already know how to do that. Be explicit in your
 feedback.
 
-#### Continuous Integration (CI) Testing:
+#### Continuous Integration Testing
 
 All pull requests that contain changes to code must be run through
 continuous integration (CI) testing at [https://ci.nodejs.org/][].
