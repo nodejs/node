@@ -141,9 +141,9 @@ class Nghttp2Session {
   inline ssize_t Write(const uv_buf_t* bufs, unsigned int nbufs);
 
   // Returns the nghttp2 library session
-  inline nghttp2_session* session() { return session_; }
+  inline nghttp2_session* session() const { return session_; }
 
-  nghttp2_session_type type() {
+  nghttp2_session_type type() const {
     return session_type_;
   }
 
