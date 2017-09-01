@@ -315,7 +315,7 @@ console.log(util.inspect(sandbox));
 added: v0.11.14
 deprecated: v8.0.0
 changes:
-    - version: REPLACEME
+    - version: v9.0.0
       pr-url: https://github.com/nodejs/node/pull/12815
       description: Calling this function now emits a deprecation warning.
 -->

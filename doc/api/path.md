@@ -545,7 +545,7 @@ backward slashes (`\`).
 
 ## path.toNamespacedPath(path)
 <!-- YAML
-added: REPLACEME
+added: v9.0.0
 -->
 
 * `path` {string}
