@@ -2,7 +2,6 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const cbTypeError = /^TypeError: "callback" argument must be a function$/;
 const callbackThrowValues = [null, true, false, 0, 1, 'foo', /foo/, [], {}];
 
 const { sep } = require('path');
@@ -24,7 +23,10 @@ assert.doesNotThrow(testMakeCallback());
 
 function invalidCallbackThrowsTests() {
   callbackThrowValues.forEach((value) => {
-    assert.throws(testMakeCallback(value), cbTypeError);
+    common.expectsError(testMakeCallback(value), {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError
+    });
   });
 }
 

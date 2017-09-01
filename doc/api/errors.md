@@ -1136,6 +1136,11 @@ Used when an attempt is made to launch a Node.js process with an unknown
 by errors in user code, although it is not impossible. Occurrences of this error
 are most likely an indication of a bug within Node.js itself.
 
+<a id="ERR_VALUE_OUT_OF_RANGE"></a>
+### ERR_VALUE_OUT_OF_RANGE
+
+Used when a number value is out of range.
+
 <a id="ERR_V8BREAKITERATOR"></a>
 ### ERR_V8BREAKITERATOR
 

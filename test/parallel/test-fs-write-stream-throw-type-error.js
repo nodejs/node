@@ -4,12 +4,6 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const numberError =
-  /^TypeError: "options" must be a string or an object, got number instead\.$/;
-
-const booleanError =
-  /^TypeError: "options" must be a string or an object, got boolean instead\.$/;
-
 const example = path.join(common.tmpDir, 'dummy');
 
 common.refreshTmpDir();
@@ -30,18 +24,18 @@ assert.doesNotThrow(() => {
   fs.createWriteStream(example, { encoding: 'utf8' });
 });
 
-assert.throws(() => {
-  fs.createWriteStream(example, 123);
-}, numberError);
+const createWriteStreamErr = (path, opt) => {
+  common.expectsError(
+    () => {
+      fs.createWriteStream(path, opt);
+    },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    });
+};
 
-assert.throws(() => {
-  fs.createWriteStream(example, 0);
-}, numberError);
-
-assert.throws(() => {
-  fs.createWriteStream(example, true);
-}, booleanError);
-
-assert.throws(() => {
-  fs.createWriteStream(example, false);
-}, booleanError);
+createWriteStreamErr(example, 123);
+createWriteStreamErr(example, 0);
+createWriteStreamErr(example, true);
+createWriteStreamErr(example, false);
