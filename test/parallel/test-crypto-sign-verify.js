@@ -197,29 +197,37 @@ const modSize = 1024;
 
 // Test exceptions for invalid `padding` and `saltLength` values
 {
-  const paddingNotInteger = /^TypeError: padding must be an integer$/;
-  const saltLengthNotInteger = /^TypeError: saltLength must be an integer$/;
-
-  [null, undefined, NaN, 'boom', {}, [], true, false]
+  [null, undefined, NaN, 'boom', {}, [], true, false, 1.5]
     .forEach((invalidValue) => {
-      assert.throws(() => {
-        crypto.createSign('RSA-SHA256')
-          .update('Test123')
-          .sign({
-            key: keyPem,
-            padding: invalidValue
-          });
-      }, paddingNotInteger);
-
-      assert.throws(() => {
-        crypto.createSign('RSA-SHA256')
-          .update('Test123')
-          .sign({
-            key: keyPem,
-            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-            saltLength: invalidValue
-          });
-      }, saltLengthNotInteger);
+      common.expectsError(
+        () => {
+          crypto.createSign('RSA-SHA256')
+            .update('Test123')
+            .sign({
+              key: keyPem,
+              padding: invalidValue
+            });
+        },
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError
+        }
+      );
+      common.expectsError(
+        () => {
+          crypto.createSign('RSA-SHA256')
+            .update('Test123')
+            .sign({
+              key: keyPem,
+              padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+              saltLength: invalidValue
+            });
+        },
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError
+        }
+      );
     });
 
   assert.throws(() => {
@@ -234,9 +242,17 @@ const modSize = 1024;
 
 // Test throws exception when key options is null
 {
-  assert.throws(() => {
-    crypto.createSign('RSA-SHA1').update('Test123').sign(null, 'base64');
-  }, /^Error: No key provided to sign$/);
+  common.expectsError(
+    () => {
+      crypto.createSign('RSA-SHA1')
+            .update('Test123')
+            .sign(null, 'base64');
+    },
+    {
+      code: 'ERR_MISSING_ARGS',
+      type: Error
+    }
+  );
 }
 
 // RSA-PSS Sign test by verifying with 'openssl dgst -verify'
@@ -270,4 +286,33 @@ const modSize = 1024;
   exec(cmd, common.mustCall((err, stdout, stderr) => {
     assert(stdout.includes('Verified OK'));
   }));
+}
+
+//Test verify throws exception
+{
+  common.expectsError(
+    () => {
+      crypto.createVerify('RSA-SHA1')
+        .verify({
+          padding: 1.5
+        });
+    },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => {
+      crypto.createVerify('RSA-SHA1')
+        .verify({
+          padding: 1,
+          saltLength: 1.5
+        });
+    },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
 }

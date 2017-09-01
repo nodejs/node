@@ -139,125 +139,303 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     Buffer.alloc(10),
     new Uint8Array(new Array(10).fill(0))
   ];
+
   const errMessages = {
-    offsetNotNumber: /^TypeError: offset must be a number$/,
-    offsetOutOfRange: /^RangeError: offset out of range$/,
-    offsetNotUInt32: /^TypeError: offset must be a uint32$/,
-    sizeNotNumber: /^TypeError: size must be a number$/,
-    sizeNotUInt32: /^TypeError: size must be a uint32$/,
-    bufferTooSmall: /^RangeError: buffer too small$/,
+    offsetOutOfBounds: '"offset" is outside of buffer bounds',
+    sizeOutOfBounds: '"size + offset" is outside of buffer bounds',
+    sizeOutOfRange: (size) => {
+      return 'The value of "size" must be <= 4294967295 and >= 0. ' +
+        `Received "${size}"`;
+    },
+    offsetOutOfRange: (offset) => {
+      return 'The value of "offset" must be <= 4294967295 and >= 0. ' +
+        `Received "${offset}"`;
+    }
   };
 
   const max = require('buffer').kMaxLength + 1;
+
+  const argTypeErr = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  };
 
   for (const buf of bufs) {
     const len = Buffer.byteLength(buf);
     assert.strictEqual(len, 10, `Expected byteLength of 10, got ${len}`);
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, 'test');
-    }, errMessages.offsetNotNumber);
+    common.expectsError(
+      () => {
+        crypto.randomFillSync(buf, 'test');
+      },
+      argTypeErr
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, NaN);
-    }, errMessages.offsetNotNumber);
+    common.expectsError(
+      () => {
+        crypto.randomFillSync(buf, NaN);
+      },
+      argTypeErr
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, 'test', common.mustNotCall());
-    }, errMessages.offsetNotNumber);
+    common.expectsError(
+      () => {
+        crypto.randomFill(buf, 'test', common.mustNotCall());
+      },
+      argTypeErr
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, NaN, common.mustNotCall());
-    }, errMessages.offsetNotNumber);
+    common.expectsError(
+      () => {
+        crypto.randomFill(buf, NaN, common.mustNotCall());
+      },
+      argTypeErr
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, 11);
-    }, errMessages.offsetOutOfRange);
+    common.expectsError(
+      () => {
+        crypto.randomFillSync(buf, 11);
+      },
+      {
+        code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+        message: errMessages.offsetOutOfBounds,
+        type: RangeError
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, max);
-    }, errMessages.offsetOutOfRange);
+    common.expectsError(
+      () => {
+        crypto.randomFillSync(buf, max);
+      },
+      {
+        code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+        message: errMessages.offsetOutOfBounds,
+        type: RangeError
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, 11, common.mustNotCall());
-    }, errMessages.offsetOutOfRange);
+    common.expectsError(
+      () => {
+        crypto.randomFill(buf, 11, common.mustNotCall());
+      },
+      {
+        code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+        message: errMessages.offsetOutOfBounds,
+        type: RangeError
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, max, common.mustNotCall());
-    }, errMessages.offsetOutOfRange);
+    common.expectsError(
+      () => {
+        crypto.randomFill(buf, max, common.mustNotCall());
+      },
+      {
+        code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+        message: errMessages.offsetOutOfBounds,
+        type: RangeError
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, 0, 'test');
-    }, errMessages.sizeNotNumber);
+    common.expectsError(
+      () => {
+        crypto.randomFillSync(buf, 0, 'test');
+      },
+      argTypeErr
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, 0, NaN);
-    }, errMessages.sizeNotNumber);
+    common.expectsError(
+      () => {
+        crypto.randomFillSync(buf, 0, NaN);
+      },
+      argTypeErr
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, 0, 'test', common.mustNotCall());
-    }, errMessages.sizeNotNumber);
+    common.expectsError(
+      () => {
+        crypto.randomFill(buf, 0, 'test', common.mustNotCall());
+      },
+      argTypeErr
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, 0, NaN, common.mustNotCall());
-    }, errMessages.sizeNotNumber);
+    common.expectsError(
+      () => {
+        crypto.randomFill(buf, 0, NaN, common.mustNotCall());
+      },
+      argTypeErr
+    );
 
     {
       const size = (-1 >>> 0) + 1;
 
-      assert.throws(() => {
-        crypto.randomFillSync(buf, 0, -10);
-      }, errMessages.sizeNotUInt32);
+      common.expectsError(
+        () => {
+          crypto.randomFillSync(buf, 0, -10);
+        },
+        {
+          code: 'ERR_VALUE_OUT_OF_RANGE',
+          message: errMessages.sizeOutOfRange(-10),
+          type: TypeError
+        }
+      );
 
-      assert.throws(() => {
-        crypto.randomFillSync(buf, 0, size);
-      }, errMessages.sizeNotUInt32);
+      common.expectsError(
+        () => {
+          crypto.randomFillSync(buf, 0, size);
+        },
+        {
+          code: 'ERR_VALUE_OUT_OF_RANGE',
+          message: errMessages.sizeOutOfRange(size),
+          type: TypeError
+        }
+      );
 
-      assert.throws(() => {
-        crypto.randomFill(buf, 0, -10, common.mustNotCall());
-      }, errMessages.sizeNotUInt32);
+      common.expectsError(
+        () => {
+          crypto.randomFill(buf, 0, -10, common.mustNotCall());
+        },
+        {
+          code: 'ERR_VALUE_OUT_OF_RANGE',
+          message: errMessages.sizeOutOfRange(-10),
+          type: TypeError
+        }
+      );
 
-      assert.throws(() => {
-        crypto.randomFill(buf, 0, size, common.mustNotCall());
-      }, errMessages.sizeNotUInt32);
+      common.expectsError(
+        () => {
+          crypto.randomFill(buf, 0, size, common.mustNotCall());
+        },
+        {
+          code: 'ERR_VALUE_OUT_OF_RANGE',
+          message: errMessages.sizeOutOfRange(size),
+          type: TypeError
+        }
+      );
     }
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, -10);
-    }, errMessages.offsetNotUInt32);
+    common.expectsError(
+      () => {
+        crypto.randomFillSync(buf, -10);
+      },
+      {
+        code: 'ERR_VALUE_OUT_OF_RANGE',
+        message: errMessages.offsetOutOfRange(-10),
+        type: TypeError
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, -10, common.mustNotCall());
-    }, errMessages.offsetNotUInt32);
+    common.expectsError(
+      () => {
+        crypto.randomFill(buf, -10, common.mustNotCall());
+      },
+      {
+        code: 'ERR_VALUE_OUT_OF_RANGE',
+        message: errMessages.offsetOutOfRange(-10),
+        type: TypeError
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, 1, 10);
-    }, errMessages.bufferTooSmall);
+    common.expectsError(
+      () => {
+        crypto.randomFillSync(buf, 1, 10);
+      },
+      {
+        code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+        message: errMessages.sizeOutOfBounds,
+        type: RangeError
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, 1, 10, common.mustNotCall());
-    }, errMessages.bufferTooSmall);
+    common.expectsError(
+      () => {
+        crypto.randomFill(buf, 1, 10, common.mustNotCall());
+      },
+      {
+        code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+        message: errMessages.sizeOutOfBounds,
+        type: RangeError
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, 0, 12);
-    }, errMessages.bufferTooSmall);
+    common.expectsError(
+      () => {
+        crypto.randomFillSync(buf, 0, 12);
+      },
+      {
+        code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+        message: errMessages.sizeOutOfBounds,
+        type: RangeError
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, 0, 12, common.mustNotCall());
-    }, errMessages.bufferTooSmall);
+    common.expectsError(
+      () => {
+        crypto.randomFill(buf, 0, 12, common.mustNotCall());
+      },
+      {
+        code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+        message: errMessages.sizeOutOfBounds,
+        type: RangeError
+      }
+    );
+
+    common.expectsError(
+      () => {
+        crypto.randomFill(buf, 'test');
+      },
+      {
+        code: 'ERR_INVALID_CALLBACK',
+        type: TypeError
+      }
+    );
 
     {
       // Offset is too big
       const offset = (-1 >>> 0) + 1;
-      assert.throws(() => {
-        crypto.randomFillSync(buf, offset, 10);
-      }, errMessages.offsetNotUInt32);
+      common.expectsError(
+        () => {
+          crypto.randomFillSync(buf, offset, 10);
+        },
+        {
+          code: 'ERR_VALUE_OUT_OF_RANGE',
+          message: errMessages.offsetOutOfRange(offset),
+          type: TypeError
+        }
+      );
 
-      assert.throws(() => {
-        crypto.randomFill(buf, offset, 10, common.mustNotCall());
-      }, errMessages.offsetNotUInt32);
+      common.expectsError(
+        () => {
+          crypto.randomFill(buf, offset, 10, common.mustNotCall());
+        },
+        {
+          code: 'ERR_VALUE_OUT_OF_RANGE',
+          message: errMessages.offsetOutOfRange(offset),
+          type: TypeError
+        }
+      );
     }
   }
+}
+
+// test randomFill buf type exception
+{
+  common.expectsError(
+    () => {
+      crypto.randomFillSync(1, 'test');
+    },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => {
+      crypto.randomFill(1, 'test');
+    },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
 }
 
 // #5126, "FATAL ERROR: v8::Object::SetIndexedPropertiesToExternalArrayData()
