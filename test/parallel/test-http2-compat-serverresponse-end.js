@@ -18,10 +18,12 @@ const {
   // Http2ServerResponse.end callback is called only the first time,
   // but may be invoked repeatedly without throwing errors.
   const server = createServer(mustCall((request, response) => {
+    strictEqual(response.closed, false);
     response.end(mustCall(() => {
       server.close();
     }));
     response.end(mustNotCall());
+    strictEqual(response.closed, true);
   }));
   server.listen(0, mustCall(() => {
     const { port } = server.address();
