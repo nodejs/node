@@ -527,7 +527,7 @@ input. Often such comments are the result of the reviewer having only taken a
 short amount of time to review and are not ill-intended. Such issues can often
 be resolved with a bit of patience. That said, reviewers should be expected to
 be helpful in their feedback, and feedback that is simply vague, dismissive and
-helpful is likely safe to ignore.
+unhelpful is likely safe to ignore.
 
 #### Step 10: Landing
 
@@ -548,7 +548,7 @@ your name on it. Congratulations and thanks for your contribution!
 ### Reviewing Pull Requests
 
 All Node.js contributors who choose to review and provide feedback on Pull
-Requests have a responsibility both the project and the individual making the
+Requests have a responsibility to both the project and the individual making the
 contribution. Reviews and feedback must be helpful, insightful, and geared
 towards improving the contribution as opposed to simply blocking it or
 stopping it. If there are reasons why you feel the PR should not land, explain
