@@ -645,7 +645,7 @@ If the Node.js process was not spawned with an IPC channel,
 <!-- YAML
 added: v0.1.16
 changes:
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/12794
     description: Added support for the `flags` argument.
 -->
@@ -1790,7 +1790,7 @@ changes:
   - version: v4.2.0
     pr-url: https://github.com/nodejs/node/pull/3102
     description: The `icu` property is now supported.
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15785
     description: The `v8` property now includes a Node.js specific suffix.
 -->

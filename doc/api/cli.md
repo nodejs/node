@@ -210,7 +210,7 @@ of the event loop.
 
 ### `--no-force-async-hooks-checks`
 <!-- YAML
-added: REPLACEME
+added: v9.0.0
 -->
 
 Disables runtime checks for `async_hooks`. These will still be enabled
