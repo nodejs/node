@@ -13,11 +13,12 @@ socket._handle = {
   ref() { },
   readStart() { },
 };
-const req = new http.ClientRequest(`http://localhost:${common.PORT}/`);
 
 const server = http.createServer(common.mustCall((req, res) => {
   res.end();
-})).listen(common.PORT, common.mustCall(() => {
+})).listen(0, common.mustCall(() => {
+  const req = new http.ClientRequest(`http://localhost:${server.address().port}/`);
+
   // Manually add the socket without a _handle.
   agent.freeSockets[agent.getName(req)] = [socket];
   // Now force the agent to use the socket and check that _handle exists before
