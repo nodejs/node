@@ -283,26 +283,27 @@ propagating what resource is responsible for the new resource's existence.
 
 ###### `resource`
 
-`resource` is an object that represents the actual resource. This can contain
-useful information that can vary based on the value of `type`. For instance,
-for the `GETADDRINFOREQWRAP` resource type, it provides the hostname used when
-looking up the IP address for the hostname in `net.Server.listen()`. The API for
-accessing this information is currently not considered public, but using the
-Embedder API, users can provide and document their own resource objects. Such
-a resource object could for example contain the SQL query being executed.
+`resource` is an object that represents the actual async resource that has
+been initialized. This can contain useful information that can vary based on
+the value of `type`. For instance, for the `GETADDRINFOREQWRAP` resource type,
+`resource` provides the hostname used when looking up the IP address for the
+hostname in `net.Server.listen()`. The API for accessing this information is
+currently not considered public, but using the Embedder API, users can provide
+and document their own resource objects. Such a resource object could for
+example contain the SQL query being executed.
 
 In the case of Promises, the `resource` object will have `promise` property
 that refers to the Promise that is being initialized, and a `parentId` property
-that set to the `asyncId` of a parent Promise, if there is one, and
-`undefined` otherwise. For example, in the case of `b = a.then(handler)`,
-`a` is considered a parent Promise of `b`.
+set to the `asyncId` of a parent Promise, if there is one, and `undefined`
+otherwise. For example, in the case of `b = a.then(handler)`, `a` is considered
+a parent Promise of `b`.
 
 *Note*: In some cases the resource object is reused for performance reasons,
 it is thus not safe to use it as a key in a `WeakMap` or add properties to it.
 
 ###### Asynchronous context example
 
-Following is an example with additional information about the calls to
+The following is an example with additional information about the calls to
 `init` between the `before` and `after` calls, specifically what the
 callback to `listen()` will look like. The output formatting is slightly more
 elaborate to make calling context easier to see.
@@ -427,7 +428,7 @@ called asynchronously from the embedder API `emitDestroy()`.
 *Note:* Some resources depend on garbage collection for cleanup, so if a
 reference is made to the `resource` object passed to `init` it is possible that
 `destroy` will never be called, causing a memory leak in the application. If
-the resource does not depend on garbage collection then this will not be an
+the resource does not depend on garbage collection, then this will not be an
 issue.
 
 #### `async_hooks.executionAsyncId()`
@@ -533,7 +534,7 @@ asyncResource.triggerAsyncId();
 #### `AsyncResource(type[, triggerAsyncId])`
 
 * arguments
-  * `type` {string} the type of ascyc event
+  * `type` {string} the type of async event
   * `triggerAsyncId` {number} the ID of the execution context that created this
     async event
 
