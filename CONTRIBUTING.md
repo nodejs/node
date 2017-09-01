@@ -92,7 +92,7 @@ poorly on the project as a whole.
 Being a bad actor may be intentional or unintentional. Typically, unintentional
 bad behavior can be easily corrected by being quick to apologize and correct
 course *even if you are not entirely convinced you need to*. Giving other
-contributors the benefit of the doubt and have a sincere willingness to admit
+contributors the benefit of the doubt and having a sincere willingness to admit
 that you *might* be wrong is critical for any successful open collaboration.
 
 Don't be a bad actor.
