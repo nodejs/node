@@ -242,12 +242,9 @@ assert.throws(
   }));
 
 // Test ERR_SOCKET_BAD_PORT
-assert.strictEqual(errors.message('ERR_SOCKET_BAD_PORT', []),
-                   'Port should be > 0 and < 65536');
-assert.strictEqual(errors.message('ERR_SOCKET_BAD_PORT', ['0']),
-                   'Port:0 should be > 0 and < 65536');
-assert.strictEqual(errors.message('ERR_SOCKET_BAD_PORT', [0]),
-                   'Port:0 should be > 0 and < 65536');
+assert.strictEqual(
+  errors.message('ERR_SOCKET_BAD_PORT', [0]),
+  'Port should be > 0 and < 65536. Received 0.');
 
 // Test ERR_TLS_CERT_ALTNAME_INVALID
 assert.strictEqual(
