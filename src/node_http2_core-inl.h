@@ -82,8 +82,8 @@ inline int Nghttp2Session::OnHeaderCallback(nghttp2_session* session,
   // If this is a push promise frame, we want to grab the handle of
   // the promised stream.
   int32_t id = (frame->hd.type == NGHTTP2_PUSH_PROMISE) ?
-    frame->push_promise.promised_stream_id :
-    frame->hd.stream_id;
+      frame->push_promise.promised_stream_id :
+      frame->hd.stream_id;
   Nghttp2Stream* stream = handle->FindStream(id);
   nghttp2_header_list* header = header_free_list.pop();
   header->name = name;
