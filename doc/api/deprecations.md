@@ -693,6 +693,13 @@ Type: Runtime
 
 *Note*: `Module._debug()` was never documented as an officially supported API.
 
+<a id="DEP0078"></a>
+### DEP0078: REPLServer.turnOffEditorMode()
+
+Type: Runtime
+
+`REPLServer.turnOffEditorMode()` was removed from userland visibility.
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
