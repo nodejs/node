@@ -1722,6 +1722,22 @@ console.log(buf.readInt32LE());
 console.log(buf.readInt32LE(1));
 ```
 
+### buf.readInt64LE(offset[, noAssert])
+### buf.readInt64BE(offset[, noAssert])
+
+* `offset` {integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 8`
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
+* Returns: {integer}
+
+Reads a signed 64-bit integer from `buf` at the specified `offset` with
+the specified endian format (`readInt64BE()` returns big endian,
+`readInt64LE()` return little endian).
+
+Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
+the result should be considered undefined behavior.
+
+Integers read from a `Buffer` are interpreted as two's complement signed values.
+
 ### buf.readIntBE(offset, byteLength[, noAssert])
 ### buf.readIntLE(offset, byteLength[, noAssert])
 <!-- YAML
@@ -1852,6 +1868,35 @@ console.log(buf.readUInt32LE(0).toString(16));
 
 // Throws an exception: RangeError: Index out of range
 console.log(buf.readUInt32LE(1).toString(16));
+```
+
+### buf.readUInt64LE(offset[, noAssert])
+### buf.readUInt64BE(offset[, noAssert])
+
+* `offset` {integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 8`
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
+* Returns: {string}
+
+Reads an unsigned 64-bit integer from `buf` at the specified `offset` with
+specified endian format (`readUInt64BE()` returns big endian,
+`readUInt64LE()` returns little endian).
+
+Setting `noAssert` to `true` allows `offset` to be beyond the end of `buf`, but
+the result should be considered undefined behavior.
+
+Examples:
+
+```js
+var buf = Buffer.allocUnsafe(8);
+buf[0] = buf[1] = buf[2] = buf[3] = 0x00;
+buf[4] = buf[5] = buf[6] = buf[7] = 0xff;
+// <Buffer 00 00 00 00 ff ff ff ff>
+
+// Prints: '4294967295'
+console.log(buf.readUInt64BE(0));
+
+// Prints: '1844674406941458432'
+console.log(b.readUInt64LE(0));
 ```
 
 ### buf.readUIntBE(offset, byteLength[, noAssert])
@@ -2358,6 +2403,36 @@ buf.writeInt32LE(0x05060708, 4);
 console.log(buf);
 ```
 
+### buf.writeInt64(value, offset[, noAssert])
+### buf.writeInt64(value, offset[, noAssert])
+
+* `value` {integer|string} Number to be written to `buf`
+* `offset` {integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 8`
+* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
+* Returns: {integer} `offset` plus the number of bytes written
+
+Writes `value` to `buf` at the specified `offset` with specified endian
+format (`writeInt64BE()` writes big endian, `writeInt64LE()` writes little
+endian). `value` *should* be a valid signed 64-bit integer or a String
+representation of one. Behavior is undefined when `value` is anything other than
+a signed 32-bit integer or a String representation of one.
+
+Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
+the end of `buf`, but the result should be considered undefined behavior.
+
+`value` is interpreted and written as a two's complement signed integer.
+
+Examples:
+
+```js
+const buf = Buffer.allocUnsafe(8);
+
+buf.writeInt64BE('0x0102030405060708', 0);
+
+// Prints: <Buffer 01 02 03 04 05 06 07 08>
+console.log(buf);
+```
+
 ### buf.writeIntBE(value, offset, byteLength[, noAssert])
 ### buf.writeIntLE(value, offset, byteLength[, noAssert])
 <!-- YAML
@@ -2494,6 +2569,34 @@ console.log(buf);
 buf.writeUInt32LE(0xfeedface, 0);
 
 // Prints: <Buffer ce fa ed fe>
+console.log(buf);
+```
+
+### buf.writeUInt64LE(value, offset[, noAssert])
+### buf.writeUInt64BE(value, offset[, noAssert])
+
+* `value` {integer|string} Number to be written to `buf`
+* `offset` {integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 8`
+* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
+* Returns: {integer} `offset` plus the number of bytes written
+
+Writes `value` to `buf` at the specified `offset` with specified endian
+format (`writeUInt64BE()` writes big endian, `writeUInt64LE()` writes little
+endian). `value` should be a valid unsigned 64-bit integer or a String
+representation of one. Behavior is undefined when `value` is anything other than
+an unsigned 32-bit integer or a String representation of one.
+
+Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
+the end of `buf`, but the result should be considered undefined behavior.
+
+Examples:
+
+```js
+var buf = Buffer.allocUnsafe(8);
+
+buf.writeUInt64LE('0xffffffffffff', 0);
+
+// Prints: <Buffer ff ff ff ff ff ff 00 00>
 console.log(buf);
 ```
 
