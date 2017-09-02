@@ -1957,8 +1957,8 @@ The following example creates a server that supports both protocols:
 const { createSecureServer } = require('http2');
 const { readFileSync } = require('fs');
 
-const cert = fs.readFileSync('./cert.pem');
-const key = fs.readFileSync('./key.pem');
+const cert = readFileSync('./cert.pem');
+const key = readFileSync('./key.pem');
 
 const server = createSecureServer(
   { cert, key, allowHTTP1: true },
