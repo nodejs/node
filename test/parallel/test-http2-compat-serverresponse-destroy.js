@@ -18,8 +18,8 @@ const errors = [
 let nextError;
 
 const server = http2.createServer(common.mustCall((req, res) => {
-  req.once('error', common.mustNotCall());
-  req.once('error', common.mustNotCall());
+  req.on('error', common.mustNotCall());
+  res.on('error', common.mustNotCall());
 
   res.on('finish', common.mustCall(() => {
     assert.doesNotThrow(() => res.destroy(nextError));
