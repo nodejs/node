@@ -586,6 +586,53 @@ to indicate an unlimited number of listeners.
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
 
+### async emitter.when(eventName[, options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `eventName` {any} The name of the event.
+* `options` {Object}
+  * `prepend` {boolean} True to prepend the handler used to resolve the
+    `Promise` to the handler queue.
+
+Creates and returns a `Promise` that is resolved with a one-time event handler.
+
+```js
+const myEmitter = new EventEmitter();
+
+const p = myEmitter.when('foo')
+                   .then((context) => {
+                      console.log(context.args))
+                   };
+
+myEmitter.emit('foo', 1, 2, 3);
+```
+
+The `Promise` is resolved with a `context` object that contains two properties:
+
+* `emitter` {EventEmitter} A reference to the `EventEmitter` instance.
+* `args` {Array} An array containing the additional arguments passed to the
+  `emitter.emit()` function.
+
+When a `Promise` is created, a corresponding `removeListener` event handler is
+registered that will reject the `Promise` if it has not already been resolved.
+When rejected in this manner, the rejection `reason` shall be a simple string
+equal to `'canceled'`.
+
+```js
+const myEmitter = new EventEmitter();
+
+const p = myEmitter.when('foo')
+                   .catch((reason) => {
+                     if (reason === 'canceled') {
+                       // The promise was canceled using removeListener
+                     }
+                   });
+
+myEmitter.removeAllListeners();
+```
+
 [`--trace-warnings`]: cli.html#cli_trace_warnings
 [`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
 [`domain`]: domain.html
