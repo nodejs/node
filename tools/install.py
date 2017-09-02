@@ -123,6 +123,7 @@ def files(action):
   if 'false' == variables.get('node_shared'):
     if is_windows:
       output_file += '.exe'
+    action([output_prefix + output_file], 'lib/' + output_file)
   else:
     if is_windows:
       output_file += '.dll'
@@ -132,8 +133,7 @@ def files(action):
       # in its source - see the _InstallableTargetInstallPath function.
       if sys.platform != 'darwin':
         output_prefix += 'lib.target/'
-
-  action([output_prefix + output_file], 'bin/' + output_file)
+    action([output_prefix + output_file], 'bin/' + output_file)
 
   if 'true' == variables.get('node_use_dtrace'):
     action(['out/Release/node.d'], 'lib/dtrace/node.d')
