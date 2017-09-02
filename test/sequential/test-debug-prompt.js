@@ -11,5 +11,5 @@ let output = '';
 proc.stdout.on('data', (data) => {
   output += data;
   if (output.includes('debug> '))
-    proc.kill();
+    proc.stdin.write('.exit\n');
 });
