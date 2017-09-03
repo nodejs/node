@@ -7,10 +7,16 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-assert.throws(function() {
+common.expectsError(function() {
   crypto.setEngine(true);
-}, /^TypeError: "id" argument should be a string$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: /"id"/,
+});
 
-assert.throws(function() {
+common.expectsError(function() {
   crypto.setEngine('/path/to/engine', 'notANumber');
-}, /^TypeError: "flags" argument should be a number, if present$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: /"flags"/,
+});
