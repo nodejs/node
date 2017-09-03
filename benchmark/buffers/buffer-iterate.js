@@ -17,12 +17,13 @@ var methods = {
 };
 
 function main(conf) {
-  var len = +conf.size;
-  var clazz = conf.type === 'fast' ? Buffer : SlowBuffer;
-  var buffer = new clazz(len);
+  const len = +conf.size;
+  const clazz = conf.type === 'fast' ? Buffer : SlowBuffer;
+  const buffer = new clazz(len);
   buffer.fill(0);
 
-  methods[conf.method](buffer, conf.n);
+  const method = conf.method || 'for';
+  methods[method](buffer, conf.n);
 }
 
 
