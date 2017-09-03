@@ -21,6 +21,9 @@ server.listen(0, common.mustCall(function() {
       httpVersionMinor: 0
     };
 
+    assert.strictEqual(request.closed, false);
+    assert.strictEqual(request.code, h2.constants.NGHTTP2_NO_ERROR);
+
     assert.strictEqual(request.statusCode, expected.statusCode);
     assert.strictEqual(request.httpVersion, expected.version);
     assert.strictEqual(request.httpVersionMajor, expected.httpVersionMajor);
@@ -31,6 +34,8 @@ server.listen(0, common.mustCall(function() {
     assert.strictEqual(request.socket, request.connection);
 
     response.on('finish', common.mustCall(function() {
+      assert.strictEqual(request.closed, true);
+      assert.strictEqual(request.code, h2.constants.NGHTTP2_NO_ERROR);
       server.close();
     }));
     response.end();
