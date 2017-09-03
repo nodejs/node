@@ -1730,7 +1730,7 @@ added: replaceme
 
 * `offset` {integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 8`
 * `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
-* Returns: {integer}
+* Returns: {string}
 
 Reads a signed 64-bit integer from `buf` at the specified `offset` with
 the specified endian format (`readInt64BE()` returns big endian,
