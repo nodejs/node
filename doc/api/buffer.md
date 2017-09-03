@@ -1724,6 +1724,9 @@ console.log(buf.readInt32LE(1));
 
 ### buf.readInt64LE(offset[, noAssert])
 ### buf.readInt64BE(offset[, noAssert])
+<!-- YAML
+added: replaceme
+-->
 
 * `offset` {integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 8`
 * `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
@@ -1872,6 +1875,9 @@ console.log(buf.readUInt32LE(1).toString(16));
 
 ### buf.readUInt64LE(offset[, noAssert])
 ### buf.readUInt64BE(offset[, noAssert])
+<!-- YAML
+added: replaceme
+-->
 
 * `offset` {integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 8`
 * `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
@@ -2405,6 +2411,9 @@ console.log(buf);
 
 ### buf.writeInt64(value, offset[, noAssert])
 ### buf.writeInt64(value, offset[, noAssert])
+<!-- YAML
+added: replaceme
+-->
 
 * `value` {integer|string} Number to be written to `buf`
 * `offset` {integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 8`
@@ -2574,6 +2583,9 @@ console.log(buf);
 
 ### buf.writeUInt64LE(value, offset[, noAssert])
 ### buf.writeUInt64BE(value, offset[, noAssert])
+<!-- YAML
+added: replaceme
+-->
 
 * `value` {integer|string} Number to be written to `buf`
 * `offset` {integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 8`
