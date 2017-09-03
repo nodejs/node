@@ -586,6 +586,30 @@ found [here][online].
 Used generically to identify that an iterable argument (i.e. a value that works
 with `for...of` loops) is required, but not provided to a Node.js API.
 
+<a id="ERR_ASYNC_CALLBACK"></a>
+### ERR_ASYNC_CALLBACK
+
+Used with `AsyncHooks` to indicate an attempt of registering something that is
+not a function as a callback.
+
+<a id="ERR_ASYNC_TYPE"></a>
+### ERR_ASYNC_TYPE
+
+Used when the type of an asynchronous resource is invalid. Note that users are
+also able to define their own types when using the public embedder API.
+
+<a id="ERR_ENCODING_INVALID_ENCODED_DATA"></a>
+### ERR_ENCODING_INVALID_ENCODED_DATA
+
+Used by the `util.TextDecoder()` API when the data provided is invalid
+according to the encoding provided.
+
+<a id="ERR_ENCODING_NOT_SUPPORTED"></a>
+### ERR_ENCODING_NOT_SUPPORTED
+
+Used by the `util.TextDecoder()` API when the encoding provided is not one of
+the [WHATWG Supported Encodings][].
+
 <a id="ERR_FALSY_VALUE_REJECTION"></a>
 ### ERR_FALSY_VALUE_REJECTION
 
@@ -597,6 +621,12 @@ with a falsy value (e.g. `null`).
 
 Used when headers have already been sent and another attempt is made to add
 more headers.
+
+<a id="ERR_HTTP_INVALID_CHAR"></a>
+### ERR_HTTP_INVALID_CHAR
+
+Used when an invalid character is found in an HTTP response status message
+(reason phrase).
 
 <a id="ERR_HTTP_INVALID_STATUS_CODE"></a>
 ### ERR_HTTP_INVALID_STATUS_CODE
@@ -624,19 +654,31 @@ forbidden.
 <a id="ERR_HTTP2_CONNECT_SCHEME"></a>
 ### ERR_HTTP2_CONNECT_SCHEME
 
-The HTTP/2 requests using the `CONNECT` method, the `:scheme` pseudo-header is
+For HTTP/2 requests using the `CONNECT` method, the `:scheme` pseudo-header is
 forbidden.
-
-<a id="ERR_HTTP2_ERROR"></a>
-### ERR_HTTP2_ERROR
-
-A non-specific HTTP/2 error has occurred.
 
 <a id="ERR_HTTP2_FRAME_ERROR"></a>
 ### ERR_HTTP2_FRAME_ERROR
 
 Used when a failure occurs sending an individual frame on the HTTP/2
 session.
+
+<a id="ERR_HTTP2_HEADER_REQUIRED"></a>
+### ERR_HTTP2_HEADER_REQUIRED
+
+Used when a required header is missing in an HTTP/2 message.
+
+<a id="ERR_HTTP2_HEADER_SINGLE_VALUE"></a>
+### ERR_HTTP2_HEADER_SINGLE_VALUE
+
+Used when multiple values have been provided for an HTTP header field that
+required to have only a single value.
+
+<a id="ERR_HTTP2_HEADERS_AFTER_RESPOND"></a>
+### ERR_HTTP2_HEADERS_AFTER_RESPOND
+
+Used when trying to specify additional headers after an HTTP/2 response
+initiated.
 
 <a id="ERR_HTTP2_HEADERS_OBJECT"></a>
 ### ERR_HTTP2_HEADERS_OBJECT
@@ -647,12 +689,6 @@ Used when an HTTP/2 Headers Object is expected.
 ### ERR_HTTP2_HEADERS_SENT
 
 Used when an attempt is made to send multiple response headers.
-
-<a id="ERR_HTTP2_HEADER_SINGLE_VALUE"></a>
-### ERR_HTTP2_HEADER_SINGLE_VALUE
-
-Used when multiple values have been provided for an HTTP header field that
-required to have only a single value.
 
 <a id="ERR_HTTP2_INFO_HEADERS_AFTER_RESPOND"></a>
 ### ERR_HTTP2_INFO_HEADERS_AFTER_RESPOND
@@ -811,6 +847,12 @@ Used when a given index is out of the accepted range (e.g. negative offsets).
 Used generically to identify that an argument of the wrong type has been passed
 to a Node.js API.
 
+<a id="ERR_INVALID_ASYNC_ID"></a>
+### ERR_INVALID_ASYNC_ID
+
+Used with `AsyncHooks` when an invalid `asyncId` or `triggerAsyncId` is passed.
+An id less than -1 should never happen.
+
 <a id="ERR_INVALID_CALLBACK"></a>
 ### ERR_INVALID_CALLBACK
 
@@ -845,6 +887,12 @@ communication channel to a child process. See [`subprocess.send()`] and
 
 Used generically to identify when an invalid or unexpected value has been
 passed in an options object.
+
+<a id="ERR_INVALID_PERFORMANCE_MARK"></a>
+### ERR_INVALID_PERFORMANCE_MARK
+
+Used by the Performance Timing API (`perf_hooks`) when a performance mark is
+invalid.
 
 <a id="ERR_INVALID_PROTOCOL"></a>
 ### ERR_INVALID_PROTOCOL
@@ -935,11 +983,27 @@ only used in the [WHATWG URL API][] for strict compliance with the specification
 native Node.js APIs, `func(undefined)` and `func()` are treated identically, and
 the [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
+<a id="ERR_NAPI_CONS_FUNCTION"></a>
+### ERR_NAPI_CONS_FUNCTION
+
+Used by the `N-API` when a constructor passed is not a function.
+
+<a id="ERR_NAPI_CONS_PROTOTYPE_OBJECT"></a>
+### ERR_NAPI_CONS_PROTOTYPE_OBJECT
+
+Used by the `N-API` when `Constructor.prototype` is not an object.
+
 <a id="ERR_NO_ICU"></a>
 ### ERR_NO_ICU
 
 Used when an attempt is made to use features that require [ICU][], while
 Node.js is not compiled with ICU support.
+
+<a id="ERR_OUTOFMEMORY"></a>
+### ERR_OUTOFMEMORY
+
+Used generically to identify that an operation caused an out of memory
+condition.
 
 <a id="ERR_SOCKET_ALREADY_BOUND"></a>
 ### ERR_SOCKET_ALREADY_BOUND
@@ -962,6 +1026,11 @@ invalid value.
 
 Used when data cannot be sent on a socket.
 
+<a id="ERR_SOCKET_CLOSED"></a>
+### ERR_SOCKET_CLOSED
+
+Used when an attempt is made to operate on an already closed socket.
+
 <a id="ERR_SOCKET_DGRAM_NOT_RUNNING"></a>
 ### ERR_SOCKET_DGRAM_NOT_RUNNING
 
@@ -979,12 +1048,54 @@ Node.js does not allow `stdout` or `stderr` Streams to be closed by user code.
 Used when an attempt is made to close the `process.stdout` stream. By design,
 Node.js does not allow `stdout` or `stderr` Streams to be closed by user code.
 
-<a id="ERR_UNKNOWN_BUILTIN_MODULE"></a>
-### ERR_UNKNOWN_BUILTIN_MODULE
+<a id="ERR_TLS_CERT_ALTNAME_INVALID"></a>
+### ERR_TLS_CERT_ALTNAME_INVALID
 
-Used to identify a specific kind of internal Node.js error that should not
-typically be triggered by user code. Instances of this error point to an
-internal bug within the Node.js binary itself.
+Used with TLS, when the hostname/IP of the peer does not match any of the
+subjectAltNames in its certificate.
+
+<a id="ERR_TLS_DH_PARAM_SIZE"></a>
+### ERR_TLS_DH_PARAM_SIZE
+
+Used with TLS when the parameter offered for the Diffie-Hellman (`DH`)
+key-agreement protocol is too small. By default, the key length must be greater
+than or equal to 1024 bits to avoid vulnerabilities, even though it is strongly
+recommended to use 2048 bits or larger for stronger security.
+
+<a id="ERR_TLS_HANDSHAKE_TIMEOUT"></a>
+### ERR_TLS_HANDSHAKE_TIMEOUT
+
+A TLS error emitted by the server whenever a TLS/SSL handshake times out. In
+this case, the server must also abort the connection.
+
+<a id="ERR_TLS_RENEGOTIATION_FAILED"></a>
+### ERR_TLS_RENEGOTIATION_FAILED
+
+Used when a TLS renegotiation request has failed in a non-specific way.
+
+<a id="ERR_TLS_REQUIRED_SERVER_NAME"></a>
+### ERR_TLS_REQUIRED_SERVER_NAME
+
+Used with TLS, when calling the `server.addContext()` method without providing
+a hostname in the first parameter.
+
+<a id="ERR_TLS_SESSION_ATTACK"></a>
+### ERR_TLS_SESSION_ATTACK
+
+Used when an excessive amount of TLS renegotiations is detected, which is a
+potential vector for denial-of-service attacks.
+
+<a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
+### ERR_TRANSFORM_ALREADY_TRANSFORMING
+
+Used in Transform streams when the stream finishes while it is still
+transforming.
+
+<a id="ERR_TRANSFORM_WITH_LENGTH_0"></a>
+### ERR_TRANSFORM_WITH_LENGTH_0
+
+Used in Transform streams when the stream finishes with data still in the write
+buffer.
 
 <a id="ERR_UNKNOWN_SIGNAL"></a>
 ### ERR_UNKNOWN_SIGNAL
@@ -1052,3 +1163,4 @@ Used when a given value is out of the accepted range.
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
+[WHATWG Supported Encodings]: util.md#whatwg-supported-encodings
