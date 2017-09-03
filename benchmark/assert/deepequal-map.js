@@ -46,6 +46,8 @@ function main(conf) {
   var values, values2;
 
   switch (conf.method) {
+    case '':
+      // Empty string falls through to next line as default, mostly for tests.
     case 'deepEqual_primitiveOnly':
       values = array.map((_, i) => [`str_${i}`, 123]);
       benchmark(assert.deepEqual, n, values);

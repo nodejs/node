@@ -27,6 +27,8 @@ function main(conf) {
   data.copy(expectedWrong);
 
   switch (conf.method) {
+    case '':
+      // Empty string falls through to next line as default, mostly for tests.
     case 'deepEqual':
       bench.start();
       for (i = 0; i < n; ++i) {
