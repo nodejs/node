@@ -95,7 +95,7 @@
       'lib/internal/loader/ModuleMap.js',
       'lib/internal/loader/ModuleJob.js',
       'lib/internal/loader/ModuleWrap.js',
-      'lib/internal/loader/resolveRequestUrl.js',
+      'lib/internal/loader/ModuleRequest.js',
       'lib/internal/loader/search.js',
       'lib/internal/safe_globals.js',
       'lib/internal/net.js',

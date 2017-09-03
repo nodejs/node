@@ -65,8 +65,18 @@ static void InitConfig(Local<Object> target,
   if (config_preserve_symlinks)
     READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
 
-  if (config_experimental_modules)
+  if (config_experimental_modules) {
     READONLY_BOOLEAN_PROPERTY("experimentalModules");
+    if (!config_userland_loader.empty()) {
+      target->DefineOwnProperty(
+          context,
+          FIXED_ONE_BYTE_STRING(isolate, "userLoader"),
+          String::NewFromUtf8(isolate,
+                              config_userland_loader.data(),
+                              v8::NewStringType::kNormal).ToLocalChecked(),
+          ReadOnly).FromJust();
+    }
+  }
 
   if (config_pending_deprecation)
     READONLY_BOOLEAN_PROPERTY("pendingDeprecation");
