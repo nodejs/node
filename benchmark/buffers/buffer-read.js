@@ -26,14 +26,15 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var noAssert = conf.noAssert === 'true';
-  var len = +conf.millions * 1e6;
-  var clazz = conf.buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
-  var buff = new clazz(8);
-  var fn = `read${conf.type}`;
+  const noAssert = conf.noAssert === 'true';
+  const len = +conf.millions * 1e6;
+  const clazz = conf.buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
+  const buff = new clazz(8);
+  const type = conf.type || 'UInt8';
+  const fn = `read${type}`;
 
   buff.writeDoubleLE(0, 0, noAssert);
-  var testFunction = new Function('buff', `
+  const testFunction = new Function('buff', `
     for (var i = 0; i !== ${len}; i++) {
       buff.${fn}(0, ${JSON.stringify(noAssert)});
     }
