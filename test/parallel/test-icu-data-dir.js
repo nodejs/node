@@ -17,7 +17,7 @@ const expected =
 }
 
 {
-  const env = { NODE_ICU_DATA: '/' };
+  const env = Object.assign({}, process.env, { NODE_ICU_DATA: '/' });
   const child = spawnSync(process.execPath, ['-e', '0'], { env });
   assert(child.stderr.toString().includes(expected));
 }
