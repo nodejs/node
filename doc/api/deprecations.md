@@ -148,7 +148,7 @@ Type: Runtime
 explicitly via error event handlers set on the domain instead.
 
 <a id="DEP0013"></a>
-### DEP0013: fs async function without callback
+### DEP0013: fs asynchronous function without callback
 
 Type: Runtime
 
