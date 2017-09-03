@@ -11,7 +11,7 @@ parserOptions:
   ecmaVersion: 2017
 
 overrides:
-  - files: ["doc/api/esm.md", "*.mjs"]
+  - files: ["doc/api/esm.md", "*.mjs", "test/es-module/test-esm-example-loader.js"]
     parserOptions:
       sourceType: module
 
@@ -117,6 +117,7 @@ rules:
   keyword-spacing: error
   linebreak-style: [error, unix]
   max-len: [error, {code: 80,
+                ignorePattern: "^\/\/ Flags:",
                 ignoreRegExpLiterals: true,
                 ignoreUrls: true,
                 tabWidth: 2}]

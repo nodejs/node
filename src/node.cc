@@ -227,6 +227,11 @@ bool config_preserve_symlinks = false;
 // that is used by lib/module.js
 bool config_experimental_modules = false;
 
+// Set in node.cc by ParseArgs when --loader is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/internal/bootstrap_node.js
+std::string config_userland_loader;  // NOLINT(runtime/string)
+
 // Set by ParseArgs when --pending-deprecation or NODE_PENDING_DEPRECATION
 // is used.
 bool config_pending_deprecation = false;
@@ -3674,7 +3679,6 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
-
 void LoadEnvironment(Environment* env) {
   HandleScope handle_scope(env->isolate());
 
@@ -3697,6 +3701,7 @@ void LoadEnvironment(Environment* env) {
   }
   // The bootstrap_node.js file returns a function 'f'
   CHECK(f_value->IsFunction());
+
   Local<Function> f = Local<Function>::Cast(f_value);
 
   // Add a reference to the global object
@@ -3736,6 +3741,7 @@ void LoadEnvironment(Environment* env) {
   // who do not like how bootstrap_node.js sets up the module system but do
   // like Node's I/O bindings may want to replace 'f' with their own function.
   Local<Value> arg = env->process_object();
+
   auto ret = f->Call(env->context(), Null(env->isolate()), 1, &arg);
   // If there was an error during bootstrap then it was either handled by the
   // FatalException handler or it's unrecoverable (e.g. max call stack
@@ -3911,6 +3917,8 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--no-warnings",
     "--napi-modules",
     "--expose-http2",
+    "--experimental-modules",
+    "--loader",
     "--trace-warnings",
     "--redirect-warnings",
     "--trace-sync-io",
@@ -4073,6 +4081,19 @@ static void ParseArgs(int* argc,
       config_preserve_symlinks = true;
     } else if (strcmp(arg, "--experimental-modules") == 0) {
       config_experimental_modules = true;
+    }  else if (strcmp(arg, "--loader") == 0) {
+      const char* module = argv[index + 1];
+      if (!config_experimental_modules) {
+        fprintf(stderr, "%s: %s requires --experimental-modules be enabled\n",
+            argv[0], arg);
+        exit(9);
+      }
+      if (module == nullptr) {
+        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        exit(9);
+      }
+      args_consumed += 1;
+      config_userland_loader = module;
     } else if (strcmp(arg, "--prof-process") == 0) {
       prof_process = true;
       short_circuit = true;
