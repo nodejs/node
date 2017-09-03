@@ -40,11 +40,12 @@ var mod = {
 };
 
 function main(conf) {
-  var len = +conf.millions * 1e6;
-  var ab = new ArrayBuffer(8);
-  var dv = new DataView(ab, 0, 8);
-  var le = /LE$/.test(conf.type);
-  var fn = `set${conf.type.replace(/[LB]E$/, '')}`;
+  const len = +conf.millions * 1e6;
+  const ab = new ArrayBuffer(8);
+  const dv = new DataView(ab, 0, 8);
+  const type = conf.type || 'Uint8';
+  const le = /LE$/.test(type);
+  const fn = `set${type.replace(/[LB]E$/, '')}`;
 
   if (/int/i.test(fn))
     benchInt(dv, fn, len, le);

@@ -46,11 +46,12 @@ var mod = {
 };
 
 function main(conf) {
-  var noAssert = conf.noAssert === 'true';
-  var len = +conf.millions * 1e6;
-  var clazz = conf.buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
-  var buff = new clazz(8);
-  var fn = `write${conf.type}`;
+  const noAssert = conf.noAssert === 'true';
+  const len = +conf.millions * 1e6;
+  const clazz = conf.buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
+  const buff = new clazz(8);
+  const type = conf.type || 'UInt8';
+  const fn = `write${type}`;
 
   if (/Int/.test(fn))
     benchInt(buff, fn, len, noAssert);
