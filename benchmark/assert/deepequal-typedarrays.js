@@ -33,7 +33,8 @@ function main(conf) {
   const actual = new clazz(len);
   const expected = new clazz(len);
   const expectedWrong = Buffer.alloc(len);
-  expectedWrong[100] = 123;
+  const wrongIndex = Math.floor(len / 2);
+  expectedWrong[wrongIndex] = 123;
   var i;
 
   switch (conf.method) {
