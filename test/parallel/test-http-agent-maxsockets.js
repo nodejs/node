@@ -37,12 +37,12 @@ function dec() {
 }
 
 function onGet(res) {
+  if (res.req.path === '/1') {
+    get('/2', common.mustCall(onGet));
+  }
   assert.strictEqual(res.statusCode, 200);
   res.resume();
   res.on('end', common.mustCall(dec));
 }
 
-server.listen(0, common.mustCall(() => {
-  get('/1', common.mustCall(onGet));
-  get('/2', common.mustCall(onGet));
-}));
+server.listen(0, common.mustCall(() => { get('/1', common.mustCall(onGet)); }));
