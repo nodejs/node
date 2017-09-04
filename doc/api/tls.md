@@ -101,8 +101,8 @@ openssl dhparam -outform PEM -out dhparam.pem 2048
 
 If using Perfect Forward Secrecy using `ECDHE`, Diffie-Hellman parameters are
 not required and a default ECDHE curve will be used. The `ecdhCurve` property
-can be used when creating a TLS Server to specify the name of an alternative
-curve to use, see [`tls.createServer()`] for more info.
+can be used when creating a TLS Server to specify the list of names of supported
+curves to use, see [`tls.createServer()`] for more info.
 
 ### ALPN, NPN and SNI
 
@@ -984,11 +984,13 @@ changes:
     preferences instead of the client's. When `true`, causes
     `SSL_OP_CIPHER_SERVER_PREFERENCE` to be set in `secureOptions`, see
     [OpenSSL Options][] for more information.
-  * `ecdhCurve` {string} A string describing a named curve to use for ECDH key
-    agreement or `false` to disable ECDH. Defaults to
-    [`tls.DEFAULT_ECDH_CURVE`].  Use [`crypto.getCurves()`][] to obtain a list
-    of available curve names. On recent releases, `openssl ecparam -list_curves`
-    will also display the name and description of each available elliptic curve.
+  * `ecdhCurve` {string} A string describing a named curve or a colon separated
+    list of curve NIDs or names, for example `P-521:P-384:P-256`, to use for
+    ECDH key agreement, or `false` to disable ECDH. Set to `auto` to select the
+    curve automatically. Defaults to [`tls.DEFAULT_ECDH_CURVE`]. Use
+    [`crypto.getCurves()`][] to obtain a list of available curve names. On
+    recent releases, `openssl ecparam -list_curves` will also display the name
+    and description of each available elliptic curve.
   * `dhparam` {string|Buffer} Diffie Hellman parameters, required for
     [Perfect Forward Secrecy][]. Use `openssl dhparam` to create the parameters.
     The key length must be greater than or equal to 1024 bits, otherwise an
