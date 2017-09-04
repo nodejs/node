@@ -19,6 +19,7 @@ class ReqWrap : public AsyncWrap {
   inline ~ReqWrap() override;
   inline void Dispatched();  // Call this after the req has been dispatched.
   T* req() { return &req_; }
+  inline void Cancel();
 
   static ReqWrap* from_req(T* req);
 

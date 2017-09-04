@@ -209,9 +209,7 @@ void Environment::RegisterHandleCleanups() {
                                         void* arg) {
     handle->data = env;
 
-    uv_close(handle, [](uv_handle_t* handle) {
-      static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
-    });
+    env->CloseHandle(handle, [](uv_handle_t* handle) {});
   };
 
   RegisterHandleCleanup(
@@ -233,13 +231,17 @@ void Environment::RegisterHandleCleanups() {
 }
 
 void Environment::CleanupHandles() {
-  for (HandleCleanup& hc : handle_cleanup_queue_) {
-    handle_cleanup_waiting_++;
+  for (ReqWrap<uv_req_t>* request : req_wrap_queue_)
+    request->Cancel();
+
+  for (HandleWrap* handle : handle_wrap_queue_)
+    handle->Close();
+
+  for (HandleCleanup& hc : handle_cleanup_queue_)
     hc.cb_(this, hc.handle_, hc.arg_);
-  }
   handle_cleanup_queue_.clear();
 
-  while (handle_cleanup_waiting_ != 0)
+  while (handle_cleanup_waiting_ != 0 || !handle_wrap_queue_.IsEmpty())
     uv_run(event_loop(), UV_RUN_ONCE);
 }
 
@@ -306,6 +308,8 @@ void Environment::PrintSyncTrace() const {
 }
 
 void Environment::RunCleanup() {
+  CleanupHandles();
+
   while (!cleanup_hooks_.empty()) {
     // Copy into a vector, since we can't sort an unordered_set in-place.
     std::vector<CleanupHookCallback> callbacks(

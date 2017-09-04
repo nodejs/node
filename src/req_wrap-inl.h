@@ -7,6 +7,7 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "util-inl.h"
+#include "uv.h"
 
 namespace node {
 
@@ -35,6 +36,11 @@ void ReqWrap<T>::Dispatched() {
 template <typename T>
 ReqWrap<T>* ReqWrap<T>::from_req(T* req) {
   return ContainerOf(&ReqWrap<T>::req_, req);
+}
+
+template <typename T>
+void ReqWrap<T>::Cancel() {
+  uv_cancel(reinterpret_cast<uv_req_t*>(&req_));
 }
 
 }  // namespace node
