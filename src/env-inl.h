@@ -349,8 +349,26 @@ inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
   handle_cleanup_queue_.push_back(HandleCleanup{handle, cb, arg});
 }
 
-inline void Environment::FinishHandleCleanup(uv_handle_t* handle) {
-  handle_cleanup_waiting_--;
+template <typename T, typename OnCloseCallback>
+inline void Environment::CloseHandle(T* handle, OnCloseCallback callback) {
+  handle_cleanup_waiting_++;
+  static_assert(sizeof(T) >= sizeof(uv_handle_t), "T is a libuv handle");
+  static_assert(offsetof(T, data) == offsetof(uv_handle_t, data),
+                "T is a libuv handle");
+  static_assert(offsetof(T, close_cb) == offsetof(uv_handle_t, close_cb),
+                "T is a libuv handle");
+  struct CloseData {
+    Environment* env;
+    OnCloseCallback callback;
+    void* original_data;
+  };
+  handle->data = new CloseData { this, callback, handle->data };
+  uv_close(reinterpret_cast<uv_handle_t*>(handle), [](uv_handle_t* handle) {
+    std::unique_ptr<CloseData> data { static_cast<CloseData*>(handle->data) };
+    data->env->handle_cleanup_waiting_--;
+    handle->data = data->original_data;
+    data->callback(reinterpret_cast<T*>(handle));
+  });
 }
 
 inline uv_loop_t* Environment::event_loop() const {

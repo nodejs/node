@@ -577,10 +577,14 @@ class Environment {
 
   void RegisterHandleCleanups();
   void CleanupHandles();
+
+  // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
                                     HandleCleanupCb cb,
                                     void *arg);
-  inline void FinishHandleCleanup(uv_handle_t* handle);
+
+  template <typename T, typename OnCloseCallback>
+  inline void CloseHandle(T* handle, OnCloseCallback callback);
 
   inline void AssignToContext(v8::Local<v8::Context> context,
                               const ContextInfo& info);

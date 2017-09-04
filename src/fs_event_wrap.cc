@@ -78,11 +78,12 @@ FSEventWrap::FSEventWrap(Environment* env, Local<Object> object)
     : HandleWrap(env,
                  object,
                  reinterpret_cast<uv_handle_t*>(&handle_),
-                 AsyncWrap::PROVIDER_FSEVENTWRAP) {}
+                 AsyncWrap::PROVIDER_FSEVENTWRAP) {
+  MarkAsUninitialized();
+}
 
 
 FSEventWrap::~FSEventWrap() {
-  CHECK_EQ(initialized_, false);
 }
 
 void FSEventWrap::GetInitialized(const FunctionCallbackInfo<Value>& args) {
@@ -153,6 +154,7 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   }
 
   err = uv_fs_event_start(&wrap->handle_, OnEvent, *path, flags);
+  wrap->MarkAsInitialized();
   wrap->initialized_ = true;
 
   if (err != 0) {
