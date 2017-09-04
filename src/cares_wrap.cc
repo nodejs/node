@@ -70,6 +70,8 @@ using v8::Value;
 
 namespace {
 
+Mutex ares_library_mutex;
+
 inline uint16_t cares_get_16bit(const unsigned char* p) {
   return static_cast<uint32_t>(p[0] << 8U) | (static_cast<uint32_t>(p[1]));
 }
@@ -496,6 +498,7 @@ void ChannelWrap::Setup() {
 
   int r;
   if (!library_inited_) {
+    Mutex::ScopedLock lock(ares_library_mutex);
     // Multiple calls to ares_library_init() increase a reference counter,
     // so this is a no-op except for the first call to it.
     r = ares_library_init(ARES_LIB_INIT_ALL);
@@ -509,6 +512,7 @@ void ChannelWrap::Setup() {
                         ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
 
   if (r != ARES_SUCCESS) {
+    Mutex::ScopedLock lock(ares_library_mutex);
     ares_library_cleanup();
     return env()->ThrowError(ToErrorCodeString(r));
   }
@@ -526,6 +530,7 @@ void ChannelWrap::Setup() {
 
 ChannelWrap::~ChannelWrap() {
   if (library_inited_) {
+    Mutex::ScopedLock lock(ares_library_mutex);
     // This decreases the reference counter increased by ares_library_init().
     ares_library_cleanup();
   }
