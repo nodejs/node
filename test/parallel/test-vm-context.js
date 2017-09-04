@@ -115,6 +115,9 @@ assert.strictEqual(vm.runInContext('x', ctx), 42);
 vm.runInContext('x = 0', ctx);                      // Does not throw but x...
 assert.strictEqual(vm.runInContext('x', ctx), 42);  // ...should be unaltered.
 
-assert.throws(() => vm.runInContext('"use strict"; x = 0', ctx),
-              /Cannot assign to read only property 'x'/);
+const error = new RegExp(
+  'TypeError: Cannot assign to read only property \'x\' of ' +
+  'object \'#<Object>\''
+);
+assert.throws(() => vm.runInContext('"use strict"; x = 0', ctx), error);
 assert.strictEqual(vm.runInContext('x', ctx), 42);
