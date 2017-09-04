@@ -273,9 +273,8 @@ void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
 }
 
 
-void ares_poll_close_cb(uv_handle_t* watcher) {
-  node_ares_task* task = ContainerOf(&node_ares_task::poll_watcher,
-                                  reinterpret_cast<uv_poll_t*>(watcher));
+void ares_poll_close_cb(uv_poll_t* watcher) {
+  node_ares_task* task = ContainerOf(&node_ares_task::poll_watcher, watcher);
   free(task);
 }
 
@@ -353,8 +352,7 @@ void ares_sockstate_cb(void* data,
           "When an ares socket is closed we should have a handle for it");
 
     channel->task_list()->erase(it);
-    uv_close(reinterpret_cast<uv_handle_t*>(&task->poll_watcher),
-             ares_poll_close_cb);
+    channel->env()->CloseHandle(&task->poll_watcher, ares_poll_close_cb);
 
     if (channel->task_list()->empty()) {
       uv_timer_stop(channel->timer_handle());
@@ -543,10 +541,7 @@ ChannelWrap::~ChannelWrap() {
 void ChannelWrap::CleanupTimer() {
   if (timer_handle_ == nullptr) return;
 
-  uv_close(reinterpret_cast<uv_handle_t*>(timer_handle_),
-           [](uv_handle_t* handle) {
-    delete reinterpret_cast<uv_timer_t*>(handle);
-  });
+  env()->CloseHandle(timer_handle_, [](uv_timer_t* handle){ delete handle; });
   timer_handle_ = nullptr;
 }
 
@@ -641,8 +636,7 @@ class QueryWrap : public AsyncWrap {
                static_cast<void*>(this));
   }
 
-  static void CaresAsyncClose(uv_handle_t* handle) {
-    uv_async_t* async = reinterpret_cast<uv_async_t*>(handle);
+  static void CaresAsyncClose(uv_async_t* async) {
     auto data = static_cast<struct CaresAsyncData*>(async->data);
     delete data->wrap;
     delete data;
@@ -667,7 +661,7 @@ class QueryWrap : public AsyncWrap {
       free(host);
     }
 
-    uv_close(reinterpret_cast<uv_handle_t*>(handle), CaresAsyncClose);
+    wrap->env()->CloseHandle(handle, CaresAsyncClose);
   }
 
   static void Callback(void *arg, int status, int timeouts,

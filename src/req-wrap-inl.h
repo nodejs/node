@@ -10,6 +10,7 @@
 #include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
+#include "uv.h"
 
 namespace node {
 
@@ -36,6 +37,11 @@ ReqWrap<T>::~ReqWrap() {
 template <typename T>
 void ReqWrap<T>::Dispatched() {
   req_.data = this;
+}
+
+template <typename T>
+void ReqWrap<T>::Cancel() {
+  uv_cancel(reinterpret_cast<uv_req_t*>(&req_));
 }
 
 }  // namespace node

@@ -70,12 +70,18 @@ class HandleWrap : public AsyncWrap {
 
   inline uv_handle_t* GetHandle() const { return handle_; }
 
+  void Close(v8::Local<v8::Value> close_callback = v8::Local<v8::Value>());
+
  protected:
   HandleWrap(Environment* env,
              v8::Local<v8::Object> object,
              uv_handle_t* handle,
              AsyncWrap::ProviderType provider);
-  ~HandleWrap() override;
+  virtual ~HandleWrap();
+  virtual void OnClose() {}
+
+  void MarkAsInitialized();
+  void MarkAsUninitialized();
 
  private:
   friend class Environment;

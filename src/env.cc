@@ -1,6 +1,7 @@
 #include "node_internals.h"
 #include "async-wrap.h"
 #include "v8-profiler.h"
+#include "req-wrap-inl.h"
 
 #if defined(_MSC_VER)
 #define getpid GetCurrentProcessId
@@ -51,11 +52,7 @@ void Environment::Start(int argc,
   uv_timer_init(event_loop(), destroy_async_ids_timer_handle());
 
   auto close_and_finish = [](Environment* env, uv_handle_t* handle, void* arg) {
-    handle->data = env;
-
-    uv_close(handle, [](uv_handle_t* handle) {
-      static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
-    });
+    env->CloseHandle(handle, [](uv_handle_t* handle) {});
   };
 
   RegisterHandleCleanup(
@@ -95,13 +92,18 @@ void Environment::Start(int argc,
 }
 
 void Environment::CleanupHandles() {
+  for (auto r : req_wrap_queue_)
+    r->Cancel();
+
+  for (auto w : handle_wrap_queue_)
+    w->Close();
+
   while (HandleCleanup* hc = handle_cleanup_queue_.PopFront()) {
-    handle_cleanup_waiting_++;
     hc->cb_(this, hc->handle_, hc->arg_);
     delete hc;
   }
 
-  while (handle_cleanup_waiting_ != 0)
+  while (handle_cleanup_waiting_ != 0 || !handle_wrap_queue_.IsEmpty())
     uv_run(event_loop(), UV_RUN_ONCE);
 }
 
@@ -167,6 +169,8 @@ void Environment::PrintSyncTrace() const {
 }
 
 void Environment::RunCleanup() {
+  CleanupHandles();
+
   while (!cleanup_hooks_.empty()) {
     std::vector<CleanupHookCallback> callbacks;
     // Concatenate all vectors in cleanup_hooks_
@@ -182,6 +186,7 @@ void Environment::RunCleanup() {
 
     for (const CleanupHookCallback& cb : callbacks) {
       cb.fun_(cb.arg_);
+      CleanupHandles();
     }
   }
 }

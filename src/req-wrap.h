@@ -19,6 +19,7 @@ class ReqWrap : public AsyncWrap {
   inline ~ReqWrap() override;
   inline void Dispatched();  // Call this after the req has been dispatched.
   T* req() { return &req_; }
+  inline void Cancel();
 
  private:
   friend class Environment;

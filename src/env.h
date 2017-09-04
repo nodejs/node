@@ -560,7 +560,9 @@ class Environment {
   inline void RegisterHandleCleanup(uv_handle_t* handle,
                                     HandleCleanupCb cb,
                                     void *arg);
-  inline void FinishHandleCleanup(uv_handle_t* handle);
+
+  template <typename T, typename OnCloseCallback>
+  inline void CloseHandle(T* handle, OnCloseCallback callback);
 
   inline AsyncHooks* async_hooks();
   inline DomainFlag* domain_flag();

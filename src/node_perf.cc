@@ -196,8 +196,7 @@ void PerformanceGCCallback(uv_async_t* handle) {
 
  cleanup:
   delete data;
-  auto closeCB = [](uv_handle_t* handle) { delete handle; };
-  uv_close(reinterpret_cast<uv_handle_t*>(handle), closeCB);
+  env->CloseHandle(handle, [](uv_async_t* handle) { delete handle; });
 }
 
 void MarkGarbageCollectionStart(Isolate* isolate,

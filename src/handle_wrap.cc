@@ -64,26 +64,37 @@ void HandleWrap::HasRef(const FunctionCallbackInfo<Value>& args) {
 
 
 void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   HandleWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  // Guard against uninitialized handle or double close.
-  if (!IsAlive(wrap))
+  wrap->Close(args[0]);
+}
+
+void HandleWrap::Close(v8::Local<v8::Value> close_callback) {
+  if (state_ != kInitialized)
     return;
 
-  if (wrap->state_ != kInitialized)
-    return;
+  CHECK_EQ(false, persistent().IsEmpty());
+  uv_close(handle_, OnClose);
+  state_ = kClosing;
 
-  CHECK_EQ(false, wrap->persistent().IsEmpty());
-  uv_close(wrap->handle_, OnClose);
-  wrap->state_ = kClosing;
-
-  if (args[0]->IsFunction()) {
-    wrap->object()->Set(env->onclose_string(), args[0]);
-    wrap->state_ = kClosingWithCallback;
+  if (!close_callback.IsEmpty() && close_callback->IsFunction()) {
+    object()->Set(env()->context(), env()->onclose_string(), close_callback)
+        .FromJust();
+    state_ = kClosingWithCallback;
   }
+}
+
+
+void HandleWrap::MarkAsInitialized() {
+  env()->handle_wrap_queue()->PushBack(this);
+  state_ = kInitialized;
+}
+
+
+void HandleWrap::MarkAsUninitialized() {
+  handle_wrap_queue_.Remove();
+  state_ = kClosed;
 }
 
 
@@ -102,7 +113,6 @@ HandleWrap::HandleWrap(Environment* env,
 
 
 HandleWrap::~HandleWrap() {
-  CHECK(persistent().IsEmpty());
 }
 
 
@@ -118,6 +128,8 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
 
   const bool have_close_callback = (wrap->state_ == kClosingWithCallback);
   wrap->state_ = kClosed;
+
+  wrap->OnClose();
 
   if (have_close_callback)
     wrap->MakeCallback(env->onclose_string(), 0, nullptr);

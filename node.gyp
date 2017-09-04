@@ -677,6 +677,7 @@
             '<(OBJ_PATH)<(OBJ_SEPARATOR)node_debug_options.<(OBJ_SUFFIX)',
             '<(OBJ_PATH)<(OBJ_SEPARATOR)async-wrap.<(OBJ_SUFFIX)',
             '<(OBJ_PATH)<(OBJ_SEPARATOR)env.<(OBJ_SUFFIX)',
+            '<(OBJ_PATH)<(OBJ_SEPARATOR)handle_wrap.<(OBJ_SUFFIX)',
             '<(OBJ_PATH)<(OBJ_SEPARATOR)node.<(OBJ_SUFFIX)',
             '<(OBJ_PATH)<(OBJ_SEPARATOR)node_buffer.<(OBJ_SUFFIX)',
             '<(OBJ_PATH)<(OBJ_SEPARATOR)node_i18n.<(OBJ_SUFFIX)',
