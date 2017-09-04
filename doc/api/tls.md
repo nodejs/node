@@ -519,7 +519,7 @@ Example:
 { name: 'AES256-SHA', version: 'TLSv1/SSLv3' }
 
 See SSL_CIPHER_get_name() and SSL_CIPHER_get_version() in
-https://www.openssl.org/docs/ssl/ssl.html#DEALING-WITH-CIPHERS for more
+https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-CIPHERS for more
 information.
 
 ### tlsSocket.getPeerCertificate([ detailed ])
@@ -799,7 +799,7 @@ dictionary with keys:
   (Certificate Revocation List)
 * `ciphers`: A string describing the ciphers to use or exclude.
   Consult
-  <https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT>
+  <https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT>
   for details on the format.
 * `honorCipherOrder` : When choosing a cipher, use the server's preferences
   instead of the client preferences. For further details see `tls` module
@@ -1049,7 +1049,7 @@ var ciphers = tls.getCiphers();
 console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 ```
 
-[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT
+[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Deprecation-of-TLS-Features-Algorithms-in-Chrome
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [BEAST attacks]: https://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
@@ -1063,9 +1063,9 @@ console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
 [Stream]: stream.html#stream_stream
-[SSL_METHODS]: https://www.openssl.org/docs/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
+[SSL_METHODS]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [tls.Server]: #tls_class_tls_server
-[SSL_CTX_set_timeout]: https://www.openssl.org/docs/ssl/SSL_CTX_set_timeout.html
+[SSL_CTX_set_timeout]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_timeout.html
 [RFC 4492]: https://www.rfc-editor.org/rfc/rfc4492.txt
 [Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
