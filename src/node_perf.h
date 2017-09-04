@@ -56,16 +56,22 @@ class PerformanceEntry : public BaseObject {
   class Data {
    public:
     Data(
+      Environment* env,
       const char* name,
       const char* type,
       uint64_t startTime,
       uint64_t endTime,
       int data = 0) :
+      env_(env),
       name_(name),
       type_(type),
       startTime_(startTime),
       endTime_(endTime),
       data_(data) {}
+
+    Environment* env() const {
+      return env_;
+    }
 
     std::string name() const {
       return name_;
@@ -88,6 +94,7 @@ class PerformanceEntry : public BaseObject {
     }
 
    private:
+    Environment* env_;
     std::string name_;
     std::string type_;
     uint64_t startTime_;
