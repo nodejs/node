@@ -734,7 +734,11 @@ class RepresentationSelector {
            !GetUpperBound(node->InputAt(1))->Maybe(type);
   }
 
-  void ConvertInput(Node* node, int index, UseInfo use) {
+  // Converts input {index} of {node} according to given UseInfo {use},
+  // assuming the type of the input is {input_type}. If {input_type} is null,
+  // it takes the input from the input node {TypeOf(node->InputAt(index))}.
+  void ConvertInput(Node* node, int index, UseInfo use,
+                    Type* input_type = nullptr) {
     Node* input = node->InputAt(index);
     // In the change phase, insert a change before the use if necessary.
     if (use.representation() == MachineRepresentation::kNone)
@@ -752,8 +756,11 @@ class RepresentationSelector {
       TRACE(" to ");
       PrintUseInfo(use);
       TRACE("\n");
+      if (input_type == nullptr) {
+        input_type = TypeOf(input);
+      }
       Node* n = changer_->GetRepresentationFor(
-          input, input_info->representation(), TypeOf(input), node, use);
+          input, input_info->representation(), input_type, node, use);
       node->ReplaceInput(index, n);
     }
   }
@@ -2802,18 +2809,22 @@ class RepresentationSelector {
       case IrOpcode::kObjectState:
         return VisitObjectState(node);
       case IrOpcode::kTypeGuard: {
-        // We just get rid of the sigma here. In principle, it should be
-        // possible to refine the truncation and representation based on
-        // the sigma's type.
+        // We just get rid of the sigma here, choosing the best representation
+        // for the sigma's type.
+        Type* type = TypeOf(node);
         MachineRepresentation representation =
-            GetOutputInfoForPhi(node, TypeOf(node->InputAt(0)), truncation);
+            GetOutputInfoForPhi(node, type, truncation);
 
-        // For now, we just handle specially the impossible case.
-        MachineRepresentation output = TypeOf(node)->IsInhabited()
-                                           ? representation
-                                           : MachineRepresentation::kNone;
-
-        VisitUnop(node, UseInfo(representation, truncation), output);
+        // Here we pretend that the input has the sigma's type for the
+        // conversion.
+        UseInfo use(representation, truncation);
+        if (propagate()) {
+          EnqueueInput(node, 0, use);
+        } else if (lower()) {
+          ConvertInput(node, 0, use, type);
+        }
+        ProcessRemainingInputs(node, 1);
+        SetOutput(node, representation);
         if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
       }
