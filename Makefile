@@ -530,8 +530,7 @@ BINARYTAR=$(BINARYNAME).tar
 XZ=$(shell which xz > /dev/null 2>&1; echo $$?)
 XZ_COMPRESSION ?= 9e
 PKG=$(TARNAME).pkg
-PACKAGEMAKER ?= /Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
-PKGDIR=out/dist-osx
+MACOSOUTDIR=out/macos
 
 release-only:
 	@if [ "$(DISTTYPE)" != "nightly" ] && [ "$(DISTTYPE)" != "next-nightly" ] && \
@@ -561,24 +560,53 @@ release-only:
 	fi
 
 $(PKG): release-only
-	$(RM) -r $(PKGDIR)
-	$(RM) -r out/deps out/Release
+	$(RM) -r $(MACOSOUTDIR)
+	mkdir -p $(MACOSOUTDIR)/installer/productbuild
+	cat tools/macos-installer/productbuild/distribution.xml.tmpl  \
+		| sed -E "s/\\{nodeversion\\}/$(FULLVERSION)/g" \
+		| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g" \
+	>$(MACOSOUTDIR)/installer/productbuild/distribution.xml ; \
+
+	@for dirname in tools/macos-installer/productbuild/Resources/*/; do \
+		lang=$$(basename $$dirname) ; \
+		mkdir -p $(MACOSOUTDIR)/installer/productbuild/Resources/$$lang ; \
+		printf "Found localization directory $$dirname\n" ; \
+		cat $$dirname/welcome.html.tmpl  \
+			| sed -E "s/\\{nodeversion\\}/$(FULLVERSION)/g" \
+			| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g"  \
+		>$(MACOSOUTDIR)/installer/productbuild/Resources/$$lang/welcome.html ; \
+		cat $$dirname/conclusion.html.tmpl  \
+			| sed -E "s/\\{nodeversion\\}/$(FULLVERSION)/g" \
+			| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g"  \
+		>$(MACOSOUTDIR)/installer/productbuild/Resources/$$lang/conclusion.html ; \
+	done
 	$(PYTHON) ./configure \
 		--dest-cpu=x64 \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
-	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)/usr/local" bash \
+	$(MAKE) install V=$(V) DESTDIR=$(MACOSOUTDIR)/dist/node
+	SIGN="$(CODESIGN_CERT)" PKGDIR="$(MACOSOUTDIR)/dist/node/usr/local" bash \
 		tools/osx-codesign.sh
-	cat tools/osx-pkg.pmdoc/index.xml.tmpl \
-		| sed -E "s/\\{nodeversion\\}/$(FULLVERSION)/g" \
-		| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g" \
-		> tools/osx-pkg.pmdoc/index.xml
-	$(PACKAGEMAKER) \
-		--id "org.nodejs.pkg" \
-		--doc tools/osx-pkg.pmdoc \
-		--out $(PKG)
+	mkdir -p $(MACOSOUTDIR)/dist/npm/usr/local/lib/node_modules
+	mkdir -p $(MACOSOUTDIR)/pkgs
+	mv $(MACOSOUTDIR)/dist/node/usr/local/lib/node_modules/npm \
+		$(MACOSOUTDIR)/dist/npm/usr/local/lib/node_modules
+	unlink $(MACOSOUTDIR)/dist/node/usr/local/bin/npm
+	$(NODE) tools/license2rtf.js < LICENSE > \
+		$(MACOSOUTDIR)/installer/productbuild/Resources/license.rtf
+	cp doc/osx_installer_logo.png $(MACOSOUTDIR)/installer/productbuild/Resources
+	pkgbuild --version $(FULLVERSION) \
+		--identifier org.nodejs.node.pkg \
+		--root $(MACOSOUTDIR)/dist/node $(MACOSOUTDIR)/pkgs/node-$(FULLVERSION).pkg
+	pkgbuild --version $(NPMVERSION) \
+		--identifier org.nodejs.npm.pkg \
+		--root $(MACOSOUTDIR)/dist/npm \
+		--scripts ./tools/macos-installer/pkgbuild/npm/scripts \
+			$(MACOSOUTDIR)/pkgs/npm-$(NPMVERSION).pkg
+	productbuild --distribution $(MACOSOUTDIR)/installer/productbuild/distribution.xml \
+		--resources $(MACOSOUTDIR)/installer/productbuild/Resources \
+		--package-path $(MACOSOUTDIR)/pkgs ./$(PKG)
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
 pkg: $(PKG)

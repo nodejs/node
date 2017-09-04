@@ -68,11 +68,9 @@ ipch/
 /config_fips.gypi
 *-nodegyp*
 /gyp-mac-tool
-/dist-osx
 /npm.wxs
 /tools/msvs/npm.wixobj
 /tools/msvs/genfiles/
-/tools/osx-pkg.pmdoc/index.xml
 /test/addons/??_*/
 email.md
 deps/v8-*
@@ -100,6 +98,7 @@ deps/npm/node_modules/.bin/
 
 # build/release artifacts
 /*.tar.*
+/*.pkg
 /SHASUMS*.txt*
 
 # test artifacts
