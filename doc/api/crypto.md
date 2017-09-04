@@ -1608,7 +1608,7 @@ See the reference for other recommendations and details.
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
 [OpenSSL cipher list format]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT
-[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/apps/spkac.html
+[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
 [publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
