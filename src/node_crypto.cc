@@ -923,20 +923,14 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value curve(env->isolate(), args[0]);
 
-  int nid = OBJ_sn2nid(*curve);
-
-  if (nid == NID_undef)
-    return env->ThrowTypeError("First argument should be a valid curve name");
-
-  EC_KEY* ecdh = EC_KEY_new_by_curve_name(nid);
-
-  if (ecdh == nullptr)
-    return env->ThrowTypeError("First argument should be a valid curve name");
-
   SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_ECDH_USE);
-  SSL_CTX_set_tmp_ecdh(sc->ctx_, ecdh);
+  SSL_CTX_set_ecdh_auto(sc->ctx_, 1);
 
-  EC_KEY_free(ecdh);
+  if (strcmp(*curve, "auto") == 0)
+    return;
+
+  if (!SSL_CTX_set1_curves_list(sc->ctx_, *curve))
+    return env->ThrowError("Failed to set ECDH curve");
 }
 
 
