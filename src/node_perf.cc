@@ -170,13 +170,14 @@ void SetupPerformanceObservers(const FunctionCallbackInfo<Value>& args) {
   env->set_performance_entry_callback(args[0].As<Function>());
 }
 
-inline void PerformanceGCCallback(uv_async_t* handle) {
+void PerformanceGCCallback(uv_async_t* handle) {
   PerformanceEntry::Data* data =
       static_cast<PerformanceEntry::Data*>(handle->data);
-  Isolate* isolate = Isolate::GetCurrent();
+  Environment* env = data->env();
+  Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
   Local<Context> context = env->context();
+  Context::Scope context_scope(context);
   Local<Function> fn;
   Local<Object> obj;
   PerformanceGCKind kind = static_cast<PerformanceGCKind>(data->data());
@@ -199,28 +200,31 @@ inline void PerformanceGCCallback(uv_async_t* handle) {
   uv_close(reinterpret_cast<uv_handle_t*>(handle), closeCB);
 }
 
-inline void MarkGarbageCollectionStart(Isolate* isolate,
-                                       v8::GCType type,
-                                       v8::GCCallbackFlags flags) {
+void MarkGarbageCollectionStart(Isolate* isolate,
+                                v8::GCType type,
+                                v8::GCCallbackFlags flags) {
   performance_last_gc_start_mark_ = PERFORMANCE_NOW();
   performance_last_gc_type_ = type;
 }
 
-inline void MarkGarbageCollectionEnd(Isolate* isolate,
-                                     v8::GCType type,
-                                     v8::GCCallbackFlags flags) {
+void MarkGarbageCollectionEnd(Isolate* isolate,
+                              v8::GCType type,
+                              v8::GCCallbackFlags flags,
+                              void* data) {
+  Environment* env = static_cast<Environment*>(data);
   uv_async_t *async = new uv_async_t;
   async->data =
-      new PerformanceEntry::Data("gc", "gc",
+      new PerformanceEntry::Data(env, "gc", "gc",
                                  performance_last_gc_start_mark_,
                                  PERFORMANCE_NOW(), type);
-  uv_async_init(uv_default_loop(), async, PerformanceGCCallback);
+  uv_async_init(env->event_loop(), async, PerformanceGCCallback);
   uv_async_send(async);
 }
 
-inline void SetupGarbageCollectionTracking(Isolate* isolate) {
-  isolate->AddGCPrologueCallback(MarkGarbageCollectionStart);
-  isolate->AddGCEpilogueCallback(MarkGarbageCollectionEnd);
+inline void SetupGarbageCollectionTracking(Environment* env) {
+  env->isolate()->AddGCPrologueCallback(MarkGarbageCollectionStart);
+  env->isolate()->AddGCEpilogueCallback(MarkGarbageCollectionEnd,
+                                        static_cast<void*>(env));
 }
 
 inline Local<Value> GetName(Local<Function> fn) {
@@ -376,7 +380,7 @@ void Init(Local<Object> target,
                             constants,
                             attr).ToChecked();
 
-  SetupGarbageCollectionTracking(isolate);
+  SetupGarbageCollectionTracking(env);
 }
 
 }  // namespace performance
