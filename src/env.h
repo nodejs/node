@@ -193,6 +193,7 @@ struct PackageConfig {
   V(main_string, "main")                                                      \
   V(max_buffer_string, "maxBuffer")                                           \
   V(message_string, "message")                                                \
+  V(message_port_constructor_string, "MessagePort")                           \
   V(minttl_string, "minttl")                                                  \
   V(modulus_string, "modulus")                                                \
   V(name_string, "name")                                                      \
@@ -212,6 +213,7 @@ struct PackageConfig {
   V(onhandshakedone_string, "onhandshakedone")                                \
   V(onhandshakestart_string, "onhandshakestart")                              \
   V(onheaders_string, "onheaders")                                            \
+  V(oninit_string, "oninit")                                                  \
   V(onmessage_string, "onmessage")                                            \
   V(onnewsession_string, "onnewsession")                                      \
   V(onocspresponse_string, "onocspresponse")                                  \
@@ -242,6 +244,8 @@ struct PackageConfig {
   V(pipe_target_string, "pipeTarget")                                         \
   V(pipe_source_string, "pipeSource")                                         \
   V(port_string, "port")                                                      \
+  V(port1_string, "port1")                                                    \
+  V(port2_string, "port2")                                                    \
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
   V(promise_string, "promise")                                                \
@@ -323,6 +327,7 @@ struct PackageConfig {
   V(http2stream_constructor_template, v8::ObjectTemplate)                     \
   V(immediate_callback_function, v8::Function)                                \
   V(inspector_console_api_object, v8::Object)                                 \
+  V(message_port_constructor_template, v8::FunctionTemplate)                  \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
   V(performance_entry_callback, v8::Function)                                 \

@@ -650,11 +650,22 @@ Used when a child process is being forked without specifying an IPC channel.
 Used when the main process is trying to read data from the child process's
 STDERR / STDOUT, and the data's length is longer than the `maxBuffer` option.
 
+<a id="ERR_CLOSED_MESSAGE_PORT"></a>
+### ERR_CLOSED_MESSAGE_PORT
+
+There was an attempt to use a `MessagePort` instance in a closed
+state, usually after `.close()` has been called.
+
 <a id="ERR_CONSOLE_WRITABLE_STREAM"></a>
 ### ERR_CONSOLE_WRITABLE_STREAM
 
 `Console` was instantiated without `stdout` stream, or `Console` has a
 non-writable `stdout` or `stderr` stream.
+
+<a id="ERR_CONSTRUCT_CALL_REQUIRED"></a>
+### ERR_CONSTRUCT_CALL_REQUIRED
+
+A constructor for a class was called without `new`.
 
 <a id="ERR_CPU_USAGE"></a>
 ### ERR_CPU_USAGE
@@ -1202,6 +1213,11 @@ const buf = Buffer.alloc(1);
 urlSearchParams.has.call(buf, 'foo');
 // Throws a TypeError with code 'ERR_INVALID_THIS'
 ```
+
+<a id="ERR_INVALID_TRANSFER_OBJECT"></a>
+### ERR_INVALID_TRANSFER_OBJECT
+
+An invalid transfer object was passed to `postMessage()`.
 
 <a id="ERR_INVALID_TUPLE"></a>
 ### ERR_INVALID_TUPLE
