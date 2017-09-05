@@ -12,6 +12,7 @@
 !.gitignore
 !.gitkeep
 !.mailmap
+!.nycrc
 !.remarkrc
 
 core

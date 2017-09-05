@@ -165,7 +165,7 @@ coverage-test: coverage-build
 	$(NODE) ./node_modules/.bin/istanbul-merge --out \
 		.cov_tmp/libcov.json 'out/Release/.coverage/coverage-*.json'
 	(cd lib && .$(NODE) ../node_modules/.bin/nyc report \
-		--temp-directory "$(CURDIR)/.cov_tmp" -r html \
+		--temp-directory "$(CURDIR)/.cov_tmp" \
 		--report-dir "../coverage")
 	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
 		--gcov-exclude='.*usr' -v -r Release/obj.target/node \
