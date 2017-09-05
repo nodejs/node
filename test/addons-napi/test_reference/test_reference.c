@@ -150,4 +150,4 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
 }
 
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

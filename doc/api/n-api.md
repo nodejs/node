@@ -877,7 +877,7 @@ except that instead of using the `NODE_MODULE` macro the following
 is used:
 
 ```C
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
 ```
 
 The next difference is the signature for the `Init` method. For a N-API
@@ -2874,7 +2874,7 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   if (status != napi_ok) return;
 }
 
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
 ```
 
 Given the above code, the add-on can be used from JavaScript as follows:
