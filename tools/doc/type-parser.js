@@ -117,7 +117,9 @@ const customTypesMap = {
   'Tracing': 'tracing.html#tracing_tracing_object',
 
   'URL': 'url.html#url_the_whatwg_url_api',
-  'URLSearchParams': 'url.html#url_class_urlsearchparams'
+  'URLSearchParams': 'url.html#url_class_urlsearchparams',
+
+  'MessagePort': 'worker.html#worker_class_messageport'
 };
 
 const arrayPart = /(?:\[])+$/;

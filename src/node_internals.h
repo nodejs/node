@@ -114,6 +114,7 @@ struct sockaddr;
     V(http_parser)                                                            \
     V(inspector)                                                              \
     V(js_stream)                                                              \
+    V(messaging)                                                              \
     V(module_wrap)                                                            \
     V(os)                                                                     \
     V(performance)                                                            \
@@ -188,6 +189,11 @@ extern bool config_experimental_modules;
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/vm.js
 extern bool config_experimental_vm_modules;
+
+// Set in node.cc by ParseArgs when --experimental-vm-modules is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/vm.js
+extern bool config_experimental_worker;
 
 // Set in node.cc by ParseArgs when --experimental-repl-await is used.
 // Used in node_config.cc to set a constant on process.binding('config')

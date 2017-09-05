@@ -248,6 +248,11 @@ bool config_experimental_modules = false;
 // that is used by lib/vm.js
 bool config_experimental_vm_modules = false;
 
+// Set in node.cc by ParseArgs when --experimental-worker is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/worker.js
+bool config_experimental_worker = false;
+
 // Set in node.cc by ParseArgs when --experimental-repl-await is used.
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/repl.js.
@@ -3104,6 +3109,7 @@ static void PrintHelp() {
          "  --experimental-vm-modules  experimental ES Module support\n"
          "                             in vm module\n"
 #endif  // defined(NODE_HAVE_I18N_SUPPORT)
+         "  --experimental-worker      experimental threaded Worker support\n"
 #if HAVE_OPENSSL && NODE_FIPS_MODE
          "  --force-fips               force FIPS crypto (cannot be disabled)\n"
 #endif  // HAVE_OPENSSL && NODE_FIPS_MODE
@@ -3267,6 +3273,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--experimental-modules",
     "--experimental-repl-await",
     "--experimental-vm-modules",
+    "--experimental-worker",
     "--expose-http2",   // keep as a non-op through v9.x
     "--force-fips",
     "--icu-data-dir",
@@ -3465,6 +3472,8 @@ static void ParseArgs(int* argc,
       new_v8_argc += 1;
     } else if (strcmp(arg, "--experimental-vm-modules") == 0) {
       config_experimental_vm_modules = true;
+    } else if (strcmp(arg, "--experimental-worker") == 0) {
+      config_experimental_worker = true;
     } else if (strcmp(arg, "--experimental-repl-await") == 0) {
       config_experimental_repl_await = true;
     }  else if (strcmp(arg, "--loader") == 0) {
