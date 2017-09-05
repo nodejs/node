@@ -52,8 +52,10 @@ const ee = new EventEmitter();
   ee.removeAllListeners();
   ee.when('foo')
     .then(common.mustNotCall())
-    .catch(common.mustCall((reason) => {
-      assert.strictEqual(reason, 'canceled');
+    .catch(common.expectsError({
+      code: 'ERR_EVENTS_WHEN_CANCELED',
+      type: Error,
+      message: 'The when \'foo\' promise was canceled'
     }));
   ee.removeAllListeners();
 }
@@ -63,11 +65,15 @@ const ee = new EventEmitter();
   assert.strictEqual(ee.listenerCount(0), 0);
   const promise = ee.when('foo');
   promise.then(common.mustNotCall())
-         .catch(common.mustCall((reason) => {
-           assert.strictEqual(reason, 'canceled');
-         }));
+          .catch(common.expectsError({
+            code: 'ERR_EVENTS_WHEN_CANCELED',
+            type: Error,
+            message: 'The when \'foo\' promise was canceled'
+          }));
   const fn = ee.listeners('foo')[0];
   assert.strictEqual(fn.name, 'promise for \'foo\'');
   assert.strictEqual(fn.promise, promise);
   ee.removeListener('foo', fn);
 }
+
+process.on('unhandledRejection', common.mustNotCall());
