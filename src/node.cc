@@ -167,6 +167,9 @@ using v8::Value;
 
 using AsyncHooks = node::Environment::AsyncHooks;
 
+static Mutex process_mutex;
+static Mutex environ_mutex;
+
 static bool print_eval = false;
 static bool force_repl = false;
 static bool syntax_check_only = false;
@@ -1789,6 +1792,7 @@ void AppendExceptionLine(Environment* env,
   if (!can_set_arrow || (mode == FATAL_ERROR && !err_obj->IsNativeError())) {
     if (env->printed_error())
       return;
+    Mutex::ScopedLock lock(process_mutex);
     env->set_printed_error(true);
 
     uv_tty_reset_mode();
@@ -2952,6 +2956,7 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
 static void ProcessTitleGetter(Local<Name> property,
                                const PropertyCallbackInfo<Value>& info) {
+  Mutex::ScopedLock lock(process_mutex);
   char buffer[512];
   uv_get_process_title(buffer, sizeof(buffer));
   info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), buffer));
@@ -2961,6 +2966,7 @@ static void ProcessTitleGetter(Local<Name> property,
 static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
+  Mutex::ScopedLock lock(process_mutex);
   node::Utf8Value title(info.GetIsolate(), value);
   // TODO(piscisaureus): protect with a lock
   uv_set_process_title(*title);
@@ -2969,6 +2975,7 @@ static void ProcessTitleSetter(Local<Name> property,
 
 static void EnvGetter(Local<Name> property,
                       const PropertyCallbackInfo<Value>& info) {
+  Mutex::ScopedLock lock(environ_mutex);
   Isolate* isolate = info.GetIsolate();
   if (property->IsSymbol()) {
     return info.GetReturnValue().SetUndefined();
@@ -3001,6 +3008,7 @@ static void EnvGetter(Local<Name> property,
 static void EnvSetter(Local<Name> property,
                       Local<Value> value,
                       const PropertyCallbackInfo<Value>& info) {
+  Mutex::ScopedLock lock(environ_mutex);
 #ifdef __POSIX__
   node::Utf8Value key(info.GetIsolate(), property);
   node::Utf8Value val(info.GetIsolate(), value);
@@ -3021,6 +3029,7 @@ static void EnvSetter(Local<Name> property,
 
 static void EnvQuery(Local<Name> property,
                      const PropertyCallbackInfo<Integer>& info) {
+  Mutex::ScopedLock lock(environ_mutex);
   int32_t rc = -1;  // Not found unless proven otherwise.
   if (property->IsString()) {
 #ifdef __POSIX__
@@ -3049,6 +3058,7 @@ static void EnvQuery(Local<Name> property,
 
 static void EnvDeleter(Local<Name> property,
                        const PropertyCallbackInfo<Boolean>& info) {
+  Mutex::ScopedLock lock(environ_mutex);
   if (property->IsString()) {
 #ifdef __POSIX__
     node::Utf8Value key(info.GetIsolate(), property);
@@ -3067,6 +3077,7 @@ static void EnvDeleter(Local<Name> property,
 
 
 static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
+  Mutex::ScopedLock lock(environ_mutex);
   Environment* env = Environment::GetCurrent(info);
   Isolate* isolate = env->isolate();
   Local<Context> ctx = env->context();
@@ -3190,6 +3201,7 @@ static Local<Object> GetFeatures(Environment* env) {
 
 static void DebugPortGetter(Local<Name> property,
                             const PropertyCallbackInfo<Value>& info) {
+  Mutex::ScopedLock lock(process_mutex);
   int port = debug_options.port();
 #if HAVE_INSPECTOR
   if (port == 0) {
@@ -3205,6 +3217,7 @@ static void DebugPortGetter(Local<Name> property,
 static void DebugPortSetter(Local<Name> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
+  Mutex::ScopedLock lock(process_mutex);
   debug_options.set_port(value->Int32Value());
 }
 

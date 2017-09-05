@@ -788,6 +788,9 @@ static int X509_up_ref(X509* cert) {
 
 static X509_STORE* NewRootCertStore() {
   static std::vector<X509*> root_certs_vector;
+  static Mutex root_certs_vector_mutex;
+  Mutex::ScopedLock lock(root_certs_vector_mutex);
+
   if (root_certs_vector.empty()) {
     for (size_t i = 0; i < arraysize(root_certs); i++) {
       BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
