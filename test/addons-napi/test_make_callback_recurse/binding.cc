@@ -29,4 +29,4 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
 
 }  // namespace
 
-NAPI_MODULE(binding, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

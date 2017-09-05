@@ -32,4 +32,4 @@ void Initialize(Local<Object> exports) {
 
 }  // namespace
 
-NODE_MODULE(binding, Initialize)
+NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
