@@ -614,6 +614,23 @@ Used when the native call from `process.cpuUsage` cannot be processed properly.
 
 Used when `c-ares` failed to set the DNS server.
 
+<a id="ERR_EVENTS_WHEN_CANCELED"></a>
+### ERR_EVENTS_WHEN_CANCELED
+
+Used when a `Promise` created using `emitter.when()` has been rejected because
+the listener has been removed.
+
+```js
+const EventEmitter = require('events');
+
+const ee = new EventEmitter();
+ee.when('foo').then(() => { /* ... */ }).catch((reason) => {
+  console.log(reason.code); // ERR_EVENTS_WHEN_CANCELED
+});
+
+ee.removeAllListeners('foo');
+```
+
 <a id="ERR_FALSY_VALUE_REJECTION"></a>
 ### ERR_FALSY_VALUE_REJECTION
 
