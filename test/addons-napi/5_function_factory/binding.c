@@ -22,4 +22,4 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   NAPI_CALL_RETURN_VOID(env, napi_define_properties(env, module, 1, &desc));
 }
 
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
