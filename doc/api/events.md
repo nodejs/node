@@ -586,15 +586,12 @@ to indicate an unlimited number of listeners.
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
 
-### async emitter.when(eventName[, options])
+### async emitter.when(eventName)
 <!-- YAML
 added: REPLACEME
 -->
 
 * `eventName` {any} The name of the event.
-* `options` {Object}
-  * `prepend` {boolean} True to prepend the handler used to resolve the
-    `Promise` to the handler queue.
 * Returns: {Promise}
 
 Creates and returns a `Promise` that is resolved with a one-time event handler.

@@ -19,23 +19,6 @@ const ee = new EventEmitter();
 }
 
 {
-  let a = 1;
-  ee.when('foo')
-    .then(common.mustCall(() => {
-      assert.strictEqual(a, 2);
-    }))
-    .catch(common.mustNotCall());
-
-  ee.when('foo', { prepend: true })
-    .then(common.mustCall(() => {
-      assert.strictEqual(a++, 1);
-    }))
-    .catch(common.mustNotCall());
-
-  ee.emit('foo');
-}
-
-{
   ee.when('foo')
     .then(common.mustCall(() => {
       throw new Error('foo');
