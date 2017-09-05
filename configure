@@ -420,6 +420,8 @@ http2_optgroup.add_option('--debug-nghttp2',
     dest='debug_nghttp2',
     help='build nghttp2 with DEBUGBUILD (default is false)')
 
+parser.add_option_group(http2_optgroup)
+
 parser.add_option('--with-perfctr',
     action='store_true',
     dest='with_perfctr',
