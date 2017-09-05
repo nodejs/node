@@ -120,6 +120,7 @@ check: test
 # in place
 coverage-clean:
 	if [ -d lib_ ]; then $(RM) -r lib; mv lib_ lib; fi
+	$(RM) package-lock.json
 	$(RM) -r node_modules
 	$(RM) -r gcovr testing
 	$(RM) -r out/$(BUILDTYPE)/.coverage
