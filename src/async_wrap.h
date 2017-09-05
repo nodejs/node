@@ -49,6 +49,7 @@ namespace node {
   V(HTTP2SETTINGS)                                                            \
   V(HTTPPARSER)                                                               \
   V(JSSTREAM)                                                                 \
+  V(MESSAGEPORT)                                                              \
   V(PIPECONNECTWRAP)                                                          \
   V(PIPESERVERWRAP)                                                           \
   V(PIPEWRAP)                                                                 \
