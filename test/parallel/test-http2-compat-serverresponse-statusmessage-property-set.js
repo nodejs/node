@@ -22,8 +22,9 @@ server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
     response.on('finish', common.mustCall(function() {
-      assert.strictEqual(response.statusMessage, '');
-      assert.strictEqual(response.statusMessage, ''); // only warn once
+      response.statusMessage = 'test';
+      response.statusMessage = 'test'; // only warn once
+      assert.strictEqual(response.statusMessage, ''); // no change
       server.close();
     }));
     response.end();

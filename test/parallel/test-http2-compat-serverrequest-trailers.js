@@ -10,7 +10,8 @@ const h2 = require('http2');
 // Http2ServerRequest should have getter for trailers & rawTrailers
 
 const expectedTrailers = {
-  'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO'
+  'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO',
+  'x-foo-test': 'test, test'
 };
 
 const server = h2.createServer();
@@ -25,6 +26,18 @@ server.listen(0, common.mustCall(function() {
       for (const [name, value] of Object.entries(expectedTrailers)) {
         assert.strictEqual(trailers[name], value);
       }
+      assert.deepStrictEqual([
+        'x-foo',
+        'xOxOxOx',
+        'x-foo',
+        'OxOxOxO',
+        'x-foo',
+        'xOxOxOx',
+        'x-foo',
+        'OxOxOxO',
+        'x-foo-test',
+        'test, test'
+      ], request.rawTrailers);
       assert.strictEqual(data, 'test\ntest');
       response.end();
     }));
@@ -44,6 +57,7 @@ server.listen(0, common.mustCall(function() {
         trailers['x-foO'] = 'OxOxOxO';
         trailers['X-fOo'] = 'xOxOxOx';
         trailers['X-foO'] = 'OxOxOxO';
+        trailers['x-foo-test'] = 'test, test';
       }
     });
     request.resume();
