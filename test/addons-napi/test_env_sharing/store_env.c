@@ -9,4 +9,4 @@ void Init(napi_env env, napi_value exports, napi_value module, void* context) {
     napi_set_named_property(env, module, "exports", external));
 }
 
-NAPI_MODULE(store_env, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
