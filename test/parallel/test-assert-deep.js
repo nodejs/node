@@ -466,6 +466,7 @@ assertOnlyDeepEqual(
   assertDeepAndStrictEqual(m3, m4);
 }
 
+// Handle sparse arrays
 assertDeepAndStrictEqual([1, , , 3], [1, , , 3]);
 assertOnlyDeepEqual([1, , , 3], [1, , , 3, , , ]);
 
@@ -480,5 +481,12 @@ assertOnlyDeepEqual([1, , , 3], [1, , , 3, , , ]);
   // Date and any object that has the same keys but not the same prototype.
   assertOnlyDeepEqual(err1, {}, assert.AssertionError);
 }
+
+// Handle NaN
+assert.throws(() => { assert.deepEqual(NaN, NaN); }, assert.AssertionError);
+assert.doesNotThrow(() => { assert.deepStrictEqual(NaN, NaN); });
+assert.doesNotThrow(() => { assert.deepStrictEqual({ a: NaN }, { a: NaN }); });
+assert.doesNotThrow(
+  () => { assert.deepStrictEqual([ 1, 2, NaN, 4 ], [ 1, 2, NaN, 4 ]); });
 
 /* eslint-enable */
