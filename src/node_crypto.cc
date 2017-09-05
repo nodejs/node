@@ -5616,13 +5616,13 @@ void RandomBytesProcessSync(Environment* env,
 void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsUint32()) {
+  if (!args[0]->IsNumber() || args[0].As<v8::Number>()->Value() < 0) {
     return env->ThrowTypeError("size must be a number >= 0");
   }
 
   const int64_t size = args[0]->IntegerValue();
-  if (size < 0 || size > Buffer::kMaxLength)
-    return env->ThrowRangeError("size is not a valid Smi");
+  if (size > Buffer::kMaxLength)
+    return env->ThrowTypeError("size must be a uint32");
 
   Local<Object> obj = env->randombytes_constructor_template()->
       NewInstance(env->context()).ToLocalChecked();
