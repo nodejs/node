@@ -595,6 +595,7 @@ added: REPLACEME
 * `options` {Object}
   * `prepend` {boolean} True to prepend the handler used to resolve the
     `Promise` to the handler queue.
+* Returns: {Promise}
 
 Creates and returns a `Promise` that is resolved with a one-time event handler.
 
@@ -603,8 +604,8 @@ const myEmitter = new EventEmitter();
 
 const p = myEmitter.when('foo')
                    .then((context) => {
-                      console.log(context.args))
-                   };
+                     console.log(context.args);
+                   });
 
 myEmitter.emit('foo', 1, 2, 3);
 ```
