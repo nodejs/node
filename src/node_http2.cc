@@ -842,6 +842,8 @@ void Http2Session::OnHeaders(Nghttp2Stream* stream,
   Local<Function> fn = env()->push_values_to_array_function();
   Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX * 2];
 
+  CHECK_LE(cat, NGHTTP2_HCAT_HEADERS);
+
   // The headers are passed in above as a linked list of nghttp2_header_list
   // structs. The following converts that into a JS array with the structure:
   // [name1, value1, name2, value2, name3, value3, name3, value4] and so on.
