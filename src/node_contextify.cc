@@ -30,6 +30,7 @@
 #include "util-inl.h"
 #include "v8-debug.h"
 
+#include <sstream>
 #include <string>
 
 namespace node {
@@ -72,6 +73,11 @@ using v8::Value;
 using v8::WeakCallbackInfo;
 
 namespace {
+
+std::ostream& operator<<(std::ostream& os, Local<Value> value) {
+  String::Utf8Value utf8(value);
+  return os << *utf8;
+}
 
 class ContextifyContext {
  protected:
@@ -424,6 +430,8 @@ class ContextifyContext {
     if (ctx->context_.IsEmpty())
       return;
 
+    Local<Context> context = ctx->context();
+
     auto attributes = PropertyAttribute::None;
     bool is_declared =
         ctx->sandbox()->GetRealNamedPropertyAttributes(ctx->context(),
@@ -435,12 +443,19 @@ class ContextifyContext {
 
     if (is_declared && read_only) {
       if (args.ShouldThrowOnError()) {
-        std::string error_message("Cannot assign to read only property '");
-        Local<String> property_name = property->ToDetailString();
-        String::Utf8Value utf8_name(property_name);
-        error_message += *utf8_name;
-        error_message +=  "' of object '#<Object>'";
-        env->ThrowTypeError(error_message.c_str());
+        std::ostringstream error_message;
+        error_message << "Cannot assign to read only property '";
+        Local<String> property_name =
+            property->ToDetailString(context).ToLocalChecked();
+        error_message << property_name;
+        error_message <<  "' of ";
+        error_message << ctx->sandbox()->TypeOf(isolate);
+        error_message << " '";
+        Local<String> sandbox_name =
+            ctx->sandbox()->ToDetailString(context).ToLocalChecked();
+        error_message << sandbox_name;
+        error_message << "'";
+        env->ThrowTypeError(error_message.str().c_str());
       }
       return;
     }
@@ -537,6 +552,8 @@ class ContextifyContext {
     if (ctx->context_.IsEmpty())
       return;
 
+    Local<Context> context = ctx->context();
+
     auto attributes = PropertyAttribute::None;
     bool is_declared =
         ctx->sandbox()->GetRealNamedPropertyAttributes(ctx->context(),
@@ -549,7 +566,8 @@ class ContextifyContext {
     if (is_declared && non_enumerable) {
       if (args.ShouldThrowOnError()) {
         std::string error_message("Cannot redefine property: ");
-        Local<String> property_name = property->ToDetailString();
+        Local<String> property_name =
+            property->ToDetailString(context).ToLocalChecked();
         String::Utf8Value utf8_name(property_name);
         error_message += *utf8_name;
         env->ThrowTypeError(error_message.c_str());
@@ -557,7 +575,6 @@ class ContextifyContext {
       return;
     }
 
-    Local<Context> context = ctx->context();
     auto add_desc_copy_to_sandbox =
         [&] (PropertyDescriptor* desc_copy) {
           if (desc.has_enumerable()) {
