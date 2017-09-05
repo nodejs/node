@@ -15,6 +15,8 @@ const server = http.createServer(common.mustCall((req, res) => {
   res.end('hello world');
 }, 2));
 
+server.keepAliveTimeout = 0;
+
 function get(path, callback) {
   return http.get({
     host: 'localhost',
