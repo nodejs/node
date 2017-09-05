@@ -35,7 +35,9 @@ common.crashOnUnhandledRejection();
     delete providers.HTTP2STREAM;
     delete providers.HTTP2PING;
     delete providers.HTTP2SETTINGS;
+    // TODO(addaleax): Test for these
     delete providers.STREAMPIPE;
+    delete providers.MESSAGEPORT;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
