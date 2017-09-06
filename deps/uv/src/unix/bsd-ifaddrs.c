@@ -31,11 +31,18 @@
 #include <net/if_dl.h>
 #endif
 
-static int uv__ifaddr_exclude(struct ifaddrs *ent) {
+static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
   if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)))
     return 1;
   if (ent->ifa_addr == NULL)
     return 1;
+  /*
+   * If `exclude_type` is `UV__EXCLUDE_IFPHYS`, just see whether `sa_family`
+   * equals to `AF_LINK` or not. Otherwise, the result depends on the operation
+   * system with `AF_LINK` or `PF_INET`.
+   */
+  if (exclude_type == UV__EXCLUDE_IFPHYS)
+    return (ent->ifa_addr->sa_family != AF_LINK);
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
   /*
    * On BSD getifaddrs returns information related to the raw underlying
@@ -63,7 +70,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 
   /* Count the number of interfaces */
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (uv__ifaddr_exclude(ent))
+    if (uv__ifaddr_exclude(ent, UV__EXCLUDE_IFADDR))
       continue;
     (*count)++;
   }
@@ -78,7 +85,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   address = *addresses;
 
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (uv__ifaddr_exclude(ent))
+    if (uv__ifaddr_exclude(ent, UV__EXCLUDE_IFADDR))
       continue;
 
     address->name = uv__strdup(ent->ifa_name);
@@ -102,7 +109,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 
   /* Fill in physical addresses for each interface */
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (uv__ifaddr_exclude(ent))
+    if (uv__ifaddr_exclude(ent, UV__EXCLUDE_IFPHYS))
       continue;
 
     address = *addresses;
