@@ -1164,10 +1164,6 @@ void DefineSystemConstants(Local<Object> target) {
 #endif
 }
 
-void DefineUVConstants(Local<Object> target) {
-  NODE_DEFINE_CONSTANT(target, UV_UDP_REUSEADDR);
-}
-
 void DefineCryptoConstants(Local<Object> target) {
 #if HAVE_OPENSSL
   NODE_DEFINE_STRING_CONSTANT(target,
@@ -1290,11 +1286,14 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   DefineErrnoConstants(err_constants);
   DefineWindowsErrorConstants(err_constants);
   DefineSignalConstants(sig_constants);
-  DefineUVConstants(os_constants);
   DefineSystemConstants(fs_constants);
   DefineOpenSSLConstants(crypto_constants);
   DefineCryptoConstants(crypto_constants);
   DefineZlibConstants(zlib_constants);
+
+  // Define libuv constants.
+  NODE_DEFINE_CONSTANT(os_constants, UV_UDP_REUSEADDR);
+  NODE_DEFINE_CONSTANT(fs_constants, UV_FS_COPYFILE_EXCL);
 
   os_constants->Set(OneByteString(isolate, "errno"), err_constants);
   os_constants->Set(OneByteString(isolate, "signals"), sig_constants);
