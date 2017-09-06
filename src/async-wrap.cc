@@ -181,42 +181,6 @@ static void PushBackDestroyId(Environment* env, double id) {
 }
 
 
-bool DomainEnter(Environment* env, Local<Object> object) {
-  Local<Value> domain_v = object->Get(env->domain_string());
-  if (domain_v->IsObject()) {
-    Local<Object> domain = domain_v.As<Object>();
-    if (domain->Get(env->disposed_string())->IsTrue())
-      return true;
-    Local<Value> enter_v = domain->Get(env->enter_string());
-    if (enter_v->IsFunction()) {
-      if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::AsyncWrap::MakeCallback",
-                   "domain enter callback threw, please report this");
-      }
-    }
-  }
-  return false;
-}
-
-
-bool DomainExit(Environment* env, v8::Local<v8::Object> object) {
-  Local<Value> domain_v = object->Get(env->domain_string());
-  if (domain_v->IsObject()) {
-    Local<Object> domain = domain_v.As<Object>();
-    if (domain->Get(env->disposed_string())->IsTrue())
-      return true;
-    Local<Value> exit_v = domain->Get(env->exit_string());
-    if (exit_v->IsFunction()) {
-      if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::AsyncWrap::MakeCallback",
-                  "domain exit callback threw, please report this");
-      }
-    }
-  }
-  return false;
-}
-
-
 void AsyncWrap::EmitBefore(Environment* env, double async_id) {
   AsyncHooks* async_hooks = env->async_hooks();
 
