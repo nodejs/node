@@ -148,6 +148,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
   HANDLE handle;
   CONSOLE_SCREEN_BUFFER_INFO screen_buffer_info;
 
+  uv__once_init();
   handle = (HANDLE) uv__get_osfhandle(fd);
   if (handle == INVALID_HANDLE_VALUE)
     return UV_EBADF;
