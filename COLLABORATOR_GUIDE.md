@@ -88,6 +88,12 @@ All pull requests that modify executable code should be subjected to
 continuous integration tests on the
 [project CI server](https://ci.nodejs.org/).
 
+If any Collaborator objects to a change *without giving any additional
+explanation or context*, and the objecting Collaborator fails to respond to
+explicit requests for explanation or context within a reasonable period of
+time, the objection may be dismissed. Note that this does not apply to
+objections that are explained.
+
 #### Useful CI Jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
