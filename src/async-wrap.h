@@ -156,10 +156,6 @@ class AsyncWrap : public BaseObject {
 
 void LoadAsyncWrapperInfo(Environment* env);
 
-// Return value is an indicator whether the domain was disposed.
-bool DomainEnter(Environment* env, v8::Local<v8::Object> object);
-bool DomainExit(Environment* env, v8::Local<v8::Object> object);
-
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
