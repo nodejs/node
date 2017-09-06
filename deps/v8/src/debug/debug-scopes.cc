@@ -842,6 +842,12 @@ bool ScopeIterator::CopyContextExtensionToScopeObject(
 
 void ScopeIterator::GetNestedScopeChain(Isolate* isolate, Scope* scope,
                                         int position) {
+  if (scope->is_function_scope()) {
+    // Do not collect scopes of nested inner functions inside the current one.
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(frame_inspector_->GetFunction());
+    if (scope->end_position() < function->shared()->end_position()) return;
+  }
   if (!scope->is_eval_scope()) {
     nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate),
                                               scope->start_position(),
