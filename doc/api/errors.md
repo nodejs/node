@@ -621,6 +621,12 @@ Used when `Console` is instantiated without `stdout` stream or when `stdout` or
 
 Used when the native call from `process.cpuUsage` cannot be processed properly.
 
+<a id="ERR_CRYPTO_ECDH_INVALID_FORMAT"></a>
+### ERR_CRYPTO_ECDH_INVALID_FORMAT
+
+Used when an invalid value for the `format` argument has been passed to the
+`crypto.ECDH()` class `getPublicKey()` method.
+
 <a id="ERR_DNS_SET_SERVERS_FAILED"></a>
 ### ERR_DNS_SET_SERVERS_FAILED
 
