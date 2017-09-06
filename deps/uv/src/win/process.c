@@ -405,8 +405,15 @@ static WCHAR* search_path(const WCHAR *file,
       /* Next slice starts just after where the previous one ended */
       dir_start = dir_end;
 
+      /* If path is quoted, find quote end */
+      if (*dir_start == L'"' || *dir_start == L'\'') {
+        dir_end = wcschr(dir_start + 1, *dir_start);
+        if (dir_end == NULL) {
+          dir_end = wcschr(dir_start, L'\0');
+        }
+      }
       /* Slice until the next ; or \0 is found */
-      dir_end = wcschr(dir_start, L';');
+      dir_end = wcschr(dir_end, L';');
       if (dir_end == NULL) {
         dir_end = wcschr(dir_start, L'\0');
       }

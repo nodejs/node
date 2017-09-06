@@ -416,4 +416,10 @@
 # define UV__EHOSTDOWN (-4031)
 #endif
 
+#if defined(EREMOTEIO) && !defined(_WIN32)
+# define UV__EREMOTEIO (-EREMOTEIO)
+#else
+# define UV__EREMOTEIO (-4030)
+#endif
+
 #endif /* UV_ERRNO_H_ */

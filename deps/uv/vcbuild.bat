@@ -43,6 +43,9 @@ shift
 goto next-arg
 :args-done
 
+if defined WindowsSDKDir goto select-target
+if defined VCINSTALLDIR goto select-target
+
 @rem Look for Visual Studio 2017 only if explicitly requested.
 if "%target_env%" NEQ "vs2017" goto vs-set-2015
 echo Looking for Visual Studio 2017
@@ -168,9 +171,7 @@ echo Failed to create vc project files.
 exit /b 1
 
 :help
-
-echo "vcbuild.bat [debug/release] [test/bench] [clean] [noprojgen] [nobuild] [vs2017] [x86/x64] [static/shared]"
-
+echo vcbuild.bat [debug/release] [test/bench] [clean] [noprojgen] [nobuild] [vs2017] [x86/x64] [static/shared]
 echo Examples:
 echo   vcbuild.bat              : builds debug build
 echo   vcbuild.bat test         : builds debug build and runs tests

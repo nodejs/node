@@ -56,8 +56,21 @@ static void idle_cb(uv_idle_t* idle) {
 
 
 static void read_cb(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf) {
+#ifdef __MVS__
+  char lbuf[12];
+#endif
+  uv_os_fd_t fd;
+
   ASSERT(nread > 0);
+  ASSERT(0 == uv_fileno((uv_handle_t*)handle, &fd));
   ASSERT(0 == uv_idle_start(&idle, idle_cb));
+
+#ifdef __MVS__
+  /* Need to flush out the OOB data. Otherwise, this callback will get
+   * triggered on every poll with nread = 0.
+   */
+  ASSERT(-1 != recv(fd, lbuf, sizeof(lbuf), MSG_OOB));
+#endif
 }
 
 

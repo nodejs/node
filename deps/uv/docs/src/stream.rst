@@ -6,7 +6,7 @@
 
 Stream handles provide an abstraction of a duplex communication channel.
 :c:type:`uv_stream_t` is an abstract type, libuv provides 3 stream implementations
-in the for of :c:type:`uv_tcp_t`, :c:type:`uv_pipe_t` and :c:type:`uv_tty_t`.
+in the form of :c:type:`uv_tcp_t`, :c:type:`uv_pipe_t` and :c:type:`uv_tty_t`.
 
 
 Data types

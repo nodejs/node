@@ -1,3 +1,118 @@
+2017.09.07, Version 1.14.1 (Stable), b0f9fb2a07a5e638b1580fe9a42a356c3ab35f37
+
+Changes since version 1.14.0:
+
+* fs, win: add support for user symlinks (Bartosz Sosnowski)
+
+* cygwin: include uv-posix.h header (Joel Winarske)
+
+* zos: fix semaphore initialization (jBarz)
+
+* zos: improve loop_count benchmark performance (jBarz)
+
+* zos, test: flush out the oob data in callback (jBarz)
+
+* unix,win: check for bad flags in uv_fs_copyfile() (cjihrig)
+
+* unix: modify argv[0] when process title is set (Matthew Taylor)
+
+* unix: don't use req->loop in uv__fs_copyfile() (cjihrig)
+
+* doc: fix a trivial typo (Vladimír Čunát)
+
+* android: fix uv_cond_timedwait on API level < 21 (Gergely Nagy)
+
+* win: add uv__once_init() calls (Bartosz Sosnowski)
+
+* unix,windows: init all requests in fs calls (cjihrig)
+
+* unix,windows: return UV_EINVAL on NULL fs reqs (cjihrig)
+
+* windows: add POST macro to fs functions (cjihrig)
+
+* unix: handle partial sends in uv_fs_copyfile() (A. Hauptmann)
+
+* Revert "win, test: fix double close in test runner" (Bartosz Sosnowski)
+
+* win, test: remove surplus CloseHandle (Bartosz Sosnowski)
+
+
+2017.08.17, Version 1.14.0 (Stable), e0d31e9e21870f88277746b6d59cf07b977cdfea
+
+Changes since version 1.13.1:
+
+* unix: check for NULL in uv_os_unsetenv for parameter name (André Klitzing)
+
+* doc: add thread safety warning for process title (Matthew Taylor)
+
+* unix: always copy process title into local buffer (Matthew Taylor)
+
+* poll: add support for OOB TCP and GPIO interrupts (CurlyMoo)
+
+* win,build: fix appveyor properly (Refael Ackermann)
+
+* win: include filename in dlopen error message (Ben Noordhuis)
+
+* aix: add netmask, mac address into net interfaces (Gireesh Punathil)
+
+* unix, windows: map EREMOTEIO errno (Ben Noordhuis)
+
+* unix: fix wrong MAC of uv_interface_address (XadillaX)
+
+* win,build: fix building from Windows SDK or VS console (Saúl Ibarra Corretgé)
+
+* github: fix link to help repo in issue template (Ben Noordhuis)
+
+* zos: remove nonexistent include from autotools build (Saúl Ibarra Corretgé)
+
+* misc: remove reference to pthread-fixes.h from LICENSE (Saúl Ibarra Corretgé)
+
+* docs: fix guide source code example paths (Anticrisis)
+
+* android: fix compilation with new NDK versions (Saúl Ibarra Corretgé)
+
+* misc: add android-toolchain to .gitignore (Saúl Ibarra Corretgé)
+
+* win, fs: support unusual reparse points (Bartosz Sosnowski)
+
+* android: fix detection of pthread_condattr_setclock (Saúl Ibarra Corretgé)
+
+* android: remove no longer needed check (Saúl Ibarra Corretgé)
+
+* doc: update instructions for building on Android (Saúl Ibarra Corretgé)
+
+* win, process: support semicolons in PATH variable (Bartosz Sosnowski)
+
+* doc: document uv_async_(init|send) return values (Ben Noordhuis)
+
+* doc: add Android as a tier 3 supported platform (Saúl Ibarra Corretgé)
+
+* unix: add missing semicolon (jBarz)
+
+* win, test: fix double close in test runner (Bartosz Sosnowski)
+
+* doc: update supported windows version baseline (Ben Noordhuis)
+
+* test,zos: skip chown root test (jBarz)
+
+* test,zos: use gid=-1 to test spawn_setgid_fails (jBarz)
+
+* zos: fix hr timer resolution (jBarz)
+
+* android: fix blocking recvmsg due to netlink bug (Jacob Segal)
+
+* zos: read more accurate rss info from RSM (jBarz)
+
+* win: allow bound/connected socket in uv_tcp_open() (Maciej Szeptuch
+  (Neverous))
+
+* doc: differentiate SmartOS and SunOS support (cjihrig)
+
+* unix: make uv_poll_stop() remove fd from pollset (Ben Noordhuis)
+
+* unix, windows: add basic uv_fs_copyfile() (cjihrig)
+
+
 2017.07.07, Version 1.13.1 (Stable), 2bb4b68758f07cd8617838e68c44c125bc567ba6
 
 Changes since version 1.13.0:

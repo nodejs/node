@@ -1913,6 +1913,7 @@ int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
   if (os_handle == INVALID_HANDLE_VALUE)
     return UV_EBADF;
 
+  uv__once_init();
   /* In order to avoid closing a stdio file descriptor 0-2, duplicate the
    * underlying OS handle and forget about the original fd.
    * We could also opt to use the original OS handle and just never close it,
@@ -1986,6 +1987,7 @@ static int uv__pipe_getname(const uv_pipe_t* handle, char* buffer, size_t* size)
   unsigned int name_len;
   int err;
 
+  uv__once_init();
   name_info = NULL;
 
   if (handle->handle == INVALID_HANDLE_VALUE) {
