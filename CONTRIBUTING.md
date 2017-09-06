@@ -65,7 +65,7 @@ As a contributor to Node.js, how you choose to act and interact towards your
 fellow contributors, as well as to the community, will reflect back not only
 on yourself but on the project as a whole. The Code of Conduct is designed and
 intended, above all else, to help establish a culture within the project that
-allows anyone and everyone who wants to continue to feel safe doing so.
+allows anyone and everyone who wants to contribute to feel safe doing so.
 
 Should any individual act in any way that is considered in violation of the
 [Code of Conduct][], corrective actions will be taken. It is possible, however,
@@ -261,7 +261,7 @@ possible, create local branches to work within. These should also be created
 directly off of the `master` branch.
 
 ```text
-$ git checkout -b my-branch -t origin/master
+$ git checkout -b my-branch -t upstream/master
 ```
 
 ### The Process of Making Changes
@@ -598,7 +598,7 @@ It is always good to clearly indicate nits when you comment: e.g.
 Be aware that *how* you communicate requests and reviews in your feedback can
 have a significant impact on the success of the Pull Request. Yes, we may land
 a particular change that makes Node.js better, but the individual might just
-not want to have anything to do with Node.js every again. The goal is not just
+not want to have anything to do with Node.js ever again. The goal is not just
 having good code.
 
 #### Respect the minimum wait time for comments
@@ -623,7 +623,9 @@ If a Pull Request appears to be abandoned or stalled, it is polite to first
 check with the contributor to see if they intend to continue the work before
 checking if they would mind if you took it over (especially if it just has
 nits left). When doing so, it is courteous to give the original contributor
-credit for the work they started.
+credit for the work they started (either by preserving their name and email
+address in the commit log, or by using an `Author: ` meta-data tag in the
+commit.
 
 #### Approving a change
 
