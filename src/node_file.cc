@@ -212,6 +212,7 @@ void After(uv_fs_t *req) {
       case UV_FS_FCHMOD:
       case UV_FS_CHOWN:
       case UV_FS_FCHOWN:
+      case UV_FS_COPYFILE:
         // These, however, don't.
         argc = 1;
         break;
@@ -961,6 +962,30 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void CopyFile(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (!args[0]->IsString())
+    return TYPE_ERROR("src must be a string");
+  if (!args[1]->IsString())
+    return TYPE_ERROR("dest must be a string");
+  if (!args[2]->IsInt32())
+    return TYPE_ERROR("flags must be an int");
+
+  BufferValue src(env->isolate(), args[0]);
+  ASSERT_PATH(src)
+  BufferValue dest(env->isolate(), args[1]);
+  ASSERT_PATH(dest)
+  int flags = args[2]->Int32Value();
+
+  if (args[3]->IsObject()) {
+    ASYNC_DEST_CALL(copyfile, args[3], *dest, UTF8, *src, *dest, flags)
+  } else {
+    SYNC_DEST_CALL(copyfile, *src, *dest, *src, *dest, flags)
+  }
+}
+
+
 // Wrapper for write(2).
 //
 // bytesWritten = write(fd, buffer, offset, length, position, callback)
@@ -1425,6 +1450,7 @@ void InitFs(Local<Object> target,
   env->SetMethod(target, "writeBuffers", WriteBuffers);
   env->SetMethod(target, "writeString", WriteString);
   env->SetMethod(target, "realpath", RealPath);
+  env->SetMethod(target, "copyFile", CopyFile);
 
   env->SetMethod(target, "chmod", Chmod);
   env->SetMethod(target, "fchmod", FChmod);
