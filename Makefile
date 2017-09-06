@@ -120,7 +120,6 @@ check: test
 # in place
 coverage-clean:
 	if [ -d lib_ ]; then $(RM) -r lib; mv lib_ lib; fi
-	$(RM) package-lock.json
 	$(RM) -r node_modules
 	$(RM) -r gcovr testing
 	$(RM) -r out/$(BUILDTYPE)/.coverage
@@ -140,8 +139,9 @@ coverage: coverage-test
 coverage-build: all
 	mkdir -p node_modules
 	if [ ! -d node_modules/istanbul-merge ]; then \
-		$(NODE) ./deps/npm install istanbul-merge; fi
-	if [ ! -d node_modules/nyc ]; then $(NODE) ./deps/npm install nyc; fi
+		$(NODE) ./deps/npm install istanbul-merge --no-save --no-package-lock; fi
+	if [ ! -d node_modules/nyc ]; then \
+		$(NODE) ./deps/npm install nyc --no-save --no-package-lock; fi
 	if [ ! -d gcovr ]; then git clone --depth=1 \
 		--single-branch git://github.com/gcovr/gcovr.git; fi
 	if [ ! -d testing ]; then git clone --depth=1 \
