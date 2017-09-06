@@ -92,7 +92,8 @@ Data types
             UV_FS_READLINK,
             UV_FS_CHOWN,
             UV_FS_FCHOWN,
-            UV_FS_REALPATH
+            UV_FS_REALPATH,
+            UV_FS_COPYFILE
         } uv_fs_type;
 
 .. c:type:: uv_dirent_t
@@ -240,6 +241,22 @@ API
 .. c:function:: int uv_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req, uv_file file, int64_t offset, uv_fs_cb cb)
 
     Equivalent to :man:`ftruncate(2)`.
+
+.. c:function:: int uv_fs_copyfile(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, int flags, uv_fs_cb cb)
+
+    Copies a file from `path` to `new_path`. Supported `flags` are described below.
+
+    - `UV_FS_COPYFILE_EXCL`: If present, `uv_fs_copyfile()` will fail with
+      `UV_EEXIST` if the destination path already exists. The default behavior
+      is to overwrite the destination if it exists.
+
+    .. warning::
+        If the destination path is created, but an error occurs while copying
+        the data, then the destination path is removed. There is a brief window
+        of time between closing and removing the file where another process
+        could access the file.
+
+    .. versionadded:: 1.14.0
 
 .. c:function:: int uv_fs_sendfile(uv_loop_t* loop, uv_fs_t* req, uv_file out_fd, uv_file in_fd, int64_t in_offset, size_t length, uv_fs_cb cb)
 

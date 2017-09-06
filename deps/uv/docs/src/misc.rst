@@ -186,17 +186,24 @@ API
 
 .. c:function:: int uv_get_process_title(char* buffer, size_t size)
 
-    Gets the title of the current process. If `buffer` is `NULL` or `size` is
-    zero, `UV_EINVAL` is returned. If `size` cannot accommodate the process
-    title and terminating `NULL` character, the function returns `UV_ENOBUFS`.
+    Gets the title of the current process. You *must* call `uv_setup_args`
+    before calling this function. If `buffer` is `NULL` or `size` is zero,
+    `UV_EINVAL` is returned. If `size` cannot accommodate the process title and
+    terminating `NULL` character, the function returns `UV_ENOBUFS`.
+
+    .. warning::
+        `uv_get_process_title` is not thread safe on any platform except Windows.
 
 .. c:function:: int uv_set_process_title(const char* title)
 
-    Sets the current process title. On platforms with a fixed size buffer for the
-    process title the contents of `title` will be copied to the buffer and
-    truncated if larger than the available space. Other platforms will return
-    `UV_ENOMEM` if they cannot allocate enough space to duplicate the contents of
-    `title`.
+    Sets the current process title. You *must* call `uv_setup_args` before
+    calling this function. On platforms with a fixed size buffer for the process
+    title the contents of `title` will be copied to the buffer and truncated if
+    larger than the available space. Other platforms will return `UV_ENOMEM` if
+    they cannot allocate enough space to duplicate the contents of `title`.
+
+    .. warning::
+        `uv_set_process_title` is not thread safe on any platform except Windows.
 
 .. c:function:: int uv_resident_set_memory(size_t* rss)
 

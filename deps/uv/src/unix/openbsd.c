@@ -146,8 +146,13 @@ char** uv_setup_args(int argc, char** argv) {
 
 
 int uv_set_process_title(const char* title) {
+  char* new_title;
+
+  new_title = uv__strdup(title);
+  if (process_title == NULL)
+    return -ENOMEM;
   uv__free(process_title);
-  process_title = uv__strdup(title);
+  process_title = new_title;
   setproctitle("%s", title);
   return 0;
 }

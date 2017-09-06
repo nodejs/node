@@ -217,8 +217,7 @@
           'sources': [
             'src/unix/darwin.c',
             'src/unix/fsevents.c',
-            'src/unix/darwin-proctitle.c',
-            'src/unix/pthread-barrier.c'
+            'src/unix/darwin-proctitle.c'
           ],
           'defines': [
             '_DARWIN_USE_64_BIT_INODE=1',
@@ -253,7 +252,6 @@
             'src/unix/linux-syscalls.h',
             'src/unix/pthread-fixes.c',
             'src/unix/android-ifaddrs.c',
-            'src/unix/pthread-barrier.c',
             'src/unix/procfs-exepath.c',
             'src/unix/sysinfo-loadavg.c',
             'src/unix/sysinfo-memory.c',
@@ -322,7 +320,6 @@
         ['OS=="os390"', {
           'sources': [
             'src/unix/pthread-fixes.c',
-            'src/unix/pthread-barrier.c',
             'src/unix/no-fsevents.c',
             'src/unix/os390.c',
             'src/unix/os390-syscalls.c'
@@ -362,6 +359,7 @@
         'test/test-fail-always.c',
         'test/test-fork.c',
         'test/test-fs.c',
+        'test/test-fs-copyfile.c',
         'test/test-fs-event.c',
         'test/test-get-currentexe.c',
         'test/test-get-memory.c',
@@ -405,6 +403,7 @@
         'test/test-poll-close.c',
         'test/test-poll-close-doesnt-corrupt-stack.c',
         'test/test-poll-closesocket.c',
+        'test/test-poll-oob.c',
         'test/test-process-title.c',
         'test/test-queue-foreach-delete.c',
         'test/test-ref.c',

@@ -1492,12 +1492,14 @@ TEST_IMPL(fs_chown) {
   uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(chown_cb_count == 1);
 
+#ifndef __MVS__
   /* chown to root (fail) */
   chown_cb_count = 0;
   r = uv_fs_chown(loop, &req, "test_file", 0, 0, chown_root_cb);
   ASSERT(r == 0);
   uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(chown_cb_count == 1);
+#endif
 
   /* async fchown */
   r = uv_fs_fchown(loop, &req, file, -1, -1, fchown_cb);
@@ -2749,19 +2751,23 @@ TEST_IMPL(fs_write_alotof_bufs_with_offset) {
 TEST_IMPL(fs_read_write_null_arguments) {
   int r;
 
-  r = uv_fs_read(NULL, NULL, 0, NULL, 0, -1, NULL);
+  r = uv_fs_read(NULL, &read_req, 0, NULL, 0, -1, NULL);
   ASSERT(r == UV_EINVAL);
+  uv_fs_req_cleanup(&read_req);
 
-  r = uv_fs_write(NULL, NULL, 0, NULL, 0, -1, NULL);
+  r = uv_fs_write(NULL, &write_req, 0, NULL, 0, -1, NULL);
   ASSERT(r == UV_EINVAL);
-
-  iov = uv_buf_init(NULL, 0);
-  r = uv_fs_read(NULL, NULL, 0, &iov, 0, -1, NULL);
-  ASSERT(r == UV_EINVAL);
+  uv_fs_req_cleanup(&write_req);
 
   iov = uv_buf_init(NULL, 0);
-  r = uv_fs_write(NULL, NULL, 0, &iov, 0, -1, NULL);
+  r = uv_fs_read(NULL, &read_req, 0, &iov, 0, -1, NULL);
   ASSERT(r == UV_EINVAL);
+  uv_fs_req_cleanup(&read_req);
+
+  iov = uv_buf_init(NULL, 0);
+  r = uv_fs_write(NULL, &write_req, 0, &iov, 0, -1, NULL);
+  ASSERT(r == UV_EINVAL);
+  uv_fs_req_cleanup(&write_req);
 
   return 0;
 }
@@ -2842,5 +2848,102 @@ TEST_IMPL(fs_file_pos_after_op_with_offset) {
   unlink("test_file");
 
   MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+TEST_IMPL(fs_null_req) {
+  /* Verify that all fs functions return UV_EINVAL when the request is NULL. */
+  int r;
+
+  r = uv_fs_open(NULL, NULL, NULL, 0, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_close(NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_read(NULL, NULL, 0, NULL, 0, -1, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_write(NULL, NULL, 0, NULL, 0, -1, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_unlink(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_mkdir(NULL, NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_mkdtemp(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_rmdir(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_scandir(NULL, NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_link(NULL, NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_symlink(NULL, NULL, NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_readlink(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_realpath(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_chown(NULL, NULL, NULL, 0, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_fchown(NULL, NULL, 0, 0, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_stat(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_lstat(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_fstat(NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_rename(NULL, NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_fsync(NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_fdatasync(NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_ftruncate(NULL, NULL, 0, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_copyfile(NULL, NULL, NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_sendfile(NULL, NULL, 0, 0, 0, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_access(NULL, NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_chmod(NULL, NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_fchmod(NULL, NULL, 0, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_utime(NULL, NULL, NULL, 0.0, 0.0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_futime(NULL, NULL, 0, 0.0, 0.0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  /* This should be a no-op. */
+  uv_fs_req_cleanup(NULL);
+
   return 0;
 }
