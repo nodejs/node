@@ -3699,7 +3699,6 @@ void Hmac::New(const FunctionCallbackInfo<Value>& args) {
 void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
   HandleScope scope(env()->isolate());
 
-  CHECK_EQ(initialised_, false);
   const EVP_MD* md = EVP_get_digestbyname(hash_type);
   if (md == nullptr) {
     return env()->ThrowError("Unknown message digest");
@@ -3719,13 +3718,6 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
   Hmac* hmac;
   ASSIGN_OR_RETURN_UNWRAP(&hmac, args.Holder());
   Environment* env = hmac->env();
-
-  if (args.Length() < 2) {
-    return env->ThrowError("Hash type and key arguments are mandatory");
-  }
-
-  THROW_AND_RETURN_IF_NOT_STRING(args[0], "Hash type");
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Key");
 
   const node::Utf8Value hash_type(env->isolate(), args[0]);
   const char* buffer_data = Buffer::Data(args[1]);
@@ -3748,24 +3740,22 @@ void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
   Hmac* hmac;
   ASSIGN_OR_RETURN_UNWRAP(&hmac, args.Holder());
 
-  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[0], "Data");
-
   // Only copy the data if we have to, because it's a string
-  bool r;
+  bool r = true;
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8))
+    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8)) {
+      args.GetReturnValue().Set(false);
       return;
+    }
     r = hmac->HmacUpdate(decoder.out(), decoder.size());
-  } else {
+  } else if (args[0]->IsArrayBufferView()) {
     char* buf = Buffer::Data(args[0]);
     size_t buflen = Buffer::Length(args[0]);
     r = hmac->HmacUpdate(buf, buflen);
   }
 
-  if (!r) {
-    return env->ThrowTypeError("HmacUpdate fail");
-  }
+  args.GetReturnValue().Set(r);
 }
 
 
@@ -3777,13 +3767,9 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding encoding = BUFFER;
   if (args.Length() >= 1) {
-    CHECK(args[0]->IsString());
     encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
   }
-
-  if (encoding == UCS2) {
-    return env->ThrowError("hmac.digest() does not support UTF-16");
-  }
+  CHECK_NE(encoding, UCS2);  // Digest does not support UTF-16
 
   unsigned char md_value[EVP_MAX_MD_SIZE];
   unsigned int md_len = 0;
@@ -3825,10 +3811,6 @@ void Hash::Initialize(Environment* env, v8::Local<v8::Object> target) {
 void Hash::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() == 0 || !args[0]->IsString()) {
-    return env->ThrowError("Must give hashtype string as argument");
-  }
-
   const node::Utf8Value hash_type(env->isolate(), args[0]);
 
   Hash* hash = new Hash(env, args.This());
@@ -3840,7 +3822,6 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
 
 
 bool Hash::HashInit(const char* hash_type) {
-  CHECK_EQ(initialised_, false);
   const EVP_MD* md = EVP_get_digestbyname(hash_type);
   if (md == nullptr)
     return false;
@@ -3868,31 +3849,22 @@ void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
   Hash* hash;
   ASSIGN_OR_RETURN_UNWRAP(&hash, args.Holder());
 
-  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[0], "Data");
-
-  if (!hash->initialised_) {
-    return env->ThrowError("Not initialized");
-  }
-  if (hash->finalized_) {
-    return env->ThrowError("Digest already called");
-  }
-
   // Only copy the data if we have to, because it's a string
-  bool r;
+  bool r = true;
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8))
+    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8)) {
+      args.GetReturnValue().Set(false);
       return;
+    }
     r = hash->HashUpdate(decoder.out(), decoder.size());
-  } else {
+  } else if (args[0]->IsArrayBufferView()) {
     char* buf = Buffer::Data(args[0]);
     size_t buflen = Buffer::Length(args[0]);
     r = hash->HashUpdate(buf, buflen);
   }
 
-  if (!r) {
-    return env->ThrowTypeError("HashUpdate fail");
-  }
+  args.GetReturnValue().Set(r);
 }
 
 
@@ -3902,21 +3874,9 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
   Hash* hash;
   ASSIGN_OR_RETURN_UNWRAP(&hash, args.Holder());
 
-  if (!hash->initialised_) {
-    return env->ThrowError("Not initialized");
-  }
-  if (hash->finalized_) {
-    return env->ThrowError("Digest already called");
-  }
-
   enum encoding encoding = BUFFER;
   if (args.Length() >= 1) {
-    CHECK(args[0]->IsString());
     encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
-  }
-
-  if (encoding == UCS2) {
-    return env->ThrowError("hash.digest() does not support UTF-16");
   }
 
   unsigned char md_value[EVP_MAX_MD_SIZE];
@@ -5562,13 +5522,14 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> (*argv)[2]) {
         req->object()->Get(req->env()->context(),
                            req->env()->buffer_string()).ToLocalChecked();
 
-    if (buffer->IsUint8Array()) {
+    if (buffer->IsArrayBufferView()) {
       CHECK_LE(req->size(), Buffer::Length(buffer));
       char* buf = Buffer::Data(buffer);
       memcpy(buf, data, req->size());
       (*argv)[1] = buffer;
     } else {
-      (*argv)[1] = Buffer::New(req->env(), data, size).ToLocalChecked();
+      (*argv)[1] = Buffer::New(req->env(), data, size)
+          .ToLocalChecked();
     }
   }
 }
@@ -5649,7 +5610,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
 void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsUint8Array());
+  CHECK(args[0]->IsArrayBufferView());
   CHECK(args[1]->IsUint32());
   CHECK(args[2]->IsUint32());
 

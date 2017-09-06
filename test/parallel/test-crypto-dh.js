@@ -22,24 +22,22 @@ assert.strictEqual(secret2.toString('base64'), secret1);
 assert.strictEqual(dh1.verifyError, 0);
 assert.strictEqual(dh2.verifyError, 0);
 
-const argumentsError =
-  /^TypeError: First argument should be number, string, Buffer, TypedArray, or DataView$/;
-
-assert.throws(() => {
-  crypto.createDiffieHellman([0x1, 0x2]);
-}, argumentsError);
-
-assert.throws(() => {
-  crypto.createDiffieHellman(() => { });
-}, argumentsError);
-
-assert.throws(() => {
-  crypto.createDiffieHellman(/abc/);
-}, argumentsError);
-
-assert.throws(() => {
-  crypto.createDiffieHellman({});
-}, argumentsError);
+[
+  [0x1, 0x2],
+  () => { },
+  /abc/,
+  {}
+].forEach((i) => {
+  common.expectsError(
+    () => crypto.createDiffieHellman(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "sizeOrKey" argument must be one of type number, string, ' +
+               'Buffer, TypedArray, or DataView'
+    }
+  );
+});
 
 // Create "another dh1" using generated keys from dh1,
 // and compute secret again
@@ -198,9 +196,14 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   firstByte = ecdh1.getPublicKey('buffer', 'hybrid')[0];
   assert(firstByte === 6 || firstByte === 7);
   // format value should be string
-  assert.throws(() => {
-    ecdh1.getPublicKey('buffer', 10);
-  }, /^TypeError: Bad format: 10$/);
+
+  common.expectsError(
+    () => ecdh1.getPublicKey('buffer', 10),
+    {
+      code: 'ERR_CRYPTO_ECDH_INVALID_FORMAT',
+      type: TypeError,
+      message: 'Invalid ECDH format: 10'
+    });
 
   // ECDH should check that point is on curve
   const ecdh3 = crypto.createECDH('secp256k1');
@@ -331,6 +334,10 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
 }
 
 // invalid test: curve argument is undefined
-assert.throws(() => {
-  crypto.createECDH();
-}, /^TypeError: "curve" argument should be a string$/);
+common.expectsError(
+  () => crypto.createECDH(),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "curve" argument must be of type string'
+  });
