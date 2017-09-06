@@ -54,7 +54,8 @@ Data types
         enum uv_poll_event {
             UV_READABLE = 1,
             UV_WRITABLE = 2,
-            UV_DISCONNECT = 4
+            UV_DISCONNECT = 4,
+            UV_PRIORITIZED = 8
         };
 
 
@@ -84,10 +85,13 @@ API
 
 .. c:function:: int uv_poll_start(uv_poll_t* handle, int events, uv_poll_cb cb)
 
-    Starts polling the file descriptor. `events` is a bitmask consisting made up
-    of UV_READABLE, UV_WRITABLE and UV_DISCONNECT. As soon as an event is detected
-    the callback will be called with `status` set to 0, and the detected events set on the
-    `events` field.
+    Starts polling the file descriptor. `events` is a bitmask made up of
+    UV_READABLE, UV_WRITABLE, UV_PRIORITIZED and UV_DISCONNECT. As soon as an
+    event is detected the callback will be called with `status` set to 0, and the
+    detected events set on the `events` field.
+
+    The UV_PRIORITIZED event is used to watch for sysfs interrupts or TCP out-of-band
+    messages.
 
     The UV_DISCONNECT event is optional in the sense that it may not be
     reported and the user is free to ignore it, but it can help optimize the shutdown
@@ -108,6 +112,7 @@ API
         on the `events` field in the callback.
 
     .. versionchanged:: 1.9.0 Added the UV_DISCONNECT event.
+    .. versionchanged:: 1.14.0 Added the UV_PRIORITIZED event.
 
 .. c:function:: int uv_poll_stop(uv_poll_t* poll)
 

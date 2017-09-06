@@ -96,6 +96,7 @@ test/test-embed.c
 test/test-env-vars.c
 test/test-error.c
 test/test-fail-always.c
+test/test-fs-copyfile.c
 test/test-fs-event.c
 test/test-fs-poll.c
 test/test-fs.c

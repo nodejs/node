@@ -41,6 +41,110 @@
 #define NANOSEC ((uint64_t) 1e9)
 
 
+#if defined(UV__PTHREAD_BARRIER_FALLBACK)
+/* TODO: support barrier_attr */
+int pthread_barrier_init(pthread_barrier_t* barrier,
+                         const void* barrier_attr,
+                         unsigned count) {
+  int rc;
+  _uv_barrier* b;
+
+  if (barrier == NULL || count == 0)
+    return EINVAL;
+
+  if (barrier_attr != NULL)
+    return ENOTSUP;
+
+  b = uv__malloc(sizeof(*b));
+  if (b == NULL)
+    return ENOMEM;
+
+  b->in = 0;
+  b->out = 0;
+  b->threshold = count;
+
+  if ((rc = pthread_mutex_init(&b->mutex, NULL)) != 0)
+    goto error2;
+  if ((rc = pthread_cond_init(&b->cond, NULL)) != 0)
+    goto error;
+
+  barrier->b = b;
+  return 0;
+
+error:
+  pthread_mutex_destroy(&b->mutex);
+error2:
+  uv__free(b);
+  return rc;
+}
+
+int pthread_barrier_wait(pthread_barrier_t* barrier) {
+  int rc;
+  _uv_barrier* b;
+
+  if (barrier == NULL || barrier->b == NULL)
+    return EINVAL;
+
+  b = barrier->b;
+  /* Lock the mutex*/
+  if ((rc = pthread_mutex_lock(&b->mutex)) != 0)
+    return rc;
+
+  /* Increment the count. If this is the first thread to reach the threshold,
+     wake up waiters, unlock the mutex, then return
+     PTHREAD_BARRIER_SERIAL_THREAD. */
+  if (++b->in == b->threshold) {
+    b->in = 0;
+    b->out = b->threshold - 1;
+    rc = pthread_cond_signal(&b->cond);
+    assert(rc == 0);
+
+    pthread_mutex_unlock(&b->mutex);
+    return PTHREAD_BARRIER_SERIAL_THREAD;
+  }
+  /* Otherwise, wait for other threads until in is set to 0,
+     then return 0 to indicate this is not the first thread. */
+  do {
+    if ((rc = pthread_cond_wait(&b->cond, &b->mutex)) != 0)
+      break;
+  } while (b->in != 0);
+
+  /* mark thread exit */
+  b->out--;
+  pthread_cond_signal(&b->cond);
+  pthread_mutex_unlock(&b->mutex);
+  return rc;
+}
+
+int pthread_barrier_destroy(pthread_barrier_t* barrier) {
+  int rc;
+  _uv_barrier* b;
+
+  if (barrier == NULL || barrier->b == NULL)
+    return EINVAL;
+
+  b = barrier->b;
+
+  if ((rc = pthread_mutex_lock(&b->mutex)) != 0)
+    return rc;
+
+  if (b->in > 0 || b->out > 0)
+    rc = EBUSY;
+
+  pthread_mutex_unlock(&b->mutex);
+
+  if (rc)
+    return rc;
+
+  pthread_cond_destroy(&b->cond);
+  pthread_mutex_destroy(&b->mutex);
+  uv__free(barrier->b);
+  barrier->b = NULL;
+  return 0;
+}
+#endif
+
+
 int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   int err;
   pthread_attr_t* attr;
@@ -283,16 +387,19 @@ int uv_sem_init(uv_sem_t* sem, unsigned int value) {
   uv_sem_t semid;
   struct sembuf buf;
   int err;
+  union {
+    int val;
+    struct semid_ds* buf;
+    unsigned short* array;
+  } arg;
 
-  buf.sem_num = 0;
-  buf.sem_op = value;
-  buf.sem_flg = 0;
 
   semid = semget(IPC_PRIVATE, 1, S_IRUSR | S_IWUSR);
   if (semid == -1)
     return -errno;
 
-  if (-1 == semop(semid, &buf, 1)) {
+  arg.val = value;
+  if (-1 == semctl(semid, 0, SETVAL, arg)) {
     err = errno;
     if (-1 == semctl(*sem, 0, IPC_RMID))
       abort();
@@ -424,7 +531,7 @@ int uv_cond_init(uv_cond_t* cond) {
   if (err)
     return -err;
 
-#if !(defined(__ANDROID__) && defined(HAVE_PTHREAD_COND_TIMEDWAIT_MONOTONIC))
+#if !(defined(__ANDROID_API__) && __ANDROID_API__ < 21)
   err = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
   if (err)
     goto error2;
@@ -511,7 +618,8 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
   timeout += uv__hrtime(UV_CLOCK_PRECISE);
   ts.tv_sec = timeout / NANOSEC;
   ts.tv_nsec = timeout % NANOSEC;
-#if defined(__ANDROID__) && defined(HAVE_PTHREAD_COND_TIMEDWAIT_MONOTONIC)
+#if defined(__ANDROID_API__) && __ANDROID_API__ < 21
+
   /*
    * The bionic pthread implementation doesn't support CLOCK_MONOTONIC,
    * but has this alternative function instead.
@@ -519,7 +627,7 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
   r = pthread_cond_timedwait_monotonic_np(cond, mutex, &ts);
 #else
   r = pthread_cond_timedwait(cond, mutex, &ts);
-#endif /* __ANDROID__ */
+#endif /* __ANDROID_API__ */
 #endif
 
 

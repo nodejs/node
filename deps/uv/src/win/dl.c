@@ -22,7 +22,7 @@
 #include "uv.h"
 #include "internal.h"
 
-static int uv__dlerror(uv_lib_t* lib, int errorno);
+static int uv__dlerror(uv_lib_t* lib, const char* filename, DWORD errorno);
 
 
 int uv_dlopen(const char* filename, uv_lib_t* lib) {
@@ -37,12 +37,12 @@ int uv_dlopen(const char* filename, uv_lib_t* lib) {
                            -1,
                            filename_w,
                            ARRAY_SIZE(filename_w))) {
-    return uv__dlerror(lib, GetLastError());
+    return uv__dlerror(lib, filename, GetLastError());
   }
 
   lib->handle = LoadLibraryExW(filename_w, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
   if (lib->handle == NULL) {
-    return uv__dlerror(lib, GetLastError());
+    return uv__dlerror(lib, filename, GetLastError());
   }
 
   return 0;
@@ -65,7 +65,7 @@ void uv_dlclose(uv_lib_t* lib) {
 
 int uv_dlsym(uv_lib_t* lib, const char* name, void** ptr) {
   *ptr = (void*) GetProcAddress(lib->handle, name);
-  return uv__dlerror(lib, *ptr ? 0 : GetLastError());
+  return uv__dlerror(lib, "", *ptr ? 0 : GetLastError());
 }
 
 
@@ -88,31 +88,46 @@ static void uv__format_fallback_error(uv_lib_t* lib, int errorno){
 
 
 
-static int uv__dlerror(uv_lib_t* lib, int errorno) {
+static int uv__dlerror(uv_lib_t* lib, const char* filename, DWORD errorno) {
+  static const char not_win32_app_msg[] = "%1 is not a valid Win32 application";
+  DWORD_PTR arg;
   DWORD res;
 
   if (lib->errmsg) {
-    LocalFree((void*)lib->errmsg);
+    LocalFree(lib->errmsg);
     lib->errmsg = NULL;
   }
 
-  if (errorno) {
+  if (errorno == 0)
+    return 0;
+
+  res = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                       FORMAT_MESSAGE_FROM_SYSTEM |
+                       FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorno,
+                       MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
+                       (LPSTR) &lib->errmsg, 0, NULL);
+
+  if (!res && GetLastError() == ERROR_MUI_FILE_NOT_FOUND) {
     res = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
                          FORMAT_MESSAGE_FROM_SYSTEM |
                          FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorno,
-                         MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
-                         (LPSTR) &lib->errmsg, 0, NULL);
-    if (!res && GetLastError() == ERROR_MUI_FILE_NOT_FOUND) {
-      res = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-                           FORMAT_MESSAGE_FROM_SYSTEM |
-                           FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorno,
-                           0, (LPSTR) &lib->errmsg, 0, NULL);
-    }
-
-    if (!res) {
-      uv__format_fallback_error(lib, errorno);
-    }
+                         0, (LPSTR) &lib->errmsg, 0, NULL);
   }
 
-  return errorno ? -1 : 0;
+  /* Inexpert hack to get the filename into the error message. */
+  if (res && strstr(lib->errmsg, not_win32_app_msg)) {
+    LocalFree(lib->errmsg);
+    lib->errmsg = NULL;
+    arg = (DWORD_PTR) filename;
+    res = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                         FORMAT_MESSAGE_ARGUMENT_ARRAY |
+                         FORMAT_MESSAGE_FROM_STRING,
+                         not_win32_app_msg,
+                         0, 0, (LPSTR) &lib->errmsg, 0, (va_list*) &arg);
+  }
+
+  if (!res)
+    uv__format_fallback_error(lib, errorno);
+
+  return -1;
 }

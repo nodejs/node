@@ -140,6 +140,7 @@ extern "C" {
   XX(ENXIO, "no such device or address")                                      \
   XX(EMLINK, "too many links")                                                \
   XX(EHOSTDOWN, "host is down")                                               \
+  XX(EREMOTEIO, "remote I/O error")                                           \
 
 #define UV_HANDLE_TYPE_MAP(XX)                                                \
   XX(ASYNC, async)                                                            \
@@ -719,7 +720,8 @@ struct uv_poll_s {
 enum uv_poll_event {
   UV_READABLE = 1,
   UV_WRITABLE = 2,
-  UV_DISCONNECT = 4
+  UV_DISCONNECT = 4,
+  UV_PRIORITIZED = 8
 };
 
 UV_EXTERN int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd);
@@ -1112,7 +1114,8 @@ typedef enum {
   UV_FS_READLINK,
   UV_FS_CHOWN,
   UV_FS_FCHOWN,
-  UV_FS_REALPATH
+  UV_FS_REALPATH,
+  UV_FS_COPYFILE
 } uv_fs_type;
 
 /* uv_fs_t is a subclass of uv_req_t. */
@@ -1157,6 +1160,18 @@ UV_EXTERN int uv_fs_write(uv_loop_t* loop,
                           unsigned int nbufs,
                           int64_t offset,
                           uv_fs_cb cb);
+/*
+ * This flag can be used with uv_fs_copyfile() to return an error if the
+ * destination already exists.
+ */
+#define UV_FS_COPYFILE_EXCL   0x0001
+
+UV_EXTERN int uv_fs_copyfile(uv_loop_t* loop,
+                             uv_fs_t* req,
+                             const char* path,
+                             const char* new_path,
+                             int flags,
+                             uv_fs_cb cb);
 UV_EXTERN int uv_fs_mkdir(uv_loop_t* loop,
                           uv_fs_t* req,
                           const char* path,
