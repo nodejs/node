@@ -19,6 +19,7 @@ using v8::Value;
 
 #define VALUE_METHOD_MAP(V)                                                   \
   V(isArrayBuffer, IsArrayBuffer)                                             \
+  V(isArrayBufferView, IsArrayBufferView)                                     \
   V(isAsyncFunction, IsAsyncFunction)                                         \
   V(isDataView, IsDataView)                                                   \
   V(isDate, IsDate)                                                           \

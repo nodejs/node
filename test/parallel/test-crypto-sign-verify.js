@@ -197,21 +197,21 @@ const modSize = 1024;
 
 // Test exceptions for invalid `padding` and `saltLength` values
 {
-  const paddingNotInteger = /^TypeError: padding must be an integer$/;
-  const saltLengthNotInteger = /^TypeError: saltLength must be an integer$/;
-
   [null, undefined, NaN, 'boom', {}, [], true, false]
     .forEach((invalidValue) => {
-      assert.throws(() => {
+      common.expectsError(() => {
         crypto.createSign('SHA256')
           .update('Test123')
           .sign({
             key: keyPem,
             padding: invalidValue
           });
-      }, paddingNotInteger);
+      }, {
+        code: 'ERR_INVALID_OPT_VALUE',
+        type: TypeError
+      });
 
-      assert.throws(() => {
+      common.expectsError(() => {
         crypto.createSign('SHA256')
           .update('Test123')
           .sign({
@@ -219,7 +219,10 @@ const modSize = 1024;
             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
             saltLength: invalidValue
           });
-      }, saltLengthNotInteger);
+      }, {
+        code: 'ERR_INVALID_OPT_VALUE',
+        type: TypeError
+      });
     });
 
   assert.throws(() => {
@@ -234,9 +237,12 @@ const modSize = 1024;
 
 // Test throws exception when key options is null
 {
-  assert.throws(() => {
+  common.expectsError(() => {
     crypto.createSign('SHA1').update('Test123').sign(null, 'base64');
-  }, /^Error: No key provided to sign$/);
+  }, {
+    code: 'ERR_CRYPTO_SIGN_KEY_REQUIRED',
+    type: Error
+  });
 }
 
 // RSA-PSS Sign test by verifying with 'openssl dgst -verify'
