@@ -100,7 +100,7 @@ class Agent {
 
   DebugOptions& options() { return debug_options_; }
   void ContextCreated(v8::Local<v8::Context> context);
-
+//protect variable change
  private:
   node::Environment* parent_env_;
   std::unique_ptr<NodeInspectorClient> client_;
