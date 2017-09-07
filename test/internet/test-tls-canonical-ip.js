@@ -23,3 +23,7 @@ assert.strictEqual(
 assert.strictEqual(
   tls.canonicalIp('0001:2222:3333:4444:5555:6666::'),
   '1:2222:3333:4444:5555:6666:0:0');
+
+assert.strictEqual(
+  tls.canonicalIp('a002:B12:00Ba:4444:5555:6666::'),
+  'a002:b12:ba:4444:5555:6666:0:0');
