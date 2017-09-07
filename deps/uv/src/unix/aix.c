@@ -1108,9 +1108,10 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 int uv_interface_addresses(uv_interface_address_t** addresses,
   int* count) {
   uv_interface_address_t* address;
-  int sockfd, size = 1;
+  int sockfd, inet6, size = 1;
   struct ifconf ifc;
   struct ifreq *ifr, *p, flg;
+  struct sockaddr_dl* sa_addr;
 
   *count = 0;
 
@@ -1174,6 +1175,8 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
           p->ifr_addr.sa_family == AF_INET))
       continue;
 
+    inet6 = (p->ifr_addr.sa_family == AF_INET6);
+
     memcpy(flg.ifr_name, p->ifr_name, sizeof(flg.ifr_name));
     if (ioctl(sockfd, SIOCGIFFLAGS, &flg) == -1) {
       uv__close(sockfd);
@@ -1187,13 +1190,23 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
 
     address->name = uv__strdup(p->ifr_name);
 
-    if (p->ifr_addr.sa_family == AF_INET6) {
+    if (inet6)
       address->address.address6 = *((struct sockaddr_in6*) &p->ifr_addr);
-    } else {
+    else
       address->address.address4 = *((struct sockaddr_in*) &p->ifr_addr);
+
+    sa_addr = (struct sockaddr_dl*) &p->ifr_addr;
+    memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
+
+    if (ioctl(sockfd, SIOCGIFNETMASK, p) == -1) {
+      uv__close(sockfd);
+      return -ENOSYS;
     }
 
-    /* TODO: Retrieve netmask using SIOCGIFNETMASK ioctl */
+    if (inet6)
+      address->netmask.netmask6 = *((struct sockaddr_in6*) &p->ifr_addr);
+    else
+      address->netmask.netmask4 = *((struct sockaddr_in*) &p->ifr_addr);
 
     address->is_internal = flg.ifr_flags & IFF_LOOPBACK ? 1 : 0;
 

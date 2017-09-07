@@ -126,6 +126,25 @@ To run the tests:
 $ make test
 ```
 
+To run the tests and generate code coverage reports:
+
+```console
+$ ./configure --coverage
+$ make coverage
+```
+
+This will generate coverage reports for both JavaScript and C++ tests (if you
+only want to run the JavaScript tests then you do not need to run the first
+command `./configure --coverage`).
+
+The `make coverage` command downloads some tools to the project root directory
+and overwrites the `lib/` directory. To clean up after generating the coverage
+reports:
+
+```console
+make coverage-clean
+```
+
 To build the documentation:
 
 This will build Node.js first (if necessary) and then use it to build the docs:

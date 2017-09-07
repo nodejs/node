@@ -84,7 +84,10 @@ server.listen(0, common.mustCall(function() {
     response.sendDate = false;
     assert.strictEqual(response.sendDate, false);
 
+    assert.strictEqual(response.code, h2.constants.NGHTTP2_NO_ERROR);
+
     response.on('finish', common.mustCall(function() {
+      assert.strictEqual(response.code, h2.constants.NGHTTP2_NO_ERROR);
       server.close();
     }));
     response.end();
