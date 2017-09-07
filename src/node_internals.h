@@ -125,6 +125,14 @@ inline v8::Local<TypeName> PersistentToLocal(
     v8::Isolate* isolate,
     const v8::Persistent<TypeName>& persistent);
 
+// Creates a new context with Node.js-specific tweaks.  Currently, it removes
+// the `v8BreakIterator` property from the global `Intl` object if present.
+// See https://github.com/nodejs/node/issues/14909 for more info.
+v8::Local<v8::Context> NewContext(
+    v8::Isolate* isolate,
+    v8::Local<v8::ObjectTemplate> object_template =
+        v8::Local<v8::ObjectTemplate>());
+
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
 // If |info| is omitted, a new object is returned.
