@@ -14,6 +14,7 @@
 @include deprecations
 @include dns
 @include domain
+@include esm
 @include errors
 @include events
 @include fs
