@@ -126,6 +126,27 @@ assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: false }));
   assert.strictEqual(settings.enablePush, true);
 }
 
+//should throw if enablePush is not 0 or 1
+{
+  const packed = Buffer.from([
+    0x00, 0x02, 0x00, 0x00, 0x00, 0x00]);
+
+  const settings = http2.getUnpackedSettings(packed, { validate: true });
+  assert.strictEqual(settings.enablePush, false);
+}
+{
+  const packed = Buffer.from([
+    0x00, 0x02, 0x00, 0x00, 0x00, 0x64]);
+
+  assert.throws(() => {
+    http2.getUnpackedSettings(packed, { validate: true });
+  }, common.expectsError({
+    code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
+    type: RangeError,
+    message: 'Invalid value for setting "enablePush": 100'
+  }));
+}
+
 //check for what happens if passing {validate: true} and no errors happen
 {
   const packed = Buffer.from([
