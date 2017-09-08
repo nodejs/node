@@ -325,7 +325,7 @@ inline const struct read_result read_file(uv_file file) {
 }
 struct file_check {
   bool failed = true;
-  uv_file file;
+  uv_file file = -1;
 } file_check;
 inline const struct file_check check_file(URL search,
                                           bool close = false,
@@ -461,7 +461,7 @@ URL Resolve(std::string specifier, URL* base, bool read_pkg_json) {
   } else {
     return resolve_module(specifier, base);
   }
-  return URL("");
+  UNREACHABLE();
 }
 
 void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
