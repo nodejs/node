@@ -1,7 +1,7 @@
 // Flags: --experimental-modules
 /* eslint-disable required-modules */
 
-import resolved from '../fixtures/module-pkg-over-ext/inner';
+import resolved from '../fixtures/module-pkg-over-ext/inner/package';
 import expected from '../fixtures/module-pkg-over-ext/inner/package.json';
 import assert from 'assert';
 

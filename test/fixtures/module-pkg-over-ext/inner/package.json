@@ -1,0 +1,4 @@
+{
+  "name": "foo",
+  "bin": "node bar.js"
+}
