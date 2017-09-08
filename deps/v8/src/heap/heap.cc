@@ -57,15 +57,16 @@
 namespace v8 {
 namespace internal {
 
-bool Heap::GCCallbackPair::operator==(const Heap::GCCallbackPair& other) const {
-  return other.callback == callback;
+bool Heap::GCCallbackTuple::operator==(
+    const Heap::GCCallbackTuple& other) const {
+  return other.callback == callback && other.data == data;
 }
 
-Heap::GCCallbackPair& Heap::GCCallbackPair::operator=(
-    const Heap::GCCallbackPair& other) {
+Heap::GCCallbackTuple& Heap::GCCallbackTuple::operator=(
+    const Heap::GCCallbackTuple& other) {
   callback = other.callback;
   gc_type = other.gc_type;
-  pass_isolate = other.pass_isolate;
+  data = other.data;
   return *this;
 }
 
@@ -1513,35 +1514,21 @@ bool Heap::PerformGarbageCollection(
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
   RuntimeCallTimerScope runtime_timer(isolate(),
                                       &RuntimeCallStats::GCPrologueCallback);
-  for (const GCCallbackPair& info : gc_prologue_callbacks_) {
+  for (const GCCallbackTuple& info : gc_prologue_callbacks_) {
     if (gc_type & info.gc_type) {
-      if (!info.pass_isolate) {
-        v8::GCCallback callback =
-            reinterpret_cast<v8::GCCallback>(info.callback);
-        callback(gc_type, flags);
-      } else {
-        v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
-        info.callback(isolate, gc_type, flags);
-      }
+      v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
+      info.callback(isolate, gc_type, flags, info.data);
     }
   }
 }
 
-
-void Heap::CallGCEpilogueCallbacks(GCType gc_type,
-                                   GCCallbackFlags gc_callback_flags) {
+void Heap::CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags) {
   RuntimeCallTimerScope runtime_timer(isolate(),
                                       &RuntimeCallStats::GCEpilogueCallback);
-  for (const GCCallbackPair& info : gc_epilogue_callbacks_) {
+  for (const GCCallbackTuple& info : gc_epilogue_callbacks_) {
     if (gc_type & info.gc_type) {
-      if (!info.pass_isolate) {
-        v8::GCCallback callback =
-            reinterpret_cast<v8::GCCallback>(info.callback);
-        callback(gc_type, gc_callback_flags);
-      } else {
-        v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
-        info.callback(isolate, gc_type, gc_callback_flags);
-      }
+      v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
+      info.callback(isolate, gc_type, flags, info.data);
     }
   }
 }
@@ -5973,21 +5960,21 @@ void Heap::TearDown() {
   memory_allocator_ = nullptr;
 }
 
-
-void Heap::AddGCPrologueCallback(v8::Isolate::GCCallback callback,
-                                 GCType gc_type, bool pass_isolate) {
+void Heap::AddGCPrologueCallback(v8::Isolate::GCCallbackWithData callback,
+                                 GCType gc_type, void* data) {
   DCHECK_NOT_NULL(callback);
   DCHECK(gc_prologue_callbacks_.end() ==
          std::find(gc_prologue_callbacks_.begin(), gc_prologue_callbacks_.end(),
-                   GCCallbackPair(callback, gc_type, pass_isolate)));
-  gc_prologue_callbacks_.emplace_back(callback, gc_type, pass_isolate);
+                   GCCallbackTuple(callback, gc_type, data)));
+  gc_prologue_callbacks_.emplace_back(callback, gc_type, data);
 }
 
-
-void Heap::RemoveGCPrologueCallback(v8::Isolate::GCCallback callback) {
+void Heap::RemoveGCPrologueCallback(v8::Isolate::GCCallbackWithData callback,
+                                    void* data) {
   DCHECK_NOT_NULL(callback);
   for (size_t i = 0; i < gc_prologue_callbacks_.size(); i++) {
-    if (gc_prologue_callbacks_[i].callback == callback) {
+    if (gc_prologue_callbacks_[i].callback == callback &&
+        gc_prologue_callbacks_[i].data == data) {
       gc_prologue_callbacks_[i] = gc_prologue_callbacks_.back();
       gc_prologue_callbacks_.pop_back();
       return;
@@ -5996,21 +5983,21 @@ void Heap::RemoveGCPrologueCallback(v8::Isolate::GCCallback callback) {
   UNREACHABLE();
 }
 
-
-void Heap::AddGCEpilogueCallback(v8::Isolate::GCCallback callback,
-                                 GCType gc_type, bool pass_isolate) {
+void Heap::AddGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
+                                 GCType gc_type, void* data) {
   DCHECK_NOT_NULL(callback);
   DCHECK(gc_epilogue_callbacks_.end() ==
          std::find(gc_epilogue_callbacks_.begin(), gc_epilogue_callbacks_.end(),
-                   GCCallbackPair(callback, gc_type, pass_isolate)));
-  gc_epilogue_callbacks_.emplace_back(callback, gc_type, pass_isolate);
+                   GCCallbackTuple(callback, gc_type, data)));
+  gc_epilogue_callbacks_.emplace_back(callback, gc_type, data);
 }
 
-
-void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallback callback) {
+void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
+                                    void* data) {
   DCHECK_NOT_NULL(callback);
   for (size_t i = 0; i < gc_epilogue_callbacks_.size(); i++) {
-    if (gc_epilogue_callbacks_[i].callback == callback) {
+    if (gc_epilogue_callbacks_[i].callback == callback &&
+        gc_epilogue_callbacks_[i].data == data) {
       gc_epilogue_callbacks_[i] = gc_epilogue_callbacks_.back();
       gc_epilogue_callbacks_.pop_back();
       return;
