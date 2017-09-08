@@ -7169,6 +7169,8 @@ class V8_EXPORT Isolate {
 
   typedef void (*GCCallback)(Isolate* isolate, GCType type,
                              GCCallbackFlags flags);
+  typedef void (*GCCallbackWithData)(Isolate* isolate, GCType type,
+                                     GCCallbackFlags flags, void* data);
 
   /**
    * Enables the host application to receive a notification before a
@@ -7179,6 +7181,8 @@ class V8_EXPORT Isolate {
    * not possible to register the same callback function two times with
    * different GCType filters.
    */
+  void AddGCPrologueCallback(GCCallbackWithData callback, void* data = nullptr,
+                             GCType gc_type_filter = kGCTypeAll);
   void AddGCPrologueCallback(GCCallback callback,
                              GCType gc_type_filter = kGCTypeAll);
 
@@ -7186,6 +7190,7 @@ class V8_EXPORT Isolate {
    * This function removes callback which was installed by
    * AddGCPrologueCallback function.
    */
+  void RemoveGCPrologueCallback(GCCallbackWithData, void* data = nullptr);
   void RemoveGCPrologueCallback(GCCallback callback);
 
   /**
@@ -7202,6 +7207,8 @@ class V8_EXPORT Isolate {
    * not possible to register the same callback function two times with
    * different GCType filters.
    */
+  void AddGCEpilogueCallback(GCCallbackWithData callback, void* data = nullptr,
+                             GCType gc_type_filter = kGCTypeAll);
   void AddGCEpilogueCallback(GCCallback callback,
                              GCType gc_type_filter = kGCTypeAll);
 
@@ -7209,6 +7216,8 @@ class V8_EXPORT Isolate {
    * This function removes callback which was installed by
    * AddGCEpilogueCallback function.
    */
+  void RemoveGCEpilogueCallback(GCCallbackWithData callback,
+                                void* data = nullptr);
   void RemoveGCEpilogueCallback(GCCallback callback);
 
   typedef size_t (*GetExternallyAllocatedMemoryInBytesCallback)();
