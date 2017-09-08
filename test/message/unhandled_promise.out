@@ -1,12 +1,4 @@
 (node:*) UnhandledPromiseRejectionWarning: Unhandled promise rejection (rejection id: 1)
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
 Error: This was rejected
     at *
     at *
@@ -18,21 +10,4 @@ Error: This was rejected
     at *
     at *
 (node:*) [DEP0018] DeprecationWarning: Unhandled promise rejections are deprecated. In the future, promise rejections that are not handled will terminate the Node.js process with a non-zero exit code.
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
 (node:*) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1)
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
