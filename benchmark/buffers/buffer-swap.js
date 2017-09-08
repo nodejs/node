@@ -73,7 +73,7 @@ function genMethod(method) {
 }
 
 function main(conf) {
-  const method = conf.method;
+  const method = conf.method || 'swap16';
   const len = conf.len | 0;
   const n = conf.n | 0;
   const aligned = conf.aligned || 'true';

@@ -65,6 +65,9 @@ static void InitConfig(Local<Object> target,
   if (config_preserve_symlinks)
     READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
 
+  if (config_experimental_modules)
+    READONLY_BOOLEAN_PROPERTY("experimentalModules");
+
   if (config_pending_deprecation)
     READONLY_BOOLEAN_PROPERTY("pendingDeprecation");
 

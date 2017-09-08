@@ -163,6 +163,10 @@ class URL {
     return ret;
   }
 
+  // Get the path of the file: URL in a format consumable by native file system
+  // APIs. Returns an empty string if something went wrong.
+  std::string ToFilePath();
+
   const Local<Value> ToObject(Environment* env) const;
 
  private:

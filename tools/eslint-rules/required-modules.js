@@ -13,6 +13,7 @@ const path = require('path');
 module.exports = function(context) {
   // trim required module names
   var requiredModules = context.options;
+  const isESM = context.parserOptions.sourceType === 'module';
 
   const foundModules = [];
 
@@ -40,38 +41,34 @@ module.exports = function(context) {
   }
 
   /**
+   * Function to check if the path is a required module and return its name.
+   * @param {String} str The path to check
+   * @returns {undefined|String} required module name or undefined
+   */
+  function getRequiredModuleName(str) {
+    var value = path.basename(str);
+
+    // check if value is in required modules array
+    return requiredModules.indexOf(value) !== -1 ? value : undefined;
+  }
+
+  /**
    * Function to check if a node has an argument that is a required module and
    * return its name.
    * @param {ASTNode} node The node to check
    * @returns {undefined|String} required module name or undefined
    */
-  function getRequiredModuleName(node) {
-    var moduleName;
-
+  function getRequiredModuleNameFromCall(node) {
     // node has arguments and first argument is string
     if (node.arguments.length && isString(node.arguments[0])) {
-      var argValue = path.basename(node.arguments[0].value.trim());
-
-      // check if value is in required modules array
-      if (requiredModules.indexOf(argValue) !== -1) {
-        moduleName = argValue;
-      }
+      return getRequiredModuleName(node.arguments[0].value.trim());
     }
 
-    return moduleName;
+    return undefined;
   }
 
-  return {
-    'CallExpression': function(node) {
-      if (isRequireCall(node)) {
-        var requiredModuleName = getRequiredModuleName(node);
-
-        if (requiredModuleName) {
-          foundModules.push(requiredModuleName);
-        }
-      }
-    },
-    'Program:exit': function(node) {
+  const rules = {
+    'Program:exit'(node) {
       if (foundModules.length < requiredModules.length) {
         var missingModules = requiredModules.filter(
           function(module) {
@@ -88,6 +85,27 @@ module.exports = function(context) {
       }
     }
   };
+
+  if (isESM) {
+    rules.ImportDeclaration = (node) => {
+      var requiredModuleName = getRequiredModuleName(node.source.value);
+      if (requiredModuleName) {
+        foundModules.push(requiredModuleName);
+      }
+    };
+  } else {
+    rules.CallExpression = (node) => {
+      if (isRequireCall(node)) {
+        var requiredModuleName = getRequiredModuleNameFromCall(node);
+
+        if (requiredModuleName) {
+          foundModules.push(requiredModuleName);
+        }
+      }
+    };
+  }
+
+  return rules;
 };
 
 module.exports.schema = {
