@@ -251,6 +251,10 @@
       'dependencies': [ 'deps/http_parser/http_parser.gyp:http_parser' ],
     }],
 
+    [ 'node_shared_nghttp2=="false"', {
+      'dependencies': [ 'deps/nghttp2/nghttp2.gyp:nghttp2' ],
+    }],
+
     [ 'node_shared_cares=="false"', {
       'dependencies': [ 'deps/cares/cares.gyp:cares' ],
     }],
