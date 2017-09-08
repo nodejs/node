@@ -59,7 +59,7 @@ if (cluster.isMaster) {
       throw new Error('Bad parallel job count');
   }
 
-  // Check for custom JSLint report formatter
+  // Check for custom ESLint report formatter
   i = process.argv.indexOf('-f');
   if (i !== -1) {
     if (!process.argv[i + 1])
@@ -77,7 +77,7 @@ if (cluster.isMaster) {
     formatter = cli.getFormatter();
   }
 
-  // Check if outputting JSLint report to a file instead of stdout
+  // Check if outputting ESLint report to a file instead of stdout
   i = process.argv.indexOf('-o');
   if (i !== -1) {
     if (!process.argv[i + 1])
