@@ -831,6 +831,12 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
   assert.strictEqual(util.inspect(x), '{}');
 }
 
+{
+  const x = [];
+  x[''] = 1;
+  assert.strictEqual(util.inspect(x), '[ \'\': 1 ]');
+}
+
 // The following maxArrayLength tests were introduced after v6.0.0 was released.
 // Do not backport to v5/v4 unless all of
 // https://github.com/nodejs/node/pull/6334 is backported.
