@@ -1422,13 +1422,15 @@ class Heap {
   // Prologue/epilogue callback methods.========================================
   // ===========================================================================
 
-  void AddGCPrologueCallback(v8::Isolate::GCCallback callback,
-                             GCType gc_type_filter, bool pass_isolate = true);
-  void RemoveGCPrologueCallback(v8::Isolate::GCCallback callback);
+  void AddGCPrologueCallback(v8::Isolate::GCCallbackWithData callback,
+                             GCType gc_type_filter, void* data);
+  void RemoveGCPrologueCallback(v8::Isolate::GCCallbackWithData callback,
+                                void* data);
 
-  void AddGCEpilogueCallback(v8::Isolate::GCCallback callback,
-                             GCType gc_type_filter, bool pass_isolate = true);
-  void RemoveGCEpilogueCallback(v8::Isolate::GCCallback callback);
+  void AddGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
+                             GCType gc_type_filter, void* data);
+  void RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
+                                void* data);
 
   void CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags);
   void CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags);
@@ -1588,17 +1590,17 @@ class Heap {
     RootListIndex index;
   };
 
-  struct GCCallbackPair {
-    GCCallbackPair(v8::Isolate::GCCallback callback, GCType gc_type,
-                   bool pass_isolate)
-        : callback(callback), gc_type(gc_type), pass_isolate(pass_isolate) {}
+  struct GCCallbackTuple {
+    GCCallbackTuple(v8::Isolate::GCCallbackWithData callback, GCType gc_type,
+                    void* data)
+        : callback(callback), gc_type(gc_type), data(data) {}
 
-    bool operator==(const GCCallbackPair& other) const;
-    GCCallbackPair& operator=(const GCCallbackPair& other);
+    bool operator==(const GCCallbackTuple& other) const;
+    GCCallbackTuple& operator=(const GCCallbackTuple& other);
 
-    v8::Isolate::GCCallback callback;
+    v8::Isolate::GCCallbackWithData callback;
     GCType gc_type;
-    bool pass_isolate;
+    void* data;
   };
 
   typedef String* (*ExternalStringTableUpdaterCallback)(Heap* heap,
@@ -2262,8 +2264,8 @@ class Heap {
 
   Object* encountered_transition_arrays_;
 
-  std::vector<GCCallbackPair> gc_epilogue_callbacks_;
-  std::vector<GCCallbackPair> gc_prologue_callbacks_;
+  std::vector<GCCallbackTuple> gc_epilogue_callbacks_;
+  std::vector<GCCallbackTuple> gc_prologue_callbacks_;
 
   GetExternallyAllocatedMemoryInBytesCallback external_memory_callback_;
 
