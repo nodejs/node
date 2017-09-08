@@ -146,7 +146,7 @@ class AsyncWrap : public BaseObject {
 
   virtual size_t self_size() const = 0;
 
- private:
+ public:
   inline AsyncWrap();
   const ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.
