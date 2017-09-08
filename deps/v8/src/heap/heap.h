@@ -1593,9 +1593,8 @@ class Heap {
                    bool pass_isolate)
         : callback(callback), gc_type(gc_type), pass_isolate(pass_isolate) {}
 
-    bool operator==(const GCCallbackPair& other) const {
-      return other.callback == callback;
-    }
+    bool operator==(const GCCallbackPair& other) const;
+    GCCallbackPair& operator=(const GCCallbackPair& other);
 
     v8::Isolate::GCCallback callback;
     GCType gc_type;
@@ -2263,8 +2262,8 @@ class Heap {
 
   Object* encountered_transition_arrays_;
 
-  List<GCCallbackPair> gc_epilogue_callbacks_;
-  List<GCCallbackPair> gc_prologue_callbacks_;
+  std::vector<GCCallbackPair> gc_epilogue_callbacks_;
+  std::vector<GCCallbackPair> gc_prologue_callbacks_;
 
   GetExternallyAllocatedMemoryInBytesCallback external_memory_callback_;
 
