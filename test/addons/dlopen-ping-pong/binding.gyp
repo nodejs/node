@@ -10,10 +10,9 @@
           'xcode_settings': {
             'OTHER_LDFLAGS': [ '-Wl,-undefined', '-Wl,dynamic_lookup' ]
         }}],
-        # Pass erok flag to the linker, to prevent unresolved symbols
-        # from failing. Still, the test won't pass, so we'll skip it on AIX.
+        # Enable the shared object to be linked by runtime linker
         ['OS=="aix"', {
-          'ldflags': [ '-Wl,-berok' ]
+          'ldflags': [ '-Wl,-G' ]
         }]],
     },
     {
