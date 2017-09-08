@@ -401,6 +401,17 @@ deprecated: REPLACEME
 An internal method used to parse and execute `REPLServer` keywords.
 Returns `true` if `keyword` is a valid keyword, otherwise `false`.
 
+### replServer.turnOffEditorMode()
+<!-- YAML
+added: v6.4.0
+deprecated: REPLACEME
+-->
+
+> Stability: 0 - Deprecated.
+
+An internal method used to turn off editor mode when entering
+code in the REPL.
+
 ## repl.start([options])
 <!-- YAML
 added: v0.1.91
