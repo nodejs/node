@@ -243,32 +243,21 @@ for (const showHidden of [true, false]) {
   );
 });
 
-// Due to the hash seed randomization it's not deterministic the order that
-// the following ways this hash is displayed.
-// See http://codereview.chromium.org/9124004/
-
-{
-  const out = util.inspect(Object.create({}, {
+assert.strictEqual(
+  util.inspect(Object.create({}, {
     visible: { value: 1, enumerable: true },
     hidden: { value: 2 }
-  }), true);
-  if (out !== '{ [hidden]: 2, visible: 1 }' &&
-      out !== '{ visible: 1, [hidden]: 2 }') {
-    assert.fail(`unexpected value for out ${out}`);
-  }
-}
-
+  }), { showHidden: true }),
+  '{ visible: 1, [hidden]: 2 }'
+);
 // Objects without prototype
-{
-  const out = util.inspect(Object.create(null, {
+assert.strictEqual(
+  util.inspect(Object.create(null, {
     name: { value: 'Tim', enumerable: true },
     hidden: { value: 'secret' }
-  }), true);
-  if (out !== "{ [hidden]: 'secret', name: 'Tim' }" &&
-      out !== "{ name: 'Tim', [hidden]: 'secret' }") {
-    assert.fail(`unexpected value for out ${out}`);
-  }
-}
+  }), { showHidden: true }),
+  "{ name: 'Tim', [hidden]: 'secret' }"
+);
 
 assert.strictEqual(
   util.inspect(Object.create(null, {
@@ -277,7 +266,6 @@ assert.strictEqual(
   })),
   '{ name: \'Tim\' }'
 );
-
 
 // Dynamic properties
 {
@@ -1061,19 +1049,11 @@ if (typeof Symbol !== 'undefined') {
 {
   const x = new Array(101).fill();
   assert(util.inspect(x).endsWith('1 more item ]'));
-}
-
-{
-  const x = new Array(101).fill();
   assert(!util.inspect(x, { maxArrayLength: 101 }).endsWith('1 more item ]'));
   assert.strictEqual(
     util.inspect(x, { maxArrayLength: -1 }),
     '[ ... 101 more items ]'
   );
-}
-
-{
-  const x = new Array(101).fill();
   assert.strictEqual(util.inspect(x, { maxArrayLength: 0 }),
                      '[ ... 101 more items ]');
 }
@@ -1082,46 +1062,20 @@ if (typeof Symbol !== 'undefined') {
   const x = Array(101);
   assert.strictEqual(util.inspect(x, { maxArrayLength: 0 }),
                      '[ ... 101 more items ]');
+  assert(!util.inspect(x, { maxArrayLength: null }).endsWith('1 more item ]'));
+  assert(!util.inspect(
+    x, { maxArrayLength: Infinity }
+  ).endsWith('1 more item ]'));
 }
 
 {
   const x = new Uint8Array(101);
   assert(util.inspect(x).endsWith('1 more item ]'));
-}
-
-{
-  const x = new Uint8Array(101);
   assert(!util.inspect(x, { maxArrayLength: 101 }).endsWith('1 more item ]'));
-}
-
-{
-  const x = new Uint8Array(101);
   assert.strictEqual(util.inspect(x, { maxArrayLength: 0 }),
                      'Uint8Array [ ... 101 more items ]');
-}
-
-{
-  const x = Array(101);
   assert(!util.inspect(x, { maxArrayLength: null }).endsWith('1 more item ]'));
-}
-
-{
-  const x = Array(101);
-  assert(!util.inspect(
-    x, { maxArrayLength: Infinity }
-  ).endsWith('1 more item ]'));
-}
-
-{
-  const x = new Uint8Array(101);
-  assert(!util.inspect(x, { maxArrayLength: null }).endsWith('1 more item ]'));
-}
-
-{
-  const x = new Uint8Array(101);
-  assert(!util.inspect(
-    x, { maxArrayLength: Infinity }
-  ).endsWith('1 more item ]'));
+  assert(util.inspect(x, { maxArrayLength: Infinity }).endsWith('  0 ]'));
 }
 
 {
