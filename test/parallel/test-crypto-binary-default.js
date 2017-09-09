@@ -424,28 +424,28 @@ assert.throws(function() {
 }, /^Error: Digest method not supported$/);
 
 // Test signing and verifying
-const s1 = crypto.createSign('RSA-SHA1')
+const s1 = crypto.createSign('SHA1')
                .update('Test123')
                .sign(keyPem, 'base64');
-const s1Verified = crypto.createVerify('RSA-SHA1')
+const s1Verified = crypto.createVerify('SHA1')
                        .update('Test')
                        .update('123')
                        .verify(certPem, s1, 'base64');
 assert.strictEqual(s1Verified, true, 'sign and verify (base 64)');
 
-const s2 = crypto.createSign('RSA-SHA256')
+const s2 = crypto.createSign('SHA256')
                .update('Test123')
                .sign(keyPem); // binary
-const s2Verified = crypto.createVerify('RSA-SHA256')
+const s2Verified = crypto.createVerify('SHA256')
                        .update('Test')
                        .update('123')
                        .verify(certPem, s2); // binary
 assert.strictEqual(s2Verified, true, 'sign and verify (binary)');
 
-const s3 = crypto.createSign('RSA-SHA1')
+const s3 = crypto.createSign('SHA1')
                .update('Test123')
                .sign(keyPem, 'buffer');
-const s3Verified = crypto.createVerify('RSA-SHA1')
+const s3Verified = crypto.createVerify('SHA1')
                        .update('Test')
                        .update('123')
                        .verify(certPem, s3);
@@ -610,8 +610,8 @@ const d = crypto.createDiffieHellman(p, 'hex');
 assert.strictEqual(d.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 // Test RSA key signing/verification
-const rsaSign = crypto.createSign('RSA-SHA1');
-const rsaVerify = crypto.createVerify('RSA-SHA1');
+const rsaSign = crypto.createSign('SHA1');
+const rsaVerify = crypto.createVerify('SHA1');
 assert.ok(rsaSign instanceof crypto.Sign);
 assert.ok(rsaVerify instanceof crypto.Verify);
 
@@ -646,13 +646,13 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
       '8195e0268da7eda23d9825ac43c724e86ceeee0d0d4465678652ccaf6501' +
       '0ddfb299bedeb1ad';
 
-  const sign = crypto.createSign('RSA-SHA256');
+  const sign = crypto.createSign('SHA256');
   sign.update(input);
 
   const output = sign.sign(privateKey, 'hex');
   assert.strictEqual(output, signature);
 
-  const verify = crypto.createVerify('RSA-SHA256');
+  const verify = crypto.createVerify('SHA256');
   verify.update(input);
 
   assert.strictEqual(verify.verify(publicKey, signature, 'hex'), true);
@@ -670,11 +670,11 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 
   // DSA signatures vary across runs so there is no static string to verify
   // against
-  const sign = crypto.createSign('DSS1');
+  const sign = crypto.createSign('SHA1');
   sign.update(input);
   const signature = sign.sign(privateKey, 'hex');
 
-  const verify = crypto.createVerify('DSS1');
+  const verify = crypto.createVerify('SHA1');
   verify.update(input);
 
   assert.strictEqual(verify.verify(publicKey, signature, 'hex'), true);
