@@ -56,8 +56,12 @@ function testInitialized(req, ctor_name) {
 
   testInitialized(dns.lookup('www.google.com', () => {}), 'GetAddrInfoReqWrap');
   testInitialized(dns.lookupService('::1', 22, () => {}), 'GetNameInfoReqWrap');
-  testInitialized(dns.resolve6('::1', () => {}), 'QueryReqWrap');
-  testInitialized(new cares.ChannelWrap(), 'ChannelWrap');
+
+  const resolver = new dns.Resolver();
+  resolver.setServers(['127.0.0.1']);
+  testInitialized(resolver._handle, 'ChannelWrap');
+  testInitialized(resolver.resolve6('::1', () => {}), 'QueryReqWrap');
+  resolver.cancel();
 }
 
 
