@@ -361,6 +361,29 @@ assert.strictEqual(
   assert.strictEqual(util.inspect(arr3), "[ '-1': -1 ]");
 }
 
+// Indices out of bounds
+{
+  const arr = [];
+  arr[2 ** 32] = true; // not a valid array index
+  assert.strictEqual(util.inspect(arr), "[ '4294967296': true ]");
+  arr[0] = true;
+  arr[10] = true;
+  assert.strictEqual(util.inspect(arr),
+                     "[ true, <9 empty items>, true, '4294967296': true ]");
+  arr[2 ** 32 - 2] = true;
+  arr[2 ** 32 - 1] = true;
+  arr[2 ** 32 + 1] = true;
+  delete arr[0];
+  delete arr[10];
+  assert.strictEqual(util.inspect(arr),
+                     ['[ <4294967294 empty items>,',
+                      'true,',
+                      "'4294967296': true,",
+                      "'4294967295': true,",
+                      "'4294967297': true ]"
+                     ].join('\n  '));
+}
+
 // Function with properties
 {
   const value = () => {};
