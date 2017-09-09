@@ -2757,26 +2757,31 @@ napi_status napi_instanceof(napi_env env,
 
 napi_status napi_async_init(napi_env env,
                             napi_value async_resource,
-                            const char* async_resource_name,
+                            napi_value async_resource_name,
                             napi_async_context* result) {
   CHECK_ENV(env);
-  CHECK_ARG(env, async_resource);
   CHECK_ARG(env, async_resource_name);
   CHECK_ARG(env, result);
 
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-  v8::Local<v8::Object> v8resource;
-  CHECK_TO_OBJECT(env, context, v8resource, async_resource);
+  v8::Local<v8::Object> v8_resource;
+  if (async_resource != nullptr) {
+    CHECK_TO_OBJECT(env, context, v8_resource, async_resource);
+  } else {
+    v8_resource = v8::Object::New(isolate);
+  }
+
+  v8::Local<v8::String> v8_resource_name;
+  CHECK_TO_STRING(env, context, v8_resource_name, async_resource_name);
 
   // TODO(jasongin): Consider avoiding allocation here by using
   // a tagged pointer with 2×31 bit fields instead.
-  node::async_context* node_async_context = new node::async_context();
+  node::async_context* async_context = new node::async_context();
 
-  *node_async_context =
-      node::EmitAsyncInit(isolate, v8resource, async_resource_name);
-  *result = reinterpret_cast<napi_async_context>(node_async_context);
+  *async_context = node::EmitAsyncInit(isolate, v8_resource, v8_resource_name);
+  *result = reinterpret_cast<napi_async_context>(async_context);
 
   return napi_clear_last_error(env);
 }

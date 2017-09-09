@@ -527,11 +527,10 @@ NAPI_EXTERN napi_status napi_queue_async_work(napi_env env,
 NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
                                                napi_async_work work);
 
-
 // Methods for custom handling of async operations
 NAPI_EXTERN napi_status napi_async_init(napi_env env,
                                         napi_value async_resource,
-                                        const char* async_resource_name,
+                                        napi_value async_resource_name,
                                         napi_async_context* result);
 
 NAPI_EXTERN napi_status napi_async_destroy(napi_env env,

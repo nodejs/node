@@ -24,8 +24,11 @@ napi_value MakeCallback(napi_env env, napi_callback_info info) {
 
   NAPI_CALL(env, napi_typeof(env, func, &func_type));
 
+  napi_value resource_name;
+  NAPI_CALL(env, napi_create_string_utf8(env, "test", -1, &resource_name));
+
   napi_async_context context;
-  NAPI_CALL(env, napi_async_init(env, func, "test", &context));
+  NAPI_CALL(env, napi_async_init(env, func, resource_name, &context));
 
   napi_value result;
   if (func_type == napi_function) {
