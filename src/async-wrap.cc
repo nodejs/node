@@ -643,6 +643,16 @@ async_context EmitAsyncInit(Isolate* isolate,
                             Local<Object> resource,
                             const char* name,
                             async_id trigger_async_id) {
+  Local<String> type =
+      String::NewFromUtf8(isolate, name, v8::NewStringType::kInternalized)
+          .ToLocalChecked();
+  return EmitAsyncInit(isolate, resource, type, trigger_async_id);
+}
+
+async_context EmitAsyncInit(Isolate* isolate,
+                            Local<Object> resource,
+                            v8::Local<v8::String> name,
+                            async_id trigger_async_id) {
   Environment* env = Environment::GetCurrent(isolate);
 
   // Initialize async context struct
@@ -655,10 +665,7 @@ async_context EmitAsyncInit(Isolate* isolate,
   };
 
   // Run init hooks
-  Local<String> type =
-      String::NewFromUtf8(isolate, name, v8::NewStringType::kInternalized)
-          .ToLocalChecked();
-  AsyncWrap::EmitAsyncInit(env, resource, type, context.async_id,
+  AsyncWrap::EmitAsyncInit(env, resource, name, context.async_id,
                            context.trigger_async_id);
 
   return context;
