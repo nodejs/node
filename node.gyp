@@ -241,6 +241,7 @@
         'src/handle_wrap.cc',
         'src/js_stream.cc',
         'src/node.cc',
+        'src/node_api_backport.cc',
         'src/node_api.cc',
         'src/node_api.h',
         'src/node_api_types.h',

@@ -5,6 +5,48 @@
 // which have appeared in later versions of Node.js, and which are required for
 // N-API.
 
-#define ToChecked FromJust
+#include "node_internals.h"
+
+namespace node {
+
+typedef int async_id;
+
+typedef struct async_context {
+  node::async_id async_id;
+  node::async_id trigger_async_id;
+} async_context;
+
+class CallbackScope {
+ public:
+  CallbackScope(v8::Isolate *isolate,
+                v8::Local<v8::Object> object,
+                node::async_context context);
+  ~CallbackScope();
+ private:
+  v8::Isolate* isolate = nullptr;
+  node::Environment* env = nullptr;
+  v8::TryCatch _try_catch;
+  bool ran_init_callback = false;
+  v8::Local<v8::Object> object;
+  Environment::AsyncCallbackScope callback_scope;
+};
+
+class AsyncResource {
+ public:
+  AsyncResource(v8::Isolate* _isolate,
+                v8::Local<v8::Object> _object,
+                v8::Local<v8::String> name);
+  ~AsyncResource();
+  v8::Isolate* isolate;
+  v8::Persistent<v8::Object> object;
+};
+}  // end of namespace node
+
+class CallbackScope {
+ public:
+  explicit CallbackScope(node::AsyncResource* work);
+ private:
+  node::CallbackScope scope;
+};
 
 #endif  // SRC_NODE_API_BACKPORT_H_
