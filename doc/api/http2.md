@@ -1505,8 +1505,7 @@ added: v8.4.0
 * `options` {Object}
   * `allowHTTP1` {boolean} Incoming client connections that do not support
     HTTP/2 will be downgraded to HTTP/1.x when set to `true`. The default value
-    is `false`. See the [`'unknownProtocol'`][] event. See [ALPN
-    negotiation](#alpn-negotiation).
+    is `false`. See the [`'unknownProtocol'`][] event. See [ALPN negotiation][].
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. Defaults to 4Kib.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
@@ -2019,9 +2018,9 @@ added: v8.4.0
 
 * `error` {Error}
 
-Calls `destroy()` on the [`Http2Stream`][] that received the [`ServerRequest`][]. If
-`error` is provided, an `'error'` event is emitted and `error` is passed as an
-argument to any listeners on the event.
+Calls `destroy()` on the [`Http2Stream`][] that received
+the [`Http2ServerRequest`][]. If `error` is provided, an `'error'` event
+is emitted and `error` is passed as an argument to any listeners on the event.
 
 It does nothing if the stream was already destroyed.
 
@@ -2655,7 +2654,7 @@ will result in a [`TypeError`][] being thrown.
 added: v8.4.0
 -->
 
-Call [`stream.pushStream()`][] with the given headers, and wraps the
+Call [`http2stream.pushStream()`][] with the given headers, and wraps the
 given newly created [`Http2Stream`] on `Http2ServerRespose`.
 
 The callback will be called with an error with code `ERR_HTTP2_STREAM_CLOSED`
@@ -2667,7 +2666,7 @@ if the stream is closed.
 [HTTP/2]: https://tools.ietf.org/html/rfc7540
 [HTTPS]: https.html
 [Headers Object]: #http2_headers_object
-[Http2Session and Sockets]: #http2_http2sesion_and_sockets
+[Http2Session and Sockets]: #http2_http2session_and_sockets
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Settings Object]: #http2_settings_object
 [Using options.selectPadding]: #http2_using_options_selectpadding
@@ -2678,14 +2677,15 @@ if the stream is closed.
 [`ClientHttp2Stream`]: #http2_class_clienthttp2stream
 [`Duplex`]: stream.html#stream_class_stream_duplex
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`Http2ServerRequest`]: #http2_class_http2_http2serverrequest
 [`Http2Stream`]: #http2_class_http2stream
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
-[`ServerRequest`]: #http2_class_server_request
 [`TypeError`]: errors.html#errors_class_typeerror
 [`http2.SecureServer`]: #http2_class_http2secureserver
 [`http2.createSecureServer()`]: #http2_createsecureserver_options_onrequesthandler
 [`http2.Server`]: #http2_class_http2server
 [`http2.createServer()`]: #http2_createserver_options_onrequesthandler
+[`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
 [`net.Socket`]: net.html#net_class_net_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http2_response_end_data_encoding_callback
@@ -2695,7 +2695,6 @@ if the stream is closed.
 [`response.write(data, encoding)`]: http.html#http_response_write_chunk_encoding_callback
 [`response.writeContinue()`]: #http2_response_writecontinue
 [`response.writeHead()`]: #http2_response_writehead_statuscode_statusmessage_headers
-[`stream.pushStream()`]: #http2_stream-pushstream
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [error code]: #error_codes
