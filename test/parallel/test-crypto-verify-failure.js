@@ -28,7 +28,7 @@ const server = tls.Server(options, (socket) => {
 });
 
 function verify() {
-  crypto.createVerify('RSA-SHA1')
+  crypto.createVerify('SHA1')
     .update('Test')
     .verify(certPem, 'asdfasdfas', 'base64');
 }

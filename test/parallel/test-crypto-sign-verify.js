@@ -21,15 +21,15 @@ const modSize = 1024;
 
 // Test signing and verifying
 {
-  const s1 = crypto.createSign('RSA-SHA1')
+  const s1 = crypto.createSign('SHA1')
                    .update('Test123')
                    .sign(keyPem, 'base64');
-  let s1stream = crypto.createSign('RSA-SHA1');
+  let s1stream = crypto.createSign('SHA1');
   s1stream.end('Test123');
   s1stream = s1stream.sign(keyPem, 'base64');
   assert.strictEqual(s1, s1stream, 'Stream produces same output');
 
-  const verified = crypto.createVerify('RSA-SHA1')
+  const verified = crypto.createVerify('SHA1')
                          .update('Test')
                          .update('123')
                          .verify(certPem, s1, 'base64');
@@ -37,21 +37,21 @@ const modSize = 1024;
 }
 
 {
-  const s2 = crypto.createSign('RSA-SHA256')
+  const s2 = crypto.createSign('SHA256')
                    .update('Test123')
                    .sign(keyPem, 'latin1');
-  let s2stream = crypto.createSign('RSA-SHA256');
+  let s2stream = crypto.createSign('SHA256');
   s2stream.end('Test123');
   s2stream = s2stream.sign(keyPem, 'latin1');
   assert.strictEqual(s2, s2stream, 'Stream produces same output');
 
-  let verified = crypto.createVerify('RSA-SHA256')
+  let verified = crypto.createVerify('SHA256')
                        .update('Test')
                        .update('123')
                        .verify(certPem, s2, 'latin1');
   assert.strictEqual(verified, true, 'sign and verify (latin1)');
 
-  const verStream = crypto.createVerify('RSA-SHA256');
+  const verStream = crypto.createVerify('SHA256');
   verStream.write('Tes');
   verStream.write('t12');
   verStream.end('3');
@@ -60,16 +60,16 @@ const modSize = 1024;
 }
 
 {
-  const s3 = crypto.createSign('RSA-SHA1')
+  const s3 = crypto.createSign('SHA1')
                    .update('Test123')
                    .sign(keyPem, 'buffer');
-  let verified = crypto.createVerify('RSA-SHA1')
+  let verified = crypto.createVerify('SHA1')
                        .update('Test')
                        .update('123')
                        .verify(certPem, s3);
   assert.strictEqual(verified, true, 'sign and verify (buffer)');
 
-  const verStream = crypto.createVerify('RSA-SHA1');
+  const verStream = crypto.createVerify('SHA1');
   verStream.write('Tes');
   verStream.write('t12');
   verStream.end('3');
@@ -170,8 +170,8 @@ const modSize = 1024;
     });
   }
 
-  testPSS('RSA-SHA1', 20);
-  testPSS('RSA-SHA256', 32);
+  testPSS('SHA1', 20);
+  testPSS('SHA256', 32);
 }
 
 // Test vectors for RSA_PKCS1_PSS_PADDING provided by the RSA Laboratories:
@@ -179,7 +179,7 @@ const modSize = 1024;
 {
   // We only test verification as we cannot specify explicit salts when signing
   function testVerify(cert, vector) {
-    const verified = crypto.createVerify('RSA-SHA1')
+    const verified = crypto.createVerify('SHA1')
                           .update(Buffer.from(vector.message, 'hex'))
                           .verify({
                             key: cert,
@@ -206,7 +206,7 @@ const modSize = 1024;
   [null, undefined, NaN, 'boom', {}, [], true, false]
     .forEach((invalidValue) => {
       assert.throws(() => {
-        crypto.createSign('RSA-SHA256')
+        crypto.createSign('SHA256')
           .update('Test123')
           .sign({
             key: keyPem,
@@ -215,7 +215,7 @@ const modSize = 1024;
       }, /^TypeError: padding must be an integer$/);
 
       assert.throws(() => {
-        crypto.createSign('RSA-SHA256')
+        crypto.createSign('SHA256')
           .update('Test123')
           .sign({
             key: keyPem,
@@ -226,7 +226,7 @@ const modSize = 1024;
     });
 
   assert.throws(() => {
-    crypto.createSign('RSA-SHA1')
+    crypto.createSign('SHA1')
       .update('Test123')
       .sign({
         key: keyPem,
@@ -238,7 +238,7 @@ const modSize = 1024;
 // Test throws exception when key options is null
 {
   assert.throws(() => {
-    crypto.createSign('RSA-SHA1').update('Test123').sign(null, 'base64');
+    crypto.createSign('SHA1').update('Test123').sign(null, 'base64');
   }, /^Error: No key provided to sign$/);
 }
 
@@ -254,7 +254,7 @@ const modSize = 1024;
   const privkey = fs.readFileSync(privfile);
 
   const msg = 'Test123';
-  const s5 = crypto.createSign('RSA-SHA256')
+  const s5 = crypto.createSign('SHA256')
     .update(msg)
     .sign({
       key: privkey,
