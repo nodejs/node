@@ -133,6 +133,10 @@ Environment::Environment(IsolateData* isolate_data,
 }
 
 Environment::~Environment() {
+  // Make sure there are no re-used libuv wrapper objects.
+  // CleanupHandles() should have removed all of them.
+  CHECK(file_handle_read_wrap_freelist_.empty());
+
   v8::HandleScope handle_scope(isolate());
 
 #if HAVE_INSPECTOR
@@ -245,6 +249,8 @@ void Environment::CleanupHandles() {
          !handle_wrap_queue_.IsEmpty()) {
     uv_run(event_loop(), UV_RUN_ONCE);
   }
+
+  file_handle_read_wrap_freelist_.clear();
 }
 
 void Environment::StartProfilerIdleNotifier() {
