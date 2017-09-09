@@ -115,7 +115,7 @@ class SimpleTestConfiguration(test.TestConfiguration):
     all_tests = [current_path + [t] for t in self.Ls(join(self.root))]
     result = []
     for test in all_tests:
-      if self.Contains(path, test):
+      if self.Contains(path, [test[0], re.sub('\.m?js$', '', test[1])]):
         file_path = join(self.root, reduce(join, test[1:], ""))
         test_name = test[:-1] + [splitext(test[-1])[0]]
         result.append(SimpleTestCase(test_name, file_path, arch, mode,
