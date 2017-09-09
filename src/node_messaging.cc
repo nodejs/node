@@ -2,11 +2,13 @@
 
 #include "async_wrap-inl.h"
 #include "debug_utils.h"
+#include "node_contextify.h"
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_process.h"
 #include "util.h"
 
+using node::contextify::ContextifyContext;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferCreationMode;
@@ -760,6 +762,35 @@ void MessagePort::Drain(const FunctionCallbackInfo<Value>& args) {
   port->OnMessage();
 }
 
+void MessagePort::MoveToContext(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsObject() ||
+      !env->message_port_constructor_template()->HasInstance(args[0])) {
+    return THROW_ERR_INVALID_ARG_TYPE(env,
+        "First argument needs to be a MessagePort instance");
+  }
+  MessagePort* port = Unwrap<MessagePort>(args[0].As<Object>());
+  CHECK_NOT_NULL(port);
+
+  Local<Value> context_arg = args[1];
+  ContextifyContext* context_wrapper;
+  if (!context_arg->IsObject() ||
+      (context_wrapper = ContextifyContext::ContextFromContextifiedSandbox(
+          env, context_arg.As<Object>())) == nullptr) {
+    return THROW_ERR_INVALID_ARG_TYPE(env, "Invalid context argument");
+  }
+
+  std::unique_ptr<MessagePortData> data;
+  if (!port->IsDetached())
+    data = port->Detach();
+
+  Context::Scope context_scope(context_wrapper->context());
+  MessagePort* target =
+      MessagePort::New(env, context_wrapper->context(), std::move(data));
+  if (target != nullptr)
+    args.GetReturnValue().Set(target->object());
+}
+
 void MessagePort::Entangle(MessagePort* a, MessagePort* b) {
   Entangle(a, b->data_.get());
 }
@@ -816,9 +847,9 @@ static void MessageChannel(const FunctionCallbackInfo<Value>& args) {
   MessagePort* port2 = MessagePort::New(env, context);
   MessagePort::Entangle(port1, port2);
 
-  args.This()->Set(env->context(), env->port1_string(), port1->object())
+  args.This()->Set(context, env->port1_string(), port1->object())
       .FromJust();
-  args.This()->Set(env->context(), env->port2_string(), port2->object())
+  args.This()->Set(context, env->port2_string(), port2->object())
       .FromJust();
 }
 
@@ -833,7 +864,7 @@ static void InitMessaging(Local<Object> target,
         FIXED_ONE_BYTE_STRING(env->isolate(), "MessageChannel");
     Local<FunctionTemplate> templ = env->NewFunctionTemplate(MessageChannel);
     templ->SetClassName(message_channel_string);
-    target->Set(env->context(),
+    target->Set(context,
                 message_channel_string,
                 templ->GetFunction(context).ToLocalChecked()).FromJust();
   }
@@ -847,6 +878,8 @@ static void InitMessaging(Local<Object> target,
   // the browser equivalents do not provide them.
   env->SetMethod(target, "stopMessagePort", MessagePort::Stop);
   env->SetMethod(target, "drainMessagePort", MessagePort::Drain);
+  env->SetMethod(target, "moveMessagePortToContext",
+                 MessagePort::MoveToContext);
 }
 
 }  // anonymous namespace
