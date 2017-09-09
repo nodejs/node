@@ -71,6 +71,7 @@ napi_value Test(napi_env env, napi_callback_info info) {
   size_t argc = 3;
   napi_value argv[3];
   napi_value _this;
+  napi_value resource_name;
   void* data;
   NAPI_CALL(env,
     napi_get_cb_info(env, info, &argc, argv, &_this, &data));
@@ -93,7 +94,10 @@ napi_value Test(napi_env env, napi_callback_info info) {
     napi_get_value_int32(env, argv[0], &the_carrier._input));
   NAPI_CALL(env,
     napi_create_reference(env, argv[2], 1, &the_carrier._callback));
-  NAPI_CALL(env, napi_create_async_work(env, argv[1], "TestResource",
+
+  NAPI_CALL(env,
+    napi_create_string_utf8(env, "TestResource", -1, &resource_name));
+  NAPI_CALL(env, napi_create_async_work(env, argv[1], resource_name,
     Execute, Complete, &the_carrier, &the_carrier._request));
   NAPI_CALL(env,
     napi_queue_async_work(env, the_carrier._request));
@@ -138,12 +142,16 @@ napi_value TestCancel(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value argv[1];
   napi_value _this;
+  napi_value resource_name;
   void* data;
+
+  NAPI_CALL(env,
+    napi_create_string_utf8(env, "TestResource", -1, &resource_name));
 
   // make sure the work we are going to cancel will not be
   // able to start by using all the threads in the pool
   for (int i = 1; i < MAX_CANCEL_THREADS; i++) {
-    NAPI_CALL(env, napi_create_async_work(env, nullptr, "TestCancelBusy",
+    NAPI_CALL(env, napi_create_async_work(env, nullptr, resource_name,
       CancelExecute, BusyCancelComplete,
       &async_carrier[i], &async_carrier[i]._request));
     NAPI_CALL(env, napi_queue_async_work(env, async_carrier[i]._request));
@@ -155,7 +163,7 @@ napi_value TestCancel(napi_env env, napi_callback_info info) {
   // workers above.
   NAPI_CALL(env,
     napi_get_cb_info(env, info, &argc, argv, &_this, &data));
-  NAPI_CALL(env, napi_create_async_work(env, nullptr, "TestCancelled",
+  NAPI_CALL(env, napi_create_async_work(env, nullptr, resource_name,
     CancelExecute, CancelComplete,
     &async_carrier[0], &async_carrier[0]._request));
   NAPI_CALL(env,

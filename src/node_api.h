@@ -525,7 +525,7 @@ NAPI_EXTERN napi_status napi_get_dataview_info(napi_env env,
 NAPI_EXTERN
 napi_status napi_create_async_work(napi_env env,
                                    napi_value async_resource,
-                                   const char* async_resource_name,
+                                   napi_value async_resource_name,
                                    napi_async_execute_callback execute,
                                    napi_async_complete_callback complete,
                                    void* data,
