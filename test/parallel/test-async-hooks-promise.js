@@ -4,11 +4,16 @@ const assert = require('assert');
 const async_hooks = require('async_hooks');
 
 const initCalls = [];
+const resolveCalls = [];
 
 async_hooks.createHook({
   init: common.mustCall((id, type, triggerId, resource) => {
     assert.strictEqual(type, 'PROMISE');
     initCalls.push({ id, triggerId, resource });
+  }, 2),
+  promiseResolve: common.mustCall((id) => {
+    assert.strictEqual(initCalls[resolveCalls.length].id, id);
+    resolveCalls.push(id);
   }, 2)
 }).enable();
 
