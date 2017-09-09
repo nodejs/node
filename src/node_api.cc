@@ -3255,7 +3255,7 @@ class Work : public node::AsyncResource {
  private:
   explicit Work(napi_env env,
                 v8::Local<v8::Object> async_resource,
-                const char* async_resource_name,
+                v8::Local<v8::String> async_resource_name,
                 napi_async_execute_callback execute,
                 napi_async_complete_callback complete = nullptr,
                 void* data = nullptr)
@@ -3275,7 +3275,7 @@ class Work : public node::AsyncResource {
  public:
   static Work* New(napi_env env,
                    v8::Local<v8::Object> async_resource,
-                   const char* async_resource_name,
+                   v8::Local<v8::String> async_resource_name,
                    napi_async_execute_callback execute,
                    napi_async_complete_callback complete,
                    void* data) {
@@ -3345,7 +3345,7 @@ class Work : public node::AsyncResource {
 
 napi_status napi_create_async_work(napi_env env,
                                    napi_value async_resource,
-                                   const char* async_resource_name,
+                                   napi_value async_resource_name,
                                    napi_async_execute_callback execute,
                                    napi_async_complete_callback complete,
                                    void* data,
@@ -3354,17 +3354,20 @@ napi_status napi_create_async_work(napi_env env,
   CHECK_ARG(env, execute);
   CHECK_ARG(env, result);
 
+  v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
+
   v8::Local<v8::Object> resource;
   if (async_resource != nullptr) {
-    auto value = v8impl::V8LocalValueFromJsValue(async_resource);
-    RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
-    resource = value.As<v8::Object>();
+    CHECK_TO_OBJECT(env, context, resource, async_resource);
   } else {
     resource = v8::Object::New(env->isolate);
   }
 
+  v8::Local<v8::String> resource_name;
+  CHECK_TO_STRING(env, context, resource_name, async_resource_name);
+
   uvimpl::Work* work =
-      uvimpl::Work::New(env, resource, async_resource_name,
+      uvimpl::Work::New(env, resource, resource_name,
                         execute, complete, data);
 
   *result = reinterpret_cast<napi_async_work>(work);
