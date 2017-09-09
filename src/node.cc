@@ -908,6 +908,22 @@ void AddPromiseHook(v8::Isolate* isolate, promise_hook_func fn, void* arg) {
   env->AddPromiseHook(fn, arg);
 }
 
+void AddEnvironmentCleanupHook(v8::Isolate* isolate,
+                               void (*fun)(void* arg),
+                               void* arg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  env->AddCleanupHook(fun, arg);
+}
+
+
+void RemoveEnvironmentCleanupHook(v8::Isolate* isolate,
+                                  void (*fun)(void* arg),
+                                  void* arg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  env->RemoveCleanupHook(fun, arg);
+}
+
+
 CallbackScope::CallbackScope(Isolate* isolate,
                              Local<Object> object,
                              async_context asyncContext)
@@ -4463,7 +4479,7 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
 
 
 void FreeEnvironment(Environment* env) {
-  env->CleanupHandles();
+  env->RunCleanup();
   delete env;
 }
 
@@ -4561,6 +4577,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   env.set_trace_sync_io(false);
 
   const int exit_code = EmitExit(&env);
+
+  env.RunCleanup();
   RunAtExit(&env);
 
   v8_platform.DrainVMTasks(isolate);
