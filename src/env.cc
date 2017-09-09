@@ -166,6 +166,26 @@ void Environment::PrintSyncTrace() const {
   fflush(stderr);
 }
 
+void Environment::RunCleanup() {
+  while (!cleanup_hooks_.empty()) {
+    std::vector<CleanupHookCallback> callbacks;
+    // Concatenate all vectors in cleanup_hooks_
+    for (const auto& pair : cleanup_hooks_)
+      callbacks.insert(callbacks.end(), pair.second.begin(), pair.second.end());
+    cleanup_hooks_.clear();
+    std::sort(callbacks.begin(), callbacks.end(),
+              [](const CleanupHookCallback& a, const CleanupHookCallback& b) {
+      // Sort in descending order so that the last-inserted callbacks get run
+      // first.
+      return a.insertion_order_counter_ > b.insertion_order_counter_;
+    });
+
+    for (const CleanupHookCallback& cb : callbacks) {
+      cb.fun_(cb.arg_);
+    }
+  }
+}
+
 void Environment::RunAtExitCallbacks() {
   for (AtExitCallback at_exit : at_exit_functions_) {
     at_exit.cb_(at_exit.arg_);

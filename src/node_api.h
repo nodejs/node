@@ -106,6 +106,13 @@ EXTERN_C_START
 
 NAPI_EXTERN void napi_module_register(napi_module* mod);
 
+NAPI_EXTERN napi_status napi_add_env_cleanup_hook(napi_env env,
+                                                  void (*fun)(void* arg),
+                                                  void* arg);
+NAPI_EXTERN napi_status napi_remove_env_cleanup_hook(napi_env env,
+                                                     void (*fun)(void* arg),
+                                                     void* arg);
+
 NAPI_EXTERN napi_status
 napi_get_last_error_info(napi_env env,
                          const napi_extended_error_info** result);
