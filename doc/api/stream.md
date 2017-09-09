@@ -2201,14 +2201,14 @@ contain multi-byte characters.
 [TCP sockets]: net.html#net_class_net_socket
 [Transform]: #stream_class_stream_transform
 [Writable]: #stream_class_stream_writable
-[child process stdin]: child_process.html#child_process_child_stdin
-[child process stdout and stderr]: child_process.html#child_process_child_stdout
+[child process stdin]: child_process.html#child_process_subprocess_stdin
+[child process stdout and stderr]: child_process.html#child_process_subprocess_stdout
 [crypto]: crypto.html
 [fs read streams]: fs.html#fs_class_fs_readstream
 [fs write streams]: fs.html#fs_class_fs_writestream
 [http-incoming-message]: http.html#http_class_http_incomingmessage
 [zlib]: zlib.html
-[hwm-gotcha]: #stream_highWaterMark_discrepency_after_calling_readable_setencoding
+[hwm-gotcha]: #stream_highwatermark_discrepency_after_calling_readable_setencoding
 [Readable]: #stream_class_stream_readable
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
