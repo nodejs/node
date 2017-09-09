@@ -143,8 +143,10 @@ static bool deref_item_called = false;
 static void deref_item(napi_env env, void* data, void* hint) {
   (void) hint;
 
+  NAPI_ASSERT_RETURN_VOID(env, data == &deref_item_called,
+    "Finalize callback was called with the correct pointer");
+
   deref_item_called = true;
-  NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, (napi_ref)data));
 }
 
 napi_value deref_item_was_called(napi_env env, napi_callback_info info) {
@@ -156,15 +158,13 @@ napi_value deref_item_was_called(napi_env env, napi_callback_info info) {
 }
 
 napi_value wrap(napi_env env, napi_callback_info info) {
-  size_t argc = 2;
-  napi_value argv[2];
-  napi_ref payload;
+  size_t argc = 1;
+  napi_value to_wrap;
 
   deref_item_called = false;
 
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
-  NAPI_CALL(env, napi_create_reference(env, argv[1], 1, &payload));
-  NAPI_CALL(env, napi_wrap(env, argv[0], payload, deref_item, NULL, NULL));
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &to_wrap, NULL, NULL));
+  NAPI_CALL(env, napi_wrap(env, to_wrap, &deref_item_called, deref_item, NULL, NULL));
 
   return NULL;
 }
@@ -176,9 +176,6 @@ napi_value remove_wrap(napi_env env, napi_callback_info info) {
 
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &wrapped, NULL, NULL));
   NAPI_CALL(env, napi_remove_wrap(env, wrapped, &data));
-  if (data != NULL) {
-    NAPI_CALL(env, napi_delete_reference(env, (napi_ref)data));
-  }
 
   return NULL;
 }
