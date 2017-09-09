@@ -638,6 +638,48 @@ process's [`ChildProcess.disconnect()`][].
 If the Node.js process was not spawned with an IPC channel,
 `process.disconnect()` will be `undefined`.
 
+## process.dlopen(module, filename[, flags])
+<!-- YAML
+added: v0.1.16
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12794
+    description: Added support for the `flags` argument.
+-->
+
+* `module` {Object}
+* `filename` {string}
+* `flags` {os.constants.dlopen}. Defaults to `os.constants.dlopen.RTLD_LAZY`.
+
+The `process.dlopen()` method allows to dynamically load shared
+objects. It is primarily used by `require()` to load
+C++ Addons, and should not be used directly, except in special
+cases. In other words, [`require()`][] should be preferred over
+`process.dlopen()`, unless there are specific reasons.
+
+The `flags` argument is an integer that allows to specify dlopen
+behavior. See the [`os.constants.dlopen`][] documentation for details.
+
+If there are specific reasons to use `process.dlopen()` (for instance,
+to specify dlopen flags), it's often useful to use [`require.resolve()`][]
+to look up the module's path.
+
+*Note*: An important drawback when calling `process.dlopen()` is that the
+`module` instance must be passed. Functions exported by the C++ Addon will
+be accessible via `module.exports`.
+
+The example below shows how to load a C++ Addon, named as `binding`,
+that exports a `foo` function. All the symbols will be loaded before
+the call returns, by passing the `RTLD_NOW` constant. In this example
+the constant is assumed to be available.
+
+```js
+const os = require('os');
+process.dlopen(module, require.resolve('binding'),
+               os.constants.dlopen.RTLD_NOW);
+module.exports.foo();
+```
+
 ## process.emitWarning(warning[, options])
 <!-- YAML
 added: 8.0.0
@@ -1841,13 +1883,16 @@ cases:
 [`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
+[`os.constants.dlopen`]: os.html#os_dlopen_constants
 [`process.argv`]: #process_process_argv
 [`process.execPath`]: #process_process_execpath
 [`process.exit()`]: #process_process_exit_code
 [`process.exitCode`]: #process_process_exitcode
 [`process.kill()`]: #process_process_kill_pid_signal
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
+[`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
+[`require.resolve()`]: globals.html#globals_require_resolve
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
 [Child Process]: child_process.html
 [Cluster]: cluster.html
