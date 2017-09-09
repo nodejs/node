@@ -131,8 +131,8 @@ test_rsa('RSA_PKCS1_PADDING');
 test_rsa('RSA_PKCS1_OAEP_PADDING');
 
 // Test RSA key signing/verification
-let rsaSign = crypto.createSign('RSA-SHA1');
-let rsaVerify = crypto.createVerify('RSA-SHA1');
+let rsaSign = crypto.createSign('SHA1');
+let rsaVerify = crypto.createVerify('SHA1');
 assert.ok(rsaSign);
 assert.ok(rsaVerify);
 
@@ -151,7 +151,7 @@ rsaVerify.update(rsaPubPem);
 assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 
 // Test RSA key signing/verification with encrypted key
-rsaSign = crypto.createSign('RSA-SHA1');
+rsaSign = crypto.createSign('SHA1');
 rsaSign.update(rsaPubPem);
 assert.doesNotThrow(() => {
   const signOptions = { key: rsaKeyPemEncrypted, passphrase: 'password' };
@@ -159,11 +159,11 @@ assert.doesNotThrow(() => {
 });
 assert.strictEqual(rsaSignature, expectedSignature);
 
-rsaVerify = crypto.createVerify('RSA-SHA1');
+rsaVerify = crypto.createVerify('SHA1');
 rsaVerify.update(rsaPubPem);
 assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 
-rsaSign = crypto.createSign('RSA-SHA1');
+rsaSign = crypto.createSign('SHA1');
 rsaSign.update(rsaPubPem);
 assert.throws(() => {
   const signOptions = { key: rsaKeyPemEncrypted, passphrase: 'wrong' };
@@ -186,16 +186,28 @@ assert.throws(() => {
       '8195e0268da7eda23d9825ac43c724e86ceeee0d0d4465678652ccaf6501' +
       '0ddfb299bedeb1ad';
 
-  const sign = crypto.createSign('RSA-SHA256');
+  const sign = crypto.createSign('SHA256');
   sign.update(input);
 
   const output = sign.sign(privateKey, 'hex');
   assert.strictEqual(signature, output);
 
-  const verify = crypto.createVerify('RSA-SHA256');
+  const verify = crypto.createVerify('SHA256');
   verify.update(input);
 
   assert.strictEqual(verify.verify(publicKey, signature, 'hex'), true);
+
+  // Test the legacy signature algorithm name.
+  const sign2 = crypto.createSign('RSA-SHA256');
+  sign2.update(input);
+
+  const output2 = sign2.sign(privateKey, 'hex');
+  assert.strictEqual(signature, output2);
+
+  const verify2 = crypto.createVerify('SHA256');
+  verify2.update(input);
+
+  assert.strictEqual(verify2.verify(publicKey, signature, 'hex'), true);
 }
 
 
@@ -207,14 +219,24 @@ assert.throws(() => {
 
   // DSA signatures vary across runs so there is no static string to verify
   // against
-  const sign = crypto.createSign('DSS1');
+  const sign = crypto.createSign('SHA1');
   sign.update(input);
   const signature = sign.sign(dsaKeyPem, 'hex');
 
-  const verify = crypto.createVerify('DSS1');
+  const verify = crypto.createVerify('SHA1');
   verify.update(input);
 
   assert.strictEqual(verify.verify(dsaPubPem, signature, 'hex'), true);
+
+  // Test the legacy 'DSS1' name.
+  const sign2 = crypto.createSign('DSS1');
+  sign2.update(input);
+  const signature2 = sign2.sign(dsaKeyPem, 'hex');
+
+  const verify2 = crypto.createVerify('DSS1');
+  verify2.update(input);
+
+  assert.strictEqual(verify2.verify(dsaPubPem, signature2, 'hex'), true);
 }
 
 
@@ -224,7 +246,7 @@ assert.throws(() => {
 const input = 'I AM THE WALRUS';
 
 {
-  const sign = crypto.createSign('DSS1');
+  const sign = crypto.createSign('SHA1');
   sign.update(input);
   assert.throws(() => {
     sign.sign({ key: dsaKeyPemEncrypted, passphrase: 'wrong' }, 'hex');
@@ -234,7 +256,7 @@ const input = 'I AM THE WALRUS';
 {
   // DSA signatures vary across runs so there is no static string to verify
   // against
-  const sign = crypto.createSign('DSS1');
+  const sign = crypto.createSign('SHA1');
   sign.update(input);
 
   let signature;
@@ -243,7 +265,7 @@ const input = 'I AM THE WALRUS';
     signature = sign.sign(signOptions, 'hex');
   });
 
-  const verify = crypto.createVerify('DSS1');
+  const verify = crypto.createVerify('SHA1');
   verify.update(input);
 
   assert.strictEqual(verify.verify(dsaPubPem, signature, 'hex'), true);
