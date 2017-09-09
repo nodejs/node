@@ -296,6 +296,7 @@ struct performance_state;
   V(async_hooks_init_function, v8::Function)                                  \
   V(async_hooks_before_function, v8::Function)                                \
   V(async_hooks_after_function, v8::Function)                                 \
+  V(async_hooks_promise_resolve_function, v8::Function)                       \
   V(binding_cache_object, v8::Object)                                         \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
@@ -378,6 +379,7 @@ class Environment {
       kBefore,
       kAfter,
       kDestroy,
+      kPromiseResolve,
       kTotals,
       kFieldsCount,
     };
