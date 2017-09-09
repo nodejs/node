@@ -902,6 +902,28 @@ void napi_module_register(napi_module* mod) {
   node::node_module_register(nm);
 }
 
+napi_status napi_add_env_cleanup_hook(napi_env env,
+                                      void (*fun)(void* arg),
+                                      void* arg) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, fun);
+
+  node::AddEnvironmentCleanupHook(env->isolate, fun, arg);
+
+  return napi_ok;
+}
+
+napi_status napi_remove_env_cleanup_hook(napi_env env,
+                                         void (*fun)(void* arg),
+                                         void* arg) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, fun);
+
+  node::RemoveEnvironmentCleanupHook(env->isolate, fun, arg);
+
+  return napi_ok;
+}
+
 // Warning: Keep in-sync with napi_status enum
 static
 const char* error_messages[] = {nullptr,
