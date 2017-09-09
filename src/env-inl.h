@@ -629,6 +629,29 @@ inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
   t->SetClassName(name_string);  // NODE_SET_METHOD() compatibility.
 }
 
+void Environment::AddCleanupHook(void (*fn)(void*), void* arg) {
+  auto insertion_info = cleanup_hooks_.emplace(CleanupHookCallback {
+    fn, arg, cleanup_hook_counter_++
+  });
+  // Make sure there was no existing element with these values.
+  CHECK_EQ(insertion_info.second, true);
+}
+
+void Environment::RemoveCleanupHook(void (*fn)(void*), void* arg) {
+  CleanupHookCallback search { fn, arg, 0 };
+  cleanup_hooks_.erase(search);
+}
+
+size_t Environment::CleanupHookCallback::Hash::operator()(
+    const CleanupHookCallback& cb) const {
+  return std::hash<void*>()(cb.arg_);
+}
+
+bool Environment::CleanupHookCallback::Equal::operator()(
+    const CleanupHookCallback& a, const CleanupHookCallback& b) const {
+  return a.fn_ == b.fn_ && a.arg_ == b.arg_;
+}
+
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
 #define V(TypeName, PropertyName)                                             \
