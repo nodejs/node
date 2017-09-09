@@ -37,10 +37,13 @@ BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> object)
   CHECK_EQ(false, object.IsEmpty());
   CHECK_GT(object->InternalFieldCount(), 0);
   object->SetAlignedPointerInInternalField(0, static_cast<void*>(this));
+  env_->AddCleanupHook(DeleteMe, static_cast<void*>(this));
 }
 
 
 BaseObject::~BaseObject() {
+  env_->RemoveCleanupHook(DeleteMe, static_cast<void*>(this));
+
   if (persistent_handle_.IsEmpty()) {
     // This most likely happened because the weak callback below cleared it.
     return;
@@ -77,6 +80,12 @@ BaseObject* BaseObject::FromJSObject(v8::Local<v8::Object> obj) {
 template <typename T>
 T* BaseObject::FromJSObject(v8::Local<v8::Object> object) {
   return static_cast<T*>(FromJSObject(object));
+}
+
+
+void BaseObject::DeleteMe(void* data) {
+  BaseObject* self = static_cast<BaseObject*>(data);
+  delete self;
 }
 
 

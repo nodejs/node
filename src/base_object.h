@@ -71,6 +71,8 @@ class BaseObject {
  private:
   BaseObject();
 
+  static inline void DeleteMe(void* data);
+
   // persistent_handle_ needs to be at a fixed offset from the start of the
   // class because it is used by src/node_postmortem_metadata.cc to calculate
   // offsets and generate debug symbols for BaseObject, which assumes that the

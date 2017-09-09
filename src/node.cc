@@ -4578,12 +4578,13 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   const int exit_code = EmitExit(&env);
 
+  WaitForInspectorDisconnect(&env);
+
   env.RunCleanup();
   RunAtExit(&env);
 
   v8_platform.DrainVMTasks(isolate);
   v8_platform.CancelVMTasks(isolate);
-  WaitForInspectorDisconnect(&env);
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
 #endif
