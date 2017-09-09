@@ -495,6 +495,19 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
  */
 NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = 0);
 
+/* This is a lot like node::AtExit, except that the hooks added via this
+ * function are run before the AtExit ones and will always be registered
+ * for the current Environment instance.
+ * These functions are safe to use in an addon supporting multiple
+ * threads/isolates. */
+NODE_EXTERN void AddEnvironmentCleanupHook(v8::Isolate* isolate,
+                                           void (*fun)(void* arg),
+                                           void* arg);
+
+NODE_EXTERN void RemoveEnvironmentCleanupHook(v8::Isolate* isolate,
+                                              void (*fun)(void* arg),
+                                              void* arg);
+
 }  // namespace node
 
 #endif  // SRC_NODE_H_

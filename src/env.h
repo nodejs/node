@@ -17,6 +17,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <unordered_set>
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
 // hopefully justifies the means. We have a lot of per-context properties
@@ -537,6 +538,10 @@ class Environment {
 
   static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
 
+  inline void AddCleanupHook(void (*fn)(void*), void* arg);
+  inline void RemoveCleanupHook(void (*fn)(void*), void* arg);
+  void RunCleanup();
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -632,6 +637,32 @@ class Environment {
 
     DISALLOW_COPY_AND_ASSIGN(IsolateData);
   };
+
+  struct CleanupHookCallback {
+    void (*fn_)(void*);
+    void* arg_;
+
+    // We keep track of the insertion order for these objects, so that we can
+    // call the callbacks in reverse order when we are cleaning up.
+    uint64_t insertion_order_counter_;
+
+    // Only hashes `arg_`, since that is usually enough to identify the hook.
+    struct Hash {
+      inline size_t operator()(const CleanupHookCallback& cb) const;
+    };
+
+    // Compares by `fn_` and `arg_` being equal.
+    struct Equal {
+      inline bool operator()(const CleanupHookCallback& a,
+                             const CleanupHookCallback& b) const;
+    };
+  };
+
+  // Use an unordered_set, so that we have efficient insertion and removal.
+  std::unordered_set<CleanupHookCallback,
+                     CleanupHookCallback::Hash,
+                     CleanupHookCallback::Equal> cleanup_hooks_;
+  uint64_t cleanup_hook_counter_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(Environment);
 };

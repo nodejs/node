@@ -1241,6 +1241,20 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
       FIXED_ONE_BYTE_STRING(isolate, "_setupPromises")).FromJust();
 }
 
+void AddEnvironmentCleanupHook(v8::Isolate* isolate,
+                               void (*fun)(void* arg),
+                               void* arg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  env->AddCleanupHook(fun, arg);
+}
+
+
+void RemoveEnvironmentCleanupHook(v8::Isolate* isolate,
+                                  void (*fun)(void* arg),
+                                  void* arg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  env->RemoveCleanupHook(fun, arg);
+}
 
 Local<Value> MakeCallback(Environment* env,
                           Local<Value> recv,
@@ -3616,6 +3630,7 @@ void LoadEnvironment(Environment* env) {
 
 void FreeEnvironment(Environment* env) {
   CHECK_NE(env, nullptr);
+  env->RunCleanup();
   env->Dispose();
 }
 
@@ -4913,6 +4928,8 @@ static void StartNodeInstance(void* arg) {
     int exit_code = EmitExit(env);
     if (instance_data->is_main())
       instance_data->set_exit_code(exit_code);
+
+    env->RunCleanup();
     RunAtExit(env);
 
     WaitForInspectorDisconnect(env);
