@@ -70,6 +70,30 @@ if (isMainThread) {
 }
 ```
 
+## worker.moveMessagePortToContext(port, contextifiedSandbox)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `port` {MessagePort} The message port which will be transferred.
+* `contextifiedSandbox` {Object} A [contextified][] object as returned by the
+  `vm.createContext()` method.
+
+* Returns: {MessagePort}
+
+Transfer a `MessagePort` to a different [`vm`][] Context. The original `port`
+object will be rendered unusable, and the returned `MessagePort` instance will
+take its place.
+
+The returned `MessagePort` will be an object in the target context, and will
+inherit from its global `Object` class. Objects passed to the
+[`port.onmessage()`][] listener will also be created in the target context
+and inherit from its global `Object` class.
+
+However, the created `MessagePort` will no longer inherit from
+[`EventEmitter`][], and only [`port.onmessage()`][] can be used to receive
+events using it.
+
 ## worker.parentPort
 <!-- YAML
 added: v10.5.0
@@ -583,6 +607,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`Worker`]: #worker_threads_class_worker
 [`cluster` module]: cluster.html
 [`port.on('message')`]: #worker_threads_event_message
+[`port.onmessage()`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort/onmessage
 [`port.postMessage()`]: #worker_threads_port_postmessage_value_transferlist
 [`process.abort()`]: process.html#process_process_abort
 [`process.chdir()`]: process.html#process_process_chdir_directory
@@ -600,6 +625,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`require('worker_threads').threadId`]: #worker_threads_worker_threadid
 [`require('worker_threads').workerData`]: #worker_threads_worker_workerdata
 [`trace_events`]: tracing.html
+[`vm`]: vm.html
 [`worker.on('message')`]: #worker_threads_event_message_1
 [`worker.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
 [`worker.terminate()`]: #worker_threads_worker_terminate_callback
@@ -610,4 +636,5 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [Web Workers]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
 [child processes]: child_process.html
+[contextified]: vm.html#vm_what_does_it_mean_to_contextify_an_object
 [v8.serdes]: v8.html#v8_serialization_api
