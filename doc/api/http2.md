@@ -851,7 +851,7 @@ the client.
 
 #### Event: 'continue'
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 Emitted when the server sends a `100 Continue` status, usually because
@@ -1257,7 +1257,7 @@ an `Http2Session` object. If no listener is registered for this event, an
 
 #### Event: 'streamError'
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `socket` {http2.ServerHttp2Stream}
@@ -1317,7 +1317,7 @@ a given number of milliseconds set using `http2server.setTimeout()`.
 
 #### Event: 'checkContinue'
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `request` {http2.Http2ServerRequest}
@@ -1422,7 +1422,7 @@ added: v8.4.0
 
 #### Event: 'checkContinue'
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `request` {http2.Http2ServerRequest}

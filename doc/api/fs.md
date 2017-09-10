@@ -752,7 +752,7 @@ operations. The specific constants currently defined are described in
 
 ## fs.copyFile(src, dest[, flags], callback)
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `src` {string|Buffer|URL} source filename to copy
@@ -795,7 +795,7 @@ fs.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL, callback);
 
 ## fs.copyFileSync(src, dest[, flags])
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `src` {string|Buffer|URL} source filename to copy
