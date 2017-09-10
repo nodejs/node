@@ -335,7 +335,7 @@ The `child_process.fork()` method is a special case of
 Like [`child_process.spawn()`][], a [`ChildProcess`][] object is returned. The returned
 [`ChildProcess`][] will have an additional communication channel built-in that
 allows messages to be passed back and forth between the parent and child. See
-[`subprocess.send()`][] for details.
+[`subprocess.send()`][] for details.  
 
 It is important to keep in mind that spawned Node.js child processes are
 independent of the parent with exception of the IPC communication channel
@@ -355,6 +355,9 @@ output on this fd is expected to be line delimited JSON objects.
 
 *Note*: Unlike the fork(2) POSIX system call, `child_process.fork()` does
 not clone the current process.
+
+*Note*: The `shell` option available in [`child_process.spawn()`][] is not
+supported by `child_process.fork()` and will be ignored if set.
 
 ### child_process.spawn(command[, args][, options])
 <!-- YAML
