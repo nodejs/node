@@ -2424,7 +2424,7 @@ Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeInt64BE()` writes big endian, `writeInt64LE()` writes little
 endian). `value` *should* be a valid signed 64-bit integer or a String
 representation of one. Behavior is undefined when `value` is anything other than
-a signed 32-bit integer or a String representation of one.
+a signed 64-bit integer or a String representation of one.
 
 Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
 the end of `buf`, but the result should be considered undefined behavior.
@@ -2596,7 +2596,7 @@ Writes `value` to `buf` at the specified `offset` with specified endian
 format (`writeUInt64BE()` writes big endian, `writeUInt64LE()` writes little
 endian). `value` should be a valid unsigned 64-bit integer or a String
 representation of one. Behavior is undefined when `value` is anything other than
-an unsigned 32-bit integer or a String representation of one.
+an unsigned 64-bit integer or a String representation of one.
 
 Setting `noAssert` to `true` allows the encoded form of `value` to extend beyond
 the end of `buf`, but the result should be considered undefined behavior.
