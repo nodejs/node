@@ -1,8 +1,8 @@
 'use strict';
 
 // test HTTP throughput in fragmented header case
-var common = require('../common.js');
-var net = require('net');
+cont common = require('../common.js');
+cont net = require('net');
 
 var bench = common.createBenchmark(main, {
   len:  [1, 4, 8, 16, 32, 64, 128],
