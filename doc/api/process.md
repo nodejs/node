@@ -1673,10 +1673,10 @@ important ways:
 2. They cannot be closed ([`end()`][] will throw).
 3. They will never emit the [`'finish'`][] event.
 4. Writes may be synchronous depending on the what the stream is connected to
-   and whether the system is Windows or Unix:
-   - Files: *synchronous* on Windows and Linux
-   - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on Unix
-   - Pipes (and sockets): *synchronous* on Windows, *asynchronous* on Unix
+   and whether the system is Windows or POSIX:
+   - Files: *synchronous* on Windows and POSIX
+   - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on POSIX
+   - Pipes (and sockets): *synchronous* on Windows, *asynchronous* on POSIX
 
 These behaviors are partly for historical reasons, as changing them would
 create backwards incompatibility, but they are also expected by some users.
@@ -1859,7 +1859,7 @@ cases:
   options were set, but the port number chosen was invalid or unavailable.
 * `>128` **Signal Exits** - If Node.js receives a fatal signal such as
   `SIGKILL` or `SIGHUP`, then its exit code will be `128` plus the
-  value of the signal code.  This is a standard Unix practice, since
+  value of the signal code.  This is a standard POSIX practice, since
   exit codes are defined to be 7-bit integers, and signal exits set
   the high-order bit, and then contain the value of the signal code.
   For example, signal `SIGABRT` has value `6`, so the expected exit
