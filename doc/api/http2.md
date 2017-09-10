@@ -2018,9 +2018,9 @@ added: v8.4.0
 
 * `error` {Error}
 
-Calls `destroy()` on the [`Http2Stream`][] that received the [`ServerRequest`][]. If
-`error` is provided, an `'error'` event is emitted and `error` is passed as an
-argument to any listeners on the event.
+Calls `destroy()` on the [`Http2Stream`][] that received
+the [`Http2ServerRequest`][]. If `error` is provided, an `'error'` event
+is emitted and `error` is passed as an argument to any listeners on the event.
 
 It does nothing if the stream was already destroyed.
 
@@ -2677,9 +2677,9 @@ if the stream is closed.
 [`ClientHttp2Stream`]: #http2_class_clienthttp2stream
 [`Duplex`]: stream.html#stream_class_stream_duplex
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`Http2ServerRequest`]: #http2_class_http2_http2serverrequest
 [`Http2Stream`]: #http2_class_http2stream
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
-[`ServerRequest`]: #http2_class_http2_http2serverrequest
 [`TypeError`]: errors.html#errors_class_typeerror
 [`http2.SecureServer`]: #http2_class_http2secureserver
 [`http2.createSecureServer()`]: #http2_createsecureserver_options_onrequesthandler
