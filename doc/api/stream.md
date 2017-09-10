@@ -1601,6 +1601,15 @@ The `readable._read()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
+#### readable.\_destroy(err, callback)
+<!-- YAML
+added: v8.0.0
+-->
+
+* `err` {Error} An error.
+* `callback` {Function} A callback function that takes an optional error
+  argument which is invoked when the readable is destroyed.
+
 #### readable.push(chunk[, encoding])
 <!-- YAML
 changes:
