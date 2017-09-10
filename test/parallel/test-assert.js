@@ -646,6 +646,34 @@ try {
 }
 
 {
+  let threw = false;
+  const rangeError = new RangeError('my range');
+
+  // verify custom errors
+  try {
+    assert.strictEqual(1, 2, rangeError);
+  } catch (e) {
+    assert.strictEqual(e, rangeError);
+    threw = true;
+    assert.ok(e instanceof RangeError, 'Incorrect error type thrown');
+  }
+  assert.ok(threw);
+  threw = false;
+
+  // verify AssertionError is the result from doesNotThrow with custom Error
+  try {
+    assert.doesNotThrow(() => {
+      throw new TypeError('wrong type');
+    }, TypeError, rangeError);
+  } catch (e) {
+    threw = true;
+    assert.ok(e.message.includes(rangeError.message));
+    assert.ok(e instanceof assert.AssertionError);
+  }
+  assert.ok(threw);
+}
+
+{
   // Verify that throws() and doesNotThrow() throw on non-function block
   function typeName(value) {
     return value === null ? 'null' : typeof value;

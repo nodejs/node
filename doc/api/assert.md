@@ -101,7 +101,9 @@ assert.deepEqual(obj1, obj4);
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
+parameter is undefined, a default error message is assigned. If the `message`
+parameter is an instance of an `Error` then it will be thrown instead of the
+`AssertionError`.
 
 ## assert.deepStrictEqual(actual, expected[, message])
 <!-- YAML
@@ -174,7 +176,9 @@ assert.deepStrictEqual(NaN, NaN);
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
+parameter is undefined, a default error message is assigned. If the `message`
+parameter is an instance of an `Error` then it will be thrown instead of the
+`AssertionError`.
 
 ## assert.doesNotThrow(block[, error][, message])
 <!-- YAML
@@ -268,7 +272,9 @@ assert.equal({ a: { b: 1 } }, { a: { b: 1 } });
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
+parameter is undefined, a default error message is assigned. If the `message`
+parameter is an instance of an `Error` then it will be thrown instead of the
+`AssertionError`.
 
 ## assert.fail([message])
 ## assert.fail(actual, expected[, message[, operator[, stackStartFunction]]])
@@ -282,13 +288,15 @@ added: v0.1.21
 * `stackStartFunction` {function} (default: `assert.fail`)
 
 Throws an `AssertionError`. If `message` is falsy, the error message is set as
-the values of `actual` and `expected` separated by the provided `operator`.
-If just the two `actual` and `expected` arguments are provided, `operator` will
-default to `'!='`. If `message` is provided only it will be used as the error
-message, the other arguments will be stored as properties on the thrown object.
-If `stackStartFunction` is provided, all stack frames above that function will
-be removed from stacktrace (see [`Error.captureStackTrace`]). If no arguments
-are given, the default message `Failed` will be used.
+the values of `actual` and `expected` separated by the provided `operator`. If
+the `message` parameter is an instance of an `Error` then it will be thrown
+instead of the `AssertionError`. If just the two `actual` and `expected`
+arguments are provided, `operator` will default to `'!='`. If `message` is
+provided only it will be used as the error message, the other arguments will be
+stored as properties on the thrown object. If `stackStartFunction` is provided,
+all stack frames above that function will be removed from stacktrace (see
+[`Error.captureStackTrace`]). If no arguments are given, the default message
+`Failed` will be used.
 
 ```js
 const assert = require('assert');
@@ -301,6 +309,9 @@ assert.fail(1, 2, 'fail');
 
 assert.fail(1, 2, 'whoops', '>');
 // AssertionError [ERR_ASSERTION]: whoops
+
+assert.fail(1, 2, new TypeError('need array'));
+// TypeError: need array
 ```
 
 *Note*: Is the last two cases `actual`, `expected`, and `operator` have no
@@ -412,7 +423,9 @@ assert.notDeepEqual(obj1, obj4);
 
 If the values are deeply equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
+parameter is undefined, a default error message is assigned. If the `message`
+parameter is an instance of an `Error` then it will be thrown instead of the
+`AssertionError`.
 
 ## assert.notDeepStrictEqual(actual, expected[, message])
 <!-- YAML
@@ -453,9 +466,11 @@ assert.notDeepStrictEqual({ a: 1 }, { a: '1' });
 // OK
 ```
 
-If the values are deeply and strictly equal, an `AssertionError` is thrown
-with a `message` property set equal to the value of the `message` parameter. If
-the `message` parameter is undefined, a default error message is assigned.
+If the values are deeply and strictly equal, an `AssertionError` is thrown with
+a `message` property set equal to the value of the `message` parameter. If the
+`message` parameter is undefined, a default error message is assigned. If the
+`message` parameter is an instance of an `Error` then it will be thrown instead
+of the `AssertionError`.
 
 ## assert.notEqual(actual, expected[, message])
 <!-- YAML
@@ -483,7 +498,9 @@ assert.notEqual(1, '1');
 
 If the values are equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
+parameter is undefined, a default error message is assigned. If the `message`
+parameter is an instance of an `Error` then it will be thrown instead of the
+`AssertionError`.
 
 ## assert.notStrictEqual(actual, expected[, message])
 <!-- YAML
@@ -511,7 +528,9 @@ assert.notStrictEqual(1, '1');
 
 If the values are strictly equal, an `AssertionError` is thrown with a
 `message` property set equal to the value of the `message` parameter. If the
-`message` parameter is undefined, a default error message is assigned.
+`message` parameter is undefined, a default error message is assigned. If the
+`message` parameter is an instance of an `Error` then it will be thrown instead
+of the `AssertionError`.
 
 ## assert.ok(value[, message])
 <!-- YAML
@@ -525,7 +544,9 @@ Tests if `value` is truthy. It is equivalent to
 
 If `value` is not truthy, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
-parameter is `undefined`, a default error message is assigned.
+parameter is `undefined`, a default error message is assigned. If the `message`
+parameter is an instance of an `Error` then it will be thrown instead of the
+`AssertionError`.
 
 ```js
 const assert = require('assert');
@@ -568,7 +589,9 @@ assert.strictEqual(1, '1');
 
 If the values are not strictly equal, an `AssertionError` is thrown with a
 `message` property set equal to the value of the `message` parameter. If the
-`message` parameter is undefined, a default error message is assigned.
+`message` parameter is undefined, a default error message is assigned. If the
+`message` parameter is an instance of an `Error` then it will be thrown instead
+of the `AssertionError`.
 
 ## assert.throws(block[, error][, message])
 <!-- YAML
