@@ -7,7 +7,7 @@
 <!--name=esm-->
 
 Node.js contains support for ES Modules based upon the
-[the Node.js EP for ES Modules][].
+[Node.js EP for ES Modules][].
 
 Not all features of the EP are complete and will be landing as both VM support
 and implementation is ready. Error messages are still being polished.
@@ -98,4 +98,4 @@ fs.readFile('./foo.txt', (err, body) => {
 });
 ```
 
-[the Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
+[Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
