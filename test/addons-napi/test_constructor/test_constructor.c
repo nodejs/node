@@ -87,4 +87,4 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     napi_create_reference(env, cons, 1, &constructor_));
 }
 
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
