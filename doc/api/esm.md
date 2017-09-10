@@ -6,7 +6,7 @@
 
 <!--name=esm-->
 
-Node contains support for ES Modules based upon the [the Node EP for ES Modules][].
+Node.js contains support for ES Modules based upon the [the Node.js EP for ES Modules][].
 
 Not all features of the EP are complete and will be landing as both VM support and implementation is ready. Error messages are still being polished.
 
@@ -55,7 +55,7 @@ Only the CLI argument for the main entry point to the program can be an entry po
 
 ### URL based paths
 
-ESM are resolved and cached based upon [URL](url.spec.whatwg.org) semantics. This means that files containing special characters such as `#` and `?` need to be escaped.
+ESM are resolved and cached based upon [URL](https://url.spec.whatwg.org/) semantics. This means that files containing special characters such as `#` and `?` need to be escaped.
 
 Modules will be loaded multiple times if the `import` specifier used to resolve them have a different query or fragment.
 
@@ -85,4 +85,4 @@ fs.readFile('./foo.txt', (err, body) => {
 });
 ```
 
-[the Node EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
+[the Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
