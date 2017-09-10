@@ -95,7 +95,7 @@ class HandleWrap : public AsyncWrap {
   // refer to `doc/guides/node-postmortem-support.md`
   friend int GenDebugSymbols();
   ListNode<HandleWrap> handle_wrap_queue_;
-  enum { kInitialized, kClosing, kClosingWithCallback, kClosed } state_;
+  enum { kInitialized, kClosing, kClosed } state_;
   uv_handle_t* const handle_;
 };
 
