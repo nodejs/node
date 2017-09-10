@@ -1,6 +1,6 @@
 # Performance Timing API
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -24,7 +24,7 @@ doSomeLongRunningProcess(() => {
 
 ## Class: Performance
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 The `Performance` provides access to performance metric data. A single
@@ -32,7 +32,7 @@ instance of this class is provided via the `performance` property.
 
 ### performance.clearFunctions([name])
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `name` {string}
@@ -42,7 +42,7 @@ Performance Timeline. If `name` is provided, removes entries with `name`.
 
 ### performance.clearMarks([name])
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `name` {string}
@@ -52,7 +52,7 @@ Performance Timeline. If `name` is provided, removes only the named mark.
 
 ### performance.clearMeasures([name])
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `name` {string}
@@ -63,7 +63,7 @@ Performance Timeline. If `name` is provided, removes only objects whose
 
 ### performance.getEntries()
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * Returns: {Array}
@@ -73,7 +73,7 @@ with respect to `performanceEntry.startTime`.
 
 ### performance.getEntriesByName(name[, type])
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `name` {string}
@@ -87,7 +87,7 @@ equal to `name`, and optionally, whose `performanceEntry.entryType` is equal to
 
 ### performance.getEntriesByType(type)
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `type` {string}
@@ -99,7 +99,7 @@ is equal to `type`.
 
 ### performance.mark([name])
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `name` {string}
@@ -112,7 +112,7 @@ to mark specific significant moments in the Performance Timeline.
 
 ### performance.measure(name, startMark, endMark)
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `name` {string}
@@ -137,7 +137,7 @@ error will be thrown.
 
 ### performance.nodeFrame
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {PerformanceFrame}
@@ -147,7 +147,7 @@ for the event loop.
 
 ### performance.nodeTiming
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {PerformanceNodeTiming}
@@ -157,7 +157,7 @@ metrics for specific Node.js operational milestones.
 
 ### performance.now()
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * Returns: {number}
@@ -166,7 +166,7 @@ Returns the current high resolution millisecond timestamp.
 
 ### performance.timeOrigin
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -176,7 +176,7 @@ which all performance metric durations are measured.
 
 ### performance.timerify(fn)
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `fn` {Function}
@@ -210,12 +210,12 @@ wrapped();
 
 ## Class: PerformanceEntry
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 ### performanceEntry.duration
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -225,7 +225,7 @@ be meaningful for all Performance Entry types.
 
 ### performanceEntry.name
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {string}
@@ -234,7 +234,7 @@ The name of the performance entry.
 
 ### performanceEntry.startTime
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -244,7 +244,7 @@ Performance Entry.
 
 ### performanceEntry.entryType
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {string}
@@ -254,7 +254,7 @@ The type of the performance entry. Current it may be one of: `'node'`, `'mark'`,
 
 ### performanceEntry.kind
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -270,7 +270,7 @@ The value may be one of:
 
 ## Class: PerformanceNodeFrame extends PerformanceEntry
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 Provides timing details for the Node.js event loop.
@@ -301,14 +301,14 @@ current loop.
 
 ## Class: PerformanceNodeTiming extends PerformanceEntry
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 Provides timing details for Node.js itself.
 
 ### performanceNodeTiming.bootstrapComplete
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -318,7 +318,7 @@ completed bootstrap.
 
 ### performanceNodeTiming.clusterSetupEnd
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -327,7 +327,7 @@ The high resolution millisecond timestamp at which cluster processing ended.
 
 ### performanceNodeTiming.clusterSetupStart
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -336,7 +336,7 @@ The high resolution millisecond timestamp at which cluster processing started.
 
 ### performanceNodeTiming.loopExit
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -346,7 +346,7 @@ exited.
 
 ### performanceNodeTiming.loopStart
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -356,7 +356,7 @@ started.
 
 ### performanceNodeTiming.moduleLoadEnd
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -365,7 +365,7 @@ The high resolution millisecond timestamp at which main module load ended.
 
 ### performanceNodeTiming.moduleLoadStart
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -374,7 +374,7 @@ The high resolution millisecond timestamp at which main module load started.
 
 ### performanceNodeTiming.nodeStart
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -384,7 +384,7 @@ initialized.
 
 ### performanceNodeTiming.preloadModuleLoadEnd
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -393,7 +393,7 @@ The high resolution millisecond timestamp at which preload module load ended.
 
 ### performanceNodeTiming.preloadModuleLoadStart
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -402,7 +402,7 @@ The high resolution millisecond timestamp at which preload module load started.
 
 ### performanceNodeTiming.thirdPartyMainEnd
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -412,7 +412,7 @@ ended.
 
 ### performanceNodeTiming.thirdPartyMainStart
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -422,7 +422,7 @@ started.
 
 ### performanceNodeTiming.v8Start
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * {number}
@@ -433,7 +433,7 @@ initialized.
 
 ## Class: PerformanceObserver(callback)
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `callback` {Function} A `PerformanceObserverCallback` callback function.
@@ -463,7 +463,7 @@ longer needed.
 
 ### Callback: PerformanceObserverCallback(list, observer)
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `list` {PerformanceObserverEntryList}
@@ -476,7 +476,7 @@ notified about new `PerformanceEntry` instances. The callback receives a
 
 ### Class: PerformanceObserverEntryList
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 The `PerformanceObserverEntryList` class is used to provide access to the
@@ -484,7 +484,7 @@ The `PerformanceObserverEntryList` class is used to provide access to the
 
 #### performanceObserverEntryList.getEntries()
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * Returns: {Array}
@@ -494,7 +494,7 @@ with respect to `performanceEntry.startTime`.
 
 #### performanceObserverEntryList.getEntriesByName(name[, type])
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `name` {string}
@@ -508,7 +508,7 @@ equal to `name`, and optionally, whose `performanceEntry.entryType` is equal to
 
 #### performanceObserverEntryList.getEntriesByType(type)
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `type` {string}
@@ -520,13 +520,13 @@ is equal to `type`.
 
 ### performanceObserver.disconnect()
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 Disconnects the `PerformanceObserver` instance from all notifications.
 
 ### performanceObserver.observe(options)
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 * `options` {Object}
   * `entryTypes` {Array} An array of strings identifying the types of
