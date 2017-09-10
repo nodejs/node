@@ -25,11 +25,12 @@ namespace node {
 template <class NativeT, class V8T>
 class AliasedBuffer {
  public:
-  AliasedBuffer(v8::Isolate* isolate, const size_t count) :
-      isolate_(isolate),
-      count_(count),
-      byte_offset_(0),
-      free_buffer_(true) {
+  AliasedBuffer(v8::Isolate* isolate, const size_t count)
+      : isolate_(isolate),
+        count_(count),
+        byte_offset_(0),
+        free_buffer_(true) {
+    CHECK_GT(count, 0);
     const v8::HandleScope handle_scope(isolate_);
 
     const size_t sizeInBytes = sizeof(NativeT) * count;
@@ -54,19 +55,22 @@ class AliasedBuffer {
    *
    *  Note that byte_offset must by aligned by sizeof(NativeT).
    */
-  AliasedBuffer(
-      v8::Isolate* isolate,
-      const size_t byte_offset,
-      const size_t count,
-      const AliasedBuffer<uint8_t,
-      v8::Uint8Array>& backing_buffer) :
-      isolate_(isolate),
-      count_(count),
-      byte_offset_(byte_offset),
-      free_buffer_(false) {
+  AliasedBuffer(v8::Isolate* isolate,
+                const size_t byte_offset,
+                const size_t count,
+                const AliasedBuffer<uint8_t,
+                v8::Uint8Array>& backing_buffer)
+      : isolate_(isolate),
+        count_(count),
+        byte_offset_(byte_offset),
+        free_buffer_(false) {
     const v8::HandleScope handle_scope(isolate_);
     // validate that the byte_offset is aligned with sizeof(NativeT)
     CHECK_EQ(byte_offset & (sizeof(NativeT) - 1), 0);
+    // validate this fits inside the backing buffer
+    CHECK_LE(sizeof(NativeT) * count,
+        backing_buffer.GetArrayBuffer()->ByteLength() - byte_offset);
+
     buffer_ = reinterpret_cast<NativeT*>(
         const_cast<uint8_t*>(backing_buffer.GetNativeBuffer() + byte_offset));
 
@@ -75,17 +79,17 @@ class AliasedBuffer {
     js_array_ = v8::Global<V8T>(isolate, js_array);
   }
 
-  AliasedBuffer(const AliasedBuffer& that) :
-      isolate_(that.isolate_),
-      count_(that.count_),
-      byte_offset_(that.byte_offset_),
-      buffer_(that.buffer_),
-      free_buffer_(false) {
+  AliasedBuffer(const AliasedBuffer& that)
+      : isolate_(that.isolate_),
+        count_(that.count_),
+        byte_offset_(that.byte_offset_),
+        buffer_(that.buffer_),
+        free_buffer_(false) {
     js_array_ = v8::Global<V8T>(that.isolate_, that.GetJSArray());
   }
 
   ~AliasedBuffer() {
-    if (free_buffer_ && buffer_ != NULL) {
+    if (free_buffer_ && buffer_ != nullptr) {
       free(buffer_);
     }
     js_array_.Reset();
@@ -97,14 +101,14 @@ class AliasedBuffer {
    */
   class Reference {
    public:
-    Reference(AliasedBuffer<NativeT, V8T>* aliased_buffer, size_t index) :
-      aliased_buffer_(aliased_buffer),
-      index_(index) {
+    Reference(AliasedBuffer<NativeT, V8T>* aliased_buffer, size_t index)
+        : aliased_buffer_(aliased_buffer),
+          index_(index) {
     }
 
-    Reference(const Reference& that) :
-        aliased_buffer_(that.aliased_buffer_),
-      index_(that.index_) {
+    Reference(const Reference& that)
+        : aliased_buffer_(that.aliased_buffer_),
+          index_(that.index_) {
     }
 
     inline Reference& operator=(const NativeT &val) {
@@ -155,7 +159,9 @@ class AliasedBuffer {
    *  Set position index to given value.
    */
   inline void SetValue(const size_t index, NativeT value) {
-    CHECK_LT(index, count_);
+    #if defined(DEBUG) && DEBUG
+      CHECK_LT(index, count_);
+    #endif
     buffer_[index] = value;
   }
 
@@ -163,7 +169,9 @@ class AliasedBuffer {
    *  Get value at position index
    */
   inline const NativeT GetValue(const size_t index) const {
-    CHECK_LT(index, count_);
+    #if defined(DEBUG) && DEBUG
+      CHECK_LT(index, count_);
+    #endif
     return buffer_[index];
   }
 
