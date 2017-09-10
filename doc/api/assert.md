@@ -104,7 +104,7 @@ parameter is undefined, a default error message is assigned.
 <!-- YAML
 added: v1.2.0
 changes:
-  - version: REPLACEME
+  - version: v8.5.0
     pr-url: https://github.com/nodejs/node/pull/12142
     description: Error names and messages are now properly compared
   - version: v8.0.0

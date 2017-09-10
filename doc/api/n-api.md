@@ -3185,7 +3185,7 @@ then by calling `napi_unwrap()` on the wrapper object.
 
 ### *napi_remove_wrap*
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 ```C
 napi_status napi_remove_wrap(napi_env env,
@@ -3399,7 +3399,7 @@ support it:
 
 ### napi_adjust_external_memory
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 ```C
 NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
@@ -3478,7 +3478,7 @@ deferred = NULL;
 
 ### napi_create_promise
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 ```C
 NAPI_EXTERN napi_status napi_create_promise(napi_env env,
@@ -3498,7 +3498,7 @@ This API creates a deferred object and a JavaScript promise.
 
 ### napi_resolve_deferred
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 ```C
 NAPI_EXTERN napi_status napi_resolve_deferred(napi_env env,
@@ -3521,7 +3521,7 @@ The deferred object is freed upon successful completion.
 
 ### napi_reject_deferred
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 ```C
 NAPI_EXTERN napi_status napi_reject_deferred(napi_env env,
@@ -3544,7 +3544,7 @@ The deferred object is freed upon successful completion.
 
 ### napi_is_promise
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 ```C
 NAPI_EXTERN napi_status napi_is_promise(napi_env env,
@@ -3564,7 +3564,7 @@ underlying JavaScript engine.
 
 ### napi_run_script
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 ```C
 NAPI_EXTERN napi_status napi_run_script(napi_env env,
