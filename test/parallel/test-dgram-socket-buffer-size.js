@@ -62,11 +62,11 @@ const dgram = require('dgram');
   const socket = dgram.createSocket('udp4');
 
   socket.bind(common.mustCall(() => {
-    socket.setRecvBufferSize(1200);
-    socket.setSendBufferSize(1200);
+    socket.setRecvBufferSize(10000);
+    socket.setSendBufferSize(10000);
 
     // note: linux will double the buffer size
-    const expectedBufferSize = common.isLinux ? 2400 : 1200;
+    const expectedBufferSize = common.isLinux ? 20000 : 10000;
     assert.strictEqual(socket.getRecvBufferSize(), expectedBufferSize);
     assert.strictEqual(socket.getSendBufferSize(), expectedBufferSize);
     socket.close();

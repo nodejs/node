@@ -44,17 +44,17 @@ validTypes.forEach((validType) => {
 {
   const socket = dgram.createSocket({
     type: 'udp4',
-    recvBufferSize: 1300,
-    sendBufferSize: 1800
+    recvBufferSize: 10000,
+    sendBufferSize: 15000
   });
 
   socket.bind(common.mustCall(() => {
     // note: linux will double the buffer size
-    assert.ok(socket.getRecvBufferSize() === 1300 ||
-              socket.getRecvBufferSize() === 2600,
+    assert.ok(socket.getRecvBufferSize() === 10000 ||
+              socket.getRecvBufferSize() === 20000,
               'SO_RCVBUF not 1300 or 2600');
-    assert.ok(socket.getSendBufferSize() === 1800 ||
-              socket.getSendBufferSize() === 3600,
+    assert.ok(socket.getSendBufferSize() === 15000 ||
+              socket.getSendBufferSize() === 30000,
               'SO_SNDBUF not 1800 or 3600');
     socket.close();
   }));
