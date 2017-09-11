@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const h2 = require('http2');
 
-const serverTimeout = common.platformTimeout(200);
+const serverTimeout = common.platformTimeout(1200);
 const callTimeout = common.platformTimeout(10);
 
 const server = h2.createServer();
