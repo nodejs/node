@@ -17,7 +17,8 @@ napi_status MyObject::Init(napi_env env) {
   napi_status status;
 
   napi_value cons;
-  status = napi_define_class(env, "MyObject", New, nullptr, 0, nullptr, &cons);
+  status = napi_define_class(
+      env, "MyObject", -1, New, nullptr, 0, nullptr, &cons);
   if (status != napi_ok) return status;
 
   status = napi_create_reference(env, cons, 1, &constructor);
