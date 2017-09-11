@@ -128,5 +128,8 @@ function whichSync (cmd, opt) {
   if (opt.all && found.length)
     return found
 
+  if (opt.nothrow)
+    return null
+
   throw getNotFoundError(cmd)
 }

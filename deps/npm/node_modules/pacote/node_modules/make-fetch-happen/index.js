@@ -42,7 +42,20 @@ cachingFetch.defaults = function (_uri, _opts) {
   }
 
   defaultedFetch.defaults = fetch.defaults
+  defaultedFetch.delete = fetch.delete
   return defaultedFetch
+}
+
+cachingFetch.delete = cacheDelete
+function cacheDelete (uri, opts) {
+  opts = configureOptions(opts)
+  if (opts.cacheManager) {
+    const req = new fetch.Request(uri, {
+      method: opts.method,
+      headers: opts.headers
+    })
+    return opts.cacheManager.delete(req, opts)
+  }
 }
 
 function initializeCache (opts) {

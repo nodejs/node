@@ -19,7 +19,7 @@ $ npm install --save os-locale
 ```js
 const osLocale = require('os-locale');
 
-osLocale.then(locale => {
+osLocale().then(locale => {
 	console.log(locale);
 	//=> 'en_US'
 });

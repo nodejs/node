@@ -1,275 +1,415 @@
+'use strict'
 
-// A writable stream.
-// It emits "entry" events, which provide a readable stream that has
-// header info attached.
+// this[BUFFER] is the remainder of a chunk if we're waiting for
+// the full 512 bytes of a header to come in.  We will Buffer.concat()
+// it to the next write(), which is a mem copy, but a small one.
+//
+// this[QUEUE] is a Yallist of entries that haven't been emitted
+// yet this can only get filled up if the user keeps write()ing after
+// a write() returns false, or does a write() with more than one entry
+//
+// We don't buffer chunks, we always parse them and either create an
+// entry, or push it into the active entry.  The ReadEntry class knows
+// to throw data away if .ignore=true
+//
+// Shift entry off the buffer when it emits 'end', and emit 'entry' for
+// the next one in the list.
+//
+// At any time, we're pushing body chunks into the entry at WRITEENTRY,
+// and waiting for 'end' on the entry at READENTRY
+//
+// ignored entries get .resume() called on them straight away
 
-module.exports = Parse.create = Parse
+const warner = require('./warn-mixin.js')
+const path = require('path')
+const Header = require('./header.js')
+const EE = require('events')
+const Yallist = require('yallist')
+const maxMetaEntrySize = 1024 * 1024
+const Entry = require('./read-entry.js')
+const Pax = require('./pax.js')
+const zlib = require('minizlib')
 
-var stream = require("stream")
-  , Stream = stream.Stream
-  , BlockStream = require("block-stream")
-  , tar = require("../tar.js")
-  , TarHeader = require("./header.js")
-  , Entry = require("./entry.js")
-  , BufferEntry = require("./buffer-entry.js")
-  , ExtendedHeader = require("./extended-header.js")
-  , assert = require("assert").ok
-  , inherits = require("inherits")
-  , fstream = require("fstream")
+const gzipHeader = new Buffer([0x1f, 0x8b])
+const STATE = Symbol('state')
+const WRITEENTRY = Symbol('writeEntry')
+const READENTRY = Symbol('readEntry')
+const NEXTENTRY = Symbol('nextEntry')
+const PROCESSENTRY = Symbol('processEntry')
+const EX = Symbol('extendedHeader')
+const GEX = Symbol('globalExtendedHeader')
+const META = Symbol('meta')
+const EMITMETA = Symbol('emitMeta')
+const BUFFER = Symbol('buffer')
+const QUEUE = Symbol('queue')
+const ENDED = Symbol('ended')
+const EMITTEDEND = Symbol('emittedEnd')
+const EMIT = Symbol('emit')
+const UNZIP = Symbol('unzip')
+const CONSUMECHUNK = Symbol('consumeChunk')
+const CONSUMECHUNKSUB = Symbol('consumeChunkSub')
+const CONSUMEBODY = Symbol('consumeBody')
+const CONSUMEMETA = Symbol('consumeMeta')
+const CONSUMEHEADER = Symbol('consumeHeader')
+const CONSUMING = Symbol('consuming')
+const BUFFERCONCAT = Symbol('bufferConcat')
+const MAYBEEND = Symbol('maybeEnd')
+const WRITING = Symbol('writing')
+const ABORTED = Symbol('aborted')
+const DONE = Symbol('onDone')
 
-// reading a tar is a lot like reading a directory
-// However, we're actually not going to run the ctor,
-// since it does a stat and various other stuff.
-// This inheritance gives us the pause/resume/pipe
-// behavior that is desired.
-inherits(Parse, fstream.Reader)
+const noop = _ => true
 
-function Parse () {
-  var me = this
-  if (!(me instanceof Parse)) return new Parse()
+module.exports = warner(class Parser extends EE {
+  constructor (opt) {
+    opt = opt || {}
+    super(opt)
 
-  // doesn't apply fstream.Reader ctor?
-  // no, becasue we don't want to stat/etc, we just
-  // want to get the entry/add logic from .pipe()
-  Stream.apply(me)
+    if (opt.ondone)
+      this.on(DONE, opt.ondone)
+    else
+      this.on(DONE, _ => {
+        this.emit('prefinish')
+        this.emit('finish')
+        this.emit('end')
+        this.emit('close')
+      })
 
-  me.writable = true
-  me.readable = true
-  me._stream = new BlockStream(512)
-  me.position = 0
-  me._ended = false
+    this.strict = !!opt.strict
+    this.maxMetaEntrySize = opt.maxMetaEntrySize || maxMetaEntrySize
+    this.filter = typeof opt.filter === 'function' ? opt.filter : noop
 
-  me._stream.on("error", function (e) {
-    me.emit("error", e)
-  })
+    // have to set this so that streams are ok piping into it
+    this.writable = true
+    this.readable = false
 
-  me._stream.on("data", function (c) {
-    me._process(c)
-  })
-
-  me._stream.on("end", function () {
-    me._streamEnd()
-  })
-
-  me._stream.on("drain", function () {
-    me.emit("drain")
-  })
-}
-
-// overridden in Extract class, since it needs to
-// wait for its DirWriter part to finish before
-// emitting "end"
-Parse.prototype._streamEnd = function () {
-  var me = this
-  if (!me._ended || me._entry) me.error("unexpected eof")
-  me.emit("end")
-}
-
-// a tar reader is actually a filter, not just a readable stream.
-// So, you should pipe a tarball stream into it, and it needs these
-// write/end methods to do that.
-Parse.prototype.write = function (c) {
-  if (this._ended) {
-    // gnutar puts a LOT of nulls at the end.
-    // you can keep writing these things forever.
-    // Just ignore them.
-    for (var i = 0, l = c.length; i > l; i ++) {
-      if (c[i] !== 0) return this.error("write() after end()")
-    }
-    return
+    this[QUEUE] = new Yallist()
+    this[BUFFER] = null
+    this[READENTRY] = null
+    this[WRITEENTRY] = null
+    this[STATE] = 'begin'
+    this[META] = ''
+    this[EX] = null
+    this[GEX] = null
+    this[ENDED] = false
+    this[UNZIP] = null
+    this[ABORTED] = false
+    if (typeof opt.onwarn === 'function')
+      this.on('warn', opt.onwarn)
+    if (typeof opt.onentry === 'function')
+      this.on('entry', opt.onentry)
   }
-  return this._stream.write(c)
-}
 
-Parse.prototype.end = function (c) {
-  this._ended = true
-  return this._stream.end(c)
-}
+  [CONSUMEHEADER] (chunk, position) {
+    const header = new Header(chunk, position)
 
-// don't need to do anything, since we're just
-// proxying the data up from the _stream.
-// Just need to override the parent's "Not Implemented"
-// error-thrower.
-Parse.prototype._read = function () {}
-
-Parse.prototype._process = function (c) {
-  assert(c && c.length === 512, "block size should be 512")
-
-  // one of three cases.
-  // 1. A new header
-  // 2. A part of a file/extended header
-  // 3. One of two or more EOF null blocks
-
-  if (this._entry) {
-    var entry = this._entry
-    if(!entry._abort) entry.write(c)
+    if (header.nullBlock)
+      this[EMIT]('nullBlock')
+    else if (!header.cksumValid)
+      this.warn('invalid entry', header)
+    else if (!header.path)
+      this.warn('invalid: path is required', header)
     else {
-      entry._remaining -= c.length
-      if(entry._remaining < 0) entry._remaining = 0
+      const type = header.type
+      if (/^(Symbolic)?Link$/.test(type) && !header.linkpath)
+        this.warn('invalid: linkpath required', header)
+      else if (!/^(Symbolic)?Link$/.test(type) && header.linkpath)
+        this.warn('invalid: linkpath forbidden', header)
+      else {
+        const entry = this[WRITEENTRY] = new Entry(header, this[EX], this[GEX])
+
+        if (entry.meta) {
+          if (entry.size > this.maxMetaEntrySize) {
+            entry.ignore = true
+            this[EMIT]('ignoredEntry', entry)
+            this[STATE] = 'ignore'
+          } else if (entry.size > 0) {
+            this[META] = ''
+            entry.on('data', c => this[META] += c)
+            this[STATE] = 'meta'
+          }
+        } else {
+
+          this[EX] = null
+          entry.ignore = entry.ignore || !this.filter(entry.path, entry)
+          if (entry.ignore) {
+            this[EMIT]('ignoredEntry', entry)
+            this[STATE] = entry.remain ? 'ignore' : 'begin'
+          } else {
+            if (entry.remain)
+              this[STATE] = 'body'
+            else {
+              this[STATE] = 'begin'
+              entry.end()
+            }
+
+            if (!this[READENTRY]) {
+              this[QUEUE].push(entry)
+              this[NEXTENTRY]()
+            } else
+              this[QUEUE].push(entry)
+          }
+        }
+      }
     }
-    if (entry._remaining === 0) {
+  }
+
+  [PROCESSENTRY] (entry) {
+    let go = true
+
+    if (!entry) {
+      this[READENTRY] = null
+      go = false
+    } else if (Array.isArray(entry))
+      this.emit.apply(this, entry)
+    else {
+      this[READENTRY] = entry
+      this.emit('entry', entry)
+      if (!entry.emittedEnd) {
+        entry.on('end', _ => this[NEXTENTRY]())
+        go = false
+      }
+    }
+
+    return go
+  }
+
+  [NEXTENTRY] () {
+    do {} while (this[PROCESSENTRY](this[QUEUE].shift()))
+
+    if (!this[QUEUE].length) {
+      // At this point, there's nothing in the queue, but we may have an
+      // entry which is being consumed (readEntry).
+      // If we don't, then we definitely can handle more data.
+      // If we do, and either it's flowing, or it has never had any data
+      // written to it, then it needs more.
+      // The only other possibility is that it has returned false from a
+      // write() call, so we wait for the next drain to continue.
+      const re = this[READENTRY]
+      const drainNow = !re || re.flowing || re.size === re.remain
+      if (drainNow) {
+        if (!this[WRITING])
+          this.emit('drain')
+      } else
+        re.once('drain', _ => this.emit('drain'))
+     }
+  }
+
+  [CONSUMEBODY] (chunk, position) {
+    // write up to but no  more than writeEntry.blockRemain
+    const entry = this[WRITEENTRY]
+    const br = entry.blockRemain
+    const c = (br >= chunk.length && position === 0) ? chunk
+      : chunk.slice(position, position + br)
+
+    entry.write(c)
+
+    if (!entry.blockRemain) {
+      this[STATE] = 'begin'
+      this[WRITEENTRY] = null
       entry.end()
-      this._entry = null
-    }
-  } else {
-    // either zeroes or a header
-    var zero = true
-    for (var i = 0; i < 512 && zero; i ++) {
-      zero = c[i] === 0
     }
 
-    // eof is *at least* 2 blocks of nulls, and then the end of the
-    // file.  you can put blocks of nulls between entries anywhere,
-    // so appending one tarball to another is technically valid.
-    // ending without the eof null blocks is not allowed, however.
-    if (zero) {
-      if (this._eofStarted)
-        this._ended = true
-      this._eofStarted = true
-    } else {
-      this._eofStarted = false
-      this._startEntry(c)
+    return c.length
+  }
+
+  [CONSUMEMETA] (chunk, position) {
+    const entry = this[WRITEENTRY]
+    const ret = this[CONSUMEBODY](chunk, position)
+
+    // if we finished, then the entry is reset
+    if (!this[WRITEENTRY])
+      this[EMITMETA](entry)
+
+    return ret
+  }
+
+  [EMIT] (ev, data, extra) {
+    if (!this[QUEUE].length && !this[READENTRY])
+      this.emit(ev, data, extra)
+    else
+      this[QUEUE].push([ev, data, extra])
+  }
+
+  [EMITMETA] (entry) {
+    this[EMIT]('meta', this[META])
+    switch (entry.type) {
+      case 'ExtendedHeader':
+      case 'OldExtendedHeader':
+        this[EX] = Pax.parse(this[META], this[EX], false)
+        break
+
+      case 'GlobalExtendedHeader':
+        this[GEX] = Pax.parse(this[META], this[GEX], true)
+        break
+
+      case 'NextFileHasLongPath':
+      case 'OldGnuLongPath':
+        this[EX] = this[EX] || Object.create(null)
+        this[EX].path = this[META].replace(/\0.*/, '')
+        break
+
+      case 'NextFileHasLongLinkpath':
+        this[EX] = this[EX] || Object.create(null)
+        this[EX].linkpath = this[META].replace(/\0.*/, '')
+        break
+
+      /* istanbul ignore next */
+      default: throw new Error('unknown meta: ' + entry.type)
     }
   }
 
-  this.position += 512
-}
-
-// take a header chunk, start the right kind of entry.
-Parse.prototype._startEntry = function (c) {
-  var header = new TarHeader(c)
-    , self = this
-    , entry
-    , ev
-    , EntryType
-    , onend
-    , meta = false
-
-  if (null === header.size || !header.cksumValid) {
-    var e = new Error("invalid tar file")
-    e.header = header
-    e.tar_file_offset = this.position
-    e.tar_block = this.position / 512
-    return this.emit("error", e)
+  abort (msg, error) {
+    this[ABORTED] = true
+    this.warn(msg, error)
+    this.emit('abort')
   }
 
-  switch (tar.types[header.type]) {
-    case "File":
-    case "OldFile":
-    case "Link":
-    case "SymbolicLink":
-    case "CharacterDevice":
-    case "BlockDevice":
-    case "Directory":
-    case "FIFO":
-    case "ContiguousFile":
-    case "GNUDumpDir":
-      // start a file.
-      // pass in any extended headers
-      // These ones consumers are typically most interested in.
-      EntryType = Entry
-      ev = "entry"
-      break
+  write (chunk) {
+    if (this[ABORTED])
+      return
 
-    case "GlobalExtendedHeader":
-      // extended headers that apply to the rest of the tarball
-      EntryType = ExtendedHeader
-      onend = function () {
-        self._global = self._global || {}
-        Object.keys(entry.fields).forEach(function (k) {
-          self._global[k] = entry.fields[k]
+    // first write, might be gzipped
+    if (this[UNZIP] === null && chunk) {
+      if (this[BUFFER]) {
+        chunk = Buffer.concat([this[BUFFER], chunk])
+        this[BUFFER] = null
+      }
+      if (chunk.length < gzipHeader.length) {
+        this[BUFFER] = chunk
+        return true
+      }
+      for (let i = 0; this[UNZIP] === null && i < gzipHeader.length; i++) {
+        if (chunk[i] !== gzipHeader[i])
+          this[UNZIP] = false
+      }
+      if (this[UNZIP] === null) {
+        const ended = this[ENDED]
+        this[ENDED] = false
+        this[UNZIP] = new zlib.Unzip()
+        this[UNZIP].on('data', chunk => this[CONSUMECHUNK](chunk))
+        this[UNZIP].on('error', er =>
+          this.abort('zlib error: ' + er.message, er))
+        this[UNZIP].on('end', _ => {
+          this[ENDED] = true
+          this[CONSUMECHUNK]()
         })
+        return ended ? this[UNZIP].end(chunk) : this[UNZIP].write(chunk)
       }
-      ev = "globalExtendedHeader"
-      meta = true
-      break
+    }
 
-    case "ExtendedHeader":
-    case "OldExtendedHeader":
-      // extended headers that apply to the next entry
-      EntryType = ExtendedHeader
-      onend = function () {
-        self._extended = entry.fields
+    this[WRITING] = true
+    if (this[UNZIP])
+      this[UNZIP].write(chunk)
+    else
+      this[CONSUMECHUNK](chunk)
+    this[WRITING] = false
+
+    // return false if there's a queue, or if the current entry isn't flowing
+    const ret =
+      this[QUEUE].length ? false :
+      this[READENTRY] ? this[READENTRY].flowing :
+      true
+
+    // if we have no queue, then that means a clogged READENTRY
+    if (!ret && !this[QUEUE].length)
+      this[READENTRY].once('drain', _ => this.emit('drain'))
+
+    return ret
+  }
+
+  [BUFFERCONCAT] (c) {
+    if (c && !this[ABORTED])
+      this[BUFFER] = this[BUFFER] ? Buffer.concat([this[BUFFER], c]) : c
+  }
+
+  [MAYBEEND] () {
+    if (this[ENDED] && !this[EMITTEDEND] && !this[ABORTED]) {
+      this[EMITTEDEND] = true
+      const entry = this[WRITEENTRY]
+      if (entry && entry.blockRemain) {
+        const have = this[BUFFER] ? this[BUFFER].length : 0
+        this.warn('Truncated input (needed ' + entry.blockRemain +
+                  ' more bytes, only ' + have + ' available)', entry)
+        if (this[BUFFER])
+          entry.write(this[BUFFER])
+        entry.end()
       }
-      ev = "extendedHeader"
-      meta = true
-      break
+      this[EMIT](DONE)
+    }
+  }
 
-    case "NextFileHasLongLinkpath":
-      // set linkpath=<contents> in extended header
-      EntryType = BufferEntry
-      onend = function () {
-        self._extended = self._extended || {}
-        self._extended.linkpath = entry.body
+  [CONSUMECHUNK] (chunk) {
+    if (this[CONSUMING]) {
+      this[BUFFERCONCAT](chunk)
+    } else if (!chunk && !this[BUFFER]) {
+      this[MAYBEEND]()
+    } else {
+      this[CONSUMING] = true
+      if (this[BUFFER]) {
+        this[BUFFERCONCAT](chunk)
+        const c = this[BUFFER]
+        this[BUFFER] = null
+        this[CONSUMECHUNKSUB](c)
+      } else {
+        this[CONSUMECHUNKSUB](chunk)
       }
-      ev = "longLinkpath"
-      meta = true
-      break
 
-    case "NextFileHasLongPath":
-    case "OldGnuLongPath":
-      // set path=<contents> in file-extended header
-      EntryType = BufferEntry
-      onend = function () {
-        self._extended = self._extended || {}
-        self._extended.path = entry.body
+      while (this[BUFFER] && this[BUFFER].length >= 512 && !this[ABORTED]) {
+        const c = this[BUFFER]
+        this[BUFFER] = null
+        this[CONSUMECHUNKSUB](c)
       }
-      ev = "longPath"
-      meta = true
-      break
+      this[CONSUMING] = false
+    }
 
-    default:
-      // all the rest we skip, but still set the _entry
-      // member, so that we can skip over their data appropriately.
-      // emit an event to say that this is an ignored entry type?
-      EntryType = Entry
-      ev = "ignoredEntry"
-      break
+    if (!this[BUFFER] || this[ENDED])
+      this[MAYBEEND]()
   }
 
-  var global, extended
-  if (meta) {
-    global = extended = null
-  } else {
-    var global = this._global
-    var extended = this._extended
+  [CONSUMECHUNKSUB] (chunk) {
+    // we know that we are in CONSUMING mode, so anything written goes into
+    // the buffer.  Advance the position and put any remainder in the buffer.
+    let position = 0
+    let length = chunk.length
+    while (position + 512 <= length && !this[ABORTED]) {
+      switch (this[STATE]) {
+        case 'begin':
+          this[CONSUMEHEADER](chunk, position)
+          position += 512
+          break
 
-    // extendedHeader only applies to one entry, so once we start
-    // an entry, it's over.
-    this._extended = null
-  }
-  entry = new EntryType(header, extended, global)
-  entry.meta = meta
+        case 'ignore':
+        case 'body':
+          position += this[CONSUMEBODY](chunk, position)
+          break
 
-  // only proxy data events of normal files.
-  if (!meta) {
-    entry.on("data", function (c) {
-      me.emit("data", c)
-    })
-  }
+        case 'meta':
+          position += this[CONSUMEMETA](chunk, position)
+          break
 
-  if (onend) entry.on("end", onend)
+        /* istanbul ignore next */
+        default:
+          throw new Error('invalid state: ' + this[STATE])
+      }
+    }
 
-  this._entry = entry
-  var me = this
-
-  entry.on("pause", function () {
-    me.pause()
-  })
-
-  entry.on("resume", function () {
-    me.resume()
-  })
-
-  if (this.listeners("*").length) {
-    this.emit("*", ev, entry)
+    if (position < length) {
+      if (this[BUFFER])
+        this[BUFFER] = Buffer.concat([chunk.slice(position), this[BUFFER]])
+      else
+        this[BUFFER] = chunk.slice(position)
+    }
   }
 
-  this.emit(ev, entry)
-
-  // Zero-byte entry.  End immediately.
-  if (entry.props.size === 0) {
-    entry.end()
-    this._entry = null
+  end (chunk) {
+    if (!this[ABORTED]) {
+      if (this[UNZIP])
+        this[UNZIP].end(chunk)
+      else {
+        this[ENDED] = true
+        this.write(chunk)
+      }
+    }
   }
-}
+})

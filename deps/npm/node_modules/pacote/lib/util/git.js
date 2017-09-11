@@ -25,6 +25,7 @@ const GOOD_ENV_VARS = new Set([
   'GIT_SSL_NO_VERIFY'
 ])
 
+const GIT_ = 'GIT_'
 let GITENV
 function gitEnv () {
   if (GITENV) { return GITENV }
@@ -35,7 +36,7 @@ function gitEnv () {
     GIT_TEMPLATE_DIR: tmpName
   }
   Object.keys(process.env).forEach(k => {
-    if (GOOD_ENV_VARS.has(k) || !k.match(/^GIT_/)) {
+    if (GOOD_ENV_VARS.has(k) || !k.startsWith(GIT_)) {
       GITENV[k] = process.env[k]
     }
   })
@@ -93,6 +94,7 @@ function headSha (repo, opts) {
   })
 }
 
+const CARET_BRACES = '^{}'
 const REVS = new LRU({
   max: 100,
   maxAge: 5 * 60 * 1000
@@ -122,7 +124,7 @@ function revs (repo, opts) {
           const sha = split[0].trim()
           const ref = split[1].trim().match(/(?:refs\/[^/]+\/)?(.*)/)[1]
           if (!ref) { return revs } // ???
-          if (ref.match(/\^\{\}$/)) { return revs } // refs/tags/x^{} crap
+          if (ref.endsWith(CARET_BRACES)) { return revs } // refs/tags/x^{} crap
           const type = refType(line)
           const doc = {sha, ref, type}
 
@@ -202,12 +204,15 @@ function checkGit () {
   }
 }
 
+const REFS_TAGS = '/refs/tags/'
+const REFS_HEADS = '/refs/heads/'
+const HEAD = 'HEAD'
 function refType (ref) {
-  return ref.match(/refs\/tags\/.*$/)
+  return ref.indexOf(REFS_TAGS) !== -1
   ? 'tag'
-  : ref.match(/refs\/heads\/.*$/)
+  : ref.indexOf(REFS_HEADS) !== -1
   ? 'branch'
-  : ref.match(/HEAD$/)
+  : ref.endsWith(HEAD)
   ? 'head'
   : 'other'
 }
