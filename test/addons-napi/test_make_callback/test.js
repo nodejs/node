@@ -83,14 +83,14 @@ function endpoint($Object) {
 assert.strictEqual(Object, makeCallback(process, forward, endpoint));
 
 // Check async hooks integration using async context.
-var hook_result = {
+const hook_result = {
   id: null,
   init_called: false,
   before_called: false,
   after_called: false,
   destroy_called: false,
 };
-var test_hook = async_hooks.createHook({
+const test_hook = async_hooks.createHook({
   init: (id, type) => {
     if (type === 'test') {
       hook_result.id = id;
@@ -109,7 +109,7 @@ var test_hook = async_hooks.createHook({
 });
 
 test_hook.enable();
-makeCallback(process, function () {});
+makeCallback(process, function() {});
 
 assert.strictEqual(hook_result.init_called, true);
 assert.strictEqual(hook_result.before_called, true);
