@@ -2,33 +2,23 @@
 
 require('../common');
 
-// Minimal test for buffer benchmarks. This makes sure the benchmarks aren't
-// completely broken but nothing more than that.
+const runBenchmark = require('../common/benchmark');
 
-const assert = require('assert');
-const fork = require('child_process').fork;
-const path = require('path');
+runBenchmark('buffers',
+             [
+               'aligned=true',
+               'args=1',
+               'encoding=utf8',
+               'len=2',
+               'method=',
+               'n=1',
+               'noAssert=true',
+               'pieces=1',
+               'pieceSize=1',
+               'search=@',
+               'size=1',
+               'source=array',
+               'type=',
+               'withTotalLength=0'
 
-const runjs = path.join(__dirname, '..', '..', 'benchmark', 'run.js');
-const argv = ['--set', 'aligned=true',
-              '--set', 'args=1',
-              '--set', 'buffer=fast',
-              '--set', 'encoding=utf8',
-              '--set', 'len=2',
-              '--set', 'method=',
-              '--set', 'n=1',
-              '--set', 'noAssert=true',
-              '--set', 'pieces=1',
-              '--set', 'pieceSize=1',
-              '--set', 'search=@',
-              '--set', 'size=1',
-              '--set', 'source=array',
-              '--set', 'type=',
-              '--set', 'withTotalLength=0',
-              'buffers'];
-
-const child = fork(runjs, argv);
-child.on('exit', (code, signal) => {
-  assert.strictEqual(code, 0);
-  assert.strictEqual(signal, null);
-});
+             ]);
