@@ -901,13 +901,13 @@ void WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
   const size_t ts_obj_offset = ts_obj->ByteOffset();
   const size_t ts_obj_length = ts_obj->ByteLength();
   char* const ts_obj_data =
-    static_cast<char*>(ts_obj_c.Data()) + ts_obj_offset;
+      static_cast<char*>(ts_obj_c.Data()) + ts_obj_offset;
   if (ts_obj_length > 0)
     CHECK_NE(ts_obj_data, nullptr);
 
   T val;
   if (args[1]->IsNumber()) {
-    val = args[1]->IntegerValue();
+    val = args[1]->IntegerValue(env->context()).FromMaybe(0);
   } else if (args[1]->IsString()) {
     node::Utf8Value str(env->isolate(), args[1]);
     const char* cstr = *str;
