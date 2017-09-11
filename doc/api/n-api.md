@@ -3382,7 +3382,7 @@ add-on. This API is similar to `napi_call_function`. However, it is used to call
 operation (when there is no other script on the stack). It is a fairly simple
 wrapper around `node::MakeCallback`.
 
-Note it is NOT necessary to use `napi_make_callback` from within a
+Note it is *not* necessary to use `napi_make_callback` from within a
 `napi_async_complete_callback`; in that situation the callback's async
 context has already been set up, so a direct call to `napi_call_function`
 is sufficient and appropriate. Use of the `napi_make_callback` function
