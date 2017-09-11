@@ -20,7 +20,7 @@ napi_value MakeCallback(napi_env env, napi_callback_info info) {
 
 napi_value Init(napi_env env, napi_value exports) {
   napi_value fn;
-  NAPI_CALL(env, napi_create_function(env, NULL, MakeCallback, NULL, &fn));
+  NAPI_CALL(env, napi_create_function(env, NULL, -1, MakeCallback, NULL, &fn));
   NAPI_CALL(env, napi_set_named_property(env, exports, "makeCallback", fn));
   return exports;
 }

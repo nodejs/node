@@ -938,12 +938,29 @@ napi_status napi_get_last_error_info(napi_env env,
 }
 
 NAPI_NO_RETURN void napi_fatal_error(const char* location,
-                                     const char* message) {
-  node::FatalError(location, message);
+                                     size_t location_len,
+                                     const char* message,
+                                     size_t message_len) {
+  char* location_string = const_cast<char*>(location);
+  char* message_string = const_cast<char*>(message);
+  if (location_len != -1) {
+    location_string = reinterpret_cast<char*>(
+        malloc(location_len * sizeof(char) + 1));
+    strncpy(location_string, location, location_len);
+    location_string[location_len] = '\0';
+  }
+  if (message_len != -1) {
+    message_string = reinterpret_cast<char*>(
+        malloc(message_len * sizeof(char) + 1));
+    strncpy(message_string, message, message_len);
+    message_string[message_len] = '\0';
+  }
+  node::FatalError(location_string, message_string);
 }
 
 napi_status napi_create_function(napi_env env,
                                  const char* utf8name,
+                                 size_t length,
                                  napi_callback cb,
                                  void* callback_data,
                                  napi_value* result) {
@@ -970,7 +987,7 @@ napi_status napi_create_function(napi_env env,
 
   if (utf8name != nullptr) {
     v8::Local<v8::String> name_string;
-    CHECK_NEW_FROM_UTF8(env, name_string, utf8name);
+    CHECK_NEW_FROM_UTF8_LEN(env, name_string, utf8name, length);
     return_value->SetName(name_string);
   }
 
@@ -981,6 +998,7 @@ napi_status napi_create_function(napi_env env,
 
 napi_status napi_define_class(napi_env env,
                               const char* utf8name,
+                              size_t length,
                               napi_callback constructor,
                               void* callback_data,
                               size_t property_count,
@@ -1002,7 +1020,7 @@ napi_status napi_define_class(napi_env env,
       isolate, v8impl::FunctionCallbackWrapper::Invoke, cbdata);
 
   v8::Local<v8::String> name_string;
-  CHECK_NEW_FROM_UTF8(env, name_string, utf8name);
+  CHECK_NEW_FROM_UTF8_LEN(env, name_string, utf8name, length);
   tpl->SetClassName(name_string);
 
   size_t static_property_count = 0;
