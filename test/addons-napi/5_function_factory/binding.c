@@ -4,15 +4,13 @@
 napi_value MyFunction(napi_env env, napi_callback_info info) {
   napi_value str;
   NAPI_CALL(env, napi_create_string_utf8(env, "hello world", -1, &str));
-
   return str;
 }
 
 napi_value CreateFunction(napi_env env, napi_callback_info info) {
   napi_value fn;
   NAPI_CALL(env,
-      napi_create_function(env, "theFunction", MyFunction, NULL, &fn));
-
+    napi_create_function(env, "theFunction", -1, MyFunction, NULL, &fn));
   return fn;
 }
 

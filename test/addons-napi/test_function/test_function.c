@@ -28,9 +28,9 @@ napi_value Test(napi_env env, napi_callback_info info) {
 
 napi_value Init(napi_env env, napi_value exports) {
   napi_value fn;
-  NAPI_CALL(env, napi_create_function(env, NULL, Test, NULL, &fn));
+  NAPI_CALL(env, napi_create_function(env, NULL, -1, Test, NULL, &fn));
   NAPI_CALL(env, napi_set_named_property(env, exports, "Test", fn));
-  return exports;
+>>>>>>> test: update test for additional string length parameter
 }
 
 NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
