@@ -3981,7 +3981,8 @@ void SignBase::CheckThrow(SignBase::Error error) {
 
 static bool ApplyRSAOptions(EVP_PKEY* pkey, EVP_PKEY_CTX* pkctx, int padding,
                             int salt_len) {
-  if (pkey->type == EVP_PKEY_RSA || pkey->type == EVP_PKEY_RSA2) {
+  if (EVP_PKEY_id(pkey) == EVP_PKEY_RSA ||
+      EVP_PKEY_id(pkey) == EVP_PKEY_RSA2) {
     if (EVP_PKEY_CTX_set_rsa_padding(pkctx, padding) <= 0)
       return false;
     if (padding == RSA_PKCS1_PSS_PADDING) {
@@ -4090,33 +4091,23 @@ static int Node_SignFinal(EVP_MD_CTX* mdctx, unsigned char* md,
   if (!EVP_DigestFinal_ex(mdctx, m, &m_len))
     return rv;
 
-  if (mdctx->digest->flags & EVP_MD_FLAG_PKEY_METHOD_SIGNATURE) {
-    size_t sltmp = static_cast<size_t>(EVP_PKEY_size(pkey));
-    pkctx = EVP_PKEY_CTX_new(pkey, nullptr);
-    if (pkctx == nullptr)
-      goto err;
-    if (EVP_PKEY_sign_init(pkctx) <= 0)
-      goto err;
-    if (!ApplyRSAOptions(pkey, pkctx, padding, pss_salt_len))
-      goto err;
-    if (EVP_PKEY_CTX_set_signature_md(pkctx, mdctx->digest) <= 0)
-      goto err;
-    if (EVP_PKEY_sign(pkctx, md, &sltmp, m, m_len) <= 0)
-      goto err;
-    *sig_len = sltmp;
-    rv = 1;
-   err:
-    EVP_PKEY_CTX_free(pkctx);
-    return rv;
-  }
-
-  if (mdctx->digest->sign == nullptr) {
-    EVPerr(EVP_F_EVP_SIGNFINAL, EVP_R_NO_SIGN_FUNCTION_CONFIGURED);
-    return 0;
-  }
-
-  return mdctx->digest->sign(mdctx->digest->type, m, m_len, md, sig_len,
-                             pkey->pkey.ptr);
+  size_t sltmp = static_cast<size_t>(EVP_PKEY_size(pkey));
+  pkctx = EVP_PKEY_CTX_new(pkey, nullptr);
+  if (pkctx == nullptr)
+    goto err;
+  if (EVP_PKEY_sign_init(pkctx) <= 0)
+    goto err;
+  if (!ApplyRSAOptions(pkey, pkctx, padding, pss_salt_len))
+    goto err;
+  if (EVP_PKEY_CTX_set_signature_md(pkctx, EVP_MD_CTX_md(mdctx)) <= 0)
+    goto err;
+  if (EVP_PKEY_sign(pkctx, md, &sltmp, m, m_len) <= 0)
+    goto err;
+  *sig_len = sltmp;
+  rv = 1;
+ err:
+  EVP_PKEY_CTX_free(pkctx);
+  return rv;
 }
 
 SignBase::Error Sign::SignFinal(const char* key_pem,

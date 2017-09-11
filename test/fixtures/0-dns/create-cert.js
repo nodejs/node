@@ -8,7 +8,7 @@ const BN = asn1.bignum;
 const id_at_commonName = [ 2, 5, 4, 3 ];
 const rsaEncryption = [1, 2, 840, 113549, 1, 1, 1];
 const sha256WithRSAEncryption = [1, 2, 840, 113549, 1, 1, 11];
-const sigalg = 'RSA-SHA256';
+const digest = 'SHA256';
 
 const private_key = fs.readFileSync('./0-dns-key.pem');
 // public key file can be generated from the private key with
@@ -59,7 +59,7 @@ const tbs = {
 
 const tbs_der = rfc5280.TBSCertificate.encode(tbs, 'der');
 
-const sign = crypto.createSign(sigalg);
+const sign = crypto.createSign(digest);
 sign.update(tbs_der);
 const signature = sign.sign(private_key);
 
