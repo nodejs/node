@@ -109,7 +109,9 @@ napi_get_last_error_info(napi_env env,
                          const napi_extended_error_info** result);
 
 NAPI_EXTERN NAPI_NO_RETURN void napi_fatal_error(const char* location,
-                                                 const char* message);
+                                                 size_t location_len,
+                                                 const char* message,
+                                                 size_t message_len);
 
 // Getters for defined singletons
 NAPI_EXTERN napi_status napi_get_undefined(napi_env env, napi_value* result);
@@ -154,6 +156,7 @@ NAPI_EXTERN napi_status napi_create_symbol(napi_env env,
                                            napi_value* result);
 NAPI_EXTERN napi_status napi_create_function(napi_env env,
                                              const char* utf8name,
+                                             size_t length,
                                              napi_callback cb,
                                              void* data,
                                              napi_value* result);
@@ -336,6 +339,7 @@ NAPI_EXTERN napi_status napi_get_new_target(napi_env env,
 NAPI_EXTERN napi_status
 napi_define_class(napi_env env,
                   const char* utf8name,
+                  size_t length,
                   napi_callback constructor,
                   void* data,
                   size_t property_count,

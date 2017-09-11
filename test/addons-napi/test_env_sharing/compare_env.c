@@ -15,7 +15,7 @@ napi_value compare(napi_env env, napi_callback_info info) {
 }
 
 napi_value Init(napi_env env, napi_value exports) {
-  NAPI_CALL(env, napi_create_function(env, "exports", compare, NULL, &exports));
+  NAPI_CALL(env, napi_create_function(env, "exports", -1, compare, NULL, &exports));
   return exports;
 }
 

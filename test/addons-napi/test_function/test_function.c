@@ -1,7 +1,7 @@
 #include <node_api.h>
 #include "../common.h"
 
-napi_value Test(napi_env env, napi_callback_info info) {
+napi_value TestCallFunction(napi_env env, napi_callback_info info) {
   size_t argc = 10;
   napi_value args[10];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -26,10 +26,25 @@ napi_value Test(napi_env env, napi_callback_info info) {
   return result;
 }
 
+void TestFunctionName(napi_env env, napi_callback_info info) {}
+
 napi_value Init(napi_env env, napi_value exports) {
-  napi_value fn;
-  NAPI_CALL(env, napi_create_function(env, NULL, Test, NULL, &fn));
-  NAPI_CALL(env, napi_set_named_property(env, exports, "Test", fn));
+  napi_value fn1;
+  NAPI_CALL(env, napi_create_function(
+      env, NULL, -1, TestCallFunction, NULL, &fn1));
+
+  napi_value fn2;
+  NAPI_CALL(env, napi_create_function(
+      env, "Name", -1, TestFunctionName, NULL, &fn2));
+
+  napi_value fn3;
+  NAPI_CALL(env, napi_create_function(
+      env, "Name_extra", 5, TestFunctionName, NULL, &fn3));
+
+  NAPI_CALL(env, napi_set_named_property(env, exports, "TestCall", fn1));
+  NAPI_CALL(env, napi_set_named_property(env, exports, "TestName", fn2));
+  NAPI_CALL(env, napi_set_named_property(env, exports, "TestNameShort", fn3));
+
   return exports;
 }
 
