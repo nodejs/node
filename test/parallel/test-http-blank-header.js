@@ -38,6 +38,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 
 server.listen(0, common.mustCall(() => {
   const c = net.createConnection(server.address().port);
+  let received = '';
 
   c.on('connect', common.mustCall(() => {
     c.write('GET /blah HTTP/1.1\r\n' +
@@ -47,7 +48,12 @@ server.listen(0, common.mustCall(() => {
             '\r\n\r\nhello world'
     );
   }));
-
-  c.on('end', common.mustCall(() => c.end()));
+  c.on('data', common.mustCall((data) => {
+    received += data.toString();
+  }));
+  c.on('end', common.mustCall(() => {
+    assert.strictEqual('HTTP/1.1 400 Bad Request\r\n\r\n', received);
+    c.end();
+  }));
   c.on('close', common.mustCall(() => server.close()));
 }));
