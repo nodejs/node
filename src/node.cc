@@ -4586,11 +4586,28 @@ void FreeEnvironment(Environment* env) {
 }
 
 
+Local<Context> NewContext(Isolate* isolate,
+                          Local<ObjectTemplate> object_template) {
+  auto context = Context::New(isolate, nullptr, object_template);
+  if (context.IsEmpty()) return context;
+  HandleScope handle_scope(isolate);
+  auto intl_key = FIXED_ONE_BYTE_STRING(isolate, "Intl");
+  auto break_iter_key = FIXED_ONE_BYTE_STRING(isolate, "v8BreakIterator");
+  Local<Value> intl_v;
+  Local<Object> intl;
+  if (context->Global()->Get(context, intl_key).ToLocal(&intl_v) &&
+      intl_v->ToObject(context).ToLocal(&intl)) {
+    intl->Delete(context, break_iter_key).FromJust();
+  }
+  return context;
+}
+
+
 inline int Start(Isolate* isolate, IsolateData* isolate_data,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
   HandleScope handle_scope(isolate);
-  Local<Context> context = Context::New(isolate);
+  Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
   Environment env(isolate_data, context);
   CHECK_EQ(0, uv_key_create(&thread_local_env));

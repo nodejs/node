@@ -88,6 +88,7 @@ server.listen(0, common.mustCall(function() {
 
     response.on('finish', common.mustCall(function() {
       assert.strictEqual(response.code, h2.constants.NGHTTP2_NO_ERROR);
+      assert.strictEqual(response.headersSent, true);
       server.close();
     }));
     response.end();
