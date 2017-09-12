@@ -31,7 +31,9 @@ const tests = [
     // test .load for a file that throws
     command: `.load ${fixtures.path('repl-pretty-stack.js')}`,
     expected: `Error: Whoops!
-    at c (repl:9:9)
+    at repl:9:24
+    at d (repl:12:3)
+    at c (repl:9:3)
     at b (repl:6:3)
     at a (repl:3:3)
 `
@@ -52,6 +54,11 @@ SyntaxError: Unexpected identifier
   {
     command: 'foo = bar;',
     expected: 'ReferenceError: bar is not defined\n'
+  },
+  // test anonymous IIFE
+  {
+    command: '(function() { throw new Error(\'Whoops!\'); })()',
+    expected: 'Error: Whoops!\n    at repl:1:21\n'
   }
 ];
 

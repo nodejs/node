@@ -9,7 +9,11 @@ function b() {
 }
 
 function c() {
-  throw new Error('Whoops!');
+  d(function() { throw new Error('Whoops!'); });
+}
+
+function d(f) {
+  f();
 }
 
 a();
