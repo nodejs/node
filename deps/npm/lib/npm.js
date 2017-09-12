@@ -25,7 +25,6 @@
   var npmconf = require('./config/core.js')
   var log = require('npmlog')
 
-  var tty = require('tty')
   var path = require('path')
   var abbrev = require('abbrev')
   var which = require('which')
@@ -285,19 +284,19 @@
 
         switch (color) {
           case 'always':
-            log.enableColor()
             npm.color = true
             break
           case false:
-            log.disableColor()
             npm.color = false
             break
           default:
-            if (process.stdout.isTTY) npm.color = true
-            else if (!tty.isatty) npm.color = true
-            else if (tty.isatty(1)) npm.color = true
-            else npm.color = false
+            npm.color = process.stdout.isTTY && process.env['TERM'] !== 'dumb'
             break
+        }
+        if (npm.color) {
+          log.enableColor()
+        } else {
+          log.disableColor()
         }
 
         if (config.get('unicode')) {
@@ -306,7 +305,7 @@
           log.disableUnicode()
         }
 
-        if (config.get('progress') && (process.stderr.isTTY || (tty.isatty && tty.isatty(2)))) {
+        if (config.get('progress') && process.stderr.isTTY && process.env['TERM'] !== 'dumb') {
           log.enableProgress()
         } else {
           log.disableProgress()

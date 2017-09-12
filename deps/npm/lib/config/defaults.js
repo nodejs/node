@@ -144,6 +144,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
 
     git: 'git',
     'git-tag-version': true,
+    'commit-hooks': true,
 
     global: false,
     globalconfig: path.resolve(globalPrefix, 'etc', 'npmrc'),
@@ -185,7 +186,6 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     prefix: globalPrefix,
     production: process.env.NODE_ENV === 'production',
     'progress': !process.env.TRAVIS && !process.env.CI,
-    'proprietary-attribs': true,
     proxy: null,
     'https-proxy': null,
     'user-agent': 'npm/{npm-version} ' +
@@ -271,6 +271,7 @@ exports.types = {
   'fetch-retry-maxtimeout': Number,
   git: String,
   'git-tag-version': Boolean,
+  'commit-hooks': Boolean,
   global: Boolean,
   globalconfig: path,
   'global-style': Boolean,
@@ -314,7 +315,6 @@ exports.types = {
   prefix: path,
   production: Boolean,
   progress: Boolean,
-  'proprietary-attribs': Boolean,
   proxy: [null, false, url], // allow proxy to be disabled explicitly
   'rebuild-bundle': Boolean,
   registry: [null, url],

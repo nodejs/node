@@ -38,14 +38,14 @@ function unbuild_ (silent) {
       if (er) return gentlyRm(folder, false, base, cb)
       chain(
         [
-          [lifecycle, pkg, 'preuninstall', folder, false, true],
-          [lifecycle, pkg, 'uninstall', folder, false, true],
+          [lifecycle, pkg, 'preuninstall', folder, { failOk: true }],
+          [lifecycle, pkg, 'uninstall', folder, { failOk: true }],
           !silent && function (cb) {
             output('unbuild ' + pkg._id)
             cb()
           },
           [rmStuff, pkg, folder],
-          [lifecycle, pkg, 'postuninstall', folder, false, true],
+          [lifecycle, pkg, 'postuninstall', folder, { failOk: true }],
           [gentlyRm, folder, false, base]
         ],
         cb
@@ -60,7 +60,9 @@ function rmStuff (pkg, folder, cb) {
   // otherwise, then bins are in folder/../.bin
   var parent = pkg.name[0] === '@' ? path.dirname(path.dirname(folder)) : path.dirname(folder)
   var gnm = npm.dir
-  var top = gnm === parent
+  // gnm might be an absolute path, parent might be relative
+  // this checks they're the same directory regardless
+  var top = path.relative(gnm, parent) === ''
 
   log.verbose('unbuild rmStuff', pkg._id, 'from', gnm)
   if (!top) log.verbose('unbuild rmStuff', 'in', parent)

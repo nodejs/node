@@ -1,4 +1,6 @@
 sudo: false
+# Remove once Trusty can support couchdb, which is part of before_install
+dist: precise
 # need to declare the language as well as the matrix below
 language: node_js
 # having top-level `env:` adds a phantom build

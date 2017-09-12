@@ -11,7 +11,7 @@ const Buffer = require('safe-buffer').Buffer
 const Blob = require('./blob.js')
 const BUFFER = Blob.BUFFER
 const convert = require('encoding').convert
-const parseJson = require('json-parse-helpfulerror').parse
+const parseJson = require('json-parse-better-errors')
 const FetchError = require('./fetch-error.js')
 const Stream = require('stream')
 

@@ -13,7 +13,6 @@ exports.ucData =
     'init.author.email': 'i@izs.me',
     'init.author.url': 'http://blog.izs.me/',
     'init.version': '1.2.3',
-    'proprietary-attribs': false,
     'npm:publishtest': true,
     '_npmjs.org:couch': 'https://admin:password@localhost:5984/registry',
     'npm-www:nocache': '1',
@@ -63,7 +62,6 @@ try {
   // project conf not found, probably working with packed npm
   fs.writeFileSync(projectConf, function () { /*
 save-prefix = ~
-proprietary-attribs = false
 legacy-bundling = true
   */ }.toString().split('\n').slice(1, -1).join('\n'))
 }

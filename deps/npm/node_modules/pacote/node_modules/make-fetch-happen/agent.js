@@ -44,16 +44,26 @@ function getAgent (uri, opts) {
   } else if (!isHttps && !HttpAgent) {
     HttpAgent = require('agentkeepalive')
   }
+
+  // If opts.timeout is zero, set the agentTimeout to zero as well. A timeout
+  // of zero disables the timeout behavior (OS limits still apply). Else, if
+  // opts.timeout is a non-zero value, set it to timeout + 1, to ensure that
+  // the node-fetch-npm timeout will always fire first, giving us more
+  // consistent errors.
+  const agentTimeout = opts.timeout === 0 ? 0 : opts.timeout + 1
+
   const agent = isHttps ? new HttpsAgent({
     maxSockets: opts.maxSockets || 15,
     ca: opts.ca,
     cert: opts.cert,
     key: opts.key,
     localAddress: opts.localAddress,
-    rejectUnauthorized: opts.strictSSL
+    rejectUnauthorized: opts.strictSSL,
+    timeout: agentTimeout
   }) : new HttpAgent({
     maxSockets: opts.maxSockets || 15,
-    localAddress: opts.localAddress
+    localAddress: opts.localAddress,
+    timeout: agentTimeout
   })
   AGENT_CACHE.set(key, agent)
   return agent
@@ -130,6 +140,7 @@ function getProxy (proxyUrl, opts, isHttps) {
     ca: opts.ca,
     cert: opts.cert,
     key: opts.key,
+    timeout: opts.timeout === 0 ? 0 : opts.timeout + 1,
     localAddress: opts.localAddress,
     maxSockets: opts.maxSockets || 15,
     rejectUnauthorized: opts.strictSSL

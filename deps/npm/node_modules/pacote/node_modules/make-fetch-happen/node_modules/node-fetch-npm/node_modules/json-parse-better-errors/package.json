@@ -1,0 +1,76 @@
+{
+  "_from": "json-parse-better-errors@^1.0.0",
+  "_id": "json-parse-better-errors@1.0.1",
+  "_inBundle": false,
+  "_integrity": "sha512-xyQpxeWWMKyJps9CuGJYeng6ssI5bpqS9ltQpdVQ90t4ql6NdnxFKh95JcRt2cun/DjMVNrdjniLPuMA69xmCw==",
+  "_location": "/pacote/make-fetch-happen/node-fetch-npm/json-parse-better-errors",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "json-parse-better-errors@^1.0.0",
+    "name": "json-parse-better-errors",
+    "escapedName": "json-parse-better-errors",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/pacote/make-fetch-happen/node-fetch-npm"
+  ],
+  "_resolved": "https://registry.npmjs.org/json-parse-better-errors/-/json-parse-better-errors-1.0.1.tgz",
+  "_shasum": "50183cd1b2d25275de069e9e71b467ac9eab973a",
+  "_spec": "json-parse-better-errors@^1.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/pacote/node_modules/make-fetch-happen/node_modules/node-fetch-npm",
+  "author": {
+    "name": "Kat Marchán",
+    "email": "kzm@sykosomatic.org"
+  },
+  "bugs": {
+    "url": "https://github.com/zkat/json-parse-better-errors/issues"
+  },
+  "bundleDependencies": false,
+  "config": {
+    "nyc": {
+      "exclude": [
+        "node_modules/**",
+        "test/**"
+      ]
+    }
+  },
+  "deprecated": false,
+  "description": "JSON.parse with context information on error",
+  "devDependencies": {
+    "nyc": "^10.3.2",
+    "standard": "^9.0.2",
+    "standard-version": "^4.1.0",
+    "tap": "^10.3.3",
+    "weallbehave": "^1.2.0",
+    "weallcontribute": "^1.0.8"
+  },
+  "files": [
+    "*.js"
+  ],
+  "homepage": "https://github.com/zkat/json-parse-better-errors#readme",
+  "keywords": [
+    "JSON",
+    "parser"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "json-parse-better-errors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zkat/json-parse-better-errors.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap -J --coverage test/*.js",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "version": "1.0.1"
+}

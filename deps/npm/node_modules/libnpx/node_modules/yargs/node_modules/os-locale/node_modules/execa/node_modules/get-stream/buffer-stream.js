@@ -1,14 +1,13 @@
-var PassThrough = require('stream').PassThrough;
-var objectAssign = require('object-assign');
+'use strict';
+const PassThrough = require('stream').PassThrough;
 
-module.exports = function (opts) {
-	opts = objectAssign({}, opts);
+module.exports = opts => {
+	opts = Object.assign({}, opts);
 
-	var array = opts.array;
-	var encoding = opts.encoding;
-
-	var buffer = encoding === 'buffer';
-	var objectMode = false;
+	const array = opts.array;
+	let encoding = opts.encoding;
+	const buffer = encoding === 'buffer';
+	let objectMode = false;
 
 	if (array) {
 		objectMode = !(encoding || buffer);
@@ -20,16 +19,15 @@ module.exports = function (opts) {
 		encoding = null;
 	}
 
-	var len = 0;
-	var ret = [];
-
-	var stream = new PassThrough({objectMode: objectMode});
+	let len = 0;
+	const ret = [];
+	const stream = new PassThrough({objectMode});
 
 	if (encoding) {
 		stream.setEncoding(encoding);
 	}
 
-	stream.on('data', function (chunk) {
+	stream.on('data', chunk => {
 		ret.push(chunk);
 
 		if (objectMode) {
@@ -39,16 +37,15 @@ module.exports = function (opts) {
 		}
 	});
 
-	stream.getBufferedValue = function () {
+	stream.getBufferedValue = () => {
 		if (array) {
 			return ret;
 		}
+
 		return buffer ? Buffer.concat(ret, len) : ret.join('');
 	};
 
-	stream.getBufferedLength = function () {
-		return len;
-	};
+	stream.getBufferedLength = () => len;
 
 	return stream;
 };

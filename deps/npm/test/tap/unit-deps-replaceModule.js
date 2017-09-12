@@ -10,7 +10,7 @@ test('replaceModuleByName', function (t) {
   var replaceModuleByName = require('../../lib/install/deps')._replaceModuleByName
   var mods = []
   for (var ii = 0; ii < 10; ++ii) {
-    mods.push({package: {name: ii}, path: '/path/to/' + ii})
+    mods.push({package: {name: String(ii)}, path: '/path/to/' + ii})
   }
 
   var test = {}
@@ -21,7 +21,7 @@ test('replaceModuleByName', function (t) {
   t.isDeeply(test.A, mods.slice(0, 4).concat(mods[7]), 'replacing a new module appends')
 
   test.B = mods.slice(0, 4)
-  var replacement = {package: {name: 1}, isReplacement: true}
+  var replacement = {package: {name: '1'}, isReplacement: true}
   replaceModuleByName(test, 'B', replacement)
   t.isDeeply(test.B, [mods[0], replacement, mods[2], mods[3]], 'replacing existing module swaps out for the new version')
 
@@ -39,7 +39,7 @@ test('replaceModuleByPath', function (t) {
   var replaceModuleByPath = require('../../lib/install/deps')._replaceModuleByPath
   var mods = []
   for (var ii = 0; ii < 10; ++ii) {
-    mods.push({package: {name: ii}, path: '/path/to/' + ii})
+    mods.push({package: {name: String(ii)}, path: '/path/to/' + ii})
   }
 
   var test = {}
@@ -50,7 +50,7 @@ test('replaceModuleByPath', function (t) {
   t.isDeeply(test.A, mods.slice(0, 4).concat(mods[7]), 'replacing a new module appends')
 
   test.B = mods.slice(0, 4)
-  var replacement = {package: {name: 1}, isReplacement: true, path: '/path/to/1'}
+  var replacement = {package: {name: '1'}, isReplacement: true, path: '/path/to/1'}
   replaceModuleByPath(test, 'B', replacement)
   t.isDeeply(test.B, [mods[0], replacement, mods[2], mods[3]], 'replacing existing module swaps out for the new version')
 

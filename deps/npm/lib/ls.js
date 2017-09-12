@@ -135,7 +135,7 @@ function filterByEnv (data) {
   var devKeys = Object.keys(data.devDependencies || [])
   var prodKeys = Object.keys(data._dependencies || [])
   Object.keys(data.dependencies).forEach(function (name) {
-    if (!dev && inList(devKeys, name) && data.dependencies[name].missing) {
+    if (!dev && inList(devKeys, name) && !inList(prodKeys, name) && data.dependencies[name].missing) {
       return
     }
 

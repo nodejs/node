@@ -80,6 +80,7 @@ function runAction (action, staging, pkg, log) {
 }
 
 function markAsFailed (pkg) {
+  if (pkg.failed) return
   pkg.failed = true
   pkg.requires.forEach((req) => {
     req.requiredBy = req.requiredBy.filter((reqReqBy) => {

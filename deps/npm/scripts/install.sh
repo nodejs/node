@@ -53,6 +53,11 @@ export npm_config_loglevel
 # make sure that node exists
 node=`which node 2>&1`
 ret=$?
+# if not found, try "nodejs" as it is the case on debian
+if [ $ret -ne 0 ]; then
+  node=`which nodejs 2>&1`
+  ret=$?
+fi
 if [ $ret -eq 0 ] && [ -x "$node" ]; then
   (exit 0)
 else

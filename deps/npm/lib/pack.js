@@ -26,8 +26,9 @@ const pipe = BB.promisify(require('mississippi').pipe)
 const prepublishWarning = require('./utils/warn-deprecated')('prepublish-on-install')
 const pinflight = require('promise-inflight')
 const readJson = BB.promisify(require('read-package-json'))
-const tarPack = BB.promisify(require('./utils/tar').pack)
 const writeStreamAtomic = require('fs-write-stream-atomic')
+const tar = require('tar')
+const packlist = require('npm-packlist')
 
 pack.usage = 'npm pack [[<@scope>/]<pkg>...]'
 
@@ -118,11 +119,20 @@ function packDirectory (mani, dir, target) {
   }).then((pkg) => {
     return cacache.tmp.withTmp(npm.tmp, {tmpPrefix: 'packing'}, (tmp) => {
       const tmpTarget = path.join(tmp, path.basename(target))
-      return tarPack(tmpTarget, dir, pkg).then(() => {
-        return move(tmpTarget, target, {Promise: BB, fs})
-      }).then(() => {
-        return lifecycle(pkg, 'postpack', dir)
-      }).then(() => target)
+
+      const tarOpt = {
+        file: tmpTarget,
+        cwd: dir,
+        prefix: 'package/',
+        portable: true,
+        gzip: true
+      }
+
+      return packlist({ path: dir })
+        .then((files) => tar.create(tarOpt, files))
+        .then(() => move(tmpTarget, target, {Promise: BB, fs}))
+        .then(() => lifecycle(pkg, 'postpack', dir))
+        .then(() => target)
     })
   })
 }

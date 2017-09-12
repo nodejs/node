@@ -166,7 +166,7 @@ function run (pkg, wd, cmd, args, cb) {
     }
 
     // when running scripts explicitly, assume that they're trusted.
-    return [lifecycle, pkg, c, wd, true]
+    return [lifecycle, pkg, c, wd, { unsafePerm: true }]
   }), cb)
 }
 
