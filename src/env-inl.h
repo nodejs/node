@@ -529,33 +529,6 @@ inline std::map<std::string, uint64_t>* Environment::performance_marks() {
   return &performance_marks_;
 }
 
-inline Environment* Environment::from_performance_check_handle(
-    uv_check_t* handle) {
-  return ContainerOf(&Environment::performance_check_handle_, handle);
-}
-
-inline Environment* Environment::from_performance_idle_handle(
-    uv_idle_t* handle) {
-  return ContainerOf(&Environment::performance_idle_handle_, handle);
-}
-
-inline Environment* Environment::from_performance_prepare_handle(
-    uv_prepare_t* handle) {
-  return ContainerOf(&Environment::performance_prepare_handle_, handle);
-}
-
-inline uv_check_t* Environment::performance_check_handle() {
-  return &performance_check_handle_;
-}
-
-inline uv_idle_t* Environment::performance_idle_handle() {
-  return &performance_idle_handle_;
-}
-
-inline uv_prepare_t* Environment::performance_prepare_handle() {
-  return &performance_prepare_handle_;
-}
-
 inline IsolateData* Environment::isolate_data() const {
   return isolate_data_;
 }

@@ -617,14 +617,6 @@ class Environment {
   inline performance::performance_state* performance_state();
   inline std::map<std::string, uint64_t>* performance_marks();
 
-  static inline Environment* from_performance_check_handle(uv_check_t* handle);
-  static inline Environment* from_performance_idle_handle(uv_idle_t* handle);
-  static inline Environment* from_performance_prepare_handle(
-      uv_prepare_t* handle);
-  inline uv_check_t* performance_check_handle();
-  inline uv_idle_t* performance_idle_handle();
-  inline uv_prepare_t* performance_prepare_handle();
-
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);
@@ -704,9 +696,6 @@ class Environment {
   uv_timer_t destroy_ids_timer_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
-  uv_prepare_t performance_prepare_handle_;
-  uv_check_t performance_check_handle_;
-  uv_idle_t performance_idle_handle_;
 
   AsyncHooks async_hooks_;
   DomainFlag domain_flag_;
