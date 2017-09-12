@@ -489,4 +489,23 @@ assert.doesNotThrow(() => { assert.deepStrictEqual({ a: NaN }, { a: NaN }); });
 assert.doesNotThrow(
   () => { assert.deepStrictEqual([ 1, 2, NaN, 4 ], [ 1, 2, NaN, 4 ]); });
 
+// Handle boxed primitives
+{
+  const boxedString = new String('test');
+  const boxedSymbol = Object(Symbol());
+  assertOnlyDeepEqual(new Boolean(true), Object(false));
+  assertOnlyDeepEqual(Object(true), new Number(1));
+  assertOnlyDeepEqual(new Number(2), new Number(1));
+  assertOnlyDeepEqual(boxedSymbol, Object(Symbol()));
+  assertOnlyDeepEqual(boxedSymbol, {});
+  assertDeepAndStrictEqual(boxedSymbol, boxedSymbol);
+  assertDeepAndStrictEqual(Object(true), Object(true));
+  assertDeepAndStrictEqual(Object(2), Object(2));
+  assertDeepAndStrictEqual(boxedString, Object('test'));
+  boxedString.slow = true;
+  assertNotDeepOrStrict(boxedString, Object('test'));
+  boxedSymbol.slow = true;
+  assertNotDeepOrStrict(boxedSymbol, {});
+}
+
 /* eslint-enable */
