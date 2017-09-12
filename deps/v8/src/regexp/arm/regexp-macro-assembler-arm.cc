@@ -290,7 +290,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
   } else {
     DCHECK(mode_ == UC16);
     int argument_count = 4;
-    __ PrepareCallCFunction(argument_count, r2);
+    __ PrepareCallCFunction(argument_count);
 
     // r0 - offset of start of capture
     // r1 - length of capture
@@ -665,7 +665,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   __ jmp(&return_r0);
 
   __ bind(&stack_limit_hit);
-  CallCheckStackGuardState(r0);
+  CallCheckStackGuardState();
   __ cmp(r0, Operand::Zero());
   // If returned value is non-zero, we exit with the returned value as result.
   __ b(ne, &return_r0);
@@ -841,7 +841,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   if (check_preempt_label_.is_linked()) {
     SafeCallTarget(&check_preempt_label_);
 
-    CallCheckStackGuardState(r0);
+    CallCheckStackGuardState();
     __ cmp(r0, Operand::Zero());
     // If returning non-zero, we should end execution with the given
     // result as return value.
@@ -860,7 +860,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
 
     // Call GrowStack(backtrack_stackpointer(), &stack_base)
     static const int num_arguments = 3;
-    __ PrepareCallCFunction(num_arguments, r0);
+    __ PrepareCallCFunction(num_arguments);
     __ mov(r0, backtrack_stackpointer());
     __ add(r1, frame_pointer(), Operand(kStackHighEnd));
     __ mov(r2, Operand(ExternalReference::isolate_address(isolate())));
@@ -886,7 +886,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   }
 
   CodeDesc code_desc;
-  masm_->GetCode(&code_desc);
+  masm_->GetCode(isolate(), &code_desc);
   Handle<Code> code = isolate()->factory()->NewCode(
       code_desc, Code::ComputeFlags(Code::REGEXP), masm_->CodeObject());
   PROFILE(masm_->isolate(),
@@ -1046,8 +1046,8 @@ void RegExpMacroAssemblerARM::WriteStackPointerToRegister(int reg) {
 
 // Private methods:
 
-void RegExpMacroAssemblerARM::CallCheckStackGuardState(Register scratch) {
-  __ PrepareCallCFunction(3, scratch);
+void RegExpMacroAssemblerARM::CallCheckStackGuardState() {
+  __ PrepareCallCFunction(3);
 
   // RegExp code frame pointer.
   __ mov(r2, frame_pointer());

@@ -783,8 +783,8 @@ bytecodes: [
                 B(Star), R(0),
   /* 2591 S> */ B(LdaConstant), U8(255),
                 B(Star), R(0),
-  /* 2601 S> */ B(Wide), B(CreateArrayLiteral), U16(256), U16(3), U8(17),
-  /* 2619 S> */ B(Return),
+  /* 2601 S> */ B(Wide), B(CreateArrayLiteral), U16(256), U16(3), U8(37),
+  /* 2618 S> */ B(Return),
 ]
 constant pool: [
   HEAP_NUMBER_TYPE [1.23],

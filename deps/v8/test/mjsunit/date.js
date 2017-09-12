@@ -314,6 +314,15 @@ for (var i = 0; i < 24; i++) {
   }
 }
 
+// Test padding with 0 rather than spaces
+assertEquals('Wed, 01 Jan 0020 00:00:00 GMT', new Date('0020-01-01T00:00:00Z').toUTCString());
+let dateRegExp = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [0-9]{2} [0-9]{4}$/
+match = dateRegExp.exec(new Date('0020-01-01T00:00:00Z').toDateString());
+assertNotNull(match);
+let stringRegExp = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [0-9]{2} [0-9]{4} [0-9]{2}:[0-9]{2}:[0-9]{2} GMT[+-][0-9]{4}( \(.+\))?$/
+match = stringRegExp.exec(new Date('0020-01-01T00:00:00Z').toString());
+assertNotNull(match);
+
 assertThrows('Date.prototype.setTime.call("", 1);', TypeError);
 assertThrows('Date.prototype.setYear.call("", 1);', TypeError);
 assertThrows('Date.prototype.setHours.call("", 1, 2, 3, 4);', TypeError);

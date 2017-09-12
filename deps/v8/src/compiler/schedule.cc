@@ -139,7 +139,6 @@ std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
       return os << "throw";
   }
   UNREACHABLE();
-  return os;
 }
 
 

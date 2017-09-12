@@ -355,10 +355,9 @@ TEST(Regress5829) {
                              ClearRecordedSlots::kNo);
   heap->old_space()->EmptyAllocationInfo();
   Page* page = Page::FromAddress(array->address());
-  LiveObjectIterator<kGreyObjects> it(page, MarkingState::Internal(page));
-  HeapObject* object = nullptr;
-  while ((object = it.Next()) != nullptr) {
-    CHECK(!object->IsFiller());
+  for (auto object_and_size :
+       LiveObjectRange<kGreyObjects>(page, MarkingState::Internal(page))) {
+    CHECK(!object_and_size.first->IsFiller());
   }
 }
 

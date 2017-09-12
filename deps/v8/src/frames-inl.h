@@ -26,8 +26,6 @@
 #include "src/mips64/frames-mips64.h"  // NOLINT
 #elif V8_TARGET_ARCH_S390
 #include "src/s390/frames-s390.h"  // NOLINT
-#elif V8_TARGET_ARCH_X87
-#include "src/x87/frames-x87.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif
@@ -111,7 +109,7 @@ inline Object* BuiltinExitFrame::receiver_slot_object() const {
   // fp[2 + argc - 1]: receiver.
   Object* argc_slot = argc_slot_object();
   DCHECK(argc_slot->IsSmi());
-  int argc = Smi::cast(argc_slot)->value();
+  int argc = Smi::ToInt(argc_slot);
 
   const int receiverOffset =
       BuiltinExitFrameConstants::kNewTargetOffset + (argc - 1) * kPointerSize;
@@ -183,7 +181,9 @@ inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
 
 Address JavaScriptFrame::GetParameterSlot(int index) const {
   int param_count = ComputeParametersCount();
-  DCHECK(-1 <= index && index < param_count);
+  DCHECK(-1 <= index &&
+         (index < param_count ||
+          param_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   int parameter_offset = (param_count - index - 1) * kPointerSize;
   return caller_sp() + parameter_offset;
 }
@@ -269,15 +269,17 @@ inline InternalFrame::InternalFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {
 }
 
-
-inline StubFailureTrampolineFrame::StubFailureTrampolineFrame(
-    StackFrameIteratorBase* iterator) : StandardFrame(iterator) {
-}
-
-
 inline ConstructFrame::ConstructFrame(StackFrameIteratorBase* iterator)
     : InternalFrame(iterator) {
 }
+
+inline BuiltinContinuationFrame::BuiltinContinuationFrame(
+    StackFrameIteratorBase* iterator)
+    : InternalFrame(iterator) {}
+
+inline JavaScriptBuiltinContinuationFrame::JavaScriptBuiltinContinuationFrame(
+    StackFrameIteratorBase* iterator)
+    : JavaScriptFrame(iterator) {}
 
 inline JavaScriptFrameIterator::JavaScriptFrameIterator(
     Isolate* isolate)

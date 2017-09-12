@@ -10,7 +10,7 @@
   function testBaselineAndOpt(func) {
     func(-1, -2);
     func(-1, -2);
-    % OptimizeFunctionOnNextCall(func);
+    %OptimizeFunctionOnNextCall(func);
     return func(-1, -2);
   }
 
@@ -78,7 +78,7 @@
   function testBaselineAndOpt(func) {
     func(-1, -2);
     func(-1, -2);
-    % OptimizeFunctionOnNextCall(func);
+    %OptimizeFunctionOnNextCall(func);
     return func(-1, -2);
   }
 

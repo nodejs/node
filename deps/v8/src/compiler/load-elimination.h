@@ -32,6 +32,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
       : AdvancedReducer(editor), node_states_(zone), jsgraph_(jsgraph) {}
   ~LoadElimination() final {}
 
+  const char* reducer_name() const override { return "LoadElimination"; }
+
   Reduction Reduce(Node* node) final;
 
  private:
@@ -121,6 +123,46 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
     Element elements_[kMaxTrackedElements];
     size_t next_index_ = 0;
+  };
+
+  // Abstract state to approximate the current state of a hash map along the
+  // effect paths through the graph.
+  class AbstractHashIndexes final : public ZoneObject {
+   public:
+    AbstractHashIndexes() {}
+
+    AbstractHashIndexes(Node* table, Node* key, Node* index)
+        : AbstractHashIndexes() {
+      entry_ = Entry(table, key, index);
+    }
+
+    AbstractHashIndexes const* Extend(Node* table, Node* key, Node* index,
+                                      Zone* zone) const {
+      // Currently, we do only hold one entry, so we just create a new
+      // state with the one entry.
+      AbstractHashIndexes* that =
+          new (zone) AbstractHashIndexes(table, key, index);
+      return that;
+    }
+    Node* Lookup(Node* table, Node* key) const;
+    bool Equals(AbstractHashIndexes const* that) const;
+    AbstractHashIndexes const* Merge(AbstractHashIndexes const* that,
+                                     Zone* zone) const;
+
+    void Print() const;
+
+   private:
+    struct Entry {
+      Entry() {}
+      Entry(Node* table, Node* key, Node* index)
+          : table(table), key(key), index(index) {}
+
+      Node* table = nullptr;
+      Node* key = nullptr;
+      Node* index = nullptr;
+    };
+
+    Entry entry_;
   };
 
   // Abstract state to approximate the current state of a certain field along
@@ -240,6 +282,9 @@ class V8_EXPORT_PRIVATE LoadElimination final
                                      Zone* zone) const;
     Node* LookupElement(Node* object, Node* index,
                         MachineRepresentation representation) const;
+    AbstractState const* AddHashIndex(Node* table, Node* key, Node* index,
+                                      Zone* zone) const;
+    Node* LookupHashIndex(Node* table, Node* key) const;
 
     AbstractState const* AddCheck(Node* node, Zone* zone) const;
     Node* LookupCheck(Node* node) const;
@@ -251,6 +296,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
     AbstractElements const* elements_ = nullptr;
     AbstractField const* fields_[kMaxTrackedFields];
     AbstractMaps const* maps_ = nullptr;
+    AbstractHashIndexes const* hash_indexes_ = nullptr;
   };
 
   class AbstractStateForEffectNodes final : public ZoneObject {
@@ -274,7 +320,9 @@ class V8_EXPORT_PRIVATE LoadElimination final
   Reduction ReduceStoreField(Node* node);
   Reduction ReduceLoadElement(Node* node);
   Reduction ReduceStoreElement(Node* node);
+  Reduction ReduceTransitionAndStoreElement(Node* node);
   Reduction ReduceStoreTypedElement(Node* node);
+  Reduction ReduceLookupHashStorageIndex(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherNode(Node* node);

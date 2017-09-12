@@ -16,50 +16,72 @@ namespace internal {
 
 // List macro containing all visitors needed by the decoder class.
 
-#define VISITOR_LIST(V)            \
-  V(PCRelAddressing)               \
-  V(AddSubImmediate)               \
-  V(LogicalImmediate)              \
-  V(MoveWideImmediate)             \
-  V(Bitfield)                      \
-  V(Extract)                       \
-  V(UnconditionalBranch)           \
-  V(UnconditionalBranchToRegister) \
-  V(CompareBranch)                 \
-  V(TestBranch)                    \
-  V(ConditionalBranch)             \
-  V(System)                        \
-  V(Exception)                     \
-  V(LoadStorePairPostIndex)        \
-  V(LoadStorePairOffset)           \
-  V(LoadStorePairPreIndex)         \
-  V(LoadLiteral)                   \
-  V(LoadStoreUnscaledOffset)       \
-  V(LoadStorePostIndex)            \
-  V(LoadStorePreIndex)             \
-  V(LoadStoreRegisterOffset)       \
-  V(LoadStoreUnsignedOffset)       \
-  V(LoadStoreAcquireRelease)       \
-  V(LogicalShifted)                \
-  V(AddSubShifted)                 \
-  V(AddSubExtended)                \
-  V(AddSubWithCarry)               \
-  V(ConditionalCompareRegister)    \
-  V(ConditionalCompareImmediate)   \
-  V(ConditionalSelect)             \
-  V(DataProcessing1Source)         \
-  V(DataProcessing2Source)         \
-  V(DataProcessing3Source)         \
-  V(FPCompare)                     \
-  V(FPConditionalCompare)          \
-  V(FPConditionalSelect)           \
-  V(FPImmediate)                   \
-  V(FPDataProcessing1Source)       \
-  V(FPDataProcessing2Source)       \
-  V(FPDataProcessing3Source)       \
-  V(FPIntegerConvert)              \
-  V(FPFixedPointConvert)           \
-  V(Unallocated)                   \
+#define VISITOR_LIST(V)                 \
+  V(PCRelAddressing)                    \
+  V(AddSubImmediate)                    \
+  V(LogicalImmediate)                   \
+  V(MoveWideImmediate)                  \
+  V(Bitfield)                           \
+  V(Extract)                            \
+  V(UnconditionalBranch)                \
+  V(UnconditionalBranchToRegister)      \
+  V(CompareBranch)                      \
+  V(TestBranch)                         \
+  V(ConditionalBranch)                  \
+  V(System)                             \
+  V(Exception)                          \
+  V(LoadStorePairPostIndex)             \
+  V(LoadStorePairOffset)                \
+  V(LoadStorePairPreIndex)              \
+  V(LoadLiteral)                        \
+  V(LoadStoreUnscaledOffset)            \
+  V(LoadStorePostIndex)                 \
+  V(LoadStorePreIndex)                  \
+  V(LoadStoreRegisterOffset)            \
+  V(LoadStoreUnsignedOffset)            \
+  V(LoadStoreAcquireRelease)            \
+  V(LogicalShifted)                     \
+  V(AddSubShifted)                      \
+  V(AddSubExtended)                     \
+  V(AddSubWithCarry)                    \
+  V(ConditionalCompareRegister)         \
+  V(ConditionalCompareImmediate)        \
+  V(ConditionalSelect)                  \
+  V(DataProcessing1Source)              \
+  V(DataProcessing2Source)              \
+  V(DataProcessing3Source)              \
+  V(FPCompare)                          \
+  V(FPConditionalCompare)               \
+  V(FPConditionalSelect)                \
+  V(FPImmediate)                        \
+  V(FPDataProcessing1Source)            \
+  V(FPDataProcessing2Source)            \
+  V(FPDataProcessing3Source)            \
+  V(FPIntegerConvert)                   \
+  V(FPFixedPointConvert)                \
+  V(NEON2RegMisc)                       \
+  V(NEON3Different)                     \
+  V(NEON3Same)                          \
+  V(NEONAcrossLanes)                    \
+  V(NEONByIndexedElement)               \
+  V(NEONCopy)                           \
+  V(NEONExtract)                        \
+  V(NEONLoadStoreMultiStruct)           \
+  V(NEONLoadStoreMultiStructPostIndex)  \
+  V(NEONLoadStoreSingleStruct)          \
+  V(NEONLoadStoreSingleStructPostIndex) \
+  V(NEONModifiedImmediate)              \
+  V(NEONScalar2RegMisc)                 \
+  V(NEONScalar3Diff)                    \
+  V(NEONScalar3Same)                    \
+  V(NEONScalarByIndexedElement)         \
+  V(NEONScalarCopy)                     \
+  V(NEONScalarPairwise)                 \
+  V(NEONScalarShiftImmediate)           \
+  V(NEONShiftImmediate)                 \
+  V(NEONTable)                          \
+  V(NEONPerm)                           \
+  V(Unallocated)                        \
   V(Unimplemented)
 
 // The Visitor interface. Disassembler and simulator (and other tools)
@@ -108,6 +130,8 @@ class DispatchingDecoderVisitor : public DecoderVisitor {
   // Remove a previously registered visitor class from the list of visitors
   // stored by the decoder.
   void RemoveVisitor(DecoderVisitor* visitor);
+
+  void VisitNEONShiftImmediate(const Instruction* instr);
 
   #define DECLARE(A) void Visit##A(Instruction* instr);
   VISITOR_LIST(DECLARE)
@@ -173,12 +197,17 @@ class Decoder : public V {
   // Decode the Advanced SIMD (NEON) load/store part of the instruction tree,
   // and call the corresponding visitors.
   // On entry, instruction bits 29:25 = 0x6.
-  void DecodeAdvSIMDLoadStore(Instruction* instr);
+  void DecodeNEONLoadStore(Instruction* instr);
 
   // Decode the Advanced SIMD (NEON) data processing part of the instruction
   // tree, and call the corresponding visitors.
   // On entry, instruction bits 27:25 = 0x7.
-  void DecodeAdvSIMDDataProcessing(Instruction* instr);
+  void DecodeNEONVectorDataProcessing(Instruction* instr);
+
+  // Decode the Advanced SIMD (NEON) scalar data processing part of the
+  // instruction tree, and call the corresponding visitors.
+  // On entry, instruction bits 28:25 = 0xF.
+  void DecodeNEONScalarDataProcessing(Instruction* instr);
 };
 
 

@@ -333,7 +333,6 @@ int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
     }
   }
   UNREACHABLE();
-  return 0;
 }
 
 

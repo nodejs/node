@@ -108,7 +108,7 @@ DebuggerScript.getGeneratorScopes = function(gen)
  */
 DebuggerScript.setBreakpoint = function(execState, info)
 {
-    var breakId = Debug.setScriptBreakPointById(info.sourceID, info.lineNumber, info.columnNumber, info.condition, undefined, Debug.BreakPositionAlignment.BreakPosition);
+    var breakId = Debug.setScriptBreakPointById(info.sourceID, info.lineNumber, info.columnNumber, info.condition, undefined);
     var locations = Debug.findBreakPointActualLocations(breakId);
     if (!locations.length)
         return undefined;

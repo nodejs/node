@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --noalways-opt
+
 var Debug = debug.Debug;
 var global_marker = 7;
 
@@ -400,7 +402,7 @@ await test(
                        debug.ScopeType.Closure,
                        debug.ScopeType.Script,
                        debug.ScopeType.Global], exec_state);
-      CheckScopeContent({a:1, x: 2}, 1, exec_state);
+      CheckScopeContent({a:1}, 1, exec_state);
     },
     result => result());
 
@@ -418,7 +420,7 @@ await test(
                        debug.ScopeType.Script,
                        debug.ScopeType.Global], exec_state);
       CheckScopeContent({e: 'Exception'}, 0, exec_state);
-      CheckScopeContent({a:1, x: 2}, 2, exec_state);
+      CheckScopeContent({a:1}, 2, exec_state);
     },
     result => result());
 

@@ -4,7 +4,6 @@
 
 #include "src/field-type.h"
 
-#include "src/ast/ast-types.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
@@ -71,13 +70,6 @@ bool FieldType::NowIs(FieldType* other) {
 }
 
 bool FieldType::NowIs(Handle<FieldType> other) { return NowIs(*other); }
-
-AstType* FieldType::Convert(Zone* zone) {
-  if (IsAny()) return AstType::NonInternal();
-  if (IsNone()) return AstType::None();
-  DCHECK(IsClass());
-  return AstType::Class(AsClass(), zone);
-}
 
 void FieldType::PrintTo(std::ostream& os) {
   if (IsAny()) {

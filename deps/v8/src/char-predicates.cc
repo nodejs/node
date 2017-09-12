@@ -2,41 +2,43 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_INTL_SUPPORT
+#error Internationalization is expected to be enabled.
+#endif  // V8_INTL_SUPPORT
+
 #include "src/char-predicates.h"
 
-#ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
 #include "unicode/urename.h"
-#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
 
-bool SupplementaryPlanes::IsIDStart(uc32 c) {
-  DCHECK(c > 0xFFFF);
-#ifdef V8_INTL_SUPPORT
-  // This only works for code points in the SMPs, since ICU does not exclude
-  // code points with properties 'Pattern_Syntax' or 'Pattern_White_Space'.
-  // Code points in the SMP do not have those properties.
-  return u_isIDStart(c);
-#else
-  // This is incorrect, but if we don't have ICU, use this as fallback.
-  return false;
-#endif  // V8_INTL_SUPPORT
+// ES#sec-names-and-keywords Names and Keywords
+// UnicodeIDStart, '$', '_' and '\'
+bool IdentifierStart::Is(uc32 c) {
+  // cannot use u_isIDStart because it does not work for
+  // Other_ID_Start characters.
+  return u_hasBinaryProperty(c, UCHAR_ID_START) ||
+         (c < 0x60 && (c == '$' || c == '\\' || c == '_'));
 }
 
-
-bool SupplementaryPlanes::IsIDPart(uc32 c) {
-  DCHECK(c > 0xFFFF);
-#ifdef V8_INTL_SUPPORT
-  // This only works for code points in the SMPs, since ICU does not exclude
-  // code points with properties 'Pattern_Syntax' or 'Pattern_White_Space'.
-  // Code points in the SMP do not have those properties.
-  return u_isIDPart(c);
-#else
-  // This is incorrect, but if we don't have ICU, use this as fallback.
-  return false;
-#endif  // V8_INTL_SUPPORT
+// ES#sec-names-and-keywords Names and Keywords
+// UnicodeIDContinue, '$', '_', '\', ZWJ, and ZWNJ
+bool IdentifierPart::Is(uc32 c) {
+  // Can't use u_isIDPart because it does not work for
+  // Other_ID_Continue characters.
+  return u_hasBinaryProperty(c, UCHAR_ID_CONTINUE) ||
+         (c < 0x60 && (c == '$' || c == '\\' || c == '_')) || c == 0x200C ||
+         c == 0x200D;
 }
+
+// ES#sec-white-space White Space
+// gC=Zs, U+0009, U+000B, U+000C, U+FEFF
+bool WhiteSpace::Is(uc32 c) {
+  return (u_charType(c) == U_SPACE_SEPARATOR) ||
+         (c < 0x0D && (c == 0x09 || c == 0x0B || c == 0x0C)) || c == 0xFEFF;
+}
+
 }  // namespace internal
 }  // namespace v8

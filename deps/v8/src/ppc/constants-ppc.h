@@ -11,6 +11,15 @@
 #include "src/base/macros.h"
 #include "src/globals.h"
 
+// UNIMPLEMENTED_ macro for PPC.
+#ifdef DEBUG
+#define UNIMPLEMENTED_PPC()                                                \
+  v8::internal::PrintF("%s, \tline %d: \tfunction %s not implemented. \n", \
+                       __FILE__, __LINE__, __func__)
+#else
+#define UNIMPLEMENTED_PPC()
+#endif
+
 namespace v8 {
 namespace internal {
 

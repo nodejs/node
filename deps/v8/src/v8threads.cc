@@ -32,7 +32,7 @@ void Locker::Initialize(v8::Isolate* isolate) {
   top_level_ = true;
   isolate_ = reinterpret_cast<i::Isolate*>(isolate);
   // Record that the Locker has been used at least once.
-  base::NoBarrier_Store(&g_locker_was_ever_used_, 1);
+  base::Relaxed_Store(&g_locker_was_ever_used_, 1);
   // Get the big lock if necessary.
   if (!isolate_->thread_manager()->IsLockedByCurrentThread()) {
     isolate_->thread_manager()->Lock();
@@ -60,7 +60,7 @@ bool Locker::IsLocked(v8::Isolate* isolate) {
 
 
 bool Locker::IsActive() {
-  return !!base::NoBarrier_Load(&g_locker_was_ever_used_);
+  return !!base::Relaxed_Load(&g_locker_was_ever_used_);
 }
 
 

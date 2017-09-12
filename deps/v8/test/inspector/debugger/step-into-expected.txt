@@ -78,9 +78,9 @@ function returnTrue() {
 }
 
 break at:
-  return true;
-#}
-
+function returnTrue() {
+  return true;#
+}
 
 break at:
   if (returnTrue()) {
@@ -155,7 +155,7 @@ break at:
 
 break at:
     }
-    #return nested2();
+    return #nested2();
   }
 
 break at:
@@ -174,14 +174,14 @@ break at:
     }
 
 break at:
-      return;
-    #}
-    return nested2();
+      nested3();
+      return;#
+    }
 
 break at:
-    return nested2();
-  #}
-  nested1();
+    }
+    return nested2();#
+  }
 
 break at:
   nested1();
@@ -206,19 +206,19 @@ function return42() {
 }
 
 break at:
-  return 42;
-#}
-
-
-break at:
-  return return42();
-#}
-
+function return42() {
+  return 42;#
+}
 
 break at:
-  return returnCall();
-#}
+function returnCall() {
+  return return42();#
+}
 
+break at:
+function testCallAtReturn() {
+  return returnCall();#
+}
 
 
 Running test: testWith
@@ -233,9 +233,9 @@ function returnObject() {
 }
 
 break at:
-  return ({ foo: () => 42 });
-#}
-
+function returnObject() {
+  return ({ foo: () => 42 });#
+}
 
 break at:
   with (returnObject()) {
@@ -263,9 +263,9 @@ break at:
   }
 
 break at:
+  with({}) {
+    return;#
   }
-#}
-
 
 
 Running test: testForLoop
@@ -297,11 +297,6 @@ break at:
 break at:
   for (var i = 0; i < 1; ++i) {}
   for (var i = 0; i #< 1; ++i) i;
-  for (var i = 0; i < 0; ++i) {}
-
-break at:
-  for (var i = 0; i < 1; ++i) {}
-  for (var i = 0; i < 1; ++i) #i;
   for (var i = 0; i < 0; ++i) {}
 
 break at:
@@ -338,7 +333,7 @@ function testForOfLoop() {
 
 break at:
 function testForOfLoop() {
-  for (var k #of []) {}
+  for (var #k of []) {}
   for (var k of [1]) k;
 
 break at:
@@ -348,7 +343,7 @@ break at:
 
 break at:
   for (var k of []) {}
-  for (var k #of [1]) k;
+  for (var #k of [1]) k;
   var a = [];
 
 break at:
@@ -358,7 +353,7 @@ break at:
 
 break at:
   for (var k of []) {}
-  for (var k #of [1]) k;
+  for (var #k of [1]) k;
   var a = [];
 
 break at:
@@ -373,7 +368,7 @@ break at:
 
 break at:
   var a = [];
-  for (var k #of a) {}
+  for (var #k of a) {}
 }
 
 break at:
@@ -493,9 +488,9 @@ function return42() {
 }
 
 break at:
-  return 42;
-#}
-
+function return42() {
+  return 42;#
+}
 
 break at:
   getterFoo();
@@ -545,9 +540,9 @@ function return42() {
 }
 
 break at:
-  return 42;
-#}
-
+function return42() {
+  return 42;#
+}
 
 break at:
   obj.foo().boo()();
@@ -594,9 +589,9 @@ function testPromiseThen() {
 }
 
 break at:
-  return Promise.resolve().then(v => v * 2).then(v => v * 2);
-#}
-
+function testPromiseThen() {
+  return Promise.resolve().then(v => v * 2).then(v => v * 2);#
+}
 
 
 Running test: testSwitch
@@ -646,9 +641,9 @@ function return42() {
 }
 
 break at:
-  return 42;
-#}
-
+function return42() {
+  return 42;#
+}
 
 break at:
       case 0: continue;
@@ -676,9 +671,9 @@ break at:
     }
 
 break at:
-  }
-#}
-
+      case 1: return42(); break;
+      default: return;#
+    }
 
 
 Running test: testGenerator
@@ -699,7 +694,7 @@ break at:
 
 break at:
   debugger;
-  #gen.next().value;
+  gen.#next().value;
   return42();
 
 break at:
@@ -740,9 +735,9 @@ break at:
   }
 
 break at:
+  } catch (e) {
+    return;#
   }
-#}
-
 
 
 Running test: testClasses
@@ -804,31 +799,6 @@ async function testAsyncAwait() {
   await awaitBoo();
 
 break at:
-async function testAsyncAwait() {
-  await #asyncFoo();
-  await awaitBoo();
-
-break at:
-async function asyncFoo() {
-  #await Promise.resolve().then(v => v * 2);
-  return42();
-
-break at:
-async function asyncFoo() {
-  await Promise.resolve().#then(v => v * 2);
-  return42();
-
-break at:
-async function asyncFoo() {
-  await Promise.#resolve().then(v => v * 2);
-  return42();
-
-break at:
-async function asyncFoo() {
-  await Promise.resolve().#then(v => v * 2);
-  return42();
-
-break at:
 async function asyncFoo() {
   #await Promise.resolve().then(v => v * 2);
   return42();
@@ -839,18 +809,8 @@ function return42() {
 }
 
 break at:
-  return 42;
-#}
-
-
-break at:
-async function asyncBoo() {
-  #await Promise.resolve();
-}
-
-break at:
-async function asyncBoo() {
-  await Promise.#resolve();
+function return42() {
+  return 42;#
 }
 
 break at:
@@ -887,11 +847,6 @@ break at:
 
 break at:
     setTimeout(returnCall, 0);
-    #await foo();
-    await foo();
-
-break at:
-    setTimeout(returnCall, 0);
     await #foo();
     await foo();
 
@@ -921,16 +876,6 @@ break at:
     }
 
 break at:
-      setTimeout(resolveNested, 0);
-      await #p;
-    }
-
-break at:
-      setTimeout(resolveNested, 0);
-      #await p;
-    }
-
-break at:
       var resolveNested;
       var p = #new Promise(resolve => resolveNested = resolve);
       setTimeout(resolveNested, 0);
@@ -949,16 +894,6 @@ break at:
       var p = new Promise(resolve => resolveNested = resolve);
       #setTimeout(resolveNested, 0);
       await p;
-
-break at:
-      setTimeout(resolveNested, 0);
-      #await p;
-    }
-
-break at:
-      setTimeout(resolveNested, 0);
-      await #p;
-    }
 
 break at:
       setTimeout(resolveNested, 0);
@@ -1023,14 +958,14 @@ function return42() {
 }
 
 break at:
-  return 42;
-#}
-
+function return42() {
+  return 42;#
+}
 
 break at:
-  return return42();
-#}
-
+function returnCall() {
+  return return42();#
+}
 
 break at:
     var y = 2;
@@ -1043,9 +978,9 @@ function returnFunction() {
 }
 
 break at:
-  return returnObject;
-#}
-
+function returnFunction() {
+  return returnObject;#
+}
 
 break at:
     var y = 2;
@@ -1058,13 +993,13 @@ function returnObject() {
 }
 
 break at:
-  return ({ foo: () => 42 });
-#}
-
+function returnObject() {
+  return ({ foo: () => 42 });#
+}
 
 break at:
     var y = 2;
-    returnFunction(emptyFunction(), x++, --y, x => 2 * x, returnCall())().a = await #foo((a => 2 *a)(5));
+    returnFunction(emptyFunction(), x++, --y, x => 2 * x, returnCall())().a = await foo((a => 2 *a)#(5));
     nextTest();
 
 break at:
@@ -1081,16 +1016,6 @@ break at:
     var y = 2;
     returnFunction(emptyFunction(), x++, --y, x => 2 * x, returnCall())().a = await #foo((a => 2 *a)(5));
     nextTest();
-
-break at:
-    async function foo() {
-      #await Promise.resolve();
-      return 42;
-
-break at:
-    async function foo() {
-      await Promise.#resolve();
-      return 42;
 
 break at:
     async function foo() {

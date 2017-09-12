@@ -2364,11 +2364,8 @@ ContextMirror.prototype.data = function() {
 // ----------------------------------------------------------------------------
 // Exports
 
-utils.InstallFunctions(global, DONT_ENUM, [
-  "MakeMirror", MakeMirror,
-]);
-
 utils.InstallConstants(global, [
+  "MakeMirror", MakeMirror,
   "ScopeType", ScopeType,
   "PropertyType", PropertyType,
   "PropertyAttribute", PropertyAttribute,

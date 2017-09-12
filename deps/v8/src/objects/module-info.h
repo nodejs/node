@@ -24,7 +24,7 @@ class Zone;
 // ModuleInfo is to ModuleDescriptor what ScopeInfo is to Scope.
 class ModuleInfo : public FixedArray {
  public:
-  DECLARE_CAST(ModuleInfo)
+  DECL_CAST(ModuleInfo)
 
   static Handle<ModuleInfo> New(Isolate* isolate, Zone* zone,
                                 ModuleDescriptor* descr);
@@ -49,21 +49,24 @@ class ModuleInfo : public FixedArray {
     return FixedArray::cast(get(kNamespaceImportsIndex));
   }
 
+  inline FixedArray* module_request_positions() const {
+    return FixedArray::cast(get(kModuleRequestPositionsIndex));
+  }
+
   // Accessors for [regular_exports].
   int RegularExportCount() const;
   String* RegularExportLocalName(int i) const;
   int RegularExportCellIndex(int i) const;
   FixedArray* RegularExportExportNames(int i) const;
 
-  static Handle<ModuleInfoEntry> LookupRegularImport(Handle<ModuleInfo> info,
-                                                     Handle<String> local_name);
-
 #ifdef DEBUG
   inline bool Equals(ModuleInfo* other) const {
     return regular_exports() == other->regular_exports() &&
            regular_imports() == other->regular_imports() &&
            special_exports() == other->special_exports() &&
-           namespace_imports() == other->namespace_imports();
+           namespace_imports() == other->namespace_imports() &&
+           module_requests() == other->module_requests() &&
+           module_request_positions() == other->module_request_positions();
   }
 #endif
 
@@ -76,6 +79,7 @@ class ModuleInfo : public FixedArray {
     kRegularExportsIndex,
     kNamespaceImportsIndex,
     kRegularImportsIndex,
+    kModuleRequestPositionsIndex,
     kLength
   };
   enum {
@@ -89,9 +93,9 @@ class ModuleInfo : public FixedArray {
 
 class ModuleInfoEntry : public Struct {
  public:
-  DECLARE_CAST(ModuleInfoEntry)
-  DECLARE_PRINTER(ModuleInfoEntry)
-  DECLARE_VERIFIER(ModuleInfoEntry)
+  DECL_CAST(ModuleInfoEntry)
+  DECL_PRINTER(ModuleInfoEntry)
+  DECL_VERIFIER(ModuleInfoEntry)
 
   DECL_ACCESSORS(export_name, Object)
   DECL_ACCESSORS(local_name, Object)

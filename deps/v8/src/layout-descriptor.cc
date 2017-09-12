@@ -107,14 +107,14 @@ Handle<LayoutDescriptor> LayoutDescriptor::EnsureCapacity(
   DCHECK(new_layout_descriptor->IsSlowLayout());
 
   if (layout_descriptor->IsSlowLayout()) {
-    memcpy(new_layout_descriptor->DataPtr(), layout_descriptor->DataPtr(),
+    memcpy(new_layout_descriptor->GetDataStartAddress(),
+           layout_descriptor->GetDataStartAddress(),
            layout_descriptor->DataSize());
     return new_layout_descriptor;
   } else {
     // Fast layout.
-    uint32_t value =
-        static_cast<uint32_t>(Smi::cast(*layout_descriptor)->value());
-    new_layout_descriptor->set(0, value);
+    uint32_t value = static_cast<uint32_t>(Smi::ToInt(*layout_descriptor));
+    new_layout_descriptor->set_layout_word(0, value);
     return new_layout_descriptor;
   }
 }
@@ -138,30 +138,29 @@ bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
   }
   uint32_t layout_mask = static_cast<uint32_t>(1) << layout_bit_index;
 
-  uint32_t value = IsSlowLayout()
-                       ? get_scalar(layout_word_index)
-                       : static_cast<uint32_t>(Smi::cast(this)->value());
+  uint32_t value = IsSlowLayout() ? get_layout_word(layout_word_index)
+                                  : static_cast<uint32_t>(Smi::ToInt(this));
 
   bool is_tagged = (value & layout_mask) == 0;
   if (!is_tagged) value = ~value;  // Count set bits instead of cleared bits.
   value = value & ~(layout_mask - 1);  // Clear bits we are not interested in.
   int sequence_length = CountTrailingZeros32(value) - layout_bit_index;
 
-  if (layout_bit_index + sequence_length == kNumberOfBits) {
+  if (layout_bit_index + sequence_length == kBitsPerLayoutWord) {
     // This is a contiguous sequence till the end of current word, proceed
     // counting in the subsequent words.
     if (IsSlowLayout()) {
-      int len = length();
       ++layout_word_index;
-      for (; layout_word_index < len; layout_word_index++) {
-        value = get_scalar(layout_word_index);
+      int num_words = number_of_layout_words();
+      for (; layout_word_index < num_words; layout_word_index++) {
+        value = get_layout_word(layout_word_index);
         bool cur_is_tagged = (value & 1) == 0;
         if (cur_is_tagged != is_tagged) break;
         if (!is_tagged) value = ~value;  // Count set bits instead.
         int cur_sequence_length = CountTrailingZeros32(value);
         sequence_length += cur_sequence_length;
         if (sequence_length >= max_sequence_length) break;
-        if (cur_sequence_length != kNumberOfBits) break;
+        if (cur_sequence_length != kBitsPerLayoutWord) break;
       }
     }
     if (is_tagged && (field_index + sequence_length == capacity())) {
@@ -241,14 +240,15 @@ LayoutDescriptor* LayoutDescriptor::Trim(Heap* heap, Map* map,
   DCHECK_LT(kSmiValueSize, layout_descriptor_length);
 
   // Trim, clean and reinitialize this slow-mode layout descriptor.
-  int array_length = GetSlowModeBackingStoreLength(layout_descriptor_length);
-  int current_length = length();
-  if (current_length != array_length) {
-    DCHECK_LT(array_length, current_length);
-    int delta = current_length - array_length;
+  int new_backing_store_length =
+      GetSlowModeBackingStoreLength(layout_descriptor_length);
+  int backing_store_length = length();
+  if (new_backing_store_length != backing_store_length) {
+    DCHECK_LT(new_backing_store_length, backing_store_length);
+    int delta = backing_store_length - new_backing_store_length;
     heap->RightTrimFixedArray(this, delta);
   }
-  memset(DataPtr(), 0, DataSize());
+  memset(GetDataStartAddress(), 0, DataSize());
   LayoutDescriptor* layout_descriptor =
       Initialize(this, map, descriptors, num_descriptors);
   DCHECK_EQ(this, layout_descriptor);

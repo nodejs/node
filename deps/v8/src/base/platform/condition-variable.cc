@@ -118,210 +118,45 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
 
 #elif V8_OS_WIN
 
-struct ConditionVariable::Event {
-  Event() : handle_(::CreateEventA(NULL, true, false, NULL)) {
-    DCHECK(handle_ != NULL);
-  }
-
-  ~Event() {
-    BOOL ok = ::CloseHandle(handle_);
-    DCHECK(ok);
-    USE(ok);
-  }
-
-  bool WaitFor(DWORD timeout_ms) {
-    DWORD result = ::WaitForSingleObject(handle_, timeout_ms);
-    if (result == WAIT_OBJECT_0) {
-      return true;
-    }
-    DCHECK(result == WAIT_TIMEOUT);
-    return false;
-  }
-
-  HANDLE handle_;
-  Event* next_;
-  HANDLE thread_;
-  volatile bool notified_;
-};
-
-
-ConditionVariable::NativeHandle::~NativeHandle() {
-  DCHECK(waitlist_ == NULL);
-
-  while (freelist_ != NULL) {
-    Event* event = freelist_;
-    freelist_ = event->next_;
-    delete event;
-  }
+ConditionVariable::ConditionVariable() {
+  InitializeConditionVariable(&native_handle_);
 }
-
-
-ConditionVariable::Event* ConditionVariable::NativeHandle::Pre() {
-  LockGuard<Mutex> lock_guard(&mutex_);
-
-  // Grab an event from the free list or create a new one.
-  Event* event = freelist_;
-  if (event != NULL) {
-    freelist_ = event->next_;
-  } else {
-    event = new Event;
-  }
-  event->thread_ = GetCurrentThread();
-  event->notified_ = false;
-
-#ifdef DEBUG
-  // The event must not be on the wait list.
-  for (Event* we = waitlist_; we != NULL; we = we->next_) {
-    DCHECK_NE(event, we);
-  }
-#endif
-
-  // Prepend the event to the wait list.
-  event->next_ = waitlist_;
-  waitlist_ = event;
-
-  return event;
-}
-
-
-void ConditionVariable::NativeHandle::Post(Event* event, bool result) {
-  LockGuard<Mutex> lock_guard(&mutex_);
-
-  // Remove the event from the wait list.
-  for (Event** wep = &waitlist_;; wep = &(*wep)->next_) {
-    DCHECK(*wep);
-    if (*wep == event) {
-      *wep = event->next_;
-      break;
-    }
-  }
-
-#ifdef DEBUG
-  // The event must not be on the free list.
-  for (Event* fe = freelist_; fe != NULL; fe = fe->next_) {
-    DCHECK_NE(event, fe);
-  }
-#endif
-
-  // Reset the event.
-  BOOL ok = ::ResetEvent(event->handle_);
-  DCHECK(ok);
-  USE(ok);
-
-  // Insert the event into the free list.
-  event->next_ = freelist_;
-  freelist_ = event;
-
-  // Forward signals delivered after the timeout to the next waiting event.
-  if (!result && event->notified_ && waitlist_ != NULL) {
-    ok = ::SetEvent(waitlist_->handle_);
-    DCHECK(ok);
-    USE(ok);
-    waitlist_->notified_ = true;
-  }
-}
-
-
-ConditionVariable::ConditionVariable() {}
 
 
 ConditionVariable::~ConditionVariable() {}
 
-
-void ConditionVariable::NotifyOne() {
-  // Notify the thread with the highest priority in the waitlist
-  // that was not already signalled.
-  LockGuard<Mutex> lock_guard(native_handle_.mutex());
-  Event* highest_event = NULL;
-  int highest_priority = std::numeric_limits<int>::min();
-  for (Event* event = native_handle().waitlist();
-       event != NULL;
-       event = event->next_) {
-    if (event->notified_) {
-      continue;
-    }
-    int priority = GetThreadPriority(event->thread_);
-    DCHECK_NE(THREAD_PRIORITY_ERROR_RETURN, priority);
-    if (priority >= highest_priority) {
-      highest_priority = priority;
-      highest_event = event;
-    }
-  }
-  if (highest_event != NULL) {
-    DCHECK(!highest_event->notified_);
-    ::SetEvent(highest_event->handle_);
-    highest_event->notified_ = true;
-  }
-}
-
+void ConditionVariable::NotifyOne() { WakeConditionVariable(&native_handle_); }
 
 void ConditionVariable::NotifyAll() {
-  // Notify all threads on the waitlist.
-  LockGuard<Mutex> lock_guard(native_handle_.mutex());
-  for (Event* event = native_handle().waitlist();
-       event != NULL;
-       event = event->next_) {
-    if (!event->notified_) {
-      ::SetEvent(event->handle_);
-      event->notified_ = true;
-    }
-  }
+  WakeAllConditionVariable(&native_handle_);
 }
 
 
 void ConditionVariable::Wait(Mutex* mutex) {
-  // Create and setup the wait event.
-  Event* event = native_handle_.Pre();
-
-  // Release the user mutex.
-  mutex->Unlock();
-
-  // Wait on the wait event.
-  while (!event->WaitFor(INFINITE)) {
-  }
-
-  // Reaquire the user mutex.
-  mutex->Lock();
-
-  // Release the wait event (we must have been notified).
-  DCHECK(event->notified_);
-  native_handle_.Post(event, true);
+  mutex->AssertHeldAndUnmark();
+  SleepConditionVariableSRW(&native_handle_, &mutex->native_handle(), INFINITE,
+                            0);
+  mutex->AssertUnheldAndMark();
 }
 
 
 bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
-  // Create and setup the wait event.
-  Event* event = native_handle_.Pre();
-
-  // Release the user mutex.
-  mutex->Unlock();
-
-  // Wait on the wait event.
-  TimeTicks now = TimeTicks::Now();
-  TimeTicks end = now + rel_time;
-  bool result = false;
-  while (true) {
-    int64_t msec = (end - now).InMilliseconds();
-    if (msec >= static_cast<int64_t>(INFINITE)) {
-      result = event->WaitFor(INFINITE - 1);
-      if (result) {
-        break;
-      }
-      now = TimeTicks::Now();
-    } else {
-      result = event->WaitFor((msec < 0) ? 0 : static_cast<DWORD>(msec));
-      break;
-    }
+  int64_t msec = rel_time.InMilliseconds();
+  mutex->AssertHeldAndUnmark();
+  BOOL result = SleepConditionVariableSRW(
+      &native_handle_, &mutex->native_handle(), static_cast<DWORD>(msec), 0);
+#ifdef DEBUG
+  if (!result) {
+    // On failure, we only expect the CV to timeout. Any other error value means
+    // that we've unexpectedly woken up.
+    // Note that WAIT_TIMEOUT != ERROR_TIMEOUT. WAIT_TIMEOUT is used with the
+    // WaitFor* family of functions as a direct return value. ERROR_TIMEOUT is
+    // used with GetLastError().
+    DCHECK_EQ(static_cast<DWORD>(ERROR_TIMEOUT), GetLastError());
   }
-
-  // Reaquire the user mutex.
-  mutex->Lock();
-
-  // Release the wait event.
-  DCHECK(!result || event->notified_);
-  native_handle_.Post(event, result);
-
-  return result;
+#endif
+  mutex->AssertUnheldAndMark();
+  return result != 0;
 }
 
 #endif  // V8_OS_POSIX

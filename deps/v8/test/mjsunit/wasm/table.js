@@ -14,13 +14,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 var outOfUint32RangeValue = 1e12;
 var int32ButOob = 1073741824;
 var kMaxUint32 = (4 * 1024 * 1024 * 1024) - 1;
+var kMaxUint31 = (2 * 1024 * 1024 * 1024) - 1;
 var kV8MaxWasmTableSize = 10000000;
 
-function assertTableIsValid(table) {
+function assertTableIsValid(table, length) {
   assertSame(WebAssembly.Table.prototype, table.__proto__);
   assertSame(WebAssembly.Table, table.constructor);
   assertTrue(table instanceof Object);
   assertTrue(table instanceof WebAssembly.Table);
+  assertEquals(length, table.length);
 }
 
 (function TestConstructor() {
@@ -57,56 +59,48 @@ function assertTableIsValid(table) {
 
   let table;
   table = new WebAssembly.Table({element: "anyfunc", initial: 1});
-  assertTableIsValid(table);
-  assertEquals(1, table.length);
+  assertTableIsValid(table, 1);
   assertEquals(null, table.get(0));
   assertEquals(undefined, table[0]);
 
   table = new WebAssembly.Table({element: "anyfunc", initial: "2"});
-  assertTableIsValid(table);
-  assertEquals(2, table.length);
+  assertTableIsValid(table, 2);
   assertEquals(null, table.get(0));
   assertEquals(null, table.get(1));
   assertEquals(undefined, table[0]);
   assertEquals(undefined, table[1]);
 
   table = new WebAssembly.Table({element: "anyfunc", initial: {valueOf() { return "1" }}});
-  assertTableIsValid(table);
-  assertEquals(1, table.length);
+  assertTableIsValid(table, 1);
   assertEquals(null, table.get(0));
   assertEquals(undefined, table[0]);
 
   table = new WebAssembly.Table({element: "anyfunc", initial: undefined});
-  assertTableIsValid(table);
-  assertEquals(0, table.length);
+  assertTableIsValid(table, 0);
 
   table = new WebAssembly.Table({element: "anyfunc"});
-  assertTableIsValid(table);
-  assertEquals(0, table.length);
+  assertTableIsValid(table, 0);
 
   table = new WebAssembly.Table({element: "anyfunc", maximum: 10});
-  assertTableIsValid(table);
-  assertEquals(0, table.length);
+  assertTableIsValid(table, 0);
 
   table = new WebAssembly.Table({element: "anyfunc", maximum: "10"});
-  assertTableIsValid(table);
-  assertEquals(0, table.length);
+  assertTableIsValid(table, 0);
 
   table = new WebAssembly.Table({element: "anyfunc", maximum: {valueOf() { return "10" }}});
-  assertTableIsValid(table);
-  assertEquals(0, table.length);
+  assertTableIsValid(table, 0);
 
   table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: undefined});
-  assertTableIsValid(table);
-  assertEquals(0, table.length);
+  assertTableIsValid(table, 0);
+
+  table = new WebAssembly.Table({element: "anyfunc", maximum: kMaxUint31});
+  assertTableIsValid(table, 0);
 
   table = new WebAssembly.Table({element: "anyfunc", maximum: kMaxUint32});
-  assertTableIsValid(table);
-  assertEquals(0, table.length);
+  assertTableIsValid(table, 0);
 
   table = new WebAssembly.Table({element: "anyfunc", maximum: kV8MaxWasmTableSize + 1});
-  assertTableIsValid(table);
-  assertEquals(0, table.length);
+  assertTableIsValid(table, 0);
 })();
 
 (function TestMaximumIsReadOnce() {
@@ -123,7 +117,7 @@ function assertTableIsValid(table) {
     }
   }});
   let table = new WebAssembly.Table(desc);
-  assertTableIsValid(table);
+  assertTableIsValid(table, 10);
 })();
 
 (function TestMaximumDoesHasProperty() {
@@ -134,7 +128,7 @@ function assertTableIsValid(table) {
   });
   Object.setPrototypeOf(desc, proxy);
   let table = new WebAssembly.Table(desc);
-  assertTableIsValid(table);
+  assertTableIsValid(table, 10);
 })();
 
 (function TestLength() {

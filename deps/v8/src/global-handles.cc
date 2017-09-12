@@ -503,7 +503,7 @@ class GlobalHandles::PendingPhantomCallbacksSecondPassTask
   // the same state it would be after a call to Clear().
   PendingPhantomCallbacksSecondPassTask(
       List<PendingPhantomCallback>* pending_phantom_callbacks, Isolate* isolate)
-      : CancelableTask(isolate) {
+      : CancelableTask(isolate), isolate_(isolate) {
     pending_phantom_callbacks_.Swap(pending_phantom_callbacks);
   }
 
@@ -516,7 +516,10 @@ class GlobalHandles::PendingPhantomCallbacksSecondPassTask
         GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
   }
 
+  Isolate* isolate() { return isolate_; }
+
  private:
+  Isolate* isolate_;
   List<PendingPhantomCallback> pending_phantom_callbacks_;
 
   DISALLOW_COPY_AND_ASSIGN(PendingPhantomCallbacksSecondPassTask);
@@ -639,6 +642,21 @@ void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback f) {
 void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(RootVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
+    if (node->IsStrongRetainer() ||
+        (node->IsWeakRetainer() && !node->is_independent() &&
+         node->is_active())) {
+      v->VisitRootPointer(Root::kGlobalHandles, node->location());
+    }
+  }
+}
+
+void GlobalHandles::IterateNewSpaceStrongAndDependentRootsAndIdentifyUnmodified(
+    RootVisitor* v, size_t start, size_t end) {
+  for (size_t i = start; i < end; ++i) {
+    Node* node = new_space_nodes_[static_cast<int>(i)];
+    if (node->IsWeak() && !JSObject::IsUnmodifiedApiObject(node->location())) {
+      node->set_active(true);
+    }
     if (node->IsStrongRetainer() ||
         (node->IsWeakRetainer() && !node->is_independent() &&
          node->is_active())) {
@@ -897,6 +915,17 @@ DISABLE_CFI_PERF
 void GlobalHandles::IterateAllNewSpaceRoots(RootVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
+    if (node->IsRetainer()) {
+      v->VisitRootPointer(Root::kGlobalHandles, node->location());
+    }
+  }
+}
+
+DISABLE_CFI_PERF
+void GlobalHandles::IterateNewSpaceRoots(RootVisitor* v, size_t start,
+                                         size_t end) {
+  for (size_t i = start; i < end; ++i) {
+    Node* node = new_space_nodes_[static_cast<int>(i)];
     if (node->IsRetainer()) {
       v->VisitRootPointer(Root::kGlobalHandles, node->location());
     }

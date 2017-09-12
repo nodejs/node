@@ -22,7 +22,6 @@ DependentCode* CompilationDependencies::Get(Handle<Object> object) const {
     return Handle<AllocationSite>::cast(object)->dependent_code();
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 
@@ -141,11 +140,10 @@ void CompilationDependencies::AssumePrototypeMapsStable(
 void CompilationDependencies::AssumeTransitionStable(
     Handle<AllocationSite> site) {
   // Do nothing if the object doesn't have any useful element transitions left.
-  ElementsKind kind =
-      site->SitePointsToLiteral()
-          ? JSObject::cast(site->transition_info())->GetElementsKind()
-          : site->GetElementsKind();
-  if (AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE) {
+  ElementsKind kind = site->PointsToLiteral()
+                          ? site->boilerplate()->GetElementsKind()
+                          : site->GetElementsKind();
+  if (AllocationSite::ShouldTrack(kind)) {
     Insert(DependentCode::kAllocationSiteTransitionChangedGroup, site);
   }
 }

@@ -83,7 +83,6 @@ namespace internal {
   T(SHL, "<<", 11)                                                   \
   T(SAR, ">>", 11)                                                   \
   T(SHR, ">>>", 11)                                                  \
-  T(ROR, "rotate right", 11) /* only used by Crankshaft */           \
   T(ADD, "+", 12)                                                    \
   T(SUB, "-", 12)                                                    \
   T(MUL, "*", 13)                                                    \
@@ -239,7 +238,6 @@ class Token {
         return false;
     }
     UNREACHABLE();
-    return false;
   }
 
   static bool IsAssignmentOp(Value tok) {
@@ -249,7 +247,7 @@ class Token {
   static bool IsBinaryOp(Value op) { return COMMA <= op && op <= EXP; }
 
   static bool IsTruncatingBinaryOp(Value op) {
-    return BIT_OR <= op && op <= ROR;
+    return BIT_OR <= op && op <= SHR;
   }
 
   static bool IsCompareOp(Value op) {
@@ -286,7 +284,6 @@ class Token {
       case GTE: return LT;
       default:
         UNREACHABLE();
-        return op;
     }
   }
 
@@ -303,7 +300,6 @@ class Token {
       case GTE: return LTE;
       default:
         UNREACHABLE();
-        return op;
     }
   }
 
@@ -319,7 +315,6 @@ class Token {
       case Token::GTE: return (op1 >= op2);
       default:
         UNREACHABLE();
-        return false;
     }
   }
 

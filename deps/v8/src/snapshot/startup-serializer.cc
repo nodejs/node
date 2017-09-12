@@ -48,7 +48,6 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     Code* code = Code::cast(obj);
     if (code->kind() == Code::FUNCTION) {
       code->ClearInlineCaches();
-      code->set_profiler_ticks(0);
     }
   }
 
@@ -198,7 +197,7 @@ void StartupSerializer::CheckRehashability(HeapObject* table) {
   // We can only correctly rehash if the four hash tables below are the only
   // ones that we deserialize.
   if (table == isolate_->heap()->empty_slow_element_dictionary()) return;
-  if (table == isolate_->heap()->empty_properties_dictionary()) return;
+  if (table == isolate_->heap()->empty_property_dictionary()) return;
   if (table == isolate_->heap()->weak_object_to_code_table()) return;
   if (table == isolate_->heap()->string_table()) return;
   can_be_rehashed_ = false;

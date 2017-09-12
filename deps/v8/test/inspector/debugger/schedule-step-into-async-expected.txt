@@ -56,7 +56,7 @@ paused at:
 
 paused at:
   debugger;
-  #p.then(v => v * 2);
+  p.#then(v => v * 2);
   resolveCallback();
 
 {

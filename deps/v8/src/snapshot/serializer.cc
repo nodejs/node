@@ -147,6 +147,13 @@ bool Serializer::BackReferenceIsAlreadyAllocated(
     }
   }
 }
+
+void Serializer::PrintStack() {
+  for (const auto& o : stack_) {
+    o->Print();
+    PrintF("\n");
+  }
+}
 #endif  // DEBUG
 
 bool Serializer::SerializeHotObject(HeapObject* obj, HowToCode how_to_code,

@@ -85,10 +85,10 @@ Segment* AccountingAllocator::AllocateSegment(size_t bytes) {
   void* memory = malloc(bytes);
   if (memory) {
     base::AtomicWord current =
-        base::NoBarrier_AtomicIncrement(&current_memory_usage_, bytes);
-    base::AtomicWord max = base::NoBarrier_Load(&max_memory_usage_);
+        base::Relaxed_AtomicIncrement(&current_memory_usage_, bytes);
+    base::AtomicWord max = base::Relaxed_Load(&max_memory_usage_);
     while (current > max) {
-      max = base::NoBarrier_CompareAndSwap(&max_memory_usage_, max, current);
+      max = base::Relaxed_CompareAndSwap(&max_memory_usage_, max, current);
     }
   }
   return reinterpret_cast<Segment*>(memory);
@@ -105,22 +105,22 @@ void AccountingAllocator::ReturnSegment(Segment* segment) {
 }
 
 void AccountingAllocator::FreeSegment(Segment* memory) {
-  base::NoBarrier_AtomicIncrement(
-      &current_memory_usage_, -static_cast<base::AtomicWord>(memory->size()));
+  base::Relaxed_AtomicIncrement(&current_memory_usage_,
+                                -static_cast<base::AtomicWord>(memory->size()));
   memory->ZapHeader();
   free(memory);
 }
 
 size_t AccountingAllocator::GetCurrentMemoryUsage() const {
-  return base::NoBarrier_Load(&current_memory_usage_);
+  return base::Relaxed_Load(&current_memory_usage_);
 }
 
 size_t AccountingAllocator::GetMaxMemoryUsage() const {
-  return base::NoBarrier_Load(&max_memory_usage_);
+  return base::Relaxed_Load(&max_memory_usage_);
 }
 
 size_t AccountingAllocator::GetCurrentPoolSize() const {
-  return base::NoBarrier_Load(&current_pool_size_);
+  return base::Relaxed_Load(&current_pool_size_);
 }
 
 Segment* AccountingAllocator::GetSegmentFromPool(size_t requested_size) {
@@ -145,7 +145,7 @@ Segment* AccountingAllocator::GetSegmentFromPool(size_t requested_size) {
       segment->set_next(nullptr);
 
       unused_segments_sizes_[power]--;
-      base::NoBarrier_AtomicIncrement(
+      base::Relaxed_AtomicIncrement(
           &current_pool_size_, -static_cast<base::AtomicWord>(segment->size()));
     }
   }
@@ -179,7 +179,7 @@ bool AccountingAllocator::AddSegmentToPool(Segment* segment) {
 
     segment->set_next(unused_segments_heads_[power]);
     unused_segments_heads_[power] = segment;
-    base::NoBarrier_AtomicIncrement(&current_pool_size_, size);
+    base::Relaxed_AtomicIncrement(&current_pool_size_, size);
     unused_segments_sizes_[power]++;
   }
 

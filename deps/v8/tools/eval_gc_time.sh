@@ -84,12 +84,10 @@ INTERESTING_NEW_GEN_KEYS="\
   weak \
   roots \
   old_new \
-  code \
   semispace \
 "
 
 INTERESTING_OLD_GEN_KEYS="\
-  clear.code_flush \
   clear.dependent_code \
   clear.global_handles \
   clear.maps \
@@ -112,7 +110,6 @@ INTERESTING_OLD_GEN_KEYS="\
   external.mc_incremental_epilogue \
   external.weak_global_handles \
   mark.finish_incremental \
-  mark.prepare_code_flush \
   mark.roots \
   mark.weak_closure \
   mark.weak_closure.ephemeral \

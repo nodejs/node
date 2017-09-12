@@ -43,17 +43,19 @@ int V8ContextInfo::executionContextId(v8::Local<v8::Context> context) {
 }
 
 std::unique_ptr<V8InspectorSessionImpl> V8InspectorSessionImpl::create(
-    V8InspectorImpl* inspector, int contextGroupId,
+    V8InspectorImpl* inspector, int contextGroupId, int sessionId,
     V8Inspector::Channel* channel, const StringView& state) {
-  return std::unique_ptr<V8InspectorSessionImpl>(
-      new V8InspectorSessionImpl(inspector, contextGroupId, channel, state));
+  return std::unique_ptr<V8InspectorSessionImpl>(new V8InspectorSessionImpl(
+      inspector, contextGroupId, sessionId, channel, state));
 }
 
 V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector,
                                                int contextGroupId,
+                                               int sessionId,
                                                V8Inspector::Channel* channel,
                                                const StringView& savedState)
     : m_contextGroupId(contextGroupId),
+      m_sessionId(sessionId),
       m_inspector(inspector),
       m_channel(channel),
       m_customObjectFormatterEnabled(false),
@@ -181,46 +183,27 @@ void V8InspectorSessionImpl::reset() {
 
 void V8InspectorSessionImpl::discardInjectedScripts() {
   m_inspectedObjects.clear();
-  const V8InspectorImpl::ContextByIdMap* contexts =
-      m_inspector->contextGroup(m_contextGroupId);
-  if (!contexts) return;
-
-  std::vector<int> keys;
-  keys.reserve(contexts->size());
-  for (auto& idContext : *contexts) keys.push_back(idContext.first);
-  for (auto& key : keys) {
-    contexts = m_inspector->contextGroup(m_contextGroupId);
-    if (!contexts) continue;
-    auto contextIt = contexts->find(key);
-    if (contextIt != contexts->end())
-      contextIt->second
-          ->discardInjectedScript();  // This may destroy some contexts.
-  }
+  int sessionId = m_sessionId;
+  m_inspector->forEachContext(m_contextGroupId,
+                              [&sessionId](InspectedContext* context) {
+                                context->discardInjectedScript(sessionId);
+                              });
 }
 
 Response V8InspectorSessionImpl::findInjectedScript(
     int contextId, InjectedScript*& injectedScript) {
   injectedScript = nullptr;
-  if (!contextId)
-    return Response::Error("Cannot find context with specified id");
-
-  const V8InspectorImpl::ContextByIdMap* contexts =
-      m_inspector->contextGroup(m_contextGroupId);
-  if (!contexts)
-    return Response::Error("Cannot find context with specified id");
-
-  auto contextsIt = contexts->find(contextId);
-  if (contextsIt == contexts->end())
-    return Response::Error("Cannot find context with specified id");
-
-  const std::unique_ptr<InspectedContext>& context = contextsIt->second;
-  if (!context->getInjectedScript()) {
-    if (!context->createInjectedScript())
+  InspectedContext* context =
+      m_inspector->getContext(m_contextGroupId, contextId);
+  if (!context) return Response::Error("Cannot find context with specified id");
+  injectedScript = context->getInjectedScript(m_sessionId);
+  if (!injectedScript) {
+    if (!context->createInjectedScript(m_sessionId))
       return Response::Error("Cannot access specified execution context");
+    injectedScript = context->getInjectedScript(m_sessionId);
     if (m_customObjectFormatterEnabled)
-      context->getInjectedScript()->setCustomObjectFormatterEnabled(true);
+      injectedScript->setCustomObjectFormatterEnabled(true);
   }
-  injectedScript = context->getInjectedScript();
   return Response::OK();
 }
 
@@ -234,22 +217,12 @@ void V8InspectorSessionImpl::releaseObjectGroup(const StringView& objectGroup) {
 }
 
 void V8InspectorSessionImpl::releaseObjectGroup(const String16& objectGroup) {
-  const V8InspectorImpl::ContextByIdMap* contexts =
-      m_inspector->contextGroup(m_contextGroupId);
-  if (!contexts) return;
-
-  std::vector<int> keys;
-  for (auto& idContext : *contexts) keys.push_back(idContext.first);
-  for (auto& key : keys) {
-    contexts = m_inspector->contextGroup(m_contextGroupId);
-    if (!contexts) continue;
-    auto contextsIt = contexts->find(key);
-    if (contextsIt == contexts->end()) continue;
-    InjectedScript* injectedScript = contextsIt->second->getInjectedScript();
-    if (injectedScript)
-      injectedScript->releaseObjectGroup(
-          objectGroup);  // This may destroy some contexts.
-  }
+  int sessionId = m_sessionId;
+  m_inspector->forEachContext(
+      m_contextGroupId, [&objectGroup, &sessionId](InspectedContext* context) {
+        InjectedScript* injectedScript = context->getInjectedScript(sessionId);
+        if (injectedScript) injectedScript->releaseObjectGroup(objectGroup);
+      });
 }
 
 bool V8InspectorSessionImpl::unwrapObject(
@@ -319,22 +292,20 @@ V8InspectorSessionImpl::wrapTable(v8::Local<v8::Context> context,
 
 void V8InspectorSessionImpl::setCustomObjectFormatterEnabled(bool enabled) {
   m_customObjectFormatterEnabled = enabled;
-  const V8InspectorImpl::ContextByIdMap* contexts =
-      m_inspector->contextGroup(m_contextGroupId);
-  if (!contexts) return;
-  for (auto& idContext : *contexts) {
-    InjectedScript* injectedScript = idContext.second->getInjectedScript();
-    if (injectedScript)
-      injectedScript->setCustomObjectFormatterEnabled(enabled);
-  }
+  int sessionId = m_sessionId;
+  m_inspector->forEachContext(
+      m_contextGroupId, [&enabled, &sessionId](InspectedContext* context) {
+        InjectedScript* injectedScript = context->getInjectedScript(sessionId);
+        if (injectedScript)
+          injectedScript->setCustomObjectFormatterEnabled(enabled);
+      });
 }
 
 void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
-  const V8InspectorImpl::ContextByIdMap* contexts =
-      m_inspector->contextGroup(m_contextGroupId);
-  if (!contexts) return;
-  for (auto& idContext : *contexts)
-    agent->reportExecutionContextCreated(idContext.second.get());
+  m_inspector->forEachContext(m_contextGroupId,
+                              [&agent](InspectedContext* context) {
+                                agent->reportExecutionContextCreated(context);
+                              });
 }
 
 void V8InspectorSessionImpl::dispatchProtocolMessage(

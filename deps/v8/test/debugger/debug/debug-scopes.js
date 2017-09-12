@@ -722,6 +722,33 @@ closure_9();
 EndTest();
 
 
+BeginTest("Closure passed to optimized Array.prototype.forEach");
+function closure_10(a) {
+  var x = a + 2;
+  function closure_11(b) {
+    debugger;
+    return a + b + x;
+  }
+  [42].forEach(closure_11);
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Closure,
+                   debug.ScopeType.Script,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({b:42}, 0, exec_state);
+  CheckScopeContent({a:5, x:7}, 1, exec_state);
+  CheckScopeChainNames(
+      ["closure_11", "closure_10", undefined, undefined], exec_state);
+};
+begin_test_count++; closure_10(5); end_test_count++;
+begin_test_count++; closure_10(5); end_test_count++;
+%OptimizeFunctionOnNextCall(closure_10);
+closure_10(5);
+EndTest();
+
+
 // Test a mixture of scopes.
 BeginTest("The full monty");
 function the_full_monty(a, b) {

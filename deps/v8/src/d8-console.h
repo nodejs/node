@@ -16,13 +16,20 @@ class D8Console : public debug::ConsoleDelegate {
   explicit D8Console(Isolate* isolate);
 
  private:
-  void Log(const debug::ConsoleCallArguments& args) override;
-  void Error(const debug::ConsoleCallArguments& args) override;
-  void Warn(const debug::ConsoleCallArguments& args) override;
-  void Info(const debug::ConsoleCallArguments& args) override;
-  void Debug(const debug::ConsoleCallArguments& args) override;
-  void Time(const debug::ConsoleCallArguments& args) override;
-  void TimeEnd(const debug::ConsoleCallArguments& args) override;
+  void Log(const debug::ConsoleCallArguments& args,
+           const v8::debug::ConsoleContext&) override;
+  void Error(const debug::ConsoleCallArguments& args,
+             const v8::debug::ConsoleContext&) override;
+  void Warn(const debug::ConsoleCallArguments& args,
+            const v8::debug::ConsoleContext&) override;
+  void Info(const debug::ConsoleCallArguments& args,
+            const v8::debug::ConsoleContext&) override;
+  void Debug(const debug::ConsoleCallArguments& args,
+             const v8::debug::ConsoleContext&) override;
+  void Time(const debug::ConsoleCallArguments& args,
+            const v8::debug::ConsoleContext&) override;
+  void TimeEnd(const debug::ConsoleCallArguments& args,
+               const v8::debug::ConsoleContext&) override;
 
   Isolate* isolate_;
   std::map<std::string, base::TimeTicks> timers_;

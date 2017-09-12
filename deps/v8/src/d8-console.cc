@@ -40,27 +40,33 @@ D8Console::D8Console(Isolate* isolate) : isolate_(isolate) {
   default_timer_ = base::TimeTicks::HighResolutionNow();
 }
 
-void D8Console::Log(const debug::ConsoleCallArguments& args) {
+void D8Console::Log(const debug::ConsoleCallArguments& args,
+                    const v8::debug::ConsoleContext&) {
   WriteToFile(stdout, isolate_, args);
 }
 
-void D8Console::Error(const debug::ConsoleCallArguments& args) {
+void D8Console::Error(const debug::ConsoleCallArguments& args,
+                      const v8::debug::ConsoleContext&) {
   WriteToFile(stderr, isolate_, args);
 }
 
-void D8Console::Warn(const debug::ConsoleCallArguments& args) {
+void D8Console::Warn(const debug::ConsoleCallArguments& args,
+                     const v8::debug::ConsoleContext&) {
   WriteToFile(stdout, isolate_, args);
 }
 
-void D8Console::Info(const debug::ConsoleCallArguments& args) {
+void D8Console::Info(const debug::ConsoleCallArguments& args,
+                     const v8::debug::ConsoleContext&) {
   WriteToFile(stdout, isolate_, args);
 }
 
-void D8Console::Debug(const debug::ConsoleCallArguments& args) {
+void D8Console::Debug(const debug::ConsoleCallArguments& args,
+                      const v8::debug::ConsoleContext&) {
   WriteToFile(stdout, isolate_, args);
 }
 
-void D8Console::Time(const debug::ConsoleCallArguments& args) {
+void D8Console::Time(const debug::ConsoleCallArguments& args,
+                     const v8::debug::ConsoleContext&) {
   if (args.Length() == 0) {
     default_timer_ = base::TimeTicks::HighResolutionNow();
   } else {
@@ -83,7 +89,8 @@ void D8Console::Time(const debug::ConsoleCallArguments& args) {
   }
 }
 
-void D8Console::TimeEnd(const debug::ConsoleCallArguments& args) {
+void D8Console::TimeEnd(const debug::ConsoleCallArguments& args,
+                        const v8::debug::ConsoleContext&) {
   base::TimeDelta delta;
   base::TimeTicks now = base::TimeTicks::HighResolutionNow();
   if (args.Length() == 0) {

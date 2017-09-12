@@ -44,7 +44,7 @@ bool FrameArray::IsAsmJsWasmFrame(int frame_ix) const {
 }
 
 int FrameArray::FrameCount() const {
-  const int frame_count = Smi::cast(get(kFrameCountIndex))->value();
+  const int frame_count = Smi::ToInt(get(kFrameCountIndex));
   DCHECK_LE(0, frame_count);
   return frame_count;
 }

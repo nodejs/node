@@ -31,7 +31,7 @@ class BoilerplateDescription : public FixedArray {
 
   void set_backing_store_size(Isolate* isolate, int backing_store_size);
 
-  DECLARE_CAST(BoilerplateDescription)
+  DECL_CAST(BoilerplateDescription)
 
  private:
   bool has_number_of_properties() const;
@@ -45,7 +45,7 @@ class ConstantElementsPair : public Tuple2 {
   DECL_INT_ACCESSORS(elements_kind)
   DECL_ACCESSORS(constant_values, FixedArrayBase)
 
-  DECLARE_CAST(ConstantElementsPair)
+  DECL_CAST(ConstantElementsPair)
 
   static const int kElementsKindOffset = kValue1Offset;
   static const int kConstantValuesOffset = kValue2Offset;

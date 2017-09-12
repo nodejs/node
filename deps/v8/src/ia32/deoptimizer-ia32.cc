@@ -166,23 +166,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-void Deoptimizer::SetPlatformCompiledStubRegisters(
-    FrameDescription* output_frame, CodeStubDescriptor* descriptor) {
-  intptr_t handler =
-      reinterpret_cast<intptr_t>(descriptor->deoptimization_handler());
-  int params = descriptor->GetHandlerParameterCount();
-  output_frame->SetRegister(eax.code(), params);
-  output_frame->SetRegister(ebx.code(), handler);
-}
-
-
-void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
-  for (int i = 0; i < XMMRegister::kMaxNumRegisters; ++i) {
-    Float64 double_value = input_->GetDoubleRegister(i);
-    output_frame->SetDoubleRegister(i, double_value);
-  }
-}
-
 #define __ masm()->
 
 void Deoptimizer::TableEntryGenerator::Generate() {
@@ -213,7 +196,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   __ pushad();
 
-  ExternalReference c_entry_fp_address(Isolate::kCEntryFPAddress, isolate());
+  ExternalReference c_entry_fp_address(IsolateAddressId::kCEntryFPAddress,
+                                       isolate());
   __ mov(Operand::StaticVariable(c_entry_fp_address), ebp);
 
   const int kSavedRegistersAreaSize =

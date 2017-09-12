@@ -49,7 +49,7 @@ class V8ConsoleMessage {
       v8::Local<v8::Context> v8Context, int contextId, int groupId,
       V8InspectorImpl* inspector, double timestamp, ConsoleAPIType,
       const std::vector<v8::Local<v8::Value>>& arguments,
-      std::unique_ptr<V8StackTraceImpl>);
+      const String16& consoleContext, std::unique_ptr<V8StackTraceImpl>);
 
   static std::unique_ptr<V8ConsoleMessage> createForException(
       double timestamp, const String16& detailedMessage, const String16& url,
@@ -99,6 +99,7 @@ class V8ConsoleMessage {
   int m_v8Size = 0;
   Arguments m_arguments;
   String16 m_detailedMessage;
+  String16 m_consoleContext;
 };
 
 class V8ConsoleMessageStorage {

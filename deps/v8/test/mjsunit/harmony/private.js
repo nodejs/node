@@ -340,19 +340,37 @@ function TestGetOwnPropertySymbols() {
 TestGetOwnPropertySymbols()
 
 
-function TestSealAndFreeze(freeze) {
+function TestSealAndFreeze(factory, freeze, isFrozen) {
   var sym = %CreatePrivateSymbol("private")
-  var obj = {}
+  var obj = factory();
   obj[sym] = 1
   freeze(obj)
+  assertTrue(isFrozen(obj))
   obj[sym] = 2
   assertEquals(2, obj[sym])
   assertTrue(delete obj[sym])
   assertEquals(undefined, obj[sym])
 }
-TestSealAndFreeze(Object.seal)
-TestSealAndFreeze(Object.freeze)
-TestSealAndFreeze(Object.preventExtensions)
+
+var fastObj = () => {
+  var obj = {}
+  assertTrue(%HasFastProperties(obj))
+  return obj
+}
+var dictObj = () => {
+  var obj = Object.create(null)
+  obj.a = 1
+  delete obj.a
+  assertFalse(%HasFastProperties(obj))
+  return obj
+}
+
+TestSealAndFreeze(fastObj, Object.seal, Object.isSealed)
+TestSealAndFreeze(fastObj, Object.freeze,  Object.isFrozen)
+TestSealAndFreeze(fastObj, Object.preventExtensions, obj => !Object.isExtensible(obj))
+TestSealAndFreeze(dictObj, Object.seal, Object.isSealed)
+TestSealAndFreeze(dictObj, Object.freeze,  Object.isFrozen)
+TestSealAndFreeze(dictObj, Object.preventExtensions, obj => !Object.isExtensible(obj))
 
 
 var s = %CreatePrivateSymbol("s");

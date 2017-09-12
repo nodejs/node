@@ -112,7 +112,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArray(Node* holder, Node* length,
   StoreObjectField(holder, JSArrayBufferView::kByteLengthOffset, byte_length);
   for (int offset = JSTypedArray::kSize;
        offset < JSTypedArray::kSizeWithEmbedderFields; offset += kPointerSize) {
-    StoreObjectField(holder, offset, SmiConstant(Smi::kZero));
+    StoreObjectField(holder, offset, SmiConstant(0));
   }
 }
 
@@ -216,7 +216,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
 
     Node* buffer = Allocate(JSArrayBuffer::kSizeWithEmbedderFields);
     StoreMapNoWriteBarrier(buffer, map);
-    StoreObjectFieldNoWriteBarrier(buffer, JSArray::kPropertiesOffset,
+    StoreObjectFieldNoWriteBarrier(buffer, JSArray::kPropertiesOrHashOffset,
                                    empty_fixed_array);
     StoreObjectFieldNoWriteBarrier(buffer, JSArray::kElementsOffset,
                                    empty_fixed_array);
@@ -227,7 +227,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
     //  - Set backing_store to null/Smi(0).
     //  - Set all embedder fields to Smi(0).
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldSlot,
-                                   SmiConstant(Smi::kZero));
+                                   SmiConstant(0));
     int32_t bitfield_value = (1 << JSArrayBuffer::IsExternal::kShift) |
                              (1 << JSArrayBuffer::IsNeuterable::kShift);
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldOffset,
@@ -237,10 +237,10 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
                                    byte_length);
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
-                                   SmiConstant(Smi::kZero));
+                                   SmiConstant(0));
     for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
       int offset = JSArrayBuffer::kSize + i * kPointerSize;
-      StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(Smi::kZero));
+      StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));
     }
 
     StoreObjectField(holder, JSArrayBufferView::kBufferOffset, buffer);
@@ -397,14 +397,6 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
       check_length(this), call_init(this), invalid_length(this),
       length_undefined(this), length_defined(this);
 
-  Callable add = CodeFactory::Add(isolate());
-  Callable div = CodeFactory::Divide(isolate());
-  Callable equal = CodeFactory::Equal(isolate());
-  Callable greater_than = CodeFactory::GreaterThan(isolate());
-  Callable less_than = CodeFactory::LessThan(isolate());
-  Callable mod = CodeFactory::Modulus(isolate());
-  Callable sub = CodeFactory::Subtract(isolate());
-
   GotoIf(IsUndefined(byte_offset), &check_length);
 
   offset.Bind(
@@ -422,11 +414,14 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   }
   BIND(&offset_not_smi);
   {
-    GotoIf(IsTrue(CallStub(less_than, context, offset.value(), SmiConstant(0))),
+    GotoIf(IsTrue(CallBuiltin(Builtins::kLessThan, context, offset.value(),
+                              SmiConstant(0))),
            &invalid_length);
-    Node* remainder = CallStub(mod, context, offset.value(), element_size);
+    Node* remainder =
+        CallBuiltin(Builtins::kModulus, context, offset.value(), element_size);
     // Remainder can be a heap number.
-    Branch(IsTrue(CallStub(equal, context, remainder, SmiConstant(0))),
+    Branch(IsTrue(CallBuiltin(Builtins::kEqual, context, remainder,
+                              SmiConstant(0))),
            &check_length, &start_offset_error);
   }
 
@@ -439,16 +434,18 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
     Node* buffer_byte_length =
         LoadObjectField(buffer, JSArrayBuffer::kByteLengthOffset);
 
-    Node* remainder = CallStub(mod, context, buffer_byte_length, element_size);
+    Node* remainder = CallBuiltin(Builtins::kModulus, context,
+                                  buffer_byte_length, element_size);
     // Remainder can be a heap number.
-    GotoIf(IsFalse(CallStub(equal, context, remainder, SmiConstant(0))),
+    GotoIf(IsFalse(CallBuiltin(Builtins::kEqual, context, remainder,
+                               SmiConstant(0))),
            &byte_length_error);
 
-    new_byte_length.Bind(
-        CallStub(sub, context, buffer_byte_length, offset.value()));
+    new_byte_length.Bind(CallBuiltin(Builtins::kSubtract, context,
+                                     buffer_byte_length, offset.value()));
 
-    Branch(IsTrue(CallStub(less_than, context, new_byte_length.value(),
-                           SmiConstant(0))),
+    Branch(IsTrue(CallBuiltin(Builtins::kLessThan, context,
+                              new_byte_length.value(), SmiConstant(0))),
            &invalid_offset_error, &call_init);
   }
 
@@ -461,16 +458,18 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
     Node* buffer_byte_length =
         LoadObjectField(buffer, JSArrayBuffer::kByteLengthOffset);
 
-    Node* end = CallStub(add, context, offset.value(), new_byte_length.value());
+    Node* end = CallBuiltin(Builtins::kAdd, context, offset.value(),
+                            new_byte_length.value());
 
-    Branch(IsTrue(CallStub(greater_than, context, end, buffer_byte_length)),
+    Branch(IsTrue(CallBuiltin(Builtins::kGreaterThan, context, end,
+                              buffer_byte_length)),
            &invalid_length, &call_init);
   }
 
   BIND(&call_init);
   {
-    Node* new_length =
-        CallStub(div, context, new_byte_length.value(), element_size);
+    Node* new_length = CallBuiltin(Builtins::kDivide, context,
+                                   new_byte_length.value(), element_size);
     // Force the result into a Smi, or throw a range error if it doesn't fit.
     new_length = ToSmiIndex(new_length, context, &invalid_length);
 
@@ -489,8 +488,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   BIND(&start_offset_error);
   {
     Node* holder_map = LoadMap(holder);
-    Node* problem_string = HeapConstant(
-        factory()->NewStringFromAsciiChecked("start offset", TENURED));
+    Node* problem_string = StringConstant("start offset");
     CallRuntime(Runtime::kThrowInvalidTypedArrayAlignment, context, holder_map,
                 problem_string);
 
@@ -500,8 +498,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   BIND(&byte_length_error);
   {
     Node* holder_map = LoadMap(holder);
-    Node* problem_string = HeapConstant(
-        factory()->NewStringFromAsciiChecked("byte length", TENURED));
+    Node* problem_string = StringConstant("byte length");
     CallRuntime(Runtime::kThrowInvalidTypedArrayAlignment, context, holder_map,
                 problem_string);
 
@@ -640,9 +637,7 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
   {
     // The {receiver} is not a valid JSTypedArray.
     CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                HeapConstant(
-                    factory()->NewStringFromAsciiChecked(method_name, TENURED)),
-                receiver);
+                StringConstant(method_name), receiver);
     Unreachable();
   }
 }
@@ -702,14 +697,12 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
   Goto(&throw_typeerror);
 
   BIND(&if_receiverisneutered);
-  var_message.Bind(
-      SmiConstant(Smi::FromInt(MessageTemplate::kDetachedOperation)));
+  var_message.Bind(SmiConstant(MessageTemplate::kDetachedOperation));
   Goto(&throw_typeerror);
 
   BIND(&throw_typeerror);
   {
-    Node* method_arg = HeapConstant(
-        isolate()->factory()->NewStringFromAsciiChecked(method_name, TENURED));
+    Node* method_arg = StringConstant(method_name);
     Node* result = CallRuntime(Runtime::kThrowTypeError, context,
                                var_message.value(), method_arg);
     Return(result);

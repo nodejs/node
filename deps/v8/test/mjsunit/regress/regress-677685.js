@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition --stack-size=100
+// Flags: --no-stress-fullcodegen --stack-size=100
 
 function Module(stdlib) {
   "use asm";
