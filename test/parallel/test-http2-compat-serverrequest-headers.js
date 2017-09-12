@@ -21,9 +21,9 @@ server.listen(0, common.mustCall(function() {
       'foo-bar': 'abc123'
     };
 
+    assert.strictEqual(request.path, undefined);
     assert.strictEqual(request.method, expected[':method']);
     assert.strictEqual(request.scheme, expected[':scheme']);
-    assert.strictEqual(request.path, expected[':path']);
     assert.strictEqual(request.url, expected[':path']);
     assert.strictEqual(request.authority, expected[':authority']);
 
@@ -41,11 +41,6 @@ server.listen(0, common.mustCall(function() {
 
     request.url = '/one';
     assert.strictEqual(request.url, '/one');
-    assert.strictEqual(request.path, '/one');
-
-    request.path = '/two';
-    assert.strictEqual(request.url, '/two');
-    assert.strictEqual(request.path, '/two');
 
     response.on('finish', common.mustCall(function() {
       server.close();
