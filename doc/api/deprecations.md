@@ -684,12 +684,12 @@ difference is that `querystring.parse()` does url encoding:
 { '%E5%A5%BD': '1' }
 ```
 
-<a id="DEP0077"></a>
-### DEP0077: Loading files without a known file extension 
+<a id="DEP00XX"></a>
+### DEP00XX: Loading files without a known file extension 
 
 Type: Runtime
 
-Files without file extensions, or unknown file extensions will not be loaded.
+Files without file extensions or unknown file extensions will not be loaded.
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
