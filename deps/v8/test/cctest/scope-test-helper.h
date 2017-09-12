@@ -28,8 +28,23 @@ class ScopeTestHelper {
                   baseline->AsDeclarationScope()->function_kind() ==
                       scope->AsDeclarationScope()->function_kind());
 
-    if (!PreParsedScopeData::ScopeNeedsData(baseline)) {
+    if (!ProducedPreParsedScopeData::ScopeNeedsData(baseline)) {
       return;
+    }
+
+    if (scope->is_declaration_scope() &&
+        scope->AsDeclarationScope()->is_skipped_function()) {
+      return;
+    }
+
+    if (baseline->scope_type() == ScopeType::FUNCTION_SCOPE) {
+      Variable* function = baseline->AsDeclarationScope()->function_var();
+      if (function != nullptr) {
+        CompareVariables(function, scope->AsDeclarationScope()->function_var(),
+                         precise_maybe_assigned);
+      } else {
+        CHECK_NULL(scope->AsDeclarationScope()->function_var());
+      }
     }
 
     for (auto baseline_local = baseline->locals()->begin(),
@@ -38,24 +53,7 @@ class ScopeTestHelper {
          ++baseline_local, ++scope_local) {
       if (scope_local->mode() == VAR || scope_local->mode() == LET ||
           scope_local->mode() == CONST) {
-        // Sanity check the variable name. If this fails, the variable order
-        // is not deterministic.
-        CHECK_EQ(scope_local->raw_name()->length(),
-                 baseline_local->raw_name()->length());
-        for (int i = 0; i < scope_local->raw_name()->length(); ++i) {
-          CHECK_EQ(scope_local->raw_name()->raw_data()[i],
-                   baseline_local->raw_name()->raw_data()[i]);
-        }
-
-        CHECK_EQ(scope_local->location(), baseline_local->location());
-        if (precise_maybe_assigned) {
-          CHECK_EQ(scope_local->maybe_assigned(),
-                   baseline_local->maybe_assigned());
-        } else {
-          STATIC_ASSERT(kMaybeAssigned > kNotAssigned);
-          CHECK_GE(scope_local->maybe_assigned(),
-                   baseline_local->maybe_assigned());
-        }
+        CompareVariables(*baseline_local, *scope_local, precise_maybe_assigned);
       }
     }
 
@@ -64,6 +62,26 @@ class ScopeTestHelper {
          scope_inner != nullptr; scope_inner = scope_inner->sibling(),
                baseline_inner = baseline_inner->sibling()) {
       CompareScopes(baseline_inner, scope_inner, precise_maybe_assigned);
+    }
+  }
+
+  static void CompareVariables(Variable* baseline_local, Variable* scope_local,
+                               bool precise_maybe_assigned) {
+    // Sanity check the variable name. If this fails, the variable order
+    // is not deterministic.
+    CHECK_EQ(scope_local->raw_name()->length(),
+             baseline_local->raw_name()->length());
+    for (int i = 0; i < scope_local->raw_name()->length(); ++i) {
+      CHECK_EQ(scope_local->raw_name()->raw_data()[i],
+               baseline_local->raw_name()->raw_data()[i]);
+    }
+
+    CHECK_EQ(scope_local->location(), baseline_local->location());
+    if (precise_maybe_assigned) {
+      CHECK_EQ(scope_local->maybe_assigned(), baseline_local->maybe_assigned());
+    } else {
+      STATIC_ASSERT(kMaybeAssigned > kNotAssigned);
+      CHECK_GE(scope_local->maybe_assigned(), baseline_local->maybe_assigned());
     }
   }
 
@@ -79,6 +97,17 @@ class ScopeTestHelper {
       }
     }
     return scope;
+  }
+
+  static void MarkInnerFunctionsAsSkipped(Scope* scope) {
+    for (Scope* inner = scope->inner_scope(); inner != nullptr;
+         inner = inner->sibling()) {
+      if (inner->scope_type() == ScopeType::FUNCTION_SCOPE &&
+          !inner->AsDeclarationScope()->is_arrow_scope()) {
+        inner->AsDeclarationScope()->set_is_skipped_function(true);
+      }
+      MarkInnerFunctionsAsSkipped(inner);
+    }
   }
 };
 }  // namespace internal

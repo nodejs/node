@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --validate-asm
 
-// Compilation limits for WASM are not enforced for asm->wasm.
+// Compilation limits for wasm are not enforced for asm->wasm.
 %SetWasmCompileControls(0, false);
 
 function AsmModule() {

@@ -233,9 +233,6 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kSimd128:  // Fall through.
       opcode = kX64Movdqu;
       break;
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       break;
@@ -270,15 +267,10 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
     case MachineRepresentation::kSimd128:  // Fall through.
       return kX64Movdqu;
       break;
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
-      return kArchNop;
   }
   UNREACHABLE();
-  return kArchNop;
 }
 
 }  // namespace
@@ -434,9 +426,6 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       break;
     case MachineRepresentation::kBit:      // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:       // Fall through.
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:   // Fall through.
@@ -492,9 +481,6 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
       break;
     case MachineRepresentation::kBit:      // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:       // Fall through.
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:   // Fall through.
@@ -2054,6 +2040,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
   // Emit either ArchTableSwitch or ArchLookupSwitch.
+  static const size_t kMaxTableSwitchValueRange = 2 << 16;
   size_t table_space_cost = 4 + sw.value_range;
   size_t table_time_cost = 3;
   size_t lookup_space_cost = 3 + 2 * sw.case_count;
@@ -2061,7 +2048,8 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   if (sw.case_count > 4 &&
       table_space_cost + 3 * table_time_cost <=
           lookup_space_cost + 3 * lookup_time_cost &&
-      sw.min_value > std::numeric_limits<int32_t>::min()) {
+      sw.min_value > std::numeric_limits<int32_t>::min() &&
+      sw.value_range <= kMaxTableSwitchValueRange) {
     InstructionOperand index_operand = g.TempRegister();
     if (sw.min_value) {
       // The leal automatically zero extends, so result is a valid 64-bit index.
@@ -2462,12 +2450,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(16x8)                   \
   V(8x16)
 
-#define SIMD_ZERO_OP_LIST(V) \
-  V(S128Zero)                \
-  V(S1x4Zero)                \
-  V(S1x8Zero)                \
-  V(S1x16Zero)
-
 #define SIMD_BINOP_LIST(V) \
   V(I32x4Add)              \
   V(I32x4AddHoriz)         \
@@ -2477,8 +2459,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MaxS)             \
   V(I32x4Eq)               \
   V(I32x4Ne)               \
+  V(I32x4GtS)              \
+  V(I32x4GeS)              \
   V(I32x4MinU)             \
   V(I32x4MaxU)             \
+  V(I32x4GtU)              \
+  V(I32x4GeU)              \
   V(I16x8Add)              \
   V(I16x8AddSaturateS)     \
   V(I16x8AddHoriz)         \
@@ -2489,10 +2475,14 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8MaxS)             \
   V(I16x8Eq)               \
   V(I16x8Ne)               \
+  V(I16x8GtS)              \
+  V(I16x8GeS)              \
   V(I16x8AddSaturateU)     \
   V(I16x8SubSaturateU)     \
   V(I16x8MinU)             \
   V(I16x8MaxU)             \
+  V(I16x8GtU)              \
+  V(I16x8GeU)              \
   V(I8x16Add)              \
   V(I8x16AddSaturateS)     \
   V(I8x16Sub)              \
@@ -2501,15 +2491,23 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16MaxS)             \
   V(I8x16Eq)               \
   V(I8x16Ne)               \
+  V(I8x16GtS)              \
+  V(I8x16GeS)              \
   V(I8x16AddSaturateU)     \
   V(I8x16SubSaturateU)     \
   V(I8x16MinU)             \
   V(I8x16MaxU)             \
+  V(I8x16GtU)              \
+  V(I8x16GeU)              \
   V(S128And)               \
   V(S128Or)                \
   V(S128Xor)
 
-#define SIMD_UNOP_LIST(V) V(S128Not)
+#define SIMD_UNOP_LIST(V) \
+  V(I32x4Neg)             \
+  V(I16x8Neg)             \
+  V(I8x16Neg)             \
+  V(S128Not)
 
 #define SIMD_SHIFT_OPCODES(V) \
   V(I32x4Shl)                 \
@@ -2518,6 +2516,11 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8Shl)                 \
   V(I16x8ShrS)                \
   V(I16x8ShrU)
+
+void InstructionSelector::VisitS128Zero(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64S128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
+}
 
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
@@ -2549,14 +2552,6 @@ SIMD_TYPES(VISIT_SIMD_EXTRACT_LANE)
 SIMD_TYPES(VISIT_SIMD_REPLACE_LANE)
 #undef VISIT_SIMD_REPLACE_LANE
 
-#define SIMD_VISIT_ZERO_OP(Name)                                            \
-  void InstructionSelector::Visit##Name(Node* node) {                       \
-    X64OperandGenerator g(this);                                            \
-    Emit(kX64S128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node)); \
-  }
-SIMD_ZERO_OP_LIST(SIMD_VISIT_ZERO_OP)
-#undef SIMD_VISIT_ZERO_OP
-
 #define VISIT_SIMD_SHIFT(Opcode)                                  \
   void InstructionSelector::Visit##Opcode(Node* node) {           \
     X64OperandGenerator g(this);                                  \
@@ -2585,15 +2580,12 @@ SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
 #undef VISIT_SIMD_BINOP
 
-#define SIMD_VISIT_SELECT_OP(format)                                       \
-  void InstructionSelector::VisitS##format##Select(Node* node) {           \
-    X64OperandGenerator g(this);                                           \
-    Emit(kX64S128Select, g.DefineSameAsFirst(node),                        \
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
-         g.UseRegister(node->InputAt(2)));                                 \
-  }
-SIMD_FORMAT_LIST(SIMD_VISIT_SELECT_OP)
-#undef SIMD_VISIT_SELECT_OP
+void InstructionSelector::VisitS128Select(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64S128Select, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       g.UseRegister(node->InputAt(2)));
+}
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
   UNREACHABLE();

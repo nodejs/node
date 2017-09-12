@@ -21,12 +21,15 @@ class IncrementalMarkingJob {
   class Task : public CancelableTask {
    public:
     explicit Task(Isolate* isolate, IncrementalMarkingJob* job)
-        : CancelableTask(isolate), job_(job) {}
+        : CancelableTask(isolate), isolate_(isolate), job_(job) {}
     static void Step(Heap* heap);
     // CancelableTask overrides.
     void RunInternal() override;
 
+    Isolate* isolate() { return isolate_; }
+
    private:
+    Isolate* isolate_;
     IncrementalMarkingJob* job_;
   };
 
@@ -35,8 +38,6 @@ class IncrementalMarkingJob {
   bool TaskPending() { return task_pending_; }
 
   void Start(Heap* heap);
-
-  void NotifyTask();
 
   void ScheduleTask(Heap* heap);
 

@@ -31,6 +31,7 @@ listener_complete = false;
 exception = false;
 break_count = 0;
 expected_return_value = 0;
+expected_source_position = [];
 debugger_source_position = 0;
 
 // Listener which expects to do four steps to reach returning from the function.
@@ -47,18 +48,13 @@ function listener(event, exec_state, event_data, data) {
             break;
           case 2:
             // Position now at the if statement.
-            assertEquals(debugger_source_position + 10,
+            assertEquals(expected_source_position.shift() + debugger_source_position,
                          exec_state.frame(0).sourcePosition());
             break;
           case 3:
             // Position now at either of the returns.
-            if (expected_return_value == 1) {
-              assertEquals(debugger_source_position + 19,
-                           exec_state.frame(0).sourcePosition());
-            } else {
-              assertEquals(debugger_source_position + 38,
-                           exec_state.frame(0).sourcePosition());
-            }
+            assertEquals(expected_source_position.shift() + debugger_source_position,
+                         exec_state.frame(0).sourcePosition());
             break;
           default:
             fail("Unexpected");
@@ -66,9 +62,8 @@ function listener(event, exec_state, event_data, data) {
         exec_state.prepareStep(Debug.StepAction.StepIn);
       } else {
         // Position at the end of the function.
-        assertEquals(debugger_source_position + 50,
-        exec_state.frame(0).sourcePosition());
-
+        assertEquals(expected_source_position.shift() + debugger_source_position,
+                     exec_state.frame(0).sourcePosition());
         // Just about to return from the function.
         assertEquals(expected_return_value,
                      exec_state.frame(0).returnValue().value());
@@ -95,6 +90,7 @@ function f(x) {debugger; if (x) { return 1; } else { return 2; } };
 // Call f expecting different return values.
 break_count = 0;
 expected_return_value = 2;
+expected_source_position = [10, 38, 47];
 listener_complete = false;
 f();
 assertFalse(exception, "exception in listener")
@@ -103,6 +99,7 @@ assertEquals(4, break_count);
 
 break_count = 0;
 expected_return_value = 1;
+expected_source_position = [10, 19, 28];
 listener_complete = false;
 f(true);
 assertFalse(exception, "exception in listener")
@@ -111,6 +108,7 @@ assertEquals(4, break_count);
 
 break_count = 0;
 expected_return_value = 2;
+expected_source_position = [10, 38, 47];
 listener_complete = false;
 f(false);
 assertFalse(exception, "exception in listener")

@@ -252,8 +252,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
 
 
 static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
-  return ComputeIntegerHash(static_cast<uint32_t>(id),
-                            v8::internal::kZeroHashSeed);
+  return ComputeIntegerHash(static_cast<uint32_t>(id));
 }
 
 

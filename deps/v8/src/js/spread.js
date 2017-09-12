@@ -4,7 +4,7 @@
 
 (function(global, utils) {
 
-'use strict';
+"use strict";
 
 // -------------------------------------------------------------------
 // Imports

@@ -305,12 +305,8 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(context, v8_str("f")).ToLocalChecked())));
 
-  // We shouldn't have deoptimization support. We want to recompile and
-  // verify that our feedback vector preserves information.
-  CHECK(!f->shared()->has_deoptimization_support());
-  Handle<FeedbackVector> feedback_vector(f->feedback_vector());
-
   // Verify that we gathered feedback.
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector());
   CHECK(!feedback_vector->is_empty());
   FeedbackSlot slot_for_a(0);
   Object* object = feedback_vector->Get(slot_for_a);
@@ -322,11 +318,6 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // Verify that the feedback is still "gathered" despite a recompilation
   // of the full code.
   CHECK(f->IsOptimized());
-  // If the baseline code is bytecode, then it will not have deoptimization
-  // support. The has_deoptimization_support() check is only required if the
-  // baseline code is from fullcodegen.
-  CHECK(f->shared()->has_deoptimization_support() || i::FLAG_ignition ||
-        i::FLAG_turbo);
   object = f->feedback_vector()->Get(slot_for_a);
   CHECK(object->IsWeakCell() &&
         WeakCell::cast(object)->value()->IsJSFunction());
@@ -604,9 +595,7 @@ TEST(CompileFunctionInContextHarmonyFunctionToString) {
       v8::Local<v8::String> result =
           fun->ToString(env.local()).ToLocalChecked();
       v8::Local<v8::String> expected = v8_str(
-          "function anonymous(event\n"
-          ") {\n"
-          "return event\n"
+          "function(event){return event\n"
           "}");
       CHECK(expected->Equals(env.local(), result).FromJust());
     }
@@ -630,9 +619,7 @@ TEST(CompileFunctionInContextHarmonyFunctionToString) {
       v8::Local<v8::String> result =
           fun->ToString(env.local()).ToLocalChecked();
       v8::Local<v8::String> expected = v8_str(
-          "function anonymous(\n"
-          ") {\n"
-          "return 0\n"
+          "function(){return 0\n"
           "}");
       CHECK(expected->Equals(env.local(), result).FromJust());
     }

@@ -12,7 +12,7 @@
             {
                 "domain": "Runtime",
                 "async": ["evaluate", "awaitPromise", "callFunctionOn", "runScript"],
-                "exported": ["StackTrace", "RemoteObject"]
+                "exported": ["StackTrace", "RemoteObject", "ExecutionContextId"]
             },
             {
                 "domain": "Debugger",

@@ -9,6 +9,7 @@ Running test: testPreciseCountBaseline
                 functions : [
                     [0] : {
                         functionName : fib
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 15
@@ -51,6 +52,7 @@ Running test: testPreciseCountCoverage
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -61,6 +63,7 @@ Running test: testPreciseCountCoverage
                     }
                     [1] : {
                         functionName : fib
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 15
@@ -71,6 +74,7 @@ Running test: testPreciseCountCoverage
                     }
                     [2] : {
                         functionName : is_optimized
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 0
@@ -81,6 +85,7 @@ Running test: testPreciseCountCoverage
                     }
                     [3] : {
                         functionName : iife
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -97,6 +102,7 @@ Running test: testPreciseCountCoverage
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -184,6 +190,7 @@ Running test: testBestEffortCoverageWithPreciseBinaryEnabled
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -194,6 +201,7 @@ Running test: testBestEffortCoverageWithPreciseBinaryEnabled
                     }
                     [1] : {
                         functionName : fib
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -204,6 +212,7 @@ Running test: testBestEffortCoverageWithPreciseBinaryEnabled
                     }
                     [2] : {
                         functionName : is_optimized
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 0
@@ -214,6 +223,7 @@ Running test: testBestEffortCoverageWithPreciseBinaryEnabled
                     }
                     [3] : {
                         functionName : iife
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -230,6 +240,7 @@ Running test: testBestEffortCoverageWithPreciseBinaryEnabled
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -253,6 +264,7 @@ Running test: testBestEffortCoverageWithPreciseBinaryEnabled
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -263,6 +275,7 @@ Running test: testBestEffortCoverageWithPreciseBinaryEnabled
                     }
                     [1] : {
                         functionName : fib
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -273,6 +286,7 @@ Running test: testBestEffortCoverageWithPreciseBinaryEnabled
                     }
                     [2] : {
                         functionName : is_optimized
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 0
@@ -283,6 +297,7 @@ Running test: testBestEffortCoverageWithPreciseBinaryEnabled
                     }
                     [3] : {
                         functionName : iife
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -299,6 +314,7 @@ Running test: testBestEffortCoverageWithPreciseBinaryEnabled
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -334,6 +350,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -344,6 +361,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                     }
                     [1] : {
                         functionName : fib
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -354,6 +372,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                     }
                     [2] : {
                         functionName : is_optimized
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 0
@@ -364,6 +383,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                     }
                     [3] : {
                         functionName : iife
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -380,6 +400,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -403,6 +424,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -413,6 +435,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                     }
                     [1] : {
                         functionName : fib
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -423,6 +446,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                     }
                     [2] : {
                         functionName : is_optimized
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 0
@@ -433,6 +457,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                     }
                     [3] : {
                         functionName : iife
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -449,6 +474,7 @@ Running test: testBestEffortCoverageWithPreciseCountEnabled
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -482,6 +508,7 @@ Running test: testEnablePreciseCountCoverageAtPause
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -492,6 +519,7 @@ Running test: testEnablePreciseCountCoverageAtPause
                     }
                     [1] : {
                         functionName : g
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -502,6 +530,7 @@ Running test: testEnablePreciseCountCoverageAtPause
                     }
                     [2] : {
                         functionName : f
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 4
@@ -512,6 +541,7 @@ Running test: testEnablePreciseCountCoverageAtPause
                     }
                     [3] : {
                         functionName : h
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 0
@@ -528,6 +558,7 @@ Running test: testEnablePreciseCountCoverageAtPause
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -563,6 +594,7 @@ Running test: testPreciseBinaryCoverage
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -573,6 +605,7 @@ Running test: testPreciseBinaryCoverage
                     }
                     [1] : {
                         functionName : fib
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -583,6 +616,7 @@ Running test: testPreciseBinaryCoverage
                     }
                     [2] : {
                         functionName : is_optimized
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 0
@@ -593,6 +627,7 @@ Running test: testPreciseBinaryCoverage
                     }
                     [3] : {
                         functionName : iife
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -644,6 +679,7 @@ Running test: testPreciseBinaryCoverage
                 functions : [
                     [0] : {
                         functionName : is_optimized
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -660,6 +696,7 @@ Running test: testPreciseBinaryCoverage
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -676,6 +713,7 @@ Running test: testPreciseBinaryCoverage
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -718,6 +756,7 @@ Running test: testPreciseCountCoveragePartial
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -728,6 +767,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [1] : {
                         functionName : outer
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -738,6 +778,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [2] : {
                         functionName : nested_0
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -748,6 +789,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [3] : {
                         functionName : nested_1
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -758,6 +800,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [4] : {
                         functionName : nested_2
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -768,6 +811,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [5] : {
                         functionName : nested_3
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -778,6 +822,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [6] : {
                         functionName : nested_4
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 0
@@ -801,6 +846,7 @@ Running test: testPreciseCountCoveragePartial
                 functions : [
                     [0] : {
                         functionName : nested_1
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1
@@ -811,6 +857,7 @@ Running test: testPreciseCountCoveragePartial
                     }
                     [1] : {
                         functionName : nested_2
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 0
@@ -827,6 +874,7 @@ Running test: testPreciseCountCoveragePartial
                 functions : [
                     [0] : {
                         functionName : 
+                        isBlockCoverage : false
                         ranges : [
                             [0] : {
                                 count : 1

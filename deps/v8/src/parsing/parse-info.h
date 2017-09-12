@@ -31,6 +31,7 @@ class FunctionLiteral;
 class RuntimeCallStats;
 class ScriptData;
 class SharedFunctionInfo;
+class SourceRangeMap;
 class UnicodeCache;
 class Utf16CharacterStream;
 class Zone;
@@ -79,8 +80,6 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
                 set_is_named_expression)
   FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
   FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
-  FLAG_ACCESSOR(kTailCallEliminationEnabled, is_tail_call_elimination_enabled,
-                set_tail_call_elimination_enabled)
 
 #undef FLAG_ACCESSOR
 
@@ -119,7 +118,9 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
   ScriptData** cached_data() const { return cached_data_; }
   void set_cached_data(ScriptData** cached_data) { cached_data_ = cached_data; }
 
-  PreParsedScopeData* preparsed_scope_data() { return &preparsed_scope_data_; }
+  ConsumedPreParsedScopeData* consumed_preparsed_scope_data() {
+    return &consumed_preparsed_scope_data_;
+  }
 
   ScriptCompiler::CompileOptions compile_options() const {
     return compile_options_;
@@ -205,6 +206,11 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
     runtime_call_stats_ = runtime_call_stats;
   }
 
+  SourceRangeMap* source_range_map() const { return source_range_map_; }
+  void set_source_range_map(SourceRangeMap* source_range_map) {
+    source_range_map_ = source_range_map;
+  }
+
   // Getters for individual compiler hints.
   bool is_declaration() const;
   FunctionKind function_kind() const;
@@ -272,8 +278,7 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
     kIsNamedExpression = 1 << 8,
     kDebug = 1 << 9,
     kSerializing = 1 << 10,
-    kTailCallEliminationEnabled = 1 << 11,
-    kAstValueFactoryOwned = 1 << 12,
+    kAstValueFactoryOwned = 1 << 11,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
@@ -303,11 +308,12 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   ScriptData** cached_data_;  // used if available, populated if requested.
-  PreParsedScopeData preparsed_scope_data_;
+  ConsumedPreParsedScopeData consumed_preparsed_scope_data_;
   AstValueFactory* ast_value_factory_;  // used if available, otherwise new.
   const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;
   RuntimeCallStats* runtime_call_stats_;
+  SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;

@@ -78,18 +78,19 @@ enum BranchDelaySlot {
 enum LiFlags {
   // If the constant value can be represented in just 16 bits, then
   // optimize the li to use a single instruction, rather than lui/ori/dsll
-  // sequence.
+  // sequence. A number of other optimizations that emits less than
+  // maximum number of instructions exists.
   OPTIMIZE_SIZE = 0,
-  // Always use 6 instructions (lui/ori/dsll sequence), even if the constant
+  // Always use 6 instructions (lui/ori/dsll sequence) for release 2 or 4
+  // instructions for release 6 (lui/ori/dahi/dati), even if the constant
   // could be loaded with just one, so that this value is patchable later.
   CONSTANT_SIZE = 1,
   // For address loads only 4 instruction are required. Used to mark
   // constant load that will be used as address without relocation
   // information. It ensures predictable code size, so specific sites
   // in code are patchable.
-  ADDRESS_LOAD  = 2
+  ADDRESS_LOAD = 2
 };
-
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
@@ -163,14 +164,68 @@ inline MemOperand CFunctionArgumentOperand(int index) {
   return MemOperand(sp, offset);
 }
 
-
-// MacroAssembler implements a collection of frequently used macros.
-class MacroAssembler: public Assembler {
+class TurboAssembler : public Assembler {
  public:
-  MacroAssembler(Isolate* isolate, void* buffer, int size,
-                 CodeObjectRequired create_code_object);
+  TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
+                 CodeObjectRequired create_code_object)
+      : Assembler(isolate, buffer, buffer_size),
+        isolate_(isolate),
+        has_double_zero_reg_set_(false) {
+    if (create_code_object == CodeObjectRequired::kYes) {
+      code_object_ =
+          Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
+    }
+  }
+
+  void set_has_frame(bool value) { has_frame_ = value; }
+  bool has_frame() const { return has_frame_; }
 
   Isolate* isolate() const { return isolate_; }
+
+  Handle<HeapObject> CodeObject() {
+    DCHECK(!code_object_.is_null());
+    return code_object_;
+  }
+
+  // Activation support.
+  void EnterFrame(StackFrame::Type type);
+  void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg) {
+    // Out-of-line constant pool not implemented on mips.
+    UNREACHABLE();
+  }
+  void LeaveFrame(StackFrame::Type type);
+
+  // Generates function and stub prologue code.
+  void StubPrologue(StackFrame::Type type);
+  void Prologue(bool code_pre_aging);
+
+  void InitializeRootRegister() {
+    ExternalReference roots_array_start =
+        ExternalReference::roots_array_start(isolate());
+    li(kRootRegister, Operand(roots_array_start));
+  }
+
+  // Jump unconditionally to given label.
+  // We NEED a nop in the branch delay slot, as it used by v8, for example in
+  // CodeGenerator::ProcessDeferred().
+  // Currently the branch delay slot is filled by the MacroAssembler.
+  // Use rather b(Label) for code generation.
+  void jmp(Label* L) { Branch(L); }
+
+  // -------------------------------------------------------------------------
+  // Debugging.
+
+  // Calls Abort(msg) if the condition cc is not satisfied.
+  // Use --debug_code to enable.
+  void Assert(Condition cc, BailoutReason reason, Register rs, Operand rt);
+
+  // Like Assert(), but always enabled.
+  void Check(Condition cc, BailoutReason reason, Register rs, Operand rt);
+
+  // Print a message to stdout and abort execution.
+  void Abort(BailoutReason msg);
+
+  inline bool AllowThisStubCall(CodeStub* stub);
 
   // Arguments macros.
 #define COND_TYPED_ARGS Condition cond, Register r1, const Operand& r2
@@ -203,6 +258,56 @@ class MacroAssembler: public Assembler {
 #undef COND_TYPED_ARGS
 #undef COND_ARGS
 
+  // Wrapper functions for the different cmp/branch types.
+  inline void BranchF32(Label* target, Label* nan, Condition cc,
+                        FPURegister cmp1, FPURegister cmp2,
+                        BranchDelaySlot bd = PROTECT) {
+    BranchFCommon(S, target, nan, cc, cmp1, cmp2, bd);
+  }
+
+  inline void BranchF64(Label* target, Label* nan, Condition cc,
+                        FPURegister cmp1, FPURegister cmp2,
+                        BranchDelaySlot bd = PROTECT) {
+    BranchFCommon(D, target, nan, cc, cmp1, cmp2, bd);
+  }
+
+  // Alternate (inline) version for better readability with USE_DELAY_SLOT.
+  inline void BranchF64(BranchDelaySlot bd, Label* target, Label* nan,
+                        Condition cc, FPURegister cmp1, FPURegister cmp2) {
+    BranchF64(target, nan, cc, cmp1, cmp2, bd);
+  }
+
+  inline void BranchF32(BranchDelaySlot bd, Label* target, Label* nan,
+                        Condition cc, FPURegister cmp1, FPURegister cmp2) {
+    BranchF32(target, nan, cc, cmp1, cmp2, bd);
+  }
+
+  // Alias functions for backward compatibility.
+  inline void BranchF(Label* target, Label* nan, Condition cc, FPURegister cmp1,
+                      FPURegister cmp2, BranchDelaySlot bd = PROTECT) {
+    BranchF64(target, nan, cc, cmp1, cmp2, bd);
+  }
+
+  inline void BranchF(BranchDelaySlot bd, Label* target, Label* nan,
+                      Condition cc, FPURegister cmp1, FPURegister cmp2) {
+    BranchF64(bd, target, nan, cc, cmp1, cmp2);
+  }
+
+  void BranchMSA(Label* target, MSABranchDF df, MSABranchCondition cond,
+                 MSARegister wt, BranchDelaySlot bd = PROTECT);
+
+  void Branch(Label* L, Condition cond, Register rs, Heap::RootListIndex index,
+              BranchDelaySlot bdslot = PROTECT);
+
+  static int InstrCountForLi64Bit(int64_t value);
+  inline void LiLower32BitHelper(Register rd, Operand j);
+  void li_optimized(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
+  // Load int32 in the rd register.
+  void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
+  inline void li(Register rd, int64_t j, LiFlags mode = OPTIMIZE_SIZE) {
+    li(rd, Operand(j), mode);
+  }
+  void li(Register dst, Handle<HeapObject> value, LiFlags mode = OPTIMIZE_SIZE);
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
 #define COND_ARGS Condition cond = al, Register rs = zero_reg, \
@@ -218,50 +323,15 @@ class MacroAssembler: public Assembler {
   void Call(Address target, RelocInfo::Mode rmode, COND_ARGS);
   int CallSize(Handle<Code> code,
                RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-               TypeFeedbackId ast_id = TypeFeedbackId::None(),
                COND_ARGS);
   void Call(Handle<Code> code,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            TypeFeedbackId ast_id = TypeFeedbackId::None(),
             COND_ARGS);
+  void Call(Label* target);
   void Ret(COND_ARGS);
   inline void Ret(BranchDelaySlot bd, Condition cond = al,
     Register rs = zero_reg, const Operand& rt = Operand(zero_reg)) {
     Ret(cond, rs, rt, bd);
-  }
-
-  bool IsNear(Label* L, Condition cond, int rs_reg);
-
-  void Branch(Label* L,
-              Condition cond,
-              Register rs,
-              Heap::RootListIndex index,
-              BranchDelaySlot bdslot = PROTECT);
-
-// Number of instructions needed for calculation of switch table entry address
-#ifdef _MIPS_ARCH_MIPS64R6
-  static const int kSwitchTablePrologueSize = 6;
-#else
-  static const int kSwitchTablePrologueSize = 11;
-#endif
-
-  // GetLabelFunction must be lambda '[](size_t index) -> Label*' or a
-  // functor/function with 'Label *func(size_t index)' declaration.
-  template <typename Func>
-  void GenerateSwitchTable(Register index, size_t case_count,
-                           Func GetLabelFunction);
-#undef COND_ARGS
-
-  // Emit code that loads |parameter_index|'th parameter from the stack to
-  // the register according to the CallInterfaceDescriptor definition.
-  // |sp_to_caller_sp_offset_in_words| specifies the number of words pushed
-  // below the caller's sp.
-  template <class Descriptor>
-  void LoadParameterFromStack(
-      Register reg, typename Descriptor::ParameterIndices parameter_index,
-      int sp_to_ra_offset_in_words = 0) {
-    DCHECK(Descriptor::kPassLastArgsOnStack);
-    UNIMPLEMENTED();
   }
 
   // Emit code to discard a non-negative number of pointer-sized elements
@@ -280,30 +350,338 @@ class MacroAssembler: public Assembler {
                   Register reg,
                   const Operand& op);
 
-  // Swap two registers.  If the scratch register is omitted then a slightly
-  // less efficient form using xor instead of mov is emitted.
-  void Swap(Register reg1, Register reg2, Register scratch = no_reg);
+  void Ld(Register rd, const MemOperand& rs);
+  void Sd(Register rd, const MemOperand& rs);
 
-  void Call(Label* target);
+  void push(Register src) {
+    Daddu(sp, sp, Operand(-kPointerSize));
+    Sd(src, MemOperand(sp, 0));
+  }
+  void Push(Register src) { push(src); }
+  void Push(Handle<HeapObject> handle);
+  void Push(Smi* smi);
 
-  inline void Move(Register dst, Handle<Object> handle) { li(dst, handle); }
+  // Push two registers. Pushes leftmost register first (to highest address).
+  void Push(Register src1, Register src2) {
+    Dsubu(sp, sp, Operand(2 * kPointerSize));
+    Sd(src1, MemOperand(sp, 1 * kPointerSize));
+    Sd(src2, MemOperand(sp, 0 * kPointerSize));
+  }
+
+  // Push three registers. Pushes leftmost register first (to highest address).
+  void Push(Register src1, Register src2, Register src3) {
+    Dsubu(sp, sp, Operand(3 * kPointerSize));
+    Sd(src1, MemOperand(sp, 2 * kPointerSize));
+    Sd(src2, MemOperand(sp, 1 * kPointerSize));
+    Sd(src3, MemOperand(sp, 0 * kPointerSize));
+  }
+
+  // Push four registers. Pushes leftmost register first (to highest address).
+  void Push(Register src1, Register src2, Register src3, Register src4) {
+    Dsubu(sp, sp, Operand(4 * kPointerSize));
+    Sd(src1, MemOperand(sp, 3 * kPointerSize));
+    Sd(src2, MemOperand(sp, 2 * kPointerSize));
+    Sd(src3, MemOperand(sp, 1 * kPointerSize));
+    Sd(src4, MemOperand(sp, 0 * kPointerSize));
+  }
+
+  // Push five registers. Pushes leftmost register first (to highest address).
+  void Push(Register src1, Register src2, Register src3, Register src4,
+            Register src5) {
+    Dsubu(sp, sp, Operand(5 * kPointerSize));
+    Sd(src1, MemOperand(sp, 4 * kPointerSize));
+    Sd(src2, MemOperand(sp, 3 * kPointerSize));
+    Sd(src3, MemOperand(sp, 2 * kPointerSize));
+    Sd(src4, MemOperand(sp, 1 * kPointerSize));
+    Sd(src5, MemOperand(sp, 0 * kPointerSize));
+  }
+
+  void Push(Register src, Condition cond, Register tst1, Register tst2) {
+    // Since we don't have conditional execution we use a Branch.
+    Branch(3, cond, tst1, Operand(tst2));
+    Dsubu(sp, sp, Operand(kPointerSize));
+    Sd(src, MemOperand(sp, 0));
+  }
+
+  // Push multiple registers on the stack.
+  // Registers are saved in numerical order, with higher numbered registers
+  // saved in higher memory addresses.
+  void MultiPush(RegList regs);
+  void MultiPushFPU(RegList regs);
+
+  void pop(Register dst) {
+    Ld(dst, MemOperand(sp, 0));
+    Daddu(sp, sp, Operand(kPointerSize));
+  }
+  void Pop(Register dst) { pop(dst); }
+
+  // Pop two registers. Pops rightmost register first (from lower address).
+  void Pop(Register src1, Register src2) {
+    DCHECK(!src1.is(src2));
+    Ld(src2, MemOperand(sp, 0 * kPointerSize));
+    Ld(src1, MemOperand(sp, 1 * kPointerSize));
+    Daddu(sp, sp, 2 * kPointerSize);
+  }
+
+  // Pop three registers. Pops rightmost register first (from lower address).
+  void Pop(Register src1, Register src2, Register src3) {
+    Ld(src3, MemOperand(sp, 0 * kPointerSize));
+    Ld(src2, MemOperand(sp, 1 * kPointerSize));
+    Ld(src1, MemOperand(sp, 2 * kPointerSize));
+    Daddu(sp, sp, 3 * kPointerSize);
+  }
+
+  void Pop(uint32_t count = 1) { Daddu(sp, sp, Operand(count * kPointerSize)); }
+
+  // Pops multiple values from the stack and load them in the
+  // registers specified in regs. Pop order is the opposite as in MultiPush.
+  void MultiPop(RegList regs);
+  void MultiPopFPU(RegList regs);
+
+#define DEFINE_INSTRUCTION(instr)                          \
+  void instr(Register rd, Register rs, const Operand& rt); \
+  void instr(Register rd, Register rs, Register rt) {      \
+    instr(rd, rs, Operand(rt));                            \
+  }                                                        \
+  void instr(Register rs, Register rt, int32_t j) { instr(rs, rt, Operand(j)); }
+
+#define DEFINE_INSTRUCTION2(instr)                                 \
+  void instr(Register rs, const Operand& rt);                      \
+  void instr(Register rs, Register rt) { instr(rs, Operand(rt)); } \
+  void instr(Register rs, int32_t j) { instr(rs, Operand(j)); }
+
+  DEFINE_INSTRUCTION(Addu);
+  DEFINE_INSTRUCTION(Daddu);
+  DEFINE_INSTRUCTION(Div);
+  DEFINE_INSTRUCTION(Divu);
+  DEFINE_INSTRUCTION(Ddivu);
+  DEFINE_INSTRUCTION(Mod);
+  DEFINE_INSTRUCTION(Modu);
+  DEFINE_INSTRUCTION(Ddiv);
+  DEFINE_INSTRUCTION(Subu);
+  DEFINE_INSTRUCTION(Dsubu);
+  DEFINE_INSTRUCTION(Dmod);
+  DEFINE_INSTRUCTION(Dmodu);
+  DEFINE_INSTRUCTION(Mul);
+  DEFINE_INSTRUCTION(Mulh);
+  DEFINE_INSTRUCTION(Mulhu);
+  DEFINE_INSTRUCTION(Dmul);
+  DEFINE_INSTRUCTION(Dmulh);
+  DEFINE_INSTRUCTION2(Mult);
+  DEFINE_INSTRUCTION2(Dmult);
+  DEFINE_INSTRUCTION2(Multu);
+  DEFINE_INSTRUCTION2(Dmultu);
+  DEFINE_INSTRUCTION2(Div);
+  DEFINE_INSTRUCTION2(Ddiv);
+  DEFINE_INSTRUCTION2(Divu);
+  DEFINE_INSTRUCTION2(Ddivu);
+
+  DEFINE_INSTRUCTION(And);
+  DEFINE_INSTRUCTION(Or);
+  DEFINE_INSTRUCTION(Xor);
+  DEFINE_INSTRUCTION(Nor);
+  DEFINE_INSTRUCTION2(Neg);
+
+  DEFINE_INSTRUCTION(Slt);
+  DEFINE_INSTRUCTION(Sltu);
+
+  // MIPS32 R2 instruction macro.
+  DEFINE_INSTRUCTION(Ror);
+  DEFINE_INSTRUCTION(Dror);
+
+#undef DEFINE_INSTRUCTION
+#undef DEFINE_INSTRUCTION2
+#undef DEFINE_INSTRUCTION3
+
+  void SmiUntag(Register dst, Register src) {
+    if (SmiValuesAre32Bits()) {
+      STATIC_ASSERT(kSmiShift == 32);
+      dsra32(dst, src, 0);
+    } else {
+      sra(dst, src, kSmiTagSize);
+    }
+  }
+
+  void SmiUntag(Register reg) { SmiUntag(reg, reg); }
+
+  // Removes current frame and its arguments from the stack preserving
+  // the arguments and a return address pushed to the stack for the next call.
+  // Both |callee_args_count| and |caller_args_count_reg| do not include
+  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
+  // is trashed.
+  void PrepareForTailCall(const ParameterCount& callee_args_count,
+                          Register caller_args_count_reg, Register scratch0,
+                          Register scratch1);
+
+  int CalculateStackPassedWords(int num_reg_arguments,
+                                int num_double_arguments);
+
+  // Before calling a C-function from generated code, align arguments on stack
+  // and add space for the four mips argument slots.
+  // After aligning the frame, non-register arguments must be stored on the
+  // stack, after the argument-slots using helper: CFunctionArgumentOperand().
+  // The argument count assumes all arguments are word sized.
+  // Some compilers/platforms require the stack to be aligned when calling
+  // C++ code.
+  // Needs a scratch register to do some arithmetic. This register will be
+  // trashed.
+  void PrepareCallCFunction(int num_reg_arguments, int num_double_registers,
+                            Register scratch);
+  void PrepareCallCFunction(int num_reg_arguments, Register scratch);
+
+  // Arguments 1-4 are placed in registers a0 thru a3 respectively.
+  // Arguments 5..n are stored to stack using following:
+  //  Sw(a4, CFunctionArgumentOperand(5));
+
+  // Calls a C function and cleans up the space for arguments allocated
+  // by PrepareCallCFunction. The called function is not allowed to trigger a
+  // garbage collection, since that might move the code and invalidate the
+  // return address (unless this is somehow accounted for by the called
+  // function).
+  void CallCFunction(ExternalReference function, int num_arguments);
+  void CallCFunction(Register function, int num_arguments);
+  void CallCFunction(ExternalReference function, int num_reg_arguments,
+                     int num_double_arguments);
+  void CallCFunction(Register function, int num_reg_arguments,
+                     int num_double_arguments);
+  void MovFromFloatResult(DoubleRegister dst);
+  void MovFromFloatParameter(DoubleRegister dst);
+
+  // There are two ways of passing double arguments on MIPS, depending on
+  // whether soft or hard floating point ABI is used. These functions
+  // abstract parameter passing for the three different ways we call
+  // C functions from generated code.
+  void MovToFloatParameter(DoubleRegister src);
+  void MovToFloatParameters(DoubleRegister src1, DoubleRegister src2);
+  void MovToFloatResult(DoubleRegister src);
+
+  // See comments at the beginning of CEntryStub::Generate.
+  inline void PrepareCEntryArgs(int num_args) { li(a0, num_args); }
+  inline void PrepareCEntryFunction(const ExternalReference& ref) {
+    li(a1, Operand(ref));
+  }
+
+  void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
+                     Label* condition_met);
+
+  void CallStubDelayed(CodeStub* stub, COND_ARGS);
+#undef COND_ARGS
+
+  void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                          SaveFPRegsMode save_doubles = kDontSaveFPRegs,
+                          BranchDelaySlot bd = PROTECT);
+
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
+  // succeeds, otherwise falls through if result is saturated. On return
+  // 'result' either holds answer, or is clobbered on fall through.
+  //
+  // Only public for the test code in test-code-stubs-arm.cc.
+  void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
+                                  Label* done);
+
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
+  // Exits with 'result' holding the answer.
+  void TruncateDoubleToIDelayed(Zone* zone, Register result,
+                                DoubleRegister double_input);
+
+  // Conditional move.
+  void Movz(Register rd, Register rs, Register rt);
+  void Movn(Register rd, Register rs, Register rt);
+  void Movt(Register rd, Register rs, uint16_t cc = 0);
+  void Movf(Register rd, Register rs, uint16_t cc = 0);
+
+  void Clz(Register rd, Register rs);
+
+  // MIPS64 R2 instruction macro.
+  void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Dins(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Neg_s(FPURegister fd, FPURegister fs);
+  void Neg_d(FPURegister fd, FPURegister fs);
+
+  // MIPS64 R6 instruction macros.
+  void Bovc(Register rt, Register rs, Label* L);
+  void Bnvc(Register rt, Register rs, Label* L);
+
+  // Convert single to unsigned word.
+  void Trunc_uw_s(FPURegister fd, FPURegister fs, FPURegister scratch);
+  void Trunc_uw_s(FPURegister fd, Register rs, FPURegister scratch);
+
+  // Change endianness
+  void ByteSwapSigned(Register dest, Register src, int operand_size);
+  void ByteSwapUnsigned(Register dest, Register src, int operand_size);
+
+  void Ulh(Register rd, const MemOperand& rs);
+  void Ulhu(Register rd, const MemOperand& rs);
+  void Ush(Register rd, const MemOperand& rs, Register scratch);
+
+  void Ulw(Register rd, const MemOperand& rs);
+  void Ulwu(Register rd, const MemOperand& rs);
+  void Usw(Register rd, const MemOperand& rs);
+
+  void Uld(Register rd, const MemOperand& rs);
+  void Usd(Register rd, const MemOperand& rs);
+
+  void Ulwc1(FPURegister fd, const MemOperand& rs, Register scratch);
+  void Uswc1(FPURegister fd, const MemOperand& rs, Register scratch);
+
+  void Uldc1(FPURegister fd, const MemOperand& rs, Register scratch);
+  void Usdc1(FPURegister fd, const MemOperand& rs, Register scratch);
+
+  void Lb(Register rd, const MemOperand& rs);
+  void Lbu(Register rd, const MemOperand& rs);
+  void Sb(Register rd, const MemOperand& rs);
+
+  void Lh(Register rd, const MemOperand& rs);
+  void Lhu(Register rd, const MemOperand& rs);
+  void Sh(Register rd, const MemOperand& rs);
+
+  void Lw(Register rd, const MemOperand& rs);
+  void Lwu(Register rd, const MemOperand& rs);
+  void Sw(Register rd, const MemOperand& rs);
+
+  void Lwc1(FPURegister fd, const MemOperand& src);
+  void Swc1(FPURegister fs, const MemOperand& dst);
+
+  void Ldc1(FPURegister fd, const MemOperand& src);
+  void Sdc1(FPURegister fs, const MemOperand& dst);
+
+  // Perform a floating-point min or max operation with the
+  // (IEEE-754-compatible) semantics of MIPS32's Release 6 MIN.fmt/MAX.fmt.
+  // Some cases, typically NaNs or +/-0.0, are expected to be rare and are
+  // handled in out-of-line code. The specific behaviour depends on supported
+  // instructions.
+  //
+  // These functions assume (and assert) that !src1.is(src2). It is permitted
+  // for the result to alias either input register.
+  void Float32Max(FPURegister dst, FPURegister src1, FPURegister src2,
+                  Label* out_of_line);
+  void Float32Min(FPURegister dst, FPURegister src1, FPURegister src2,
+                  Label* out_of_line);
+  void Float64Max(FPURegister dst, FPURegister src1, FPURegister src2,
+                  Label* out_of_line);
+  void Float64Min(FPURegister dst, FPURegister src1, FPURegister src2,
+                  Label* out_of_line);
+
+  // Generate out-of-line cases for the macros above.
+  void Float32MaxOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float32MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float64MaxOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float64MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
+
+  bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
+
+  void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
+
+  inline void Move(Register dst, Handle<HeapObject> handle) { li(dst, handle); }
   inline void Move(Register dst, Smi* smi) { li(dst, Operand(smi)); }
 
   inline void Move(Register dst, Register src) {
     if (!dst.is(src)) {
       mov(dst, src);
-    }
-  }
-
-  inline void Move_d(FPURegister dst, FPURegister src) {
-    if (!dst.is(src)) {
-      mov_d(dst, src);
-    }
-  }
-
-  inline void Move_s(FPURegister dst, FPURegister src) {
-    if (!dst.is(src)) {
-      mov_s(dst, src);
     }
   }
 
@@ -337,25 +715,227 @@ class MacroAssembler: public Assembler {
     mthc1(src_high, dst);
   }
 
+  inline void Move_d(FPURegister dst, FPURegister src) {
+    if (!dst.is(src)) {
+      mov_d(dst, src);
+    }
+  }
+
+  inline void Move_s(FPURegister dst, FPURegister src) {
+    if (!dst.is(src)) {
+      mov_s(dst, src);
+    }
+  }
+
   void Move(FPURegister dst, float imm);
   void Move(FPURegister dst, double imm);
 
-  // Conditional move.
-  void Movz(Register rd, Register rs, Register rt);
-  void Movn(Register rd, Register rs, Register rt);
-  void Movt(Register rd, Register rs, uint16_t cc = 0);
-  void Movf(Register rd, Register rs, uint16_t cc = 0);
-
-  void Clz(Register rd, Register rs);
-
-  // Jump unconditionally to given label.
-  // We NEED a nop in the branch delay slot, as it used by v8, for example in
-  // CodeGenerator::ProcessDeferred().
-  // Currently the branch delay slot is filled by the MacroAssembler.
-  // Use rather b(Label) for code generation.
-  void jmp(Label* L) {
-    Branch(L);
+  inline void MulBranchOvf(Register dst, Register left, const Operand& right,
+                           Label* overflow_label, Register scratch = at) {
+    MulBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
   }
+
+  inline void MulBranchNoOvf(Register dst, Register left, const Operand& right,
+                             Label* no_overflow_label, Register scratch = at) {
+    MulBranchOvf(dst, left, right, nullptr, no_overflow_label, scratch);
+  }
+
+  void MulBranchOvf(Register dst, Register left, const Operand& right,
+                    Label* overflow_label, Label* no_overflow_label,
+                    Register scratch = at);
+
+  void MulBranchOvf(Register dst, Register left, Register right,
+                    Label* overflow_label, Label* no_overflow_label,
+                    Register scratch = at);
+
+  inline void DaddBranchOvf(Register dst, Register left, const Operand& right,
+                            Label* overflow_label, Register scratch = at) {
+    DaddBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
+  }
+
+  inline void DaddBranchNoOvf(Register dst, Register left, const Operand& right,
+                              Label* no_overflow_label, Register scratch = at) {
+    DaddBranchOvf(dst, left, right, nullptr, no_overflow_label, scratch);
+  }
+
+  void DaddBranchOvf(Register dst, Register left, const Operand& right,
+                     Label* overflow_label, Label* no_overflow_label,
+                     Register scratch = at);
+
+  void DaddBranchOvf(Register dst, Register left, Register right,
+                     Label* overflow_label, Label* no_overflow_label,
+                     Register scratch = at);
+
+  inline void DsubBranchOvf(Register dst, Register left, const Operand& right,
+                            Label* overflow_label, Register scratch = at) {
+    DsubBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
+  }
+
+  inline void DsubBranchNoOvf(Register dst, Register left, const Operand& right,
+                              Label* no_overflow_label, Register scratch = at) {
+    DsubBranchOvf(dst, left, right, nullptr, no_overflow_label, scratch);
+  }
+
+  void DsubBranchOvf(Register dst, Register left, const Operand& right,
+                     Label* overflow_label, Label* no_overflow_label,
+                     Register scratch = at);
+
+  void DsubBranchOvf(Register dst, Register left, Register right,
+                     Label* overflow_label, Label* no_overflow_label,
+                     Register scratch = at);
+
+// Number of instructions needed for calculation of switch table entry address
+#ifdef _MIPS_ARCH_MIPS64R6
+  static const int kSwitchTablePrologueSize = 6;
+#else
+  static const int kSwitchTablePrologueSize = 11;
+#endif
+
+  // GetLabelFunction must be lambda '[](size_t index) -> Label*' or a
+  // functor/function with 'Label *func(size_t index)' declaration.
+  template <typename Func>
+  void GenerateSwitchTable(Register index, size_t case_count,
+                           Func GetLabelFunction);
+
+  // Load an object from the root table.
+  void LoadRoot(Register destination, Heap::RootListIndex index);
+  void LoadRoot(Register destination, Heap::RootListIndex index, Condition cond,
+                Register src1, const Operand& src2);
+
+  // If the value is a NaN, canonicalize the value else, do nothing.
+  void FPUCanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
+
+  // ---------------------------------------------------------------------------
+  // FPU macros. These do not handle special cases like NaN or +- inf.
+
+  // Convert unsigned word to double.
+  void Cvt_d_uw(FPURegister fd, FPURegister fs);
+  void Cvt_d_uw(FPURegister fd, Register rs);
+
+  // Convert unsigned long to double.
+  void Cvt_d_ul(FPURegister fd, FPURegister fs);
+  void Cvt_d_ul(FPURegister fd, Register rs);
+
+  // Convert unsigned word to float.
+  void Cvt_s_uw(FPURegister fd, FPURegister fs);
+  void Cvt_s_uw(FPURegister fd, Register rs);
+
+  // Convert unsigned long to float.
+  void Cvt_s_ul(FPURegister fd, FPURegister fs);
+  void Cvt_s_ul(FPURegister fd, Register rs);
+
+  // Convert double to unsigned word.
+  void Trunc_uw_d(FPURegister fd, FPURegister fs, FPURegister scratch);
+  void Trunc_uw_d(FPURegister fd, Register rs, FPURegister scratch);
+
+  // Convert double to unsigned long.
+  void Trunc_ul_d(FPURegister fd, FPURegister fs, FPURegister scratch,
+                  Register result = no_reg);
+  void Trunc_ul_d(FPURegister fd, Register rs, FPURegister scratch,
+                  Register result = no_reg);
+
+  // Convert single to unsigned long.
+  void Trunc_ul_s(FPURegister fd, FPURegister fs, FPURegister scratch,
+                  Register result = no_reg);
+  void Trunc_ul_s(FPURegister fd, Register rs, FPURegister scratch,
+                  Register result = no_reg);
+
+  // Jump the register contains a smi.
+  void JumpIfSmi(Register value, Label* smi_label, Register scratch = at,
+                 BranchDelaySlot bd = PROTECT);
+
+  // Push a standard frame, consisting of ra, fp, context and JS function.
+  void PushStandardFrame(Register function_reg);
+
+  // Get the actual activation frame alignment for target environment.
+  static int ActivationFrameAlignment();
+
+  // Load Scaled Address instructions. Parameter sa (shift argument) must be
+  // between [1, 31] (inclusive). On pre-r6 architectures the scratch register
+  // may be clobbered.
+  void Lsa(Register rd, Register rs, Register rt, uint8_t sa,
+           Register scratch = at);
+  void Dlsa(Register rd, Register rs, Register rt, uint8_t sa,
+            Register scratch = at);
+
+ protected:
+  inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
+  inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);
+
+ private:
+  bool has_frame_ = false;
+  Isolate* const isolate_;
+  // This handle will be patched with the code object on installation.
+  Handle<HeapObject> code_object_;
+  bool has_double_zero_reg_set_;
+
+  void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
+                      MSARegister wt, BranchDelaySlot bd = PROTECT);
+
+  void CallCFunctionHelper(Register function, int num_reg_arguments,
+                           int num_double_arguments);
+
+  // Common implementation of BranchF functions for the different formats.
+  void BranchFCommon(SecondaryField sizeField, Label* target, Label* nan,
+                     Condition cc, FPURegister cmp1, FPURegister cmp2,
+                     BranchDelaySlot bd = PROTECT);
+
+  void BranchShortF(SecondaryField sizeField, Label* target, Condition cc,
+                    FPURegister cmp1, FPURegister cmp2,
+                    BranchDelaySlot bd = PROTECT);
+
+  void BranchShortHelperR6(int32_t offset, Label* L);
+  void BranchShortHelper(int16_t offset, Label* L, BranchDelaySlot bdslot);
+  bool BranchShortHelperR6(int32_t offset, Label* L, Condition cond,
+                           Register rs, const Operand& rt);
+  bool BranchShortHelper(int16_t offset, Label* L, Condition cond, Register rs,
+                         const Operand& rt, BranchDelaySlot bdslot);
+  bool BranchShortCheck(int32_t offset, Label* L, Condition cond, Register rs,
+                        const Operand& rt, BranchDelaySlot bdslot);
+
+  void BranchAndLinkShortHelperR6(int32_t offset, Label* L);
+  void BranchAndLinkShortHelper(int16_t offset, Label* L,
+                                BranchDelaySlot bdslot);
+  void BranchAndLinkShort(int32_t offset, BranchDelaySlot bdslot = PROTECT);
+  void BranchAndLinkShort(Label* L, BranchDelaySlot bdslot = PROTECT);
+  bool BranchAndLinkShortHelperR6(int32_t offset, Label* L, Condition cond,
+                                  Register rs, const Operand& rt);
+  bool BranchAndLinkShortHelper(int16_t offset, Label* L, Condition cond,
+                                Register rs, const Operand& rt,
+                                BranchDelaySlot bdslot);
+  bool BranchAndLinkShortCheck(int32_t offset, Label* L, Condition cond,
+                               Register rs, const Operand& rt,
+                               BranchDelaySlot bdslot);
+  void BranchLong(Label* L, BranchDelaySlot bdslot);
+  void BranchAndLinkLong(Label* L, BranchDelaySlot bdslot);
+
+  // Push a fixed frame, consisting of ra, fp.
+  void PushCommonFrame(Register marker_reg = no_reg);
+};
+
+// MacroAssembler implements a collection of frequently used macros.
+class MacroAssembler : public TurboAssembler {
+ public:
+  MacroAssembler(Isolate* isolate, void* buffer, int size,
+                 CodeObjectRequired create_code_object);
+
+  bool IsNear(Label* L, Condition cond, int rs_reg);
+
+  // Emit code that loads |parameter_index|'th parameter from the stack to
+  // the register according to the CallInterfaceDescriptor definition.
+  // |sp_to_caller_sp_offset_in_words| specifies the number of words pushed
+  // below the caller's sp.
+  template <class Descriptor>
+  void LoadParameterFromStack(
+      Register reg, typename Descriptor::ParameterIndices parameter_index,
+      int sp_to_ra_offset_in_words = 0) {
+    DCHECK(Descriptor::kPassLastArgsOnStack);
+    UNIMPLEMENTED();
+  }
+
+  // Swap two registers.  If the scratch register is omitted then a slightly
+  // less efficient form using xor instead of mov is emitted.
+  void Swap(Register reg1, Register reg2, Register scratch = no_reg);
 
   void Load(Register dst, const MemOperand& src, Representation r);
   void Store(Register src, const MemOperand& dst, Representation r);
@@ -377,13 +957,6 @@ class MacroAssembler: public Assembler {
     LoadRoot(at, index);
     Branch(if_not_equal, ne, with, Operand(at));
   }
-
-  // Load an object from the root table.
-  void LoadRoot(Register destination,
-                Heap::RootListIndex index);
-  void LoadRoot(Register destination,
-                Heap::RootListIndex index,
-                Condition cond, Register src1, const Operand& src2);
 
   // Store an object to the root table.
   void StoreRoot(Register source,
@@ -413,12 +986,6 @@ class MacroAssembler: public Assembler {
                            Register scratch,
                            SaveFPRegsMode save_fp,
                            RememberedSetFinalAction and_then);
-
-  void CheckPageFlag(Register object,
-                     Register scratch,
-                     int mask,
-                     Condition cc,
-                     Label* condition_met);
 
   // Check if object is in new space.  Jumps if the object is not in new space.
   // The register scratch can be object itself, but it will be clobbered.
@@ -511,25 +1078,19 @@ class MacroAssembler: public Assembler {
   // has been written.  |value| is the object being stored. The value and
   // address registers are clobbered by the operation.
   void RecordWrite(
-      Register object,
-      Register address,
-      Register value,
-      RAStatus ra_status,
+      Register object, Register address, Register value, RAStatus ra_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK,
       PointersToHereCheck pointers_to_here_check_for_value =
           kPointersToHereMaybeInteresting);
 
-
   // ---------------------------------------------------------------------------
   // Inline caching support.
 
   void GetNumberHash(Register reg0, Register scratch);
 
-  inline void MarkCode(NopMarkerTypes type) {
-    nop(type);
-  }
+  inline void MarkCode(NopMarkerTypes type) { nop(type); }
 
   // Check if the given instruction is a 'type' marker.
   // i.e. check if it is a sll zero_reg, zero_reg, <type> (referenced as
@@ -540,7 +1101,6 @@ class MacroAssembler: public Assembler {
     return IsNop(instr, type);
   }
 
-
   static inline int GetCodeMarker(Instr instr) {
     uint32_t opcode = ((instr & kOpcodeMask));
     uint32_t rt = ((instr & kRtFieldMask) >> kRtShift);
@@ -549,17 +1109,15 @@ class MacroAssembler: public Assembler {
 
     // Return <n> if we have a sll zero_reg, zero_reg, n
     // else return -1.
-    bool sllzz = (opcode == SLL &&
-                  rt == static_cast<uint32_t>(ToNumber(zero_reg)) &&
-                  rs == static_cast<uint32_t>(ToNumber(zero_reg)));
+    bool sllzz =
+        (opcode == SLL && rt == static_cast<uint32_t>(ToNumber(zero_reg)) &&
+         rs == static_cast<uint32_t>(ToNumber(zero_reg)));
     int type =
         (sllzz && FIRST_IC_MARKER <= sa && sa < LAST_CODE_MARKER) ? sa : -1;
     DCHECK((type == -1) ||
            ((FIRST_IC_MARKER <= type) && (type < LAST_CODE_MARKER)));
     return type;
   }
-
-
 
   // ---------------------------------------------------------------------------
   // Allocation support.
@@ -571,39 +1129,21 @@ class MacroAssembler: public Assembler {
   // tag_allocated_object is true the result is tagged as as a heap object.
   // All registers are clobbered also when control continues at the gc_required
   // label.
-  void Allocate(int object_size,
-                Register result,
-                Register scratch1,
-                Register scratch2,
-                Label* gc_required,
-                AllocationFlags flags);
+  void Allocate(int object_size, Register result, Register scratch1,
+                Register scratch2, Label* gc_required, AllocationFlags flags);
 
   void Allocate(Register object_size, Register result, Register result_end,
                 Register scratch, Label* gc_required, AllocationFlags flags);
 
-  // FastAllocate is right now only used for folded allocations. It just
-  // increments the top pointer without checking against limit. This can only
-  // be done if it was proved earlier that the allocation will succeed.
-  void FastAllocate(int object_size, Register result, Register scratch1,
-                    Register scratch2, AllocationFlags flags);
-
-  void FastAllocate(Register object_size, Register result, Register result_new,
-                    Register scratch, AllocationFlags flags);
-
   // Allocates a heap number or jumps to the gc_required label if the young
   // space is full and a scavenge is needed. All registers are clobbered also
   // when control continues at the gc_required label.
-  void AllocateHeapNumber(Register result,
-                          Register scratch1,
-                          Register scratch2,
-                          Register heap_number_map,
-                          Label* gc_required,
+  void AllocateHeapNumber(Register result, Register scratch1, Register scratch2,
+                          Register heap_number_map, Label* gc_required,
                           MutableMode mode = IMMUTABLE);
 
-  void AllocateHeapNumberWithValue(Register result,
-                                   FPURegister value,
-                                   Register scratch1,
-                                   Register scratch2,
+  void AllocateHeapNumberWithValue(Register result, FPURegister value,
+                                   Register scratch1, Register scratch2,
                                    Label* gc_required);
 
   // Allocate and initialize a JSValue wrapper with the specified {constructor}
@@ -612,242 +1152,24 @@ class MacroAssembler: public Assembler {
                        Register scratch1, Register scratch2,
                        Label* gc_required);
 
-  // ---------------------------------------------------------------------------
-  // Instruction macros.
-
-#define DEFINE_INSTRUCTION(instr)                                              \
-  void instr(Register rd, Register rs, const Operand& rt);                     \
-  void instr(Register rd, Register rs, Register rt) {                          \
-    instr(rd, rs, Operand(rt));                                                \
-  }                                                                            \
-  void instr(Register rs, Register rt, int32_t j) {                            \
-    instr(rs, rt, Operand(j));                                                 \
-  }
-
-#define DEFINE_INSTRUCTION2(instr)                                             \
-  void instr(Register rs, const Operand& rt);                                  \
-  void instr(Register rs, Register rt) {                                       \
-    instr(rs, Operand(rt));                                                    \
-  }                                                                            \
-  void instr(Register rs, int32_t j) {                                         \
-    instr(rs, Operand(j));                                                     \
-  }
-
-  DEFINE_INSTRUCTION(Addu);
-  DEFINE_INSTRUCTION(Daddu);
-  DEFINE_INSTRUCTION(Div);
-  DEFINE_INSTRUCTION(Divu);
-  DEFINE_INSTRUCTION(Ddivu);
-  DEFINE_INSTRUCTION(Mod);
-  DEFINE_INSTRUCTION(Modu);
-  DEFINE_INSTRUCTION(Ddiv);
-  DEFINE_INSTRUCTION(Subu);
-  DEFINE_INSTRUCTION(Dsubu);
-  DEFINE_INSTRUCTION(Dmod);
-  DEFINE_INSTRUCTION(Dmodu);
-  DEFINE_INSTRUCTION(Mul);
-  DEFINE_INSTRUCTION(Mulh);
-  DEFINE_INSTRUCTION(Mulhu);
-  DEFINE_INSTRUCTION(Dmul);
-  DEFINE_INSTRUCTION(Dmulh);
-  DEFINE_INSTRUCTION2(Mult);
-  DEFINE_INSTRUCTION2(Dmult);
-  DEFINE_INSTRUCTION2(Multu);
-  DEFINE_INSTRUCTION2(Dmultu);
-  DEFINE_INSTRUCTION2(Div);
-  DEFINE_INSTRUCTION2(Ddiv);
-  DEFINE_INSTRUCTION2(Divu);
-  DEFINE_INSTRUCTION2(Ddivu);
-
-  DEFINE_INSTRUCTION(And);
-  DEFINE_INSTRUCTION(Or);
-  DEFINE_INSTRUCTION(Xor);
-  DEFINE_INSTRUCTION(Nor);
-  DEFINE_INSTRUCTION2(Neg);
-
-  DEFINE_INSTRUCTION(Slt);
-  DEFINE_INSTRUCTION(Sltu);
-
-  // MIPS32 R2 instruction macro.
-  DEFINE_INSTRUCTION(Ror);
-  DEFINE_INSTRUCTION(Dror);
-
-#undef DEFINE_INSTRUCTION
-#undef DEFINE_INSTRUCTION2
-#undef DEFINE_INSTRUCTION3
-
-  // Load Scaled Address instructions. Parameter sa (shift argument) must be
-  // between [1, 31] (inclusive). On pre-r6 architectures the scratch register
-  // may be clobbered.
-  void Lsa(Register rd, Register rs, Register rt, uint8_t sa,
-           Register scratch = at);
-  void Dlsa(Register rd, Register rs, Register rt, uint8_t sa,
-            Register scratch = at);
-
   void Pref(int32_t hint, const MemOperand& rs);
-
 
   // ---------------------------------------------------------------------------
   // Pseudo-instructions.
 
-  // Change endianness
-  void ByteSwapSigned(Register dest, Register src, int operand_size);
-  void ByteSwapUnsigned(Register dest, Register src, int operand_size);
-
-  void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
-
-  void Ulh(Register rd, const MemOperand& rs);
-  void Ulhu(Register rd, const MemOperand& rs);
-  void Ush(Register rd, const MemOperand& rs, Register scratch);
-
-  void Ulw(Register rd, const MemOperand& rs);
-  void Ulwu(Register rd, const MemOperand& rs);
-  void Usw(Register rd, const MemOperand& rs);
-
-  void Uld(Register rd, const MemOperand& rs);
-  void Usd(Register rd, const MemOperand& rs);
-
-  void Ulwc1(FPURegister fd, const MemOperand& rs, Register scratch);
-  void Uswc1(FPURegister fd, const MemOperand& rs, Register scratch);
-
-  void Uldc1(FPURegister fd, const MemOperand& rs, Register scratch);
-  void Usdc1(FPURegister fd, const MemOperand& rs, Register scratch);
-
   void LoadWordPair(Register rd, const MemOperand& rs, Register scratch = at);
   void StoreWordPair(Register rd, const MemOperand& rs, Register scratch = at);
 
-  void Lb(Register rd, const MemOperand& rs);
-  void Lbu(Register rd, const MemOperand& rs);
-  void Sb(Register rd, const MemOperand& rs);
-
-  void Lh(Register rd, const MemOperand& rs);
-  void Lhu(Register rd, const MemOperand& rs);
-  void Sh(Register rd, const MemOperand& rs);
-
-  void Lw(Register rd, const MemOperand& rs);
-  void Lwu(Register rd, const MemOperand& rs);
-  void Sw(Register rd, const MemOperand& rs);
-
-  void Ld(Register rd, const MemOperand& rs);
-  void Sd(Register rd, const MemOperand& rs);
-
-  void Lwc1(FPURegister fd, const MemOperand& src);
-  void Swc1(FPURegister fs, const MemOperand& dst);
-
-  void Ldc1(FPURegister fd, const MemOperand& src);
-  void Sdc1(FPURegister fs, const MemOperand& dst);
-
-  // Load int32 in the rd register.
-  void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
-  inline bool LiLower32BitHelper(Register rd, Operand j);
-  inline void li(Register rd, int64_t j, LiFlags mode = OPTIMIZE_SIZE) {
-    li(rd, Operand(j), mode);
-  }
-  void li(Register dst, Handle<Object> value, LiFlags mode = OPTIMIZE_SIZE);
-
-  // Push multiple registers on the stack.
-  // Registers are saved in numerical order, with higher numbered registers
-  // saved in higher memory addresses.
-  void MultiPush(RegList regs);
   void MultiPushReversed(RegList regs);
-
-  void MultiPushFPU(RegList regs);
   void MultiPushReversedFPU(RegList regs);
 
-  void push(Register src) {
-    Daddu(sp, sp, Operand(-kPointerSize));
-    Sd(src, MemOperand(sp, 0));
-  }
-  void Push(Register src) { push(src); }
-
-  // Push a handle.
-  void Push(Handle<Object> handle);
-  void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
-
-  // Push two registers. Pushes leftmost register first (to highest address).
-  void Push(Register src1, Register src2) {
-    Dsubu(sp, sp, Operand(2 * kPointerSize));
-    Sd(src1, MemOperand(sp, 1 * kPointerSize));
-    Sd(src2, MemOperand(sp, 0 * kPointerSize));
-  }
-
-  // Push three registers. Pushes leftmost register first (to highest address).
-  void Push(Register src1, Register src2, Register src3) {
-    Dsubu(sp, sp, Operand(3 * kPointerSize));
-    Sd(src1, MemOperand(sp, 2 * kPointerSize));
-    Sd(src2, MemOperand(sp, 1 * kPointerSize));
-    Sd(src3, MemOperand(sp, 0 * kPointerSize));
-  }
-
-  // Push four registers. Pushes leftmost register first (to highest address).
-  void Push(Register src1, Register src2, Register src3, Register src4) {
-    Dsubu(sp, sp, Operand(4 * kPointerSize));
-    Sd(src1, MemOperand(sp, 3 * kPointerSize));
-    Sd(src2, MemOperand(sp, 2 * kPointerSize));
-    Sd(src3, MemOperand(sp, 1 * kPointerSize));
-    Sd(src4, MemOperand(sp, 0 * kPointerSize));
-  }
-
-  // Push five registers. Pushes leftmost register first (to highest address).
-  void Push(Register src1, Register src2, Register src3, Register src4,
-            Register src5) {
-    Dsubu(sp, sp, Operand(5 * kPointerSize));
-    Sd(src1, MemOperand(sp, 4 * kPointerSize));
-    Sd(src2, MemOperand(sp, 3 * kPointerSize));
-    Sd(src3, MemOperand(sp, 2 * kPointerSize));
-    Sd(src4, MemOperand(sp, 1 * kPointerSize));
-    Sd(src5, MemOperand(sp, 0 * kPointerSize));
-  }
-
-  void Push(Register src, Condition cond, Register tst1, Register tst2) {
-    // Since we don't have conditional execution we use a Branch.
-    Branch(3, cond, tst1, Operand(tst2));
-    Dsubu(sp, sp, Operand(kPointerSize));
-    Sd(src, MemOperand(sp, 0));
-  }
+  void PushObject(Handle<Object> handle);
 
   void PushRegisterAsTwoSmis(Register src, Register scratch = at);
   void PopRegisterAsTwoSmis(Register dst, Register scratch = at);
 
-  // Pops multiple values from the stack and load them in the
-  // registers specified in regs. Pop order is the opposite as in MultiPush.
-  void MultiPop(RegList regs);
   void MultiPopReversed(RegList regs);
-
-  void MultiPopFPU(RegList regs);
   void MultiPopReversedFPU(RegList regs);
-
-  void pop(Register dst) {
-    Ld(dst, MemOperand(sp, 0));
-    Daddu(sp, sp, Operand(kPointerSize));
-  }
-  void Pop(Register dst) { pop(dst); }
-
-  // Pop two registers. Pops rightmost register first (from lower address).
-  void Pop(Register src1, Register src2) {
-    DCHECK(!src1.is(src2));
-    Ld(src2, MemOperand(sp, 0 * kPointerSize));
-    Ld(src1, MemOperand(sp, 1 * kPointerSize));
-    Daddu(sp, sp, 2 * kPointerSize);
-  }
-
-  // Pop three registers. Pops rightmost register first (from lower address).
-  void Pop(Register src1, Register src2, Register src3) {
-    Ld(src3, MemOperand(sp, 0 * kPointerSize));
-    Ld(src2, MemOperand(sp, 1 * kPointerSize));
-    Ld(src1, MemOperand(sp, 2 * kPointerSize));
-    Daddu(sp, sp, 3 * kPointerSize);
-  }
-
-  void Pop(uint32_t count = 1) {
-    Daddu(sp, sp, Operand(count * kPointerSize));
-  }
-
-  // Push a fixed frame, consisting of ra, fp.
-  void PushCommonFrame(Register marker_reg = no_reg);
-
-  // Push a standard frame, consisting of ra, fp, context and JS function.
-  void PushStandardFrame(Register function_reg);
 
   void PopCommonFrame(Register marker_reg = no_reg);
 
@@ -862,37 +1184,6 @@ class MacroAssembler: public Assembler {
   // into register dst.
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
-  // MIPS64 R2 instruction macro.
-  void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Dins(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Neg_s(FPURegister fd, FPURegister fs);
-  void Neg_d(FPURegister fd, FPURegister fs);
-
-  // MIPS64 R6 instruction macros.
-  void Bovc(Register rt, Register rs, Label* L);
-  void Bnvc(Register rt, Register rs, Label* L);
-
-  // ---------------------------------------------------------------------------
-  // FPU macros. These do not handle special cases like NaN or +- inf.
-
-  // Convert unsigned word to double.
-  void Cvt_d_uw(FPURegister fd, FPURegister fs);
-  void Cvt_d_uw(FPURegister fd, Register rs);
-
-  // Convert unsigned long to double.
-  void Cvt_d_ul(FPURegister fd, FPURegister fs);
-  void Cvt_d_ul(FPURegister fd, Register rs);
-
-  // Convert unsigned word to float.
-  void Cvt_s_uw(FPURegister fd, FPURegister fs);
-  void Cvt_s_uw(FPURegister fd, Register rs);
-
-  // Convert unsigned long to float.
-  void Cvt_s_ul(FPURegister fd, FPURegister fs);
-  void Cvt_s_ul(FPURegister fd, Register rs);
-
   // Convert double to unsigned long.
   void Trunc_l_ud(FPURegister fd, FPURegister fs, FPURegister scratch);
 
@@ -900,26 +1191,6 @@ class MacroAssembler: public Assembler {
   void Round_l_d(FPURegister fd, FPURegister fs);
   void Floor_l_d(FPURegister fd, FPURegister fs);
   void Ceil_l_d(FPURegister fd, FPURegister fs);
-
-  // Convert double to unsigned word.
-  void Trunc_uw_d(FPURegister fd, FPURegister fs, FPURegister scratch);
-  void Trunc_uw_d(FPURegister fd, Register rs, FPURegister scratch);
-
-  // Convert single to unsigned word.
-  void Trunc_uw_s(FPURegister fd, FPURegister fs, FPURegister scratch);
-  void Trunc_uw_s(FPURegister fd, Register rs, FPURegister scratch);
-
-  // Convert double to unsigned long.
-  void Trunc_ul_d(FPURegister fd, FPURegister fs, FPURegister scratch,
-                  Register result = no_reg);
-  void Trunc_ul_d(FPURegister fd, Register rs, FPURegister scratch,
-                  Register result = no_reg);
-
-  // Convert single to unsigned long.
-  void Trunc_ul_s(FPURegister fd, FPURegister fs, FPURegister scratch,
-                  Register result = no_reg);
-  void Trunc_ul_s(FPURegister fd, Register rs, FPURegister scratch,
-                  Register result = no_reg);
 
   void Trunc_w_d(FPURegister fd, FPURegister fs);
   void Round_w_d(FPURegister fd, FPURegister fs);
@@ -941,69 +1212,19 @@ class MacroAssembler: public Assembler {
   void Msub_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
               FPURegister scratch);
 
-  // Wrapper functions for the different cmp/branch types.
-  inline void BranchF32(Label* target, Label* nan, Condition cc,
-                        FPURegister cmp1, FPURegister cmp2,
-                        BranchDelaySlot bd = PROTECT) {
-    BranchFCommon(S, target, nan, cc, cmp1, cmp2, bd);
-  }
-
-  inline void BranchF64(Label* target, Label* nan, Condition cc,
-                        FPURegister cmp1, FPURegister cmp2,
-                        BranchDelaySlot bd = PROTECT) {
-    BranchFCommon(D, target, nan, cc, cmp1, cmp2, bd);
-  }
-
-  // Alternate (inline) version for better readability with USE_DELAY_SLOT.
-  inline void BranchF64(BranchDelaySlot bd, Label* target, Label* nan,
-                        Condition cc, FPURegister cmp1, FPURegister cmp2) {
-    BranchF64(target, nan, cc, cmp1, cmp2, bd);
-  }
-
-  inline void BranchF32(BranchDelaySlot bd, Label* target, Label* nan,
-                        Condition cc, FPURegister cmp1, FPURegister cmp2) {
-    BranchF32(target, nan, cc, cmp1, cmp2, bd);
-  }
-
-  // Alias functions for backward compatibility.
-  inline void BranchF(Label* target, Label* nan, Condition cc, FPURegister cmp1,
-                      FPURegister cmp2, BranchDelaySlot bd = PROTECT) {
-    BranchF64(target, nan, cc, cmp1, cmp2, bd);
-  }
-
-  inline void BranchF(BranchDelaySlot bd, Label* target, Label* nan,
-                      Condition cc, FPURegister cmp1, FPURegister cmp2) {
-    BranchF64(bd, target, nan, cc, cmp1, cmp2);
-  }
+  void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
+                      MSARegister wt, BranchDelaySlot bd = PROTECT);
 
   // Truncates a double using a specific rounding mode, and writes the value
   // to the result register.
   // The except_flag will contain any exceptions caused by the instruction.
   // If check_inexact is kDontCheckForInexactConversion, then the inexact
   // exception is masked.
-  void EmitFPUTruncate(FPURoundingMode rounding_mode,
-                       Register result,
-                       DoubleRegister double_input,
-                       Register scratch,
-                       DoubleRegister double_scratch,
-                       Register except_flag,
-                       CheckForInexactConversion check_inexact
-                           = kDontCheckForInexactConversion);
-
-  // Performs a truncating conversion of a floating point number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
-  // succeeds, otherwise falls through if result is saturated. On return
-  // 'result' either holds answer, or is clobbered on fall through.
-  //
-  // Only public for the test code in test-code-stubs-arm.cc.
-  void TryInlineTruncateDoubleToI(Register result,
-                                  DoubleRegister input,
-                                  Label* done);
-
-  // Performs a truncating conversion of a floating point number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
-  // Exits with 'result' holding the answer.
-  void TruncateDoubleToI(Register result, DoubleRegister double_input);
+  void EmitFPUTruncate(
+      FPURoundingMode rounding_mode, Register result,
+      DoubleRegister double_input, Register scratch,
+      DoubleRegister double_scratch, Register except_flag,
+      CheckForInexactConversion check_inexact = kDontCheckForInexactConversion);
 
   // Performs a truncating conversion of a heap number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. 'result' and 'input'
@@ -1068,9 +1289,6 @@ class MacroAssembler: public Assembler {
                       bool restore_context, bool do_return = NO_EMIT_RETURN,
                       bool argument_count_is_length = false);
 
-  // Get the actual activation frame alignment for target environment.
-  static int ActivationFrameAlignment();
-
   // Make sure the stack is aligned. Only emits code in debug mode.
   void AssertStackIsAligned();
 
@@ -1094,23 +1312,8 @@ class MacroAssembler: public Assembler {
                                     Register map,
                                     Register scratch);
 
-  void InitializeRootRegister() {
-    ExternalReference roots_array_start =
-        ExternalReference::roots_array_start(isolate());
-    li(kRootRegister, Operand(roots_array_start));
-  }
-
   // -------------------------------------------------------------------------
   // JavaScript invokes.
-
-  // Removes current frame and its arguments from the stack preserving
-  // the arguments and a return address pushed to the stack for the next call.
-  // Both |callee_args_count| and |caller_args_count_reg| do not include
-  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
-  // is trashed.
-  void PrepareForTailCall(const ParameterCount& callee_args_count,
-                          Register caller_args_count_reg, Register scratch0,
-                          Register scratch1);
 
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
@@ -1219,10 +1422,6 @@ class MacroAssembler: public Assembler {
                 Label* fail,
                 SmiCheckType smi_check_type);
 
-  // If the value is a NaN, canonicalize the value else, do nothing.
-  void FPUCanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
-
-
   // Get value of the weak cell.
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
@@ -1307,60 +1506,6 @@ class MacroAssembler: public Assembler {
                     Label* overflow_label, Label* no_overflow_label,
                     Register scratch = at);
 
-  inline void MulBranchOvf(Register dst, Register left, const Operand& right,
-                           Label* overflow_label, Register scratch = at) {
-    MulBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
-  }
-
-  inline void MulBranchNoOvf(Register dst, Register left, const Operand& right,
-                             Label* no_overflow_label, Register scratch = at) {
-    MulBranchOvf(dst, left, right, nullptr, no_overflow_label, scratch);
-  }
-
-  void MulBranchOvf(Register dst, Register left, const Operand& right,
-                    Label* overflow_label, Label* no_overflow_label,
-                    Register scratch = at);
-
-  void MulBranchOvf(Register dst, Register left, Register right,
-                    Label* overflow_label, Label* no_overflow_label,
-                    Register scratch = at);
-
-  inline void DaddBranchOvf(Register dst, Register left, const Operand& right,
-                            Label* overflow_label, Register scratch = at) {
-    DaddBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
-  }
-
-  inline void DaddBranchNoOvf(Register dst, Register left, const Operand& right,
-                              Label* no_overflow_label, Register scratch = at) {
-    DaddBranchOvf(dst, left, right, nullptr, no_overflow_label, scratch);
-  }
-
-  void DaddBranchOvf(Register dst, Register left, const Operand& right,
-                     Label* overflow_label, Label* no_overflow_label,
-                     Register scratch = at);
-
-  void DaddBranchOvf(Register dst, Register left, Register right,
-                     Label* overflow_label, Label* no_overflow_label,
-                     Register scratch = at);
-
-  inline void DsubBranchOvf(Register dst, Register left, const Operand& right,
-                            Label* overflow_label, Register scratch = at) {
-    DsubBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
-  }
-
-  inline void DsubBranchNoOvf(Register dst, Register left, const Operand& right,
-                              Label* no_overflow_label, Register scratch = at) {
-    DsubBranchOvf(dst, left, right, nullptr, no_overflow_label, scratch);
-  }
-
-  void DsubBranchOvf(Register dst, Register left, const Operand& right,
-                     Label* overflow_label, Label* no_overflow_label,
-                     Register scratch = at);
-
-  void DsubBranchOvf(Register dst, Register left, Register right,
-                     Label* overflow_label, Label* no_overflow_label,
-                     Register scratch = at);
-
   void BranchOnOverflow(Label* label,
                         Register overflow_check,
                         BranchDelaySlot bd = PROTECT) {
@@ -1381,46 +1526,14 @@ class MacroAssembler: public Assembler {
     Ret(ge, overflow_check, Operand(zero_reg), bd);
   }
 
-  // Perform a floating-point min or max operation with the
-  // (IEEE-754-compatible) semantics of MIPS32's Release 6 MIN.fmt/MAX.fmt.
-  // Some cases, typically NaNs or +/-0.0, are expected to be rare and are
-  // handled in out-of-line code. The specific behaviour depends on supported
-  // instructions.
-  //
-  // These functions assume (and assert) that !src1.is(src2). It is permitted
-  // for the result to alias either input register.
-  void Float32Max(FPURegister dst, FPURegister src1, FPURegister src2,
-                  Label* out_of_line);
-  void Float32Min(FPURegister dst, FPURegister src1, FPURegister src2,
-                  Label* out_of_line);
-  void Float64Max(FPURegister dst, FPURegister src1, FPURegister src2,
-                  Label* out_of_line);
-  void Float64Min(FPURegister dst, FPURegister src1, FPURegister src2,
-                  Label* out_of_line);
-
-  // Generate out-of-line cases for the macros above.
-  void Float32MaxOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
-  void Float32MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
-  void Float64MaxOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
-  void Float64MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
-
   // -------------------------------------------------------------------------
   // Runtime calls.
-
-  // See comments at the beginning of CEntryStub::Generate.
-  inline void PrepareCEntryArgs(int num_args) { li(a0, num_args); }
-
-  inline void PrepareCEntryFunction(const ExternalReference& ref) {
-    li(a1, Operand(ref));
-  }
 
 #define COND_ARGS Condition cond = al, Register rs = zero_reg, \
 const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   // Call a code stub.
-  void CallStub(CodeStub* stub,
-                TypeFeedbackId ast_id = TypeFeedbackId::None(),
-                COND_ARGS);
+  void CallStub(CodeStub* stub, COND_ARGS);
 
   // Tail call a code stub (jump).
   void TailCallStub(CodeStub* stub, COND_ARGS);
@@ -1461,52 +1574,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // Convenience function: tail call a runtime routine (jump).
   void TailCallRuntime(Runtime::FunctionId fid);
 
-  int CalculateStackPassedWords(int num_reg_arguments,
-                                int num_double_arguments);
-
-  // Before calling a C-function from generated code, align arguments on stack
-  // and add space for the four mips argument slots.
-  // After aligning the frame, non-register arguments must be stored on the
-  // stack, after the argument-slots using helper: CFunctionArgumentOperand().
-  // The argument count assumes all arguments are word sized.
-  // Some compilers/platforms require the stack to be aligned when calling
-  // C++ code.
-  // Needs a scratch register to do some arithmetic. This register will be
-  // trashed.
-  void PrepareCallCFunction(int num_reg_arguments,
-                            int num_double_registers,
-                            Register scratch);
-  void PrepareCallCFunction(int num_reg_arguments,
-                            Register scratch);
-
-  // Arguments 1-4 are placed in registers a0 thru a3 respectively.
-  // Arguments 5..n are stored to stack using following:
-  //  Sw(a4, CFunctionArgumentOperand(5));
-
-  // Calls a C function and cleans up the space for arguments allocated
-  // by PrepareCallCFunction. The called function is not allowed to trigger a
-  // garbage collection, since that might move the code and invalidate the
-  // return address (unless this is somehow accounted for by the called
-  // function).
-  void CallCFunction(ExternalReference function, int num_arguments);
-  void CallCFunction(Register function, int num_arguments);
-  void CallCFunction(ExternalReference function,
-                     int num_reg_arguments,
-                     int num_double_arguments);
-  void CallCFunction(Register function,
-                     int num_reg_arguments,
-                     int num_double_arguments);
-  void MovFromFloatResult(DoubleRegister dst);
-  void MovFromFloatParameter(DoubleRegister dst);
-
-  // There are two ways of passing double arguments on MIPS, depending on
-  // whether soft or hard floating point ABI is used. These functions
-  // abstract parameter passing for the three different ways we call
-  // C functions from generated code.
-  void MovToFloatParameter(DoubleRegister src);
-  void MovToFloatParameters(DoubleRegister src1, DoubleRegister src2);
-  void MovToFloatResult(DoubleRegister src);
-
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin,
                                BranchDelaySlot bd = PROTECT,
@@ -1517,11 +1584,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
     uint32_t flags;  // See Bootstrapper::FixupFlags decoders/encoders.
     const char* name;
   };
-
-  Handle<Object> CodeObject() {
-    DCHECK(!code_object_.is_null());
-    return code_object_;
-  }
 
   // Emit code for a truncating division by a constant. The dividend register is
   // unchanged and at gets clobbered. Dividend and result must be different.
@@ -1536,27 +1598,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                         Register scratch1, Register scratch2);
   void DecrementCounter(StatsCounter* counter, int value,
                         Register scratch1, Register scratch2);
-
-
-  // -------------------------------------------------------------------------
-  // Debugging.
-
-  // Calls Abort(msg) if the condition cc is not satisfied.
-  // Use --debug_code to enable.
-  void Assert(Condition cc, BailoutReason reason, Register rs, Operand rt);
-
-  // Like Assert(), but always enabled.
-  void Check(Condition cc, BailoutReason reason, Register rs, Operand rt);
-
-  // Print a message to stdout and abort execution.
-  void Abort(BailoutReason msg);
-
-  // Verify restrictions about code generated in stubs.
-  void set_generating_stub(bool value) { generating_stub_ = value; }
-  bool generating_stub() { return generating_stub_; }
-  void set_has_frame(bool value) { has_frame_ = value; }
-  bool has_frame() { return has_frame_; }
-  inline bool AllowThisStubCall(CodeStub* stub);
 
   // ---------------------------------------------------------------------------
   // Number utilities.
@@ -1610,19 +1651,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
     }
   }
 
-  void SmiUntag(Register dst, Register src) {
-    if (SmiValuesAre32Bits()) {
-      STATIC_ASSERT(kSmiShift == 32);
-      dsra32(dst, src, 0);
-    } else {
-      sra(dst, src, kSmiTagSize);
-    }
-  }
-
-  void SmiUntag(Register reg) {
-    SmiUntag(reg, reg);
-  }
-
   // Left-shifted from int32 equivalent of Smi.
   void SmiScale(Register dst, Register src, int scale) {
     if (SmiValuesAre32Bits()) {
@@ -1664,12 +1692,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // Source and destination can be the same register.
   void UntagAndJumpIfSmi(Register dst, Register src, Label* smi_case);
 
-  // Jump the register contains a smi.
-  void JumpIfSmi(Register value,
-                 Label* smi_label,
-                 Register scratch = at,
-                 BranchDelaySlot bd = PROTECT);
-
   // Jump if the register contains a non-smi.
   void JumpIfNotSmi(Register value,
                     Label* not_smi_label,
@@ -1685,6 +1707,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void AssertNotSmi(Register object);
   void AssertSmi(Register object);
 
+  // Abort execution if argument is not a FixedArray, enabled via --debug-code.
+  void AssertFixedArray(Register object);
+
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
 
@@ -1692,9 +1717,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
 
-  // Abort execution if argument is not a JSGeneratorObject,
+  // Abort execution if argument is not a JSGeneratorObject (or subclass),
   // enabled via --debug-code.
-  void AssertGeneratorObject(Register object, Register flags);
+  void AssertGeneratorObject(Register object);
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
@@ -1780,17 +1805,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void DecodeFieldToSmi(Register reg) {
     DecodeField<Field>(reg, reg);
   }
-  // Generates function and stub prologue code.
-  void StubPrologue(StackFrame::Type type);
-  void Prologue(bool code_pre_aging);
 
   // Load the type feedback vector from a JavaScript frame.
   void EmitLoadFeedbackVector(Register vector);
-
-  // Activation support.
-  void EnterFrame(StackFrame::Type type);
-  void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
-  void LeaveFrame(StackFrame::Type type);
 
   void EnterBuiltinFrame(Register context, Register target, Register argc);
   void LeaveBuiltinFrame(Register context, Register target, Register argc);
@@ -1808,50 +1825,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                                        Register scratch_reg,
                                        Label* no_memento_found);
 
-  bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
-
  private:
-  void CallCFunctionHelper(Register function,
-                           int num_reg_arguments,
-                           int num_double_arguments);
-
-  inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
-  inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);
-  void BranchShortHelperR6(int32_t offset, Label* L);
-  void BranchShortHelper(int16_t offset, Label* L, BranchDelaySlot bdslot);
-  bool BranchShortHelperR6(int32_t offset, Label* L, Condition cond,
-                           Register rs, const Operand& rt);
-  bool BranchShortHelper(int16_t offset, Label* L, Condition cond, Register rs,
-                         const Operand& rt, BranchDelaySlot bdslot);
-  bool BranchShortCheck(int32_t offset, Label* L, Condition cond, Register rs,
-                        const Operand& rt, BranchDelaySlot bdslot);
-
-  void BranchAndLinkShortHelperR6(int32_t offset, Label* L);
-  void BranchAndLinkShortHelper(int16_t offset, Label* L,
-                                BranchDelaySlot bdslot);
-  void BranchAndLinkShort(int32_t offset, BranchDelaySlot bdslot = PROTECT);
-  void BranchAndLinkShort(Label* L, BranchDelaySlot bdslot = PROTECT);
-  bool BranchAndLinkShortHelperR6(int32_t offset, Label* L, Condition cond,
-                                  Register rs, const Operand& rt);
-  bool BranchAndLinkShortHelper(int16_t offset, Label* L, Condition cond,
-                                Register rs, const Operand& rt,
-                                BranchDelaySlot bdslot);
-  bool BranchAndLinkShortCheck(int32_t offset, Label* L, Condition cond,
-                               Register rs, const Operand& rt,
-                               BranchDelaySlot bdslot);
-  void BranchLong(Label* L, BranchDelaySlot bdslot);
-  void BranchAndLinkLong(Label* L, BranchDelaySlot bdslot);
-
-  // Common implementation of BranchF functions for the different formats.
-  void BranchFCommon(SecondaryField sizeField, Label* target, Label* nan,
-                     Condition cc, FPURegister cmp1, FPURegister cmp2,
-                     BranchDelaySlot bd = PROTECT);
-
-  void BranchShortF(SecondaryField sizeField, Label* target, Condition cc,
-                    FPURegister cmp1, FPURegister cmp2,
-                    BranchDelaySlot bd = PROTECT);
-
-
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
                       const ParameterCount& actual,
@@ -1876,17 +1850,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   static int SafepointRegisterStackIndex(int reg_code);
   MemOperand SafepointRegisterSlot(Register reg);
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
-
-  // Helpers.
-  void LoadRegPlusOffsetToAt(const MemOperand& src);
-  int32_t LoadRegPlusUpperOffsetPartToAt(const MemOperand& src);
-
-  bool generating_stub_;
-  bool has_frame_;
-  bool has_double_zero_reg_set_;
-  Isolate* isolate_;
-  // This handle will be patched with the code object on installation.
-  Handle<Object> code_object_;
 
   // Needs access to SafepointRegisterStackIndex for compiled frame
   // traversal.
@@ -1931,7 +1894,7 @@ class CodePatcher {
 };
 
 template <typename Func>
-void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
+void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
                                          Func GetLabelFunction) {
   // Ensure that dd-ed labels following this instruction use 8 bytes aligned
   // addresses.

@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc
-// Flags: --opt --no-always-opt
+// Flags: --opt --no-always-opt --no-stress-fullcodegen
 
 var elements_kind = {
   fast_smi_only            :  'fast smi only elements',
@@ -45,14 +45,14 @@ var elements_kind = {
 }
 
 function getKind(obj) {
-  if (%HasFastSmiElements(obj)) return elements_kind.fast_smi_only;
-  if (%HasFastObjectElements(obj)) return elements_kind.fast;
-  if (%HasFastDoubleElements(obj)) return elements_kind.fast_double;
+  if (%HasSmiElements(obj)) return elements_kind.fast_smi_only;
+  if (%HasObjectElements(obj)) return elements_kind.fast;
+  if (%HasDoubleElements(obj)) return elements_kind.fast_double;
   if (%HasDictionaryElements(obj)) return elements_kind.dictionary;
 }
 
 function isHoley(obj) {
-  if (%HasFastHoleyElements(obj)) return true;
+  if (%HasHoleyElements(obj)) return true;
   return false;
 }
 
@@ -84,7 +84,7 @@ function assertKind(expected, obj, name_opt) {
   create1(0);
   create1(0);
   a = create1(0);
-  assertFalse(isHoley(a));
+  assertTrue(isHoley(a));
   assertKind(elements_kind.fast_smi_only, a);
   a[0] = "hello";
   b = create1(10);

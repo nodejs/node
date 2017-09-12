@@ -39,27 +39,28 @@ class WasmCallFuzzer : public WasmExecutionFuzzer {
   }
 
   static void add_argument(
-      v8::internal::Isolate* isolate, ValueType type, WasmVal* interpreter_args,
+      v8::internal::Isolate* isolate, ValueType type,
+      WasmValue* interpreter_args,
       v8::internal::Handle<v8::internal::Object>* compiler_args, int* argc,
       const uint8_t** data, size_t* size, bool* ok) {
     if (!(*ok)) return;
     switch (type) {
       case kWasmF32: {
         float value = read_value<float>(data, size, ok);
-        interpreter_args[*argc] = WasmVal(value);
+        interpreter_args[*argc] = WasmValue(value);
         compiler_args[*argc] =
             isolate->factory()->NewNumber(static_cast<double>(value));
         break;
       }
       case kWasmF64: {
         double value = read_value<double>(data, size, ok);
-        interpreter_args[*argc] = WasmVal(value);
+        interpreter_args[*argc] = WasmValue(value);
         compiler_args[*argc] = isolate->factory()->NewNumber(value);
         break;
       }
       case kWasmI32: {
         int32_t value = read_value<int32_t>(data, size, ok);
-        interpreter_args[*argc] = WasmVal(value);
+        interpreter_args[*argc] = WasmValue(value);
         compiler_args[*argc] =
             isolate->factory()->NewNumber(static_cast<double>(value));
         break;
@@ -73,7 +74,7 @@ class WasmCallFuzzer : public WasmExecutionFuzzer {
   virtual bool GenerateModule(
       Isolate* isolate, Zone* zone, const uint8_t* data, size_t size,
       ZoneBuffer& buffer, int32_t& num_args,
-      std::unique_ptr<WasmVal[]>& interpreter_args,
+      std::unique_ptr<WasmValue[]>& interpreter_args,
       std::unique_ptr<Handle<Object>[]>& compiler_args) override {
     bool ok = true;
     uint8_t num_functions =
@@ -81,7 +82,7 @@ class WasmCallFuzzer : public WasmExecutionFuzzer {
 
     ValueType types[] = {kWasmF32, kWasmF64, kWasmI32, kWasmI64};
 
-    interpreter_args.reset(new WasmVal[3]);
+    interpreter_args.reset(new WasmValue[3]);
     compiler_args.reset(new Handle<Object>[3]);
 
     WasmModuleBuilder builder(zone);

@@ -193,7 +193,7 @@ class ObjectHashTableTest: public ObjectHashTable {
 
   int lookup(int key) {
     Handle<Object> key_obj(Smi::FromInt(key), GetIsolate());
-    return Smi::cast(Lookup(key_obj))->value();
+    return Smi::ToInt(Lookup(key_obj));
   }
 
   int capacity() {
@@ -214,7 +214,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(handle(Smi::kZero, isolate));
+    t->Rehash();
     for (int i = 0; i < capacity - 1; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -227,7 +227,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(handle(Smi::kZero, isolate));
+    t->Rehash();
     for (int i = 0; i < capacity / 2; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -297,20 +297,6 @@ TEST(ObjectHashTableCausesGC) {
   TestHashMapCausesGC(ObjectHashTable::New(isolate, 1));
 }
 #endif
-
-TEST(SetRequiresCopyOnCapacityChange) {
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Handle<NameDictionary> dict = NameDictionary::New(isolate, 0, TENURED);
-  dict->SetRequiresCopyOnCapacityChange();
-  Handle<Name> key = isolate->factory()->InternalizeString(
-      v8::Utils::OpenHandle(*v8_str("key")));
-  Handle<Object> value = handle(Smi::kZero, isolate);
-  Handle<NameDictionary> new_dict =
-      NameDictionary::Add(dict, key, value, PropertyDetails::Empty());
-  CHECK_NE(*dict, *new_dict);
-}
 
 TEST(MaximumClonedShallowObjectProperties) {
   // Assert that a NameDictionary with kMaximumClonedShallowObjectProperties is

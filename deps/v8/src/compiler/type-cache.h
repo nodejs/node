@@ -7,6 +7,7 @@
 
 #include "src/compiler/types.h"
 #include "src/date.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {

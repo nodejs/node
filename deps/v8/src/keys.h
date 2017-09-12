@@ -5,8 +5,8 @@
 #ifndef V8_KEYS_H_
 #define V8_KEYS_H_
 
-#include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/hash-table.h"
 
 namespace v8 {
 namespace internal {

@@ -9,6 +9,23 @@
   "resources": ["base.js"],
   "tests": [
     {
+      "name": "Proxies",
+      "path": ["Proxies"],
+      "main": "run.js",
+      "resources": ["proxies.js"],
+      "results_regexp": "^%s\\-Proxies\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ProxyConstructorWithArrowFunc"},
+        {"name": "ProxyConstructorWithClass"},
+        {"name": "ProxyConstructorWithObject"},
+        {"name": "ProxyConstructorWithProxy"},
+        {"name": "CallProxyWithoutTrap"},
+        {"name": "CallProxyWithTrap"},
+        {"name": "ConstructProxyWithoutTrap"},
+        {"name": "ConstructProxyWithTrap"}
+      ]
+    },
+    {
       "name": "AsyncAwait",
       "path": ["AsyncAwait"],
       "main": "run.js",
@@ -110,10 +127,12 @@
         {"name": "Map-String"},
         {"name": "Map-Object"},
         {"name": "Map-Iteration"},
+        {"name": "Map-Iterator"},
         {"name": "Set-Smi"},
         {"name": "Set-String"},
         {"name": "Set-Object"},
         {"name": "Set-Iteration"},
+        {"name": "Set-Iterator"},
         {"name": "WeakMap"},
         {"name": "WeakSet"}
       ]
@@ -271,23 +290,7 @@
           "test_flags": ["constructor"]
         },
         {
-          "name": "Constructor--noTF",
-          "flags": ["--no-turbo"],
-          "results_regexp": "^TypedArrays\\-Constructor\\(Score\\): (.+)$",
-          "main": "run.js",
-          "resources": ["constructor.js"],
-          "test_flags": ["constructor"]
-        },
-        {
           "name": "ConstructWithBuffer",
-          "main": "run.js",
-          "resources": ["construct-buffer.js"],
-          "test_flags": ["construct-buffer"]
-        },
-        {
-          "name": "ConstructWithBuffer--noTF",
-          "flags": ["--no-turbo"],
-          "results_regexp": "^TypedArrays\\-ConstructWithBuffer\\(Score\\): (.+)$",
           "main": "run.js",
           "resources": ["construct-buffer.js"],
           "test_flags": ["construct-buffer"]
@@ -299,23 +302,7 @@
           "test_flags": ["construct-arraylike"]
         },
         {
-          "name": "ConstructArrayLike--noTF",
-          "flags": ["--no-turbo"],
-          "results_regexp": "^TypedArrays\\-ConstructArrayLike\\(Score\\): (.+)$",
-          "main": "run.js",
-          "resources": ["construct-arraylike.js"],
-          "test_flags": ["construct-arraylike"]
-        },
-        {
           "name": "ConstructByTypedArray",
-          "main": "run.js",
-          "resources": ["construct-typedarray.js"],
-          "test_flags": ["construct-typedarray"]
-        },
-        {
-          "name": "ConstructByTypedArray--noTF",
-          "flags": ["--no-turbo"],
-          "results_regexp": "^TypedArrays\\-ConstructByTypedArray\\(Score\\): (.+)$",
           "main": "run.js",
           "resources": ["construct-typedarray.js"],
           "test_flags": ["construct-typedarray"]
@@ -345,7 +332,10 @@
       "path": ["Array"],
       "main": "run.js",
       "resources": [
-        "filter.js", "map.js"
+        "filter.js", "map.js", "every.js", "some.js", "reduce.js", "reduce-right.js"
+      ],
+      "flags": [
+        "--allow-natives-syntax"
       ],
       "results_regexp": "^%s\\-Array\\(Score\\): (.+)$",
       "tests": [
@@ -354,11 +344,33 @@
         {"name": "SmiFilter"},
         {"name": "FastFilter"},
         {"name": "ObjectFilter"},
+        {"name": "OptFastFilter"},
         {"name": "NaiveMapReplacement"},
         {"name": "DoubleMap"},
         {"name": "SmiMap"},
         {"name": "FastMap"},
-        {"name": "ObjectMap"}
+        {"name": "ObjectMap"},
+	{"name": "OptFastMap"},
+        {"name": "DoubleEvery"},
+        {"name": "SmiEvery"},
+        {"name": "FastEvery"},
+        {"name": "ObjectEvery"},
+	{"name": "OptFastEvery"},
+        {"name": "DoubleSome"},
+        {"name": "SmiSome"},
+        {"name": "FastSome"},
+        {"name": "ObjectSome"},
+	{"name": "OptFastSome"},
+        {"name": "DoubleReduce"},
+        {"name": "SmiReduce"},
+        {"name": "FastReduce"},
+        {"name": "ObjectReduce"},
+	{"name": "OptFastReduce"},
+        {"name": "DoubleReduceRight"},
+        {"name": "SmiReduceRight"},
+        {"name": "FastReduceRight"},
+        {"name": "ObjectReduceRight"},
+	{"name": "OptFastReduceRight"}
       ]
     },
     {
@@ -393,30 +405,161 @@
     {
       "name": "BytecodeHandlers",
       "path": ["BytecodeHandlers"],
-      "main": "run.js",
-      "resources": [ "compare.js" ],
       "flags": [ "--no-opt" ],
-      "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
       "tests": [
-        {"name": "Smi-StrictEquals-True"},
-        {"name": "Smi-StrictEquals-False"},
-        {"name": "Number-StrictEquals-True"},
-        {"name": "Number-StrictEquals-False"},
-        {"name": "String-StrictEquals-True"},
-        {"name": "String-StrictEquals-False"},
-        {"name": "SmiString-StrictEquals"},
-        {"name": "Smi-Equals-True"},
-        {"name": "Smi-Equals-False"},
-        {"name": "Number-Equals-True"},
-        {"name": "Number-Equals-False"},
-        {"name": "String-Equals-True"},
-        {"name": "String-Equals-False"},
-        {"name": "ObjectNull-Equals"},
-        {"name": "SmiString-Equals"},
-        {"name": "Smi-RelationalCompare"},
-        {"name": "Number-RelationalCompare"},
-        {"name": "String-RelationalCompare"},
-        {"name": "SmiString-RelationalCompare"}
+        {
+          "name": "Compare",
+          "main": "run.js",
+          "resources": [ "compare.js" ],
+          "test_flags": [ "compare" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Smi-StrictEquals-True"},
+            {"name": "Smi-StrictEquals-False"},
+            {"name": "Number-StrictEquals-True"},
+            {"name": "Number-StrictEquals-False"},
+            {"name": "String-StrictEquals-True"},
+            {"name": "String-StrictEquals-False"},
+            {"name": "SmiString-StrictEquals"},
+            {"name": "Smi-Equals-True"},
+            {"name": "Smi-Equals-False"},
+            {"name": "Number-Equals-True"},
+            {"name": "Number-Equals-False"},
+            {"name": "String-Equals-True"},
+            {"name": "String-Equals-False"},
+            {"name": "ObjectNull-Equals"},
+            {"name": "SmiString-Equals"},
+            {"name": "Smi-RelationalCompare"},
+            {"name": "Number-RelationalCompare"},
+            {"name": "String-RelationalCompare"},
+            {"name": "SmiString-RelationalCompare"}
+          ]
+        },
+        {
+          "name": "StringConcat",
+          "main": "run.js",
+          "resources": [ "string-concat.js" ],
+          "test_flags": [ "string-concat" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "ShortString-StringConcat-2"},
+            {"name": "ShortString-StringConcat-3"},
+            {"name": "ShortString-StringConcat-5"},
+            {"name": "ShortString-StringConcat-10"},
+            {"name": "LongString-StringConcat-2"},
+            {"name": "LongString-StringConcat-3"},
+            {"name": "LongString-StringConcat-5"},
+            {"name": "LongString-StringConcat-10"},
+            {"name": "NumberString-StringConcat-2"},
+            {"name": "NumberString-StringConcat-3"},
+            {"name": "NumberString-StringConcat-5"},
+            {"name": "NumberString-StringConcat-10"}
+          ]
+        },
+        {
+          "name": "Arithmetic",
+          "main": "run.js",
+          "resources": [ "arithmetic.js" ],
+          "test_flags": [ "arithmetic" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Smi-Add"},
+            {"name": "Number-Add"},
+            {"name": "Number-Oddball-Add"},
+            {"name": "String-Add"},
+            {"name": "Object-Add"},
+            {"name": "Number-String-Add"},
+            {"name": "Smi-Sub"},
+            {"name": "Number-Sub"},
+            {"name": "Number-Oddball-Sub"},
+            {"name": "Object-Sub"},
+            {"name": "Smi-Mul"},
+            {"name": "Number-Mul"},
+            {"name": "Number-Oddball-Mul"},
+            {"name": "Object-Mul"},
+            {"name": "Smi-Div"},
+            {"name": "Number-Div"},
+            {"name": "Number-Oddball-Div"},
+            {"name": "Object-Div"},
+            {"name": "Smi-Mod"},
+            {"name": "Number-Mod"},
+            {"name": "Number-Oddball-Mod"},
+            {"name": "Object-Mod"},
+            {"name": "Smi-Constant-Add"},
+            {"name": "Smi-Constant-Sub"},
+            {"name": "Smi-Constant-Mul"},
+            {"name": "Smi-Constant-Div"},
+            {"name": "Smi-Constant-Mod"},
+            {"name": "Smi-Increment"},
+            {"name": "Number-Increment"},
+            {"name": "Smi-Decrement"},
+            {"name": "Number-Decrement"}
+          ]
+        },
+        {
+          "name": "Bitwise",
+          "main": "run.js",
+          "resources": [ "bitwise.js" ],
+          "test_flags": [ "bitwise" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Smi-Or"},
+            {"name": "Number-Or"},
+            {"name": "Smi-Xor"},
+            {"name": "Number-Xor"},
+            {"name": "Smi-And"},
+            {"name": "Number-And"},
+            {"name": "Smi-Constant-Or"},
+            {"name": "Smi-Constant-Xor"},
+            {"name": "Smi-Constant-And"},
+            {"name": "Smi-ShiftLeft"},
+            {"name": "Number-ShiftLeft"},
+            {"name": "Smi-ShiftRight"},
+            {"name": "Number-ShiftRight"},
+            {"name": "Smi-ShiftRightLogical"},
+            {"name": "Number-ShiftRightLogical"},
+            {"name": "Smi-Constant-ShiftLeft"},
+            {"name": "Smi-Constant-ShiftRight"},
+            {"name": "Smi-Constant-ShiftRightLogical"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ExpressionDepth",
+      "path": ["ExpressionDepth"],
+      "main": "run.js",
+      "flags": [ "--no-opt" ],
+      "results_regexp": "^%s\\-ExpressionDepth\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Or-Value"},
+        {"name": "Or-Test"},
+        {"name": "And-Value"},
+        {"name": "And-Test"},
+        {"name": "Comma-Value"},
+        {"name": "Comma-Test"},
+        {"name": "Equals-Value"},
+        {"name": "Equals-Test"},
+        {"name": "StrictEquals-Value"},
+        {"name": "StrictEquals-Test"},
+        {"name": "GreaterThan-Value"},
+        {"name": "GreaterThan-Test"},
+        {"name": "Add"},
+        {"name": "Sub"},
+        {"name": "StringConcat"},
+        {"name": "BitwiseOr"}
+      ]
+    },
+    {
+      "name": "Inspector",
+      "path": ["Inspector"],
+      "main": "run.js",
+      "resources": [ "debugger.js", "runtime.js" ],
+      "flags": ["--enable-inspector"],
+      "results_regexp": "^%s\\-Inspector\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Debugger.paused"},
+        {"name": "Runtime.evaluate(String16Cstor)"}
       ]
     }
   ]

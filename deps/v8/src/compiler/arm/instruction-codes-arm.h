@@ -160,16 +160,16 @@ namespace compiler {
   V(ArmI32x4MaxS)                  \
   V(ArmI32x4Eq)                    \
   V(ArmI32x4Ne)                    \
-  V(ArmI32x4LtS)                   \
-  V(ArmI32x4LeS)                   \
+  V(ArmI32x4GtS)                   \
+  V(ArmI32x4GeS)                   \
   V(ArmI32x4UConvertF32x4)         \
   V(ArmI32x4UConvertI16x8Low)      \
   V(ArmI32x4UConvertI16x8High)     \
   V(ArmI32x4ShrU)                  \
   V(ArmI32x4MinU)                  \
   V(ArmI32x4MaxU)                  \
-  V(ArmI32x4LtU)                   \
-  V(ArmI32x4LeU)                   \
+  V(ArmI32x4GtU)                   \
+  V(ArmI32x4GeU)                   \
   V(ArmI16x8Splat)                 \
   V(ArmI16x8ExtractLane)           \
   V(ArmI16x8ReplaceLane)           \
@@ -189,8 +189,8 @@ namespace compiler {
   V(ArmI16x8MaxS)                  \
   V(ArmI16x8Eq)                    \
   V(ArmI16x8Ne)                    \
-  V(ArmI16x8LtS)                   \
-  V(ArmI16x8LeS)                   \
+  V(ArmI16x8GtS)                   \
+  V(ArmI16x8GeS)                   \
   V(ArmI16x8UConvertI8x16Low)      \
   V(ArmI16x8UConvertI8x16High)     \
   V(ArmI16x8ShrU)                  \
@@ -199,8 +199,8 @@ namespace compiler {
   V(ArmI16x8SubSaturateU)          \
   V(ArmI16x8MinU)                  \
   V(ArmI16x8MaxU)                  \
-  V(ArmI16x8LtU)                   \
-  V(ArmI16x8LeU)                   \
+  V(ArmI16x8GtU)                   \
+  V(ArmI16x8GeU)                   \
   V(ArmI8x16Splat)                 \
   V(ArmI8x16ExtractLane)           \
   V(ArmI8x16ReplaceLane)           \
@@ -217,16 +217,16 @@ namespace compiler {
   V(ArmI8x16MaxS)                  \
   V(ArmI8x16Eq)                    \
   V(ArmI8x16Ne)                    \
-  V(ArmI8x16LtS)                   \
-  V(ArmI8x16LeS)                   \
+  V(ArmI8x16GtS)                   \
+  V(ArmI8x16GeS)                   \
   V(ArmI8x16ShrU)                  \
   V(ArmI8x16UConvertI16x8)         \
   V(ArmI8x16AddSaturateU)          \
   V(ArmI8x16SubSaturateU)          \
   V(ArmI8x16MinU)                  \
   V(ArmI8x16MaxU)                  \
-  V(ArmI8x16LtU)                   \
-  V(ArmI8x16LeU)                   \
+  V(ArmI8x16GtU)                   \
+  V(ArmI8x16GeU)                   \
   V(ArmS128Zero)                   \
   V(ArmS128And)                    \
   V(ArmS128Or)                     \
@@ -246,7 +246,6 @@ namespace compiler {
   V(ArmS16x8UnzipRight)            \
   V(ArmS16x8TransposeLeft)         \
   V(ArmS16x8TransposeRight)        \
-  V(ArmS16x8Shuffle)               \
   V(ArmS8x16ZipLeft)               \
   V(ArmS8x16ZipRight)              \
   V(ArmS8x16UnzipLeft)             \

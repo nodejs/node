@@ -111,7 +111,7 @@ void ForInBuiltinsAssembler::CheckPrototypeEnumCache(Node* receiver, Node* map,
     // For all objects but the receiver, check that the cache is empty.
     current_map.Bind(LoadMap(current_js_object.value()));
     Node* enum_length = EnumLength(current_map.value());
-    Node* zero_constant = SmiConstant(Smi::kZero);
+    Node* zero_constant = SmiConstant(0);
     Branch(WordEqual(enum_length, zero_constant), &loop, use_runtime);
   }
 }
@@ -127,8 +127,7 @@ void ForInBuiltinsAssembler::CheckEnumCache(Node* receiver, Label* use_cache,
   // Check if the enum length field is properly initialized, indicating that
   // there is an enum cache.
   {
-    Node* invalid_enum_cache_sentinel =
-        SmiConstant(Smi::FromInt(kInvalidEnumCacheSentinel));
+    Node* invalid_enum_cache_sentinel = SmiConstant(kInvalidEnumCacheSentinel);
     Node* enum_length = EnumLength(map);
     Branch(WordEqual(enum_length, invalid_enum_cache_sentinel),
            &check_dict_receiver, &check_empty_prototype);

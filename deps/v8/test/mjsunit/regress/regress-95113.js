@@ -30,18 +30,18 @@
 function get_double_array() {
   var a = new Array(100000);
   var i = 0;
-  while (!%HasFastDoubleElements(a)) {
+  while (!%HasDoubleElements(a)) {
     a[i] = i + 0.1;
     i += 1;
   }
-  assertTrue(%HasFastDoubleElements(a));
+  assertTrue(%HasDoubleElements(a));
   a.length = 1;
   a[0] = 1.5;
   a.length = 2;
   a[1] = 2.5;
   assertEquals(a[0], 1.5);
   assertEquals(a[1], 2.5);
-  assertTrue(%HasFastDoubleElements(a));
+  assertTrue(%HasDoubleElements(a));
   return a;
 }
 

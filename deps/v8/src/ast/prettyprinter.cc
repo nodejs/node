@@ -22,8 +22,13 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
   num_prints_ = 0;
   found_ = false;
   done_ = false;
+  iterator_hint_ = IteratorHint::kNone;
   is_user_js_ = is_user_js;
   InitializeAstVisitor(isolate);
+}
+
+CallPrinter::IteratorHint CallPrinter::GetIteratorHint() const {
+  return iterator_hint_;
 }
 
 Handle<String> CallPrinter::Print(FunctionLiteral* program, int position) {
@@ -223,9 +228,11 @@ void CallPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
 
 
 void CallPrinter::VisitObjectLiteral(ObjectLiteral* node) {
+  Print("{");
   for (int i = 0; i < node->properties()->length(); i++) {
     Find(node->properties()->at(i)->value());
   }
+  Print("}");
 }
 
 
@@ -254,7 +261,11 @@ void CallPrinter::VisitAssignment(Assignment* node) {
   Find(node->value());
 }
 
-void CallPrinter::VisitSuspend(Suspend* node) { Find(node->expression()); }
+void CallPrinter::VisitYield(Yield* node) { Find(node->expression()); }
+
+void CallPrinter::VisitYieldStar(YieldStar* node) { Find(node->expression()); }
+
+void CallPrinter::VisitAwait(Await* node) { Find(node->expression()); }
 
 void CallPrinter::VisitThrow(Throw* node) { Find(node->exception()); }
 
@@ -370,17 +381,14 @@ void CallPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
 }
 
 void CallPrinter::VisitGetIterator(GetIterator* node) {
-  // Because CallPrinter is used by RenderCallSite() in runtime-internal.cc,
-  // and the GetIterator node results in a Call, either to a [@@iterator] or
-  // [@@asyncIterator]. It's unknown which call this error refers to, so we
-  // assume it's the first call.
   bool was_found = !found_ && node->position() == position_;
   if (was_found) {
     found_ = true;
+    iterator_hint_ = node->hint() == IteratorType::kNormal
+                         ? IteratorHint::kNormal
+                         : IteratorHint::kAsync;
   }
-  Find(node->iterable(), true);
-  Print(node->hint() == IteratorType::kNormal ? "[Symbol.iterator]"
-                                              : "[Symbol.asyncIterator]");
+  Find(node->iterable_for_call_printer(), true);
   if (was_found) done_ = true;
 }
 
@@ -515,7 +523,12 @@ void AstPrinter::PrintLabels(ZoneList<const AstRawString*>* labels) {
   }
 }
 
-void AstPrinter::PrintLiteral(Handle<Object> value, bool quote) {
+void AstPrinter::PrintLiteral(MaybeHandle<Object> maybe_value, bool quote) {
+  Handle<Object> value;
+  if (!maybe_value.ToHandle(&value)) {
+    Print("<nil>");
+    return;
+  }
   Object* object = *value;
   if (object->IsString()) {
     String* string = String::cast(object);
@@ -539,8 +552,7 @@ void AstPrinter::PrintLiteral(Handle<Object> value, bool quote) {
     if (object->IsJSFunction()) {
       Print("JS-Function");
     } else if (object->IsJSArray()) {
-      Print("JS-array[%u]",
-            Smi::cast(JSArray::cast(object)->length())->value());
+      Print("JS-array[%u]", Smi::ToInt(JSArray::cast(object)->length()));
     } else if (object->IsJSObject()) {
       Print("JS-Object");
     } else {
@@ -617,13 +629,12 @@ void AstPrinter::PrintIndented(const char* txt) {
   Print("%s", txt);
 }
 
-
 void AstPrinter::PrintLiteralIndented(const char* info,
-                                      Handle<Object> value,
+                                      MaybeHandle<Object> maybe_value,
                                       bool quote) {
   PrintIndented(info);
   Print(" ");
-  PrintLiteral(value, quote);
+  PrintLiteral(maybe_value, quote);
   Print("\n");
 }
 
@@ -869,24 +880,10 @@ void AstPrinter::VisitForOfStatement(ForOfStatement* node) {
 
 void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   IndentedScope indent(this, "TRY CATCH", node->position());
-  PrintTryStatement(node);
-  PrintLiteralWithModeIndented("CATCHVAR", node->scope()->catch_variable(),
-                               node->scope()->catch_variable()->name());
-  PrintIndentedVisit("CATCH", node->catch_block());
-}
-
-
-void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
-  IndentedScope indent(this, "TRY FINALLY", node->position());
-  PrintTryStatement(node);
-  PrintIndentedVisit("FINALLY", node->finally_block());
-}
-
-void AstPrinter::PrintTryStatement(TryStatement* node) {
   PrintIndentedVisit("TRY", node->try_block());
   PrintIndented("CATCH PREDICTION");
   const char* prediction = "";
-  switch (node->catch_prediction()) {
+  switch (node->GetCatchPrediction(HandlerTable::UNCAUGHT)) {
     case HandlerTable::UNCAUGHT:
       prediction = "UNCAUGHT";
       break;
@@ -905,6 +902,15 @@ void AstPrinter::PrintTryStatement(TryStatement* node) {
       UNREACHABLE();
   }
   Print(" %s\n", prediction);
+  PrintLiteralWithModeIndented("CATCHVAR", node->scope()->catch_variable(),
+                               node->scope()->catch_variable()->name());
+  PrintIndentedVisit("CATCH", node->catch_block());
+}
+
+void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
+  IndentedScope indent(this, "TRY FINALLY", node->position());
+  PrintIndentedVisit("TRY", node->try_block());
+  PrintIndentedVisit("FINALLY", node->finally_block());
 }
 
 void AstPrinter::VisitDebuggerStatement(DebuggerStatement* node) {
@@ -1108,13 +1114,26 @@ void AstPrinter::VisitAssignment(Assignment* node) {
   Visit(node->value());
 }
 
-void AstPrinter::VisitSuspend(Suspend* node) {
+void AstPrinter::VisitYield(Yield* node) {
   EmbeddedVector<char, 128> buf;
-  SNPrintF(buf, "SUSPEND id %d", node->suspend_id());
+  SNPrintF(buf, "YIELD id %d", node->suspend_id());
   IndentedScope indent(this, buf.start(), node->position());
   Visit(node->expression());
 }
 
+void AstPrinter::VisitYieldStar(YieldStar* node) {
+  EmbeddedVector<char, 128> buf;
+  SNPrintF(buf, "YIELD_STAR id %d", node->suspend_id());
+  IndentedScope indent(this, buf.start(), node->position());
+  Visit(node->expression());
+}
+
+void AstPrinter::VisitAwait(Await* node) {
+  EmbeddedVector<char, 128> buf;
+  SNPrintF(buf, "AWAIT id %d", node->suspend_id());
+  IndentedScope indent(this, buf.start(), node->position());
+  Visit(node->expression());
+}
 
 void AstPrinter::VisitThrow(Throw* node) {
   IndentedScope indent(this, "THROW", node->position());
@@ -1139,9 +1158,7 @@ void AstPrinter::VisitProperty(Property* node) {
 
 void AstPrinter::VisitCall(Call* node) {
   EmbeddedVector<char, 128> buf;
-  const char* name =
-      node->tail_call_mode() == TailCallMode::kAllow ? "TAIL CALL" : "CALL";
-  FormatSlotNode(&buf, node, name, node->CallFeedbackICSlot());
+  FormatSlotNode(&buf, node, "CALL", node->CallFeedbackICSlot());
   IndentedScope indent(this, buf.start());
 
   Visit(node->expression());

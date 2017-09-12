@@ -32,7 +32,7 @@ function funcWith20Args(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8,
     assertUnreachable("shouldn't arrive in non-inlined 20 arg function after stack overflow");
 }
 
-// If we should run with --turbo, then make sure {funcWith20Args} does
+// If we should run with TurboFan, then make sure {funcWith20Args} does
 // not get inlined.
 %NeverOptimizeFunction(funcWith20Args);
 

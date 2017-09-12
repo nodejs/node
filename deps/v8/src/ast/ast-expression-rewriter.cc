@@ -265,12 +265,20 @@ void AstExpressionRewriter::VisitAssignment(Assignment* node) {
   AST_REWRITE_PROPERTY(Expression, node, value);
 }
 
-void AstExpressionRewriter::VisitSuspend(Suspend* node) {
+void AstExpressionRewriter::VisitYield(Yield* node) {
   REWRITE_THIS(node);
-  AST_REWRITE_PROPERTY(Expression, node, generator_object);
   AST_REWRITE_PROPERTY(Expression, node, expression);
 }
 
+void AstExpressionRewriter::VisitYieldStar(YieldStar* node) {
+  REWRITE_THIS(node);
+  AST_REWRITE_PROPERTY(Expression, node, expression);
+}
+
+void AstExpressionRewriter::VisitAwait(Await* node) {
+  REWRITE_THIS(node);
+  AST_REWRITE_PROPERTY(Expression, node, expression);
+}
 
 void AstExpressionRewriter::VisitThrow(Throw* node) {
   REWRITE_THIS(node);

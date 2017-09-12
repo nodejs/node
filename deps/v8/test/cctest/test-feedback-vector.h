@@ -6,7 +6,7 @@
 #define V8_TEST_FEEDBACK_VECTOR_H_
 
 #include "src/objects.h"
-
+#include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {

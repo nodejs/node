@@ -86,6 +86,133 @@
   assertTrue(called_handler);
 })();
 
+(function testCallProxyTrapArrayArg() {
+  var called_target = false;
+  var called_handler = false;
+  var target = function(a, b) {
+    called_target = true;
+    assertArrayEquals([1, 2], a);
+    assertEquals(3, b);
+  }
+  var handler = {
+    apply: function(target, this_arg, args) {
+      target.apply(this_arg, args);
+      called_handler = true;
+    }
+  }
+  var proxy = new Proxy(target, handler);
+  assertFalse(called_target);
+  assertFalse(called_handler);
+  proxy([1,2], 3);
+  assertTrue(called_target);
+  assertTrue(called_handler);
+})();
+
+(function testCallProxyTrapObjectArg() {
+  var called_target = false;
+  var called_handler = false;
+  var target = function(o) {
+    called_target = true;
+    assertEquals({a: 1, b: 2}, o);
+  }
+  var handler = {
+    apply: function(target, this_arg, args) {
+      target.apply(this_arg, args);
+      called_handler = true;
+    }
+  }
+  var proxy = new Proxy(target, handler);
+  assertFalse(called_target);
+  assertFalse(called_handler);
+  proxy({a: 1, b: 2});
+  assertTrue(called_target);
+  assertTrue(called_handler);
+})();
+
+(function testCallProxyTrapGeneratorArg() {
+  function* gen() {
+    yield 1;
+    yield 2;
+    yield 3;
+  }
+  var called_target = false;
+  var called_handler = false;
+  var target = function(g) {
+    called_target = true;
+    assertArrayEquals([1,2,3], [...g]);
+  }
+  var handler = {
+    apply: function(target, this_arg, args) {
+      target.apply(this_arg, args);
+      called_handler = true;
+    }
+  }
+  var proxy = new Proxy(target, handler);
+  assertFalse(called_target);
+  assertFalse(called_handler);
+  proxy(gen());
+  assertTrue(called_target);
+  assertTrue(called_handler);
+})();
+
+(function testProxyTrapContext() {
+  var _target, _args, _handler, _context;
+  var target = function(a, b) { return a + b; };
+  var handler = {
+    apply: function(t, c, args) {
+        _handler = this;
+        _target = t;
+        _context = c;
+        _args = args;
+    }
+  };
+  var proxy = new Proxy(target, handler);
+
+  var context = {};
+
+  proxy.call(context, 1, 2);
+
+  assertEquals(_handler, handler);
+  assertEquals(_target, target);
+  assertEquals(_context, context);
+  assertEquals(_args.length, 2);
+  assertEquals(_args[0], 1);
+  assertEquals(_args[1], 2);
+})();
+
+(function testCallProxyNonCallableTrap() {
+  var called_target = false;
+  var target = function() {
+    called_target = true;
+  };
+  var handler = {
+    apply: 'non callable trap'
+  };
+
+  var proxy = new Proxy(target, handler);
+  assertThrows(function(){ proxy() }, TypeError);
+
+  assertFalse(called_target);
+})();
+
+(function testCallProxyNullTrap() {
+  var _args;
+  var target = function(a, b) {
+    _args = [a, b];
+    return a + b;
+  };
+  var handler = {
+    apply: null
+  };
+
+  var proxy = new Proxy(target, handler);
+  var result = proxy(1, 2);
+
+  assertEquals(result, 3);
+  assertEquals(_args.length, 2);
+  assertEquals(_args[0], 1);
+  assertEquals(_args[1], 2);
+})();
 
 (function testCallProxyNonCallableTarget() {
   var values = [NaN, 1.5, 100, /RegExp/, "string", {}, [], Symbol(),

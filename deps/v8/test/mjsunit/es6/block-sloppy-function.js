@@ -612,7 +612,6 @@ eval(`
   `);
 }();
 
-// This test is incorrect BUG(v8:5168). The commented assertions are correct.
 (function evalHoistingThroughSimpleCatch() {
   try {
     throw 0;
@@ -636,12 +635,10 @@ eval(`
       return 4;
     } }`);
 
-    // assertEquals(0, f);
-    assertEquals(4, f());
+    assertEquals(0, f);
   }
 
-  // assertEquals(4, f());
-  assertEquals(undefined, f);
+  assertEquals(4, f());
 })();
 
 let dontHoistGlobal;

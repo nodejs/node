@@ -794,9 +794,6 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kSimd128:
-      case MachineRepresentation::kSimd1x4:
-      case MachineRepresentation::kSimd1x8:
-      case MachineRepresentation::kSimd1x16:
       case MachineRepresentation::kBit:
       case MachineRepresentation::kWord8:
       case MachineRepresentation::kWord16:

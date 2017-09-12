@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --use-escape-analysis
+// Flags: --allow-natives-syntax
 
 // This tests that captured objects materialized through the deoptimizer
 // have field descriptors with a representation matching the values that

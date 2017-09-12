@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition
+// Flags: --no-stress-fullcodegen
 
 function function_with_m_args(m) {
   var source = '(function f() { return; })(';

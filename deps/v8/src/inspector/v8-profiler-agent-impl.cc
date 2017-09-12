@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/base/atomicops.h"
+#include "src/flags.h"  // TODO(jgruber): Remove include and DEPS entry.
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger.h"
@@ -279,9 +280,19 @@ Response V8ProfilerAgentImpl::startPreciseCoverage(Maybe<bool> callCount) {
   m_state->setBoolean(ProfilerAgentState::preciseCoverageStarted, true);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageCallCount,
                       callCountValue);
-  v8::debug::Coverage::SelectMode(
-      m_isolate, callCountValue ? v8::debug::Coverage::kPreciseCount
-                                : v8::debug::Coverage::kPreciseBinary);
+  // BlockCount is a superset of PreciseCount. It includes block-granularity
+  // coverage data if it exists (at the time of writing, that's the case for
+  // each function recompiled after the BlockCount mode has been set); and
+  // function-granularity coverage data otherwise.
+  // TODO(jgruber): Implement block binary coverage.
+  v8::debug::Coverage::Mode count_mode =
+      v8::internal::FLAG_block_coverage ? v8::debug::Coverage::kBlockCount
+                                        : v8::debug::Coverage::kPreciseCount;
+  v8::debug::Coverage::Mode binary_mode =
+      v8::internal::FLAG_block_coverage ? v8::debug::Coverage::kBlockBinary
+                                        : v8::debug::Coverage::kPreciseBinary;
+  v8::debug::Coverage::SelectMode(m_isolate,
+                                  callCountValue ? count_mode : binary_mode);
   return Response::OK();
 }
 
@@ -294,6 +305,15 @@ Response V8ProfilerAgentImpl::stopPreciseCoverage() {
 }
 
 namespace {
+std::unique_ptr<protocol::Profiler::CoverageRange> createCoverageRange(
+    int start, int end, int count) {
+  return protocol::Profiler::CoverageRange::create()
+      .setStartOffset(start)
+      .setEndOffset(end)
+      .setCount(count)
+      .build();
+}
+
 Response coverageToProtocol(
     v8::Isolate* isolate, const v8::debug::Coverage& coverage,
     std::unique_ptr<protocol::Array<protocol::Profiler::ScriptCoverage>>*
@@ -311,18 +331,27 @@ Response coverageToProtocol(
           script_data.GetFunctionData(j);
       std::unique_ptr<protocol::Array<protocol::Profiler::CoverageRange>>
           ranges = protocol::Array<protocol::Profiler::CoverageRange>::create();
-      // At this point we only have per-function coverage data, so there is
-      // only one range per function.
-      ranges->addItem(protocol::Profiler::CoverageRange::create()
-                          .setStartOffset(function_data.StartOffset())
-                          .setEndOffset(function_data.EndOffset())
-                          .setCount(function_data.Count())
-                          .build());
+
+      // Add function range.
+      ranges->addItem(createCoverageRange(function_data.StartOffset(),
+                                          function_data.EndOffset(),
+                                          function_data.Count()));
+
+      // Process inner blocks.
+      for (size_t k = 0; k < function_data.BlockCount(); k++) {
+        v8::debug::Coverage::BlockData block_data =
+            function_data.GetBlockData(k);
+        ranges->addItem(createCoverageRange(block_data.StartOffset(),
+                                            block_data.EndOffset(),
+                                            block_data.Count()));
+      }
+
       functions->addItem(
           protocol::Profiler::FunctionCoverage::create()
               .setFunctionName(toProtocolString(
                   function_data.Name().FromMaybe(v8::Local<v8::String>())))
               .setRanges(std::move(ranges))
+              .setIsBlockCoverage(function_data.HasBlockCoverage())
               .build());
     }
     String16 url;
@@ -364,7 +393,7 @@ Response V8ProfilerAgentImpl::getBestEffortCoverage(
 
 String16 V8ProfilerAgentImpl::nextProfileId() {
   return String16::fromInteger(
-      v8::base::NoBarrier_AtomicIncrement(&s_lastProfileId, 1));
+      v8::base::Relaxed_AtomicIncrement(&s_lastProfileId, 1));
 }
 
 void V8ProfilerAgentImpl::startProfiling(const String16& title) {

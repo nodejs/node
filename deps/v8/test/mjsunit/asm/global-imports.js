@@ -72,3 +72,9 @@ Run("var x = foreign.x",        "x(dbl) | 0",               { x:p }, 17, true);
 Run("var x = foreign.x",        "(x = fround, x(dbl)) | 0", { x:p }, 4,  false);
 Run("var x = stdlib.Math.E",    "(x = 3.1415, 1) | 0",      {},      1,  false);
 Run("var x = stdlib.Math.imul", "(x = fround, 1) | 0",      {},      1,  false);
+
+// Imports missing or causing side-effects during lookup.
+Run("var x = +foreign.x", "+x", { no_x_present:0 },             NaN, true);
+Run("var x = +foreign.x", "+x", { get x() { return 23 } },      23,  false);
+Run("var x = +foreign.x", "+x", new Proxy({ x:42 }, {}),        42,  false);
+Run("var x = +foreign.x", "+x", { x : { valueOf : () => 65 } }, 65,  false);

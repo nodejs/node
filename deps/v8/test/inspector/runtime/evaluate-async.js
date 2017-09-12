@@ -11,7 +11,24 @@ function createPromiseAndScheduleResolve()
   var promise = new Promise((resolve) => resolveCallback = resolve);
   setTimeout(resolveCallback.bind(null, { a : 239 }), 0);
   return promise;
-}`);
+}
+
+function throwError()
+{
+  function foo() {
+    throw new Error('MyError');
+  }
+  foo();
+}
+
+function throwSyntaxError()
+{
+  function foo() {
+    eval('}');
+  }
+  foo();
+}
+`);
 
 InspectorTest.runTestSuite([
   function testResolvedPromise(next)
@@ -25,6 +42,24 @@ InspectorTest.runTestSuite([
   {
     Protocol.Runtime.evaluate({ expression: "Promise.reject(239)", awaitPromise: true })
       .then(result => InspectorTest.logMessage(result))
+      .then(() => next());
+  },
+
+  function testRejectedPromiseWithError(next)
+  {
+    Protocol.Runtime.enable();
+    Protocol.Runtime.evaluate({ expression: "Promise.resolve().then(throwError)", awaitPromise: true })
+      .then(result => InspectorTest.logMessage(result))
+      .then(Protocol.Runtime.disable)
+      .then(() => next());
+  },
+
+  function testRejectedPromiseWithSyntaxError(next)
+  {
+    Protocol.Runtime.enable();
+    Protocol.Runtime.evaluate({ expression: "Promise.resolve().then(throwSyntaxError)", awaitPromise: true })
+      .then(result => InspectorTest.logMessage(result))
+      .then(Protocol.Runtime.disable)
       .then(() => next());
   },
 

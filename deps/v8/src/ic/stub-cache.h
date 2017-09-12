@@ -71,7 +71,6 @@ class StubCache {
         return StubCache::secondary_;
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   Isolate* isolate() { return isolate_; }

@@ -125,7 +125,6 @@ Address RelocInfo::constant_pool_entry_address() {
           pc_, constant_pool, access, ConstantPoolEntry::INTPTR);
   }
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -368,19 +367,19 @@ void RelocInfo::Visit(Heap* heap) {
 
 Operand::Operand(intptr_t immediate, RelocInfo::Mode rmode) {
   rm_ = no_reg;
-  imm_ = immediate;
+  value_.immediate = immediate;
   rmode_ = rmode;
 }
 
 Operand::Operand(const ExternalReference& f) {
   rm_ = no_reg;
-  imm_ = reinterpret_cast<intptr_t>(f.address());
+  value_.immediate = reinterpret_cast<intptr_t>(f.address());
   rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
 Operand::Operand(Smi* value) {
   rm_ = no_reg;
-  imm_ = reinterpret_cast<intptr_t>(value);
+  value_.immediate = reinterpret_cast<intptr_t>(value);
   rmode_ = kRelocInfo_NONEPTR;
 }
 
@@ -466,7 +465,6 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
   }
 
   UNREACHABLE();
-  return NULL;
 }
 
 

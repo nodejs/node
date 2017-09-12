@@ -134,7 +134,7 @@ v8::Local<v8::Object> CcTest::global() {
 }
 
 void CcTest::InitializeVM() {
-  CHECK(!v8::base::NoBarrier_Load(&isolate_used_));
+  CHECK(!v8::base::Relaxed_Load(&isolate_used_));
   CHECK(!initialize_called_);
   initialize_called_ = true;
   v8::HandleScope handle_scope(CcTest::isolate());

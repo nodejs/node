@@ -45,7 +45,7 @@ TEST(CodeCache) {
   HandleScope handle_scope(isolate);
 
   Handle<Map> map =
-      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize, FAST_ELEMENTS);
+      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize, PACKED_ELEMENTS);
 
   // This number should be large enough to cause the code cache to use its
   // hash table storage format.

@@ -186,6 +186,10 @@ InspectorTest.Session = class {
     this.id = utils.connectSession(this.contextGroup.id, state, this._dispatchMessage.bind(this));
   }
 
+  async addInspectedObject(serializable) {
+    return this.Protocol.Runtime.evaluate({expression: `inspector.addInspectedObject(${this.id}, ${JSON.stringify(serializable)})`});
+  }
+
   sendRawCommand(requestId, command, handler) {
     if (InspectorTest._dumpInspectorProtocolMessages)
       utils.print("frontend: " + command);
@@ -237,6 +241,36 @@ InspectorTest.Session = class {
   logSourceLocations(locations) {
     if (locations.length == 0) return Promise.resolve();
     return this.logSourceLocation(locations[0]).then(() => this.logSourceLocations(locations.splice(1)));
+  }
+
+  async logBreakLocations(inputLocations) {
+    let locations = inputLocations.slice();
+    let scriptId = locations[0].scriptId;
+    let script = this._scriptMap.get(scriptId);
+    if (!script.scriptSource) {
+      let message = await this.Protocol.Debugger.getScriptSource({scriptId});
+      script.scriptSource = message.result.scriptSource;
+    }
+    let lines = script.scriptSource.split('\n');
+    locations = locations.sort((loc1, loc2) => {
+      if (loc2.lineNumber !== loc1.lineNumber) return loc2.lineNumber - loc1.lineNumber;
+      return loc2.columnNumber - loc1.columnNumber;
+    });
+    for (let location of locations) {
+      let line = lines[location.lineNumber];
+      line = line.slice(0, location.columnNumber) + locationMark(location.type) + line.slice(location.columnNumber);
+      lines[location.lineNumber] = line;
+    }
+    lines = lines.filter(line => line.indexOf('//# sourceURL=') === -1);
+    InspectorTest.log(lines.join('\n') + '\n');
+    return inputLocations;
+
+    function locationMark(type) {
+      if (type === 'return') return '|R|';
+      if (type === 'call') return '|C|';
+      if (type === 'debuggerStatement') return '|D|';
+      return '|_|';
+    }
   }
 
   logAsyncStackTrace(asyncStackTrace) {
