@@ -207,10 +207,12 @@
         # and their sheer number drowns out other, more legitimate warnings.
         #
         # Disable "warning C4251: 'identifier' : class 'type' needs to have dll-interface to be used by clients of class 'type2'"
+        # Disable "warning C4275: non - DLL-interface classkey 'identifier' used as base for DLL-interface classkey 'identifier'"
         # Many V8 method do not comply with the requirements to be dll exported,
-        # which result in this warning reported several 1000s times.
+        # which result in these warnings reported several 1000s times.
         # https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-1-c4251
-        'DisableSpecificWarnings': ['4267', '4251'],
+        # https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-2-c4275
+        'DisableSpecificWarnings': ['4267', '4251', '4275'],
         'WarnAsError': 'false',
       },
       'VCLibrarianTool': {
