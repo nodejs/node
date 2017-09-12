@@ -32,6 +32,8 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   typedef int32_t token_t;
 
   AsmJsScanner();
+  ~AsmJsScanner();
+
   // Pick the stream to parse (must be called before anything else).
   void SetStream(std::unique_ptr<Utf16CharacterStream> stream);
 

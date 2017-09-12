@@ -72,7 +72,6 @@ consts_misc = [
     { 'name': 'ConsStringTag',          'value': 'kConsStringTag' },
     { 'name': 'ExternalStringTag',      'value': 'kExternalStringTag' },
     { 'name': 'SlicedStringTag',        'value': 'kSlicedStringTag' },
-    { 'name': 'ThinStringTag',          'value': 'kThinStringTag' },
 
     { 'name': 'HeapObjectTag',          'value': 'kHeapObjectTag' },
     { 'name': 'HeapObjectTagMask',      'value': 'kHeapObjectTagMask' },
@@ -155,9 +154,9 @@ consts_misc = [
         'value': 'DescriptorArray::kEntrySize' },
 
     { 'name': 'elements_fast_holey_elements',
-        'value': 'FAST_HOLEY_ELEMENTS' },
+        'value': 'HOLEY_ELEMENTS' },
     { 'name': 'elements_fast_elements',
-        'value': 'FAST_ELEMENTS' },
+        'value': 'PACKED_ELEMENTS' },
     { 'name': 'elements_dictionary_elements',
         'value': 'DICTIONARY_ELEMENTS' },
 
@@ -193,9 +192,9 @@ consts_misc = [
         'value': 'ScopeInfo::kVariablePartIndex' },
 
     { 'name': 'sharedfunctioninfo_start_position_mask',
-        'value': 'SharedFunctionInfo::kStartPositionMask' },
+        'value': 'SharedFunctionInfo::StartPositionBits::kMask' },
     { 'name': 'sharedfunctioninfo_start_position_shift',
-        'value': 'SharedFunctionInfo::kStartPositionShift' },
+        'value': 'SharedFunctionInfo::StartPositionBits::kShift' },
 
     { 'name': 'jsarray_buffer_was_neutered_mask',
         'value': 'JSArrayBuffer::WasNeutered::kMask' },
@@ -371,7 +370,7 @@ def load_objects_from_file(objfilename, checktypes):
         # do so without the embedded newlines.
         #
         for line in objfile:
-                if (line.startswith('enum InstanceType {')):
+                if (line.startswith('enum InstanceType : uint8_t {')):
                         in_insttype = True;
                         continue;
 

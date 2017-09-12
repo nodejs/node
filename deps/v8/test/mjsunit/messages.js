@@ -28,7 +28,7 @@ test(function() {
 
 // kApplyNonFunction
 test(function() {
-  Function.prototype.apply.call(1, []);
+  Reflect.apply(1, []);
 }, "Function.prototype.apply was called on 1, which is a number " +
    "and not a function", TypeError);
 

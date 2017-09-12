@@ -158,11 +158,11 @@ static void SetDebugEventListener(
 }
 
 // Is there any debug info for the function?
-static bool HasDebugInfo(v8::Local<v8::Function> fun) {
+static bool HasBreakInfo(v8::Local<v8::Function> fun) {
   Handle<v8::internal::JSFunction> f =
       Handle<v8::internal::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
   Handle<v8::internal::SharedFunctionInfo> shared(f->shared());
-  return shared->HasDebugInfo();
+  return shared->HasBreakInfo();
 }
 
 // Set a break point in a function with a position relative to function start,
@@ -611,6 +611,7 @@ static void DebugEventCounterClear() {
 
 static void DebugEventCounter(
     const v8::Debug::EventDetails& event_details) {
+  v8::Isolate::AllowJavascriptExecutionScope allow_script(CcTest::isolate());
   v8::DebugEvent event = event_details.GetEvent();
   v8::Local<v8::Object> exec_state = event_details.GetExecutionState();
   v8::Local<v8::Object> event_data = event_details.GetEventData();
@@ -906,30 +907,30 @@ TEST(DebugInfo) {
       CompileFunction(&env, "function bar(){}", "bar");
   // Initially no functions are debugged.
   CHECK_EQ(0, v8::internal::GetDebuggedFunctions()->length());
-  CHECK(!HasDebugInfo(foo));
-  CHECK(!HasDebugInfo(bar));
+  CHECK(!HasBreakInfo(foo));
+  CHECK(!HasBreakInfo(bar));
   EnableDebugger(env->GetIsolate());
   // One function (foo) is debugged.
   int bp1 = SetBreakPoint(foo, 0);
   CHECK_EQ(1, v8::internal::GetDebuggedFunctions()->length());
-  CHECK(HasDebugInfo(foo));
-  CHECK(!HasDebugInfo(bar));
+  CHECK(HasBreakInfo(foo));
+  CHECK(!HasBreakInfo(bar));
   // Two functions are debugged.
   int bp2 = SetBreakPoint(bar, 0);
   CHECK_EQ(2, v8::internal::GetDebuggedFunctions()->length());
-  CHECK(HasDebugInfo(foo));
-  CHECK(HasDebugInfo(bar));
+  CHECK(HasBreakInfo(foo));
+  CHECK(HasBreakInfo(bar));
   // One function (bar) is debugged.
   ClearBreakPoint(bp1);
   CHECK_EQ(1, v8::internal::GetDebuggedFunctions()->length());
-  CHECK(!HasDebugInfo(foo));
-  CHECK(HasDebugInfo(bar));
+  CHECK(!HasBreakInfo(foo));
+  CHECK(HasBreakInfo(bar));
   // No functions are debugged.
   ClearBreakPoint(bp2);
   DisableDebugger(env->GetIsolate());
   CHECK_EQ(0, v8::internal::GetDebuggedFunctions()->length());
-  CHECK(!HasDebugInfo(foo));
-  CHECK(!HasDebugInfo(bar));
+  CHECK(!HasBreakInfo(foo));
+  CHECK(!HasBreakInfo(bar));
 }
 
 
@@ -4918,7 +4919,7 @@ TEST(DebugScriptLineEndsAreAscending) {
 
     int prev_end = -1;
     for (int j = 0; j < ends->length(); j++) {
-      const int curr_end = v8::internal::Smi::cast(ends->get(j))->value();
+      const int curr_end = v8::internal::Smi::ToInt(ends->get(j));
       CHECK_GT(curr_end, prev_end);
       prev_end = curr_end;
     }
@@ -6372,6 +6373,7 @@ static void NoInterruptsOnDebugEvent(
   // Do not allow nested AfterCompile events.
   CHECK(after_compile_handler_depth <= 1);
   v8::Isolate* isolate = event_details.GetEventContext()->GetIsolate();
+  v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate);
   isolate->RequestInterrupt(&HandleInterrupt, nullptr);
   CompileRun("function foo() {}; foo();");
   --after_compile_handler_depth;
@@ -6401,7 +6403,7 @@ TEST(BreakLocationIterator) {
   Handle<i::SharedFunctionInfo> shared(function->shared());
 
   EnableDebugger(isolate);
-  CHECK(i_isolate->debug()->EnsureDebugInfo(shared));
+  CHECK(i_isolate->debug()->EnsureBreakInfo(shared));
 
   Handle<i::DebugInfo> debug_info(shared->GetDebugInfo());
   Handle<i::AbstractCode> abstract_code(shared->abstract_code());
@@ -6427,123 +6429,6 @@ TEST(BreakLocationIterator) {
   }
 
   DisableDebugger(isolate);
-}
-
-TEST(DisableTailCallElimination) {
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_harmony_tailcalls = true;
-  // TODO(ishell, 4698): Investigate why TurboFan in --always-opt mode makes
-  // stack[2].getFunctionName() return null.
-  i::FLAG_turbo_inlining = false;
-
-  DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  v8::HandleScope scope(isolate);
-  CHECK(i_isolate->is_tail_call_elimination_enabled());
-
-  CompileRun(
-      "'use strict';                                                         \n"
-      "Error.prepareStackTrace = (error,stack) => {                          \n"
-      "  error.strace = stack;                                               \n"
-      "  return error.message + \"\\n    at \" + stack.join(\"\\n    at \"); \n"
-      "}                                                                     \n"
-      "                                                                      \n"
-      "function getCaller() {                                                \n"
-      "  var e = new Error();                                                \n"
-      "  e.stack;  // prepare stack trace                                    \n"
-      "  var stack = e.strace;                                               \n"
-      "  %GlobalPrint('caller: ');                                           \n"
-      "  %GlobalPrint(stack[2].getFunctionName());                           \n"
-      "  %GlobalPrint('\\n');                                                \n"
-      "  return stack[2].getFunctionName();                                  \n"
-      "}                                                                     \n"
-      "function f() {                                                        \n"
-      "  var caller = getCaller();                                           \n"
-      "  if (caller === 'g') return 1;                                       \n"
-      "  if (caller === 'h') return 2;                                       \n"
-      "  return 0;                                                           \n"
-      "}                                                                     \n"
-      "function g() {                                                        \n"
-      "  return f();                                                         \n"
-      "}                                                                     \n"
-      "function h() {                                                        \n"
-      "  var result = g();                                                   \n"
-      "  return result;                                                      \n"
-      "}                                                                     \n"
-      "%NeverOptimizeFunction(getCaller);                                    \n"
-      "%NeverOptimizeFunction(f);                                            \n"
-      "%NeverOptimizeFunction(h);                                            \n"
-      "");
-  ExpectInt32("h();", 2);
-  ExpectInt32("h(); %OptimizeFunctionOnNextCall(g); h();", 2);
-  i_isolate->SetTailCallEliminationEnabled(false);
-  CHECK(!i_isolate->is_tail_call_elimination_enabled());
-  ExpectInt32("h();", 1);
-  ExpectInt32("h(); %OptimizeFunctionOnNextCall(g); h();", 1);
-  i_isolate->SetTailCallEliminationEnabled(true);
-  CHECK(i_isolate->is_tail_call_elimination_enabled());
-  ExpectInt32("h();", 2);
-  ExpectInt32("h(); %OptimizeFunctionOnNextCall(g); h();", 2);
-}
-
-TEST(DebugStepNextTailCallEliminiation) {
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_harmony_tailcalls = true;
-  // TODO(ishell, 4698): Investigate why TurboFan in --always-opt mode makes
-  // stack[2].getFunctionName() return null.
-  i::FLAG_turbo_inlining = false;
-
-  DebugLocalContext env;
-  env.ExposeDebug();
-  v8::Isolate* isolate = env->GetIsolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  v8::HandleScope scope(isolate);
-  CHECK(i_isolate->is_tail_call_elimination_enabled());
-
-  const char* source =
-      "'use strict';                                           \n"
-      "var Debug = debug.Debug;                                \n"
-      "var exception = null;                                   \n"
-      "var breaks = 0;                                         \n"
-      "var log = [];                                           \n"
-      "function f(x) {                                         \n"
-      "  if (x == 2) {                                         \n"
-      "    debugger;             // Break a                    \n"
-      "  }                                                     \n"
-      "  if (x-- > 0) {          // Break b                    \n"
-      "    return f(x);          // Break c                    \n"
-      "  }                                                     \n"
-      "}                         // Break e                    \n"
-      "function listener(event, exec_state, event_data, data) {\n"
-      "  if (event != Debug.DebugEvent.Break) return;          \n"
-      "  try {                                                 \n"
-      "    var line = exec_state.frame(0).sourceLineText();    \n"
-      "    var col = exec_state.frame(0).sourceColumn();       \n"
-      "    var match = line.match(/\\/\\/ Break (\\w)/);       \n"
-      "    log.push(match[1] + col);                           \n"
-      "    exec_state.prepareStep(Debug.StepAction.StepNext);  \n"
-      "  } catch (e) {                                         \n"
-      "    exception = e;                                      \n"
-      "  };                                                    \n"
-      "};                                                      \n"
-      "Debug.setListener(listener);                            \n"
-      "f(4);                                                   \n"
-      "Debug.setListener(null);  // Break d                    \n";
-
-  CompileRun(source);
-  ExpectNull("exception");
-  ExpectString("JSON.stringify(log)", "[\"a4\",\"b2\",\"c4\",\"c11\",\"d0\"]");
-
-  i_isolate->SetTailCallEliminationEnabled(false);
-  CompileRun(
-      "log = [];                            \n"
-      "Debug.setListener(listener);         \n"
-      "f(5);                                \n"
-      "Debug.setListener(null);  // Break f \n");
-  ExpectNull("exception");
-  ExpectString("JSON.stringify(log)",
-               "[\"a4\",\"b2\",\"c4\",\"e0\",\"e0\",\"e0\",\"e0\",\"f0\"]");
 }
 
 size_t current_action = 0;
@@ -6665,16 +6550,11 @@ TEST(BuiltinsExceptionPrediction) {
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
     Code* builtin = builtins->builtin(static_cast<i::Builtins::Name>(i));
 
-    if (i::HandlerTable::cast(builtin->handler_table())->length() == 0)
-      continue;
-
-    if (builtin->is_promise_rejection() || builtin->is_exception_caught())
-      continue;
-
+    if (builtin->kind() != Code::BUILTIN) continue;
     if (whitelist.find(i) != whitelist.end()) continue;
 
-    fail = true;
-    i::PrintF("%s is missing exception predictions.\n", builtins->name(i));
+    auto prediction = builtin->GetBuiltinCatchPrediction();
+    USE(prediction);
   }
   CHECK(!fail);
 }
@@ -6703,13 +6583,13 @@ TEST(DebugGetPossibleBreakpointsReturnLocations) {
       ++returns_count;
     }
   }
-  if (i::FLAG_turbo) {
-    // With turbofan we generate one return location per return statement,
+  if (i::FLAG_stress_fullcodegen) {
+    // With fullcodegen we generate one return location.
+    CHECK(returns_count == 1);
+  } else {
+    // With Ignition we generate one return location per return statement,
     // each has line = 5, column = 0 as statement position.
     CHECK(returns_count == 4);
-  } else {
-    // Without turbofan we generate one return location.
-    CHECK(returns_count == 1);
   }
 }
 

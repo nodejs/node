@@ -65,45 +65,10 @@ async function FailSyncInstantiate() {
   }
 }
 
-async function FailAsyncCompile() {
-  print("FailAsyncCompile...");
-  %SetWasmCompileControls(buffer.byteLength - 1, false);
-  assertThrows(() => new WebAssembly.Module(buffer), RangeError);
-
-  print("  wait");
-  try {
-    let m = await WebAssembly.compile(buffer);
-    print("  cont");
-    assertUnreachable();
-  } catch (e) {
-    print("  catch: " + e);
-    assertTrue(e instanceof RangeError);
-  }
-}
-
-async function FailAsyncInstantiate() {
-  print("FailAsyncInstantiate...");
-  %SetWasmCompileControls(buffer.byteLength - 1, false);
-  assertThrows(() => new WebAssembly.Instance(buffer), RangeError);
-
-  print("  wait");
-  try {
-    let m = await WebAssembly.instantiate(buffer);
-    print("  cont");
-    assertUnreachable();
-  } catch (e) {
-    print("  catch: " + e);
-    assertTrue(e instanceof RangeError);
-  }
-}
-
-
 async function TestAll() {
   await SuccessfulTest();
   await FailSyncCompile();
   await FailSyncInstantiate();
-  await FailAsyncCompile();
-  await FailAsyncInstantiate();
 }
 
 assertPromiseResult(TestAll());

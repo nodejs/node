@@ -43,6 +43,15 @@ assertEquals('undefined', typeof a[2]);
 assertEquals('undefined', typeof a[3]);
 
 
+for(var i = 0; i < 10; i++) {
+      var array = new Array(i).fill(42);
+      array.push(42);
+      array.length = i;
+      array.length = i+1;
+      assertEquals('undefined' , typeof array[i]);
+}
+
+
 var a = new Array();
 a[0] = 0;
 a[1000] = 1000;

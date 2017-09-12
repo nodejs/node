@@ -67,11 +67,11 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
       DisallowHeapAllocation no_allocation;
       if (receiver->IsJSGlobalObject()) {
         // Attempt dictionary lookup.
-        GlobalDictionary* dictionary = receiver->global_dictionary();
+        GlobalDictionary* dictionary =
+            JSGlobalObject::cast(*receiver)->global_dictionary();
         int entry = dictionary->FindEntry(key);
         if (entry != GlobalDictionary::kNotFound) {
-          DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
-          PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(entry));
+          PropertyCell* cell = dictionary->CellAt(entry);
           if (cell->property_details().kind() == kData) {
             Object* value = cell->value();
             if (!value->IsTheHole(isolate)) {
@@ -96,18 +96,17 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
       // that subsequent accesses will also call the runtime. Proactively
       // transition elements to FAST_*_ELEMENTS to avoid excessive boxing of
       // doubles for those future calls in the case that the elements would
-      // become FAST_DOUBLE_ELEMENTS.
+      // become PACKED_DOUBLE_ELEMENTS.
       Handle<JSObject> js_object = Handle<JSObject>::cast(receiver_obj);
       ElementsKind elements_kind = js_object->GetElementsKind();
-      if (IsFastDoubleElementsKind(elements_kind)) {
-        if (Smi::cast(*key_obj)->value() >= js_object->elements()->length()) {
-          elements_kind = IsFastHoleyElementsKind(elements_kind)
-                              ? FAST_HOLEY_ELEMENTS
-                              : FAST_ELEMENTS;
+      if (IsDoubleElementsKind(elements_kind)) {
+        if (Smi::ToInt(*key_obj) >= js_object->elements()->length()) {
+          elements_kind = IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS
+                                                             : PACKED_ELEMENTS;
           JSObject::TransitionElementsKind(js_object, elements_kind);
         }
       } else {
-        DCHECK(IsFastSmiOrObjectElementsKind(elements_kind) ||
+        DCHECK(IsSmiOrObjectElementsKind(elements_kind) ||
                !IsFastElementsKind(elements_kind));
       }
     }
@@ -306,11 +305,9 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   DCHECK(name->IsUniqueName());
 
   Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
-  int entry;
-  PropertyDetails property_details(kData, NONE, 0, PropertyCellType::kNoCell);
-  dictionary =
-      NameDictionary::Add(dictionary, name, value, property_details, &entry);
-  receiver->set_properties(*dictionary);
+  PropertyDetails property_details(kData, NONE, PropertyCellType::kNoCell);
+  dictionary = NameDictionary::Add(dictionary, name, value, property_details);
+  receiver->SetProperties(*dictionary);
   return *value;
 }
 
@@ -387,6 +384,17 @@ RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
+  if (prototype->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(prototype);
+    if (!function->shared()->has_shared_name()) {
+      Handle<Map> function_map(function->map(), isolate);
+      if (!JSFunction::SetName(function, isolate->factory()->proto_string(),
+                               isolate->factory()->empty_string())) {
+        return isolate->heap()->exception();
+      }
+      CHECK_EQ(*function_map, function->map());
+    }
+  }
   MAYBE_RETURN(
       JSReceiver::SetPrototype(obj, prototype, false, Object::THROW_ON_ERROR),
       isolate->heap()->exception());
@@ -498,7 +506,7 @@ RUNTIME_FUNCTION(Runtime_AppendElement) {
 
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::AddDataElement(array, index, value, NONE));
-  JSObject::ValidateElements(array);
+  JSObject::ValidateElements(*array);
   return *array;
 }
 
@@ -546,13 +554,11 @@ RUNTIME_FUNCTION(Runtime_DeleteProperty) {
 
 RUNTIME_FUNCTION(Runtime_ShrinkPropertyDictionary) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
   Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
-  Handle<NameDictionary> new_properties =
-      NameDictionary::Shrink(dictionary, key);
-  receiver->set_properties(*new_properties);
+  Handle<NameDictionary> new_properties = NameDictionary::Shrink(dictionary);
+  receiver->SetProperties(*new_properties);
   return Smi::kZero;
 }
 
@@ -669,7 +675,8 @@ RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
     CHECK(field_index.property_index() <
           object->map()->GetInObjectProperties());
   } else {
-    CHECK(field_index.outobject_array_index() < object->properties()->length());
+    CHECK(field_index.outobject_array_index() <
+          object->property_dictionary()->length());
   }
   return *JSObject::FastPropertyAt(object, Representation::Double(),
                                    field_index);
@@ -762,8 +769,16 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
 
   if (flags & DataPropertyInLiteralFlag::kSetFunctionName) {
     DCHECK(value->IsJSFunction());
-    JSFunction::SetName(Handle<JSFunction>::cast(value), name,
-                        isolate->factory()->empty_string());
+    Handle<JSFunction> function = Handle<JSFunction>::cast(value);
+    DCHECK(!function->shared()->has_shared_name());
+    Handle<Map> function_map(function->map(), isolate);
+    if (!JSFunction::SetName(function, name,
+                             isolate->factory()->empty_string())) {
+      return isolate->heap()->exception();
+    }
+    // Class constructors do not reserve in-object space for name field.
+    CHECK_IMPLIES(!IsClassConstructor(function->shared()->kind()),
+                  *function_map == function->map());
   }
 
   LookupIterator it = LookupIterator::PropertyOrElement(
@@ -861,7 +876,11 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
   if (String::cast(getter->shared()->name())->length() == 0) {
-    JSFunction::SetName(getter, name, isolate->factory()->get_string());
+    Handle<Map> getter_map(getter->map(), isolate);
+    if (!JSFunction::SetName(getter, name, isolate->factory()->get_string())) {
+      return isolate->heap()->exception();
+    }
+    CHECK_EQ(*getter_map, getter->map());
   }
 
   RETURN_FAILURE_ON_EXCEPTION(
@@ -922,6 +941,64 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
   return *target;
 }
 
+namespace {
+
+inline void TrySetNative(Handle<Object> maybe_func) {
+  if (!maybe_func->IsJSFunction()) return;
+  JSFunction::cast(*maybe_func)->shared()->set_native(true);
+}
+
+inline void TrySetNativeAndLength(Handle<Object> maybe_func, int length) {
+  if (!maybe_func->IsJSFunction()) return;
+  SharedFunctionInfo* shared = JSFunction::cast(*maybe_func)->shared();
+  shared->set_native(true);
+  if (length >= 0) {
+    shared->set_length(length);
+  }
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_DefineMethodsInternal) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CHECK(isolate->bootstrapper()->IsActive());
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, source_class, 1);
+  CONVERT_SMI_ARG_CHECKED(length, 2);
+
+  DCHECK(source_class->prototype()->IsJSObject());
+  Handle<JSObject> source(JSObject::cast(source_class->prototype()), isolate);
+
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, keys,
+      KeyAccumulator::GetKeys(source, KeyCollectionMode::kOwnOnly,
+                              ALL_PROPERTIES,
+                              GetKeysConversion::kConvertToString));
+
+  for (int i = 0; i < keys->length(); ++i) {
+    Handle<Name> key = Handle<Name>::cast(FixedArray::get(*keys, i, isolate));
+    if (*key == isolate->heap()->constructor_string()) continue;
+
+    PropertyDescriptor descriptor;
+    Maybe<bool> did_get_descriptor =
+        JSReceiver::GetOwnPropertyDescriptor(isolate, source, key, &descriptor);
+    CHECK(did_get_descriptor.FromJust());
+    if (descriptor.has_value()) {
+      TrySetNativeAndLength(descriptor.value(), length);
+    } else {
+      if (descriptor.has_get()) TrySetNative(descriptor.get());
+      if (descriptor.has_set()) TrySetNative(descriptor.set());
+    }
+
+    Maybe<bool> success = JSReceiver::DefineOwnProperty(
+        isolate, target, key, &descriptor, Object::DONT_THROW);
+    CHECK(success.FromJust());
+  }
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -931,7 +1008,11 @@ RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
   if (String::cast(setter->shared()->name())->length() == 0) {
-    JSFunction::SetName(setter, name, isolate->factory()->set_string());
+    Handle<Map> setter_map(setter->map(), isolate);
+    if (!JSFunction::SetName(setter, name, isolate->factory()->set_string())) {
+      return isolate->heap()->exception();
+    }
+    CHECK_EQ(*setter_map, setter->map());
   }
 
   RETURN_FAILURE_ON_EXCEPTION(
@@ -1052,10 +1133,11 @@ RUNTIME_FUNCTION(Runtime_Compare) {
 RUNTIME_FUNCTION(Runtime_HasInPrototypeChain) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  Maybe<bool> result =
-      JSReceiver::HasInPrototypeChain(isolate, object, prototype);
+  if (!object->IsJSReceiver()) return isolate->heap()->false_value();
+  Maybe<bool> result = JSReceiver::HasInPrototypeChain(
+      isolate, Handle<JSReceiver>::cast(object), prototype);
   MAYBE_RETURN(result, isolate->heap()->exception());
   return isolate->heap()->ToBoolean(result.FromJust());
 }
@@ -1069,26 +1151,6 @@ RUNTIME_FUNCTION(Runtime_CreateIterResultObject) {
   CONVERT_ARG_HANDLE_CHECKED(Object, done, 1);
   return *isolate->factory()->NewJSIteratorResult(value, done->BooleanValue());
 }
-
-RUNTIME_FUNCTION(Runtime_CreateKeyValueArray) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  Handle<FixedArray> elements = isolate->factory()->NewFixedArray(2);
-  elements->set(0, *key);
-  elements->set(1, *value);
-  return *isolate->factory()->NewJSArrayWithElements(elements, FAST_ELEMENTS,
-                                                     2);
-}
-
-RUNTIME_FUNCTION(Runtime_IsAccessCheckNeeded) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, object, 0);
-  return isolate->heap()->ToBoolean(object->IsAccessCheckNeeded());
-}
-
 
 RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
   HandleScope scope(isolate);

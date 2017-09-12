@@ -44,8 +44,9 @@ var sum = 0;
   i++; // Break 2.
   i++; // Break 3.
   debugger;  // Break 4.
-  return i; // Break 5.
-}()); // Break 6.
+  return i  // Break 5.
+  ; // Break 6.
+}());
 
 assertNull(exception); // Break 7.
 assertEquals(expected_breaks, break_count);

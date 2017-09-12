@@ -38,8 +38,6 @@
       '../../include/v8-inspector-protocol.h',
       'inspector/injected-script.cc',
       'inspector/injected-script.h',
-      'inspector/injected-script-native.cc',
-      'inspector/injected-script-native.h',
       'inspector/inspected-context.cc',
       'inspector/inspected-context.h',
       'inspector/java-script-call-frame.cc',

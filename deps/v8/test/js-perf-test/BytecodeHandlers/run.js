@@ -5,7 +5,7 @@
 
 load('../base.js');
 
-load('compare.js');
+load(arguments[0] + '.js');
 
 var success = true;
 

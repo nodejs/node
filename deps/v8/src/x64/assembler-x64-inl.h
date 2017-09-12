@@ -53,19 +53,13 @@ void Assembler::emitw(uint16_t x) {
   pc_ += sizeof(uint16_t);
 }
 
-
-void Assembler::emit_code_target(Handle<Code> target,
-                                 RelocInfo::Mode rmode,
-                                 TypeFeedbackId ast_id) {
+void Assembler::emit_code_target(Handle<Code> target, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode) ||
       rmode == RelocInfo::CODE_AGE_SEQUENCE);
-  if (rmode == RelocInfo::CODE_TARGET && !ast_id.IsNone()) {
-    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, ast_id.ToInt());
-  } else {
-    RecordRelocInfo(rmode);
-  }
+  RecordRelocInfo(rmode);
   int current = code_targets_.length();
-  if (current > 0 && code_targets_.last().address() == target.address()) {
+  if (current > 0 && !target.is_null() &&
+      code_targets_.last().address() == target.address()) {
     // Optimization if we keep jumping to the same code target.
     emitl(current - 1);
   } else {
@@ -317,7 +311,6 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   return code_targets_[Memory::int32_at(pc)];
 }
 
-
 Address Assembler::runtime_entry_at(Address pc) {
   return Memory::int32_at(pc) + isolate_data().code_range_start_;
 }
@@ -356,7 +349,6 @@ Address RelocInfo::target_address_address() {
 
 Address RelocInfo::constant_pool_entry_address() {
   UNREACHABLE();
-  return NULL;
 }
 
 

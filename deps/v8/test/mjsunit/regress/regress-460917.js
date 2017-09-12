@@ -7,7 +7,7 @@
 function boom(a1, a2) {
   // Do something with a2 that needs a map check (for DOUBLE_ELEMENTS).
   var s = a2[0];
-  // Emit a load that transitions a1 to FAST_ELEMENTS.
+  // Emit a load that transitions a1 to PACKED_ELEMENTS.
   var t = a1[0];
   // Emit a store to a2 that assumes DOUBLE_ELEMENTS.
   // The map check is considered redundant and will be eliminated.

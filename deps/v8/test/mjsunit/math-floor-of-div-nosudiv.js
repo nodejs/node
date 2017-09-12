@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --nouse-inlining --noenable-sudiv
-// Flags: --noenable-armv8
+// Flags: --allow-natives-syntax --noenable-sudiv --noenable-armv8
 
 // Use this function as reference. Make sure it is not inlined.
 function div(a, b) {

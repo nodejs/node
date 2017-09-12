@@ -144,16 +144,16 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI32x4MaxS:
     case kArmI32x4Eq:
     case kArmI32x4Ne:
-    case kArmI32x4LtS:
-    case kArmI32x4LeS:
+    case kArmI32x4GtS:
+    case kArmI32x4GeS:
     case kArmI32x4UConvertF32x4:
     case kArmI32x4UConvertI16x8Low:
     case kArmI32x4UConvertI16x8High:
     case kArmI32x4ShrU:
     case kArmI32x4MinU:
     case kArmI32x4MaxU:
-    case kArmI32x4LtU:
-    case kArmI32x4LeU:
+    case kArmI32x4GtU:
+    case kArmI32x4GeU:
     case kArmI16x8Splat:
     case kArmI16x8ExtractLane:
     case kArmI16x8ReplaceLane:
@@ -173,8 +173,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI16x8MaxS:
     case kArmI16x8Eq:
     case kArmI16x8Ne:
-    case kArmI16x8LtS:
-    case kArmI16x8LeS:
+    case kArmI16x8GtS:
+    case kArmI16x8GeS:
     case kArmI16x8UConvertI8x16Low:
     case kArmI16x8UConvertI8x16High:
     case kArmI16x8ShrU:
@@ -183,8 +183,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI16x8SubSaturateU:
     case kArmI16x8MinU:
     case kArmI16x8MaxU:
-    case kArmI16x8LtU:
-    case kArmI16x8LeU:
+    case kArmI16x8GtU:
+    case kArmI16x8GeU:
     case kArmI8x16Splat:
     case kArmI8x16ExtractLane:
     case kArmI8x16ReplaceLane:
@@ -201,16 +201,16 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI8x16MaxS:
     case kArmI8x16Eq:
     case kArmI8x16Ne:
-    case kArmI8x16LtS:
-    case kArmI8x16LeS:
+    case kArmI8x16GtS:
+    case kArmI8x16GeS:
     case kArmI8x16UConvertI16x8:
     case kArmI8x16AddSaturateU:
     case kArmI8x16SubSaturateU:
     case kArmI8x16ShrU:
     case kArmI8x16MinU:
     case kArmI8x16MaxU:
-    case kArmI8x16LtU:
-    case kArmI8x16LeU:
+    case kArmI8x16GtU:
+    case kArmI8x16GeU:
     case kArmS128Zero:
     case kArmS128And:
     case kArmS128Or:
@@ -230,7 +230,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmS16x8UnzipRight:
     case kArmS16x8TransposeLeft:
     case kArmS16x8TransposeRight:
-    case kArmS16x8Shuffle:
     case kArmS8x16ZipLeft:
     case kArmS8x16ZipRight:
     case kArmS8x16UnzipLeft:
@@ -283,7 +282,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
   }
 
   UNREACHABLE();
-  return kNoOpcodeFlags;
 }
 
 

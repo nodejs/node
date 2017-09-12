@@ -29,6 +29,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
   SimplifiedOperatorReducer(Editor* editor, JSGraph* jsgraph);
   ~SimplifiedOperatorReducer() final;
 
+  const char* reducer_name() const override {
+    return "SimplifiedOperatorReducer";
+  }
+
   Reduction Reduce(Node* node) final;
 
  private:

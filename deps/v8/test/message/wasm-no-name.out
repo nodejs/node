@@ -1,0 +1,5 @@
+wasm-function[0]:1: RuntimeError: unreachable
+RuntimeError: unreachable
+    at wasm-function[0]:1
+    at *%(basename)s:14:31
+

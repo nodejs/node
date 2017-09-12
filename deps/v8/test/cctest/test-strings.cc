@@ -791,7 +791,6 @@ static Handle<String> BuildEdgeCaseConsString(
       }
   }
   UNREACHABLE();
-  return Handle<String>();
 }
 
 
@@ -1193,6 +1192,7 @@ TEST(InternalizeExternal) {
   // TODO(mlippautz): Remove once we add support for forwarding ThinStrings in
   // minor MC.
   if (FLAG_minor_mc) return;
+  FLAG_stress_incremental_marking = false;
   FLAG_thin_strings = true;
   CcTest::InitializeVM();
   i::Isolate* isolate = CcTest::i_isolate();
@@ -1301,8 +1301,8 @@ TEST(SliceFromSlice) {
 UNINITIALIZED_TEST(OneByteArrayJoin) {
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
-  create_params.constraints.set_max_semi_space_size(1);
-  create_params.constraints.set_max_old_space_size(6);
+  create_params.constraints.set_max_semi_space_size_in_kb(1024);
+  create_params.constraints.set_max_old_space_size(7);
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
@@ -1496,7 +1496,7 @@ static uint16_t ConvertLatin1(uint16_t c) {
   return result[0];
 }
 
-
+#ifndef V8_INTL_SUPPORT
 static void CheckCanonicalEquivalence(uint16_t c, uint16_t test) {
   uint16_t expect = ConvertLatin1<unibrow::Ecma262UnCanonicalize, true>(c);
   if (expect > unibrow::Latin1::kMaxChar) expect = 0;
@@ -1536,7 +1536,7 @@ TEST(Latin1IgnoreCase) {
     CHECK_EQ(Min(upper, lower), test);
   }
 }
-
+#endif
 
 class DummyResource: public v8::String::ExternalStringResource {
  public:

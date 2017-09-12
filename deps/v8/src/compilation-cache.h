@@ -52,7 +52,6 @@ class CompilationSubCache {
 
   // GC support.
   void Iterate(RootVisitor* v);
-  void IterateFunctions(ObjectVisitor* v);
 
   // Clear this sub-cache evicting all its content.
   void Clear();
@@ -200,7 +199,6 @@ class CompilationCache {
 
   // GC support.
   void Iterate(RootVisitor* v);
-  void IterateFunctions(ObjectVisitor* v);
 
   // Notify the cache that a mark-sweep garbage collection is about to
   // take place. This is used to retire entries from the cache to

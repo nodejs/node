@@ -24,6 +24,10 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                         Label* if_equal, Label* if_not_equal,
                         Label* if_notbothdirectonebyte);
 
+  // String concatenation.
+  Node* ConcatenateStrings(Node* context, Node* first_arg_ptr, Node* arg_count,
+                           Label* bailout_to_runtime);
+
  protected:
   Node* DirectStringData(Node* string, Node* string_instance_type);
 
@@ -53,6 +57,10 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
 
   Node* LoadSurrogatePairAt(Node* string, Node* length, Node* index,
                             UnicodeEncoding encoding);
+
+  Node* ConcatenateSequentialStrings(Node* context, Node* first_arg_ptr,
+                                     Node* arg_count, Node* total_length,
+                                     String::Encoding encoding);
 
   void StringIndexOf(Node* const subject_string,
                      Node* const subject_instance_type,
@@ -86,7 +94,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void MaybeCallFunctionAtSymbol(Node* const context, Node* const object,
                                  Handle<Symbol> symbol,
                                  const NodeFunction0& regexp_call,
-                                 const NodeFunction1& generic_call);
+                                 const NodeFunction1& generic_call,
+                                 CodeStubArguments* args = nullptr);
 };
 
 }  // namespace internal

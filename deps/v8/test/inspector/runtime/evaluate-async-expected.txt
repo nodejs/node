@@ -35,6 +35,98 @@ Running test: testRejectedPromise
     }
 }
 
+Running test: testRejectedPromiseWithError
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 11
+            exception : {
+                className : Error
+                description : Error: MyError     at foo (<anonymous>:13:11)     at throwError (<anonymous>:15:3)     at <anonymous>
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 13
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 10
+                        functionName : foo
+                        lineNumber : 12
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 2
+                        functionName : throwError
+                        lineNumber : 14
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught (in promise) Error: MyError
+        }
+        result : {
+            className : Error
+            description : Error: MyError     at foo (<anonymous>:13:11)     at throwError (<anonymous>:15:3)     at <anonymous>
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+
+Running test: testRejectedPromiseWithSyntaxError
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 5
+            exception : {
+                className : SyntaxError
+                description : SyntaxError: Unexpected token }     at foo (<anonymous>:21:5)     at throwSyntaxError (<anonymous>:23:3)     at <anonymous>
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 21
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 4
+                        functionName : foo
+                        lineNumber : 20
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 2
+                        functionName : throwSyntaxError
+                        lineNumber : 22
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught (in promise) SyntaxError: Unexpected token }
+        }
+        result : {
+            className : SyntaxError
+            description : SyntaxError: Unexpected token }     at foo (<anonymous>:21:5)     at throwSyntaxError (<anonymous>:23:3)     at <anonymous>
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+
 Running test: testPrimitiveValueInsteadOfPromise
 {
     error : {

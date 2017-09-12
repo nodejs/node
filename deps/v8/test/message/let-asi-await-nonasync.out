@@ -1,4 +1,0 @@
-*%(basename)s:8: SyntaxError: Unexpected number
-  await 0;
-        ^
-SyntaxError: Unexpected number

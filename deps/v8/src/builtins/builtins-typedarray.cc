@@ -27,7 +27,7 @@ namespace {
 int64_t CapRelativeIndex(Handle<Object> num, int64_t minimum, int64_t maximum) {
   int64_t relative;
   if (V8_LIKELY(num->IsSmi())) {
-    relative = Smi::cast(*num)->value();
+    relative = Smi::ToInt(*num);
   } else {
     DCHECK(num->IsHeapNumber());
     double fp = HeapNumber::cast(*num)->value();

@@ -51,15 +51,241 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
                 Register reg8 = no_reg);
 #endif
 
+class TurboAssembler : public Assembler {
+ public:
+  TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
+                 CodeObjectRequired create_code_object)
+      : Assembler(isolate, buffer, buffer_size), isolate_(isolate) {
+    if (create_code_object == CodeObjectRequired::kYes) {
+      code_object_ =
+          Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
+    }
+  }
+
+  void set_has_frame(bool value) { has_frame_ = value; }
+  bool has_frame() const { return has_frame_; }
+
+  Isolate* isolate() const { return isolate_; }
+
+  Handle<HeapObject> CodeObject() {
+    DCHECK(!code_object_.is_null());
+    return code_object_;
+  }
+
+  void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
+                     Label* condition_met,
+                     Label::Distance condition_met_distance = Label::kFar);
+
+  // Activation support.
+  void EnterFrame(StackFrame::Type type);
+  void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg) {
+    // Out-of-line constant pool not implemented on ia32.
+    UNREACHABLE();
+  }
+  void LeaveFrame(StackFrame::Type type);
+
+  // Print a message to stdout and abort execution.
+  void Abort(BailoutReason reason);
+
+  // Calls Abort(msg) if the condition cc is not satisfied.
+  // Use --debug_code to enable.
+  void Assert(Condition cc, BailoutReason reason);
+
+  // Like Assert(), but without condition.
+  // Use --debug_code to enable.
+  void AssertUnreachable(BailoutReason reason);
+
+  // Like Assert(), but always enabled.
+  void Check(Condition cc, BailoutReason reason);
+
+  // Check that the stack is aligned.
+  void CheckStackAlignment();
+
+  // Nop, because ia32 does not have a root register.
+  void InitializeRootRegister() {}
+
+  // Move a constant into a destination using the most efficient encoding.
+  void Move(Register dst, const Immediate& x);
+
+  void Move(Register dst, Smi* source) { Move(dst, Immediate(source)); }
+
+  // Move if the registers are not identical.
+  void Move(Register target, Register source);
+
+  void Move(const Operand& dst, const Immediate& x);
+
+  // Move an immediate into an XMM register.
+  void Move(XMMRegister dst, uint32_t src);
+  void Move(XMMRegister dst, uint64_t src);
+  void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
+  void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
+
+  void Move(Register dst, Handle<HeapObject> handle);
+
+  void Call(Handle<Code> target, RelocInfo::Mode rmode) { call(target, rmode); }
+  void Call(Label* target) { call(target); }
+
+  inline bool AllowThisStubCall(CodeStub* stub);
+  void CallStubDelayed(CodeStub* stub);
+
+  void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
+                          SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+
+  // Jump the register contains a smi.
+  inline void JumpIfSmi(Register value, Label* smi_label,
+                        Label::Distance distance = Label::kFar) {
+    test(value, Immediate(kSmiTagMask));
+    j(zero, smi_label, distance);
+  }
+  // Jump if the operand is a smi.
+  inline void JumpIfSmi(Operand value, Label* smi_label,
+                        Label::Distance distance = Label::kFar) {
+    test(value, Immediate(kSmiTagMask));
+    j(zero, smi_label, distance);
+  }
+
+  void SmiUntag(Register reg) { sar(reg, kSmiTagSize); }
+
+  // Removes current frame and its arguments from the stack preserving
+  // the arguments and a return address pushed to the stack for the next call.
+  // |ra_state| defines whether return address is already pushed to stack or
+  // not. Both |callee_args_count| and |caller_args_count_reg| do not include
+  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
+  // is trashed. |number_of_temp_values_after_return_address| specifies
+  // the number of words pushed to the stack after the return address. This is
+  // to allow "allocation" of scratch registers that this function requires
+  // by saving their values on the stack.
+  void PrepareForTailCall(const ParameterCount& callee_args_count,
+                          Register caller_args_count_reg, Register scratch0,
+                          Register scratch1, ReturnAddressState ra_state,
+                          int number_of_temp_values_after_return_address);
+
+  // Before calling a C-function from generated code, align arguments on stack.
+  // After aligning the frame, arguments must be stored in esp[0], esp[4],
+  // etc., not pushed. The argument count assumes all arguments are word sized.
+  // Some compilers/platforms require the stack to be aligned when calling
+  // C++ code.
+  // Needs a scratch register to do some arithmetic. This register will be
+  // trashed.
+  void PrepareCallCFunction(int num_arguments, Register scratch);
+
+  // Calls a C function and cleans up the space for arguments allocated
+  // by PrepareCallCFunction. The called function is not allowed to trigger a
+  // garbage collection, since that might move the code and invalidate the
+  // return address (unless this is somehow accounted for by the called
+  // function).
+  void CallCFunction(ExternalReference function, int num_arguments);
+  void CallCFunction(Register function, int num_arguments);
+
+  void ShlPair(Register high, Register low, uint8_t imm8);
+  void ShlPair_cl(Register high, Register low);
+  void ShrPair(Register high, Register low, uint8_t imm8);
+  void ShrPair_cl(Register high, Register src);
+  void SarPair(Register high, Register low, uint8_t imm8);
+  void SarPair_cl(Register high, Register low);
+
+  // Generates function and stub prologue code.
+  void StubPrologue(StackFrame::Type type);
+  void Prologue(bool code_pre_aging);
+
+  void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
+  void Lzcnt(Register dst, const Operand& src);
+
+  void Tzcnt(Register dst, Register src) { Tzcnt(dst, Operand(src)); }
+  void Tzcnt(Register dst, const Operand& src);
+
+  void Popcnt(Register dst, Register src) { Popcnt(dst, Operand(src)); }
+  void Popcnt(Register dst, const Operand& src);
+
+  void Ret();
+
+  // Return and drop arguments from stack, where the number of arguments
+  // may be bigger than 2^16 - 1.  Requires a scratch register.
+  void Ret(int bytes_dropped, Register scratch);
+
+  void Pxor(XMMRegister dst, XMMRegister src) { Pxor(dst, Operand(src)); }
+  void Pxor(XMMRegister dst, const Operand& src);
+
+  void Pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    Pshuflw(dst, Operand(src), shuffle);
+  }
+  void Pshuflw(XMMRegister dst, const Operand& src, uint8_t shuffle);
+  void Pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    Pshufd(dst, Operand(src), shuffle);
+  }
+  void Pshufd(XMMRegister dst, const Operand& src, uint8_t shuffle);
+
+// SSE/SSE2 instructions with AVX version.
+#define AVX_OP2_WITH_TYPE(macro_name, name, dst_type, src_type) \
+  void macro_name(dst_type dst, src_type src) {                 \
+    if (CpuFeatures::IsSupported(AVX)) {                        \
+      CpuFeatureScope scope(this, AVX);                         \
+      v##name(dst, src);                                        \
+    } else {                                                    \
+      name(dst, src);                                           \
+    }                                                           \
+  }
+
+  AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, Register)
+  AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, const Operand&)
+  AVX_OP2_WITH_TYPE(Movd, movd, Register, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movd, movd, const Operand&, XMMRegister)
+
+#undef AVX_OP2_WITH_TYPE
+
+  // Non-SSE2 instructions.
+  void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, Operand(src)); }
+  void Pshufb(XMMRegister dst, const Operand& src);
+
+  void Pextrb(Register dst, XMMRegister src, int8_t imm8);
+  void Pextrw(Register dst, XMMRegister src, int8_t imm8);
+  void Pextrd(Register dst, XMMRegister src, int8_t imm8);
+  void Pinsrd(XMMRegister dst, Register src, int8_t imm8,
+              bool is_64_bits = false) {
+    Pinsrd(dst, Operand(src), imm8, is_64_bits);
+  }
+  void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8,
+              bool is_64_bits = false);
+
+  void LoadUint32(XMMRegister dst, Register src) {
+    LoadUint32(dst, Operand(src));
+  }
+  void LoadUint32(XMMRegister dst, const Operand& src);
+
+  // Expression support
+  // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
+  // hinders register renaming and makes dependence chains longer. So we use
+  // xorps to clear the dst register before cvtsi2sd to solve this issue.
+  void Cvtsi2sd(XMMRegister dst, Register src) { Cvtsi2sd(dst, Operand(src)); }
+  void Cvtsi2sd(XMMRegister dst, const Operand& src);
+
+  void Cvtui2ss(XMMRegister dst, Register src, Register tmp);
+
+  void SlowTruncateToIDelayed(Zone* zone, Register result_reg,
+                              Register input_reg,
+                              int offset = HeapNumber::kValueOffset -
+                                           kHeapObjectTag);
+
+  void Push(Register src) { push(src); }
+  void Push(const Operand& src) { push(src); }
+  void Push(Immediate value) { push(value); }
+  void Push(Handle<HeapObject> handle) { push(Immediate(handle)); }
+  void Push(Smi* smi) { Push(Immediate(smi)); }
+
+ private:
+  bool has_frame_ = false;
+  Isolate* const isolate_;
+  // This handle will be patched with the code object on installation.
+  Handle<HeapObject> code_object_;
+};
+
 // MacroAssembler implements a collection of frequently used macros.
-class MacroAssembler: public Assembler {
+class MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
 
   int jit_cookie() const { return jit_cookie_; }
-
-  Isolate* isolate() const { return isolate_; }
 
   void Load(Register dst, const Operand& src, Representation r);
   void Store(Register src, const Operand& dst, Representation r);
@@ -132,10 +358,6 @@ class MacroAssembler: public Assembler {
                            Register addr, Register scratch,
                            SaveFPRegsMode save_fp,
                            RememberedSetFinalAction and_then);
-
-  void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
-                     Label* condition_met,
-                     Label::Distance condition_met_distance = Label::kFar);
 
   void CheckPageFlagForMap(
       Handle<Map> map, int mask, Condition cc, Label* condition_met,
@@ -235,10 +457,6 @@ class MacroAssembler: public Assembler {
   // Frame restart support
   void MaybeDropFrames();
 
-  // Generates function and stub prologue code.
-  void StubPrologue(StackFrame::Type type);
-  void Prologue(bool code_pre_aging);
-
   // Enter specific kind of exit frame. Expects the number of
   // arguments in register eax and sets up the number of arguments in
   // register edi and the pointer to the first argument in register
@@ -278,28 +496,15 @@ class MacroAssembler: public Assembler {
   void StoreToSafepointRegisterSlot(Register dst, Immediate src);
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
-  // Nop, because ia32 does not have a root register.
-  void InitializeRootRegister() {}
-
-  void LoadHeapObject(Register result, Handle<HeapObject> object);
   void CmpHeapObject(Register reg, Handle<HeapObject> object);
-  void PushHeapObject(Handle<HeapObject> object);
-
-  void LoadObject(Register result, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      LoadHeapObject(result, Handle<HeapObject>::cast(object));
-    } else {
-      Move(result, Immediate(object));
-    }
-  }
+  void PushObject(Handle<Object> object);
 
   void CmpObject(Register reg, Handle<Object> object) {
     AllowDeferredHandleDereference heap_object_check;
     if (object->IsHeapObject()) {
       CmpHeapObject(reg, Handle<HeapObject>::cast(object));
     } else {
-      cmp(reg, Immediate(object));
+      cmp(reg, Immediate(Smi::cast(*object)));
     }
   }
 
@@ -312,19 +517,6 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
-  // Removes current frame and its arguments from the stack preserving
-  // the arguments and a return address pushed to the stack for the next call.
-  // |ra_state| defines whether return address is already pushed to stack or
-  // not. Both |callee_args_count| and |caller_args_count_reg| do not include
-  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
-  // is trashed. |number_of_temp_values_after_return_address| specifies
-  // the number of words pushed to the stack after the return address. This is
-  // to allow "allocation" of scratch registers that this function requires
-  // by saving their values on the stack.
-  void PrepareForTailCall(const ParameterCount& callee_args_count,
-                          Register caller_args_count_reg, Register scratch0,
-                          Register scratch1, ReturnAddressState ra_state,
-                          int number_of_temp_values_after_return_address);
 
   // Invoke the JavaScript function code by either calling or jumping.
 
@@ -352,22 +544,6 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag,
                       const CallWrapper& call_wrapper);
-
-  // Expression support
-  // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
-  // hinders register renaming and makes dependence chains longer. So we use
-  // xorps to clear the dst register before cvtsi2sd to solve this issue.
-  void Cvtsi2sd(XMMRegister dst, Register src) { Cvtsi2sd(dst, Operand(src)); }
-  void Cvtsi2sd(XMMRegister dst, const Operand& src);
-
-  void Cvtui2ss(XMMRegister dst, Register src, Register tmp);
-
-  void ShlPair(Register high, Register low, uint8_t imm8);
-  void ShlPair_cl(Register high, Register low);
-  void ShrPair(Register high, Register low, uint8_t imm8);
-  void ShrPair_cl(Register high, Register src);
-  void SarPair(Register high, Register low, uint8_t imm8);
-  void SarPair_cl(Register high, Register low);
 
   // Support for constant splitting.
   bool IsUnsafeImmediate(const Immediate& x);
@@ -425,35 +601,15 @@ class MacroAssembler: public Assembler {
     STATIC_ASSERT(kSmiTagSize == 1);
     add(reg, reg);
   }
-  void SmiUntag(Register reg) {
-    sar(reg, kSmiTagSize);
-  }
 
   // Modifies the register even if it does not contain a Smi!
-  void SmiUntag(Register reg, Label* is_smi) {
+  void UntagSmi(Register reg, Label* is_smi) {
     STATIC_ASSERT(kSmiTagSize == 1);
     sar(reg, kSmiTagSize);
     STATIC_ASSERT(kSmiTag == 0);
     j(not_carry, is_smi);
   }
 
-  void LoadUint32(XMMRegister dst, Register src) {
-    LoadUint32(dst, Operand(src));
-  }
-  void LoadUint32(XMMRegister dst, const Operand& src);
-
-  // Jump the register contains a smi.
-  inline void JumpIfSmi(Register value, Label* smi_label,
-                        Label::Distance distance = Label::kFar) {
-    test(value, Immediate(kSmiTagMask));
-    j(zero, smi_label, distance);
-  }
-  // Jump if the operand is a smi.
-  inline void JumpIfSmi(Operand value, Label* smi_label,
-                        Label::Distance distance = Label::kFar) {
-    test(value, Immediate(kSmiTagMask));
-    j(zero, smi_label, distance);
-  }
   // Jump if register contain a non-smi.
   inline void JumpIfNotSmi(Register value, Label* not_smi_label,
                            Label::Distance distance = Label::kFar) {
@@ -521,6 +677,9 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
 
+  // Abort execution if argument is not a FixedArray, enabled via --debug-code.
+  void AssertFixedArray(Register object);
+
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
 
@@ -528,9 +687,9 @@ class MacroAssembler: public Assembler {
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
 
-  // Abort execution if argument is not a JSGeneratorObject,
+  // Abort execution if argument is not a JSGeneratorObject (or subclass),
   // enabled via --debug-code.
-  void AssertGeneratorObject(Register object, Register suspend_flags);
+  void AssertGeneratorObject(Register object);
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
@@ -574,14 +733,6 @@ class MacroAssembler: public Assembler {
   void Allocate(Register object_size, Register result, Register result_end,
                 Register scratch, Label* gc_required, AllocationFlags flags);
 
-  // FastAllocate is right now only used for folded allocations. It just
-  // increments the top pointer without checking against limit. This can only
-  // be done if it was proved earlier that the allocation will succeed.
-  void FastAllocate(int object_size, Register result, Register result_end,
-                    AllocationFlags flags);
-  void FastAllocate(Register object_size, Register result, Register result_end,
-                    AllocationFlags flags);
-
   // Allocate a heap number in new space with undefined value. The
   // register scratch2 can be passed as no_reg; the others must be
   // valid registers. Returns tagged pointer in result register, or
@@ -614,7 +765,7 @@ class MacroAssembler: public Assembler {
   // Runtime calls
 
   // Call a code stub.  Generate the code if necessary.
-  void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
+  void CallStub(CodeStub* stub);
 
   // Tail call a code stub (jump).  Generate the code if necessary.
   void TailCallStub(CodeStub* stub);
@@ -646,35 +797,12 @@ class MacroAssembler: public Assembler {
   // Convenience function: tail call a runtime routine (jump).
   void TailCallRuntime(Runtime::FunctionId fid);
 
-  // Before calling a C-function from generated code, align arguments on stack.
-  // After aligning the frame, arguments must be stored in esp[0], esp[4],
-  // etc., not pushed. The argument count assumes all arguments are word sized.
-  // Some compilers/platforms require the stack to be aligned when calling
-  // C++ code.
-  // Needs a scratch register to do some arithmetic. This register will be
-  // trashed.
-  void PrepareCallCFunction(int num_arguments, Register scratch);
-
-  // Calls a C function and cleans up the space for arguments allocated
-  // by PrepareCallCFunction. The called function is not allowed to trigger a
-  // garbage collection, since that might move the code and invalidate the
-  // return address (unless this is somehow accounted for by the called
-  // function).
-  void CallCFunction(ExternalReference function, int num_arguments);
-  void CallCFunction(Register function, int num_arguments);
-
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext,
                                bool builtin_exit_frame = false);
 
   // ---------------------------------------------------------------------------
   // Utilities
-
-  void Ret();
-
-  // Return and drop arguments from stack, where the number of arguments
-  // may be bigger than 2^16 - 1.  Requires a scratch register.
-  void Ret(int bytes_dropped, Register scratch);
 
   // Emit code that loads |parameter_index|'th parameter from the stack to
   // the register according to the CallInterfaceDescriptor definition.
@@ -698,62 +826,11 @@ class MacroAssembler: public Assembler {
   // from the stack, clobbering only the esp register.
   void Drop(int element_count);
 
-  void Call(Label* target) { call(target); }
-  void Call(Handle<Code> target, RelocInfo::Mode rmode,
-            TypeFeedbackId id = TypeFeedbackId::None()) {
-    call(target, rmode, id);
-  }
   void Jump(Handle<Code> target, RelocInfo::Mode rmode) { jmp(target, rmode); }
-  void Push(Register src) { push(src); }
-  void Push(const Operand& src) { push(src); }
-  void Push(Immediate value) { push(value); }
   void Pop(Register dst) { pop(dst); }
   void Pop(const Operand& dst) { pop(dst); }
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
-
-  // Non-SSE2 instructions.
-  void Pextrd(Register dst, XMMRegister src, int8_t imm8);
-  void Pinsrd(XMMRegister dst, Register src, int8_t imm8,
-              bool is_64_bits = false) {
-    Pinsrd(dst, Operand(src), imm8, is_64_bits);
-  }
-  void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8,
-              bool is_64_bits = false);
-
-  void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
-  void Lzcnt(Register dst, const Operand& src);
-
-  void Tzcnt(Register dst, Register src) { Tzcnt(dst, Operand(src)); }
-  void Tzcnt(Register dst, const Operand& src);
-
-  void Popcnt(Register dst, Register src) { Popcnt(dst, Operand(src)); }
-  void Popcnt(Register dst, const Operand& src);
-
-  // Move if the registers are not identical.
-  void Move(Register target, Register source);
-
-  // Move a constant into a destination using the most efficient encoding.
-  void Move(Register dst, const Immediate& x);
-  void Move(const Operand& dst, const Immediate& x);
-
-  // Move an immediate into an XMM register.
-  void Move(XMMRegister dst, uint32_t src);
-  void Move(XMMRegister dst, uint64_t src);
-  void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
-  void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
-
-  void Move(Register dst, Handle<Object> handle) { LoadObject(dst, handle); }
-  void Move(Register dst, Smi* source) { Move(dst, Immediate(source)); }
-
-  // Push a handle value.
-  void Push(Handle<Object> handle) { push(Immediate(handle)); }
-  void Push(Smi* smi) { Push(Immediate(smi)); }
-
-  Handle<Object> CodeObject() {
-    DCHECK(!code_object_.is_null());
-    return code_object_;
-  }
 
   // Emit code for a truncating division by a constant. The dividend register is
   // unchanged, the result is in edx, and eax gets clobbered.
@@ -767,29 +844,6 @@ class MacroAssembler: public Assembler {
   void DecrementCounter(StatsCounter* counter, int value);
   void IncrementCounter(Condition cc, StatsCounter* counter, int value);
   void DecrementCounter(Condition cc, StatsCounter* counter, int value);
-
-  // ---------------------------------------------------------------------------
-  // Debugging
-
-  // Calls Abort(msg) if the condition cc is not satisfied.
-  // Use --debug_code to enable.
-  void Assert(Condition cc, BailoutReason reason);
-
-  // Like Assert(), but always enabled.
-  void Check(Condition cc, BailoutReason reason);
-
-  // Print a message to stdout and abort execution.
-  void Abort(BailoutReason reason);
-
-  // Check that the stack is aligned.
-  void CheckStackAlignment();
-
-  // Verify restrictions about code generated in stubs.
-  void set_generating_stub(bool value) { generating_stub_ = value; }
-  bool generating_stub() { return generating_stub_; }
-  void set_has_frame(bool value) { has_frame_ = value; }
-  bool has_frame() { return has_frame_; }
-  inline bool AllowThisStubCall(CodeStub* stub);
 
   // ---------------------------------------------------------------------------
   // String utilities.
@@ -819,11 +873,6 @@ class MacroAssembler: public Assembler {
   // Load the type feedback vector from a JavaScript frame.
   void EmitLoadFeedbackVector(Register vector);
 
-  // Activation support.
-  void EnterFrame(StackFrame::Type type);
-  void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
-  void LeaveFrame(StackFrame::Type type);
-
   void EnterBuiltinFrame(Register context, Register target, Register argc);
   void LeaveBuiltinFrame(Register context, Register target, Register argc);
 
@@ -842,11 +891,6 @@ class MacroAssembler: public Assembler {
                                        Label* no_memento_found);
 
  private:
-  bool generating_stub_;
-  bool has_frame_;
-  Isolate* isolate_;
-  // This handle will be patched with the code object on installation.
-  Handle<Object> code_object_;
   int jit_cookie_;
 
   // Helper functions for generating invokes.

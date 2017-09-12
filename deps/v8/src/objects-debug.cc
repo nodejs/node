@@ -13,6 +13,7 @@
 #include "src/layout-descriptor.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/debug-objects-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module-info.h"
 #include "src/ostreams.h"
@@ -86,6 +87,9 @@ void HeapObject::HeapObjectVerify() {
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(this)->TransitionArrayVerify();
       break;
+    case PROPERTY_ARRAY_TYPE:
+      PropertyArray::cast(this)->PropertyArrayVerify();
+      break;
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpaceVerify();
       break;
@@ -109,6 +113,10 @@ void HeapObject::HeapObjectVerify() {
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
+    case WASM_INSTANCE_TYPE:
+    case WASM_MEMORY_TYPE:
+    case WASM_MODULE_TYPE:
+    case WASM_TABLE_TYPE:
       JSObject::cast(this)->JSObjectVerify();
       break;
     case JS_ARGUMENTS_TYPE:
@@ -159,10 +167,13 @@ void HeapObject::HeapObjectVerify() {
     case JS_MAP_TYPE:
       JSMap::cast(this)->JSMapVerify();
       break;
-    case JS_SET_ITERATOR_TYPE:
+    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
+    case JS_SET_VALUE_ITERATOR_TYPE:
       JSSetIterator::cast(this)->JSSetIteratorVerify();
       break;
-    case JS_MAP_ITERATOR_TYPE:
+    case JS_MAP_KEY_ITERATOR_TYPE:
+    case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
+    case JS_MAP_VALUE_ITERATOR_TYPE:
       JSMapIterator::cast(this)->JSMapIteratorVerify();
       break;
 
@@ -248,6 +259,12 @@ void HeapObject::HeapObjectVerify() {
     case JS_DATA_VIEW_TYPE:
       JSDataView::cast(this)->JSDataViewVerify();
       break;
+    case SMALL_ORDERED_HASH_SET_TYPE:
+      SmallOrderedHashSet::cast(this)->SmallOrderedHashTableVerify();
+      break;
+    case SMALL_ORDERED_HASH_MAP_TYPE:
+      SmallOrderedHashMap::cast(this)->SmallOrderedHashTableVerify();
+      break;
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
@@ -327,13 +344,13 @@ bool JSObject::ElementsAreSafeToExamine() {
 
 
 void JSObject::JSObjectVerify() {
-  VerifyHeapPointer(properties());
+  VerifyPointer(raw_properties_or_hash());
   VerifyHeapPointer(elements());
 
   CHECK_IMPLIES(HasSloppyArgumentsElements(), IsJSArgumentsObject());
   if (HasFastProperties()) {
     int actual_unused_property_fields = map()->GetInObjectProperties() +
-                                        properties()->length() -
+                                        property_array()->length() -
                                         map()->NextFreePropertyIndex();
     if (map()->unused_property_fields() != actual_unused_property_fields) {
       // There are two reasons why this can happen:
@@ -394,7 +411,7 @@ void JSObject::JSObjectVerify() {
               HasFastStringWrapperElements()),
              (elements()->map() == GetHeap()->fixed_array_map() ||
               elements()->map() == GetHeap()->fixed_cow_array_map()));
-    CHECK(map()->has_fast_object_elements() == HasFastObjectElements());
+    CHECK(map()->has_fast_object_elements() == HasObjectElements());
   }
 }
 
@@ -424,7 +441,7 @@ void Map::DictionaryMapVerify() {
   CHECK(is_dictionary_map());
   CHECK(instance_descriptors()->IsEmpty());
   CHECK_EQ(0, unused_property_fields());
-  CHECK_EQ(Heap::GetStaticVisitorIdForMap(this), visitor_id());
+  CHECK_EQ(Map::GetVisitorId(this), visitor_id());
 }
 
 
@@ -450,6 +467,12 @@ void FixedArray::FixedArrayVerify() {
   }
 }
 
+void PropertyArray::PropertyArrayVerify() {
+  for (int i = 0; i < length(); i++) {
+    Object* e = get(i);
+    VerifyPointer(e);
+  }
+}
 
 void FixedDoubleArray::FixedDoubleArrayVerify() {
   for (int i = 0; i < length(); i++) {
@@ -486,7 +509,6 @@ void JSArgumentsObject::JSArgumentsObjectVerify() {
 
 void JSSloppyArgumentsObject::JSSloppyArgumentsObjectVerify() {
   Isolate* isolate = GetIsolate();
-  if (!map()->is_dictionary_map()) VerifyObjectField(kCalleeOffset);
   if (isolate->IsInAnyContext(map(), Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
       isolate->IsInAnyContext(map(),
                               Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
@@ -520,16 +542,14 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
     CHECK(arg_elements == isolate->heap()->empty_fixed_array());
     return;
   }
-  int nofMappedParameters =
-      length() - SloppyArgumentsElements::kParameterMapStart;
-  CHECK_LE(nofMappedParameters, context_object->length());
-  CHECK_LE(nofMappedParameters, arg_elements->length());
   ElementsAccessor* accessor;
   if (is_fast) {
-    accessor = ElementsAccessor::ForKind(FAST_HOLEY_ELEMENTS);
+    accessor = ElementsAccessor::ForKind(HOLEY_ELEMENTS);
   } else {
     accessor = ElementsAccessor::ForKind(DICTIONARY_ELEMENTS);
   }
+  int nofMappedParameters = 0;
+  int maxMappedIndex = 0;
   for (int i = 0; i < nofMappedParameters; i++) {
     // Verify that each context-mapped argument is either the hole or a valid
     // Smi within context length range.
@@ -542,12 +562,20 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
       CHECK(accessor->HasElement(holder, i, arg_elements));
       continue;
     }
-    Object* value = context_object->get(Smi::cast(mapped)->value());
+    int mappedIndex = Smi::ToInt(mapped);
+    nofMappedParameters++;
+    CHECK_LE(maxMappedIndex, mappedIndex);
+    maxMappedIndex = mappedIndex;
+    Object* value = context_object->get(mappedIndex);
     CHECK(value->IsObject());
     // None of the context-mapped entries should exist in the arguments
     // elements.
     CHECK(!accessor->HasElement(holder, i, arg_elements));
   }
+  CHECK_LE(nofMappedParameters, context_object->length());
+  CHECK_LE(nofMappedParameters, arg_elements->length());
+  CHECK_LE(maxMappedIndex, context_object->length());
+  CHECK_LE(maxMappedIndex, arg_elements->length());
 }
 
 void JSGeneratorObject::JSGeneratorObjectVerify() {
@@ -595,32 +623,32 @@ void JSDate::JSDateVerify() {
         cache_stamp()->IsNaN());
 
   if (month()->IsSmi()) {
-    int month = Smi::cast(this->month())->value();
+    int month = Smi::ToInt(this->month());
     CHECK(0 <= month && month <= 11);
   }
   if (day()->IsSmi()) {
-    int day = Smi::cast(this->day())->value();
+    int day = Smi::ToInt(this->day());
     CHECK(1 <= day && day <= 31);
   }
   if (hour()->IsSmi()) {
-    int hour = Smi::cast(this->hour())->value();
+    int hour = Smi::ToInt(this->hour());
     CHECK(0 <= hour && hour <= 23);
   }
   if (min()->IsSmi()) {
-    int min = Smi::cast(this->min())->value();
+    int min = Smi::ToInt(this->min());
     CHECK(0 <= min && min <= 59);
   }
   if (sec()->IsSmi()) {
-    int sec = Smi::cast(this->sec())->value();
+    int sec = Smi::ToInt(this->sec());
     CHECK(0 <= sec && sec <= 59);
   }
   if (weekday()->IsSmi()) {
-    int weekday = Smi::cast(this->weekday())->value();
+    int weekday = Smi::ToInt(this->weekday());
     CHECK(0 <= weekday && weekday <= 6);
   }
   if (cache_stamp()->IsSmi()) {
-    CHECK(Smi::cast(cache_stamp())->value() <=
-          Smi::cast(isolate->date_cache()->stamp())->value());
+    CHECK(Smi::ToInt(cache_stamp()) <=
+          Smi::ToInt(isolate->date_cache()->stamp()));
   }
 }
 
@@ -653,9 +681,7 @@ void String::StringVerify() {
 
 
 void ConsString::ConsStringVerify() {
-  CHECK(this->first()->IsString());
-  CHECK(this->second() == GetHeap()->empty_string() ||
-        this->second()->IsString());
+  CHECK(this->first()->IsString() && this->second()->IsString());
   CHECK(this->length() >= ConsString::kMinLength);
   CHECK(this->length() == this->first()->length() + this->second()->length());
   if (this->IsFlat()) {
@@ -684,11 +710,14 @@ void JSBoundFunction::JSBoundFunctionVerify() {
   VerifyObjectField(kBoundThisOffset);
   VerifyObjectField(kBoundTargetFunctionOffset);
   VerifyObjectField(kBoundArgumentsOffset);
-  CHECK(bound_target_function()->IsCallable());
   CHECK(IsCallable());
-  CHECK_EQ(IsConstructor(), bound_target_function()->IsConstructor());
-}
 
+  Isolate* const isolate = GetIsolate();
+  if (!raw_bound_target_function()->IsUndefined(isolate)) {
+    CHECK(bound_target_function()->IsCallable());
+    CHECK_EQ(IsConstructor(), bound_target_function()->IsConstructor());
+  }
+}
 
 void JSFunction::JSFunctionVerify() {
   CHECK(IsJSFunction());
@@ -716,16 +745,27 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   VerifyObjectField(kScopeInfoOffset);
   VerifyObjectField(kScriptOffset);
 
-  CHECK(function_data()->IsUndefined(GetIsolate()) || IsApiFunction() ||
+  CHECK(raw_name() == kNoSharedNameSentinel || raw_name()->IsString());
+
+  Isolate* isolate = GetIsolate();
+  CHECK(function_data()->IsUndefined(isolate) || IsApiFunction() ||
         HasBytecodeArray() || HasAsmWasmData());
 
-  CHECK(function_identifier()->IsUndefined(GetIsolate()) ||
-        HasBuiltinFunctionId() || HasInferredName());
+  CHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId() ||
+        HasInferredName());
+
+  int expected_map_index = Context::FunctionMapIndex(
+      language_mode(), kind(), has_shared_name(), needs_home_object());
+  CHECK_EQ(expected_map_index, function_map_index());
 
   if (scope_info()->length() > 0) {
     CHECK(kind() == scope_info()->function_kind());
     CHECK_EQ(kind() == kModule, scope_info()->scope_type() == MODULE_SCOPE);
   }
+
+  CHECK(preparsed_scope_data()->IsNull(isolate) ||
+        preparsed_scope_data()->IsPreParsedScopeData());
+  VerifyObjectField(kPreParsedScopeDataOffset);
 }
 
 
@@ -734,7 +774,7 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
   JSObjectVerify();
   VerifyObjectField(JSGlobalProxy::kNativeContextOffset);
   // Make sure that this object has no properties, elements.
-  CHECK_EQ(0, properties()->length());
+  CHECK_EQ(GetHeap()->empty_fixed_array(), raw_properties_or_hash());
   CHECK_EQ(0, FixedArray::cast(elements())->length());
 }
 
@@ -742,7 +782,7 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
 void JSGlobalObject::JSGlobalObjectVerify() {
   CHECK(IsJSGlobalObject());
   // Do not check the dummy global object for the builtins.
-  if (GlobalDictionary::cast(properties())->NumberOfElements() == 0 &&
+  if (global_dictionary()->NumberOfElements() == 0 &&
       elements()->length() == 0) {
     return;
   }
@@ -760,7 +800,7 @@ void Oddball::OddballVerify() {
           number == heap->hole_nan_value());
   } else {
     CHECK(number->IsSmi());
-    int value = Smi::cast(number)->value();
+    int value = Smi::ToInt(number);
     // Hidden oddballs have negative smis.
     const int kLeastHiddenOddballNumber = -7;
     CHECK_LE(value, 1);
@@ -883,7 +923,7 @@ void JSArray::JSArrayVerify() {
   if (!length()->IsNumber()) return;
   // Verify that the length and the elements backing store are in sync.
   if (length()->IsSmi() && HasFastElements()) {
-    int size = Smi::cast(length())->value();
+    int size = Smi::ToInt(length());
     // Holey / Packed backing stores might have slack or might have not been
     // properly initialized yet.
     CHECK(size <= elements()->length() ||
@@ -930,10 +970,8 @@ void JSSetIterator::JSSetIteratorVerify() {
   CHECK(IsJSSetIterator());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  Isolate* isolate = GetIsolate();
-  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined(isolate));
-  CHECK(index()->IsSmi() || index()->IsUndefined(isolate));
-  CHECK(kind()->IsSmi() || kind()->IsUndefined(isolate));
+  CHECK(table()->IsOrderedHashTable());
+  CHECK(index()->IsSmi());
 }
 
 
@@ -941,10 +979,8 @@ void JSMapIterator::JSMapIteratorVerify() {
   CHECK(IsJSMapIterator());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  Isolate* isolate = GetIsolate();
-  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined(isolate));
-  CHECK(index()->IsSmi() || index()->IsUndefined(isolate));
-  CHECK(kind()->IsSmi() || kind()->IsUndefined(isolate));
+  CHECK(table()->IsOrderedHashTable());
+  CHECK(index()->IsSmi());
 }
 
 
@@ -1018,6 +1054,51 @@ void JSPromise::JSPromiseVerify() {
         reject_reactions()->IsFixedArray());
 }
 
+template <typename Derived>
+void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify() {
+  CHECK(IsSmallOrderedHashTable());
+  Isolate* isolate = GetIsolate();
+
+  for (int entry = 0; entry < NumberOfBuckets(); entry++) {
+    int bucket = GetFirstEntry(entry);
+    if (bucket == kNotFound) continue;
+
+    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
+      Object* val = GetDataEntry(bucket, offset);
+      CHECK(!val->IsTheHole(isolate));
+    }
+  }
+
+  for (int entry = 0; entry < NumberOfElements(); entry++) {
+    int chain = GetNextEntry(entry);
+    if (chain == kNotFound) continue;
+
+    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
+      Object* val = GetDataEntry(chain, offset);
+      CHECK(!val->IsTheHole(isolate));
+    }
+  }
+
+  for (int entry = 0; entry < NumberOfElements(); entry++) {
+    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
+      Object* val = GetDataEntry(entry, offset);
+      VerifyPointer(val);
+    }
+  }
+
+  for (int entry = NumberOfElements(); entry < Capacity(); entry++) {
+    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
+      Object* val = GetDataEntry(entry, offset);
+      CHECK(val->IsTheHole(isolate));
+    }
+  }
+}
+
+template void
+SmallOrderedHashTable<SmallOrderedHashMap>::SmallOrderedHashTableVerify();
+template void
+SmallOrderedHashTable<SmallOrderedHashSet>::SmallOrderedHashTableVerify();
+
 void JSRegExp::JSRegExpVerify() {
   JSObjectVerify();
   Isolate* isolate = GetIsolate();
@@ -1033,23 +1114,16 @@ void JSRegExp::JSRegExpVerify() {
 
       FixedArray* arr = FixedArray::cast(data());
       Object* one_byte_data = arr->get(JSRegExp::kIrregexpLatin1CodeIndex);
-      // Smi : Not compiled yet (-1) or code prepared for flushing.
-      // JSObject: Compilation error.
+      // Smi : Not compiled yet (-1).
       // Code/ByteArray: Compiled code.
       CHECK(
-          one_byte_data->IsSmi() ||
+          (one_byte_data->IsSmi() &&
+           Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
           (is_native ? one_byte_data->IsCode() : one_byte_data->IsByteArray()));
       Object* uc16_data = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
-      CHECK(uc16_data->IsSmi() ||
-             (is_native ? uc16_data->IsCode() : uc16_data->IsByteArray()));
-
-      Object* one_byte_saved =
-          arr->get(JSRegExp::kIrregexpLatin1CodeSavedIndex);
-      CHECK(one_byte_saved->IsSmi() || one_byte_saved->IsString() ||
-            one_byte_saved->IsCode());
-      Object* uc16_saved = arr->get(JSRegExp::kIrregexpUC16CodeSavedIndex);
-      CHECK(uc16_saved->IsSmi() || uc16_saved->IsString() ||
-             uc16_saved->IsCode());
+      CHECK((uc16_data->IsSmi() &&
+             Smi::ToInt(uc16_data) == JSRegExp::kUninitializedValue) ||
+            (is_native ? uc16_data->IsCode() : uc16_data->IsByteArray()));
 
       CHECK(arr->get(JSRegExp::kIrregexpCaptureCountIndex)->IsSmi());
       CHECK(arr->get(JSRegExp::kIrregexpMaxRegisterCountIndex)->IsSmi());
@@ -1191,27 +1265,27 @@ void Module::ModuleVerify() {
   VerifyPointer(exports());
   VerifyPointer(module_namespace());
   VerifyPointer(requested_modules());
+  VerifyPointer(script());
+  VerifyPointer(exception());
   VerifySmiField(kHashOffset);
   VerifySmiField(kStatusOffset);
 
-  CHECK((!instantiated() && code()->IsSharedFunctionInfo()) ||
-        (instantiated() && !evaluated() && code()->IsJSFunction()) ||
-        (instantiated() && evaluated() && code()->IsModuleInfo()));
+  CHECK((status() < kInstantiating && code()->IsSharedFunctionInfo()) ||
+        (status() < kEvaluating && code()->IsJSFunction()) ||
+        code()->IsModuleInfo());
+
+  CHECK_EQ(status() == kErrored, !exception()->IsTheHole(GetIsolate()));
 
   CHECK(module_namespace()->IsUndefined(GetIsolate()) ||
         module_namespace()->IsJSModuleNamespace());
   if (module_namespace()->IsJSModuleNamespace()) {
-    CHECK(instantiated());
+    CHECK_LE(kInstantiating, status());
     CHECK_EQ(JSModuleNamespace::cast(module_namespace())->module(), this);
   }
 
   CHECK_EQ(requested_modules()->length(), info()->module_requests()->length());
 
   CHECK_NE(hash(), 0);
-
-  CHECK_LE(kUnprepared, status());
-  CHECK_LE(status(), kPrepared);
-  CHECK_IMPLIES(instantiated(), status() == kPrepared);
 }
 
 void PrototypeInfo::PrototypeInfoVerify() {
@@ -1365,6 +1439,13 @@ void StackFrameInfo::StackFrameInfoVerify() {
   VerifyPointer(script_name_or_source_url());
   VerifyPointer(function_name());
 }
+
+void PreParsedScopeData::PreParsedScopeDataVerify() {
+  CHECK(IsPreParsedScopeData());
+  CHECK(scope_data()->IsByteArray());
+  CHECK(child_data()->IsFixedArray());
+}
+
 #endif  // VERIFY_HEAP
 
 #ifdef DEBUG
@@ -1377,7 +1458,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
     info->number_of_fast_unused_fields_ += map()->unused_property_fields();
   } else if (IsJSGlobalObject()) {
-    GlobalDictionary* dict = global_dictionary();
+    GlobalDictionary* dict = JSGlobalObject::cast(this)->global_dictionary();
     info->number_of_slow_used_properties_ += dict->NumberOfElements();
     info->number_of_slow_unused_properties_ +=
         dict->Capacity() - dict->NumberOfElements();
@@ -1389,12 +1470,12 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
   }
   // Indexed properties
   switch (GetElementsKind()) {
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case PACKED_SMI_ELEMENTS:
+    case HOLEY_DOUBLE_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS:
+    case HOLEY_ELEMENTS:
+    case PACKED_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       int holes = 0;

@@ -161,6 +161,11 @@ const int kInvalidMSARegister = -1;
 const int kInvalidMSAControlRegister = -1;
 const int kMSAIRRegister = 0;
 const int kMSACSRRegister = 1;
+const int kMSARegSize = 128;
+const int kMSALanesByte = kMSARegSize / 8;
+const int kMSALanesHalf = kMSARegSize / 16;
+const int kMSALanesWord = kMSARegSize / 32;
+const int kMSALanesDword = kMSARegSize / 64;
 
 // FPU (coprocessor 1) control registers. Currently only FCSR is implemented.
 const int kFCSRRegister = 31;
@@ -370,6 +375,16 @@ const int kImm5Mask = ((1 << 5) - 1);
 const int kImm8Mask = ((1 << 8) - 1);
 const int kImm10Mask = ((1 << 10) - 1);
 const int kMsaI5I10Mask = ((7U << 23) | ((1 << 6) - 1));
+const int kMsaI8Mask = ((3U << 24) | ((1 << 6) - 1));
+const int kMsaI5Mask = ((7U << 23) | ((1 << 6) - 1));
+const int kMsaMI10Mask = (15U << 2);
+const int kMsaBITMask = ((7U << 23) | ((1 << 6) - 1));
+const int kMsaELMMask = (15U << 22);
+const int kMsa3RMask = ((7U << 23) | ((1 << 6) - 1));
+const int kMsa3RFMask = ((15U << 22) | ((1 << 6) - 1));
+const int kMsaVECMask = (23U << 21);
+const int kMsa2RMask = (7U << 18);
+const int kMsa2RFMask = (15U << 17);
 const int kRsFieldMask = ((1 << kRsBits) - 1) << kRsShift;
 const int kRtFieldMask = ((1 << kRtBits) - 1) << kRtShift;
 const int kRdFieldMask = ((1 << kRdBits) - 1) << kRdShift;
@@ -1046,6 +1061,36 @@ inline Condition NegateFpuCondition(Condition cc) {
   }
 }
 
+enum MSABranchCondition {
+  all_not_zero = 0,   // Branch If All Elements Are Not Zero
+  one_elem_not_zero,  // Branch If At Least One Element of Any Format Is Not
+                      // Zero
+  one_elem_zero,      // Branch If At Least One Element Is Zero
+  all_zero            // Branch If All Elements of Any Format Are Zero
+};
+
+inline MSABranchCondition NegateMSABranchCondition(MSABranchCondition cond) {
+  switch (cond) {
+    case all_not_zero:
+      return one_elem_zero;
+    case one_elem_not_zero:
+      return all_zero;
+    case one_elem_zero:
+      return all_not_zero;
+    case all_zero:
+      return one_elem_not_zero;
+    default:
+      return cond;
+  }
+}
+
+enum MSABranchDF {
+  MSA_BRANCH_B = 0,
+  MSA_BRANCH_H,
+  MSA_BRANCH_W,
+  MSA_BRANCH_D,
+  MSA_BRANCH_V
+};
 
 // Commute a condition such that {a cond b == b cond' a}.
 inline Condition CommuteCondition(Condition cc) {
@@ -1825,6 +1870,16 @@ bool InstructionGetters<T>::IsForbiddenAfterBranchInstr(Instr instr) {
         case BC1:
         case BC1EQZ:
         case BC1NEZ:
+        case BZ_V:
+        case BZ_B:
+        case BZ_H:
+        case BZ_W:
+        case BZ_D:
+        case BNZ_V:
+        case BNZ_B:
+        case BNZ_H:
+        case BNZ_W:
+        case BNZ_D:
           return true;
           break;
         default:

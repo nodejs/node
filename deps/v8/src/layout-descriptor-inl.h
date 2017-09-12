@@ -20,9 +20,11 @@ Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
     // The whole bit vector fits into a smi.
     return handle(LayoutDescriptor::FromSmi(Smi::kZero), isolate);
   }
-  length = GetSlowModeBackingStoreLength(length);
-  return Handle<LayoutDescriptor>::cast(isolate->factory()->NewFixedTypedArray(
-      length, kExternalUint32Array, true));
+  int backing_store_length = GetSlowModeBackingStoreLength(length);
+  Handle<LayoutDescriptor> result = Handle<LayoutDescriptor>::cast(
+      isolate->factory()->NewByteArray(backing_store_length));
+  memset(result->GetDataStartAddress(), 0, result->DataSize());
+  return result;
 }
 
 
@@ -47,11 +49,11 @@ bool LayoutDescriptor::GetIndexes(int field_index, int* layout_word_index,
     return false;
   }
 
-  *layout_word_index = field_index / kNumberOfBits;
+  *layout_word_index = field_index / kBitsPerLayoutWord;
   CHECK((!IsSmi() && (*layout_word_index < length())) ||
         (IsSmi() && (*layout_word_index < 1)));
 
-  *layout_bit_index = field_index % kNumberOfBits;
+  *layout_bit_index = field_index % kBitsPerLayoutWord;
   return true;
 }
 
@@ -72,16 +74,16 @@ LayoutDescriptor* LayoutDescriptor::SetTagged(int field_index, bool tagged) {
   uint32_t layout_mask = static_cast<uint32_t>(1) << layout_bit_index;
 
   if (IsSlowLayout()) {
-    uint32_t value = get_scalar(layout_word_index);
+    uint32_t value = get_layout_word(layout_word_index);
     if (tagged) {
       value &= ~layout_mask;
     } else {
       value |= layout_mask;
     }
-    set(layout_word_index, value);
+    set_layout_word(layout_word_index, value);
     return this;
   } else {
-    uint32_t value = static_cast<uint32_t>(Smi::cast(this)->value());
+    uint32_t value = static_cast<uint32_t>(Smi::ToInt(this));
     if (tagged) {
       value &= ~layout_mask;
     } else {
@@ -105,10 +107,10 @@ bool LayoutDescriptor::IsTagged(int field_index) {
   uint32_t layout_mask = static_cast<uint32_t>(1) << layout_bit_index;
 
   if (IsSlowLayout()) {
-    uint32_t value = get_scalar(layout_word_index);
+    uint32_t value = get_layout_word(layout_word_index);
     return (value & layout_mask) == 0;
   } else {
-    uint32_t value = static_cast<uint32_t>(Smi::cast(this)->value());
+    uint32_t value = static_cast<uint32_t>(Smi::ToInt(this));
     return (value & layout_mask) == 0;
   }
 }
@@ -128,39 +130,24 @@ bool LayoutDescriptor::IsSlowLayout() { return !IsSmi(); }
 
 
 int LayoutDescriptor::capacity() {
-  return IsSlowLayout() ? (length() * kNumberOfBits) : kSmiValueSize;
+  return IsSlowLayout() ? (length() * kBitsPerByte) : kSmiValueSize;
 }
 
 
 LayoutDescriptor* LayoutDescriptor::cast_gc_safe(Object* object) {
-  if (object->IsSmi()) {
-    // Fast mode layout descriptor.
-    return reinterpret_cast<LayoutDescriptor*>(object);
-  }
-
-  // This is a mixed descriptor which is a fixed typed array.
-  MapWord map_word = reinterpret_cast<HeapObject*>(object)->map_word();
-  if (map_word.IsForwardingAddress()) {
-    // Mark-compact has already moved layout descriptor.
-    object = map_word.ToForwardingAddress();
-  }
-  return LayoutDescriptor::cast(object);
+  // The map word of the object can be a forwarding pointer during
+  // object evacuation phase of GC. Since the layout descriptor methods
+  // for checking whether a field is tagged or not do not depend on the
+  // object map, it should be safe.
+  return reinterpret_cast<LayoutDescriptor*>(object);
 }
 
-
 int LayoutDescriptor::GetSlowModeBackingStoreLength(int length) {
-  length = (length + kNumberOfBits - 1) / kNumberOfBits;
   DCHECK_LT(0, length);
-
-  if (SmiValuesAre32Bits() && (length & 1)) {
-    // On 64-bit systems if the length is odd then the half-word space would be
-    // lost anyway (due to alignment and the fact that we are allocating
-    // uint32-typed array), so we increase the length of allocated array
-    // to utilize that "lost" space which could also help to avoid layout
-    // descriptor reallocations.
-    ++length;
-  }
-  return length;
+  // We allocate kPointerSize rounded blocks of memory anyway so we increase
+  // the length  of allocated array to utilize that "lost" space which could
+  // also help to avoid layout descriptor reallocations.
+  return RoundUp(length, kBitsPerByte * kPointerSize) / kBitsPerByte;
 }
 
 

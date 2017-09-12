@@ -44,14 +44,14 @@ class V8Debugger : public v8::debug::DebugDelegate {
   String16 setBreakpoint(const ScriptBreakpoint&, int* actualLineNumber,
                          int* actualColumnNumber);
   void removeBreakpoint(const String16& breakpointId);
-  void setBreakpointsActivated(bool);
-  bool breakpointsActivated() const { return m_breakpointsActivated; }
+  void setBreakpointsActive(bool);
 
   v8::debug::ExceptionBreakState getPauseOnExceptionsState();
   void setPauseOnExceptionsState(v8::debug::ExceptionBreakState);
   bool canBreakProgram();
-  bool breakProgram(int targetContextGroupId);
+  void breakProgram(int targetContextGroupId);
   void continueProgram(int targetContextGroupId);
+  void breakProgramOnAssert(int targetContextGroupId);
 
   void setPauseOnNextStatement(bool, int targetContextGroupId);
   void stepIntoStatement(int targetContextGroupId);
@@ -82,6 +82,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void disable();
 
   bool isPaused() const { return m_pausedContextGroupId; }
+  bool isPausedInContextGroup(int contextGroupId) const;
   v8::Local<v8::Context> pausedContext() { return m_pausedContext; }
 
   int maxAsyncCallChainDepth() { return m_maxAsyncCallStackDepth; }
@@ -181,13 +182,14 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
   int m_enableCount;
-  bool m_breakpointsActivated;
+  int m_breakpointsActiveCount = 0;
   v8::Global<v8::Object> m_debuggerScript;
   v8::Global<v8::Context> m_debuggerContext;
   v8::Local<v8::Object> m_executionState;
   v8::Local<v8::Context> m_pausedContext;
   int m_ignoreScriptParsedEventsCounter;
   bool m_scheduledOOMBreak = false;
+  bool m_scheduledAssertBreak = false;
   int m_targetContextGroupId = 0;
   int m_pausedContextGroupId = 0;
   String16 m_continueToLocationBreakpointId;

@@ -21,7 +21,7 @@ bytecodes: [
   /*   56 E> */ B(TestLessThan), R(0), U8(3),
                 B(JumpIfFalse), U8(5),
   /*   63 S> */ B(LdaSmi), I8(1),
-  /*   75 S> */ B(Return),
+  /*   72 S> */ B(Return),
                 B(LdaUndefined),
   /*   75 S> */ B(Return),
 ]
@@ -46,7 +46,7 @@ bytecodes: [
   /*   56 E> */ B(TestLessThan), R(0), U8(3),
                 B(JumpIfFalse), U8(5),
   /*   63 S> */ B(LdaSmi), I8(1),
-  /*   75 S> */ B(Return),
+  /*   72 S> */ B(Return),
                 B(LdaUndefined),
   /*   75 S> */ B(Return),
 ]

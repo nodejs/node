@@ -15,16 +15,13 @@ var GlobalProxy = global.Proxy;
 
 //----------------------------------------------------------------------------
 
-function ProxyCreateRevocable(target, handler) {
-  var p = new GlobalProxy(target, handler);
-  return {proxy: p, revoke: () => %JSProxyRevoke(p)};
-}
-
-//-------------------------------------------------------------------
-
 //Set up non-enumerable properties of the Proxy object.
-utils.InstallFunctions(GlobalProxy, DONT_ENUM, [
-  "revocable", ProxyCreateRevocable
-]);
+DEFINE_METHOD(
+  GlobalProxy,
+  revocable(target, handler) {
+    var p = new GlobalProxy(target, handler);
+    return {proxy: p, revoke: () => %JSProxyRevoke(p)};
+  }
+);
 
 })

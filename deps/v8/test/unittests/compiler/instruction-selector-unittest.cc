@@ -149,7 +149,7 @@ const FrameStateFunctionInfo*
 InstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
     int parameter_count, int local_count) {
   return common()->CreateFrameStateFunctionInfo(
-      FrameStateType::kJavaScriptFunction, parameter_count, local_count,
+      FrameStateType::kInterpretedFunction, parameter_count, local_count,
       Handle<SharedFunctionInfo>());
 }
 
@@ -374,7 +374,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
       m.common()->TypedStateValues(&empty_types, SparseInputMask::Dense()));
   Node* context_sentinel = m.Int32Constant(0);
   Node* state_node = m.AddNode(
-      m.common()->FrameState(bailout_id, OutputFrameStateCombine::Push(),
+      m.common()->FrameState(bailout_id, OutputFrameStateCombine::PokeAt(0),
                              m.GetFrameStateFunctionInfo(1, 0)),
       parameters, locals, stack, context_sentinel, function_node,
       m.UndefinedConstant());
@@ -417,7 +417,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   ZoneVector<MachineType> float64_type(1, MachineType::Float64(), zone());
   ZoneVector<MachineType> tagged_type(1, MachineType::AnyTagged(), zone());
 
-  Callable callable = CodeFactory::ToObject(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
   CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 1,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
@@ -433,11 +433,12 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
       m.common()->TypedStateValues(&tagged_type, SparseInputMask::Dense()),
       m.UndefinedConstant());
   Node* context_sentinel = m.Int32Constant(0);
-  Node* state_node = m.AddNode(
-      m.common()->FrameState(bailout_id_before, OutputFrameStateCombine::Push(),
-                             m.GetFrameStateFunctionInfo(1, 1)),
-      parameters, locals, stack, context_sentinel, function_node,
-      m.UndefinedConstant());
+  Node* state_node =
+      m.AddNode(m.common()->FrameState(bailout_id_before,
+                                       OutputFrameStateCombine::PokeAt(0),
+                                       m.GetFrameStateFunctionInfo(1, 1)),
+                parameters, locals, stack, context_sentinel, function_node,
+                m.UndefinedConstant());
 
   // Build the call.
   Node* stub_code = m.HeapConstant(callable.code());
@@ -474,8 +475,6 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   FrameStateDescriptor* desc_before =
       s.GetFrameStateDescriptor(deopt_id_before);
   EXPECT_EQ(bailout_id_before, desc_before->bailout_id());
-  EXPECT_EQ(OutputFrameStateCombine::kPushOutput,
-            desc_before->state_combine().kind());
   EXPECT_EQ(1u, desc_before->parameters_count());
   EXPECT_EQ(1u, desc_before->locals_count());
   EXPECT_EQ(1u, desc_before->stack_count());
@@ -513,7 +512,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   ZoneVector<MachineType> int32x2_type(2, MachineType::Int32(), zone());
   ZoneVector<MachineType> float64_type(1, MachineType::Float64(), zone());
 
-  Callable callable = CodeFactory::ToObject(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
   CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 1,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
@@ -543,11 +542,12 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   Node* stack2 = m.AddNode(
       m.common()->TypedStateValues(&int32x2_type, SparseInputMask::Dense()),
       m.Int32Constant(44), m.Int32Constant(45));
-  Node* state_node = m.AddNode(
-      m.common()->FrameState(bailout_id_before, OutputFrameStateCombine::Push(),
-                             m.GetFrameStateFunctionInfo(1, 1)),
-      parameters2, locals2, stack2, context2, function_node,
-      frame_state_parent);
+  Node* state_node =
+      m.AddNode(m.common()->FrameState(bailout_id_before,
+                                       OutputFrameStateCombine::PokeAt(0),
+                                       m.GetFrameStateFunctionInfo(1, 1)),
+                parameters2, locals2, stack2, context2, function_node,
+                frame_state_parent);
 
   // Build the call.
   Node* stub_code = m.HeapConstant(callable.code());

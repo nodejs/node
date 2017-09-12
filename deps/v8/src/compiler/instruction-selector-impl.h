@@ -255,7 +255,6 @@ class OperandGenerator {
         break;
     }
     UNREACHABLE();
-    return Constant(static_cast<int32_t>(0));
   }
 
   static Constant ToNegatedConstant(const Node* node) {
@@ -268,7 +267,6 @@ class OperandGenerator {
         break;
     }
     UNREACHABLE();
-    return Constant(static_cast<int32_t>(0));
   }
 
   UnallocatedOperand Define(Node* node, UnallocatedOperand operand) {

@@ -82,6 +82,7 @@ class MockPlatform : public v8::Platform {
 
 TEST(IncrementalMarkingUsingTasks) {
   if (!i::FLAG_incremental_marking) return;
+  FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   MockPlatform platform(old_platform);

@@ -8,11 +8,11 @@ load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 function unexpectedSuccess() {
-  % AbortJS('unexpected success');
+  %AbortJS('unexpected success');
 }
 
 function unexpectedFail(error) {
-  % AbortJS('unexpected fail: ' + error);
+  %AbortJS('unexpected fail: ' + error);
 }
 
 function assertEq(val, expected) {

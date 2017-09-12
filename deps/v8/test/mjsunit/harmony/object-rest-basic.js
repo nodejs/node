@@ -130,8 +130,13 @@ assertEquals({ 3: 3 }, z);
 var [...{...z}] = [{ x: 1}];
 assertEquals({ 0: { x: 1} }, z);
 
-var {...{x}} = { x: 1};
-assertEquals(1, x);
+var x = {};
+({ ...x.f } = { a: 1 });
+assertEquals(x.f, { a: 1 });
+
+var x = [];
+({ ...x[0] } = { a: 1 });
+assertEquals(x[0], {a: 1});
 
 var {4294967297: y, ...x} = {4294967297: 1, x: 1};
 assertEquals(1, y);

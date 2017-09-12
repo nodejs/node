@@ -28,9 +28,7 @@ class MockHistogram : public Histogram {
 
 class AggregatedMemoryHistogramTest : public ::testing::Test {
  public:
-  AggregatedMemoryHistogramTest() {
-    aggregated_ = AggregatedMemoryHistogram<MockHistogram>(&mock_);
-  }
+  AggregatedMemoryHistogramTest() : aggregated_(&mock_) {}
   virtual ~AggregatedMemoryHistogramTest() {}
 
   void AddSample(double current_ms, double current_value) {

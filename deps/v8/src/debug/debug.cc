@@ -28,6 +28,7 @@
 #include "src/list.h"
 #include "src/log.h"
 #include "src/messages.h"
+#include "src/objects/debug-objects-inl.h"
 #include "src/snapshot/natives.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -115,12 +116,12 @@ bool BreakLocation::HasBreakPoint(Handle<DebugInfo> debug_info) const {
   if (abstract_code_->IsCode()) {
     DCHECK_EQ(debug_info->DebugCode(), abstract_code_->GetCode());
     CodeBreakIterator it(debug_info);
-    it.SkipToPosition(position_, BREAK_POSITION_ALIGNED);
+    it.SkipToPosition(position_);
     return it.code_offset() == code_offset_;
   } else {
     DCHECK(abstract_code_->IsBytecodeArray());
     BytecodeArrayBreakIterator it(debug_info);
-    it.SkipToPosition(position_, BREAK_POSITION_ALIGNED);
+    it.SkipToPosition(position_);
     return it.code_offset() == code_offset_;
   }
 }
@@ -158,18 +159,11 @@ BreakIterator::BreakIterator(Handle<DebugInfo> debug_info)
   statement_position_ = position_;
 }
 
-int BreakIterator::BreakIndexFromPosition(int source_position,
-                                          BreakPositionAlignment alignment) {
+int BreakIterator::BreakIndexFromPosition(int source_position) {
   int distance = kMaxInt;
   int closest_break = break_index();
   while (!Done()) {
-    int next_position;
-    if (alignment == STATEMENT_ALIGNED) {
-      next_position = statement_position();
-    } else {
-      DCHECK(alignment == BREAK_POSITION_ALIGNED);
-      next_position = position();
-    }
+    int next_position = position();
     if (source_position <= next_position &&
         next_position - source_position < distance) {
       closest_break = break_index();
@@ -196,7 +190,6 @@ int CodeBreakIterator::GetModeMask() {
   int mask = 0;
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_RETURN);
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_CALL);
-  mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL);
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION);
   return mask;
 }
@@ -231,10 +224,6 @@ DebugBreakType CodeBreakIterator::GetDebugBreakType() {
     return DEBUG_BREAK_SLOT_AT_RETURN;
   } else if (RelocInfo::IsDebugBreakSlotAtCall(rmode())) {
     return DEBUG_BREAK_SLOT_AT_CALL;
-  } else if (RelocInfo::IsDebugBreakSlotAtTailCall(rmode())) {
-    return isolate()->is_tail_call_elimination_enabled()
-               ? DEBUG_BREAK_SLOT_AT_TAIL_CALL
-               : DEBUG_BREAK_SLOT_AT_CALL;
   } else if (RelocInfo::IsDebugBreakSlot(rmode())) {
     return DEBUG_BREAK_SLOT;
   } else {
@@ -242,10 +231,14 @@ DebugBreakType CodeBreakIterator::GetDebugBreakType() {
   }
 }
 
-void CodeBreakIterator::SkipToPosition(int position,
-                                       BreakPositionAlignment alignment) {
+void CodeBreakIterator::SkipToPosition(int position) {
   CodeBreakIterator it(debug_info_);
-  SkipTo(it.BreakIndexFromPosition(position, alignment));
+  SkipTo(it.BreakIndexFromPosition(position));
+}
+
+int CodeBreakIterator::code_offset() {
+  return static_cast<int>(rinfo()->pc() -
+                          debug_info_->DebugCode()->instruction_start());
 }
 
 void CodeBreakIterator::SetDebugBreak() {
@@ -313,10 +306,6 @@ DebugBreakType BytecodeArrayBreakIterator::GetDebugBreakType() {
     return DEBUGGER_STATEMENT;
   } else if (bytecode == interpreter::Bytecode::kReturn) {
     return DEBUG_BREAK_SLOT_AT_RETURN;
-  } else if (bytecode == interpreter::Bytecode::kTailCall) {
-    return isolate()->is_tail_call_elimination_enabled()
-               ? DEBUG_BREAK_SLOT_AT_TAIL_CALL
-               : DEBUG_BREAK_SLOT_AT_CALL;
   } else if (interpreter::Bytecodes::IsCallOrConstruct(bytecode)) {
     return DEBUG_BREAK_SLOT_AT_CALL;
   } else if (source_position_iterator_.is_statement()) {
@@ -326,10 +315,9 @@ DebugBreakType BytecodeArrayBreakIterator::GetDebugBreakType() {
   }
 }
 
-void BytecodeArrayBreakIterator::SkipToPosition(
-    int position, BreakPositionAlignment alignment) {
+void BytecodeArrayBreakIterator::SkipToPosition(int position) {
   BytecodeArrayBreakIterator it(debug_info_);
-  SkipTo(it.BreakIndexFromPosition(position, alignment));
+  SkipTo(it.BreakIndexFromPosition(position));
 }
 
 void BytecodeArrayBreakIterator::SetDebugBreak() {
@@ -396,8 +384,8 @@ void Debug::ThreadInit() {
   thread_local_.async_task_count_ = 0;
   clear_suspended_generator();
   thread_local_.restart_fp_ = nullptr;
-  base::NoBarrier_Store(&thread_local_.current_debug_scope_,
-                        static_cast<base::AtomicWord>(0));
+  base::Relaxed_Store(&thread_local_.current_debug_scope_,
+                      static_cast<base::AtomicWord>(0));
   UpdateHookOnFunctionCall();
 }
 
@@ -482,6 +470,8 @@ void Debug::Unload() {
   // Return debugger is not loaded.
   if (!is_loaded()) return;
 
+  if (FLAG_block_coverage) RemoveAllCoverageInfos();
+
   // Clear debugger context global handle.
   GlobalHandles::Destroy(Handle<Object>::cast(debug_context_).location());
   debug_context_ = Handle<Context>();
@@ -505,7 +495,7 @@ void Debug::Break(JavaScriptFrame* frame) {
   // Return if we fail to retrieve debug info.
   Handle<JSFunction> function(frame->function());
   Handle<SharedFunctionInfo> shared(function->shared());
-  if (!EnsureDebugInfo(shared)) return;
+  if (!EnsureBreakInfo(shared)) return;
   Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
 
   // Find the break location where execution has stopped.
@@ -553,8 +543,6 @@ void Debug::Break(JavaScriptFrame* frame) {
     case StepNext:
       // Step next should not break in a deeper frame than target frame.
       if (current_frame_count > target_frame_count) return;
-      // For step-next, a tail call is like a return and should break.
-      step_break = location.IsTailCall();
     // Fall through.
     case StepIn: {
       FrameSummary summary = FrameSummary::GetTop(frame);
@@ -606,7 +594,7 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
   FrameSummary summary = FrameSummary::GetTop(frame);
   DCHECK(!summary.IsWasm());
   Handle<JSFunction> function = summary.AsJavaScript().function();
-  if (!function->shared()->HasDebugInfo()) return false;
+  if (!function->shared()->HasBreakInfo()) return false;
   Handle<DebugInfo> debug_info(function->shared()->GetDebugInfo());
   // Enter the debugger.
   DebugScope debug_scope(this);
@@ -627,6 +615,7 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
 
 MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
                                         Handle<Object> args[]) {
+  AllowJavascriptExecutionDebugOnly allow_script(isolate_);
   PostponeInterruptsScope no_interrupts(isolate_);
   AssertDebugContext();
   Handle<JSReceiver> holder =
@@ -672,14 +661,13 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
 
   // Make sure the function is compiled and has set up the debug info.
   Handle<SharedFunctionInfo> shared(function->shared());
-  if (!EnsureDebugInfo(shared)) return true;
+  if (!EnsureBreakInfo(shared)) return true;
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Source positions starts with zero.
   DCHECK(*source_position >= 0);
 
   // Find the break point and change it.
-  *source_position =
-      FindBreakablePosition(debug_info, *source_position, STATEMENT_ALIGNED);
+  *source_position = FindBreakablePosition(debug_info, *source_position);
   DebugInfo::SetBreakPoint(debug_info, *source_position, break_point_object);
   // At least one active break point now.
   DCHECK(debug_info->GetBreakPointCount() > 0);
@@ -691,11 +679,9 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
   return true;
 }
 
-
 bool Debug::SetBreakPointForScript(Handle<Script> script,
                                    Handle<Object> break_point_object,
-                                   int* source_position,
-                                   BreakPositionAlignment alignment) {
+                                   int* source_position) {
   if (script->type() == Script::TYPE_WASM) {
     Handle<WasmCompiledModule> compiled_module(
         WasmCompiledModule::cast(script->wasm_compiled_module()), isolate_);
@@ -712,7 +698,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
 
   // Make sure the function has set up the debug info.
   Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>::cast(result);
-  if (!EnsureDebugInfo(shared)) return false;
+  if (!EnsureBreakInfo(shared)) return false;
 
   // Find position within function. The script position might be before the
   // source position of the first function.
@@ -723,8 +709,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
 
   // Find the break point and change it.
-  *source_position =
-      FindBreakablePosition(debug_info, *source_position, alignment);
+  *source_position = FindBreakablePosition(debug_info, *source_position);
   DebugInfo::SetBreakPoint(debug_info, *source_position, break_point_object);
   // At least one active break point now.
   DCHECK(debug_info->GetBreakPointCount() > 0);
@@ -737,23 +722,19 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
 }
 
 int Debug::FindBreakablePosition(Handle<DebugInfo> debug_info,
-                                 int source_position,
-                                 BreakPositionAlignment alignment) {
-  int statement_position;
+                                 int source_position) {
   int position;
   if (debug_info->HasDebugCode()) {
     CodeBreakIterator it(debug_info);
-    it.SkipToPosition(source_position, alignment);
-    statement_position = it.statement_position();
+    it.SkipToPosition(source_position);
     position = it.position();
   } else {
     DCHECK(debug_info->HasDebugBytecodeArray());
     BytecodeArrayBreakIterator it(debug_info);
-    it.SkipToPosition(source_position, alignment);
-    statement_position = it.statement_position();
+    it.SkipToPosition(source_position);
     position = it.position();
   }
-  return alignment == STATEMENT_ALIGNED ? statement_position : position;
+  return position;
 }
 
 void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
@@ -766,12 +747,12 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
     if (info->GetBreakPointCount() == 0) continue;
     if (debug_info->HasDebugCode()) {
       CodeBreakIterator it(debug_info);
-      it.SkipToPosition(info->source_position(), BREAK_POSITION_ALIGNED);
+      it.SkipToPosition(info->source_position());
       it.SetDebugBreak();
     }
     if (debug_info->HasDebugBytecodeArray()) {
       BytecodeArrayBreakIterator it(debug_info);
-      it.SkipToPosition(info->source_position(), BREAK_POSITION_ALIGNED);
+      it.SkipToPosition(info->source_position());
       it.SetDebugBreak();
     }
   }
@@ -803,7 +784,7 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
     if (DebugInfo::ClearBreakPoint(debug_info, break_point_object)) {
       ClearBreakPoints(debug_info);
       if (debug_info->GetBreakPointCount() == 0) {
-        RemoveDebugInfoAndClearFromShared(debug_info);
+        RemoveBreakInfoAndMaybeFree(debug_info);
       } else {
         ApplyBreakPoints(debug_info);
       }
@@ -812,25 +793,19 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
   }
 }
 
-// Clear out all the debug break code. This is ONLY supposed to be used when
-// shutting down the debugger as it will leave the break point information in
-// DebugInfo even though the code is patched back to the non break point state.
+// Clear out all the debug break code.
 void Debug::ClearAllBreakPoints() {
-  for (DebugInfoListNode* node = debug_info_list_; node != NULL;
-       node = node->next()) {
-    ClearBreakPoints(node->debug_info());
-  }
-  // Remove all debug info.
-  while (debug_info_list_ != NULL) {
-    RemoveDebugInfoAndClearFromShared(debug_info_list_->debug_info());
-  }
+  ClearAllDebugInfos([=](Handle<DebugInfo> info) {
+    ClearBreakPoints(info);
+    return info->ClearBreakInfo();
+  });
 }
 
 void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
                              bool returns_only) {
   if (IsBlackboxed(shared)) return;
   // Make sure the function is compiled and has set up the debug info.
-  if (!EnsureDebugInfo(shared)) return;
+  if (!EnsureBreakInfo(shared)) return;
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Flood the function with break points.
   if (debug_info->HasDebugCode()) {
@@ -1025,7 +1000,7 @@ void Debug::PrepareStep(StepAction step_action) {
   auto summary = FrameSummary::GetTop(frame).AsJavaScript();
   Handle<JSFunction> function(summary.function());
   Handle<SharedFunctionInfo> shared(function->shared());
-  if (!EnsureDebugInfo(shared)) return;
+  if (!EnsureBreakInfo(shared)) return;
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
 
   BreakLocation location = BreakLocation::FromFrame(debug_info, js_frame);
@@ -1043,8 +1018,6 @@ void Debug::PrepareStep(StepAction step_action) {
   }
   UpdateHookOnFunctionCall();
 
-  // A step-next at a tail call is a step-out.
-  if (location.IsTailCall() && step_action == StepNext) step_action = StepOut;
   // A step-next in blackboxed function is a step-out.
   if (step_action == StepNext && IsBlackboxed(shared)) step_action = StepOut;
 
@@ -1075,7 +1048,7 @@ void Debug::PrepareStep(StepAction step_action) {
       // and deoptimize every frame along the way.
       bool in_current_frame = true;
       for (; !frames_it.done(); frames_it.Advance()) {
-        // TODO(clemensh): Implement stepping out from JS to WASM.
+        // TODO(clemensh): Implement stepping out from JS to wasm.
         if (frames_it.frame()->is_wasm()) continue;
         JavaScriptFrame* frame = JavaScriptFrame::cast(frames_it.frame());
         if (last_step_action() == StepIn) {
@@ -1104,7 +1077,7 @@ void Debug::PrepareStep(StepAction step_action) {
       thread_local_.target_frame_count_ = current_frame_count;
     // Fall through.
     case StepIn:
-      // TODO(clemensh): Implement stepping from JS into WASM.
+      // TODO(clemensh): Implement stepping from JS into wasm.
       FloodWithOneShot(shared);
       break;
   }
@@ -1112,10 +1085,9 @@ void Debug::PrepareStep(StepAction step_action) {
 
 // Simple function for returning the source positions for active break points.
 Handle<Object> Debug::GetSourceBreakLocations(
-    Handle<SharedFunctionInfo> shared,
-    BreakPositionAlignment position_alignment) {
+    Handle<SharedFunctionInfo> shared) {
   Isolate* isolate = shared->GetIsolate();
-  if (!shared->HasDebugInfo()) {
+  if (!shared->HasBreakInfo()) {
     return isolate->factory()->undefined_value();
   }
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
@@ -1131,25 +1103,10 @@ Handle<Object> Debug::GetSourceBreakLocations(
           BreakPointInfo::cast(debug_info->break_points()->get(i));
       int break_points = break_point_info->GetBreakPointCount();
       if (break_points == 0) continue;
-      Smi* position = NULL;
-      if (position_alignment == STATEMENT_ALIGNED) {
-        if (debug_info->HasDebugCode()) {
-          CodeBreakIterator it(debug_info);
-          it.SkipToPosition(break_point_info->source_position(),
-                            BREAK_POSITION_ALIGNED);
-          position = Smi::FromInt(it.statement_position());
-        } else {
-          DCHECK(debug_info->HasDebugBytecodeArray());
-          BytecodeArrayBreakIterator it(debug_info);
-          it.SkipToPosition(break_point_info->source_position(),
-                            BREAK_POSITION_ALIGNED);
-          position = Smi::FromInt(it.statement_position());
-        }
-      } else {
-        DCHECK_EQ(BREAK_POSITION_ALIGNED, position_alignment);
-        position = Smi::FromInt(break_point_info->source_position());
+      for (int j = 0; j < break_points; ++j) {
+        locations->set(count++,
+                       Smi::FromInt(break_point_info->source_position()));
       }
-      for (int j = 0; j < break_points; ++j) locations->set(count++, position);
     }
   }
   return locations;
@@ -1234,7 +1191,6 @@ static Address ComputeNewPcForRedirect(Code* new_code, Code* old_code,
   }
 
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -1301,9 +1257,6 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
         OptimizingCompileDispatcher::BlockingBehavior::kBlock);
   }
 
-  // The native context has a list of OSR'd optimized code. Clear it.
-  isolate_->ClearOSROptimizedCode();
-
   // Make sure we abort incremental marking.
   isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                                       GarbageCollectionReason::kDebugger);
@@ -1361,10 +1314,10 @@ namespace {
 template <typename Iterator>
 void GetBreakablePositions(Iterator* it, int start_position, int end_position,
                            std::vector<BreakLocation>* locations) {
-  it->SkipToPosition(start_position, BREAK_POSITION_ALIGNED);
-  while (!it->Done() && it->position() < end_position &&
-         it->position() >= start_position) {
-    locations->push_back(it->GetBreakLocation());
+  while (!it->Done()) {
+    if (it->position() >= start_position && it->position() < end_position) {
+      locations->push_back(it->GetBreakLocation());
+    }
     it->Next();
   }
 }
@@ -1394,7 +1347,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     // Make sure the function has set up the debug info.
     Handle<SharedFunctionInfo> shared =
         Handle<SharedFunctionInfo>::cast(result);
-    if (!EnsureDebugInfo(shared)) return false;
+    if (!EnsureBreakInfo(shared)) return false;
 
     Handle<DebugInfo> debug_info(shared->GetDebugInfo());
     FindBreakablePositions(debug_info, start_position, end_position, locations);
@@ -1427,12 +1380,12 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
           was_compiled = true;
         }
       }
-      if (!EnsureDebugInfo(candidates[i])) return false;
+      if (!EnsureBreakInfo(candidates[i])) return false;
     }
     if (was_compiled) continue;
 
     for (int i = 0; i < candidates.length(); ++i) {
-      CHECK(candidates[i]->HasDebugInfo());
+      CHECK(candidates[i]->HasBreakInfo());
       Handle<DebugInfo> debug_info(candidates[i]->GetDebugInfo());
       FindBreakablePositions(debug_info, start_position, end_position,
                              locations);
@@ -1440,7 +1393,6 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     return true;
   }
   UNREACHABLE();
-  return false;
 }
 
 void Debug::RecordGenerator(Handle<JSGeneratorObject> generator_object) {
@@ -1540,7 +1492,7 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
         // info while bypassing PrepareFunctionForBreakpoints.
         if (iteration > 1) {
           AllowHeapAllocation allow_before_return;
-          CreateDebugInfo(shared_handle);
+          CreateBreakInfo(shared_handle);
         }
         return shared_handle;
       }
@@ -1556,9 +1508,9 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
 
 
 // Ensures the debug information is present for shared.
-bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
-  // Return if we already have the debug info for shared.
-  if (shared->HasDebugInfo()) return true;
+bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
+  // Return if we already have the break info for shared.
+  if (shared->HasBreakInfo()) return true;
   if (!shared->IsSubjectToDebugging()) return false;
   if (!shared->is_compiled() && !Compiler::CompileDebugCode(shared)) {
     return false;
@@ -1567,49 +1519,124 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
   // To prepare bytecode for debugging, we already need to have the debug
   // info (containing the debug copy) upfront, but since we do not recompile,
   // preparing for break points cannot fail.
-  CreateDebugInfo(shared);
+  CreateBreakInfo(shared);
   CHECK(PrepareFunctionForBreakPoints(shared));
   return true;
 }
 
+void Debug::CreateBreakInfo(Handle<SharedFunctionInfo> shared) {
+  HandleScope scope(isolate_);
+  Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
 
-void Debug::CreateDebugInfo(Handle<SharedFunctionInfo> shared) {
-  // Create the debug info object.
+  // Initialize with break information.
+
+  DCHECK(!debug_info->HasBreakInfo());
+
+  Factory* factory = isolate_->factory();
+  Handle<FixedArray> break_points(
+      factory->NewFixedArray(DebugInfo::kEstimatedNofBreakPointsInFunction));
+
+  // Make a copy of the bytecode array if available.
+  Handle<Object> maybe_debug_bytecode_array = factory->undefined_value();
+  if (shared->HasBytecodeArray()) {
+    Handle<BytecodeArray> original(shared->bytecode_array());
+    maybe_debug_bytecode_array = factory->CopyBytecodeArray(original);
+  }
+
+  debug_info->set_flags(debug_info->flags() | DebugInfo::kHasBreakInfo);
+  debug_info->set_debug_bytecode_array(*maybe_debug_bytecode_array);
+  debug_info->set_break_points(*break_points);
+}
+
+Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
+    Handle<SharedFunctionInfo> shared) {
+  if (shared->HasDebugInfo()) return handle(shared->GetDebugInfo());
+
+  // Create debug info and add it to the list.
   Handle<DebugInfo> debug_info = isolate_->factory()->NewDebugInfo(shared);
-
-  // Add debug info to the list.
   DebugInfoListNode* node = new DebugInfoListNode(*debug_info);
   node->set_next(debug_info_list_);
   debug_info_list_ = node;
+
+  return debug_info;
 }
 
+void Debug::InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
+                                Handle<CoverageInfo> coverage_info) {
+  DCHECK(FLAG_block_coverage);
+  DCHECK(!coverage_info.is_null());
 
-void Debug::RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info) {
+  Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
+
+  DCHECK(!debug_info->HasCoverageInfo());
+
+  debug_info->set_flags(debug_info->flags() | DebugInfo::kHasCoverageInfo);
+  debug_info->set_coverage_info(*coverage_info);
+}
+
+void Debug::RemoveAllCoverageInfos() {
+  DCHECK(FLAG_block_coverage);
+  ClearAllDebugInfos(
+      [=](Handle<DebugInfo> info) { return info->ClearCoverageInfo(); });
+}
+
+void Debug::FindDebugInfo(Handle<DebugInfo> debug_info,
+                          DebugInfoListNode** prev, DebugInfoListNode** curr) {
   HandleScope scope(isolate_);
-  Handle<SharedFunctionInfo> shared(debug_info->shared());
-
-  DCHECK_NOT_NULL(debug_info_list_);
-  // Run through the debug info objects to find this one and remove it.
-  DebugInfoListNode* prev = NULL;
-  DebugInfoListNode* current = debug_info_list_;
-  while (current != NULL) {
-    if (current->debug_info().is_identical_to(debug_info)) {
-      // Unlink from list. If prev is NULL we are looking at the first element.
-      if (prev == NULL) {
-        debug_info_list_ = current->next();
-      } else {
-        prev->set_next(current->next());
-      }
-      shared->set_debug_info(Smi::FromInt(debug_info->debugger_hints()));
-      delete current;
-      return;
-    }
-    // Move to next in list.
-    prev = current;
-    current = current->next();
+  *prev = nullptr;
+  *curr = debug_info_list_;
+  while (*curr != nullptr) {
+    if ((*curr)->debug_info().is_identical_to(debug_info)) return;
+    *prev = *curr;
+    *curr = (*curr)->next();
   }
 
   UNREACHABLE();
+}
+
+void Debug::ClearAllDebugInfos(DebugInfoClearFunction clear_function) {
+  DebugInfoListNode* prev = nullptr;
+  DebugInfoListNode* current = debug_info_list_;
+  while (current != nullptr) {
+    DebugInfoListNode* next = current->next();
+    Handle<DebugInfo> debug_info = current->debug_info();
+    if (clear_function(debug_info)) {
+      FreeDebugInfoListNode(prev, current);
+      current = next;
+    } else {
+      prev = current;
+      current = next;
+    }
+  }
+}
+
+void Debug::RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info) {
+  bool should_unlink = debug_info->ClearBreakInfo();
+  if (should_unlink) {
+    DebugInfoListNode* prev;
+    DebugInfoListNode* node;
+    FindDebugInfo(debug_info, &prev, &node);
+    FreeDebugInfoListNode(prev, node);
+  }
+}
+
+void Debug::FreeDebugInfoListNode(DebugInfoListNode* prev,
+                                  DebugInfoListNode* node) {
+  DCHECK(node->debug_info()->IsEmpty());
+
+  // Unlink from list. If prev is NULL we are looking at the first element.
+  if (prev == nullptr) {
+    debug_info_list_ = node->next();
+  } else {
+    prev->set_next(node->next());
+  }
+
+  // Pack debugger hints back into the SFI::debug_info field.
+  Handle<DebugInfo> debug_info(node->debug_info());
+  debug_info->shared()->set_debug_info(
+      Smi::FromInt(debug_info->debugger_hints()));
+
+  delete node;
 }
 
 bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
@@ -1619,12 +1646,12 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   Handle<SharedFunctionInfo> shared(frame->function()->shared());
 
   // With no debug info there are no break points, so we can't be at a return.
-  if (!shared->HasDebugInfo()) return false;
+  if (!shared->HasBreakInfo()) return false;
 
   DCHECK(!frame->is_optimized());
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
-  return location.IsReturn() || location.IsTailCall();
+  return location.IsReturn();
 }
 
 void Debug::ScheduleFrameRestart(StackFrame* frame) {
@@ -2105,6 +2132,7 @@ void Debug::UpdateHookOnFunctionCall() {
 }
 
 MaybeHandle<Object> Debug::Call(Handle<Object> fun, Handle<Object> data) {
+  AllowJavascriptExecutionDebugOnly allow_script(isolate_);
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return isolate_->factory()->undefined_value();
 
@@ -2202,9 +2230,8 @@ void Debug::PrintBreakLocation() {
     int column = Script::GetColumnNumber(script, source_position) -
                  (line == 0 ? script->column_offset() : 0);
     Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
-    int line_start =
-        line == 0 ? 0 : Smi::cast(line_ends->get(line - 1))->value() + 1;
-    int line_end = Smi::cast(line_ends->get(line))->value();
+    int line_start = line == 0 ? 0 : Smi::ToInt(line_ends->get(line - 1)) + 1;
+    int line_end = Smi::ToInt(line_ends->get(line));
     DisallowHeapAllocation no_gc;
     String::FlatContent content = source->GetFlatContent();
     if (content.IsOneByte()) {
@@ -2227,8 +2254,8 @@ DebugScope::DebugScope(Debug* debug)
       no_termination_exceptons_(debug_->isolate_,
                                 StackGuard::TERMINATE_EXECUTION) {
   // Link recursive debugger entry.
-  base::NoBarrier_Store(&debug_->thread_local_.current_debug_scope_,
-                        reinterpret_cast<base::AtomicWord>(this));
+  base::Relaxed_Store(&debug_->thread_local_.current_debug_scope_,
+                      reinterpret_cast<base::AtomicWord>(this));
 
   // Store the previous break id, frame id and return value.
   break_id_ = debug_->break_id();
@@ -2252,8 +2279,8 @@ DebugScope::DebugScope(Debug* debug)
 
 DebugScope::~DebugScope() {
   // Leaving this debugger entry.
-  base::NoBarrier_Store(&debug_->thread_local_.current_debug_scope_,
-                        reinterpret_cast<base::AtomicWord>(prev_));
+  base::Relaxed_Store(&debug_->thread_local_.current_debug_scope_,
+                      reinterpret_cast<base::AtomicWord>(prev_));
 
   // Restore to the previous break state.
   debug_->thread_local_.break_frame_id_ = break_frame_id_;
@@ -2375,6 +2402,7 @@ JavaScriptDebugDelegate::~JavaScriptDebugDelegate() {
 void JavaScriptDebugDelegate::ProcessDebugEvent(v8::DebugEvent event,
                                                 Handle<JSObject> event_data,
                                                 Handle<JSObject> exec_state) {
+  AllowJavascriptExecutionDebugOnly allow_script(isolate_);
   Handle<Object> argv[] = {Handle<Object>(Smi::FromInt(event), isolate_),
                            exec_state, event_data, data_};
   Handle<JSReceiver> global = isolate_->global_proxy();

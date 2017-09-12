@@ -143,6 +143,11 @@ RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
 
   icu::Locale default_locale;
 
+  // Translate ICU's fallback locale to a well-known locale.
+  if (strcmp(default_locale.getName(), "en_US_POSIX") == 0) {
+    return *factory->NewStringFromStaticChars("en-US");
+  }
+
   // Set the locale
   char result[ULOC_FULLNAME_CAPACITY];
   UErrorCode status = U_ZERO_ERROR;
@@ -471,7 +476,7 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormatToParts) {
       return isolate->heap()->undefined_value();
     }
   }
-  JSObject::ValidateElements(result);
+  JSObject::ValidateElements(*result);
   return *result;
 }
 

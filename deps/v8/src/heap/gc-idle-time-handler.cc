@@ -73,9 +73,11 @@ double GCIdleTimeHandler::EstimateFinalIncrementalMarkCompactTime(
 }
 
 bool GCIdleTimeHandler::ShouldDoContextDisposalMarkCompact(
-    int contexts_disposed, double contexts_disposal_rate) {
+    int contexts_disposed, double contexts_disposal_rate,
+    size_t size_of_objects) {
   return contexts_disposed > 0 && contexts_disposal_rate > 0 &&
-         contexts_disposal_rate < kHighContextDisposalRate;
+         contexts_disposal_rate < kHighContextDisposalRate &&
+         size_of_objects <= kMaxHeapSizeForContextDisposalMarkCompact;
 }
 
 bool GCIdleTimeHandler::ShouldDoFinalIncrementalMarkCompact(
@@ -123,9 +125,9 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
                                             GCIdleTimeHeapState heap_state) {
   if (static_cast<int>(idle_time_in_ms) <= 0) {
     if (heap_state.incremental_marking_stopped) {
-      if (ShouldDoContextDisposalMarkCompact(
-              heap_state.contexts_disposed,
-              heap_state.contexts_disposal_rate)) {
+      if (ShouldDoContextDisposalMarkCompact(heap_state.contexts_disposed,
+                                             heap_state.contexts_disposal_rate,
+                                             heap_state.size_of_objects)) {
         return GCIdleTimeAction::FullGC();
       }
     }
@@ -135,7 +137,8 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
   // We are in a context disposal GC scenario. Don't do anything if we do not
   // get the right idle signal.
   if (ShouldDoContextDisposalMarkCompact(heap_state.contexts_disposed,
-                                         heap_state.contexts_disposal_rate)) {
+                                         heap_state.contexts_disposal_rate,
+                                         heap_state.size_of_objects)) {
     return NothingOrDone(idle_time_in_ms);
   }
 

@@ -14,60 +14,6 @@ namespace v8 {
 namespace internal {
 
 
-// ES6 9.5.13 [[Call]] (thisArgument, argumentsList)
-RUNTIME_FUNCTION(Runtime_JSProxyCall) {
-  HandleScope scope(isolate);
-  DCHECK_LE(2, args.length());
-  // thisArgument == receiver
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSProxy, proxy, args.length() - 1);
-  Handle<String> trap_name = isolate->factory()->apply_string();
-  // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
-  Handle<Object> handler(proxy->handler(), isolate);
-  // 2. If handler is null, throw a TypeError exception.
-  if (proxy->IsRevoked()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kProxyRevoked, trap_name));
-  }
-  // 3. Assert: Type(handler) is Object.
-  DCHECK(handler->IsJSReceiver());
-  // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  Handle<JSReceiver> target(proxy->target(), isolate);
-  // 5. Let trap be ? GetMethod(handler, "apply").
-  Handle<Object> trap;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, trap,
-      Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name));
-  // 6. If trap is undefined, then
-  int const arguments_length = args.length() - 2;
-  if (trap->IsUndefined(isolate)) {
-    // 6.a. Return Call(target, thisArgument, argumentsList).
-    ScopedVector<Handle<Object>> argv(arguments_length);
-    for (int i = 0; i < arguments_length; ++i) {
-      argv[i] = args.at(i + 1);
-    }
-    RETURN_RESULT_OR_FAILURE(
-        isolate, Execution::Call(isolate, target, receiver, arguments_length,
-                                 argv.start()));
-  }
-  // 7. Let argArray be CreateArrayFromList(argumentsList).
-  Handle<JSArray> arg_array = isolate->factory()->NewJSArray(
-      FAST_ELEMENTS, arguments_length, arguments_length);
-  ElementsAccessor* accessor = arg_array->GetElementsAccessor();
-  {
-    DisallowHeapAllocation no_gc;
-    for (int i = 0; i < arguments_length; i++) {
-      accessor->Set(arg_array, i, args[i + 1]);
-    }
-  }
-  // 8. Return Call(trap, handler, «target, thisArgument, argArray»).
-  Handle<Object> trap_args[] = {target, receiver, arg_array};
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      Execution::Call(isolate, trap, handler, arraysize(trap_args), trap_args));
-}
-
-
 // 9.5.14 [[Construct]] (argumentsList, newTarget)
 RUNTIME_FUNCTION(Runtime_JSProxyConstruct) {
   HandleScope scope(isolate);
@@ -108,7 +54,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyConstruct) {
   }
   // 7. Let argArray be CreateArrayFromList(argumentsList).
   Handle<JSArray> arg_array = isolate->factory()->NewJSArray(
-      FAST_ELEMENTS, arguments_length, arguments_length);
+      PACKED_ELEMENTS, arguments_length, arguments_length);
   ElementsAccessor* accessor = arg_array->GetElementsAccessor();
   {
     DisallowHeapAllocation no_gc;

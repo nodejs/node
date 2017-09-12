@@ -13,15 +13,14 @@ namespace internal {
 typedef compiler::Node Node;
 
 TF_BUILTIN(WasmStackGuard, CodeStubAssembler) {
-  Node* context = SmiConstant(Smi::kZero);
-  TailCallRuntime(Runtime::kWasmStackGuard, context);
+  TailCallRuntime(Runtime::kWasmStackGuard, NoContextConstant());
 }
 
 #define DECLARE_ENUM(name)                                                    \
   TF_BUILTIN(ThrowWasm##name, CodeStubAssembler) {                            \
     int message_id = wasm::WasmOpcodes::TrapReasonToMessageId(wasm::k##name); \
-    TailCallRuntime(Runtime::kThrowWasmErrorFromTrapIf,                       \
-                    SmiConstant(Smi::kZero), SmiConstant(message_id));        \
+    TailCallRuntime(Runtime::kThrowWasmErrorFromTrapIf, NoContextConstant(),  \
+                    SmiConstant(message_id));                                 \
   }
 FOREACH_WASM_TRAPREASON(DECLARE_ENUM)
 #undef DECLARE_ENUM

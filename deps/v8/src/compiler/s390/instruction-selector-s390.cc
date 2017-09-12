@@ -307,9 +307,6 @@ ArchOpcode SelectLoadOpcode(Node* node) {
     case MachineRepresentation::kWord64:  // Fall through.
 #endif
     case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
     default:
       UNREACHABLE();
@@ -820,9 +817,6 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kWord64:  // Fall through.
 #endif
       case MachineRepresentation::kSimd128:  // Fall through.
-      case MachineRepresentation::kSimd1x4:  // Fall through.
-      case MachineRepresentation::kSimd1x8:  // Fall through.
-      case MachineRepresentation::kSimd1x16:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -887,9 +881,6 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kWord64:  // Fall through.
 #endif
     case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -937,9 +928,6 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kWord64:  // Fall through.
 #endif
     case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -1322,7 +1310,7 @@ bool TryMatchShiftFromMul(InstructionSelector* selector, Node* node) {
   Node* left = m.left().node();
   Node* right = m.right().node();
   if (g.CanBeImmediate(right, OperandMode::kInt32Imm) &&
-      base::bits::IsPowerOfTwo64(g.GetImmediate(right))) {
+      base::bits::IsPowerOfTwo(g.GetImmediate(right))) {
     int power = 63 - base::bits::CountLeadingZeros64(g.GetImmediate(right));
     bool doZeroExt = DoZeroExtForResult(node);
     bool canEliminateZeroExt = ProduceWord32Result(left);
@@ -1720,7 +1708,6 @@ static bool CompareLogical(FlagsContinuation* cont) {
       return false;
   }
   UNREACHABLE();
-  return false;
 }
 
 namespace {
@@ -2220,6 +2207,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
   // Emit either ArchTableSwitch or ArchLookupSwitch.
+  static const size_t kMaxTableSwitchValueRange = 2 << 16;
   size_t table_space_cost = 4 + sw.value_range;
   size_t table_time_cost = 3;
   size_t lookup_space_cost = 3 + 2 * sw.case_count;
@@ -2227,7 +2215,8 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   if (sw.case_count > 0 &&
       table_space_cost + 3 * table_time_cost <=
           lookup_space_cost + 3 * lookup_time_cost &&
-      sw.min_value > std::numeric_limits<int32_t>::min()) {
+      sw.min_value > std::numeric_limits<int32_t>::min() &&
+      sw.value_range <= kMaxTableSwitchValueRange) {
     InstructionOperand index_operand = value_operand;
     if (sw.min_value) {
       index_operand = g.TempRegister();

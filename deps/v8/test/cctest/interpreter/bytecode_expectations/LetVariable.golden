@@ -30,13 +30,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(10),
                 B(Star), R(0),
-  /*   46 S> */ B(Nop),
-  /*   56 S> */ B(Return),
+  /*   55 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -47,20 +46,17 @@ handlers: [
 snippet: "
   let x = (x = 20);
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 26
+bytecode array length: 17
 bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   45 S> */ B(LdaSmi), I8(20),
+  /*   42 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
                 B(Ldar), R(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(0),
-                B(Star), R(2),
-  /*   45 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
+  /*   45 E> */ B(ThrowReferenceErrorIfHole), U8(0),
                 B(Mov), R(1), R(0),
                 B(LdaUndefined),
   /*   52 S> */ B(Return),

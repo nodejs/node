@@ -26,14 +26,6 @@ class JSONTraceWriter : public TraceWriter {
   bool append_comma_ = false;
 };
 
-class NullTraceWriter : public TraceWriter {
- public:
-  NullTraceWriter() = default;
-  ~NullTraceWriter() = default;
-  void AppendTraceEvent(TraceObject*) override {}
-  void Flush() override {}
-};
-
 }  // namespace tracing
 }  // namespace platform
 }  // namespace v8

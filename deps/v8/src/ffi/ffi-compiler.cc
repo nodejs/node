@@ -42,7 +42,6 @@ class FFIAssembler : public CodeStubAssembler {
         return ChangeInt32ToTagged(node);
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   Node* FromJS(Node* node, Node* context, FFIType type) {
@@ -51,7 +50,6 @@ class FFIAssembler : public CodeStubAssembler {
         return TruncateTaggedToWord32(context, node);
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   MachineType FFIToMachineType(FFIType type) {
@@ -60,7 +58,6 @@ class FFIAssembler : public CodeStubAssembler {
         return MachineType::Int32();
     }
     UNREACHABLE();
-    return MachineType::None();
   }
 
   Signature<MachineType>* FFIToMachineSignature(FFISignature* sig) {
