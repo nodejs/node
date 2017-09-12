@@ -463,6 +463,8 @@ For more information about the governance of the Node.js project, see
 **Santiago Gimeno** &lt;santiago.gimeno@gmail.com&gt;
 * [seishun](https://github.com/seishun) -
 **Nikolai Vavilov** &lt;vvnicholas@gmail.com&gt;
+* [sebdeckers](https://github.com/sebdeckers) -
+**Sebastiaan Deckers** &lt;sebdeckers83@gmail.com&gt;
 * [shigeki](https://github.com/shigeki) -
 **Shigeki Ohtsu** &lt;ohtsu@ohtsu.org&gt; (he/him)
 * [silverwind](https://github.com/silverwind) -
