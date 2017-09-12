@@ -8,13 +8,18 @@ const assert = require('assert');
 const h2 = require('http2');
 
 // Http2ServerResponse.finished
-
 const server = h2.createServer();
 server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
     response.on('finish', common.mustCall(function() {
+      assert.ok(request.stream !== undefined);
+      assert.ok(response.stream !== undefined);
       server.close();
+      process.nextTick(common.mustCall(() => {
+        assert.strictEqual(request.stream, undefined);
+        assert.strictEqual(response.stream, undefined);
+      }));
     }));
     assert.strictEqual(response.finished, false);
     response.end();
