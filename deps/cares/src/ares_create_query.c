@@ -134,7 +134,7 @@ int ares_create_query(const char *name, int dnsclass, int type,
   while (*name)
     {
       if (*name == '.') {
-        free (buf);
+        ares_free (buf);
         return ARES_EBADNAME;
       }
 
@@ -147,7 +147,7 @@ int ares_create_query(const char *name, int dnsclass, int type,
           len++;
         }
       if (len > MAXLABEL) {
-        free (buf);
+        ares_free (buf);
         return ARES_EBADNAME;
       }
 
@@ -190,7 +190,7 @@ int ares_create_query(const char *name, int dnsclass, int type,
    * to 255 octets or less."). */
   if (buflen > (MAXCDNAME + HFIXEDSZ + QFIXEDSZ +
                 (max_udp_size ? EDNSFIXEDSZ : 0))) {
-    free (buf);
+    ares_free (buf);
     return ARES_EBADNAME;
   }
 
