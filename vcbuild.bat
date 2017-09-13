@@ -541,6 +541,7 @@ echo %cmd1%
 exit /b %ERRORLEVEL%
 
 :exit
+exit /b %errorlevel%
 goto :EOF
 
 
