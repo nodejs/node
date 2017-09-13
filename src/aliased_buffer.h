@@ -65,16 +65,17 @@ class AliasedBuffer {
         byte_offset_(byte_offset),
         free_buffer_(false) {
     const v8::HandleScope handle_scope(isolate_);
+
+    v8::Local<v8::ArrayBuffer> ab = backing_buffer.GetArrayBuffer();
+
     // validate that the byte_offset is aligned with sizeof(NativeT)
     CHECK_EQ(byte_offset & (sizeof(NativeT) - 1), 0);
     // validate this fits inside the backing buffer
-    CHECK_LE(sizeof(NativeT) * count,
-        backing_buffer.GetArrayBuffer()->ByteLength() - byte_offset);
+    CHECK_LE(sizeof(NativeT) * count,  ab->ByteLength() - byte_offset);
 
     buffer_ = reinterpret_cast<NativeT*>(
         const_cast<uint8_t*>(backing_buffer.GetNativeBuffer() + byte_offset));
 
-    v8::Local<v8::ArrayBuffer> ab = backing_buffer.GetArrayBuffer();
     v8::Local<V8T> js_array = V8T::New(ab, byte_offset, count);
     js_array_ = v8::Global<V8T>(isolate, js_array);
   }
@@ -159,9 +160,9 @@ class AliasedBuffer {
    *  Set position index to given value.
    */
   inline void SetValue(const size_t index, NativeT value) {
-    #if defined(DEBUG) && DEBUG
-      CHECK_LT(index, count_);
-    #endif
+#if defined(DEBUG) && DEBUG
+    CHECK_LT(index, count_);
+#endif
     buffer_[index] = value;
   }
 
@@ -169,9 +170,9 @@ class AliasedBuffer {
    *  Get value at position index
    */
   inline const NativeT GetValue(const size_t index) const {
-    #if defined(DEBUG) && DEBUG
-      CHECK_LT(index, count_);
-    #endif
+#if defined(DEBUG) && DEBUG
+    CHECK_LT(index, count_);
+#endif
     return buffer_[index];
   }
 
