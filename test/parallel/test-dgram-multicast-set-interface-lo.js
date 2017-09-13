@@ -88,9 +88,10 @@ if (process.argv[2] !== 'child') {
   timer = setTimeout(function() {
     console.error('[PARENT] Responses were not received within %d ms.',
                   TIMEOUT);
-    console.error('[PARENT] Fail');
+    console.error('[PARENT] Skip');
 
     killChildren(workers);
+    common.skip('Check filter policy');
 
     process.exit(1);
   }, TIMEOUT);
