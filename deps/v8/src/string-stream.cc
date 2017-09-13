@@ -389,7 +389,7 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
       PrintUsingMap(JSObject::cast(printee));
       if (printee->IsJSArray()) {
         JSArray* array = JSArray::cast(printee);
-        if (array->HasFastObjectElements()) {
+        if (array->HasObjectElements()) {
           unsigned int limit = FixedArray::cast(array->elements())->length();
           unsigned int length =
             static_cast<uint32_t>(JSArray::cast(array)->length()->Number());

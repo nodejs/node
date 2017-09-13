@@ -67,7 +67,6 @@ class InterpreterCompilationJob final : public CompilationJob {
   BytecodeGenerator generator_;
   RuntimeCallStats* runtime_call_stats_;
   RuntimeCallCounter background_execute_counter_;
-  bool print_bytecode_;
 
   DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationJob);
 };
@@ -107,7 +106,6 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
       return index + 2 * kEntriesPerOperandScale;
   }
   UNREACHABLE();
-  return 0;
 }
 
 void Interpreter::IterateDispatchTable(RootVisitor* v) {
@@ -149,19 +147,10 @@ InterpreterCompilationJob::InterpreterCompilationJob(CompilationInfo* info)
     : CompilationJob(info->isolate(), info, "Ignition"),
       generator_(info),
       runtime_call_stats_(info->isolate()->counters()->runtime_call_stats()),
-      background_execute_counter_("CompileBackgroundIgnition"),
-      print_bytecode_(ShouldPrintBytecode(info->shared_info())) {}
+      background_execute_counter_("CompileBackgroundIgnition") {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
   CodeGenerator::MakeCodePrologue(info(), "interpreter");
-
-  if (print_bytecode_) {
-    OFStream os(stdout);
-    std::unique_ptr<char[]> name = info()->GetDebugName();
-    os << "[generating bytecode for function: " << info()->GetDebugName().get()
-       << "]" << std::endl;
-  }
-
   return SUCCEEDED;
 }
 
@@ -196,8 +185,11 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
     return FAILED;
   }
 
-  if (print_bytecode_) {
+  if (ShouldPrintBytecode(info()->shared_info())) {
     OFStream os(stdout);
+    std::unique_ptr<char[]> name = info()->GetDebugName();
+    os << "[generating bytecode for function: " << info()->GetDebugName().get()
+       << "]" << std::endl;
     bytecodes->Disassemble(os);
     os << std::flush;
   }

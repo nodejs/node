@@ -39,6 +39,8 @@ class V8_EXPORT_PRIVATE TypedOptimization final
                     Flags flags, JSGraph* jsgraph);
   ~TypedOptimization();
 
+  const char* reducer_name() const override { return "TypedOptimization"; }
+
   Reduction Reduce(Node* node) final;
 
  private:
@@ -46,6 +48,8 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceCheckMaps(Node* node);
   Reduction ReduceCheckNumber(Node* node);
   Reduction ReduceCheckString(Node* node);
+  Reduction ReduceCheckSeqString(Node* node);
+  Reduction ReduceCheckNonEmptyString(Node* node);
   Reduction ReduceLoadField(Node* node);
   Reduction ReduceNumberFloor(Node* node);
   Reduction ReduceNumberRoundop(Node* node);
@@ -54,6 +58,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceReferenceEqual(Node* node);
   Reduction ReduceSelect(Node* node);
   Reduction ReduceSpeculativeToNumber(Node* node);
+  Reduction ReduceCheckNotTaggedHole(Node* node);
 
   CompilationDependencies* dependencies() const { return dependencies_; }
   Factory* factory() const;

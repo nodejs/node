@@ -17,9 +17,8 @@ namespace {
 
 class Rewriter final : public AstTraversalVisitor<Rewriter> {
  public:
-  Rewriter(uintptr_t stack_limit, Expression* initializer, Scope* param_scope)
-      : AstTraversalVisitor(stack_limit, initializer),
-        param_scope_(param_scope) {}
+  Rewriter(uintptr_t stack_limit, Expression* initializer, Scope* scope)
+      : AstTraversalVisitor(stack_limit, initializer), scope_(scope) {}
 
  private:
   // This is required so that the overriden Visit* methods can be
@@ -34,11 +33,11 @@ class Rewriter final : public AstTraversalVisitor<Rewriter> {
   void VisitTryCatchStatement(TryCatchStatement* stmt);
   void VisitWithStatement(WithStatement* stmt);
 
-  Scope* param_scope_;
+  Scope* scope_;
 };
 
 void Rewriter::VisitFunctionLiteral(FunctionLiteral* function_literal) {
-  function_literal->scope()->ReplaceOuterScope(param_scope_);
+  function_literal->scope()->ReplaceOuterScope(scope_);
 }
 
 
@@ -63,20 +62,20 @@ void Rewriter::VisitClassLiteral(ClassLiteral* class_literal) {
 
 void Rewriter::VisitVariableProxy(VariableProxy* proxy) {
   if (!proxy->is_resolved()) {
-    if (param_scope_->outer_scope()->RemoveUnresolved(proxy)) {
-      param_scope_->AddUnresolved(proxy);
+    if (scope_->outer_scope()->RemoveUnresolved(proxy)) {
+      scope_->AddUnresolved(proxy);
     }
   } else {
     // Ensure that temporaries we find are already in the correct scope.
     DCHECK(proxy->var()->mode() != TEMPORARY ||
-           proxy->var()->scope() == param_scope_->GetClosureScope());
+           proxy->var()->scope() == scope_->GetClosureScope());
   }
 }
 
 
 void Rewriter::VisitBlock(Block* stmt) {
   if (stmt->scope() != nullptr)
-    stmt->scope()->ReplaceOuterScope(param_scope_);
+    stmt->scope()->ReplaceOuterScope(scope_);
   else
     VisitStatements(stmt->statements());
 }
@@ -84,28 +83,33 @@ void Rewriter::VisitBlock(Block* stmt) {
 
 void Rewriter::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Visit(stmt->try_block());
-  stmt->scope()->ReplaceOuterScope(param_scope_);
+  stmt->scope()->ReplaceOuterScope(scope_);
 }
 
 
 void Rewriter::VisitWithStatement(WithStatement* stmt) {
   Visit(stmt->expression());
-  stmt->scope()->ReplaceOuterScope(param_scope_);
+  stmt->scope()->ReplaceOuterScope(scope_);
 }
 
 
 }  // anonymous namespace
 
-void ReparentParameterExpressionScope(uintptr_t stack_limit, Expression* expr,
-                                      Scope* param_scope) {
-  // The only case that uses this code is block scopes for parameters containing
-  // sloppy eval.
-  DCHECK(param_scope->is_block_scope());
-  DCHECK(param_scope->is_declaration_scope());
-  DCHECK(param_scope->calls_sloppy_eval());
-  DCHECK(param_scope->outer_scope()->is_function_scope());
+void ReparentExpressionScope(uintptr_t stack_limit, Expression* expr,
+                             Scope* scope) {
+  // Both uses of this function should pass in a block scope.
+  DCHECK(scope->is_block_scope());
+  // These hold for the sloppy parameters-with-eval case...
+  DCHECK_IMPLIES(scope->is_declaration_scope(), scope->calls_sloppy_eval());
+  DCHECK_IMPLIES(scope->is_declaration_scope(),
+                 scope->outer_scope()->is_function_scope());
+  // ...whereas these hold for lexical declarations in for-in/of loops.
+  DCHECK_IMPLIES(!scope->is_declaration_scope(),
+                 scope->outer_scope()->is_block_scope());
+  DCHECK_IMPLIES(!scope->is_declaration_scope(),
+                 scope->outer_scope()->is_hidden());
 
-  Rewriter rewriter(stack_limit, expr, param_scope);
+  Rewriter rewriter(stack_limit, expr, scope);
   rewriter.Run();
 }
 

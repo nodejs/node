@@ -18,6 +18,9 @@ namespace interpreter {
 void SetupInterpreter::InstallBytecodeHandlers(Interpreter* interpreter) {
   DCHECK(!interpreter->IsDispatchTableInitialized());
   HandleScope scope(interpreter->isolate_);
+  // Canonicalize handles, so that we can share constant pool entries pointing
+  // to code targets without dereferencing their handles.
+  CanonicalHandleScope canonical(interpreter->isolate_);
   Address* dispatch_table = interpreter->dispatch_table_;
 
   // Generate bytecode handlers for all bytecodes and scales.

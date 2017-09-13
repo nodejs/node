@@ -61,10 +61,6 @@ FullCodeGenerator::FullCodeGenerator(MacroAssembler* masm,
       operand_stack_depth_(0),
       globals_(NULL),
       context_(NULL),
-      bailout_entries_(info->HasDeoptimizationSupport()
-                           ? info->literal()->ast_node_count()
-                           : 0,
-                       info->zone()),
       back_edges_(2, info->zone()),
       source_position_table_builder_(info->zone(),
                                      info->SourcePositionRecordingMode()),
@@ -87,7 +83,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
   Isolate* isolate = info->isolate();
 
-  DCHECK(!info->shared_info()->must_use_ignition_turbo());
+  DCHECK(!info->literal()->must_use_ignition());
   DCHECK(!FLAG_minimal);
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::CompileFullCode);
@@ -116,12 +112,9 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
 
   Handle<Code> code =
       CodeGenerator::MakeCodeEpilogue(&masm, nullptr, info, masm.CodeObject());
-  cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
-  code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_has_reloc_info_for_serialization(info->will_serialize());
   code->set_allow_osr_at_loop_nesting_level(0);
-  code->set_profiler_ticks(0);
   code->set_back_edge_table_offset(table_offset);
   Handle<ByteArray> source_positions =
       cgen.source_position_table_builder_.ToSourcePositionTable(
@@ -155,21 +148,6 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
 }
 
 
-void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
-  // Fill in the deoptimization information.
-  DCHECK(info_->HasDeoptimizationSupport() || bailout_entries_.is_empty());
-  if (!info_->HasDeoptimizationSupport()) return;
-  int length = bailout_entries_.length();
-  Handle<DeoptimizationOutputData> data =
-      DeoptimizationOutputData::New(isolate(), length, TENURED);
-  for (int i = 0; i < length; i++) {
-    data->SetAstId(i, bailout_entries_[i].id);
-    data->SetPcAndState(i, Smi::FromInt(bailout_entries_[i].pc_and_state));
-  }
-  code->set_deoptimization_data(*data);
-}
-
-
 void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
   Handle<TypeFeedbackInfo> info = isolate()->factory()->NewTypeFeedbackInfo();
   info->set_ic_total_count(ic_total_count_);
@@ -195,23 +173,18 @@ void FullCodeGenerator::Initialize(uintptr_t stack_limit) {
   masm_->set_predictable_code_size(true);
 }
 
-void FullCodeGenerator::PrepareForBailout(Expression* node,
-                                          BailoutState state) {
-  PrepareForBailoutForId(node->id(), state);
-}
-
-void FullCodeGenerator::CallIC(Handle<Code> code, TypeFeedbackId ast_id) {
+void FullCodeGenerator::CallIC(Handle<Code> code) {
   ic_total_count_++;
-  __ Call(code, RelocInfo::CODE_TARGET, ast_id);
+  __ Call(code, RelocInfo::CODE_TARGET);
 }
 
 void FullCodeGenerator::CallLoadIC(FeedbackSlot slot, Handle<Object> name) {
   DCHECK(name->IsName());
-  __ Move(LoadDescriptor::NameRegister(), name);
+  __ Move(LoadDescriptor::NameRegister(), Handle<Name>::cast(name));
 
   EmitLoadSlot(LoadDescriptor::SlotRegister(), slot);
 
-  Handle<Code> code = CodeFactory::LoadIC(isolate()).code();
+  Handle<Code> code = isolate()->builtins()->LoadICTrampoline();
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
@@ -219,7 +192,7 @@ void FullCodeGenerator::CallLoadIC(FeedbackSlot slot, Handle<Object> name) {
 void FullCodeGenerator::CallStoreIC(FeedbackSlot slot, Handle<Object> name,
                                     StoreICKind store_ic_kind) {
   DCHECK(name->IsName());
-  __ Move(StoreDescriptor::NameRegister(), name);
+  __ Move(StoreDescriptor::NameRegister(), Handle<Name>::cast(name));
 
   STATIC_ASSERT(!StoreDescriptor::kPassLastArgsOnStack ||
                 StoreDescriptor::kStackArgumentsCount == 2);
@@ -275,39 +248,6 @@ void FullCodeGenerator::CallKeyedStoreIC(FeedbackSlot slot) {
   RestoreContext();
 }
 
-void FullCodeGenerator::RecordJSReturnSite(Call* call) {
-  // We record the offset of the function return so we can rebuild the frame
-  // if the function was inlined, i.e., this is the return address in the
-  // inlined function's frame.
-  //
-  // The bailout state is ignored.  We defensively set it to TOS_REGISTER, which
-  // is the real state of the unoptimized code at the return site.
-  PrepareForBailoutForId(call->ReturnId(), BailoutState::TOS_REGISTER);
-#ifdef DEBUG
-  // In debug builds, mark the return so we can verify that this function
-  // was called.
-  DCHECK(!call->return_is_recorded_);
-  call->return_is_recorded_ = true;
-#endif
-}
-
-void FullCodeGenerator::PrepareForBailoutForId(BailoutId id,
-                                               BailoutState state) {
-  // There's no need to prepare this code for bailouts from already optimized
-  // code or code that can't be optimized.
-  if (!info_->HasDeoptimizationSupport()) return;
-  unsigned pc_and_state =
-      BailoutStateField::encode(state) | PcField::encode(masm_->pc_offset());
-  DCHECK(Smi::IsValid(pc_and_state));
-#ifdef DEBUG
-  for (int i = 0; i < bailout_entries_.length(); ++i) {
-    DCHECK(bailout_entries_[i].id != id);
-  }
-#endif
-  BailoutEntry entry = { id, pc_and_state };
-  bailout_entries_.Add(entry, zone());
-}
-
 
 void FullCodeGenerator::RecordBackEdge(BailoutId ast_id) {
   // The pc offset does not need to be encoded and packed together with a state.
@@ -344,7 +284,6 @@ void FullCodeGenerator::TestContext::Plug(Variable* var) const {
   DCHECK(var->IsStackAllocated() || var->IsContextSlot());
   // For simplicity we always test the accumulator register.
   codegen()->GetVar(result_register(), var);
-  codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
   codegen()->DoTest(this);
 }
 
@@ -366,7 +305,6 @@ void FullCodeGenerator::StackValueContext::Plug(Register reg) const {
 void FullCodeGenerator::TestContext::Plug(Register reg) const {
   // For simplicity we always test the accumulator register.
   __ Move(result_register(), reg);
-  codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
   codegen()->DoTest(this);
 }
 
@@ -392,7 +330,6 @@ void FullCodeGenerator::TestContext::DropAndPlug(int count,
   // For simplicity we always test the accumulator register.
   codegen()->DropOperands(count);
   __ Move(result_register(), reg);
-  codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
   codegen()->DoTest(this);
 }
 
@@ -413,7 +350,6 @@ void FullCodeGenerator::StackValueContext::PlugTOS() const {
 void FullCodeGenerator::TestContext::PlugTOS() const {
   // For simplicity we always test the accumulator register.
   codegen()->PopOperand(result_register());
-  codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
   codegen()->DoTest(this);
 }
 
@@ -526,7 +462,7 @@ int FullCodeGenerator::DeclareGlobalsFlags() {
 
 void FullCodeGenerator::PushOperand(Handle<Object> handle) {
   OperandStackDepthIncrement(1);
-  __ Push(handle);
+  __ PushObject(handle);
 }
 
 void FullCodeGenerator::PushOperand(Smi* smi) {
@@ -614,30 +550,35 @@ void FullCodeGenerator::EmitIntrinsicAsStubCall(CallRuntime* expr,
 
 
 void FullCodeGenerator::EmitToString(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::ToString(isolate()));
+  EmitIntrinsicAsStubCall(
+      expr, Builtins::CallableFor(isolate(), Builtins::kToString));
 }
 
 
 void FullCodeGenerator::EmitToLength(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::ToLength(isolate()));
+  EmitIntrinsicAsStubCall(
+      expr, Builtins::CallableFor(isolate(), Builtins::kToLength));
 }
 
 void FullCodeGenerator::EmitToInteger(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::ToInteger(isolate()));
+  EmitIntrinsicAsStubCall(
+      expr, Builtins::CallableFor(isolate(), Builtins::kToInteger));
 }
 
 void FullCodeGenerator::EmitToNumber(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::ToNumber(isolate()));
+  EmitIntrinsicAsStubCall(
+      expr, Builtins::CallableFor(isolate(), Builtins::kToNumber));
 }
 
 
 void FullCodeGenerator::EmitToObject(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::ToObject(isolate()));
+  EmitIntrinsicAsStubCall(
+      expr, Builtins::CallableFor(isolate(), Builtins::kToObject));
 }
 
 
 void FullCodeGenerator::EmitHasProperty() {
-  Callable callable = CodeFactory::HasProperty(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kHasProperty);
   PopOperand(callable.descriptor().GetRegisterParameter(1));
   PopOperand(callable.descriptor().GetRegisterParameter(0));
   __ Call(callable.code(), RelocInfo::CODE_TARGET);
@@ -697,16 +638,12 @@ void FullCodeGenerator::SetExpressionAsStatementPosition(Expression* expr) {
   }
 }
 
-void FullCodeGenerator::SetCallPosition(Expression* expr,
-                                        TailCallMode tail_call_mode) {
+void FullCodeGenerator::SetCallPosition(Expression* expr) {
   if (expr->position() == kNoSourcePosition) return;
   RecordPosition(expr->position());
   if (info_->is_debug()) {
-    RelocInfo::Mode mode = (tail_call_mode == TailCallMode::kAllow)
-                               ? RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL
-                               : RelocInfo::DEBUG_BREAK_SLOT_AT_CALL;
     // Always emit a debug break slot before a call.
-    DebugCodegen::GenerateSlot(masm_, mode);
+    DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_CALL);
   }
 }
 
@@ -771,7 +708,6 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
   Comment cmnt(masm_, is_logical_and ? "[ Logical AND" :  "[ Logical OR");
   Expression* left = expr->left();
   Expression* right = expr->right();
-  BailoutId right_id = expr->RightId();
   Label done;
 
   if (context()->IsTest()) {
@@ -782,7 +718,6 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     } else {
       VisitForControl(left, test->true_label(), &eval_right, &eval_right);
     }
-    PrepareForBailoutForId(right_id, BailoutState::NO_REGISTERS);
     __ bind(&eval_right);
 
   } else if (context()->IsAccumulatorValue()) {
@@ -801,7 +736,6 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     __ jmp(&done);
     __ bind(&discard);
     __ Drop(1);
-    PrepareForBailoutForId(right_id, BailoutState::NO_REGISTERS);
 
   } else if (context()->IsStackValue()) {
     VisitForAccumulatorValue(left);
@@ -816,7 +750,6 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     }
     __ bind(&discard);
     __ Drop(1);
-    PrepareForBailoutForId(right_id, BailoutState::NO_REGISTERS);
 
   } else {
     DCHECK(context()->IsEffect());
@@ -826,7 +759,6 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     } else {
       VisitForControl(left, &done, &eval_right, &eval_right);
     }
-    PrepareForBailoutForId(right_id, BailoutState::NO_REGISTERS);
     __ bind(&eval_right);
   }
 
@@ -845,11 +777,7 @@ void FullCodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   VisitForAccumulatorValue(right);
 
   SetExpressionPosition(expr);
-  if (ShouldInlineSmiCase(op)) {
-    EmitInlineSmiBinaryOp(expr, op, left, right);
-  } else {
-    EmitBinaryOp(expr, op);
-  }
+  EmitBinaryOp(expr, op);
 }
 
 void FullCodeGenerator::VisitProperty(Property* expr) {
@@ -871,7 +799,6 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
     PopOperand(LoadDescriptor::ReceiverRegister());
     EmitKeyedPropertyLoad(expr);
   }
-  PrepareForBailoutForId(expr->LoadId(), BailoutState::TOS_REGISTER);
   context()->Plug(result_register());
 }
 
@@ -882,7 +809,6 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
 
   if (proxy != NULL && proxy->var()->IsUnallocated()) {
     EmitVariableLoad(proxy, INSIDE_TYPEOF);
-    PrepareForBailout(proxy, BailoutState::TOS_REGISTER);
   } else {
     // This expression cannot throw a reference error at the top level.
     VisitInDuplicateContext(expr);
@@ -895,8 +821,7 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   NestedBlock nested_block(this, stmt);
 
   {
-    EnterBlockScopeIfNeeded block_scope_state(
-        this, stmt->scope(), stmt->EntryId(), stmt->DeclsId(), stmt->ExitId());
+    EnterBlockScopeIfNeeded block_scope_state(this, stmt->scope());
     VisitStatements(stmt->statements());
     __ bind(nested_block.break_label());
   }
@@ -930,24 +855,17 @@ void FullCodeGenerator::VisitIfStatement(IfStatement* stmt) {
 
   if (stmt->HasElseStatement()) {
     VisitForControl(stmt->condition(), &then_part, &else_part, &then_part);
-    PrepareForBailoutForId(stmt->ThenId(), BailoutState::NO_REGISTERS);
     __ bind(&then_part);
     Visit(stmt->then_statement());
     __ jmp(&done);
-
-    PrepareForBailoutForId(stmt->ElseId(), BailoutState::NO_REGISTERS);
     __ bind(&else_part);
     Visit(stmt->else_statement());
   } else {
     VisitForControl(stmt->condition(), &then_part, &done, &then_part);
-    PrepareForBailoutForId(stmt->ThenId(), BailoutState::NO_REGISTERS);
     __ bind(&then_part);
     Visit(stmt->then_statement());
-
-    PrepareForBailoutForId(stmt->ElseId(), BailoutState::NO_REGISTERS);
   }
   __ bind(&done);
-  PrepareForBailoutForId(stmt->IfId(), BailoutState::NO_REGISTERS);
 }
 
 void FullCodeGenerator::EmitContinue(Statement* target) {
@@ -1035,7 +953,8 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
   // doesn't just get a copy of the existing unoptimized code.
   if (!FLAG_always_opt && !FLAG_prepare_always_opt && !pretenure &&
       scope()->is_function_scope()) {
-    Callable callable = CodeFactory::FastNewClosure(isolate());
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kFastNewClosure);
     __ Move(callable.descriptor().GetRegisterParameter(0), info);
     __ EmitLoadFeedbackVector(callable.descriptor().GetRegisterParameter(1));
     __ Move(callable.descriptor().GetRegisterParameter(2), SmiFromSlot(slot));
@@ -1065,7 +984,7 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 
   EmitLoadSlot(LoadDescriptor::SlotRegister(), prop->PropertyFeedbackSlot());
 
-  Handle<Code> code = CodeFactory::KeyedLoadIC(isolate()).code();
+  Handle<Code> code = isolate()->builtins()->KeyedLoadICTrampoline();
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
@@ -1110,7 +1029,6 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   // Record the position of the do while condition and make sure it is
   // possible to break on the condition.
   __ bind(loop_statement.continue_label());
-  PrepareForBailoutForId(stmt->ContinueId(), BailoutState::NO_REGISTERS);
 
   // Here is the actual 'while' keyword.
   SetExpressionAsStatementPosition(stmt->cond());
@@ -1120,12 +1038,10 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
                   &book_keeping);
 
   // Check stack before looping.
-  PrepareForBailoutForId(stmt->BackEdgeId(), BailoutState::NO_REGISTERS);
   __ bind(&book_keeping);
   EmitBackEdgeBookkeeping(stmt, &body);
   __ jmp(&body);
 
-  PrepareForBailoutForId(stmt->ExitId(), BailoutState::NO_REGISTERS);
   __ bind(loop_statement.break_label());
   decrement_loop_depth();
 }
@@ -1146,7 +1062,6 @@ void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
                   loop_statement.break_label(),
                   &body);
 
-  PrepareForBailoutForId(stmt->BodyId(), BailoutState::NO_REGISTERS);
   __ bind(&body);
   Visit(stmt->body());
 
@@ -1156,7 +1071,6 @@ void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   EmitBackEdgeBookkeeping(stmt, &loop);
   __ jmp(&loop);
 
-  PrepareForBailoutForId(stmt->ExitId(), BailoutState::NO_REGISTERS);
   __ bind(loop_statement.break_label());
   decrement_loop_depth();
 }
@@ -1179,11 +1093,9 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   // Emit the test at the bottom of the loop (even if empty).
   __ jmp(&test);
 
-  PrepareForBailoutForId(stmt->BodyId(), BailoutState::NO_REGISTERS);
   __ bind(&body);
   Visit(stmt->body());
 
-  PrepareForBailoutForId(stmt->ContinueId(), BailoutState::NO_REGISTERS);
   __ bind(loop_statement.continue_label());
   if (stmt->next() != NULL) {
     SetStatementPosition(stmt->next());
@@ -1204,7 +1116,6 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
     __ jmp(&body);
   }
 
-  PrepareForBailoutForId(stmt->ExitId(), BailoutState::NO_REGISTERS);
   __ bind(loop_statement.break_label());
   decrement_loop_depth();
 }
@@ -1250,7 +1161,6 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
   VisitForControl(expr->condition(), &true_case, &false_case, &true_case);
 
   int original_stack_depth = operand_stack_depth_;
-  PrepareForBailoutForId(expr->ThenId(), BailoutState::NO_REGISTERS);
   __ bind(&true_case);
   SetExpressionPosition(expr->then_expression());
   if (context()->IsTest()) {
@@ -1265,7 +1175,6 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
   }
 
   operand_stack_depth_ = original_stack_depth;
-  PrepareForBailoutForId(expr->ElseId(), BailoutState::NO_REGISTERS);
   __ bind(&false_case);
   SetExpressionPosition(expr->else_expression());
   VisitInDuplicateContext(expr->else_expression());
@@ -1303,7 +1212,8 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
-  Callable callable = CodeFactory::FastCloneRegExp(isolate());
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kFastCloneRegExp);
   CallInterfaceDescriptor descriptor = callable.descriptor();
   LoadFromFrameField(JavaScriptFrameConstants::kFunctionOffset,
                      descriptor.GetRegisterParameter(0));
@@ -1343,15 +1253,7 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
 
 
 void FullCodeGenerator::VisitCall(Call* expr) {
-#ifdef DEBUG
-  // We want to verify that RecordJSReturnSite gets called on all paths
-  // through this function.  Avoid early returns.
-  expr->return_is_recorded_ = false;
-#endif
-
-  Comment cmnt(masm_, (expr->tail_call_mode() == TailCallMode::kAllow)
-                          ? "[ TailCall"
-                          : "[ Call");
+  Comment cmnt(masm_, "[ Call");
   Expression* callee = expr->expression();
   Call::CallType call_type = expr->GetCallType();
 
@@ -1388,11 +1290,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     case Call::WITH_CALL:
       UNREACHABLE();
   }
-
-#ifdef DEBUG
-  // RecordJSReturnSite should have been called.
-  DCHECK(expr->return_is_recorded_);
-#endif
 }
 
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
@@ -1408,7 +1305,6 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
       VisitForStackValue(args->at(i));
     }
 
-    PrepareForBailoutForId(expr->CallId(), BailoutState::NO_REGISTERS);
     EmitCallJSRuntimeFunction(expr);
     context()->DropAndPlug(1, result_register());
 
@@ -1430,7 +1326,6 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
         }
 
         // Call the C runtime function.
-        PrepareForBailoutForId(expr->CallId(), BailoutState::NO_REGISTERS);
         __ CallRuntime(expr->function(), arg_count);
         OperandStackDepthDecrement(arg_count);
         context()->Plug(result_register());
@@ -1456,6 +1351,20 @@ void FullCodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
 
+void FullCodeGenerator::VisitYield(Yield* expr) {
+  // Resumable functions are not supported.
+  UNREACHABLE();
+}
+
+void FullCodeGenerator::VisitYieldStar(YieldStar* expr) {
+  // Resumable functions are not supported.
+  UNREACHABLE();
+}
+
+void FullCodeGenerator::VisitAwait(Await* expr) {
+  // Resumable functions are not supported.
+  UNREACHABLE();
+}
 
 bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
   Expression* sub_expr;
@@ -1550,15 +1459,12 @@ bool BackEdgeTable::Verify(Isolate* isolate, Code* unoptimized) {
 }
 #endif  // DEBUG
 
-
 FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
-    FullCodeGenerator* codegen, Scope* scope, BailoutId entry_id,
-    BailoutId declarations_id, BailoutId exit_id)
-    : codegen_(codegen), exit_id_(exit_id) {
+    FullCodeGenerator* codegen, Scope* scope)
+    : codegen_(codegen) {
   saved_scope_ = codegen_->scope();
 
   if (scope == NULL) {
-    codegen_->PrepareForBailoutForId(entry_id, BailoutState::NO_REGISTERS);
     needs_block_context_ = false;
   } else {
     needs_block_context_ = scope->NeedsContext();
@@ -1575,13 +1481,10 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
                                     codegen_->context_register());
       }
       CHECK_EQ(0, scope->num_stack_slots());
-      codegen_->PrepareForBailoutForId(entry_id, BailoutState::NO_REGISTERS);
     }
     {
       Comment cmnt(masm(), "[ Declarations");
       codegen_->VisitDeclarations(scope->declarations());
-      codegen_->PrepareForBailoutForId(declarations_id,
-                                       BailoutState::NO_REGISTERS);
     }
   }
 }
@@ -1595,7 +1498,6 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::~EnterBlockScopeIfNeeded() {
     codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
                                 codegen_->context_register());
   }
-  codegen_->PrepareForBailoutForId(exit_id_, BailoutState::NO_REGISTERS);
   codegen_->scope_ = saved_scope_;
 }
 

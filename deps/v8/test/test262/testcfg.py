@@ -44,6 +44,10 @@ FEATURE_FLAGS = {
   'object-rest': '--harmony-object-rest-spread',
   'object-spread': '--harmony-object-rest-spread',
   'async-iteration': '--harmony-async-iteration',
+  'regexp-dotall': '--harmony-regexp-dotall',
+  'regexp-named-groups': '--harmony-regexp-named-captures',
+  'regexp-unicode-property-escapes': '--harmony-regexp-property',
+  'regexp-lookbehind': '--harmony-regexp-lookbehind',
 }
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")

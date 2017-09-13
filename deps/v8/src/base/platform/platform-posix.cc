@@ -57,7 +57,7 @@
 #include <sys/prctl.h>  // NOLINT, for prctl
 #endif
 
-#ifndef _AIX
+#if !defined(_AIX) && !defined(V8_OS_FUCHSIA)
 #include <sys/syscall.h>
 #endif
 
@@ -102,24 +102,11 @@ intptr_t OS::CommitPageSize() {
 }
 
 void* OS::Allocate(const size_t requested, size_t* allocated,
-                   bool is_executable) {
+                   bool is_executable, void* hint) {
   return OS::Allocate(requested, allocated,
                       is_executable ? OS::MemoryPermission::kReadWriteExecute
-                                    : OS::MemoryPermission::kReadWrite);
-}
-
-void* OS::AllocateGuarded(const size_t requested) {
-  size_t allocated = 0;
-  void* mbase =
-      OS::Allocate(requested, &allocated, OS::MemoryPermission::kNoAccess);
-  if (allocated != requested) {
-    OS::Free(mbase, allocated);
-    return nullptr;
-  }
-  if (mbase == nullptr) {
-    return nullptr;
-  }
-  return mbase;
+                                    : OS::MemoryPermission::kReadWrite,
+                      hint);
 }
 
 void OS::Free(void* address, const size_t size) {
@@ -362,6 +349,8 @@ int OS::GetCurrentThreadId() {
   return static_cast<int>(gettid());
 #elif V8_OS_AIX
   return static_cast<int>(thread_self());
+#elif V8_OS_FUCHSIA
+  return static_cast<int>(pthread_self());
 #elif V8_OS_SOLARIS
   return static_cast<int>(pthread_self());
 #else

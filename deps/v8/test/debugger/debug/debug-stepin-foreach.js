@@ -37,8 +37,9 @@ debugger; // Break 0.
 [3,4].forEach(bound_callback); // Break 6.
 
 function callback(x) {
-  return x; // Break 2. // Break 4. // Break 7. // Break 9.
-} // Break 3. // Break 5. // Break 8. // Break 10.
+  return x // Break 2. // Break 4. // Break 7. // Break 9.
+  ; // Break 3. // Break 5. // Break 8. // Break 10.
+}
 
 assertNull(exception); // Break 11.
 assertEquals(expected_breaks, break_count);

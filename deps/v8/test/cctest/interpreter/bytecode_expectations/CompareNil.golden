@@ -18,7 +18,7 @@ bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
   /*   45 S> */ B(TestNull),
-  /*   64 S> */ B(Return),
+  /*   63 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -38,7 +38,7 @@ bytecodes: [
   /*   42 S> */ B(LdaUndefined),
                 B(Star), R(0),
   /*   53 S> */ B(TestUndefined),
-  /*   77 S> */ B(Return),
+  /*   76 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -59,7 +59,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   53 S> */ B(TestUndefined),
   /*   70 E> */ B(LogicalNot),
-  /*   77 S> */ B(Return),
+  /*   76 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -80,7 +80,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   45 S> */ B(TestUndetectable),
   /*   54 E> */ B(LogicalNot),
-  /*   63 S> */ B(Return),
+  /*   62 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -100,7 +100,7 @@ bytecodes: [
   /*   42 S> */ B(LdaUndefined),
                 B(Star), R(0),
   /*   53 S> */ B(TestUndetectable),
-  /*   76 S> */ B(Return),
+  /*   75 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -123,7 +123,7 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(Jump), U8(4),
                 B(LdaSmi), I8(2),
-  /*   85 S> */ B(Return),
+  /*   84 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -147,7 +147,7 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(Jump), U8(4),
                 B(LdaSmi), I8(2),
-  /*   71 S> */ B(Return),
+  /*   70 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -170,7 +170,7 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(Jump), U8(4),
                 B(LdaSmi), I8(2),
-  /*   77 S> */ B(Return),
+  /*   76 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -193,7 +193,7 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(Jump), U8(4),
                 B(LdaSmi), I8(2),
-  /*   72 S> */ B(Return),
+  /*   71 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -218,9 +218,9 @@ bytecodes: [
                 B(Star), R(0),
   /*   45 S> */ B(JumpIfNotNull), U8(5),
   /*   65 S> */ B(LdaSmi), I8(1),
-  /*   98 S> */ B(Return),
+  /*   74 S> */ B(Return),
   /*   86 S> */ B(LdaSmi), I8(2),
-  /*   98 S> */ B(Return),
+  /*   95 S> */ B(Return),
                 B(LdaUndefined),
   /*   98 S> */ B(Return),
 ]
@@ -246,7 +246,7 @@ bytecodes: [
   /*   45 S> */ B(TestUndetectable),
                 B(JumpIfTrue), U8(5),
   /*   69 S> */ B(LdaSmi), I8(1),
-  /*   81 S> */ B(Return),
+  /*   78 S> */ B(Return),
                 B(LdaUndefined),
   /*   81 S> */ B(Return),
 ]

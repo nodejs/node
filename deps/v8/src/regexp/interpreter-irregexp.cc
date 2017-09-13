@@ -175,7 +175,6 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
     switch (insn & BYTECODE_MASK) {
       BYTECODE(BREAK)
         UNREACHABLE();
-        return RegExpImpl::RE_FAILURE;
       BYTECODE(PUSH_CP)
         if (--backtrack_stack_space < 0) {
           return RegExpImpl::RE_EXCEPTION;

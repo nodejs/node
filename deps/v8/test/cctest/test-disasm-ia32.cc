@@ -51,7 +51,7 @@ TEST(DisasmIa320) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  v8::internal::byte buffer[4096];
+  v8::internal::byte buffer[8192];
   Assembler assm(isolate, buffer, sizeof buffer);
   DummyStaticFunction(NULL);  // just bloody use it (DELETE; debugging)
   // Short immediate instructions
@@ -289,7 +289,7 @@ TEST(DisasmIa320) {
   __ bind(&L2);
   __ call(Operand(ebx, ecx, times_4, 10000));
   __ nop();
-  Handle<Code> ic(CodeFactory::LoadIC(isolate).code());
+  Handle<Code> ic = isolate->builtins()->LoadIC();
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
   __ call(FUNCTION_ADDR(DummyStaticFunction), RelocInfo::RUNTIME_ENTRY);
@@ -462,6 +462,11 @@ TEST(DisasmIa320) {
     __ movdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ movdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
 
+    __ movd(xmm0, edi);
+    __ movd(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ movd(eax, xmm1);
+    __ movd(Operand(ebx, ecx, times_4, 10000), xmm1);
+
     __ addsd(xmm1, xmm0);
     __ addsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ mulsd(xmm1, xmm0);
@@ -490,6 +495,10 @@ TEST(DisasmIa320) {
     __ psrlq(xmm0, 17);
     __ psrlq(xmm0, xmm1);
 
+    __ pshuflw(xmm5, xmm1, 5);
+    __ pshuflw(xmm5, Operand(edx, 4), 5);
+    __ pshufd(xmm5, xmm1, 5);
+    __ pshufd(xmm5, Operand(edx, 4), 5);
     __ pinsrw(xmm5, edx, 5);
     __ pinsrw(xmm5, Operand(edx, 4), 5);
 
@@ -522,10 +531,26 @@ TEST(DisasmIa320) {
   }
 
   {
+    if (CpuFeatures::IsSupported(SSSE3)) {
+      CpuFeatureScope scope(&assm, SSSE3);
+      __ pshufb(xmm5, xmm1);
+      __ pshufb(xmm5, Operand(edx, 4));
+    }
+  }
+
+  {
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
+      __ pextrb(eax, xmm0, 1);
+      __ pextrb(Operand(edx, 4), xmm0, 1);
+      __ pextrw(eax, xmm0, 1);
+      __ pextrw(Operand(edx, 4), xmm0, 1);
       __ pextrd(eax, xmm0, 1);
+      __ pextrd(Operand(edx, 4), xmm0, 1);
+      __ pinsrb(xmm1, eax, 0);
+      __ pinsrb(xmm1, Operand(edx, 4), 0);
       __ pinsrd(xmm1, eax, 0);
+      __ pinsrd(xmm1, Operand(edx, 4), 0);
       __ extractps(eax, xmm1, 0);
 
 #define EMIT_SSE4_INSTR(instruction, notUsed1, notUsed2, notUsed3, notUsed4) \
@@ -621,11 +646,34 @@ TEST(DisasmIa320) {
       __ vpsraw(xmm0, xmm7, 21);
       __ vpsrad(xmm0, xmm7, 21);
 
+      __ vpshufb(xmm5, xmm0, xmm1);
+      __ vpshufb(xmm5, xmm0, Operand(edx, 4));
+      __ vpshuflw(xmm5, xmm1, 5);
+      __ vpshuflw(xmm5, Operand(edx, 4), 5);
+      __ vpshufd(xmm5, xmm1, 5);
+      __ vpshufd(xmm5, Operand(edx, 4), 5);
+      __ vpextrb(eax, xmm0, 1);
+      __ vpextrb(Operand(edx, 4), xmm0, 1);
+      __ vpextrw(eax, xmm0, 1);
+      __ vpextrw(Operand(edx, 4), xmm0, 1);
+      __ vpextrd(eax, xmm0, 1);
+      __ vpextrd(Operand(edx, 4), xmm0, 1);
+      __ vpinsrb(xmm0, xmm1, eax, 0);
+      __ vpinsrb(xmm0, xmm1, Operand(edx, 4), 0);
+      __ vpinsrw(xmm0, xmm1, eax, 0);
+      __ vpinsrw(xmm0, xmm1, Operand(edx, 4), 0);
+      __ vpinsrd(xmm0, xmm1, eax, 0);
+      __ vpinsrd(xmm0, xmm1, Operand(edx, 4), 0);
+
       __ vcvtdq2ps(xmm1, xmm0);
       __ vcvtdq2ps(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vcvttps2dq(xmm1, xmm0);
       __ vcvttps2dq(xmm1, Operand(ebx, ecx, times_4, 10000));
 
+      __ vmovd(xmm0, edi);
+      __ vmovd(xmm0, Operand(ebx, ecx, times_4, 10000));
+      __ vmovd(eax, xmm1);
+      __ vmovd(Operand(ebx, ecx, times_4, 10000), xmm1);
 #define EMIT_SSE2_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
   __ v##instruction(xmm7, xmm5, xmm1);                                \
   __ v##instruction(xmm7, xmm5, Operand(edx, 4));
@@ -799,7 +847,7 @@ TEST(DisasmIa320) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   USE(code);

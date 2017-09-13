@@ -9,6 +9,7 @@
 
 #include <new>
 
+#include "src/base/bits.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
@@ -82,7 +83,7 @@ int RandomNumberGenerator::NextInt(int max) {
   DCHECK_LT(0, max);
 
   // Fast path if max is a power of 2.
-  if (IS_POWER_OF_TWO(max)) {
+  if (bits::IsPowerOfTwo(max)) {
     return static_cast<int>((max * static_cast<int64_t>(Next(31))) >> 31);
   }
 

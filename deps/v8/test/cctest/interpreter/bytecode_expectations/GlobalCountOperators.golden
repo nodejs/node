@@ -20,7 +20,7 @@ bytecodes: [
   /*   31 S> */ B(LdaGlobal), U8(0), U8(3),
                 B(Inc), U8(7),
   /*   40 E> */ B(StaGlobalSloppy), U8(0), U8(5),
-  /*   48 S> */ B(Return),
+  /*   47 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["global"],
@@ -45,7 +45,7 @@ bytecodes: [
                 B(Dec), U8(7),
   /*   44 E> */ B(StaGlobalSloppy), U8(0), U8(5),
                 B(Ldar), R(0),
-  /*   48 S> */ B(Return),
+  /*   47 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["global"],
@@ -67,7 +67,7 @@ bytecodes: [
   /*   46 S> */ B(LdaGlobal), U8(0), U8(3),
                 B(Dec), U8(7),
   /*   55 E> */ B(StaGlobalStrict), U8(0), U8(5),
-  /*   68 S> */ B(Return),
+  /*   67 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["unallocated"],
@@ -92,7 +92,7 @@ bytecodes: [
                 B(Inc), U8(7),
   /*   50 E> */ B(StaGlobalSloppy), U8(0), U8(5),
                 B(Ldar), R(0),
-  /*   54 S> */ B(Return),
+  /*   53 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["unallocated"],

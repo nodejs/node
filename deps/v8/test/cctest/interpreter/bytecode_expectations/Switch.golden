@@ -30,9 +30,9 @@ bytecodes: [
                 B(JumpIfTrue), U8(7),
                 B(Jump), U8(8),
   /*   66 S> */ B(LdaSmi), I8(2),
-  /*   97 S> */ B(Return),
+  /*   75 S> */ B(Return),
   /*   85 S> */ B(LdaSmi), I8(3),
-  /*   97 S> */ B(Return),
+  /*   94 S> */ B(Return),
                 B(LdaUndefined),
   /*   97 S> */ B(Return),
 ]

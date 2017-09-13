@@ -180,8 +180,6 @@ void FullCodeGenerator::Generate() {
       __ push(edi);
       __ Push(info->scope()->scope_info());
       __ CallRuntime(Runtime::kNewScriptContext);
-      PrepareForBailoutForId(BailoutId::ScriptContext(),
-                             BailoutState::TOS_REGISTER);
       // The new target value is not used, clobbering is safe.
       DCHECK_NULL(info->scope()->new_target_var());
     } else {
@@ -242,12 +240,6 @@ void FullCodeGenerator::Generate() {
     }
   }
 
-  // Register holding this function and new target are both trashed in case we
-  // bailout here. But since that can happen only when new target is not used
-  // and we allocate a context, the value of |function_in_register| is correct.
-  PrepareForBailoutForId(BailoutId::FunctionContext(),
-                         BailoutState::NO_REGISTERS);
-
   // We don't support new.target and rest parameters here.
   DCHECK_NULL(info->scope()->new_target_var());
   DCHECK_NULL(info->scope()->rest_parameter());
@@ -282,8 +274,6 @@ void FullCodeGenerator::Generate() {
   }
 
   // Visit the declarations and body.
-  PrepareForBailoutForId(BailoutId::FunctionEntry(),
-                         BailoutState::NO_REGISTERS);
   {
     Comment cmnt(masm_, "[ Declarations");
     VisitDeclarations(info->scope()->declarations());
@@ -296,8 +286,6 @@ void FullCodeGenerator::Generate() {
 
   {
     Comment cmnt(masm_, "[ Stack check");
-    PrepareForBailoutForId(BailoutId::Declarations(),
-                           BailoutState::NO_REGISTERS);
     Label ok;
     ExternalReference stack_limit =
         ExternalReference::address_of_stack_limit(isolate());
@@ -364,11 +352,6 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   EmitProfilingCounterReset();
 
   __ bind(&ok);
-  PrepareForBailoutForId(stmt->EntryId(), BailoutState::NO_REGISTERS);
-  // Record a mapping of the OSR id to this PC.  This is used if the OSR
-  // entry becomes the target of a bailout.  We don't expect it to be, but
-  // we want it to work if it is.
-  PrepareForBailoutForId(stmt->OsrEntryId(), BailoutState::NO_REGISTERS);
 }
 
 void FullCodeGenerator::EmitProfilingCounterHandlingForReturnSequence(
@@ -459,9 +442,9 @@ void FullCodeGenerator::EffectContext::Plug(Handle<Object> lit) const {
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Handle<Object> lit) const {
   if (lit->IsSmi()) {
-    __ SafeMove(result_register(), Immediate(lit));
+    __ SafeMove(result_register(), Immediate(Smi::cast(*lit)));
   } else {
-    __ Move(result_register(), Immediate(lit));
+    __ Move(result_register(), Immediate(Handle<HeapObject>::cast(lit)));
   }
 }
 
@@ -469,18 +452,14 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(
 void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const {
   codegen()->OperandStackDepthIncrement(1);
   if (lit->IsSmi()) {
-    __ SafePush(Immediate(lit));
+    __ SafePush(Immediate(Smi::cast(*lit)));
   } else {
-    __ push(Immediate(lit));
+    __ push(Immediate(Handle<HeapObject>::cast(lit)));
   }
 }
 
 
 void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
-  codegen()->PrepareForBailoutBeforeSplit(condition(),
-                                          true,
-                                          true_label_,
-                                          false_label_);
   DCHECK(lit->IsNullOrUndefined(isolate()) || !lit->IsUndetectable());
   if (lit->IsNullOrUndefined(isolate()) || lit->IsFalse(isolate())) {
     if (false_label_ != fall_through_) __ jmp(false_label_);
@@ -493,14 +472,14 @@ void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
       if (true_label_ != fall_through_) __ jmp(true_label_);
     }
   } else if (lit->IsSmi()) {
-    if (Smi::cast(*lit)->value() == 0) {
+    if (Smi::ToInt(*lit) == 0) {
       if (false_label_ != fall_through_) __ jmp(false_label_);
     } else {
       if (true_label_ != fall_through_) __ jmp(true_label_);
     }
   } else {
     // For simplicity we always test the accumulator register.
-    __ mov(result_register(), lit);
+    __ mov(result_register(), Handle<HeapObject>::cast(lit));
     codegen()->DoTest(this);
   }
 }
@@ -556,27 +535,21 @@ void FullCodeGenerator::TestContext::Plug(Label* materialize_true,
 
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(bool flag) const {
-  Handle<Object> value = flag
-      ? isolate()->factory()->true_value()
-      : isolate()->factory()->false_value();
+  Handle<HeapObject> value = flag ? isolate()->factory()->true_value()
+                                  : isolate()->factory()->false_value();
   __ mov(result_register(), value);
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(bool flag) const {
   codegen()->OperandStackDepthIncrement(1);
-  Handle<Object> value = flag
-      ? isolate()->factory()->true_value()
-      : isolate()->factory()->false_value();
+  Handle<HeapObject> value = flag ? isolate()->factory()->true_value()
+                                  : isolate()->factory()->false_value();
   __ push(Immediate(value));
 }
 
 
 void FullCodeGenerator::TestContext::Plug(bool flag) const {
-  codegen()->PrepareForBailoutBeforeSplit(condition(),
-                                          true,
-                                          true_label_,
-                                          false_label_);
   if (flag) {
     if (true_label_ != fall_through_) __ jmp(true_label_);
   } else {
@@ -589,8 +562,9 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  Handle<Code> ic = ToBooleanICStub::GetUninitialized(isolate());
-  CallIC(ic, condition->test_id());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToBoolean);
+  __ Call(callable.code(), RelocInfo::CODE_TARGET);
+  RestoreContext();
   __ CompareRoot(result_register(), Heap::kTrueValueRootIndex);
   Split(equal, if_true, if_false, fall_through);
 }
@@ -664,26 +638,6 @@ void FullCodeGenerator::SetVar(Variable* var,
 }
 
 
-void FullCodeGenerator::PrepareForBailoutBeforeSplit(Expression* expr,
-                                                     bool should_normalize,
-                                                     Label* if_true,
-                                                     Label* if_false) {
-  // Only prepare for bailouts before splits if we're in a test
-  // context. Otherwise, we let the Visit function deal with the
-  // preparation to avoid preparing with the same AST id twice.
-  if (!context()->IsTest()) return;
-
-  Label skip;
-  if (should_normalize) __ jmp(&skip, Label::kNear);
-  PrepareForBailout(expr, BailoutState::TOS_REGISTER);
-  if (should_normalize) {
-    __ cmp(eax, isolate()->factory()->true_value());
-    Split(equal, if_true, if_false, NULL);
-    __ bind(&skip);
-  }
-}
-
-
 void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) {
   // The variable in the declaration always resides in the current context.
   DCHECK_EQ(0, scope()->ContextChainLength(variable->scope()));
@@ -729,7 +683,6 @@ void FullCodeGenerator::VisitVariableDeclaration(
         __ mov(ContextOperand(esi, variable->index()),
                Immediate(isolate()->factory()->the_hole_value()));
         // No write barrier since the hole value is in old space.
-        PrepareForBailoutForId(proxy->id(), BailoutState::NO_REGISTERS);
       }
       break;
 
@@ -785,7 +738,6 @@ void FullCodeGenerator::VisitFunctionDeclaration(
                                 kDontSaveFPRegs,
                                 EMIT_REMEMBERED_SET,
                                 OMIT_SMI_CHECK);
-      PrepareForBailoutForId(proxy->id(), BailoutState::NO_REGISTERS);
       break;
     }
 
@@ -814,7 +766,6 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
   // Keep the switch value on the stack until a case matches.
   VisitForStackValue(stmt->tag());
-  PrepareForBailoutForId(stmt->EntryId(), BailoutState::NO_REGISTERS);
 
   ZoneList<CaseClause*>* clauses = stmt->cases();
   CaseClause* default_clause = NULL;  // Can occur anywhere in the list.
@@ -858,12 +809,11 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     SetExpressionPosition(clause);
     Handle<Code> ic =
         CodeFactory::CompareIC(isolate(), Token::EQ_STRICT).code();
-    CallIC(ic, clause->CompareId());
+    CallIC(ic);
     patch_site.EmitPatchInfo();
 
     Label skip;
     __ jmp(&skip, Label::kNear);
-    PrepareForBailout(clause, BailoutState::TOS_REGISTER);
     __ cmp(eax, isolate()->factory()->true_value());
     __ j(not_equal, &next_test);
     __ Drop(1);
@@ -891,12 +841,10 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     Comment cmnt(masm_, "[ Case body");
     CaseClause* clause = clauses->at(i);
     __ bind(clause->body_target());
-    PrepareForBailoutForId(clause->EntryId(), BailoutState::NO_REGISTERS);
     VisitStatements(clause->statements());
   }
 
   __ bind(nested_statement.break_label());
-  PrepareForBailoutForId(stmt->ExitId(), BailoutState::NO_REGISTERS);
 }
 
 
@@ -929,7 +877,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Call(isolate()->builtins()->ToObject(), RelocInfo::CODE_TARGET);
   RestoreContext();
   __ bind(&done_convert);
-  PrepareForBailoutForId(stmt->ToObjectId(), BailoutState::TOS_REGISTER);
   __ push(eax);
 
   // Check cache validity in generated code. If we cannot guarantee cache
@@ -946,7 +893,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&call_runtime);
   __ push(eax);
   __ CallRuntime(Runtime::kForInEnumerate);
-  PrepareForBailoutForId(stmt->EnumId(), BailoutState::TOS_REGISTER);
   __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
          isolate()->factory()->meta_map());
   __ j(not_equal, &fixed_array);
@@ -982,7 +928,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(eax);  // Array
   __ mov(eax, FieldOperand(eax, FixedArray::kLengthOffset));
   __ push(eax);  // Fixed array length (as smi).
-  PrepareForBailoutForId(stmt->PrepareId(), BailoutState::NO_REGISTERS);
   __ push(Immediate(Smi::kZero));  // Initial index.
 
   // Generate code for doing the condition check.
@@ -1019,7 +964,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // have the key or returns the name-converted key.
   __ Call(isolate()->builtins()->ForInFilter(), RelocInfo::CODE_TARGET);
   RestoreContext();
-  PrepareForBailoutForId(stmt->FilterId(), BailoutState::TOS_REGISTER);
   __ JumpIfRoot(result_register(), Heap::kUndefinedValueRootIndex,
                 loop_statement.continue_label());
 
@@ -1029,18 +973,14 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Perform the assignment as if via '='.
   { EffectContext context(this);
     EmitAssignment(stmt->each(), stmt->EachFeedbackSlot());
-    PrepareForBailoutForId(stmt->AssignmentId(), BailoutState::NO_REGISTERS);
   }
 
-  // Both Crankshaft and Turbofan expect BodyId to be right before stmt->body().
-  PrepareForBailoutForId(stmt->BodyId(), BailoutState::NO_REGISTERS);
   // Generate code for the body of the loop.
   Visit(stmt->body());
 
   // Generate code for going to the next element by incrementing the
   // index (smi) stored on top of the stack.
   __ bind(loop_statement.continue_label());
-  PrepareForBailoutForId(stmt->IncrementId(), BailoutState::NO_REGISTERS);
   __ add(Operand(esp, 0 * kPointerSize), Immediate(Smi::FromInt(1)));
 
   EmitBackEdgeBookkeeping(stmt, &loop);
@@ -1051,7 +991,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   DropOperands(5);
 
   // Exit and decrement the loop depth.
-  PrepareForBailoutForId(stmt->ExitId(), BailoutState::NO_REGISTERS);
   __ bind(&exit);
   decrement_loop_depth();
 }
@@ -1076,7 +1015,6 @@ void FullCodeGenerator::EmitSetHomeObjectAccumulator(Expression* initializer,
 void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
                                          TypeofMode typeof_mode) {
   SetExpressionPosition(proxy);
-  PrepareForBailoutForId(proxy->BeforeId(), BailoutState::NO_REGISTERS);
   Variable* var = proxy->var();
 
   // Two cases: global variables and all other types of variables.
@@ -1154,11 +1092,11 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     __ mov(ebx, Immediate(SmiFromSlot(expr->literal_slot())));
     __ mov(ecx, Immediate(constant_properties));
     __ mov(edx, Immediate(Smi::FromInt(flags)));
-    Callable callable = CodeFactory::FastCloneShallowObject(isolate());
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kFastCloneShallowObject);
     __ Call(callable.code(), RelocInfo::CODE_TARGET);
     RestoreContext();
   }
-  PrepareForBailoutForId(expr->CreateLiteralId(), BailoutState::TOS_REGISTER);
 
   // If result_saved is true the result is on top of the stack.  If
   // result_saved is false the result is in eax.
@@ -1193,7 +1131,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             DCHECK(StoreDescriptor::ValueRegister().is(eax));
             __ mov(StoreDescriptor::ReceiverRegister(), Operand(esp, 0));
             CallStoreIC(property->GetSlot(0), key->value(), kStoreOwn);
-            PrepareForBailoutForId(key->id(), BailoutState::NO_REGISTERS);
             if (NeedsHomeObject(value)) {
               EmitSetHomeObjectAccumulator(value, 0, property->GetSlot(1));
             }
@@ -1220,20 +1157,16 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         VisitForStackValue(value);
         DCHECK(property->emit_store());
         CallRuntimeWithOperands(Runtime::kInternalSetPrototype);
-        PrepareForBailoutForId(expr->GetIdForPropertySet(i),
-                               BailoutState::NO_REGISTERS);
         break;
       case ObjectLiteral::Property::GETTER:
         if (property->emit_store()) {
           AccessorTable::Iterator it = accessor_table.lookup(key);
-          it->second->bailout_id = expr->GetIdForPropertySet(i);
           it->second->getter = property;
         }
         break;
       case ObjectLiteral::Property::SETTER:
         if (property->emit_store()) {
           AccessorTable::Iterator it = accessor_table.lookup(key);
-          it->second->bailout_id = expr->GetIdForPropertySet(i);
           it->second->setter = property;
         }
         break;
@@ -1253,7 +1186,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
     PushOperand(Smi::FromInt(NONE));
     CallRuntimeWithOperands(Runtime::kDefineAccessorPropertyUnchecked);
-    PrepareForBailoutForId(it->second->bailout_id, BailoutState::NO_REGISTERS);
   }
 
   if (result_saved) {
@@ -1285,7 +1217,6 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ Call(callable.code(), RelocInfo::CODE_TARGET);
     RestoreContext();
   }
-  PrepareForBailoutForId(expr->CreateLiteralId(), BailoutState::TOS_REGISTER);
 
   bool result_saved = false;  // Is the result saved to the stack?
   ZoneList<Expression*>* subexprs = expr->values();
@@ -1311,8 +1242,6 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
            Immediate(Smi::FromInt(array_index)));
     __ mov(StoreDescriptor::ReceiverRegister(), Operand(esp, 0));
     CallKeyedStoreIC(expr->LiteralFeedbackSlot());
-    PrepareForBailoutForId(expr->GetIdForElement(array_index),
-                           BailoutState::NO_REGISTERS);
   }
 
   if (result_saved) {
@@ -1371,17 +1300,12 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       switch (assign_type) {
         case VARIABLE:
           EmitVariableLoad(expr->target()->AsVariableProxy());
-          PrepareForBailout(expr->target(), BailoutState::TOS_REGISTER);
           break;
         case NAMED_PROPERTY:
           EmitNamedPropertyLoad(property);
-          PrepareForBailoutForId(property->LoadId(),
-                                 BailoutState::TOS_REGISTER);
           break;
         case KEYED_PROPERTY:
           EmitKeyedPropertyLoad(property);
-          PrepareForBailoutForId(property->LoadId(),
-                                 BailoutState::TOS_REGISTER);
           break;
         case NAMED_SUPER_PROPERTY:
         case KEYED_SUPER_PROPERTY:
@@ -1394,17 +1318,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     PushOperand(eax);  // Left operand goes on the stack.
     VisitForAccumulatorValue(expr->value());
 
-    if (ShouldInlineSmiCase(op)) {
-      EmitInlineSmiBinaryOp(expr->binary_operation(),
-                            op,
-                            expr->target(),
-                            expr->value());
-    } else {
-      EmitBinaryOp(expr->binary_operation(), op);
-    }
-
-    // Deoptimization point in case the binary operation may have side effects.
-    PrepareForBailout(expr->binary_operation(), BailoutState::TOS_REGISTER);
+    EmitBinaryOp(expr->binary_operation(), op);
   } else {
     VisitForAccumulatorValue(expr->value());
   }
@@ -1417,7 +1331,6 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       VariableProxy* proxy = expr->target()->AsVariableProxy();
       EmitVariableAssignment(proxy->var(), expr->op(), expr->AssignmentSlot(),
                              proxy->hole_check_mode());
-      PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       context()->Plug(eax);
       break;
     }
@@ -1432,11 +1345,6 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       UNREACHABLE();
       break;
   }
-}
-
-void FullCodeGenerator::VisitSuspend(Suspend* expr) {
-  // Resumable functions are not supported.
-  UNREACHABLE();
 }
 
 void FullCodeGenerator::PushOperand(MemOperand operand) {
@@ -1455,132 +1363,11 @@ void FullCodeGenerator::EmitOperandStackDepthCheck() {
   }
 }
 
-void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
-  Label allocate, done_allocate;
-
-  __ Allocate(JSIteratorResult::kSize, eax, ecx, edx, &allocate,
-              NO_ALLOCATION_FLAGS);
-  __ jmp(&done_allocate, Label::kNear);
-
-  __ bind(&allocate);
-  __ Push(Smi::FromInt(JSIteratorResult::kSize));
-  __ CallRuntime(Runtime::kAllocateInNewSpace);
-
-  __ bind(&done_allocate);
-  __ mov(ebx, NativeContextOperand());
-  __ mov(ebx, ContextOperand(ebx, Context::ITERATOR_RESULT_MAP_INDEX));
-  __ mov(FieldOperand(eax, HeapObject::kMapOffset), ebx);
-  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
-         isolate()->factory()->empty_fixed_array());
-  __ mov(FieldOperand(eax, JSObject::kElementsOffset),
-         isolate()->factory()->empty_fixed_array());
-  __ pop(FieldOperand(eax, JSIteratorResult::kValueOffset));
-  __ mov(FieldOperand(eax, JSIteratorResult::kDoneOffset),
-         isolate()->factory()->ToBoolean(done));
-  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
-  OperandStackDepthDecrement(1);
-}
-
-
-void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
-                                              Token::Value op,
-                                              Expression* left,
-                                              Expression* right) {
-  // Do combined smi check of the operands. Left operand is on the
-  // stack. Right operand is in eax.
-  Label smi_case, done, stub_call;
-  PopOperand(edx);
-  __ mov(ecx, eax);
-  __ or_(eax, edx);
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(eax, &smi_case, Label::kNear);
-
-  __ bind(&stub_call);
-  __ mov(eax, ecx);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
-  CallIC(code, expr->BinaryOperationFeedbackId());
-  patch_site.EmitPatchInfo();
-  __ jmp(&done, Label::kNear);
-
-  // Smi case.
-  __ bind(&smi_case);
-  __ mov(eax, edx);  // Copy left operand in case of a stub call.
-
-  switch (op) {
-    case Token::SAR:
-      __ SmiUntag(ecx);
-      __ sar_cl(eax);  // No checks of result necessary
-      __ and_(eax, Immediate(~kSmiTagMask));
-      break;
-    case Token::SHL: {
-      Label result_ok;
-      __ SmiUntag(eax);
-      __ SmiUntag(ecx);
-      __ shl_cl(eax);
-      // Check that the *signed* result fits in a smi.
-      __ cmp(eax, 0xc0000000);
-      __ j(positive, &result_ok);
-      __ SmiTag(ecx);
-      __ jmp(&stub_call);
-      __ bind(&result_ok);
-      __ SmiTag(eax);
-      break;
-    }
-    case Token::SHR: {
-      Label result_ok;
-      __ SmiUntag(eax);
-      __ SmiUntag(ecx);
-      __ shr_cl(eax);
-      __ test(eax, Immediate(0xc0000000));
-      __ j(zero, &result_ok);
-      __ SmiTag(ecx);
-      __ jmp(&stub_call);
-      __ bind(&result_ok);
-      __ SmiTag(eax);
-      break;
-    }
-    case Token::ADD:
-      __ add(eax, ecx);
-      __ j(overflow, &stub_call);
-      break;
-    case Token::SUB:
-      __ sub(eax, ecx);
-      __ j(overflow, &stub_call);
-      break;
-    case Token::MUL: {
-      __ SmiUntag(eax);
-      __ imul(eax, ecx);
-      __ j(overflow, &stub_call);
-      __ test(eax, eax);
-      __ j(not_zero, &done, Label::kNear);
-      __ mov(ebx, edx);
-      __ or_(ebx, ecx);
-      __ j(negative, &stub_call);
-      break;
-    }
-    case Token::BIT_OR:
-      __ or_(eax, ecx);
-      break;
-    case Token::BIT_AND:
-      __ and_(eax, ecx);
-      break;
-    case Token::BIT_XOR:
-      __ xor_(eax, ecx);
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  __ bind(&done);
-  context()->Plug(eax);
-}
-
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, Token::Value op) {
   PopOperand(edx);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
-  JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
-  CallIC(code, expr->BinaryOperationFeedbackId());
-  patch_site.EmitPatchInfo();
+  Handle<Code> code = CodeFactory::BinaryOperation(isolate(), op).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
+  RestoreContext();
   context()->Plug(eax);
 }
 
@@ -1700,7 +1487,6 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
 
   PopOperand(StoreDescriptor::ReceiverRegister());
   CallStoreIC(expr->AssignmentSlot(), prop->key()->AsLiteral()->value());
-  PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
   context()->Plug(eax);
 }
 
@@ -1715,7 +1501,6 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   PopOperand(StoreDescriptor::ReceiverRegister());
   DCHECK(StoreDescriptor::ValueRegister().is(eax));
   CallKeyedStoreIC(expr->AssignmentSlot());
-  PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
   context()->Plug(eax);
 }
 
@@ -1728,7 +1513,6 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   if (callee->IsVariableProxy()) {
     { StackValueContext context(this);
       EmitVariableLoad(callee->AsVariableProxy());
-      PrepareForBailout(callee, BailoutState::NO_REGISTERS);
     }
     // Push undefined as receiver. This is patched in the method prologue if it
     // is a sloppy mode method.
@@ -1740,8 +1524,6 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
     DCHECK(!callee->AsProperty()->IsSuperAccess());
     __ mov(LoadDescriptor::ReceiverRegister(), Operand(esp, 0));
     EmitNamedPropertyLoad(callee->AsProperty());
-    PrepareForBailoutForId(callee->AsProperty()->LoadId(),
-                           BailoutState::TOS_REGISTER);
     // Push the target function under the receiver.
     PushOperand(Operand(esp, 0));
     __ mov(Operand(esp, kPointerSize), eax);
@@ -1765,8 +1547,6 @@ void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
   __ mov(LoadDescriptor::ReceiverRegister(), Operand(esp, 0));
   __ mov(LoadDescriptor::NameRegister(), eax);
   EmitKeyedPropertyLoad(callee->AsProperty());
-  PrepareForBailoutForId(callee->AsProperty()->LoadId(),
-                         BailoutState::TOS_REGISTER);
 
   // Push the target function under the receiver.
   PushOperand(Operand(esp, 0));
@@ -1784,26 +1564,14 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
     VisitForStackValue(args->at(i));
   }
 
-  PrepareForBailoutForId(expr->CallId(), BailoutState::NO_REGISTERS);
-  SetCallPosition(expr, expr->tail_call_mode());
-  if (expr->tail_call_mode() == TailCallMode::kAllow) {
-    if (FLAG_trace) {
-      __ CallRuntime(Runtime::kTraceTailCall);
-    }
-    // Update profiling counters before the tail call since we will
-    // not return to this function.
-    EmitProfilingCounterHandlingForReturnSequence(true);
-  }
-  Handle<Code> code =
-      CodeFactory::CallICTrampoline(isolate(), mode, expr->tail_call_mode())
-          .code();
+  SetCallPosition(expr);
+  Handle<Code> code = CodeFactory::CallICTrampoline(isolate(), mode).code();
   __ Move(edx, Immediate(IntFromSlot(expr->CallFeedbackICSlot())));
   __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
   __ Move(eax, Immediate(arg_count));
   CallIC(code);
   OperandStackDepthDecrement(arg_count + 1);
 
-  RecordJSReturnSite(expr);
   RestoreContext();
   context()->DropAndPlug(1, eax);
 }
@@ -1842,7 +1610,6 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   CallConstructStub stub(isolate());
   CallIC(stub.GetCode());
   OperandStackDepthDecrement(arg_count + 1);
-  PrepareForBailoutForId(expr->ReturnId(), BailoutState::TOS_REGISTER);
   RestoreContext();
   context()->Plug(eax);
 }
@@ -1861,7 +1628,6 @@ void FullCodeGenerator::EmitIsSmi(CallRuntime* expr) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   __ test(eax, Immediate(kSmiTagMask));
   Split(zero, if_true, if_false, fall_through);
 
@@ -1884,7 +1650,6 @@ void FullCodeGenerator::EmitIsJSReceiver(CallRuntime* expr) {
 
   __ JumpIfSmi(eax, if_false);
   __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, ebx);
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   Split(above_equal, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -1906,7 +1671,6 @@ void FullCodeGenerator::EmitIsArray(CallRuntime* expr) {
 
   __ JumpIfSmi(eax, if_false);
   __ CmpObjectType(eax, JS_ARRAY_TYPE, ebx);
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   Split(equal, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -1928,7 +1692,6 @@ void FullCodeGenerator::EmitIsTypedArray(CallRuntime* expr) {
 
   __ JumpIfSmi(eax, if_false);
   __ CmpObjectType(eax, JS_TYPED_ARRAY_TYPE, ebx);
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   Split(equal, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -1950,7 +1713,6 @@ void FullCodeGenerator::EmitIsJSProxy(CallRuntime* expr) {
 
   __ JumpIfSmi(eax, if_false);
   __ CmpObjectType(eax, JS_PROXY_TYPE, ebx);
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   Split(equal, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -2053,7 +1815,6 @@ void FullCodeGenerator::EmitCall(CallRuntime* expr) {
   for (Expression* const arg : *args) {
     VisitForStackValue(arg);
   }
-  PrepareForBailoutForId(expr->CallId(), BailoutState::NO_REGISTERS);
   // Move target to edi.
   int const argc = args->length() - 2;
   __ mov(edi, Operand(esp, (argc + 1) * kPointerSize));
@@ -2082,36 +1843,6 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
       ExternalReference::debug_is_active_address(isolate());
   __ movzx_b(eax, Operand::StaticVariable(debug_is_active));
   __ SmiTag(eax);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(2, args->length());
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-
-  Label runtime, done;
-
-  __ Allocate(JSIteratorResult::kSize, eax, ecx, edx, &runtime,
-              NO_ALLOCATION_FLAGS);
-  __ mov(ebx, NativeContextOperand());
-  __ mov(ebx, ContextOperand(ebx, Context::ITERATOR_RESULT_MAP_INDEX));
-  __ mov(FieldOperand(eax, HeapObject::kMapOffset), ebx);
-  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
-         isolate()->factory()->empty_fixed_array());
-  __ mov(FieldOperand(eax, JSObject::kElementsOffset),
-         isolate()->factory()->empty_fixed_array());
-  __ pop(FieldOperand(eax, JSIteratorResult::kDoneOffset));
-  __ pop(FieldOperand(eax, JSIteratorResult::kValueOffset));
-  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&runtime);
-  CallRuntimeWithOperands(Runtime::kCreateIterResultObject);
-
-  __ bind(&done);
   context()->Plug(eax);
 }
 
@@ -2217,8 +1948,6 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
                         &materialize_true);
         if (!context()->IsAccumulatorValue()) OperandStackDepthIncrement(1);
         __ bind(&materialize_true);
-        PrepareForBailoutForId(expr->MaterializeTrueId(),
-                               BailoutState::NO_REGISTERS);
         if (context()->IsAccumulatorValue()) {
           __ mov(eax, isolate()->factory()->true_value());
         } else {
@@ -2226,8 +1955,6 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         }
         __ jmp(&done, Label::kNear);
         __ bind(&materialize_false);
-        PrepareForBailoutForId(expr->MaterializeFalseId(),
-                               BailoutState::NO_REGISTERS);
         if (context()->IsAccumulatorValue()) {
           __ mov(eax, isolate()->factory()->false_value());
         } else {
@@ -2300,65 +2027,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  // We need a second deoptimization point after loading the value
-  // in case evaluating the property load my have a side effect.
-  if (assign_type == VARIABLE) {
-    PrepareForBailout(expr->expression(), BailoutState::TOS_REGISTER);
-  } else {
-    PrepareForBailoutForId(prop->LoadId(), BailoutState::TOS_REGISTER);
-  }
-
-  // Inline smi case if we are in a loop.
-  Label done, stub_call;
-  JumpPatchSite patch_site(masm_);
-  if (ShouldInlineSmiCase(expr->op())) {
-    Label slow;
-    patch_site.EmitJumpIfNotSmi(eax, &slow, Label::kNear);
-
-    // Save result for postfix expressions.
-    if (expr->is_postfix()) {
-      if (!context()->IsEffect()) {
-        // Save the result on the stack. If we have a named or keyed property
-        // we store the result under the receiver that is currently on top
-        // of the stack.
-        switch (assign_type) {
-          case VARIABLE:
-            __ push(eax);
-            break;
-          case NAMED_PROPERTY:
-            __ mov(Operand(esp, kPointerSize), eax);
-            break;
-          case KEYED_PROPERTY:
-            __ mov(Operand(esp, 2 * kPointerSize), eax);
-            break;
-          case NAMED_SUPER_PROPERTY:
-          case KEYED_SUPER_PROPERTY:
-            UNREACHABLE();
-            break;
-        }
-      }
-    }
-
-    if (expr->op() == Token::INC) {
-      __ add(eax, Immediate(Smi::FromInt(1)));
-    } else {
-      __ sub(eax, Immediate(Smi::FromInt(1)));
-    }
-    __ j(no_overflow, &done, Label::kNear);
-    // Call stub. Undo operation first.
-    if (expr->op() == Token::INC) {
-      __ sub(eax, Immediate(Smi::FromInt(1)));
-    } else {
-      __ add(eax, Immediate(Smi::FromInt(1)));
-    }
-    __ jmp(&stub_call, Label::kNear);
-    __ bind(&slow);
-  }
-
   // Convert old value into a number.
   __ Call(isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
   RestoreContext();
-  PrepareForBailoutForId(expr->ToNumberId(), BailoutState::TOS_REGISTER);
 
   // Save result for postfix expressions.
   if (expr->is_postfix()) {
@@ -2387,14 +2058,12 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   SetExpressionPosition(expr);
 
   // Call stub for +1/-1.
-  __ bind(&stub_call);
   __ mov(edx, eax);
   __ mov(eax, Immediate(Smi::FromInt(1)));
   Handle<Code> code =
-      CodeFactory::BinaryOpIC(isolate(), expr->binary_op()).code();
-  CallIC(code, expr->CountBinOpFeedbackId());
-  patch_site.EmitPatchInfo();
-  __ bind(&done);
+      CodeFactory::BinaryOperation(isolate(), expr->binary_op()).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
+  RestoreContext();
 
   // Store the value returned in eax.
   switch (assign_type) {
@@ -2405,8 +2074,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         { EffectContext context(this);
           EmitVariableAssignment(proxy->var(), Token::ASSIGN, expr->CountSlot(),
                                  proxy->hole_check_mode());
-          PrepareForBailoutForId(expr->AssignmentId(),
-                                 BailoutState::TOS_REGISTER);
           context.Plug(eax);
         }
         // For all contexts except EffectContext We have the result on
@@ -2418,8 +2085,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         // Perform the assignment as if via '='.
         EmitVariableAssignment(proxy->var(), Token::ASSIGN, expr->CountSlot(),
                                proxy->hole_check_mode());
-        PrepareForBailoutForId(expr->AssignmentId(),
-                               BailoutState::TOS_REGISTER);
         context()->Plug(eax);
       }
       break;
@@ -2427,7 +2092,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case NAMED_PROPERTY: {
       PopOperand(StoreDescriptor::ReceiverRegister());
       CallStoreIC(expr->CountSlot(), prop->key()->AsLiteral()->value());
-      PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
           context()->PlugTOS();
@@ -2441,7 +2105,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       PopOperand(StoreDescriptor::NameRegister());
       PopOperand(StoreDescriptor::ReceiverRegister());
       CallKeyedStoreIC(expr->CountSlot());
-      PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       if (expr->is_postfix()) {
         // Result is on the stack
         if (!context()->IsEffect()) {
@@ -2473,7 +2136,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   { AccumulatorValueContext context(this);
     VisitForTypeofValue(sub_expr);
   }
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
 
   Factory* factory = isolate()->factory();
   if (String::Equals(check, factory->number_string())) {
@@ -2552,7 +2214,6 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       VisitForStackValue(expr->right());
       SetExpressionPosition(expr);
       EmitHasProperty();
-      PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ cmp(eax, isolate()->factory()->true_value());
       Split(equal, if_true, if_false, fall_through);
       break;
@@ -2563,7 +2224,6 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       PopOperand(edx);
       __ Call(isolate()->builtins()->InstanceOf(), RelocInfo::CODE_TARGET);
       RestoreContext();
-      PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ cmp(eax, isolate()->factory()->true_value());
       Split(equal, if_true, if_false, fall_through);
       break;
@@ -2588,10 +2248,9 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       }
 
       Handle<Code> ic = CodeFactory::CompareIC(isolate(), op).code();
-      CallIC(ic, expr->CompareOperationFeedbackId());
+      CallIC(ic);
       patch_site.EmitPatchInfo();
 
-      PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
       __ test(eax, eax);
       Split(cc, if_true, if_false, fall_through);
     }
@@ -2614,11 +2273,10 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
                          &if_true, &if_false, &fall_through);
 
   VisitForAccumulatorValue(sub_expr);
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
 
-  Handle<Object> nil_value = nil == kNullValue
-      ? isolate()->factory()->null_value()
-      : isolate()->factory()->undefined_value();
+  Handle<HeapObject> nil_value = nil == kNullValue
+                                     ? isolate()->factory()->null_value()
+                                     : isolate()->factory()->undefined_value();
   if (expr->op() == Token::EQ_STRICT) {
     __ cmp(eax, nil_value);
     Split(equal, if_true, if_false, fall_through);

@@ -199,11 +199,6 @@ Isolate* JSContextSpecialization::isolate() const {
   return jsgraph()->isolate();
 }
 
-
-JSOperatorBuilder* JSContextSpecialization::javascript() const {
-  return jsgraph()->javascript();
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

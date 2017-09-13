@@ -33,9 +33,9 @@ function __f_1(__v_4, add_first, __v_6, same_map_as) {
     assertFalse(%HasFastProperties(__v_1));
   } else {
     __f_0(__v_1, __v_6);
-    assertTrue(__v_4 || %HasFastProperties(__v_1));
+    assertTrue(__v_4 || !%HasFastProperties(__v_1));
     __f_4(__v_1);
-    assertTrue(__v_4 || %HasFastProperties(__v_1));
+    assertTrue(__v_4 || !%HasFastProperties(__v_1));
   }
 }
 gc();

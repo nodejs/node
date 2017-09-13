@@ -11,10 +11,7 @@ namespace internal {
 TEST(Zone, SegmentPoolConstraints) {
   size_t sizes[]{
       0,  // Corner case
-      AccountingAllocator::kMaxPoolSizeLowMemoryDevice,
-      AccountingAllocator::kMaxPoolSizeMediumMemoryDevice,
-      AccountingAllocator::kMaxPoolSizeHighMemoryDevice,
-      AccountingAllocator::kMaxPoolSizeHugeMemoryDevice,
+      AccountingAllocator::kMaxPoolSize,
       GB  // Something really large
   };
 

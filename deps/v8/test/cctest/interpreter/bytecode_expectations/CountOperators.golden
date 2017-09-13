@@ -18,7 +18,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   45 S> */ B(Inc), U8(3),
                 B(Star), R(0),
-  /*   57 S> */ B(Return),
+  /*   56 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -41,7 +41,7 @@ bytecodes: [
                 B(Inc), U8(3),
                 B(Star), R(0),
                 B(Ldar), R(1),
-  /*   57 S> */ B(Return),
+  /*   56 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -61,7 +61,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   45 S> */ B(Dec), U8(3),
                 B(Star), R(0),
-  /*   57 S> */ B(Return),
+  /*   56 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -84,7 +84,7 @@ bytecodes: [
                 B(Dec), U8(3),
                 B(Star), R(0),
                 B(Ldar), R(1),
-  /*   57 S> */ B(Return),
+  /*   56 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -100,7 +100,7 @@ parameter count: 1
 bytecode array length: 27
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(1),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(1),
                 B(Mov), R(1), R(0),
   /*   54 S> */ B(LdaNamedProperty), R(1), U8(1), U8(4),
                 B(ToNumber), R(2), U8(8),
@@ -108,7 +108,7 @@ bytecodes: [
                 B(Inc), U8(8),
   /*   66 E> */ B(StaNamedPropertySloppy), R(1), U8(1), U8(6),
                 B(Ldar), R(2),
-  /*   70 S> */ B(Return),
+  /*   69 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -126,12 +126,12 @@ parameter count: 1
 bytecode array length: 20
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(1),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(1),
                 B(Mov), R(1), R(0),
   /*   54 S> */ B(LdaNamedProperty), R(1), U8(1), U8(4),
                 B(Dec), U8(8),
   /*   65 E> */ B(StaNamedPropertySloppy), R(1), U8(1), U8(6),
-  /*   70 S> */ B(Return),
+  /*   69 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -151,7 +151,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
-  /*   60 S> */ B(CreateObjectLiteral), U8(1), U8(3), U8(1), R(2),
+  /*   60 S> */ B(CreateObjectLiteral), U8(1), U8(3), U8(41), R(2),
                 B(Mov), R(2), R(1),
   /*   72 S> */ B(Ldar), R(0),
   /*   81 E> */ B(LdaKeyedProperty), R(2), U8(4),
@@ -160,7 +160,7 @@ bytecodes: [
                 B(Dec), U8(8),
   /*   86 E> */ B(StaKeyedPropertySloppy), R(2), R(0), U8(6),
                 B(Ldar), R(4),
-  /*   90 S> */ B(Return),
+  /*   89 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["var"],
@@ -180,13 +180,13 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
-  /*   60 S> */ B(CreateObjectLiteral), U8(1), U8(3), U8(1), R(2),
+  /*   60 S> */ B(CreateObjectLiteral), U8(1), U8(3), U8(41), R(2),
                 B(Mov), R(2), R(1),
   /*   72 S> */ B(Ldar), R(0),
   /*   83 E> */ B(LdaKeyedProperty), R(2), U8(4),
                 B(Inc), U8(8),
   /*   87 E> */ B(StaKeyedPropertySloppy), R(2), R(0), U8(6),
-  /*   90 S> */ B(Return),
+  /*   89 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["var"],
@@ -213,7 +213,7 @@ bytecodes: [
   /*   78 S> */ B(LdaCurrentContextSlot), U8(4),
                 B(Inc), U8(4),
   /*   87 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   90 S> */ B(Return),
+  /*   89 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
@@ -242,7 +242,7 @@ bytecodes: [
                 B(Dec), U8(4),
   /*   86 E> */ B(StaCurrentContextSlot), U8(4),
                 B(Ldar), R(2),
-  /*   90 S> */ B(Return),
+  /*   89 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
@@ -261,7 +261,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   44 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-  /*   55 S> */ B(CreateArrayLiteral), U8(0), U8(3), U8(17),
+  /*   55 S> */ B(CreateArrayLiteral), U8(0), U8(3), U8(37),
                 B(Star), R(1),
   /*   63 S> */ B(Ldar), R(0),
                 B(ToNumber), R(3), U8(4),
@@ -270,7 +270,7 @@ bytecodes: [
                 B(Star), R(0),
                 B(LdaSmi), I8(2),
   /*   79 E> */ B(StaKeyedPropertySloppy), R(1), R(3), U8(5),
-  /*   84 S> */ B(Return),
+  /*   83 S> */ B(Return),
 ]
 constant pool: [
   TUPLE2_TYPE,

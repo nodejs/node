@@ -110,7 +110,7 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 #endif  // DEBUG
 }
 
-Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
+Handle<Code> CodeGenerator::MakeCodeEpilogue(TurboAssembler* tasm,
                                              EhFrameWriter* eh_frame_writer,
                                              CompilationInfo* info,
                                              Handle<Object> self_reference) {
@@ -122,7 +122,7 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
   bool is_crankshafted =
       Code::ExtractKindFromFlags(flags) == Code::OPTIMIZED_FUNCTION ||
       info->IsStub();
-  masm->GetCode(&desc);
+  tasm->GetCode(isolate, &desc);
   if (eh_frame_writer) eh_frame_writer->GetEhFrame(&desc);
 
   Handle<Code> code = isolate->factory()->NewCode(
@@ -244,8 +244,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 
     // Print the source code if available.
     bool print_source =
-        info->parse_info() && (code->kind() == Code::OPTIMIZED_FUNCTION ||
-                               code->kind() == Code::FUNCTION);
+        info->parse_info() && (code->kind() == Code::OPTIMIZED_FUNCTION);
     if (print_source) {
       Handle<SharedFunctionInfo> shared = info->shared_info();
       Handle<Script> script = info->script();

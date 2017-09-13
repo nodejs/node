@@ -72,7 +72,7 @@ static const char* kGoldenFileDirectory =
 class InitializedIgnitionHandleScope : public InitializedHandleScope {
  public:
   InitializedIgnitionHandleScope() {
-    i::FLAG_ignition = true;
+    i::FLAG_stress_fullcodegen = false;
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
   }
@@ -2348,10 +2348,42 @@ TEST(Generators) {
 
       "function* f() { for (let x of [42]) yield x }\n"
       "f();\n",
+
+      "function* g() { yield 42 }\n"
+      "function* f() { yield* g() }\n"
+      "f();\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("Generators.golden")));
+}
+
+TEST(AsyncGenerators) {
+  bool old_flag = i::FLAG_harmony_async_iteration;
+  i::FLAG_harmony_async_iteration = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_test_function_name("f");
+
+  const char* snippets[] = {
+      "async function* f() { }\n"
+      "f();\n",
+
+      "async function* f() { yield 42 }\n"
+      "f();\n",
+
+      "async function* f() { for (let x of [42]) yield x }\n"
+      "f();\n",
+
+      "function* g() { yield 42 }\n"
+      "async function* f() { yield* g() }\n"
+      "f();\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("AsyncGenerators.golden")));
+  i::FLAG_harmony_async_iteration = old_flag;
 }
 
 TEST(Modules) {
@@ -2607,6 +2639,41 @@ TEST(ForOfLoop) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("ForOfLoop.golden")));
+}
+
+TEST(StringConcat) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return a + b + 'string';\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return 'string' + a + b;\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return a + 'string' + b;\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return 'foo' + a + 'bar' + b + 'baz' + 1;\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return (a + 'string') + ('string' + b);\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "function foo(a, b) { };\n"
+      "return 'string' + foo(a, b) + a + b;\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("StringConcat.golden")));
 }
 
 }  // namespace interpreter

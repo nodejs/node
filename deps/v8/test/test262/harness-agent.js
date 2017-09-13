@@ -56,7 +56,7 @@ function workerScript(script) {
         },
 
         report(msg) {
-          postMessage(msg);
+          postMessage(String(msg));
           Atomics.add(i32a, ${WORKER_REPORT_LOC} + index, 1);
         },
 
@@ -79,6 +79,10 @@ var agent = {
   },
 
   broadcast(sab, id) {
+    if (!(sab instanceof SharedArrayBuffer)) {
+      throw new TypeError('sab must be a SharedArrayBuffer.');
+    }
+
     Atomics.store(i32a, BROADCAST_LOC, 0);
 
     for (var w of workers) {

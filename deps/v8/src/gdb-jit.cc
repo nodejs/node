@@ -199,7 +199,7 @@ class DebugSectionBase : public ZoneObject {
 struct MachOSectionHeader {
   char sectname[16];
   char segname[16];
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_IA32
   uint32_t addr;
   uint32_t size;
 #else
@@ -230,7 +230,7 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
                uint32_t flags)
       : name_(name), segment_(segment), align_(align), flags_(flags) {
     if (align_ != 0) {
-      DCHECK(base::bits::IsPowerOfTwo32(align));
+      DCHECK(base::bits::IsPowerOfTwo(align));
       align_ = WhichPowerOf2(align_);
     }
   }
@@ -507,7 +507,7 @@ class MachO BASE_EMBEDDED {
     uint32_t cmd;
     uint32_t cmdsize;
     char segname[16];
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_IA32
     uint32_t vmaddr;
     uint32_t vmsize;
     uint32_t fileoff;
@@ -533,7 +533,7 @@ class MachO BASE_EMBEDDED {
   Writer::Slot<MachOHeader> WriteHeader(Writer* w) {
     DCHECK(w->position() == 0);
     Writer::Slot<MachOHeader> header = w->CreateSlotHere<MachOHeader>();
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_IA32
     header->magic = 0xFEEDFACEu;
     header->cputype = 7;  // i386
     header->cpusubtype = 3;  // CPU_SUBTYPE_I386_ALL
@@ -558,7 +558,7 @@ class MachO BASE_EMBEDDED {
                                                         uintptr_t code_size) {
     Writer::Slot<MachOSegmentCommand> cmd =
         w->CreateSlotHere<MachOSegmentCommand>();
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_IA32
     cmd->cmd = LC_SEGMENT_32;
 #else
     cmd->cmd = LC_SEGMENT_64;
@@ -646,7 +646,7 @@ class ELF BASE_EMBEDDED {
   void WriteHeader(Writer* w) {
     DCHECK(w->position() == 0);
     Writer::Slot<ELFHeader> header = w->CreateSlotHere<ELFHeader>();
-#if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X87 || \
+#if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || \
      (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT))
     const uint8_t ident[16] =
         { 0x7f, 'E', 'L', 'F', 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -668,7 +668,7 @@ class ELF BASE_EMBEDDED {
 #endif
     memcpy(header->ident, ident, 16);
     header->type = 1;
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_IA32
     header->machine = 3;
 #elif V8_TARGET_ARCH_X64
     // Processor identification value for x64 is 62 as defined in
@@ -783,8 +783,8 @@ class ELFSymbol BASE_EMBEDDED {
   Binding binding() const {
     return static_cast<Binding>(info >> 4);
   }
-#if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X87 || \
-     (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT) ||                   \
+#if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM ||     \
+     (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT) || \
      (V8_TARGET_ARCH_S390 && V8_TARGET_ARCH_32_BIT))
   struct SerializedLayout {
     SerializedLayout(uint32_t name,
@@ -1146,7 +1146,7 @@ class DebugInfoSection : public DebugSection {
       w->Write<intptr_t>(desc_->CodeStart() + desc_->CodeSize());
       Writer::Slot<uint32_t> fb_block_size = w->CreateSlotHere<uint32_t>();
       uintptr_t fb_block_start = w->position();
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_IA32
       w->Write<uint8_t>(DW_OP_reg5);  // The frame pointer's here on ia32
 #elif V8_TARGET_ARCH_X64
       w->Write<uint8_t>(DW_OP_reg6);  // and here on x64.

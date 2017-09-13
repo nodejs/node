@@ -14,6 +14,10 @@ const known_failures = {
     'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
   "'WebAssembly.Table.prototype.set' method":
     'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
+  "'WebAssembly.Instance.prototype.exports' accessor property":
+    'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
+  "'WebAssembly.Memory.prototype.grow' method":
+    'https://bugs.chromium.org/p/v8/issues/detail?id=6546'
 };
 
 let failures = [];
@@ -59,6 +63,7 @@ function promise_test(func, description) {
 }
 
 let assert_equals = assertEquals;
+let assert_not_equals = assertNotEquals;
 let assert_true = assertEquals.bind(null, true);
 let assert_false = assertEquals.bind(null, false);
 
@@ -102,7 +107,14 @@ assertPromiseResult(last_promise, _ => {
             "the bug, please remove the test from the known failures list.")
     }
     if (unexpected) {
-      quit(1);
+      print("\n");
+      print("   #############################################################");
+      print("   #                                                           #");
+      print("   # Unexpected outcome. Did you forget to run 'gclient sync'? #");
+      print("   #                                                           #");
+      print("   #############################################################");
+      print("\n");
+      assertUnreachable("Unexpected outcome");
     }
   }
 });

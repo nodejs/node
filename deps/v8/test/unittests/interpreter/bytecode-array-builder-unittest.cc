@@ -117,8 +117,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadLookupSlot(name, TypeofMode::INSIDE_TYPEOF)
-      .StoreLookupSlot(name, LanguageMode::SLOPPY)
-      .StoreLookupSlot(name, LanguageMode::STRICT);
+      .StoreLookupSlot(name, LanguageMode::SLOPPY, LookupHoistingMode::kNormal)
+      .StoreLookupSlot(name, LanguageMode::SLOPPY,
+                       LookupHoistingMode::kLegacySloppy)
+      .StoreLookupSlot(name, LanguageMode::STRICT, LookupHoistingMode::kNormal);
 
   // Emit load / store lookup slots with context fast paths.
   builder.LoadLookupContextSlot(name, TypeofMode::NOT_INSIDE_TYPEOF, 1, 0)
@@ -153,7 +155,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallUndefinedReceiver(reg, empty, 1)
       .CallUndefinedReceiver(reg, single, 1)
       .CallUndefinedReceiver(reg, pair, 1)
-      .TailCall(reg, reg_list, 1)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list)
@@ -189,6 +190,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperationSmiLiteral(Token::Value::SAR, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::SHR, Smi::FromInt(42), 2);
 
+  // Emit StringConcat operations.
+  builder.ToPrimitiveToString(reg, 1).StringConcat(pair);
+
   // Emit count operatior invocations
   builder.CountOperation(Token::Value::ADD, 1)
       .CountOperation(Token::Value::SUB, 1);
@@ -220,18 +224,21 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareNull();
 
   // Emit conversion operator invocations.
-  builder.ConvertAccumulatorToNumber(reg, 1)
-      .ConvertAccumulatorToObject(reg)
-      .ConvertAccumulatorToName(reg);
+  builder.ToNumber(reg, 1).ToObject(reg).ToName(reg);
 
   // Emit GetSuperConstructor.
   builder.GetSuperConstructor(reg);
+
+  // Hole checks.
+  builder.ThrowReferenceErrorIfHole(name)
+      .ThrowSuperAlreadyCalledIfNotHole()
+      .ThrowSuperNotCalledIfHole();
 
   // Short jumps with Imm8 operands
   {
     BytecodeLabel start, after_jump1, after_jump2, after_jump3, after_jump4,
         after_jump5, after_jump6, after_jump7, after_jump8, after_jump9,
-        after_jump10, after_jump11;
+        after_jump10;
     builder.Bind(&start)
         .Jump(&after_jump1)
         .Bind(&after_jump1)
@@ -243,23 +250,21 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .Bind(&after_jump4)
         .JumpIfNotUndefined(&after_jump5)
         .Bind(&after_jump5)
-        .JumpIfNotHole(&after_jump6)
+        .JumpIfJSReceiver(&after_jump6)
         .Bind(&after_jump6)
-        .JumpIfJSReceiver(&after_jump7)
+        .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &after_jump7)
         .Bind(&after_jump7)
-        .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &after_jump8)
+        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &after_jump8)
         .Bind(&after_jump8)
-        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &after_jump9)
+        .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &after_jump9)
         .Bind(&after_jump9)
-        .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &after_jump10)
+        .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &after_jump10)
         .Bind(&after_jump10)
-        .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &after_jump11)
-        .Bind(&after_jump11)
         .JumpLoop(&start, 0);
   }
 
   // Longer jumps with constant operands
-  BytecodeLabel end[11];
+  BytecodeLabel end[10];
   {
     BytecodeLabel after_jump;
     builder.Jump(&end[0])
@@ -272,9 +277,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .JumpIfNotNull(&end[6])
         .JumpIfUndefined(&end[7])
         .JumpIfNotUndefined(&end[8])
-        .JumpIfNotHole(&end[9])
         .LoadLiteral(ast_factory.prototype_string())
-        .JumpIfJSReceiver(&end[10]);
+        .JumpIfJSReceiver(&end[9]);
   }
 
   // Emit Smi table switch bytecode.
@@ -336,8 +340,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit wide load / store lookup slots.
   builder.LoadLookupSlot(wide_name, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadLookupSlot(wide_name, TypeofMode::INSIDE_TYPEOF)
-      .StoreLookupSlot(wide_name, LanguageMode::SLOPPY)
-      .StoreLookupSlot(wide_name, LanguageMode::STRICT);
+      .StoreLookupSlot(wide_name, LanguageMode::SLOPPY,
+                       LookupHoistingMode::kNormal)
+      .StoreLookupSlot(wide_name, LanguageMode::SLOPPY,
+                       LookupHoistingMode::kLegacySloppy)
+      .StoreLookupSlot(wide_name, LanguageMode::STRICT,
+                       LookupHoistingMode::kNormal);
 
   // CreateClosureWide
   builder.CreateClosure(1000, 321, NOT_TENURED);
@@ -357,7 +365,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreModuleVariable(1, 42);
 
   // Emit generator operations.
-  builder.SuspendGenerator(reg, SuspendFlags::kYield).ResumeGenerator(reg);
+  builder.SuspendGenerator(reg, reg_list)
+      .RestoreGeneratorState(reg)
+      .RestoreGeneratorRegisters(reg, reg_list);
 
   // Intrinsics handled by the interpreter.
   builder.CallRuntime(Runtime::kInlineIsArray, reg_list);
@@ -369,6 +379,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   for (int i = 0; i < 256; i++) {
     builder.Debugger();
   }
+
+  // Emit block counter increments.
+  builder.IncBlockCounter(0);
 
   // Bind labels for long jumps at the very end.
   for (size_t i = 0; i < arraysize(end); i++) {
@@ -408,9 +421,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Insert entry for illegal bytecode as this is never willingly emitted.
   scorecard[Bytecodes::ToByte(Bytecode::kIllegal)] = 1;
 
-  // Insert entry for nop bytecode as this often gets optimized out.
-  scorecard[Bytecodes::ToByte(Bytecode::kNop)] = 1;
-
   if (!FLAG_type_profile) {
     // Bytecode for CollectTypeProfile is only emitted when
     // Type Information for DevTools is turned on.
@@ -446,7 +456,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
         builder.StoreAccumulatorInRegister(temp);
         // Ensure temporaries are used so not optimized away by the
         // register optimizer.
-        builder.ConvertAccumulatorToName(temp);
+        builder.ToName(temp);
       }
       builder.Return();
 

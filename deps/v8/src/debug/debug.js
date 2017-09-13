@@ -63,13 +63,6 @@ Debug.ScriptBreakPointType = { ScriptId: 0,
                                ScriptName: 1,
                                ScriptRegExp: 2 };
 
-// The different types of breakpoint position alignments.
-// Must match BreakPositionAlignment in debug.h.
-Debug.BreakPositionAlignment = {
-  Statement: 0,
-  BreakPosition: 1
-};
-
 function ScriptTypeFlag(type) {
   return (1 << type);
 }
@@ -221,7 +214,7 @@ function IsBreakPointTriggered(break_id, break_point) {
 // script name or script id and the break point is represented as line and
 // column.
 function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
-                          opt_groupId, opt_position_alignment) {
+                          opt_groupId) {
   this.type_ = type;
   if (type == Debug.ScriptBreakPointType.ScriptId) {
     this.script_id_ = script_id_or_name;
@@ -235,8 +228,6 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
   this.line_ = opt_line || 0;
   this.column_ = opt_column;
   this.groupId_ = opt_groupId;
-  this.position_alignment_ = IS_UNDEFINED(opt_position_alignment)
-      ? Debug.BreakPositionAlignment.Statement : opt_position_alignment;
   this.active_ = true;
   this.condition_ = null;
   this.break_points_ = [];
@@ -378,7 +369,6 @@ ScriptBreakPoint.prototype.set = function (script) {
   // Create a break point object and set the break point.
   var break_point = MakeBreakPoint(position, this);
   var actual_position = %SetScriptBreakPoint(script, position,
-                                             this.position_alignment_,
                                              break_point);
   if (IS_UNDEFINED(actual_position)) {
     actual_position = position;
@@ -559,8 +549,7 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
 
 
 Debug.setBreakPointByScriptIdAndPosition = function(script_id, position,
-                                                    condition, enabled,
-                                                    opt_position_alignment)
+                                                    condition, enabled)
 {
   var break_point = MakeBreakPoint(position);
   break_point.setCondition(condition);
@@ -569,10 +558,7 @@ Debug.setBreakPointByScriptIdAndPosition = function(script_id, position,
   }
   var script = scriptById(script_id);
   if (script) {
-    var position_alignment = IS_UNDEFINED(opt_position_alignment)
-        ? Debug.BreakPositionAlignment.Statement : opt_position_alignment;
-    break_point.actual_position = %SetScriptBreakPoint(script, position,
-        position_alignment, break_point);
+    break_point.actual_position = %SetScriptBreakPoint(script, position, break_point);
   }
   return break_point;
 };
@@ -654,11 +640,11 @@ Debug.findScriptBreakPoint = function(break_point_number, remove) {
 // specified source line and column within that line.
 Debug.setScriptBreakPoint = function(type, script_id_or_name,
                                      opt_line, opt_column, opt_condition,
-                                     opt_groupId, opt_position_alignment) {
+                                     opt_groupId) {
   // Create script break point object.
   var script_break_point =
       new ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
-                           opt_groupId, opt_position_alignment);
+                           opt_groupId);
 
   // Assign number to the new script break point and add it.
   script_break_point.number_ = next_break_point_number++;
@@ -680,12 +666,10 @@ Debug.setScriptBreakPoint = function(type, script_id_or_name,
 
 Debug.setScriptBreakPointById = function(script_id,
                                          opt_line, opt_column,
-                                         opt_condition, opt_groupId,
-                                         opt_position_alignment) {
+                                         opt_condition, opt_groupId) {
   return this.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId,
                                   script_id, opt_line, opt_column,
-                                  opt_condition, opt_groupId,
-                                  opt_position_alignment);
+                                  opt_condition, opt_groupId);
 };
 
 
@@ -759,13 +743,11 @@ Debug.isBreakOnUncaughtException = function() {
   return !!%IsBreakOnException(Debug.ExceptionBreak.Uncaught);
 };
 
-Debug.showBreakPoints = function(f, full, opt_position_alignment) {
+Debug.showBreakPoints = function(f, full) {
   if (!IS_FUNCTION(f)) throw %make_error(kDebuggerType);
   var source = full ? this.scriptSource(f) : this.source(f);
   var offset = full ? 0 : this.sourcePosition(f);
-  var position_alignment = IS_UNDEFINED(opt_position_alignment)
-      ? Debug.BreakPositionAlignment.Statement : opt_position_alignment;
-  var locations = %GetBreakLocations(f, position_alignment);
+  var locations = %GetBreakLocations(f);
   if (!locations) return source;
   locations.sort(function(x, y) { return x - y; });
   var result = "";
@@ -1018,7 +1000,7 @@ utils.InstallConstants(global, [
 ]);
 
 // Functions needed by the debugger runtime.
-utils.InstallFunctions(utils, DONT_ENUM, [
+utils.InstallConstants(utils, [
   "MakeExecutionState", MakeExecutionState,
   "MakeExceptionEvent", MakeExceptionEvent,
   "MakeBreakEvent", MakeBreakEvent,

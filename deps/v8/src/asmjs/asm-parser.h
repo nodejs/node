@@ -5,8 +5,8 @@
 #ifndef V8_ASMJS_ASM_PARSER_H_
 #define V8_ASMJS_ASM_PARSER_H_
 
+#include <memory>
 #include <string>
-#include <vector>
 
 #include "src/asmjs/asm-scanner.h"
 #include "src/asmjs/asm-types.h"
@@ -15,6 +15,9 @@
 
 namespace v8 {
 namespace internal {
+
+class Utf16CharacterStream;
+
 namespace wasm {
 
 // A custom parser + validator + wasm converter for asm.js:
@@ -46,8 +49,8 @@ class AsmJsParser {
 
   typedef std::unordered_set<StandardMember, std::hash<int>> StdlibSet;
 
-  explicit AsmJsParser(Isolate* isolate, Zone* zone, Handle<Script> script,
-                       int start, int end);
+  explicit AsmJsParser(Zone* zone, uintptr_t stack_limit,
+                       std::unique_ptr<Utf16CharacterStream> stream);
   bool Run();
   const char* failure_message() const { return failure_message_; }
   int failure_location() const { return failure_location_; }
@@ -105,6 +108,41 @@ class AsmJsParser {
   // Helper class to make {TempVariable} safe for nesting.
   class TemporaryVariableScope;
 
+  template <typename T>
+  class CachedVectors {
+   public:
+    explicit CachedVectors(Zone* zone) : reusable_vectors_(zone) {}
+
+    Zone* zone() const { return reusable_vectors_.get_allocator().zone(); }
+
+    inline void fill(ZoneVector<T>* vec) {
+      if (reusable_vectors_.empty()) return;
+      reusable_vectors_.back().swap(*vec);
+      reusable_vectors_.pop_back();
+      vec->clear();
+    }
+
+    inline void reuse(ZoneVector<T>* vec) {
+      reusable_vectors_.emplace_back(std::move(*vec));
+    }
+
+   private:
+    ZoneVector<ZoneVector<T>> reusable_vectors_;
+  };
+
+  template <typename T>
+  class CachedVector final : public ZoneVector<T> {
+   public:
+    explicit CachedVector(CachedVectors<T>& cache)
+        : ZoneVector<T>(cache.zone()), cache_(&cache) {
+      cache.fill(this);
+    }
+    ~CachedVector() { cache_->reuse(this); }
+
+   private:
+    CachedVectors<T>* cache_;
+  };
+
   Zone* zone_;
   AsmJsScanner scanner_;
   WasmModuleBuilder* module_builder_;
@@ -114,6 +152,11 @@ class AsmJsParser {
   StdlibSet stdlib_uses_;
   ZoneVector<VarInfo> global_var_info_;
   ZoneVector<VarInfo> local_var_info_;
+
+  CachedVectors<ValueType> cached_valuetype_vectors_{zone_};
+  CachedVectors<AsmType*> cached_asm_type_p_vectors_{zone_};
+  CachedVectors<AsmJsScanner::token_t> cached_token_t_vectors_{zone_};
+  CachedVectors<int32_t> cached_int_vectors_{zone_};
 
   int function_temp_locals_offset_;
   int function_temp_locals_used_;
@@ -267,7 +310,7 @@ class AsmJsParser {
   void InitializeStdlibTypes();
 
   FunctionSig* ConvertSignature(AsmType* return_type,
-                                const std::vector<AsmType*>& params);
+                                const ZoneVector<AsmType*>& params);
 
   void ValidateModule();            // 6.1 ValidateModule
   void ValidateModuleParameters();  // 6.1 ValidateModule - parameters
@@ -281,9 +324,9 @@ class AsmJsParser {
   void ValidateExport();         // 6.2 ValidateExport
   void ValidateFunctionTable();  // 6.3 ValidateFunctionTable
   void ValidateFunction();       // 6.4 ValidateFunction
-  void ValidateFunctionParams(std::vector<AsmType*>* params);
+  void ValidateFunctionParams(ZoneVector<AsmType*>* params);
   void ValidateFunctionLocals(size_t param_count,
-                              std::vector<ValueType>* locals);
+                              ZoneVector<ValueType>* locals);
   void ValidateStatement();              // 6.5 ValidateStatement
   void Block();                          // 6.5.1 Block
   void ExpressionStatement();            // 6.5.2 ExpressionStatement
@@ -331,7 +374,7 @@ class AsmJsParser {
   // Used as part of {SwitchStatement}. Collects all case labels in the current
   // switch-statement, then resets the scanner position. This is one piece that
   // makes this parser not be a pure single-pass.
-  void GatherCases(std::vector<int32_t>* cases);
+  void GatherCases(ZoneVector<int32_t>* cases);
 };
 
 }  // namespace wasm

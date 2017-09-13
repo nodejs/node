@@ -79,7 +79,6 @@ inline uint8_t CastReturnValue(uintptr_t r) {
 template <>
 inline double CastReturnValue(uintptr_t r) {
   UNREACHABLE();
-  return 0.0;
 }
 
 template <typename R>

@@ -122,7 +122,6 @@ Handle<Smi> StoreHandler::StoreField(Isolate* isolate, Kind kind,
       break;
     default:
       UNREACHABLE();
-      return Handle<Smi>::null();
   }
 
   DCHECK(kind == kStoreField || kind == kTransitionToField ||

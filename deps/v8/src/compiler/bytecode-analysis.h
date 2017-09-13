@@ -24,8 +24,7 @@ class V8_EXPORT_PRIVATE BytecodeLoopAssignments {
   BytecodeLoopAssignments(int parameter_count, int register_count, Zone* zone);
 
   void Add(interpreter::Register r);
-  void AddPair(interpreter::Register r);
-  void AddTriple(interpreter::Register r);
+  void AddList(interpreter::Register r, uint32_t count);
   void AddAll();
   void Union(const BytecodeLoopAssignments& other);
 

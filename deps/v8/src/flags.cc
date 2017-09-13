@@ -154,7 +154,6 @@ struct Flag {
         return args_variable()->argc == 0;
     }
     UNREACHABLE();
-    return true;
   }
 
   // Set a flag back to it's default value.
@@ -207,7 +206,6 @@ static const char* Type2String(Flag::FlagType type) {
     case Flag::TYPE_ARGS: return "arguments";
   }
   UNREACHABLE();
-  return NULL;
 }
 
 

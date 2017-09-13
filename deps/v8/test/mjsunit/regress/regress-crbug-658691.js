@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-tailcalls --ignition --turbo
+// Flags: --allow-natives-syntax --no-stress-fullcodegen
 
 // The {f} function is compiled using TurboFan.
 // 1) The call to {Reflect.set} has no arguments adaptation.

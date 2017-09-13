@@ -46,7 +46,7 @@ contextGroup.addScript(testFunction.toString());
 
 Protocol.Debugger.enable();
 Protocol.Debugger.onPaused(handleDebuggerPaused);
-InspectorTest.log('Running testFunction with generated WASM bytes...');
+InspectorTest.log('Running testFunction with generated wasm bytes...');
 Protocol.Runtime.evaluate(
     {'expression': 'testFunction(' + JSON.stringify(module_bytes) + ')'});
 

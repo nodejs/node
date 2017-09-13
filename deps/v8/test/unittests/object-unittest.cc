@@ -105,11 +105,11 @@ TEST_F(ObjectWithIsolate, DictionaryGrowth) {
   // If we grow by larger chunks, the next (sufficiently big) power of 2 is
   // chosen as the capacity.
   dict = SeededNumberDictionary::New(isolate(), 1);
-  dict = SeededNumberDictionary::EnsureCapacity(dict, 65, 1);
+  dict = SeededNumberDictionary::EnsureCapacity(dict, 65);
   CHECK_EQ(128, dict->Capacity());
 
   dict = SeededNumberDictionary::New(isolate(), 1);
-  dict = SeededNumberDictionary::EnsureCapacity(dict, 30, 1);
+  dict = SeededNumberDictionary::EnsureCapacity(dict, 30);
   CHECK_EQ(64, dict->Capacity());
 }
 

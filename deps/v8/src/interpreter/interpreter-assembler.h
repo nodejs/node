@@ -81,12 +81,11 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void GotoIfHasContextExtensionUpToDepth(compiler::Node* context,
                                           compiler::Node* depth, Label* target);
 
-  // Number of registers.
-  compiler::Node* RegisterCount();
-
   // Backup/restore register file to/from a fixed array of the correct length.
-  compiler::Node* ExportRegisterFile(compiler::Node* array);
-  compiler::Node* ImportRegisterFile(compiler::Node* array);
+  compiler::Node* ExportRegisterFile(compiler::Node* array,
+                                     compiler::Node* register_count);
+  compiler::Node* ImportRegisterFile(compiler::Node* array,
+                                     compiler::Node* register_count);
 
   // Loads from and stores to the interpreter register file.
   compiler::Node* LoadRegister(Register reg);
@@ -125,19 +124,20 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // If the |receiver_mode| is kNullOrUndefined, then the receiver is implicitly
   // undefined and |first_arg| is the first parameter. Otherwise, |first_arg| is
   // the receiver and it is converted according to |receiver_mode|.
-  compiler::Node* CallJSWithFeedback(
-      compiler::Node* function, compiler::Node* context,
-      compiler::Node* first_arg, compiler::Node* arg_count,
-      compiler::Node* slot_id, compiler::Node* feedback_vector,
-      ConvertReceiverMode receiver_mode, TailCallMode tail_call_mode);
+  compiler::Node* CallJSWithFeedback(compiler::Node* function,
+                                     compiler::Node* context,
+                                     compiler::Node* first_arg,
+                                     compiler::Node* arg_count,
+                                     compiler::Node* slot_id,
+                                     compiler::Node* feedback_vector,
+                                     ConvertReceiverMode receiver_mode);
 
   // Call JSFunction or Callable |function| with |arg_count| arguments (not
   // including receiver) and the first argument located at |first_arg|, possibly
   // including the receiver depending on |receiver_mode|.
   compiler::Node* CallJS(compiler::Node* function, compiler::Node* context,
                          compiler::Node* first_arg, compiler::Node* arg_count,
-                         ConvertReceiverMode receiver_mode,
-                         TailCallMode tail_call_mode);
+                         ConvertReceiverMode receiver_mode);
 
   // Call JSFunction or Callable |function| with |arg_count|
   // arguments (not including receiver) and the first argument
@@ -221,6 +221,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void Abort(BailoutReason bailout_reason);
   void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
                            BailoutReason bailout_reason);
+  // Abort if |register_count| is invalid for given register file array.
+  void AbortIfRegisterCountInvalid(compiler::Node* register_file,
+                                   compiler::Node* register_count);
 
   // Dispatch to frame dropper trampoline if necessary.
   void MaybeDropFrames(compiler::Node* context);

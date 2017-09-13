@@ -140,7 +140,7 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
 
 
   // Generate a call to CheckStackGuardState.
-  void CallCheckStackGuardState(Register scratch);
+  void CallCheckStackGuardState();
 
   // The ebp-relative location of a regexp register.
   MemOperand register_location(int register_index);

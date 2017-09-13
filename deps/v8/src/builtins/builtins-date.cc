@@ -162,7 +162,7 @@ void ToDateString(double time_val, Vector<char> str, DateCache* date_cache,
   const char* local_timezone = date_cache->LocalTimezone(time_ms);
   switch (mode) {
     case kDateOnly:
-      SNPrintF(str, "%s %s %02d %4d", kShortWeekDays[weekday],
+      SNPrintF(str, "%s %s %02d %04d", kShortWeekDays[weekday],
                kShortMonths[month], day, year);
       return;
     case kTimeOnly:
@@ -171,7 +171,7 @@ void ToDateString(double time_val, Vector<char> str, DateCache* date_cache,
                local_timezone);
       return;
     case kDateAndTime:
-      SNPrintF(str, "%s %s %02d %4d %02d:%02d:%02d GMT%c%02d%02d (%s)",
+      SNPrintF(str, "%s %s %02d %04d %02d:%02d:%02d GMT%c%02d%02d (%s)",
                kShortWeekDays[weekday], kShortMonths[month], day, year, hour,
                min, sec, (timezone_offset < 0) ? '-' : '+', timezone_hour,
                timezone_min, local_timezone);
@@ -822,7 +822,7 @@ BUILTIN(DatePrototypeToUTCString) {
   int year, month, day, weekday, hour, min, sec, ms;
   isolate->date_cache()->BreakDownTime(time_ms, &year, &month, &day, &weekday,
                                        &hour, &min, &sec, &ms);
-  SNPrintF(ArrayVector(buffer), "%s, %02d %s %4d %02d:%02d:%02d GMT",
+  SNPrintF(ArrayVector(buffer), "%s, %02d %s %04d %02d:%02d:%02d GMT",
            kShortWeekDays[weekday], day, kShortMonths[month], year, hour, min,
            sec);
   return *isolate->factory()->NewStringFromAsciiChecked(buffer);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --expose-gc --turbo --opt
+// Flags: --allow-natives-syntax --expose-gc --opt
 
 // Make sure literals are strongly rooted and safe from weak-code deopts.
 
@@ -15,7 +15,7 @@
 
   foo();
   foo();
-  % OptimizeFunctionOnNextCall(foo);
+  %OptimizeFunctionOnNextCall(foo);
   foo();
   gc();
   assertOptimized(foo);
@@ -32,7 +32,7 @@
   var a = [1, 2, 3];
   print(mapPlus(a, 1));
   print(mapPlus(a, 2));
-  % OptimizeFunctionOnNextCall(hot);
+  %OptimizeFunctionOnNextCall(hot);
   print(mapPlus(a, 3));
   gc();  // BOOOM!
   assertOptimized(hot);

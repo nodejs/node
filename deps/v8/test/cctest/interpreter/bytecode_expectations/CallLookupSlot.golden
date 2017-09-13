@@ -11,7 +11,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 73
+bytecode array length: 74
 bytecodes: [
                 B(CreateFunctionContext), U8(3),
                 B(PushContext), R(0),
@@ -23,7 +23,7 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(5),
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(CreateClosure), U8(0), U8(3), U8(2),
-  /*   36 E> */ B(StaLookupSlotSloppy), U8(1),
+  /*   36 E> */ B(StaLookupSlot), U8(1), U8(0),
   /*   52 S> */ B(LdaLookupGlobalSlot), U8(2), U8(6), U8(1),
                 B(Star), R(1),
                 B(LdaConstant), U8(3),
@@ -43,7 +43,7 @@ bytecodes: [
   /*   62 S> */ B(LdaLookupGlobalSlot), U8(1), U8(10), U8(1),
                 B(Star), R(1),
   /*   69 E> */ B(CallUndefinedReceiver0), R(1), U8(8),
-  /*   74 S> */ B(Return),
+  /*   73 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,

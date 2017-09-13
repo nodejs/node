@@ -93,20 +93,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           old_state, new_state));
       }
 
-      processBinaryOpIC(pc, line, column, stub, old_state, new_state,
-          allocation_site) {
-        let fnName = this.functionName(pc);
-        this.entries.push(new Entry("BinaryOpIc", fnName, line, column, name,
-          old_state, new_state));
-
-      }
-
-      processToBooleanICfunction(pc, line, column, stub, old_state, new_state) {
-        let fnName = this.functionName(pc);
-        this.entries.push(new Entry("ToBooleanIC", fnName, line, column, name,
-          old_state, new_state));
-      }
-
       processPatchIC(pc, test, delta) {
 
       }

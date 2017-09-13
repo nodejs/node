@@ -38,8 +38,7 @@ class CallOptimization BASE_EMBEDDED {
 
   enum HolderLookup { kHolderNotFound, kHolderIsReceiver, kHolderFound };
   Handle<JSObject> LookupHolderOfExpectedType(
-      Handle<Map> receiver_map, HolderLookup* holder_lookup,
-      int* holder_depth_in_prototype_chain = NULL) const;
+      Handle<Map> receiver_map, HolderLookup* holder_lookup) const;
 
   // Check if the api holder is between the receiver and the holder.
   bool IsCompatibleReceiver(Handle<Object> receiver,

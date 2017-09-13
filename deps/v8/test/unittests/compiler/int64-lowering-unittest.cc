@@ -7,6 +7,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
+#include "src/compiler/wasm-compiler.h"
 
 #include "src/compiler/node-properties.h"
 
@@ -331,7 +332,7 @@ TEST_F(Int64LoweringTest, CallI64Return) {
   sig_builder.AddReturn(MachineRepresentation::kWord64);
 
   compiler::CallDescriptor* desc =
-      wasm::ModuleEnv::GetWasmCallDescriptor(zone(), sig_builder.Build());
+      compiler::GetWasmCallDescriptor(zone(), sig_builder.Build());
 
   LowerGraph(graph()->NewNode(common()->Call(desc), Int32Constant(function),
                               start(), start()),
@@ -349,7 +350,7 @@ TEST_F(Int64LoweringTest, CallI64Return) {
   CompareCallDescriptors(
       OpParameter<const CallDescriptor*>(
           graph()->end()->InputAt(1)->InputAt(1)->InputAt(0)),
-      wasm::ModuleEnv::GetI32WasmCallDescriptor(zone(), desc));
+      compiler::GetI32WasmCallDescriptor(zone(), desc));
 }
 
 TEST_F(Int64LoweringTest, CallI64Parameter) {
@@ -362,7 +363,7 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
   sig_builder.AddParam(MachineRepresentation::kWord64);
 
   compiler::CallDescriptor* desc =
-      wasm::ModuleEnv::GetWasmCallDescriptor(zone(), sig_builder.Build());
+      compiler::GetWasmCallDescriptor(zone(), sig_builder.Build());
 
   LowerGraph(graph()->NewNode(common()->Call(desc), Int32Constant(function),
                               Int64Constant(value(0)),
@@ -380,10 +381,9 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
                       IsInt32Constant(high_word_value(2)), start(), start()),
                start(), start()));
 
-  CompareCallDescriptors(
-      OpParameter<const CallDescriptor*>(
-          graph()->end()->InputAt(1)->InputAt(1)),
-      wasm::ModuleEnv::GetI32WasmCallDescriptor(zone(), desc));
+  CompareCallDescriptors(OpParameter<const CallDescriptor*>(
+                             graph()->end()->InputAt(1)->InputAt(1)),
+                         compiler::GetI32WasmCallDescriptor(zone(), desc));
 }
 
 TEST_F(Int64LoweringTest, Int64Add) {

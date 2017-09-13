@@ -41,7 +41,6 @@ class BlockingCompilationJob : public CompilationJob {
   // CompilationJob implementation.
   Status PrepareJobImpl() override {
     UNREACHABLE();
-    return FAILED;
   }
 
   Status ExecuteJobImpl() override {

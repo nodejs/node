@@ -833,7 +833,10 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kPlainPrimitiveToFloat64:
       case IrOpcode::kStringCharAt:
       case IrOpcode::kStringCharCodeAt:
+      case IrOpcode::kSeqStringCharCodeAt:
       case IrOpcode::kStringIndexOf:
+      case IrOpcode::kStringToLowerCaseIntl:
+      case IrOpcode::kStringToUpperCaseIntl:
       case IrOpcode::kObjectIsDetectableCallable:
       case IrOpcode::kObjectIsNaN:
       case IrOpcode::kObjectIsNonCallable:
@@ -857,13 +860,9 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
         }
         break;
       default:
-        if (use->op()->EffectInputCount() == 0 &&
-            uses->op()->EffectInputCount() > 0 &&
-            !IrOpcode::IsJsOpcode(use->opcode())) {
-          V8_Fatal(__FILE__, __LINE__,
-                   "Encountered unaccounted use by #%d (%s)\n", use->id(),
-                   use->op()->mnemonic());
-        }
+        DCHECK(use->op()->EffectInputCount() > 0 ||
+               uses->op()->EffectInputCount() == 0 ||
+               IrOpcode::IsJsOpcode(use->opcode()));
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
                 rep->id(), rep->op()->mnemonic(), use->id(),
@@ -1532,8 +1531,8 @@ void EscapeAnalysis::ProcessCheckMaps(Node* node) {
         // CheckMapsValue operator that takes the load-eliminated map value as
         // input.
         if (value->opcode() == IrOpcode::kHeapConstant &&
-            params.maps().contains(ZoneHandleSet<Map>(
-                Handle<Map>::cast(OpParameter<Handle<HeapObject>>(value))))) {
+            params.maps().contains(ZoneHandleSet<Map>(bit_cast<Handle<Map>>(
+                OpParameter<Handle<HeapObject>>(value))))) {
           TRACE("CheckMaps #%i seems to be redundant (until now).\n",
                 node->id());
           return;

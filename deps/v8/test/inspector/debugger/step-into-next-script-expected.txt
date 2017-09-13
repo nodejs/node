@@ -30,7 +30,7 @@ test (foo.js:13:0)
 
 foo (timeout2.js:2:2)
 
-foo (timeout2.js:3:0)
+foo (timeout2.js:2:12)
 
 (anonymous) (timeout3.js:0:8)
 
@@ -63,7 +63,7 @@ test (foo.js:13:0)
 
 foo (timeout2.js:2:2)
 
-foo (timeout2.js:3:0)
+foo (timeout2.js:2:12)
 
 (anonymous) (timeout3.js:0:8)
 

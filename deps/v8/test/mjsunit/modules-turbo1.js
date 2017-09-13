@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // MODULE
-// Flags: --allow-natives-syntax --turbo --opt --turbo-filter=*
+// Flags: --allow-natives-syntax --opt --turbo-filter=*
 
 export let x = 0;
 function foo() { x++ };

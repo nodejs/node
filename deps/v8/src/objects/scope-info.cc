@@ -50,7 +50,6 @@ bool ScopeInfo::Equals(ScopeInfo* other) const {
         }
       } else {
         UNREACHABLE();
-        return false;
       }
     }
   }
@@ -501,14 +500,6 @@ void ScopeInfo::SetIsDebugEvaluateScope() {
   }
 }
 
-bool ScopeInfo::HasHeapAllocatedLocals() {
-  if (length() > 0) {
-    return ContextLocalCount() > 0;
-  } else {
-    return false;
-  }
-}
-
 bool ScopeInfo::HasContext() { return ContextLength() > 0; }
 
 String* ScopeInfo::FunctionName() {
@@ -552,7 +543,7 @@ String* ScopeInfo::StackLocalName(int var) {
 int ScopeInfo::StackLocalIndex(int var) {
   DCHECK_LE(0, var);
   DCHECK_LT(var, StackLocalCount());
-  int first_slot_index = Smi::cast(get(StackLocalFirstSlotIndex()))->value();
+  int first_slot_index = Smi::ToInt(get(StackLocalFirstSlotIndex()));
   return first_slot_index + var;
 }
 
@@ -567,7 +558,7 @@ VariableMode ScopeInfo::ContextLocalMode(int var) {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalInfosIndex() + var;
-  int value = Smi::cast(get(info_index))->value();
+  int value = Smi::ToInt(get(info_index));
   return VariableModeField::decode(value);
 }
 
@@ -575,7 +566,7 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalInfosIndex() + var;
-  int value = Smi::cast(get(info_index))->value();
+  int value = Smi::ToInt(get(info_index));
   return InitFlagField::decode(value);
 }
 
@@ -583,7 +574,7 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalInfosIndex() + var;
-  int value = Smi::cast(get(info_index))->value();
+  int value = Smi::ToInt(get(info_index));
   return MaybeAssignedFlagField::decode(value);
 }
 
@@ -599,7 +590,7 @@ bool ScopeInfo::VariableIsSynthetic(String* name) {
 int ScopeInfo::StackSlotIndex(String* name) {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {
-    int first_slot_index = Smi::cast(get(StackLocalFirstSlotIndex()))->value();
+    int first_slot_index = Smi::ToInt(get(StackLocalFirstSlotIndex()));
     int start = StackLocalNamesIndex();
     int end = start + StackLocalCount();
     for (int i = start; i < end; ++i) {
@@ -615,15 +606,15 @@ int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
                            InitializationFlag* init_flag,
                            MaybeAssignedFlag* maybe_assigned_flag) {
   DCHECK_EQ(scope_type(), MODULE_SCOPE);
-  DCHECK(name->IsInternalizedString());
   DCHECK_NOT_NULL(mode);
   DCHECK_NOT_NULL(init_flag);
   DCHECK_NOT_NULL(maybe_assigned_flag);
 
-  int module_vars_count = Smi::cast(get(ModuleVariableCountIndex()))->value();
+  int module_vars_count = Smi::ToInt(get(ModuleVariableCountIndex()));
   int entry = ModuleVariablesIndex();
   for (int i = 0; i < module_vars_count; ++i) {
-    if (*name == get(entry + kModuleVariableNameOffset)) {
+    String* var_name = String::cast(get(entry + kModuleVariableNameOffset));
+    if (name->Equals(var_name)) {
       int index;
       ModuleVariable(i, nullptr, &index, mode, init_flag, maybe_assigned_flag);
       return index;
@@ -677,13 +668,6 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
   return -1;
 }
 
-String* ScopeInfo::ContextSlotName(int slot_index) {
-  int const var = slot_index - Context::MIN_CONTEXT_SLOTS;
-  DCHECK_LE(0, var);
-  DCHECK_LT(var, ContextLocalCount());
-  return ContextLocalName(var);
-}
-
 int ScopeInfo::ParameterIndex(String* name) {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {
@@ -705,7 +689,7 @@ int ScopeInfo::ParameterIndex(String* name) {
 
 int ScopeInfo::ReceiverContextSlotIndex() {
   if (length() > 0 && ReceiverVariableField::decode(Flags()) == CONTEXT)
-    return Smi::cast(get(ReceiverInfoIndex()))->value();
+    return Smi::ToInt(get(ReceiverInfoIndex()));
   return -1;
 }
 
@@ -714,7 +698,7 @@ int ScopeInfo::FunctionContextSlotIndex(String* name) {
   if (length() > 0) {
     if (FunctionVariableField::decode(Flags()) == CONTEXT &&
         FunctionName() == name) {
-      return Smi::cast(get(FunctionNameInfoIndex() + 1))->value();
+      return Smi::ToInt(get(FunctionNameInfoIndex() + 1));
     }
   }
   return -1;
@@ -768,17 +752,16 @@ void ScopeInfo::ModuleVariable(int i, String** name, int* index,
                                InitializationFlag* init_flag,
                                MaybeAssignedFlag* maybe_assigned_flag) {
   DCHECK_LE(0, i);
-  DCHECK_LT(i, Smi::cast(get(ModuleVariableCountIndex()))->value());
+  DCHECK_LT(i, Smi::ToInt(get(ModuleVariableCountIndex())));
 
   int entry = ModuleVariablesIndex() + i * kModuleVariableEntryLength;
-  int properties =
-      Smi::cast(get(entry + kModuleVariablePropertiesOffset))->value();
+  int properties = Smi::ToInt(get(entry + kModuleVariablePropertiesOffset));
 
   if (name != nullptr) {
     *name = String::cast(get(entry + kModuleVariableNameOffset));
   }
   if (index != nullptr) {
-    *index = Smi::cast(get(entry + kModuleVariableIndexOffset))->value();
+    *index = Smi::ToInt(get(entry + kModuleVariableIndexOffset));
     DCHECK_NE(*index, 0);
   }
   if (mode != nullptr) {
@@ -854,10 +837,14 @@ Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
 Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
                                    ModuleDescriptor* descr) {
   // Serialize module requests.
-  Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(
-      static_cast<int>(descr->module_requests().size()));
+  int size = static_cast<int>(descr->module_requests().size());
+  Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(size);
+  Handle<FixedArray> module_request_positions =
+      isolate->factory()->NewFixedArray(size);
   for (const auto& elem : descr->module_requests()) {
-    module_requests->set(elem.second, *elem.first->string());
+    module_requests->set(elem.second.index, *elem.first->string());
+    module_request_positions->set(elem.second.index,
+                                  Smi::FromInt(elem.second.position));
   }
 
   // Serialize special exports.
@@ -904,6 +891,7 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   result->set(kRegularExportsIndex, *regular_exports);
   result->set(kNamespaceImportsIndex, *namespace_imports);
   result->set(kRegularImportsIndex, *regular_imports);
+  result->set(kModuleRequestPositionsIndex, *module_request_positions);
   return result;
 }
 
@@ -926,21 +914,6 @@ int ModuleInfo::RegularExportCellIndex(int i) const {
 FixedArray* ModuleInfo::RegularExportExportNames(int i) const {
   return FixedArray::cast(regular_exports()->get(
       i * kRegularExportLength + kRegularExportExportNamesOffset));
-}
-
-Handle<ModuleInfoEntry> ModuleInfo::LookupRegularImport(
-    Handle<ModuleInfo> info, Handle<String> local_name) {
-  Isolate* isolate = info->GetIsolate();
-  Handle<FixedArray> regular_imports(info->regular_imports(), isolate);
-  for (int i = 0, n = regular_imports->length(); i < n; ++i) {
-    Handle<ModuleInfoEntry> entry(
-        ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
-    if (String::cast(entry->local_name())->Equals(*local_name)) {
-      return entry;
-    }
-  }
-  UNREACHABLE();
-  return Handle<ModuleInfoEntry>();
 }
 
 }  // namespace internal

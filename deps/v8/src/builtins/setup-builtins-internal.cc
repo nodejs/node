@@ -41,13 +41,16 @@ Code* BuildWithMacroAssembler(Isolate* isolate,
                               MacroAssemblerGenerator generator,
                               Code::Flags flags, const char* s_name) {
   HandleScope scope(isolate);
+  // Canonicalize handles, so that we can share constant pool entries pointing
+  // to code targets without dereferencing their handles.
+  CanonicalHandleScope canonical(isolate);
   const size_t buffer_size = 32 * KB;
   byte buffer[buffer_size];  // NOLINT(runtime/arrays)
   MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
   DCHECK(!masm.has_frame());
   generator(&masm);
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code =
       isolate->factory()->NewCode(desc, flags, masm.CodeObject());
   PostBuildProfileAndTracing(isolate, *code, s_name);
@@ -58,13 +61,16 @@ Code* BuildAdaptor(Isolate* isolate, Address builtin_address,
                    Builtins::ExitFrameType exit_frame_type, Code::Flags flags,
                    const char* name) {
   HandleScope scope(isolate);
+  // Canonicalize handles, so that we can share constant pool entries pointing
+  // to code targets without dereferencing their handles.
+  CanonicalHandleScope canonical(isolate);
   const size_t buffer_size = 32 * KB;
   byte buffer[buffer_size];  // NOLINT(runtime/arrays)
   MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
   DCHECK(!masm.has_frame());
   Builtins::Generate_Adaptor(&masm, builtin_address, exit_frame_type);
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code =
       isolate->factory()->NewCode(desc, flags, masm.CodeObject());
   PostBuildProfileAndTracing(isolate, *code, name);
@@ -76,6 +82,9 @@ Code* BuildWithCodeStubAssemblerJS(Isolate* isolate,
                                    CodeAssemblerGenerator generator, int argc,
                                    Code::Flags flags, const char* name) {
   HandleScope scope(isolate);
+  // Canonicalize handles, so that we can share constant pool entries pointing
+  // to code targets without dereferencing their handles.
+  CanonicalHandleScope canonical(isolate);
   Zone zone(isolate->allocator(), ZONE_NAME);
   const int argc_with_recv =
       (argc == SharedFunctionInfo::kDontAdaptArgumentsSentinel) ? 0 : argc + 1;
@@ -94,6 +103,9 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate,
                                    Code::Flags flags, const char* name,
                                    int result_size) {
   HandleScope scope(isolate);
+  // Canonicalize handles, so that we can share constant pool entries pointing
+  // to code targets without dereferencing their handles.
+  CanonicalHandleScope canonical(isolate);
   Zone zone(isolate->allocator(), ZONE_NAME);
   // The interface descriptor with given key must be initialized at this point
   // and this construction just queries the details from the descriptors table.

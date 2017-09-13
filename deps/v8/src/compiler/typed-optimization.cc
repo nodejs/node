@@ -76,12 +76,18 @@ Reduction TypedOptimization::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kCheckHeapObject:
       return ReduceCheckHeapObject(node);
+    case IrOpcode::kCheckNotTaggedHole:
+      return ReduceCheckNotTaggedHole(node);
     case IrOpcode::kCheckMaps:
       return ReduceCheckMaps(node);
     case IrOpcode::kCheckNumber:
       return ReduceCheckNumber(node);
     case IrOpcode::kCheckString:
       return ReduceCheckString(node);
+    case IrOpcode::kCheckSeqString:
+      return ReduceCheckSeqString(node);
+    case IrOpcode::kCheckNonEmptyString:
+      return ReduceCheckNonEmptyString(node);
     case IrOpcode::kLoadField:
       return ReduceLoadField(node);
     case IrOpcode::kNumberCeil:
@@ -128,6 +134,16 @@ Reduction TypedOptimization::ReduceCheckHeapObject(Node* node) {
   return NoChange();
 }
 
+Reduction TypedOptimization::ReduceCheckNotTaggedHole(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (!input_type->Maybe(Type::Hole())) {
+    ReplaceWithValue(node, input);
+    return Replace(input);
+  }
+  return NoChange();
+}
+
 Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
   // The CheckMaps(o, ...map...) can be eliminated if map is stable,
   // o has type Constant(object) and map == object->map, and either
@@ -168,6 +184,26 @@ Reduction TypedOptimization::ReduceCheckString(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type* const input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::String())) {
+    ReplaceWithValue(node, input);
+    return Replace(input);
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceCheckSeqString(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::SeqString())) {
+    ReplaceWithValue(node, input);
+    return Replace(input);
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceCheckNonEmptyString(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::NonEmptyString())) {
     ReplaceWithValue(node, input);
     return Replace(input);
   }
