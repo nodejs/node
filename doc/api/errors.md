@@ -835,6 +835,11 @@ communication channel to a child process. See [`subprocess.send()`] and
 Used generically to identify when an invalid or unexpected value has been
 passed in an options object.
 
+<a id="ERR_INVALID_PROTOCOL"></a>
+### ERR_INVALID_PROTOCOL
+
+Used when an invalid `options.protocol` is passed.
+
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
 ### ERR_INVALID_SYNC_FORK_INPUT
 
