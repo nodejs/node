@@ -60,6 +60,7 @@ assert.strictEqual(env.stdout.toString().trim(), 'buzz');
     assert.strictEqual(result.options.shell, shell);
     assert.strictEqual(result.options.file, result.file);
     assert.deepStrictEqual(result.options.args, result.args);
+    assert.strictEqual(result.options.windowsHide, undefined);
     assert.strictEqual(result.options.windowsVerbatimArguments,
                        windowsVerbatim);
   }
