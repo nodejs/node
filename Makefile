@@ -198,9 +198,15 @@ test: all
 	$(MAKE) cctest
 else
 test: all
+	$(MAKE) test-build
+	$(MAKE) test-run
+
+test-build:
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	$(MAKE) cctest
+
+test-run:
 	$(PYTHON) tools/test.py --mode=release -J \
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES)
