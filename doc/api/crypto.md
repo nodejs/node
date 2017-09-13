@@ -784,11 +784,11 @@ console.log(hash.digest('hex'));
 //   6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50
 ```
 
-### hash.digest([encoding])
+### hash.digest([outputEncoding])
 <!-- YAML
 added: v0.1.92
 -->
-- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
+- `outputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Calculates the digest of all of the data passed to be hashed (using the
 [`hash.update()`][] method). The `encoding` can be `'hex'`, `'latin1'` or
@@ -980,10 +980,6 @@ changes:
     description: Support for RSASSA-PSS and additional options was added.
 -->
 - `privateKey` {string | Object}
-  - `key` {string | Buffer | TypedArray | DataView}
-  - `passphrase` {string}
-  - `padding` {string}
-  - `saltLength` {integer}
 - `outputFormat` {string} (Default [`DEFAULT_ENCODING`][])
 
 Calculates the signature on all the data passed through using either
@@ -993,7 +989,7 @@ The `privateKey` argument can be an object or a string. If `privateKey` is a
 string, it is treated as a raw key with no passphrase. If `privateKey` is an
 object, it must contain one or more of the following properties:
 
-* `key`: {string} - PEM encoded private key (required)
+* `key`: {string | Buffer | TypedArray | DataView} - PEM encoded private key (required)
 * `passphrase`: {string} - passphrase for the private key
 * `padding`: {integer} - Optional padding value for RSA, one of the following:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
@@ -1106,9 +1102,6 @@ changes:
     description: Support for RSASSA-PSS and additional options was added.
 -->
 - `object` {string | Object}
-  - `key` {string | Buffer | TypedArray | DataView}
-  - `padding` {integer}
-  - `saltLength` {integer}
 - `signature` {string | Buffer | TypedArray | DataView}
 - `signatureFormat` {string} (Default [`DEFAULT_ENCODING`][])
 
@@ -1117,7 +1110,7 @@ The `object` argument can be either a string containing a PEM encoded object,
 which can be an RSA public key, a DSA public key, or an X.509 certificate,
 or an object with one or more of the following properties:
 
-* `key`: {string} - PEM encoded public key (required)
+* `key`: {string | Buffer | TypedArray | DataView} - PEM encoded public key (required)
 * `padding`: {integer} - Optional padding value for RSA, one of the following:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
@@ -2264,7 +2257,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`ecdh.generateKeys()`]: #crypto_ecdh_generatekeys_encoding_format
 [`ecdh.setPrivateKey()`]: #crypto_ecdh_setprivatekey_privatekey_encoding
 [`ecdh.setPublicKey()`]: #crypto_ecdh_setpublickey_publickey_encoding
-[`hash.digest()`]: #crypto_hash_digest_encoding
+[`hash.digest()`]: #crypto_hash_digest_outputencoding
 [`hash.update()`]: #crypto_hash_update_data_inputencoding
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
 [`hmac.update()`]: #crypto_hmac_update_data_inputencoding
