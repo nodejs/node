@@ -61,8 +61,7 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
 
   // Resume the {receiver} using our trampoline.
   Callable callable = CodeFactory::ResumeGenerator(isolate());
-  CallStub(callable, context, sent_value, generator, SmiConstant(resume_mode),
-           SmiConstant(static_cast<int>(SuspendFlags::kGeneratorAwait)));
+  CallStub(callable, context, sent_value, generator, SmiConstant(resume_mode));
 
   // The resulting Promise is a throwaway, so it doesn't matter what it
   // resolves to. What is important is that we don't end up keeping the
@@ -104,12 +103,9 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
   CSA_SLOW_ASSERT(this, HasInstanceType(generator, JS_GENERATOR_OBJECT_TYPE));
   CSA_SLOW_ASSERT(this, HasInstanceType(outer_promise, JS_PROMISE_TYPE));
 
-  NodeGenerator1 create_closure_context = [&](Node* native_context) -> Node* {
-    Node* const context =
-        CreatePromiseContext(native_context, AwaitContext::kLength);
+  ContextInitializer init_closure_context = [&](Node* context) {
     StoreContextElementNoWriteBarrier(context, AwaitContext::kGeneratorSlot,
                                       generator);
-    return context;
   };
 
   // TODO(jgruber): AsyncBuiltinsAssembler::Await currently does not reuse
@@ -119,19 +115,21 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
   // TODO(jgruber): Use a faster specialized version of
   // InternalPerformPromiseThen.
 
-  Node* const result = Await(
-      context, generator, awaited, outer_promise, create_closure_context,
-      Context::ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN,
-      Context::ASYNC_FUNCTION_AWAIT_REJECT_SHARED_FUN, is_predicted_as_caught);
+  Await(context, generator, awaited, outer_promise, AwaitContext::kLength,
+        init_closure_context, Context::ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN,
+        Context::ASYNC_FUNCTION_AWAIT_REJECT_SHARED_FUN,
+        is_predicted_as_caught);
 
-  Return(result);
+  // Return outer promise to avoid adding an load of the outer promise before
+  // suspending in BytecodeGenerator.
+  Return(outer_promise);
 }
 
 // Called by the parser from the desugaring of 'await' when catch
 // prediction indicates that there is a locally surrounding catch block.
 TF_BUILTIN(AsyncFunctionAwaitCaught, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 3);
-  Node* const generator = Parameter(Descriptor::kGenerator);
+  CSA_ASSERT_JS_ARGC_EQ(this, 2);
+  Node* const generator = Parameter(Descriptor::kReceiver);
   Node* const awaited = Parameter(Descriptor::kAwaited);
   Node* const outer_promise = Parameter(Descriptor::kOuterPromise);
   Node* const context = Parameter(Descriptor::kContext);
@@ -145,8 +143,8 @@ TF_BUILTIN(AsyncFunctionAwaitCaught, AsyncFunctionBuiltinsAssembler) {
 // Called by the parser from the desugaring of 'await' when catch
 // prediction indicates no locally surrounding catch block.
 TF_BUILTIN(AsyncFunctionAwaitUncaught, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 3);
-  Node* const generator = Parameter(Descriptor::kGenerator);
+  CSA_ASSERT_JS_ARGC_EQ(this, 2);
+  Node* const generator = Parameter(Descriptor::kReceiver);
   Node* const awaited = Parameter(Descriptor::kAwaited);
   Node* const outer_promise = Parameter(Descriptor::kOuterPromise);
   Node* const context = Parameter(Descriptor::kContext);

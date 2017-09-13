@@ -28,8 +28,7 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   static const int kMaxFPRegisters = 32;
 
   // Default RegisterConfigurations for the target architecture.
-  // TODO(X87): This distinction in RegisterConfigurations is temporary
-  // until x87 TF supports all of the registers that Crankshaft does.
+  // TODO(mstarzinger): Crankshaft is gone.
   static const RegisterConfiguration* Crankshaft();
   static const RegisterConfiguration* Turbofan();
 

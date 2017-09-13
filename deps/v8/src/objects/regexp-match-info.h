@@ -48,7 +48,7 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
   static Handle<RegExpMatchInfo> ReserveCaptures(
       Handle<RegExpMatchInfo> match_info, int capture_count);
 
-  DECLARE_CAST(RegExpMatchInfo)
+  DECL_CAST(RegExpMatchInfo)
 
   static const int kNumberOfCapturesIndex = 0;
   static const int kLastSubjectIndex = 1;

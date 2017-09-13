@@ -143,6 +143,8 @@ namespace compiler {
   V(Arm64StrS)                     \
   V(Arm64LdrD)                     \
   V(Arm64StrD)                     \
+  V(Arm64LdrQ)                     \
+  V(Arm64StrQ)                     \
   V(Arm64Ldrb)                     \
   V(Arm64Ldrsb)                    \
   V(Arm64Strb)                     \
@@ -153,7 +155,149 @@ namespace compiler {
   V(Arm64LdrW)                     \
   V(Arm64StrW)                     \
   V(Arm64Ldr)                      \
-  V(Arm64Str)
+  V(Arm64Str)                      \
+  V(Arm64F32x4Splat)               \
+  V(Arm64F32x4ExtractLane)         \
+  V(Arm64F32x4ReplaceLane)         \
+  V(Arm64F32x4SConvertI32x4)       \
+  V(Arm64F32x4UConvertI32x4)       \
+  V(Arm64F32x4Abs)                 \
+  V(Arm64F32x4Neg)                 \
+  V(Arm64F32x4RecipApprox)         \
+  V(Arm64F32x4RecipSqrtApprox)     \
+  V(Arm64F32x4Add)                 \
+  V(Arm64F32x4AddHoriz)            \
+  V(Arm64F32x4Sub)                 \
+  V(Arm64F32x4Mul)                 \
+  V(Arm64F32x4Min)                 \
+  V(Arm64F32x4Max)                 \
+  V(Arm64F32x4Eq)                  \
+  V(Arm64F32x4Ne)                  \
+  V(Arm64F32x4Lt)                  \
+  V(Arm64F32x4Le)                  \
+  V(Arm64I32x4Splat)               \
+  V(Arm64I32x4ExtractLane)         \
+  V(Arm64I32x4ReplaceLane)         \
+  V(Arm64I32x4SConvertF32x4)       \
+  V(Arm64I32x4SConvertI16x8Low)    \
+  V(Arm64I32x4SConvertI16x8High)   \
+  V(Arm64I32x4Neg)                 \
+  V(Arm64I32x4Shl)                 \
+  V(Arm64I32x4ShrS)                \
+  V(Arm64I32x4Add)                 \
+  V(Arm64I32x4AddHoriz)            \
+  V(Arm64I32x4Sub)                 \
+  V(Arm64I32x4Mul)                 \
+  V(Arm64I32x4MinS)                \
+  V(Arm64I32x4MaxS)                \
+  V(Arm64I32x4Eq)                  \
+  V(Arm64I32x4Ne)                  \
+  V(Arm64I32x4GtS)                 \
+  V(Arm64I32x4GeS)                 \
+  V(Arm64I32x4UConvertF32x4)       \
+  V(Arm64I32x4UConvertI16x8Low)    \
+  V(Arm64I32x4UConvertI16x8High)   \
+  V(Arm64I32x4ShrU)                \
+  V(Arm64I32x4MinU)                \
+  V(Arm64I32x4MaxU)                \
+  V(Arm64I32x4GtU)                 \
+  V(Arm64I32x4GeU)                 \
+  V(Arm64I16x8Splat)               \
+  V(Arm64I16x8ExtractLane)         \
+  V(Arm64I16x8ReplaceLane)         \
+  V(Arm64I16x8SConvertI8x16Low)    \
+  V(Arm64I16x8SConvertI8x16High)   \
+  V(Arm64I16x8Neg)                 \
+  V(Arm64I16x8Shl)                 \
+  V(Arm64I16x8ShrS)                \
+  V(Arm64I16x8SConvertI32x4)       \
+  V(Arm64I16x8Add)                 \
+  V(Arm64I16x8AddSaturateS)        \
+  V(Arm64I16x8AddHoriz)            \
+  V(Arm64I16x8Sub)                 \
+  V(Arm64I16x8SubSaturateS)        \
+  V(Arm64I16x8Mul)                 \
+  V(Arm64I16x8MinS)                \
+  V(Arm64I16x8MaxS)                \
+  V(Arm64I16x8Eq)                  \
+  V(Arm64I16x8Ne)                  \
+  V(Arm64I16x8GtS)                 \
+  V(Arm64I16x8GeS)                 \
+  V(Arm64I16x8UConvertI8x16Low)    \
+  V(Arm64I16x8UConvertI8x16High)   \
+  V(Arm64I16x8ShrU)                \
+  V(Arm64I16x8UConvertI32x4)       \
+  V(Arm64I16x8AddSaturateU)        \
+  V(Arm64I16x8SubSaturateU)        \
+  V(Arm64I16x8MinU)                \
+  V(Arm64I16x8MaxU)                \
+  V(Arm64I16x8GtU)                 \
+  V(Arm64I16x8GeU)                 \
+  V(Arm64I8x16Splat)               \
+  V(Arm64I8x16ExtractLane)         \
+  V(Arm64I8x16ReplaceLane)         \
+  V(Arm64I8x16Neg)                 \
+  V(Arm64I8x16Shl)                 \
+  V(Arm64I8x16ShrS)                \
+  V(Arm64I8x16SConvertI16x8)       \
+  V(Arm64I8x16Add)                 \
+  V(Arm64I8x16AddSaturateS)        \
+  V(Arm64I8x16Sub)                 \
+  V(Arm64I8x16SubSaturateS)        \
+  V(Arm64I8x16Mul)                 \
+  V(Arm64I8x16MinS)                \
+  V(Arm64I8x16MaxS)                \
+  V(Arm64I8x16Eq)                  \
+  V(Arm64I8x16Ne)                  \
+  V(Arm64I8x16GtS)                 \
+  V(Arm64I8x16GeS)                 \
+  V(Arm64I8x16ShrU)                \
+  V(Arm64I8x16UConvertI16x8)       \
+  V(Arm64I8x16AddSaturateU)        \
+  V(Arm64I8x16SubSaturateU)        \
+  V(Arm64I8x16MinU)                \
+  V(Arm64I8x16MaxU)                \
+  V(Arm64I8x16GtU)                 \
+  V(Arm64I8x16GeU)                 \
+  V(Arm64S128Zero)                 \
+  V(Arm64S128And)                  \
+  V(Arm64S128Or)                   \
+  V(Arm64S128Xor)                  \
+  V(Arm64S128Not)                  \
+  V(Arm64S128Select)               \
+  V(Arm64S32x4ZipLeft)             \
+  V(Arm64S32x4ZipRight)            \
+  V(Arm64S32x4UnzipLeft)           \
+  V(Arm64S32x4UnzipRight)          \
+  V(Arm64S32x4TransposeLeft)       \
+  V(Arm64S32x4TransposeRight)      \
+  V(Arm64S32x4Shuffle)             \
+  V(Arm64S16x8ZipLeft)             \
+  V(Arm64S16x8ZipRight)            \
+  V(Arm64S16x8UnzipLeft)           \
+  V(Arm64S16x8UnzipRight)          \
+  V(Arm64S16x8TransposeLeft)       \
+  V(Arm64S16x8TransposeRight)      \
+  V(Arm64S8x16ZipLeft)             \
+  V(Arm64S8x16ZipRight)            \
+  V(Arm64S8x16UnzipLeft)           \
+  V(Arm64S8x16UnzipRight)          \
+  V(Arm64S8x16TransposeLeft)       \
+  V(Arm64S8x16TransposeRight)      \
+  V(Arm64S8x16Concat)              \
+  V(Arm64S8x16Shuffle)             \
+  V(Arm64S32x2Reverse)             \
+  V(Arm64S16x4Reverse)             \
+  V(Arm64S16x2Reverse)             \
+  V(Arm64S8x8Reverse)              \
+  V(Arm64S8x4Reverse)              \
+  V(Arm64S8x2Reverse)              \
+  V(Arm64S1x4AnyTrue)              \
+  V(Arm64S1x4AllTrue)              \
+  V(Arm64S1x8AnyTrue)              \
+  V(Arm64S1x8AllTrue)              \
+  V(Arm64S1x16AnyTrue)             \
+  V(Arm64S1x16AllTrue)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

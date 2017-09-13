@@ -160,12 +160,12 @@ static void InitializeVM() {
 #define RUN()                                                                  \
   simulator.RunFrom(reinterpret_cast<Instruction*>(buf))
 
-#define END()                                                                  \
-  __ Debug("End test.", __LINE__, TRACE_DISABLE | LOG_ALL);                    \
-  core.Dump(&masm);                                                            \
-  __ PopCalleeSavedRegisters();                                                \
-  __ Ret();                                                                    \
-  __ GetCode(NULL);
+#define END()                                               \
+  __ Debug("End test.", __LINE__, TRACE_DISABLE | LOG_ALL); \
+  core.Dump(&masm);                                         \
+  __ PopCalleeSavedRegisters();                             \
+  __ Ret();                                                 \
+  __ GetCode(masm.isolate(), NULL);
 
 #define TEARDOWN()                                                             \
   delete pdis;                                                                 \
@@ -207,11 +207,11 @@ static void InitializeVM() {
     test_function();                                                \
   }
 
-#define END()                                                                  \
-  core.Dump(&masm);                                                            \
-  __ PopCalleeSavedRegisters();                                                \
-  __ Ret();                                                                    \
-  __ GetCode(NULL);
+#define END()                   \
+  core.Dump(&masm);             \
+  __ PopCalleeSavedRegisters(); \
+  __ Ret();                     \
+  __ GetCode(masm.isolate(), NULL);
 
 #define TEARDOWN()                                                             \
   v8::base::OS::Free(buf, actual_size);
@@ -236,11 +236,16 @@ static void InitializeVM() {
 #define CHECK_EQUAL_FP64(expected, result)                                    \
   CHECK(EqualFP64(expected, &core, result))
 
+// Expected values for 128-bit comparisons are passed as two 64-bit values,
+// where expected_h (high) is <127:64> and expected_l (low) is <63:0>.
+#define CHECK_EQUAL_128(expected_h, expected_l, result) \
+  CHECK(Equal128(expected_h, expected_l, &core, result))
+
 #ifdef DEBUG
-#define CHECK_LITERAL_POOL_SIZE(expected) \
-  CHECK((expected) == (__ LiteralPoolSize()))
+#define CHECK_CONSTANT_POOL_SIZE(expected) \
+  CHECK_EQ(expected, __ GetConstantPoolEntriesSizeForTesting())
 #else
-#define CHECK_LITERAL_POOL_SIZE(expected) ((void)0)
+#define CHECK_CONSTANT_POOL_SIZE(expected) ((void)0)
 #endif
 
 
@@ -2515,7 +2520,6 @@ TEST(ldr_str_wide) {
   TEARDOWN();
 }
 
-
 TEST(ldr_str_preindex) {
   INIT_V8();
   SETUP();
@@ -2573,7 +2577,6 @@ TEST(ldr_str_preindex) {
 
   TEARDOWN();
 }
-
 
 TEST(ldr_str_postindex) {
   INIT_V8();
@@ -2633,7 +2636,6 @@ TEST(ldr_str_postindex) {
   TEARDOWN();
 }
 
-
 TEST(load_signed) {
   INIT_V8();
   SETUP();
@@ -2670,7 +2672,6 @@ TEST(load_signed) {
 
   TEARDOWN();
 }
-
 
 TEST(load_store_regoffset) {
   INIT_V8();
@@ -2719,7 +2720,6 @@ TEST(load_store_regoffset) {
   TEARDOWN();
 }
 
-
 TEST(load_store_float) {
   INIT_V8();
   SETUP();
@@ -2762,7 +2762,6 @@ TEST(load_store_float) {
   TEARDOWN();
 }
 
-
 TEST(load_store_double) {
   INIT_V8();
   SETUP();
@@ -2801,6 +2800,3387 @@ TEST(load_store_double) {
   CHECK_EQUAL_64(dst_base + 2 * sizeof(dst[0]), x20);
   CHECK_EQUAL_64(src_base + 2 * sizeof(src[0]), x21);
   CHECK_EQUAL_64(dst_base, x22);
+
+  TEARDOWN();
+}
+
+TEST(load_store_b) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[3] = {0x12, 0x23, 0x34};
+  uint8_t dst[3] = {0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, dst_base);
+  __ Mov(x19, src_base);
+  __ Mov(x20, dst_base);
+  __ Mov(x21, src_base);
+  __ Mov(x22, dst_base);
+  __ Ldr(b0, MemOperand(x17, sizeof(src[0])));
+  __ Str(b0, MemOperand(x18, sizeof(dst[0]), PostIndex));
+  __ Ldr(b1, MemOperand(x19, sizeof(src[0]), PostIndex));
+  __ Str(b1, MemOperand(x20, 2 * sizeof(dst[0]), PreIndex));
+  __ Ldr(b2, MemOperand(x21, 2 * sizeof(src[0]), PreIndex));
+  __ Str(b2, MemOperand(x22, sizeof(dst[0])));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x23, q0);
+  CHECK_EQUAL_64(0x23, dst[0]);
+  CHECK_EQUAL_128(0, 0x12, q1);
+  CHECK_EQUAL_64(0x12, dst[2]);
+  CHECK_EQUAL_128(0, 0x34, q2);
+  CHECK_EQUAL_64(0x34, dst[1]);
+  CHECK_EQUAL_64(src_base, x17);
+  CHECK_EQUAL_64(dst_base + sizeof(dst[0]), x18);
+  CHECK_EQUAL_64(src_base + sizeof(src[0]), x19);
+  CHECK_EQUAL_64(dst_base + 2 * sizeof(dst[0]), x20);
+  CHECK_EQUAL_64(src_base + 2 * sizeof(src[0]), x21);
+  CHECK_EQUAL_64(dst_base, x22);
+
+  TEARDOWN();
+}
+
+TEST(load_store_h) {
+  INIT_V8();
+  SETUP();
+
+  uint16_t src[3] = {0x1234, 0x2345, 0x3456};
+  uint16_t dst[3] = {0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, dst_base);
+  __ Mov(x19, src_base);
+  __ Mov(x20, dst_base);
+  __ Mov(x21, src_base);
+  __ Mov(x22, dst_base);
+  __ Ldr(h0, MemOperand(x17, sizeof(src[0])));
+  __ Str(h0, MemOperand(x18, sizeof(dst[0]), PostIndex));
+  __ Ldr(h1, MemOperand(x19, sizeof(src[0]), PostIndex));
+  __ Str(h1, MemOperand(x20, 2 * sizeof(dst[0]), PreIndex));
+  __ Ldr(h2, MemOperand(x21, 2 * sizeof(src[0]), PreIndex));
+  __ Str(h2, MemOperand(x22, sizeof(dst[0])));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x2345, q0);
+  CHECK_EQUAL_64(0x2345, dst[0]);
+  CHECK_EQUAL_128(0, 0x1234, q1);
+  CHECK_EQUAL_64(0x1234, dst[2]);
+  CHECK_EQUAL_128(0, 0x3456, q2);
+  CHECK_EQUAL_64(0x3456, dst[1]);
+  CHECK_EQUAL_64(src_base, x17);
+  CHECK_EQUAL_64(dst_base + sizeof(dst[0]), x18);
+  CHECK_EQUAL_64(src_base + sizeof(src[0]), x19);
+  CHECK_EQUAL_64(dst_base + 2 * sizeof(dst[0]), x20);
+  CHECK_EQUAL_64(src_base + 2 * sizeof(src[0]), x21);
+  CHECK_EQUAL_64(dst_base, x22);
+
+  TEARDOWN();
+}
+
+TEST(load_store_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[48] = {0x10, 0x32, 0x54, 0x76, 0x98, 0xba, 0xdc, 0xfe, 0x01, 0x23,
+                     0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x21, 0x43, 0x65, 0x87,
+                     0xa9, 0xcb, 0xed, 0x0f, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc,
+                     0xde, 0xf0, 0x24, 0x46, 0x68, 0x8a, 0xac, 0xce, 0xe0, 0x02,
+                     0x42, 0x64, 0x86, 0xa8, 0xca, 0xec, 0x0e, 0x20};
+
+  uint64_t dst[6] = {0, 0, 0, 0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, dst_base);
+  __ Mov(x19, src_base);
+  __ Mov(x20, dst_base);
+  __ Mov(x21, src_base);
+  __ Mov(x22, dst_base);
+  __ Ldr(q0, MemOperand(x17, 16));
+  __ Str(q0, MemOperand(x18, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Str(q1, MemOperand(x20, 32, PreIndex));
+  __ Ldr(q2, MemOperand(x21, 32, PreIndex));
+  __ Str(q2, MemOperand(x22, 16));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0xf0debc9a78563412, 0x0fedcba987654321, q0);
+  CHECK_EQUAL_64(0x0fedcba987654321, dst[0]);
+  CHECK_EQUAL_64(0xf0debc9a78563412, dst[1]);
+  CHECK_EQUAL_128(0xefcdab8967452301, 0xfedcba9876543210, q1);
+  CHECK_EQUAL_64(0xfedcba9876543210, dst[4]);
+  CHECK_EQUAL_64(0xefcdab8967452301, dst[5]);
+  CHECK_EQUAL_128(0x200eeccaa8866442, 0x02e0ceac8a684624, q2);
+  CHECK_EQUAL_64(0x02e0ceac8a684624, dst[2]);
+  CHECK_EQUAL_64(0x200eeccaa8866442, dst[3]);
+  CHECK_EQUAL_64(src_base, x17);
+  CHECK_EQUAL_64(dst_base + 16, x18);
+  CHECK_EQUAL_64(src_base + 16, x19);
+  CHECK_EQUAL_64(dst_base + 32, x20);
+  CHECK_EQUAL_64(src_base + 32, x21);
+  CHECK_EQUAL_64(dst_base, x22);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld1_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[32 + 5];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ldr(q2, MemOperand(x17));  // Initialise top 64-bits of Q register.
+  __ Ld1(v2.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v3.V8B(), v4.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v5.V4H(), v6.V4H(), v7.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v16.V2S(), v17.V2S(), v18.V2S(), v19.V2S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v30.V2S(), v31.V2S(), v0.V2S(), v1.V2S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v20.V1D(), v21.V1D(), v22.V1D(), v23.V1D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0706050403020100, q2);
+  CHECK_EQUAL_128(0, 0x0807060504030201, q3);
+  CHECK_EQUAL_128(0, 0x100f0e0d0c0b0a09, q4);
+  CHECK_EQUAL_128(0, 0x0908070605040302, q5);
+  CHECK_EQUAL_128(0, 0x11100f0e0d0c0b0a, q6);
+  CHECK_EQUAL_128(0, 0x1918171615141312, q7);
+  CHECK_EQUAL_128(0, 0x0a09080706050403, q16);
+  CHECK_EQUAL_128(0, 0x1211100f0e0d0c0b, q17);
+  CHECK_EQUAL_128(0, 0x1a19181716151413, q18);
+  CHECK_EQUAL_128(0, 0x2221201f1e1d1c1b, q19);
+  CHECK_EQUAL_128(0, 0x0b0a090807060504, q30);
+  CHECK_EQUAL_128(0, 0x131211100f0e0d0c, q31);
+  CHECK_EQUAL_128(0, 0x1b1a191817161514, q0);
+  CHECK_EQUAL_128(0, 0x232221201f1e1d1c, q1);
+  CHECK_EQUAL_128(0, 0x0c0b0a0908070605, q20);
+  CHECK_EQUAL_128(0, 0x14131211100f0e0d, q21);
+  CHECK_EQUAL_128(0, 0x1c1b1a1918171615, q22);
+  CHECK_EQUAL_128(0, 0x24232221201f1e1d, q23);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld1_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[32 + 5];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, src_base + 5);
+  __ Mov(x23, 1);
+  __ Ldr(q2, MemOperand(x17));  // Initialise top 64-bits of Q register.
+  __ Ld1(v2.V8B(), MemOperand(x17, x23, PostIndex));
+  __ Ld1(v3.V8B(), v4.V8B(), MemOperand(x18, 16, PostIndex));
+  __ Ld1(v5.V4H(), v6.V4H(), v7.V4H(), MemOperand(x19, 24, PostIndex));
+  __ Ld1(v16.V2S(), v17.V2S(), v18.V2S(), v19.V2S(),
+         MemOperand(x20, 32, PostIndex));
+  __ Ld1(v30.V2S(), v31.V2S(), v0.V2S(), v1.V2S(),
+         MemOperand(x21, 32, PostIndex));
+  __ Ld1(v20.V1D(), v21.V1D(), v22.V1D(), v23.V1D(),
+         MemOperand(x22, 32, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0706050403020100, q2);
+  CHECK_EQUAL_128(0, 0x0807060504030201, q3);
+  CHECK_EQUAL_128(0, 0x100f0e0d0c0b0a09, q4);
+  CHECK_EQUAL_128(0, 0x0908070605040302, q5);
+  CHECK_EQUAL_128(0, 0x11100f0e0d0c0b0a, q6);
+  CHECK_EQUAL_128(0, 0x1918171615141312, q7);
+  CHECK_EQUAL_128(0, 0x0a09080706050403, q16);
+  CHECK_EQUAL_128(0, 0x1211100f0e0d0c0b, q17);
+  CHECK_EQUAL_128(0, 0x1a19181716151413, q18);
+  CHECK_EQUAL_128(0, 0x2221201f1e1d1c1b, q19);
+  CHECK_EQUAL_128(0, 0x0b0a090807060504, q30);
+  CHECK_EQUAL_128(0, 0x131211100f0e0d0c, q31);
+  CHECK_EQUAL_128(0, 0x1b1a191817161514, q0);
+  CHECK_EQUAL_128(0, 0x232221201f1e1d1c, q1);
+  CHECK_EQUAL_128(0, 0x0c0b0a0908070605, q20);
+  CHECK_EQUAL_128(0, 0x14131211100f0e0d, q21);
+  CHECK_EQUAL_128(0, 0x1c1b1a1918171615, q22);
+  CHECK_EQUAL_128(0, 0x24232221201f1e1d, q23);
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 16, x18);
+  CHECK_EQUAL_64(src_base + 2 + 24, x19);
+  CHECK_EQUAL_64(src_base + 3 + 32, x20);
+  CHECK_EQUAL_64(src_base + 4 + 32, x21);
+  CHECK_EQUAL_64(src_base + 5 + 32, x22);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld1_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld1(v2.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v3.V16B(), v4.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v5.V8H(), v6.V8H(), v7.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v16.V4S(), v17.V4S(), v18.V4S(), v19.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v30.V2D(), v31.V2D(), v0.V2D(), v1.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q2);
+  CHECK_EQUAL_128(0x100f0e0d0c0b0a09, 0x0807060504030201, q3);
+  CHECK_EQUAL_128(0x201f1e1d1c1b1a19, 0x1817161514131211, q4);
+  CHECK_EQUAL_128(0x11100f0e0d0c0b0a, 0x0908070605040302, q5);
+  CHECK_EQUAL_128(0x21201f1e1d1c1b1a, 0x1918171615141312, q6);
+  CHECK_EQUAL_128(0x31302f2e2d2c2b2a, 0x2928272625242322, q7);
+  CHECK_EQUAL_128(0x1211100f0e0d0c0b, 0x0a09080706050403, q16);
+  CHECK_EQUAL_128(0x2221201f1e1d1c1b, 0x1a19181716151413, q17);
+  CHECK_EQUAL_128(0x3231302f2e2d2c2b, 0x2a29282726252423, q18);
+  CHECK_EQUAL_128(0x4241403f3e3d3c3b, 0x3a39383736353433, q19);
+  CHECK_EQUAL_128(0x131211100f0e0d0c, 0x0b0a090807060504, q30);
+  CHECK_EQUAL_128(0x232221201f1e1d1c, 0x1b1a191817161514, q31);
+  CHECK_EQUAL_128(0x333231302f2e2d2c, 0x2b2a292827262524, q0);
+  CHECK_EQUAL_128(0x434241403f3e3d3c, 0x3b3a393837363534, q1);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld1_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+  __ Ld1(v2.V16B(), MemOperand(x17, x22, PostIndex));
+  __ Ld1(v3.V16B(), v4.V16B(), MemOperand(x18, 32, PostIndex));
+  __ Ld1(v5.V8H(), v6.V8H(), v7.V8H(), MemOperand(x19, 48, PostIndex));
+  __ Ld1(v16.V4S(), v17.V4S(), v18.V4S(), v19.V4S(),
+         MemOperand(x20, 64, PostIndex));
+  __ Ld1(v30.V2D(), v31.V2D(), v0.V2D(), v1.V2D(),
+         MemOperand(x21, 64, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q2);
+  CHECK_EQUAL_128(0x100f0e0d0c0b0a09, 0x0807060504030201, q3);
+  CHECK_EQUAL_128(0x201f1e1d1c1b1a19, 0x1817161514131211, q4);
+  CHECK_EQUAL_128(0x11100f0e0d0c0b0a, 0x0908070605040302, q5);
+  CHECK_EQUAL_128(0x21201f1e1d1c1b1a, 0x1918171615141312, q6);
+  CHECK_EQUAL_128(0x31302f2e2d2c2b2a, 0x2928272625242322, q7);
+  CHECK_EQUAL_128(0x1211100f0e0d0c0b, 0x0a09080706050403, q16);
+  CHECK_EQUAL_128(0x2221201f1e1d1c1b, 0x1a19181716151413, q17);
+  CHECK_EQUAL_128(0x3231302f2e2d2c2b, 0x2a29282726252423, q18);
+  CHECK_EQUAL_128(0x4241403f3e3d3c3b, 0x3a39383736353433, q19);
+  CHECK_EQUAL_128(0x131211100f0e0d0c, 0x0b0a090807060504, q30);
+  CHECK_EQUAL_128(0x232221201f1e1d1c, 0x1b1a191817161514, q31);
+  CHECK_EQUAL_128(0x333231302f2e2d2c, 0x2b2a292827262524, q0);
+  CHECK_EQUAL_128(0x434241403f3e3d3c, 0x3b3a393837363534, q1);
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 32, x18);
+  CHECK_EQUAL_64(src_base + 2 + 48, x19);
+  CHECK_EQUAL_64(src_base + 3 + 64, x20);
+  CHECK_EQUAL_64(src_base + 4 + 64, x21);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld1_lane) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+
+  // Test loading whole register by element.
+  __ Mov(x17, src_base);
+  for (int i = 15; i >= 0; i--) {
+    __ Ld1(v0.B(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 7; i >= 0; i--) {
+    __ Ld1(v1.H(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 3; i >= 0; i--) {
+    __ Ld1(v2.S(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 1; i >= 0; i--) {
+    __ Ld1(v3.D(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x17, src_base);
+  __ Ldr(q4, MemOperand(x17));
+  __ Ld1(v4.B(), 4, MemOperand(x17));
+  __ Ldr(q5, MemOperand(x17));
+  __ Ld1(v5.H(), 3, MemOperand(x17));
+  __ Ldr(q6, MemOperand(x17));
+  __ Ld1(v6.S(), 2, MemOperand(x17));
+  __ Ldr(q7, MemOperand(x17));
+  __ Ld1(v7.D(), 1, MemOperand(x17));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q0);
+  CHECK_EQUAL_128(0x0100020103020403, 0x0504060507060807, q1);
+  CHECK_EQUAL_128(0x0302010004030201, 0x0504030206050403, q2);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0807060504030201, q3);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q4);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q5);
+  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q6);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q7);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld2_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld2(v2.V8B(), v3.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v4.V8B(), v5.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v6.V4H(), v7.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v31.V2S(), v0.V2S(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0e0c0a0806040200, q2);
+  CHECK_EQUAL_128(0, 0x0f0d0b0907050301, q3);
+  CHECK_EQUAL_128(0, 0x0f0d0b0907050301, q4);
+  CHECK_EQUAL_128(0, 0x100e0c0a08060402, q5);
+  CHECK_EQUAL_128(0, 0x0f0e0b0a07060302, q6);
+  CHECK_EQUAL_128(0, 0x11100d0c09080504, q7);
+  CHECK_EQUAL_128(0, 0x0e0d0c0b06050403, q31);
+  CHECK_EQUAL_128(0, 0x1211100f0a090807, q0);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld2_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[32 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+  __ Ld2(v2.V8B(), v3.V8B(), MemOperand(x17, x22, PostIndex));
+  __ Ld2(v4.V8B(), v5.V8B(), MemOperand(x18, 16, PostIndex));
+  __ Ld2(v5.V4H(), v6.V4H(), MemOperand(x19, 16, PostIndex));
+  __ Ld2(v16.V2S(), v17.V2S(), MemOperand(x20, 16, PostIndex));
+  __ Ld2(v31.V2S(), v0.V2S(), MemOperand(x21, 16, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0e0c0a0806040200, q2);
+  CHECK_EQUAL_128(0, 0x0f0d0b0907050301, q3);
+  CHECK_EQUAL_128(0, 0x0f0d0b0907050301, q4);
+  CHECK_EQUAL_128(0, 0x0f0e0b0a07060302, q5);
+  CHECK_EQUAL_128(0, 0x11100d0c09080504, q6);
+  CHECK_EQUAL_128(0, 0x0e0d0c0b06050403, q16);
+  CHECK_EQUAL_128(0, 0x1211100f0a090807, q17);
+  CHECK_EQUAL_128(0, 0x0f0e0d0c07060504, q31);
+  CHECK_EQUAL_128(0, 0x131211100b0a0908, q0);
+
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 16, x18);
+  CHECK_EQUAL_64(src_base + 2 + 16, x19);
+  CHECK_EQUAL_64(src_base + 3 + 16, x20);
+  CHECK_EQUAL_64(src_base + 4 + 16, x21);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld2_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld2(v2.V16B(), v3.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v4.V16B(), v5.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v6.V8H(), v7.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v16.V4S(), v17.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v31.V2D(), v0.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1e1c1a1816141210, 0x0e0c0a0806040200, q2);
+  CHECK_EQUAL_128(0x1f1d1b1917151311, 0x0f0d0b0907050301, q3);
+  CHECK_EQUAL_128(0x1f1d1b1917151311, 0x0f0d0b0907050301, q4);
+  CHECK_EQUAL_128(0x201e1c1a18161412, 0x100e0c0a08060402, q5);
+  CHECK_EQUAL_128(0x1f1e1b1a17161312, 0x0f0e0b0a07060302, q6);
+  CHECK_EQUAL_128(0x21201d1c19181514, 0x11100d0c09080504, q7);
+  CHECK_EQUAL_128(0x1e1d1c1b16151413, 0x0e0d0c0b06050403, q16);
+  CHECK_EQUAL_128(0x2221201f1a191817, 0x1211100f0a090807, q17);
+  CHECK_EQUAL_128(0x1b1a191817161514, 0x0b0a090807060504, q31);
+  CHECK_EQUAL_128(0x232221201f1e1d1c, 0x131211100f0e0d0c, q0);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld2_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+  __ Ld2(v2.V16B(), v3.V16B(), MemOperand(x17, x22, PostIndex));
+  __ Ld2(v4.V16B(), v5.V16B(), MemOperand(x18, 32, PostIndex));
+  __ Ld2(v6.V8H(), v7.V8H(), MemOperand(x19, 32, PostIndex));
+  __ Ld2(v16.V4S(), v17.V4S(), MemOperand(x20, 32, PostIndex));
+  __ Ld2(v31.V2D(), v0.V2D(), MemOperand(x21, 32, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1e1c1a1816141210, 0x0e0c0a0806040200, q2);
+  CHECK_EQUAL_128(0x1f1d1b1917151311, 0x0f0d0b0907050301, q3);
+  CHECK_EQUAL_128(0x1f1d1b1917151311, 0x0f0d0b0907050301, q4);
+  CHECK_EQUAL_128(0x201e1c1a18161412, 0x100e0c0a08060402, q5);
+  CHECK_EQUAL_128(0x1f1e1b1a17161312, 0x0f0e0b0a07060302, q6);
+  CHECK_EQUAL_128(0x21201d1c19181514, 0x11100d0c09080504, q7);
+  CHECK_EQUAL_128(0x1e1d1c1b16151413, 0x0e0d0c0b06050403, q16);
+  CHECK_EQUAL_128(0x2221201f1a191817, 0x1211100f0a090807, q17);
+  CHECK_EQUAL_128(0x1b1a191817161514, 0x0b0a090807060504, q31);
+  CHECK_EQUAL_128(0x232221201f1e1d1c, 0x131211100f0e0d0c, q0);
+
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 32, x18);
+  CHECK_EQUAL_64(src_base + 2 + 32, x19);
+  CHECK_EQUAL_64(src_base + 3 + 32, x20);
+  CHECK_EQUAL_64(src_base + 4 + 32, x21);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld2_lane) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+
+  // Test loading whole register by element.
+  __ Mov(x17, src_base);
+  for (int i = 15; i >= 0; i--) {
+    __ Ld2(v0.B(), v1.B(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 7; i >= 0; i--) {
+    __ Ld2(v2.H(), v3.H(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 3; i >= 0; i--) {
+    __ Ld2(v4.S(), v5.S(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 1; i >= 0; i--) {
+    __ Ld2(v6.D(), v7.D(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x17, src_base);
+  __ Mov(x4, x17);
+  __ Ldr(q8, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q9, MemOperand(x4));
+  __ Ld2(v8_.B(), v9.B(), 4, MemOperand(x17));
+  __ Mov(x5, x17);
+  __ Ldr(q10, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q11, MemOperand(x5));
+  __ Ld2(v10.H(), v11.H(), 3, MemOperand(x17));
+  __ Mov(x6, x17);
+  __ Ldr(q12, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q13, MemOperand(x6));
+  __ Ld2(v12.S(), v13.S(), 2, MemOperand(x17));
+  __ Mov(x7, x17);
+  __ Ldr(q14, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q15, MemOperand(x7));
+  __ Ld2(v14.D(), v15.D(), 1, MemOperand(x17));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q0);
+  CHECK_EQUAL_128(0x0102030405060708, 0x090a0b0c0d0e0f10, q1);
+  CHECK_EQUAL_128(0x0100020103020403, 0x0504060507060807, q2);
+  CHECK_EQUAL_128(0x0302040305040605, 0x0706080709080a09, q3);
+  CHECK_EQUAL_128(0x0302010004030201, 0x0504030206050403, q4);
+  CHECK_EQUAL_128(0x0706050408070605, 0x090807060a090807, q5);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0807060504030201, q6);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x100f0e0d0c0b0a09, q7);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q8);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716150113121110, q9);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q10);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0302151413121110, q11);
+  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q12);
+  CHECK_EQUAL_128(0x1f1e1d1c07060504, 0x1716151413121110, q13);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q14);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x1716151413121110, q15);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld2_lane_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Mov(x19, src_base);
+  __ Mov(x20, src_base);
+  __ Mov(x21, src_base);
+  __ Mov(x22, src_base);
+  __ Mov(x23, src_base);
+  __ Mov(x24, src_base);
+
+  // Test loading whole register by element.
+  for (int i = 15; i >= 0; i--) {
+    __ Ld2(v0.B(), v1.B(), i, MemOperand(x17, 2, PostIndex));
+  }
+
+  for (int i = 7; i >= 0; i--) {
+    __ Ld2(v2.H(), v3.H(), i, MemOperand(x18, 4, PostIndex));
+  }
+
+  for (int i = 3; i >= 0; i--) {
+    __ Ld2(v4.S(), v5.S(), i, MemOperand(x19, 8, PostIndex));
+  }
+
+  for (int i = 1; i >= 0; i--) {
+    __ Ld2(v6.D(), v7.D(), i, MemOperand(x20, 16, PostIndex));
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x25, 1);
+  __ Mov(x4, x21);
+  __ Ldr(q8, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q9, MemOperand(x4));
+  __ Ld2(v8_.B(), v9.B(), 4, MemOperand(x21, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x5, x22);
+  __ Ldr(q10, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q11, MemOperand(x5));
+  __ Ld2(v10.H(), v11.H(), 3, MemOperand(x22, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x6, x23);
+  __ Ldr(q12, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q13, MemOperand(x6));
+  __ Ld2(v12.S(), v13.S(), 2, MemOperand(x23, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x7, x24);
+  __ Ldr(q14, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q15, MemOperand(x7));
+  __ Ld2(v14.D(), v15.D(), 1, MemOperand(x24, x25, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x00020406080a0c0e, 0x10121416181a1c1e, q0);
+  CHECK_EQUAL_128(0x01030507090b0d0f, 0x11131517191b1d1f, q1);
+  CHECK_EQUAL_128(0x0100050409080d0c, 0x1110151419181d1c, q2);
+  CHECK_EQUAL_128(0x030207060b0a0f0e, 0x131217161b1a1f1e, q3);
+  CHECK_EQUAL_128(0x030201000b0a0908, 0x131211101b1a1918, q4);
+  CHECK_EQUAL_128(0x070605040f0e0d0c, 0x171615141f1e1d1c, q5);
+  CHECK_EQUAL_128(0x0706050403020100, 0x1716151413121110, q6);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x1f1e1d1c1b1a1918, q7);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q8);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716150113121110, q9);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q10);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0302151413121110, q11);
+  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q12);
+  CHECK_EQUAL_128(0x1f1e1d1c07060504, 0x1716151413121110, q13);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q14);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x1716151413121110, q15);
+
+  CHECK_EQUAL_64(src_base + 32, x17);
+  CHECK_EQUAL_64(src_base + 32, x18);
+  CHECK_EQUAL_64(src_base + 32, x19);
+  CHECK_EQUAL_64(src_base + 32, x20);
+  CHECK_EQUAL_64(src_base + 1, x21);
+  CHECK_EQUAL_64(src_base + 2, x22);
+  CHECK_EQUAL_64(src_base + 3, x23);
+  CHECK_EQUAL_64(src_base + 4, x24);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld2_alllanes) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x18, 1);
+  __ Ld2r(v0.V8B(), v1.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 2);
+  __ Ld2r(v2.V16B(), v3.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2r(v4.V4H(), v5.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2r(v6.V8H(), v7.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 4);
+  __ Ld2r(v8_.V2S(), v9.V2S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2r(v10.V4S(), v11.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 8);
+  __ Ld2r(v12.V2D(), v13.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0000000000000000, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0x0303030303030303, 0x0303030303030303, q2);
+  CHECK_EQUAL_128(0x0404040404040404, 0x0404040404040404, q3);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0504050405040504, q4);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0706070607060706, q5);
+  CHECK_EQUAL_128(0x0605060506050605, 0x0605060506050605, q6);
+  CHECK_EQUAL_128(0x0807080708070807, 0x0807080708070807, q7);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0c0b0a090c0b0a09, q8);
+  CHECK_EQUAL_128(0x0000000000000000, 0x100f0e0d100f0e0d, q9);
+  CHECK_EQUAL_128(0x0d0c0b0a0d0c0b0a, 0x0d0c0b0a0d0c0b0a, q10);
+  CHECK_EQUAL_128(0x11100f0e11100f0e, 0x11100f0e11100f0e, q11);
+  CHECK_EQUAL_128(0x1918171615141312, 0x1918171615141312, q12);
+  CHECK_EQUAL_128(0x21201f1e1d1c1b1a, 0x21201f1e1d1c1b1a, q13);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld2_alllanes_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x18, 1);
+  __ Ld2r(v0.V8B(), v1.V8B(), MemOperand(x17, 2, PostIndex));
+  __ Ld2r(v2.V16B(), v3.V16B(), MemOperand(x17, x18, PostIndex));
+  __ Ld2r(v4.V4H(), v5.V4H(), MemOperand(x17, x18, PostIndex));
+  __ Ld2r(v6.V8H(), v7.V8H(), MemOperand(x17, 4, PostIndex));
+  __ Ld2r(v8_.V2S(), v9.V2S(), MemOperand(x17, x18, PostIndex));
+  __ Ld2r(v10.V4S(), v11.V4S(), MemOperand(x17, 8, PostIndex));
+  __ Ld2r(v12.V2D(), v13.V2D(), MemOperand(x17, 16, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0000000000000000, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0x0303030303030303, 0x0303030303030303, q2);
+  CHECK_EQUAL_128(0x0404040404040404, 0x0404040404040404, q3);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0504050405040504, q4);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0706070607060706, q5);
+  CHECK_EQUAL_128(0x0605060506050605, 0x0605060506050605, q6);
+  CHECK_EQUAL_128(0x0807080708070807, 0x0807080708070807, q7);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0c0b0a090c0b0a09, q8);
+  CHECK_EQUAL_128(0x0000000000000000, 0x100f0e0d100f0e0d, q9);
+  CHECK_EQUAL_128(0x0d0c0b0a0d0c0b0a, 0x0d0c0b0a0d0c0b0a, q10);
+  CHECK_EQUAL_128(0x11100f0e11100f0e, 0x11100f0e11100f0e, q11);
+  CHECK_EQUAL_128(0x1918171615141312, 0x1918171615141312, q12);
+  CHECK_EQUAL_128(0x21201f1e1d1c1b1a, 0x21201f1e1d1c1b1a, q13);
+  CHECK_EQUAL_64(src_base + 34, x17);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld3_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld3(v2.V8B(), v3.V8B(), v4.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v5.V8B(), v6.V8B(), v7.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v8_.V4H(), v9.V4H(), v10.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v31.V2S(), v0.V2S(), v1.V2S(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x15120f0c09060300, q2);
+  CHECK_EQUAL_128(0, 0x1613100d0a070401, q3);
+  CHECK_EQUAL_128(0, 0x1714110e0b080502, q4);
+  CHECK_EQUAL_128(0, 0x1613100d0a070401, q5);
+  CHECK_EQUAL_128(0, 0x1714110e0b080502, q6);
+  CHECK_EQUAL_128(0, 0x1815120f0c090603, q7);
+  CHECK_EQUAL_128(0, 0x15140f0e09080302, q8);
+  CHECK_EQUAL_128(0, 0x171611100b0a0504, q9);
+  CHECK_EQUAL_128(0, 0x191813120d0c0706, q10);
+  CHECK_EQUAL_128(0, 0x1211100f06050403, q31);
+  CHECK_EQUAL_128(0, 0x161514130a090807, q0);
+  CHECK_EQUAL_128(0, 0x1a1918170e0d0c0b, q1);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld3_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[32 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+  __ Ld3(v2.V8B(), v3.V8B(), v4.V8B(), MemOperand(x17, x22, PostIndex));
+  __ Ld3(v5.V8B(), v6.V8B(), v7.V8B(), MemOperand(x18, 24, PostIndex));
+  __ Ld3(v8_.V4H(), v9.V4H(), v10.V4H(), MemOperand(x19, 24, PostIndex));
+  __ Ld3(v11.V2S(), v12.V2S(), v13.V2S(), MemOperand(x20, 24, PostIndex));
+  __ Ld3(v31.V2S(), v0.V2S(), v1.V2S(), MemOperand(x21, 24, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x15120f0c09060300, q2);
+  CHECK_EQUAL_128(0, 0x1613100d0a070401, q3);
+  CHECK_EQUAL_128(0, 0x1714110e0b080502, q4);
+  CHECK_EQUAL_128(0, 0x1613100d0a070401, q5);
+  CHECK_EQUAL_128(0, 0x1714110e0b080502, q6);
+  CHECK_EQUAL_128(0, 0x1815120f0c090603, q7);
+  CHECK_EQUAL_128(0, 0x15140f0e09080302, q8);
+  CHECK_EQUAL_128(0, 0x171611100b0a0504, q9);
+  CHECK_EQUAL_128(0, 0x191813120d0c0706, q10);
+  CHECK_EQUAL_128(0, 0x1211100f06050403, q11);
+  CHECK_EQUAL_128(0, 0x161514130a090807, q12);
+  CHECK_EQUAL_128(0, 0x1a1918170e0d0c0b, q13);
+  CHECK_EQUAL_128(0, 0x1312111007060504, q31);
+  CHECK_EQUAL_128(0, 0x171615140b0a0908, q0);
+  CHECK_EQUAL_128(0, 0x1b1a19180f0e0d0c, q1);
+
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 24, x18);
+  CHECK_EQUAL_64(src_base + 2 + 24, x19);
+  CHECK_EQUAL_64(src_base + 3 + 24, x20);
+  CHECK_EQUAL_64(src_base + 4 + 24, x21);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld3_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld3(v2.V16B(), v3.V16B(), v4.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v5.V16B(), v6.V16B(), v7.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v8_.V8H(), v9.V8H(), v10.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v11.V4S(), v12.V4S(), v13.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v31.V2D(), v0.V2D(), v1.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2d2a2724211e1b18, 0x15120f0c09060300, q2);
+  CHECK_EQUAL_128(0x2e2b2825221f1c19, 0x1613100d0a070401, q3);
+  CHECK_EQUAL_128(0x2f2c292623201d1a, 0x1714110e0b080502, q4);
+  CHECK_EQUAL_128(0x2e2b2825221f1c19, 0x1613100d0a070401, q5);
+  CHECK_EQUAL_128(0x2f2c292623201d1a, 0x1714110e0b080502, q6);
+  CHECK_EQUAL_128(0x302d2a2724211e1b, 0x1815120f0c090603, q7);
+  CHECK_EQUAL_128(0x2d2c272621201b1a, 0x15140f0e09080302, q8);
+  CHECK_EQUAL_128(0x2f2e292823221d1c, 0x171611100b0a0504, q9);
+  CHECK_EQUAL_128(0x31302b2a25241f1e, 0x191813120d0c0706, q10);
+  CHECK_EQUAL_128(0x2a2928271e1d1c1b, 0x1211100f06050403, q11);
+  CHECK_EQUAL_128(0x2e2d2c2b2221201f, 0x161514130a090807, q12);
+  CHECK_EQUAL_128(0x3231302f26252423, 0x1a1918170e0d0c0b, q13);
+  CHECK_EQUAL_128(0x232221201f1e1d1c, 0x0b0a090807060504, q31);
+  CHECK_EQUAL_128(0x2b2a292827262524, 0x131211100f0e0d0c, q0);
+  CHECK_EQUAL_128(0x333231302f2e2d2c, 0x1b1a191817161514, q1);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld3_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+
+  __ Ld3(v2.V16B(), v3.V16B(), v4.V16B(), MemOperand(x17, x22, PostIndex));
+  __ Ld3(v5.V16B(), v6.V16B(), v7.V16B(), MemOperand(x18, 48, PostIndex));
+  __ Ld3(v8_.V8H(), v9.V8H(), v10.V8H(), MemOperand(x19, 48, PostIndex));
+  __ Ld3(v11.V4S(), v12.V4S(), v13.V4S(), MemOperand(x20, 48, PostIndex));
+  __ Ld3(v31.V2D(), v0.V2D(), v1.V2D(), MemOperand(x21, 48, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2d2a2724211e1b18, 0x15120f0c09060300, q2);
+  CHECK_EQUAL_128(0x2e2b2825221f1c19, 0x1613100d0a070401, q3);
+  CHECK_EQUAL_128(0x2f2c292623201d1a, 0x1714110e0b080502, q4);
+  CHECK_EQUAL_128(0x2e2b2825221f1c19, 0x1613100d0a070401, q5);
+  CHECK_EQUAL_128(0x2f2c292623201d1a, 0x1714110e0b080502, q6);
+  CHECK_EQUAL_128(0x302d2a2724211e1b, 0x1815120f0c090603, q7);
+  CHECK_EQUAL_128(0x2d2c272621201b1a, 0x15140f0e09080302, q8);
+  CHECK_EQUAL_128(0x2f2e292823221d1c, 0x171611100b0a0504, q9);
+  CHECK_EQUAL_128(0x31302b2a25241f1e, 0x191813120d0c0706, q10);
+  CHECK_EQUAL_128(0x2a2928271e1d1c1b, 0x1211100f06050403, q11);
+  CHECK_EQUAL_128(0x2e2d2c2b2221201f, 0x161514130a090807, q12);
+  CHECK_EQUAL_128(0x3231302f26252423, 0x1a1918170e0d0c0b, q13);
+  CHECK_EQUAL_128(0x232221201f1e1d1c, 0x0b0a090807060504, q31);
+  CHECK_EQUAL_128(0x2b2a292827262524, 0x131211100f0e0d0c, q0);
+  CHECK_EQUAL_128(0x333231302f2e2d2c, 0x1b1a191817161514, q1);
+
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 48, x18);
+  CHECK_EQUAL_64(src_base + 2 + 48, x19);
+  CHECK_EQUAL_64(src_base + 3 + 48, x20);
+  CHECK_EQUAL_64(src_base + 4 + 48, x21);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld3_lane) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+
+  // Test loading whole register by element.
+  __ Mov(x17, src_base);
+  for (int i = 15; i >= 0; i--) {
+    __ Ld3(v0.B(), v1.B(), v2.B(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 7; i >= 0; i--) {
+    __ Ld3(v3.H(), v4.H(), v5.H(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 3; i >= 0; i--) {
+    __ Ld3(v6.S(), v7.S(), v8_.S(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 1; i >= 0; i--) {
+    __ Ld3(v9.D(), v10.D(), v11.D(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x17, src_base);
+  __ Mov(x4, x17);
+  __ Ldr(q12, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q13, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q14, MemOperand(x4));
+  __ Ld3(v12.B(), v13.B(), v14.B(), 4, MemOperand(x17));
+  __ Mov(x5, x17);
+  __ Ldr(q15, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q16, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q17, MemOperand(x5));
+  __ Ld3(v15.H(), v16.H(), v17.H(), 3, MemOperand(x17));
+  __ Mov(x6, x17);
+  __ Ldr(q18, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q19, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q20, MemOperand(x6));
+  __ Ld3(v18.S(), v19.S(), v20.S(), 2, MemOperand(x17));
+  __ Mov(x7, x17);
+  __ Ldr(q21, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q22, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q23, MemOperand(x7));
+  __ Ld3(v21.D(), v22.D(), v23.D(), 1, MemOperand(x17));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q0);
+  CHECK_EQUAL_128(0x0102030405060708, 0x090a0b0c0d0e0f10, q1);
+  CHECK_EQUAL_128(0x0203040506070809, 0x0a0b0c0d0e0f1011, q2);
+  CHECK_EQUAL_128(0x0100020103020403, 0x0504060507060807, q3);
+  CHECK_EQUAL_128(0x0302040305040605, 0x0706080709080a09, q4);
+  CHECK_EQUAL_128(0x0504060507060807, 0x09080a090b0a0c0b, q5);
+  CHECK_EQUAL_128(0x0302010004030201, 0x0504030206050403, q6);
+  CHECK_EQUAL_128(0x0706050408070605, 0x090807060a090807, q7);
+  CHECK_EQUAL_128(0x0b0a09080c0b0a09, 0x0d0c0b0a0e0d0c0b, q8);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0807060504030201, q9);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x100f0e0d0c0b0a09, q10);
+  CHECK_EQUAL_128(0x1716151413121110, 0x1817161514131211, q11);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q12);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716150113121110, q13);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726250223222120, q14);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q15);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0302151413121110, q16);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x0504252423222120, q17);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld3_lane_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+
+  // Test loading whole register by element.
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Mov(x19, src_base);
+  __ Mov(x20, src_base);
+  __ Mov(x21, src_base);
+  __ Mov(x22, src_base);
+  __ Mov(x23, src_base);
+  __ Mov(x24, src_base);
+  for (int i = 15; i >= 0; i--) {
+    __ Ld3(v0.B(), v1.B(), v2.B(), i, MemOperand(x17, 3, PostIndex));
+  }
+
+  for (int i = 7; i >= 0; i--) {
+    __ Ld3(v3.H(), v4.H(), v5.H(), i, MemOperand(x18, 6, PostIndex));
+  }
+
+  for (int i = 3; i >= 0; i--) {
+    __ Ld3(v6.S(), v7.S(), v8_.S(), i, MemOperand(x19, 12, PostIndex));
+  }
+
+  for (int i = 1; i >= 0; i--) {
+    __ Ld3(v9.D(), v10.D(), v11.D(), i, MemOperand(x20, 24, PostIndex));
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x25, 1);
+  __ Mov(x4, x21);
+  __ Ldr(q12, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q13, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q14, MemOperand(x4));
+  __ Ld3(v12.B(), v13.B(), v14.B(), 4, MemOperand(x21, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x5, x22);
+  __ Ldr(q15, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q16, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q17, MemOperand(x5));
+  __ Ld3(v15.H(), v16.H(), v17.H(), 3, MemOperand(x22, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x6, x23);
+  __ Ldr(q18, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q19, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q20, MemOperand(x6));
+  __ Ld3(v18.S(), v19.S(), v20.S(), 2, MemOperand(x23, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x7, x24);
+  __ Ldr(q21, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q22, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q23, MemOperand(x7));
+  __ Ld3(v21.D(), v22.D(), v23.D(), 1, MemOperand(x24, x25, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x000306090c0f1215, 0x181b1e2124272a2d, q0);
+  CHECK_EQUAL_128(0x0104070a0d101316, 0x191c1f2225282b2e, q1);
+  CHECK_EQUAL_128(0x0205080b0e111417, 0x1a1d202326292c2f, q2);
+  CHECK_EQUAL_128(0x010007060d0c1312, 0x19181f1e25242b2a, q3);
+  CHECK_EQUAL_128(0x030209080f0e1514, 0x1b1a212027262d2c, q4);
+  CHECK_EQUAL_128(0x05040b0a11101716, 0x1d1c232229282f2e, q5);
+  CHECK_EQUAL_128(0x030201000f0e0d0c, 0x1b1a191827262524, q6);
+  CHECK_EQUAL_128(0x0706050413121110, 0x1f1e1d1c2b2a2928, q7);
+  CHECK_EQUAL_128(0x0b0a090817161514, 0x232221202f2e2d2c, q8);
+  CHECK_EQUAL_128(0x0706050403020100, 0x1f1e1d1c1b1a1918, q9);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x2726252423222120, q10);
+  CHECK_EQUAL_128(0x1716151413121110, 0x2f2e2d2c2b2a2928, q11);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q12);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716150113121110, q13);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726250223222120, q14);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q15);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0302151413121110, q16);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x0504252423222120, q17);
+  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q18);
+  CHECK_EQUAL_128(0x1f1e1d1c07060504, 0x1716151413121110, q19);
+  CHECK_EQUAL_128(0x2f2e2d2c0b0a0908, 0x2726252423222120, q20);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q21);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x1716151413121110, q22);
+  CHECK_EQUAL_128(0x1716151413121110, 0x2726252423222120, q23);
+
+  CHECK_EQUAL_64(src_base + 48, x17);
+  CHECK_EQUAL_64(src_base + 48, x18);
+  CHECK_EQUAL_64(src_base + 48, x19);
+  CHECK_EQUAL_64(src_base + 48, x20);
+  CHECK_EQUAL_64(src_base + 1, x21);
+  CHECK_EQUAL_64(src_base + 2, x22);
+  CHECK_EQUAL_64(src_base + 3, x23);
+  CHECK_EQUAL_64(src_base + 4, x24);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld3_alllanes) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x18, 1);
+  __ Ld3r(v0.V8B(), v1.V8B(), v2.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 3);
+  __ Ld3r(v3.V16B(), v4.V16B(), v5.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3r(v6.V4H(), v7.V4H(), v8_.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3r(v9.V8H(), v10.V8H(), v11.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 6);
+  __ Ld3r(v12.V2S(), v13.V2S(), v14.V2S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3r(v15.V4S(), v16.V4S(), v17.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 12);
+  __ Ld3r(v18.V2D(), v19.V2D(), v20.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0000000000000000, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0303030303030303, q2);
+  CHECK_EQUAL_128(0x0404040404040404, 0x0404040404040404, q3);
+  CHECK_EQUAL_128(0x0505050505050505, 0x0505050505050505, q4);
+  CHECK_EQUAL_128(0x0606060606060606, 0x0606060606060606, q5);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0605060506050605, q6);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0807080708070807, q7);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0a090a090a090a09, q8);
+  CHECK_EQUAL_128(0x0706070607060706, 0x0706070607060706, q9);
+  CHECK_EQUAL_128(0x0908090809080908, 0x0908090809080908, q10);
+  CHECK_EQUAL_128(0x0b0a0b0a0b0a0b0a, 0x0b0a0b0a0b0a0b0a, q11);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0f0e0d0c0f0e0d0c, q12);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1312111013121110, q13);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1716151417161514, q14);
+  CHECK_EQUAL_128(0x100f0e0d100f0e0d, 0x100f0e0d100f0e0d, q15);
+  CHECK_EQUAL_128(0x1413121114131211, 0x1413121114131211, q16);
+  CHECK_EQUAL_128(0x1817161518171615, 0x1817161518171615, q17);
+  CHECK_EQUAL_128(0x201f1e1d1c1b1a19, 0x201f1e1d1c1b1a19, q18);
+  CHECK_EQUAL_128(0x2827262524232221, 0x2827262524232221, q19);
+  CHECK_EQUAL_128(0x302f2e2d2c2b2a29, 0x302f2e2d2c2b2a29, q20);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld3_alllanes_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  __ Mov(x17, src_base + 1);
+  __ Mov(x18, 1);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x18, 1);
+  __ Ld3r(v0.V8B(), v1.V8B(), v2.V8B(), MemOperand(x17, 3, PostIndex));
+  __ Ld3r(v3.V16B(), v4.V16B(), v5.V16B(), MemOperand(x17, x18, PostIndex));
+  __ Ld3r(v6.V4H(), v7.V4H(), v8_.V4H(), MemOperand(x17, x18, PostIndex));
+  __ Ld3r(v9.V8H(), v10.V8H(), v11.V8H(), MemOperand(x17, 6, PostIndex));
+  __ Ld3r(v12.V2S(), v13.V2S(), v14.V2S(), MemOperand(x17, x18, PostIndex));
+  __ Ld3r(v15.V4S(), v16.V4S(), v17.V4S(), MemOperand(x17, 12, PostIndex));
+  __ Ld3r(v18.V2D(), v19.V2D(), v20.V2D(), MemOperand(x17, 24, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0000000000000000, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0303030303030303, q2);
+  CHECK_EQUAL_128(0x0404040404040404, 0x0404040404040404, q3);
+  CHECK_EQUAL_128(0x0505050505050505, 0x0505050505050505, q4);
+  CHECK_EQUAL_128(0x0606060606060606, 0x0606060606060606, q5);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0605060506050605, q6);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0807080708070807, q7);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0a090a090a090a09, q8);
+  CHECK_EQUAL_128(0x0706070607060706, 0x0706070607060706, q9);
+  CHECK_EQUAL_128(0x0908090809080908, 0x0908090809080908, q10);
+  CHECK_EQUAL_128(0x0b0a0b0a0b0a0b0a, 0x0b0a0b0a0b0a0b0a, q11);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0f0e0d0c0f0e0d0c, q12);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1312111013121110, q13);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1716151417161514, q14);
+  CHECK_EQUAL_128(0x100f0e0d100f0e0d, 0x100f0e0d100f0e0d, q15);
+  CHECK_EQUAL_128(0x1413121114131211, 0x1413121114131211, q16);
+  CHECK_EQUAL_128(0x1817161518171615, 0x1817161518171615, q17);
+  CHECK_EQUAL_128(0x201f1e1d1c1b1a19, 0x201f1e1d1c1b1a19, q18);
+  CHECK_EQUAL_128(0x2827262524232221, 0x2827262524232221, q19);
+  CHECK_EQUAL_128(0x302f2e2d2c2b2a29, 0x302f2e2d2c2b2a29, q20);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld4_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld4(v2.V8B(), v3.V8B(), v4.V8B(), v5.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v6.V8B(), v7.V8B(), v8_.V8B(), v9.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v10.V4H(), v11.V4H(), v12.V4H(), v13.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v30.V2S(), v31.V2S(), v0.V2S(), v1.V2S(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x1c1814100c080400, q2);
+  CHECK_EQUAL_128(0, 0x1d1915110d090501, q3);
+  CHECK_EQUAL_128(0, 0x1e1a16120e0a0602, q4);
+  CHECK_EQUAL_128(0, 0x1f1b17130f0b0703, q5);
+  CHECK_EQUAL_128(0, 0x1d1915110d090501, q6);
+  CHECK_EQUAL_128(0, 0x1e1a16120e0a0602, q7);
+  CHECK_EQUAL_128(0, 0x1f1b17130f0b0703, q8);
+  CHECK_EQUAL_128(0, 0x201c1814100c0804, q9);
+  CHECK_EQUAL_128(0, 0x1b1a13120b0a0302, q10);
+  CHECK_EQUAL_128(0, 0x1d1c15140d0c0504, q11);
+  CHECK_EQUAL_128(0, 0x1f1e17160f0e0706, q12);
+  CHECK_EQUAL_128(0, 0x2120191811100908, q13);
+  CHECK_EQUAL_128(0, 0x1615141306050403, q30);
+  CHECK_EQUAL_128(0, 0x1a1918170a090807, q31);
+  CHECK_EQUAL_128(0, 0x1e1d1c1b0e0d0c0b, q0);
+  CHECK_EQUAL_128(0, 0x2221201f1211100f, q1);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld4_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[32 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+  __ Ld4(v2.V8B(), v3.V8B(), v4.V8B(), v5.V8B(),
+         MemOperand(x17, x22, PostIndex));
+  __ Ld4(v6.V8B(), v7.V8B(), v8_.V8B(), v9.V8B(),
+         MemOperand(x18, 32, PostIndex));
+  __ Ld4(v10.V4H(), v11.V4H(), v12.V4H(), v13.V4H(),
+         MemOperand(x19, 32, PostIndex));
+  __ Ld4(v14.V2S(), v15.V2S(), v16.V2S(), v17.V2S(),
+         MemOperand(x20, 32, PostIndex));
+  __ Ld4(v30.V2S(), v31.V2S(), v0.V2S(), v1.V2S(),
+         MemOperand(x21, 32, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x1c1814100c080400, q2);
+  CHECK_EQUAL_128(0, 0x1d1915110d090501, q3);
+  CHECK_EQUAL_128(0, 0x1e1a16120e0a0602, q4);
+  CHECK_EQUAL_128(0, 0x1f1b17130f0b0703, q5);
+  CHECK_EQUAL_128(0, 0x1d1915110d090501, q6);
+  CHECK_EQUAL_128(0, 0x1e1a16120e0a0602, q7);
+  CHECK_EQUAL_128(0, 0x1f1b17130f0b0703, q8);
+  CHECK_EQUAL_128(0, 0x201c1814100c0804, q9);
+  CHECK_EQUAL_128(0, 0x1b1a13120b0a0302, q10);
+  CHECK_EQUAL_128(0, 0x1d1c15140d0c0504, q11);
+  CHECK_EQUAL_128(0, 0x1f1e17160f0e0706, q12);
+  CHECK_EQUAL_128(0, 0x2120191811100908, q13);
+  CHECK_EQUAL_128(0, 0x1615141306050403, q14);
+  CHECK_EQUAL_128(0, 0x1a1918170a090807, q15);
+  CHECK_EQUAL_128(0, 0x1e1d1c1b0e0d0c0b, q16);
+  CHECK_EQUAL_128(0, 0x2221201f1211100f, q17);
+  CHECK_EQUAL_128(0, 0x1716151407060504, q30);
+  CHECK_EQUAL_128(0, 0x1b1a19180b0a0908, q31);
+  CHECK_EQUAL_128(0, 0x1f1e1d1c0f0e0d0c, q0);
+  CHECK_EQUAL_128(0, 0x2322212013121110, q1);
+
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 32, x18);
+  CHECK_EQUAL_64(src_base + 2 + 32, x19);
+  CHECK_EQUAL_64(src_base + 3 + 32, x20);
+  CHECK_EQUAL_64(src_base + 4 + 32, x21);
+  TEARDOWN();
+}
+
+TEST(neon_ld4_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld4(v2.V16B(), v3.V16B(), v4.V16B(), v5.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v6.V16B(), v7.V16B(), v8_.V16B(), v9.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v10.V8H(), v11.V8H(), v12.V8H(), v13.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v14.V4S(), v15.V4S(), v16.V4S(), v17.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v18.V2D(), v19.V2D(), v20.V2D(), v21.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x3c3834302c282420, 0x1c1814100c080400, q2);
+  CHECK_EQUAL_128(0x3d3935312d292521, 0x1d1915110d090501, q3);
+  CHECK_EQUAL_128(0x3e3a36322e2a2622, 0x1e1a16120e0a0602, q4);
+  CHECK_EQUAL_128(0x3f3b37332f2b2723, 0x1f1b17130f0b0703, q5);
+  CHECK_EQUAL_128(0x3d3935312d292521, 0x1d1915110d090501, q6);
+  CHECK_EQUAL_128(0x3e3a36322e2a2622, 0x1e1a16120e0a0602, q7);
+  CHECK_EQUAL_128(0x3f3b37332f2b2723, 0x1f1b17130f0b0703, q8);
+  CHECK_EQUAL_128(0x403c3834302c2824, 0x201c1814100c0804, q9);
+  CHECK_EQUAL_128(0x3b3a33322b2a2322, 0x1b1a13120b0a0302, q10);
+  CHECK_EQUAL_128(0x3d3c35342d2c2524, 0x1d1c15140d0c0504, q11);
+  CHECK_EQUAL_128(0x3f3e37362f2e2726, 0x1f1e17160f0e0706, q12);
+  CHECK_EQUAL_128(0x4140393831302928, 0x2120191811100908, q13);
+  CHECK_EQUAL_128(0x3635343326252423, 0x1615141306050403, q14);
+  CHECK_EQUAL_128(0x3a3938372a292827, 0x1a1918170a090807, q15);
+  CHECK_EQUAL_128(0x3e3d3c3b2e2d2c2b, 0x1e1d1c1b0e0d0c0b, q16);
+  CHECK_EQUAL_128(0x4241403f3231302f, 0x2221201f1211100f, q17);
+  CHECK_EQUAL_128(0x2b2a292827262524, 0x0b0a090807060504, q18);
+  CHECK_EQUAL_128(0x333231302f2e2d2c, 0x131211100f0e0d0c, q19);
+  CHECK_EQUAL_128(0x3b3a393837363534, 0x1b1a191817161514, q20);
+  CHECK_EQUAL_128(0x434241403f3e3d3c, 0x232221201f1e1d1c, q21);
+  TEARDOWN();
+}
+
+TEST(neon_ld4_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+
+  __ Ld4(v2.V16B(), v3.V16B(), v4.V16B(), v5.V16B(),
+         MemOperand(x17, x22, PostIndex));
+  __ Ld4(v6.V16B(), v7.V16B(), v8_.V16B(), v9.V16B(),
+         MemOperand(x18, 64, PostIndex));
+  __ Ld4(v10.V8H(), v11.V8H(), v12.V8H(), v13.V8H(),
+         MemOperand(x19, 64, PostIndex));
+  __ Ld4(v14.V4S(), v15.V4S(), v16.V4S(), v17.V4S(),
+         MemOperand(x20, 64, PostIndex));
+  __ Ld4(v30.V2D(), v31.V2D(), v0.V2D(), v1.V2D(),
+         MemOperand(x21, 64, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x3c3834302c282420, 0x1c1814100c080400, q2);
+  CHECK_EQUAL_128(0x3d3935312d292521, 0x1d1915110d090501, q3);
+  CHECK_EQUAL_128(0x3e3a36322e2a2622, 0x1e1a16120e0a0602, q4);
+  CHECK_EQUAL_128(0x3f3b37332f2b2723, 0x1f1b17130f0b0703, q5);
+  CHECK_EQUAL_128(0x3d3935312d292521, 0x1d1915110d090501, q6);
+  CHECK_EQUAL_128(0x3e3a36322e2a2622, 0x1e1a16120e0a0602, q7);
+  CHECK_EQUAL_128(0x3f3b37332f2b2723, 0x1f1b17130f0b0703, q8);
+  CHECK_EQUAL_128(0x403c3834302c2824, 0x201c1814100c0804, q9);
+  CHECK_EQUAL_128(0x3b3a33322b2a2322, 0x1b1a13120b0a0302, q10);
+  CHECK_EQUAL_128(0x3d3c35342d2c2524, 0x1d1c15140d0c0504, q11);
+  CHECK_EQUAL_128(0x3f3e37362f2e2726, 0x1f1e17160f0e0706, q12);
+  CHECK_EQUAL_128(0x4140393831302928, 0x2120191811100908, q13);
+  CHECK_EQUAL_128(0x3635343326252423, 0x1615141306050403, q14);
+  CHECK_EQUAL_128(0x3a3938372a292827, 0x1a1918170a090807, q15);
+  CHECK_EQUAL_128(0x3e3d3c3b2e2d2c2b, 0x1e1d1c1b0e0d0c0b, q16);
+  CHECK_EQUAL_128(0x4241403f3231302f, 0x2221201f1211100f, q17);
+  CHECK_EQUAL_128(0x2b2a292827262524, 0x0b0a090807060504, q30);
+  CHECK_EQUAL_128(0x333231302f2e2d2c, 0x131211100f0e0d0c, q31);
+  CHECK_EQUAL_128(0x3b3a393837363534, 0x1b1a191817161514, q0);
+  CHECK_EQUAL_128(0x434241403f3e3d3c, 0x232221201f1e1d1c, q1);
+
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 64, x18);
+  CHECK_EQUAL_64(src_base + 2 + 64, x19);
+  CHECK_EQUAL_64(src_base + 3 + 64, x20);
+  CHECK_EQUAL_64(src_base + 4 + 64, x21);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld4_lane) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+
+  // Test loading whole register by element.
+  __ Mov(x17, src_base);
+  for (int i = 15; i >= 0; i--) {
+    __ Ld4(v0.B(), v1.B(), v2.B(), v3.B(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 7; i >= 0; i--) {
+    __ Ld4(v4.H(), v5.H(), v6.H(), v7.H(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 3; i >= 0; i--) {
+    __ Ld4(v8_.S(), v9.S(), v10.S(), v11.S(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 1; i >= 0; i--) {
+    __ Ld4(v12.D(), v13.D(), v14.D(), v15.D(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x17, src_base);
+  __ Mov(x4, x17);
+  __ Ldr(q16, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q17, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q18, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q19, MemOperand(x4));
+  __ Ld4(v16.B(), v17.B(), v18.B(), v19.B(), 4, MemOperand(x17));
+
+  __ Mov(x5, x17);
+  __ Ldr(q20, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q21, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q22, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q23, MemOperand(x5));
+  __ Ld4(v20.H(), v21.H(), v22.H(), v23.H(), 3, MemOperand(x17));
+
+  __ Mov(x6, x17);
+  __ Ldr(q24, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q25, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q26, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q27, MemOperand(x6));
+  __ Ld4(v24.S(), v25.S(), v26.S(), v27.S(), 2, MemOperand(x17));
+
+  __ Mov(x7, x17);
+  __ Ldr(q28, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q29, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q30, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q31, MemOperand(x7));
+  __ Ld4(v28.D(), v29.D(), v30.D(), v31.D(), 1, MemOperand(x17));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q0);
+  CHECK_EQUAL_128(0x0102030405060708, 0x090a0b0c0d0e0f10, q1);
+  CHECK_EQUAL_128(0x0203040506070809, 0x0a0b0c0d0e0f1011, q2);
+  CHECK_EQUAL_128(0x030405060708090a, 0x0b0c0d0e0f101112, q3);
+  CHECK_EQUAL_128(0x0100020103020403, 0x0504060507060807, q4);
+  CHECK_EQUAL_128(0x0302040305040605, 0x0706080709080a09, q5);
+  CHECK_EQUAL_128(0x0504060507060807, 0x09080a090b0a0c0b, q6);
+  CHECK_EQUAL_128(0x0706080709080a09, 0x0b0a0c0b0d0c0e0d, q7);
+  CHECK_EQUAL_128(0x0302010004030201, 0x0504030206050403, q8);
+  CHECK_EQUAL_128(0x0706050408070605, 0x090807060a090807, q9);
+  CHECK_EQUAL_128(0x0b0a09080c0b0a09, 0x0d0c0b0a0e0d0c0b, q10);
+  CHECK_EQUAL_128(0x0f0e0d0c100f0e0d, 0x11100f0e1211100f, q11);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0807060504030201, q12);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x100f0e0d0c0b0a09, q13);
+  CHECK_EQUAL_128(0x1716151413121110, 0x1817161514131211, q14);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x201f1e1d1c1b1a19, q15);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q16);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716150113121110, q17);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726250223222120, q18);
+  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736350333323130, q19);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q20);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0302151413121110, q21);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x0504252423222120, q22);
+  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x0706353433323130, q23);
+  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q24);
+  CHECK_EQUAL_128(0x1f1e1d1c07060504, 0x1716151413121110, q25);
+  CHECK_EQUAL_128(0x2f2e2d2c0b0a0908, 0x2726252423222120, q26);
+  CHECK_EQUAL_128(0x3f3e3d3c0f0e0d0c, 0x3736353433323130, q27);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q28);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x1716151413121110, q29);
+  CHECK_EQUAL_128(0x1716151413121110, 0x2726252423222120, q30);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x3736353433323130, q31);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld4_lane_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+
+  // Test loading whole register by element.
+  __ Mov(x17, src_base);
+  for (int i = 15; i >= 0; i--) {
+    __ Ld4(v0.B(), v1.B(), v2.B(), v3.B(), i, MemOperand(x17, 4, PostIndex));
+  }
+
+  __ Mov(x18, src_base);
+  for (int i = 7; i >= 0; i--) {
+    __ Ld4(v4.H(), v5.H(), v6.H(), v7.H(), i, MemOperand(x18, 8, PostIndex));
+  }
+
+  __ Mov(x19, src_base);
+  for (int i = 3; i >= 0; i--) {
+    __ Ld4(v8_.S(), v9.S(), v10.S(), v11.S(), i,
+           MemOperand(x19, 16, PostIndex));
+  }
+
+  __ Mov(x20, src_base);
+  for (int i = 1; i >= 0; i--) {
+    __ Ld4(v12.D(), v13.D(), v14.D(), v15.D(), i,
+           MemOperand(x20, 32, PostIndex));
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x25, 1);
+  __ Mov(x21, src_base);
+  __ Mov(x22, src_base);
+  __ Mov(x23, src_base);
+  __ Mov(x24, src_base);
+
+  __ Mov(x4, x21);
+  __ Ldr(q16, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q17, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q18, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q19, MemOperand(x4));
+  __ Ld4(v16.B(), v17.B(), v18.B(), v19.B(), 4,
+         MemOperand(x21, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x5, x22);
+  __ Ldr(q20, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q21, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q22, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q23, MemOperand(x5));
+  __ Ld4(v20.H(), v21.H(), v22.H(), v23.H(), 3,
+         MemOperand(x22, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x6, x23);
+  __ Ldr(q24, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q25, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q26, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q27, MemOperand(x6));
+  __ Ld4(v24.S(), v25.S(), v26.S(), v27.S(), 2,
+         MemOperand(x23, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x7, x24);
+  __ Ldr(q28, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q29, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q30, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q31, MemOperand(x7));
+  __ Ld4(v28.D(), v29.D(), v30.D(), v31.D(), 1,
+         MemOperand(x24, x25, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0004080c1014181c, 0x2024282c3034383c, q0);
+  CHECK_EQUAL_128(0x0105090d1115191d, 0x2125292d3135393d, q1);
+  CHECK_EQUAL_128(0x02060a0e12161a1e, 0x22262a2e32363a3e, q2);
+  CHECK_EQUAL_128(0x03070b0f13171b1f, 0x23272b2f33373b3f, q3);
+  CHECK_EQUAL_128(0x0100090811101918, 0x2120292831303938, q4);
+  CHECK_EQUAL_128(0x03020b0a13121b1a, 0x23222b2a33323b3a, q5);
+  CHECK_EQUAL_128(0x05040d0c15141d1c, 0x25242d2c35343d3c, q6);
+  CHECK_EQUAL_128(0x07060f0e17161f1e, 0x27262f2e37363f3e, q7);
+  CHECK_EQUAL_128(0x0302010013121110, 0x2322212033323130, q8);
+  CHECK_EQUAL_128(0x0706050417161514, 0x2726252437363534, q9);
+  CHECK_EQUAL_128(0x0b0a09081b1a1918, 0x2b2a29283b3a3938, q10);
+  CHECK_EQUAL_128(0x0f0e0d0c1f1e1d1c, 0x2f2e2d2c3f3e3d3c, q11);
+  CHECK_EQUAL_128(0x0706050403020100, 0x2726252423222120, q12);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x2f2e2d2c2b2a2928, q13);
+  CHECK_EQUAL_128(0x1716151413121110, 0x3736353433323130, q14);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x3f3e3d3c3b3a3938, q15);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q16);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716150113121110, q17);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726250223222120, q18);
+  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736350333323130, q19);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q20);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0302151413121110, q21);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x0504252423222120, q22);
+  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x0706353433323130, q23);
+  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q24);
+  CHECK_EQUAL_128(0x1f1e1d1c07060504, 0x1716151413121110, q25);
+  CHECK_EQUAL_128(0x2f2e2d2c0b0a0908, 0x2726252423222120, q26);
+  CHECK_EQUAL_128(0x3f3e3d3c0f0e0d0c, 0x3736353433323130, q27);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q28);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x1716151413121110, q29);
+  CHECK_EQUAL_128(0x1716151413121110, 0x2726252423222120, q30);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x3736353433323130, q31);
+
+  CHECK_EQUAL_64(src_base + 64, x17);
+  CHECK_EQUAL_64(src_base + 64, x18);
+  CHECK_EQUAL_64(src_base + 64, x19);
+  CHECK_EQUAL_64(src_base + 64, x20);
+  CHECK_EQUAL_64(src_base + 1, x21);
+  CHECK_EQUAL_64(src_base + 2, x22);
+  CHECK_EQUAL_64(src_base + 3, x23);
+  CHECK_EQUAL_64(src_base + 4, x24);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld4_alllanes) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x18, 1);
+  __ Ld4r(v0.V8B(), v1.V8B(), v2.V8B(), v3.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 4);
+  __ Ld4r(v4.V16B(), v5.V16B(), v6.V16B(), v7.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4r(v8_.V4H(), v9.V4H(), v10.V4H(), v11.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4r(v12.V8H(), v13.V8H(), v14.V8H(), v15.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 8);
+  __ Ld4r(v16.V2S(), v17.V2S(), v18.V2S(), v19.V2S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4r(v20.V4S(), v21.V4S(), v22.V4S(), v23.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 16);
+  __ Ld4r(v24.V2D(), v25.V2D(), v26.V2D(), v27.V2D(), MemOperand(x17));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0000000000000000, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0303030303030303, q2);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0404040404040404, q3);
+  CHECK_EQUAL_128(0x0505050505050505, 0x0505050505050505, q4);
+  CHECK_EQUAL_128(0x0606060606060606, 0x0606060606060606, q5);
+  CHECK_EQUAL_128(0x0707070707070707, 0x0707070707070707, q6);
+  CHECK_EQUAL_128(0x0808080808080808, 0x0808080808080808, q7);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0706070607060706, q8);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0908090809080908, q9);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0b0a0b0a0b0a0b0a, q10);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0d0c0d0c0d0c0d0c, q11);
+  CHECK_EQUAL_128(0x0807080708070807, 0x0807080708070807, q12);
+  CHECK_EQUAL_128(0x0a090a090a090a09, 0x0a090a090a090a09, q13);
+  CHECK_EQUAL_128(0x0c0b0c0b0c0b0c0b, 0x0c0b0c0b0c0b0c0b, q14);
+  CHECK_EQUAL_128(0x0e0d0e0d0e0d0e0d, 0x0e0d0e0d0e0d0e0d, q15);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1211100f1211100f, q16);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1615141316151413, q17);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1a1918171a191817, q18);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1e1d1c1b1e1d1c1b, q19);
+  CHECK_EQUAL_128(0x1312111013121110, 0x1312111013121110, q20);
+  CHECK_EQUAL_128(0x1716151417161514, 0x1716151417161514, q21);
+  CHECK_EQUAL_128(0x1b1a19181b1a1918, 0x1b1a19181b1a1918, q22);
+  CHECK_EQUAL_128(0x1f1e1d1c1f1e1d1c, 0x1f1e1d1c1f1e1d1c, q23);
+  CHECK_EQUAL_128(0x2726252423222120, 0x2726252423222120, q24);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2f2e2d2c2b2a2928, q25);
+  CHECK_EQUAL_128(0x3736353433323130, 0x3736353433323130, q26);
+  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3f3e3d3c3b3a3938, q27);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld4_alllanes_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  __ Mov(x17, src_base + 1);
+  __ Mov(x18, 1);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x18, 1);
+  __ Ld4r(v0.V8B(), v1.V8B(), v2.V8B(), v3.V8B(),
+          MemOperand(x17, 4, PostIndex));
+  __ Ld4r(v4.V16B(), v5.V16B(), v6.V16B(), v7.V16B(),
+          MemOperand(x17, x18, PostIndex));
+  __ Ld4r(v8_.V4H(), v9.V4H(), v10.V4H(), v11.V4H(),
+          MemOperand(x17, x18, PostIndex));
+  __ Ld4r(v12.V8H(), v13.V8H(), v14.V8H(), v15.V8H(),
+          MemOperand(x17, 8, PostIndex));
+  __ Ld4r(v16.V2S(), v17.V2S(), v18.V2S(), v19.V2S(),
+          MemOperand(x17, x18, PostIndex));
+  __ Ld4r(v20.V4S(), v21.V4S(), v22.V4S(), v23.V4S(),
+          MemOperand(x17, 16, PostIndex));
+  __ Ld4r(v24.V2D(), v25.V2D(), v26.V2D(), v27.V2D(),
+          MemOperand(x17, 32, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0000000000000000, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0303030303030303, q2);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0404040404040404, q3);
+  CHECK_EQUAL_128(0x0505050505050505, 0x0505050505050505, q4);
+  CHECK_EQUAL_128(0x0606060606060606, 0x0606060606060606, q5);
+  CHECK_EQUAL_128(0x0707070707070707, 0x0707070707070707, q6);
+  CHECK_EQUAL_128(0x0808080808080808, 0x0808080808080808, q7);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0706070607060706, q8);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0908090809080908, q9);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0b0a0b0a0b0a0b0a, q10);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0d0c0d0c0d0c0d0c, q11);
+  CHECK_EQUAL_128(0x0807080708070807, 0x0807080708070807, q12);
+  CHECK_EQUAL_128(0x0a090a090a090a09, 0x0a090a090a090a09, q13);
+  CHECK_EQUAL_128(0x0c0b0c0b0c0b0c0b, 0x0c0b0c0b0c0b0c0b, q14);
+  CHECK_EQUAL_128(0x0e0d0e0d0e0d0e0d, 0x0e0d0e0d0e0d0e0d, q15);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1211100f1211100f, q16);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1615141316151413, q17);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1a1918171a191817, q18);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1e1d1c1b1e1d1c1b, q19);
+  CHECK_EQUAL_128(0x1312111013121110, 0x1312111013121110, q20);
+  CHECK_EQUAL_128(0x1716151417161514, 0x1716151417161514, q21);
+  CHECK_EQUAL_128(0x1b1a19181b1a1918, 0x1b1a19181b1a1918, q22);
+  CHECK_EQUAL_128(0x1f1e1d1c1f1e1d1c, 0x1f1e1d1c1f1e1d1c, q23);
+  CHECK_EQUAL_128(0x2726252423222120, 0x2726252423222120, q24);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2f2e2d2c2b2a2928, q25);
+  CHECK_EQUAL_128(0x3736353433323130, 0x3736353433323130, q26);
+  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3f3e3d3c3b3a3938, q27);
+  CHECK_EQUAL_64(src_base + 64, x17);
+
+  TEARDOWN();
+}
+
+TEST(neon_st1_lane) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, -16);
+  __ Ldr(q0, MemOperand(x17));
+
+  for (int i = 15; i >= 0; i--) {
+    __ St1(v0.B(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+  __ Ldr(q1, MemOperand(x17, x18));
+
+  for (int i = 7; i >= 0; i--) {
+    __ St1(v0.H(), i, MemOperand(x17));
+    __ Add(x17, x17, 2);
+  }
+  __ Ldr(q2, MemOperand(x17, x18));
+
+  for (int i = 3; i >= 0; i--) {
+    __ St1(v0.S(), i, MemOperand(x17));
+    __ Add(x17, x17, 4);
+  }
+  __ Ldr(q3, MemOperand(x17, x18));
+
+  for (int i = 1; i >= 0; i--) {
+    __ St1(v0.D(), i, MemOperand(x17));
+    __ Add(x17, x17, 8);
+  }
+  __ Ldr(q4, MemOperand(x17, x18));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q1);
+  CHECK_EQUAL_128(0x0100030205040706, 0x09080b0a0d0c0f0e, q2);
+  CHECK_EQUAL_128(0x0302010007060504, 0x0b0a09080f0e0d0c, q3);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0f0e0d0c0b0a0908, q4);
+
+  TEARDOWN();
+}
+
+TEST(neon_st2_lane) {
+  INIT_V8();
+  SETUP();
+
+  // Struct size * addressing modes * element sizes * vector size.
+  uint8_t dst[2 * 2 * 4 * 16];
+  memset(dst, 0, sizeof(dst));
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, dst_base);
+  __ Mov(x18, dst_base);
+  __ Movi(v0.V2D(), 0x0001020304050607, 0x08090a0b0c0d0e0f);
+  __ Movi(v1.V2D(), 0x1011121314151617, 0x18191a1b1c1d1e1f);
+
+  // Test B stores with and without post index.
+  for (int i = 15; i >= 0; i--) {
+    __ St2(v0.B(), v1.B(), i, MemOperand(x18));
+    __ Add(x18, x18, 2);
+  }
+  for (int i = 15; i >= 0; i--) {
+    __ St2(v0.B(), v1.B(), i, MemOperand(x18, 2, PostIndex));
+  }
+  __ Ldr(q2, MemOperand(x17, 0 * 16));
+  __ Ldr(q3, MemOperand(x17, 1 * 16));
+  __ Ldr(q4, MemOperand(x17, 2 * 16));
+  __ Ldr(q5, MemOperand(x17, 3 * 16));
+
+  // Test H stores with and without post index.
+  __ Mov(x0, 4);
+  for (int i = 7; i >= 0; i--) {
+    __ St2(v0.H(), v1.H(), i, MemOperand(x18));
+    __ Add(x18, x18, 4);
+  }
+  for (int i = 7; i >= 0; i--) {
+    __ St2(v0.H(), v1.H(), i, MemOperand(x18, x0, PostIndex));
+  }
+  __ Ldr(q6, MemOperand(x17, 4 * 16));
+  __ Ldr(q7, MemOperand(x17, 5 * 16));
+  __ Ldr(q16, MemOperand(x17, 6 * 16));
+  __ Ldr(q17, MemOperand(x17, 7 * 16));
+
+  // Test S stores with and without post index.
+  for (int i = 3; i >= 0; i--) {
+    __ St2(v0.S(), v1.S(), i, MemOperand(x18));
+    __ Add(x18, x18, 8);
+  }
+  for (int i = 3; i >= 0; i--) {
+    __ St2(v0.S(), v1.S(), i, MemOperand(x18, 8, PostIndex));
+  }
+  __ Ldr(q18, MemOperand(x17, 8 * 16));
+  __ Ldr(q19, MemOperand(x17, 9 * 16));
+  __ Ldr(q20, MemOperand(x17, 10 * 16));
+  __ Ldr(q21, MemOperand(x17, 11 * 16));
+
+  // Test D stores with and without post index.
+  __ Mov(x0, 16);
+  __ St2(v0.D(), v1.D(), 1, MemOperand(x18));
+  __ Add(x18, x18, 16);
+  __ St2(v0.D(), v1.D(), 0, MemOperand(x18, 16, PostIndex));
+  __ St2(v0.D(), v1.D(), 1, MemOperand(x18, x0, PostIndex));
+  __ St2(v0.D(), v1.D(), 0, MemOperand(x18, x0, PostIndex));
+  __ Ldr(q22, MemOperand(x17, 12 * 16));
+  __ Ldr(q23, MemOperand(x17, 13 * 16));
+  __ Ldr(q24, MemOperand(x17, 14 * 16));
+  __ Ldr(q25, MemOperand(x17, 15 * 16));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1707160615051404, 0x1303120211011000, q2);
+  CHECK_EQUAL_128(0x1f0f1e0e1d0d1c0c, 0x1b0b1a0a19091808, q3);
+  CHECK_EQUAL_128(0x1707160615051404, 0x1303120211011000, q4);
+  CHECK_EQUAL_128(0x1f0f1e0e1d0d1c0c, 0x1b0b1a0a19091808, q5);
+
+  CHECK_EQUAL_128(0x1617060714150405, 0x1213020310110001, q6);
+  CHECK_EQUAL_128(0x1e1f0e0f1c1d0c0d, 0x1a1b0a0b18190809, q7);
+  CHECK_EQUAL_128(0x1617060714150405, 0x1213020310110001, q16);
+  CHECK_EQUAL_128(0x1e1f0e0f1c1d0c0d, 0x1a1b0a0b18190809, q17);
+
+  CHECK_EQUAL_128(0x1415161704050607, 0x1011121300010203, q18);
+  CHECK_EQUAL_128(0x1c1d1e1f0c0d0e0f, 0x18191a1b08090a0b, q19);
+  CHECK_EQUAL_128(0x1415161704050607, 0x1011121300010203, q20);
+  CHECK_EQUAL_128(0x1c1d1e1f0c0d0e0f, 0x18191a1b08090a0b, q21);
+
+  CHECK_EQUAL_128(0x1011121314151617, 0x0001020304050607, q22);
+  CHECK_EQUAL_128(0x18191a1b1c1d1e1f, 0x08090a0b0c0d0e0f, q23);
+  CHECK_EQUAL_128(0x1011121314151617, 0x0001020304050607, q22);
+  CHECK_EQUAL_128(0x18191a1b1c1d1e1f, 0x08090a0b0c0d0e0f, q23);
+
+  TEARDOWN();
+}
+
+TEST(neon_st3_lane) {
+  INIT_V8();
+  SETUP();
+
+  // Struct size * addressing modes * element sizes * vector size.
+  uint8_t dst[3 * 2 * 4 * 16];
+  memset(dst, 0, sizeof(dst));
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, dst_base);
+  __ Mov(x18, dst_base);
+  __ Movi(v0.V2D(), 0x0001020304050607, 0x08090a0b0c0d0e0f);
+  __ Movi(v1.V2D(), 0x1011121314151617, 0x18191a1b1c1d1e1f);
+  __ Movi(v2.V2D(), 0x2021222324252627, 0x28292a2b2c2d2e2f);
+
+  // Test B stores with and without post index.
+  for (int i = 15; i >= 0; i--) {
+    __ St3(v0.B(), v1.B(), v2.B(), i, MemOperand(x18));
+    __ Add(x18, x18, 3);
+  }
+  for (int i = 15; i >= 0; i--) {
+    __ St3(v0.B(), v1.B(), v2.B(), i, MemOperand(x18, 3, PostIndex));
+  }
+  __ Ldr(q3, MemOperand(x17, 0 * 16));
+  __ Ldr(q4, MemOperand(x17, 1 * 16));
+  __ Ldr(q5, MemOperand(x17, 2 * 16));
+  __ Ldr(q6, MemOperand(x17, 3 * 16));
+  __ Ldr(q7, MemOperand(x17, 4 * 16));
+  __ Ldr(q16, MemOperand(x17, 5 * 16));
+
+  // Test H stores with and without post index.
+  __ Mov(x0, 6);
+  for (int i = 7; i >= 0; i--) {
+    __ St3(v0.H(), v1.H(), v2.H(), i, MemOperand(x18));
+    __ Add(x18, x18, 6);
+  }
+  for (int i = 7; i >= 0; i--) {
+    __ St3(v0.H(), v1.H(), v2.H(), i, MemOperand(x18, x0, PostIndex));
+  }
+  __ Ldr(q17, MemOperand(x17, 6 * 16));
+  __ Ldr(q18, MemOperand(x17, 7 * 16));
+  __ Ldr(q19, MemOperand(x17, 8 * 16));
+  __ Ldr(q20, MemOperand(x17, 9 * 16));
+  __ Ldr(q21, MemOperand(x17, 10 * 16));
+  __ Ldr(q22, MemOperand(x17, 11 * 16));
+
+  // Test S stores with and without post index.
+  for (int i = 3; i >= 0; i--) {
+    __ St3(v0.S(), v1.S(), v2.S(), i, MemOperand(x18));
+    __ Add(x18, x18, 12);
+  }
+  for (int i = 3; i >= 0; i--) {
+    __ St3(v0.S(), v1.S(), v2.S(), i, MemOperand(x18, 12, PostIndex));
+  }
+  __ Ldr(q23, MemOperand(x17, 12 * 16));
+  __ Ldr(q24, MemOperand(x17, 13 * 16));
+  __ Ldr(q25, MemOperand(x17, 14 * 16));
+  __ Ldr(q26, MemOperand(x17, 15 * 16));
+  __ Ldr(q27, MemOperand(x17, 16 * 16));
+  __ Ldr(q28, MemOperand(x17, 17 * 16));
+
+  // Test D stores with and without post index.
+  __ Mov(x0, 24);
+  __ St3(v0.D(), v1.D(), v2.D(), 1, MemOperand(x18));
+  __ Add(x18, x18, 24);
+  __ St3(v0.D(), v1.D(), v2.D(), 0, MemOperand(x18, 24, PostIndex));
+  __ St3(v0.D(), v1.D(), v2.D(), 1, MemOperand(x18, x0, PostIndex));
+  __ Ldr(q29, MemOperand(x17, 18 * 16));
+  __ Ldr(q30, MemOperand(x17, 19 * 16));
+  __ Ldr(q31, MemOperand(x17, 20 * 16));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0524140423130322, 0x1202211101201000, q3);
+  CHECK_EQUAL_128(0x1a0a291909281808, 0x2717072616062515, q4);
+  CHECK_EQUAL_128(0x2f1f0f2e1e0e2d1d, 0x0d2c1c0c2b1b0b2a, q5);
+  CHECK_EQUAL_128(0x0524140423130322, 0x1202211101201000, q6);
+  CHECK_EQUAL_128(0x1a0a291909281808, 0x2717072616062515, q7);
+  CHECK_EQUAL_128(0x2f1f0f2e1e0e2d1d, 0x0d2c1c0c2b1b0b2a, q16);
+
+  CHECK_EQUAL_128(0x1415040522231213, 0x0203202110110001, q17);
+  CHECK_EQUAL_128(0x0a0b282918190809, 0x2627161706072425, q18);
+  CHECK_EQUAL_128(0x2e2f1e1f0e0f2c2d, 0x1c1d0c0d2a2b1a1b, q19);
+  CHECK_EQUAL_128(0x1415040522231213, 0x0203202110110001, q20);
+  CHECK_EQUAL_128(0x0a0b282918190809, 0x2627161706072425, q21);
+  CHECK_EQUAL_128(0x2e2f1e1f0e0f2c2d, 0x1c1d0c0d2a2b1a1b, q22);
+
+  CHECK_EQUAL_128(0x0405060720212223, 0x1011121300010203, q23);
+  CHECK_EQUAL_128(0x18191a1b08090a0b, 0x2425262714151617, q24);
+  CHECK_EQUAL_128(0x2c2d2e2f1c1d1e1f, 0x0c0d0e0f28292a2b, q25);
+  CHECK_EQUAL_128(0x0405060720212223, 0x1011121300010203, q26);
+  CHECK_EQUAL_128(0x18191a1b08090a0b, 0x2425262714151617, q27);
+  CHECK_EQUAL_128(0x2c2d2e2f1c1d1e1f, 0x0c0d0e0f28292a2b, q28);
+
+  TEARDOWN();
+}
+
+TEST(neon_st4_lane) {
+  INIT_V8();
+  SETUP();
+
+  // Struct size * element sizes * vector size.
+  uint8_t dst[4 * 4 * 16];
+  memset(dst, 0, sizeof(dst));
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, dst_base);
+  __ Mov(x18, dst_base);
+  __ Movi(v0.V2D(), 0x0001020304050607, 0x08090a0b0c0d0e0f);
+  __ Movi(v1.V2D(), 0x1011121314151617, 0x18191a1b1c1d1e1f);
+  __ Movi(v2.V2D(), 0x2021222324252627, 0x28292a2b2c2d2e2f);
+  __ Movi(v3.V2D(), 0x2021222324252627, 0x28292a2b2c2d2e2f);
+
+  // Test B stores without post index.
+  for (int i = 15; i >= 0; i--) {
+    __ St4(v0.B(), v1.B(), v2.B(), v3.B(), i, MemOperand(x18));
+    __ Add(x18, x18, 4);
+  }
+  __ Ldr(q4, MemOperand(x17, 0 * 16));
+  __ Ldr(q5, MemOperand(x17, 1 * 16));
+  __ Ldr(q6, MemOperand(x17, 2 * 16));
+  __ Ldr(q7, MemOperand(x17, 3 * 16));
+
+  // Test H stores with post index.
+  __ Mov(x0, 8);
+  for (int i = 7; i >= 0; i--) {
+    __ St4(v0.H(), v1.H(), v2.H(), v3.H(), i, MemOperand(x18, x0, PostIndex));
+  }
+  __ Ldr(q16, MemOperand(x17, 4 * 16));
+  __ Ldr(q17, MemOperand(x17, 5 * 16));
+  __ Ldr(q18, MemOperand(x17, 6 * 16));
+  __ Ldr(q19, MemOperand(x17, 7 * 16));
+
+  // Test S stores without post index.
+  for (int i = 3; i >= 0; i--) {
+    __ St4(v0.S(), v1.S(), v2.S(), v3.S(), i, MemOperand(x18));
+    __ Add(x18, x18, 16);
+  }
+  __ Ldr(q20, MemOperand(x17, 8 * 16));
+  __ Ldr(q21, MemOperand(x17, 9 * 16));
+  __ Ldr(q22, MemOperand(x17, 10 * 16));
+  __ Ldr(q23, MemOperand(x17, 11 * 16));
+
+  // Test D stores with post index.
+  __ Mov(x0, 32);
+  __ St4(v0.D(), v1.D(), v2.D(), v3.D(), 0, MemOperand(x18, 32, PostIndex));
+  __ St4(v0.D(), v1.D(), v2.D(), v3.D(), 1, MemOperand(x18, x0, PostIndex));
+
+  __ Ldr(q24, MemOperand(x17, 12 * 16));
+  __ Ldr(q25, MemOperand(x17, 13 * 16));
+  __ Ldr(q26, MemOperand(x17, 14 * 16));
+  __ Ldr(q27, MemOperand(x17, 15 * 16));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2323130322221202, 0x2121110120201000, q4);
+  CHECK_EQUAL_128(0x2727170726261606, 0x2525150524241404, q5);
+  CHECK_EQUAL_128(0x2b2b1b0b2a2a1a0a, 0x2929190928281808, q6);
+  CHECK_EQUAL_128(0x2f2f1f0f2e2e1e0e, 0x2d2d1d0d2c2c1c0c, q7);
+
+  CHECK_EQUAL_128(0x2223222312130203, 0x2021202110110001, q16);
+  CHECK_EQUAL_128(0x2627262716170607, 0x2425242514150405, q17);
+  CHECK_EQUAL_128(0x2a2b2a2b1a1b0a0b, 0x2829282918190809, q18);
+  CHECK_EQUAL_128(0x2e2f2e2f1e1f0e0f, 0x2c2d2c2d1c1d0c0d, q19);
+
+  CHECK_EQUAL_128(0x2021222320212223, 0x1011121300010203, q20);
+  CHECK_EQUAL_128(0x2425262724252627, 0x1415161704050607, q21);
+  CHECK_EQUAL_128(0x28292a2b28292a2b, 0x18191a1b08090a0b, q22);
+  CHECK_EQUAL_128(0x2c2d2e2f2c2d2e2f, 0x1c1d1e1f0c0d0e0f, q23);
+
+  CHECK_EQUAL_128(0x18191a1b1c1d1e1f, 0x08090a0b0c0d0e0f, q24);
+  CHECK_EQUAL_128(0x28292a2b2c2d2e2f, 0x28292a2b2c2d2e2f, q25);
+  CHECK_EQUAL_128(0x1011121314151617, 0x0001020304050607, q26);
+  CHECK_EQUAL_128(0x2021222324252627, 0x2021222324252627, q27);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld1_lane_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Mov(x19, src_base);
+  __ Mov(x20, src_base);
+  __ Mov(x21, src_base);
+  __ Mov(x22, src_base);
+  __ Mov(x23, src_base);
+  __ Mov(x24, src_base);
+
+  // Test loading whole register by element.
+  for (int i = 15; i >= 0; i--) {
+    __ Ld1(v0.B(), i, MemOperand(x17, 1, PostIndex));
+  }
+
+  for (int i = 7; i >= 0; i--) {
+    __ Ld1(v1.H(), i, MemOperand(x18, 2, PostIndex));
+  }
+
+  for (int i = 3; i >= 0; i--) {
+    __ Ld1(v2.S(), i, MemOperand(x19, 4, PostIndex));
+  }
+
+  for (int i = 1; i >= 0; i--) {
+    __ Ld1(v3.D(), i, MemOperand(x20, 8, PostIndex));
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x25, 1);
+  __ Ldr(q4, MemOperand(x21));
+  __ Ld1(v4.B(), 4, MemOperand(x21, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Ldr(q5, MemOperand(x22));
+  __ Ld1(v5.H(), 3, MemOperand(x22, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Ldr(q6, MemOperand(x23));
+  __ Ld1(v6.S(), 2, MemOperand(x23, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Ldr(q7, MemOperand(x24));
+  __ Ld1(v7.D(), 1, MemOperand(x24, x25, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q0);
+  CHECK_EQUAL_128(0x0100030205040706, 0x09080b0a0d0c0f0e, q1);
+  CHECK_EQUAL_128(0x0302010007060504, 0x0b0a09080f0e0d0c, q2);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0f0e0d0c0b0a0908, q3);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q4);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q5);
+  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q6);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q7);
+  CHECK_EQUAL_64(src_base + 16, x17);
+  CHECK_EQUAL_64(src_base + 16, x18);
+  CHECK_EQUAL_64(src_base + 16, x19);
+  CHECK_EQUAL_64(src_base + 16, x20);
+  CHECK_EQUAL_64(src_base + 1, x21);
+  CHECK_EQUAL_64(src_base + 2, x22);
+  CHECK_EQUAL_64(src_base + 3, x23);
+  CHECK_EQUAL_64(src_base + 4, x24);
+
+  TEARDOWN();
+}
+
+TEST(neon_st1_lane_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, -16);
+  __ Ldr(q0, MemOperand(x17));
+
+  for (int i = 15; i >= 0; i--) {
+    __ St1(v0.B(), i, MemOperand(x17, 1, PostIndex));
+  }
+  __ Ldr(q1, MemOperand(x17, x18));
+
+  for (int i = 7; i >= 0; i--) {
+    __ St1(v0.H(), i, MemOperand(x17, 2, PostIndex));
+  }
+  __ Ldr(q2, MemOperand(x17, x18));
+
+  for (int i = 3; i >= 0; i--) {
+    __ St1(v0.S(), i, MemOperand(x17, 4, PostIndex));
+  }
+  __ Ldr(q3, MemOperand(x17, x18));
+
+  for (int i = 1; i >= 0; i--) {
+    __ St1(v0.D(), i, MemOperand(x17, 8, PostIndex));
+  }
+  __ Ldr(q4, MemOperand(x17, x18));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q1);
+  CHECK_EQUAL_128(0x0100030205040706, 0x09080b0a0d0c0f0e, q2);
+  CHECK_EQUAL_128(0x0302010007060504, 0x0b0a09080f0e0d0c, q3);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0f0e0d0c0b0a0908, q4);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld1_alllanes) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Ld1r(v0.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v1.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v2.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v3.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v4.V2S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v5.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v6.V1D(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v7.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0202020202020202, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0, 0x0403040304030403, q2);
+  CHECK_EQUAL_128(0x0504050405040504, 0x0504050405040504, q3);
+  CHECK_EQUAL_128(0, 0x0807060508070605, q4);
+  CHECK_EQUAL_128(0x0908070609080706, 0x0908070609080706, q5);
+  CHECK_EQUAL_128(0, 0x0e0d0c0b0a090807, q6);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0f0e0d0c0b0a0908, q7);
+
+  TEARDOWN();
+}
+
+TEST(neon_ld1_alllanes_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x18, 1);
+  __ Ld1r(v0.V8B(), MemOperand(x17, 1, PostIndex));
+  __ Ld1r(v1.V16B(), MemOperand(x17, x18, PostIndex));
+  __ Ld1r(v2.V4H(), MemOperand(x17, x18, PostIndex));
+  __ Ld1r(v3.V8H(), MemOperand(x17, 2, PostIndex));
+  __ Ld1r(v4.V2S(), MemOperand(x17, x18, PostIndex));
+  __ Ld1r(v5.V4S(), MemOperand(x17, 4, PostIndex));
+  __ Ld1r(v6.V2D(), MemOperand(x17, 8, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0202020202020202, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0, 0x0403040304030403, q2);
+  CHECK_EQUAL_128(0x0504050405040504, 0x0504050405040504, q3);
+  CHECK_EQUAL_128(0, 0x0908070609080706, q4);
+  CHECK_EQUAL_128(0x0a0908070a090807, 0x0a0908070a090807, q5);
+  CHECK_EQUAL_128(0x1211100f0e0d0c0b, 0x1211100f0e0d0c0b, q6);
+  CHECK_EQUAL_64(src_base + 19, x17);
+
+  TEARDOWN();
+}
+
+TEST(neon_st1_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[14 * kDRegSize];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+  __ Mov(x17, src_base);
+
+  __ St1(v0.V8B(), MemOperand(x17));
+  __ Ldr(d16, MemOperand(x17, 8, PostIndex));
+
+  __ St1(v0.V8B(), v1.V8B(), MemOperand(x17));
+  __ Ldr(q17, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V4H(), v1.V4H(), v2.V4H(), MemOperand(x17));
+  __ Ldr(d18, MemOperand(x17, 8, PostIndex));
+  __ Ldr(d19, MemOperand(x17, 8, PostIndex));
+  __ Ldr(d20, MemOperand(x17, 8, PostIndex));
+
+  __ St1(v0.V2S(), v1.V2S(), v2.V2S(), v3.V2S(), MemOperand(x17));
+  __ Ldr(q21, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q22, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V1D(), v1.V1D(), v2.V1D(), v3.V1D(), MemOperand(x17));
+  __ Ldr(q23, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q24, MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q0);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q1);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726252423222120, q2);
+  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736353433323130, q3);
+  CHECK_EQUAL_128(0, 0x0706050403020100, q16);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q17);
+  CHECK_EQUAL_128(0, 0x0706050403020100, q18);
+  CHECK_EQUAL_128(0, 0x1716151413121110, q19);
+  CHECK_EQUAL_128(0, 0x2726252423222120, q20);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q21);
+  CHECK_EQUAL_128(0x3736353433323130, 0x2726252423222120, q22);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q23);
+  CHECK_EQUAL_128(0x3736353433323130, 0x2726252423222120, q24);
+
+  TEARDOWN();
+}
+
+TEST(neon_st1_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 14 * kDRegSize];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, -8);
+  __ Mov(x19, -16);
+  __ Mov(x20, -24);
+  __ Mov(x21, -32);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+  __ Mov(x17, src_base);
+
+  __ St1(v0.V8B(), MemOperand(x17, 8, PostIndex));
+  __ Ldr(d16, MemOperand(x17, x18));
+
+  __ St1(v0.V8B(), v1.V8B(), MemOperand(x17, 16, PostIndex));
+  __ Ldr(q17, MemOperand(x17, x19));
+
+  __ St1(v0.V4H(), v1.V4H(), v2.V4H(), MemOperand(x17, 24, PostIndex));
+  __ Ldr(d18, MemOperand(x17, x20));
+  __ Ldr(d19, MemOperand(x17, x19));
+  __ Ldr(d20, MemOperand(x17, x18));
+
+  __ St1(v0.V2S(), v1.V2S(), v2.V2S(), v3.V2S(),
+         MemOperand(x17, 32, PostIndex));
+  __ Ldr(q21, MemOperand(x17, x21));
+  __ Ldr(q22, MemOperand(x17, x19));
+
+  __ St1(v0.V1D(), v1.V1D(), v2.V1D(), v3.V1D(),
+         MemOperand(x17, 32, PostIndex));
+  __ Ldr(q23, MemOperand(x17, x21));
+  __ Ldr(q24, MemOperand(x17, x19));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0706050403020100, q16);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q17);
+  CHECK_EQUAL_128(0, 0x0706050403020100, q18);
+  CHECK_EQUAL_128(0, 0x1716151413121110, q19);
+  CHECK_EQUAL_128(0, 0x2726252423222120, q20);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q21);
+  CHECK_EQUAL_128(0x3736353433323130, 0x2726252423222120, q22);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q23);
+  CHECK_EQUAL_128(0x3736353433323130, 0x2726252423222120, q24);
+
+  TEARDOWN();
+}
+
+TEST(neon_st1_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 160];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V16B(), MemOperand(x17));
+  __ Ldr(q16, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V8H(), v1.V8H(), MemOperand(x17));
+  __ Ldr(q17, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q18, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V4S(), v1.V4S(), v2.V4S(), MemOperand(x17));
+  __ Ldr(q19, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q20, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q21, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V2D(), v1.V2D(), v2.V2D(), v3.V2D(), MemOperand(x17));
+  __ Ldr(q22, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q23, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q24, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q25, MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q16);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q17);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q18);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q19);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q20);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726252423222120, q21);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q22);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q23);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726252423222120, q24);
+  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736353433323130, q25);
+
+  TEARDOWN();
+}
+
+TEST(neon_st1_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 160];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, -16);
+  __ Mov(x19, -32);
+  __ Mov(x20, -48);
+  __ Mov(x21, -64);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V16B(), MemOperand(x17, 16, PostIndex));
+  __ Ldr(q16, MemOperand(x17, x18));
+
+  __ St1(v0.V8H(), v1.V8H(), MemOperand(x17, 32, PostIndex));
+  __ Ldr(q17, MemOperand(x17, x19));
+  __ Ldr(q18, MemOperand(x17, x18));
+
+  __ St1(v0.V4S(), v1.V4S(), v2.V4S(), MemOperand(x17, 48, PostIndex));
+  __ Ldr(q19, MemOperand(x17, x20));
+  __ Ldr(q20, MemOperand(x17, x19));
+  __ Ldr(q21, MemOperand(x17, x18));
+
+  __ St1(v0.V2D(), v1.V2D(), v2.V2D(), v3.V2D(),
+         MemOperand(x17, 64, PostIndex));
+  __ Ldr(q22, MemOperand(x17, x21));
+  __ Ldr(q23, MemOperand(x17, x20));
+  __ Ldr(q24, MemOperand(x17, x19));
+  __ Ldr(q25, MemOperand(x17, x18));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q16);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q17);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q18);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q19);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q20);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726252423222120, q21);
+  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q22);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q23);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726252423222120, q24);
+  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736353433323130, q25);
+
+  TEARDOWN();
+}
+
+TEST(neon_st2_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[4 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+
+  __ St2(v0.V8B(), v1.V8B(), MemOperand(x18));
+  __ Add(x18, x18, 22);
+  __ St2(v0.V4H(), v1.V4H(), MemOperand(x18));
+  __ Add(x18, x18, 11);
+  __ St2(v0.V2S(), v1.V2S(), MemOperand(x18));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1707160615051404, 0x1303120211011000, q0);
+  CHECK_EQUAL_128(0x0504131203021110, 0x0100151413121110, q1);
+  CHECK_EQUAL_128(0x1615140706050413, 0x1211100302010014, q2);
+  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736353433323117, q3);
+
+  TEARDOWN();
+}
+
+TEST(neon_st2_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[4 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x22, 5);
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+
+  __ St2(v0.V8B(), v1.V8B(), MemOperand(x18, x22, PostIndex));
+  __ St2(v0.V4H(), v1.V4H(), MemOperand(x18, 16, PostIndex));
+  __ St2(v0.V2S(), v1.V2S(), MemOperand(x18));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1405041312030211, 0x1001000211011000, q0);
+  CHECK_EQUAL_128(0x0605041312111003, 0x0201001716070615, q1);
+  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726251716151407, q2);
+
+  TEARDOWN();
+}
+
+TEST(neon_st2_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[5 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+
+  __ St2(v0.V16B(), v1.V16B(), MemOperand(x18));
+  __ Add(x18, x18, 8);
+  __ St2(v0.V8H(), v1.V8H(), MemOperand(x18));
+  __ Add(x18, x18, 22);
+  __ St2(v0.V4S(), v1.V4S(), MemOperand(x18));
+  __ Add(x18, x18, 2);
+  __ St2(v0.V2D(), v1.V2D(), MemOperand(x18));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1312030211100100, 0x1303120211011000, q0);
+  CHECK_EQUAL_128(0x01000b0a19180908, 0x1716070615140504, q1);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q2);
+  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0f0e0d0c0b0a0908, q3);
+  TEARDOWN();
+}
+
+TEST(neon_st2_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[5 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x22, 5);
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+
+  __ St2(v0.V16B(), v1.V16B(), MemOperand(x18, x22, PostIndex));
+  __ St2(v0.V8H(), v1.V8H(), MemOperand(x18, 32, PostIndex));
+  __ St2(v0.V4S(), v1.V4S(), MemOperand(x18, x22, PostIndex));
+  __ St2(v0.V2D(), v1.V2D(), MemOperand(x18));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q4, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1405041312030211, 0x1001000211011000, q0);
+  CHECK_EQUAL_128(0x1c0d0c1b1a0b0a19, 0x1809081716070615, q1);
+  CHECK_EQUAL_128(0x0504030201001003, 0x0201001f1e0f0e1d, q2);
+  CHECK_EQUAL_128(0x0d0c0b0a09081716, 0x1514131211100706, q3);
+  CHECK_EQUAL_128(0x4f4e4d4c4b4a1f1e, 0x1d1c1b1a19180f0e, q4);
+
+  TEARDOWN();
+}
+
+TEST(neon_st3_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[3 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+
+  __ St3(v0.V8B(), v1.V8B(), v2.V8B(), MemOperand(x18));
+  __ Add(x18, x18, 3);
+  __ St3(v0.V4H(), v1.V4H(), v2.V4H(), MemOperand(x18));
+  __ Add(x18, x18, 2);
+  __ St3(v0.V2S(), v1.V2S(), v2.V2S(), MemOperand(x18));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2221201312111003, 0x0201000100201000, q0);
+  CHECK_EQUAL_128(0x1f1e1d2726252417, 0x1615140706050423, q1);
+
+  TEARDOWN();
+}
+
+TEST(neon_st3_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[4 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x22, 5);
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+
+  __ St3(v0.V8B(), v1.V8B(), v2.V8B(), MemOperand(x18, x22, PostIndex));
+  __ St3(v0.V4H(), v1.V4H(), v2.V4H(), MemOperand(x18, 24, PostIndex));
+  __ St3(v0.V2S(), v1.V2S(), v2.V2S(), MemOperand(x18));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2213120302212011, 0x1001001101201000, q0);
+  CHECK_EQUAL_128(0x0201002726171607, 0x0625241514050423, q1);
+  CHECK_EQUAL_128(0x1615140706050423, 0x2221201312111003, q2);
+  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736352726252417, q3);
+
+  TEARDOWN();
+}
+
+TEST(neon_st3_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[6 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+
+  __ St3(v0.V16B(), v1.V16B(), v2.V16B(), MemOperand(x18));
+  __ Add(x18, x18, 5);
+  __ St3(v0.V8H(), v1.V8H(), v2.V8H(), MemOperand(x18));
+  __ Add(x18, x18, 12);
+  __ St3(v0.V4S(), v1.V4S(), v2.V4S(), MemOperand(x18));
+  __ Add(x18, x18, 22);
+  __ St3(v0.V2D(), v1.V2D(), v2.V2D(), MemOperand(x18));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q4, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q5, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2213120302212011, 0x1001001101201000, q0);
+  CHECK_EQUAL_128(0x0605042322212013, 0x1211100302010023, q1);
+  CHECK_EQUAL_128(0x1007060504030201, 0x0025241716151407, q2);
+  CHECK_EQUAL_128(0x0827262524232221, 0x2017161514131211, q3);
+  CHECK_EQUAL_128(0x281f1e1d1c1b1a19, 0x180f0e0d0c0b0a09, q4);
+  CHECK_EQUAL_128(0x5f5e5d5c5b5a5958, 0x572f2e2d2c2b2a29, q5);
+
+  TEARDOWN();
+}
+
+TEST(neon_st3_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[7 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x22, 5);
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+
+  __ St3(v0.V16B(), v1.V16B(), v2.V16B(), MemOperand(x18, x22, PostIndex));
+  __ St3(v0.V8H(), v1.V8H(), v2.V8H(), MemOperand(x18, 48, PostIndex));
+  __ St3(v0.V4S(), v1.V4S(), v2.V4S(), MemOperand(x18, x22, PostIndex));
+  __ St3(v0.V2D(), v1.V2D(), v2.V2D(), MemOperand(x18));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q4, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q5, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q6, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2213120302212011, 0x1001001101201000, q0);
+  CHECK_EQUAL_128(0x1809082726171607, 0x0625241514050423, q1);
+  CHECK_EQUAL_128(0x0e2d2c1d1c0d0c2b, 0x2a1b1a0b0a292819, q2);
+  CHECK_EQUAL_128(0x0504030201001003, 0x0201002f2e1f1e0f, q3);
+  CHECK_EQUAL_128(0x2524232221201716, 0x1514131211100706, q4);
+  CHECK_EQUAL_128(0x1d1c1b1a19180f0e, 0x0d0c0b0a09082726, q5);
+  CHECK_EQUAL_128(0x6f6e6d6c6b6a2f2e, 0x2d2c2b2a29281f1e, q6);
+
+  TEARDOWN();
+}
+
+TEST(neon_st4_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[4 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+
+  __ St4(v0.V8B(), v1.V8B(), v2.V8B(), v3.V8B(), MemOperand(x18));
+  __ Add(x18, x18, 12);
+  __ St4(v0.V4H(), v1.V4H(), v2.V4H(), v3.V4H(), MemOperand(x18));
+  __ Add(x18, x18, 15);
+  __ St4(v0.V2S(), v1.V2S(), v2.V2S(), v3.V2S(), MemOperand(x18));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1110010032221202, 0X3121110130201000, q0);
+  CHECK_EQUAL_128(0x1003020100322322, 0X1312030231302120, q1);
+  CHECK_EQUAL_128(0x1407060504333231, 0X3023222120131211, q2);
+  CHECK_EQUAL_128(0x3f3e3d3c3b373635, 0x3427262524171615, q3);
+
+  TEARDOWN();
+}
+
+TEST(neon_st4_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[5 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x22, 5);
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+
+  __ St4(v0.V8B(), v1.V8B(), v2.V8B(), v3.V8B(),
+         MemOperand(x18, x22, PostIndex));
+  __ St4(v0.V4H(), v1.V4H(), v2.V4H(), v3.V4H(),
+         MemOperand(x18, 32, PostIndex));
+  __ St4(v0.V2S(), v1.V2S(), v2.V2S(), v3.V2S(), MemOperand(x18));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q4, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1203023130212011, 0x1001000130201000, q0);
+  CHECK_EQUAL_128(0x1607063534252415, 0x1405043332232213, q1);
+  CHECK_EQUAL_128(0x2221201312111003, 0x0201003736272617, q2);
+  CHECK_EQUAL_128(0x2625241716151407, 0x0605043332313023, q3);
+  CHECK_EQUAL_128(0x4f4e4d4c4b4a4948, 0x4746453736353427, q4);
+
+  TEARDOWN();
+}
+
+TEST(neon_st4_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[7 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+
+  __ St4(v0.V16B(), v1.V16B(), v2.V16B(), v3.V16B(), MemOperand(x18));
+  __ Add(x18, x18, 5);
+  __ St4(v0.V8H(), v1.V8H(), v2.V8H(), v3.V8H(), MemOperand(x18));
+  __ Add(x18, x18, 12);
+  __ St4(v0.V4S(), v1.V4S(), v2.V4S(), v3.V4S(), MemOperand(x18));
+  __ Add(x18, x18, 22);
+  __ St4(v0.V2D(), v1.V2D(), v2.V2D(), v3.V2D(), MemOperand(x18));
+  __ Add(x18, x18, 10);
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q4, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q5, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q6, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1203023130212011, 0x1001000130201000, q0);
+  CHECK_EQUAL_128(0x3231302322212013, 0x1211100302010013, q1);
+  CHECK_EQUAL_128(0x1007060504030201, 0x0015140706050433, q2);
+  CHECK_EQUAL_128(0x3027262524232221, 0x2017161514131211, q3);
+  CHECK_EQUAL_128(0x180f0e0d0c0b0a09, 0x0837363534333231, q4);
+  CHECK_EQUAL_128(0x382f2e2d2c2b2a29, 0x281f1e1d1c1b1a19, q5);
+  CHECK_EQUAL_128(0x6f6e6d6c6b6a6968, 0x673f3e3d3c3b3a39, q6);
+
+  TEARDOWN();
+}
+
+TEST(neon_st4_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[9 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x22, 5);
+  __ Mov(x17, src_base);
+  __ Mov(x18, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+
+  __ St4(v0.V16B(), v1.V16B(), v2.V16B(), v3.V16B(),
+         MemOperand(x18, x22, PostIndex));
+  __ St4(v0.V8H(), v1.V8H(), v2.V8H(), v3.V8H(),
+         MemOperand(x18, 64, PostIndex));
+  __ St4(v0.V4S(), v1.V4S(), v2.V4S(), v3.V4S(),
+         MemOperand(x18, x22, PostIndex));
+  __ St4(v0.V2D(), v1.V2D(), v2.V2D(), v3.V2D(), MemOperand(x18));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q4, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q5, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q6, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q7, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q8, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1203023130212011, 0x1001000130201000, q0);
+  CHECK_EQUAL_128(0x1607063534252415, 0x1405043332232213, q1);
+  CHECK_EQUAL_128(0x1a0b0a3938292819, 0x1809083736272617, q2);
+  CHECK_EQUAL_128(0x1e0f0e3d3c2d2c1d, 0x1c0d0c3b3a2b2a1b, q3);
+  CHECK_EQUAL_128(0x0504030201001003, 0x0201003f3e2f2e1f, q4);
+  CHECK_EQUAL_128(0x2524232221201716, 0x1514131211100706, q5);
+  CHECK_EQUAL_128(0x0d0c0b0a09083736, 0x3534333231302726, q6);
+  CHECK_EQUAL_128(0x2d2c2b2a29281f1e, 0x1d1c1b1a19180f0e, q7);
+  CHECK_EQUAL_128(0x8f8e8d8c8b8a3f3e, 0x3d3c3b3a39382f2e, q8);
+
+  TEARDOWN();
+}
+
+TEST(neon_destructive_minmaxp) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Movi(v0.V2D(), 0, 0x2222222233333333);
+  __ Movi(v1.V2D(), 0, 0x0000000011111111);
+
+  __ Sminp(v16.V2S(), v0.V2S(), v1.V2S());
+  __ Mov(v17, v0);
+  __ Sminp(v17.V2S(), v17.V2S(), v1.V2S());
+  __ Mov(v18, v1);
+  __ Sminp(v18.V2S(), v0.V2S(), v18.V2S());
+  __ Mov(v19, v0);
+  __ Sminp(v19.V2S(), v19.V2S(), v19.V2S());
+
+  __ Smaxp(v20.V2S(), v0.V2S(), v1.V2S());
+  __ Mov(v21, v0);
+  __ Smaxp(v21.V2S(), v21.V2S(), v1.V2S());
+  __ Mov(v22, v1);
+  __ Smaxp(v22.V2S(), v0.V2S(), v22.V2S());
+  __ Mov(v23, v0);
+  __ Smaxp(v23.V2S(), v23.V2S(), v23.V2S());
+
+  __ Uminp(v24.V2S(), v0.V2S(), v1.V2S());
+  __ Mov(v25, v0);
+  __ Uminp(v25.V2S(), v25.V2S(), v1.V2S());
+  __ Mov(v26, v1);
+  __ Uminp(v26.V2S(), v0.V2S(), v26.V2S());
+  __ Mov(v27, v0);
+  __ Uminp(v27.V2S(), v27.V2S(), v27.V2S());
+
+  __ Umaxp(v28.V2S(), v0.V2S(), v1.V2S());
+  __ Mov(v29, v0);
+  __ Umaxp(v29.V2S(), v29.V2S(), v1.V2S());
+  __ Mov(v30, v1);
+  __ Umaxp(v30.V2S(), v0.V2S(), v30.V2S());
+  __ Mov(v31, v0);
+  __ Umaxp(v31.V2S(), v31.V2S(), v31.V2S());
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0000000022222222, q16);
+  CHECK_EQUAL_128(0, 0x0000000022222222, q17);
+  CHECK_EQUAL_128(0, 0x0000000022222222, q18);
+  CHECK_EQUAL_128(0, 0x2222222222222222, q19);
+
+  CHECK_EQUAL_128(0, 0x1111111133333333, q20);
+  CHECK_EQUAL_128(0, 0x1111111133333333, q21);
+  CHECK_EQUAL_128(0, 0x1111111133333333, q22);
+  CHECK_EQUAL_128(0, 0x3333333333333333, q23);
+
+  CHECK_EQUAL_128(0, 0x0000000022222222, q24);
+  CHECK_EQUAL_128(0, 0x0000000022222222, q25);
+  CHECK_EQUAL_128(0, 0x0000000022222222, q26);
+  CHECK_EQUAL_128(0, 0x2222222222222222, q27);
+
+  CHECK_EQUAL_128(0, 0x1111111133333333, q28);
+  CHECK_EQUAL_128(0, 0x1111111133333333, q29);
+  CHECK_EQUAL_128(0, 0x1111111133333333, q30);
+  CHECK_EQUAL_128(0, 0x3333333333333333, q31);
+
+  TEARDOWN();
+}
+
+TEST(neon_destructive_tbl) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Movi(v0.V2D(), 0x0041424334353627, 0x28291a1b1c0d0e0f);
+  __ Movi(v1.V2D(), 0xafaeadacabaaa9a8, 0xa7a6a5a4a3a2a1a0);
+  __ Movi(v2.V2D(), 0xbfbebdbcbbbab9b8, 0xb7b6b5b4b3b2b1b0);
+  __ Movi(v3.V2D(), 0xcfcecdcccbcac9c8, 0xc7c6c5c4c3c2c1c0);
+  __ Movi(v4.V2D(), 0xdfdedddcdbdad9d8, 0xd7d6d5d4d3d2d1d0);
+
+  __ Movi(v16.V2D(), 0x5555555555555555, 0x5555555555555555);
+  __ Tbl(v16.V16B(), v1.V16B(), v0.V16B());
+  __ Mov(v17, v0);
+  __ Tbl(v17.V16B(), v1.V16B(), v17.V16B());
+  __ Mov(v18, v1);
+  __ Tbl(v18.V16B(), v18.V16B(), v0.V16B());
+  __ Mov(v19, v0);
+  __ Tbl(v19.V16B(), v19.V16B(), v19.V16B());
+
+  __ Movi(v20.V2D(), 0x5555555555555555, 0x5555555555555555);
+  __ Tbl(v20.V16B(), v1.V16B(), v2.V16B(), v3.V16B(), v4.V16B(), v0.V16B());
+  __ Mov(v21, v0);
+  __ Tbl(v21.V16B(), v1.V16B(), v2.V16B(), v3.V16B(), v4.V16B(), v21.V16B());
+  __ Mov(v22, v1);
+  __ Mov(v23, v2);
+  __ Mov(v24, v3);
+  __ Mov(v25, v4);
+  __ Tbl(v22.V16B(), v22.V16B(), v23.V16B(), v24.V16B(), v25.V16B(), v0.V16B());
+  __ Mov(v26, v0);
+  __ Mov(v27, v1);
+  __ Mov(v28, v2);
+  __ Mov(v29, v3);
+  __ Tbl(v26.V16B(), v26.V16B(), v27.V16B(), v28.V16B(), v29.V16B(),
+         v26.V16B());
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0xa000000000000000, 0x0000000000adaeaf, q16);
+  CHECK_EQUAL_128(0xa000000000000000, 0x0000000000adaeaf, q17);
+  CHECK_EQUAL_128(0xa000000000000000, 0x0000000000adaeaf, q18);
+  CHECK_EQUAL_128(0x0f00000000000000, 0x0000000000424100, q19);
+
+  CHECK_EQUAL_128(0xa0000000d4d5d6c7, 0xc8c9babbbcadaeaf, q20);
+  CHECK_EQUAL_128(0xa0000000d4d5d6c7, 0xc8c9babbbcadaeaf, q21);
+  CHECK_EQUAL_128(0xa0000000d4d5d6c7, 0xc8c9babbbcadaeaf, q22);
+  CHECK_EQUAL_128(0x0f000000c4c5c6b7, 0xb8b9aaabac424100, q26);
+
+  TEARDOWN();
+}
+
+TEST(neon_destructive_tbx) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Movi(v0.V2D(), 0x0041424334353627, 0x28291a1b1c0d0e0f);
+  __ Movi(v1.V2D(), 0xafaeadacabaaa9a8, 0xa7a6a5a4a3a2a1a0);
+  __ Movi(v2.V2D(), 0xbfbebdbcbbbab9b8, 0xb7b6b5b4b3b2b1b0);
+  __ Movi(v3.V2D(), 0xcfcecdcccbcac9c8, 0xc7c6c5c4c3c2c1c0);
+  __ Movi(v4.V2D(), 0xdfdedddcdbdad9d8, 0xd7d6d5d4d3d2d1d0);
+
+  __ Movi(v16.V2D(), 0x5555555555555555, 0x5555555555555555);
+  __ Tbx(v16.V16B(), v1.V16B(), v0.V16B());
+  __ Mov(v17, v0);
+  __ Tbx(v17.V16B(), v1.V16B(), v17.V16B());
+  __ Mov(v18, v1);
+  __ Tbx(v18.V16B(), v18.V16B(), v0.V16B());
+  __ Mov(v19, v0);
+  __ Tbx(v19.V16B(), v19.V16B(), v19.V16B());
+
+  __ Movi(v20.V2D(), 0x5555555555555555, 0x5555555555555555);
+  __ Tbx(v20.V16B(), v1.V16B(), v2.V16B(), v3.V16B(), v4.V16B(), v0.V16B());
+  __ Mov(v21, v0);
+  __ Tbx(v21.V16B(), v1.V16B(), v2.V16B(), v3.V16B(), v4.V16B(), v21.V16B());
+  __ Mov(v22, v1);
+  __ Mov(v23, v2);
+  __ Mov(v24, v3);
+  __ Mov(v25, v4);
+  __ Tbx(v22.V16B(), v22.V16B(), v23.V16B(), v24.V16B(), v25.V16B(), v0.V16B());
+  __ Mov(v26, v0);
+  __ Mov(v27, v1);
+  __ Mov(v28, v2);
+  __ Mov(v29, v3);
+  __ Tbx(v26.V16B(), v26.V16B(), v27.V16B(), v28.V16B(), v29.V16B(),
+         v26.V16B());
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0xa055555555555555, 0x5555555555adaeaf, q16);
+  CHECK_EQUAL_128(0xa041424334353627, 0x28291a1b1cadaeaf, q17);
+  CHECK_EQUAL_128(0xa0aeadacabaaa9a8, 0xa7a6a5a4a3adaeaf, q18);
+  CHECK_EQUAL_128(0x0f41424334353627, 0x28291a1b1c424100, q19);
+
+  CHECK_EQUAL_128(0xa0555555d4d5d6c7, 0xc8c9babbbcadaeaf, q20);
+  CHECK_EQUAL_128(0xa0414243d4d5d6c7, 0xc8c9babbbcadaeaf, q21);
+  CHECK_EQUAL_128(0xa0aeadacd4d5d6c7, 0xc8c9babbbcadaeaf, q22);
+  CHECK_EQUAL_128(0x0f414243c4c5c6b7, 0xb8b9aaabac424100, q26);
+
+  TEARDOWN();
+}
+
+TEST(neon_destructive_fcvtl) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Movi(v0.V2D(), 0x400000003f800000, 0xbf800000c0000000);
+  __ Fcvtl(v16.V2D(), v0.V2S());
+  __ Fcvtl2(v17.V2D(), v0.V4S());
+  __ Mov(v18, v0);
+  __ Mov(v19, v0);
+  __ Fcvtl(v18.V2D(), v18.V2S());
+  __ Fcvtl2(v19.V2D(), v19.V4S());
+
+  __ Movi(v1.V2D(), 0x40003c003c004000, 0xc000bc00bc00c000);
+  __ Fcvtl(v20.V4S(), v1.V4H());
+  __ Fcvtl2(v21.V4S(), v1.V8H());
+  __ Mov(v22, v1);
+  __ Mov(v23, v1);
+  __ Fcvtl(v22.V4S(), v22.V4H());
+  __ Fcvtl2(v23.V4S(), v23.V8H());
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0xbff0000000000000, 0xc000000000000000, q16);
+  CHECK_EQUAL_128(0x4000000000000000, 0x3ff0000000000000, q17);
+  CHECK_EQUAL_128(0xbff0000000000000, 0xc000000000000000, q18);
+  CHECK_EQUAL_128(0x4000000000000000, 0x3ff0000000000000, q19);
+
+  CHECK_EQUAL_128(0xc0000000bf800000, 0xbf800000c0000000, q20);
+  CHECK_EQUAL_128(0x400000003f800000, 0x3f80000040000000, q21);
+  CHECK_EQUAL_128(0xc0000000bf800000, 0xbf800000c0000000, q22);
+  CHECK_EQUAL_128(0x400000003f800000, 0x3f80000040000000, q23);
 
   TEARDOWN();
 }
@@ -2865,6 +6245,37 @@ TEST(ldp_stp_double) {
   TEARDOWN();
 }
 
+TEST(ldp_stp_quad) {
+  SETUP();
+
+  uint64_t src[4] = {0x0123456789abcdef, 0xaaaaaaaa55555555, 0xfedcba9876543210,
+                     0x55555555aaaaaaaa};
+  uint64_t dst[6] = {0, 0, 0, 0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x16, src_base);
+  __ Mov(x17, dst_base);
+  __ Ldp(q31, q0, MemOperand(x16, 4 * sizeof(src[0]), PostIndex));
+  __ Stp(q0, q31, MemOperand(x17, 2 * sizeof(dst[1]), PreIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0xaaaaaaaa55555555, 0x0123456789abcdef, q31);
+  CHECK_EQUAL_128(0x55555555aaaaaaaa, 0xfedcba9876543210, q0);
+  CHECK_EQUAL_64(0, dst[0]);
+  CHECK_EQUAL_64(0, dst[1]);
+  CHECK_EQUAL_64(0xfedcba9876543210, dst[2]);
+  CHECK_EQUAL_64(0x55555555aaaaaaaa, dst[3]);
+  CHECK_EQUAL_64(0x0123456789abcdef, dst[4]);
+  CHECK_EQUAL_64(0xaaaaaaaa55555555, dst[5]);
+  CHECK_EQUAL_64(src_base + 4 * sizeof(src[0]), x16);
+  CHECK_EQUAL_64(dst_base + 2 * sizeof(dst[1]), x17);
+
+  TEARDOWN();
+}
 
 TEST(ldp_stp_offset) {
   INIT_V8();
@@ -3280,35 +6691,58 @@ TEST(ldur_stur) {
   TEARDOWN();
 }
 
+TEST(ldr_pcrel_large_offset) {
+  INIT_V8();
+  SETUP_SIZE(1 * MB);
 
-#if 0  // TODO(all) enable.
-// TODO(rodolph): Adapt w16 Literal tests for RelocInfo.
+  START();
+
+  __ Ldr(x1, Immediate(0x1234567890abcdefUL));
+
+  {
+    v8::internal::PatchingAssembler::BlockPoolsScope scope(&masm);
+    int start = __ pc_offset();
+    while (__ pc_offset() - start < 600 * KB) {
+      __ Nop();
+    }
+  }
+
+  __ Ldr(x2, Immediate(0x1234567890abcdefUL));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(0x1234567890abcdefUL, x1);
+  CHECK_EQUAL_64(0x1234567890abcdefUL, x2);
+
+  TEARDOWN();
+}
+
 TEST(ldr_literal) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Ldr(x2, 0x1234567890abcdefUL);
-  __ Ldr(w3, 0xfedcba09);
+  __ Ldr(x2, Immediate(0x1234567890abcdefUL));
   __ Ldr(d13, 1.234);
-  __ Ldr(s25, 2.5);
   END();
 
   RUN();
 
   CHECK_EQUAL_64(0x1234567890abcdefUL, x2);
-  CHECK_EQUAL_64(0xfedcba09, x3);
   CHECK_EQUAL_FP64(1.234, d13);
-  CHECK_EQUAL_FP32(2.5, s25);
 
   TEARDOWN();
 }
 
+#ifdef DEBUG
+// These tests rely on functions available in debug mode.
+enum LiteralPoolEmitOption { NoJumpRequired, JumpRequired };
 
-static void LdrLiteralRangeHelper(ptrdiff_t range_,
-                                  LiteralPoolEmitOption option,
+static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
                                   bool expect_dump) {
-  CHECK(range_ > 0);
+  CHECK_GT(range_, 0);
   SETUP_SIZE(range_ + 1024);
 
   Label label_1, label_2;
@@ -3319,125 +6753,101 @@ static void LdrLiteralRangeHelper(ptrdiff_t range_,
 
   if (option == NoJumpRequired) {
     // Space for an explicit branch.
-    pool_guard_size = sizeof(Instr);
+    pool_guard_size = kInstructionSize;
   } else {
     pool_guard_size = 0;
   }
 
   START();
   // Force a pool dump so the pool starts off empty.
-  __ EmitLiteralPool(JumpRequired);
-  CHECK_LITERAL_POOL_SIZE(0);
+  __ CheckConstPool(true, true);
+  CHECK_CONSTANT_POOL_SIZE(0);
 
-  __ Ldr(x0, 0x1234567890abcdefUL);
-  __ Ldr(w1, 0xfedcba09);
+  __ Ldr(x0, Immediate(0x1234567890abcdefUL));
   __ Ldr(d0, 1.234);
-  __ Ldr(s1, 2.5);
-  CHECK_LITERAL_POOL_SIZE(4);
+  CHECK_CONSTANT_POOL_SIZE(16);
 
-  code_size += 4 * sizeof(Instr);
+  code_size += 2 * kInstructionSize;
 
   // Check that the requested range (allowing space for a branch over the pool)
   // can be handled by this test.
-  CHECK((code_size + pool_guard_size) <= range);
+  CHECK_LE(code_size + pool_guard_size, range);
 
   // Emit NOPs up to 'range', leaving space for the pool guard.
-  while ((code_size + pool_guard_size) < range) {
+  while ((code_size + pool_guard_size + kInstructionSize) < range) {
     __ Nop();
-    code_size += sizeof(Instr);
+    code_size += kInstructionSize;
   }
 
   // Emit the guard sequence before the literal pool.
   if (option == NoJumpRequired) {
     __ B(&label_1);
-    code_size += sizeof(Instr);
+    code_size += kInstructionSize;
   }
 
-  CHECK(code_size == range);
-  CHECK_LITERAL_POOL_SIZE(4);
+  // The next instruction will trigger pool emission when expect_dump is true.
+  CHECK_EQ(code_size, range - kInstructionSize);
+  CHECK_CONSTANT_POOL_SIZE(16);
 
   // Possibly generate a literal pool.
-  __ CheckLiteralPool(option);
+  __ Nop();
+
   __ Bind(&label_1);
   if (expect_dump) {
-    CHECK_LITERAL_POOL_SIZE(0);
+    CHECK_CONSTANT_POOL_SIZE(0);
   } else {
-    CHECK_LITERAL_POOL_SIZE(4);
+    CHECK_CONSTANT_POOL_SIZE(16);
   }
 
   // Force a pool flush to check that a second pool functions correctly.
-  __ EmitLiteralPool(JumpRequired);
-  CHECK_LITERAL_POOL_SIZE(0);
+  __ CheckConstPool(true, true);
+  CHECK_CONSTANT_POOL_SIZE(0);
 
   // These loads should be after the pool (and will require a new one).
-  __ Ldr(x4, 0x34567890abcdef12UL);
-  __ Ldr(w5, 0xdcba09fe);
+  __ Ldr(x4, Immediate(0x34567890abcdef12UL));
   __ Ldr(d4, 123.4);
-  __ Ldr(s5, 250.0);
-  CHECK_LITERAL_POOL_SIZE(4);
+  CHECK_CONSTANT_POOL_SIZE(16);
   END();
 
   RUN();
 
   // Check that the literals loaded correctly.
   CHECK_EQUAL_64(0x1234567890abcdefUL, x0);
-  CHECK_EQUAL_64(0xfedcba09, x1);
   CHECK_EQUAL_FP64(1.234, d0);
-  CHECK_EQUAL_FP32(2.5, s1);
   CHECK_EQUAL_64(0x34567890abcdef12UL, x4);
-  CHECK_EQUAL_64(0xdcba09fe, x5);
   CHECK_EQUAL_FP64(123.4, d4);
-  CHECK_EQUAL_FP32(250.0, s5);
 
   TEARDOWN();
 }
 
-
 TEST(ldr_literal_range_1) {
   INIT_V8();
-  LdrLiteralRangeHelper(kRecommendedLiteralPoolRange,
-                        NoJumpRequired,
-                        true);
+  LdrLiteralRangeHelper(MacroAssembler::GetApproxMaxDistToConstPoolForTesting(),
+                        NoJumpRequired, true);
 }
 
 
 TEST(ldr_literal_range_2) {
   INIT_V8();
-  LdrLiteralRangeHelper(kRecommendedLiteralPoolRange-sizeof(Instr),
-                        NoJumpRequired,
-                        false);
+  LdrLiteralRangeHelper(
+      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() -
+          kInstructionSize,
+      NoJumpRequired, false);
 }
 
 
 TEST(ldr_literal_range_3) {
   INIT_V8();
-  LdrLiteralRangeHelper(2 * kRecommendedLiteralPoolRange,
-                        JumpRequired,
-                        true);
+  LdrLiteralRangeHelper(MacroAssembler::GetCheckConstPoolIntervalForTesting(),
+                        JumpRequired, false);
 }
 
 
 TEST(ldr_literal_range_4) {
   INIT_V8();
-  LdrLiteralRangeHelper(2 * kRecommendedLiteralPoolRange-sizeof(Instr),
-                        JumpRequired,
-                        false);
-}
-
-
-TEST(ldr_literal_range_5) {
-  INIT_V8();
-  LdrLiteralRangeHelper(kLiteralPoolCheckInterval,
-                        JumpRequired,
-                        false);
-}
-
-
-TEST(ldr_literal_range_6) {
-  INIT_V8();
-  LdrLiteralRangeHelper(kLiteralPoolCheckInterval-sizeof(Instr),
-                        JumpRequired,
-                        false);
+  LdrLiteralRangeHelper(
+      MacroAssembler::GetCheckConstPoolIntervalForTesting() - kInstructionSize,
+      JumpRequired, false);
 }
 #endif
 
@@ -5432,19 +8842,19 @@ TEST(fmov_reg) {
   __ Fmov(x1, d1);
   __ Fmov(d2, x1);
   __ Fmov(d4, d1);
-  __ Fmov(d6, rawbits_to_double(0x0123456789abcdefL));
+  __ Fmov(d6, bit_cast<double>(0x0123456789abcdefL));
   __ Fmov(s6, s6);
   END();
 
   RUN();
 
-  CHECK_EQUAL_32(float_to_rawbits(1.0), w10);
+  CHECK_EQUAL_32(bit_cast<uint32_t>(1.0f), w10);
   CHECK_EQUAL_FP32(1.0, s30);
   CHECK_EQUAL_FP32(1.0, s5);
-  CHECK_EQUAL_64(double_to_rawbits(-13.0), x1);
+  CHECK_EQUAL_64(bit_cast<uint64_t>(-13.0), x1);
   CHECK_EQUAL_FP64(-13.0, d2);
   CHECK_EQUAL_FP64(-13.0, d4);
-  CHECK_EQUAL_FP32(rawbits_to_float(0x89abcdef), s6);
+  CHECK_EQUAL_FP32(bit_cast<float>(0x89abcdef), s6);
 
   TEARDOWN();
 }
@@ -5760,12 +9170,12 @@ TEST(fmadd_fmsub_float) {
 TEST(fmadd_fmsub_double_nans) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double s1 = rawbits_to_double(0x7ff5555511111111);
-  double s2 = rawbits_to_double(0x7ff5555522222222);
-  double sa = rawbits_to_double(0x7ff55555aaaaaaaa);
-  double q1 = rawbits_to_double(0x7ffaaaaa11111111);
-  double q2 = rawbits_to_double(0x7ffaaaaa22222222);
-  double qa = rawbits_to_double(0x7ffaaaaaaaaaaaaa);
+  double s1 = bit_cast<double>(0x7ff5555511111111);
+  double s2 = bit_cast<double>(0x7ff5555522222222);
+  double sa = bit_cast<double>(0x7ff55555aaaaaaaa);
+  double q1 = bit_cast<double>(0x7ffaaaaa11111111);
+  double q2 = bit_cast<double>(0x7ffaaaaa22222222);
+  double qa = bit_cast<double>(0x7ffaaaaaaaaaaaaa);
   CHECK(IsSignallingNaN(s1));
   CHECK(IsSignallingNaN(s2));
   CHECK(IsSignallingNaN(sa));
@@ -5774,9 +9184,9 @@ TEST(fmadd_fmsub_double_nans) {
   CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
-  double s1_proc = rawbits_to_double(0x7ffd555511111111);
-  double s2_proc = rawbits_to_double(0x7ffd555522222222);
-  double sa_proc = rawbits_to_double(0x7ffd5555aaaaaaaa);
+  double s1_proc = bit_cast<double>(0x7ffd555511111111);
+  double s2_proc = bit_cast<double>(0x7ffd555522222222);
+  double sa_proc = bit_cast<double>(0x7ffd5555aaaaaaaa);
   double q1_proc = q1;
   double q2_proc = q2;
   double qa_proc = qa;
@@ -5788,10 +9198,10 @@ TEST(fmadd_fmsub_double_nans) {
   CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
-  double s1_proc_neg = rawbits_to_double(0xfffd555511111111);
-  double sa_proc_neg = rawbits_to_double(0xfffd5555aaaaaaaa);
-  double q1_proc_neg = rawbits_to_double(0xfffaaaaa11111111);
-  double qa_proc_neg = rawbits_to_double(0xfffaaaaaaaaaaaaa);
+  double s1_proc_neg = bit_cast<double>(0xfffd555511111111);
+  double sa_proc_neg = bit_cast<double>(0xfffd5555aaaaaaaa);
+  double q1_proc_neg = bit_cast<double>(0xfffaaaaa11111111);
+  double qa_proc_neg = bit_cast<double>(0xfffaaaaaaaaaaaaa);
   CHECK(IsQuietNaN(s1_proc_neg));
   CHECK(IsQuietNaN(sa_proc_neg));
   CHECK(IsQuietNaN(q1_proc_neg));
@@ -5843,12 +9253,12 @@ TEST(fmadd_fmsub_double_nans) {
 TEST(fmadd_fmsub_float_nans) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float s1 = rawbits_to_float(0x7f951111);
-  float s2 = rawbits_to_float(0x7f952222);
-  float sa = rawbits_to_float(0x7f95aaaa);
-  float q1 = rawbits_to_float(0x7fea1111);
-  float q2 = rawbits_to_float(0x7fea2222);
-  float qa = rawbits_to_float(0x7feaaaaa);
+  float s1 = bit_cast<float>(0x7f951111);
+  float s2 = bit_cast<float>(0x7f952222);
+  float sa = bit_cast<float>(0x7f95aaaa);
+  float q1 = bit_cast<float>(0x7fea1111);
+  float q2 = bit_cast<float>(0x7fea2222);
+  float qa = bit_cast<float>(0x7feaaaaa);
   CHECK(IsSignallingNaN(s1));
   CHECK(IsSignallingNaN(s2));
   CHECK(IsSignallingNaN(sa));
@@ -5857,9 +9267,9 @@ TEST(fmadd_fmsub_float_nans) {
   CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
-  float s1_proc = rawbits_to_float(0x7fd51111);
-  float s2_proc = rawbits_to_float(0x7fd52222);
-  float sa_proc = rawbits_to_float(0x7fd5aaaa);
+  float s1_proc = bit_cast<float>(0x7fd51111);
+  float s2_proc = bit_cast<float>(0x7fd52222);
+  float sa_proc = bit_cast<float>(0x7fd5aaaa);
   float q1_proc = q1;
   float q2_proc = q2;
   float qa_proc = qa;
@@ -5871,10 +9281,10 @@ TEST(fmadd_fmsub_float_nans) {
   CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
-  float s1_proc_neg = rawbits_to_float(0xffd51111);
-  float sa_proc_neg = rawbits_to_float(0xffd5aaaa);
-  float q1_proc_neg = rawbits_to_float(0xffea1111);
-  float qa_proc_neg = rawbits_to_float(0xffeaaaaa);
+  float s1_proc_neg = bit_cast<float>(0xffd51111);
+  float sa_proc_neg = bit_cast<float>(0xffd5aaaa);
+  float q1_proc_neg = bit_cast<float>(0xffea1111);
+  float qa_proc_neg = bit_cast<float>(0xffeaaaaa);
   CHECK(IsQuietNaN(s1_proc_neg));
   CHECK(IsQuietNaN(sa_proc_neg));
   CHECK(IsQuietNaN(q1_proc_neg));
@@ -5985,15 +9395,15 @@ static float MinMaxHelper(float n,
                           float m,
                           bool min,
                           float quiet_nan_substitute = 0.0) {
-  uint32_t raw_n = float_to_rawbits(n);
-  uint32_t raw_m = float_to_rawbits(m);
+  uint32_t raw_n = bit_cast<uint32_t>(n);
+  uint32_t raw_m = bit_cast<uint32_t>(m);
 
   if (std::isnan(n) && ((raw_n & kSQuietNanMask) == 0)) {
     // n is signalling NaN.
-    return rawbits_to_float(raw_n | kSQuietNanMask);
+    return bit_cast<float>(raw_n | static_cast<uint32_t>(kSQuietNanMask));
   } else if (std::isnan(m) && ((raw_m & kSQuietNanMask) == 0)) {
     // m is signalling NaN.
-    return rawbits_to_float(raw_m | kSQuietNanMask);
+    return bit_cast<float>(raw_m | static_cast<uint32_t>(kSQuietNanMask));
   } else if (quiet_nan_substitute == 0.0) {
     if (std::isnan(n)) {
       // n is quiet NaN.
@@ -6026,15 +9436,15 @@ static double MinMaxHelper(double n,
                            double m,
                            bool min,
                            double quiet_nan_substitute = 0.0) {
-  uint64_t raw_n = double_to_rawbits(n);
-  uint64_t raw_m = double_to_rawbits(m);
+  uint64_t raw_n = bit_cast<uint64_t>(n);
+  uint64_t raw_m = bit_cast<uint64_t>(m);
 
   if (std::isnan(n) && ((raw_n & kDQuietNanMask) == 0)) {
     // n is signalling NaN.
-    return rawbits_to_double(raw_n | kDQuietNanMask);
+    return bit_cast<double>(raw_n | kDQuietNanMask);
   } else if (std::isnan(m) && ((raw_m & kDQuietNanMask) == 0)) {
     // m is signalling NaN.
-    return rawbits_to_double(raw_m | kDQuietNanMask);
+    return bit_cast<double>(raw_m | kDQuietNanMask);
   } else if (quiet_nan_substitute == 0.0) {
     if (std::isnan(n)) {
       // n is quiet NaN.
@@ -6090,10 +9500,10 @@ static void FminFmaxDoubleHelper(double n, double m, double min, double max,
 TEST(fmax_fmin_d) {
   INIT_V8();
   // Use non-standard NaNs to check that the payload bits are preserved.
-  double snan = rawbits_to_double(0x7ff5555512345678);
-  double qnan = rawbits_to_double(0x7ffaaaaa87654321);
+  double snan = bit_cast<double>(0x7ff5555512345678);
+  double qnan = bit_cast<double>(0x7ffaaaaa87654321);
 
-  double snan_processed = rawbits_to_double(0x7ffd555512345678);
+  double snan_processed = bit_cast<double>(0x7ffd555512345678);
   double qnan_processed = qnan;
 
   CHECK(IsSignallingNaN(snan));
@@ -6175,10 +9585,10 @@ static void FminFmaxFloatHelper(float n, float m, float min, float max,
 TEST(fmax_fmin_s) {
   INIT_V8();
   // Use non-standard NaNs to check that the payload bits are preserved.
-  float snan = rawbits_to_float(0x7f951234);
-  float qnan = rawbits_to_float(0x7fea8765);
+  float snan = bit_cast<float>(0x7f951234);
+  float qnan = bit_cast<float>(0x7fea8765);
 
-  float snan_processed = rawbits_to_float(0x7fd51234);
+  float snan_processed = bit_cast<float>(0x7fd51234);
   float qnan_processed = qnan;
 
   CHECK(IsSignallingNaN(snan));
@@ -7013,8 +10423,8 @@ TEST(fcvt_ds) {
   __ Fmov(s26, -0.0);
   __ Fmov(s27, FLT_MAX);
   __ Fmov(s28, FLT_MIN);
-  __ Fmov(s29, rawbits_to_float(0x7fc12345));   // Quiet NaN.
-  __ Fmov(s30, rawbits_to_float(0x7f812345));   // Signalling NaN.
+  __ Fmov(s29, bit_cast<float>(0x7fc12345));  // Quiet NaN.
+  __ Fmov(s30, bit_cast<float>(0x7f812345));  // Signalling NaN.
 
   __ Fcvt(d0, s16);
   __ Fcvt(d1, s17);
@@ -7055,8 +10465,8 @@ TEST(fcvt_ds) {
   //  - The top bit of the mantissa is forced to 1 (making it a quiet NaN).
   //  - The remaining mantissa bits are copied until they run out.
   //  - The low-order bits that haven't already been assigned are set to 0.
-  CHECK_EQUAL_FP64(rawbits_to_double(0x7ff82468a0000000), d13);
-  CHECK_EQUAL_FP64(rawbits_to_double(0x7ff82468a0000000), d14);
+  CHECK_EQUAL_FP64(bit_cast<double>(0x7ff82468a0000000), d13);
+  CHECK_EQUAL_FP64(bit_cast<double>(0x7ff82468a0000000), d14);
 
   TEARDOWN();
 }
@@ -7071,83 +10481,86 @@ TEST(fcvt_sd) {
   //
   // Note that this test only checks ties-to-even rounding, because that is all
   // that the simulator supports.
-  struct {double in; float expected;} test[] = {
-    // Check some simple conversions.
-    {0.0, 0.0f},
-    {1.0, 1.0f},
-    {1.5, 1.5f},
-    {2.0, 2.0f},
-    {FLT_MAX, FLT_MAX},
-    //  - The smallest normalized float.
-    {pow(2.0, -126), powf(2, -126)},
-    //  - Normal floats that need (ties-to-even) rounding.
-    //    For normalized numbers:
-    //         bit 29 (0x0000000020000000) is the lowest-order bit which will
-    //                                     fit in the float's mantissa.
-    {rawbits_to_double(0x3ff0000000000000), rawbits_to_float(0x3f800000)},
-    {rawbits_to_double(0x3ff0000000000001), rawbits_to_float(0x3f800000)},
-    {rawbits_to_double(0x3ff0000010000000), rawbits_to_float(0x3f800000)},
-    {rawbits_to_double(0x3ff0000010000001), rawbits_to_float(0x3f800001)},
-    {rawbits_to_double(0x3ff0000020000000), rawbits_to_float(0x3f800001)},
-    {rawbits_to_double(0x3ff0000020000001), rawbits_to_float(0x3f800001)},
-    {rawbits_to_double(0x3ff0000030000000), rawbits_to_float(0x3f800002)},
-    {rawbits_to_double(0x3ff0000030000001), rawbits_to_float(0x3f800002)},
-    {rawbits_to_double(0x3ff0000040000000), rawbits_to_float(0x3f800002)},
-    {rawbits_to_double(0x3ff0000040000001), rawbits_to_float(0x3f800002)},
-    {rawbits_to_double(0x3ff0000050000000), rawbits_to_float(0x3f800002)},
-    {rawbits_to_double(0x3ff0000050000001), rawbits_to_float(0x3f800003)},
-    {rawbits_to_double(0x3ff0000060000000), rawbits_to_float(0x3f800003)},
-    //  - A mantissa that overflows into the exponent during rounding.
-    {rawbits_to_double(0x3feffffff0000000), rawbits_to_float(0x3f800000)},
-    //  - The largest double that rounds to a normal float.
-    {rawbits_to_double(0x47efffffefffffff), rawbits_to_float(0x7f7fffff)},
+  struct {
+    double in;
+    float expected;
+  } test[] = {
+      // Check some simple conversions.
+      {0.0, 0.0f},
+      {1.0, 1.0f},
+      {1.5, 1.5f},
+      {2.0, 2.0f},
+      {FLT_MAX, FLT_MAX},
+      //  - The smallest normalized float.
+      {pow(2.0, -126), powf(2, -126)},
+      //  - Normal floats that need (ties-to-even) rounding.
+      //    For normalized numbers:
+      //         bit 29 (0x0000000020000000) is the lowest-order bit which will
+      //                                     fit in the float's mantissa.
+      {bit_cast<double>(0x3ff0000000000000), bit_cast<float>(0x3f800000)},
+      {bit_cast<double>(0x3ff0000000000001), bit_cast<float>(0x3f800000)},
+      {bit_cast<double>(0x3ff0000010000000), bit_cast<float>(0x3f800000)},
+      {bit_cast<double>(0x3ff0000010000001), bit_cast<float>(0x3f800001)},
+      {bit_cast<double>(0x3ff0000020000000), bit_cast<float>(0x3f800001)},
+      {bit_cast<double>(0x3ff0000020000001), bit_cast<float>(0x3f800001)},
+      {bit_cast<double>(0x3ff0000030000000), bit_cast<float>(0x3f800002)},
+      {bit_cast<double>(0x3ff0000030000001), bit_cast<float>(0x3f800002)},
+      {bit_cast<double>(0x3ff0000040000000), bit_cast<float>(0x3f800002)},
+      {bit_cast<double>(0x3ff0000040000001), bit_cast<float>(0x3f800002)},
+      {bit_cast<double>(0x3ff0000050000000), bit_cast<float>(0x3f800002)},
+      {bit_cast<double>(0x3ff0000050000001), bit_cast<float>(0x3f800003)},
+      {bit_cast<double>(0x3ff0000060000000), bit_cast<float>(0x3f800003)},
+      //  - A mantissa that overflows into the exponent during rounding.
+      {bit_cast<double>(0x3feffffff0000000), bit_cast<float>(0x3f800000)},
+      //  - The largest double that rounds to a normal float.
+      {bit_cast<double>(0x47efffffefffffff), bit_cast<float>(0x7f7fffff)},
 
-    // Doubles that are too big for a float.
-    {kFP64PositiveInfinity, kFP32PositiveInfinity},
-    {DBL_MAX, kFP32PositiveInfinity},
-    //  - The smallest exponent that's too big for a float.
-    {pow(2.0, 128), kFP32PositiveInfinity},
-    //  - This exponent is in range, but the value rounds to infinity.
-    {rawbits_to_double(0x47effffff0000000), kFP32PositiveInfinity},
+      // Doubles that are too big for a float.
+      {kFP64PositiveInfinity, kFP32PositiveInfinity},
+      {DBL_MAX, kFP32PositiveInfinity},
+      //  - The smallest exponent that's too big for a float.
+      {pow(2.0, 128), kFP32PositiveInfinity},
+      //  - This exponent is in range, but the value rounds to infinity.
+      {bit_cast<double>(0x47effffff0000000), kFP32PositiveInfinity},
 
-    // Doubles that are too small for a float.
-    //  - The smallest (subnormal) double.
-    {DBL_MIN, 0.0},
-    //  - The largest double which is too small for a subnormal float.
-    {rawbits_to_double(0x3690000000000000), rawbits_to_float(0x00000000)},
+      // Doubles that are too small for a float.
+      //  - The smallest (subnormal) double.
+      {DBL_MIN, 0.0},
+      //  - The largest double which is too small for a subnormal float.
+      {bit_cast<double>(0x3690000000000000), bit_cast<float>(0x00000000)},
 
-    // Normal doubles that become subnormal floats.
-    //  - The largest subnormal float.
-    {rawbits_to_double(0x380fffffc0000000), rawbits_to_float(0x007fffff)},
-    //  - The smallest subnormal float.
-    {rawbits_to_double(0x36a0000000000000), rawbits_to_float(0x00000001)},
-    //  - Subnormal floats that need (ties-to-even) rounding.
-    //    For these subnormals:
-    //         bit 34 (0x0000000400000000) is the lowest-order bit which will
-    //                                     fit in the float's mantissa.
-    {rawbits_to_double(0x37c159e000000000), rawbits_to_float(0x00045678)},
-    {rawbits_to_double(0x37c159e000000001), rawbits_to_float(0x00045678)},
-    {rawbits_to_double(0x37c159e200000000), rawbits_to_float(0x00045678)},
-    {rawbits_to_double(0x37c159e200000001), rawbits_to_float(0x00045679)},
-    {rawbits_to_double(0x37c159e400000000), rawbits_to_float(0x00045679)},
-    {rawbits_to_double(0x37c159e400000001), rawbits_to_float(0x00045679)},
-    {rawbits_to_double(0x37c159e600000000), rawbits_to_float(0x0004567a)},
-    {rawbits_to_double(0x37c159e600000001), rawbits_to_float(0x0004567a)},
-    {rawbits_to_double(0x37c159e800000000), rawbits_to_float(0x0004567a)},
-    {rawbits_to_double(0x37c159e800000001), rawbits_to_float(0x0004567a)},
-    {rawbits_to_double(0x37c159ea00000000), rawbits_to_float(0x0004567a)},
-    {rawbits_to_double(0x37c159ea00000001), rawbits_to_float(0x0004567b)},
-    {rawbits_to_double(0x37c159ec00000000), rawbits_to_float(0x0004567b)},
-    //  - The smallest double which rounds up to become a subnormal float.
-    {rawbits_to_double(0x3690000000000001), rawbits_to_float(0x00000001)},
+      // Normal doubles that become subnormal floats.
+      //  - The largest subnormal float.
+      {bit_cast<double>(0x380fffffc0000000), bit_cast<float>(0x007fffff)},
+      //  - The smallest subnormal float.
+      {bit_cast<double>(0x36a0000000000000), bit_cast<float>(0x00000001)},
+      //  - Subnormal floats that need (ties-to-even) rounding.
+      //    For these subnormals:
+      //         bit 34 (0x0000000400000000) is the lowest-order bit which will
+      //                                     fit in the float's mantissa.
+      {bit_cast<double>(0x37c159e000000000), bit_cast<float>(0x00045678)},
+      {bit_cast<double>(0x37c159e000000001), bit_cast<float>(0x00045678)},
+      {bit_cast<double>(0x37c159e200000000), bit_cast<float>(0x00045678)},
+      {bit_cast<double>(0x37c159e200000001), bit_cast<float>(0x00045679)},
+      {bit_cast<double>(0x37c159e400000000), bit_cast<float>(0x00045679)},
+      {bit_cast<double>(0x37c159e400000001), bit_cast<float>(0x00045679)},
+      {bit_cast<double>(0x37c159e600000000), bit_cast<float>(0x0004567a)},
+      {bit_cast<double>(0x37c159e600000001), bit_cast<float>(0x0004567a)},
+      {bit_cast<double>(0x37c159e800000000), bit_cast<float>(0x0004567a)},
+      {bit_cast<double>(0x37c159e800000001), bit_cast<float>(0x0004567a)},
+      {bit_cast<double>(0x37c159ea00000000), bit_cast<float>(0x0004567a)},
+      {bit_cast<double>(0x37c159ea00000001), bit_cast<float>(0x0004567b)},
+      {bit_cast<double>(0x37c159ec00000000), bit_cast<float>(0x0004567b)},
+      //  - The smallest double which rounds up to become a subnormal float.
+      {bit_cast<double>(0x3690000000000001), bit_cast<float>(0x00000001)},
 
-    // Check NaN payload preservation.
-    {rawbits_to_double(0x7ff82468a0000000), rawbits_to_float(0x7fc12345)},
-    {rawbits_to_double(0x7ff82468bfffffff), rawbits_to_float(0x7fc12345)},
-    //  - Signalling NaNs become quiet NaNs.
-    {rawbits_to_double(0x7ff02468a0000000), rawbits_to_float(0x7fc12345)},
-    {rawbits_to_double(0x7ff02468bfffffff), rawbits_to_float(0x7fc12345)},
-    {rawbits_to_double(0x7ff000001fffffff), rawbits_to_float(0x7fc00000)},
+      // Check NaN payload preservation.
+      {bit_cast<double>(0x7ff82468a0000000), bit_cast<float>(0x7fc12345)},
+      {bit_cast<double>(0x7ff82468bfffffff), bit_cast<float>(0x7fc12345)},
+      //  - Signalling NaNs become quiet NaNs.
+      {bit_cast<double>(0x7ff02468a0000000), bit_cast<float>(0x7fc12345)},
+      {bit_cast<double>(0x7ff02468bfffffff), bit_cast<float>(0x7fc12345)},
+      {bit_cast<double>(0x7ff000001fffffff), bit_cast<float>(0x7fc00000)},
   };
   int count = sizeof(test) / sizeof(test[0]);
 
@@ -8079,8 +11492,8 @@ static void TestUScvtfHelper(uint64_t in,
   RUN();
 
   // Check the results.
-  double expected_scvtf_base = rawbits_to_double(expected_scvtf_bits);
-  double expected_ucvtf_base = rawbits_to_double(expected_ucvtf_bits);
+  double expected_scvtf_base = bit_cast<double>(expected_scvtf_bits);
+  double expected_ucvtf_base = bit_cast<double>(expected_ucvtf_bits);
 
   for (int fbits = 0; fbits <= 32; fbits++) {
     double expected_scvtf = expected_scvtf_base / pow(2.0, fbits);
@@ -8234,8 +11647,8 @@ static void TestUScvtf32Helper(uint64_t in,
   RUN();
 
   // Check the results.
-  float expected_scvtf_base = rawbits_to_float(expected_scvtf_bits);
-  float expected_ucvtf_base = rawbits_to_float(expected_ucvtf_bits);
+  float expected_scvtf_base = bit_cast<float>(expected_scvtf_bits);
+  float expected_ucvtf_base = bit_cast<float>(expected_ucvtf_bits);
 
   for (int fbits = 0; fbits <= 32; fbits++) {
     float expected_scvtf = expected_scvtf_base / powf(2, fbits);
@@ -9133,13 +12546,13 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
   // debug code, for example.
   static RegList const allowed = ~0;
   if (reg_count == kPushPopFPJsspMaxRegCount) {
-    reg_count = CountSetBits(allowed, kNumberOfFPRegisters);
+    reg_count = CountSetBits(allowed, kNumberOfVRegisters);
   }
   // Work out which registers to use, based on reg_size.
-  FPRegister v[kNumberOfRegisters];
-  FPRegister d[kNumberOfRegisters];
-  RegList list = PopulateFPRegisterArray(NULL, d, v, reg_size, reg_count,
-                                         allowed);
+  VRegister v[kNumberOfRegisters];
+  VRegister d[kNumberOfRegisters];
+  RegList list =
+      PopulateVRegisterArray(NULL, d, v, reg_size, reg_count, allowed);
 
   // The literal base is chosen to have two useful properties:
   //  * When multiplied (using an integer) by small values (such as a register
@@ -9188,7 +12601,7 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
         }
         break;
       case PushPopRegList:
-        __ PushSizeRegList(list, reg_size, CPURegister::kFPRegister);
+        __ PushSizeRegList(list, reg_size, CPURegister::kVRegister);
         break;
     }
 
@@ -9212,7 +12625,7 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
         }
         break;
       case PushPopRegList:
-        __ PopSizeRegList(list, reg_size, CPURegister::kFPRegister);
+        __ PopSizeRegList(list, reg_size, CPURegister::kVRegister);
         break;
     }
 
@@ -9749,7 +13162,7 @@ TEST(push_queued) {
   queue.PushQueued();
 
   Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 6));
-  Clobber(&masm, CPURegList(CPURegister::kFPRegister, kDRegSizeInBits, 0, 2));
+  Clobber(&masm, CPURegList(CPURegister::kVRegister, kDRegSizeInBits, 0, 2));
 
   // Pop them conventionally.
   __ Pop(s2);
@@ -9827,7 +13240,7 @@ TEST(pop_queued) {
   queue.Queue(x0);
 
   Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 6));
-  Clobber(&masm, CPURegList(CPURegister::kFPRegister, kDRegSizeInBits, 0, 2));
+  Clobber(&masm, CPURegList(CPURegister::kVRegister, kDRegSizeInBits, 0, 2));
 
   // Actually pop them.
   queue.PopQueued();
@@ -10006,24 +13419,473 @@ TEST(jump_either_smi) {
 TEST(noreg) {
   // This test doesn't generate any code, but it verifies some invariants
   // related to NoReg.
-  CHECK(NoReg.Is(NoFPReg));
-  CHECK(NoFPReg.Is(NoReg));
+  CHECK(NoReg.Is(NoVReg));
+  CHECK(NoVReg.Is(NoReg));
   CHECK(NoReg.Is(NoCPUReg));
   CHECK(NoCPUReg.Is(NoReg));
-  CHECK(NoFPReg.Is(NoCPUReg));
-  CHECK(NoCPUReg.Is(NoFPReg));
+  CHECK(NoVReg.Is(NoCPUReg));
+  CHECK(NoCPUReg.Is(NoVReg));
 
   CHECK(NoReg.IsNone());
-  CHECK(NoFPReg.IsNone());
+  CHECK(NoVReg.IsNone());
   CHECK(NoCPUReg.IsNone());
 }
 
+TEST(vreg) {
+  // This test doesn't generate any code, but it verifies
+  // Helper functions and methods pertaining to VRegister logic.
+
+  CHECK_EQ(8U, RegisterSizeInBitsFromFormat(kFormatB));
+  CHECK_EQ(16U, RegisterSizeInBitsFromFormat(kFormatH));
+  CHECK_EQ(32U, RegisterSizeInBitsFromFormat(kFormatS));
+  CHECK_EQ(64U, RegisterSizeInBitsFromFormat(kFormatD));
+  CHECK_EQ(64U, RegisterSizeInBitsFromFormat(kFormat8B));
+  CHECK_EQ(64U, RegisterSizeInBitsFromFormat(kFormat4H));
+  CHECK_EQ(64U, RegisterSizeInBitsFromFormat(kFormat2S));
+  CHECK_EQ(64U, RegisterSizeInBitsFromFormat(kFormat1D));
+  CHECK_EQ(128U, RegisterSizeInBitsFromFormat(kFormat16B));
+  CHECK_EQ(128U, RegisterSizeInBitsFromFormat(kFormat8H));
+  CHECK_EQ(128U, RegisterSizeInBitsFromFormat(kFormat4S));
+  CHECK_EQ(128U, RegisterSizeInBitsFromFormat(kFormat2D));
+
+  CHECK_EQ(16, LaneCountFromFormat(kFormat16B));
+  CHECK_EQ(8, LaneCountFromFormat(kFormat8B));
+  CHECK_EQ(8, LaneCountFromFormat(kFormat8H));
+  CHECK_EQ(4, LaneCountFromFormat(kFormat4H));
+  CHECK_EQ(4, LaneCountFromFormat(kFormat4S));
+  CHECK_EQ(2, LaneCountFromFormat(kFormat2S));
+  CHECK_EQ(2, LaneCountFromFormat(kFormat2D));
+  CHECK_EQ(1, LaneCountFromFormat(kFormat1D));
+  CHECK_EQ(1, LaneCountFromFormat(kFormatB));
+  CHECK_EQ(1, LaneCountFromFormat(kFormatH));
+  CHECK_EQ(1, LaneCountFromFormat(kFormatS));
+  CHECK_EQ(1, LaneCountFromFormat(kFormatD));
+
+  CHECK(!IsVectorFormat(kFormatB));
+  CHECK(!IsVectorFormat(kFormatH));
+  CHECK(!IsVectorFormat(kFormatS));
+  CHECK(!IsVectorFormat(kFormatD));
+  CHECK(IsVectorFormat(kFormat16B));
+  CHECK(IsVectorFormat(kFormat8B));
+  CHECK(IsVectorFormat(kFormat8H));
+  CHECK(IsVectorFormat(kFormat4H));
+  CHECK(IsVectorFormat(kFormat4S));
+  CHECK(IsVectorFormat(kFormat2S));
+  CHECK(IsVectorFormat(kFormat2D));
+  CHECK(IsVectorFormat(kFormat1D));
+
+  CHECK(!d0.Is8B());
+  CHECK(!d0.Is16B());
+  CHECK(!d0.Is4H());
+  CHECK(!d0.Is8H());
+  CHECK(!d0.Is2S());
+  CHECK(!d0.Is4S());
+  CHECK(d0.Is1D());
+  CHECK(!d0.Is1S());
+  CHECK(!d0.Is1H());
+  CHECK(!d0.Is1B());
+  CHECK(!d0.IsVector());
+  CHECK(d0.IsScalar());
+  CHECK(d0.IsFPRegister());
+
+  CHECK(!d0.IsW());
+  CHECK(!d0.IsX());
+  CHECK(d0.IsV());
+  CHECK(!d0.IsB());
+  CHECK(!d0.IsH());
+  CHECK(!d0.IsS());
+  CHECK(d0.IsD());
+  CHECK(!d0.IsQ());
+
+  CHECK(!s0.Is8B());
+  CHECK(!s0.Is16B());
+  CHECK(!s0.Is4H());
+  CHECK(!s0.Is8H());
+  CHECK(!s0.Is2S());
+  CHECK(!s0.Is4S());
+  CHECK(!s0.Is1D());
+  CHECK(s0.Is1S());
+  CHECK(!s0.Is1H());
+  CHECK(!s0.Is1B());
+  CHECK(!s0.IsVector());
+  CHECK(s0.IsScalar());
+  CHECK(s0.IsFPRegister());
+
+  CHECK(!s0.IsW());
+  CHECK(!s0.IsX());
+  CHECK(s0.IsV());
+  CHECK(!s0.IsB());
+  CHECK(!s0.IsH());
+  CHECK(s0.IsS());
+  CHECK(!s0.IsD());
+  CHECK(!s0.IsQ());
+
+  CHECK(!h0.Is8B());
+  CHECK(!h0.Is16B());
+  CHECK(!h0.Is4H());
+  CHECK(!h0.Is8H());
+  CHECK(!h0.Is2S());
+  CHECK(!h0.Is4S());
+  CHECK(!h0.Is1D());
+  CHECK(!h0.Is1S());
+  CHECK(h0.Is1H());
+  CHECK(!h0.Is1B());
+  CHECK(!h0.IsVector());
+  CHECK(h0.IsScalar());
+  CHECK(!h0.IsFPRegister());
+
+  CHECK(!h0.IsW());
+  CHECK(!h0.IsX());
+  CHECK(h0.IsV());
+  CHECK(!h0.IsB());
+  CHECK(h0.IsH());
+  CHECK(!h0.IsS());
+  CHECK(!h0.IsD());
+  CHECK(!h0.IsQ());
+
+  CHECK(!b0.Is8B());
+  CHECK(!b0.Is16B());
+  CHECK(!b0.Is4H());
+  CHECK(!b0.Is8H());
+  CHECK(!b0.Is2S());
+  CHECK(!b0.Is4S());
+  CHECK(!b0.Is1D());
+  CHECK(!b0.Is1S());
+  CHECK(!b0.Is1H());
+  CHECK(b0.Is1B());
+  CHECK(!b0.IsVector());
+  CHECK(b0.IsScalar());
+  CHECK(!b0.IsFPRegister());
+
+  CHECK(!b0.IsW());
+  CHECK(!b0.IsX());
+  CHECK(b0.IsV());
+  CHECK(b0.IsB());
+  CHECK(!b0.IsH());
+  CHECK(!b0.IsS());
+  CHECK(!b0.IsD());
+  CHECK(!b0.IsQ());
+
+  CHECK(!q0.Is8B());
+  CHECK(!q0.Is16B());
+  CHECK(!q0.Is4H());
+  CHECK(!q0.Is8H());
+  CHECK(!q0.Is2S());
+  CHECK(!q0.Is4S());
+  CHECK(!q0.Is1D());
+  CHECK(!q0.Is2D());
+  CHECK(!q0.Is1S());
+  CHECK(!q0.Is1H());
+  CHECK(!q0.Is1B());
+  CHECK(!q0.IsVector());
+  CHECK(q0.IsScalar());
+  CHECK(!q0.IsFPRegister());
+
+  CHECK(!q0.IsW());
+  CHECK(!q0.IsX());
+  CHECK(q0.IsV());
+  CHECK(!q0.IsB());
+  CHECK(!q0.IsH());
+  CHECK(!q0.IsS());
+  CHECK(!q0.IsD());
+  CHECK(q0.IsQ());
+
+  CHECK(w0.IsW());
+  CHECK(!w0.IsX());
+  CHECK(!w0.IsV());
+  CHECK(!w0.IsB());
+  CHECK(!w0.IsH());
+  CHECK(!w0.IsS());
+  CHECK(!w0.IsD());
+  CHECK(!w0.IsQ());
+
+  CHECK(!x0.IsW());
+  CHECK(x0.IsX());
+  CHECK(!x0.IsV());
+  CHECK(!x0.IsB());
+  CHECK(!x0.IsH());
+  CHECK(!x0.IsS());
+  CHECK(!x0.IsD());
+  CHECK(!x0.IsQ());
+
+  CHECK(v0.V().IsV());
+  CHECK(v0.B().IsB());
+  CHECK(v0.H().IsH());
+  CHECK(v0.D().IsD());
+  CHECK(v0.S().IsS());
+  CHECK(v0.Q().IsQ());
+
+  VRegister test_8b(VRegister::Create(0, 64, 8));
+  CHECK(test_8b.Is8B());
+  CHECK(!test_8b.Is16B());
+  CHECK(!test_8b.Is4H());
+  CHECK(!test_8b.Is8H());
+  CHECK(!test_8b.Is2S());
+  CHECK(!test_8b.Is4S());
+  CHECK(!test_8b.Is1D());
+  CHECK(!test_8b.Is2D());
+  CHECK(!test_8b.Is1H());
+  CHECK(!test_8b.Is1B());
+  CHECK(test_8b.IsVector());
+  CHECK(!test_8b.IsScalar());
+  CHECK(test_8b.IsFPRegister());
+
+  VRegister test_16b(VRegister::Create(0, 128, 16));
+  CHECK(!test_16b.Is8B());
+  CHECK(test_16b.Is16B());
+  CHECK(!test_16b.Is4H());
+  CHECK(!test_16b.Is8H());
+  CHECK(!test_16b.Is2S());
+  CHECK(!test_16b.Is4S());
+  CHECK(!test_16b.Is1D());
+  CHECK(!test_16b.Is2D());
+  CHECK(!test_16b.Is1H());
+  CHECK(!test_16b.Is1B());
+  CHECK(test_16b.IsVector());
+  CHECK(!test_16b.IsScalar());
+  CHECK(!test_16b.IsFPRegister());
+
+  VRegister test_4h(VRegister::Create(0, 64, 4));
+  CHECK(!test_4h.Is8B());
+  CHECK(!test_4h.Is16B());
+  CHECK(test_4h.Is4H());
+  CHECK(!test_4h.Is8H());
+  CHECK(!test_4h.Is2S());
+  CHECK(!test_4h.Is4S());
+  CHECK(!test_4h.Is1D());
+  CHECK(!test_4h.Is2D());
+  CHECK(!test_4h.Is1H());
+  CHECK(!test_4h.Is1B());
+  CHECK(test_4h.IsVector());
+  CHECK(!test_4h.IsScalar());
+  CHECK(test_4h.IsFPRegister());
+
+  VRegister test_8h(VRegister::Create(0, 128, 8));
+  CHECK(!test_8h.Is8B());
+  CHECK(!test_8h.Is16B());
+  CHECK(!test_8h.Is4H());
+  CHECK(test_8h.Is8H());
+  CHECK(!test_8h.Is2S());
+  CHECK(!test_8h.Is4S());
+  CHECK(!test_8h.Is1D());
+  CHECK(!test_8h.Is2D());
+  CHECK(!test_8h.Is1H());
+  CHECK(!test_8h.Is1B());
+  CHECK(test_8h.IsVector());
+  CHECK(!test_8h.IsScalar());
+  CHECK(!test_8h.IsFPRegister());
+
+  VRegister test_2s(VRegister::Create(0, 64, 2));
+  CHECK(!test_2s.Is8B());
+  CHECK(!test_2s.Is16B());
+  CHECK(!test_2s.Is4H());
+  CHECK(!test_2s.Is8H());
+  CHECK(test_2s.Is2S());
+  CHECK(!test_2s.Is4S());
+  CHECK(!test_2s.Is1D());
+  CHECK(!test_2s.Is2D());
+  CHECK(!test_2s.Is1H());
+  CHECK(!test_2s.Is1B());
+  CHECK(test_2s.IsVector());
+  CHECK(!test_2s.IsScalar());
+  CHECK(test_2s.IsFPRegister());
+
+  VRegister test_4s(VRegister::Create(0, 128, 4));
+  CHECK(!test_4s.Is8B());
+  CHECK(!test_4s.Is16B());
+  CHECK(!test_4s.Is4H());
+  CHECK(!test_4s.Is8H());
+  CHECK(!test_4s.Is2S());
+  CHECK(test_4s.Is4S());
+  CHECK(!test_4s.Is1D());
+  CHECK(!test_4s.Is2D());
+  CHECK(!test_4s.Is1S());
+  CHECK(!test_4s.Is1H());
+  CHECK(!test_4s.Is1B());
+  CHECK(test_4s.IsVector());
+  CHECK(!test_4s.IsScalar());
+  CHECK(!test_4s.IsFPRegister());
+
+  VRegister test_1d(VRegister::Create(0, 64, 1));
+  CHECK(!test_1d.Is8B());
+  CHECK(!test_1d.Is16B());
+  CHECK(!test_1d.Is4H());
+  CHECK(!test_1d.Is8H());
+  CHECK(!test_1d.Is2S());
+  CHECK(!test_1d.Is4S());
+  CHECK(test_1d.Is1D());
+  CHECK(!test_1d.Is2D());
+  CHECK(!test_1d.Is1S());
+  CHECK(!test_1d.Is1H());
+  CHECK(!test_1d.Is1B());
+  CHECK(!test_1d.IsVector());
+  CHECK(test_1d.IsScalar());
+  CHECK(test_1d.IsFPRegister());
+
+  VRegister test_2d(VRegister::Create(0, 128, 2));
+  CHECK(!test_2d.Is8B());
+  CHECK(!test_2d.Is16B());
+  CHECK(!test_2d.Is4H());
+  CHECK(!test_2d.Is8H());
+  CHECK(!test_2d.Is2S());
+  CHECK(!test_2d.Is4S());
+  CHECK(!test_2d.Is1D());
+  CHECK(test_2d.Is2D());
+  CHECK(!test_2d.Is1H());
+  CHECK(!test_2d.Is1B());
+  CHECK(test_2d.IsVector());
+  CHECK(!test_2d.IsScalar());
+  CHECK(!test_2d.IsFPRegister());
+
+  VRegister test_1s(VRegister::Create(0, 32, 1));
+  CHECK(!test_1s.Is8B());
+  CHECK(!test_1s.Is16B());
+  CHECK(!test_1s.Is4H());
+  CHECK(!test_1s.Is8H());
+  CHECK(!test_1s.Is2S());
+  CHECK(!test_1s.Is4S());
+  CHECK(!test_1s.Is1D());
+  CHECK(!test_1s.Is2D());
+  CHECK(test_1s.Is1S());
+  CHECK(!test_1s.Is1H());
+  CHECK(!test_1s.Is1B());
+  CHECK(!test_1s.IsVector());
+  CHECK(test_1s.IsScalar());
+  CHECK(test_1s.IsFPRegister());
+
+  VRegister test_1h(VRegister::Create(0, 16, 1));
+  CHECK(!test_1h.Is8B());
+  CHECK(!test_1h.Is16B());
+  CHECK(!test_1h.Is4H());
+  CHECK(!test_1h.Is8H());
+  CHECK(!test_1h.Is2S());
+  CHECK(!test_1h.Is4S());
+  CHECK(!test_1h.Is1D());
+  CHECK(!test_1h.Is2D());
+  CHECK(!test_1h.Is1S());
+  CHECK(test_1h.Is1H());
+  CHECK(!test_1h.Is1B());
+  CHECK(!test_1h.IsVector());
+  CHECK(test_1h.IsScalar());
+  CHECK(!test_1h.IsFPRegister());
+
+  VRegister test_1b(VRegister::Create(0, 8, 1));
+  CHECK(!test_1b.Is8B());
+  CHECK(!test_1b.Is16B());
+  CHECK(!test_1b.Is4H());
+  CHECK(!test_1b.Is8H());
+  CHECK(!test_1b.Is2S());
+  CHECK(!test_1b.Is4S());
+  CHECK(!test_1b.Is1D());
+  CHECK(!test_1b.Is2D());
+  CHECK(!test_1b.Is1S());
+  CHECK(!test_1b.Is1H());
+  CHECK(test_1b.Is1B());
+  CHECK(!test_1b.IsVector());
+  CHECK(test_1b.IsScalar());
+  CHECK(!test_1b.IsFPRegister());
+
+  VRegister test_breg_from_code(VRegister::BRegFromCode(0));
+  CHECK_EQ(test_breg_from_code.SizeInBits(), kBRegSizeInBits);
+
+  VRegister test_hreg_from_code(VRegister::HRegFromCode(0));
+  CHECK_EQ(test_hreg_from_code.SizeInBits(), kHRegSizeInBits);
+
+  VRegister test_sreg_from_code(VRegister::SRegFromCode(0));
+  CHECK_EQ(test_sreg_from_code.SizeInBits(), kSRegSizeInBits);
+
+  VRegister test_dreg_from_code(VRegister::DRegFromCode(0));
+  CHECK_EQ(test_dreg_from_code.SizeInBits(), kDRegSizeInBits);
+
+  VRegister test_qreg_from_code(VRegister::QRegFromCode(0));
+  CHECK_EQ(test_qreg_from_code.SizeInBits(), kQRegSizeInBits);
+
+  VRegister test_vreg_from_code(VRegister::VRegFromCode(0));
+  CHECK_EQ(test_vreg_from_code.SizeInBits(), kVRegSizeInBits);
+
+  VRegister test_v8b(VRegister::VRegFromCode(31).V8B());
+  CHECK_EQ(test_v8b.code(), 31);
+  CHECK_EQ(test_v8b.SizeInBits(), kDRegSizeInBits);
+  CHECK(test_v8b.IsLaneSizeB());
+  CHECK(!test_v8b.IsLaneSizeH());
+  CHECK(!test_v8b.IsLaneSizeS());
+  CHECK(!test_v8b.IsLaneSizeD());
+  CHECK_EQ(test_v8b.LaneSizeInBits(), 8U);
+
+  VRegister test_v16b(VRegister::VRegFromCode(31).V16B());
+  CHECK_EQ(test_v16b.code(), 31);
+  CHECK_EQ(test_v16b.SizeInBits(), kQRegSizeInBits);
+  CHECK(test_v16b.IsLaneSizeB());
+  CHECK(!test_v16b.IsLaneSizeH());
+  CHECK(!test_v16b.IsLaneSizeS());
+  CHECK(!test_v16b.IsLaneSizeD());
+  CHECK_EQ(test_v16b.LaneSizeInBits(), 8U);
+
+  VRegister test_v4h(VRegister::VRegFromCode(31).V4H());
+  CHECK_EQ(test_v4h.code(), 31);
+  CHECK_EQ(test_v4h.SizeInBits(), kDRegSizeInBits);
+  CHECK(!test_v4h.IsLaneSizeB());
+  CHECK(test_v4h.IsLaneSizeH());
+  CHECK(!test_v4h.IsLaneSizeS());
+  CHECK(!test_v4h.IsLaneSizeD());
+  CHECK_EQ(test_v4h.LaneSizeInBits(), 16U);
+
+  VRegister test_v8h(VRegister::VRegFromCode(31).V8H());
+  CHECK_EQ(test_v8h.code(), 31);
+  CHECK_EQ(test_v8h.SizeInBits(), kQRegSizeInBits);
+  CHECK(!test_v8h.IsLaneSizeB());
+  CHECK(test_v8h.IsLaneSizeH());
+  CHECK(!test_v8h.IsLaneSizeS());
+  CHECK(!test_v8h.IsLaneSizeD());
+  CHECK_EQ(test_v8h.LaneSizeInBits(), 16U);
+
+  VRegister test_v2s(VRegister::VRegFromCode(31).V2S());
+  CHECK_EQ(test_v2s.code(), 31);
+  CHECK_EQ(test_v2s.SizeInBits(), kDRegSizeInBits);
+  CHECK(!test_v2s.IsLaneSizeB());
+  CHECK(!test_v2s.IsLaneSizeH());
+  CHECK(test_v2s.IsLaneSizeS());
+  CHECK(!test_v2s.IsLaneSizeD());
+  CHECK_EQ(test_v2s.LaneSizeInBits(), 32U);
+
+  VRegister test_v4s(VRegister::VRegFromCode(31).V4S());
+  CHECK_EQ(test_v4s.code(), 31);
+  CHECK_EQ(test_v4s.SizeInBits(), kQRegSizeInBits);
+  CHECK(!test_v4s.IsLaneSizeB());
+  CHECK(!test_v4s.IsLaneSizeH());
+  CHECK(test_v4s.IsLaneSizeS());
+  CHECK(!test_v4s.IsLaneSizeD());
+  CHECK_EQ(test_v4s.LaneSizeInBits(), 32U);
+
+  VRegister test_v1d(VRegister::VRegFromCode(31).V1D());
+  CHECK_EQ(test_v1d.code(), 31);
+  CHECK_EQ(test_v1d.SizeInBits(), kDRegSizeInBits);
+  CHECK(!test_v1d.IsLaneSizeB());
+  CHECK(!test_v1d.IsLaneSizeH());
+  CHECK(!test_v1d.IsLaneSizeS());
+  CHECK(test_v1d.IsLaneSizeD());
+  CHECK_EQ(test_v1d.LaneSizeInBits(), 64U);
+
+  VRegister test_v2d(VRegister::VRegFromCode(31).V2D());
+  CHECK_EQ(test_v2d.code(), 31);
+  CHECK_EQ(test_v2d.SizeInBits(), kQRegSizeInBits);
+  CHECK(!test_v2d.IsLaneSizeB());
+  CHECK(!test_v2d.IsLaneSizeH());
+  CHECK(!test_v2d.IsLaneSizeS());
+  CHECK(test_v2d.IsLaneSizeD());
+  CHECK_EQ(test_v2d.LaneSizeInBits(), 64U);
+
+  CHECK(test_v1d.IsSameFormat(test_v1d));
+  CHECK(test_v2d.IsSameFormat(test_v2d));
+  CHECK(!test_v1d.IsSameFormat(test_v2d));
+  CHECK(!test_v2s.IsSameFormat(test_v2d));
+}
 
 TEST(isvalid) {
   // This test doesn't generate any code, but it verifies some invariants
   // related to IsValid().
   CHECK(!NoReg.IsValid());
-  CHECK(!NoFPReg.IsValid());
+  CHECK(!NoVReg.IsValid());
   CHECK(!NoCPUReg.IsValid());
 
   CHECK(x0.IsValid());
@@ -10047,15 +13909,15 @@ TEST(isvalid) {
   CHECK(wzr.IsValidRegister());
   CHECK(csp.IsValidRegister());
   CHECK(wcsp.IsValidRegister());
-  CHECK(!x0.IsValidFPRegister());
-  CHECK(!w0.IsValidFPRegister());
-  CHECK(!xzr.IsValidFPRegister());
-  CHECK(!wzr.IsValidFPRegister());
-  CHECK(!csp.IsValidFPRegister());
-  CHECK(!wcsp.IsValidFPRegister());
+  CHECK(!x0.IsValidVRegister());
+  CHECK(!w0.IsValidVRegister());
+  CHECK(!xzr.IsValidVRegister());
+  CHECK(!wzr.IsValidVRegister());
+  CHECK(!csp.IsValidVRegister());
+  CHECK(!wcsp.IsValidVRegister());
 
-  CHECK(d0.IsValidFPRegister());
-  CHECK(s0.IsValidFPRegister());
+  CHECK(d0.IsValidVRegister());
+  CHECK(s0.IsValidVRegister());
   CHECK(!d0.IsValidRegister());
   CHECK(!s0.IsValidRegister());
 
@@ -10082,19 +13944,69 @@ TEST(isvalid) {
   CHECK(static_cast<CPURegister>(wzr).IsValidRegister());
   CHECK(static_cast<CPURegister>(csp).IsValidRegister());
   CHECK(static_cast<CPURegister>(wcsp).IsValidRegister());
-  CHECK(!static_cast<CPURegister>(x0).IsValidFPRegister());
-  CHECK(!static_cast<CPURegister>(w0).IsValidFPRegister());
-  CHECK(!static_cast<CPURegister>(xzr).IsValidFPRegister());
-  CHECK(!static_cast<CPURegister>(wzr).IsValidFPRegister());
-  CHECK(!static_cast<CPURegister>(csp).IsValidFPRegister());
-  CHECK(!static_cast<CPURegister>(wcsp).IsValidFPRegister());
+  CHECK(!static_cast<CPURegister>(x0).IsValidVRegister());
+  CHECK(!static_cast<CPURegister>(w0).IsValidVRegister());
+  CHECK(!static_cast<CPURegister>(xzr).IsValidVRegister());
+  CHECK(!static_cast<CPURegister>(wzr).IsValidVRegister());
+  CHECK(!static_cast<CPURegister>(csp).IsValidVRegister());
+  CHECK(!static_cast<CPURegister>(wcsp).IsValidVRegister());
 
-  CHECK(static_cast<CPURegister>(d0).IsValidFPRegister());
-  CHECK(static_cast<CPURegister>(s0).IsValidFPRegister());
+  CHECK(static_cast<CPURegister>(d0).IsValidVRegister());
+  CHECK(static_cast<CPURegister>(s0).IsValidVRegister());
   CHECK(!static_cast<CPURegister>(d0).IsValidRegister());
   CHECK(!static_cast<CPURegister>(s0).IsValidRegister());
 }
 
+TEST(areconsecutive) {
+  // This test generates no code; it just checks that AreConsecutive works.
+  CHECK(AreConsecutive(b0, NoVReg));
+  CHECK(AreConsecutive(b1, b2));
+  CHECK(AreConsecutive(b3, b4, b5));
+  CHECK(AreConsecutive(b6, b7, b8, b9));
+  CHECK(AreConsecutive(h10, NoVReg));
+  CHECK(AreConsecutive(h11, h12));
+  CHECK(AreConsecutive(h13, h14, h15));
+  CHECK(AreConsecutive(h16, h17, h18, h19));
+  CHECK(AreConsecutive(s20, NoVReg));
+  CHECK(AreConsecutive(s21, s22));
+  CHECK(AreConsecutive(s23, s24, s25));
+  CHECK(AreConsecutive(s26, s27, s28, s29));
+  CHECK(AreConsecutive(d30, NoVReg));
+  CHECK(AreConsecutive(d31, d0));
+  CHECK(AreConsecutive(d1, d2, d3));
+  CHECK(AreConsecutive(d4, d5, d6, d7));
+  CHECK(AreConsecutive(q8, NoVReg));
+  CHECK(AreConsecutive(q9, q10));
+  CHECK(AreConsecutive(q11, q12, q13));
+  CHECK(AreConsecutive(q14, q15, q16, q17));
+  CHECK(AreConsecutive(v18, NoVReg));
+  CHECK(AreConsecutive(v19, v20));
+  CHECK(AreConsecutive(v21, v22, v23));
+  CHECK(AreConsecutive(v24, v25, v26, v27));
+  CHECK(AreConsecutive(b29, h30));
+  CHECK(AreConsecutive(s31, d0, q1));
+  CHECK(AreConsecutive(v2, b3, h4, s5));
+
+  CHECK(AreConsecutive(b26, b27, NoVReg, NoVReg));
+  CHECK(AreConsecutive(h28, NoVReg, NoVReg, NoVReg));
+
+  CHECK(!AreConsecutive(b0, b2));
+  CHECK(!AreConsecutive(h1, h0));
+  CHECK(!AreConsecutive(s31, s1));
+  CHECK(!AreConsecutive(d12, d12));
+  CHECK(!AreConsecutive(q31, q1));
+
+  CHECK(!AreConsecutive(b5, b4, b3));
+  CHECK(!AreConsecutive(h15, h16, h15, h14));
+  CHECK(!AreConsecutive(s25, s24, s23, s22));
+  CHECK(!AreConsecutive(d5, d6, d7, d6));
+  CHECK(!AreConsecutive(q15, q16, q17, q6));
+
+  CHECK(!AreConsecutive(b0, b1, b3));
+  CHECK(!AreConsecutive(h4, h5, h6, h6));
+  CHECK(!AreConsecutive(d15, d16, d18, NoVReg));
+  CHECK(!AreConsecutive(s28, s30, NoVReg, NoVReg));
+}
 
 TEST(cpureglist_utils_x) {
   // This test doesn't generate any code, but it verifies the behaviour of
@@ -10321,8 +14233,8 @@ TEST(cpureglist_utils_empty) {
   // them, and that they are empty.
   CPURegList reg32(CPURegister::kRegister, kWRegSizeInBits, 0);
   CPURegList reg64(CPURegister::kRegister, kXRegSizeInBits, 0);
-  CPURegList fpreg32(CPURegister::kFPRegister, kSRegSizeInBits, 0);
-  CPURegList fpreg64(CPURegister::kFPRegister, kDRegSizeInBits, 0);
+  CPURegList fpreg32(CPURegister::kVRegister, kSRegSizeInBits, 0);
+  CPURegList fpreg64(CPURegister::kVRegister, kDRegSizeInBits, 0);
 
   CHECK(reg32.IsEmpty());
   CHECK(reg64.IsEmpty());
@@ -10660,13 +14572,13 @@ TEST(barriers) {
 TEST(process_nan_double) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double sn = rawbits_to_double(0x7ff5555511111111);
-  double qn = rawbits_to_double(0x7ffaaaaa11111111);
+  double sn = bit_cast<double>(0x7ff5555511111111);
+  double qn = bit_cast<double>(0x7ffaaaaa11111111);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
-  double sn_proc = rawbits_to_double(0x7ffd555511111111);
+  double sn_proc = bit_cast<double>(0x7ffd555511111111);
   double qn_proc = qn;
   CHECK(IsQuietNaN(sn_proc));
   CHECK(IsQuietNaN(qn_proc));
@@ -10706,17 +14618,17 @@ TEST(process_nan_double) {
   END();
   RUN();
 
-  uint64_t qn_raw = double_to_rawbits(qn);
-  uint64_t sn_raw = double_to_rawbits(sn);
+  uint64_t qn_raw = bit_cast<uint64_t>(qn);
+  uint64_t sn_raw = bit_cast<uint64_t>(sn);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP64(sn, d1);
-  CHECK_EQUAL_FP64(rawbits_to_double(sn_raw & ~kDSignMask), d2);
-  CHECK_EQUAL_FP64(rawbits_to_double(sn_raw ^ kDSignMask), d3);
+  CHECK_EQUAL_FP64(bit_cast<double>(sn_raw & ~kDSignMask), d2);
+  CHECK_EQUAL_FP64(bit_cast<double>(sn_raw ^ kDSignMask), d3);
   //   - Quiet NaN
   CHECK_EQUAL_FP64(qn, d11);
-  CHECK_EQUAL_FP64(rawbits_to_double(qn_raw & ~kDSignMask), d12);
-  CHECK_EQUAL_FP64(rawbits_to_double(qn_raw ^ kDSignMask), d13);
+  CHECK_EQUAL_FP64(bit_cast<double>(qn_raw & ~kDSignMask), d12);
+  CHECK_EQUAL_FP64(bit_cast<double>(qn_raw ^ kDSignMask), d13);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP64(sn_proc, d4);
@@ -10736,13 +14648,13 @@ TEST(process_nan_double) {
 TEST(process_nan_float) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float sn = rawbits_to_float(0x7f951111);
-  float qn = rawbits_to_float(0x7fea1111);
+  float sn = bit_cast<float>(0x7f951111);
+  float qn = bit_cast<float>(0x7fea1111);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
-  float sn_proc = rawbits_to_float(0x7fd51111);
+  float sn_proc = bit_cast<float>(0x7fd51111);
   float qn_proc = qn;
   CHECK(IsQuietNaN(sn_proc));
   CHECK(IsQuietNaN(qn_proc));
@@ -10782,17 +14694,18 @@ TEST(process_nan_float) {
   END();
   RUN();
 
-  uint32_t qn_raw = float_to_rawbits(qn);
-  uint32_t sn_raw = float_to_rawbits(sn);
+  uint32_t qn_raw = bit_cast<uint32_t>(qn);
+  uint32_t sn_raw = bit_cast<uint32_t>(sn);
+  uint32_t sign_mask = static_cast<uint32_t>(kSSignMask);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP32(sn, s1);
-  CHECK_EQUAL_FP32(rawbits_to_float(sn_raw & ~kSSignMask), s2);
-  CHECK_EQUAL_FP32(rawbits_to_float(sn_raw ^ kSSignMask), s3);
+  CHECK_EQUAL_FP32(bit_cast<float>(sn_raw & ~sign_mask), s2);
+  CHECK_EQUAL_FP32(bit_cast<float>(sn_raw ^ sign_mask), s3);
   //   - Quiet NaN
   CHECK_EQUAL_FP32(qn, s11);
-  CHECK_EQUAL_FP32(rawbits_to_float(qn_raw & ~kSSignMask), s12);
-  CHECK_EQUAL_FP32(rawbits_to_float(qn_raw ^ kSSignMask), s13);
+  CHECK_EQUAL_FP32(bit_cast<float>(qn_raw & ~sign_mask), s12);
+  CHECK_EQUAL_FP32(bit_cast<float>(qn_raw ^ sign_mask), s13);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP32(sn_proc, s4);
@@ -10845,18 +14758,18 @@ static void ProcessNaNsHelper(double n, double m, double expected) {
 TEST(process_nans_double) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double sn = rawbits_to_double(0x7ff5555511111111);
-  double sm = rawbits_to_double(0x7ff5555522222222);
-  double qn = rawbits_to_double(0x7ffaaaaa11111111);
-  double qm = rawbits_to_double(0x7ffaaaaa22222222);
+  double sn = bit_cast<double>(0x7ff5555511111111);
+  double sm = bit_cast<double>(0x7ff5555522222222);
+  double qn = bit_cast<double>(0x7ffaaaaa11111111);
+  double qm = bit_cast<double>(0x7ffaaaaa22222222);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsQuietNaN(qn));
   CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
-  double sn_proc = rawbits_to_double(0x7ffd555511111111);
-  double sm_proc = rawbits_to_double(0x7ffd555522222222);
+  double sn_proc = bit_cast<double>(0x7ffd555511111111);
+  double sm_proc = bit_cast<double>(0x7ffd555522222222);
   double qn_proc = qn;
   double qm_proc = qm;
   CHECK(IsQuietNaN(sn_proc));
@@ -10917,18 +14830,18 @@ static void ProcessNaNsHelper(float n, float m, float expected) {
 TEST(process_nans_float) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float sn = rawbits_to_float(0x7f951111);
-  float sm = rawbits_to_float(0x7f952222);
-  float qn = rawbits_to_float(0x7fea1111);
-  float qm = rawbits_to_float(0x7fea2222);
+  float sn = bit_cast<float>(0x7f951111);
+  float sm = bit_cast<float>(0x7f952222);
+  float qn = bit_cast<float>(0x7fea1111);
+  float qm = bit_cast<float>(0x7fea2222);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsQuietNaN(qn));
   CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
-  float sn_proc = rawbits_to_float(0x7fd51111);
-  float sm_proc = rawbits_to_float(0x7fd52222);
+  float sn_proc = bit_cast<float>(0x7fd51111);
+  float sm_proc = bit_cast<float>(0x7fd52222);
   float qn_proc = qn;
   float qm_proc = qm;
   CHECK(IsQuietNaN(sn_proc));
@@ -11010,10 +14923,11 @@ static void DefaultNaNHelper(float n, float m, float a) {
   RUN();
 
   if (test_1op) {
-    uint32_t n_raw = float_to_rawbits(n);
+    uint32_t n_raw = bit_cast<uint32_t>(n);
+    uint32_t sign_mask = static_cast<uint32_t>(kSSignMask);
     CHECK_EQUAL_FP32(n, s10);
-    CHECK_EQUAL_FP32(rawbits_to_float(n_raw & ~kSSignMask), s11);
-    CHECK_EQUAL_FP32(rawbits_to_float(n_raw ^ kSSignMask), s12);
+    CHECK_EQUAL_FP32(bit_cast<float>(n_raw & ~sign_mask), s11);
+    CHECK_EQUAL_FP32(bit_cast<float>(n_raw ^ sign_mask), s12);
     CHECK_EQUAL_FP32(kFP32DefaultNaN, s13);
     CHECK_EQUAL_FP32(kFP32DefaultNaN, s14);
     CHECK_EQUAL_FP32(kFP32DefaultNaN, s15);
@@ -11041,12 +14955,12 @@ static void DefaultNaNHelper(float n, float m, float a) {
 
 TEST(default_nan_float) {
   INIT_V8();
-  float sn = rawbits_to_float(0x7f951111);
-  float sm = rawbits_to_float(0x7f952222);
-  float sa = rawbits_to_float(0x7f95aaaa);
-  float qn = rawbits_to_float(0x7fea1111);
-  float qm = rawbits_to_float(0x7fea2222);
-  float qa = rawbits_to_float(0x7feaaaaa);
+  float sn = bit_cast<float>(0x7f951111);
+  float sm = bit_cast<float>(0x7f952222);
+  float sa = bit_cast<float>(0x7f95aaaa);
+  float qn = bit_cast<float>(0x7fea1111);
+  float qm = bit_cast<float>(0x7fea2222);
+  float qa = bit_cast<float>(0x7feaaaaa);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsSignallingNaN(sa));
@@ -11138,10 +15052,10 @@ static void DefaultNaNHelper(double n, double m, double a) {
   RUN();
 
   if (test_1op) {
-    uint64_t n_raw = double_to_rawbits(n);
+    uint64_t n_raw = bit_cast<uint64_t>(n);
     CHECK_EQUAL_FP64(n, d10);
-    CHECK_EQUAL_FP64(rawbits_to_double(n_raw & ~kDSignMask), d11);
-    CHECK_EQUAL_FP64(rawbits_to_double(n_raw ^ kDSignMask), d12);
+    CHECK_EQUAL_FP64(bit_cast<double>(n_raw & ~kDSignMask), d11);
+    CHECK_EQUAL_FP64(bit_cast<double>(n_raw ^ kDSignMask), d12);
     CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
     CHECK_EQUAL_FP64(kFP64DefaultNaN, d14);
     CHECK_EQUAL_FP64(kFP64DefaultNaN, d15);
@@ -11169,12 +15083,12 @@ static void DefaultNaNHelper(double n, double m, double a) {
 
 TEST(default_nan_double) {
   INIT_V8();
-  double sn = rawbits_to_double(0x7ff5555511111111);
-  double sm = rawbits_to_double(0x7ff5555522222222);
-  double sa = rawbits_to_double(0x7ff55555aaaaaaaa);
-  double qn = rawbits_to_double(0x7ffaaaaa11111111);
-  double qm = rawbits_to_double(0x7ffaaaaa22222222);
-  double qa = rawbits_to_double(0x7ffaaaaaaaaaaaaa);
+  double sn = bit_cast<double>(0x7ff5555511111111);
+  double sm = bit_cast<double>(0x7ff5555522222222);
+  double sa = bit_cast<double>(0x7ff55555aaaaaaaa);
+  double qn = bit_cast<double>(0x7ffaaaaa11111111);
+  double qm = bit_cast<double>(0x7ffaaaaa22222222);
+  double qa = bit_cast<double>(0x7ffaaaaaaaaaaaaa);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsSignallingNaN(sa));
@@ -11409,7 +15323,7 @@ TEST(pool_size) {
 
   HandleScope handle_scope(isolate);
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(desc, 0, masm.CodeObject());
 
   unsigned pool_count = 0;

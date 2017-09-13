@@ -138,7 +138,8 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   enum InferReceiverMapsResult {
     kNoReceiverMaps,         // No receiver maps inferred.
     kReliableReceiverMaps,   // Receiver maps can be trusted.
-    kUnreliableReceiverMaps  // Receiver maps might have changed (side-effect).
+    kUnreliableReceiverMaps  // Receiver maps might have changed (side-effect),
+                             // but instance type is reliable.
   };
   static InferReceiverMapsResult InferReceiverMaps(
       Node* receiver, Node* effect, ZoneHandleSet<Map>* maps_return);

@@ -11,9 +11,8 @@
 
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-types.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
-#include "src/parsing/scanner-character-streams.h"
+#include "src/base/optional.h"
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker.
 #include "src/parsing/scanner.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -68,16 +67,16 @@ namespace wasm {
 
 #define TOK(name) AsmJsScanner::kToken_##name
 
-AsmJsParser::AsmJsParser(Isolate* isolate, Zone* zone, Handle<Script> script,
-                         int start, int end)
+AsmJsParser::AsmJsParser(Zone* zone, uintptr_t stack_limit,
+                         std::unique_ptr<Utf16CharacterStream> stream)
     : zone_(zone),
       module_builder_(new (zone) WasmModuleBuilder(zone)),
       return_type_(nullptr),
-      stack_limit_(isolate->stack_guard()->real_climit()),
+      stack_limit_(stack_limit),
       global_var_info_(zone),
       local_var_info_(zone),
       failed_(false),
-      failure_location_(start),
+      failure_location_(kNoSourcePosition),
       stdlib_name_(kTokenNone),
       foreign_name_(kTokenNone),
       heap_name_(kTokenNone),
@@ -89,9 +88,6 @@ AsmJsParser::AsmJsParser(Isolate* isolate, Zone* zone, Handle<Script> script,
       pending_label_(0),
       global_imports_(zone) {
   InitializeStdlibTypes();
-  Handle<String> source(String::cast(script->source()), isolate);
-  std::unique_ptr<Utf16CharacterStream> stream(
-      ScannerStream::For(source, start, end));
   scanner_.SetStream(std::move(stream));
 }
 
@@ -144,8 +140,8 @@ void AsmJsParser::InitializeStdlibTypes() {
   stdlib_fround_ = AsmType::FroundType(zone());
 }
 
-FunctionSig* AsmJsParser::ConvertSignature(
-    AsmType* return_type, const std::vector<AsmType*>& params) {
+FunctionSig* AsmJsParser::ConvertSignature(AsmType* return_type,
+                                           const ZoneVector<AsmType*>& params) {
   FunctionSig::Builder sig_builder(
       zone(), !return_type->IsA(AsmType::Void()) ? 1 : 0, params.size());
   for (auto param : params) {
@@ -215,7 +211,6 @@ wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
     return &local_var_info_[index];
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 uint32_t AsmJsParser::VarIndex(VarInfo* info) {
@@ -348,9 +343,15 @@ void AsmJsParser::ValidateModule() {
     if (info.kind == VarKind::kTable && !info.function_defined) {
       FAIL("Undefined function table");
     }
+    if (info.kind == VarKind::kImportedFunction && !info.function_defined) {
+      // For imported functions without a single call site, we insert a dummy
+      // import here to preserve the fact that there actually was an import.
+      FunctionSig* void_void_sig = FunctionSig::Builder(zone(), 0, 0).Build();
+      module_builder_->AddImport(info.import->function_name, void_void_sig);
+    }
   }
 
-  // Add start function to init things.
+  // Add start function to initialize things.
   WasmFunctionBuilder* start = module_builder_->AddFunction();
   module_builder_->MarkStartFunction(start);
   for (auto& global_import : global_imports_) {
@@ -725,9 +726,9 @@ void AsmJsParser::ValidateFunction() {
   int start_position = static_cast<int>(scanner_.Position());
   current_function_builder_->SetAsmFunctionStartPosition(start_position);
 
-  std::vector<AsmType*> params;
+  CachedVector<AsmType*> params(cached_asm_type_p_vectors_);
   ValidateFunctionParams(&params);
-  std::vector<ValueType> locals;
+  CachedVector<ValueType> locals(cached_valuetype_vectors_);
   ValidateFunctionLocals(params.size(), &locals);
 
   function_temp_locals_offset_ = static_cast<uint32_t>(
@@ -787,13 +788,14 @@ void AsmJsParser::ValidateFunction() {
 }
 
 // 6.4 ValidateFunction
-void AsmJsParser::ValidateFunctionParams(std::vector<AsmType*>* params) {
+void AsmJsParser::ValidateFunctionParams(ZoneVector<AsmType*>* params) {
   // TODO(bradnelson): Do this differently so that the scanner doesn't need to
   // have a state transition that needs knowledge of how the scanner works
   // inside.
   scanner_.EnterLocalScope();
   EXPECT_TOKEN('(');
-  std::vector<AsmJsScanner::token_t> function_parameters;
+  CachedVector<AsmJsScanner::token_t> function_parameters(
+      cached_token_t_vectors_);
   while (!failed_ && !Peek(')')) {
     if (!scanner_.IsLocal()) {
       FAIL("Expected parameter name");
@@ -847,8 +849,8 @@ void AsmJsParser::ValidateFunctionParams(std::vector<AsmType*>* params) {
 }
 
 // 6.4 ValidateFunction - locals
-void AsmJsParser::ValidateFunctionLocals(
-    size_t param_count, std::vector<ValueType>* locals) {
+void AsmJsParser::ValidateFunctionLocals(size_t param_count,
+                                         ZoneVector<ValueType>* locals) {
   // Local Variables.
   while (Peek(TOK(var))) {
     scanner_.EnterLocalScope();
@@ -1262,7 +1264,7 @@ void AsmJsParser::SwitchStatement() {
   Begin(pending_label_);
   pending_label_ = 0;
   // TODO(bradnelson): Make less weird.
-  std::vector<int32_t> cases;
+  CachedVector<int32_t> cases(cached_int_vectors_);
   GatherCases(&cases);
   EXPECT_TOKEN('{');
   size_t count = cases.size() + 1;
@@ -1398,7 +1400,6 @@ AsmType* AsmJsParser::Identifier() {
     return info->type;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 // 6.8.4 CallExpression
@@ -1677,7 +1678,7 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
       }
     } else if (Check('/')) {
       AsmType* b;
-      RECURSEn(b = MultiplicativeExpression());
+      RECURSEn(b = UnaryExpression());
       if (a->IsA(AsmType::DoubleQ()) && b->IsA(AsmType::DoubleQ())) {
         current_function_builder_->Emit(kExprF64Div);
         a = AsmType::Double();
@@ -1695,7 +1696,7 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
       }
     } else if (Check('%')) {
       AsmType* b;
-      RECURSEn(b = MultiplicativeExpression());
+      RECURSEn(b = UnaryExpression());
       if (a->IsA(AsmType::DoubleQ()) && b->IsA(AsmType::DoubleQ())) {
         current_function_builder_->Emit(kExprF64Mod);
         a = AsmType::Double();
@@ -2014,8 +2015,7 @@ AsmType* AsmJsParser::ValidateCall() {
   // both cases we might be seeing the {function_name} for the first time and
   // hence allocate a {VarInfo} here, all subsequent uses of the same name then
   // need to match the information stored at this point.
-  // TODO(mstarzinger): Consider using Chromiums base::Optional instead.
-  std::unique_ptr<TemporaryVariableScope> tmp;
+  base::Optional<TemporaryVariableScope> tmp;
   if (Check('[')) {
     RECURSEn(EqualityExpression());
     EXPECT_TOKENn('&');
@@ -2023,7 +2023,7 @@ AsmType* AsmJsParser::ValidateCall() {
     if (!CheckForUnsigned(&mask)) {
       FAILn("Expected mask literal");
     }
-    if (!base::bits::IsPowerOfTwo32(mask + 1)) {
+    if (!base::bits::IsPowerOfTwo(mask + 1)) {
       FAILn("Expected power of 2 mask");
     }
     current_function_builder_->EmitI32Const(mask);
@@ -2050,8 +2050,8 @@ AsmType* AsmJsParser::ValidateCall() {
     current_function_builder_->EmitI32Const(function_info->index);
     current_function_builder_->Emit(kExprI32Add);
     // We have to use a temporary for the correct order of evaluation.
-    tmp.reset(new TemporaryVariableScope(this));
-    current_function_builder_->EmitSetLocal(tmp.get()->get());
+    tmp.emplace(this);
+    current_function_builder_->EmitSetLocal(tmp->get());
     // The position of function table calls is after the table lookup.
     call_pos = static_cast<int>(scanner_.Position());
   } else {
@@ -2070,8 +2070,8 @@ AsmType* AsmJsParser::ValidateCall() {
   }
 
   // Parse argument list and gather types.
-  std::vector<AsmType*> param_types;
-  ZoneVector<AsmType*> param_specific_types(zone());
+  CachedVector<AsmType*> param_types(cached_asm_type_p_vectors_);
+  CachedVector<AsmType*> param_specific_types(cached_asm_type_p_vectors_);
   EXPECT_TOKENn('(');
   while (!failed_ && !Peek(')')) {
     AsmType* t;
@@ -2149,10 +2149,12 @@ AsmType* AsmJsParser::ValidateCall() {
     auto it = function_info->import->cache.find(sig);
     if (it != function_info->import->cache.end()) {
       index = it->second;
+      DCHECK(function_info->function_defined);
     } else {
       index =
           module_builder_->AddImport(function_info->import->function_name, sig);
       function_info->import->cache[sig] = index;
+      function_info->function_defined = true;
     }
     current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
     current_function_builder_->EmitWithU32V(kExprCallFunction, index);
@@ -2283,7 +2285,7 @@ AsmType* AsmJsParser::ValidateCall() {
       }
     }
     if (function_info->kind == VarKind::kTable) {
-      current_function_builder_->EmitGetLocal(tmp.get()->get());
+      current_function_builder_->EmitGetLocal(tmp->get());
       current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
       current_function_builder_->Emit(kExprCallIndirect);
       current_function_builder_->EmitU32V(signature_index);
@@ -2420,7 +2422,7 @@ void AsmJsParser::ScanToClosingParenthesis() {
   }
 }
 
-void AsmJsParser::GatherCases(std::vector<int32_t>* cases) {
+void AsmJsParser::GatherCases(ZoneVector<int32_t>* cases) {
   size_t start = scanner_.Position();
   int depth = 0;
   for (;;) {

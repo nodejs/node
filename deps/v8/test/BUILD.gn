@@ -128,7 +128,6 @@ v8_isolate_run("fuzzer") {
     "..:v8_simple_json_fuzzer",
     "..:v8_simple_parser_fuzzer",
     "..:v8_simple_regexp_fuzzer",
-    "..:v8_simple_wasm_asmjs_fuzzer",
     "..:v8_simple_wasm_fuzzer",
   ]
 

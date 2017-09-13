@@ -25,7 +25,7 @@
   }
   testRestPoint(1, 2);
   testRestPoint(1, 2);
-  % OptimizeFunctionOnNextCall(testRestPoint);
+  %OptimizeFunctionOnNextCall(testRestPoint);
   var r = testRestPoint(1, 2);
 
   assertInstanceof(r, RestPoint);

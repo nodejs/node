@@ -56,15 +56,15 @@ template("v8_isolate_run") {
       }
 
       # Translate gn to gyp variables.
+      if (v8_code_coverage) {
+        coverage = "1"
+      } else {
+        coverage = "0"
+      }
       if (is_asan) {
         asan = "1"
       } else {
         asan = "0"
-      }
-      if (is_lsan) {
-        lsan = "1"
-      } else {
-        lsan = "0"
       }
       if (is_msan) {
         msan = "1"
@@ -158,15 +158,13 @@ template("v8_isolate_run") {
         "--config-variable",
         "is_gn=1",
         "--config-variable",
-        "lsan=$lsan",
-        "--config-variable",
         "msan=$msan",
         "--config-variable",
         "tsan=$tsan",
         "--config-variable",
-        "coverage=0",
+        "coverage=$coverage",
         "--config-variable",
-        "sanitizer_coverage=0",
+        "sanitizer_coverage=$sanitizer_coverage_flags",
         "--config-variable",
         "component=$component",
         "--config-variable",

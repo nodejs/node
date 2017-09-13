@@ -11,32 +11,32 @@ var obj = {};
 array = [];
 %DebugPrint(array);
 
-// FAST_SMI_ELEMENTS
+// PACKED_SMI_ELEMENTS
 array = [1, 2, 3];
 %DebugPrint(array);
 
-// FAST_HOLEY_SMI_ELEMENTS
+// HOLEY_SMI_ELEMENTS
 array[10] = 100;
 array[11] = 100;
 %DebugPrint(array);
 
-// FAST_ELEMENTS
+// PACKED_ELEMENTS
 array = [1, obj, obj];
 %DebugPrint(array);
 
-// FAST_HOLEY_ELEMENTS
+// HOLEY_ELEMENTS
 array[100] = obj;
 array[101] = obj;
 %DebugPrint(array);
 
-// FAST_DOUBLE_ELEMENTS
+// PACKED_DOUBLE_ELEMENTS
 array = [1.1, 2.2, 3.3, 3.3, 3.3, NaN];
 %DebugPrint(array);
 array.push(NaN);
 array.push(NaN);
 %DebugPrint(array);
 
-// FAST_HOLEY_DOUBLE_ELEMENTS
+// HOLEY_DOUBLE_ELEMENTS
 array[100] = 1.2;
 array[101] = 1.2;
 %DebugPrint(array);

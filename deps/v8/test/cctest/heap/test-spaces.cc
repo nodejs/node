@@ -370,7 +370,6 @@ TEST(NewSpace) {
   }
 
   new_space.TearDown();
-  memory_allocator->unmapper()->WaitUntilCompleted();
   memory_allocator->TearDown();
   delete memory_allocator;
 }
@@ -660,6 +659,7 @@ UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
 }
 
 TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
+  FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);

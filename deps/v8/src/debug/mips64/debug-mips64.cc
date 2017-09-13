@@ -130,7 +130,7 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::INTERNAL);
 
   __ Ld(a0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ Ld(a0,
+  __ Lw(a0,
         FieldMemOperand(a0, SharedFunctionInfo::kFormalParameterCountOffset));
   __ mov(a2, a0);
 

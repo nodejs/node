@@ -21,8 +21,9 @@ function listener(event, exec_state, event_data, data) {
 };
 
 function replaceCallback(a) {
-  return "x";                                   // Break 2.
-}                                               // Break 3.
+  return "x"                                    // Break 2.
+  ;                                             // Break 3.
+}
 
 var re = /x/g;
 // Optimize the inner helper function for string replace.

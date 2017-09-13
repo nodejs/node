@@ -131,21 +131,21 @@ TestStringify('{"y":"xy"}', {y: obj});
 var fast_smi = [1, 2, 3, 4];
 fast_smi.__proto__ = [7, 7, 7, 7];
 delete fast_smi[2];
-assertTrue(%HasFastSmiElements(fast_smi));
+assertTrue(%HasSmiElements(fast_smi));
 TestStringify("[1,2,7,4]", fast_smi);
 
 var fast_double = [1.1, 2, 3, 4];
 fast_double.__proto__ = [7, 7, 7, 7];
 
 delete fast_double[2];
-assertTrue(%HasFastDoubleElements(fast_double));
+assertTrue(%HasDoubleElements(fast_double));
 TestStringify("[1.1,2,7,4]", fast_double);
 
 var fast_obj = [1, 2, {}, {}];
 fast_obj.__proto__ = [7, 7, 7, 7];
 
 delete fast_obj[2];
-assertTrue(%HasFastObjectElements(fast_obj));
+assertTrue(%HasObjectElements(fast_obj));
 TestStringify("[1,2,7,{}]", fast_obj);
 
 var getter_side_effect = { a: 1,

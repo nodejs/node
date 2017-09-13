@@ -35,12 +35,12 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
   Node* length = TaggedToParameter(LoadFixedArrayBaseLength(source), mode);
 
   // Check if we can allocate in new space.
-  ElementsKind kind = FAST_ELEMENTS;
+  ElementsKind kind = PACKED_ELEMENTS;
   int max_elements = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind);
-  Label if_newspace(this), if_oldspace(this);
+  Label if_newspace(this), if_lospace(this, Label::kDeferred);
   Branch(UintPtrOrSmiLessThan(length, IntPtrOrSmiConstant(max_elements, mode),
                               mode),
-         &if_newspace, &if_oldspace);
+         &if_newspace, &if_lospace);
 
   BIND(&if_newspace);
   {
@@ -51,9 +51,10 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
     Return(target);
   }
 
-  BIND(&if_oldspace);
+  BIND(&if_lospace);
   {
-    Node* target = AllocateFixedArray(kind, length, mode, kPretenured);
+    Node* target =
+        AllocateFixedArray(kind, length, mode, kAllowLargeObjectAllocation);
     CopyFixedArrayElements(kind, source, target, length, UPDATE_WRITE_BARRIER,
                            mode);
     StoreObjectField(object, JSObject::kElementsOffset, target);
@@ -68,7 +69,7 @@ TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
 
   Label runtime(this, Label::kDeferred);
   Node* elements = LoadElements(object);
-  elements = TryGrowElementsCapacity(object, elements, FAST_DOUBLE_ELEMENTS,
+  elements = TryGrowElementsCapacity(object, elements, PACKED_DOUBLE_ELEMENTS,
                                      key, &runtime);
   Return(elements);
 
@@ -84,7 +85,7 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
   Label runtime(this, Label::kDeferred);
   Node* elements = LoadElements(object);
   elements =
-      TryGrowElementsCapacity(object, elements, FAST_ELEMENTS, key, &runtime);
+      TryGrowElementsCapacity(object, elements, PACKED_ELEMENTS, key, &runtime);
   Return(elements);
 
   BIND(&runtime);
@@ -96,7 +97,7 @@ TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
   Node* length = SmiToWord(Parameter(Descriptor::kLength));
 
   // Check if we can allocate in new space.
-  ElementsKind kind = FAST_ELEMENTS;
+  ElementsKind kind = PACKED_ELEMENTS;
   int max_elements = FixedArray::GetMaxLengthForNewSpaceAllocation(kind);
   Label if_newspace(this), if_oldspace(this, Label::kDeferred);
   Branch(IntPtrLessThan(length, IntPtrConstant(max_elements)), &if_newspace,
@@ -189,7 +190,7 @@ class DeletePropertyBaseAssembler : public CodeStubAssembler {
     StoreValueByKeyIndex<NameDictionary>(properties, key_index, filler,
                                          SKIP_WRITE_BARRIER);
     StoreDetailsByKeyIndex<NameDictionary>(properties, key_index,
-                                           SmiConstant(Smi::kZero));
+                                           SmiConstant(0));
 
     // Update bookkeeping information (see NameDictionary::ElementRemoved).
     Node* nof = GetNumberOfElements<NameDictionary>(properties);
@@ -204,7 +205,7 @@ class DeletePropertyBaseAssembler : public CodeStubAssembler {
     Node* capacity = GetCapacity<NameDictionary>(properties);
     GotoIf(SmiGreaterThan(new_nof, SmiShr(capacity, 2)), &shrinking_done);
     GotoIf(SmiLessThan(new_nof, SmiConstant(16)), &shrinking_done);
-    CallRuntime(Runtime::kShrinkPropertyDictionary, context, receiver, name);
+    CallRuntime(Runtime::kShrinkPropertyDictionary, context, receiver);
     Goto(&shrinking_done);
     BIND(&shrinking_done);
 

@@ -6,6 +6,7 @@
 #define V8_BOOTSTRAPPER_H_
 
 #include "src/factory.h"
+#include "src/objects/shared-function-info.h"
 #include "src/snapshot/natives.h"
 #include "src/visitors.h"
 

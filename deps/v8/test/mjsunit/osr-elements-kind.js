@@ -49,9 +49,9 @@ var elements_kind = {
 }
 
 function getKind(obj) {
-  if (%HasFastSmiElements(obj)) return elements_kind.fast_smi_only;
-  if (%HasFastObjectElements(obj)) return elements_kind.fast;
-  if (%HasFastDoubleElements(obj)) return elements_kind.fast_double;
+  if (%HasSmiElements(obj)) return elements_kind.fast_smi_only;
+  if (%HasObjectElements(obj)) return elements_kind.fast;
+  if (%HasDoubleElements(obj)) return elements_kind.fast_double;
   if (%HasDictionaryElements(obj)) return elements_kind.dictionary;
 
   if (%HasFixedInt8Elements(obj)) {

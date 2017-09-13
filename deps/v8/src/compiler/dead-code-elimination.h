@@ -28,6 +28,8 @@ class V8_EXPORT_PRIVATE DeadCodeElimination final
                       CommonOperatorBuilder* common);
   ~DeadCodeElimination() final {}
 
+  const char* reducer_name() const override { return "DeadCodeElimination"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

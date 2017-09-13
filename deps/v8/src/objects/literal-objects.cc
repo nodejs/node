@@ -31,7 +31,7 @@ int BoilerplateDescription::size() const {
 int BoilerplateDescription::backing_store_size() const {
   if (has_number_of_properties()) {
     // If present, the last entry contains the number of properties.
-    return Smi::cast(this->get(length() - 1))->value();
+    return Smi::ToInt(this->get(length() - 1));
   }
   // If the number is not given explicitly, we assume there are no
   // properties with computed names.

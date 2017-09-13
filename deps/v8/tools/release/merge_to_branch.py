@@ -31,6 +31,7 @@ from collections import OrderedDict
 import sys
 
 from common_includes import *
+from git_recipes import GetCommitMessageFooterMap
 
 def IsSvnNumber(rev):
   return rev.isdigit() and len(rev) < 8
@@ -134,8 +135,13 @@ class CreateCommitMessage(Step):
       msg = self.GitLog(n=1, git_hash=commit_hash)
       for bug in re.findall(r"^[ \t]*BUG[ \t]*=[ \t]*(.*?)[ \t]*$", msg, re.M):
         bugs.extend(s.strip() for s in bug.split(","))
-    bug_aggregate = ",".join(sorted(filter(lambda s: s and s != "none", bugs)))
+      gerrit_bug = GetCommitMessageFooterMap(msg).get('Bug', '')
+      bugs.extend(s.strip() for s in gerrit_bug.split(","))
+    bug_aggregate = ",".join(
+        sorted(filter(lambda s: s and s != "none", set(bugs))))
     if bug_aggregate:
+      # TODO(machenbach): Use proper gerrit footer for bug after switch to
+      # gerrit. Keep BUG= for now for backwards-compatibility.
       msg_pieces.append("BUG=%s\nLOG=N\n" % bug_aggregate)
 
     msg_pieces.append("NOTRY=true\nNOPRESUBMIT=true\nNOTREECHECKS=true\n")

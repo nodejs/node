@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --noverify-heap --noenable-slow-asserts
-// Flags: --opt --no-always-opt
+// Flags: --opt --no-always-opt --no-stress-fullcodegen
 
 // --noverify-heap and --noenable-slow-asserts are set because the test is too
 // slow with it on.
@@ -62,13 +62,13 @@
   foo2(a, 40);
 
   assertOptimized(foo2);
-  assertTrue(%HasFastSmiElements(a));
+  assertTrue(%HasSmiElements(a));
 
   // Grow a large array into large object space through the keyed store
   // without deoptimizing. Grow by 9s. If we set elements too sparsely, the
   // array will convert to dictionary mode.
   a = new Array(99999);
-  assertTrue(%HasFastSmiElements(a));
+  assertTrue(%HasSmiElements(a));
   for (var i = 0; i < 263000; i += 9) {
     foo2(a, i);
   }
@@ -76,7 +76,7 @@
   // Verify that we are over 1 page in size, and foo2 remains optimized.
   // This means we've smoothly transitioned to allocating in large object
   // space.
-  assertTrue(%HasFastSmiElements(a));
+  assertTrue(%HasSmiElements(a));
   assertTrue(a.length * 4 > (1024 * 1024));
   assertOptimized(foo2);
 

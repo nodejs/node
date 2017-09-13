@@ -28,31 +28,17 @@ void BytecodeLoopAssignments::Add(interpreter::Register r) {
   }
 }
 
-void BytecodeLoopAssignments::AddPair(interpreter::Register r) {
+void BytecodeLoopAssignments::AddList(interpreter::Register r, uint32_t count) {
   if (r.is_parameter()) {
-    DCHECK(interpreter::Register(r.index() + 1).is_parameter());
-    bit_vector_->Add(r.ToParameterIndex(parameter_count_));
-    bit_vector_->Add(r.ToParameterIndex(parameter_count_) + 1);
+    for (uint32_t i = 0; i < count; i++) {
+      DCHECK(interpreter::Register(r.index() + i).is_parameter());
+      bit_vector_->Add(r.ToParameterIndex(parameter_count_) + i);
+    }
   } else {
-    DCHECK(!interpreter::Register(r.index() + 1).is_parameter());
-    bit_vector_->Add(parameter_count_ + r.index());
-    bit_vector_->Add(parameter_count_ + r.index() + 1);
-  }
-}
-
-void BytecodeLoopAssignments::AddTriple(interpreter::Register r) {
-  if (r.is_parameter()) {
-    DCHECK(interpreter::Register(r.index() + 1).is_parameter());
-    DCHECK(interpreter::Register(r.index() + 2).is_parameter());
-    bit_vector_->Add(r.ToParameterIndex(parameter_count_));
-    bit_vector_->Add(r.ToParameterIndex(parameter_count_) + 1);
-    bit_vector_->Add(r.ToParameterIndex(parameter_count_) + 2);
-  } else {
-    DCHECK(!interpreter::Register(r.index() + 1).is_parameter());
-    DCHECK(!interpreter::Register(r.index() + 2).is_parameter());
-    bit_vector_->Add(parameter_count_ + r.index());
-    bit_vector_->Add(parameter_count_ + r.index() + 1);
-    bit_vector_->Add(parameter_count_ + r.index() + 2);
+    for (uint32_t i = 0; i < count; i++) {
+      DCHECK(!interpreter::Register(r.index() + i).is_parameter());
+      bit_vector_->Add(parameter_count_ + r.index() + i);
+    }
   }
 }
 
@@ -109,6 +95,17 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
         interpreter::Register r = accessor.GetRegisterOperand(i);
         if (!r.is_parameter()) {
           in_liveness.MarkRegisterDead(r.index());
+        }
+        break;
+      }
+      case OperandType::kRegOutList: {
+        interpreter::Register r = accessor.GetRegisterOperand(i++);
+        uint32_t reg_count = accessor.GetRegisterCountOperand(i);
+        if (!r.is_parameter()) {
+          for (uint32_t j = 0; j < reg_count; ++j) {
+            DCHECK(!interpreter::Register(r.index() + j).is_parameter());
+            in_liveness.MarkRegisterDead(r.index() + j);
+          }
         }
         break;
       }
@@ -227,12 +224,18 @@ void UpdateAssignments(Bytecode bytecode, BytecodeLoopAssignments& assignments,
         assignments.Add(accessor.GetRegisterOperand(i));
         break;
       }
+      case OperandType::kRegOutList: {
+        interpreter::Register r = accessor.GetRegisterOperand(i++);
+        uint32_t reg_count = accessor.GetRegisterCountOperand(i);
+        assignments.AddList(r, reg_count);
+        break;
+      }
       case OperandType::kRegOutPair: {
-        assignments.AddPair(accessor.GetRegisterOperand(i));
+        assignments.AddList(accessor.GetRegisterOperand(i), 2);
         break;
       }
       case OperandType::kRegOutTriple: {
-        assignments.AddTriple(accessor.GetRegisterOperand(i));
+        assignments.AddList(accessor.GetRegisterOperand(i), 3);
         break;
       }
       default:

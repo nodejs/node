@@ -47,7 +47,7 @@ function force_to_fast_double_array(a) {
   for (var i= 0; i < approx_dict_to_elements_threshold; ++i ) {
     a[i] = expected_array_value(i);
   }
-  assertTrue(%HasFastDoubleElements(a));
+  assertTrue(%HasDoubleElements(a));
 }
 
 function make_object_like_array(size) {
@@ -73,47 +73,47 @@ function testOneArrayType(allocator) {
   // Multiple versions of the test function makes sure that IC/Crankshaft state
   // doesn't get reused.
   function test_various_loads(a, value_5, value_6, value_7) {
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
     assertEquals(value_5, a[5]);
     assertEquals(value_6, a[6]);
     assertEquals(value_6, a[computed_6()]); // Test non-constant key
     assertEquals(value_7, a[7]);
     assertEquals(large_array_size, a.length);
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
   }
 
   function test_various_loads2(a, value_5, value_6, value_7) {
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
     assertEquals(value_5, a[5]);
     assertEquals(value_6, a[6]);
     assertEquals(value_6, a[computed_6()]); // Test non-constant key
     assertEquals(value_7, a[7]);
     assertEquals(large_array_size, a.length);
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
   }
 
   function test_various_loads3(a, value_5, value_6, value_7) {
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
     assertEquals(value_5, a[5]);
     assertEquals(value_6, a[6]);
     assertEquals(value_6, a[computed_6()]); // Test non-constant key
     assertEquals(value_7, a[7]);
     assertEquals(large_array_size, a.length);
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
   }
 
   function test_various_loads4(a, value_5, value_6, value_7) {
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
     assertEquals(value_5, a[5]);
     assertEquals(value_6, a[6]);
     assertEquals(value_6, a[computed_6()]); // Test non-constant key
     assertEquals(value_7, a[7]);
     assertEquals(large_array_size, a.length);
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
   }
 
   function test_various_loads5(a, value_5, value_6, value_7) {
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
     if (value_5 != undefined) {
       assertEquals(value_5, a[5]);
     };
@@ -123,35 +123,35 @@ function testOneArrayType(allocator) {
     }
     assertEquals(value_7, a[7]);
     assertEquals(large_array_size, a.length);
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
   }
 
   function test_various_loads6(a, value_5, value_6, value_7) {
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
     assertEquals(value_5, a[5]);
     assertEquals(value_6, a[6]);
     assertEquals(value_6, a[computed_6()]); // Test non-constant key
     assertEquals(value_7, a[7]);
     assertEquals(large_array_size, a.length);
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
   }
 
   function test_various_loads7(a, value_5, value_6, value_7) {
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
     assertEquals(value_5, a[5]);
     assertEquals(value_6, a[6]);
     assertEquals(value_6, a[computed_6()]); // Test non-constant key
     assertEquals(value_7, a[7]);
     assertEquals(large_array_size, a.length);
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
   }
 
   function test_various_stores(a, value_5, value_6, value_7) {
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
     a[5] = value_5;
     a[computed_6()] = value_6;
     a[7] = value_7;
-    assertTrue(%HasFastDoubleElements(a));
+    assertTrue(%HasDoubleElements(a));
   }
 
   // Test double and integer values
@@ -346,7 +346,7 @@ function testOneArrayType(allocator) {
                       expected_array_value(7));
 
   // Make sure that we haven't converted from fast double.
-  assertTrue(%HasFastDoubleElements(large_array));
+  assertTrue(%HasDoubleElements(large_array));
 }
 
 // Force gc here to start with a clean heap if we repeat this test multiple
@@ -357,7 +357,7 @@ testOneArrayType(Array);
 
 var large_array = new Array(large_array_size);
 force_to_fast_double_array(large_array);
-assertTrue(%HasFastDoubleElements(large_array));
+assertTrue(%HasDoubleElements(large_array));
 
 // Cause the array to grow beyond it's JSArray length. This will double the
 // size of the capacity and force the array into "slow" dictionary case.
@@ -379,7 +379,7 @@ delete large_array2[5];
 // Convert back to fast elements and make sure the contents of the array are
 // unchanged.
 large_array2[25] = new Object();
-assertTrue(%HasFastObjectElements(large_array2));
+assertTrue(%HasObjectElements(large_array2));
 for (var i= 0; i < approx_dict_to_elements_threshold; i += 500 ) {
   if (i != 25 && i != 5) {
     assertEquals(expected_array_value(i), large_array2[i]);
@@ -397,7 +397,7 @@ force_to_fast_double_array(large_array3);
 large_array3.length = 60000;
 assertEquals(60000, large_array3.length);
 assertEquals(undefined, large_array3[60000]);
-assertTrue(%HasFastDoubleElements(large_array3));
+assertTrue(%HasDoubleElements(large_array3));
 assertEquals(expected_array_value(5), large_array3[5]);
 assertEquals(expected_array_value(6), large_array3[6]);
 assertEquals(expected_array_value(7), large_array3[7]);
@@ -413,7 +413,7 @@ for (var i= 0; i < large_array3.length; i += 501 ) {
 
 large_array3.length = 25;
 assertEquals(25, large_array3.length);
-assertTrue(%HasFastDoubleElements(large_array3));
+assertTrue(%HasDoubleElements(large_array3));
 assertEquals(undefined, large_array3[25]);
 assertEquals(expected_array_value(5), large_array3[5]);
 assertEquals(expected_array_value(6), large_array3[6]);
@@ -431,7 +431,7 @@ for (var i= 0; i < large_array3.length; ++i) {
 large_array3.length = 100;
 assertEquals(100, large_array3.length);
 large_array3[95] = 95;
-assertTrue(%HasFastDoubleElements(large_array3));
+assertTrue(%HasDoubleElements(large_array3));
 assertEquals(undefined, large_array3[100]);
 assertEquals(95, large_array3[95]);
 assertEquals(expected_array_value(5), large_array3[5]);

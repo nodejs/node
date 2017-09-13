@@ -56,21 +56,21 @@ bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(MIPS_SIMD); }
 
 Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
   rm_ = no_reg;
-  imm32_ = immediate;
+  value_.immediate = immediate;
   rmode_ = rmode;
 }
 
 
 Operand::Operand(const ExternalReference& f)  {
   rm_ = no_reg;
-  imm32_ = reinterpret_cast<int32_t>(f.address());
+  value_.immediate = reinterpret_cast<int32_t>(f.address());
   rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
 
 Operand::Operand(Smi* value) {
   rm_ = no_reg;
-  imm32_ =  reinterpret_cast<intptr_t>(value);
+  value_.immediate = reinterpret_cast<intptr_t>(value);
   rmode_ = RelocInfo::NONE32;
 }
 
@@ -137,7 +137,6 @@ Address RelocInfo::target_address_address() {
 
 Address RelocInfo::constant_pool_entry_address() {
   UNREACHABLE();
-  return NULL;
 }
 
 

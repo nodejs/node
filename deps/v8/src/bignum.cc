@@ -105,7 +105,6 @@ static int HexCharValue(char c) {
   if ('a' <= c && c <= 'f') return 10 + c - 'a';
   if ('A' <= c && c <= 'F') return 10 + c - 'A';
   UNREACHABLE();
-  return 0;  // To make compiler happy.
 }
 
 

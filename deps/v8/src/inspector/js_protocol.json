@@ -388,7 +388,8 @@
                     { "name": "args", "type": "array", "items": { "$ref": "RemoteObject" }, "description": "Call arguments." },
                     { "name": "executionContextId", "$ref": "ExecutionContextId", "description": "Identifier of the context where the call was made." },
                     { "name": "timestamp", "$ref": "Timestamp", "description": "Call timestamp." },
-                    { "name": "stackTrace", "$ref": "StackTrace", "optional": true, "description": "Stack trace captured when the call was made." }
+                    { "name": "stackTrace", "$ref": "StackTrace", "optional": true, "description": "Stack trace captured when the call was made." },
+                    { "name": "context", "type": "string", "optional": true, "experimental": true, "description": "Console context descriptor for calls on non-default console context (not console.*): 'anonymous#unique-logger-id' for call on unnamed context, 'name#unique-logger-id' for call on named context." }
                 ]
             },
             {
@@ -862,7 +863,8 @@
                 "description": "Coverage data for a JavaScript function.",
                 "properties": [
                     { "name": "functionName", "type": "string", "description": "JavaScript function name." },
-                    { "name": "ranges", "type": "array", "items": { "$ref": "CoverageRange" }, "description": "Source ranges inside the function with coverage data." }
+                    { "name": "ranges", "type": "array", "items": { "$ref": "CoverageRange" }, "description": "Source ranges inside the function with coverage data." },
+                    { "name": "isBlockCoverage", "type": "boolean", "description": "Whether coverage data for this function has block granularity." }
                 ],
                 "experimental": true
             },

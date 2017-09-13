@@ -2030,12 +2030,15 @@ TEST(WeakGlobalHandle) {
 
   CHECK(!HasWeakGlobalHandle());
 
-  v8::Persistent<v8::Object> handle(env->GetIsolate(),
-                                    v8::Object::New(env->GetIsolate()));
+  v8::Persistent<v8::Object> handle;
+
+  handle.Reset(env->GetIsolate(), v8::Object::New(env->GetIsolate()));
   handle.SetWeak(&handle, PersistentHandleCallback,
                  v8::WeakCallbackType::kParameter);
 
   CHECK(HasWeakGlobalHandle());
+  CcTest::CollectAllGarbage();
+  EmptyMessageQueues(env->GetIsolate());
 }
 
 

@@ -800,8 +800,8 @@ Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
     int32_t const divisor = m.right().Value();
     Node* const dividend = m.left().node();
     Node* quotient = dividend;
-    if (base::bits::IsPowerOfTwo32(Abs(divisor))) {
-      uint32_t const shift = WhichPowerOf2Abs(divisor);
+    if (base::bits::IsPowerOfTwo(Abs(divisor))) {
+      uint32_t const shift = WhichPowerOf2(Abs(divisor));
       DCHECK_NE(0u, shift);
       if (shift > 1) {
         quotient = Word32Sar(quotient, 31);
@@ -840,7 +840,7 @@ Reduction MachineOperatorReducer::ReduceUint32Div(Node* node) {
   if (m.right().HasValue()) {
     Node* const dividend = m.left().node();
     uint32_t const divisor = m.right().Value();
-    if (base::bits::IsPowerOfTwo32(divisor)) {  // x / 2^n => x >> n
+    if (base::bits::IsPowerOfTwo(divisor)) {  // x / 2^n => x >> n
       node->ReplaceInput(1, Uint32Constant(WhichPowerOf2(m.right().Value())));
       node->TrimInputCount(2);
       NodeProperties::ChangeOp(node, machine()->Word32Shr());
@@ -866,8 +866,8 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
   }
   if (m.right().HasValue()) {
     Node* const dividend = m.left().node();
-    int32_t const divisor = Abs(m.right().Value());
-    if (base::bits::IsPowerOfTwo32(divisor)) {
+    uint32_t const divisor = Abs(m.right().Value());
+    if (base::bits::IsPowerOfTwo(divisor)) {
       uint32_t const mask = divisor - 1;
       Node* const zero = Int32Constant(0);
       Diamond d(graph(), common(),
@@ -903,7 +903,7 @@ Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
   if (m.right().HasValue()) {
     Node* const dividend = m.left().node();
     uint32_t const divisor = m.right().Value();
-    if (base::bits::IsPowerOfTwo32(divisor)) {  // x % 2^n => x & 2^n-1
+    if (base::bits::IsPowerOfTwo(divisor)) {  // x % 2^n => x & 2^n-1
       node->ReplaceInput(1, Uint32Constant(m.right().Value() - 1));
       node->TrimInputCount(2);
       NodeProperties::ChangeOp(node, machine()->Word32And());

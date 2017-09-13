@@ -312,7 +312,6 @@ class ParallelMoveCreator : public HandleAndZoneScope {
         return MachineRepresentation::kTagged;
     }
     UNREACHABLE();
-    return MachineRepresentation::kNone;
   }
 
   const int kMaxIndex = 7;
@@ -351,7 +350,6 @@ class ParallelMoveCreator : public HandleAndZoneScope {
           return conf->RegisterConfiguration::GetAllocatableGeneralCode(index);
       }
       UNREACHABLE();
-      return static_cast<int>(Register::kCode_no_reg);
     };
     int index = rng_->NextInt(kMaxIndex);
     // destination can't be Constant.
@@ -372,7 +370,6 @@ class ParallelMoveCreator : public HandleAndZoneScope {
         return ConstantOperand(index);
     }
     UNREACHABLE();
-    return InstructionOperand();
   }
 
  private:

@@ -47,21 +47,24 @@ Promise.resolve(42)
 
 function promise1() {
   debugger; // Break 0.
-  return exception || 1; // Break 1.
-} // Break 2. StepOver.
+  return exception || 1 // Break 1.
+  ; // Break 2. StepOver.
+}
 
 function promise2() {
   throw new Error; // Break 3.
 }
 
 function promise3() {
-  return break_count; // Break 4.
-} // Break 5.
+  return break_count // Break 4.
+  ; // Break 5.
+}
 
 function promise4() {
   finalize(); // Break 6. StepOver.
-  return 0; // Break 7.
-} // Break 8. StepOut.
+  return 0 // Break 7.
+  ; // Break 8. StepOut.
+}
 
 function finalize() {
   Promise.resolve().then(function() {

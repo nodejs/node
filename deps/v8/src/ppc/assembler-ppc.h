@@ -44,6 +44,7 @@
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/double.h"
 #include "src/ppc/constants-ppc.h"
 
 #if V8_HOST_ARCH_PPC && \
@@ -303,11 +304,14 @@ class Operand BASE_EMBEDDED {
                           RelocInfo::Mode rmode = kRelocInfo_NONEPTR));
   INLINE(static Operand Zero()) { return Operand(static_cast<intptr_t>(0)); }
   INLINE(explicit Operand(const ExternalReference& f));
-  explicit Operand(Handle<Object> handle);
+  explicit Operand(Handle<HeapObject> handle);
   INLINE(explicit Operand(Smi* value));
 
   // rm
   INLINE(explicit Operand(Register rm));
+
+  static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Operand EmbeddedCode(CodeStub* stub);
 
   // Return true if this is a register operand.
   INLINE(bool is_reg() const);
@@ -315,15 +319,36 @@ class Operand BASE_EMBEDDED {
   bool must_output_reloc_info(const Assembler* assembler) const;
 
   inline intptr_t immediate() const {
-    DCHECK(!rm_.is_valid());
-    return imm_;
+    DCHECK(IsImmediate());
+    DCHECK(!IsHeapObjectRequest());
+    return value_.immediate;
+  }
+  bool IsImmediate() const { return !rm_.is_valid(); }
+
+  HeapObjectRequest heap_object_request() const {
+    DCHECK(IsHeapObjectRequest());
+    return value_.heap_object_request;
   }
 
   Register rm() const { return rm_; }
 
+  bool IsHeapObjectRequest() const {
+    DCHECK_IMPLIES(is_heap_object_request_, IsImmediate());
+    DCHECK_IMPLIES(is_heap_object_request_,
+                   rmode_ == RelocInfo::EMBEDDED_OBJECT ||
+                       rmode_ == RelocInfo::CODE_TARGET);
+    return is_heap_object_request_;
+  }
+
  private:
   Register rm_;
-  intptr_t imm_;  // valid if rm_ == no_reg
+  union Value {
+    Value() {}
+    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
+    intptr_t immediate;                     // otherwise
+  } value_;                                 // valid if rm_ == no_reg
+  bool is_heap_object_request_ = false;
+
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
@@ -405,7 +430,7 @@ class Assembler : public AssemblerBase {
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
-  void GetCode(CodeDesc* desc);
+  void GetCode(Isolate* isolate, CodeDesc* desc);
 
   // Label operations & relative jumps (PPUM Appendix D)
   //
@@ -1263,22 +1288,6 @@ class Assembler : public AssemblerBase {
   // Mark address of a debug break slot.
   void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
-  // Record the AST id of the CallIC being compiled, so that it can be placed
-  // in the relocation information.
-  void SetRecordedAstId(TypeFeedbackId ast_id) {
-    // Causes compiler to fail
-    // DCHECK(recorded_ast_id_.IsNone());
-    recorded_ast_id_ = ast_id;
-  }
-
-  TypeFeedbackId RecordedAstId() {
-    // Causes compiler to fail
-    // DCHECK(!recorded_ast_id_.IsNone());
-    return recorded_ast_id_;
-  }
-
-  void ClearRecordedAstId() { recorded_ast_id_ = TypeFeedbackId::None(); }
-
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
@@ -1372,11 +1381,6 @@ class Assembler : public AssemblerBase {
   void EmitRelocations();
 
  protected:
-  // Relocation for a type-recording IC has the AST id added to it.  This
-  // member variable is a way to pass the information from the call site to
-  // the relocation info.
-  TypeFeedbackId recorded_ast_id_;
-
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Decode instruction(s) at pos and return backchain to previous
@@ -1395,7 +1399,7 @@ class Assembler : public AssemblerBase {
                         is_constant_pool_entry_sharing_blocked());
     return constant_pool_builder_.AddEntry(pc_offset(), value, sharing_ok);
   }
-  ConstantPoolEntry::Access ConstantPoolAddEntry(double value) {
+  ConstantPoolEntry::Access ConstantPoolAddEntry(Double value) {
     return constant_pool_builder_.AddEntry(pc_offset(), value);
   }
 
@@ -1544,6 +1548,19 @@ class Assembler : public AssemblerBase {
   friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;
+
+  // The following functions help with avoiding allocations of embedded heap
+  // objects during the code assembly phase. {RequestHeapObject} records the
+  // need for a future heap number allocation or code stub generation. After
+  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
+  // objects and place them where they are expected (determined by the pc offset
+  // associated with each request). That is, for each request, it will patch the
+  // dummy heap object handle that we emitted during code assembly with the
+  // actual heap object handle.
+  void RequestHeapObject(HeapObjectRequest request);
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
+  std::forward_list<HeapObjectRequest> heap_object_requests_;
 };
 
 

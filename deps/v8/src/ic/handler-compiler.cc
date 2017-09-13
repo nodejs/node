@@ -30,7 +30,7 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
 
   // Create code object in the heap.
   CodeDesc desc;
-  masm()->GetCode(&desc);
+  masm()->GetCode(isolate(), &desc);
   Handle<Code> code = factory()->NewCode(desc, flags, masm()->CodeObject());
   if (code->IsCodeStubOrIC()) code->set_stub_key(CodeStub::NoCacheKey());
 #ifdef ENABLE_DISASSEMBLER

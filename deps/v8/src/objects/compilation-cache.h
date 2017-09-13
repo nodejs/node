@@ -19,13 +19,18 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->IsMatch(value);
   }
 
-  static inline uint32_t Hash(HashTableKey* key) { return key->Hash(); }
-
-  static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
-    return key->HashForObject(object);
+  static inline uint32_t Hash(Isolate* isolate, HashTableKey* key) {
+    return key->Hash();
   }
 
-  static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
+  static inline uint32_t RegExpHash(String* string, Smi* flags);
+
+  static inline uint32_t StringSharedHash(String* source,
+                                          SharedFunctionInfo* shared,
+                                          LanguageMode language_mode,
+                                          int position);
+
+  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 3;
@@ -60,8 +65,7 @@ class InfoVectorPair {
 // recompilation stub, or to "old" code. This avoids memory leaks due to
 // premature caching of scripts and eval strings that are never needed later.
 class CompilationCacheTable
-    : public HashTable<CompilationCacheTable, CompilationCacheShape,
-                       HashTableKey*> {
+    : public HashTable<CompilationCacheTable, CompilationCacheShape> {
  public:
   // Find cached value for a string key, otherwise return null.
   Handle<Object> Lookup(Handle<String> src, Handle<Context> context,
@@ -93,7 +97,7 @@ class CompilationCacheTable
   void Age();
   static const int kHashGenerations = 10;
 
-  DECLARE_CAST(CompilationCacheTable)
+  DECL_CAST(CompilationCacheTable)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheTable);

@@ -17,7 +17,7 @@ bytecode array length: 4
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   15 S> */ B(Ldar), R(this),
-  /*   28 S> */ B(Return),
+  /*   27 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -35,7 +35,7 @@ bytecode array length: 4
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(Ldar), R(arg0),
-  /*   32 S> */ B(Return),
+  /*   31 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -53,7 +53,7 @@ bytecode array length: 4
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(Ldar), R(this),
-  /*   32 S> */ B(Return),
+  /*   31 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -71,7 +71,7 @@ bytecode array length: 4
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   55 S> */ B(Ldar), R(arg3),
-  /*   68 S> */ B(Return),
+  /*   67 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -89,7 +89,7 @@ bytecode array length: 4
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   55 S> */ B(Ldar), R(this),
-  /*   68 S> */ B(Return),
+  /*   67 S> */ B(Return),
 ]
 constant pool: [
 ]

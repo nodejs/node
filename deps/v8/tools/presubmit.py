@@ -70,7 +70,7 @@ LINT_RULES = """
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
 FLAGS_LINE = re.compile("//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
 ASSERT_OPTIMIZED_PATTERN = re.compile("assertOptimized")
-FLAGS_ENABLE_OPT = re.compile("//\s*Flags:.*--(opt|turbo)[^-].*\n")
+FLAGS_ENABLE_OPT = re.compile("//\s*Flags:.*--opt[^-].*\n")
 ASSERT_UNOPTIMIZED_PATTERN = re.compile("assertUnoptimized")
 FLAGS_NO_ALWAYS_OPT = re.compile("//\s*Flags:.*--no-?always-opt.*\n")
 
@@ -249,7 +249,6 @@ class CppLintProcessor(SourceFileProcessor):
       return True
 
     filters = ",".join([n for n in LINT_RULES])
-    command = [sys.executable, 'cpplint.py', '--filter', filters]
     cpplint = self.GetCpplintScript(TOOLS_PATH)
     if cpplint is None:
       print('Could not find cpplint.py. Make sure '
@@ -258,7 +257,7 @@ class CppLintProcessor(SourceFileProcessor):
 
     command = [sys.executable, cpplint, '--filter', filters]
 
-    commands = join([command + [file] for file in files])
+    commands = [command + [file] for file in files]
     count = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(count)
     try:
@@ -413,8 +412,8 @@ class SourceProcessor(SourceFileProcessor):
       if not "mjsunit/mjsunit.js" in name:
         if ASSERT_OPTIMIZED_PATTERN.search(contents) and \
             not FLAGS_ENABLE_OPT.search(contents):
-          print "%s Flag --opt or --turbo should be set " \
-                "if assertOptimized() is used" % name
+          print "%s Flag --opt should be set if " \
+                "assertOptimized() is used" % name
           result = False
         if ASSERT_UNOPTIMIZED_PATTERN.search(contents) and \
             not FLAGS_NO_ALWAYS_OPT.search(contents):

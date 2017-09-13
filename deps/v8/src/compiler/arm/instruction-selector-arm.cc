@@ -112,15 +112,6 @@ void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
                  g.UseRegister(node->InputAt(1)));
 }
 
-void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
-  ArmOperandGenerator g(selector);
-  // Use DefineSameAsFirst for ternary ops that clobber their first input,
-  // e.g. the NEON vbsl instruction.
-  selector->Emit(
-      opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
-}
-
 void VisitRRI(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   ArmOperandGenerator g(selector);
   int32_t imm = OpParameter<int32_t>(node);
@@ -459,9 +450,6 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kArmVld1S128;
       break;
     case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -549,9 +537,6 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kArmVst1S128;
         break;
       case MachineRepresentation::kWord64:   // Fall through.
-      case MachineRepresentation::kSimd1x4:  // Fall through.
-      case MachineRepresentation::kSimd1x8:  // Fall through.
-      case MachineRepresentation::kSimd1x16:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -758,9 +743,6 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kTagged:   // Fall through.
     case MachineRepresentation::kWord64:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -805,9 +787,6 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kTagged:   // Fall through.
     case MachineRepresentation::kWord64:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -882,11 +861,18 @@ void InstructionSelector::VisitWord32And(Node* node) {
         uint32_t const shift = mshr.right().Value();
 
         if (((shift == 8) || (shift == 16) || (shift == 24)) &&
-            ((value == 0xff) || (value == 0xffff))) {
-          // Merge SHR into AND by emitting a UXTB or UXTH instruction with a
+            (value == 0xff)) {
+          // Merge SHR into AND by emitting a UXTB instruction with a
           // bytewise rotation.
-          Emit((value == 0xff) ? kArmUxtb : kArmUxth,
-               g.DefineAsRegister(m.node()), g.UseRegister(mshr.left().node()),
+          Emit(kArmUxtb, g.DefineAsRegister(m.node()),
+               g.UseRegister(mshr.left().node()),
+               g.TempImmediate(mshr.right().Value()));
+          return;
+        } else if (((shift == 8) || (shift == 16)) && (value == 0xffff)) {
+          // Merge SHR into AND by emitting a UXTH instruction with a
+          // bytewise rotation.
+          Emit(kArmUxth, g.DefineAsRegister(m.node()),
+               g.UseRegister(mshr.left().node()),
                g.TempImmediate(mshr.right().Value()));
           return;
         } else if (IsSupported(ARMv7) && (width != 0) &&
@@ -1384,14 +1370,14 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
   Int32BinopMatcher m(node);
   if (m.right().HasValue() && m.right().Value() > 0) {
     int32_t value = m.right().Value();
-    if (base::bits::IsPowerOfTwo32(value - 1)) {
+    if (base::bits::IsPowerOfTwo(value - 1)) {
       Emit(kArmAdd | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(m.left().node()),
            g.TempImmediate(WhichPowerOf2(value - 1)));
       return;
     }
-    if (value < kMaxInt && base::bits::IsPowerOfTwo32(value + 1)) {
+    if (value < kMaxInt && base::bits::IsPowerOfTwo(value + 1)) {
       Emit(kArmRsb | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(m.left().node()),
@@ -1728,7 +1714,6 @@ FlagsCondition MapForFlagSettingBinop(FlagsCondition cond) {
       return kNotEqual;
     default:
       UNREACHABLE();
-      return cond;
   }
 }
 
@@ -2043,6 +2028,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
   // Emit either ArchTableSwitch or ArchLookupSwitch.
+  static const size_t kMaxTableSwitchValueRange = 2 << 16;
   size_t table_space_cost = 4 + sw.value_range;
   size_t table_time_cost = 3;
   size_t lookup_space_cost = 3 + 2 * sw.case_count;
@@ -2050,7 +2036,8 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   if (sw.case_count > 0 &&
       table_space_cost + 3 * table_time_cost <=
           lookup_space_cost + 3 * lookup_time_cost &&
-      sw.min_value > std::numeric_limits<int32_t>::min()) {
+      sw.min_value > std::numeric_limits<int32_t>::min() &&
+      sw.value_range <= kMaxTableSwitchValueRange) {
     InstructionOperand index_operand = value_operand;
     if (sw.min_value) {
       index_operand = g.TempRegister();
@@ -2391,15 +2378,9 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16)
 
 #define SIMD_FORMAT_LIST(V) \
-  V(32x4)                   \
-  V(16x8)                   \
-  V(8x16)
-
-#define SIMD_ZERO_OP_LIST(V) \
-  V(S128Zero)                \
-  V(S1x4Zero)                \
-  V(S1x8Zero)                \
-  V(S1x16Zero)
+  V(32x4, 4)                \
+  V(16x8, 8)                \
+  V(8x16, 16)
 
 #define SIMD_UNOP_LIST(V)                               \
   V(F32x4SConvertI32x4, kArmF32x4SConvertI32x4)         \
@@ -2422,13 +2403,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8UConvertI8x16High, kArmI16x8UConvertI8x16High) \
   V(I8x16Neg, kArmI8x16Neg)                             \
   V(S128Not, kArmS128Not)                               \
-  V(S1x4Not, kArmS128Not)                               \
   V(S1x4AnyTrue, kArmS1x4AnyTrue)                       \
   V(S1x4AllTrue, kArmS1x4AllTrue)                       \
-  V(S1x8Not, kArmS128Not)                               \
   V(S1x8AnyTrue, kArmS1x8AnyTrue)                       \
   V(S1x8AllTrue, kArmS1x8AllTrue)                       \
-  V(S1x16Not, kArmS128Not)                              \
   V(S1x16AnyTrue, kArmS1x16AnyTrue)                     \
   V(S1x16AllTrue, kArmS1x16AllTrue)
 
@@ -2462,12 +2440,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MaxS, kArmI32x4MaxS)                   \
   V(I32x4Eq, kArmI32x4Eq)                       \
   V(I32x4Ne, kArmI32x4Ne)                       \
-  V(I32x4LtS, kArmI32x4LtS)                     \
-  V(I32x4LeS, kArmI32x4LeS)                     \
+  V(I32x4GtS, kArmI32x4GtS)                     \
+  V(I32x4GeS, kArmI32x4GeS)                     \
   V(I32x4MinU, kArmI32x4MinU)                   \
   V(I32x4MaxU, kArmI32x4MaxU)                   \
-  V(I32x4LtU, kArmI32x4LtU)                     \
-  V(I32x4LeU, kArmI32x4LeU)                     \
+  V(I32x4GtU, kArmI32x4GtU)                     \
+  V(I32x4GeU, kArmI32x4GeU)                     \
   V(I16x8SConvertI32x4, kArmI16x8SConvertI32x4) \
   V(I16x8Add, kArmI16x8Add)                     \
   V(I16x8AddSaturateS, kArmI16x8AddSaturateS)   \
@@ -2479,15 +2457,15 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8MaxS, kArmI16x8MaxS)                   \
   V(I16x8Eq, kArmI16x8Eq)                       \
   V(I16x8Ne, kArmI16x8Ne)                       \
-  V(I16x8LtS, kArmI16x8LtS)                     \
-  V(I16x8LeS, kArmI16x8LeS)                     \
+  V(I16x8GtS, kArmI16x8GtS)                     \
+  V(I16x8GeS, kArmI16x8GeS)                     \
   V(I16x8UConvertI32x4, kArmI16x8UConvertI32x4) \
   V(I16x8AddSaturateU, kArmI16x8AddSaturateU)   \
   V(I16x8SubSaturateU, kArmI16x8SubSaturateU)   \
   V(I16x8MinU, kArmI16x8MinU)                   \
   V(I16x8MaxU, kArmI16x8MaxU)                   \
-  V(I16x8LtU, kArmI16x8LtU)                     \
-  V(I16x8LeU, kArmI16x8LeU)                     \
+  V(I16x8GtU, kArmI16x8GtU)                     \
+  V(I16x8GeU, kArmI16x8GeU)                     \
   V(I8x16SConvertI16x8, kArmI8x16SConvertI16x8) \
   V(I8x16Add, kArmI8x16Add)                     \
   V(I8x16AddSaturateS, kArmI8x16AddSaturateS)   \
@@ -2498,27 +2476,23 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16MaxS, kArmI8x16MaxS)                   \
   V(I8x16Eq, kArmI8x16Eq)                       \
   V(I8x16Ne, kArmI8x16Ne)                       \
-  V(I8x16LtS, kArmI8x16LtS)                     \
-  V(I8x16LeS, kArmI8x16LeS)                     \
+  V(I8x16GtS, kArmI8x16GtS)                     \
+  V(I8x16GeS, kArmI8x16GeS)                     \
   V(I8x16UConvertI16x8, kArmI8x16UConvertI16x8) \
   V(I8x16AddSaturateU, kArmI8x16AddSaturateU)   \
   V(I8x16SubSaturateU, kArmI8x16SubSaturateU)   \
   V(I8x16MinU, kArmI8x16MinU)                   \
   V(I8x16MaxU, kArmI8x16MaxU)                   \
-  V(I8x16LtU, kArmI8x16LtU)                     \
-  V(I8x16LeU, kArmI8x16LeU)                     \
+  V(I8x16GtU, kArmI8x16GtU)                     \
+  V(I8x16GeU, kArmI8x16GeU)                     \
   V(S128And, kArmS128And)                       \
   V(S128Or, kArmS128Or)                         \
-  V(S128Xor, kArmS128Xor)                       \
-  V(S1x4And, kArmS128And)                       \
-  V(S1x4Or, kArmS128Or)                         \
-  V(S1x4Xor, kArmS128Xor)                       \
-  V(S1x8And, kArmS128And)                       \
-  V(S1x8Or, kArmS128Or)                         \
-  V(S1x8Xor, kArmS128Xor)                       \
-  V(S1x16And, kArmS128And)                      \
-  V(S1x16Or, kArmS128Or)                        \
-  V(S1x16Xor, kArmS128Xor)
+  V(S128Xor, kArmS128Xor)
+
+void InstructionSelector::VisitS128Zero(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmS128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
+}
 
 #define SIMD_VISIT_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
@@ -2541,14 +2515,6 @@ SIMD_TYPE_LIST(SIMD_VISIT_EXTRACT_LANE)
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
 
-#define SIMD_VISIT_ZERO_OP(Name)                                            \
-  void InstructionSelector::Visit##Name(Node* node) {                       \
-    ArmOperandGenerator g(this);                                            \
-    Emit(kArmS128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node)); \
-  }
-SIMD_ZERO_OP_LIST(SIMD_VISIT_ZERO_OP)
-#undef SIMD_VISIT_ZERO_OP
-
 #define SIMD_VISIT_UNOP(Name, instruction)            \
   void InstructionSelector::Visit##Name(Node* node) { \
     VisitRR(this, instruction, node);                 \
@@ -2570,40 +2536,79 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 
-#define SIMD_VISIT_SELECT_OP(format)                             \
-  void InstructionSelector::VisitS##format##Select(Node* node) { \
-    VisitRRRR(this, kArmS128Select, node);                       \
-  }
-SIMD_FORMAT_LIST(SIMD_VISIT_SELECT_OP)
-#undef SIMD_VISIT_SELECT_OP
+void InstructionSelector::VisitS128Select(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmS128Select, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       g.UseRegister(node->InputAt(2)));
+}
 
 namespace {
-template <int LANES>
+
+// Tries to match 8x16 byte shuffle to equivalent 32x4 word shuffle.
+bool TryMatch32x4Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x4) {
+  static const int kLanes = 4;
+  static const int kLaneSize = 4;
+  for (int i = 0; i < kLanes; ++i) {
+    if (shuffle[i * kLaneSize] % kLaneSize != 0) return false;
+    for (int j = 1; j < kLaneSize; ++j) {
+      if (shuffle[i * kLaneSize + j] - shuffle[i * kLaneSize + j - 1] != 1)
+        return false;
+    }
+    shuffle32x4[i] = shuffle[i * kLaneSize] / kLaneSize;
+  }
+  return true;
+}
+
+// Tries to match byte shuffle to concatenate (vext) operation.
+bool TryMatchConcat(const uint8_t* shuffle, uint8_t mask, uint8_t* offset) {
+  uint8_t start = shuffle[0];
+  for (int i = 1; i < kSimd128Size - start; ++i) {
+    if ((shuffle[i] & mask) != ((shuffle[i - 1] + 1) & mask)) return false;
+  }
+  uint8_t wrap = kSimd128Size;
+  for (int i = kSimd128Size - start; i < kSimd128Size; ++i, ++wrap) {
+    if ((shuffle[i] & mask) != (wrap & mask)) return false;
+  }
+  *offset = start;
+  return true;
+}
+
 struct ShuffleEntry {
-  uint8_t shuffle[LANES];
+  uint8_t shuffle[kSimd128Size];
   ArchOpcode opcode;
 };
 
-static const ShuffleEntry<4> arch_s32x4_shuffles[] = {
-    {{0, 4, 1, 5}, kArmS32x4ZipLeft},
-    {{2, 6, 3, 7}, kArmS32x4ZipRight},
-    {{0, 2, 4, 6}, kArmS32x4UnzipLeft},
-    {{1, 3, 5, 7}, kArmS32x4UnzipRight},
-    {{0, 4, 2, 6}, kArmS32x4TransposeLeft},
-    {{1, 5, 3, 7}, kArmS32x4TransposeRight},
-    {{1, 0, 3, 2}, kArmS32x2Reverse}};
+static const ShuffleEntry arch_shuffles[] = {
+    {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23},
+     kArmS32x4ZipLeft},
+    {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31},
+     kArmS32x4ZipRight},
+    {{0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27},
+     kArmS32x4UnzipLeft},
+    {{4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31},
+     kArmS32x4UnzipRight},
+    {{0, 1, 2, 3, 16, 17, 18, 19, 8, 9, 10, 11, 24, 25, 26, 27},
+     kArmS32x4TransposeLeft},
+    {{4, 5, 6, 7, 20, 21, 22, 23, 12, 13, 14, 15, 28, 29, 30, 31},
+     kArmS32x4TransposeRight},
+    {{4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11}, kArmS32x2Reverse},
 
-static const ShuffleEntry<8> arch_s16x8_shuffles[] = {
-    {{0, 8, 1, 9, 2, 10, 3, 11}, kArmS16x8ZipLeft},
-    {{4, 12, 5, 13, 6, 14, 7, 15}, kArmS16x8ZipRight},
-    {{0, 2, 4, 6, 8, 10, 12, 14}, kArmS16x8UnzipLeft},
-    {{1, 3, 5, 7, 9, 11, 13, 15}, kArmS16x8UnzipRight},
-    {{0, 8, 2, 10, 4, 12, 6, 14}, kArmS16x8TransposeLeft},
-    {{1, 9, 3, 11, 5, 13, 7, 15}, kArmS16x8TransposeRight},
-    {{3, 2, 1, 0, 7, 6, 5, 4}, kArmS16x4Reverse},
-    {{1, 0, 3, 2, 5, 4, 7, 6}, kArmS16x2Reverse}};
+    {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23},
+     kArmS16x8ZipLeft},
+    {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31},
+     kArmS16x8ZipRight},
+    {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29},
+     kArmS16x8UnzipLeft},
+    {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31},
+     kArmS16x8UnzipRight},
+    {{0, 1, 16, 17, 4, 5, 20, 21, 8, 9, 24, 25, 12, 13, 28, 29},
+     kArmS16x8TransposeLeft},
+    {{2, 3, 18, 19, 6, 7, 22, 23, 10, 11, 26, 27, 14, 15, 30, 31},
+     kArmS16x8TransposeRight},
+    {{6, 7, 4, 5, 2, 3, 0, 1, 14, 15, 12, 13, 10, 11, 8, 9}, kArmS16x4Reverse},
+    {{2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14, 15, 12, 13}, kArmS16x2Reverse},
 
-static const ShuffleEntry<16> arch_s8x16_shuffles[] = {
     {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23},
      kArmS8x16ZipLeft},
     {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31},
@@ -2620,45 +2625,28 @@ static const ShuffleEntry<16> arch_s8x16_shuffles[] = {
     {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12}, kArmS8x4Reverse},
     {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14}, kArmS8x2Reverse}};
 
-// Use a non-shuffle opcode to signal no match.
-static const ArchOpcode kNoShuffle = kArmS128Not;
-
-template <int LANES>
-ArchOpcode TryMatchArchShuffle(const uint8_t* shuffle,
-                               const ShuffleEntry<LANES>* table,
-                               size_t num_entries, uint8_t mask) {
-  for (size_t i = 0; i < num_entries; i++) {
-    const ShuffleEntry<LANES>& entry = table[i];
+bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
+                         size_t num_entries, uint8_t mask, ArchOpcode* opcode) {
+  for (size_t i = 0; i < num_entries; ++i) {
+    const ShuffleEntry& entry = table[i];
     int j = 0;
-    for (; j < LANES; j++) {
+    for (; j < kSimd128Size; ++j) {
       if ((entry.shuffle[j] & mask) != (shuffle[j] & mask)) {
         break;
       }
     }
-    if (j == LANES) return entry.opcode;
+    if (j == kSimd128Size) {
+      *opcode = entry.opcode;
+      return true;
+    }
   }
-  return kNoShuffle;
-}
-
-// Returns the bias if shuffle is a concatenation, 0 otherwise.
-template <int LANES>
-uint8_t TryMatchConcat(const uint8_t* shuffle, uint8_t mask) {
-  uint8_t start = shuffle[0];
-  int i = 1;
-  for (; i < LANES - start; i++) {
-    if ((shuffle[i] & mask) != ((shuffle[i - 1] + 1) & mask)) return 0;
-  }
-  uint8_t wrap = LANES;
-  for (; i < LANES; i++, wrap++) {
-    if ((shuffle[i] & mask) != (wrap & mask)) return 0;
-  }
-  return start;
+  return false;
 }
 
 // Canonicalize shuffles to make pattern matching simpler. Returns a mask that
 // will ignore the high bit of indices in some cases.
-uint8_t CanonicalizeShuffle(InstructionSelector* selector, Node* node,
-                            int num_lanes) {
+uint8_t CanonicalizeShuffle(InstructionSelector* selector, Node* node) {
+  static const int kUnaryShuffleMask = kSimd128Size - 1;
   const uint8_t* shuffle = OpParameter<uint8_t*>(node);
   uint8_t mask = 0xff;
   // If shuffle is unary, set 'mask' to ignore the high bit of the indices.
@@ -2666,12 +2654,12 @@ uint8_t CanonicalizeShuffle(InstructionSelector* selector, Node* node,
   if (selector->GetVirtualRegister(node->InputAt(0)) ==
       selector->GetVirtualRegister(node->InputAt(1))) {
     // unary, src0 == src1.
-    mask = num_lanes - 1;
+    mask = kUnaryShuffleMask;
   } else {
     bool src0_is_used = false;
     bool src1_is_used = false;
-    for (int i = 0; i < num_lanes; i++) {
-      if (shuffle[i] < num_lanes) {
+    for (int i = 0; i < kSimd128Size; i++) {
+      if (shuffle[i] < kSimd128Size) {
         src0_is_used = true;
       } else {
         src1_is_used = true;
@@ -2679,10 +2667,10 @@ uint8_t CanonicalizeShuffle(InstructionSelector* selector, Node* node,
     }
     if (src0_is_used && !src1_is_used) {
       node->ReplaceInput(1, node->InputAt(0));
-      mask = num_lanes - 1;
+      mask = kUnaryShuffleMask;
     } else if (src1_is_used && !src0_is_used) {
       node->ReplaceInput(0, node->InputAt(1));
-      mask = num_lanes - 1;
+      mask = kUnaryShuffleMask;
     }
   }
   return mask;
@@ -2690,7 +2678,7 @@ uint8_t CanonicalizeShuffle(InstructionSelector* selector, Node* node,
 
 int32_t Pack4Lanes(const uint8_t* shuffle, uint8_t mask) {
   int32_t result = 0;
-  for (int i = 3; i >= 0; i--) {
+  for (int i = 3; i >= 0; --i) {
     result <<= 8;
     result |= shuffle[i] & mask;
   }
@@ -2711,70 +2699,29 @@ void ArrangeShuffleTable(ArmOperandGenerator* g, Node* input0, Node* input1,
 
 }  // namespace
 
-void InstructionSelector::VisitS32x4Shuffle(Node* node) {
-  const uint8_t* shuffle = OpParameter<uint8_t*>(node);
-  uint8_t mask = CanonicalizeShuffle(this, node, 4);
-  ArchOpcode opcode = TryMatchArchShuffle<4>(
-      shuffle, arch_s32x4_shuffles, arraysize(arch_s32x4_shuffles), mask);
-  if (opcode != kNoShuffle) {
-    VisitRRRShuffle(this, opcode, node);
-    return;
-  }
-  ArmOperandGenerator g(this);
-  uint8_t lanes = TryMatchConcat<4>(shuffle, mask);
-  if (lanes != 0) {
-    Emit(kArmS8x16Concat, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-         g.UseImmediate(lanes * 4));
-    return;
-  }
-  Emit(kArmS32x4Shuffle, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-       g.UseImmediate(Pack4Lanes(shuffle, mask)));
-}
-
-void InstructionSelector::VisitS16x8Shuffle(Node* node) {
-  const uint8_t* shuffle = OpParameter<uint8_t*>(node);
-  uint8_t mask = CanonicalizeShuffle(this, node, 8);
-  ArchOpcode opcode = TryMatchArchShuffle<8>(
-      shuffle, arch_s16x8_shuffles, arraysize(arch_s16x8_shuffles), mask);
-  if (opcode != kNoShuffle) {
-    VisitRRRShuffle(this, opcode, node);
-    return;
-  }
-  ArmOperandGenerator g(this);
-  Node* input0 = node->InputAt(0);
-  Node* input1 = node->InputAt(1);
-  uint8_t lanes = TryMatchConcat<8>(shuffle, mask);
-  if (lanes != 0) {
-    Emit(kArmS8x16Concat, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1), g.UseImmediate(lanes * 2));
-    return;
-  }
-  // Code generator uses vtbl, arrange sources to form a valid lookup table.
-  InstructionOperand src0, src1;
-  ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
-  Emit(kArmS16x8Shuffle, g.DefineAsRegister(node), src0, src1,
-       g.UseImmediate(Pack4Lanes(shuffle, mask)),
-       g.UseImmediate(Pack4Lanes(shuffle + 4, mask)));
-}
-
 void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   const uint8_t* shuffle = OpParameter<uint8_t*>(node);
-  uint8_t mask = CanonicalizeShuffle(this, node, 16);
-  ArchOpcode opcode = TryMatchArchShuffle<16>(
-      shuffle, arch_s8x16_shuffles, arraysize(arch_s8x16_shuffles), mask);
-  if (opcode != kNoShuffle) {
+  uint8_t mask = CanonicalizeShuffle(this, node);
+  uint8_t shuffle32x4[4];
+  ArmOperandGenerator g(this);
+  if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
+    Emit(kArmS32x4Shuffle, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+         g.UseImmediate(Pack4Lanes(shuffle32x4, mask)));
+    return;
+  }
+  ArchOpcode opcode;
+  if (TryMatchArchShuffle(shuffle, arch_shuffles, arraysize(arch_shuffles),
+                          mask, &opcode)) {
     VisitRRRShuffle(this, opcode, node);
     return;
   }
-  ArmOperandGenerator g(this);
   Node* input0 = node->InputAt(0);
   Node* input1 = node->InputAt(1);
-  uint8_t lanes = TryMatchConcat<16>(shuffle, mask);
-  if (lanes != 0) {
+  uint8_t offset;
+  if (TryMatchConcat(shuffle, mask, &offset)) {
     Emit(kArmS8x16Concat, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1), g.UseImmediate(lanes));
+         g.UseRegister(input1), g.UseImmediate(offset));
     return;
   }
   // Code generator uses vtbl, arrange sources to form a valid lookup table.

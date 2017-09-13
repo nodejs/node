@@ -108,7 +108,6 @@ MaybeHandle<String> StringReplaceOneCharWithString(
   }
 }
 
-
 RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -197,7 +196,6 @@ RUNTIME_FUNCTION(Runtime_SubString) {
   return *isolate->factory()->NewSubString(string, start, end);
 }
 
-
 RUNTIME_FUNCTION(Runtime_StringAdd) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -208,6 +206,22 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
                            isolate->factory()->NewConsString(str1, str2));
 }
 
+RUNTIME_FUNCTION(Runtime_StringConcat) {
+  HandleScope scope(isolate);
+  DCHECK_LE(2, args.length());
+  int const argc = args.length();
+  ScopedVector<Handle<Object>> argv(argc);
+
+  isolate->counters()->string_add_runtime()->Increment();
+  IncrementalStringBuilder builder(isolate);
+  for (int i = 0; i < argc; ++i) {
+    Handle<String> str = Handle<String>::cast(args.at(i));
+    if (str->length() != 0) {
+      builder.AppendString(str);
+    }
+  }
+  RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
+}
 
 RUNTIME_FUNCTION(Runtime_InternalizeString) {
   HandleScope handles(isolate);
@@ -215,7 +229,6 @@ RUNTIME_FUNCTION(Runtime_InternalizeString) {
   CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
   return *isolate->factory()->InternalizeString(string);
 }
-
 
 RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
   HandleScope handle_scope(isolate);
@@ -236,7 +249,6 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
   return Smi::FromInt(subject->Get(i));
 }
 
-
 RUNTIME_FUNCTION(Runtime_StringCompare) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -254,9 +266,7 @@ RUNTIME_FUNCTION(Runtime_StringCompare) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
-
 
 RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   HandleScope scope(isolate);
@@ -280,7 +290,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   JSObject::EnsureCanContainHeapObjectElements(array);
 
   int special_length = special->length();
-  if (!array->HasFastObjectElements()) {
+  if (!array->HasObjectElements()) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
@@ -330,7 +340,6 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   }
 }
 
-
 RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -340,7 +349,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
     THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
   }
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
-  CHECK(array->HasFastObjectElements());
+  CHECK(array->HasObjectElements());
   CHECK(array_length >= 0);
 
   Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
@@ -471,7 +480,6 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
   DCHECK(cursor <= buffer.length());
 }
 
-
 RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -480,7 +488,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
   // elements_array is fast-mode JSarray of alternating positions
   // (increasing order) and strings.
-  CHECK(elements_array->HasFastSmiOrObjectElements());
+  CHECK(elements_array->HasSmiOrObjectElements());
   // array_length is length of original array (used to add separators);
   // separator is string to put between elements. Assumed to be non-empty.
   CHECK(array_length > 0);
@@ -556,7 +564,6 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   }
 }
 
-
 // Copies Latin1 characters to the given fixed array looking up
 // one-char strings in the cache. Gives up on the first char that is
 // not in the cache and fills the remainder with smi zeros. Returns
@@ -586,7 +593,6 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
 #endif
   return i;
 }
-
 
 // Converts a String to JSArray.
 // For example, "foo" => ["f", "o", "o"].
@@ -635,7 +641,6 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
   return *isolate->factory()->NewJSArrayWithElements(elements);
 }
 
-
 RUNTIME_FUNCTION(Runtime_StringLessThan) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -651,7 +656,6 @@ RUNTIME_FUNCTION(Runtime_StringLessThan) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
@@ -669,7 +673,6 @@ RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
@@ -687,7 +690,6 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
@@ -705,7 +707,6 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringEqual) {
@@ -730,7 +731,6 @@ RUNTIME_FUNCTION(Runtime_FlattenString) {
   CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
   return *String::Flatten(str);
 }
-
 
 RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
   HandleScope handlescope(isolate);

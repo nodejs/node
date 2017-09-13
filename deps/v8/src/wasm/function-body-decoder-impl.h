@@ -100,7 +100,7 @@ struct BlockTypeOperand {
       types = pc + 1;
     } else {
       // Handle multi-value blocks.
-      if (!CHECKED_COND(FLAG_wasm_mv_prototype)) {
+      if (!CHECKED_COND(FLAG_experimental_wasm_mv)) {
         decoder->error(pc + 1, "invalid block arity > 1");
         return;
       }
@@ -151,15 +151,6 @@ struct BlockTypeOperand {
         return true;
       case kLocalS128:
         *result = kWasmS128;
-        return true;
-      case kLocalS1x4:
-        *result = kWasmS1x4;
-        return true;
-      case kLocalS1x8:
-        *result = kWasmS1x8;
-        return true;
-      case kLocalS1x16:
-        *result = kWasmS1x16;
         return true;
       default:
         *result = kWasmStmt;
@@ -322,15 +313,13 @@ struct SimdShiftOperand {
   }
 };
 
-// Operand for SIMD shuffle operations.
+// Operand for SIMD S8x16 shuffle operations.
 template <bool checked>
-struct SimdShuffleOperand {
-  uint8_t shuffle[16];
-  unsigned lanes;
+struct Simd8x16ShuffleOperand {
+  uint8_t shuffle[kSimd128Size];
 
-  inline SimdShuffleOperand(Decoder* decoder, const byte* pc, unsigned lanes_) {
-    lanes = lanes_;
-    for (unsigned i = 0; i < lanes; i++) {
+  inline Simd8x16ShuffleOperand(Decoder* decoder, const byte* pc) {
+    for (uint32_t i = 0; i < kSimd128Size; ++i) {
       shuffle[i] = decoder->read_u8<checked>(pc + 2 + i, "shuffle");
     }
   }

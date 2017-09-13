@@ -30,20 +30,20 @@ TEST(ArrayList) {
   CHECK_EQ(0, array->Length());
   array = ArrayList::Add(array, handle(Smi::FromInt(100), isolate));
   CHECK_EQ(1, array->Length());
-  CHECK_EQ(100, Smi::cast(array->Get(0))->value());
+  CHECK_EQ(100, Smi::ToInt(array->Get(0)));
   array = ArrayList::Add(array, handle(Smi::FromInt(200), isolate),
                          handle(Smi::FromInt(300), isolate));
   CHECK_EQ(3, array->Length());
-  CHECK_EQ(100, Smi::cast(array->Get(0))->value());
-  CHECK_EQ(200, Smi::cast(array->Get(1))->value());
-  CHECK_EQ(300, Smi::cast(array->Get(2))->value());
+  CHECK_EQ(100, Smi::ToInt(array->Get(0)));
+  CHECK_EQ(200, Smi::ToInt(array->Get(1)));
+  CHECK_EQ(300, Smi::ToInt(array->Get(2)));
   array->Set(2, Smi::FromInt(400));
-  CHECK_EQ(400, Smi::cast(array->Get(2))->value());
+  CHECK_EQ(400, Smi::ToInt(array->Get(2)));
   array->Clear(2, isolate->heap()->undefined_value());
   array->SetLength(2);
   CHECK_EQ(2, array->Length());
-  CHECK_EQ(100, Smi::cast(array->Get(0))->value());
-  CHECK_EQ(200, Smi::cast(array->Get(1))->value());
+  CHECK_EQ(100, Smi::ToInt(array->Get(0)));
+  CHECK_EQ(200, Smi::ToInt(array->Get(1)));
 }
 
 }  // namespace

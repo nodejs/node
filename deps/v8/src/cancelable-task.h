@@ -5,7 +5,7 @@
 #ifndef V8_CANCELABLE_TASK_H_
 #define V8_CANCELABLE_TASK_H_
 
-#include <unordered_map>
+#include <map>
 
 #include "include/v8-platform.h"
 #include "src/base/atomic-utils.h"
@@ -24,14 +24,12 @@ class Isolate;
 // from any fore- and background task/thread.
 class V8_EXPORT_PRIVATE CancelableTaskManager {
  public:
-  using Id = uint64_t;
-
   CancelableTaskManager();
 
   // Registers a new cancelable {task}. Returns the unique {id} of the task that
   // can be used to try to abort a task by calling {Abort}.
   // Must not be called after CancelAndWait.
-  Id Register(Cancelable* task);
+  uint32_t Register(Cancelable* task);
 
   // Try to abort running a task identified by {id}. The possible outcomes are:
   // (1) The task is already finished running or was canceled before and
@@ -41,7 +39,7 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   //     removed.
   //
   enum TryAbortResult { kTaskRemoved, kTaskRunning, kTaskAborted };
-  TryAbortResult TryAbort(Id id);
+  TryAbortResult TryAbort(uint32_t id);
 
   // Cancels all remaining registered tasks and waits for tasks that are
   // already running. This disallows subsequent Register calls.
@@ -61,13 +59,13 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
  private:
   // Only called by {Cancelable} destructor. The task is done with executing,
   // but needs to be removed.
-  void RemoveFinishedTask(Id id);
+  void RemoveFinishedTask(uint32_t id);
 
   // To mitigate the ABA problem, the api refers to tasks through an id.
-  Id task_id_counter_;
+  uint32_t task_id_counter_;
 
   // A set of cancelable tasks that are currently registered.
-  std::unordered_map<Id, Cancelable*> cancelable_tasks_;
+  std::map<uint32_t, Cancelable*> cancelable_tasks_;
 
   // Mutex and condition variable enabling concurrent register and removing, as
   // well as waiting for background tasks on {CancelAndWait}.
@@ -91,7 +89,7 @@ class V8_EXPORT_PRIVATE Cancelable {
   // a platform. This step transfers ownership to the platform, which destroys
   // the task after running it. Since the exact time is not known, we cannot
   // access the object after handing it to a platform.
-  CancelableTaskManager::Id id() { return id_; }
+  uint32_t id() { return id_; }
 
  protected:
   bool TryRun() { return status_.TrySetValue(kWaiting, kRunning); }
@@ -122,7 +120,7 @@ class V8_EXPORT_PRIVATE Cancelable {
 
   CancelableTaskManager* parent_;
   base::AtomicValue<Status> status_;
-  CancelableTaskManager::Id id_;
+  uint32_t id_;
 
   // The counter is incremented for failing tries to cancel a task. This can be
   // used by the task itself as an indication how often external entities tried
@@ -140,7 +138,7 @@ class V8_EXPORT_PRIVATE CancelableTask : public Cancelable,
                                          NON_EXPORTED_BASE(public Task) {
  public:
   explicit CancelableTask(Isolate* isolate);
-  CancelableTask(Isolate* isolate, CancelableTaskManager* manager);
+  explicit CancelableTask(CancelableTaskManager* manager);
 
   // Task overrides.
   void Run() final {
@@ -151,10 +149,7 @@ class V8_EXPORT_PRIVATE CancelableTask : public Cancelable,
 
   virtual void RunInternal() = 0;
 
-  Isolate* isolate() { return isolate_; }
-
  private:
-  Isolate* isolate_;
   DISALLOW_COPY_AND_ASSIGN(CancelableTask);
 };
 
@@ -163,7 +158,7 @@ class V8_EXPORT_PRIVATE CancelableTask : public Cancelable,
 class CancelableIdleTask : public Cancelable, public IdleTask {
  public:
   explicit CancelableIdleTask(Isolate* isolate);
-  CancelableIdleTask(Isolate* isolate, CancelableTaskManager* manager);
+  explicit CancelableIdleTask(CancelableTaskManager* manager);
 
   // IdleTask overrides.
   void Run(double deadline_in_seconds) final {
@@ -174,10 +169,7 @@ class CancelableIdleTask : public Cancelable, public IdleTask {
 
   virtual void RunInternal(double deadline_in_seconds) = 0;
 
-  Isolate* isolate() { return isolate_; }
-
  private:
-  Isolate* isolate_;
   DISALLOW_COPY_AND_ASSIGN(CancelableIdleTask);
 };
 

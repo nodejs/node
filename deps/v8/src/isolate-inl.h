@@ -128,9 +128,9 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
   // done here. In place, there are mjsunit tests harmony/array-species* which
   // ensure that behavior is correct in various invalid protector cases.
 
-  Cell* species_cell = heap()->species_protector();
+  PropertyCell* species_cell = heap()->species_protector();
   return species_cell->value()->IsSmi() &&
-         Smi::cast(species_cell->value())->value() == kProtectorValid;
+         Smi::ToInt(species_cell->value()) == kProtectorValid;
 }
 
 bool Isolate::IsStringLengthOverflowIntact() {

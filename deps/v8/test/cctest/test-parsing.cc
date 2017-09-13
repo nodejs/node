@@ -1269,7 +1269,6 @@ enum ParserFlag {
   kAllowNatives,
   kAllowHarmonyFunctionSent,
   kAllowHarmonyRestrictiveGenerators,
-  kAllowHarmonyTrailingCommas,
   kAllowHarmonyClassFields,
   kAllowHarmonyObjectRestSpread,
   kAllowHarmonyDynamicImport,
@@ -1288,7 +1287,6 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_function_sent = flags.Contains(kAllowHarmonyFunctionSent);
   i::FLAG_harmony_restrictive_generators =
       flags.Contains(kAllowHarmonyRestrictiveGenerators);
-  i::FLAG_harmony_trailing_commas = flags.Contains(kAllowHarmonyTrailingCommas);
   i::FLAG_harmony_class_fields = flags.Contains(kAllowHarmonyClassFields);
   i::FLAG_harmony_object_rest_spread =
       flags.Contains(kAllowHarmonyObjectRestSpread);
@@ -1304,8 +1302,6 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyFunctionSent));
   parser->set_allow_harmony_restrictive_generators(
       flags.Contains(kAllowHarmonyRestrictiveGenerators));
-  parser->set_allow_harmony_trailing_commas(
-      flags.Contains(kAllowHarmonyTrailingCommas));
   parser->set_allow_harmony_class_fields(
       flags.Contains(kAllowHarmonyClassFields));
   parser->set_allow_harmony_object_rest_spread(
@@ -1930,25 +1926,26 @@ TEST(NoErrorsLetSloppyAllModes) {
   };
 
   const char* statement_data[] = {
-    "var let;",
-    "var foo, let;",
-    "try { } catch (let) { }",
-    "function let() { }",
-    "(function let() { })",
-    "function foo(let) { }",
-    "function foo(bar, let) { }",
-    "let = 1;",
-    "var foo = let = 1;",
-    "let * 2;",
-    "++let;",
-    "let++;",
-    "let: 34",
-    "function let(let) { let: let(let + let(0)); }",
-    "({ let: 1 })",
-    "({ get let() { 1 } })",
-    "let(100)",
-    NULL
-  };
+      "var let;",
+      "var foo, let;",
+      "try { } catch (let) { }",
+      "function let() { }",
+      "(function let() { })",
+      "function foo(let) { }",
+      "function foo(bar, let) { }",
+      "let = 1;",
+      "var foo = let = 1;",
+      "let * 2;",
+      "++let;",
+      "let++;",
+      "let: 34",
+      "function let(let) { let: let(let + let(0)); }",
+      "({ let: 1 })",
+      "({ get let() { 1 } })",
+      "let(100)",
+      "L: let\nx",
+      "L: let\n{x}",
+      NULL};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -5904,6 +5901,33 @@ TEST(UnicodeEscapes) {
   RunParserSyncTest(context_data, data, kSuccess);
 }
 
+TEST(OctalEscapes) {
+  const char* sloppy_context_data[][2] = {{"", ""},    // as a directive
+                                          {"0;", ""},  // as a string literal
+                                          {NULL, NULL}};
+
+  const char* strict_context_data[][2] = {
+      {"'use strict';", ""},     // as a directive before 'use strict'
+      {"", ";'use strict';"},    // as a directive after 'use strict'
+      {"'use strict'; 0;", ""},  // as a string literal
+      {NULL, NULL}};
+
+  // clang-format off
+  const char* data[] = {
+    "'\\1'",
+    "'\\01'",
+    "'\\001'",
+    "'\\08'",
+    "'\\09'",
+    NULL};
+  // clang-format on
+
+  // Permitted in sloppy mode
+  RunParserSyncTest(sloppy_context_data, data, kSuccess);
+
+  // Error in strict mode
+  RunParserSyncTest(strict_context_data, data, kError);
+}
 
 TEST(ScanTemplateLiterals) {
   const char* context_data[][2] = {{"'use strict';", ""},
@@ -6802,18 +6826,24 @@ TEST(ModuleParsingInternals) {
 
   CHECK_EQ(5u, descriptor->module_requests().size());
   for (const auto& elem : descriptor->module_requests()) {
-    if (elem.first->IsOneByteEqualTo("m.js"))
-      CHECK_EQ(0, elem.second);
-    else if (elem.first->IsOneByteEqualTo("n.js"))
-      CHECK_EQ(1, elem.second);
-    else if (elem.first->IsOneByteEqualTo("p.js"))
-      CHECK_EQ(2, elem.second);
-    else if (elem.first->IsOneByteEqualTo("q.js"))
-      CHECK_EQ(3, elem.second);
-    else if (elem.first->IsOneByteEqualTo("bar.js"))
-      CHECK_EQ(4, elem.second);
-    else
+    if (elem.first->IsOneByteEqualTo("m.js")) {
+      CHECK_EQ(0, elem.second.index);
+      CHECK_EQ(51, elem.second.position);
+    } else if (elem.first->IsOneByteEqualTo("n.js")) {
+      CHECK_EQ(1, elem.second.index);
+      CHECK_EQ(72, elem.second.position);
+    } else if (elem.first->IsOneByteEqualTo("p.js")) {
+      CHECK_EQ(2, elem.second.index);
+      CHECK_EQ(123, elem.second.position);
+    } else if (elem.first->IsOneByteEqualTo("q.js")) {
+      CHECK_EQ(3, elem.second.index);
+      CHECK_EQ(249, elem.second.position);
+    } else if (elem.first->IsOneByteEqualTo("bar.js")) {
+      CHECK_EQ(4, elem.second.index);
+      CHECK_EQ(370, elem.second.position);
+    } else {
       CHECK(false);
+    }
   }
 
   CHECK_EQ(3, descriptor->special_exports().length());
@@ -7099,6 +7129,10 @@ TEST(ObjectSpreadNegativeTests) {
     "{ ...var z = y}",
     "{ ...var}",
     "{ ...foo bar}",
+    "{* ...foo}",
+    "{get ...foo}",
+    "{set ...foo}",
+    "{async ...foo}",
     NULL};
 
   static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
@@ -7115,6 +7149,7 @@ TEST(TemplateEscapesPositiveTests) {
 
   // clang-format off
   const char* data[] = {
+    "tag`\\08`",
     "tag`\\01`",
     "tag`\\01${0}right`",
     "tag`left${0}\\01`",
@@ -7198,6 +7233,7 @@ TEST(TemplateEscapesNegativeTests) {
 
   // clang-format off
   const char* data[] = {
+    "`\\08`",
     "`\\01`",
     "`\\01${0}right`",
     "`left${0}\\01`",
@@ -7332,7 +7368,6 @@ TEST(DestructuringPositiveTests) {
     "[{x:x, y:y, ...z}, [a,b,c]]",
     "[{x:x = 1, y:y = 2, ...z}, [a = 3, b = 4, c = 5]]",
     "{...x}",
-    "{...{ x = 5} }",
     "{x, ...y}",
     "{x = 42, y = 15, ...z}",
     "{42 : x = 42, ...y}",
@@ -7423,6 +7458,9 @@ TEST(DestructuringNegativeTests) {
         "{ x : y++ }",
         "[a++]",
         "(x => y)",
+        "(async x => y)",
+        "((x, z) => y)",
+        "(async (x, z) => y)",
         "a[i]", "a()",
         "a.b",
         "new a",
@@ -7437,6 +7475,8 @@ TEST(DestructuringNegativeTests) {
         "a <<< a",
         "a >>> a",
         "function a() {}",
+        "function* a() {}",
+        "async function a() {}",
         "a`bcd`",
         "this",
         "null",
@@ -7500,6 +7540,17 @@ TEST(DestructuringNegativeTests) {
       "{ ...method() {} }",
       "{ ...function() {} }",
       "{ ...*method() {} }",
+      "{...{x} }",
+      "{...[x] }",
+      "{...{ x = 5 } }",
+      "{...[ x = 5 ] }",
+      "{...x.f }",
+      "{...x[0] }",
+      NULL
+    };
+
+    const char* async_gen_data[] = {
+      "async function* a() {}",
       NULL
     };
 
@@ -7511,6 +7562,9 @@ TEST(DestructuringNegativeTests) {
                       arraysize(flags));
     RunParserSyncTest(context_data, rest_data, kError, NULL, 0, flags,
                       arraysize(flags));
+    static const ParserFlag async_gen_flags[] = {kAllowHarmonyAsyncIteration};
+    RunParserSyncTest(context_data, async_gen_data, kError, NULL, 0,
+                      async_gen_flags, arraysize(async_gen_flags));
   }
 
   {  // All modes.
@@ -7806,6 +7860,9 @@ TEST(DestructuringAssignmentPositiveTests) {
     "{x: { y = 10 } }",
     "[(({ x } = { x: 1 }) => x).a]",
 
+    "{ ...d.x }",
+    "{ ...c[0]}",
+
     // v8:4662
     "{ x: (y) }",
     "{ x: (y) = [] }",
@@ -7820,9 +7877,12 @@ TEST(DestructuringAssignmentPositiveTests) {
 
     NULL};
   // clang-format on
-  RunParserSyncTest(context_data, data, kSuccess);
+  static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+                    arraysize(flags));
 
-  RunParserSyncTest(mixed_assignments_context_data, data, kSuccess);
+  RunParserSyncTest(mixed_assignments_context_data, data, kSuccess, NULL, 0,
+                    flags, arraysize(flags));
 
   const char* empty_context_data[][2] = {
       {"'use strict';", ""}, {"", ""}, {NULL, NULL}};
@@ -7886,9 +7946,13 @@ TEST(DestructuringAssignmentNegativeTests) {
     "[super]",
     "[super = 1]",
     "[function f() {}]",
+    "[async function f() {}]",
+    "[function* f() {}]",
     "[50]",
     "[(50)]",
     "[(function() {})]",
+    "[(async function() {})]",
+    "[(function*() {})]",
     "[(foo())]",
     "{ x: 50 }",
     "{ x: (50) }",
@@ -7896,11 +7960,21 @@ TEST(DestructuringAssignmentNegativeTests) {
     "{ x: 'str' }",
     "{ x: ('str') }",
     "{ x: (foo()) }",
+    "{ x: function() {} }",
+    "{ x: async function() {} }",
+    "{ x: function*() {} }",
     "{ x: (function() {}) }",
+    "{ x: (async function() {}) }",
+    "{ x: (function*() {}) }",
     "{ x: y } = 'str'",
     "[x, y] = 'str'",
     "[(x,y) => z]",
+    "[async(x,y) => z]",
+    "[async x => z]",
     "{x: (y) => z}",
+    "{x: (y,w) => z}",
+    "{x: async (y) => z}",
+    "{x: async (y,w) => z}",
     "[x, ...y, z]",
     "[...x,]",
     "[x, y, ...z = 1]",
@@ -8703,6 +8777,7 @@ TEST(FunctionDeclarationError) {
     "label: function f() { }",
     "label: if (true) function f() { }",
     "label: if (true) {} else function f() { }",
+    "label: label2: function f() { }",
     NULL
   };
   // clang-format on
@@ -9105,6 +9180,7 @@ TEST(AsyncAwaitModuleErrors) {
     "export async function await() {}",
     "export async function() {}",
     "export async",
+    "export async\nfunction async() { await 1; }",
     NULL
   };
   // clang-format on
@@ -9228,9 +9304,7 @@ TEST(TrailingCommasInParameters) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyTrailingCommas};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kSuccess);
 }
 
 TEST(TrailingCommasInParametersErrors) {
@@ -9293,9 +9367,7 @@ TEST(TrailingCommasInParametersErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyTrailingCommas};
-  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kError);
 }
 
 TEST(ArgumentsRedeclaration) {

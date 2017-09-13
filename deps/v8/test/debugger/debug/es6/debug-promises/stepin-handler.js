@@ -48,8 +48,9 @@ Promise.resolve(42)
   });
 
 function callback(x) {
-  return x; // Break 2. // Break 4. // Break 6.
-} // Break 3. // Break 5. // Break 7.
+  return x // Break 2. // Break 4. // Break 6.
+  ; // Break 3. // Break 5. // Break 7.
+}
 
 function finalize() {
   assertNull(exception); // Break 8.

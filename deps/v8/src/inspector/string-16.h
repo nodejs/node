@@ -20,32 +20,17 @@ class String16 {
  public:
   static const size_t kNotFound = static_cast<size_t>(-1);
 
-  String16() {}
-  String16(const String16& other)
-      : m_impl(other.m_impl), hash_code(other.hash_code) {}
-  String16(String16&& other)
-      : m_impl(std::move(other.m_impl)), hash_code(other.hash_code) {}
-  String16(const UChar* characters, size_t size) : m_impl(characters, size) {}
-  String16(const UChar* characters)  // NOLINT(runtime/explicit)
-      : m_impl(characters) {}
-  String16(const char* characters)  // NOLINT(runtime/explicit)
-      : String16(characters, std::strlen(characters)) {}
-  String16(const char* characters, size_t size) {
-    m_impl.resize(size);
-    for (size_t i = 0; i < size; ++i) m_impl[i] = characters[i];
-  }
-  explicit String16(const std::basic_string<UChar>& impl) : m_impl(impl) {}
+  String16();
+  String16(const String16& other);
+  String16(String16&& other);
+  String16(const UChar* characters, size_t size);
+  String16(const UChar* characters);  // NOLINT(runtime/explicit)
+  String16(const char* characters);   // NOLINT(runtime/explicit)
+  String16(const char* characters, size_t size);
+  explicit String16(const std::basic_string<UChar>& impl);
 
-  String16& operator=(const String16& other) {
-    m_impl = other.m_impl;
-    hash_code = other.hash_code;
-    return *this;
-  }
-  String16& operator=(String16&& other) {
-    m_impl = std::move(other.m_impl);
-    hash_code = other.hash_code;
-    return *this;
-  }
+  String16& operator=(const String16& other);
+  String16& operator=(String16&& other);
 
   static String16 fromInteger(int);
   static String16 fromInteger(size_t);

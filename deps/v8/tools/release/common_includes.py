@@ -395,7 +395,7 @@ class GitInterface(VCInterface):
                     "git updater is lagging behind?")
 
     self.step.Git("tag %s %s" % (tag, commit))
-    self.step.Git("push origin %s" % tag)
+    self.step.Git("push origin refs/tags/%s:refs/tags/%s" % (tag, tag))
 
   def CLLand(self):
     self.step.GitCLLand()
@@ -549,7 +549,8 @@ class Step(GitRecipesMixin):
   def InitialEnvironmentChecks(self, cwd):
     # Cancel if this is not a git checkout.
     if not os.path.exists(os.path.join(cwd, ".git")):  # pragma: no cover
-      self.Die("This is not a git checkout, this script won't work for you.")
+      self.Die("%s is not a git checkout. If you know what you're doing, try "
+               "deleting it and rerunning this script." % cwd)
 
     # Cancel if EDITOR is unset or not executable.
     if (self._options.requires_editor and (not os.environ.get("EDITOR") or
@@ -767,7 +768,7 @@ class UploadStep(Step):
       reviewer = self.ReadLine()
     self.GitUpload(reviewer, self._options.author, self._options.force_upload,
                    bypass_hooks=self._options.bypass_upload_hooks,
-                   cc=self._options.cc, use_gerrit=not self._options.rietveld)
+                   cc=self._options.cc)
 
 
 def MakeStep(step_class=Step, number=0, state=None, config=None,
@@ -813,15 +814,13 @@ class ScriptsBase(object):
   def MakeOptions(self, args=None):
     parser = argparse.ArgumentParser(description=self._Description())
     parser.add_argument("-a", "--author", default="",
-                        help="The author email used for rietveld.")
+                        help="The author email used for code review.")
     parser.add_argument("--dry-run", default=False, action="store_true",
                         help="Perform only read-only actions.")
     parser.add_argument("--json-output",
                         help="File to write results summary to.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
-    parser.add_argument("--rietveld", default=False, action="store_true",
-                        help="Whether to use rietveld instead of gerrit.")
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
         default=0, type=int)

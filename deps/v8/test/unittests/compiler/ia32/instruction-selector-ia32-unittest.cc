@@ -539,7 +539,6 @@ static unsigned InputCountForLea(AddressingMode mode) {
       return 1U;
     default:
       UNREACHABLE();
-      return 0U;
   }
 }
 
@@ -568,7 +567,6 @@ static AddressingMode AddressingModeForAddMult(int32_t imm,
       return kMode_MRI;
     default:
       UNREACHABLE();
-      return kMode_None;
   }
 }
 

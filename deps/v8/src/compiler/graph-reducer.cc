@@ -89,11 +89,22 @@ Reduction GraphReducer::Reduce(Node* const node) {
         // {replacement} == {node} represents an in-place reduction. Rerun
         // all the other reducers for this node, as now there may be more
         // opportunities for reduction.
+        if (FLAG_trace_turbo_reduction) {
+          OFStream os(stdout);
+          os << "- In-place update of " << *node << " by reducer "
+             << (*i)->reducer_name() << std::endl;
+        }
         skip = i;
         i = reducers_.begin();
         continue;
       } else {
         // {node} was replaced by another node.
+        if (FLAG_trace_turbo_reduction) {
+          OFStream os(stdout);
+          os << "- Replacement of " << *node << " with "
+             << *(reduction.replacement()) << " by reducer "
+             << (*i)->reducer_name() << std::endl;
+        }
         return reduction;
       }
     }
@@ -146,10 +157,6 @@ void GraphReducer::ReduceTop() {
   // Check if the reduction is an in-place update of the {node}.
   Node* const replacement = reduction.replacement();
   if (replacement == node) {
-    if (FLAG_trace_turbo_reduction) {
-      OFStream os(stdout);
-      os << "- In-place update of " << *replacement << std::endl;
-    }
     // In-place update of {node}, may need to recurse on an input.
     Node::Inputs node_inputs = node->inputs();
     for (int i = 0; i < node_inputs.count(); ++i) {
@@ -183,10 +190,6 @@ void GraphReducer::Replace(Node* node, Node* replacement) {
 
 
 void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
-  if (FLAG_trace_turbo_reduction) {
-    OFStream os(stdout);
-    os << "- Replacing " << *node << " with " << *replacement << std::endl;
-  }
   if (node == graph()->start()) graph()->SetStart(replacement);
   if (node == graph()->end()) graph()->SetEnd(replacement);
   if (replacement->id() <= max_id) {
