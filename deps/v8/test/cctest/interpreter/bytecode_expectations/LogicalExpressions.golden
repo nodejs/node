@@ -18,7 +18,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   45 S> */ B(JumpIfToBooleanTrue), U8(4),
                 B(LdaSmi), I8(3),
-  /*   60 S> */ B(Return),
+  /*   59 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -40,7 +40,7 @@ bytecodes: [
   /*   55 E> */ B(TestEqual), R(0), U8(3),
                 B(JumpIfTrue), U8(4),
                 B(LdaSmi), I8(3),
-  /*   67 S> */ B(Return),
+  /*   66 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -60,7 +60,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   45 S> */ B(JumpIfToBooleanFalse), U8(4),
                 B(LdaSmi), I8(3),
-  /*   60 S> */ B(Return),
+  /*   59 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -82,7 +82,7 @@ bytecodes: [
   /*   55 E> */ B(TestEqual), R(0), U8(3),
                 B(JumpIfFalse), U8(4),
                 B(LdaSmi), I8(3),
-  /*   67 S> */ B(Return),
+  /*   66 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -102,7 +102,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   45 S> */ B(JumpIfToBooleanTrue), U8(4),
                 B(LdaSmi), I8(3),
-  /*   68 S> */ B(Return),
+  /*   67 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -129,7 +129,7 @@ bytecodes: [
                 B(LdaSmi), I8(5),
                 B(Star), R(2),
                 B(LdaSmi), I8(3),
-  /*   95 S> */ B(Return),
+  /*   94 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -314,7 +314,7 @@ bytecodes: [
                 B(LdaSmi), I8(2),
                 B(Star), R(2),
                 B(LdaSmi), I8(3),
-  /*  624 S> */ B(Return),
+  /*  623 S> */ B(Return),
 ]
 constant pool: [
   Smi [260],
@@ -500,7 +500,7 @@ bytecodes: [
                 B(LdaSmi), I8(2),
                 B(Star), R(2),
                 B(LdaSmi), I8(3),
-  /*  624 S> */ B(Return),
+  /*  623 S> */ B(Return),
 ]
 constant pool: [
   Smi [260],
@@ -687,7 +687,7 @@ bytecodes: [
                 B(LdaSmi), I8(2),
                 B(Star), R(2),
                 B(LdaSmi), I8(3),
-  /*  630 S> */ B(Return),
+  /*  629 S> */ B(Return),
 ]
 constant pool: [
   Smi [260],
@@ -874,7 +874,7 @@ bytecodes: [
                 B(LdaSmi), I8(2),
                 B(Star), R(2),
                 B(LdaSmi), I8(3),
-  /*  630 S> */ B(Return),
+  /*  629 S> */ B(Return),
 ]
 constant pool: [
   Smi [260],
@@ -892,7 +892,7 @@ bytecode array length: 3
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaZero),
-  /*   49 S> */ B(Return),
+  /*   48 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -909,7 +909,7 @@ bytecode array length: 4
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaSmi), I8(1),
-  /*   49 S> */ B(Return),
+  /*   48 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -932,7 +932,7 @@ bytecodes: [
                 B(JumpIfToBooleanTrue), U8(3),
                 B(LdaZero),
                 B(LdaSmi), I8(1),
-  /*   68 S> */ B(Return),
+  /*   67 S> */ B(Return),
 ]
 constant pool: [
 ]

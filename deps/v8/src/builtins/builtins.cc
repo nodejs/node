@@ -26,6 +26,32 @@ Builtins::Builtins() : initialized_(false) {
 
 Builtins::~Builtins() {}
 
+BailoutId Builtins::GetContinuationBailoutId(Name name) {
+  switch (name) {
+#define BAILOUT_ID(NAME, ...) \
+  case k##NAME:               \
+    return BailoutId(BailoutId::kFirstBuiltinContinuationId + name);
+    BUILTIN_LIST_TFJ(BAILOUT_ID);
+    BUILTIN_LIST_TFC(BAILOUT_ID);
+#undef BAILOUT_ID
+    default:
+      UNREACHABLE();
+  }
+}
+
+Builtins::Name Builtins::GetBuiltinFromBailoutId(BailoutId id) {
+  switch (id.ToInt()) {
+#define BAILOUT_ID(NAME, ...)                            \
+  case BailoutId::kFirstBuiltinContinuationId + k##NAME: \
+    return k##NAME;
+    BUILTIN_LIST_TFJ(BAILOUT_ID)
+    BUILTIN_LIST_TFC(BAILOUT_ID)
+#undef BAILOUT_ID
+    default:
+      UNREACHABLE();
+  }
+}
+
 void Builtins::TearDown() { initialized_ = false; }
 
 void Builtins::IterateBuiltins(RootVisitor* v) {
@@ -79,7 +105,6 @@ Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
       return NonPrimitiveToPrimitive_String();
   }
   UNREACHABLE();
-  return Handle<Code>::null();
 }
 
 Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
@@ -90,7 +115,10 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
       return OrdinaryToPrimitive_String();
   }
   UNREACHABLE();
-  return Handle<Code>::null();
+}
+
+Handle<Code> Builtins::builtin_handle(Name name) {
+  return Handle<Code>(reinterpret_cast<Code**>(builtin_address(name)));
 }
 
 // static
@@ -105,7 +133,6 @@ int Builtins::GetBuiltinParameterCount(Name name) {
 #undef TFJ_CASE
     default:
       UNREACHABLE();
-      return 0;
   }
 }
 
@@ -117,23 +144,61 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
   switch (name) {
 // This macro is deliberately crafted so as to emit very little code,
 // in order to keep binary size of this function under control.
-#define CASE(Name, ...)                                \
+#define CASE_OTHER(Name, ...)                          \
   case k##Name: {                                      \
     key = Builtin_##Name##_InterfaceDescriptor::key(); \
     break;                                             \
   }
-    BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE, CASE,
-                 CASE, IGNORE_BUILTIN, IGNORE_BUILTIN)
-#undef CASE
+    BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
+                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, IGNORE_BUILTIN)
+#undef CASE_OTHER
     case kConsoleAssert: {
+      return Callable(code, BuiltinDescriptor(isolate));
+    }
+    case kArrayForEach: {
+      Handle<Code> code = isolate->builtins()->ArrayForEach();
+      return Callable(code, BuiltinDescriptor(isolate));
+    }
+    case kArrayForEachLoopEagerDeoptContinuation: {
+      Handle<Code> code =
+          isolate->builtins()->ArrayForEachLoopEagerDeoptContinuation();
+      return Callable(code, BuiltinDescriptor(isolate));
+    }
+    case kArrayForEachLoopLazyDeoptContinuation: {
+      Handle<Code> code =
+          isolate->builtins()->ArrayForEachLoopLazyDeoptContinuation();
+      return Callable(code, BuiltinDescriptor(isolate));
+    }
+    case kArrayMapLoopEagerDeoptContinuation: {
+      Handle<Code> code =
+          isolate->builtins()->ArrayMapLoopEagerDeoptContinuation();
+      return Callable(code, BuiltinDescriptor(isolate));
+    }
+    case kArrayMapLoopLazyDeoptContinuation: {
+      Handle<Code> code =
+          isolate->builtins()->ArrayMapLoopLazyDeoptContinuation();
       return Callable(code, BuiltinDescriptor(isolate));
     }
     default:
       UNREACHABLE();
-      return Callable(Handle<Code>::null(), VoidDescriptor(isolate));
   }
   CallInterfaceDescriptor descriptor(isolate, key);
   return Callable(code, descriptor);
+}
+
+// static
+int Builtins::GetStackParameterCount(Isolate* isolate, Name name) {
+  switch (name) {
+#define CASE(Name, Count, ...) \
+  case k##Name: {              \
+    return Count;              \
+  }
+    BUILTIN_LIST_TFJ(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+      return 0;
+  }
 }
 
 // static

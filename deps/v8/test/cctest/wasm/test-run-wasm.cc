@@ -109,14 +109,14 @@ static void RunInt32AddTest(WasmExecutionMode execution_mode, const byte* code,
 }
 
 WASM_EXEC_TEST(Int32Add_P2) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
   RunInt32AddTest(execution_mode, code, sizeof(code));
 }
 
 WASM_EXEC_TEST(Int32Add_block1) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
       kExprI32Add};
@@ -124,7 +124,7 @@ WASM_EXEC_TEST(Int32Add_block1) {
 }
 
 WASM_EXEC_TEST(Int32Add_block2) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
                     kExprBr, DEPTH_0),
@@ -133,7 +133,7 @@ WASM_EXEC_TEST(Int32Add_block2) {
 }
 
 WASM_EXEC_TEST(Int32Add_multi_if) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_IF_ELSE_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                       WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
@@ -2398,7 +2398,7 @@ WASM_EXEC_TEST(AddCall) {
 }
 
 WASM_EXEC_TEST(MultiReturnSub) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
 
   ValueType storage[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32};
@@ -2420,7 +2420,7 @@ WASM_EXEC_TEST(MultiReturnSub) {
 
 template <typename T>
 void RunMultiReturnSelect(WasmExecutionMode execution_mode, const T* inputs) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   ValueType type = WasmOpcodes::ValueTypeFor(MachineTypeForC<T>());
   ValueType storage[] = {type, type, type, type, type, type};
   const size_t kNumReturns = 2;

@@ -174,7 +174,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
   }
 
   UNREACHABLE();
-  return kNoOpcodeFlags;
 }
 
 int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {

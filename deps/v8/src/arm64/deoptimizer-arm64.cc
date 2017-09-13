@@ -87,26 +87,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-void Deoptimizer::SetPlatformCompiledStubRegisters(
-    FrameDescription* output_frame, CodeStubDescriptor* descriptor) {
-  ApiFunction function(descriptor->deoptimization_handler());
-  ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
-  intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
-  int params = descriptor->GetHandlerParameterCount();
-  output_frame->SetRegister(x0.code(), params);
-  output_frame->SetRegister(x1.code(), handler);
-}
-
-
-void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
-  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; ++i) {
-    Float64 double_value = input_->GetDoubleRegister(i);
-    output_frame->SetDoubleRegister(i, double_value);
-  }
-}
-
-
-
 #define __ masm()->
 
 void Deoptimizer::TableEntryGenerator::Generate() {
@@ -118,13 +98,13 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Save all allocatable double registers.
   CPURegList saved_double_registers(
-      CPURegister::kFPRegister, kDRegSizeInBits,
+      CPURegister::kVRegister, kDRegSizeInBits,
       RegisterConfiguration::Crankshaft()->allocatable_double_codes_mask());
   __ PushCPURegList(saved_double_registers);
 
   // Save all allocatable float registers.
   CPURegList saved_float_registers(
-      CPURegister::kFPRegister, kSRegSizeInBits,
+      CPURegister::kVRegister, kSRegSizeInBits,
       RegisterConfiguration::Crankshaft()->allocatable_float_codes_mask());
   __ PushCPURegList(saved_float_registers);
 
@@ -133,7 +113,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   saved_registers.Combine(fp);
   __ PushCPURegList(saved_registers);
 
-  __ Mov(x3, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  __ Mov(x3, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
+                                       isolate())));
   __ Str(fp, MemOperand(x3));
 
   const int kSavedRegistersAreaSize =

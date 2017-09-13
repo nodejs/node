@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --dead-code-elimination --expose-gc
+// Flags: --allow-natives-syntax --expose-gc
 
 var training = {};
 training.a = "nop";

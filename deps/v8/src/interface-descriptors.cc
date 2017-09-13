@@ -258,10 +258,34 @@ void StringCompareDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void StringConcatDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ArgumentsCountRegister()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void StringConcatDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kArgumentsCount
+  MachineType machine_types[] = {MachineType::Int32()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
 void TypeConversionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ArgumentRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void TypeConversionStackParameterDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  data->InitializePlatformSpecific(0, nullptr);
+}
+
+void TypeConversionStackParameterDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  data->InitializePlatformIndependent(data->register_param_count(), 1, NULL);
 }
 
 void MathPowTaggedDescriptor::InitializePlatformSpecific(
@@ -345,10 +369,10 @@ void StoreWithVectorDescriptor::InitializePlatformSpecific(
 
 void BinaryOpWithVectorDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kLeft, kRight, kSlot, kVector
-  MachineType machine_types[] = {MachineType::AnyTagged(),
-                                 MachineType::AnyTagged(), MachineType::Int32(),
-                                 MachineType::AnyTagged()};
+  // kLeft, kRight, kSlot, kVector, kFunction
+  MachineType machine_types[] = {
+      MachineType::AnyTagged(), MachineType::AnyTagged(), MachineType::Int32(),
+      MachineType::AnyTagged(), MachineType::AnyTagged()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }
@@ -445,11 +469,50 @@ void CallTrampolineDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
+void CallVarargsDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kActualArgumentsCount, kArgumentsList, kArgumentsLength
+  MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
+                                 MachineType::AnyTagged(),
+                                 MachineType::Int32()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
 void CallForwardVarargsDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kTarget, kActualArgumentsCount, kStartIndex
   MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
                                  MachineType::Int32()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void CallWithSpreadDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kArgumentsCount, kArgumentsList
+  MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
+                                 MachineType::AnyTagged()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void CallWithArrayLikeDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kArgumentsList
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::AnyTagged()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void ConstructVarargsDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kNewTarget, kActualArgumentsCount, kArgumentsList,
+  // kArgumentsLength
+  MachineType machine_types[] = {
+      MachineType::AnyTagged(), MachineType::AnyTagged(), MachineType::Int32(),
+      MachineType::AnyTagged(), MachineType::Int32()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }
@@ -460,6 +523,26 @@ void ConstructForwardVarargsDescriptor::InitializePlatformIndependent(
   MachineType machine_types[] = {MachineType::AnyTagged(),
                                  MachineType::AnyTagged(), MachineType::Int32(),
                                  MachineType::Int32()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void ConstructWithSpreadDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kNewTarget, kArgumentsCount, kSpread
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::AnyTagged(), MachineType::Int32(),
+                                 MachineType::AnyTagged()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void ConstructWithArrayLikeDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kNewTarget, kArgumentsList
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::AnyTagged(),
+                                 MachineType::AnyTagged()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --fold-constants
+// Flags: --allow-natives-syntax
 
 function test() {
   assertEquals("string", typeof "");

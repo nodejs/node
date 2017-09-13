@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "src/arm64/constants-arm64.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -16,40 +17,26 @@ namespace internal {
 STATIC_ASSERT((static_cast<int32_t>(-1) >> 1) == -1);
 STATIC_ASSERT((static_cast<uint32_t>(-1) >> 1) == 0x7FFFFFFF);
 
-// Floating point representation.
-static inline uint32_t float_to_rawbits(float value) {
-  uint32_t bits = 0;
-  memcpy(&bits, &value, 4);
-  return bits;
-}
+uint32_t float_sign(float val);
+uint32_t float_exp(float val);
+uint32_t float_mantissa(float val);
+uint32_t double_sign(double val);
+uint32_t double_exp(double val);
+uint64_t double_mantissa(double val);
 
+float float_pack(uint32_t sign, uint32_t exp, uint32_t mantissa);
+double double_pack(uint64_t sign, uint64_t exp, uint64_t mantissa);
 
-static inline uint64_t double_to_rawbits(double value) {
-  uint64_t bits = 0;
-  memcpy(&bits, &value, 8);
-  return bits;
-}
-
-
-static inline float rawbits_to_float(uint32_t bits) {
-  float value = 0.0;
-  memcpy(&value, &bits, 4);
-  return value;
-}
-
-
-static inline double rawbits_to_double(uint64_t bits) {
-  double value = 0.0;
-  memcpy(&value, &bits, 8);
-  return value;
-}
-
+// An fpclassify() function for 16-bit half-precision floats.
+int float16classify(float16 value);
 
 // Bit counting.
 int CountLeadingZeros(uint64_t value, int width);
 int CountLeadingSignBits(int64_t value, int width);
 int CountTrailingZeros(uint64_t value, int width);
 int CountSetBits(uint64_t value, int width);
+int LowestSetBitPosition(uint64_t value);
+int HighestSetBitPosition(uint64_t value);
 uint64_t LargestPowerOf2Divisor(uint64_t value);
 int MaskToBit(uint64_t mask);
 
@@ -86,7 +73,7 @@ T ReverseBytes(T value, int block_bytes_log2) {
 
 // NaN tests.
 inline bool IsSignallingNaN(double num) {
-  uint64_t raw = double_to_rawbits(num);
+  uint64_t raw = bit_cast<uint64_t>(num);
   if (std::isnan(num) && ((raw & kDQuietNanMask) == 0)) {
     return true;
   }
@@ -95,13 +82,17 @@ inline bool IsSignallingNaN(double num) {
 
 
 inline bool IsSignallingNaN(float num) {
-  uint32_t raw = float_to_rawbits(num);
+  uint32_t raw = bit_cast<uint32_t>(num);
   if (std::isnan(num) && ((raw & kSQuietNanMask) == 0)) {
     return true;
   }
   return false;
 }
 
+inline bool IsSignallingNaN(float16 num) {
+  const uint16_t kFP16QuietNaNMask = 0x0200;
+  return (float16classify(num) == FP_NAN) && ((num & kFP16QuietNaNMask) == 0);
+}
 
 template <typename T>
 inline bool IsQuietNaN(T num) {
@@ -112,13 +103,14 @@ inline bool IsQuietNaN(T num) {
 // Convert the NaN in 'num' to a quiet NaN.
 inline double ToQuietNaN(double num) {
   DCHECK(std::isnan(num));
-  return rawbits_to_double(double_to_rawbits(num) | kDQuietNanMask);
+  return bit_cast<double>(bit_cast<uint64_t>(num) | kDQuietNanMask);
 }
 
 
 inline float ToQuietNaN(float num) {
   DCHECK(std::isnan(num));
-  return rawbits_to_float(float_to_rawbits(num) | kSQuietNanMask);
+  return bit_cast<float>(bit_cast<uint32_t>(num) |
+                         static_cast<uint32_t>(kSQuietNanMask));
 }
 
 

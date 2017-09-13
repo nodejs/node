@@ -16,6 +16,8 @@ class RedundancyElimination final : public AdvancedReducer {
   RedundancyElimination(Editor* editor, Zone* zone);
   ~RedundancyElimination() final;
 
+  const char* reducer_name() const override { return "RedundancyElimination"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

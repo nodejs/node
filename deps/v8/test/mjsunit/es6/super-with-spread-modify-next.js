@@ -30,7 +30,7 @@
   }
   testArgumentsPoint(1, 2);
   testArgumentsPoint(1, 2);
-  % OptimizeFunctionOnNextCall(testArgumentsPoint);
+  %OptimizeFunctionOnNextCall(testArgumentsPoint);
   var r = testArgumentsPoint(1, 2);
 
   assertInstanceof(r, ArgumentsPoint);

@@ -109,11 +109,14 @@
   'js1_5/extensions/regress-452565': [FAIL],
   'js1_5/extensions/scope-001': [FAIL],
   # To add insult to injury, these tests time out in debug mode
-  'js1_5/Regress/regress-360969-03': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
-  'js1_5/Regress/regress-360969-04': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-03': [FAIL, ['mode == debug', NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-04': [FAIL, ['mode == debug', NO_VARIANTS]],
 
   # Function declarations are no longer allowed as the body of a with statement.
   'js1_5/Regress/regress-326453': [FAIL],
+
+  # Invalid according to ES2015 syntax. (Details: crbug.com/726625)
+  'ecma_3/extensions/regress-368516': [FAIL],
 
   ##################### SKIPPED TESTS #####################
 
@@ -138,8 +141,8 @@
   'ecma_3/Date/15.9.3.2-1': [SKIP],
   'js1_2/function/Number': [SKIP],
 
-  # TODO(2018): Temporarily allow timeout in debug mode.
-  'js1_5/GC/regress-203278-2': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS, FAIL]],
+  # TODO(2018): Might timeout in debug mode.
+  'js1_5/GC/regress-203278-2': [PASS, ['mode == debug', NO_VARIANTS, FAIL]],
 
   # These tests use invalid LHS expressions in assignments.
   'js1_5/Regress/regress-319391': [SKIP],
@@ -180,9 +183,9 @@
   ##################### FLAKY TESTS #####################
 
   # These tests time out in debug mode but pass in product mode
-  'js1_5/Regress/regress-360969-05': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
-  'js1_5/Regress/regress-360969-06': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
-  'js1_5/extensions/regress-365527': [PASS, SLOW, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-05': [PASS, ['mode == debug', NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-06': [PASS, ['mode == debug', NO_VARIANTS]],
+  'js1_5/extensions/regress-365527': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
 
   'js1_5/Regress/regress-280769-3': [PASS, ['mode == debug', FAIL]],
   'js1_5/Regress/regress-203278-1': [PASS, ['mode == debug', FAIL]],
@@ -191,10 +194,10 @@
   'js1_5/GC/regress-278725': [PASS, ['mode == debug', FAIL]],
   # http://b/issue?id=1206983
   'js1_5/Regress/regress-367561-03': [PASS, ['mode == debug', FAIL], NO_VARIANTS],
-  'ecma/FunctionObjects/15.3.1.1-3': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
-  'ecma/FunctionObjects/15.3.2.1-3': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
-  'ecma/FunctionObjects/15.3.5-1': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
-  'ecma/Date/15.9.5.10-2': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'ecma/FunctionObjects/15.3.1.1-3': [PASS, FAIL, ['mode == debug', NO_VARIANTS]],
+  'ecma/FunctionObjects/15.3.2.1-3': [PASS, FAIL, ['mode == debug', NO_VARIANTS]],
+  'ecma/FunctionObjects/15.3.5-1': [PASS, FAIL, ['mode == debug', NO_VARIANTS]],
+  'ecma/Date/15.9.5.10-2': [PASS, FAIL, ['mode == debug', NO_VARIANTS]],
 
   # These tests create two Date objects just after each other and
   # expects them to match.  Sometimes this happens on the border
@@ -245,7 +248,7 @@
   'js1_5/Array/regress-99120-01': [PASS, FAIL, NO_VARIANTS],
   'js1_5/Array/regress-99120-02': [PASS, FAIL],
   'js1_5/Regress/regress-347306-01': [PASS, FAIL],
-  'js1_5/Regress/regress-416628': [PASS, FAIL, ['mode == debug', TIMEOUT], NO_VARIANTS],
+  'js1_5/Regress/regress-416628': [PASS, FAIL, NO_VARIANTS],
 
 
   # The following two tests assume that daylight savings time starts first
@@ -266,7 +269,7 @@
 
   # Tests that sorting arrays of ints is less than 3 times as fast
   # as sorting arrays of strings.
-  'js1_5/extensions/regress-371636': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/extensions/regress-371636': [PASS, FAIL, ['mode == debug', NO_VARIANTS]],
 
 
   # Tests depend on GC timings. Inherently flaky.
@@ -664,7 +667,7 @@
 
   # This test seems designed to fail (it produces a 700Mbyte string).
   # We fail on out of memory.  The important thing is not to crash.
-  'js1_5/Regress/regress-303213': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/Regress/regress-303213': [FAIL, ['mode == debug', NO_VARIANTS]],
 
   # This test fails since we now throw in String.prototype.match when apply
   # is given null or undefined as this argument (and so does firefox nightly).
@@ -802,7 +805,7 @@
   # In the 64-bit version, this test takes longer to run out of memory
   # than it does in the 32-bit version when attempting to generate a huge
   # error message in debug mode.
-  'js1_5/extensions/regress-336410-1': [FAIL_OK, ['mode == debug and arch == x64', TIMEOUT, NO_VARIANTS]],
+  'js1_5/extensions/regress-336410-1': [FAIL_OK, ['mode == debug and arch == x64', NO_VARIANTS]],
 
   ##################### DECOMPILATION TESTS #####################
 
@@ -865,18 +868,6 @@
 }],  # ALWAYS
 
 
-['variant == turbofan_opt', {
-  # These timeout flakily under CFI/turbofan_opt
-  'js1_5/Regress/regress-360969-05': [SKIP],
-  'js1_5/Regress/regress-360969-06': [SKIP],
-
-  # These timeout under CFI/turbofan_opt
-  'ecma/FunctionObjects/15.3.1.1-3': [SKIP],
-  'ecma/FunctionObjects/15.3.2.1-3': [SKIP],
-  'ecma/FunctionObjects/15.3.5-1': [SKIP],
-}],  # variant == turbofan_opt
-
-
 ['no_i18n == True and mode == debug', {
   # Tests too slow for no18n debug.
   'ecma_3/Statements/regress-302439': [PASS, FAST_VARIANTS],
@@ -900,8 +891,8 @@
   'js1_5/Regress/regress-404755': [SKIP],
   'js1_5/Regress/regress-451322': [SKIP],
 
-  # BUG(1040): Allow this test to timeout.
-  'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
+  # BUG(1040): This test might time out.
+  'js1_5/GC/regress-203278-2': [PASS, SLOW, NO_VARIANTS],
 }],  # 'arch == arm or arch == arm64'
 
 
@@ -928,8 +919,8 @@
   'js1_5/Regress/regress-451322': [SKIP],
 
 
-  # BUG(1040): Allow this test to timeout.
-  'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
+  # BUG(1040): This test might time out.
+  'js1_5/GC/regress-203278-2': [PASS, SLOW, NO_VARIANTS],
 }],  # 'arch == mipsel or arch == mips64el or arch == mips64'
 
 ['arch == mipsel and simulator_run', {
@@ -956,8 +947,8 @@
   'js1_5/Regress/regress-451322': [SKIP],
 
 
-  # BUG(1040): Allow this test to timeout.
-  'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
+  # BUG(1040): This test might time out.
+  'js1_5/GC/regress-203278-2': [PASS, SLOW, NO_VARIANTS],
 }],  # 'arch == mips'
 
 ['arch == arm and simulator_run', {

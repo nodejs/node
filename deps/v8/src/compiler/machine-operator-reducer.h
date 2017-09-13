@@ -28,6 +28,8 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
                                   bool allow_signalling_nan = true);
   ~MachineOperatorReducer();
 
+  const char* reducer_name() const override { return "MachineOperatorReducer"; }
+
   Reduction Reduce(Node* node) override;
 
  private:

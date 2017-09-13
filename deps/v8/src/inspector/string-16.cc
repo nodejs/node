@@ -362,6 +362,41 @@ static inline void putUTF8Triple(char*& buffer, UChar ch) {
 
 }  // namespace
 
+String16::String16() {}
+
+String16::String16(const String16& other)
+    : m_impl(other.m_impl), hash_code(other.hash_code) {}
+
+String16::String16(String16&& other)
+    : m_impl(std::move(other.m_impl)), hash_code(other.hash_code) {}
+
+String16::String16(const UChar* characters, size_t size)
+    : m_impl(characters, size) {}
+
+String16::String16(const UChar* characters) : m_impl(characters) {}
+
+String16::String16(const char* characters)
+    : String16(characters, std::strlen(characters)) {}
+
+String16::String16(const char* characters, size_t size) {
+  m_impl.resize(size);
+  for (size_t i = 0; i < size; ++i) m_impl[i] = characters[i];
+}
+
+String16::String16(const std::basic_string<UChar>& impl) : m_impl(impl) {}
+
+String16& String16::operator=(const String16& other) {
+  m_impl = other.m_impl;
+  hash_code = other.hash_code;
+  return *this;
+}
+
+String16& String16::operator=(String16&& other) {
+  m_impl = std::move(other.m_impl);
+  hash_code = other.hash_code;
+  return *this;
+}
+
 // static
 String16 String16::fromInteger(int number) {
   char arr[50];

@@ -98,11 +98,10 @@ TimezoneCache* OS::CreateTimezoneCache() {
 }
 
 void* OS::Allocate(const size_t requested, size_t* allocated,
-                   OS::MemoryPermission access) {
+                   OS::MemoryPermission access, void* hint) {
   const size_t msize = RoundUp(requested, AllocateAlignment());
   int prot = GetProtectionFromMemoryPermission(access);
-  void* addr = OS::GetRandomMmapAddr();
-  void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  void* mbase = mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
   return mbase;
@@ -197,16 +196,16 @@ static const int kMmapFdOffset = 0;
 
 VirtualMemory::VirtualMemory() : address_(NULL), size_(0) {}
 
-VirtualMemory::VirtualMemory(size_t size)
-    : address_(ReserveRegion(size)), size_(size) {}
+VirtualMemory::VirtualMemory(size_t size, void* hint)
+    : address_(ReserveRegion(size, hint)), size_(size) {}
 
-VirtualMemory::VirtualMemory(size_t size, size_t alignment)
+VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
     : address_(NULL), size_(0) {
   DCHECK((alignment % OS::AllocateAlignment()) == 0);
   size_t request_size =
       RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
   void* reservation =
-      mmap(OS::GetRandomMmapAddr(), request_size, PROT_NONE,
+      mmap(hint, request_size, PROT_NONE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, kMmapFd, kMmapFdOffset);
   if (reservation == MAP_FAILED) return;
 
@@ -247,8 +246,6 @@ VirtualMemory::~VirtualMemory() {
   }
 }
 
-bool VirtualMemory::IsReserved() { return address_ != NULL; }
-
 void VirtualMemory::Reset() {
   address_ = NULL;
   size_ = 0;
@@ -270,10 +267,10 @@ bool VirtualMemory::Guard(void* address) {
   return true;
 }
 
-void* VirtualMemory::ReserveRegion(size_t size) {
+void* VirtualMemory::ReserveRegion(size_t size, void* hint) {
   void* result =
-      mmap(OS::GetRandomMmapAddr(), size, PROT_NONE,
-           MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, kMmapFd, kMmapFdOffset);
+      mmap(hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
+           kMmapFd, kMmapFdOffset);
 
   if (result == MAP_FAILED) return NULL;
 

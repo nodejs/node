@@ -72,23 +72,10 @@ class SequentialMarkingDeque {
   }
 
   INLINE(HeapObject* Pop()) {
-    DCHECK(!IsEmpty());
+    if (IsEmpty()) return nullptr;
     top_ = ((top_ - 1) & mask_);
     HeapObject* object = array_[top_];
     return object;
-  }
-
-  // Unshift the object into the marking stack if there is room, otherwise mark
-  // the deque as overflowed and wait for a rescan of the heap.
-  INLINE(bool Unshift(HeapObject* object)) {
-    if (IsFull()) {
-      SetOverflowed();
-      return false;
-    } else {
-      bottom_ = ((bottom_ - 1) & mask_);
-      array_[bottom_] = object;
-      return true;
-    }
   }
 
   // Calls the specified callback on each element of the deque and replaces
@@ -100,9 +87,7 @@ class SequentialMarkingDeque {
     int i = bottom_;
     int new_top = bottom_;
     while (i != top_) {
-      HeapObject* object = callback(array_[i]);
-      if (object) {
-        array_[new_top] = object;
+      if (callback(array_[i], &array_[new_top])) {
         new_top = (new_top + 1) & mask_;
       }
       i = (i + 1) & mask_;

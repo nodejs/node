@@ -218,11 +218,7 @@ void TrySettingEmptyEnumCache(JSReceiver* object) {
   DCHECK_EQ(kInvalidEnumCacheSentinel, map->EnumLength());
   if (!map->OnlyHasSimpleProperties()) return;
   if (map->IsJSProxyMap()) return;
-  if (map->NumberOfOwnDescriptors() > 0) {
-    int number_of_enumerable_own_properties =
-        map->NumberOfDescribedProperties(OWN_DESCRIPTORS, ENUMERABLE_STRINGS);
-    if (number_of_enumerable_own_properties > 0) return;
-  }
+  if (map->NumberOfEnumerableProperties() > 0) return;
   DCHECK(object->IsJSObject());
   map->SetEnumLength(0);
 }
@@ -286,12 +282,9 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
   // first step to using the cache is to set the enum length of the map by
   // counting the number of own descriptors that are ENUMERABLE_STRINGS.
   if (own_property_count == kInvalidEnumCacheSentinel) {
-    own_property_count =
-        map->NumberOfDescribedProperties(OWN_DESCRIPTORS, ENUMERABLE_STRINGS);
+    own_property_count = map->NumberOfEnumerableProperties();
   } else {
-    DCHECK(
-        own_property_count ==
-        map->NumberOfDescribedProperties(OWN_DESCRIPTORS, ENUMERABLE_STRINGS));
+    DCHECK_EQ(own_property_count, map->NumberOfEnumerableProperties());
   }
 
   if (descs->HasEnumCache()) {
@@ -574,7 +567,7 @@ Handle<FixedArray> GetOwnEnumPropertyDictionaryKeys(Isolate* isolate,
                                                     Handle<JSObject> object,
                                                     T* raw_dictionary) {
   Handle<T> dictionary(raw_dictionary, isolate);
-  int length = dictionary->NumberOfEnumElements();
+  int length = dictionary->NumberOfEnumerableProperties();
   if (length == 0) {
     return isolate->factory()->empty_fixed_array();
   }
@@ -606,7 +599,8 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       }
     } else if (object->IsJSGlobalObject()) {
       enum_keys = GetOwnEnumPropertyDictionaryKeys(
-          isolate_, mode_, this, object, object->global_dictionary());
+          isolate_, mode_, this, object,
+          JSGlobalObject::cast(*object)->global_dictionary());
     } else {
       enum_keys = GetOwnEnumPropertyDictionaryKeys(
           isolate_, mode_, this, object, object->property_dictionary());
@@ -627,7 +621,8 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       }
     } else if (object->IsJSGlobalObject()) {
       GlobalDictionary::CollectKeysTo(
-          handle(object->global_dictionary(), isolate_), this);
+          handle(JSGlobalObject::cast(*object)->global_dictionary(), isolate_),
+          this);
     } else {
       NameDictionary::CollectKeysTo(
           handle(object->property_dictionary(), isolate_), this);
@@ -704,7 +699,7 @@ Handle<FixedArray> KeyAccumulator::GetOwnEnumPropertyKeys(
   } else if (object->IsJSGlobalObject()) {
     return GetOwnEnumPropertyDictionaryKeys(
         isolate, KeyCollectionMode::kOwnOnly, nullptr, object,
-        object->global_dictionary());
+        JSGlobalObject::cast(*object)->global_dictionary());
   } else {
     return GetOwnEnumPropertyDictionaryKeys(
         isolate, KeyCollectionMode::kOwnOnly, nullptr, object,

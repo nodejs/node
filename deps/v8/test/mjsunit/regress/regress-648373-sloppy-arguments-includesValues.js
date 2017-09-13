@@ -8,7 +8,7 @@ function getRandomProperty(v, rand) { var properties = Object.getOwnPropertyName
 var __v_4 = {};
 
 __v_2 = {
-    FAST_ELEMENTS() {
+    PACKED_ELEMENTS() {
           return {
             get 0() {
             }          };

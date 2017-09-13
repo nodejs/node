@@ -196,7 +196,7 @@ TEST(Breakpoint_I32Add) {
   FOR_UINT32_INPUTS(a) {
     for (uint32_t b = 11; b < 3000000000u; b += 1000000000u) {
       thread->Reset();
-      WasmVal args[] = {WasmVal(*a), WasmVal(b)};
+      WasmValue args[] = {WasmValue(*a), WasmValue(b)};
       thread->InitFrame(r.function(), args);
 
       for (int i = 0; i < kNumBreakpoints; i++) {
@@ -231,7 +231,7 @@ TEST(Step_I32Mul) {
   FOR_UINT32_INPUTS(a) {
     for (uint32_t b = 33; b < 3000000000u; b += 1000000000u) {
       thread->Reset();
-      WasmVal args[] = {WasmVal(*a), WasmVal(b)};
+      WasmValue args[] = {WasmValue(*a), WasmValue(b)};
       thread->InitFrame(r.function(), args);
 
       // Run instructions one by one.
@@ -273,7 +273,7 @@ TEST(Breakpoint_I32And_disable) {
         interpreter->SetBreakpoint(r.function(), kLocalsDeclSize + offsets[0],
                                    do_break);
         thread->Reset();
-        WasmVal args[] = {WasmVal(*a), WasmVal(b)};
+        WasmValue args[] = {WasmValue(*a), WasmValue(b)};
         thread->InitFrame(r.function(), args);
 
         if (do_break) {

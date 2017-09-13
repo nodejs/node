@@ -139,7 +139,7 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
   int length = declarations->length();
   FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 4, {
     Handle<String> name(String::cast(declarations->get(i)), isolate);
-    FeedbackSlot slot(Smi::cast(declarations->get(i + 1))->value());
+    FeedbackSlot slot(Smi::ToInt(declarations->get(i + 1)));
     Handle<Object> possibly_literal_slot(declarations->get(i + 2), isolate);
     Handle<Object> initial_value(declarations->get(i + 3), isolate);
 
@@ -153,7 +153,7 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(initial_value);
-      FeedbackSlot literals_slot(Smi::cast(*possibly_literal_slot)->value());
+      FeedbackSlot literals_slot(Smi::ToInt(*possibly_literal_slot));
       Handle<Cell> literals(Cell::cast(feedback_vector->Get(literals_slot)),
                             isolate);
       Handle<JSFunction> function =
@@ -211,18 +211,6 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobalsForInterpreter) {
   return DeclareGlobals(isolate, declarations, flags, feedback_vector);
 }
 
-RUNTIME_FUNCTION(Runtime_InitializeVarGlobal) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-
-  Handle<JSGlobalObject> global(isolate->global_object());
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Object::SetProperty(global, name, value, language_mode));
-}
-
 namespace {
 
 Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
@@ -248,7 +236,9 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   VariableMode mode;
 
   // Check for a conflict with a lexically scoped variable
-  context_arg->Lookup(name, LEXICAL_TEST, &index, &attributes, &init_flag,
+  const ContextLookupFlags lookup_flags = static_cast<ContextLookupFlags>(
+      FOLLOW_CONTEXT_CHAIN | STOP_AT_DECLARATION_SCOPE | SKIP_WITH_CONTEXT);
+  context_arg->Lookup(name, lookup_flags, &index, &attributes, &init_flag,
                       &mode);
   if (attributes != ABSENT && IsLexicalVariableMode(mode)) {
     // ES#sec-evaldeclarationinstantiation 5.a.i.1:
@@ -262,6 +252,7 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 
   Handle<Object> holder = context->Lookup(name, DONT_FOLLOW_CHAINS, &index,
                                           &attributes, &init_flag, &mode);
+  DCHECK(holder.is_null() || !holder->IsModule());
   DCHECK(!isolate->has_pending_exception());
 
   Handle<JSObject> object;
@@ -572,9 +563,9 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   std::unique_ptr<Handle<Object>[]> arguments =
       GetCallerArguments(isolate, &argument_count);
   int num_elements = std::max(0, argument_count - start_index);
-  Handle<JSObject> result =
-      isolate->factory()->NewJSArray(FAST_ELEMENTS, num_elements, num_elements,
-                                     DONT_INITIALIZE_ARRAY_ELEMENTS);
+  Handle<JSObject> result = isolate->factory()->NewJSArray(
+      PACKED_ELEMENTS, num_elements, num_elements,
+      DONT_INITIALIZE_ARRAY_ELEMENTS);
   {
     DisallowHeapAllocation no_gc;
     FixedArray* elements = FixedArray::cast(result->elements());
@@ -823,8 +814,9 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
     return isolate->heap()->true_value();
   }
 
-  // If the slot was found in a context, it should be DONT_DELETE.
-  if (holder->IsContext()) {
+  // If the slot was found in a context or in module imports and exports it
+  // should be DONT_DELETE.
+  if (holder->IsContext() || holder->IsModule()) {
     return isolate->heap()->false_value();
   }
 
@@ -853,6 +845,9 @@ MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
       name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
+  if (!holder.is_null() && holder->IsModule()) {
+    return Module::LoadVariable(Handle<Module>::cast(holder), index);
+  }
   if (index != Context::kNotFound) {
     DCHECK(holder->IsContext());
     // If the "property" we were looking for is a local variable, the
@@ -936,8 +931,9 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
 
 namespace {
 
-MaybeHandle<Object> StoreLookupSlot(Handle<String> name, Handle<Object> value,
-                                    LanguageMode language_mode) {
+MaybeHandle<Object> StoreLookupSlot(
+    Handle<String> name, Handle<Object> value, LanguageMode language_mode,
+    ContextLookupFlags context_lookup_flags = FOLLOW_CHAINS) {
   Isolate* const isolate = name->GetIsolate();
   Handle<Context> context(isolate->context(), isolate);
 
@@ -945,13 +941,22 @@ MaybeHandle<Object> StoreLookupSlot(Handle<String> name, Handle<Object> value,
   PropertyAttributes attributes;
   InitializationFlag flag;
   VariableMode mode;
-  Handle<Object> holder =
-      context->Lookup(name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
+  Handle<Object> holder = context->Lookup(name, context_lookup_flags, &index,
+                                          &attributes, &flag, &mode);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_pending_exception()) return MaybeHandle<Object>();
+  } else if (holder->IsModule()) {
+    if ((attributes & READ_ONLY) == 0) {
+      Module::StoreVariable(Handle<Module>::cast(holder), index, value);
+    } else if (is_strict(language_mode)) {
+      // Setting read only property in strict mode.
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrictCannotAssign, name),
+                      Object);
+    }
+    return value;
   }
-
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
     if (flag == kNeedsInitialization &&
@@ -1004,6 +1009,19 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
   RETURN_RESULT_OR_FAILURE(isolate, StoreLookupSlot(name, value, SLOPPY));
 }
 
+// Store into a dynamic context for sloppy-mode block-scoped function hoisting
+// which leaks out of an eval. In particular, with-scopes are be skipped to
+// reach the appropriate var-like declaration.
+RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  const ContextLookupFlags lookup_flags = static_cast<ContextLookupFlags>(
+      FOLLOW_CONTEXT_CHAIN | STOP_AT_DECLARATION_SCOPE | SKIP_WITH_CONTEXT);
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           StoreLookupSlot(name, value, SLOPPY, lookup_flags));
+}
 
 RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
   HandleScope scope(isolate);

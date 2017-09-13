@@ -649,11 +649,7 @@ void Accessors::ScriptEvalFromFunctionNameGetter(
     Handle<SharedFunctionInfo> shared(
         SharedFunctionInfo::cast(script->eval_from_shared()));
     // Find the name of the function calling eval.
-    if (!shared->name()->IsUndefined(isolate)) {
-      result = Handle<Object>(shared->name(), isolate);
-    } else {
-      result = Handle<Object>(shared->inferred_name(), isolate);
-    }
+    result = Handle<Object>(shared->name(), isolate);
   }
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }

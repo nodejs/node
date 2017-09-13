@@ -47,7 +47,7 @@ testFunction: 3:4
 
 action: stepOver
 action: stepInto
-foo: 10:0
+foo: 9:15
 blackboxedBoo: 3:12
 notBlackboxedFoo: 3:12
 blackboxedFoo: 10:12

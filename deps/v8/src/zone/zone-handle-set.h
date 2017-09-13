@@ -134,6 +134,10 @@ class ZoneHandleSet final {
     return static_cast<size_t>(set.data_);
   }
 
+  class const_iterator;
+  inline const_iterator begin() const;
+  inline const_iterator end() const;
+
  private:
   typedef ZoneList<T**> List;
 
@@ -158,6 +162,50 @@ class ZoneHandleSet final {
 
   intptr_t data_;
 };
+
+template <typename T>
+class ZoneHandleSet<T>::const_iterator {
+ public:
+  typedef std::forward_iterator_tag iterator_category;
+  typedef std::ptrdiff_t difference_type;
+  typedef Handle<T> value_type;
+
+  const_iterator(const const_iterator& other)
+      : set_(other.set_), current_(other.current_) {}
+
+  Handle<T> operator*() const { return (*set_)[current_]; }
+  bool operator==(const const_iterator& other) const {
+    return set_ == other.set_ && current_ == other.current_;
+  }
+  bool operator!=(const const_iterator& other) const {
+    return !(*this == other);
+  }
+  const_iterator& operator++() {
+    DCHECK(current_ < set_->size());
+    current_ += 1;
+    return *this;
+  }
+  const_iterator operator++(int);
+
+ private:
+  friend class ZoneHandleSet<T>;
+
+  explicit const_iterator(const ZoneHandleSet<T>* set, size_t current)
+      : set_(set), current_(current) {}
+
+  const ZoneHandleSet<T>* set_;
+  size_t current_;
+};
+
+template <typename T>
+typename ZoneHandleSet<T>::const_iterator ZoneHandleSet<T>::begin() const {
+  return ZoneHandleSet<T>::const_iterator(this, 0);
+}
+
+template <typename T>
+typename ZoneHandleSet<T>::const_iterator ZoneHandleSet<T>::end() const {
+  return ZoneHandleSet<T>::const_iterator(this, size());
+}
 
 }  // namespace internal
 }  // namespace v8

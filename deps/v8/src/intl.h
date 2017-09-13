@@ -11,6 +11,7 @@
 
 #include "src/base/timezone-cache.h"
 #include "src/objects.h"
+#include "src/objects/string.h"
 #include "unicode/uversion.h"
 
 namespace U_ICU_NAMESPACE {

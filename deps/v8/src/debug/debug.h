@@ -17,6 +17,7 @@
 #include "src/flags.h"
 #include "src/frames.h"
 #include "src/globals.h"
+#include "src/objects/debug-objects.h"
 #include "src/runtime/runtime.h"
 #include "src/source-position-table.h"
 #include "src/string-stream.h"
@@ -49,20 +50,12 @@ enum ExceptionBreakType {
 };
 
 
-// The different types of breakpoint position alignments.
-// Must match Debug.BreakPositionAlignment in debug.js
-enum BreakPositionAlignment {
-  STATEMENT_ALIGNED = 0,
-  BREAK_POSITION_ALIGNED = 1
-};
-
 enum DebugBreakType {
   NOT_DEBUG_BREAK,
   DEBUGGER_STATEMENT,
   DEBUG_BREAK_SLOT,
   DEBUG_BREAK_SLOT_AT_CALL,
   DEBUG_BREAK_SLOT_AT_RETURN,
-  DEBUG_BREAK_SLOT_AT_TAIL_CALL,
 };
 
 enum IgnoreBreakMode {
@@ -81,9 +74,6 @@ class BreakLocation {
 
   inline bool IsReturn() const { return type_ == DEBUG_BREAK_SLOT_AT_RETURN; }
   inline bool IsCall() const { return type_ == DEBUG_BREAK_SLOT_AT_CALL; }
-  inline bool IsTailCall() const {
-    return type_ == DEBUG_BREAK_SLOT_AT_TAIL_CALL;
-  }
   inline bool IsDebugBreakSlot() const { return type_ >= DEBUG_BREAK_SLOT; }
   inline bool IsDebuggerStatement() const {
     return type_ == DEBUGGER_STATEMENT;
@@ -148,7 +138,7 @@ class BreakIterator {
  protected:
   explicit BreakIterator(Handle<DebugInfo> debug_info);
 
-  int BreakIndexFromPosition(int position, BreakPositionAlignment alignment);
+  int BreakIndexFromPosition(int position);
 
   Isolate* isolate() { return debug_info_->GetIsolate(); }
 
@@ -175,12 +165,9 @@ class CodeBreakIterator : public BreakIterator {
   void ClearDebugBreak() override;
   void SetDebugBreak() override;
 
-  void SkipToPosition(int position, BreakPositionAlignment alignment);
+  void SkipToPosition(int position);
 
-  int code_offset() override {
-    return static_cast<int>(rinfo()->pc() -
-                            debug_info_->DebugCode()->instruction_start());
-  }
+  int code_offset() override;
 
  private:
   int GetModeMask();
@@ -207,7 +194,7 @@ class BytecodeArrayBreakIterator : public BreakIterator {
   void ClearDebugBreak() override;
   void SetDebugBreak() override;
 
-  void SkipToPosition(int position, BreakPositionAlignment alignment);
+  void SkipToPosition(int position);
 
   int code_offset() override { return source_position_iterator_.code_offset(); }
 
@@ -296,8 +283,7 @@ class Debug {
                      int* source_position);
   bool SetBreakPointForScript(Handle<Script> script,
                               Handle<Object> break_point_object,
-                              int* source_position,
-                              BreakPositionAlignment alignment);
+                              int* source_position);
   void ClearBreakPoint(Handle<Object> break_point_object);
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
@@ -334,9 +320,13 @@ class Debug {
   void SetDebugDelegate(debug::DebugDelegate* delegate, bool pass_ownership);
 
   // Returns whether the operation succeeded.
-  bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
-  void CreateDebugInfo(Handle<SharedFunctionInfo> shared);
-  static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
+  bool EnsureBreakInfo(Handle<SharedFunctionInfo> shared);
+  void CreateBreakInfo(Handle<SharedFunctionInfo> shared);
+  Handle<DebugInfo> GetOrCreateDebugInfo(Handle<SharedFunctionInfo> shared);
+
+  void InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
+                           Handle<CoverageInfo> coverage_info);
+  void RemoveAllCoverageInfos();
 
   template <typename C>
   bool CompileToRevealInnerFunctions(C* compilable);
@@ -346,8 +336,7 @@ class Debug {
                                                 int position);
 
   static Handle<Object> GetSourceBreakLocations(
-      Handle<SharedFunctionInfo> shared,
-      BreakPositionAlignment position_aligment);
+      Handle<SharedFunctionInfo> shared);
 
   // Check whether a global object is the debug global object.
   bool IsDebugGlobal(JSGlobalObject* global);
@@ -381,7 +370,7 @@ class Debug {
   // Flags and states.
   DebugScope* debugger_entry() {
     return reinterpret_cast<DebugScope*>(
-        base::NoBarrier_Load(&thread_local_.current_debug_scope_));
+        base::Relaxed_Load(&thread_local_.current_debug_scope_));
   }
   inline Handle<Context> debug_context() { return debug_context_; }
 
@@ -393,7 +382,7 @@ class Debug {
   inline bool is_active() const { return is_active_; }
   inline bool is_loaded() const { return !debug_context_.is_null(); }
   inline bool in_debug_scope() const {
-    return !!base::NoBarrier_Load(&thread_local_.current_debug_scope_);
+    return !!base::Relaxed_Load(&thread_local_.current_debug_scope_);
   }
   void set_break_points_active(bool v) { break_points_active_ = v; }
   bool break_points_active() const { return break_points_active_; }
@@ -481,8 +470,7 @@ class Debug {
   void ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data);
 
   // Find the closest source position for a break point for a given position.
-  int FindBreakablePosition(Handle<DebugInfo> debug_info, int source_position,
-                            BreakPositionAlignment alignment);
+  int FindBreakablePosition(Handle<DebugInfo> debug_info, int source_position);
   // Instrument code to break at break points.
   void ApplyBreakPoints(Handle<DebugInfo> debug_info);
   // Clear code from instrumentation.
@@ -498,7 +486,6 @@ class Debug {
   bool IsFrameBlackboxed(JavaScriptFrame* frame);
 
   void ActivateStepOut(StackFrame* frame);
-  void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
   MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
                                            BreakLocation* location,
                                            bool* has_break_points = nullptr);
@@ -515,6 +502,15 @@ class Debug {
   void ThreadInit();
 
   void PrintBreakLocation();
+
+  // Wraps logic for clearing and maybe freeing all debug infos.
+  typedef std::function<bool(Handle<DebugInfo>)> DebugInfoClearFunction;
+  void ClearAllDebugInfos(DebugInfoClearFunction clear_function);
+
+  void RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info);
+  void FindDebugInfo(Handle<DebugInfo> debug_info, DebugInfoListNode** prev,
+                     DebugInfoListNode** curr);
+  void FreeDebugInfoListNode(DebugInfoListNode* prev, DebugInfoListNode* node);
 
   // Global handles.
   Handle<Context> debug_context_;

@@ -17,32 +17,12 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, specifier, 1);
 
-  Handle<JSPromise> promise = isolate->factory()->NewJSPromise();
-
-  Handle<String> specifier_str;
-  MaybeHandle<String> maybe_specifier = Object::ToString(isolate, specifier);
-  if (!maybe_specifier.ToHandle(&specifier_str)) {
-    DCHECK(isolate->has_pending_exception());
-    Handle<Object> reason(isolate->pending_exception(), isolate);
-    isolate->clear_pending_exception();
-
-    Handle<Object> argv[] = {promise, reason,
-                             isolate->factory()->ToBoolean(false)};
-
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate, Execution::Call(isolate, isolate->promise_internal_reject(),
-                                 isolate->factory()->undefined_value(),
-                                 arraysize(argv), argv))
-    return *promise;
-  }
-  DCHECK(!isolate->has_pending_exception());
-
   Handle<Script> script(Script::cast(function->shared()->script()));
   Handle<String> source_url(String::cast(script->name()));
 
-  isolate->RunHostImportModuleDynamicallyCallback(source_url, specifier_str,
-                                                  promise);
-  return *promise;
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      isolate->RunHostImportModuleDynamicallyCallback(source_url, specifier));
 }
 
 RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {

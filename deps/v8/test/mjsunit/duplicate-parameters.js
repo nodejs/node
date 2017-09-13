@@ -126,7 +126,7 @@ function testHelper(type, strict, lazy, duplicate_params_string, ok) {
 
 function test(type, strict, lazy, ok_if_param_list_simple) {
   // Simple duplicate params.
-  testHelper(type, strict, lazy, "dup, dup", ok_if_param_list_simple)
+  testHelper(type, strict, lazy, "a, dup, dup, b", ok_if_param_list_simple)
 
   if (strict != Strictness.STRICT_FUNCTION) {
     // Generate test cases where the duplicate parameter occurs because of
@@ -134,12 +134,12 @@ function test(type, strict, lazy, ok_if_param_list_simple) {
     // parameters are only allowed in simple parameter lists. These tests are
     // not possible if a function declares itself strict, since non-simple
     // parameters are not allowed then.
-    testHelper(type, strict, lazy, "[dup], dup", false);
-    testHelper(type, strict, lazy, "dup, {a: dup}", false);
-    testHelper(type, strict, lazy, "{dup}, [dup]", false);
-    testHelper(type, strict, lazy, "dup, ...dup", false);
-    testHelper(type, strict, lazy, "dup, dup, ...rest", false);
-    testHelper(type, strict, lazy, "dup, dup, a = 1", false);
+    testHelper(type, strict, lazy, "a, [dup], dup, b", false);
+    testHelper(type, strict, lazy, "a, dup, {b: dup}, c", false);
+    testHelper(type, strict, lazy, "a, {dup}, [dup], b", false);
+    testHelper(type, strict, lazy, "a, dup, ...dup", false);
+    testHelper(type, strict, lazy, "a, dup, dup, ...rest", false);
+    testHelper(type, strict, lazy, "a, dup, dup, b = 1", false);
   }
 }
 

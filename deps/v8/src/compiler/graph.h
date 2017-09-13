@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_GRAPH_H_
 #define V8_COMPILER_GRAPH_H_
 
+#include <array>
+
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
 #include "src/zone/zone-containers.h"
@@ -62,58 +64,11 @@ class V8_EXPORT_PRIVATE Graph final : public NON_EXPORTED_BASE(ZoneObject) {
   Node* NewNode(const Operator* op, int input_count, Node* const* inputs,
                 bool incomplete = false);
 
-  // Factories for nodes with static input counts.
-  Node* NewNode(const Operator* op) {
-    return NewNode(op, 0, static_cast<Node* const*>(nullptr));
-  }
-  Node* NewNode(const Operator* op, Node* n1) { return NewNode(op, 1, &n1); }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2) {
-    Node* nodes[] = {n1, n2};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
-    Node* nodes[] = {n1, n2, n3};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
-    Node* nodes[] = {n1, n2, n3, n4};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5) {
-    Node* nodes[] = {n1, n2, n3, n4, n5};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5, Node* n6) {
-    Node* nodes[] = {n1, n2, n3, n4, n5, n6};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5, Node* n6, Node* n7) {
-    Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5, Node* n6, Node* n7, Node* n8) {
-    Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7, n8};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5, Node* n6, Node* n7, Node* n8, Node* n9) {
-    Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7, n8, n9};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5, Node* n6, Node* n7, Node* n8, Node* n9, Node* n10) {
-    Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7, n8, n9, n10};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5, Node* n6, Node* n7, Node* n8, Node* n9, Node* n10,
-                Node* n11) {
-    Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11};
-    return NewNode(op, arraysize(nodes), nodes);
+  // Factory template for nodes with static input counts.
+  template <typename... Nodes>
+  Node* NewNode(const Operator* op, Nodes*... nodes) {
+    std::array<Node*, sizeof...(nodes)> nodes_arr{{nodes...}};
+    return NewNode(op, nodes_arr.size(), nodes_arr.data());
   }
 
   // Clone the {node}, and assign a new node id to the copy.

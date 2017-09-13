@@ -298,7 +298,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
   }
 
   UNREACHABLE();
-  return isolate->heap()->undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
@@ -327,7 +326,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   }
 
   UNREACHABLE();
-  return isolate->heap()->undefined_value();
 }
 
 // ES #sec-atomics.add
@@ -357,7 +355,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
   }
 
   UNREACHABLE();
-  return isolate->heap()->undefined_value();
 }
 
 // ES #sec-atomics.sub
@@ -387,7 +384,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsSub) {
   }
 
   UNREACHABLE();
-  return isolate->heap()->undefined_value();
 }
 
 // ES #sec-atomics.and
@@ -417,7 +413,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
   }
 
   UNREACHABLE();
-  return isolate->heap()->undefined_value();
 }
 
 // ES #sec-atomics.or
@@ -447,7 +442,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsOr) {
   }
 
   UNREACHABLE();
-  return isolate->heap()->undefined_value();
 }
 
 // ES #sec-atomics.xor
@@ -477,7 +471,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) {
   }
 
   UNREACHABLE();
-  return isolate->heap()->undefined_value();
 }
 
 }  // namespace internal

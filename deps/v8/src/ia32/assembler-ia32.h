@@ -262,7 +262,6 @@ enum RoundingMode {
   kRoundToZero = 0x3
 };
 
-
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates
 
@@ -270,33 +269,61 @@ class Immediate BASE_EMBEDDED {
  public:
   inline explicit Immediate(int x);
   inline explicit Immediate(const ExternalReference& ext);
-  inline explicit Immediate(Handle<Object> handle);
+  inline explicit Immediate(Handle<HeapObject> handle);
   inline explicit Immediate(Smi* value);
   inline explicit Immediate(Address addr);
   inline explicit Immediate(Address x, RelocInfo::Mode rmode);
+
+  static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Immediate EmbeddedCode(CodeStub* code);
 
   static Immediate CodeRelativeOffset(Label* label) {
     return Immediate(label);
   }
 
-  bool is_zero() const { return x_ == 0 && RelocInfo::IsNone(rmode_); }
+  bool is_heap_object_request() const {
+    DCHECK_IMPLIES(is_heap_object_request_,
+                   rmode_ == RelocInfo::EMBEDDED_OBJECT ||
+                       rmode_ == RelocInfo::CODE_TARGET);
+    return is_heap_object_request_;
+  }
+
+  HeapObjectRequest heap_object_request() const {
+    DCHECK(is_heap_object_request());
+    return value_.heap_object_request;
+  }
+
+  int immediate() const {
+    DCHECK(!is_heap_object_request());
+    return value_.immediate;
+  }
+
+  bool is_zero() const { return RelocInfo::IsNone(rmode_) && immediate() == 0; }
   bool is_int8() const {
-    return -128 <= x_ && x_ < 128 && RelocInfo::IsNone(rmode_);
+    return RelocInfo::IsNone(rmode_) && i::is_int8(immediate());
   }
   bool is_uint8() const {
-    return v8::internal::is_uint8(x_) && RelocInfo::IsNone(rmode_);
+    return RelocInfo::IsNone(rmode_) && i::is_uint8(immediate());
   }
   bool is_int16() const {
-    return -32768 <= x_ && x_ < 32768 && RelocInfo::IsNone(rmode_);
+    return RelocInfo::IsNone(rmode_) && i::is_int16(immediate());
   }
+
   bool is_uint16() const {
-    return v8::internal::is_uint16(x_) && RelocInfo::IsNone(rmode_);
+    return RelocInfo::IsNone(rmode_) && i::is_uint16(immediate());
   }
+
+  RelocInfo::Mode rmode() const { return rmode_; }
 
  private:
   inline explicit Immediate(Label* value);
 
-  int x_;
+  union Value {
+    Value() {}
+    HeapObjectRequest heap_object_request;
+    int immediate;
+  } value_;
+  bool is_heap_object_request_ = false;
   RelocInfo::Mode rmode_;
 
   friend class Operand;
@@ -369,13 +396,11 @@ class Operand BASE_EMBEDDED {
   }
 
   static Operand ForCell(Handle<Cell> cell) {
-    AllowDeferredHandleDereference embedding_raw_address;
-    return Operand(reinterpret_cast<int32_t>(cell.location()),
-                   RelocInfo::CELL);
+    return Operand(reinterpret_cast<int32_t>(cell.address()), RelocInfo::CELL);
   }
 
   static Operand ForRegisterPlusImmediate(Register base, Immediate imm) {
-    return Operand(base, imm.x_, imm.rmode_);
+    return Operand(base, imm.value_.immediate, imm.rmode_);
   }
 
   // Returns true if this Operand is a wrapper for the specified register.
@@ -404,7 +429,6 @@ class Operand BASE_EMBEDDED {
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
-  friend class MacroAssembler;
 };
 
 
@@ -488,12 +512,12 @@ class Assembler : public AssemblerBase {
   Assembler(Isolate* isolate, void* buffer, int buffer_size)
       : Assembler(IsolateData(isolate), buffer, buffer_size) {}
   Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
-  virtual ~Assembler() { }
+  virtual ~Assembler() {}
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
-  void GetCode(CodeDesc* desc);
+  void GetCode(Isolate* isolate, CodeDesc* desc);
 
   // Read/Modify the code target in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
@@ -616,11 +640,11 @@ class Assembler : public AssemblerBase {
 
   void mov(Register dst, int32_t imm32);
   void mov(Register dst, const Immediate& x);
-  void mov(Register dst, Handle<Object> handle);
+  void mov(Register dst, Handle<HeapObject> handle);
   void mov(Register dst, const Operand& src);
   void mov(Register dst, Register src);
   void mov(const Operand& dst, const Immediate& x);
-  void mov(const Operand& dst, Handle<Object> handle);
+  void mov(const Operand& dst, Handle<HeapObject> handle);
   void mov(const Operand& dst, Register src);
 
   void movsx_b(Register dst, Register src) { movsx_b(dst, Operand(src)); }
@@ -693,13 +717,13 @@ class Assembler : public AssemblerBase {
   void cmpw(Register dst, Register src) { cmpw(Operand(dst), src); }
   void cmpw(const Operand& dst, Register src);
   void cmp(Register reg, int32_t imm32);
-  void cmp(Register reg, Handle<Object> handle);
+  void cmp(Register reg, Handle<HeapObject> handle);
   void cmp(Register reg0, Register reg1) { cmp(reg0, Operand(reg1)); }
   void cmp(Register reg, const Operand& op);
   void cmp(Register reg, const Immediate& imm) { cmp(Operand(reg), imm); }
   void cmp(const Operand& op, Register reg);
   void cmp(const Operand& op, const Immediate& imm);
-  void cmp(const Operand& op, Handle<Object> handle);
+  void cmp(const Operand& op, Handle<HeapObject> handle);
 
   void dec_b(Register dst);
   void dec_b(const Operand& dst);
@@ -841,9 +865,8 @@ class Assembler : public AssemblerBase {
   void call(Register reg) { call(Operand(reg)); }
   void call(const Operand& adr);
   int CallSize(Handle<Code> code, RelocInfo::Mode mode);
-  void call(Handle<Code> code,
-            RelocInfo::Mode rmode,
-            TypeFeedbackId id = TypeFeedbackId::None());
+  void call(Handle<Code> code, RelocInfo::Mode rmode);
+  void call(CodeStub* stub);
 
   // Jumps
   // unconditional jump to L
@@ -1105,11 +1128,37 @@ class Assembler : public AssemblerBase {
   void psllq(XMMRegister dst, XMMRegister src);
   void psrlq(XMMRegister reg, int8_t shift);
   void psrlq(XMMRegister dst, XMMRegister src);
-  void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+
+  // pshufb is SSSE3 instruction
+  void pshufb(XMMRegister dst, XMMRegister src) { pshufb(dst, Operand(src)); }
+  void pshufb(XMMRegister dst, const Operand& src);
+  void pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    pshuflw(dst, Operand(src), shuffle);
+  }
+  void pshuflw(XMMRegister dst, const Operand& src, uint8_t shuffle);
+  void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    pshufd(dst, Operand(src), shuffle);
+  }
+  void pshufd(XMMRegister dst, const Operand& src, uint8_t shuffle);
+
+  void pextrb(Register dst, XMMRegister src, int8_t offset) {
+    pextrb(Operand(dst), src, offset);
+  }
+  void pextrb(const Operand& dst, XMMRegister src, int8_t offset);
+  // Use SSE4_1 encoding for pextrw reg, xmm, imm8 for consistency
+  void pextrw(Register dst, XMMRegister src, int8_t offset) {
+    pextrw(Operand(dst), src, offset);
+  }
+  void pextrw(const Operand& dst, XMMRegister src, int8_t offset);
   void pextrd(Register dst, XMMRegister src, int8_t offset) {
     pextrd(Operand(dst), src, offset);
   }
   void pextrd(const Operand& dst, XMMRegister src, int8_t offset);
+
+  void pinsrb(XMMRegister dst, Register src, int8_t offset) {
+    pinsrb(dst, Operand(src), offset);
+  }
+  void pinsrb(XMMRegister dst, const Operand& src, int8_t offset);
   void pinsrw(XMMRegister dst, Register src, int8_t offset) {
     pinsrw(dst, Operand(src), offset);
   }
@@ -1362,6 +1411,53 @@ class Assembler : public AssemblerBase {
   void vpsraw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8);
 
+  void vpshufb(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vpshufb(dst, src1, Operand(src2));
+  }
+  void vpshufb(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vinstr(0x00, dst, src1, src2, k66, k0F38, kW0);
+  }
+  void vpshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    vpshuflw(dst, Operand(src), shuffle);
+  }
+  void vpshuflw(XMMRegister dst, const Operand& src, uint8_t shuffle);
+  void vpshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    vpshufd(dst, Operand(src), shuffle);
+  }
+  void vpshufd(XMMRegister dst, const Operand& src, uint8_t shuffle);
+
+  void vpextrb(Register dst, XMMRegister src, int8_t offset) {
+    vpextrb(Operand(dst), src, offset);
+  }
+  void vpextrb(const Operand& dst, XMMRegister src, int8_t offset);
+  void vpextrw(Register dst, XMMRegister src, int8_t offset) {
+    vpextrw(Operand(dst), src, offset);
+  }
+  void vpextrw(const Operand& dst, XMMRegister src, int8_t offset);
+  void vpextrd(Register dst, XMMRegister src, int8_t offset) {
+    vpextrd(Operand(dst), src, offset);
+  }
+  void vpextrd(const Operand& dst, XMMRegister src, int8_t offset);
+
+  void vpinsrb(XMMRegister dst, XMMRegister src1, Register src2,
+               int8_t offset) {
+    vpinsrb(dst, src1, Operand(src2), offset);
+  }
+  void vpinsrb(XMMRegister dst, XMMRegister src1, const Operand& src2,
+               int8_t offset);
+  void vpinsrw(XMMRegister dst, XMMRegister src1, Register src2,
+               int8_t offset) {
+    vpinsrw(dst, src1, Operand(src2), offset);
+  }
+  void vpinsrw(XMMRegister dst, XMMRegister src1, const Operand& src2,
+               int8_t offset);
+  void vpinsrd(XMMRegister dst, XMMRegister src1, Register src2,
+               int8_t offset) {
+    vpinsrd(dst, src1, Operand(src2), offset);
+  }
+  void vpinsrd(XMMRegister dst, XMMRegister src1, const Operand& src2,
+               int8_t offset);
+
   void vcvtdq2ps(XMMRegister dst, XMMRegister src) {
     vcvtdq2ps(dst, Operand(src));
   }
@@ -1373,6 +1469,15 @@ class Assembler : public AssemblerBase {
   }
   void vcvttps2dq(XMMRegister dst, const Operand& src) {
     vinstr(0x5B, dst, xmm0, src, kF3, k0F, kWIG);
+  }
+
+  void vmovd(XMMRegister dst, Register src) { vmovd(dst, Operand(src)); }
+  void vmovd(XMMRegister dst, const Operand& src) {
+    vinstr(0x6E, dst, xmm0, src, k66, k0F, kWIG);
+  }
+  void vmovd(Register dst, XMMRegister src) { movd(Operand(dst), src); }
+  void vmovd(const Operand& dst, XMMRegister src) {
+    vinstr(0x7E, src, xmm0, dst, k66, k0F, kWIG);
   }
 
   // BMI instruction
@@ -1635,13 +1740,9 @@ class Assembler : public AssemblerBase {
   // code emission
   void GrowBuffer();
   inline void emit(uint32_t x);
-  inline void emit(Handle<Object> handle);
-  inline void emit(uint32_t x,
-                   RelocInfo::Mode rmode,
-                   TypeFeedbackId id = TypeFeedbackId::None());
-  inline void emit(Handle<Code> code,
-                   RelocInfo::Mode rmode,
-                   TypeFeedbackId id = TypeFeedbackId::None());
+  inline void emit(Handle<HeapObject> handle);
+  inline void emit(uint32_t x, RelocInfo::Mode rmode);
+  inline void emit(Handle<Code> code, RelocInfo::Mode rmode);
   inline void emit(const Immediate& x);
   inline void emit_b(Immediate x);
   inline void emit_w(const Immediate& x);
@@ -1709,6 +1810,19 @@ class Assembler : public AssemblerBase {
 
   // code generation
   RelocInfoWriter reloc_info_writer;
+
+  // The following functions help with avoiding allocations of embedded heap
+  // objects during the code assembly phase. {RequestHeapObject} records the
+  // need for a future heap number allocation or code stub generation. After
+  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
+  // objects and place them where they are expected (determined by the pc offset
+  // associated with each request). That is, for each request, it will patch the
+  // dummy heap object handle that we emitted during code assembly with the
+  // actual heap object handle.
+  void RequestHeapObject(HeapObjectRequest request);
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
+  std::forward_list<HeapObjectRequest> heap_object_requests_;
 };
 
 

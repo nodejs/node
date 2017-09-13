@@ -39,7 +39,7 @@ bytecodes: [
   /*   21 E> */ B(StackCheck),
                 B(Mov), R(closure), R(0),
   /*   26 S> */ B(Ldar), R(0),
-  /*   36 S> */ B(Return),
+  /*   35 S> */ B(Return),
 ]
 constant pool: [
 ]

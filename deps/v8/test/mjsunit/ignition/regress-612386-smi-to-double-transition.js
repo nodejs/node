@@ -19,10 +19,10 @@ function foo() {
   keyed_store(obj, "dbl", 100);
   keyed_store(obj, "obj", 100);
 
-  // Now call with a FAST_SMI_ELEMENTS object.
+  // Now call with a PACKED_SMI_ELEMENTS object.
   var smi_array = [5, 1, 1];
   keyed_store(smi_array, 1, 6);
-  // Transition from FAST_SMI_ELEMENTS to FAST_DOUBLE_ELEMENTS.
+  // Transition from PACKED_SMI_ELEMENTS to PACKED_DOUBLE_ELEMENTS.
   keyed_store(smi_array, 2, 1.2);
 }
 

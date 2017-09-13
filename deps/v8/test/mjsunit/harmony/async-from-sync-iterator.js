@@ -625,6 +625,11 @@ if (testFailed) {
 }
 
 (function ExtractedAsyncFromSyncIteratorMethods() {
+  // TODO(ishell, caitp): Rewrite the test without using function.caller.
+  // According to ES#sec-built-in-function-objects all built-in functions
+  // must be strict. And ES#sec-forbidden-extensions states that the value of
+  // a function.caller must not be a strict function.
+  return;
   // Async-from-Sync iterator methods can be extracted via function.caller.
   // TODO(caitp): test extracted `throw` method using yield* in async generator.
   let extractor = [0, 1, 2, 3, 4,5,6,7,8,9];

@@ -405,9 +405,17 @@ Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
 }
 
 RawMachineLabel::~RawMachineLabel() {
-  // If this DCHECK fails, it means that the label has been bound but it's not
-  // used, or the opposite. This would cause the register allocator to crash.
-  DCHECK_EQ(bound_, used_);
+#if DEBUG
+  if (bound_ == used_) return;
+  std::stringstream str;
+  if (bound_) {
+    str << "A label has been bound but it's not used."
+        << "\n#    label: " << *block_;
+  } else {
+    str << "A label has been used but it's not bound.";
+  }
+  FATAL(str.str().c_str());
+#endif  // DEBUG
 }
 
 }  // namespace compiler

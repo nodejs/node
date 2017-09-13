@@ -122,6 +122,11 @@ const int kInvalidMSARegister = -1;
 const int kInvalidMSAControlRegister = -1;
 const int kMSAIRRegister = 0;
 const int kMSACSRRegister = 1;
+const int kMSARegSize = 128;
+const int kMSALanesByte = kMSARegSize / 8;
+const int kMSALanesHalf = kMSARegSize / 16;
+const int kMSALanesWord = kMSARegSize / 32;
+const int kMSALanesDword = kMSARegSize / 64;
 
 // FPU (coprocessor 1) control registers. Currently only FCSR is implemented.
 const int kFCSRRegister = 31;
@@ -273,19 +278,19 @@ const int kBp3Shift = 6;
 const int kBp3Bits = 3;
 
 const int kImm16Shift = 0;
-const int kImm16Bits  = 16;
+const int kImm16Bits = 16;
 const int kImm18Shift = 0;
 const int kImm18Bits = 18;
 const int kImm19Shift = 0;
 const int kImm19Bits = 19;
 const int kImm21Shift = 0;
-const int kImm21Bits  = 21;
+const int kImm21Bits = 21;
 const int kImm26Shift = 0;
-const int kImm26Bits  = 26;
+const int kImm26Bits = 26;
 const int kImm28Shift = 0;
-const int kImm28Bits  = 28;
+const int kImm28Bits = 28;
 const int kImm32Shift = 0;
-const int kImm32Bits  = 32;
+const int kImm32Bits = 32;
 const int kMsaImm8Shift = 16;
 const int kMsaImm8Bits = 8;
 const int kMsaImm5Shift = 16;
@@ -322,30 +327,40 @@ const int kWdShift = 6;
 
 // ----- Miscellaneous useful masks.
 // Instruction bit masks.
-const int  kOpcodeMask   = ((1 << kOpcodeBits) - 1) << kOpcodeShift;
-const int  kImm16Mask    = ((1 << kImm16Bits) - 1) << kImm16Shift;
+const int kOpcodeMask = ((1 << kOpcodeBits) - 1) << kOpcodeShift;
+const int kImm16Mask = ((1 << kImm16Bits) - 1) << kImm16Shift;
 const int kImm18Mask = ((1 << kImm18Bits) - 1) << kImm18Shift;
 const int kImm19Mask = ((1 << kImm19Bits) - 1) << kImm19Shift;
 const int kImm21Mask = ((1 << kImm21Bits) - 1) << kImm21Shift;
-const int  kImm26Mask    = ((1 << kImm26Bits) - 1) << kImm26Shift;
-const int  kImm28Mask    = ((1 << kImm28Bits) - 1) << kImm28Shift;
+const int kImm26Mask = ((1 << kImm26Bits) - 1) << kImm26Shift;
+const int kImm28Mask = ((1 << kImm28Bits) - 1) << kImm28Shift;
 const int kImm5Mask = ((1 << 5) - 1);
 const int kImm8Mask = ((1 << 8) - 1);
 const int kImm10Mask = ((1 << 10) - 1);
 const int kMsaI5I10Mask = ((7U << 23) | ((1 << 6) - 1));
-const int  kRsFieldMask  = ((1 << kRsBits) - 1) << kRsShift;
-const int  kRtFieldMask  = ((1 << kRtBits) - 1) << kRtShift;
-const int  kRdFieldMask  = ((1 << kRdBits) - 1) << kRdShift;
-const int  kSaFieldMask  = ((1 << kSaBits) - 1) << kSaShift;
-const int  kFunctionFieldMask = ((1 << kFunctionBits) - 1) << kFunctionShift;
+const int kMsaI8Mask = ((3U << 24) | ((1 << 6) - 1));
+const int kMsaI5Mask = ((7U << 23) | ((1 << 6) - 1));
+const int kMsaMI10Mask = (15U << 2);
+const int kMsaBITMask = ((7U << 23) | ((1 << 6) - 1));
+const int kMsaELMMask = (15U << 22);
+const int kMsa3RMask = ((7U << 23) | ((1 << 6) - 1));
+const int kMsa3RFMask = ((15U << 22) | ((1 << 6) - 1));
+const int kMsaVECMask = (23U << 21);
+const int kMsa2RMask = (7U << 18);
+const int kMsa2RFMask = (15U << 17);
+const int kRsFieldMask = ((1 << kRsBits) - 1) << kRsShift;
+const int kRtFieldMask = ((1 << kRtBits) - 1) << kRtShift;
+const int kRdFieldMask = ((1 << kRdBits) - 1) << kRdShift;
+const int kSaFieldMask = ((1 << kSaBits) - 1) << kSaShift;
+const int kFunctionFieldMask = ((1 << kFunctionBits) - 1) << kFunctionShift;
 // Misc masks.
-const int  kHiMask       =   0xffff << 16;
-const int  kLoMask       =   0xffff;
-const int  kSignMask     =   0x80000000;
-const int  kJumpAddrMask = (1 << (kImm26Bits + kImmFieldShift)) - 1;
-const int64_t  kHi16MaskOf64 =   (int64_t)0xffff << 48;
-const int64_t  kSe16MaskOf64 =   (int64_t)0xffff << 32;
-const int64_t  kTh16MaskOf64 =   (int64_t)0xffff << 16;
+const int kHiMaskOf32 = 0xffff << 16;  // Only to be used with 32-bit values
+const int kLoMaskOf32 = 0xffff;
+const int kSignMaskOf32 = 0x80000000;  // Only to be used with 32-bit values
+const int kJumpAddrMask = (1 << (kImm26Bits + kImmFieldShift)) - 1;
+const int64_t kTop16MaskOf64 = (int64_t)0xffff << 48;
+const int64_t kHigher16MaskOf64 = (int64_t)0xffff << 32;
+const int64_t kUpper16MaskOf64 = (int64_t)0xffff << 16;
 const int32_t kJalRawMark = 0x00000000;
 const int32_t kJRawMark = 0xf0000000;
 const int32_t kJumpRawMask = 0xf0000000;
@@ -1077,6 +1092,36 @@ inline Condition NegateFpuCondition(Condition cc) {
   }
 }
 
+enum MSABranchCondition {
+  all_not_zero = 0,   // Branch If All Elements Are Not Zero
+  one_elem_not_zero,  // Branch If At Least One Element of Any Format Is Not
+                      // Zero
+  one_elem_zero,      // Branch If At Least One Element Is Zero
+  all_zero            // Branch If All Elements of Any Format Are Zero
+};
+
+inline MSABranchCondition NegateMSABranchCondition(MSABranchCondition cond) {
+  switch (cond) {
+    case all_not_zero:
+      return one_elem_zero;
+    case one_elem_not_zero:
+      return all_zero;
+    case one_elem_zero:
+      return all_not_zero;
+    case all_zero:
+      return one_elem_not_zero;
+    default:
+      return cond;
+  }
+}
+
+enum MSABranchDF {
+  MSA_BRANCH_B = 0,
+  MSA_BRANCH_H,
+  MSA_BRANCH_W,
+  MSA_BRANCH_D,
+  MSA_BRANCH_V
+};
 
 // Commute a condition such that {a cond b == b cond' a}.
 inline Condition CommuteCondition(Condition cc) {
@@ -1903,6 +1948,16 @@ bool InstructionGetters<T>::IsForbiddenAfterBranchInstr(Instr instr) {
         case BC1:
         case BC1EQZ:
         case BC1NEZ:
+        case BZ_V:
+        case BZ_B:
+        case BZ_H:
+        case BZ_W:
+        case BZ_D:
+        case BNZ_V:
+        case BNZ_B:
+        case BNZ_H:
+        case BNZ_W:
+        case BNZ_D:
           return true;
           break;
         default:

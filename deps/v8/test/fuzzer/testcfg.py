@@ -18,8 +18,8 @@ class FuzzerVariantGenerator(testsuite.VariantGenerator):
 
 
 class FuzzerTestSuite(testsuite.TestSuite):
-  SUB_TESTS = ( 'json', 'parser', 'regexp', 'wasm', 'wasm_asmjs', 'wasm_call',
-          'wasm_code', 'wasm_compile', 'wasm_data_section',
+  SUB_TESTS = ( 'json', 'parser', 'regexp', 'wasm', 'wasm_async',
+          'wasm_call', 'wasm_code', 'wasm_compile', 'wasm_data_section',
           'wasm_function_sigs_section', 'wasm_globals_section',
           'wasm_imports_section', 'wasm_memory_section', 'wasm_names_section',
           'wasm_types_section' )
@@ -32,9 +32,6 @@ class FuzzerTestSuite(testsuite.TestSuite):
     for subtest in FuzzerTestSuite.SUB_TESTS:
       shell = 'v8_simple_%s_fuzzer' % subtest
       for fname in os.listdir(os.path.join(self.root, subtest)):
-        if subtest in ["wasm", "wasm_asmjs"] and fname.endswith(".wasm"):
-          os.remove(os.path.join(self.root, subtest, fname))
-          continue
         if not os.path.isfile(os.path.join(self.root, subtest, fname)):
           continue
         test = testcase.TestCase(self, '%s/%s' % (subtest, fname),

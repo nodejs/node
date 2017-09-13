@@ -4,8 +4,13 @@
 
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
+import("//build/split_static_library.gni")
 
 declare_args() {
+  # Set flags for tracking code coverage. Uses gcov with gcc and sanitizer
+  # coverage with clang.
+  v8_code_coverage = false
+
   # Includes files needed for correctness fuzzing.
   v8_correctness_fuzzer = false
 
@@ -84,6 +89,13 @@ if (is_debug && !v8_optimized_debug) {
   }
 }
 
+if (v8_code_coverage && !is_clang) {
+  v8_add_configs += [
+    v8_path_prefix + ":v8_gcov_coverage_cflags",
+    v8_path_prefix + ":v8_gcov_coverage_ldflags",
+  ]
+}
+
 if (is_posix && v8_enable_backtrace) {
   v8_remove_configs += [ "//build/config/gcc:symbol_visibility_hidden" ]
   v8_add_configs += [ "//build/config/gcc:symbol_visibility_default" ]
@@ -91,20 +103,19 @@ if (is_posix && v8_enable_backtrace) {
 
 # All templates should be kept in sync.
 template("v8_source_set") {
-  if (defined(v8_static_library) && v8_static_library) {
-    static_library(target_name) {
-      forward_variables_from(invoker, "*", [ "configs" ])
-      configs += invoker.configs
-      configs -= v8_remove_configs
-      configs += v8_add_configs
-    }
+  if (defined(invoker.split_count) && invoker.split_count > 1 &&
+      defined(v8_static_library) && v8_static_library && is_win) {
+    link_target_type = "split_static_library"
+  } else if (defined(v8_static_library) && v8_static_library) {
+    link_target_type = "static_library"
   } else {
-    source_set(target_name) {
-      forward_variables_from(invoker, "*", [ "configs" ])
-      configs += invoker.configs
-      configs -= v8_remove_configs
-      configs += v8_add_configs
-    }
+    link_target_type = "source_set"
+  }
+  target(link_target_type, target_name) {
+    forward_variables_from(invoker, "*", [ "configs" ])
+    configs += invoker.configs
+    configs -= v8_remove_configs
+    configs += v8_add_configs
   }
 }
 
@@ -135,6 +146,19 @@ template("v8_executable") {
       # For enabling ASLR.
       ldflags = [ "-pie" ]
     }
+    if (defined(testonly) && testonly && v8_code_coverage) {
+      # Only add code coverage cflags for non-test files for performance
+      # reasons.
+      if (is_clang) {
+        configs -= [ "//build/config/sanitizers:default_sanitizer_flags" ]
+        configs += [ "//build/config/sanitizers:default_sanitizer_flags_but_coverage" ]
+      } else {
+        configs -= [ v8_path_prefix + ":v8_gcov_coverage_cflags" ]
+      }
+    }
+    deps += [
+      v8_path_prefix + ":v8_dump_build_config",
+    ]
   }
 }
 

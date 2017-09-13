@@ -138,7 +138,7 @@ class ProfilerEventsProcessor : public base::Thread {
   // Thread control.
   virtual void Run();
   void StopSynchronously();
-  INLINE(bool running()) { return !!base::NoBarrier_Load(&running_); }
+  INLINE(bool running()) { return !!base::Relaxed_Load(&running_); }
   void Enqueue(const CodeEventsContainer& event);
 
   // Puts current stack into tick sample events buffer.

@@ -24,7 +24,7 @@ SamplingCircularQueue<T, L>::~SamplingCircularQueue() {
 
 template<typename T, unsigned L>
 T* SamplingCircularQueue<T, L>::Peek() {
-  base::MemoryBarrier();
+  base::MemoryFence();
   if (base::Acquire_Load(&dequeue_pos_->marker) == kFull) {
     return &dequeue_pos_->record;
   }
@@ -41,7 +41,7 @@ void SamplingCircularQueue<T, L>::Remove() {
 
 template<typename T, unsigned L>
 T* SamplingCircularQueue<T, L>::StartEnqueue() {
-  base::MemoryBarrier();
+  base::MemoryFence();
   if (base::Acquire_Load(&enqueue_pos_->marker) == kEmpty) {
     return &enqueue_pos_->record;
   }

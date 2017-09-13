@@ -87,8 +87,8 @@ class InstructionOperandConverter {
     return ToExternalReference(instr_->InputAt(index));
   }
 
-  Handle<HeapObject> InputHeapObject(size_t index) {
-    return ToHeapObject(instr_->InputAt(index));
+  Handle<Code> InputCode(size_t index) {
+    return ToCode(instr_->InputAt(index));
   }
 
   Label* InputLabel(size_t index) { return ToLabel(instr_->InputAt(index)); }
@@ -151,7 +151,9 @@ class InstructionOperandConverter {
         ConstantOperand::cast(op)->virtual_register());
   }
 
-  double ToDouble(InstructionOperand* op) { return ToConstant(op).ToFloat64(); }
+  double ToDouble(InstructionOperand* op) {
+    return ToConstant(op).ToFloat64().value();
+  }
 
   float ToFloat32(InstructionOperand* op) { return ToConstant(op).ToFloat32(); }
 
@@ -159,8 +161,8 @@ class InstructionOperandConverter {
     return ToConstant(op).ToExternalReference();
   }
 
-  Handle<HeapObject> ToHeapObject(InstructionOperand* op) {
-    return ToConstant(op).ToHeapObject();
+  Handle<Code> ToCode(InstructionOperand* op) {
+    return ToConstant(op).ToCode();
   }
 
   const Frame* frame() const { return gen_->frame(); }
@@ -202,15 +204,14 @@ class OutOfLineCode : public ZoneObject {
   Label* entry() { return &entry_; }
   Label* exit() { return &exit_; }
   const Frame* frame() const { return frame_; }
-  Isolate* isolate() const { return masm()->isolate(); }
-  MacroAssembler* masm() const { return masm_; }
+  TurboAssembler* tasm() { return tasm_; }
   OutOfLineCode* next() const { return next_; }
 
  private:
   Label entry_;
   Label exit_;
   const Frame* const frame_;
-  MacroAssembler* const masm_;
+  TurboAssembler* const tasm_;
   OutOfLineCode* const next_;
 };
 

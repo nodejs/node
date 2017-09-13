@@ -40,6 +40,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/code-stubs.h"
 #include "src/macro-assembler.h"
 #include "src/ppc/assembler-ppc-inl.h"
 
@@ -154,7 +155,7 @@ bool RelocInfo::IsCodedSpecially() {
 
 
 bool RelocInfo::IsInConstantPool() {
-  if (FLAG_enable_embedded_constant_pool) {
+  if (FLAG_enable_embedded_constant_pool && host_ != NULL) {
     Address constant_pool = host_->constant_pool();
     return (constant_pool && Assembler::IsConstantPoolLoadStart(pc_));
   }
@@ -198,21 +199,27 @@ void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
 // Implementation of Operand and MemOperand
 // See assembler-ppc-inl.h for inlined constructors
 
-Operand::Operand(Handle<Object> handle) {
-  AllowDeferredHandleDereference using_raw_address;
+Operand::Operand(Handle<HeapObject> handle) {
   rm_ = no_reg;
-  // Verify all Objects referred by code are NOT in new space.
-  Object* obj = *handle;
-  if (obj->IsHeapObject()) {
-    imm_ = reinterpret_cast<intptr_t>(handle.location());
-    rmode_ = RelocInfo::EMBEDDED_OBJECT;
-  } else {
-    // no relocation needed
-    imm_ = reinterpret_cast<intptr_t>(obj);
-    rmode_ = kRelocInfo_NONEPTR;
-  }
+  value_.immediate = reinterpret_cast<intptr_t>(handle.address());
+  rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
+Operand Operand::EmbeddedNumber(double value) {
+  int32_t smi;
+  if (DoubleToSmiInteger(value, &smi)) return Operand(Smi::FromInt(smi));
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(value);
+  return result;
+}
+
+Operand Operand::EmbeddedCode(CodeStub* stub) {
+  Operand result(0, RelocInfo::CODE_TARGET);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(stub);
+  return result;
+}
 
 MemOperand::MemOperand(Register rn, int32_t offset) {
   ra_ = rn;
@@ -227,13 +234,32 @@ MemOperand::MemOperand(Register ra, Register rb) {
   offset_ = 0;
 }
 
+void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  for (auto& request : heap_object_requests_) {
+    Handle<HeapObject> object;
+    switch (request.kind()) {
+      case HeapObjectRequest::kHeapNumber:
+        object = isolate->factory()->NewHeapNumber(request.heap_number(),
+                                                   IMMUTABLE, TENURED);
+        break;
+      case HeapObjectRequest::kCodeStub:
+        request.code_stub()->set_isolate(isolate);
+        object = request.code_stub()->GetCode();
+        break;
+    }
+    Address pc = buffer_ + request.offset();
+    Address constant_pool = NULL;
+    set_target_address_at(nullptr, pc, constant_pool,
+                          reinterpret_cast<Address>(object.location()),
+                          SKIP_ICACHE_FLUSH);
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
 Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
     : AssemblerBase(isolate_data, buffer, buffer_size),
-      recorded_ast_id_(TypeFeedbackId::None()),
       constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
@@ -246,16 +272,15 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   optimizable_cmpi_pos_ = -1;
   trampoline_emitted_ = FLAG_force_long_branches;
   tracked_branch_count_ = 0;
-  ClearRecordedAstId();
   relocations_.reserve(128);
 }
 
-
-void Assembler::GetCode(CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   // Emit constant pool if necessary.
   int constant_pool_offset = EmitConstantPool();
 
   EmitRelocations();
+  AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
   desc->buffer = buffer_;
@@ -271,7 +296,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::Align(int m) {
-  DCHECK(m >= 4 && base::bits::IsPowerOfTwo32(m));
+  DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
   DCHECK((pc_offset() & (kInstrSize - 1)) == 0);
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
@@ -743,12 +768,12 @@ void Assembler::b(int branch_offset, LKBit lk) {
 
 
 void Assembler::xori(Register dst, Register src, const Operand& imm) {
-  d_form(XORI, src, dst, imm.imm_, false);
+  d_form(XORI, src, dst, imm.immediate(), false);
 }
 
 
 void Assembler::xoris(Register ra, Register rs, const Operand& imm) {
-  d_form(XORIS, rs, ra, imm.imm_, false);
+  d_form(XORIS, rs, ra, imm.immediate(), false);
 }
 
 
@@ -782,28 +807,28 @@ void Assembler::rlwimi(Register ra, Register rs, int sh, int mb, int me,
 
 
 void Assembler::slwi(Register dst, Register src, const Operand& val, RCBit rc) {
-  DCHECK((32 > val.imm_) && (val.imm_ >= 0));
-  rlwinm(dst, src, val.imm_, 0, 31 - val.imm_, rc);
+  DCHECK((32 > val.immediate()) && (val.immediate() >= 0));
+  rlwinm(dst, src, val.immediate(), 0, 31 - val.immediate(), rc);
 }
 
 
 void Assembler::srwi(Register dst, Register src, const Operand& val, RCBit rc) {
-  DCHECK((32 > val.imm_) && (val.imm_ >= 0));
-  rlwinm(dst, src, 32 - val.imm_, val.imm_, 31, rc);
+  DCHECK((32 > val.immediate()) && (val.immediate() >= 0));
+  rlwinm(dst, src, 32 - val.immediate(), val.immediate(), 31, rc);
 }
 
 
 void Assembler::clrrwi(Register dst, Register src, const Operand& val,
                        RCBit rc) {
-  DCHECK((32 > val.imm_) && (val.imm_ >= 0));
-  rlwinm(dst, src, 0, 0, 31 - val.imm_, rc);
+  DCHECK((32 > val.immediate()) && (val.immediate() >= 0));
+  rlwinm(dst, src, 0, 0, 31 - val.immediate(), rc);
 }
 
 
 void Assembler::clrlwi(Register dst, Register src, const Operand& val,
                        RCBit rc) {
-  DCHECK((32 > val.imm_) && (val.imm_ >= 0));
-  rlwinm(dst, src, 0, val.imm_, 31, rc);
+  DCHECK((32 > val.immediate()) && (val.immediate() >= 0));
+  rlwinm(dst, src, 0, val.immediate(), 31, rc);
 }
 
 
@@ -823,7 +848,7 @@ void Assembler::rotrwi(Register ra, Register rs, int sh, RCBit r) {
 
 
 void Assembler::subi(Register dst, Register src, const Operand& imm) {
-  addi(dst, src, Operand(-(imm.imm_)));
+  addi(dst, src, Operand(-(imm.immediate())));
 }
 
 void Assembler::addc(Register dst, Register src1, Register src2, OEBit o,
@@ -858,7 +883,7 @@ void Assembler::sube(Register dst, Register src1, Register src2, OEBit o,
 }
 
 void Assembler::subfic(Register dst, Register src, const Operand& imm) {
-  d_form(SUBFIC, dst, src, imm.imm_, true);
+  d_form(SUBFIC, dst, src, imm.immediate(), true);
 }
 
 
@@ -903,43 +928,43 @@ void Assembler::divwu(Register dst, Register src1, Register src2, OEBit o,
 
 void Assembler::addi(Register dst, Register src, const Operand& imm) {
   DCHECK(!src.is(r0));  // use li instead to show intent
-  d_form(ADDI, dst, src, imm.imm_, true);
+  d_form(ADDI, dst, src, imm.immediate(), true);
 }
 
 
 void Assembler::addis(Register dst, Register src, const Operand& imm) {
   DCHECK(!src.is(r0));  // use lis instead to show intent
-  d_form(ADDIS, dst, src, imm.imm_, true);
+  d_form(ADDIS, dst, src, imm.immediate(), true);
 }
 
 
 void Assembler::addic(Register dst, Register src, const Operand& imm) {
-  d_form(ADDIC, dst, src, imm.imm_, true);
+  d_form(ADDIC, dst, src, imm.immediate(), true);
 }
 
 
 void Assembler::andi(Register ra, Register rs, const Operand& imm) {
-  d_form(ANDIx, rs, ra, imm.imm_, false);
+  d_form(ANDIx, rs, ra, imm.immediate(), false);
 }
 
 
 void Assembler::andis(Register ra, Register rs, const Operand& imm) {
-  d_form(ANDISx, rs, ra, imm.imm_, false);
+  d_form(ANDISx, rs, ra, imm.immediate(), false);
 }
 
 
 void Assembler::ori(Register ra, Register rs, const Operand& imm) {
-  d_form(ORI, rs, ra, imm.imm_, false);
+  d_form(ORI, rs, ra, imm.immediate(), false);
 }
 
 
 void Assembler::oris(Register dst, Register src, const Operand& imm) {
-  d_form(ORIS, src, dst, imm.imm_, false);
+  d_form(ORIS, src, dst, imm.immediate(), false);
 }
 
 
 void Assembler::cmpi(Register src1, const Operand& src2, CRegister cr) {
-  intptr_t imm16 = src2.imm_;
+  intptr_t imm16 = src2.immediate();
 #if V8_TARGET_ARCH_PPC64
   int L = 1;
 #else
@@ -953,7 +978,7 @@ void Assembler::cmpi(Register src1, const Operand& src2, CRegister cr) {
 
 
 void Assembler::cmpli(Register src1, const Operand& src2, CRegister cr) {
-  uintptr_t uimm16 = src2.imm_;
+  uintptr_t uimm16 = src2.immediate();
 #if V8_TARGET_ARCH_PPC64
   int L = 1;
 #else
@@ -967,7 +992,7 @@ void Assembler::cmpli(Register src1, const Operand& src2, CRegister cr) {
 
 
 void Assembler::cmpwi(Register src1, const Operand& src2, CRegister cr) {
-  intptr_t imm16 = src2.imm_;
+  intptr_t imm16 = src2.immediate();
   int L = 0;
   int pos = pc_offset();
   DCHECK(is_int16(imm16));
@@ -985,7 +1010,7 @@ void Assembler::cmpwi(Register src1, const Operand& src2, CRegister cr) {
 
 
 void Assembler::cmplwi(Register src1, const Operand& src2, CRegister cr) {
-  uintptr_t uimm16 = src2.imm_;
+  uintptr_t uimm16 = src2.immediate();
   int L = 0;
   DCHECK(is_uint16(uimm16));
   DCHECK(cr.code() >= 0 && cr.code() <= 7);
@@ -1002,12 +1027,12 @@ void Assembler::isel(Register rt, Register ra, Register rb, int cb) {
 
 // Pseudo op - load immediate
 void Assembler::li(Register dst, const Operand& imm) {
-  d_form(ADDI, dst, r0, imm.imm_, true);
+  d_form(ADDI, dst, r0, imm.immediate(), true);
 }
 
 
 void Assembler::lis(Register dst, const Operand& imm) {
-  d_form(ADDIS, dst, r0, imm.imm_, true);
+  d_form(ADDIS, dst, r0, imm.immediate(), true);
 }
 
 
@@ -1148,28 +1173,28 @@ void Assembler::rldicr(Register ra, Register rs, int sh, int me, RCBit r) {
 
 
 void Assembler::sldi(Register dst, Register src, const Operand& val, RCBit rc) {
-  DCHECK((64 > val.imm_) && (val.imm_ >= 0));
-  rldicr(dst, src, val.imm_, 63 - val.imm_, rc);
+  DCHECK((64 > val.immediate()) && (val.immediate() >= 0));
+  rldicr(dst, src, val.immediate(), 63 - val.immediate(), rc);
 }
 
 
 void Assembler::srdi(Register dst, Register src, const Operand& val, RCBit rc) {
-  DCHECK((64 > val.imm_) && (val.imm_ >= 0));
-  rldicl(dst, src, 64 - val.imm_, val.imm_, rc);
+  DCHECK((64 > val.immediate()) && (val.immediate() >= 0));
+  rldicl(dst, src, 64 - val.immediate(), val.immediate(), rc);
 }
 
 
 void Assembler::clrrdi(Register dst, Register src, const Operand& val,
                        RCBit rc) {
-  DCHECK((64 > val.imm_) && (val.imm_ >= 0));
-  rldicr(dst, src, 0, 63 - val.imm_, rc);
+  DCHECK((64 > val.immediate()) && (val.immediate() >= 0));
+  rldicr(dst, src, 0, 63 - val.immediate(), rc);
 }
 
 
 void Assembler::clrldi(Register dst, Register src, const Operand& val,
                        RCBit rc) {
-  DCHECK((64 > val.imm_) && (val.imm_ >= 0));
-  rldicl(dst, src, 0, val.imm_, rc);
+  DCHECK((64 > val.immediate()) && (val.immediate() >= 0));
+  rldicl(dst, src, 0, val.immediate(), rc);
 }
 
 
@@ -1258,7 +1283,6 @@ bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
     // immediate sequence.
     return false;
   }
-
   intptr_t value = src.immediate();
 #if V8_TARGET_ARCH_PPC64
   bool allowOverflow = !((canOptimize && is_int32(value)) || dst.is(r0));
@@ -1304,14 +1328,21 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
 // Todo - break this dependency so we can optimize mov() in general
 // and only use the generic version when we require a fixed sequence
 void Assembler::mov(Register dst, const Operand& src) {
-  intptr_t value = src.immediate();
+  intptr_t value;
+  if (src.IsHeapObjectRequest()) {
+    RequestHeapObject(src.heap_object_request());
+    value = 0;
+  } else {
+    value = src.immediate();
+  }
   bool relocatable = src.must_output_reloc_info(this);
   bool canOptimize;
 
   canOptimize =
       !(relocatable || (is_trampoline_pool_blocked() && !is_int16(value)));
 
-  if (use_constant_pool_for_mov(dst, src, canOptimize)) {
+  if (!src.IsHeapObjectRequest() &&
+      use_constant_pool_for_mov(dst, src, canOptimize)) {
     DCHECK(is_constant_pool_available());
     if (relocatable) {
       RecordRelocInfo(src.rmode_);
@@ -1987,9 +2018,7 @@ void Assembler::GrowBuffer(int needed) {
 
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
-  if (desc.buffer_size > kMaximalBufferSize ||
-      static_cast<size_t>(desc.buffer_size) >
-          isolate_data().max_old_generation_size_) {
+  if (desc.buffer_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
   }
 
@@ -2056,10 +2085,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       (rmode == RelocInfo::EXTERNAL_REFERENCE && !serializer_enabled() &&
        !emit_debug_code())) {
     return;
-  }
-  if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-    data = RecordedAstId().ToInt();
-    ClearRecordedAstId();
   }
   DeferredRelocInfo rinfo(pc_offset(), rmode, data);
   relocations_.push_back(rinfo);

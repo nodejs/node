@@ -201,7 +201,7 @@ class InstructionSelectorTest : public TestWithContext,
     }
 
     double ToFloat64(const InstructionOperand* operand) const {
-      return ToConstant(operand).ToFloat64();
+      return ToConstant(operand).ToFloat64().value();
     }
 
     int32_t ToInt32(const InstructionOperand* operand) const {

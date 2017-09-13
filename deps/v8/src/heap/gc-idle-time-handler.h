@@ -107,6 +107,8 @@ class V8_EXPORT_PRIVATE GCIdleTimeHandler {
   // considered low
   static const size_t kLowAllocationThroughput = 1000;
 
+  static const size_t kMaxHeapSizeForContextDisposalMarkCompact = 100 * MB;
+
   // If contexts are disposed at a higher rate a full gc is triggered.
   static const double kHighContextDisposalRate;
 
@@ -136,7 +138,8 @@ class V8_EXPORT_PRIVATE GCIdleTimeHandler {
       size_t size_of_objects, double mark_compact_speed_in_bytes_per_ms);
 
   static bool ShouldDoContextDisposalMarkCompact(int context_disposed,
-                                                 double contexts_disposal_rate);
+                                                 double contexts_disposal_rate,
+                                                 size_t size_of_objects);
 
   static bool ShouldDoFinalIncrementalMarkCompact(
       double idle_time_in_ms, size_t size_of_objects,

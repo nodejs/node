@@ -24,6 +24,8 @@ namespace internal {
   V(InsufficientTypeFeedbackForCall, "Insufficient type feedback for call")  \
   V(InsufficientTypeFeedbackForCallWithArguments,                            \
     "Insufficient type feedback for call with arguments")                    \
+  V(InsufficientTypeFeedbackForConstruct,                                    \
+    "Insufficient type feedback for construct")                              \
   V(FastPathFailed, "Falling off the fast path")                             \
   V(InsufficientTypeFeedbackForCombinedTypeOfBinaryOperation,                \
     "Insufficient type feedback for combined type of binary operation")      \
@@ -49,6 +51,7 @@ namespace internal {
   V(NotAJavaScriptObject, "not a JavaScript object")                         \
   V(NotANumberOrOddball, "not a Number or Oddball")                          \
   V(NotASmi, "not a Smi")                                                    \
+  V(NotASymbol, "not a Symbol")                                              \
   V(OutOfBounds, "out of bounds")                                            \
   V(OutsideOfRange, "Outside of range")                                      \
   V(Overflow, "overflow")                                                    \

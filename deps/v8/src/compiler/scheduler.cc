@@ -940,10 +940,8 @@ class SpecialRPONumberer : public ZoneObject {
                        size_t num_loops, ZoneVector<Backedge>* backedges) {
     // Extend existing loop membership vectors.
     for (LoopInfo& loop : loops_) {
-      BitVector* new_members = new (zone_)
-          BitVector(static_cast<int>(schedule_->BasicBlockCount()), zone_);
-      new_members->CopyFrom(*loop.members);
-      loop.members = new_members;
+      loop.members->Resize(static_cast<int>(schedule_->BasicBlockCount()),
+                           zone_);
     }
 
     // Extend loop information vector.

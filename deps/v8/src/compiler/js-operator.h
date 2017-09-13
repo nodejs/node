@@ -57,6 +57,8 @@ class CallFrequency final {
 
 std::ostream& operator<<(std::ostream&, CallFrequency);
 
+CallFrequency CallFrequencyOf(Operator const* op) WARN_UNUSED_RESULT;
+
 // Defines a pair of {FeedbackVector} and {FeedbackSlot}, which
 // is used to access the type feedback for a certain {Node}.
 class V8_EXPORT_PRIVATE VectorSlotPair {
@@ -180,17 +182,12 @@ SpreadWithArityParameter const& SpreadWithArityParameterOf(Operator const*);
 // is used as parameter by JSCallForwardVarargs operators.
 class CallForwardVarargsParameters final {
  public:
-  CallForwardVarargsParameters(size_t arity, uint32_t start_index,
-                               TailCallMode tail_call_mode)
+  CallForwardVarargsParameters(size_t arity, uint32_t start_index)
       : bit_field_(ArityField::encode(arity) |
-                   StartIndexField::encode(start_index) |
-                   TailCallModeField::encode(tail_call_mode)) {}
+                   StartIndexField::encode(start_index)) {}
 
   size_t arity() const { return ArityField::decode(bit_field_); }
   uint32_t start_index() const { return StartIndexField::decode(bit_field_); }
-  TailCallMode tail_call_mode() const {
-    return TailCallModeField::decode(bit_field_);
-  }
 
   bool operator==(CallForwardVarargsParameters const& that) const {
     return this->bit_field_ == that.bit_field_;
@@ -206,7 +203,6 @@ class CallForwardVarargsParameters final {
 
   typedef BitField<size_t, 0, 15> ArityField;
   typedef BitField<uint32_t, 15, 15> StartIndexField;
-  typedef BitField<TailCallMode, 30, 1> TailCallModeField;
 
   uint32_t const bit_field_;
 };
@@ -221,11 +217,10 @@ CallForwardVarargsParameters const& CallForwardVarargsParametersOf(
 class CallParameters final {
  public:
   CallParameters(size_t arity, CallFrequency frequency,
-                 VectorSlotPair const& feedback, TailCallMode tail_call_mode,
+                 VectorSlotPair const& feedback,
                  ConvertReceiverMode convert_mode)
       : bit_field_(ArityField::encode(arity) |
-                   ConvertReceiverModeField::encode(convert_mode) |
-                   TailCallModeField::encode(tail_call_mode)),
+                   ConvertReceiverModeField::encode(convert_mode)),
         frequency_(frequency),
         feedback_(feedback) {}
 
@@ -233,9 +228,6 @@ class CallParameters final {
   CallFrequency frequency() const { return frequency_; }
   ConvertReceiverMode convert_mode() const {
     return ConvertReceiverModeField::decode(bit_field_);
-  }
-  TailCallMode tail_call_mode() const {
-    return TailCallModeField::decode(bit_field_);
   }
   VectorSlotPair const& feedback() const { return feedback_; }
 
@@ -253,7 +245,6 @@ class CallParameters final {
 
   typedef BitField<size_t, 0, 29> ArityField;
   typedef BitField<ConvertReceiverMode, 29, 2> ConvertReceiverModeField;
-  typedef BitField<TailCallMode, 31, 1> TailCallModeField;
 
   uint32_t const bit_field_;
   CallFrequency const frequency_;
@@ -619,32 +610,26 @@ std::ostream& operator<<(std::ostream&, CreateLiteralParameters const&);
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
-class GeneratorStoreParameters final {
+// Defines the number of operands passed to a JSStringConcat operator.
+class StringConcatParameter final {
  public:
-  GeneratorStoreParameters(int register_count, SuspendFlags flags)
-      : register_count_(register_count), suspend_flags_(flags) {}
+  explicit StringConcatParameter(int operand_count)
+      : operand_count_(operand_count) {}
 
-  int register_count() const { return register_count_; }
-  SuspendFlags suspend_flags() const { return suspend_flags_; }
-  SuspendFlags suspend_type() const {
-    return suspend_flags_ & SuspendFlags::kSuspendTypeMask;
-  }
+  int operand_count() const { return operand_count_; }
 
  private:
-  int register_count_;
-  SuspendFlags suspend_flags_;
+  uint32_t const operand_count_;
 };
 
-bool operator==(GeneratorStoreParameters const&,
-                GeneratorStoreParameters const&);
-bool operator!=(GeneratorStoreParameters const&,
-                GeneratorStoreParameters const&);
+bool operator==(StringConcatParameter const&, StringConcatParameter const&);
+bool operator!=(StringConcatParameter const&, StringConcatParameter const&);
 
-size_t hash_value(GeneratorStoreParameters const&);
+size_t hash_value(StringConcatParameter const&);
 
-std::ostream& operator<<(std::ostream&, GeneratorStoreParameters const&);
+std::ostream& operator<<(std::ostream&, StringConcatParameter const&);
 
-const GeneratorStoreParameters& GeneratorStoreParametersOf(const Operator* op);
+StringConcatParameter const& StringConcatParameterOf(Operator const*);
 
 BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
@@ -684,6 +669,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ToNumber();
   const Operator* ToObject();
   const Operator* ToString();
+  const Operator* ToPrimitiveToString();
 
   const Operator* Create();
   const Operator* CreateArguments(CreateArgumentsType type);
@@ -702,13 +688,12 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
                                       int literal_flags, int literal_index);
 
-  const Operator* CallForwardVarargs(size_t arity, uint32_t start_index,
-                                     TailCallMode tail_call_mode);
+  const Operator* CallForwardVarargs(size_t arity, uint32_t start_index);
   const Operator* Call(
       size_t arity, CallFrequency frequency = CallFrequency(),
       VectorSlotPair const& feedback = VectorSlotPair(),
-      ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
-      TailCallMode tail_call_mode = TailCallMode::kDisallow);
+      ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny);
+  const Operator* CallWithArrayLike(CallFrequency frequency);
   const Operator* CallWithSpread(uint32_t arity);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
@@ -718,6 +703,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Construct(uint32_t arity,
                             CallFrequency frequency = CallFrequency(),
                             VectorSlotPair const& feedback = VectorSlotPair());
+  const Operator* ConstructWithArrayLike(CallFrequency frequency);
   const Operator* ConstructWithSpread(uint32_t arity);
 
   const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);
@@ -757,6 +743,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* ClassOf();
   const Operator* TypeOf();
+  const Operator* HasInPrototypeChain();
   const Operator* InstanceOf();
   const Operator* OrdinaryHasInstance();
 
@@ -766,12 +753,14 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* LoadMessage();
   const Operator* StoreMessage();
 
-  // Used to implement Ignition's SuspendGenerator bytecode.
-  const Operator* GeneratorStore(int register_count,
-                                 SuspendFlags suspend_flags);
+  const Operator* StringConcat(int operand_count);
 
-  // Used to implement Ignition's ResumeGenerator bytecode.
+  // Used to implement Ignition's SuspendGenerator bytecode.
+  const Operator* GeneratorStore(int register_count);
+
+  // Used to implement Ignition's RestoreGeneratorState bytecode.
   const Operator* GeneratorRestoreContinuation();
+  // Used to implement Ignition's RestoreGeneratorRegisters bytecode.
   const Operator* GeneratorRestoreRegister(int index);
 
   const Operator* StackCheck();

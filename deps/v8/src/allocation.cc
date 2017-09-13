@@ -53,7 +53,7 @@ char* StrNDup(const char* str, int n) {
 
 void* AlignedAlloc(size_t size, size_t alignment) {
   DCHECK_LE(V8_ALIGNOF(void*), alignment);
-  DCHECK(base::bits::IsPowerOfTwo64(alignment));
+  DCHECK(base::bits::IsPowerOfTwo(alignment));
   void* ptr;
 #if V8_OS_WIN
   ptr = _aligned_malloc(size, alignment);

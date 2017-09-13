@@ -50,7 +50,7 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(Node* context,
       BIND(&stamp_mismatch);
     }
 
-    Node* field_index_smi = SmiConstant(Smi::FromInt(field_index));
+    Node* field_index_smi = SmiConstant(field_index);
     Node* function =
         ExternalConstant(ExternalReference::get_date_field_function(isolate()));
     Node* result = CallCFunction2(
@@ -204,17 +204,19 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   GotoIf(WordEqual(hint, string_string), &hint_is_string);
 
   // Slow-case with actual string comparisons.
-  Callable string_equal = CodeFactory::StringEqual(isolate());
   GotoIf(TaggedIsSmi(hint), &hint_is_invalid);
   GotoIfNot(IsString(hint), &hint_is_invalid);
-  GotoIf(WordEqual(CallStub(string_equal, context, hint, number_string),
-                   TrueConstant()),
+  GotoIf(WordEqual(
+             CallBuiltin(Builtins::kStringEqual, context, hint, number_string),
+             TrueConstant()),
          &hint_is_number);
-  GotoIf(WordEqual(CallStub(string_equal, context, hint, default_string),
-                   TrueConstant()),
+  GotoIf(WordEqual(
+             CallBuiltin(Builtins::kStringEqual, context, hint, default_string),
+             TrueConstant()),
          &hint_is_string);
-  GotoIf(WordEqual(CallStub(string_equal, context, hint, string_string),
-                   TrueConstant()),
+  GotoIf(WordEqual(
+             CallBuiltin(Builtins::kStringEqual, context, hint, string_string),
+             TrueConstant()),
          &hint_is_string);
   Goto(&hint_is_invalid);
 
@@ -247,9 +249,7 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   BIND(&receiver_is_invalid);
   {
     CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                HeapConstant(factory()->NewStringFromAsciiChecked(
-                    "Date.prototype [ @@toPrimitive ]", TENURED)),
-                receiver);
+                StringConstant("Date.prototype [ @@toPrimitive ]"), receiver);
     Unreachable();
   }
 }
