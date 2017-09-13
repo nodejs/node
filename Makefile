@@ -386,9 +386,6 @@ test-pummel: all
 test-internet: all
 	$(PYTHON) tools/test.py internet
 
-test-debugger: all
-	$(PYTHON) tools/test.py debugger
-
 test-inspector: all
 	$(PYTHON) tools/test.py inspector
 
