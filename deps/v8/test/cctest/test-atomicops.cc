@@ -44,9 +44,9 @@ template <class AtomicType>
 static void TestAtomicIncrement() {
   // For now, we just test the single-threaded execution.
 
-  // Use a guard value to make sure that NoBarrier_AtomicIncrement doesn't
+  // Use a guard value to make sure that Relaxed_AtomicIncrement doesn't
   // go outside the expected address bounds.  This is to test that the
-  // 32-bit NoBarrier_AtomicIncrement doesn't do the wrong thing on 64-bit
+  // 32-bit Relaxed_AtomicIncrement doesn't do the wrong thing on 64-bit
   // machines.
   struct {
     AtomicType prev_word;
@@ -62,47 +62,47 @@ static void TestAtomicIncrement() {
   s.count = 0;
   s.next_word = next_word_value;
 
-  CHECK_EQU(NoBarrier_AtomicIncrement(&s.count, 1), 1);
+  CHECK_EQU(Relaxed_AtomicIncrement(&s.count, 1), 1);
   CHECK_EQU(s.count, 1);
   CHECK_EQU(s.prev_word, prev_word_value);
   CHECK_EQU(s.next_word, next_word_value);
 
-  CHECK_EQU(NoBarrier_AtomicIncrement(&s.count, 2), 3);
+  CHECK_EQU(Relaxed_AtomicIncrement(&s.count, 2), 3);
   CHECK_EQU(s.count, 3);
   CHECK_EQU(s.prev_word, prev_word_value);
   CHECK_EQU(s.next_word, next_word_value);
 
-  CHECK_EQU(NoBarrier_AtomicIncrement(&s.count, 3), 6);
+  CHECK_EQU(Relaxed_AtomicIncrement(&s.count, 3), 6);
   CHECK_EQU(s.count, 6);
   CHECK_EQU(s.prev_word, prev_word_value);
   CHECK_EQU(s.next_word, next_word_value);
 
-  CHECK_EQU(NoBarrier_AtomicIncrement(&s.count, -3), 3);
+  CHECK_EQU(Relaxed_AtomicIncrement(&s.count, -3), 3);
   CHECK_EQU(s.count, 3);
   CHECK_EQU(s.prev_word, prev_word_value);
   CHECK_EQU(s.next_word, next_word_value);
 
-  CHECK_EQU(NoBarrier_AtomicIncrement(&s.count, -2), 1);
+  CHECK_EQU(Relaxed_AtomicIncrement(&s.count, -2), 1);
   CHECK_EQU(s.count, 1);
   CHECK_EQU(s.prev_word, prev_word_value);
   CHECK_EQU(s.next_word, next_word_value);
 
-  CHECK_EQU(NoBarrier_AtomicIncrement(&s.count, -1), 0);
+  CHECK_EQU(Relaxed_AtomicIncrement(&s.count, -1), 0);
   CHECK_EQU(s.count, 0);
   CHECK_EQU(s.prev_word, prev_word_value);
   CHECK_EQU(s.next_word, next_word_value);
 
-  CHECK_EQU(NoBarrier_AtomicIncrement(&s.count, -1), -1);
+  CHECK_EQU(Relaxed_AtomicIncrement(&s.count, -1), -1);
   CHECK_EQU(s.count, -1);
   CHECK_EQU(s.prev_word, prev_word_value);
   CHECK_EQU(s.next_word, next_word_value);
 
-  CHECK_EQU(NoBarrier_AtomicIncrement(&s.count, -4), -5);
+  CHECK_EQU(Relaxed_AtomicIncrement(&s.count, -4), -5);
   CHECK_EQU(s.count, -5);
   CHECK_EQU(s.prev_word, prev_word_value);
   CHECK_EQU(s.next_word, next_word_value);
 
-  CHECK_EQU(NoBarrier_AtomicIncrement(&s.count, 5), 0);
+  CHECK_EQU(Relaxed_AtomicIncrement(&s.count, 5), 0);
   CHECK_EQU(s.count, 0);
   CHECK_EQU(s.prev_word, prev_word_value);
   CHECK_EQU(s.next_word, next_word_value);
@@ -112,7 +112,7 @@ static void TestAtomicIncrement() {
 template <class AtomicType>
 static void TestCompareAndSwap() {
   AtomicType value = 0;
-  AtomicType prev = NoBarrier_CompareAndSwap(&value, 0, 1);
+  AtomicType prev = Relaxed_CompareAndSwap(&value, 0, 1);
   CHECK_EQU(1, value);
   CHECK_EQU(0, prev);
 
@@ -121,12 +121,12 @@ static void TestCompareAndSwap() {
   const AtomicType k_test_val =
       (static_cast<AtomicType>(1) << (NUM_BITS(AtomicType) - 2)) + 11;
   value = k_test_val;
-  prev = NoBarrier_CompareAndSwap(&value, 0, 5);
+  prev = Relaxed_CompareAndSwap(&value, 0, 5);
   CHECK_EQU(k_test_val, value);
   CHECK_EQU(k_test_val, prev);
 
   value = k_test_val;
-  prev = NoBarrier_CompareAndSwap(&value, k_test_val, 5);
+  prev = Relaxed_CompareAndSwap(&value, k_test_val, 5);
   CHECK_EQU(5, value);
   CHECK_EQU(k_test_val, prev);
 }
@@ -135,7 +135,7 @@ static void TestCompareAndSwap() {
 template <class AtomicType>
 static void TestAtomicExchange() {
   AtomicType value = 0;
-  AtomicType new_value = NoBarrier_AtomicExchange(&value, 1);
+  AtomicType new_value = Relaxed_AtomicExchange(&value, 1);
   CHECK_EQU(1, value);
   CHECK_EQU(0, new_value);
 
@@ -144,12 +144,12 @@ static void TestAtomicExchange() {
   const AtomicType k_test_val =
       (static_cast<AtomicType>(1) << (NUM_BITS(AtomicType) - 2)) + 11;
   value = k_test_val;
-  new_value = NoBarrier_AtomicExchange(&value, k_test_val);
+  new_value = Relaxed_AtomicExchange(&value, k_test_val);
   CHECK_EQU(k_test_val, value);
   CHECK_EQU(k_test_val, new_value);
 
   value = k_test_val;
-  new_value = NoBarrier_AtomicExchange(&value, 5);
+  new_value = Relaxed_AtomicExchange(&value, 5);
   CHECK_EQU(5, value);
   CHECK_EQU(k_test_val, new_value);
 }
@@ -161,11 +161,11 @@ static void TestAtomicIncrementBounds() {
   AtomicType test_val = static_cast<AtomicType>(1)
                         << (NUM_BITS(AtomicType) / 2);
   AtomicType value = test_val - 1;
-  AtomicType new_value = NoBarrier_AtomicIncrement(&value, 1);
+  AtomicType new_value = Relaxed_AtomicIncrement(&value, 1);
   CHECK_EQU(test_val, value);
   CHECK_EQU(value, new_value);
 
-  NoBarrier_AtomicIncrement(&value, -1);
+  Relaxed_AtomicIncrement(&value, -1);
   CHECK_EQU(test_val - 1, value);
 }
 
@@ -188,9 +188,9 @@ static void TestStore() {
 
   AtomicType value;
 
-  NoBarrier_Store(&value, kVal1);
+  Relaxed_Store(&value, kVal1);
   CHECK_EQU(kVal1, value);
-  NoBarrier_Store(&value, kVal2);
+  Relaxed_Store(&value, kVal2);
   CHECK_EQU(kVal2, value);
 
   Release_Store(&value, kVal1);
@@ -208,9 +208,9 @@ static void TestStoreAtomic8() {
 
   Atomic8 value;
 
-  NoBarrier_Store(&value, kVal1);
+  Relaxed_Store(&value, kVal1);
   CHECK_EQU(kVal1, value);
-  NoBarrier_Store(&value, kVal2);
+  Relaxed_Store(&value, kVal2);
   CHECK_EQU(kVal2, value);
 }
 
@@ -225,9 +225,9 @@ static void TestLoad() {
   AtomicType value;
 
   value = kVal1;
-  CHECK_EQU(kVal1, NoBarrier_Load(&value));
+  CHECK_EQU(kVal1, Relaxed_Load(&value));
   value = kVal2;
-  CHECK_EQU(kVal2, NoBarrier_Load(&value));
+  CHECK_EQU(kVal2, Relaxed_Load(&value));
 
   value = kVal1;
   CHECK_EQU(kVal1, Acquire_Load(&value));
@@ -245,9 +245,9 @@ static void TestLoadAtomic8() {
   Atomic8 value;
 
   value = kVal1;
-  CHECK_EQU(kVal1, NoBarrier_Load(&value));
+  CHECK_EQU(kVal1, Relaxed_Load(&value));
   value = kVal2;
-  CHECK_EQU(kVal2, NoBarrier_Load(&value));
+  CHECK_EQU(kVal2, Relaxed_Load(&value));
 }
 
 

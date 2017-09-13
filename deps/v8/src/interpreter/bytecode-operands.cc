@@ -24,7 +24,6 @@ const char* AccumulatorUseToString(AccumulatorUse accumulator_use) {
       return "ReadWrite";
   }
   UNREACHABLE();
-  return "";
 }
 
 const char* OperandTypeToString(OperandType operand_type) {
@@ -36,7 +35,6 @@ const char* OperandTypeToString(OperandType operand_type) {
 #undef CASE
   }
   UNREACHABLE();
-  return "";
 }
 
 const char* OperandScaleToString(OperandScale operand_scale) {
@@ -48,7 +46,6 @@ const char* OperandScaleToString(OperandScale operand_scale) {
 #undef CASE
   }
   UNREACHABLE();
-  return "";
 }
 
 const char* OperandSizeToString(OperandSize operand_size) {
@@ -63,7 +60,6 @@ const char* OperandSizeToString(OperandSize operand_size) {
       return "Quad";
   }
   UNREACHABLE();
-  return "";
 }
 
 }  // namespace

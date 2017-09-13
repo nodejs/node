@@ -17,7 +17,7 @@ parameter count: 1
 bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -27,7 +27,7 @@ bytecodes: [
   /*   88 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
   /*   97 S> */ B(Ldar), R(1),
-  /*  107 S> */ B(Return),
+  /*  106 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -47,7 +47,7 @@ parameter count: 1
 bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -57,7 +57,7 @@ bytecodes: [
   /*   93 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
   /*  102 S> */ B(Ldar), R(1),
-  /*  112 S> */ B(Return),
+  /*  111 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -77,7 +77,7 @@ parameter count: 1
 bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -87,7 +87,7 @@ bytecodes: [
   /*   88 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
   /*   97 S> */ B(Ldar), R(1),
-  /*  107 S> */ B(Return),
+  /*  106 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -107,7 +107,7 @@ parameter count: 1
 bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -117,7 +117,7 @@ bytecodes: [
   /*   93 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
   /*  102 S> */ B(Ldar), R(1),
-  /*  112 S> */ B(Return),
+  /*  111 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -137,7 +137,7 @@ parameter count: 1
 bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -146,7 +146,7 @@ bytecodes: [
   /*   89 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
   /*   98 S> */ B(Ldar), R(1),
-  /*  108 S> */ B(Return),
+  /*  107 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -166,7 +166,7 @@ parameter count: 1
 bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -175,7 +175,7 @@ bytecodes: [
   /*   94 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
   /*  103 S> */ B(Ldar), R(1),
-  /*  113 S> */ B(Return),
+  /*  112 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -195,7 +195,7 @@ parameter count: 1
 bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -204,7 +204,7 @@ bytecodes: [
   /*   89 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
   /*   98 S> */ B(Ldar), R(1),
-  /*  108 S> */ B(Return),
+  /*  107 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -224,7 +224,7 @@ parameter count: 1
 bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -233,7 +233,7 @@ bytecodes: [
   /*   94 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
   /*  103 S> */ B(Ldar), R(1),
-  /*  113 S> */ B(Return),
+  /*  112 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,

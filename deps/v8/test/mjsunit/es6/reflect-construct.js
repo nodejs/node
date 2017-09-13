@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-unsafe-function-constructor
+// Flags: --allow-unsafe-function-constructor --harmony-async-iteration
 
 
 (function testReflectConstructArity() {
@@ -322,10 +322,10 @@
       "Float64Array",
       ["Function", ["return 153;"]],
       ["Function", ["'use strict'; return 153;"]],
-      ["Function", ["'use strong'; return 153;"]],
       ["((function*(){}).constructor)", ["yield 153;"]],  // GeneratorFunction
       ["((function*(){}).constructor)", ["'use strict'; yield 153;"]],
-      ["((function*(){}).constructor)", ["'use strong'; yield 153;"]],
+      // AsyncGeneratorFunction
+      ["((async function*(){}).constructor)", ["return 153;"]],
       "Int8Array",
       "Int16Array",
       "Int32Array",

@@ -24,17 +24,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   for (var i = 0; i < 5; i++) {
     instances.push(builder.instantiate({mod: {imported_mem: memory}}));
   }
-  function grow_instance_0(pages) { return instances[0].exports.grow(pages); }
-  function grow_instance_1(pages) { return instances[1].exports.grow(pages); }
-  function grow_instance_2(pages) { return instances[2].exports.grow(pages); }
-  function grow_instance_3(pages) { return instances[3].exports.grow(pages); }
-  function grow_instance_4(pages) { return instances[4].exports.grow(pages); }
+  function grow_instance(index, pages) {
+    return instances[index].exports.grow(pages);
+  }
 
-  var start_index = 0;
-  var end_index = 5;
   function verify_mem_size(expected_pages) {
+    print("  checking size = " + expected_pages + " pages");
     assertEquals(expected_pages*kPageSize, memory.buffer.byteLength);
-    for (var i = start_index; i < end_index; i++) {
+    for (let i = 0; i < instances.length; i++) {
+      if (instances[i] == null) continue;
       assertEquals(expected_pages, instances[i].exports.mem_size());
     }
   }
@@ -45,59 +43,49 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(5, memory.grow(6));
   verify_mem_size(11);
 
+  print("  instances[1] = null, GC");
   instances[1] = null;
   gc();
 
   // i[0] - i[2] - i[3] - i[4]
-  start_index = 2;
   verify_mem_size(11);
-  assertEquals(11, instances[0].exports.mem_size());
-  assertEquals(11, grow_instance_2(10));
-  assertEquals(21*kPageSize, memory.buffer.byteLength);
+  assertEquals(11, grow_instance(2, 10));
   verify_mem_size(21);
-  assertEquals(21, instances[0].exports.mem_size());
 
+  print("  instances[4] = null, GC");
   instances[4] = null;
   gc();
+  verify_mem_size(21);
 
-  // i[0] - i[2] - i[3]
-  assertEquals(21, instances[0].exports.mem_size());
-  assertEquals(21, instances[2].exports.mem_size());
-  assertEquals(21, instances[3].exports.mem_size());
   assertEquals(21, memory.grow(2));
-  assertEquals(23*kPageSize, memory.buffer.byteLength);
-  assertEquals(23, instances[0].exports.mem_size());
-  assertEquals(23, instances[2].exports.mem_size());
-  assertEquals(23, instances[3].exports.mem_size());
+  verify_mem_size(23);
 
+  print("  instances[0] = null, GC");
   instances[0] = null;
   gc();
+  gc();
+  verify_mem_size(23);
 
-  // i[2] - i[3]
-  assertEquals(23, instances[2].exports.mem_size());
-  assertEquals(23, instances[3].exports.mem_size());
-  assertEquals(23, grow_instance_3(5));
-  assertEquals(28*kPageSize, memory.buffer.byteLength);
-  assertEquals(28, instances[2].exports.mem_size());
-  assertEquals(28, instances[3].exports.mem_size());
+  assertEquals(23, grow_instance(3, 5));
+  verify_mem_size(28);
 
+  print("  new instance, GC");
   // Instantiate a new instance and verify that it can be grown correctly.
   instances.push(builder.instantiate({mod: {imported_mem: memory}}));
-  function grow_instance_5(pages) { return instances[5].exports.grow(pages); }
+  gc();
+  gc();
 
-  // i[2] - i[3] - i[5]
-  assertEquals(28, instances[2].exports.mem_size());
-  assertEquals(28, instances[3].exports.mem_size());
-  assertEquals(28, instances[5].exports.mem_size());
-  assertEquals(28, grow_instance_5(2));
-  assertEquals(30*kPageSize, memory.buffer.byteLength);
-  assertEquals(30, instances[2].exports.mem_size());
-  assertEquals(30, instances[3].exports.mem_size());
-  assertEquals(30, instances[5].exports.mem_size());
+  verify_mem_size(28);
+  assertEquals(28, grow_instance(5, 2));
+  verify_mem_size(30);
   assertEquals(30, memory.grow(5));
-  assertEquals(35*kPageSize, memory.buffer.byteLength);
-  assertEquals(35, instances[2].exports.mem_size());
-  assertEquals(35, instances[3].exports.mem_size());
-  assertEquals(35, instances[5].exports.mem_size());
+  verify_mem_size(35);
+
+  for (let i = 0; i < instances.length; i++) {
+    print("  instances[" + i + "] = null, GC");
+    instances[i] = null;
+    gc();
+    verify_mem_size(35);
+  }
 
 })();

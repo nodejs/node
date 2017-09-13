@@ -58,9 +58,7 @@ function ClearAndGC() {
 }
 
 function GC() {
-  return Protocol.HeapProfiler.enable()
-           .then(() => Protocol.HeapProfiler.collectGarbage())
-           .then(() => Protocol.HeapProfiler.disable());
+  return Protocol.HeapProfiler.collectGarbage();
 }
 
 function LogSorted(message) {

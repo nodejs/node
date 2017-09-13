@@ -133,15 +133,11 @@ Handle<Object> ErrorThrower::Reify() {
       constructor = isolate_->wasm_runtime_error_function();
       break;
   }
-  Vector<const uint8_t> msg_vec(
-      reinterpret_cast<const uint8_t*>(error_msg_.data()),
-      static_cast<int>(error_msg_.size()));
+  Vector<const char> msg_vec(error_msg_.data(), error_msg_.size());
   Handle<String> message =
-      isolate_->factory()->NewStringFromOneByte(msg_vec).ToHandleChecked();
-  error_type_ = kNone;  // Reset.
-  Handle<Object> exception =
-      isolate_->factory()->NewError(constructor, message);
-  return exception;
+      isolate_->factory()->NewStringFromUtf8(msg_vec).ToHandleChecked();
+  Reset();
+  return isolate_->factory()->NewError(constructor, message);
 }
 
 void ErrorThrower::Reset() {
@@ -159,7 +155,10 @@ ErrorThrower::ErrorThrower(ErrorThrower&& other)
 
 ErrorThrower::~ErrorThrower() {
   if (error() && !isolate_->has_pending_exception()) {
-    isolate_->ScheduleThrow(*Reify());
+    // We don't want to mix pending exceptions and scheduled exceptions, hence
+    // an existing exception should be pending, never scheduled.
+    DCHECK(!isolate_->has_scheduled_exception());
+    isolate_->Throw(*Reify());
   }
 }
 

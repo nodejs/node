@@ -70,8 +70,9 @@ MUST_USE_RESULT Maybe<size_t> ValidateAtomicAccess(
                       MessageTemplate::kInvalidAtomicAccessIndex),
       Nothing<size_t>());
 
-  size_t access_index = NumberToSize(*access_index_obj);
-  if (access_index >= typed_array->length_value()) {
+  size_t access_index;
+  if (!TryNumberToSize(*access_index_obj, &access_index) ||
+      access_index >= typed_array->length_value()) {
     isolate->Throw(*isolate->factory()->NewRangeError(
         MessageTemplate::kInvalidAtomicAccessIndex));
     return Nothing<size_t>();

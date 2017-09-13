@@ -30,16 +30,20 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     return;
   }
 
-  context_ = Handle<Context>::cast(frame_inspector->GetContext());
-
   // We should not instantiate a ScopeIterator for wasm frames.
   DCHECK(frame_inspector->GetScript()->type() != Script::TYPE_WASM);
+
+  TryParseAndRetrieveScopes(option);
+}
+
+void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
+  context_ = GetContext();
 
   // Catch the case when the debugger stops in an internal function.
   Handle<JSFunction> function = GetFunction();
   Handle<SharedFunctionInfo> shared_info(function->shared());
   Handle<ScopeInfo> scope_info(shared_info->scope_info());
-  if (shared_info->script()->IsUndefined(isolate)) {
+  if (shared_info->script()->IsUndefined(isolate_)) {
     while (context_->closure() == *function) {
       context_ = Handle<Context>(context_->previous(), isolate_);
     }
@@ -54,7 +58,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   // and include nested scopes into the "fast" iteration case as well.
   bool ignore_nested_scopes = (option == IGNORE_NESTED_SCOPES);
   bool collect_non_locals = (option == COLLECT_NON_LOCALS);
-  if (!ignore_nested_scopes && shared_info->HasDebugInfo()) {
+  if (!ignore_nested_scopes && shared_info->HasBreakInfo() &&
+      frame_inspector_ != nullptr) {
     // The source position at return is always the end of the function,
     // which is not consistent with the current scope chain. Therefore all
     // nested with, catch and block contexts are skipped, and we can only
@@ -109,8 +114,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     // Inner function.
     info.reset(new ParseInfo(shared_info));
   }
-  if (parsing::ParseAny(info.get(), isolate) &&
-      Rewriter::Rewrite(info.get(), isolate)) {
+  if (parsing::ParseAny(info.get(), isolate_) &&
+      Rewriter::Rewrite(info.get(), isolate_)) {
     DeclarationScope* scope = info->literal()->scope();
     if (!ignore_nested_scopes || collect_non_locals) {
       CollectNonLocals(info.get(), scope);
@@ -136,7 +141,6 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
 
 ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
     : isolate_(isolate),
-      frame_inspector_(NULL),
       context_(function->context()),
       seen_script_scope_(false) {
   if (!function->shared()->IsSubjectToDebugging()) context_ = Handle<Context>();
@@ -146,13 +150,14 @@ ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
 ScopeIterator::ScopeIterator(Isolate* isolate,
                              Handle<JSGeneratorObject> generator)
     : isolate_(isolate),
-      frame_inspector_(NULL),
+      generator_(generator),
       context_(generator->context()),
       seen_script_scope_(false) {
   if (!generator->function()->shared()->IsSubjectToDebugging()) {
     context_ = Handle<Context>();
+    return;
   }
-  UnwrapEvaluationContext();
+  TryParseAndRetrieveScopes(DEFAULT);
 }
 
 void ScopeIterator::UnwrapEvaluationContext() {
@@ -327,7 +332,6 @@ MaybeHandle<JSObject> ScopeIterator::ScopeObject() {
       return MaterializeModuleScope();
   }
   UNREACHABLE();
-  return Handle<JSObject>();
 }
 
 
@@ -363,7 +367,7 @@ bool ScopeIterator::SetVariableValue(Handle<String> variable_name,
     case ScopeIterator::ScopeTypeEval:
       return SetInnerScopeVariableValue(variable_name, new_value);
     case ScopeIterator::ScopeTypeModule:
-      // TODO(neis): Implement.
+      return SetModuleVariableValue(variable_name, new_value);
       break;
   }
   return false;
@@ -460,10 +464,36 @@ void ScopeIterator::DebugPrint() {
 }
 #endif
 
+inline Handle<Context> ScopeIterator::GetContext() {
+  if (frame_inspector_) {
+    return Handle<Context>::cast(frame_inspector_->GetContext());
+  } else {
+    DCHECK(!generator_.is_null());
+    return handle(generator_->context());
+  }
+}
+
+Handle<JSFunction> ScopeIterator::GetFunction() {
+  if (frame_inspector_) {
+    return frame_inspector_->GetFunction();
+  } else {
+    DCHECK(!generator_.is_null());
+    return handle(generator_->function());
+  }
+}
+
+int ScopeIterator::GetSourcePosition() {
+  if (frame_inspector_) {
+    return frame_inspector_->GetSourcePosition();
+  } else {
+    DCHECK(!generator_.is_null());
+    return generator_->source_position();
+  }
+}
+
 void ScopeIterator::RetrieveScopeChain(DeclarationScope* scope) {
   DCHECK_NOT_NULL(scope);
-  int source_position = frame_inspector_->GetSourcePosition();
-  GetNestedScopeChain(isolate_, scope, source_position);
+  GetNestedScopeChain(isolate_, scope, GetSourcePosition());
 }
 
 void ScopeIterator::CollectNonLocals(ParseInfo* info, DeclarationScope* scope) {
@@ -491,20 +521,41 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeScriptScope() {
   return script_scope;
 }
 
+void ScopeIterator::MaterializeStackLocals(Handle<JSObject> local_scope,
+                                           Handle<ScopeInfo> scope_info) {
+  if (frame_inspector_) {
+    return frame_inspector_->MaterializeStackLocals(local_scope, scope_info);
+  }
+
+  DCHECK(!generator_.is_null());
+  // Fill all stack locals.
+  Handle<FixedArray> register_file(generator_->register_file());
+  for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
+    Handle<String> name = handle(scope_info->StackLocalName(i));
+    if (ScopeInfo::VariableIsSynthetic(*name)) continue;
+    Handle<Object> value(register_file->get(scope_info->StackLocalIndex(i)),
+                         isolate_);
+    // TODO(yangguo): We convert optimized out values to {undefined} when they
+    // are passed to the debugger. Eventually we should handle them somehow.
+    if (value->IsTheHole(isolate_) || value->IsOptimizedOut(isolate_)) {
+      DCHECK(!value.is_identical_to(isolate_->factory()->stale_register()));
+      value = isolate_->factory()->undefined_value();
+    }
+    JSObject::SetOwnPropertyIgnoreAttributes(local_scope, name, value, NONE)
+        .Check();
+  }
+}
 
 MaybeHandle<JSObject> ScopeIterator::MaterializeLocalScope() {
-  Handle<JSFunction> function = GetFunction();
+  Handle<JSFunction> function(GetFunction());
+  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<ScopeInfo> scope_info(shared->scope_info());
 
   Handle<JSObject> local_scope =
       isolate_->factory()->NewJSObjectWithNullProto();
-  frame_inspector_->MaterializeStackLocals(local_scope, function);
+  MaterializeStackLocals(local_scope, scope_info);
 
-  Handle<Context> frame_context =
-      Handle<Context>::cast(frame_inspector_->GetContext());
-
-  HandleScope scope(isolate_);
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
+  Handle<Context> frame_context = GetContext();
 
   if (!scope_info->HasContext()) return local_scope;
 
@@ -586,7 +637,7 @@ Handle<JSObject> ScopeIterator::MaterializeInnerScope() {
   Handle<Context> context = Handle<Context>::null();
   if (!nested_scope_chain_.is_empty()) {
     Handle<ScopeInfo> scope_info = nested_scope_chain_.last().scope_info;
-    frame_inspector_->MaterializeStackLocals(inner_scope, scope_info);
+    MaterializeStackLocals(inner_scope, scope_info);
     if (scope_info->HasContext()) context = CurrentContext();
   } else {
     context = CurrentContext();
@@ -616,14 +667,19 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeModuleScope() {
 }
 
 bool ScopeIterator::SetParameterValue(Handle<ScopeInfo> scope_info,
-                                      JavaScriptFrame* frame,
                                       Handle<String> parameter_name,
                                       Handle<Object> new_value) {
   // Setting stack locals of optimized frames is not supported.
-  if (frame->is_optimized()) return false;
   HandleScope scope(isolate_);
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
     if (String::Equals(handle(scope_info->ParameterName(i)), parameter_name)) {
+      // Suspended generators should not get here because all parameters should
+      // be context-allocated.
+      DCHECK_NOT_NULL(frame_inspector_);
+      JavaScriptFrame* frame = GetFrame();
+      if (frame->is_optimized()) {
+        return false;
+      }
       frame->SetParameterValue(i, *new_value);
       return true;
     }
@@ -634,14 +690,24 @@ bool ScopeIterator::SetParameterValue(Handle<ScopeInfo> scope_info,
 bool ScopeIterator::SetStackVariableValue(Handle<ScopeInfo> scope_info,
                                           Handle<String> variable_name,
                                           Handle<Object> new_value) {
-  if (frame_inspector_ == nullptr) return false;
-  JavaScriptFrame* frame = GetFrame();
-  // Setting stack locals of optimized frames is not supported.
-  if (frame->is_optimized()) return false;
+  // Setting stack locals of optimized frames is not supported. Suspended
+  // generators are supported.
   HandleScope scope(isolate_);
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
     if (String::Equals(handle(scope_info->StackLocalName(i)), variable_name)) {
-      frame->SetExpression(scope_info->StackLocalIndex(i), *new_value);
+      int stack_local_index = scope_info->StackLocalIndex(i);
+      if (frame_inspector_ != nullptr) {
+        // Set the variable on the stack.
+        JavaScriptFrame* frame = GetFrame();
+        if (frame->is_optimized()) return false;
+        frame->SetExpression(stack_local_index, *new_value);
+      } else {
+        // Set the variable in the suspended generator.
+        DCHECK(!generator_.is_null());
+        Handle<FixedArray> register_file(generator_->register_file());
+        DCHECK_LT(stack_local_index, register_file->length());
+        register_file->set(stack_local_index, *new_value);
+      }
       return true;
     }
   }
@@ -666,7 +732,8 @@ bool ScopeIterator::SetContextVariableValue(Handle<ScopeInfo> scope_info,
     }
   }
 
-  if (context->has_extension()) {
+  // TODO(neis): Clean up context "extension" mess.
+  if (!context->IsModuleContext() && context->has_extension()) {
     Handle<JSObject> ext(context->extension_object());
     Maybe<bool> maybe = JSReceiver::HasOwnProperty(ext, variable_name);
     DCHECK(maybe.IsJust());
@@ -684,11 +751,10 @@ bool ScopeIterator::SetContextVariableValue(Handle<ScopeInfo> scope_info,
 
 bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
                                           Handle<Object> new_value) {
-  JavaScriptFrame* frame = GetFrame();
-  Handle<ScopeInfo> scope_info(frame->function()->shared()->scope_info());
+  Handle<ScopeInfo> scope_info(GetFunction()->shared()->scope_info());
 
   // Parameter might be shadowed in context. Don't stop here.
-  bool result = SetParameterValue(scope_info, frame, variable_name, new_value);
+  bool result = SetParameterValue(scope_info, variable_name, new_value);
 
   // Stack locals.
   if (SetStackVariableValue(scope_info, variable_name, new_value)) {
@@ -702,6 +768,41 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
   }
 
   return result;
+}
+
+bool ScopeIterator::SetModuleVariableValue(Handle<String> variable_name,
+                                           Handle<Object> new_value) {
+  DCHECK_NOT_NULL(frame_inspector_);
+
+  // Get module context and its scope info.
+  Handle<Context> context = CurrentContext();
+  while (!context->IsModuleContext()) {
+    context = handle(context->previous(), isolate_);
+  }
+  Handle<ScopeInfo> scope_info(context->scope_info(), isolate_);
+  DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
+
+  if (SetContextVariableValue(scope_info, context, variable_name, new_value)) {
+    return true;
+  }
+
+  int cell_index;
+  {
+    VariableMode mode;
+    InitializationFlag init_flag;
+    MaybeAssignedFlag maybe_assigned_flag;
+    cell_index = scope_info->ModuleIndex(variable_name, &mode, &init_flag,
+                                         &maybe_assigned_flag);
+  }
+
+  // Setting imports is currently not supported.
+  bool found = ModuleDescriptor::GetCellIndexKind(cell_index) ==
+               ModuleDescriptor::kExport;
+  if (found) {
+    Module::StoreVariable(handle(context->module(), isolate_), cell_index,
+                          new_value);
+  }
+  return found;
 }
 
 bool ScopeIterator::SetInnerScopeVariableValue(Handle<String> variable_name,
@@ -840,7 +941,7 @@ void ScopeIterator::GetNestedScopeChain(Isolate* isolate, Scope* scope,
   if (scope->is_function_scope()) {
     // Do not collect scopes of nested inner functions inside the current one.
     // Nested arrow functions could have the same end positions.
-    Handle<JSFunction> function = frame_inspector_->GetFunction();
+    Handle<JSFunction> function = GetFunction();
     if (scope->start_position() > function->shared()->start_position() &&
         scope->end_position() <= function->shared()->end_position()) {
       return;

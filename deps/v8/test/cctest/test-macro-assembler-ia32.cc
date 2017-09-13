@@ -152,7 +152,7 @@ TEST(LoadAndStoreWithRepresentation) {
   __ ret(0);
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(isolate, &desc);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);

@@ -23,13 +23,17 @@ typedef uint32_t Instr;
 // symbol is defined as uint32_t/uint64_t initialized with the desired bit
 // pattern. Otherwise, the same symbol is declared as an external float/double.
 #if defined(ARM64_DEFINE_FP_STATICS)
+#define DEFINE_FLOAT16(name, value) extern const uint16_t name = value
 #define DEFINE_FLOAT(name, value) extern const uint32_t name = value
 #define DEFINE_DOUBLE(name, value) extern const uint64_t name = value
 #else
+#define DEFINE_FLOAT16(name, value) extern const float16 name
 #define DEFINE_FLOAT(name, value) extern const float name
 #define DEFINE_DOUBLE(name, value) extern const double name
 #endif  // defined(ARM64_DEFINE_FP_STATICS)
 
+DEFINE_FLOAT16(kFP16PositiveInfinity, 0x7c00);
+DEFINE_FLOAT16(kFP16NegativeInfinity, 0xfc00);
 DEFINE_FLOAT(kFP32PositiveInfinity, 0x7f800000);
 DEFINE_FLOAT(kFP32NegativeInfinity, 0xff800000);
 DEFINE_DOUBLE(kFP64PositiveInfinity, 0x7ff0000000000000UL);
@@ -47,19 +51,14 @@ DEFINE_FLOAT(kFP32QuietNaN, 0x7fc00001);
 // The default NaN values (for FPCR.DN=1).
 DEFINE_DOUBLE(kFP64DefaultNaN, 0x7ff8000000000000UL);
 DEFINE_FLOAT(kFP32DefaultNaN, 0x7fc00000);
+DEFINE_FLOAT16(kFP16DefaultNaN, 0x7e00);
 
+#undef DEFINE_FLOAT16
 #undef DEFINE_FLOAT
 #undef DEFINE_DOUBLE
 
-
-enum LSDataSize {
-  LSByte        = 0,
-  LSHalfword    = 1,
-  LSWord        = 2,
-  LSDoubleWord  = 3
-};
-
-LSDataSize CalcLSPairDataSize(LoadStorePairOp op);
+unsigned CalcLSDataSize(LoadStoreOp op);
+unsigned CalcLSPairDataSize(LoadStorePairOp op);
 
 enum ImmBranchType {
   UnknownBranchType = 0,
@@ -82,9 +81,10 @@ enum FPRounding {
   FPNegativeInfinity = 0x2,
   FPZero = 0x3,
 
-  // The final rounding mode is only available when explicitly specified by the
-  // instruction (such as with fcvta). It cannot be set in FPCR.
-  FPTieAway
+  // The final rounding modes are only available when explicitly specified by
+  // the instruction (such as with fcvta). They cannot be set in FPCR.
+  FPTieAway,
+  FPRoundOdd
 };
 
 enum Reg31Mode {
@@ -152,12 +152,27 @@ class Instruction {
   }
 
   uint64_t ImmLogical();
+  unsigned ImmNEONabcdefgh() const;
   float ImmFP32();
   double ImmFP64();
+  float ImmNEONFP32() const;
+  double ImmNEONFP64() const;
 
-  LSDataSize SizeLSPair() const {
+  unsigned SizeLS() const {
+    return CalcLSDataSize(static_cast<LoadStoreOp>(Mask(LoadStoreMask)));
+  }
+
+  unsigned SizeLSPair() const {
     return CalcLSPairDataSize(
         static_cast<LoadStorePairOp>(Mask(LoadStorePairMask)));
+  }
+
+  int NEONLSIndex(int access_size_shift) const {
+    int q = NEONQ();
+    int s = NEONS();
+    int size = NEONLSSize();
+    int index = (q << 3) | (s << 2) | size;
+    return index >> access_size_shift;
   }
 
   // Helpers.
@@ -179,6 +194,33 @@ class Instruction {
 
   bool IsImmBranch() const {
     return BranchType() != UnknownBranchType;
+  }
+
+  static float Imm8ToFP32(uint32_t imm8) {
+    //   Imm8: abcdefgh (8 bits)
+    // Single: aBbb.bbbc.defg.h000.0000.0000.0000.0000 (32 bits)
+    // where B is b ^ 1
+    uint32_t bits = imm8;
+    uint32_t bit7 = (bits >> 7) & 0x1;
+    uint32_t bit6 = (bits >> 6) & 0x1;
+    uint32_t bit5_to_0 = bits & 0x3f;
+    uint32_t result = (bit7 << 31) | ((32 - bit6) << 25) | (bit5_to_0 << 19);
+
+    return bit_cast<float>(result);
+  }
+
+  static double Imm8ToFP64(uint32_t imm8) {
+    //   Imm8: abcdefgh (8 bits)
+    // Double: aBbb.bbbb.bbcd.efgh.0000.0000.0000.0000
+    //         0000.0000.0000.0000.0000.0000.0000.0000 (64 bits)
+    // where B is b ^ 1
+    uint32_t bits = imm8;
+    uint64_t bit7 = (bits >> 7) & 0x1;
+    uint64_t bit6 = (bits >> 6) & 0x1;
+    uint64_t bit5_to_0 = bits & 0x3f;
+    uint64_t result = (bit7 << 63) | ((256 - bit6) << 54) | (bit5_to_0 << 48);
+
+    return bit_cast<double>(result);
   }
 
   bool IsLdrLiteral() const {
@@ -300,7 +342,6 @@ class Instruction {
         return ImmTestBranch_width;
       default:
         UNREACHABLE();
-        return 0;
     }
   }
 
@@ -417,6 +458,48 @@ class Instruction {
   void SetBranchImmTarget(Instruction* target);
 };
 
+// Functions for handling NEON vector format information.
+enum VectorFormat {
+  kFormatUndefined = 0xffffffff,
+  kFormat8B = NEON_8B,
+  kFormat16B = NEON_16B,
+  kFormat4H = NEON_4H,
+  kFormat8H = NEON_8H,
+  kFormat2S = NEON_2S,
+  kFormat4S = NEON_4S,
+  kFormat1D = NEON_1D,
+  kFormat2D = NEON_2D,
+
+  // Scalar formats. We add the scalar bit to distinguish between scalar and
+  // vector enumerations; the bit is always set in the encoding of scalar ops
+  // and always clear for vector ops. Although kFormatD and kFormat1D appear
+  // to be the same, their meaning is subtly different. The first is a scalar
+  // operation, the second a vector operation that only affects one lane.
+  kFormatB = NEON_B | NEONScalar,
+  kFormatH = NEON_H | NEONScalar,
+  kFormatS = NEON_S | NEONScalar,
+  kFormatD = NEON_D | NEONScalar
+};
+
+VectorFormat VectorFormatHalfWidth(VectorFormat vform);
+VectorFormat VectorFormatDoubleWidth(VectorFormat vform);
+VectorFormat VectorFormatDoubleLanes(VectorFormat vform);
+VectorFormat VectorFormatHalfLanes(VectorFormat vform);
+VectorFormat ScalarFormatFromLaneSize(int lanesize);
+VectorFormat VectorFormatHalfWidthDoubleLanes(VectorFormat vform);
+VectorFormat VectorFormatFillQ(VectorFormat vform);
+VectorFormat ScalarFormatFromFormat(VectorFormat vform);
+unsigned RegisterSizeInBitsFromFormat(VectorFormat vform);
+unsigned RegisterSizeInBytesFromFormat(VectorFormat vform);
+int LaneSizeInBytesFromFormat(VectorFormat vform);
+unsigned LaneSizeInBitsFromFormat(VectorFormat vform);
+int LaneSizeInBytesLog2FromFormat(VectorFormat vform);
+int LaneCountFromFormat(VectorFormat vform);
+int MaxLaneCountFromFormat(VectorFormat vform);
+bool IsVectorFormat(VectorFormat vform);
+int64_t MaxIntFromFormat(VectorFormat vform);
+int64_t MinIntFromFormat(VectorFormat vform);
+uint64_t MaxUintFromFormat(VectorFormat vform);
 
 // Where Instruction looks at instructions generated by the Assembler,
 // InstructionSequence looks at instructions sequences generated by the
@@ -504,7 +587,7 @@ const unsigned kDebugMessageOffset = 3 * kInstructionSize;
 //
 // For example:
 //
-// __ debug("print registers and fp registers", 0, LOG_REGS | LOG_FP_REGS);
+// __ debug("print registers and fp registers", 0, LOG_REGS | LOG_VREGS);
 // will print the registers and fp registers only once.
 //
 // __ debug("trace disasm", 1, TRACE_ENABLE | LOG_DISASM);
@@ -517,24 +600,201 @@ const unsigned kDebugMessageOffset = 3 * kInstructionSize;
 // stops tracing the registers.
 const unsigned kDebuggerTracingDirectivesMask = 3 << 6;
 enum DebugParameters {
-  NO_PARAM       = 0,
-  BREAK          = 1 << 0,
-  LOG_DISASM     = 1 << 1,  // Use only with TRACE. Disassemble the code.
-  LOG_REGS       = 1 << 2,  // Log general purpose registers.
-  LOG_FP_REGS    = 1 << 3,  // Log floating-point registers.
-  LOG_SYS_REGS   = 1 << 4,  // Log the status flags.
-  LOG_WRITE      = 1 << 5,  // Log any memory write.
+  NO_PARAM = 0,
+  BREAK = 1 << 0,
+  LOG_DISASM = 1 << 1,    // Use only with TRACE. Disassemble the code.
+  LOG_REGS = 1 << 2,      // Log general purpose registers.
+  LOG_VREGS = 1 << 3,     // Log NEON and floating-point registers.
+  LOG_SYS_REGS = 1 << 4,  // Log the status flags.
+  LOG_WRITE = 1 << 5,     // Log any memory write.
 
-  LOG_STATE      = LOG_REGS | LOG_FP_REGS | LOG_SYS_REGS,
-  LOG_ALL        = LOG_DISASM | LOG_STATE | LOG_WRITE,
+  LOG_NONE = 0,
+  LOG_STATE = LOG_REGS | LOG_VREGS | LOG_SYS_REGS,
+  LOG_ALL = LOG_DISASM | LOG_STATE | LOG_WRITE,
 
   // Trace control.
-  TRACE_ENABLE   = 1 << 6,
-  TRACE_DISABLE  = 2 << 6,
+  TRACE_ENABLE = 1 << 6,
+  TRACE_DISABLE = 2 << 6,
   TRACE_OVERRIDE = 3 << 6
 };
 
+enum NEONFormat {
+  NF_UNDEF = 0,
+  NF_8B = 1,
+  NF_16B = 2,
+  NF_4H = 3,
+  NF_8H = 4,
+  NF_2S = 5,
+  NF_4S = 6,
+  NF_1D = 7,
+  NF_2D = 8,
+  NF_B = 9,
+  NF_H = 10,
+  NF_S = 11,
+  NF_D = 12
+};
 
+static const unsigned kNEONFormatMaxBits = 6;
+
+struct NEONFormatMap {
+  // The bit positions in the instruction to consider.
+  uint8_t bits[kNEONFormatMaxBits];
+
+  // Mapping from concatenated bits to format.
+  NEONFormat map[1 << kNEONFormatMaxBits];
+};
+
+class NEONFormatDecoder {
+ public:
+  enum SubstitutionMode { kPlaceholder, kFormat };
+
+  // Construct a format decoder with increasingly specific format maps for each
+  // substitution. If no format map is specified, the default is the integer
+  // format map.
+  explicit NEONFormatDecoder(const Instruction* instr);
+  NEONFormatDecoder(const Instruction* instr, const NEONFormatMap* format);
+  NEONFormatDecoder(const Instruction* instr, const NEONFormatMap* format0,
+                    const NEONFormatMap* format1);
+  NEONFormatDecoder(const Instruction* instr, const NEONFormatMap* format0,
+                    const NEONFormatMap* format1, const NEONFormatMap* format2);
+
+  // Set the format mapping for all or individual substitutions.
+  void SetFormatMaps(const NEONFormatMap* format0,
+                     const NEONFormatMap* format1 = NULL,
+                     const NEONFormatMap* format2 = NULL);
+  void SetFormatMap(unsigned index, const NEONFormatMap* format);
+
+  // Substitute %s in the input string with the placeholder string for each
+  // register, ie. "'B", "'H", etc.
+  const char* SubstitutePlaceholders(const char* string);
+
+  // Substitute %s in the input string with a new string based on the
+  // substitution mode.
+  const char* Substitute(const char* string, SubstitutionMode mode0 = kFormat,
+                         SubstitutionMode mode1 = kFormat,
+                         SubstitutionMode mode2 = kFormat);
+
+  // Append a "2" to a mnemonic string based of the state of the Q bit.
+  const char* Mnemonic(const char* mnemonic);
+
+  VectorFormat GetVectorFormat(int format_index = 0);
+  VectorFormat GetVectorFormat(const NEONFormatMap* format_map);
+
+  // Built in mappings for common cases.
+
+  // The integer format map uses three bits (Q, size<1:0>) to encode the
+  // "standard" set of NEON integer vector formats.
+  static const NEONFormatMap* IntegerFormatMap() {
+    static const NEONFormatMap map = {
+        {23, 22, 30},
+        {NF_8B, NF_16B, NF_4H, NF_8H, NF_2S, NF_4S, NF_UNDEF, NF_2D}};
+    return &map;
+  }
+
+  // The long integer format map uses two bits (size<1:0>) to encode the
+  // long set of NEON integer vector formats. These are used in narrow, wide
+  // and long operations.
+  static const NEONFormatMap* LongIntegerFormatMap() {
+    static const NEONFormatMap map = {{23, 22}, {NF_8H, NF_4S, NF_2D}};
+    return &map;
+  }
+
+  // The FP format map uses two bits (Q, size<0>) to encode the NEON FP vector
+  // formats: NF_2S, NF_4S, NF_2D.
+  static const NEONFormatMap* FPFormatMap() {
+    // The FP format map assumes two bits (Q, size<0>) are used to encode the
+    // NEON FP vector formats: NF_2S, NF_4S, NF_2D.
+    static const NEONFormatMap map = {{22, 30},
+                                      {NF_2S, NF_4S, NF_UNDEF, NF_2D}};
+    return &map;
+  }
+
+  // The load/store format map uses three bits (Q, 11, 10) to encode the
+  // set of NEON vector formats.
+  static const NEONFormatMap* LoadStoreFormatMap() {
+    static const NEONFormatMap map = {
+        {11, 10, 30},
+        {NF_8B, NF_16B, NF_4H, NF_8H, NF_2S, NF_4S, NF_1D, NF_2D}};
+    return &map;
+  }
+
+  // The logical format map uses one bit (Q) to encode the NEON vector format:
+  // NF_8B, NF_16B.
+  static const NEONFormatMap* LogicalFormatMap() {
+    static const NEONFormatMap map = {{30}, {NF_8B, NF_16B}};
+    return &map;
+  }
+
+  // The triangular format map uses between two and five bits to encode the NEON
+  // vector format:
+  // xxx10->8B, xxx11->16B, xx100->4H, xx101->8H
+  // x1000->2S, x1001->4S,  10001->2D, all others undefined.
+  static const NEONFormatMap* TriangularFormatMap() {
+    static const NEONFormatMap map = {
+        {19, 18, 17, 16, 30},
+        {NF_UNDEF, NF_UNDEF, NF_8B, NF_16B, NF_4H, NF_8H, NF_8B, NF_16B,
+         NF_2S,    NF_4S,    NF_8B, NF_16B, NF_4H, NF_8H, NF_8B, NF_16B,
+         NF_UNDEF, NF_2D,    NF_8B, NF_16B, NF_4H, NF_8H, NF_8B, NF_16B,
+         NF_2S,    NF_4S,    NF_8B, NF_16B, NF_4H, NF_8H, NF_8B, NF_16B}};
+    return &map;
+  }
+
+  // The scalar format map uses two bits (size<1:0>) to encode the NEON scalar
+  // formats: NF_B, NF_H, NF_S, NF_D.
+  static const NEONFormatMap* ScalarFormatMap() {
+    static const NEONFormatMap map = {{23, 22}, {NF_B, NF_H, NF_S, NF_D}};
+    return &map;
+  }
+
+  // The long scalar format map uses two bits (size<1:0>) to encode the longer
+  // NEON scalar formats: NF_H, NF_S, NF_D.
+  static const NEONFormatMap* LongScalarFormatMap() {
+    static const NEONFormatMap map = {{23, 22}, {NF_H, NF_S, NF_D}};
+    return &map;
+  }
+
+  // The FP scalar format map assumes one bit (size<0>) is used to encode the
+  // NEON FP scalar formats: NF_S, NF_D.
+  static const NEONFormatMap* FPScalarFormatMap() {
+    static const NEONFormatMap map = {{22}, {NF_S, NF_D}};
+    return &map;
+  }
+
+  // The triangular scalar format map uses between one and four bits to encode
+  // the NEON FP scalar formats:
+  // xxx1->B, xx10->H, x100->S, 1000->D, all others undefined.
+  static const NEONFormatMap* TriangularScalarFormatMap() {
+    static const NEONFormatMap map = {
+        {19, 18, 17, 16},
+        {NF_UNDEF, NF_B, NF_H, NF_B, NF_S, NF_B, NF_H, NF_B, NF_D, NF_B, NF_H,
+         NF_B, NF_S, NF_B, NF_H, NF_B}};
+    return &map;
+  }
+
+ private:
+  // Get a pointer to a string that represents the format or placeholder for
+  // the specified substitution index, based on the format map and instruction.
+  const char* GetSubstitute(int index, SubstitutionMode mode);
+
+  // Get the NEONFormat enumerated value for bits obtained from the
+  // instruction based on the specified format mapping.
+  NEONFormat GetNEONFormat(const NEONFormatMap* format_map);
+
+  // Convert a NEONFormat into a string.
+  static const char* NEONFormatAsString(NEONFormat format);
+
+  // Convert a NEONFormat into a register placeholder string.
+  static const char* NEONFormatAsPlaceholder(NEONFormat format);
+
+  // Select bits from instrbits_ defined by the bits array, concatenate them,
+  // and return the value.
+  uint8_t PickBits(const uint8_t bits[]);
+
+  Instr instrbits_;
+  const NEONFormatMap* formats_[3];
+  char form_buffer_[64];
+  char mne_buffer_[16];
+};
 }  // namespace internal
 }  // namespace v8
 

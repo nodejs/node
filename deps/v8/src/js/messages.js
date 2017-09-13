@@ -6,6 +6,8 @@
 
 (function(global, utils) {
 
+"use strict";
+
 %CheckIsBootstrapping();
 
 // -------------------------------------------------------------------
@@ -15,14 +17,6 @@ var Script = utils.ImportNow("Script");
 
 // -------------------------------------------------------------------
 // Script
-
-/**
- * Set up the Script function and constructor.
- */
-%FunctionSetInstanceClassName(Script, 'Script');
-%AddNamedProperty(Script.prototype, 'constructor', Script,
-                  DONT_ENUM | DONT_DELETE | READ_ONLY);
-
 
 /**
  * Get information on a specific source position.

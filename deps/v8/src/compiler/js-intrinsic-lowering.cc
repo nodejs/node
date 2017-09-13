@@ -42,8 +42,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCreateJSGeneratorObject(node);
     case Runtime::kInlineGeneratorGetInputOrDebugPos:
       return ReduceGeneratorGetInputOrDebugPos(node);
-    case Runtime::kInlineAsyncGeneratorGetAwaitInputOrDebugPos:
-      return ReduceAsyncGeneratorGetAwaitInputOrDebugPos(node);
     case Runtime::kInlineAsyncGeneratorReject:
       return ReduceAsyncGeneratorReject(node);
     case Runtime::kInlineAsyncGeneratorResolve:
@@ -62,10 +60,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsInstanceType(node, JS_MAP_TYPE);
     case Runtime::kInlineIsJSSet:
       return ReduceIsInstanceType(node, JS_SET_TYPE);
-    case Runtime::kInlineIsJSMapIterator:
-      return ReduceIsInstanceType(node, JS_MAP_ITERATOR_TYPE);
-    case Runtime::kInlineIsJSSetIterator:
-      return ReduceIsInstanceType(node, JS_SET_ITERATOR_TYPE);
     case Runtime::kInlineIsJSWeakMap:
       return ReduceIsInstanceType(node, JS_WEAK_MAP_TYPE);
     case Runtime::kInlineIsJSWeakSet:
@@ -198,23 +192,16 @@ Reduction JSIntrinsicLowering::ReduceGeneratorGetInputOrDebugPos(Node* node) {
   return Change(node, op, generator, effect, control);
 }
 
-Reduction JSIntrinsicLowering::ReduceAsyncGeneratorGetAwaitInputOrDebugPos(
-    Node* node) {
-  Node* const generator = NodeProperties::GetValueInput(node, 0);
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
-  Operator const* const op = simplified()->LoadField(
-      AccessBuilder::ForJSAsyncGeneratorObjectAwaitInputOrDebugPos());
-
-  return Change(node, op, generator, effect, control);
-}
-
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorReject(Node* node) {
-  return Change(node, CodeFactory::AsyncGeneratorReject(isolate()), 0);
+  return Change(
+      node, Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorReject),
+      0);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorResolve(Node* node) {
-  return Change(node, CodeFactory::AsyncGeneratorResolve(isolate()), 0);
+  return Change(
+      node, Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorResolve),
+      0);
 }
 
 Reduction JSIntrinsicLowering::ReduceGeneratorGetContext(Node* node) {

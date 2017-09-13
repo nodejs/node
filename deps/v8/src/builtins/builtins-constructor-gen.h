@@ -41,6 +41,11 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   Node* NonEmptyShallowClone(Node* boilerplate, Node* boilerplate_map,
                              Node* boilerplate_elements, Node* allocation_site,
                              Node* capacity, ElementsKind kind);
+  Node* CopyFixedArrayBase(Node* elements);
+
+  Node* LoadFeedbackVectorSlot(Node* closure, Node* literal_index);
+  Node* NotHasBoilerplate(Node* literal_site);
+  Node* LoadAllocationSiteBoilerplate(Node* allocation_site);
 };
 
 }  // namespace internal

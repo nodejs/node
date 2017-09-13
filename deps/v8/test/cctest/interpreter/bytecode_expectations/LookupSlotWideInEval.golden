@@ -2380,7 +2380,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 1033
+bytecode array length: 1034
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   22 S> */ B(LdaConstant), U8(0),
@@ -2896,7 +2896,7 @@ bytecodes: [
   /* 3082 S> */ B(LdaConstant), U8(255),
                 B(Star), R(0),
   /* 3086 S> */ B(LdaSmi), I8(10),
-  /* 3088 E> */ B(Wide), B(StaLookupSlotSloppy), U16(256),
+  /* 3088 E> */ B(Wide), B(StaLookupSlot), U16(256), U8(0),
                 B(LdaUndefined),
   /* 3093 S> */ B(Return),
 ]
@@ -3434,7 +3434,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 1033
+bytecode array length: 1034
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   35 S> */ B(LdaConstant), U8(0),
@@ -3950,7 +3950,7 @@ bytecodes: [
   /* 3095 S> */ B(LdaConstant), U8(255),
                 B(Star), R(0),
   /* 3099 S> */ B(LdaSmi), I8(10),
-  /* 3101 E> */ B(Wide), B(StaLookupSlotStrict), U16(256),
+  /* 3101 E> */ B(Wide), B(StaLookupSlot), U16(256), U8(1),
                 B(LdaUndefined),
   /* 3106 S> */ B(Return),
 ]

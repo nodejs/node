@@ -115,7 +115,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ ret(kDoubleSize);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   return reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer));
 }

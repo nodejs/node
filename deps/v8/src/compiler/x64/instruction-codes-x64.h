@@ -147,6 +147,7 @@ namespace compiler {
   V(X64I32x4Splat)                 \
   V(X64I32x4ExtractLane)           \
   V(X64I32x4ReplaceLane)           \
+  V(X64I32x4Neg)                   \
   V(X64I32x4Shl)                   \
   V(X64I32x4ShrS)                  \
   V(X64I32x4Add)                   \
@@ -157,12 +158,17 @@ namespace compiler {
   V(X64I32x4MaxS)                  \
   V(X64I32x4Eq)                    \
   V(X64I32x4Ne)                    \
+  V(X64I32x4GtS)                   \
+  V(X64I32x4GeS)                   \
   V(X64I32x4ShrU)                  \
   V(X64I32x4MinU)                  \
   V(X64I32x4MaxU)                  \
+  V(X64I32x4GtU)                   \
+  V(X64I32x4GeU)                   \
   V(X64I16x8Splat)                 \
   V(X64I16x8ExtractLane)           \
   V(X64I16x8ReplaceLane)           \
+  V(X64I16x8Neg)                   \
   V(X64I16x8Shl)                   \
   V(X64I16x8ShrS)                  \
   V(X64I16x8Add)                   \
@@ -175,14 +181,19 @@ namespace compiler {
   V(X64I16x8MaxS)                  \
   V(X64I16x8Eq)                    \
   V(X64I16x8Ne)                    \
+  V(X64I16x8GtS)                   \
+  V(X64I16x8GeS)                   \
   V(X64I16x8ShrU)                  \
   V(X64I16x8AddSaturateU)          \
   V(X64I16x8SubSaturateU)          \
   V(X64I16x8MinU)                  \
   V(X64I16x8MaxU)                  \
+  V(X64I16x8GtU)                   \
+  V(X64I16x8GeU)                   \
   V(X64I8x16Splat)                 \
   V(X64I8x16ExtractLane)           \
   V(X64I8x16ReplaceLane)           \
+  V(X64I8x16Neg)                   \
   V(X64I8x16Add)                   \
   V(X64I8x16AddSaturateS)          \
   V(X64I8x16Sub)                   \
@@ -191,10 +202,14 @@ namespace compiler {
   V(X64I8x16MaxS)                  \
   V(X64I8x16Eq)                    \
   V(X64I8x16Ne)                    \
+  V(X64I8x16GtS)                   \
+  V(X64I8x16GeS)                   \
   V(X64I8x16AddSaturateU)          \
   V(X64I8x16SubSaturateU)          \
   V(X64I8x16MinU)                  \
   V(X64I8x16MaxU)                  \
+  V(X64I8x16GtU)                   \
+  V(X64I8x16GeU)                   \
   V(X64S128And)                    \
   V(X64S128Or)                     \
   V(X64S128Xor)                    \

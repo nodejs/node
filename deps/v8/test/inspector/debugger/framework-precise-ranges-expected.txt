@@ -21,7 +21,7 @@ foo (test.js:9:2)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 
-foo (test.js:10:0)
+foo (test.js:9:15)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 
@@ -43,7 +43,7 @@ foo (test.js:9:9)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 
-boo (test.js:13:0)
+boo (test.js:12:12)
 foo (test.js:9:9)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
@@ -71,12 +71,12 @@ foo (test.js:9:9)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 
-boo (test.js:13:0)
+boo (test.js:12:12)
 foo (test.js:9:9)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 
-foo (test.js:10:0)
+foo (test.js:9:15)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 
@@ -100,12 +100,12 @@ foo (test.js:9:9)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 
-boo (test.js:13:0)
+boo (test.js:12:12)
 foo (test.js:9:9)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 
-foo (test.js:10:0)
+foo (test.js:9:15)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 
@@ -129,12 +129,12 @@ foo (test.js:9:9)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 
-boo (test.js:13:0)
+boo (test.js:12:12)
 foo (test.js:9:9)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 
-foo (test.js:10:0)
+foo (test.js:9:15)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 

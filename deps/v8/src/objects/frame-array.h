@@ -6,6 +6,7 @@
 #define V8_OBJECTS_FRAME_ARRAY_H_
 
 #include "src/objects.h"
+#include "src/wasm/wasm-objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,23 +17,23 @@ namespace internal {
 template <typename T>
 class Handle;
 
-#define FRAME_ARRAY_FIELD_LIST(V) \
-  V(WasmInstance, Object)         \
-  V(WasmFunctionIndex, Smi)       \
-  V(Receiver, Object)             \
-  V(Function, JSFunction)         \
-  V(Code, AbstractCode)           \
-  V(Offset, Smi)                  \
+#define FRAME_ARRAY_FIELD_LIST(V)     \
+  V(WasmInstance, WasmInstanceObject) \
+  V(WasmFunctionIndex, Smi)           \
+  V(Receiver, Object)                 \
+  V(Function, JSFunction)             \
+  V(Code, AbstractCode)               \
+  V(Offset, Smi)                      \
   V(Flags, Smi)
 
 // Container object for data collected during simple stack trace captures.
 class FrameArray : public FixedArray {
  public:
-#define DECLARE_FRAME_ARRAY_ACCESSORS(name, type) \
-  inline type* name(int frame_ix) const;          \
+#define DECL_FRAME_ARRAY_ACCESSORS(name, type) \
+  inline type* name(int frame_ix) const;       \
   inline void Set##name(int frame_ix, type* value);
-  FRAME_ARRAY_FIELD_LIST(DECLARE_FRAME_ARRAY_ACCESSORS)
-#undef DECLARE_FRAME_ARRAY_ACCESSORS
+  FRAME_ARRAY_FIELD_LIST(DECL_FRAME_ARRAY_ACCESSORS)
+#undef DECL_FRAME_ARRAY_ACCESSORS
 
   inline bool IsWasmFrame(int frame_ix) const;
   inline bool IsWasmInterpretedFrame(int frame_ix) const;
@@ -47,7 +48,7 @@ class FrameArray : public FixedArray {
     kIsWasmInterpretedFrame = 1 << 1,
     kIsAsmJsWasmFrame = 1 << 2,
     kIsStrict = 1 << 3,
-    kForceConstructor = 1 << 4,
+    kIsConstructor = 1 << 4,
     kAsmJsAtNumberConversion = 1 << 5
   };
 
@@ -56,13 +57,12 @@ class FrameArray : public FixedArray {
                                           Handle<JSFunction> function,
                                           Handle<AbstractCode> code, int offset,
                                           int flags);
-  static Handle<FrameArray> AppendWasmFrame(Handle<FrameArray> in,
-                                            Handle<Object> wasm_instance,
-                                            int wasm_function_index,
-                                            Handle<AbstractCode> code,
-                                            int offset, int flags);
+  static Handle<FrameArray> AppendWasmFrame(
+      Handle<FrameArray> in, Handle<WasmInstanceObject> wasm_instance,
+      int wasm_function_index, Handle<AbstractCode> code, int offset,
+      int flags);
 
-  DECLARE_CAST(FrameArray)
+  DECL_CAST(FrameArray)
 
  private:
   // The underlying fixed array embodies a captured stack trace. Frame i

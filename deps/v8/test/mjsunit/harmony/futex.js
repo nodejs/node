@@ -48,7 +48,7 @@
   var i32a = new Int32Array(sab);
 
   // Valid indexes are 0-3.
-  [-1, 4, 100].forEach(function(invalidIndex) {
+  [-1, 4, 100, 0xffffffff].forEach(function(invalidIndex) {
     assertThrows(function() {
       Atomics.wait(i32a, invalidIndex, 0);
     }, RangeError);
@@ -59,7 +59,7 @@
   });
 
   i32a = new Int32Array(sab, 8);
-  [-1, 2, 100].forEach(function(invalidIndex) {
+  [-1, 2, 100, 0xffffffff].forEach(function(invalidIndex) {
     assertThrows(function() {
       Atomics.wait(i32a, invalidIndex, 0);
     }, RangeError);

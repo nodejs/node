@@ -59,17 +59,6 @@ class Decoder {
   int InstructionDecode(byte* instruction);
 
  private:
-  const uint32_t kMsaI8Mask = ((3U << 24) | ((1 << 6) - 1));
-  const uint32_t kMsaI5Mask = ((7U << 23) | ((1 << 6) - 1));
-  const uint32_t kMsaMI10Mask = (15U << 2);
-  const uint32_t kMsaBITMask = ((7U << 23) | ((1 << 6) - 1));
-  const uint32_t kMsaELMMask = (15U << 22);
-  const uint32_t kMsa3RMask = ((7U << 23) | ((1 << 6) - 1));
-  const uint32_t kMsa3RFMask = ((15U << 22) | ((1 << 6) - 1));
-  const uint32_t kMsaVECMask = (23U << 21);
-  const uint32_t kMsa2RMask = (7U << 18);
-  const uint32_t kMsa2RFMask = (15U << 17);
-
   // Bottleneck functions to print into the out_buffer.
   void PrintChar(const char ch);
   void Print(const char* str);
@@ -660,7 +649,6 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
     return 2;
   }
   UNREACHABLE();
-  return -1;
 }
 
 
@@ -706,7 +694,6 @@ int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
     }
   }
   UNREACHABLE();
-  return -1;
 }
 
 // Handle all MSARegister based formatting in this function to reduce the
@@ -728,7 +715,6 @@ int Decoder::FormatMSARegister(Instruction* instr, const char* format) {
   }
 
   UNREACHABLE();
-  return -1;
 }
 
 // FormatOption takes a formatting string and interprets it based on
@@ -980,7 +966,6 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       return 1;
   }
   UNREACHABLE();
-  return -1;
 }
 
 

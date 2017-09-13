@@ -28,15 +28,7 @@ class SimdScalarLowering {
  private:
   enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
 
-  enum class SimdType : uint8_t {
-    kFloat32x4,
-    kInt32x4,
-    kInt16x8,
-    kInt8x16,
-    kSimd1x4,
-    kSimd1x8,
-    kSimd1x16
-  };
+  enum class SimdType : uint8_t { kFloat32x4, kInt32x4, kInt16x8, kInt8x16 };
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   static constexpr int kLaneOffsets[16] = {15, 14, 13, 12, 11, 10, 9, 8,
@@ -81,8 +73,9 @@ class SimdScalarLowering {
                    const Operator* load_op, SimdType type);
   void LowerStoreOp(MachineRepresentation rep, Node* node,
                     const Operator* store_op, SimdType rep_type);
-  void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op,
-                     bool invert_inputs = false);
+  void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op);
+  void LowerCompareOp(Node* node, SimdType input_rep_type, const Operator* op,
+                      bool invert_inputs = false);
   Node* FixUpperBits(Node* input, int32_t shift);
   void LowerBinaryOpForSmallInt(Node* node, SimdType input_rep_type,
                                 const Operator* op);
@@ -96,6 +89,7 @@ class SimdScalarLowering {
   void LowerShiftOp(Node* node, SimdType type);
   Node* BuildF64Trunc(Node* input);
   void LowerNotEqual(Node* node, SimdType input_rep_type, const Operator* op);
+  MachineType MachineTypeFrom(SimdType simdType);
 
   JSGraph* const jsgraph_;
   NodeMarker<State> state_;

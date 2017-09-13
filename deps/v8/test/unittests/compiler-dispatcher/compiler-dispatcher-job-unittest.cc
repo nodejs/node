@@ -32,7 +32,7 @@ class CompilerDispatcherJobTest : public TestWithContext {
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    FLAG_ignition = true;
+    FLAG_stress_fullcodegen = false;
     TestWithContext::SetUpTestCase();
   }
 
@@ -41,6 +41,22 @@ class CompilerDispatcherJobTest : public TestWithContext {
     CHECK_NOT_NULL(save_flags_);
     delete save_flags_;
     save_flags_ = nullptr;
+  }
+
+  static CompileJobStatus GetStatus(CompilerDispatcherJob* job) {
+    return job->status();
+  }
+
+  static CompileJobStatus GetStatus(
+      const std::unique_ptr<CompilerDispatcherJob>& job) {
+    return GetStatus(job.get());
+  }
+
+  static Variable* LookupVariableByName(CompilerDispatcherJob* job,
+                                        const char* name) {
+    const AstRawString* name_raw_string =
+        job->parse_info_->ast_value_factory()->GetOneByteString(name);
+    return job->parse_info_->literal()->scope()->Lookup(name_raw_string);
   }
 
  private:
@@ -57,6 +73,8 @@ namespace {
 const char test_script[] = "(x) { x*x; }";
 
 }  // namespace
+
+#define ASSERT_JOB_STATUS(STATUS, JOB) ASSERT_EQ(STATUS, GetStatus(JOB))
 
 TEST_F(CompilerDispatcherJobTest, Construct) {
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
@@ -82,23 +100,30 @@ TEST_F(CompilerDispatcherJobTest, StateTransitions) {
       i_isolate(), tracer(),
       test::CreateSharedFunctionInfo(i_isolate(), nullptr), FLAG_stack_size));
 
-  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
-  job->PrepareToParseOnMainThread();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToParse);
-  job->Parse();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kParsed);
-  ASSERT_TRUE(job->FinalizeParsingOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToAnalyze);
-  ASSERT_TRUE(job->AnalyzeOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kAnalyzed);
-  ASSERT_TRUE(job->PrepareToCompileOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToCompile);
-  job->Compile();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kCompiled);
-  ASSERT_TRUE(job->FinalizeCompilingOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
+  ASSERT_JOB_STATUS(CompileJobStatus::kInitial, job);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kReadyToParse, job);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kParsed, job);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kReadyToAnalyze, job);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kAnalyzed, job);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kReadyToCompile, job);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kCompiled, job);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kDone, job);
   job->ResetOnMainThread();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+  ASSERT_JOB_STATUS(CompileJobStatus::kInitial, job);
 }
 
 TEST_F(CompilerDispatcherJobTest, StateTransitionsParseWithCallback) {
@@ -112,11 +137,12 @@ TEST_F(CompilerDispatcherJobTest, StateTransitionsParseWithCallback) {
       i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
       ScriptCompiler::kNoCompileOptions, i_isolate()->ast_string_constants(),
       callback.get()));
-  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToParse);
-  job->Parse();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
+  ASSERT_JOB_STATUS(CompileJobStatus::kReadyToParse, job);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kDone, job);
   job->ResetOnMainThread();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+  ASSERT_JOB_STATUS(CompileJobStatus::kInitial, job);
   ASSERT_TRUE(callback->result() != nullptr);
 }
 
@@ -126,16 +152,19 @@ TEST_F(CompilerDispatcherJobTest, SyntaxError) {
       i_isolate(), tracer(),
       test::CreateSharedFunctionInfo(i_isolate(), &script), FLAG_stack_size));
 
-  job->PrepareToParseOnMainThread();
-  job->Parse();
-  ASSERT_FALSE(job->FinalizeParsingOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kFailed);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_TRUE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kFailed, job);
   ASSERT_TRUE(i_isolate()->has_pending_exception());
 
   i_isolate()->clear_pending_exception();
 
   job->ResetOnMainThread();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+  ASSERT_JOB_STATUS(CompileJobStatus::kInitial, job);
 }
 
 TEST_F(CompilerDispatcherJobTest, ScopeChain) {
@@ -148,27 +177,28 @@ TEST_F(CompilerDispatcherJobTest, ScopeChain) {
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
       i_isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
 
-  job->PrepareToParseOnMainThread();
-  job->Parse();
-  ASSERT_TRUE(job->FinalizeParsingOnMainThread());
-  ASSERT_TRUE(job->AnalyzeOnMainThread());
-  ASSERT_TRUE(job->PrepareToCompileOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToCompile);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kReadyToCompile, job);
 
-  const AstRawString* var_x =
-      job->parse_info_->ast_value_factory()->GetOneByteString("x");
-  Variable* var = job->parse_info_->literal()->scope()->Lookup(var_x);
+  Variable* var = LookupVariableByName(job.get(), "x");
   ASSERT_TRUE(var);
   ASSERT_TRUE(var->IsParameter());
 
-  const AstRawString* var_y =
-      job->parse_info_->ast_value_factory()->GetOneByteString("y");
-  var = job->parse_info_->literal()->scope()->Lookup(var_y);
+  var = LookupVariableByName(job.get(), "y");
   ASSERT_TRUE(var);
   ASSERT_TRUE(var->IsContextSlot());
 
   job->ResetOnMainThread();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+  ASSERT_JOB_STATUS(CompileJobStatus::kInitial, job);
 }
 
 TEST_F(CompilerDispatcherJobTest, CompileAndRun) {
@@ -186,20 +216,27 @@ TEST_F(CompilerDispatcherJobTest, CompileAndRun) {
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
       i_isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
 
-  job->PrepareToParseOnMainThread();
-  job->Parse();
-  job->FinalizeParsingOnMainThread();
-  job->AnalyzeOnMainThread();
-  job->PrepareToCompileOnMainThread();
-  job->Compile();
-  ASSERT_TRUE(job->FinalizeCompilingOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kDone, job);
 
   Smi* value = Smi::cast(*test::RunJS(isolate(), "f(100);"));
   ASSERT_TRUE(value == Smi::FromInt(160));
 
   job->ResetOnMainThread();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+  ASSERT_JOB_STATUS(CompileJobStatus::kInitial, job);
 }
 
 TEST_F(CompilerDispatcherJobTest, CompileFailureToAnalyse) {
@@ -213,16 +250,20 @@ TEST_F(CompilerDispatcherJobTest, CompileFailureToAnalyse) {
       i_isolate(), tracer(),
       test::CreateSharedFunctionInfo(i_isolate(), &script), 100));
 
-  job->PrepareToParseOnMainThread();
-  job->Parse();
-  job->FinalizeParsingOnMainThread();
-  ASSERT_FALSE(job->AnalyzeOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kFailed);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_TRUE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kFailed, job);
   ASSERT_TRUE(i_isolate()->has_pending_exception());
 
   i_isolate()->clear_pending_exception();
   job->ResetOnMainThread();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+  ASSERT_JOB_STATUS(CompileJobStatus::kInitial, job);
 }
 
 TEST_F(CompilerDispatcherJobTest, CompileFailureToFinalize) {
@@ -236,19 +277,26 @@ TEST_F(CompilerDispatcherJobTest, CompileFailureToFinalize) {
       i_isolate(), tracer(),
       test::CreateSharedFunctionInfo(i_isolate(), &script), 50));
 
-  job->PrepareToParseOnMainThread();
-  job->Parse();
-  job->FinalizeParsingOnMainThread();
-  job->AnalyzeOnMainThread();
-  job->PrepareToCompileOnMainThread();
-  job->Compile();
-  ASSERT_FALSE(job->FinalizeCompilingOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kFailed);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_TRUE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kFailed, job);
   ASSERT_TRUE(i_isolate()->has_pending_exception());
 
   i_isolate()->clear_pending_exception();
   job->ResetOnMainThread();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+  ASSERT_JOB_STATUS(CompileJobStatus::kInitial, job);
 }
 
 class CompileTask : public Task {
@@ -258,7 +306,8 @@ class CompileTask : public Task {
   ~CompileTask() override {}
 
   void Run() override {
-    job_->Compile();
+    job_->StepNextOnBackgroundThread();
+    ASSERT_FALSE(job_->IsFailed());
     semaphore_->Signal();
   }
 
@@ -281,22 +330,29 @@ TEST_F(CompilerDispatcherJobTest, CompileOnBackgroundThread) {
       i_isolate(), tracer(),
       test::CreateSharedFunctionInfo(i_isolate(), &script), 100));
 
-  job->PrepareToParseOnMainThread();
-  job->Parse();
-  job->FinalizeParsingOnMainThread();
-  job->AnalyzeOnMainThread();
-  job->PrepareToCompileOnMainThread();
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
 
   base::Semaphore semaphore(0);
   CompileTask* background_task = new CompileTask(job.get(), &semaphore);
+  ASSERT_JOB_STATUS(CompileJobStatus::kReadyToCompile, job);
   V8::GetCurrentPlatform()->CallOnBackgroundThread(background_task,
                                                    Platform::kShortRunningTask);
   semaphore.Wait();
-  ASSERT_TRUE(job->FinalizeCompilingOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kDone, job);
 
   job->ResetOnMainThread();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+  ASSERT_JOB_STATUS(CompileJobStatus::kInitial, job);
 }
 
 TEST_F(CompilerDispatcherJobTest, LazyInnerFunctions) {
@@ -315,14 +371,21 @@ TEST_F(CompilerDispatcherJobTest, LazyInnerFunctions) {
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
       i_isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
 
-  job->PrepareToParseOnMainThread();
-  job->Parse();
-  ASSERT_TRUE(job->FinalizeParsingOnMainThread());
-  ASSERT_TRUE(job->AnalyzeOnMainThread());
-  ASSERT_TRUE(job->PrepareToCompileOnMainThread());
-  job->Compile();
-  ASSERT_TRUE(job->FinalizeCompilingOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  job->StepNextOnMainThread();
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompileJobStatus::kDone, job);
 
   Handle<JSFunction> e =
       Handle<JSFunction>::cast(test::RunJS(isolate(), "f();"));
@@ -330,7 +393,7 @@ TEST_F(CompilerDispatcherJobTest, LazyInnerFunctions) {
   ASSERT_FALSE(e->shared()->HasBaselineCode());
 
   job->ResetOnMainThread();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+  ASSERT_JOB_STATUS(CompileJobStatus::kInitial, job);
 }
 
 }  // namespace internal

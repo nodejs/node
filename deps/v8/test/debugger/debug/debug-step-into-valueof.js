@@ -20,8 +20,9 @@ function listener(event, exec_state, event_data, data) {
 };
 
 function valueOfCallback() {
-  return 2;               // Break 2.
-}                         // Break 3.
+  return 2                // Break 2.
+  ;                       // Break 3.
+}
 var o = {};
 o.valueOf = valueOfCallback;
 

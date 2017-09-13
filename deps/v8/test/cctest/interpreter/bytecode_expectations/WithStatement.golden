@@ -11,18 +11,17 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 22
+bytecode array length: 20
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(0),
+  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(0),
                 B(Ldar), R(0),
                 B(ToObject), R(0),
                 B(Ldar), R(closure),
                 B(CreateWithContext), R(0), U8(1),
                 B(PushContext), R(0),
   /*   50 S> */ B(LdaLookupSlot), U8(2),
-                B(PopContext), R(0),
-  /*   62 S> */ B(Return),
+  /*   59 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,

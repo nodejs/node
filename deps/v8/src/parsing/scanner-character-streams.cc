@@ -598,6 +598,7 @@ bool TwoByteExternalStreamingStream::ReadBlock() {
 
   // Out of data? Return 0.
   if (chunks_[chunk_no].byte_length == 0) {
+    buffer_pos_ = position;
     buffer_cursor_ = buffer_start_;
     buffer_end_ = buffer_start_;
     return false;
@@ -700,6 +701,7 @@ bool TwoByteExternalBufferedStream::ReadBlock() {
 
   // Out of data? Return 0.
   if (chunks_[chunk_no].byte_length == 0) {
+    buffer_pos_ = position;
     buffer_cursor_ = buffer_start_;
     buffer_end_ = buffer_start_;
     return false;

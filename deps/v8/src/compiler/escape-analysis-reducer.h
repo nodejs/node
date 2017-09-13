@@ -24,6 +24,8 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
   EscapeAnalysisReducer(Editor* editor, JSGraph* jsgraph,
                         EscapeAnalysis* escape_analysis, Zone* zone);
 
+  const char* reducer_name() const override { return "EscapeAnalysisReducer"; }
+
   Reduction Reduce(Node* node) final;
 
   void Finalize() override;

@@ -33,13 +33,13 @@ function checkStack(stack, expected_lines) {
   var instance = builder.instantiate({mod: {func: func}});
   // Test that this does not mess up internal state by executing it three times.
   for (var i = 0; i < 3; ++i) {
-    var interpreted_before = % WasmNumInterpretedCalls(instance);
+    var interpreted_before = %WasmNumInterpretedCalls(instance);
     instance.exports.main();
-    assertEquals(interpreted_before + 1, % WasmNumInterpretedCalls(instance));
+    assertEquals(interpreted_before + 1, %WasmNumInterpretedCalls(instance));
     checkStack(stripPath(stack), [
       'Error: test imported stack',                           // -
       /^    at func \(interpreter.js:\d+:28\)$/,              // -
-      '    at main (<WASM>[1]+1)',                            // -
+      '    at main (wasm-function[1]:1)',                     // -
       /^    at testCallImported \(interpreter.js:\d+:22\)$/,  // -
       /^    at interpreter.js:\d+:3$/
     ]);
@@ -69,10 +69,10 @@ function checkStack(stack, expected_lines) {
       ])
       .exportFunc();
   var instance = builder.instantiate({mod: {func1: func1, func2: func2}});
-  var interpreted_before = % WasmNumInterpretedCalls(instance);
+  var interpreted_before = %WasmNumInterpretedCalls(instance);
   var args = [11, 0.3];
   var ret = instance.exports.main(...args);
-  assertEquals(interpreted_before + 1, % WasmNumInterpretedCalls(instance));
+  assertEquals(interpreted_before + 1, %WasmNumInterpretedCalls(instance));
   var passed_test_args = [...passed_args];
   var expected = func1(args[0], args[0] + 1) + func2(args[1]) | 0;
   assertEquals(expected, ret);
@@ -90,7 +90,7 @@ function checkStack(stack, expected_lines) {
   var instance = builder.instantiate();
   // Test that this does not mess up internal state by executing it three times.
   for (var i = 0; i < 3; ++i) {
-    var interpreted_before = % WasmNumInterpretedCalls(instance);
+    var interpreted_before = %WasmNumInterpretedCalls(instance);
     var stack;
     try {
       instance.exports.main();
@@ -98,11 +98,11 @@ function checkStack(stack, expected_lines) {
     } catch (e) {
       stack = e.stack;
     }
-    assertEquals(interpreted_before + 2, % WasmNumInterpretedCalls(instance));
+    assertEquals(interpreted_before + 2, %WasmNumInterpretedCalls(instance));
     checkStack(stripPath(stack), [
       'RuntimeError: unreachable',                    // -
-      '    at foo (<WASM>[0]+3)',                     // -
-      '    at main (<WASM>[1]+2)',                    // -
+      '    at foo (wasm-function[0]:3)',              // -
+      '    at main (wasm-function[1]:2)',             // -
       /^    at testTrap \(interpreter.js:\d+:24\)$/,  // -
       /^    at interpreter.js:\d+:3$/
     ]);
@@ -121,7 +121,7 @@ function checkStack(stack, expected_lines) {
   var instance = builder.instantiate({mod: {func: func}});
   // Test that this does not mess up internal state by executing it three times.
   for (var i = 0; i < 3; ++i) {
-    var interpreted_before = % WasmNumInterpretedCalls(instance);
+    var interpreted_before = %WasmNumInterpretedCalls(instance);
     var stack;
     try {
       instance.exports.main();
@@ -129,11 +129,11 @@ function checkStack(stack, expected_lines) {
     } catch (e) {
       stack = e.stack;
     }
-    assertEquals(interpreted_before + 1, % WasmNumInterpretedCalls(instance));
+    assertEquals(interpreted_before + 1, %WasmNumInterpretedCalls(instance));
     checkStack(stripPath(stack), [
       'Error: thrown from imported function',                    // -
       /^    at func \(interpreter.js:\d+:11\)$/,                 // -
-      '    at main (<WASM>[1]+1)',                               // -
+      '    at main (wasm-function[1]:1)',                        // -
       /^    at testThrowFromImport \(interpreter.js:\d+:24\)$/,  // -
       /^    at interpreter.js:\d+:3$/
     ]);
@@ -205,18 +205,18 @@ function checkStack(stack, expected_lines) {
   instance = builder.instantiate({mod: {func: func}});
   // Test that this does not mess up internal state by executing it three times.
   for (var i = 0; i < 3; ++i) {
-    var interpreted_before = % WasmNumInterpretedCalls(instance);
+    var interpreted_before = %WasmNumInterpretedCalls(instance);
     stacks = [];
     instance.exports.main(0);
-    assertEquals(interpreted_before + 3, % WasmNumInterpretedCalls(instance));
+    assertEquals(interpreted_before + 3, %WasmNumInterpretedCalls(instance));
     assertEquals(3, stacks.length);
     for (var e = 0; e < stacks.length; ++e) {
       expected = ['Error: reentrant interpreter test #' + e];
       expected.push(/^    at func \(interpreter.js:\d+:17\)$/);
-      expected.push('    at main (<WASM>[1]+3)');
+      expected.push('    at main (wasm-function[1]:3)');
       for (var k = e; k > 0; --k) {
         expected.push(/^    at func \(interpreter.js:\d+:33\)$/);
-        expected.push('    at main (<WASM>[1]+3)');
+        expected.push('    at main (wasm-function[1]:3)');
       }
       expected.push(
           /^    at testReentrantInterpreter \(interpreter.js:\d+:22\)$/);
@@ -289,8 +289,8 @@ function checkStack(stack, expected_lines) {
     if (!(e instanceof TypeError)) throw e;
     checkStack(stripPath(e.stack), [
       'TypeError: invalid type',                                // -
-      '    at direct (<WASM>[1]+1)',                            // -
-      '    at main (<WASM>[3]+3)',                              // -
+      '    at direct (wasm-function[1]:1)',                     // -
+      '    at main (wasm-function[3]:3)',                       // -
       /^    at testIllegalImports \(interpreter.js:\d+:22\)$/,  // -
       /^    at interpreter.js:\d+:3$/
     ]);
@@ -302,8 +302,8 @@ function checkStack(stack, expected_lines) {
     if (!(e instanceof TypeError)) throw e;
     checkStack(stripPath(e.stack), [
       'TypeError: invalid type',                                // -
-      '    at indirect (<WASM>[2]+1)',                          // -
-      '    at main (<WASM>[3]+3)',                              // -
+      '    at indirect (wasm-function[2]:1)',                   // -
+      '    at main (wasm-function[3]:3)',                       // -
       /^    at testIllegalImports \(interpreter.js:\d+:22\)$/,  // -
       /^    at interpreter.js:\d+:3$/
     ]);
@@ -325,8 +325,8 @@ function checkStack(stack, expected_lines) {
     if (!(e instanceof RangeError)) throw e;
     checkStack(stripPath(e.stack), [
       'RangeError: Maximum call stack size exceeded',
-      '    at main (<WASM>[0]+0)'
-    ].concat(Array(9).fill('    at main (<WASM>[0]+2)')));
+      '    at main (wasm-function[0]:0)'
+    ].concat(Array(9).fill('    at main (wasm-function[0]:2)')));
   }
 })();
 
@@ -338,7 +338,7 @@ function checkStack(stack, expected_lines) {
     this.i = i;
   }
 
-  // We call WASM -> func 1 -> WASM -> func2.
+  // We call wasm -> func 1 -> wasm -> func2.
   // func2 throws, func 1 catches.
   function func1() {
     try {
@@ -361,15 +361,15 @@ function checkStack(stack, expected_lines) {
       .exportFunc();
   var instance = builder.instantiate({mod: {func1: func1, func2: func2}});
 
-  var interpreted_before = % WasmNumInterpretedCalls(instance);
+  var interpreted_before = %WasmNumInterpretedCalls(instance);
   assertEquals(2 * (11 + 2), instance.exports.main());
-  assertEquals(interpreted_before + 2, % WasmNumInterpretedCalls(instance));
+  assertEquals(interpreted_before + 2, %WasmNumInterpretedCalls(instance));
 })();
 
 (function testInterpreterGC() {
   function run(f) {
     // wrap the creation in a closure so that the only thing returned is
-    // the module (i.e. the underlying array buffer of WASM wire bytes dies).
+    // the module (i.e. the underlying array buffer of wasm wire bytes dies).
     var module = (() => {
       var builder = new WasmModuleBuilder();
       var imp = builder.addImport('mod', 'the_name_of_my_import', kSig_i_i);

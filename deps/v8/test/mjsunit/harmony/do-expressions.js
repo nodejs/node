@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-do-expressions --allow-natives-syntax --no-always-opt
-// Flags: --opt
+// Flags: --opt --no-stress-fullcodegen
 
 function returnValue(v) { return v; }
 function MyError() {}

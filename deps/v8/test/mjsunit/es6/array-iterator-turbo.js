@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo --turbo-escape --allow-natives-syntax --no-always-opt
+// Flags: --turbo-escape --allow-natives-syntax --no-always-opt
 // Flags: --opt --turbo-filter=*
 
 "use strict";
@@ -11,13 +11,13 @@ let global = this;
 let tests = {
   FastElementsKind() {
     let runners = {
-      FAST_SMI_ELEMENTS(array) {
+      PACKED_SMI_ELEMENTS(array) {
         let sum = 0;
         for (let x of array) sum += x;
         return sum;
       },
 
-      FAST_HOLEY_SMI_ELEMENTS(array) {
+      HOLEY_SMI_ELEMENTS(array) {
         let sum = 0;
         for (let x of array) {
           if (x) sum += x;
@@ -25,19 +25,19 @@ let tests = {
         return sum;
       },
 
-      FAST_ELEMENTS(array) {
+      PACKED_ELEMENTS(array) {
         let ret = "";
         for (let str of array) ret += `> ${str}`;
         return ret;
       },
 
-      FAST_HOLEY_ELEMENTS(array) {
+      HOLEY_ELEMENTS(array) {
         let ret = "";
         for (let str of array) ret += `> ${str}`;
         return ret;
       },
 
-      FAST_DOUBLE_ELEMENTS(array) {
+      PACKED_DOUBLE_ELEMENTS(array) {
         let sum = 0.0;
         for (let x of array) sum += x;
           return sum;
@@ -45,7 +45,7 @@ let tests = {
 
       // TODO(6587): Re-enable the below test case once we no longer deopt due
       // to non-truncating uses of {CheckFloat64Hole} nodes.
-      /*FAST_HOLEY_DOUBLE_ELEMENTS(array) {
+      /*HOLEY_DOUBLE_ELEMENTS(array) {
         let sum = 0.0;
         for (let x of array) {
           if (x) sum += x;
@@ -55,32 +55,32 @@ let tests = {
     };
 
     let tests = {
-      FAST_SMI_ELEMENTS: {
+      PACKED_SMI_ELEMENTS: {
         array: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         expected: 55,
         array2: [1, 2, 3],
         expected2: 6
       },
-      FAST_HOLEY_SMI_ELEMENTS: {
+      HOLEY_SMI_ELEMENTS: {
         array: [1, , 3, , 5, , 7, , 9, ,],
         expected: 25,
         array2: [1, , 3],
         expected2: 4
       },
-      FAST_ELEMENTS: {
+      PACKED_ELEMENTS: {
         array: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
         expected: "> a> b> c> d> e> f> g> h> i> j",
         array2: ["a", "b", "c"],
         expected2: "> a> b> c"
       },
-      FAST_HOLEY_ELEMENTS: {
+      HOLEY_ELEMENTS: {
         array: ["a", , "c", , "e", , "g", , "i", ,],
         expected: "> a> undefined> c> undefined> e> undefined> g" +
                   "> undefined> i> undefined",
         array2: ["a", , "c"],
         expected2: "> a> undefined> c"
       },
-      FAST_DOUBLE_ELEMENTS: {
+      PACKED_DOUBLE_ELEMENTS: {
         array: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
         expected: 5.5,
         array2: [0.6, 0.4, 0.2],
@@ -88,7 +88,7 @@ let tests = {
       },
       // TODO(6587): Re-enable the below test case once we no longer deopt due
       // to non-truncating uses of {CheckFloat64Hole} nodes.
-      /*FAST_HOLEY_DOUBLE_ELEMENTS: {
+      /*HOLEY_DOUBLE_ELEMENTS: {
         array: [0.1, , 0.3, , 0.5, , 0.7, , 0.9, ,],
         expected: 2.5,
         array2: [0.1, , 0.3],

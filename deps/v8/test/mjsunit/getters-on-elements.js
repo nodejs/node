@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --noalways-opt --opt
+// Flags: --allow-natives-syntax --noalways-opt --opt --no-stress-fullcodegen
 
 // It's nice to run this in other browsers too.
 var standalone = false;
@@ -80,7 +80,7 @@ function base_getter_test(create_func) {
   assertUnoptimized(foo);
   // Smi and Double elements transition the KeyedLoadIC to Generic state
   // here, because they miss twice with the same map when loading the hole.
-  // For FAST_HOLEY_ELEMENTS, however, the IC knows how to convert the hole
+  // For HOLEY_ELEMENTS, however, the IC knows how to convert the hole
   // to undefined if the prototype is the original array prototype, so it
   // stays monomorphic for now...
   foo(a);

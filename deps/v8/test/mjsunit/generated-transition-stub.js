@@ -44,22 +44,22 @@ function test() {
   transition1(a1, 0, 2.5);
   var a2 = [0, 1, 2, 3, 4];
   transition1(a2, 0, 2.5);
-  assertFalse(%HasFastHoleyElements(a2));
+  assertFalse(%HasHoleyElements(a2));
   %OptimizeFunctionOnNextCall(transition1);
 
   var a3 = [0, 1, 2, 3, 4];
-  assertTrue(%HasFastSmiElements(a3));
+  assertTrue(%HasSmiElements(a3));
   transition1(a3, 0, 2.5);
-  assertFalse(%HasFastHoleyElements(a3));
+  assertFalse(%HasHoleyElements(a3));
   assertEquals(4, a3[4]);
   assertEquals(2.5, a3[0]);
 
   // Test handling of hole.
   var a4 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
   a4.length = 7;
-  assertTrue(%HasFastSmiElements(a4));
+  assertTrue(%HasSmiElements(a4));
   transition1(a4, 0, 2.5);
-  assertFalse(%HasFastHoleyElements(a4));
+  assertFalse(%HasHoleyElements(a4));
   assertEquals(2.5, a4[0]);
   assertEquals(undefined, a4[8]);
 
@@ -69,7 +69,7 @@ function test() {
     for (i = 0; i < 0x40000; ++i) {
       a5[i] = 0;
     }
-    assertTrue(%HasFastSmiElements(a5) || %HasFastDoubleElements(a5));
+    assertTrue(%HasSmiElements(a5) || %HasDoubleElements(a5));
     transition1(a5, 0, 2.5);
     assertEquals(2.5, a5[0]);
   }
@@ -86,14 +86,14 @@ function test() {
   transition2(b1, 0, 2.5);
   var b2 = [0, 1, 2, , 4];
   transition2(b2, 0, 2.5);
-  assertTrue(%HasFastHoleyElements(b2));
+  assertTrue(%HasHoleyElements(b2));
   %OptimizeFunctionOnNextCall(transition2);
 
   var b3 = [0, 1, 2, , 4];
-  assertTrue(%HasFastSmiElements(b3));
-  assertTrue(%HasFastHoleyElements(b3));
+  assertTrue(%HasSmiElements(b3));
+  assertTrue(%HasHoleyElements(b3));
   transition2(b3, 0, 2.5);
-  assertTrue(%HasFastHoleyElements(b3));
+  assertTrue(%HasHoleyElements(b3));
   assertEquals(4, b3[4]);
   assertEquals(2.5, b3[0]);
 
@@ -103,7 +103,7 @@ function test() {
     for (i = 3; i < 0x40000; ++i) {
       b4[i] = 0;
     }
-    assertTrue(%HasFastSmiElements(b4));
+    assertTrue(%HasSmiElements(b4));
     transition2(b4, 0, 2.5);
     assertEquals(2.5, b4[0]);
   }
@@ -120,16 +120,16 @@ function test() {
   transition3(c1, 0, new Object());
   var c2 = [0, 1, 2, 3.5, 4];
   transition3(c2, 0, new Object());
-  assertTrue(%HasFastObjectElements(c2));
-  assertTrue(!%HasFastHoleyElements(c2));
+  assertTrue(%HasObjectElements(c2));
+  assertTrue(!%HasHoleyElements(c2));
   %OptimizeFunctionOnNextCall(transition3);
 
   var c3 = [0, 1, 2, 3.5, 4];
-  assertTrue(%HasFastDoubleElements(c3));
-  assertTrue(!%HasFastHoleyElements(c3));
+  assertTrue(%HasDoubleElements(c3));
+  assertTrue(!%HasHoleyElements(c3));
   transition3(c3, 0, new Array());
-  assertTrue(!%HasFastHoleyElements(c3));
-  assertTrue(%HasFastObjectElements(c3));
+  assertTrue(!%HasHoleyElements(c3));
+  assertTrue(%HasObjectElements(c3));
   assertEquals(4, c3[4]);
   assertEquals(0, c3[0].length);
 
@@ -140,11 +140,11 @@ function test() {
     for (i = 3; i < 0xa000; ++i) {
       c4[i] = 0;
     }
-    assertTrue(%HasFastDoubleElements(c4));
-    assertTrue(!%HasFastHoleyElements(c4));
+    assertTrue(%HasDoubleElements(c4));
+    assertTrue(!%HasHoleyElements(c4));
     transition3(c4, 0, new Array(5));
-    assertTrue(!%HasFastHoleyElements(c4));
-    assertTrue(%HasFastObjectElements(c4));
+    assertTrue(!%HasHoleyElements(c4));
+    assertTrue(%HasObjectElements(c4));
     assertEquals(5, c4[0].length);
   }
 
@@ -154,11 +154,11 @@ function test() {
     for (i = 3; i < 0x40000; ++i) {
       c5[i] = 0;
     }
-    assertTrue(%HasFastDoubleElements(c5));
-    assertTrue(!%HasFastHoleyElements(c5));
+    assertTrue(%HasDoubleElements(c5));
+    assertTrue(!%HasHoleyElements(c5));
     transition3(c5, 0, new Array(5));
-    assertTrue(!%HasFastHoleyElements(c5));
-    assertTrue(%HasFastObjectElements(c5));
+    assertTrue(!%HasHoleyElements(c5));
+    assertTrue(%HasObjectElements(c5));
     assertEquals(5, c5[0].length);
   }
 
@@ -174,16 +174,16 @@ function test() {
   transition4(d1, 0, new Object());
   var d2 = [0, 1, , 3.5, 4];
   transition4(d2, 0, new Object());
-  assertTrue(%HasFastObjectElements(d2));
-  assertTrue(%HasFastHoleyElements(d2));
+  assertTrue(%HasObjectElements(d2));
+  assertTrue(%HasHoleyElements(d2));
   %OptimizeFunctionOnNextCall(transition4);
 
   var d3 = [0, 1, , 3.5, 4];
-  assertTrue(%HasFastDoubleElements(d3));
-  assertTrue(%HasFastHoleyElements(d3));
+  assertTrue(%HasDoubleElements(d3));
+  assertTrue(%HasHoleyElements(d3));
   transition4(d3, 0, new Array());
-  assertTrue(%HasFastHoleyElements(d3));
-  assertTrue(%HasFastObjectElements(d3));
+  assertTrue(%HasHoleyElements(d3));
+  assertTrue(%HasObjectElements(d3));
   assertEquals(4, d3[4]);
   assertEquals(0, d3[0].length);
 
@@ -194,11 +194,11 @@ function test() {
     for (i = 3; i < 0xa000; ++i) {
       d4[i] = 0;
     }
-    assertTrue(%HasFastDoubleElements(d4));
-    assertTrue(%HasFastHoleyElements(d4));
+    assertTrue(%HasDoubleElements(d4));
+    assertTrue(%HasHoleyElements(d4));
     transition4(d4, 0, new Array(5));
-    assertTrue(%HasFastHoleyElements(d4));
-    assertTrue(%HasFastObjectElements(d4));
+    assertTrue(%HasHoleyElements(d4));
+    assertTrue(%HasObjectElements(d4));
     assertEquals(5, d4[0].length);
     assertEquals(undefined, d4[2]);
   }
@@ -209,11 +209,11 @@ function test() {
     for (i = 3; i < 0x40000; ++i) {
       d5[i] = 0;
     }
-    assertTrue(%HasFastDoubleElements(d5));
-    assertTrue(%HasFastHoleyElements(d5));
+    assertTrue(%HasDoubleElements(d5));
+    assertTrue(%HasHoleyElements(d5));
     transition4(d5, 0, new Array(5));
-    assertTrue(%HasFastHoleyElements(d5));
-    assertTrue(%HasFastObjectElements(d5));
+    assertTrue(%HasHoleyElements(d5));
+    assertTrue(%HasObjectElements(d5));
     assertEquals(5, d5[0].length);
     assertEquals(undefined, d5[2]);
   }

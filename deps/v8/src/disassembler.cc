@@ -74,6 +74,92 @@ static void DumpBuffer(std::ostream* os, StringBuilder* out) {
 static const int kOutBufferSize = 2048 + String::kMaxShortPrintLength;
 static const int kRelocInfoPosition = 57;
 
+static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
+                           const ExternalReferenceEncoder& ref_encoder,
+                           std::ostream* os, RelocInfo* relocinfo,
+                           bool first_reloc_info = true) {
+  // Indent the printing of the reloc info.
+  if (first_reloc_info) {
+    // The first reloc info is printed after the disassembled instruction.
+    out->AddPadding(' ', kRelocInfoPosition - out->position());
+  } else {
+    // Additional reloc infos are printed on separate lines.
+    DumpBuffer(os, out);
+    out->AddPadding(' ', kRelocInfoPosition);
+  }
+
+  RelocInfo::Mode rmode = relocinfo->rmode();
+  if (rmode == RelocInfo::DEOPT_SCRIPT_OFFSET) {
+    out->AddFormatted("    ;; debug: deopt position, script offset '%d'",
+                      static_cast<int>(relocinfo->data()));
+  } else if (rmode == RelocInfo::DEOPT_INLINING_ID) {
+    out->AddFormatted("    ;; debug: deopt position, inlining id '%d'",
+                      static_cast<int>(relocinfo->data()));
+  } else if (rmode == RelocInfo::DEOPT_REASON) {
+    DeoptimizeReason reason = static_cast<DeoptimizeReason>(relocinfo->data());
+    out->AddFormatted("    ;; debug: deopt reason '%s'",
+                      DeoptimizeReasonToString(reason));
+  } else if (rmode == RelocInfo::DEOPT_ID) {
+    out->AddFormatted("    ;; debug: deopt index %d",
+                      static_cast<int>(relocinfo->data()));
+  } else if (rmode == RelocInfo::EMBEDDED_OBJECT) {
+    HeapStringAllocator allocator;
+    StringStream accumulator(&allocator);
+    relocinfo->target_object()->ShortPrint(&accumulator);
+    std::unique_ptr<char[]> obj_name = accumulator.ToCString();
+    out->AddFormatted("    ;; object: %s", obj_name.get());
+  } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+    const char* reference_name = ref_encoder.NameOfAddress(
+        isolate, relocinfo->target_external_reference());
+    out->AddFormatted("    ;; external reference (%s)", reference_name);
+  } else if (RelocInfo::IsCodeTarget(rmode)) {
+    out->AddFormatted("    ;; code:");
+    Code* code = Code::GetCodeFromTargetAddress(relocinfo->target_address());
+    Code::Kind kind = code->kind();
+    if (code->is_inline_cache_stub()) {
+      out->AddFormatted(" %s", Code::Kind2String(kind));
+      if (kind == Code::COMPARE_IC) {
+        InlineCacheState ic_state = IC::StateFromCode(code);
+        out->AddFormatted(" %s", Code::ICState2String(ic_state));
+      }
+    } else if (kind == Code::STUB || kind == Code::HANDLER) {
+      // Get the STUB key and extract major and minor key.
+      uint32_t key = code->stub_key();
+      uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
+      CodeStub::Major major_key = CodeStub::GetMajorKey(code);
+      DCHECK(major_key == CodeStub::MajorKeyFromKey(key));
+      out->AddFormatted(" %s, %s, ", Code::Kind2String(kind),
+                        CodeStub::MajorName(major_key));
+      out->AddFormatted("minor: %d", minor_key);
+    } else {
+      out->AddFormatted(" %s", Code::Kind2String(kind));
+    }
+  } else if (RelocInfo::IsRuntimeEntry(rmode) &&
+             isolate->deoptimizer_data() != nullptr) {
+    // A runtime entry reloinfo might be a deoptimization bailout->
+    Address addr = relocinfo->target_address();
+    int id =
+        Deoptimizer::GetDeoptimizationId(isolate, addr, Deoptimizer::EAGER);
+    if (id == Deoptimizer::kNotDeoptimizationEntry) {
+      id = Deoptimizer::GetDeoptimizationId(isolate, addr, Deoptimizer::LAZY);
+      if (id == Deoptimizer::kNotDeoptimizationEntry) {
+        id = Deoptimizer::GetDeoptimizationId(isolate, addr, Deoptimizer::SOFT);
+        if (id == Deoptimizer::kNotDeoptimizationEntry) {
+          out->AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
+        } else {
+          out->AddFormatted("    ;; soft deoptimization bailout %d", id);
+        }
+      } else {
+        out->AddFormatted("    ;; lazy deoptimization bailout %d", id);
+      }
+    } else {
+      out->AddFormatted("    ;; deoptimization bailout %d", id);
+    }
+  } else {
+    out->AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
+  }
+}
+
 static int DecodeIt(Isolate* isolate, std::ostream* os,
                     const V8NameConverter& converter, byte* begin, byte* end) {
   SealHandleScope shs(isolate);
@@ -162,97 +248,32 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
       // Put together the reloc info
       RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], converter.code());
 
-      // Indent the printing of the reloc info.
-      if (i == 0) {
-        // The first reloc info is printed after the disassembled instruction.
-        out.AddPadding(' ', kRelocInfoPosition - out.position());
-      } else {
-        // Additional reloc infos are printed on separate lines.
-        DumpBuffer(os, &out);
-        out.AddPadding(' ', kRelocInfoPosition);
-      }
+      bool first_reloc_info = (i == 0);
+      PrintRelocInfo(&out, isolate, ref_encoder, os, &relocinfo,
+                     first_reloc_info);
+    }
 
-      RelocInfo::Mode rmode = relocinfo.rmode();
-      if (rmode == RelocInfo::DEOPT_SCRIPT_OFFSET) {
-        out.AddFormatted("    ;; debug: deopt position, script offset '%d'",
-                         static_cast<int>(relocinfo.data()));
-      } else if (rmode == RelocInfo::DEOPT_INLINING_ID) {
-        out.AddFormatted("    ;; debug: deopt position, inlining id '%d'",
-                         static_cast<int>(relocinfo.data()));
-      } else if (rmode == RelocInfo::DEOPT_REASON) {
-        DeoptimizeReason reason =
-            static_cast<DeoptimizeReason>(relocinfo.data());
-        out.AddFormatted("    ;; debug: deopt reason '%s'",
-                         DeoptimizeReasonToString(reason));
-      } else if (rmode == RelocInfo::DEOPT_ID) {
-        out.AddFormatted("    ;; debug: deopt index %d",
-                         static_cast<int>(relocinfo.data()));
-      } else if (rmode == RelocInfo::EMBEDDED_OBJECT) {
-        HeapStringAllocator allocator;
-        StringStream accumulator(&allocator);
-        relocinfo.target_object()->ShortPrint(&accumulator);
-        std::unique_ptr<char[]> obj_name = accumulator.ToCString();
-        out.AddFormatted("    ;; object: %s", obj_name.get());
-      } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-        const char* reference_name = ref_encoder.NameOfAddress(
-            isolate, relocinfo.target_external_reference());
-        out.AddFormatted("    ;; external reference (%s)", reference_name);
-      } else if (RelocInfo::IsCodeTarget(rmode)) {
-        out.AddFormatted("    ;; code:");
-        Code* code = Code::GetCodeFromTargetAddress(relocinfo.target_address());
-        Code::Kind kind = code->kind();
-        if (code->is_inline_cache_stub()) {
-          out.AddFormatted(" %s", Code::Kind2String(kind));
-          if (kind == Code::BINARY_OP_IC || kind == Code::TO_BOOLEAN_IC ||
-              kind == Code::COMPARE_IC) {
-            InlineCacheState ic_state = IC::StateFromCode(code);
-            out.AddFormatted(" %s", Code::ICState2String(ic_state));
+    // If this is a constant pool load and we haven't found any RelocInfo
+    // already, check if we can find some RelocInfo for the target address in
+    // the constant pool.
+    if (pcs.is_empty() && converter.code() != nullptr) {
+      RelocInfo dummy_rinfo(prev_pc, RelocInfo::NONE32, 0, nullptr);
+      if (dummy_rinfo.IsInConstantPool()) {
+        byte* constant_pool_entry_address =
+            dummy_rinfo.constant_pool_entry_address();
+        RelocIterator reloc_it(converter.code());
+        while (!reloc_it.done()) {
+          if (reloc_it.rinfo()->IsInConstantPool() &&
+              (reloc_it.rinfo()->constant_pool_entry_address() ==
+               constant_pool_entry_address)) {
+            PrintRelocInfo(&out, isolate, ref_encoder, os, reloc_it.rinfo());
+            break;
           }
-        } else if (kind == Code::STUB || kind == Code::HANDLER) {
-          // Get the STUB key and extract major and minor key.
-          uint32_t key = code->stub_key();
-          uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
-          CodeStub::Major major_key = CodeStub::GetMajorKey(code);
-          DCHECK(major_key == CodeStub::MajorKeyFromKey(key));
-          out.AddFormatted(" %s, %s, ", Code::Kind2String(kind),
-                           CodeStub::MajorName(major_key));
-          out.AddFormatted("minor: %d", minor_key);
-        } else {
-          out.AddFormatted(" %s", Code::Kind2String(kind));
+          reloc_it.next();
         }
-        if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-          out.AddFormatted(" (id = %d)", static_cast<int>(relocinfo.data()));
-        }
-      } else if (RelocInfo::IsRuntimeEntry(rmode) &&
-                 isolate->deoptimizer_data() != NULL) {
-        // A runtime entry reloinfo might be a deoptimization bailout.
-        Address addr = relocinfo.target_address();
-        int id = Deoptimizer::GetDeoptimizationId(isolate,
-                                                  addr,
-                                                  Deoptimizer::EAGER);
-        if (id == Deoptimizer::kNotDeoptimizationEntry) {
-          id = Deoptimizer::GetDeoptimizationId(isolate,
-                                                addr,
-                                                Deoptimizer::LAZY);
-          if (id == Deoptimizer::kNotDeoptimizationEntry) {
-            id = Deoptimizer::GetDeoptimizationId(isolate,
-                                                  addr,
-                                                  Deoptimizer::SOFT);
-            if (id == Deoptimizer::kNotDeoptimizationEntry) {
-              out.AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
-            } else {
-              out.AddFormatted("    ;; soft deoptimization bailout %d", id);
-            }
-          } else {
-            out.AddFormatted("    ;; lazy deoptimization bailout %d", id);
-          }
-        } else {
-          out.AddFormatted("    ;; deoptimization bailout %d", id);
-        }
-      } else {
-        out.AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
       }
     }
+
     DumpBuffer(os, &out);
   }
 

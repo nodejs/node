@@ -46,12 +46,14 @@ FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
     v8::HandleScope handle_scope(isolate_);
     context_.Reset(isolate_, v8::Context::New(isolate_));
   }
+
+  v8::platform::EnsureEventLoopInitialized(platform_, isolate_);
 }
 
 FuzzerSupport::~FuzzerSupport() {
   {
     v8::Isolate::Scope isolate_scope(isolate_);
-    while (v8::platform::PumpMessageLoop(platform_, isolate_)) /* empty */
+    while (PumpMessageLoop()) /* empty */
       ;
 
     v8::HandleScope handle_scope(isolate_);
@@ -83,6 +85,11 @@ v8::Local<v8::Context> FuzzerSupport::GetContext() {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   return handle_scope.Escape(context);
+}
+
+bool FuzzerSupport::PumpMessageLoop(
+    v8::platform::MessageLoopBehavior behavior) {
+  return v8::platform::PumpMessageLoop(platform_, isolate_, behavior);
 }
 
 }  // namespace v8_fuzzer

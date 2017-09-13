@@ -320,7 +320,7 @@ void ObjectStatsCollector::CollectGlobalStatistics() {
                         OBJECT_TO_CODE_SUB_TYPE);
   RecordHashTableHelper(nullptr, heap_->code_stubs(),
                         CODE_STUBS_TABLE_SUB_TYPE);
-  RecordHashTableHelper(nullptr, heap_->empty_properties_dictionary(),
+  RecordHashTableHelper(nullptr, heap_->empty_property_dictionary(),
                         EMPTY_PROPERTIES_DICTIONARY_SUB_TYPE);
   CompilationCache* compilation_cache = heap_->isolate()->compilation_cache();
   CompilationCacheTableVisitor v(this);
@@ -335,7 +335,7 @@ static bool CanRecordFixedArray(Heap* heap, FixedArrayBase* array) {
          array != heap->empty_sloppy_arguments_elements() &&
          array != heap->empty_slow_element_dictionary() &&
          array != heap->empty_descriptor_array() &&
-         array != heap->empty_properties_dictionary();
+         array != heap->empty_property_dictionary();
 }
 
 static bool IsCowArray(Heap* heap, FixedArrayBase* array) {
@@ -393,27 +393,29 @@ void ObjectStatsCollector::RecordJSObjectDetails(JSObject* object) {
       SeededNumberDictionary* dict = SeededNumberDictionary::cast(elements);
       RecordHashTableHelper(object, dict, DICTIONARY_ELEMENTS_SUB_TYPE);
     } else {
-      if (IsFastHoleyElementsKind(object->GetElementsKind())) {
+      if (IsHoleyElementsKind(object->GetElementsKind())) {
         int used = object->GetFastElementsUsage() * kPointerSize;
-        if (object->GetElementsKind() == FAST_HOLEY_DOUBLE_ELEMENTS) used *= 2;
+        if (object->GetElementsKind() == HOLEY_DOUBLE_ELEMENTS) used *= 2;
         CHECK_GE(elements->Size(), used);
         overhead = elements->Size() - used - FixedArray::kHeaderSize;
       }
-      stats_->RecordFixedArraySubTypeStats(elements, FAST_ELEMENTS_SUB_TYPE,
+      stats_->RecordFixedArraySubTypeStats(elements, PACKED_ELEMENTS_SUB_TYPE,
                                            elements->Size(), overhead);
     }
   }
 
-  overhead = 0;
-  FixedArrayBase* properties = object->properties();
-  if (CanRecordFixedArray(heap_, properties) &&
-      SameLiveness(object, properties) && !IsCowArray(heap_, properties)) {
-    if (properties->IsDictionary()) {
-      NameDictionary* dict = NameDictionary::cast(properties);
-      RecordHashTableHelper(object, dict, DICTIONARY_PROPERTIES_SUB_TYPE);
-    } else {
-      stats_->RecordFixedArraySubTypeStats(properties, FAST_PROPERTIES_SUB_TYPE,
-                                           properties->Size(), overhead);
+  if (object->IsJSGlobalObject()) {
+    GlobalDictionary* properties =
+        JSGlobalObject::cast(object)->global_dictionary();
+    if (CanRecordFixedArray(heap_, properties) &&
+        SameLiveness(object, properties)) {
+      RecordHashTableHelper(object, properties, DICTIONARY_PROPERTIES_SUB_TYPE);
+    }
+  } else if (!object->HasFastProperties()) {
+    NameDictionary* properties = object->property_dictionary();
+    if (CanRecordFixedArray(heap_, properties) &&
+        SameLiveness(object, properties)) {
+      RecordHashTableHelper(object, properties, DICTIONARY_PROPERTIES_SUB_TYPE);
     }
   }
 }
@@ -462,8 +464,8 @@ void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
     }
   }
 
-  if (map_obj->has_code_cache()) {
-    FixedArray* code_cache = map_obj->code_cache();
+  FixedArray* code_cache = map_obj->code_cache();
+  if (code_cache->length() > 0) {
     if (code_cache->IsCodeCacheHashTable()) {
       RecordHashTableHelper(map_obj, CodeCacheHashTable::cast(code_cache),
                             MAP_CODE_CACHE_SUB_TYPE);

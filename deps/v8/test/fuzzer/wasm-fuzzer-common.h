@@ -29,7 +29,7 @@ class WasmExecutionFuzzer {
   virtual bool GenerateModule(
       Isolate* isolate, Zone* zone, const uint8_t* data, size_t size,
       ZoneBuffer& buffer, int32_t& num_args,
-      std::unique_ptr<WasmVal[]>& interpreter_args,
+      std::unique_ptr<WasmValue[]>& interpreter_args,
       std::unique_ptr<Handle<Object>[]>& compiler_args) = 0;
 };
 

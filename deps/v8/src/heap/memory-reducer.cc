@@ -197,7 +197,6 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
       }
   }
   UNREACHABLE();
-  return State(kDone, 0, 0, 0.0, 0);  // Make the compiler happy.
 }
 
 

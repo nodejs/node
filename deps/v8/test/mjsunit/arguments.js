@@ -352,3 +352,17 @@ assertEquals(117, arg_set(0xFFFFFFFF));
   args2.length = "aa"
   assertTrue(%HaveSameMap(args1, args2));
 })();
+
+
+(function testArgumentsVerification() {
+  (function f2(a,a) {
+    %HeapObjectVerify(arguments);
+  })(1,2);
+
+  function f7(a,a,a,a,a,a,a) {
+    %HeapObjectVerify(arguments);
+  };
+  f7(1,2,3,4,5,6);
+  f7(1,2,3,4,5,6,7);
+  f7(1,2,3,4,5,6,7,8);
+})();

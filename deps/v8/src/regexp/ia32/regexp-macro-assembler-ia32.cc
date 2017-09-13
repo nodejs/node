@@ -932,7 +932,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   }
 
   CodeDesc code_desc;
-  masm_->GetCode(&code_desc);
+  masm_->GetCode(masm_->isolate(), &code_desc);
   Handle<Code> code =
       isolate()->factory()->NewCode(code_desc,
                                     Code::ComputeFlags(Code::REGEXP),

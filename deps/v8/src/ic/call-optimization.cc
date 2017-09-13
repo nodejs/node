@@ -20,10 +20,8 @@ CallOptimization::CallOptimization(Handle<Object> function) {
   }
 }
 
-
 Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
-    Handle<Map> object_map, HolderLookup* holder_lookup,
-    int* holder_depth_in_prototype_chain) const {
+    Handle<Map> object_map, HolderLookup* holder_lookup) const {
   DCHECK(is_simple_api_call());
   if (!object_map->IsJSObjectMap()) {
     *holder_lookup = kHolderNotFound;
@@ -34,15 +32,11 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     *holder_lookup = kHolderIsReceiver;
     return Handle<JSObject>::null();
   }
-  for (int depth = 1; true; depth++) {
-    if (!object_map->has_hidden_prototype()) break;
+  if (object_map->has_hidden_prototype()) {
     Handle<JSObject> prototype(JSObject::cast(object_map->prototype()));
     object_map = handle(prototype->map());
     if (expected_receiver_type_->IsTemplateFor(*object_map)) {
       *holder_lookup = kHolderFound;
-      if (holder_depth_in_prototype_chain != NULL) {
-        *holder_depth_in_prototype_chain = depth;
-      }
       return prototype;
     }
   }
@@ -84,7 +78,6 @@ bool CallOptimization::IsCompatibleReceiverMap(Handle<Map> map,
       break;
   }
   UNREACHABLE();
-  return false;
 }
 
 void CallOptimization::Initialize(

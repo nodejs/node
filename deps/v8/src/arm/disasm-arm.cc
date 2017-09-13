@@ -343,7 +343,6 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
     return 5;
   }
   UNREACHABLE();
-  return -1;
 }
 
 
@@ -416,8 +415,8 @@ void Decoder::FormatNeonList(int Vd, int type) {
 
 
 void Decoder::FormatNeonMemory(int Rn, int align, int Rm) {
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                              "[r%d", Rn);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "[%s",
+                              converter_.NameOfCPURegister(Rn));
   if (align != 0) {
     out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                 ":%d", (1 << align) << 6);
@@ -427,8 +426,8 @@ void Decoder::FormatNeonMemory(int Rn, int align, int Rm) {
   } else if (Rm == 13) {
     Print("]!");
   } else {
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                "], r%d", Rm);
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "], %s",
+                                converter_.NameOfCPURegister(Rm));
   }
 }
 
@@ -686,7 +685,8 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
           return -1;
         }
       }
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%p", addr);
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%p",
+                                  static_cast<void*>(addr));
       return 1;
     }
     case 'S':
@@ -705,7 +705,6 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
   }
   UNREACHABLE();
-  return -1;
 }
 
 
@@ -1559,6 +1558,7 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
         (instr->VAValue() == 0x0)) {
       DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(instr);
     } else if ((instr->VLValue() == 0x0) && (instr->VCValue() == 0x1)) {
+      const char* rt_name = converter_.NameOfCPURegister(instr->RtValue());
       if (instr->Bit(23) == 0) {
         int opc1_opc2 = (instr->Bits(22, 21) << 2) | instr->Bits(6, 5);
         if ((opc1_opc2 & 0xb) == 0) {
@@ -1570,31 +1570,30 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
           }
         } else {
           int vd = instr->VFPNRegValue(kDoublePrecision);
-          int rt = instr->RtValue();
           if ((opc1_opc2 & 0x8) != 0) {
             // NeonS8 / NeonU8
             int i = opc1_opc2 & 0x7;
             out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vmov.8 d%d[%d], r%d", vd, i, rt);
+                                        "vmov.8 d%d[%d], %s", vd, i, rt_name);
           } else if ((opc1_opc2 & 0x1) != 0) {
             // NeonS16 / NeonU16
             int i = (opc1_opc2 >> 1) & 0x3;
             out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vmov.16 d%d[%d], r%d", vd, i, rt);
+                                        "vmov.16 d%d[%d], %s", vd, i, rt_name);
           } else {
             Unknown(instr);
           }
         }
       } else {
         int size = 32;
-        if (instr->Bit(5) != 0)
+        if (instr->Bit(5) != 0) {
           size = 16;
-        else if (instr->Bit(22) != 0)
+        } else if (instr->Bit(22) != 0) {
           size = 8;
+        }
         int Vd = instr->VFPNRegValue(kSimd128Precision);
-        int Rt = instr->RtValue();
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "vdup.%i q%d, r%d", size, Vd, Rt);
+                                    "vdup.%i q%d, %s", size, Vd, rt_name);
       }
     } else if ((instr->VLValue() == 0x1) && (instr->VCValue() == 0x1)) {
       int opc1_opc2 = (instr->Bits(22, 21) << 2) | instr->Bits(6, 5);
@@ -1607,19 +1606,20 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
         }
       } else {
         char sign = instr->Bit(23) != 0 ? 'u' : 's';
-        int rt = instr->RtValue();
+        const char* rt_name = converter_.NameOfCPURegister(instr->RtValue());
         int vn = instr->VFPNRegValue(kDoublePrecision);
         if ((opc1_opc2 & 0x8) != 0) {
           // NeonS8 / NeonU8
           int i = opc1_opc2 & 0x7;
-          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "vmov.%c8 r%d, d%d[%d]", sign, rt, vn, i);
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vmov.%c8 %s, d%d[%d]",
+                       sign, rt_name, vn, i);
         } else if ((opc1_opc2 & 0x1) != 0) {
           // NeonS16 / NeonU16
           int i = (opc1_opc2 >> 1) & 0x3;
           out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "vmov.%c16 r%d, d%d[%d]",
-                       sign, rt, vn, i);
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vmov.%c16 %s, d%d[%d]",
+                       sign, rt_name, vn, i);
         } else {
           Unknown(instr);
         }
@@ -2424,17 +2424,17 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
     case 0xA:
     case 0xB:
       if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xf)) {
-        int Rn = instr->Bits(19, 16);
+        const char* rn_name = converter_.NameOfCPURegister(instr->Bits(19, 16));
         int offset = instr->Bits(11, 0);
         if (offset == 0) {
           out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "pld [r%d]", Rn);
+              SNPrintF(out_buffer_ + out_buffer_pos_, "pld [%s]", rn_name);
         } else if (instr->Bit(23) == 0) {
           out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "pld [r%d, #-%d]", Rn, offset);
+                                      "pld [%s, #-%d]", rn_name, offset);
         } else {
           out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "pld [r%d, #+%d]", Rn, offset);
+                                      "pld [%s, #+%d]", rn_name, offset);
         }
       } else if (instr->SpecialValue() == 0xA && instr->Bits(22, 20) == 7) {
         int option = instr->Bits(3, 0);

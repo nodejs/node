@@ -92,6 +92,8 @@ class GlobalHandles {
     number_of_phantom_handle_resets_ = 0;
   }
 
+  size_t NumberOfNewSpaceNodes() { return new_space_nodes_.length(); }
+
   // Clear the weakness of a global handle.
   static void* ClearWeakness(Object** location);
 
@@ -118,6 +120,7 @@ class GlobalHandles {
   void IterateAllRoots(RootVisitor* v);
 
   void IterateAllNewSpaceRoots(RootVisitor* v);
+  void IterateNewSpaceRoots(RootVisitor* v, size_t start, size_t end);
 
   // Iterates over all handles that have embedder-assigned class ID.
   void IterateAllRootsWithClassIds(v8::PersistentHandleVisitor* v);
@@ -142,8 +145,13 @@ class GlobalHandles {
   // guaranteed to contain all handles holding new space objects (but
   // may also include old space objects).
 
-  // Iterates over strong and dependent handles. See the node above.
+  // Iterates over strong and dependent handles. See the note above.
   void IterateNewSpaceStrongAndDependentRoots(RootVisitor* v);
+
+  // Iterates over strong and dependent handles. See the note above.
+  // Also marks unmodified nodes in the same iteration.
+  void IterateNewSpaceStrongAndDependentRootsAndIdentifyUnmodified(
+      RootVisitor* v, size_t start, size_t end);
 
   // Finds weak independent or unmodified handles satisfying
   // the callback predicate and marks them as pending. See the note above.

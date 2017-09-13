@@ -46,7 +46,8 @@ function getStack(error) {
     filter(function(line) {
         return /^\s*at @?[a-zA-Z0-9_]/.test(line);
     }).
-    map(line => line.replace(/^\s*at (@?[a-zA-Z0-9_\.\[\]]+)(.*)/, "$1"));
+    map(line =>
+        line.replace(/^\s*at (@?(?:new )?[a-zA-Z0-9_\.\[\]]+)(.*)/, "$1"));
 
   // remove `Promise.then()` invocation by assertEqualsAsync()
   if (stack[2] === "assertEqualsAsync") return [];
@@ -96,6 +97,6 @@ assertEqualsAsync(
     }),
     "should call Promise[@@Species] after non-internal Then");
 assertEquals([
-  "@@Species: [@testThenOnReturnedPromise > Promise.then > FakePromise]",
+  "@@Species: [@testThenOnReturnedPromise > Promise.then > new FakePromise]",
   "Then: foo"
 ], log);

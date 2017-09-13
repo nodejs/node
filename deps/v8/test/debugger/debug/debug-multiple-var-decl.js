@@ -19,8 +19,9 @@ function f() {
   const l7 = 7,  // r
         l8 = 8,  // s
         l9 = 9;  // t
-  return 0;      // u
-}                // v
+  return 0       // u
+  ;              // v
+}
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
@@ -68,6 +69,6 @@ var expected = [
   "l11","n11",        // local var
   "o6","p11","q11",   // local let
   "r13","s13","t13",  // local const
-  "u2","v0",          // return
+  "u2","v3",          // return
 ];
 assertEquals(expected, log);

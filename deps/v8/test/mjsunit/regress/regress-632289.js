@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition --always-opt --allow-natives-syntax
+// Flags: --no-stress-fullcodegen --always-opt --allow-natives-syntax
 
 try {
 } catch(e) {; }

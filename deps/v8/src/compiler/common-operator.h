@@ -37,7 +37,6 @@ inline BranchHint NegateBranchHint(BranchHint hint) {
       return BranchHint::kTrue;
   }
   UNREACHABLE();
-  return hint;
 }
 
 inline size_t hash_value(BranchHint hint) { return static_cast<size_t>(hint); }

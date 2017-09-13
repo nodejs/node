@@ -23,8 +23,6 @@
 #include "src/mips64/assembler-mips64-inl.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/s390/assembler-s390-inl.h"
-#elif V8_TARGET_ARCH_X87
-#include "src/x87/assembler-x87-inl.h"
 #else
 #error Unknown architecture.
 #endif

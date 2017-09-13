@@ -20,7 +20,7 @@ import subprocess
 import sys
 
 # All arches that this script understands.
-ARCHES = ["ia32", "x64", "arm", "arm64", "mips", "mips64", "ppc", "s390", "x87"]
+ARCHES = ["ia32", "x64", "arm", "arm64", "mips", "mips64", "ppc", "s390"]
 
 def PrintHelpAndExit():
   print(__doc__)

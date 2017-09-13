@@ -35,7 +35,8 @@ void StoreBuffer::SetUp() {
   // Allocate 3x the buffer size, so that we can start the new store buffer
   // aligned to 2x the size.  This lets us use a bit test to detect the end of
   // the area.
-  virtual_memory_ = new base::VirtualMemory(kStoreBufferSize * 3);
+  virtual_memory_ =
+      new base::VirtualMemory(kStoreBufferSize * 3, heap_->GetRandomMmapAddr());
   uintptr_t start_as_int =
       reinterpret_cast<uintptr_t>(virtual_memory_->address());
   start_[0] =

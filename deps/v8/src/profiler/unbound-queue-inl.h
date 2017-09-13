@@ -66,7 +66,7 @@ void UnboundQueue<Record>::Enqueue(const Record& rec) {
 
 template<typename Record>
 bool UnboundQueue<Record>::IsEmpty() const {
-  return base::NoBarrier_Load(&divider_) == base::NoBarrier_Load(&last_);
+  return base::Relaxed_Load(&divider_) == base::Relaxed_Load(&last_);
 }
 
 

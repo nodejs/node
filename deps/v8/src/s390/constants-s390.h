@@ -17,6 +17,15 @@
 #include "src/base/macros.h"
 #include "src/globals.h"
 
+// UNIMPLEMENTED_ macro for S390.
+#ifdef DEBUG
+#define UNIMPLEMENTED_S390()                                               \
+  v8::internal::PrintF("%s, \tline %d: \tfunction %s not implemented. \n", \
+                       __FILE__, __LINE__, __func__)
+#else
+#define UNIMPLEMENTED_S390()
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -2084,7 +2093,6 @@ class Instruction {
     }
 
     UNREACHABLE();
-    return static_cast<Opcode>(-1);
   }
 
   // Fields used in Software interrupt instructions
