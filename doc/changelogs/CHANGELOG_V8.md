@@ -72,8 +72,7 @@
 * **perf_hooks**
   * An initial implementation of the Performance Timing API for Node.js. This is the
     same Performance Timing API implemented by modern browsers with a number of Node.js
-    specific properties. The User Timing mark() and measure() APIs are implemented,
-    as is a Node.js specific flavor of the Frame Timing for measuring event loop duration.
+    specific properties. The User Timing mark() and measure() APIs are implemented.
     [#14680](https://github.com/nodejs/node/pull/14680)
 * **tls**
   * multiple PFX in createSecureContext
