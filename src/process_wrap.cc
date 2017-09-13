@@ -211,6 +211,13 @@ class ProcessWrap : public HandleWrap {
     // options.stdio
     ParseStdioOptions(env, js_options, &options);
 
+    // options.windowsHide
+    Local<String> windows_hide_key = env->windows_hide_string();
+
+    if (js_options->Get(windows_hide_key)->IsTrue()) {
+      options.flags |= UV_PROCESS_WINDOWS_HIDE;
+    }
+
     // options.windows_verbatim_arguments
     Local<String> windows_verbatim_arguments_key =
         env->windows_verbatim_arguments_string();
