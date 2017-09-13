@@ -26,8 +26,8 @@ const assert = require('assert');
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
 // Support legacy API
-assert.strictEqual('number', typeof process.stdout.fd);
-assert.strictEqual('number', typeof process.stderr.fd);
+assert.strictEqual(typeof process.stdout.fd, 'number');
+assert.strictEqual(typeof process.stderr.fd, 'number');
 
 assert.doesNotThrow(function() {
   process.once('warning', common.mustCall((warning) => {
@@ -143,19 +143,19 @@ const expectedStrings = [
 ];
 
 for (const expected of expectedStrings) {
-  assert.strictEqual(`${expected}\n`, strings.shift());
-  assert.strictEqual(`${expected}\n`, errStrings.shift());
+  assert.strictEqual(strings.shift(), `${expected}\n`);
+  assert.strictEqual(errStrings.shift(), `${expected}\n`);
 }
 
 for (const expected of expectedStrings) {
-  assert.strictEqual(`${expected}\n`, strings.shift());
-  assert.strictEqual(`${expected}\n`, errStrings.shift());
+  assert.strictEqual(strings.shift(), `${expected}\n`);
+  assert.strictEqual(errStrings.shift(), `${expected}\n`);
 }
 
-assert.strictEqual("{ foo: 'bar', inspect: [Function: inspect] }\n",
-                   strings.shift());
-assert.strictEqual("{ foo: 'bar', inspect: [Function: inspect] }\n",
-                   strings.shift());
+assert.strictEqual(strings.shift(),
+                   "{ foo: 'bar', inspect: [Function: inspect] }\n");
+assert.strictEqual(strings.shift(),
+                   "{ foo: 'bar', inspect: [Function: inspect] }\n");
 assert.ok(strings.shift().includes('foo: [Object]'));
 assert.strictEqual(strings.shift().includes('baz'), false);
 assert.ok(/^label: \d+\.\d{3}ms$/.test(strings.shift().trim()));
@@ -163,15 +163,15 @@ assert.ok(/^__proto__: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^constructor: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 
-assert.strictEqual('Trace: This is a {"formatted":"trace"} 10 foo',
-                   errStrings.shift().split('\n').shift());
+assert.strictEqual(errStrings.shift().split('\n').shift(),
+                   'Trace: This is a {"formatted":"trace"} 10 foo');
 
-assert.throws(() => {
+common.expectsError(() => {
   console.assert(false, 'should throw');
-}, common.expectsError({
+}, {
   code: 'ERR_ASSERTION',
   message: /^should throw$/
-}));
+});
 
 assert.doesNotThrow(() => {
   console.assert(true, 'this should not throw');
