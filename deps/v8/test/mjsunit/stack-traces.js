@@ -391,9 +391,7 @@ assertTrue(desc.writable);
 
 // Check that exceptions thrown within prepareStackTrace throws an exception.
 Error.prepareStackTrace = function(e, frames) { throw 42; }
-
-var x = {}
-assertThrows(() => Error.captureStackTrace(x));
+assertThrows(() => new Error().stack);
 
 // Check that we don't crash when CaptureSimpleStackTrace returns undefined.
 var o = {};
