@@ -522,7 +522,7 @@ dtrace:helper:ustack:
 		NO_SHARED_FUNCTION_NAME_SENTINEL;
 }
 
-dtracr:helper:ustack:
+dtrace:helper:ustack:
 /!this->done && this->hassharedname/
 {
 	LOAD_STRFIELDS(this->funcrawnamestr, this->funcnamelen,
