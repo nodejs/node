@@ -31,7 +31,6 @@
 #include "v8-profiler.h"
 
 using v8::Array;
-using v8::ArrayBuffer;
 using v8::Context;
 using v8::Float64Array;
 using v8::Function;
@@ -53,7 +52,6 @@ using v8::RetainedObjectInfo;
 using v8::String;
 using v8::Symbol;
 using v8::TryCatch;
-using v8::Uint32Array;
 using v8::Undefined;
 using v8::Value;
 
@@ -512,13 +510,9 @@ void AsyncWrap::Initialize(Local<Object> target,
   // callbacks waiting to be called on a particular event. It can then be
   // incremented/decremented from JS quickly to communicate to C++ if there are
   // any callbacks waiting to be called.
-  uint32_t* fields_ptr = env->async_hooks()->fields();
-  int fields_count = env->async_hooks()->fields_count();
-  Local<ArrayBuffer> fields_ab =
-      ArrayBuffer::New(isolate, fields_ptr, fields_count * sizeof(*fields_ptr));
   FORCE_SET_TARGET_FIELD(target,
                          "async_hook_fields",
-                         Uint32Array::New(fields_ab, 0, fields_count));
+                         env->async_hooks()->fields().GetJSArray());
 
   // The following v8::Float64Array has 5 fields. These fields are shared in
   // this way to allow JS and C++ to read/write each value as quickly as
@@ -529,15 +523,9 @@ void AsyncWrap::Initialize(Local<Object> target,
   // kInitTriggerId: Write the id of the resource responsible for a handle's
   //   creation just before calling the new handle's constructor. After the new
   //   handle is constructed kInitTriggerId is set back to 0.
-  double* uid_fields_ptr = env->async_hooks()->uid_fields();
-  int uid_fields_count = env->async_hooks()->uid_fields_count();
-  Local<ArrayBuffer> uid_fields_ab = ArrayBuffer::New(
-      isolate,
-      uid_fields_ptr,
-      uid_fields_count * sizeof(*uid_fields_ptr));
   FORCE_SET_TARGET_FIELD(target,
                          "async_uid_fields",
-                         Float64Array::New(uid_fields_ab, 0, uid_fields_count));
+                         env->async_hooks()->uid_fields().GetJSArray());
 
   Local<Object> constants = Object::New(isolate);
 #define SET_HOOKS_CONSTANT(name)                                              \
