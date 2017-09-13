@@ -227,6 +227,20 @@ never have reason to call this.
 If `multicastInterface` is not specified, the operating system will attempt to
 drop membership on all valid interfaces.
 
+### socket.getRecvBufferSize(size)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns {number} the `SO_RCVBUF` socket receive buffer size in bytes.
+
+### socket.getSendBufferSize(size)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns {number} the `SO_SNDBUF` socket send buffer size in bytes.
+
 ### socket.ref()
 <!-- YAML
 added: v0.9.1
@@ -398,6 +412,26 @@ decremented to 0 by a router, it will not be forwarded.
 The argument passed to to `socket.setMulticastTTL()` is a number of hops
 between 0 and 255. The default on most systems is `1` but can vary.
 
+### socket.setRecvBufferSize(size)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `size` {number} Integer
+
+Sets the `SO_RCVBUF` socket option. Sets the maximum socket receive buffer
+in bytes.
+
+### socket.setSendBufferSize(size)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `size` {number} Integer
+
+Sets the `SO_SNDBUF` socket option. Sets the maximum socket send buffer
+in bytes.
+
 ### socket.setTTL(ttl)
 <!-- YAML
 added: v0.1.101
@@ -461,6 +495,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/14560
     description: The `lookup` option is supported.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/13623
+    description: `recvBufferSize` and `sendBufferSize` options are supported now.
 -->
 
 * `options` {Object} Available options are:
@@ -469,6 +506,8 @@ changes:
   * `reuseAddr` {boolean} When `true` [`socket.bind()`][] will reuse the
     address, even if another process has already bound a socket on it. Optional.
     Defaults to `false`.
+  * `recvBufferSize` {number} - Optional. Sets the `SO_RCVBUF` socket value.
+  * `sendBufferSize` {number} - Optional. Sets the `SO_SNDBUF` socket value.
   * `lookup` {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
     Optional.
 * `callback` {Function} Attached as a listener for `'message'` events. Optional.
