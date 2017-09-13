@@ -38,7 +38,8 @@
    require it! */
 #if defined(_AIX) || defined(__NOVELL_LIBC__) || defined(__NetBSD__) || \
     defined(__minix) || defined(__SYMBIAN32__) || defined(__INTEGRITY) || \
-    defined(ANDROID) || defined(__ANDROID__) || defined(__OpenBSD__)
+    defined(ANDROID) || defined(__ANDROID__) || defined(__OpenBSD__) || \
+    defined(__QNXNTO__)
 #include <sys/select.h>
 #endif
 #if (defined(NETWARE) && !defined(__NOVELL_LIBC__))
@@ -355,6 +356,27 @@ CARES_EXTERN void ares_set_socket_configure_callback(ares_channel channel,
 
 CARES_EXTERN int ares_set_sortlist(ares_channel channel,
                                    const char *sortstr);
+
+/*
+ * Virtual function set to have user-managed socket IO.
+ * Note that all functions need to be defined, and when
+ * set, the library will not do any bind nor set any
+ * socket options, assuming the client handles these
+ * through either socket creation or the
+ * ares_sock_config_callback call.
+ */
+struct iovec;
+struct ares_socket_functions {
+   ares_socket_t(*asocket)(int, int, int, void *);
+   int(*aclose)(ares_socket_t, void *);
+   int(*aconnect)(ares_socket_t, const struct sockaddr *, ares_socklen_t, void *);
+   ares_ssize_t(*arecvfrom)(ares_socket_t, void *, size_t, int, struct sockaddr *, ares_socklen_t *, void *);
+   ares_ssize_t(*asendv)(ares_socket_t, const struct iovec *, int, void *);
+};
+
+CARES_EXTERN void ares_set_socket_functions(ares_channel channel,
+					    const struct ares_socket_functions * funcs,
+					    void *user_data);
 
 CARES_EXTERN void ares_send(ares_channel channel,
                             const unsigned char *qbuf,

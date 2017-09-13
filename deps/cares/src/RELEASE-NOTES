@@ -1,46 +1,53 @@
-c-ares version 1.12.0
+c-ares version 1.13.0
 
 Changes:
 
- o api: add ARES_OPT_NOROTATE optmask value
+ o cmake build system support added
+ o Add virtual function set for socket IO: ares_set_socket_functions [5]
 
 Bug fixes:
 
- o CVE-2016-5180: ares_create_query single byte out of buffer write [4]
- o configure: acknowledge --disable-tests [1]
- o man pages: fix typos detected by Lintian
- o test: add missing #includes for dns-proto.cc
- o test: avoid in6addr_* constants
- o test: Build with MinGW on AppVeyor
- o Makefile.m32: add support for extra flags
- o Makefile.m32: add support for CROSSPREFIX
- o configure: check if tests can get built before enabled
- o ares_library_cleanup: reset ares_realloc too
- o ahost.c: add cast to fix C++ compile
- o test: Only pass unused args to GoogleTest
- o build: commonize MSVC version detection
- o msvc_ver.inc: support Visual Studio 2015 Update 1, 2, 3
- o test: for AF_UNSPEC, return CNAME only for AAAA, but valid A record
- o ares_getnameinfo: explicitly clear struct servent before use
- o test: Update fuzzing function prototype
- o init: fix nsort initialization
- o test: add fuzzing check script to tests
- o web: http => https
- o read_tcp_data: remove superfluous NULL check
- o LICENSE.md: add a stand-alone license file
- o SECURITY.md: suggested "security process" for the project
- o ares_init_options: only propagate init failures from options [2]
- o headers: remove checks for and defines of variable sizes
- o test: fix gMock to work with gcc >= 6.x [3]
- 
+ o CVE-2017-1000381: c-ares NAPTR parser out of bounds access [1]
+ o macos: do not set HAVE_CLOCK_GETTIME_MONOTONIC
+ o test: check ares_create_query with too-long name
+ o dist: add ares_library_initialized.* to the tarball
+ o fix build on OpenBSD
+ o dist: ship msvc_ver.inc too [2]
+ o test: Add gTest/gMock files to SOURCES
+ o test: add fuzz entrypoint for ares_create_query()
+ o configure: clock_gettime workaround [3]
+ o docs: convert INSTALL to MarkDown & tweak [4]
+ o ares_process: fix return type of socket_create function (win32 warning)
+ o docs: fixed references to ares_set_local_ip4 and ares_set_local_ip6
+ o Windows DNS server sorting [6]
+ o Use ares_socklen_t instead of socket_t [7]
+ o ares_create_query: use ares_free not naked free
+ o msvc_ver.inc support most recent Visual Studio 2017 [8]
+ o acountry: Convert char from ISO-8859-1 to UTF-8 [9]
+ o ares_expand_name: limit number of indirections
+ o configure: do not check for ar if specified manually [10]
+ o Added support for Windows DNS Suffix Search List [11]
+ o ares.h: support compiling with QNX [12]
+
 Thanks go to these friendly people for their efforts and contributions:
 
-  Alexander Drachevskiy, Brad House, Chris Araman, Daniel Stenberg,
-  David Drysdale, Gregor Jasny, Svante Karlsson, Viktor Szakats
+  Aaron Bieber, Andrew Sullivan, Brad House, Bruce Stephens, Calle Wilund,
+  Chris Araman, Christian Ammer, Daniel Stenberg, David Drysdale, David Hotham,
+  Dionna Glaze, Gregor Jasny, Michael Osei, Mulle kybernetiK, noiz at github,
+  Sergii Pylypenko, Stephen Sorley, Thomas Köckerbauer,
+  (18 contributors)
 
 References to bug reports and discussions on issues:
 
- [1] = https://github.com/c-ares/c-ares/issues/44
- [2] = https://github.com/c-ares/c-ares/issues/60
- [3] = https://github.com/google/googletest/issues/705#issuecomment-235067917
- [4] = https://c-ares.haxx.se/adv_20160929.html
+ [1] = https://c-ares.haxx.se/adv_20170620.html
+ [2] = https://github.com/c-ares/c-ares/issues/69
+ [3] = https://github.com/c-ares/c-ares/issues/71
+ [4] = https://github.com/c-ares/c-ares/issues/83
+ [5] = https://github.com/c-ares/c-ares/issues/72
+ [6] = https://github.com/c-ares/c-ares/issues/81
+ [7] = https://github.com/c-ares/c-ares/issues/92
+ [8] = https://github.com/c-ares/c-ares/issues/101
+ [9] = https://github.com/c-ares/c-ares/issues/97
+ [10] = https://github.com/c-ares/c-ares/issues/62
+ [11] = https://github.com/c-ares/c-ares/issues/93
+ [12] = https://github.com/c-ares/c-ares/issues/113

@@ -19,6 +19,9 @@
 /* Definition to make a library symbol externally visible. */
 #define CARES_SYMBOL_SCOPE_EXTERN __attribute__ ((__visibility__ ("default")))
 
+/* the signed version of size_t */
+#define CARES_TYPEOF_ARES_SSIZE_T ssize_t
+
 /* Use resolver library to configure cares */
 /* #undef CARES_USE_LIBRESOLV */
 
@@ -351,7 +354,7 @@
 /* #undef NEED_THREAD_SAFE */
 
 /* cpu-machine-OS */
-#define OS "x86_64-apple-darwin14.5.0"
+#define OS "x86_64-apple-darwin16.7.0"
 
 /* Name of package */
 #define PACKAGE "c-ares"
@@ -363,7 +366,7 @@
 #define PACKAGE_NAME "c-ares"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "c-ares 1.12.0"
+#define PACKAGE_STRING "c-ares 1.13.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "c-ares"
@@ -372,7 +375,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.12.0"
+#define PACKAGE_VERSION "1.13.0"
 
 /* a suitable file/device to read random data from */
 #define RANDOM_FILE "/dev/urandom"
@@ -456,7 +459,7 @@
 /* #undef USE_BLOCKING_SOCKETS */
 
 /* Version number of package */
-#define VERSION "1.12.0"
+#define VERSION "1.13.0"
 
 /* Define to avoid automatic inclusion of winsock.h */
 /* #undef WIN32_LEAN_AND_MEAN */
@@ -497,6 +500,3 @@
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */
-
-/* the signed version of size_t */
-/* #undef ssize_t */

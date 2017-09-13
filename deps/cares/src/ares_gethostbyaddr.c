@@ -157,7 +157,7 @@ static void addr_callback(void *arg, int status, int timeouts,
         }
       end_aquery(aquery, status, host);
     }
-  else if (status == ARES_EDESTRUCTION || status == ARES_ECANCELLED)
+  else if (status == ARES_EDESTRUCTION)
     end_aquery(aquery, status, NULL);
   else
     next_lookup(aquery);
