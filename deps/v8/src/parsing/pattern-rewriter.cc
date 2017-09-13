@@ -26,6 +26,7 @@ void Parser::PatternRewriter::DeclareAndInitializeVariables(
   rewriter.context_ = BINDING;
   rewriter.pattern_ = declaration->pattern;
   rewriter.initializer_position_ = declaration->initializer_position;
+  rewriter.value_beg_position_ = declaration->value_beg_position;
   rewriter.block_ = block;
   rewriter.descriptor_ = declaration_descriptor;
   rewriter.names_ = names;
@@ -190,58 +191,24 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // 'with' statement or 'catch' block). Global var declarations
   // also need special treatment.
 
-  if (descriptor_->mode == VAR && var_init_scope->is_script_scope()) {
-    // Global variable declarations must be compiled in a specific
-    // way. When the script containing the global variable declaration
-    // is entered, the global variable must be declared, so that if it
-    // doesn't exist (on the global object itself, see ES5 errata) it
-    // gets created with an initial undefined value. This is handled
-    // by the declarations part of the function representing the
-    // top-level global code; see Runtime::DeclareGlobalVariable. If
-    // it already exists (in the object or in a prototype), it is
-    // *not* touched until the variable declaration statement is
-    // executed.
-    //
-    // Executing the variable declaration statement will always
-    // guarantee to give the global object an own property.
-    // This way, global variable declarations can shadow
-    // properties in the prototype chain, but only after the variable
-    // declaration statement has been executed. This is important in
-    // browsers where the global object (window) has lots of
-    // properties defined in prototype objects.
-
-    ZoneList<Expression*>* arguments =
-        new (zone()) ZoneList<Expression*>(3, zone());
-    arguments->Add(
-        factory()->NewStringLiteral(name, descriptor_->declaration_pos),
-        zone());
-    arguments->Add(factory()->NewNumberLiteral(var_init_scope->language_mode(),
-                                               kNoSourcePosition),
-                   zone());
-    arguments->Add(value, zone());
-
-    CallRuntime* initialize = factory()->NewCallRuntime(
-        Runtime::kInitializeVarGlobal, arguments, value->position());
-    block_->statements()->Add(
-        factory()->NewExpressionStatement(initialize, initialize->position()),
-        zone());
+  // For 'let' and 'const' declared variables the initialization always
+  // assigns to the declared variable.
+  // But for var declarations we need to do a new lookup.
+  if (descriptor_->mode == VAR) {
+    proxy = var_init_scope->NewUnresolved(factory(), name);
   } else {
-    // For 'let' and 'const' declared variables the initialization always
-    // assigns to the declared variable.
-    // But for var declarations we need to do a new lookup.
-    if (descriptor_->mode == VAR) {
-      proxy = var_init_scope->NewUnresolved(factory(), name);
-    } else {
-      DCHECK_NOT_NULL(proxy);
-      DCHECK_NOT_NULL(proxy->var());
-    }
-    // Add break location for destructured sub-pattern.
-    int pos = IsSubPattern() ? pattern->position() : value->position();
-    Assignment* assignment =
-        factory()->NewAssignment(Token::INIT, proxy, value, pos);
-    block_->statements()->Add(
-        factory()->NewExpressionStatement(assignment, pos), zone());
+    DCHECK_NOT_NULL(proxy);
+    DCHECK_NOT_NULL(proxy->var());
   }
+  // Add break location for destructured sub-pattern.
+  int pos = value_beg_position_;
+  if (pos == kNoSourcePosition) {
+    pos = IsSubPattern() ? pattern->position() : value->position();
+  }
+  Assignment* assignment =
+      factory()->NewAssignment(Token::INIT, proxy, value, pos);
+  block_->statements()->Add(factory()->NewExpressionStatement(assignment, pos),
+                            zone());
 }
 
 
@@ -322,11 +289,13 @@ void Parser::PatternRewriter::VisitRewritableExpression(
   set_context(old_context);
 }
 
+// When an extra declaration scope needs to be inserted to account for
+// a sloppy eval in a default parameter or function body, the expressions
+// needs to be in that new inner scope which was added after initial
+// parsing.
 bool Parser::PatternRewriter::DeclaresParameterContainingSloppyEval() const {
-  // Need to check for a binding context to make sure we have a descriptor.
-  if (IsBindingContext() &&
-      // Only relevant for parameters.
-      descriptor_->declaration_kind == DeclarationDescriptor::PARAMETER &&
+  DCHECK(IsBindingContext());
+  if (descriptor_->declaration_kind == DeclarationDescriptor::PARAMETER &&
       // And only when scope is a block scope;
       // without eval, it is a function scope.
       scope()->is_block_scope()) {
@@ -339,13 +308,12 @@ bool Parser::PatternRewriter::DeclaresParameterContainingSloppyEval() const {
   return false;
 }
 
-// When an extra declaration scope needs to be inserted to account for
-// a sloppy eval in a default parameter or function body, the expressions
-// needs to be in that new inner scope which was added after initial
-// parsing.
 void Parser::PatternRewriter::RewriteParameterScopes(Expression* expr) {
-  if (DeclaresParameterContainingSloppyEval()) {
-    ReparentParameterExpressionScope(parser_->stack_limit(), expr, scope());
+  if (!IsBindingContext()) return;
+  if (DeclaresParameterContainingSloppyEval() ||
+      descriptor_->declaration_kind ==
+          DeclarationDescriptor::LEXICAL_FOR_EACH) {
+    ReparentExpressionScope(parser_->stack_limit(), expr, scope());
   }
 }
 
@@ -364,7 +332,8 @@ void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
     rest_runtime_callargs->Add(factory()->NewVariableProxy(temp), zone());
   }
 
-  block_->statements()->Add(parser_->BuildAssertIsCoercible(temp), zone());
+  block_->statements()->Add(parser_->BuildAssertIsCoercible(temp, pattern),
+                            zone());
 
   for (ObjectLiteralProperty* property : *pattern->properties()) {
     PatternContext context = SetInitializerContextIfNeeded(property->value());
@@ -430,9 +399,9 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
   DCHECK(block_->ignore_completion_value());
 
   auto temp = *temp_var = CreateTempVar(current_value_);
-  auto iterator = CreateTempVar(
-      factory()->NewGetIterator(factory()->NewVariableProxy(temp),
-                                IteratorType::kNormal, kNoSourcePosition));
+  auto iterator = CreateTempVar(factory()->NewGetIterator(
+      factory()->NewVariableProxy(temp), current_value_, IteratorType::kNormal,
+      current_value_->position()));
   auto done =
       CreateTempVar(factory()->NewBooleanLiteral(false, kNoSourcePosition));
   auto result = CreateTempVar();
@@ -762,7 +731,9 @@ NOT_A_PATTERN(UnaryOperation)
 NOT_A_PATTERN(VariableDeclaration)
 NOT_A_PATTERN(WhileStatement)
 NOT_A_PATTERN(WithStatement)
-NOT_A_PATTERN(Suspend)
+NOT_A_PATTERN(Yield)
+NOT_A_PATTERN(YieldStar)
+NOT_A_PATTERN(Await)
 
 #undef NOT_A_PATTERN
 }  // namespace internal

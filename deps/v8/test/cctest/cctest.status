@@ -36,9 +36,6 @@
   # maintain it until the CL is done.
   'test-heap-profiler/AllocationSitesAreVisible': [FAIL],
 
-  # BUG(382): Weird test. Can't guarantee that it never times out.
-  'test-api/ApplyInterruption': [PASS, TIMEOUT],
-
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
   'test-serialize/TestThatAlwaysFails': [FAIL],
@@ -59,7 +56,7 @@
   'test-weaksets/WeakSet_Shrinking': [FAIL],
 
   # Boot up memory use is bloated in debug mode.
-  'test-mark-compact/BootUpMemoryUse': [PASS, PASS, ['mode == debug', FAIL]],
+  'test-mark-compact/BootUpMemoryUse': [PASS, ['mode == debug', FAIL]],
 
   # This tests only that the preparser and parser agree, so there is no point in
   # running several variants. Note that this still takes ages, because there
@@ -67,26 +64,22 @@
   'test-parsing/ParserSync': [PASS, NO_VARIANTS],
 
   # This tests only the type system, no point in running several variants.
-  'test-hydrogen-types/*': [PASS, NO_VARIANTS],
   'test-types/*': [PASS, NO_VARIANTS],
-  'test-ast-types/*': [PASS, NO_VARIANTS],
 
   # This tests API threading, no point in running several variants.
   'test-api/Threading*': [PASS, SLOW, NO_VARIANTS],
 
-  # BUG(2999). The cpu profiler tests are notoriously flaky.
-  'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
+  # BUG(5193). The cpu profiler tests are notoriously flaky.
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
-  'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
-  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
-
-  # BUG(v8:5193): Flaky.
   'test-cpu-profiler/CollectDeoptEvents': [SKIP],
+  'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
   'test-cpu-profiler/FunctionApplySample': [SKIP],
+  'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
+  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
@@ -119,9 +112,6 @@
 
 ##############################################################################
 ['arch == arm64', {
-
-  'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
-
   'test-api/Bug618': [PASS],
 
   # BUG(v8:3385).
@@ -147,8 +137,8 @@
 ['arch == arm64 and simulator_run', {
 
   # Pass but take too long with the simulator.
-  'test-api/ExternalArrays': [PASS, TIMEOUT],
-  'test-api/Threading*': [PASS, SKIP],
+  'test-api/ExternalArrays': [PASS, SLOW],
+  'test-api/Threading*': [SKIP],
 }],  # 'arch == arm64 and simulator_run'
 
 ['arch == arm64 and mode == debug and simulator_run', {
@@ -160,21 +150,12 @@
   'test-api/ExternalFloatArray': [SKIP],
   'test-api/Float32Array': [SKIP],
   'test-api/Float64Array': [SKIP],
-
-  # BUG(v8:5193): Flaky crash.
-  'test-sampler/LibSamplerCollectSample': [SKIP],
 }],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
-
-  # BUG(v8:5243).
-  'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
-  'test-cpu-profiler/JsNativeJsSample': [SKIP],
 
   # BUG(v8:5193): Flaky.
   'test-cpu-profiler/TickEvents': [SKIP],
@@ -184,9 +165,6 @@
 ['msan == True', {
   # ICU upstream issues.
   'test-strings/CountBreakIterator': [SKIP],
-
-  # Slow tests.
-  'test-api/Threading*': [PASS, SLOW],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -232,15 +210,7 @@
   'test-lockers/LockAndUnlockDifferentIsolates': [PASS, NO_VARIANTS],
 
   # BUG(v8:2999,v8:4751).
-  'test-cpu-profiler/CollectDeoptEvents': [SKIP],
   'test-cpu-profiler/FunctionCallSample': [SKIP],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
-  'test-cpu-profiler/JsNativeJsSample': [SKIP],
-  'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
-
-  # BUG(5193): Flaky timeout.
-  'test-sampler/LibSamplerCollectSample': [PASS, ['arch == x64', SKIP]],
 
   # BUG(5920): Flaky crash.
   'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
@@ -258,24 +228,13 @@
 }],  # 'system == windows and arch == x64 and mode == debug'
 
 ##############################################################################
-['system == macos', {
-  # BUG(v8:5193) Flaky failures.
-  'test-cpu-profiler/JsNativeJsSample': [SKIP],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
-}],  # 'system == macos'
-
-##############################################################################
 ['arch == arm and simulator_run', {
-
   # Pass but take too long with the simulator.
-  'test-api/Threading*': [PASS, SKIP],
+  'test-api/Threading*': [SKIP],
 }],  # 'arch == arm and simulator_run'
 
 ##############################################################################
 ['arch == arm', {
-
-  'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
-
   # BUG(355): Test crashes on ARM.
   'test-log/ProfLazyMode': [SKIP],
 
@@ -284,16 +243,10 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
-
-  ############################################################################
-  # Slow tests.
-  'test-api/Threading*': [PASS, SLOW],
 }],  # 'arch == arm'
 
 ##############################################################################
 ['arch == mipsel or arch == mips', {
-  'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
-
   # TODO(mips-team): Improve code-size on large RegExp's.
   'test-heap/TestSizeOfRegExpCode':  [SKIP],
 
@@ -313,15 +266,10 @@
   'test-parsing/TooManyArguments': [SKIP],
   'test-api/Threading5': [SKIP],
   'test-api/Threading6': [SKIP],
-
-  # BUG(v8:5193): Flaky timeout.
-  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################
 ['arch == mips64el or arch == mips64', {
-  'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
-
   # BUG(v8:3154).
   'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
 
@@ -337,38 +285,11 @@
 
 ##############################################################################
 ['arch == mips or arch == mipsel or arch == mips64 or arch == mips64el', {
-  # For now skip WASM SIMD tests that fail when MSA instr. extension is not
+  # For now skip wasm SIMD tests that fail when MSA instr. extension is not
   # available (currently simd-scalar-lowering mechanism doesn't work properly
   # for all SIMD operations)
-  'test-run-wasm-simd/RunWasmCompiled_S32x4Select': [SKIP],
-  'test-run-wasm-simd/RunWasmCompiled_F32x4RecipSqrtApprox': [SKIP],
-  'test-run-wasm-simd/RunWasmCompiled_F32x4RecipApprox': [SKIP],
+  'test-run-wasm-simd/*': [SKIP],
 }],  # 'arch == mips or arch == mipsel or arch == mips64 or arch == mips64el'
-
-##############################################################################
-['arch == x87', {
-  'test-run-machops/RunFloat64InsertLowWord32': [SKIP],
-  'test-run-native-calls/MixedParams_0': [SKIP],
-  'test-run-native-calls/MixedParams_1': [SKIP],
-  'test-run-native-calls/MixedParams_2': [SKIP],
-  'test-run-native-calls/MixedParams_3': [SKIP],
-  'test-run-machops/RunFloat64MulAndFloat64Add1': [SKIP],
-  'test-run-machops/RunFloat64MulAndFloat64Add2': [SKIP],
-  'test-run-machops/RunFloat64MulAndFloat64Sub1': [SKIP],
-  'test-run-machops/RunFloat64MulAndFloat64Sub2': [SKIP],
-  'test-run-machops/RunFloat64Sin': [SKIP],
-  'test-run-machops/RunFloat64Cos': [SKIP],
-  'test-run-machops/RunFloat64Expm1': [SKIP],
-  'test-run-machops/RunFloat64Tan': [SKIP],
-  'test-cpu-profiler/Inlining': [SKIP],
-  'test-gap-resolver/FuzzResolver': [SKIP],
-  'test-run-wasm/RunWasmCompiled_MultiReturnSelect_f32': [SKIP],
-  'test-run-wasm/RunWasmCompiled_MultiReturnSelect_f64': [SKIP],
-  'test-run-wasm/RunWasmCompiled_SignallingNanSurvivesI32ReinterpretF32': [SKIP],
-  'test-run-wasm-64/RunWasmCompiled_SignallingNanSurvivesI64ReinterpretF64': [SKIP],
-  'test-run-wasm/RunWasmInterpreted_SignallingNanSurvivesI32ReinterpretF32': [SKIP],
-  'test-run-wasm-64/RunWasmInterpreted_SignallingNanSurvivesI64ReinterpretF64': [SKIP],
-}],  # 'arch == x87'
 
 ##############################################################################
 ['arch == android_arm or arch == android_ia32', {
@@ -397,6 +318,7 @@
   'test-run-wasm-module/Run_WasmModule_CallMain_recursive' : [SKIP],
   # TODO(ppc): Implement load/store reverse byte instructions
   'test-run-wasm-simd/RunWasmCompiled_SimdLoadStoreLoad': [SKIP],
+  'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad': [SKIP],
 
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
@@ -408,25 +330,6 @@
   'test-api/ExternalArrays': [PASS, SLOW],
 
 }],  # 'arch == ppc64 and simulator_run'
-
-##############################################################################
-['variant == turbofan_opt', {
-  # BUG(v8:5457)
-  'test-api/SetJitCodeEventHandler': [PASS, ['no_snap', SKIP]],
-}],  # variant == turbofan_opt
-
-##############################################################################
-['variant == turbofan', {
-  # BUG(4751). Flaky with Ignition.
-  'test-cpu-profiler/JsNativeJsSample': [SKIP],
-}],  # variant == turbofan
-
-##############################################################################
-['variant == noturbofan and no_snap', {
-  # Too slow for old pipeline and nosnap.
-  'test-lockers/SeparateIsolatesLocksNonexclusive': [SKIP],
-  'test-lockers/ExtensionsRegistration': [SKIP],
-}],  # variant == noturbofan and no_snap
 
 ##############################################################################
 ['variant == wasm_traps', {

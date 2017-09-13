@@ -126,7 +126,7 @@ void check(uint32_t key) {
   generate(&masm, key);
 
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
   Handle<Code> code = factory->NewCode(desc,
                                        Code::ComputeFlags(Code::STUB),

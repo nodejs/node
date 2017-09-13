@@ -44,7 +44,6 @@ class Label {
     if (pos_ < 0) return -pos_ - 1;
     if (pos_ > 0) return pos_ - 1;
     UNREACHABLE();
-    return 0;
   }
 
   int near_link_pos() const { return near_link_pos_ - 1; }

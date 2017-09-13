@@ -47,9 +47,9 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
-#include "src/s390/assembler-s390-inl.h"
-
+#include "src/code-stubs.h"
 #include "src/macro-assembler.h"
+#include "src/s390/assembler-s390-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -307,19 +307,20 @@ void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
 // Implementation of Operand and MemOperand
 // See assembler-s390-inl.h for inlined constructors
 
-Operand::Operand(Handle<Object> handle) {
-  AllowDeferredHandleDereference using_raw_address;
+Operand::Operand(Handle<HeapObject> handle) {
+  AllowHandleDereference using_location;
   rm_ = no_reg;
-  // Verify all Objects referred by code are NOT in new space.
-  Object* obj = *handle;
-  if (obj->IsHeapObject()) {
-    imm_ = reinterpret_cast<intptr_t>(handle.location());
-    rmode_ = RelocInfo::EMBEDDED_OBJECT;
-  } else {
-    // no relocation needed
-    imm_ = reinterpret_cast<intptr_t>(obj);
-    rmode_ = kRelocInfo_NONEPTR;
-  }
+  value_.immediate = reinterpret_cast<intptr_t>(handle.address());
+  rmode_ = RelocInfo::EMBEDDED_OBJECT;
+}
+
+Operand Operand::EmbeddedNumber(double value) {
+  int32_t smi;
+  if (DoubleToSmiInteger(value, &smi)) return Operand(Smi::FromInt(smi));
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(value);
+  return result;
 }
 
 MemOperand::MemOperand(Register rn, int32_t offset) {
@@ -334,22 +335,45 @@ MemOperand::MemOperand(Register rx, Register rb, int32_t offset) {
   offset_ = offset;
 }
 
+void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  for (auto& request : heap_object_requests_) {
+    Handle<HeapObject> object;
+    Address pc = buffer_ + request.offset();
+    switch (request.kind()) {
+      case HeapObjectRequest::kHeapNumber:
+        object = isolate->factory()->NewHeapNumber(request.heap_number(),
+                                                   IMMUTABLE, TENURED);
+        set_target_address_at(nullptr, pc, static_cast<Address>(NULL),
+                              reinterpret_cast<Address>(object.location()),
+                              SKIP_ICACHE_FLUSH);
+        break;
+      case HeapObjectRequest::kCodeStub:
+        request.code_stub()->set_isolate(isolate);
+        SixByteInstr instr =
+            Instruction::InstructionBits(reinterpret_cast<const byte*>(pc));
+        int index = instr & 0xFFFFFFFF;
+        code_targets_[index] = request.code_stub()->GetCode();
+        break;
+    }
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
 Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
     : AssemblerBase(isolate_data, buffer, buffer_size),
-      recorded_ast_id_(TypeFeedbackId::None()),
       code_targets_(100) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   last_bound_pos_ = 0;
-  ClearRecordedAstId();
   relocations_.reserve(128);
 }
 
-void Assembler::GetCode(CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   EmitRelocations();
+
+  AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
   desc->buffer = buffer_;
@@ -362,7 +386,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 }
 
 void Assembler::Align(int m) {
-  DCHECK(m >= 4 && base::bits::IsPowerOfTwo32(m));
+  DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
   while ((pc_offset() & (m - 1)) != 0) {
     nop(0);
   }
@@ -651,9 +675,9 @@ void Assembler::nop(int type) {
 
 void Assembler::ri_form(Opcode op, Register r1, const Operand& i2) {
   DCHECK(is_uint12(op));
-  DCHECK(is_uint16(i2.imm_) || is_int16(i2.imm_));
+  DCHECK(is_uint16(i2.immediate()) || is_int16(i2.immediate()));
   emit4bytes((op & 0xFF0) * B20 | r1.code() * B20 | (op & 0xF) * B16 |
-             (i2.imm_ & 0xFFFF));
+             (i2.immediate() & 0xFFFF));
 }
 
 // RI2 format: <insn> M1,I2
@@ -667,9 +691,9 @@ void Assembler::ri_form(Opcode op, Register r1, const Operand& i2) {
 void Assembler::ri_form(Opcode op, Condition m1, const Operand& i2) {
   DCHECK(is_uint12(op));
   DCHECK(is_uint4(m1));
-  DCHECK(op == BRC ? is_int16(i2.imm_) : is_uint16(i2.imm_));
+  DCHECK(op == BRC ? is_int16(i2.immediate()) : is_uint16(i2.immediate()));
   emit4bytes((op & 0xFF0) * B20 | m1 * B20 | (op & 0xF) * B16 |
-             (i2.imm_ & 0xFFFF));
+             (i2.immediate() & 0xFFFF));
 }
 
 // RIE-f format: <insn> R1,R2,I3,I4,I5
@@ -681,15 +705,15 @@ void Assembler::rie_f_form(Opcode op, Register r1, Register r2,
                            const Operand& i3, const Operand& i4,
                            const Operand& i5) {
   DCHECK(is_uint16(op));
-  DCHECK(is_uint8(i3.imm_));
-  DCHECK(is_uint8(i4.imm_));
-  DCHECK(is_uint8(i5.imm_));
+  DCHECK(is_uint8(i3.immediate()));
+  DCHECK(is_uint8(i4.immediate()));
+  DCHECK(is_uint8(i5.immediate()));
   uint64_t code = (static_cast<uint64_t>(op & 0xFF00)) * B32 |
                   (static_cast<uint64_t>(r1.code())) * B36 |
                   (static_cast<uint64_t>(r2.code())) * B32 |
-                  (static_cast<uint64_t>(i3.imm_)) * B24 |
-                  (static_cast<uint64_t>(i4.imm_)) * B16 |
-                  (static_cast<uint64_t>(i5.imm_)) * B8 |
+                  (static_cast<uint64_t>(i3.immediate())) * B24 |
+                  (static_cast<uint64_t>(i4.immediate())) * B16 |
+                  (static_cast<uint64_t>(i5.immediate())) * B8 |
                   (static_cast<uint64_t>(op & 0x00FF));
   emit6bytes(code);
 }
@@ -707,11 +731,11 @@ void Assembler::rie_f_form(Opcode op, Register r1, Register r2,
 void Assembler::rie_form(Opcode op, Register r1, Register r3,
                          const Operand& i2) {
   DCHECK(is_uint16(op));
-  DCHECK(is_int16(i2.imm_));
+  DCHECK(is_int16(i2.immediate()));
   uint64_t code = (static_cast<uint64_t>(op & 0xFF00)) * B32 |
                   (static_cast<uint64_t>(r1.code())) * B36 |
                   (static_cast<uint64_t>(r3.code())) * B32 |
-                  (static_cast<uint64_t>(i2.imm_ & 0xFFFF)) * B16 |
+                  (static_cast<uint64_t>(i2.immediate() & 0xFFFF)) * B16 |
                   (static_cast<uint64_t>(op & 0x00FF));
   emit6bytes(code);
 }
@@ -768,8 +792,9 @@ void Assembler::rs_form(Opcode op, Register r1, Condition m3, Register b2,
 void Assembler::rsi_form(Opcode op, Register r1, Register r3,
                          const Operand& i2) {
   DCHECK(is_uint8(op));
-  DCHECK(is_uint16(i2.imm_));
-  emit4bytes(op * B24 | r1.code() * B20 | r3.code() * B16 | (i2.imm_ & 0xFFFF));
+  DCHECK(is_uint16(i2.immediate()));
+  emit4bytes(op * B24 | r1.code() * B20 | r3.code() * B16 |
+             (i2.immediate() & 0xFFFF));
 }
 
 // RSL format: <insn> R1,R3,D2(B2)
@@ -921,13 +946,13 @@ void Assembler::ris_form(Opcode op, Register r1, Condition m3, Register b4,
                          Disp d4, const Operand& i2) {
   DCHECK(is_uint12(d4));
   DCHECK(is_uint16(op));
-  DCHECK(is_uint8(i2.imm_));
+  DCHECK(is_uint8(i2.immediate()));
   uint64_t code = (static_cast<uint64_t>(op & 0xFF00)) * B32 |
                   (static_cast<uint64_t>(r1.code())) * B36 |
                   (static_cast<uint64_t>(m3)) * B32 |
                   (static_cast<uint64_t>(b4.code())) * B28 |
                   (static_cast<uint64_t>(d4)) * B16 |
-                  (static_cast<uint64_t>(i2.imm_)) << 8 |
+                  (static_cast<uint64_t>(i2.immediate())) << 8 |
                   (static_cast<uint64_t>(op & 0x00FF));
   emit6bytes(code);
 }
@@ -962,7 +987,7 @@ void Assembler::s_form(Opcode op, Register b1, Disp d2) {
   }
 
 void Assembler::si_form(Opcode op, const Operand& i2, Register b1, Disp d1) {
-  emit4bytes((op & 0x00FF) << 24 | i2.imm_ * B16 | b1.code() * B12 | d1);
+  emit4bytes((op & 0x00FF) << 24 | i2.immediate() * B16 | b1.code() * B12 | d1);
 }
 
 // SIY format: <insn> D1(B1),I2
@@ -981,9 +1006,9 @@ void Assembler::si_form(Opcode op, const Operand& i2, Register b1, Disp d1) {
 void Assembler::siy_form(Opcode op, const Operand& i2, Register b1, Disp d1) {
   DCHECK(is_uint20(d1) || is_int20(d1));
   DCHECK(is_uint16(op));
-  DCHECK(is_uint8(i2.imm_));
+  DCHECK(is_uint8(i2.immediate()));
   uint64_t code = (static_cast<uint64_t>(op & 0xFF00)) * B32 |
-                  (static_cast<uint64_t>(i2.imm_)) * B32 |
+                  (static_cast<uint64_t>(i2.immediate())) * B32 |
                   (static_cast<uint64_t>(b1.code())) * B28 |
                   (static_cast<uint64_t>(d1 & 0x0FFF)) * B16 |
                   (static_cast<uint64_t>(d1 & 0x0FF000)) >> 4 |
@@ -1007,11 +1032,11 @@ void Assembler::siy_form(Opcode op, const Operand& i2, Register b1, Disp d1) {
 void Assembler::sil_form(Opcode op, Register b1, Disp d1, const Operand& i2) {
   DCHECK(is_uint12(d1));
   DCHECK(is_uint16(op));
-  DCHECK(is_uint16(i2.imm_));
+  DCHECK(is_uint16(i2.immediate()));
   uint64_t code = (static_cast<uint64_t>(op)) * B32 |
                   (static_cast<uint64_t>(b1.code())) * B28 |
                   (static_cast<uint64_t>(d1)) * B16 |
-                  (static_cast<uint64_t>(i2.imm_));
+                  (static_cast<uint64_t>(i2.immediate()));
   emit6bytes(code);
 }
 
@@ -1125,10 +1150,10 @@ void Assembler::ss_form(Opcode op, Length l1, const Operand& i3, Register b1,
   DCHECK(is_uint12(d1));
   DCHECK(is_uint8(op));
   DCHECK(is_uint4(l1));
-  DCHECK(is_uint4(i3.imm_));
+  DCHECK(is_uint4(i3.immediate()));
   uint64_t code =
       (static_cast<uint64_t>(op)) * B40 | (static_cast<uint64_t>(l1)) * B36 |
-      (static_cast<uint64_t>(i3.imm_)) * B32 |
+      (static_cast<uint64_t>(i3.immediate())) * B32 |
       (static_cast<uint64_t>(b1.code())) * B28 |
       (static_cast<uint64_t>(d1)) * B16 |
       (static_cast<uint64_t>(b2.code())) * B12 | (static_cast<uint64_t>(d2));
@@ -1426,7 +1451,7 @@ void Assembler::risbg(Register dst, Register src, const Operand& startBit,
                       bool zeroBits) {
   // High tag the top bit of I4/EndBit to zero out any unselected bits
   if (zeroBits)
-    rie_f_form(RISBG, dst, src, startBit, Operand(endBit.imm_ | 0x80),
+    rie_f_form(RISBG, dst, src, startBit, Operand(endBit.immediate() | 0x80),
                shiftAmt);
   else
     rie_f_form(RISBG, dst, src, startBit, endBit, shiftAmt);
@@ -1438,7 +1463,7 @@ void Assembler::risbgn(Register dst, Register src, const Operand& startBit,
                        bool zeroBits) {
   // High tag the top bit of I4/EndBit to zero out any unselected bits
   if (zeroBits)
-    rie_f_form(RISBGN, dst, src, startBit, Operand(endBit.imm_ | 0x80),
+    rie_f_form(RISBGN, dst, src, startBit, Operand(endBit.immediate() | 0x80),
                shiftAmt);
   else
     rie_f_form(RISBGN, dst, src, startBit, endBit, shiftAmt);
@@ -1472,9 +1497,10 @@ void Assembler::ark(Register r1, Register r2, Register r3) {
 
 // Add Storage-Imm (32)
 void Assembler::asi(const MemOperand& opnd, const Operand& imm) {
-  DCHECK(is_int8(imm.imm_));
+  DCHECK(is_int8(imm.immediate()));
   DCHECK(is_int20(opnd.offset()));
-  siy_form(ASI, Operand(0xff & imm.imm_), opnd.rb(), 0xfffff & opnd.offset());
+  siy_form(ASI, Operand(0xff & imm.immediate()), opnd.rb(),
+           0xfffff & opnd.offset());
 }
 
 // -----------------------
@@ -1495,9 +1521,10 @@ void Assembler::agrk(Register r1, Register r2, Register r3) {
 
 // Add Storage-Imm (64)
 void Assembler::agsi(const MemOperand& opnd, const Operand& imm) {
-  DCHECK(is_int8(imm.imm_));
+  DCHECK(is_int8(imm.immediate()));
   DCHECK(is_int20(opnd.offset()));
-  siy_form(AGSI, Operand(0xff & imm.imm_), opnd.rb(), 0xfffff & opnd.offset());
+  siy_form(AGSI, Operand(0xff & imm.immediate()), opnd.rb(),
+           0xfffff & opnd.offset());
 }
 
 // -------------------------------
@@ -1815,11 +1842,18 @@ void Assembler::srdl(Register r1, const Operand& opnd) {
   rs_form(SRDL, r1, r0, r0, opnd.immediate());
 }
 
-void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode,
-                     TypeFeedbackId ast_id) {
+void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
 
-  int32_t target_index = emit_code_target(target, rmode, ast_id);
+  int32_t target_index = emit_code_target(target, rmode);
+  brasl(r14, Operand(target_index));
+}
+
+void Assembler::call(CodeStub* stub) {
+  EnsureSpace ensure_space(this);
+  RequestHeapObject(HeapObjectRequest(stub));
+  int32_t target_index =
+      emit_code_target(Handle<Code>(), RelocInfo::CODE_TARGET);
   brasl(r14, Operand(target_index));
 }
 
@@ -2104,9 +2138,7 @@ void Assembler::GrowBuffer(int needed) {
 
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
-  if (desc.buffer_size > kMaximalBufferSize ||
-      static_cast<size_t>(desc.buffer_size) >
-          isolate_data().max_old_generation_size_) {
+  if (desc.buffer_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
   }
 
@@ -2168,10 +2200,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       (rmode == RelocInfo::EXTERNAL_REFERENCE && !serializer_enabled() &&
        !emit_debug_code())) {
     return;
-  }
-  if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-    data = RecordedAstId().ToInt();
-    ClearRecordedAstId();
   }
   DeferredRelocInfo rinfo(pc_offset(), rmode, data);
   relocations_.push_back(rinfo);

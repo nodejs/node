@@ -25,7 +25,7 @@ Debug = debug.Debug;
 Debug.setListener(function(){});
 
 var script = Debug.findScript(sentinel);
-var line = 14;
+var line = 13;
 var line_start = Debug.findScriptSourcePosition(script, line, 0);
 var line_end = Debug.findScriptSourcePosition(script, line + 1, 0) - 1;
 var actual = Debug.setBreakPointByScriptIdAndPosition(

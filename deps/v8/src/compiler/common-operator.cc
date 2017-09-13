@@ -28,7 +28,6 @@ std::ostream& operator<<(std::ostream& os, BranchHint hint) {
       return os << "False";
   }
   UNREACHABLE();
-  return os;
 }
 
 
@@ -275,7 +274,6 @@ std::ostream& operator<<(std::ostream& os, RegionObservability observability) {
       return os << "not-observable";
   }
   UNREACHABLE();
-  return os;
 }
 
 RegionObservability RegionObservabilityOf(Operator const* op) {
@@ -802,7 +800,6 @@ const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
       return &cache_.kBranchFalseOperator;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* CommonOperatorBuilder::Deoptimize(DeoptimizeKind kind,
@@ -1161,7 +1158,6 @@ const Operator* CommonOperatorBuilder::BeginRegion(
       return &cache_.kBeginRegionNotObservableOperator;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* CommonOperatorBuilder::StateValues(int arguments,
@@ -1325,7 +1321,6 @@ const Operator* CommonOperatorBuilder::ResizeMergeOrPhi(const Operator* op,
     return Loop(size);
   } else {
     UNREACHABLE();
-    return nullptr;
   }
 }
 

@@ -368,6 +368,7 @@ BUILTIN(StringPrototypeTrimRight) {
   return *String::Trim(string, String::kTrimRight);
 }
 
+#ifndef V8_INTL_SUPPORT
 namespace {
 
 inline bool ToUpperOverflows(uc32 character) {
@@ -518,7 +519,7 @@ MUST_USE_RESULT static Object* ConvertCase(
   if (answer->IsException(isolate) || answer->IsString()) return answer;
 
   DCHECK(answer->IsSmi());
-  length = Smi::cast(answer)->value();
+  length = Smi::ToInt(answer);
   if (s->IsOneByteRepresentation() && length > 0) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result, isolate->factory()->NewRawOneByteString(length));
@@ -559,6 +560,7 @@ BUILTIN(StringPrototypeToUpperCase) {
   return ConvertCase(string, isolate,
                      isolate->runtime_state()->to_upper_mapping());
 }
+#endif  // !V8_INTL_SUPPORT
 
 }  // namespace internal
 }  // namespace v8

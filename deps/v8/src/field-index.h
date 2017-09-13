@@ -21,12 +21,11 @@ class FieldIndex final {
  public:
   FieldIndex() : bit_field_(0) {}
 
-  static FieldIndex ForPropertyIndex(Map* map,
-                                     int index,
+  static FieldIndex ForPropertyIndex(const Map* map, int index,
                                      bool is_double = false);
-  static FieldIndex ForInObjectOffset(int offset, Map* map = NULL);
-  static FieldIndex ForDescriptor(Map* map, int descriptor_index);
-  static FieldIndex ForLoadByFieldIndex(Map* map, int index);
+  static FieldIndex ForInObjectOffset(int offset, const Map* map = NULL);
+  static FieldIndex ForDescriptor(const Map* map, int descriptor_index);
+  static FieldIndex ForLoadByFieldIndex(const Map* map, int index);
   static FieldIndex FromFieldAccessStubKey(int key);
 
   int GetLoadByFieldIndex() const;

@@ -49,7 +49,7 @@ FAIL_SLOPPY = "FAIL_SLOPPY"
 ALWAYS = "ALWAYS"
 
 KEYWORDS = {}
-for key in [SKIP, FAIL, PASS, OKAY, TIMEOUT, CRASH, SLOW, FAIL_OK,
+for key in [SKIP, FAIL, PASS, OKAY, CRASH, SLOW, FAIL_OK,
             FAST_VARIANTS, NO_VARIANTS, PASS_OR_FAIL, FAIL_SLOPPY, ALWAYS]:
   KEYWORDS[key] = key
 
@@ -59,10 +59,10 @@ DEFS = {FAIL_OK: [FAIL, OKAY],
 # Support arches, modes to be written as keywords instead of strings.
 VARIABLES = {ALWAYS: True}
 for var in ["debug", "release", "big", "little",
-            "android_arm", "android_arm64", "android_ia32", "android_x87",
-            "android_x64", "arm", "arm64", "ia32", "mips", "mipsel", "mips64",
-            "mips64el", "x64", "x87", "ppc", "ppc64", "s390", "s390x", "macos",
-            "windows", "linux", "aix"]:
+            "android_arm", "android_arm64", "android_ia32", "android_x64",
+            "arm", "arm64", "ia32", "mips", "mipsel", "mips64", "mips64el",
+            "x64", "ppc", "ppc64", "s390", "s390x", "macos", "windows",
+            "linux", "aix"]:
   VARIABLES[var] = var
 
 # Allow using variants as keywords.

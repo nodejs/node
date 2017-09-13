@@ -15,8 +15,9 @@ namespace internal {
 
 bool CompileTimeValue::IsCompileTimeValue(Expression* expression) {
   if (expression->IsLiteral()) return true;
-  MaterializedLiteral* lit = expression->AsMaterializedLiteral();
-  return lit != NULL && lit->is_simple();
+  MaterializedLiteral* literal = expression->AsMaterializedLiteral();
+  if (literal == nullptr) return false;
+  return literal->IsSimple();
 }
 
 Handle<FixedArray> CompileTimeValue::GetValue(Isolate* isolate,
@@ -33,7 +34,7 @@ Handle<FixedArray> CompileTimeValue::GetValue(Isolate* isolate,
     result->set(kElementsSlot, *object_literal->constant_properties());
   } else {
     ArrayLiteral* array_literal = expression->AsArrayLiteral();
-    DCHECK(array_literal != NULL && array_literal->is_simple());
+    DCHECK(array_literal->is_simple());
     result->set(kLiteralTypeSlot, Smi::FromInt(kArrayLiteralFlag));
     result->set(kElementsSlot, *array_literal->constant_elements());
   }
@@ -41,7 +42,7 @@ Handle<FixedArray> CompileTimeValue::GetValue(Isolate* isolate,
 }
 
 int CompileTimeValue::GetLiteralTypeFlags(Handle<FixedArray> value) {
-  return Smi::cast(value->get(kLiteralTypeSlot))->value();
+  return Smi::ToInt(value->get(kLiteralTypeSlot));
 }
 
 Handle<HeapObject> CompileTimeValue::GetElements(Handle<FixedArray> value) {

@@ -42,6 +42,8 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
                   Flags flags, JSGraph* jsgraph, Zone* zone);
   ~JSTypedLowering() final {}
 
+  const char* reducer_name() const override { return "JSTypedLowering"; }
+
   Reduction Reduce(Node* node) final;
 
  private:
@@ -52,6 +54,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
   Reduction ReduceJSStoreProperty(Node* node);
+  Reduction ReduceJSHasInPrototypeChain(Node* node);
   Reduction ReduceJSOrdinaryHasInstance(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
@@ -67,6 +70,8 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSToNumber(Node* node);
   Reduction ReduceJSToStringInput(Node* input);
   Reduction ReduceJSToString(Node* node);
+  Reduction ReduceJSToPrimitiveToString(Node* node);
+  Reduction ReduceJSStringConcat(Node* node);
   Reduction ReduceJSToObject(Node* node);
   Reduction ReduceJSConvertReceiver(Node* node);
   Reduction ReduceJSConstructForwardVarargs(Node* node);
@@ -92,6 +97,13 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   // Helper for ReduceJSLoadModule and ReduceJSStoreModule.
   Node* BuildGetModuleCell(Node* node);
 
+  // Helpers for ReduceJSCreateConsString and ReduceJSStringConcat.
+  Node* BuildGetStringLength(Node* value, Node** effect, Node* control);
+  void BuildThrowStringRangeError(Node* node, Node* context, Node* frame_state,
+                                  Node* effect, Node* control);
+  Node* BuildCreateConsString(Node* first, Node* second, Node* length,
+                              Node* effect, Node* control);
+
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -105,7 +117,6 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   CompilationDependencies* dependencies_;
   Flags flags_;
   JSGraph* jsgraph_;
-  Type* empty_string_type_;
   Type* shifted_int32_ranges_[4];
   Type* pointer_comparable_type_;
   TypeCache const& type_cache_;

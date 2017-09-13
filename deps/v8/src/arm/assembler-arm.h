@@ -45,6 +45,8 @@
 
 #include "src/arm/constants-arm.h"
 #include "src/assembler.h"
+#include "src/double.h"
+#include "src/float.h"
 
 namespace v8 {
 namespace internal {
@@ -501,7 +503,7 @@ class Operand BASE_EMBEDDED {
          RelocInfo::Mode rmode = RelocInfo::NONE32));
   INLINE(static Operand Zero());
   INLINE(explicit Operand(const ExternalReference& f));
-  explicit Operand(Handle<Object> handle);
+  explicit Operand(Handle<HeapObject> handle);
   INLINE(explicit Operand(Smi* value));
 
   // rm
@@ -524,18 +526,29 @@ class Operand BASE_EMBEDDED {
   // rm <shift_op> rs
   explicit Operand(Register rm, ShiftOp shift_op, Register rs);
 
+  static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Operand EmbeddedCode(CodeStub* stub);
+
   // Return true if this is a register operand.
-  INLINE(bool is_reg() const) {
+  bool IsRegister() const {
     return rm_.is_valid() &&
         rs_.is(no_reg) &&
         shift_op_ == LSL &&
         shift_imm_ == 0;
   }
+  // Return true if this is a register operand shifted with an immediate.
+  bool IsImmediateShiftedRegister() const {
+    return rm_.is_valid() && !rs_.is_valid();
+  }
+  // Return true if this is a register operand shifted with a register.
+  bool IsRegisterShiftedRegister() const {
+    return rm_.is_valid() && rs_.is_valid();
+  }
 
   // Return the number of actual instructions required to implement the given
   // instruction for this particular operand. This can be a single instruction,
-  // if no load into the ip register is necessary, or anything between 2 and 4
-  // instructions when we need to load from the constant pool (depending upon
+  // if no load into a scratch register is necessary, or anything between 2 and
+  // 4 instructions when we need to load from the constant pool (depending upon
   // whether the constant pool entry is in the small or extended section). If
   // the instruction this operand is used for is a MOV or MVN instruction the
   // actual instruction to use is required for this calculation. For other
@@ -543,24 +556,46 @@ class Operand BASE_EMBEDDED {
   //
   // The value returned is only valid as long as no entries are added to the
   // constant pool between this call and the actual instruction being emitted.
-  int instructions_required(const Assembler* assembler, Instr instr = 0) const;
-  bool must_output_reloc_info(const Assembler* assembler) const;
+  int InstructionsRequired(const Assembler* assembler, Instr instr = 0) const;
+  bool MustOutputRelocInfo(const Assembler* assembler) const;
 
   inline int32_t immediate() const {
-    DCHECK(!rm_.is_valid());
-    return imm32_;
+    DCHECK(IsImmediate());
+    DCHECK(!IsHeapObjectRequest());
+    return value_.immediate;
+  }
+  bool IsImmediate() const {
+    return !rm_.is_valid();
+  }
+
+  HeapObjectRequest heap_object_request() const {
+    DCHECK(IsHeapObjectRequest());
+    return value_.heap_object_request;
+  }
+  bool IsHeapObjectRequest() const {
+    DCHECK_IMPLIES(is_heap_object_request_, IsImmediate());
+    DCHECK_IMPLIES(is_heap_object_request_,
+        rmode_ == RelocInfo::EMBEDDED_OBJECT ||
+        rmode_ == RelocInfo::CODE_TARGET);
+    return is_heap_object_request_;
   }
 
   Register rm() const { return rm_; }
   Register rs() const { return rs_; }
   ShiftOp shift_op() const { return shift_op_; }
 
+
  private:
   Register rm_;
   Register rs_;
   ShiftOp shift_op_;
-  int shift_imm_;  // valid if rm_ != no_reg && rs_ == no_reg
-  int32_t imm32_;  // valid if rm_ == no_reg
+  int shift_imm_;                // valid if rm_ != no_reg && rs_ == no_reg
+  union Value {
+    Value() {}
+    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
+    int32_t immediate;                      // otherwise
+  } value_;                                 // valid if rm_ == no_reg
+  bool is_heap_object_request_ = false;
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
@@ -573,8 +608,9 @@ class MemOperand BASE_EMBEDDED {
   // [rn +/- offset]      Offset/NegOffset
   // [rn +/- offset]!     PreIndex/NegPreIndex
   // [rn], +/- offset     PostIndex/NegPostIndex
-  // offset is any signed 32-bit value; offset is first loaded to register ip if
-  // it does not fit the addressing mode (12-bit unsigned and sign bit)
+  // offset is any signed 32-bit value; offset is first loaded to a scratch
+  // register if it does not fit the addressing mode (12-bit unsigned and sign
+  // bit)
   explicit MemOperand(Register rn, int32_t offset = 0, AddrMode am = Offset);
 
   // [rn +/- rm]          Offset/NegOffset
@@ -703,7 +739,7 @@ class Assembler : public AssemblerBase {
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
-  void GetCode(CodeDesc* desc);
+  void GetCode(Isolate* isolate, CodeDesc* desc);
 
   // Label operations & relative jumps (PPUM Appendix D)
   //
@@ -788,6 +824,8 @@ class Assembler : public AssemblerBase {
   static constexpr int kDebugBreakSlotInstructions = 4;
   static constexpr int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
+
+  RegList* GetScratchRegisterList() { return &scratch_register_list_; }
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -1131,10 +1169,10 @@ class Assembler : public AssemblerBase {
             SwVfpRegister last,
             Condition cond = al);
 
-  void vmov(const SwVfpRegister dst, float imm);
+  void vmov(const SwVfpRegister dst, Float32 imm);
   void vmov(const DwVfpRegister dst,
-            double imm,
-            const Register scratch = no_reg);
+            Double imm,
+            const Register extra_scratch = no_reg);
   void vmov(const SwVfpRegister dst,
             const SwVfpRegister src,
             const Condition cond = al);
@@ -1491,24 +1529,40 @@ class Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
 
+  // Class for blocking sharing of code targets in constant pool.
+  class BlockCodeTargetSharingScope {
+   public:
+    explicit BlockCodeTargetSharingScope(Assembler* assem) : assem_(nullptr) {
+      Open(assem);
+    }
+    // This constructor does not initialize the scope. The user needs to
+    // explicitly call Open() before using it.
+    BlockCodeTargetSharingScope() : assem_(nullptr) {}
+    ~BlockCodeTargetSharingScope() {
+      Close();
+    }
+    void Open(Assembler* assem) {
+      DCHECK_NULL(assem_);
+      DCHECK_NOT_NULL(assem);
+      assem_ = assem;
+      assem_->StartBlockCodeTargetSharing();
+    }
+
+   private:
+    void Close() {
+      if (assem_ != nullptr) {
+        assem_->EndBlockCodeTargetSharing();
+      }
+    }
+    Assembler* assem_;
+
+    DISALLOW_COPY_AND_ASSIGN(BlockCodeTargetSharingScope);
+  };
+
   // Debugging
 
   // Mark address of a debug break slot.
   void RecordDebugBreakSlot(RelocInfo::Mode mode);
-
-  // Record the AST id of the CallIC being compiled, so that it can be placed
-  // in the relocation information.
-  void SetRecordedAstId(TypeFeedbackId ast_id) {
-    DCHECK(recorded_ast_id_.IsNone());
-    recorded_ast_id_ = ast_id;
-  }
-
-  TypeFeedbackId RecordedAstId() {
-    DCHECK(!recorded_ast_id_.IsNone());
-    return recorded_ast_id_;
-  }
-
-  void ClearRecordedAstId() { recorded_ast_id_ = TypeFeedbackId::None(); }
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
@@ -1636,11 +1690,6 @@ class Assembler : public AssemblerBase {
   }
 
  protected:
-  // Relocation for a type-recording IC has the AST id added to it.  This
-  // member variable is a way to pass the information from the call site to
-  // the relocation info.
-  TypeFeedbackId recorded_ast_id_;
-
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Decode branch instruction at pos and return branch target pos
@@ -1649,8 +1698,22 @@ class Assembler : public AssemblerBase {
   // Patch branch instruction at pos to branch to given branch target pos
   void target_at_put(int pos, int target_pos);
 
+  // Prevent sharing of code target constant pool entries until
+  // EndBlockCodeTargetSharing is called. Calls to this function can be nested
+  // but must be followed by an equal number of call to
+  // EndBlockCodeTargetSharing.
+  void StartBlockCodeTargetSharing() {
+    ++code_target_sharing_blocked_nesting_;
+  }
+
+  // Resume sharing of constant pool code target entries. Needs to be called
+  // as many times as StartBlockCodeTargetSharing to have an effect.
+  void EndBlockCodeTargetSharing() {
+    --code_target_sharing_blocked_nesting_;
+  }
+
   // Prevent contant pool emission until EndBlockConstPool is called.
-  // Call to this function can be nested but must be followed by an equal
+  // Calls to this function can be nested but must be followed by an equal
   // number of call to EndBlockConstpool.
   void StartBlockConstPool() {
     if (const_pool_blocked_nesting_++ == 0) {
@@ -1660,7 +1723,7 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  // Resume constant pool emission. Need to be called as many time as
+  // Resume constant pool emission. Needs to be called as many times as
   // StartBlockConstPool to have an effect.
   void EndBlockConstPool() {
     if (--const_pool_blocked_nesting_ == 0) {
@@ -1726,6 +1789,12 @@ class Assembler : public AssemblerBase {
   std::vector<ConstantPoolEntry> pending_32_bit_constants_;
   std::vector<ConstantPoolEntry> pending_64_bit_constants_;
 
+  // Map of address of handle to index in pending_32_bit_constants_.
+  std::map<Address, int> handle_to_index_map_;
+
+  // Scratch registers available for use by the Assembler.
+  RegList scratch_register_list_;
+
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
@@ -1749,6 +1818,11 @@ class Assembler : public AssemblerBase {
   static constexpr int kCheckPoolIntervalInst = 32;
   static constexpr int kCheckPoolInterval = kCheckPoolIntervalInst * kInstrSize;
 
+  // Sharing of code target entries may be blocked in some code sequences.
+  int code_target_sharing_blocked_nesting_;
+  bool IsCodeTargetSharingAllowed() const {
+    return code_target_sharing_blocked_nesting_ == 0;
+  }
 
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
@@ -1766,16 +1840,21 @@ class Assembler : public AssemblerBase {
   void GrowBuffer();
 
   // 32-bit immediate values
-  void move_32_bit_immediate(Register rd,
-                             const Operand& x,
-                             Condition cond = al);
+  void Move32BitImmediate(Register rd, const Operand& x, Condition cond = al);
 
   // Instruction generation
-  void addrmod1(Instr instr, Register rn, Register rd, const Operand& x);
-  void addrmod2(Instr instr, Register rd, const MemOperand& x);
-  void addrmod3(Instr instr, Register rd, const MemOperand& x);
-  void addrmod4(Instr instr, Register rn, RegList rl);
-  void addrmod5(Instr instr, CRegister crd, const MemOperand& x);
+  void AddrMode1(Instr instr, Register rd, Register rn, const Operand& x);
+  // Attempt to encode operand |x| for instruction |instr| and return true on
+  // success. The result will be encoded in |instr| directly. This method may
+  // change the opcode if deemed beneficial, for instance, MOV may be turned
+  // into MVN, ADD into SUB, AND into BIC, ...etc.  The only reason this method
+  // may fail is that the operand is an immediate that cannot be encoded.
+  bool AddrMode1TryEncodeOperand(Instr* instr, const Operand& x);
+
+  void AddrMode2(Instr instr, Register rd, const MemOperand& x);
+  void AddrMode3(Instr instr, Register rd, const MemOperand& x);
+  void AddrMode4(Instr instr, Register rn, RegList rl);
+  void AddrMode5(Instr instr, CRegister crd, const MemOperand& x);
 
   // Labels
   void print(Label* L);
@@ -1784,15 +1863,28 @@ class Assembler : public AssemblerBase {
 
   // Record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
-  ConstantPoolEntry::Access ConstantPoolAddEntry(int position,
-                                                 RelocInfo::Mode rmode,
-                                                 intptr_t value);
-  ConstantPoolEntry::Access ConstantPoolAddEntry(int position, double value);
+  void ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
+                            intptr_t value);
+  void ConstantPoolAddEntry(int position, Double value);
 
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockConstPoolScope;
+  friend class BlockCodeTargetSharingScope;
   friend class EnsureSpace;
+
+  // The following functions help with avoiding allocations of embedded heap
+  // objects during the code assembly phase. {RequestHeapObject} records the
+  // need for a future heap number allocation or code stub generation. After
+  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
+  // objects and place them where they are expected (determined by the pc offset
+  // associated with each request). That is, for each request, it will patch the
+  // dummy heap object handle that we emitted during code assembly with the
+  // actual heap object handle.
+  void RequestHeapObject(HeapObjectRequest request);
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
+  std::forward_list<HeapObjectRequest> heap_object_requests_;
 };
 
 constexpr int kNoCodeAgeSequenceLength = 3 * Assembler::kInstrSize;
@@ -1811,6 +1903,29 @@ class PatchingAssembler : public Assembler {
   void FlushICache(Isolate* isolate);
 };
 
+// This scope utility allows scratch registers to be managed safely. The
+// Assembler's GetScratchRegisterList() is used as a pool of scratch
+// registers. These registers can be allocated on demand, and will be returned
+// at the end of the scope.
+//
+// When the scope ends, the Assembler's list will be restored to its original
+// state, even if the list is modified by some other means. Note that this scope
+// can be nested but the destructors need to run in the opposite order as the
+// constructors. We do not have assertions for this.
+class UseScratchRegisterScope {
+ public:
+  explicit UseScratchRegisterScope(Assembler* assembler);
+  ~UseScratchRegisterScope();
+
+  // Take a register from the list and return it.
+  Register Acquire();
+
+ private:
+  // Currently available scratch registers.
+  RegList* available_;
+  // Available scratch registers at the start of this scope.
+  RegList old_available_;
+};
 
 }  // namespace internal
 }  // namespace v8

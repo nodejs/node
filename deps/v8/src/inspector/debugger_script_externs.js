@@ -55,9 +55,8 @@ Debug.scripts = function() {}
  * @param {number=} column
  * @param {string=} condition
  * @param {string=} groupId
- * @param {Debug.BreakPositionAlignment=} positionAlignment
  */
-Debug.setScriptBreakPointById = function(scriptId, line, column, condition, groupId, positionAlignment) {}
+Debug.setScriptBreakPointById = function(scriptId, line, column, condition, groupId) {}
 
 /**
  * @param {number} breakId
@@ -71,13 +70,6 @@ Debug.findBreakPointActualLocations = function(breakId) {}
  * @return {!BreakPoint|undefined}
  */
 Debug.findBreakPoint = function(breakId, remove) {}
-
-/** @enum */
-const BreakPositionAlignment = {
-    Statement: 0,
-    BreakPosition: 1
-};
-Debug.BreakPositionAlignment = BreakPositionAlignment;
 
 /** @const */
 var LiveEdit = {}

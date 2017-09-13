@@ -26,6 +26,11 @@ Node* JSGraph::AllocateInOldSpaceStubConstant() {
                 HeapConstant(isolate()->builtins()->AllocateInOldSpace()));
 }
 
+Node* JSGraph::ArrayConstructorStubConstant() {
+  return CACHED(kArrayConstructorStubConstant,
+                HeapConstant(ArrayConstructorStub(isolate()).GetCode()));
+}
+
 Node* JSGraph::ToNumberBuiltinConstant() {
   return CACHED(kToNumberBuiltinConstant,
                 HeapConstant(isolate()->builtins()->ToNumber()));
@@ -75,6 +80,11 @@ Node* JSGraph::EmptyStringConstant() {
 Node* JSGraph::FixedArrayMapConstant() {
   return CACHED(kFixedArrayMapConstant,
                 HeapConstant(factory()->fixed_array_map()));
+}
+
+Node* JSGraph::PropertyArrayMapConstant() {
+  return CACHED(kPropertyArrayMapConstant,
+                HeapConstant(factory()->property_array_map()));
 }
 
 Node* JSGraph::FixedDoubleArrayMapConstant() {
@@ -130,6 +140,9 @@ Node* JSGraph::OneConstant() {
   return CACHED(kOneConstant, NumberConstant(1.0));
 }
 
+Node* JSGraph::MinusOneConstant() {
+  return CACHED(kMinusOneConstant, NumberConstant(-1.0));
+}
 
 Node* JSGraph::NaNConstant() {
   return CACHED(kNaNConstant,

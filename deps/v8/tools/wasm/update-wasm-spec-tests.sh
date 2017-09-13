@@ -13,7 +13,7 @@ cd ${V8_DIR}
 mkdir -p ./test/wasm-spec-tests/tests/
 rm -rf ./test/wasm-spec-tests/tests/*
 
-./tools/dev/gm.py x64.release all
+./tools/dev/gm.py x64.release d8
 
 cd ${V8_DIR}/test/wasm-js/interpreter
 make

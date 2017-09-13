@@ -29,7 +29,6 @@ v8::Local<v8::String> subtypeForInternalType(v8::Isolate* isolate,
       return toV8StringInternalized(isolate, "internal#scopeList");
   }
   UNREACHABLE();
-  return v8::Local<v8::String>();
 }
 
 }  // namespace

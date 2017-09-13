@@ -23,14 +23,7 @@ namespace v8 {
 namespace internal {
 namespace trap_handler {
 
-// We declare this as int rather than bool as a workaround for a glibc bug, in
-// which the dynamic loader cannot handle executables whose TLS area is only
-// 1 byte in size; see https://sourceware.org/bugzilla/show_bug.cgi?id=14898.
-THREAD_LOCAL int g_thread_in_wasm_code = false;
-
-static_assert(sizeof(g_thread_in_wasm_code) > 1,
-              "sizeof(thread_local_var) must be > 1, see "
-              "https://sourceware.org/bugzilla/show_bug.cgi?id=14898");
+THREAD_LOCAL bool g_thread_in_wasm_code = false;
 
 size_t gNumCodeObjects = 0;
 CodeProtectionInfoListEntry* gCodeObjects = nullptr;

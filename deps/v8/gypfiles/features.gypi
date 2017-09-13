@@ -73,6 +73,9 @@
 
     # Enable/disable JavaScript API accessors.
     'v8_js_accessors%': 0,
+
+    # Temporary flag to allow embedders to update their microtasks scopes.
+    'v8_check_microtasks_scopes_consistency%': 'false',
   },
   'target_defaults': {
     'conditions': [
@@ -118,12 +121,15 @@
       ['dcheck_always_on!=0', {
         'defines': ['DEBUG',],
       }],
+      ['v8_check_microtasks_scopes_consistency=="true"', {
+        'defines': ['V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY',],
+      }],
     ],  # conditions
     'configurations': {
       'DebugBaseCommon': {
         'abstract': 1,
         'variables': {
-          'v8_enable_handle_zapping%': 0,
+          'v8_enable_handle_zapping%': 1,
         },
         'conditions': [
           ['v8_enable_handle_zapping==1', {
@@ -133,7 +139,7 @@
       },  # Debug
       'Release': {
         'variables': {
-          'v8_enable_handle_zapping%': 1,
+          'v8_enable_handle_zapping%': 0,
         },
         'conditions': [
           ['v8_enable_handle_zapping==1', {

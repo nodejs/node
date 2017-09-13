@@ -125,7 +125,8 @@ class ValueSerializer {
   Maybe<bool> WriteJSArrayBuffer(Handle<JSArrayBuffer> array_buffer)
       WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView* array_buffer);
-  Maybe<bool> WriteWasmModule(Handle<JSObject> object) WARN_UNUSED_RESULT;
+  Maybe<bool> WriteWasmModule(Handle<WasmModuleObject> object)
+      WARN_UNUSED_RESULT;
   Maybe<bool> WriteHostObject(Handle<JSObject> object) WARN_UNUSED_RESULT;
 
   /*
@@ -295,7 +296,7 @@ class ValueDeserializer {
 
   // Always global handles.
   Handle<FixedArray> id_map_;
-  MaybeHandle<SeededNumberDictionary> array_buffer_transfer_map_;
+  MaybeHandle<UnseededNumberDictionary> array_buffer_transfer_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueDeserializer);
 };

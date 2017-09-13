@@ -47,6 +47,8 @@ const Register StoreTransitionDescriptor::MapRegister() { return r7; }
 const Register StringCompareDescriptor::LeftRegister() { return r3; }
 const Register StringCompareDescriptor::RightRegister() { return r2; }
 
+const Register StringConcatDescriptor::ArgumentsCountRegister() { return r2; }
+
 const Register ApiGetterDescriptor::HolderRegister() { return r2; }
 const Register ApiGetterDescriptor::CallbackRegister() { return r5; }
 
@@ -143,12 +145,50 @@ void CallTrampolineDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void CallVarargsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r2 : number of arguments (on the stack, not including receiver)
+  // r3 : the target to call
+  // r4 : arguments list (FixedArray)
+  // r6 : arguments list length (untagged)
+  Register registers[] = {r3, r2, r4, r6};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void CallForwardVarargsDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // r2 : number of arguments
   // r4 : start index (to support rest parameters)
   // r3 : the target to call
   Register registers[] = {r3, r2, r4};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void CallWithSpreadDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r2 : number of arguments (on the stack, not including receiver)
+  // r3 : the target to call
+  // r4 : the object to spread
+  Register registers[] = {r3, r2, r4};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void CallWithArrayLikeDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r3 : the target to call
+  // r4 : the arguments list
+  Register registers[] = {r3, r4};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void ConstructVarargsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r2 : number of arguments (on the stack, not including receiver)
+  // r3 : the target to call
+  // r5 : the new target
+  // r4 : arguments list (FixedArray)
+  // r6 : arguments list length (untagged)
+  Register registers[] = {r3, r5, r2, r4, r6};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -159,6 +199,25 @@ void ConstructForwardVarargsDescriptor::InitializePlatformSpecific(
   // r4 : start index (to support rest parameters)
   // r3 : the target to call
   Register registers[] = {r3, r5, r2, r4};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void ConstructWithSpreadDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r2 : number of arguments (on the stack, not including receiver)
+  // r3 : the target to call
+  // r5 : the new target
+  // r4 : the object to spread
+  Register registers[] = {r3, r5, r2, r4};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void ConstructWithArrayLikeDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r3 : the target to call
+  // r5 : the new target
+  // r4 : the arguments list
+  Register registers[] = {r3, r5, r4};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -352,8 +411,7 @@ void ResumeGeneratorDescriptor::InitializePlatformSpecific(
   Register registers[] = {
       r2,  // the value to pass to the generator
       r3,  // the JSGeneratorObject to resume
-      r4,  // the resume mode (tagged)
-      r5   // SuspendFlags (tagged)
+      r4   // the resume mode (tagged)
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

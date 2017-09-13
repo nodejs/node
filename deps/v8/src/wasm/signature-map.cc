@@ -8,7 +8,10 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+SignatureMap::SignatureMap() : mutex_(new base::Mutex()) {}
+
 uint32_t SignatureMap::FindOrInsert(FunctionSig* sig) {
+  base::LockGuard<base::Mutex> guard(mutex_.get());
   auto pos = map_.find(sig);
   if (pos != map_.end()) {
     return pos->second;
@@ -20,6 +23,7 @@ uint32_t SignatureMap::FindOrInsert(FunctionSig* sig) {
 }
 
 int32_t SignatureMap::Find(FunctionSig* sig) const {
+  base::LockGuard<base::Mutex> guard(mutex_.get());
   auto pos = map_.find(sig);
   if (pos != map_.end()) {
     return static_cast<int32_t>(pos->second);

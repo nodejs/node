@@ -23,12 +23,14 @@ The suite json format is expected to be:
   "results_regexp": <optional regexp>,
   "results_processor": <optional python results processor script>,
   "units": <the unit specification for the performance dashboard>,
+  "process_size": <flag - collect maximum memory used by the process>,
   "tests": [
     {
       "name": <name of the trace>,
       "results_regexp": <optional more specific regexp>,
       "results_processor": <optional python results processor script>,
       "units": <the unit specification for the performance dashboard>,
+      "process_size": <flag - collect maximum memory used by the process>,
     }, ...
   ]
 }
@@ -186,6 +188,7 @@ class Measurement(object):
     self.results = []
     self.errors = []
     self.stddev = ""
+    self.process_size = False
 
   def ConsumeOutput(self, stdout):
     try:
@@ -378,6 +381,7 @@ class DefaultSentinel(Node):
     self.graphs = []
     self.flags = []
     self.test_flags = []
+    self.process_size = False
     self.resources = []
     self.results_processor = None
     self.results_regexp = None
@@ -420,6 +424,7 @@ class GraphConfig(Node):
     self.total = suite.get("total", parent.total)
     self.results_processor = suite.get(
         "results_processor", parent.results_processor)
+    self.process_size = suite.get("process_size", parent.process_size)
 
     # A regular expression for results. If the parent graph provides a
     # regexp and the current suite has none, a string place holder for the
@@ -675,7 +680,12 @@ class DesktopPlatform(Platform):
     suffix = ' - without patch' if no_patch else ''
     shell_dir = self.shell_dir_no_patch if no_patch else self.shell_dir
     title = ">>> %%s (#%d)%s:" % ((count + 1), suffix)
-    command = self.command_prefix + runnable.GetCommand(shell_dir,
+    if runnable.process_size:
+      command = ["/usr/bin/time", "--format=MaxMemory: %MKB"]
+    else:
+      command = []
+
+    command += self.command_prefix + runnable.GetCommand(shell_dir,
                                                         self.extra_flags)
     try:
       output = commands.Execute(
@@ -702,6 +712,10 @@ class DesktopPlatform(Platform):
         subprocess.check_call(tick_tools + " --only-summary", shell=True)
       else:  # pragma: no cover
         print "Profiler option currently supported on Linux and Mac OS."
+
+    # time outputs to stderr
+    if runnable.process_size:
+      return output.stdout + output.stderr
     return output.stdout
 
 
@@ -841,6 +855,8 @@ class AndroidPlatform(Platform):  # pragma: no cover
     except device_errors.CommandTimeoutError:
       print ">>> Test timed out after %ss." % runnable.timeout
       stdout = ""
+    if runnable.process_size:
+      return stdout + "MaxMemory: Unsupported"
     return stdout
 
 class CustomMachineConfiguration:

@@ -20,9 +20,13 @@ constexpr size_t kV8MaxWasmFunctions = 1000000;
 constexpr size_t kV8MaxWasmImports = 100000;
 constexpr size_t kV8MaxWasmExports = 100000;
 constexpr size_t kV8MaxWasmGlobals = 1000000;
+constexpr size_t kV8MaxWasmExceptions = 1000000;
+constexpr size_t kV8MaxWasmExceptionTypes = 1000000;
 constexpr size_t kV8MaxWasmDataSegments = 100000;
 // Don't use this limit directly, but use the value of FLAG_wasm_max_mem_pages.
-constexpr size_t kV8MaxWasmMemoryPages = 16384;  // = 1 GiB
+// Current limit mimics the maximum allowed allocation on an ArrayBuffer
+// (2GiB - 1 page).
+constexpr size_t kV8MaxWasmMemoryPages = 32767;  // ~ 2 GiB
 constexpr size_t kV8MaxWasmStringSize = 100000;
 constexpr size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB
 constexpr size_t kV8MaxWasmFunctionSize = 128 * 1024;

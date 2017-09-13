@@ -196,6 +196,12 @@ tests.push(function TestOffsetIsUsed(constr) {
   TestOffsetIsUsedRunner(constr, 128);
 });
 
+tests.push(function TestLengthIsNonSmiNegativeNumber(constr) {
+  var ta = new constr({length: -%_MaxSmi() - 2});
+
+  assertEquals(0, ta.length);
+});
+
 // Helpers for above tests.
 
 function TestOffsetIsUsedRunner(constr, n) {

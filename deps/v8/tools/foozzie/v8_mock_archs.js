@@ -43,3 +43,24 @@
   Float32Array = mock(Float32Array);
   Float64Array = mock(Float64Array);
 })();
+
+// Mock typed array set function and limit maximum offset to 1MiB.
+(function () {
+  var typedArrayTypes = [
+    Int8Array,
+    Uint8Array,
+    Uint8ClampedArray,
+    Int16Array,
+    Uint16Array,
+    Int32Array,
+    Uint32Array,
+    Float32Array,
+    Float64Array,
+  ];
+  for (let typedArrayType of typedArrayTypes) {
+    let set = typedArrayType.prototype.set
+    typedArrayType.prototype.set = function(array, offset) {
+      set.apply(this, [array, offset > 1048576 ? 1048576 : offset])
+    };
+  }
+})();

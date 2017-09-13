@@ -138,6 +138,7 @@ namespace compiler {
   V(MipsI32x4ExtractLane)          \
   V(MipsI32x4ReplaceLane)          \
   V(MipsI32x4Add)                  \
+  V(MipsI32x4AddHoriz)             \
   V(MipsI32x4Sub)                  \
   V(MipsF32x4Splat)                \
   V(MipsF32x4ExtractLane)          \
@@ -154,12 +155,12 @@ namespace compiler {
   V(MipsI32x4ShrU)                 \
   V(MipsI32x4MaxU)                 \
   V(MipsI32x4MinU)                 \
-  V(MipsS32x4Select)               \
   V(MipsF32x4Abs)                  \
   V(MipsF32x4Neg)                  \
   V(MipsF32x4RecipApprox)          \
   V(MipsF32x4RecipSqrtApprox)      \
   V(MipsF32x4Add)                  \
+  V(MipsF32x4AddHoriz)             \
   V(MipsF32x4Sub)                  \
   V(MipsF32x4Mul)                  \
   V(MipsF32x4Max)                  \
@@ -171,10 +172,10 @@ namespace compiler {
   V(MipsI32x4SConvertF32x4)        \
   V(MipsI32x4UConvertF32x4)        \
   V(MipsI32x4Neg)                  \
-  V(MipsI32x4LtS)                  \
-  V(MipsI32x4LeS)                  \
-  V(MipsI32x4LtU)                  \
-  V(MipsI32x4LeU)                  \
+  V(MipsI32x4GtS)                  \
+  V(MipsI32x4GeS)                  \
+  V(MipsI32x4GtU)                  \
+  V(MipsI32x4GeU)                  \
   V(MipsI16x8Splat)                \
   V(MipsI16x8ExtractLane)          \
   V(MipsI16x8ReplaceLane)          \
@@ -184,6 +185,7 @@ namespace compiler {
   V(MipsI16x8ShrU)                 \
   V(MipsI16x8Add)                  \
   V(MipsI16x8AddSaturateS)         \
+  V(MipsI16x8AddHoriz)             \
   V(MipsI16x8Sub)                  \
   V(MipsI16x8SubSaturateS)         \
   V(MipsI16x8Mul)                  \
@@ -191,22 +193,89 @@ namespace compiler {
   V(MipsI16x8MinS)                 \
   V(MipsI16x8Eq)                   \
   V(MipsI16x8Ne)                   \
-  V(MipsI16x8LtS)                  \
-  V(MipsI16x8LeS)                  \
+  V(MipsI16x8GtS)                  \
+  V(MipsI16x8GeS)                  \
   V(MipsI16x8AddSaturateU)         \
   V(MipsI16x8SubSaturateU)         \
   V(MipsI16x8MaxU)                 \
   V(MipsI16x8MinU)                 \
-  V(MipsI16x8LtU)                  \
-  V(MipsI16x8LeU)                  \
+  V(MipsI16x8GtU)                  \
+  V(MipsI16x8GeU)                  \
   V(MipsI8x16Splat)                \
   V(MipsI8x16ExtractLane)          \
   V(MipsI8x16ReplaceLane)          \
   V(MipsI8x16Neg)                  \
   V(MipsI8x16Shl)                  \
   V(MipsI8x16ShrS)                 \
-  V(MipsS16x8Select)               \
-  V(MipsS8x16Select)
+  V(MipsI8x16Add)                  \
+  V(MipsI8x16AddSaturateS)         \
+  V(MipsI8x16Sub)                  \
+  V(MipsI8x16SubSaturateS)         \
+  V(MipsI8x16Mul)                  \
+  V(MipsI8x16MaxS)                 \
+  V(MipsI8x16MinS)                 \
+  V(MipsI8x16Eq)                   \
+  V(MipsI8x16Ne)                   \
+  V(MipsI8x16GtS)                  \
+  V(MipsI8x16GeS)                  \
+  V(MipsI8x16ShrU)                 \
+  V(MipsI8x16AddSaturateU)         \
+  V(MipsI8x16SubSaturateU)         \
+  V(MipsI8x16MaxU)                 \
+  V(MipsI8x16MinU)                 \
+  V(MipsI8x16GtU)                  \
+  V(MipsI8x16GeU)                  \
+  V(MipsS128And)                   \
+  V(MipsS128Or)                    \
+  V(MipsS128Xor)                   \
+  V(MipsS128Not)                   \
+  V(MipsS128Select)                \
+  V(MipsS1x4AnyTrue)               \
+  V(MipsS1x4AllTrue)               \
+  V(MipsS1x8AnyTrue)               \
+  V(MipsS1x8AllTrue)               \
+  V(MipsS1x16AnyTrue)              \
+  V(MipsS1x16AllTrue)              \
+  V(MipsS32x4InterleaveRight)      \
+  V(MipsS32x4InterleaveLeft)       \
+  V(MipsS32x4PackEven)             \
+  V(MipsS32x4PackOdd)              \
+  V(MipsS32x4InterleaveEven)       \
+  V(MipsS32x4InterleaveOdd)        \
+  V(MipsS32x4Shuffle)              \
+  V(MipsS16x8InterleaveRight)      \
+  V(MipsS16x8InterleaveLeft)       \
+  V(MipsS16x8PackEven)             \
+  V(MipsS16x8PackOdd)              \
+  V(MipsS16x8InterleaveEven)       \
+  V(MipsS16x8InterleaveOdd)        \
+  V(MipsS16x4Reverse)              \
+  V(MipsS16x2Reverse)              \
+  V(MipsS8x16InterleaveRight)      \
+  V(MipsS8x16InterleaveLeft)       \
+  V(MipsS8x16PackEven)             \
+  V(MipsS8x16PackOdd)              \
+  V(MipsS8x16InterleaveEven)       \
+  V(MipsS8x16InterleaveOdd)        \
+  V(MipsS8x16Shuffle)              \
+  V(MipsS8x16Concat)               \
+  V(MipsS8x8Reverse)               \
+  V(MipsS8x4Reverse)               \
+  V(MipsS8x2Reverse)               \
+  V(MipsMsaLd)                     \
+  V(MipsMsaSt)                     \
+  V(MipsI32x4SConvertI16x8Low)     \
+  V(MipsI32x4SConvertI16x8High)    \
+  V(MipsI32x4UConvertI16x8Low)     \
+  V(MipsI32x4UConvertI16x8High)    \
+  V(MipsI16x8SConvertI8x16Low)     \
+  V(MipsI16x8SConvertI8x16High)    \
+  V(MipsI16x8SConvertI32x4)        \
+  V(MipsI16x8UConvertI32x4)        \
+  V(MipsI16x8UConvertI8x16Low)     \
+  V(MipsI16x8UConvertI8x16High)    \
+  V(MipsI8x16SConvertI16x8)        \
+  V(MipsI8x16UConvertI16x8)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

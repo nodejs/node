@@ -9,6 +9,7 @@
 
   foo(1.1, 0.1);
   foo(0.1, 1.1);
+  foo(true, false);
   %OptimizeFunctionOnNextCall(foo);
   foo(undefined, 1.1);
   assertOptimized(foo);
@@ -33,6 +34,7 @@
 
   foo(1.1, 0.1);
   foo(0.1, 1.1);
+  foo(true, false);
   %OptimizeFunctionOnNextCall(foo);
   foo(undefined, 1.1);
   assertOptimized(foo);
@@ -57,6 +59,7 @@
 
   foo(1.1, 0.1);
   foo(0.1, 1.1);
+  foo(true, false);
   %OptimizeFunctionOnNextCall(foo);
   foo(undefined, 1.1);
   assertOptimized(foo);
@@ -81,6 +84,7 @@
 
   foo(1.1, 0.1);
   foo(0.1, 1.1);
+  foo(true, false);
   %OptimizeFunctionOnNextCall(foo);
   foo(undefined, 1.1);
   assertOptimized(foo);
@@ -105,6 +109,7 @@
 
   foo(1.1, 0.1);
   foo(0.1, 1.1);
+  foo(true, false);
   %OptimizeFunctionOnNextCall(foo);
   foo(undefined, 1.1);
   assertOptimized(foo);
@@ -129,6 +134,7 @@
 
   foo(1.1, 0.1);
   foo(0.1, 1.1);
+  foo(true, false);
   %OptimizeFunctionOnNextCall(foo);
   foo(undefined, 1.1);
   assertOptimized(foo);

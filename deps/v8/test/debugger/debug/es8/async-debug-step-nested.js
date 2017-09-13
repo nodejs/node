@@ -24,7 +24,7 @@ Debug.setListener(listener);
 var late_resolve;
 
 function g() {
-  return new Promise( // B4 StepOut
+  return new Promise( // B3 StepOut
     function(res, rej) {
       late_resolve = res;
     }
@@ -34,17 +34,17 @@ function g() {
 async function f1() {
   var a = 1;
   debugger;          // B0 StepNext
-  a +=               // B1 StepNext
-       await         // B6 StepNext
+  a +=
+       await         // B1 StepIn
              f2();   // B2 StepIn
-  return a;          // B7 StepNext
-}                    // B8 Continue
+  return a;          // B5 StepNext
+}                    // B6 Continue
 
 async function f2() {
-  var b =
-          await      // B5 StepOut
-                g(); // B3 StepIn
-  return b;
+  var b = 0 +        // B2 StepIn
+          await
+                g();
+  return b;          // B4 StepOut
 }
 
 f1();
@@ -53,4 +53,4 @@ late_resolve(3);
 
 %RunMicrotasks();
 
-assertEquals(9, step_count);
+assertEquals(7, step_count);

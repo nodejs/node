@@ -39,7 +39,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   __ Ret();
 
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   DCHECK(ABI_USES_FUNCTION_DESCRIPTORS ||
          !RelocInfo::RequiresRelocation(isolate, desc));
 

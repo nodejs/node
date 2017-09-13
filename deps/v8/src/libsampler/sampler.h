@@ -46,24 +46,24 @@ class Sampler {
 
   // Whether the sampling thread should use this Sampler for CPU profiling?
   bool IsProfiling() const {
-    return base::NoBarrier_Load(&profiling_) > 0 &&
-        !base::NoBarrier_Load(&has_processing_thread_);
+    return base::Relaxed_Load(&profiling_) > 0 &&
+           !base::Relaxed_Load(&has_processing_thread_);
   }
   void IncreaseProfilingDepth();
   void DecreaseProfilingDepth();
 
   // Whether the sampler is running (that is, consumes resources).
-  bool IsActive() const { return base::NoBarrier_Load(&active_) != 0; }
+  bool IsActive() const { return base::Relaxed_Load(&active_) != 0; }
 
   // CpuProfiler collects samples by calling DoSample directly
   // without calling Start. To keep it working, we register the sampler
   // with the CpuProfiler.
-  bool IsRegistered() const { return base::NoBarrier_Load(&registered_) != 0; }
+  bool IsRegistered() const { return base::Relaxed_Load(&registered_) != 0; }
 
   void DoSample();
 
   void SetHasProcessingThread(bool value) {
-    base::NoBarrier_Store(&has_processing_thread_, value);
+    base::Relaxed_Store(&has_processing_thread_, value);
   }
 
   // Used in tests to make sure that stack sampling is performed.
@@ -85,8 +85,8 @@ class Sampler {
   unsigned external_sample_count_;
 
  private:
-  void SetActive(bool value) { base::NoBarrier_Store(&active_, value); }
-  void SetRegistered(bool value) { base::NoBarrier_Store(&registered_, value); }
+  void SetActive(bool value) { base::Relaxed_Store(&active_, value); }
+  void SetRegistered(bool value) { base::Relaxed_Store(&registered_, value); }
 
   Isolate* isolate_;
   base::Atomic32 profiling_;

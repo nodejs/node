@@ -27,7 +27,6 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
                                   Label* miss) {
     UNREACHABLE();
-    return receiver();
   }
 
   virtual void FrontendFooter(Handle<Name> name, Label* miss) { UNREACHABLE(); }

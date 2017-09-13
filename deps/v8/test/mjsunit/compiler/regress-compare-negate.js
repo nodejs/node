@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbo --opt
+// Flags: --allow-natives-syntax --opt
 
 function CompareNegate(a,b) {
  a = a|0;

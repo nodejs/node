@@ -80,7 +80,7 @@ void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc,
   CHECK(!retval.is_null());
   Handle<Object> result = retval.ToHandleChecked();
   if (result->IsSmi()) {
-    CHECK_EQ(expected, Smi::cast(*result)->value());
+    CHECK_EQ(expected, Smi::ToInt(*result));
   } else {
     CHECK(result->IsHeapNumber());
     CheckFloatEq(expected, HeapNumber::cast(*result)->value());

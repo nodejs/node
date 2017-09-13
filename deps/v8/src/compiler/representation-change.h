@@ -132,7 +132,6 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "HeapObject";
   }
   UNREACHABLE();
-  return os;
 }
 
 // The {UseInfo} class is used to describe a use of an input of a node.

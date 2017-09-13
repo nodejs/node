@@ -128,13 +128,15 @@ class ItemParallelJob {
   // Adds an item to the job. Transfers ownership to the job.
   void AddItem(Item* item) { items_.push_back(item); }
 
+  int NumberOfItems() const { return static_cast<int>(items_.size()); }
+  int NumberOfTasks() const { return static_cast<int>(tasks_.size()); }
+
   void Run() {
     DCHECK_GE(tasks_.size(), 0);
     const size_t num_tasks = tasks_.size();
     const size_t num_items = items_.size();
     const size_t items_per_task = (num_items + num_tasks - 1) / num_tasks;
-    CancelableTaskManager::Id* task_ids =
-        new CancelableTaskManager::Id[num_tasks];
+    uint32_t* task_ids = new uint32_t[num_tasks];
     size_t start_index = 0;
     Task* main_task = nullptr;
     Task* task = nullptr;

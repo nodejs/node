@@ -41,7 +41,7 @@ TEST(WasmRelocationArm64MemoryReference) {
   __ Ret();
 
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -97,7 +97,7 @@ TEST(WasmRelocationArm64MemorySizeReference) {
   __ Ret();
 
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 

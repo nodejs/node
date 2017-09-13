@@ -116,15 +116,18 @@ void Deserializer::Deserialize(Isolate* isolate) {
         isolate_->heap()->undefined_value());
   }
 
-  // If needed, print the dissassembly of deserialized code objects.
-  PrintDisassembledCodeObjects();
-
   // Issue code events for newly deserialized code objects.
   LOG_CODE_EVENT(isolate_, LogCodeObjects());
   LOG_CODE_EVENT(isolate_, LogBytecodeHandlers());
   LOG_CODE_EVENT(isolate_, LogCompiledFunctions());
 
   isolate_->builtins()->MarkInitialized();
+
+  // If needed, print the dissassembly of deserialized code objects.
+  // Needs to be called after the builtins are marked as initialized, in order
+  // to display the builtin names.
+  PrintDisassembledCodeObjects();
+
   if (FLAG_rehash_snapshot && can_rehash_) Rehash();
 }
 
@@ -185,51 +188,18 @@ MaybeHandle<HeapObject> Deserializer::DeserializeObject(Isolate* isolate) {
   }
 }
 
-// We only really just need HashForObject here.
-class StringRehashKey : public HashTableKey {
- public:
-  uint32_t HashForObject(Object* other) override {
-    return String::cast(other)->Hash();
-  }
-
-  static uint32_t StringHash(Object* obj) {
-    UNREACHABLE();
-    return String::cast(obj)->Hash();
-  }
-
-  bool IsMatch(Object* string) override {
-    UNREACHABLE();
-    return false;
-  }
-
-  uint32_t Hash() override {
-    UNREACHABLE();
-    return 0;
-  }
-
-  Handle<Object> AsHandle(Isolate* isolate) override {
-    UNREACHABLE();
-    return isolate->factory()->empty_string();
-  }
-};
-
 void Deserializer::Rehash() {
   DCHECK(can_rehash_);
   isolate_->heap()->InitializeHashSeed();
-  if (FLAG_profile_deserialization) {
-    PrintF("Re-initializing hash seed to %x\n",
-           isolate_->heap()->hash_seed()->value());
-  }
-  StringRehashKey string_rehash_key;
-  isolate_->heap()->string_table()->Rehash(&string_rehash_key);
+  isolate_->heap()->string_table()->Rehash();
+  isolate_->heap()->weak_object_to_code_table()->Rehash();
   SortMapDescriptors();
 }
 
 void Deserializer::RehashContext(Context* context) {
   DCHECK(can_rehash_);
   for (const auto& array : transition_arrays_) array->Sort();
-  Handle<Name> dummy = isolate_->factory()->empty_string();
-  context->global_object()->global_dictionary()->Rehash(dummy);
+  context->global_object()->global_dictionary()->Rehash();
   SortMapDescriptors();
 }
 
@@ -342,34 +312,33 @@ void Deserializer::PrintDisassembledCodeObjects() {
 }
 
 // Used to insert a deserialized internalized string into the string table.
-class StringTableInsertionKey : public HashTableKey {
+class StringTableInsertionKey : public StringTableKey {
  public:
   explicit StringTableInsertionKey(String* string)
-      : string_(string), hash_(HashForObject(string)) {
+      : StringTableKey(ComputeHashField(string)), string_(string) {
     DCHECK(string->IsInternalizedString());
   }
 
   bool IsMatch(Object* string) override {
     // We know that all entries in a hash table had their hash keys created.
     // Use that knowledge to have fast failure.
-    if (hash_ != HashForObject(string)) return false;
+    if (Hash() != String::cast(string)->Hash()) return false;
     // We want to compare the content of two internalized strings here.
     return string_->SlowEquals(String::cast(string));
   }
 
-  uint32_t Hash() override { return hash_; }
-
-  uint32_t HashForObject(Object* key) override {
-    return String::cast(key)->Hash();
-  }
-
-  MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) override {
+  MUST_USE_RESULT Handle<String> AsHandle(Isolate* isolate) override {
     return handle(string_, isolate);
   }
 
  private:
+  uint32_t ComputeHashField(String* string) {
+    // Make sure hash_field() is computed.
+    string->Hash();
+    return string->hash_field();
+  }
+
   String* string_;
-  uint32_t hash_;
   DisallowHeapAllocation no_gc;
 };
 
@@ -399,7 +368,6 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
     }
   }
   if (obj->IsAllocationSite()) {
-    DCHECK(obj->IsAllocationSite());
     // Allocation sites are present in the snapshot, and must be linked into
     // a list at deserialization time.
     AllocationSite* site = AllocationSite::cast(obj);

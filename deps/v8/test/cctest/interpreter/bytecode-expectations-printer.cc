@@ -104,7 +104,6 @@ i::Handle<i::BytecodeArray>
 BytecodeExpectationsPrinter::GetBytecodeArrayForModule(
     v8::Local<v8::Module> module) const {
   i::Handle<i::Module> i_module = v8::Utils::OpenHandle(*module);
-  CHECK(!i_module->instantiated());
   return i::handle(SharedFunctionInfo::cast(i_module->code())->bytecode_array(),
                    i_isolate());
 }

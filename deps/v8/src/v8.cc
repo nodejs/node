@@ -6,10 +6,10 @@
 
 #include "src/api.h"
 #include "src/assembler.h"
+#include "src/base/atomicops.h"
 #include "src/base/once.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
-#include "src/crankshaft/lithium-allocator.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
@@ -45,7 +45,6 @@ bool V8::Initialize() {
 void V8::TearDown() {
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
-  LOperand::TearDownCaches();
   RegisteredExtension::UnregisterAll();
   Isolate::GlobalTearDown();
   sampler::Sampler::TearDown();
@@ -67,11 +66,6 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_max_semi_space_size = 1;
   }
 
-  if (FLAG_opt && FLAG_turbo && strcmp(FLAG_turbo_filter, "~~") == 0) {
-    const char* filter_flag = "--turbo-filter=*";
-    FlagList::SetFlagsFromString(filter_flag, StrLength(filter_flag));
-  }
-
   base::OS::Initialize(FLAG_random_seed, FLAG_hard_abort, FLAG_gc_fake_mmap);
 
   Isolate::InitializeOncePerProcess();
@@ -79,7 +73,6 @@ void V8::InitializeOncePerProcessImpl() {
   sampler::Sampler::SetUp();
   CpuFeatures::Probe(false);
   ElementsAccessor::InitializeOncePerProcess();
-  LOperand::SetUpCaches();
   SetUpJSCallerSavedCodeData();
   ExternalReference::SetUp();
   Bootstrapper::InitializeOncePerProcess();
@@ -109,13 +102,16 @@ void V8::ShutdownPlatform() {
 
 
 v8::Platform* V8::GetCurrentPlatform() {
-  DCHECK(platform_);
-  return platform_;
+  v8::Platform* platform = reinterpret_cast<v8::Platform*>(
+      base::Relaxed_Load(reinterpret_cast<base::AtomicWord*>(&platform_)));
+  DCHECK(platform);
+  return platform;
 }
 
-
-void V8::SetPlatformForTesting(v8::Platform* platform) { platform_ = platform; }
-
+void V8::SetPlatformForTesting(v8::Platform* platform) {
+  base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(&platform_),
+                      reinterpret_cast<base::AtomicWord>(platform));
+}
 
 void V8::SetNativesBlob(StartupData* natives_blob) {
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA

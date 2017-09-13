@@ -370,8 +370,6 @@ void LowLevelLogger::LogCodeInfo() {
   const char arch[] = "ppc";
 #elif V8_TARGET_ARCH_MIPS
   const char arch[] = "mips";
-#elif V8_TARGET_ARCH_X87
-  const char arch[] = "x87";
 #elif V8_TARGET_ARCH_ARM64
   const char arch[] = "arm64";
 #elif V8_TARGET_ARCH_S390
@@ -559,7 +557,7 @@ class Profiler: public base::Thread {
     if (paused_)
       return;
 
-    if (Succ(head_) == static_cast<int>(base::NoBarrier_Load(&tail_))) {
+    if (Succ(head_) == static_cast<int>(base::Relaxed_Load(&tail_))) {
       overflow_ = true;
     } else {
       buffer_[head_] = *sample;
@@ -578,10 +576,10 @@ class Profiler: public base::Thread {
   // Waits for a signal and removes profiling data.
   bool Remove(v8::TickSample* sample) {
     buffer_semaphore_.Wait();  // Wait for an element.
-    *sample = buffer_[base::NoBarrier_Load(&tail_)];
+    *sample = buffer_[base::Relaxed_Load(&tail_)];
     bool result = overflow_;
-    base::NoBarrier_Store(&tail_, static_cast<base::Atomic32>(
-                                      Succ(base::NoBarrier_Load(&tail_))));
+    base::Relaxed_Store(
+        &tail_, static_cast<base::Atomic32>(Succ(base::Relaxed_Load(&tail_))));
     overflow_ = false;
     return result;
   }
@@ -667,8 +665,8 @@ Profiler::Profiler(Isolate* isolate)
       buffer_semaphore_(0),
       engaged_(false),
       paused_(false) {
-  base::NoBarrier_Store(&tail_, 0);
-  base::NoBarrier_Store(&running_, 0);
+  base::Relaxed_Store(&tail_, 0);
+  base::Relaxed_Store(&running_, 0);
 }
 
 
@@ -685,7 +683,7 @@ void Profiler::Engage() {
   }
 
   // Start thread processing the profiler buffer.
-  base::NoBarrier_Store(&running_, 1);
+  base::Relaxed_Store(&running_, 1);
   Start();
 
   // Register to get ticks.
@@ -705,7 +703,7 @@ void Profiler::Disengage() {
   // Terminate the worker thread by setting running_ to false,
   // inserting a fake element in the queue and then wait for
   // the thread to terminate.
-  base::NoBarrier_Store(&running_, 0);
+  base::Relaxed_Store(&running_, 0);
   v8::TickSample sample;
   // Reset 'paused_' flag, otherwise semaphore may not be signalled.
   resume();
@@ -719,7 +717,7 @@ void Profiler::Disengage() {
 void Profiler::Run() {
   v8::TickSample sample;
   bool overflow = Remove(&sample);
-  while (base::NoBarrier_Load(&running_)) {
+  while (base::Relaxed_Load(&running_)) {
     LOG(isolate_, TickEvent(&sample, overflow));
     overflow = Remove(&sample);
   }
@@ -1349,7 +1347,7 @@ void Logger::ICEvent(const char* type, bool keyed, const Address pc, int line,
   msg.AppendAddress(reinterpret_cast<Address>(map));
   msg.Append(",");
   if (key->IsSmi()) {
-    msg.Append("%d", Smi::cast(key)->value());
+    msg.Append("%d", Smi::ToInt(key));
   } else if (key->IsNumber()) {
     msg.Append("%lf", key->Number());
   } else if (key->IsString()) {
@@ -1377,34 +1375,6 @@ void Logger::CompareIC(const Address pc, int line, int column, Code* stub,
   msg.AppendAddress(reinterpret_cast<Address>(stub));
   msg.Append(",%s,%s,%s,%s,%s,%s,%s", op, old_left, old_right, old_state,
              new_left, new_right, new_state);
-  msg.WriteToLogFile();
-}
-
-void Logger::BinaryOpIC(const Address pc, int line, int column, Code* stub,
-                        const char* old_state, const char* new_state,
-                        AllocationSite* allocation_site) {
-  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
-  Log::MessageBuilder msg(log_);
-  msg.Append("BinaryOpIC,");
-  msg.AppendAddress(pc);
-  msg.Append(",%d,%d,", line, column);
-  msg.AppendAddress(reinterpret_cast<Address>(stub));
-  msg.Append(",%s,%s,", old_state, new_state);
-  if (allocation_site != nullptr) {
-    msg.AppendAddress(reinterpret_cast<Address>(allocation_site));
-  }
-  msg.WriteToLogFile();
-}
-
-void Logger::ToBooleanIC(const Address pc, int line, int column, Code* stub,
-                         const char* old_state, const char* new_state) {
-  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
-  Log::MessageBuilder msg(log_);
-  msg.Append("ToBooleanIC,");
-  msg.AppendAddress(pc);
-  msg.Append(",%d,%d,", line, column);
-  msg.AppendAddress(reinterpret_cast<Address>(stub));
-  msg.Append(",%s,%s,", old_state, new_state);
   msg.WriteToLogFile();
 }
 
@@ -1526,9 +1496,7 @@ void Logger::LogCodeObject(Object* object) {
       return;  // We log this later using LogCompiledFunctions.
     case AbstractCode::BYTECODE_HANDLER:
       return;  // We log it later by walking the dispatch table.
-    case AbstractCode::BINARY_OP_IC:    // fall through
     case AbstractCode::COMPARE_IC:      // fall through
-    case AbstractCode::TO_BOOLEAN_IC:   // fall through
 
     case AbstractCode::STUB:
       description =

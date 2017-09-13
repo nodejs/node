@@ -297,8 +297,7 @@ class HeapEntriesMap {
  private:
   static uint32_t Hash(HeapThing thing) {
     return ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(thing)),
-        v8::internal::kZeroHashSeed);
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(thing)));
   }
 
   base::HashMap entries_;
@@ -505,8 +504,7 @@ class NativeObjectsExplorer {
   void VisitSubtreeWrapper(Object** p, uint16_t class_id);
 
   static uint32_t InfoHash(v8::RetainedObjectInfo* info) {
-    return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()),
-                              v8::internal::kZeroHashSeed);
+    return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()));
   }
   static bool RetainedInfosMatch(void* key1, void* key2) {
     return key1 == key2 ||

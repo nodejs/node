@@ -87,3 +87,14 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals([1, 2, 3], foo(1, 2, 3));
 })();
+
+// Test Array construct inside try-catch block.
+(() => {
+  function foo(x) { try { return new Array(x) } catch (e) { return e } }
+
+  assertEquals([], foo(0));
+  assertEquals([], foo(0));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals([], foo(0));
+  assertInstanceof(foo(-1), RangeError);
+})();

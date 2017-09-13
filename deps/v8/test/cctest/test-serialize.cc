@@ -1127,12 +1127,14 @@ TEST(CodeSerializerLargeCodeObject) {
 }
 
 TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
+  if (FLAG_never_compact) return;
+  FLAG_stress_incremental_marking = false;
   FLAG_serialize_toplevel = true;
   FLAG_always_opt = false;
   // This test relies on (full-codegen) code objects going to large object
   // space. Once FCG goes away, it must either be redesigned (to put some
   // other large deserialized object into LO space), or it can be deleted.
-  FLAG_ignition = false;
+  FLAG_stress_fullcodegen = true;
   const char* filter_flag = "--turbo-filter=NOTHING";
   FlagList::SetFlagsFromString(filter_flag, StrLength(filter_flag));
   FLAG_black_allocation = true;
@@ -1148,7 +1150,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   Vector<const uint8_t> source = ConstructSource(
       STATIC_CHAR_VECTOR("var j=1; if (j == 0) {"),
       STATIC_CHAR_VECTOR("for (var i = 0; i < Object.prototype; i++);"),
-      STATIC_CHAR_VECTOR("} j=7; var s = 'happy_hippo'; j"), 2100);
+      STATIC_CHAR_VECTOR("} j=7; var s = 'happy_hippo'; j"), 2200);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 
@@ -1771,7 +1773,7 @@ TEST(CodeSerializerWithHarmonyScoping) {
 }
 
 TEST(CodeSerializerEagerCompilationAndPreAge) {
-  if (FLAG_ignition || FLAG_turbo) return;
+  if (!FLAG_stress_fullcodegen) return;
 
   FLAG_lazy = true;
   FLAG_serialize_toplevel = true;
@@ -1876,7 +1878,7 @@ TEST(CodeSerializerCell) {
     masm->movp(rax, Operand(rax, 0));
     masm->ret(0);
     CodeDesc desc;
-    masm->GetCode(&desc);
+    masm->GetCode(isolate, &desc);
     code = isolate->factory()->NewCode(desc, Code::ComputeFlags(Code::FUNCTION),
                                        masm->CodeObject());
     code->set_has_reloc_info_for_serialization(true);
@@ -1918,14 +1920,14 @@ TEST(CodeSerializerEmbeddedObject) {
   MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
                            v8::internal::CodeObjectRequired::kYes);
   assembler.enable_serializer();
-  Handle<Object> number = isolate->factory()->NewHeapNumber(0.3);
+  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(0.3);
   CHECK(isolate->heap()->InNewSpace(*number));
   Handle<Code> code;
   {
     MacroAssembler* masm = &assembler;
     masm->Push(number);
     CodeDesc desc;
-    masm->GetCode(&desc);
+    masm->GetCode(isolate, &desc);
     code = isolate->factory()->NewCode(desc, Code::ComputeFlags(Code::FUNCTION),
                                        masm->CodeObject());
     code->set_has_reloc_info_for_serialization(true);

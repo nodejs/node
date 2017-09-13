@@ -5,6 +5,7 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
 
+#include "src/accessors.h"
 #include "src/counters.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
@@ -40,10 +41,12 @@ BUILTIN(ErrorConstructor) {
 BUILTIN(ErrorCaptureStackTrace) {
   HandleScope scope(isolate);
   Handle<Object> object_obj = args.atOrUndefined(isolate, 1);
+
   if (!object_obj->IsJSObject()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalidArgument, object_obj));
   }
+
   Handle<JSObject> object = Handle<JSObject>::cast(object_obj);
   Handle<Object> caller = args.atOrUndefined(isolate, 2);
   FrameSkipMode mode = caller->IsJSFunction() ? SKIP_UNTIL_SEEN : SKIP_FIRST;
@@ -52,27 +55,24 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   RETURN_FAILURE_ON_EXCEPTION(isolate,
                               isolate->CaptureAndSetDetailedStackTrace(object));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, isolate->CaptureAndSetSimpleStackTrace(object, mode, caller));
 
-  // Eagerly format the stack trace and set the stack property.
+  // Add the stack accessors.
 
-  Handle<Object> stack_trace =
-      isolate->CaptureSimpleStackTrace(object, mode, caller);
-  if (!stack_trace->IsJSArray()) return isolate->heap()->undefined_value();
+  Handle<AccessorInfo> error_stack =
+      Accessors::ErrorStackInfo(isolate, DONT_ENUM);
 
-  Handle<Object> formatted_stack_trace;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, formatted_stack_trace,
-      ErrorUtils::FormatStackTrace(isolate, object, stack_trace));
+  // Explicitly check for frozen objects. Other access checks are performed by
+  // the LookupIterator in SetAccessor below.
+  if (!JSObject::IsExtensible(object)) {
+    return isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kDefineDisallowed,
+        handle(error_stack->name(), isolate)));
+  }
 
-  PropertyDescriptor desc;
-  desc.set_configurable(true);
-  desc.set_writable(true);
-  desc.set_value(formatted_stack_trace);
-  Maybe<bool> status = JSReceiver::DefineOwnProperty(
-      isolate, object, isolate->factory()->stack_string(), &desc,
-      Object::THROW_ON_ERROR);
-  if (!status.IsJust()) return isolate->heap()->exception();
-  CHECK(status.FromJust());
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
+                              JSObject::SetAccessor(object, error_stack));
   return isolate->heap()->undefined_value();
 }
 
@@ -96,8 +96,8 @@ Object* MakeGenericError(Isolate* isolate, BuiltinArguments args,
 
   RETURN_RESULT_OR_FAILURE(
       isolate, ErrorUtils::MakeGenericError(isolate, constructor,
-                                            Smi::cast(*template_index)->value(),
-                                            arg0, arg1, arg2, SKIP_NONE));
+                                            Smi::ToInt(*template_index), arg0,
+                                            arg1, arg2, SKIP_NONE));
 }
 
 }  // namespace

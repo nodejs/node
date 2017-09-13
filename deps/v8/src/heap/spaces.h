@@ -14,8 +14,8 @@
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
 #include "src/base/hashmap.h"
+#include "src/base/iterator.h"
 #include "src/base/platform/mutex.h"
-#include "src/cancelable-task.h"
 #include "src/flags.h"
 #include "src/globals.h"
 #include "src/heap/heap.h"
@@ -237,6 +237,13 @@ class FreeListCategory {
 // any heap object.
 class MemoryChunk {
  public:
+  // Use with std data structures.
+  struct Hasher {
+    size_t operator()(Page* const p) const {
+      return reinterpret_cast<size_t>(p) >> kPageSizeBits;
+    }
+  };
+
   enum Flag {
     NO_FLAGS = 0u,
     IS_EXECUTABLE = 1u << 0,
@@ -434,32 +441,42 @@ class MemoryChunk {
 
   inline Heap* heap() const { return heap_; }
 
+  Heap* synchronized_heap();
+
   inline SkipList* skip_list() { return skip_list_; }
 
   inline void set_skip_list(SkipList* skip_list) { skip_list_ = skip_list; }
 
-  template <RememberedSetType type>
+  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   SlotSet* slot_set() {
-    return slot_set_[type].Value();
+    if (access_mode == AccessMode::ATOMIC)
+      return base::AsAtomicWord::Acquire_Load(&slot_set_[type]);
+    return slot_set_[type];
   }
 
-  template <RememberedSetType type>
+  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   TypedSlotSet* typed_slot_set() {
-    return typed_slot_set_[type].Value();
+    if (access_mode == AccessMode::ATOMIC)
+      return base::AsAtomicWord::Acquire_Load(&typed_slot_set_[type]);
+    return typed_slot_set_[type];
   }
-
-  inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
 
   template <RememberedSetType type>
   SlotSet* AllocateSlotSet();
+  // Not safe to be called concurrently.
   template <RememberedSetType type>
   void ReleaseSlotSet();
   template <RememberedSetType type>
   TypedSlotSet* AllocateTypedSlotSet();
+  // Not safe to be called concurrently.
   template <RememberedSetType type>
   void ReleaseTypedSlotSet();
+
   void AllocateLocalTracker();
   void ReleaseLocalTracker();
+  inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
+  bool contains_array_buffers();
+
   void AllocateYoungGenerationBitmap();
   void ReleaseYoungGenerationBitmap();
 
@@ -581,6 +598,10 @@ class MemoryChunk {
 
   base::VirtualMemory* reserved_memory() { return &reservation_; }
 
+  // Emits a memory barrier. For TSAN builds the other thread needs to perform
+  // MemoryChunk::synchronized_heap() to simulate the barrier.
+  void InitializationMemoryFence();
+
   size_t size_;
   Flags flags_;
 
@@ -608,9 +629,8 @@ class MemoryChunk {
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
   // is ceil(size() / kPageSize).
-  base::AtomicValue<SlotSet*> slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
-  base::AtomicValue<TypedSlotSet*>
-      typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
+  SlotSet* slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
+  TypedSlotSet* typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
 
   SkipList* skip_list_;
 
@@ -675,7 +695,7 @@ class MarkingState {
   MarkingState(Bitmap* bitmap, intptr_t* live_bytes)
       : bitmap_(bitmap), live_bytes_(live_bytes) {}
 
-  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  template <AccessMode mode = AccessMode::NON_ATOMIC>
   inline void IncrementLiveBytes(intptr_t by) const;
 
   void SetLiveBytes(intptr_t value) const {
@@ -688,7 +708,9 @@ class MarkingState {
   }
 
   Bitmap* bitmap() const { return bitmap_; }
-  intptr_t live_bytes() const { return *live_bytes_; }
+
+  template <AccessMode mode = AccessMode::NON_ATOMIC>
+  inline intptr_t live_bytes() const;
 
  private:
   Bitmap* bitmap_;
@@ -696,19 +718,29 @@ class MarkingState {
 };
 
 template <>
-inline void MarkingState::IncrementLiveBytes<MarkBit::NON_ATOMIC>(
+inline void MarkingState::IncrementLiveBytes<AccessMode::NON_ATOMIC>(
     intptr_t by) const {
   *live_bytes_ += by;
 }
 
 template <>
-inline void MarkingState::IncrementLiveBytes<MarkBit::ATOMIC>(
+inline void MarkingState::IncrementLiveBytes<AccessMode::ATOMIC>(
     intptr_t by) const {
   reinterpret_cast<base::AtomicNumber<intptr_t>*>(live_bytes_)->Increment(by);
 }
 
+template <>
+inline intptr_t MarkingState::live_bytes<AccessMode::NON_ATOMIC>() const {
+  return *live_bytes_;
+}
+
+template <>
+inline intptr_t MarkingState::live_bytes<AccessMode::ATOMIC>() const {
+  return reinterpret_cast<base::AtomicNumber<intptr_t>*>(live_bytes_)->Value();
+}
+
 // -----------------------------------------------------------------------------
-// A page is a memory chunk of a size 1MB. Large object pages may be larger.
+// A page is a memory chunk of a size 512K. Large object pages may be larger.
 //
 // The only way to get a page pointer is by calling factory methods:
 //   Page* p = Page::FromAddress(addr); or
@@ -721,8 +753,6 @@ class Page : public MemoryChunk {
   static const intptr_t kCopyOnFlipFlagsMask =
       static_cast<intptr_t>(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
       static_cast<intptr_t>(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-
-  static inline Page* ConvertNewToOld(Page* old_page);
 
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize[. This only works if the object
@@ -753,6 +783,8 @@ class Page : public MemoryChunk {
     return (reinterpret_cast<intptr_t>(addr) & kPageAlignmentMask) ==
            kObjectStartOffset;
   }
+
+  static Page* ConvertNewToOld(Page* old_page);
 
   inline static Page* FromAnyPointerAddress(Heap* heap, Address addr);
 
@@ -835,10 +867,10 @@ class Page : public MemoryChunk {
   enum InitializationMode { kFreeMemory, kDoNotFreeMemory };
 
   template <InitializationMode mode = kFreeMemory>
-  static inline Page* Initialize(Heap* heap, MemoryChunk* chunk,
-                                 Executability executable, PagedSpace* owner);
-  static inline Page* Initialize(Heap* heap, MemoryChunk* chunk,
-                                 Executability executable, SemiSpace* owner);
+  static Page* Initialize(Heap* heap, MemoryChunk* chunk,
+                          Executability executable, PagedSpace* owner);
+  static Page* Initialize(Heap* heap, MemoryChunk* chunk,
+                          Executability executable, SemiSpace* owner);
 
   inline void InitializeFreeListCategories();
 
@@ -870,8 +902,8 @@ class LargePage : public MemoryChunk {
   static const int kMaxCodePageSize = 512 * MB;
 
  private:
-  static inline LargePage* Initialize(Heap* heap, MemoryChunk* chunk,
-                                      Executability executable, Space* owner);
+  static LargePage* Initialize(Heap* heap, MemoryChunk* chunk,
+                               Executability executable, Space* owner);
 
   friend class MemoryAllocator;
 };
@@ -953,6 +985,8 @@ class Space : public Malloced {
     DCHECK_GE(committed_, committed_ - bytes);
     committed_ -= bytes;
   }
+
+  V8_EXPORT_PRIVATE void* GetRandomMmapAddr();
 
 #ifdef DEBUG
   virtual void Print() = 0;
@@ -1150,9 +1184,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
    public:
     class UnmapFreeMemoryTask;
 
-    Unmapper(Heap* heap, MemoryAllocator* allocator)
-        : heap_(heap),
-          allocator_(allocator),
+    explicit Unmapper(MemoryAllocator* allocator)
+        : allocator_(allocator),
           pending_unmapping_tasks_semaphore_(0),
           concurrent_unmapping_tasks_active_(0) {
       chunks_[kRegular].reserve(kReservedQueueingSlots);
@@ -1186,14 +1219,13 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     }
 
     void FreeQueuedChunks();
-    void WaitUntilCompleted();
+    bool WaitUntilCompleted();
     void TearDown();
 
     bool has_delayed_chunks() { return delayed_regular_chunks_.size() > 0; }
 
    private:
     static const int kReservedQueueingSlots = 64;
-    static const int kMaxUnmapperTasks = 24;
 
     enum ChunkQueueType {
       kRegular,     // Pages of kPageSize that do not live in a CodeRange and
@@ -1232,15 +1264,13 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     template <FreeMode mode>
     void PerformFreeMemoryOnQueuedChunks();
 
-    Heap* const heap_;
-    MemoryAllocator* const allocator_;
     base::Mutex mutex_;
+    MemoryAllocator* allocator_;
     std::vector<MemoryChunk*> chunks_[kNumberOfChunkQueues];
     // Delayed chunks cannot be processed in the current unmapping cycle because
     // of dependencies such as an active sweeper.
     // See MemoryAllocator::CanFreeMemoryChunk.
     std::list<MemoryChunk*> delayed_regular_chunks_;
-    CancelableTaskManager::Id task_ids_[kMaxUnmapperTasks];
     base::Semaphore pending_unmapping_tasks_semaphore_;
     intptr_t concurrent_unmapping_tasks_active_;
 
@@ -1332,19 +1362,23 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   MemoryChunk* AllocateChunk(size_t reserve_area_size, size_t commit_area_size,
                              Executability executable, Space* space);
 
-  void ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink);
-
-  Address ReserveAlignedMemory(size_t requested, size_t alignment,
+  Address ReserveAlignedMemory(size_t requested, size_t alignment, void* hint,
                                base::VirtualMemory* controller);
   Address AllocateAlignedMemory(size_t reserve_size, size_t commit_size,
                                 size_t alignment, Executability executable,
-                                base::VirtualMemory* controller);
+                                void* hint, base::VirtualMemory* controller);
 
   bool CommitMemory(Address addr, size_t size, Executability executable);
 
   void FreeMemory(base::VirtualMemory* reservation, Executability executable);
-  void PartialFreeMemory(MemoryChunk* chunk, Address start_free);
   void FreeMemory(Address addr, size_t size, Executability executable);
+
+  // Partially release |bytes_to_free| bytes starting at |start_free|. Note that
+  // internally memory is freed from |start_free| to the end of the reservation.
+  // Additional memory beyond the page is not accounted though, so
+  // |bytes_to_free| is computed by the caller.
+  void PartialFreeMemory(MemoryChunk* chunk, Address start_free,
+                         size_t bytes_to_free, Address new_area_end);
 
   // Commit a contiguous block of memory from the initial chunk.  Assumes that
   // the address is not NULL, the size is greater than zero, and that the
@@ -1460,7 +1494,7 @@ class V8_EXPORT_PRIVATE ObjectIterator : public Malloced {
 
 template <class PAGE_TYPE>
 class PageIteratorImpl
-    : public std::iterator<std::forward_iterator_tag, PAGE_TYPE> {
+    : public base::iterator<std::forward_iterator_tag, PAGE_TYPE> {
  public:
   explicit PageIteratorImpl(PAGE_TYPE* p) : p_(p) {}
   PageIteratorImpl(const PageIteratorImpl<PAGE_TYPE>& other) : p_(other.p_) {}
@@ -1540,20 +1574,12 @@ class V8_EXPORT_PRIVATE HeapObjectIterator : public ObjectIterator {
 // space.
 class AllocationInfo {
  public:
-  AllocationInfo() : original_top_(nullptr), top_(nullptr), limit_(nullptr) {}
-  AllocationInfo(Address top, Address limit)
-      : original_top_(top), top_(top), limit_(limit) {}
+  AllocationInfo() : top_(nullptr), limit_(nullptr) {}
+  AllocationInfo(Address top, Address limit) : top_(top), limit_(limit) {}
 
   void Reset(Address top, Address limit) {
-    original_top_ = top;
     set_top(top);
     set_limit(limit);
-  }
-
-  Address original_top() {
-    SLOW_DCHECK(top_ == NULL ||
-                (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
-    return original_top_;
   }
 
   INLINE(void set_top(Address top)) {
@@ -1589,8 +1615,6 @@ class AllocationInfo {
 #endif
 
  private:
-  // The original top address when the allocation info was initialized.
-  Address original_top_;
   // Current allocation top.
   Address top_;
   // Current allocation limit.
@@ -2341,14 +2365,12 @@ class SemiSpace : public Space {
 
   size_t Size() override {
     UNREACHABLE();
-    return 0;
   }
 
   size_t SizeOfObjects() override { return Size(); }
 
   size_t Available() override {
     UNREACHABLE();
-    return 0;
   }
 
   iterator begin() { return iterator(anchor_.next_page()); }
@@ -2440,10 +2462,10 @@ class NewSpace : public Space {
 
   explicit NewSpace(Heap* heap)
       : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
+        top_on_previous_step_(0),
         to_space_(heap, kToSpace),
         from_space_(heap, kFromSpace),
         reservation_(),
-        top_on_previous_step_(0),
         allocated_histogram_(nullptr),
         promoted_histogram_(nullptr) {}
 
@@ -2577,6 +2599,10 @@ class NewSpace : public Space {
     return allocation_info_.limit();
   }
 
+  Address original_top() { return original_top_.Value(); }
+
+  Address original_limit() { return original_limit_.Value(); }
+
   // Return the address of the first object in the active semispace.
   Address bottom() { return to_space_.space_start(); }
 
@@ -2707,16 +2733,20 @@ class NewSpace : public Space {
 
   base::Mutex mutex_;
 
+  // Allocation pointer and limit for normal allocation and allocation during
+  // mark-compact collection.
+  AllocationInfo allocation_info_;
+  Address top_on_previous_step_;
+  // The top and the limit at the time of setting the allocation info.
+  // These values can be accessed by background tasks.
+  base::AtomicValue<Address> original_top_;
+  base::AtomicValue<Address> original_limit_;
+
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
   base::VirtualMemory reservation_;
 
-  // Allocation pointer and limit for normal allocation and allocation during
-  // mark-compact collection.
-  AllocationInfo allocation_info_;
-
-  Address top_on_previous_step_;
 
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
@@ -2785,7 +2815,6 @@ class CompactionSpaceCollection : public Malloced {
         UNREACHABLE();
     }
     UNREACHABLE();
-    return nullptr;
   }
 
  private:
@@ -2824,7 +2853,7 @@ class MapSpace : public PagedSpace {
       : PagedSpace(heap, id, NOT_EXECUTABLE) {}
 
   int RoundSizeDownToObjectAlignment(int size) override {
-    if (base::bits::IsPowerOfTwo32(Map::kSize)) {
+    if (base::bits::IsPowerOfTwo(Map::kSize)) {
       return RoundDown(size, Map::kSize);
     } else {
       return (size / Map::kSize) * Map::kSize;

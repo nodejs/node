@@ -24,13 +24,13 @@ function listener(event, exec_state, event_data, data) {
 
 function f() {
   var a = 1;                     // Break 2. 10.
-  return a;                      // Break 3. 2.
-}                                // Break 4. 0.
+  return a;                      // Break 3. 11.
+}
 
 Debug.setListener(listener);
 debugger;                        // Break 0. 0.
 f();                             // Break 1. 0.
-Debug.setListener(null);         // Break 5. 0.
+Debug.setListener(null);         // Break 4. 0.
 
 assertNull(exception);
-assertEquals(6, break_count);
+assertEquals(5, break_count);
