@@ -7,7 +7,7 @@
 <!-- type=misc -->
 
 Node.js includes an out-of-process debugging utility accessible via a
-[TCP-based protocol][] and built-in debugging client. To use it, start Node.js
+[V8 Inspector][] and built-in debugging client. To use it, start Node.js
 with the `inspect` argument followed by the path to the script to debug; a prompt
 will be displayed indicating successful launch of the debugger:
 
@@ -194,4 +194,4 @@ at the end of the URL is generated on the fly, it varies in different
 debugging sessions.)
 
 [Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer/
-[TCP-based protocol]: #debugger_tcp_based_protocol
+[V8 Inspector]: #debugger_v8_inspector_integration_for_node_js

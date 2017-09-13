@@ -2266,8 +2266,8 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`stream.transform` options]: stream.html#stream_new_stream_transform_options
 [`stream.Writable` options]: stream.html#stream_constructor_new_stream_writable_options
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
-[`verify.update()`]: #crypto_verifier_update_data_inputencoding
-[`verify.verify()`]: #crypto_verifier_verify_object_signature_signatureformat
+[`verify.update()`]: #crypto_verify_update_data_inputencoding
+[`verify.verify()`]: #crypto_verify_verify_object_signature_signatureformat
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
 [Crypto Constants]: #crypto_crypto_constants_1
 [HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element

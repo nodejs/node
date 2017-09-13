@@ -15,7 +15,6 @@ server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
     const expected = {
-      statusCode: null,
       version: '2.0',
       httpVersionMajor: 2,
       httpVersionMinor: 0
@@ -24,7 +23,6 @@ server.listen(0, common.mustCall(function() {
     assert.strictEqual(request.closed, false);
     assert.strictEqual(request.code, h2.constants.NGHTTP2_NO_ERROR);
 
-    assert.strictEqual(request.statusCode, expected.statusCode);
     assert.strictEqual(request.httpVersion, expected.version);
     assert.strictEqual(request.httpVersionMajor, expected.httpVersionMajor);
     assert.strictEqual(request.httpVersionMinor, expected.httpVersionMinor);

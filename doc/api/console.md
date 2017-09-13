@@ -290,7 +290,7 @@ values are concatenated. See [`util.format()`][] for more information.
 
 ### console.group([...label])
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `label` {any}
@@ -302,14 +302,14 @@ additional indentation.
 
 ### console.groupCollapsed()
 <!-- YAML
-  added: REPLACEME
+  added: v8.5.0
 -->
 
 An alias for [`console.group()`][].
 
 ### console.groupEnd()
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 Decreases indentation of subsequent lines by two spaces.
