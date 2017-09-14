@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common.js');
-var path = require('path');
+const common = require('../common.js');
+const path = require('path');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   paths: [
     ['C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb'].join('|'),
     ['C:\\', 'D:\\'].join('|'),
@@ -14,11 +14,11 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var n = +conf.n;
-  var p = path.win32;
+  const n = +conf.n;
+  const p = path.win32;
   var from = String(conf.paths);
   var to = '';
-  var delimIdx = from.indexOf('|');
+  const delimIdx = from.indexOf('|');
   if (delimIdx > -1) {
     to = from.slice(delimIdx + 1);
     from = from.slice(0, delimIdx);

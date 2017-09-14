@@ -12,7 +12,7 @@ const methods = [
   'restAndConcat'
 ];
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   method: methods,
   concat: [1, 0],
   n: [1000000]

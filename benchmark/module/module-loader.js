@@ -1,19 +1,19 @@
 'use strict';
-var fs = require('fs');
-var path = require('path');
-var common = require('../common.js');
+const fs = require('fs');
+const path = require('path');
+const common = require('../common.js');
 
-var tmpDirectory = path.join(__dirname, '..', 'tmp');
-var benchmarkDirectory = path.join(tmpDirectory, 'nodejs-benchmark-module');
+const tmpDirectory = path.join(__dirname, '..', 'tmp');
+const benchmarkDirectory = path.join(tmpDirectory, 'nodejs-benchmark-module');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   thousands: [50],
   fullPath: ['true', 'false'],
   useCache: ['true', 'false']
 });
 
 function main(conf) {
-  var n = +conf.thousands * 1e3;
+  const n = +conf.thousands * 1e3;
 
   rmrf(tmpDirectory);
   try { fs.mkdirSync(tmpDirectory); } catch (e) {}
@@ -69,7 +69,7 @@ function measureDir(n, useCache) {
 
 function rmrf(location) {
   try {
-    var things = fs.readdirSync(location);
+    const things = fs.readdirSync(location);
     things.forEach(function(thing) {
       var cur = path.join(location, thing),
         isDirectory = fs.statSync(cur).isDirectory();

@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function useLegacy(n, input, prop) {
-  var obj = url.parse(input);
+  const obj = url.parse(input);
   var noDead = url.format(obj);
   bench.start();
   for (var i = 0; i < n; i += 1) {
@@ -23,7 +23,7 @@ function useLegacy(n, input, prop) {
 }
 
 function useWHATWG(n, input, prop) {
-  var obj = new URL(input);
+  const obj = new URL(input);
   var noDead = obj.toString();
   bench.start();
   for (var i = 0; i < n; i += 1) {
