@@ -1536,10 +1536,10 @@ object with an `encoding` property specifying the character encoding to use.
 Example:
 
 ```js
-fs.mkdtemp('/tmp/foo-', (err, folder) => {
+fs.mkdtemp(path.join(os.tmpdir(), 'foo-'), (err, folder) => {
   if (err) throw err;
   console.log(folder);
-  // Prints: /tmp/foo-itXde2
+  // Prints: /tmp/foo-itXde2 or C:\Users\...\AppData\Local\Temp\foo-itXde2
 });
 ```
 
@@ -1551,7 +1551,7 @@ the `prefix` *must* end with a trailing platform-specific path separator
 
 ```js
 // The parent directory for the new temporary directory
-const tmpDir = '/tmp';
+const tmpDir = os.tmpdir();
 
 // This method is *INCORRECT*:
 fs.mkdtemp(tmpDir, (err, folder) => {
