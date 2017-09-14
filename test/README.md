@@ -12,10 +12,11 @@ On how to run tests in this directory, see
 
 |Directory          |Runs on CI     |Purpose        |
 |-------------------|---------------|---------------|
-|abort              |No             |Tests for when the  ``` --abort-on-uncaught-exception ``` flag is used.|
+|abort              |Yes            |Tests for when the  ``` --abort-on-uncaught-exception ``` flag is used.|
 |addons             |Yes            |Tests for [addon](https://nodejs.org/api/addons.html) functionality along with some tests that require an addon to function  properly.|
 |cctest             |Yes            |C++ test that is run as part of the build process.|
 |common             |               |Common modules shared among many tests. [Documentation](./common/README.md)|
+|es-module          |Yes            |Test ESM module loading.|
 |fixtures           |               |Test fixtures used in various tests throughout the test suite.|
 |gc                 |No             |Tests for garbage collection related functionality.|
 |inspector          |Yes            |Tests for the V8 inspector integration.|
@@ -29,3 +30,7 @@ On how to run tests in this directory, see
 |testpy             |               |Test configuration utility used by various test suites.|
 |tick-processor     |No             |Tests for the V8 tick processor integration. The tests are for the logic in ```lib/internal/v8_prof_processor.js``` and  ```lib/internal/v8_prof_polyfill.js```. The tests confirm that the profile processor packages the correct set of scripts from V8 and introduces the correct platform specific logic.|
 |timers             |No             |Tests for [timing utilities](https://nodejs.org/api/timers.html) (```setTimeout``` and ```setInterval```).|
+
+_When a new test directory is added, make sure to update the `CI_JS_SUITES`
+variable in the `Makefile` and the `js_test_suites` variable in
+`vcbuild.bat`._
