@@ -4,13 +4,16 @@ const assert = require('assert');
 const http = require('http');
 
 // Verify that after calling end() on an `OutgoingMessage` (or a type that
-// inherits from `OutgoingMessage`), its `writable` property is set to false.
+// inherits from `OutgoingMessage`), its `writable` property is not set to false
 
 const server = http.createServer(common.mustCall(function(req, res) {
   assert.strictEqual(res.writable, true);
   assert.strictEqual(res.finished, false);
   res.end();
-  assert.strictEqual(res.writable, false);
+
+  // res.writable is set to false after it has finished sending
+  // Ref: https://github.com/nodejs/node/issues/15029
+  assert.strictEqual(res.writable, true);
   assert.strictEqual(res.finished, true);
 
   server.close();
@@ -27,5 +30,9 @@ server.on('listening', common.mustCall(function() {
 
   assert.strictEqual(clientRequest.writable, true);
   clientRequest.end();
-  assert.strictEqual(clientRequest.writable, false);
+
+  // writable is still true when close
+  // THIS IS LEGACY, we cannot change it
+  // unless we break error detection
+  assert.strictEqual(clientRequest.writable, true);
 }));
