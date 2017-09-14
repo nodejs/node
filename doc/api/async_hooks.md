@@ -381,9 +381,8 @@ TTYWRAP(6) -> Timeout(4) -> TIMERWRAP(5) -> TickObject(3) -> root(1)
 
 The `TCPWRAP` is not part of this graph; even though it was the reason for
 `console.log()` being called. This is because binding to a port without a
-hostname is a *synchronous* operation within Node.js, but to maintain a
-completely asynchronous API the user's callback is placed in a
-`process.nextTick()`.
+hostname is a *synchronous* operation, but to maintain a completely asynchronous
+API the user's callback is placed in a `process.nextTick()`.
 
 The graph only shows *when* a resource was created, not *why*, so to track
 the *why* use `triggerAsyncId`.
@@ -490,7 +489,7 @@ const server = net.createServer((conn) => {
 ## JavaScript Embedder API
 
 Library developers that handle their own asychronous resources performing tasks
-like I/O, connection pooling, or managing callback queues may use the AsyncWrap
+like I/O, connection pooling, or managing callback queues may use the `AsyncWrap`
 JavaScript API so that all the appropriate callbacks are called.
 
 ### `class AsyncResource()`
