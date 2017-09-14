@@ -2,13 +2,18 @@
 #define SRC_NODE_PLATFORM_H_
 
 #include <queue>
+#include <unordered_map>
 #include <vector>
 
 #include "libplatform/libplatform.h"
+#include "node.h"
 #include "node_mutex.h"
 #include "uv.h"
 
 namespace node {
+
+class NodePlatform;
+class IsolateData;
 
 template <class T>
 class TaskQueue {
@@ -32,15 +37,38 @@ class TaskQueue {
   std::queue<T*> task_queue_;
 };
 
-class NodePlatform : public v8::Platform {
+class PerIsolatePlatformData {
  public:
-  NodePlatform(int thread_pool_size, uv_loop_t* loop,
-               v8::TracingController* tracing_controller);
-  virtual ~NodePlatform() {}
+  PerIsolatePlatformData(v8::Isolate* isolate, uv_loop_t* loop);
+  ~PerIsolatePlatformData();
 
-  void DrainBackgroundTasks();
+  void CallOnForegroundThread(v8::Task* task);
+  void CallDelayedOnForegroundThread(v8::Task* task, double delay_in_seconds);
+
+  void Shutdown();
+
+  void ref();
+  int unref();
+
   // Returns true iff work was dispatched or executed.
   bool FlushForegroundTasksInternal();
+ private:
+  static void FlushTasks(uv_async_t* handle);
+
+  int ref_count_ = 1;
+  v8::Isolate* isolate_;
+  uv_loop_t* const loop_;
+  uv_async_t* flush_tasks_ = nullptr;
+  TaskQueue<v8::Task> foreground_tasks_;
+  TaskQueue<std::pair<v8::Task*, double>> foreground_delayed_tasks_;
+};
+
+class NodePlatform : public MultiIsolatePlatform {
+ public:
+  NodePlatform(int thread_pool_size, v8::TracingController* tracing_controller);
+  virtual ~NodePlatform() {}
+
+  void DrainBackgroundTasks(v8::Isolate* isolate) override;
   void Shutdown();
 
   // v8::Platform implementation.
@@ -54,11 +82,16 @@ class NodePlatform : public v8::Platform {
   double MonotonicallyIncreasingTime() override;
   v8::TracingController* GetTracingController() override;
 
+  void FlushForegroundTasks(v8::Isolate* isolate);
+
+  void RegisterIsolate(IsolateData* isolate_data, uv_loop_t* loop) override;
+  void UnregisterIsolate(IsolateData* isolate_data) override;
+
  private:
-  uv_loop_t* const loop_;
-  uv_async_t flush_tasks_;
-  TaskQueue<v8::Task> foreground_tasks_;
-  TaskQueue<std::pair<v8::Task*, double>> foreground_delayed_tasks_;
+  PerIsolatePlatformData* ForIsolate(v8::Isolate* isolate);
+
+  Mutex per_isolate_mutex_;
+  std::unordered_map<v8::Isolate*, PerIsolatePlatformData*> per_isolate_;
   TaskQueue<v8::Task> background_tasks_;
   std::vector<std::unique_ptr<uv_thread_t>> threads_;
 
