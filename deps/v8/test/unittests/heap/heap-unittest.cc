@@ -63,14 +63,19 @@ TEST(Heap, MaxHeapGrowingFactor) {
 }
 
 TEST(Heap, SemiSpaceSize) {
-  const size_t KB = static_cast<size_t>(i::KB);
-  const size_t MB = static_cast<size_t>(i::MB);
-  const size_t pm = i::Heap::kPointerMultiplier;
-  ASSERT_EQ(1u * pm * MB / 2, i::Heap::ComputeMaxSemiSpaceSize(0u) * KB);
-  ASSERT_EQ(1u * pm * MB / 2, i::Heap::ComputeMaxSemiSpaceSize(512u * MB) * KB);
-  ASSERT_EQ(2u * pm * MB, i::Heap::ComputeMaxSemiSpaceSize(1024u * MB) * KB);
-  ASSERT_EQ(5u * pm * MB, i::Heap::ComputeMaxSemiSpaceSize(2024u * MB) * KB);
-  ASSERT_EQ(8u * pm * MB, i::Heap::ComputeMaxSemiSpaceSize(4095u * MB) * KB);
+  uint64_t configurations[][2] = {
+      {0, 1 * i::Heap::kPointerMultiplier},
+      {512 * i::MB, 1 * i::Heap::kPointerMultiplier},
+      {1 * i::GB, 3 * i::Heap::kPointerMultiplier},
+      {2 * static_cast<uint64_t>(i::GB), i::Heap::kMaxSemiSpaceSize},
+      {4 * static_cast<uint64_t>(i::GB), i::Heap::kMaxSemiSpaceSize},
+      {8 * static_cast<uint64_t>(i::GB), i::Heap::kMaxSemiSpaceSize}};
+
+  for (auto configuration : configurations) {
+    ASSERT_EQ(configuration[1],
+              static_cast<uint64_t>(
+                  i::Heap::ComputeMaxSemiSpaceSize(configuration[0])));
+  }
 }
 
 TEST(Heap, OldGenerationSize) {
