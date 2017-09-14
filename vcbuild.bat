@@ -50,6 +50,7 @@ set v8_build_options=
 set "common_test_suites=%js_test_suites% doctool addons addons-napi&set build_addons=1&set build_addons_napi=1"
 set http2_debug=
 set nghttp2_debug=
+set link_module=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -111,11 +112,13 @@ if /i "%1"=="static"        set enable_static=1&goto arg-ok
 if /i "%1"=="no-NODE-OPTIONS"	set no_NODE_OPTIONS=1&goto arg-ok
 if /i "%1"=="debug-http2"   set debug_http2=1&goto arg-ok
 if /i "%1"=="debug-nghttp2" set debug_nghttp2=1&goto arg-ok
+if /i "%1"=="link-module"   set "link_module= --link-module=%2%link_module%"&goto arg-ok-2
 
 echo Error: invalid command line option `%1`.
 exit /b 1
 
-:arg-ok
+:arg-ok-2
+shift
 :arg-ok
 shift
 goto next-arg
@@ -245,7 +248,7 @@ goto run
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-call :run-python configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG%
+call :run-python configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG% %link_module%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
@@ -522,14 +525,15 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci] [no-NODE-OPTIONS]
+echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci] [no-NODE-OPTIONS] [link-module path-to-module]
 echo Examples:
-echo   vcbuild.bat                : builds release build
-echo   vcbuild.bat debug          : builds debug build
-echo   vcbuild.bat release msi    : builds release build and MSI installer package
-echo   vcbuild.bat test           : builds debug build and runs tests
-echo   vcbuild.bat build-release  : builds the release distribution as used by nodejs.org
-echo   vcbuild.bat enable-vtune   : builds nodejs with Intel VTune profiling support to profile JavaScript
+echo   vcbuild.bat                          : builds release build
+echo   vcbuild.bat debug                    : builds debug build
+echo   vcbuild.bat release msi              : builds release build and MSI installer package
+echo   vcbuild.bat test                     : builds debug build and runs tests
+echo   vcbuild.bat build-release            : builds the release distribution as used by nodejs.org
+echo   vcbuild.bat enable-vtune             : builds nodejs with Intel VTune profiling support to profile JavaScript
+echo   vcbuild.bat link-module my_module.js : bundles my_module as built-in module
 goto exit
 
 :run-python
