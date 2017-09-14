@@ -1536,10 +1536,11 @@ object with an `encoding` property specifying the character encoding to use.
 Example:
 
 ```js
-fs.mkdtemp('/tmp/foo-', (err, folder) => {
+const tempFolder = process.platform === 'win32' ? process.env['TEMP'] : '/tmp';
+fs.mkdtemp(path.join(tempFolder, 'foo-'), (err, folder) => {
   if (err) throw err;
   console.log(folder);
-  // Prints: /tmp/foo-itXde2
+  // Prints: /tmp/foo-itXde2 or C:\Users\...\AppData\Local\Temp\foo-itXde2
 });
 ```
 
