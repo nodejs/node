@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common.js');
+const common = require('../common.js');
 
-var types = [
+const types = [
   'UInt8',
   'UInt16LE',
   'UInt16BE',
@@ -18,7 +18,7 @@ var types = [
   'DoubleBE'
 ];
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   noAssert: ['false', 'true'],
   buffer: ['fast', 'slow'],
   type: types,
@@ -32,7 +32,7 @@ const UINT8 = (INT8 * 2) + 1;
 const UINT16 = (INT16 * 2) + 1;
 const UINT32 = INT32;
 
-var mod = {
+const mod = {
   writeInt8: INT8,
   writeInt16BE: INT16,
   writeInt16LE: INT16,
@@ -60,8 +60,8 @@ function main(conf) {
 }
 
 function benchInt(buff, fn, len, noAssert) {
-  var m = mod[fn];
-  var testFunction = new Function('buff', `
+  const m = mod[fn];
+  const testFunction = new Function('buff', `
     for (var i = 0; i !== ${len}; i++) {
       buff.${fn}(i & ${m}, 0, ${JSON.stringify(noAssert)});
     }
@@ -72,7 +72,7 @@ function benchInt(buff, fn, len, noAssert) {
 }
 
 function benchFloat(buff, fn, len, noAssert) {
-  var testFunction = new Function('buff', `
+  const testFunction = new Function('buff', `
     for (var i = 0; i !== ${len}; i++) {
       buff.${fn}(i, 0, ${JSON.stringify(noAssert)});
     }

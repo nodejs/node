@@ -8,8 +8,8 @@ const bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var n = +conf.n;
-  var buf = Buffer.allocUnsafe(+conf.len);
+  const n = +conf.n;
+  const buf = Buffer.allocUnsafe(+conf.len);
 
   bench.start();
   for (var i = 0; i < n; ++i)

@@ -1,13 +1,13 @@
 'use strict';
 // throughput benchmark in signing and verifying
-var common = require('../common.js');
-var crypto = require('crypto');
-var fs = require('fs');
-var path = require('path');
-var fixtures_keydir = path.resolve(__dirname, '../../test/fixtures/keys/');
-var keylen_list = ['1024', '2048', '4096'];
-var RSA_PublicPem = {};
-var RSA_PrivatePem = {};
+const common = require('../common.js');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const fixtures_keydir = path.resolve(__dirname, '../../test/fixtures/keys/');
+const keylen_list = ['1024', '2048', '4096'];
+const RSA_PublicPem = {};
+const RSA_PrivatePem = {};
 
 keylen_list.forEach(function(key) {
   RSA_PublicPem[key] =
@@ -16,27 +16,27 @@ keylen_list.forEach(function(key) {
     fs.readFileSync(`${fixtures_keydir}/rsa_private_${key}.pem`);
 });
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   n: [500],
   keylen: keylen_list,
   len: [16, 32, 64]
 });
 
 function main(conf) {
-  var message = Buffer.alloc(conf.len, 'b');
+  const message = Buffer.alloc(conf.len, 'b');
   bench.start();
   StreamWrite(conf.algo, conf.keylen, message, conf.n, conf.len);
 }
 
 function StreamWrite(algo, keylen, message, n, len) {
-  var written = n * len;
-  var bits = written * 8;
-  var kbits = bits / (1024);
+  const written = n * len;
+  const bits = written * 8;
+  const kbits = bits / (1024);
 
-  var privateKey = RSA_PrivatePem[keylen];
-  var publicKey = RSA_PublicPem[keylen];
+  const privateKey = RSA_PrivatePem[keylen];
+  const publicKey = RSA_PublicPem[keylen];
   for (var i = 0; i < n; i++) {
-    var enc = crypto.privateEncrypt(privateKey, message);
+    const enc = crypto.privateEncrypt(privateKey, message);
     crypto.publicDecrypt(publicKey, enc);
   }
 

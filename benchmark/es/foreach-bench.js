@@ -14,7 +14,7 @@ function useFor(n, items, count) {
   for (i = 0; i < n; i++) {
     for (j = 0; j < count; j++) {
       /* eslint-disable no-unused-vars */
-      var item = items[j];
+      const item = items[j];
       /* esline-enable no-unused-vars */
     }
   }

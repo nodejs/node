@@ -11,7 +11,7 @@ const zeroBuffer = Buffer.alloc(0);
 const zeroString = '';
 
 function main(conf) {
-  var n = +conf.n;
+  const n = +conf.n;
   bench.start();
 
   if (conf.type === 'buffer')

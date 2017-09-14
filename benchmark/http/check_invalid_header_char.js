@@ -31,8 +31,8 @@ const bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var n = +conf.n;
-  var key = conf.key;
+  const n = +conf.n;
+  const key = conf.key;
 
   bench.start();
   for (var i = 0; i < n; i++) {

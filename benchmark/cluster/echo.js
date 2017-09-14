@@ -11,10 +11,10 @@ if (cluster.isMaster) {
   });
 
   function main(conf) {
-    var n = +conf.n;
-    var workers = +conf.workers;
-    var sends = +conf.sendsPerBroadcast;
-    var expectedPerBroadcast = sends * workers;
+    const n = +conf.n;
+    const workers = +conf.workers;
+    const sends = +conf.sendsPerBroadcast;
+    const expectedPerBroadcast = sends * workers;
     var payload;
     var readies = 0;
     var broadcasts = 0;
