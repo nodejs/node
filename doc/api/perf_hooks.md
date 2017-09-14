@@ -202,7 +202,7 @@ const obs = new PerformanceObserver((list) => {
   obs.disconnect();
   performance.clearFunctions();
 });
-obs.observe({ entryTypes: 'function' });
+obs.observe({ entryTypes: ['function'] });
 
 // A performance timeline entry will be created
 wrapped();
@@ -656,3 +656,4 @@ require('some-module');
 
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
 [W3C Performance Timeline]: https://w3c.github.io/performance-timeline/
+[Async Hooks]: async_hooks.html
