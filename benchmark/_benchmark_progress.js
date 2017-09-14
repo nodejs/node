@@ -3,8 +3,8 @@
 const readline = require('readline');
 
 function pad(input, minLength, fill) {
-  var result = String(input);
-  var padding = fill.repeat(Math.max(0, minLength - result.length));
+  const result = String(input);
+  const padding = fill.repeat(Math.max(0, minLength - result.length));
   return `${padding}${result}`;
 }
 

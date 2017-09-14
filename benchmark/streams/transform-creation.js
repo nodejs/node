@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common.js');
-var Transform = require('stream').Transform;
-var inherits = require('util').inherits;
+const common = require('../common.js');
+const Transform = require('stream').Transform;
+const inherits = require('util').inherits;
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   n: [1e6]
 });
 
@@ -14,7 +14,7 @@ inherits(MyTransform, Transform);
 MyTransform.prototype._transform = function() {};
 
 function main(conf) {
-  var n = +conf.n;
+  const n = +conf.n;
 
   bench.start();
   for (var i = 0; i < n; ++i)

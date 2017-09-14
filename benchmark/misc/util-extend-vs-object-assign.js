@@ -23,7 +23,7 @@ function main(conf) {
   for (var i = 0; i < conf.type.length * 10; i += 1)
     fn({}, process.env);
 
-  var obj = new Proxy({}, { set: function(a, b, c) { return true; } });
+  const obj = new Proxy({}, { set: function(a, b, c) { return true; } });
 
   bench.start();
   for (var j = 0; j < n; j += 1)
