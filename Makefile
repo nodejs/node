@@ -336,7 +336,7 @@ test-all-valgrind: test-build
 
 CI_NATIVE_SUITES := addons addons-napi
 CI_ASYNC_HOOKS := async-hooks
-CI_JS_SUITES := abort doctool inspector known_issues message parallel pseudo-tty sequential
+CI_JS_SUITES := abort doctool es-module inspector known_issues message parallel pseudo-tty sequential
 
 # Build and test addons without building anything else
 test-ci-native: LOGLEVEL := info
