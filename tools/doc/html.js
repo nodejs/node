@@ -33,7 +33,6 @@ var gtocPath = path.resolve(path.join(
 var gtocLoading = null;
 var gtocData = null;
 var docCreated = null;
-var nodeVersion = null;
 
 /**
  * opts: input, filename, template, nodeVersion.
@@ -211,9 +210,17 @@ function altDocs(filename) {
     return html + '</a></li>';
   }
 
-  const lis = (vs) => vs.filter(lte).map(li).join('\n');
+  const lis = versions.filter(lte).map(li).join('\n');
 
-  return `<ol class="version-picker">${lis(versions)}</ol>`;
+  if (!lis.length)
+    return '';
+
+  return `
+    <li class="version-picker">
+      <a href="#">View another version <span>&#x25bc;</span></a>
+      <ol class="version-picker">${lis}</ol>
+    </li>
+  `;
 }
 
 // handle general body-text replacements
