@@ -50,7 +50,7 @@ TEST_F(DebugSymbolsTest, ExternalStringDataOffset) {
 TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env{handle_scope, argv};
+  Env env{handle_scope, argv, this};
 
   v8::Local<v8::Object> object = v8::Object::New(isolate_);
   node::BaseObject obj(*env, object);
@@ -67,7 +67,7 @@ TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {
 TEST_F(DebugSymbolsTest, EnvironmentHandleWrapQueue) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env{handle_scope, argv};
+  Env env{handle_scope, argv, this};
 
   auto expected = reinterpret_cast<uintptr_t>((*env)->handle_wrap_queue());
   auto calculated = reinterpret_cast<uintptr_t>(*env) +
@@ -78,7 +78,7 @@ TEST_F(DebugSymbolsTest, EnvironmentHandleWrapQueue) {
 TEST_F(DebugSymbolsTest, EnvironmentReqWrapQueue) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env{handle_scope, argv};
+  Env env{handle_scope, argv, this};
 
   auto expected = reinterpret_cast<uintptr_t>((*env)->req_wrap_queue());
   auto calculated = reinterpret_cast<uintptr_t>(*env) +
@@ -89,7 +89,7 @@ TEST_F(DebugSymbolsTest, EnvironmentReqWrapQueue) {
 TEST_F(DebugSymbolsTest, HandleWrapList) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env{handle_scope, argv};
+  Env env{handle_scope, argv, this};
 
   uv_tcp_t handle;
 
@@ -118,7 +118,7 @@ TEST_F(DebugSymbolsTest, HandleWrapList) {
 TEST_F(DebugSymbolsTest, ReqWrapList) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env{handle_scope, argv};
+  Env env{handle_scope, argv, this};
 
   auto obj_template = v8::FunctionTemplate::New(isolate_);
   obj_template->InstanceTemplate()->SetInternalFieldCount(1);

@@ -273,17 +273,17 @@ node::DebugOptions debug_options;
 
 static struct {
 #if NODE_USE_V8_PLATFORM
-  void Initialize(int thread_pool_size, uv_loop_t* loop) {
+  void Initialize(int thread_pool_size) {
     if (trace_enabled) {
       tracing_agent_.reset(new tracing::Agent(trace_file_pattern));
-      platform_ = new NodePlatform(thread_pool_size, loop,
+      platform_ = new NodePlatform(thread_pool_size,
         tracing_agent_->GetTracingController());
       V8::InitializePlatform(platform_);
       tracing::TraceEventHelper::SetTracingController(
         tracing_agent_->GetTracingController());
     } else {
       tracing_agent_.reset(nullptr);
-      platform_ = new NodePlatform(thread_pool_size, loop, nullptr);
+      platform_ = new NodePlatform(thread_pool_size, nullptr);
       V8::InitializePlatform(platform_);
       tracing::TraceEventHelper::SetTracingController(
         new v8::TracingController());
@@ -297,8 +297,8 @@ static struct {
     tracing_agent_.reset(nullptr);
   }
 
-  void DrainVMTasks() {
-    platform_->DrainBackgroundTasks();
+  void DrainVMTasks(Isolate* isolate) {
+    platform_->DrainBackgroundTasks(isolate);
   }
 
 #if HAVE_INSPECTOR
@@ -323,12 +323,16 @@ static struct {
     tracing_agent_->Stop();
   }
 
+  NodePlatform* Platform() {
+    return platform_;
+  }
+
   std::unique_ptr<tracing::Agent> tracing_agent_;
   NodePlatform* platform_;
 #else  // !NODE_USE_V8_PLATFORM
-  void Initialize(int thread_pool_size, uv_loop_t* loop) {}
+  void Initialize(int thread_pool_size) {}
   void Dispose() {}
-  void DrainVMTasks() {}
+  void DrainVMTasks(Isolate* isolate) {}
   bool StartInspector(Environment *env, const char* script_path,
                       const node::DebugOptions& options) {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
@@ -340,6 +344,10 @@ static struct {
                     "so event tracing is not available.\n");
   }
   void StopTracingAgent() {}
+
+  NodePlatform* Platform() {
+    return nullptr;
+  }
 #endif  // !NODE_USE_V8_PLATFORM
 
 #if !NODE_USE_V8_PLATFORM || !HAVE_INSPECTOR
@@ -4734,7 +4742,14 @@ int EmitExit(Environment* env) {
 
 
 IsolateData* CreateIsolateData(Isolate* isolate, uv_loop_t* loop) {
-  return new IsolateData(isolate, loop);
+  return new IsolateData(isolate, loop, nullptr);
+}
+
+IsolateData* CreateIsolateData(
+    Isolate* isolate,
+    uv_loop_t* loop,
+    MultiIsolatePlatform* platform) {
+  return new IsolateData(isolate, loop, platform);
 }
 
 
@@ -4802,7 +4817,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     do {
       uv_run(env.event_loop(), UV_RUN_DEFAULT);
 
-      v8_platform.DrainVMTasks();
+      v8_platform.DrainVMTasks(isolate);
 
       more = uv_loop_alive(env.event_loop());
       if (more)
@@ -4823,7 +4838,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   RunAtExit(&env);
   uv_key_delete(&thread_local_env);
 
-  v8_platform.DrainVMTasks();
+  v8_platform.DrainVMTasks(isolate);
   WaitForInspectorDisconnect(&env);
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
@@ -4866,7 +4881,11 @@ inline int Start(uv_loop_t* event_loop,
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
-    IsolateData isolate_data(isolate, event_loop, allocator.zero_fill_field());
+    IsolateData isolate_data(
+        isolate,
+        event_loop,
+        v8_platform.Platform(),
+        allocator.zero_fill_field());
     exit_code = Start(isolate, &isolate_data, argc, argv, exec_argc, exec_argv);
   }
 
@@ -4913,7 +4932,7 @@ int Start(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif  // HAVE_OPENSSL
 
-  v8_platform.Initialize(v8_thread_pool_size, uv_default_loop());
+  v8_platform.Initialize(v8_thread_pool_size);
   // Enable tracing when argv has --trace-events-enabled.
   if (trace_enabled) {
     fprintf(stderr, "Warning: Trace event is an experimental feature "
