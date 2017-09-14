@@ -36,13 +36,13 @@ namespace trap_handler {
 
 namespace {
 
+#if V8_TRAP_HANDLER_SUPPORTED
 bool IsKernelGeneratedSignal(siginfo_t* info) {
   return info->si_code > 0 && info->si_code != SI_USER &&
          info->si_code != SI_QUEUE && info->si_code != SI_TIMER &&
          info->si_code != SI_ASYNCIO && info->si_code != SI_MESGQ;
 }
 
-#if V8_TRAP_HANDLER_SUPPORTED
 class SigUnmaskStack {
  public:
   explicit SigUnmaskStack(sigset_t sigs) {

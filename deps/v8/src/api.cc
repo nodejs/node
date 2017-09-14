@@ -874,7 +874,7 @@ Extension::Extension(const char* name,
 }
 
 ResourceConstraints::ResourceConstraints()
-    : max_semi_space_size_in_kb_(0),
+    : max_semi_space_size_(0),
       max_old_space_size_(0),
       stack_limit_(NULL),
       code_range_size_(0),
@@ -882,8 +882,8 @@ ResourceConstraints::ResourceConstraints()
 
 void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                                             uint64_t virtual_memory_limit) {
-  set_max_semi_space_size_in_kb(
-      i::Heap::ComputeMaxSemiSpaceSize(physical_memory));
+  set_max_semi_space_size(
+      static_cast<int>(i::Heap::ComputeMaxSemiSpaceSize(physical_memory)));
   set_max_old_space_size(
       static_cast<int>(i::Heap::ComputeMaxOldGenerationSize(physical_memory)));
   set_max_zone_pool_size(i::AccountingAllocator::kMaxPoolSize);
@@ -899,7 +899,7 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 
 void SetResourceConstraints(i::Isolate* isolate,
                             const ResourceConstraints& constraints) {
-  size_t semi_space_size = constraints.max_semi_space_size_in_kb();
+  int semi_space_size = constraints.max_semi_space_size();
   int old_space_size = constraints.max_old_space_size();
   size_t code_range_size = constraints.code_range_size();
   size_t max_pool_size = constraints.max_zone_pool_size();
@@ -4492,6 +4492,24 @@ Maybe<bool> v8::Object::ForceSet(v8::Local<v8::Context> context,
 }
 
 
+bool v8::Object::ForceSet(v8::Local<Value> key, v8::Local<Value> value,
+                          v8::PropertyAttribute attribs) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ENTER_V8_HELPER_DO_NOT_USE(isolate, Local<Context>(), Object, ForceSet,
+                             false, i::HandleScope, false);
+  i::Handle<i::JSObject> self =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+  has_pending_exception =
+      DefineObjectProperty(self, key_obj, value_obj,
+                           static_cast<i::PropertyAttributes>(attribs))
+          .is_null();
+  EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(isolate, false);
+  return true;
+}
+
+
 Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
                                    Local<Value> value) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
@@ -6318,16 +6336,11 @@ bool v8::V8::Initialize() {
   return true;
 }
 
-#if V8_OS_POSIX
-bool V8::TryHandleSignal(int signum, void* info, void* context) {
 #if V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
-  return v8::internal::trap_handler::TryHandleSignal(
-      signum, static_cast<siginfo_t*>(info), static_cast<ucontext_t*>(context));
-#else  // V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
+bool V8::TryHandleSignal(int signum, void* info, void* context) {
   return false;
-#endif
 }
-#endif
+#endif  // V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
 
 bool V8::RegisterDefaultSignalHandler() {
   return v8::internal::trap_handler::RegisterDefaultSignalHandler();
@@ -7912,11 +7925,6 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::GetContents() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
   size_t byte_length = static_cast<size_t>(self->byte_length()->Number());
   Contents contents;
-  contents.allocation_base_ = self->allocation_base();
-  contents.allocation_length_ = self->allocation_length();
-  contents.allocation_mode_ = self->has_guard_region()
-                                  ? Allocator::AllocationMode::kReservation
-                                  : Allocator::AllocationMode::kNormal;
   contents.data_ = self->backing_store();
   contents.byte_length_ = byte_length;
   return contents;
@@ -8128,12 +8136,6 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
   Contents contents;
   contents.data_ = self->backing_store();
   contents.byte_length_ = byte_length;
-  // SharedArrayBuffers never have guard regions, so their allocation and data
-  // are equivalent.
-  contents.allocation_base_ = self->backing_store();
-  contents.allocation_length_ = byte_length;
-  contents.allocation_mode_ =
-      ArrayBufferAllocator::Allocator::AllocationMode::kNormal;
   return contents;
 }
 
@@ -8290,11 +8292,6 @@ void Isolate::ReportExternalAllocationLimitReached() {
   heap->ReportExternalMemoryPressure();
 }
 
-void Isolate::CheckMemoryPressure() {
-  i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
-  if (heap->gc_state() != i::Heap::NOT_IN_GC) return;
-  heap->CheckMemoryPressure();
-}
 
 HeapProfiler* Isolate::GetHeapProfiler() {
   i::HeapProfiler* heap_profiler =
