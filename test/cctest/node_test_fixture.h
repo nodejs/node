@@ -59,12 +59,14 @@ class NodeTestFixture : public ::testing::Test {
  public:
   static uv_loop_t* CurrentLoop() { return &current_loop; }
 
+  node::MultiIsolatePlatform* Platform() const { return platform_; }
+
  protected:
   v8::Isolate* isolate_;
 
   virtual void SetUp() {
     CHECK_EQ(0, uv_loop_init(&current_loop));
-    platform_ = new node::NodePlatform(8, &current_loop, nullptr);
+    platform_ = new node::NodePlatform(8, nullptr);
     v8::V8::InitializePlatform(platform_);
     v8::V8::Initialize();
     v8::Isolate::CreateParams params_;
@@ -101,14 +103,17 @@ class EnvironmentTestFixture : public NodeTestFixture {
  public:
   class Env {
    public:
-    Env(const v8::HandleScope& handle_scope, const Argv& argv) {
+    Env(const v8::HandleScope& handle_scope,
+        const Argv& argv,
+        NodeTestFixture* test_fixture) {
       auto isolate = handle_scope.GetIsolate();
       context_ = v8::Context::New(isolate);
       CHECK(!context_.IsEmpty());
       context_->Enter();
 
       isolate_data_ = node::CreateIsolateData(isolate,
-                                              NodeTestFixture::CurrentLoop());
+                                              NodeTestFixture::CurrentLoop(),
+                                              test_fixture->Platform());
       CHECK_NE(nullptr, isolate_data_);
       environment_ = node::CreateEnvironment(isolate_data_,
                                              context_,
