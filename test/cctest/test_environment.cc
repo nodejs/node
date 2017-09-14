@@ -26,11 +26,13 @@ class EnvironmentTest : public NodeTestFixture {
    public:
     Env(const v8::HandleScope& handle_scope,
         v8::Isolate* isolate,
-        const Argv& argv) {
+        const Argv& argv,
+        NodeTestFixture* test_fixture) {
       context_ = v8::Context::New(isolate);
       CHECK(!context_.IsEmpty());
       isolate_data_ = CreateIsolateData(isolate,
-                                        NodeTestFixture::CurrentLoop());
+                                        NodeTestFixture::CurrentLoop(),
+                                        test_fixture->Platform());
       CHECK_NE(nullptr, isolate_data_);
       environment_ = CreateEnvironment(isolate_data_,
                                        context_,
@@ -66,7 +68,7 @@ class EnvironmentTest : public NodeTestFixture {
 TEST_F(EnvironmentTest, AtExitWithEnvironment) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env {handle_scope, isolate_, argv};
+  Env env {handle_scope, isolate_, argv, this};
 
   AtExit(*env, at_exit_callback1);
   RunAtExit(*env);
@@ -76,7 +78,7 @@ TEST_F(EnvironmentTest, AtExitWithEnvironment) {
 TEST_F(EnvironmentTest, AtExitWithArgument) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env {handle_scope, isolate_, argv};
+  Env env {handle_scope, isolate_, argv, this};
 
   std::string arg{"some args"};
   AtExit(*env, at_exit_callback1, static_cast<void*>(&arg));
@@ -87,8 +89,8 @@ TEST_F(EnvironmentTest, AtExitWithArgument) {
 TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  Env env1 {handle_scope, isolate_, argv};
-  Env env2 {handle_scope, isolate_, argv};
+  Env env1 {handle_scope, isolate_, argv, this};
+  Env env2 {handle_scope, isolate_, argv, this};
 
   AtExit(*env1, at_exit_callback1);
   AtExit(*env2, at_exit_callback2);

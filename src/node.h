@@ -61,6 +61,7 @@
 #endif
 
 #include "v8.h"  // NOLINT(build/include_order)
+#include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
 #define NODE_MAKE_VERSION(major, minor, patch)                                \
@@ -209,8 +210,27 @@ NODE_EXTERN void Init(int* argc,
 class IsolateData;
 class Environment;
 
-NODE_EXTERN IsolateData* CreateIsolateData(v8::Isolate* isolate,
-                                           struct uv_loop_s* loop);
+class MultiIsolatePlatform : public v8::Platform {
+ public:
+  virtual ~MultiIsolatePlatform() { }
+  virtual void DrainBackgroundTasks(v8::Isolate* isolate) = 0;
+
+  // These will be called by the `IsolateData` creation/destruction functions.
+  virtual void RegisterIsolate(IsolateData* isolate_data,
+                               struct uv_loop_s* loop) = 0;
+  virtual void UnregisterIsolate(IsolateData* isolate_data) = 0;
+};
+
+// If `platform` is passed, it will be used to register new Worker instances.
+// It can be `nullptr`, in which case creating new Workers inside of
+// Environments that use this `IsolateData` will not work.
+NODE_EXTERN IsolateData* CreateIsolateData(
+    v8::Isolate* isolate,
+    struct uv_loop_s* loop);
+NODE_EXTERN IsolateData* CreateIsolateData(
+    v8::Isolate* isolate,
+    struct uv_loop_s* loop,
+    MultiIsolatePlatform* platform);
 NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
 
 NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,

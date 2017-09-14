@@ -73,6 +73,8 @@ class NodeTestFixture : public ::testing::Test {
  public:
   static uv_loop_t* CurrentLoop() { return &current_loop; }
 
+  node::MultiIsolatePlatform* Platform() const { return platform_; }
+
  protected:
   v8::Isolate::CreateParams params_;
   ArrayBufferAllocator allocator_;
@@ -84,7 +86,7 @@ class NodeTestFixture : public ::testing::Test {
 
   virtual void SetUp() {
     CHECK_EQ(0, uv_loop_init(&current_loop));
-    platform_ = new node::NodePlatform(8, &current_loop, nullptr);
+    platform_ = new node::NodePlatform(8, nullptr);
     v8::V8::InitializePlatform(platform_);
     v8::V8::Initialize();
     params_.array_buffer_allocator = &allocator_;
