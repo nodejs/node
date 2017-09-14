@@ -102,6 +102,11 @@ example `fs.readdirSync('c:\\')` can potentially return a different result than
 `fs.readdirSync('c:')`. For more information, see
 [this MSDN page][MSDN-Rel-Path].
 
+*Note:* On Windows opening existing hidden file using the `w` flag (either
+through `fs.open` or `fs.writeFile`) will fail with `EPERM`. You can work
+around this by opening the file with the `a` flag and then using `fs.ftruncate`
+to clear the file contents. 
+
 ## Threadpool Usage
 
 Note that all file system APIs except `fs.FSWatcher()` and those that are
