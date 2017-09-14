@@ -1,9 +1,5 @@
-#include "node.h"
-#include "v8.h"
-#include "env.h"
-#include "env-inl.h"
+#include "node_internals.h"
 #include "node_perf.h"
-#include "uv.h"
 
 #include <vector>
 

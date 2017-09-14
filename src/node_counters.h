@@ -24,7 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
+#include "node_internals.h"
 
 #ifdef HAVE_PERFCTR
 #include "node_win32_perfctr_provider.h"

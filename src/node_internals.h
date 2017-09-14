@@ -27,6 +27,8 @@
 #include "node.h"
 #include "util.h"
 #include "util-inl.h"
+#include "env.h"
+#include "env-inl.h"
 #include "uv.h"
 #include "v8.h"
 #include "tracing/trace_event.h"
@@ -283,6 +285,14 @@ static v8::MaybeLocal<v8::Object> New(Environment* env,
   return ret;
 }
 }  // namespace Buffer
+
+v8::MaybeLocal<v8::Value> InternalMakeCallback(
+    Environment* env,
+    v8::Local<v8::Object> recv,
+    const v8::Local<v8::Function> callback,
+    int argc,
+    v8::Local<v8::Value> argv[],
+    async_context asyncContext);
 
 }  // namespace node
 

@@ -21,8 +21,6 @@
 
 #include "node_watchdog.h"
 #include "node_internals.h"
-#include "util.h"
-#include "util-inl.h"
 #include <algorithm>
 
 namespace node {
