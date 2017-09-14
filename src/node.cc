@@ -1159,12 +1159,10 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 }
 
 
-bool DomainEnter(Environment* env, Local<Object> object) {
+void DomainEnter(Environment* env, Local<Object> object) {
   Local<Value> domain_v = object->Get(env->domain_string());
   if (domain_v->IsObject()) {
     Local<Object> domain = domain_v.As<Object>();
-    if (domain->Get(env->disposed_string())->IsTrue())
-      return true;
     Local<Value> enter_v = domain->Get(env->enter_string());
     if (enter_v->IsFunction()) {
       if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
@@ -1173,16 +1171,13 @@ bool DomainEnter(Environment* env, Local<Object> object) {
       }
     }
   }
-  return false;
 }
 
 
-bool DomainExit(Environment* env, v8::Local<v8::Object> object) {
+void DomainExit(Environment* env, v8::Local<v8::Object> object) {
   Local<Value> domain_v = object->Get(env->domain_string());
   if (domain_v->IsObject()) {
     Local<Object> domain = domain_v.As<Object>();
-    if (domain->Get(env->disposed_string())->IsTrue())
-      return true;
     Local<Value> exit_v = domain->Get(env->exit_string());
     if (exit_v->IsFunction()) {
       if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
@@ -1191,7 +1186,6 @@ bool DomainExit(Environment* env, v8::Local<v8::Object> object) {
       }
     }
   }
-  return false;
 }
 
 
@@ -1398,9 +1392,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
   if (env->using_domains()) {
-    failed_ = DomainEnter(env, object_);
-    if (failed_)
-      return;
+    DomainEnter(env, object_);
   }
 
   if (asyncContext.async_id != 0) {
@@ -1432,8 +1424,7 @@ void InternalCallbackScope::Close() {
   }
 
   if (env_->using_domains()) {
-    failed_ = DomainExit(env_, object_);
-    if (failed_) return;
+    DomainExit(env_, object_);
   }
 
   if (IsInnerMakeCallback()) {

@@ -116,7 +116,6 @@ struct performance_state;
   V(dest_string, "dest")                                                      \
   V(destroy_string, "destroy")                                                \
   V(detached_string, "detached")                                              \
-  V(disposed_string, "_disposed")                                             \
   V(dns_a_string, "A")                                                        \
   V(dns_aaaa_string, "AAAA")                                                  \
   V(dns_cname_string, "CNAME")                                                \

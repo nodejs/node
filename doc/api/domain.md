@@ -217,7 +217,7 @@ added.
 
 Implicit binding routes thrown errors and `'error'` events to the
 Domain's `'error'` event, but does not register the EventEmitter on the
-Domain, so [`domain.dispose()`][] will not shut down the EventEmitter.
+Domain.
 Implicit binding only takes care of thrown errors and `'error'` events.
 
 ## Explicit Binding
@@ -329,15 +329,6 @@ d.on('error', (er) => {
 });
 ```
 
-### domain.dispose()
-
-> Stability: 0 - Deprecated.  Please recover from failed IO actions
-> explicitly via error event handlers set on the domain.
-
-Once `dispose` has been called, the domain will no longer be used by callbacks
-bound into the domain via `run`, `bind`, or `intercept`, and a `'dispose'` event
-is emitted.
-
 ### domain.enter()
 
 The `enter` method is plumbing used by the `run`, `bind`, and `intercept`
@@ -350,9 +341,6 @@ operations bound to a domain.
 Calling `enter` changes only the active domain, and does not alter the domain
 itself. `enter` and `exit` can be called an arbitrary number of times on a
 single domain.
-
-If the domain on which `enter` is called has been disposed, `enter` will return
-without setting the domain.
 
 ### domain.exit()
 
@@ -368,9 +356,6 @@ If there are multiple, nested domains bound to the current execution context,
 Calling `exit` changes only the active domain, and does not alter the domain
 itself. `enter` and `exit` can be called an arbitrary number of times on a
 single domain.
-
-If the domain on which `exit` is called has been disposed, `exit` will return
-without exiting the domain.
 
 ### domain.intercept(callback)
 
@@ -500,7 +485,6 @@ rejections.
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`domain.add(emitter)`]: #domain_domain_add_emitter
 [`domain.bind(callback)`]: #domain_domain_bind_callback
-[`domain.dispose()`]: #domain_domain_dispose
 [`domain.exit()`]: #domain_domain_exit
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
