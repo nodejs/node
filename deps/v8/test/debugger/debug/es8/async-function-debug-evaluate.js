@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --noalways-opt
+
 var Debug = debug.Debug;
 var breakPointCount = 0;
 
@@ -12,10 +14,9 @@ function listener(event, exec_state, event_data, data) {
     if (breakPointCount === 1) {
       assertEquals(
           "inner", exec_state.frame(0).evaluate("inner").value());
-      assertThrows(() => exec_state.frame(0).evaluate("letInner").value(),
-                   ReferenceError);
-      assertThrows(() => exec_state.frame(0).evaluate("constInner").value(),
-                   ReferenceError);
+      // Variables in TDZ have 'undefined' as their values.
+      assertEquals(undefined, exec_state.frame(0).evaluate("letInner").value());
+      assertEquals(undefined, exec_state.frame(0).evaluate("constInner").value());
 
       assertEquals("outer", exec_state.frame(0).evaluate("outer").value());
       assertEquals(
@@ -29,16 +30,15 @@ function listener(event, exec_state, event_data, data) {
       assertEquals(
           "let outer", exec_state.frame(1).evaluate("letOuter").value());
 
-      assertThrows(() => exec_state.frame(0).evaluate("withVar").value(),
-                   ReferenceError);
+      // Variables in TDZ have 'undefined' as their values.
+      assertEquals(undefined, exec_state.frame(0).evaluate("withVar").value());
 
     } else if (breakPointCount === 2) {
       assertEquals(
           "inner", exec_state.frame(0).evaluate("inner").value());
-      assertThrows(() => exec_state.frame(0).evaluate("letInner").value(),
-                   ReferenceError);
-      assertThrows(() => exec_state.frame(0).evaluate("constInner").value(),
-                   ReferenceError);
+      // Variables in TDZ have 'undefined' as their values.
+      assertEquals(undefined, exec_state.frame(0).evaluate("letInner").value());
+      assertEquals(undefined, exec_state.frame(0).evaluate("constInner").value());
 
       assertEquals(57, exec_state.frame(0).evaluate("x").value());
       assertEquals(100, exec_state.frame(0).evaluate("y").value());
@@ -70,8 +70,8 @@ function listener(event, exec_state, event_data, data) {
           "Error",
           exec_state.frame(0).evaluate("error.constructor.name").value());
       assertEquals("floof", exec_state.frame(0).evaluate("bun").value());
-      assertThrows(() => exec_state.frame(0).evaluate("cow").value(),
-                   ReferenceError);
+      // Variables in TDZ have 'undefined' as their values.
+      assertEquals(undefined, exec_state.frame(0).evaluate("cow").value())
 
       assertEquals("outer", exec_state.frame(0).evaluate("outer").value());
       assertEquals(

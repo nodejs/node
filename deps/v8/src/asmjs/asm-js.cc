@@ -4,8 +4,6 @@
 
 #include "src/asmjs/asm-js.h"
 
-#include "src/api-natives.h"
-#include "src/api.h"
 #include "src/asmjs/asm-names.h"
 #include "src/asmjs/asm-parser.h"
 #include "src/assert-scope.h"
@@ -17,7 +15,8 @@
 #include "src/handles.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/parsing/scanner-character-streams.h"
+#include "src/parsing/scanner.h"
 
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-js.h"
@@ -54,12 +53,12 @@ bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
                          bool* is_typed_array) {
   switch (member) {
     case wasm::AsmJsParser::StandardMember::kInfinity: {
-      Handle<Name> name = isolate->factory()->infinity_string();
+      Handle<Name> name = isolate->factory()->Infinity_string();
       Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
       return value->IsNumber() && std::isinf(value->Number());
     }
     case wasm::AsmJsParser::StandardMember::kNaN: {
-      Handle<Name> name = isolate->factory()->nan_string();
+      Handle<Name> name = isolate->factory()->NaN_string();
       Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
       return value->IsNaN();
     }
@@ -105,7 +104,6 @@ bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
 #undef STDLIB_ARRAY_TYPE
   }
   UNREACHABLE();
-  return false;
 }
 
 void Report(Handle<Script> script, int position, Vector<const char> text,
@@ -193,9 +191,11 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
 
     Zone* compile_zone = info->zone();
     Zone translate_zone(info->isolate()->allocator(), ZONE_NAME);
-    wasm::AsmJsParser parser(info->isolate(), &translate_zone, info->script(),
-                             info->literal()->start_position(),
-                             info->literal()->end_position());
+    std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
+        handle(String::cast(info->script()->source())),
+        info->literal()->start_position(), info->literal()->end_position()));
+    uintptr_t stack_limit = info->isolate()->stack_guard()->real_climit();
+    wasm::AsmJsParser parser(&translate_zone, stack_limit, std::move(stream));
     if (!parser.Run()) {
       DCHECK(!info->isolate()->has_pending_exception());
       ReportCompilationFailure(info->script(), parser.failure_location(),
@@ -277,7 +277,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       ReportInstantiationFailure(script, position, "Requires standard library");
       return MaybeHandle<Object>();
     }
-    int member_id = Smi::cast(stdlib_uses->get(i))->value();
+    int member_id = Smi::ToInt(stdlib_uses->get(i));
     wasm::AsmJsParser::StandardMember member =
         static_cast<wasm::AsmJsParser::StandardMember>(member_id);
     if (!IsStdlibMemberValid(isolate, stdlib, member,
@@ -285,16 +285,6 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       ReportInstantiationFailure(script, position, "Unexpected stdlib member");
       return MaybeHandle<Object>();
     }
-  }
-
-  // Create the ffi object for foreign functions {"": foreign}.
-  Handle<JSObject> ffi_object;
-  if (!foreign.is_null()) {
-    Handle<JSFunction> object_function = Handle<JSFunction>(
-        isolate->native_context()->object_function(), isolate);
-    ffi_object = isolate->factory()->NewJSObject(object_function);
-    JSObject::AddProperty(ffi_object, isolate->factory()->empty_string(),
-                          foreign, NONE);
   }
 
   // Check that a valid heap buffer is provided if required.
@@ -314,8 +304,9 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
 
   wasm::ErrorThrower thrower(isolate, "AsmJs::Instantiate");
   MaybeHandle<Object> maybe_module_object =
-      wasm::SyncInstantiate(isolate, &thrower, module, ffi_object, memory);
+      wasm::SyncInstantiate(isolate, &thrower, module, foreign, memory);
   if (maybe_module_object.is_null()) {
+    DCHECK(!isolate->has_pending_exception());
     thrower.Reset();  // Ensure exceptions do not propagate.
     ReportInstantiationFailure(script, position, "Internal wasm failure");
     return MaybeHandle<Object>();

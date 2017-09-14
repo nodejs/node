@@ -29,6 +29,8 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
                         MachineOperatorBuilder* machine);
   ~CommonOperatorReducer() final {}
 
+  const char* reducer_name() const override { return "CommonOperatorReducer"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

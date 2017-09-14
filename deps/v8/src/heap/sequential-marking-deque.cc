@@ -13,7 +13,8 @@ namespace v8 {
 namespace internal {
 
 void SequentialMarkingDeque::SetUp() {
-  backing_store_ = new base::VirtualMemory(kMaxSize);
+  backing_store_ =
+      new base::VirtualMemory(kMaxSize, heap_->GetRandomMmapAddr());
   backing_store_committed_size_ = 0;
   if (backing_store_ == nullptr) {
     V8::FatalProcessOutOfMemory("SequentialMarkingDeque::SetUp");
@@ -35,8 +36,7 @@ void SequentialMarkingDeque::StartUsing() {
   size_t size = FLAG_force_marking_deque_overflows
                     ? 64 * kPointerSize
                     : backing_store_committed_size_;
-  DCHECK(
-      base::bits::IsPowerOfTwo32(static_cast<uint32_t>(size / kPointerSize)));
+  DCHECK(base::bits::IsPowerOfTwo(static_cast<uint32_t>(size / kPointerSize)));
   mask_ = static_cast<int>((size / kPointerSize) - 1);
   top_ = bottom_ = 0;
   overflowed_ = false;

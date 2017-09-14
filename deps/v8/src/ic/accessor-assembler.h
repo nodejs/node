@@ -182,8 +182,8 @@ class AccessorAssembler : public CodeStubAssembler {
 
   enum UseStubCache { kUseStubCache, kDontUseStubCache };
   void GenericPropertyLoad(Node* receiver, Node* receiver_map,
-                           Node* instance_type, Node* key,
-                           const LoadICParameters* p, Label* slow,
+                           Node* instance_type, const LoadICParameters* p,
+                           Label* slow,
                            UseStubCache use_stub_cache = kUseStubCache);
 
   // Low-level helpers.

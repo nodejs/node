@@ -20,7 +20,7 @@ bytecodes: [
   /*   32 S> */ B(LdaGlobal), U8(0), U8(5),
                 B(Star), R(0),
   /*   39 E> */ B(CallUndefinedReceiver0), R(0), U8(3),
-  /*   44 S> */ B(Return),
+  /*   43 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["t"],
@@ -48,7 +48,7 @@ bytecodes: [
                 B(LdaSmi), I8(3),
                 B(Star), R(3),
   /*   46 E> */ B(CallUndefinedReceiver), R(0), R(1), U8(3), U8(3),
-  /*   58 S> */ B(Return),
+  /*   57 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["t"],

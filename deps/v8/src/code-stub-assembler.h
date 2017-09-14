@@ -27,10 +27,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(AllocationSiteMap, AllocationSiteMap)             \
   V(BooleanMap, BooleanMap)                           \
   V(CodeMap, CodeMap)                                 \
-  V(empty_string, EmptyString)                        \
-  V(length_string, LengthString)                      \
-  V(prototype_string, PrototypeString)                \
   V(EmptyFixedArray, EmptyFixedArray)                 \
+  V(empty_string, EmptyString)                        \
   V(EmptyWeakCell, EmptyWeakCell)                     \
   V(FalseValue, False)                                \
   V(FeedbackVectorMap, FeedbackVectorMap)             \
@@ -38,15 +36,20 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(FixedCOWArrayMap, FixedCOWArrayMap)               \
   V(FixedDoubleArrayMap, FixedDoubleArrayMap)         \
   V(FunctionTemplateInfoMap, FunctionTemplateInfoMap) \
+  V(GlobalPropertyCellMap, PropertyCellMap)           \
   V(has_instance_symbol, HasInstanceSymbol)           \
   V(HeapNumberMap, HeapNumberMap)                     \
-  V(NoClosuresCellMap, NoClosuresCellMap)             \
-  V(OneClosureCellMap, OneClosureCellMap)             \
+  V(length_string, LengthString)                      \
   V(ManyClosuresCellMap, ManyClosuresCellMap)         \
+  V(MetaMap, MetaMap)                                 \
   V(MinusZeroValue, MinusZero)                        \
+  V(MutableHeapNumberMap, MutableHeapNumberMap)       \
   V(NanValue, Nan)                                    \
+  V(NoClosuresCellMap, NoClosuresCellMap)             \
   V(NullValue, Null)                                  \
-  V(GlobalPropertyCellMap, PropertyCellMap)           \
+  V(OneClosureCellMap, OneClosureCellMap)             \
+  V(prototype_string, PrototypeString)                \
+  V(SpeciesProtector, SpeciesProtector)               \
   V(SymbolMap, SymbolMap)                             \
   V(TheHoleValue, TheHole)                            \
   V(TrueValue, True)                                  \
@@ -54,7 +57,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(Tuple3Map, Tuple3Map)                             \
   V(UndefinedValue, Undefined)                        \
   V(WeakCellMap, WeakCellMap)                         \
-  V(SpeciesProtector, SpeciesProtector)
+  V(SharedFunctionInfoMap, SharedFunctionInfoMap)
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
@@ -106,6 +109,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return value;
   }
 
+  Node* Word32ToParameter(Node* value, ParameterMode mode) {
+    return WordToParameter(ChangeUint32ToWord(value), mode);
+  }
+
   Node* ParameterToTagged(Node* value, ParameterMode mode) {
     if (mode != SMI_PARAMETERS) value = SmiTag(value);
     return value;
@@ -115,6 +122,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     if (mode != SMI_PARAMETERS) value = SmiUntag(value);
     return value;
   }
+
+  Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
   Node* OpName(Node* a, Node* b, ParameterMode mode) {   \
@@ -144,7 +153,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   HEAP_CONSTANT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
 
-#define HEAP_CONSTANT_TEST(rootName, name) Node* Is##name(Node* value);
+#define HEAP_CONSTANT_TEST(rootName, name) \
+  Node* Is##name(Node* value);             \
+  Node* IsNot##name(Node* value);
   HEAP_CONSTANT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
 
@@ -407,13 +418,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load the constructor of a Map (equivalent to
   // Map::GetConstructor()).
   Node* LoadMapConstructor(Node* map);
-  // Loads a value from the specially encoded integer fields in the
-  // SharedFunctionInfo object.
-  // TODO(danno): This currently only works for the integer fields that are
-  // mapped to the upper part of 64-bit words. We should customize
-  // SFI::BodyDescriptor and store int32 values directly.
-  Node* LoadSharedFunctionInfoSpecialField(Node* shared, int offset,
-                                           ParameterMode param_mode);
 
   // Check if the map is set for slow properties.
   Node* IsDictionaryMap(Node* map);
@@ -434,6 +438,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load value field of a WeakCell object.
   Node* LoadWeakCellValueUnchecked(Node* weak_cell);
   Node* LoadWeakCellValue(Node* weak_cell, Label* if_cleared = nullptr);
+
+  // Get the offset of an element in a fixed array.
+  Node* GetFixedArrayElementOffset(
+      Node* index_node, int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   // Load an array element from a FixedArray.
   Node* LoadFixedArrayElement(Node* object, Node* index,
@@ -541,6 +550,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void StoreFieldsNoWriteBarrier(Node* start_address, Node* end_address,
                                  Node* value);
 
+  Node* AllocateCellWithValue(Node* value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  Node* AllocateSmiCell(int value = 0) {
+    return AllocateCellWithValue(SmiConstant(value), SKIP_WRITE_BARRIER);
+  }
+
+  Node* LoadCellValue(Node* cell);
+
+  Node* StoreCellValue(Node* cell, Node* value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Allocate a HeapNumber without initializing its value.
   Node* AllocateHeapNumber(MutableMode mode = IMMUTABLE);
   // Allocate a HeapNumber with a specific value.
@@ -623,11 +643,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                            ParameterMode mode = INTPTR_PARAMETERS,
                            AllocationFlags flags = kNone);
 
+  Node* AllocatePropertyArray(Node* capacity,
+                              ParameterMode mode = INTPTR_PARAMETERS,
+                              AllocationFlags flags = kNone);
   // Perform CreateArrayIterator (ES6 #sec-createarrayiterator).
   Node* CreateArrayIterator(Node* array, Node* array_map, Node* array_type,
                             Node* context, IterationKind mode);
 
   Node* AllocateJSArrayIterator(Node* array, Node* array_map, Node* map);
+  Node* AllocateJSIteratorResult(Node* context, Node* value, Node* done);
+  Node* AllocateJSIteratorResultForEntry(Node* context, Node* key, Node* value);
 
   Node* TypedArraySpeciesCreateByLength(Node* context, Node* originalArray,
                                         Node* len);
@@ -636,6 +661,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                Node* to_index,
                                Heap::RootListIndex value_root_index,
                                ParameterMode mode = INTPTR_PARAMETERS);
+
+  void FillPropertyArrayWithUndefined(Node* array, Node* from_index,
+                                      Node* to_index,
+                                      ParameterMode mode = INTPTR_PARAMETERS);
+
+  void CopyPropertyArrayValues(
+      Node* from_array, Node* to_array, Node* length,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      ParameterMode mode = INTPTR_PARAMETERS);
 
   // Copies all elements from |from_array| of |length| size to
   // |to_array| of the same size respecting the elements kind.
@@ -708,7 +742,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Allocation site manipulation
   void InitializeAllocationMemento(Node* base_allocation,
-                                   int base_allocation_size,
+                                   Node* base_allocation_size,
                                    Node* allocation_site);
 
   Node* TryTaggedToFloat64(Node* value, Label* if_valueisnotnumber);
@@ -736,65 +770,88 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ToThisValue(Node* context, Node* value, PrimitiveType primitive_type,
                     char const* method_name);
 
+  // Throws a TypeError for {method_name}. Terminates the current block.
+  void ThrowIncompatibleMethodReceiver(Node* context, char const* method_name,
+                                       Node* receiver);
+
   // Throws a TypeError for {method_name} if {value} is not of the given
   // instance type. Returns {value}'s map.
   Node* ThrowIfNotInstanceType(Node* context, Node* value,
                                InstanceType instance_type,
                                char const* method_name);
+  void ThrowTypeError(Node* context, MessageTemplate::Template message,
+                      char const* arg0 = nullptr, char const* arg1 = nullptr);
+  void ThrowTypeError(Node* context, MessageTemplate::Template message,
+                      Node* arg0, Node* arg1 = nullptr, Node* arg2 = nullptr);
 
   // Type checks.
   // Check whether the map is for an object with special properties, such as a
   // JSProxy or an object with interceptors.
   Node* InstanceTypeEqual(Node* instance_type, int type);
-  Node* IsSpecialReceiverMap(Node* map);
-  Node* IsSpecialReceiverInstanceType(Node* instance_type);
-  Node* IsStringInstanceType(Node* instance_type);
-  Node* IsOneByteStringInstanceType(Node* instance_type);
-  Node* IsExternalStringInstanceType(Node* instance_type);
-  Node* IsShortExternalStringInstanceType(Node* instance_type);
-  Node* IsSequentialStringInstanceType(Node* instance_type);
-  Node* IsConsStringInstanceType(Node* instance_type);
-  Node* IsIndirectStringInstanceType(Node* instance_type);
-  Node* IsString(Node* object);
-  Node* IsJSObjectMap(Node* map);
-  Node* IsJSObject(Node* object);
-  Node* IsJSGlobalProxy(Node* object);
-  Node* IsJSReceiverInstanceType(Node* instance_type);
-  Node* IsJSReceiver(Node* object);
-  Node* IsJSReceiverMap(Node* map);
-  Node* IsMap(Node* object);
-  Node* IsCallableMap(Node* map);
-  Node* IsDeprecatedMap(Node* map);
-  Node* IsCallable(Node* object);
-  Node* IsBoolean(Node* object);
-  Node* IsPropertyCell(Node* object);
   Node* IsAccessorInfo(Node* object);
   Node* IsAccessorPair(Node* object);
-  Node* IsHeapNumber(Node* object);
-  Node* IsName(Node* object);
-  Node* IsSymbol(Node* object);
-  Node* IsPrivateSymbol(Node* object);
-  Node* IsJSValueInstanceType(Node* instance_type);
-  Node* IsJSValue(Node* object);
-  Node* IsJSValueMap(Node* map);
-  Node* IsJSArrayInstanceType(Node* instance_type);
-  Node* IsJSArray(Node* object);
-  Node* IsJSArrayMap(Node* object);
-  Node* IsNativeContext(Node* object);
-  Node* IsWeakCell(Node* object);
-  Node* IsFixedDoubleArray(Node* object);
-  Node* IsHashTable(Node* object);
-  Node* IsDictionary(Node* object);
-  Node* IsUnseededNumberDictionary(Node* object);
+  Node* IsAllocationSite(Node* object);
+  Node* IsAnyHeapNumber(Node* object);
+  Node* IsBoolean(Node* object);
+  Node* IsCallableMap(Node* map);
+  Node* IsCallable(Node* object);
+  Node* IsConsStringInstanceType(Node* instance_type);
   Node* IsConstructorMap(Node* map);
-  Node* IsJSFunctionInstanceType(Node* instance_type);
-  Node* IsJSFunction(Node* object);
-  Node* IsJSFunctionMap(Node* object);
-  Node* IsJSTypedArray(Node* object);
-  Node* IsJSArrayBuffer(Node* object);
-  Node* IsFixedTypedArray(Node* object);
-  Node* IsJSRegExp(Node* object);
+  Node* IsConstructor(Node* object);
+  Node* IsDeprecatedMap(Node* map);
+  Node* IsDictionary(Node* object);
+  Node* IsExternalStringInstanceType(Node* instance_type);
   Node* IsFeedbackVector(Node* object);
+  Node* IsFixedArray(Node* object);
+  Node* IsFixedArrayWithKind(Node* object, ElementsKind kind);
+  Node* IsFixedArrayWithKindOrEmpty(Node* object, ElementsKind kind);
+  Node* IsFixedDoubleArray(Node* object);
+  Node* IsFixedTypedArray(Node* object);
+  Node* IsZeroOrFixedArray(Node* object);
+  Node* IsHashTable(Node* object);
+  Node* IsHeapNumber(Node* object);
+  Node* IsIndirectStringInstanceType(Node* instance_type);
+  Node* IsJSArrayBuffer(Node* object);
+  Node* IsJSArrayInstanceType(Node* instance_type);
+  Node* IsJSArrayMap(Node* object);
+  Node* IsJSArray(Node* object);
+  Node* IsJSFunctionInstanceType(Node* instance_type);
+  Node* IsJSFunctionMap(Node* object);
+  Node* IsJSFunction(Node* object);
+  Node* IsJSGlobalProxy(Node* object);
+  Node* IsJSObjectMap(Node* map);
+  Node* IsJSObject(Node* object);
+  Node* IsJSProxy(Node* object);
+  Node* IsJSReceiverInstanceType(Node* instance_type);
+  Node* IsJSReceiverMap(Node* map);
+  Node* IsJSReceiver(Node* object);
+  Node* IsJSRegExp(Node* object);
+  Node* IsJSTypedArray(Node* object);
+  Node* IsJSValueInstanceType(Node* instance_type);
+  Node* IsJSValueMap(Node* map);
+  Node* IsJSValue(Node* object);
+  Node* IsMap(Node* object);
+  Node* IsMutableHeapNumber(Node* object);
+  Node* IsName(Node* object);
+  Node* IsNativeContext(Node* object);
+  Node* IsOneByteStringInstanceType(Node* instance_type);
+  Node* IsPrivateSymbol(Node* object);
+  Node* IsPropertyArray(Node* object);
+  Node* IsPropertyCell(Node* object);
+  Node* IsSequentialStringInstanceType(Node* instance_type);
+  inline Node* IsSharedFunctionInfo(Node* object) {
+    return IsSharedFunctionInfoMap(LoadMap(object));
+  }
+  Node* IsShortExternalStringInstanceType(Node* instance_type);
+  Node* IsSpecialReceiverInstanceType(Node* instance_type);
+  Node* IsSpecialReceiverMap(Node* map);
+  Node* IsStringInstanceType(Node* instance_type);
+  Node* IsString(Node* object);
+  Node* IsSymbolInstanceType(Node* instance_type);
+  Node* IsSymbol(Node* object);
+  Node* IsUnseededNumberDictionary(Node* object);
+  Node* IsWeakCell(Node* object);
+  Node* IsUndetectableMap(Node* map);
 
   // True iff |object| is a Smi or a HeapNumber.
   Node* IsNumber(Node* object);
@@ -830,20 +887,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* StringAdd(Node* context, Node* first, Node* second,
                   AllocationFlags flags = kNone);
 
-  // Unpack the external string, returning a pointer that (offset-wise) looks
-  // like a sequential string.
-  // Note that this pointer is not tagged and does not point to a real
-  // sequential string instance, and may only be used to access the string
-  // data. The pointer is GC-safe as long as a reference to the container
-  // ExternalString is live.
-  // |string| must be an external string. Bailout for short external strings.
-  Node* TryDerefExternalString(Node* const string, Node* const instance_type,
-                               Label* if_bailout);
-
+  // Check if |string| is an indirect (thin or flat cons) string type that can
+  // be dereferenced by DerefIndirectString.
+  void BranchIfCanDerefIndirectString(Node* string, Node* instance_type,
+                                      Label* can_deref, Label* cannot_deref);
+  // Unpack an indirect (thin or flat cons) string type.
+  void DerefIndirectString(Variable* var_string, Node* instance_type);
   // Check if |var_string| has an indirect (thin or flat cons) string type,
   // and unpack it if so.
   void MaybeDerefIndirectString(Variable* var_string, Node* instance_type,
-                                Variable* var_did_something);
+                                Label* did_deref, Label* cannot_deref);
   // Check if |var_left| or |var_right| has an indirect (thin or flat cons)
   // string type, and unpack it/them if so. Fall through if nothing was done.
   void MaybeDerefIndirectStrings(Variable* var_left, Node* left_instance_type,
@@ -988,6 +1041,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void Increment(Variable& variable, int value = 1,
                  ParameterMode mode = INTPTR_PARAMETERS);
+  void Decrement(Variable& variable, int value = 1,
+                 ParameterMode mode = INTPTR_PARAMETERS) {
+    Increment(variable, -value, mode);
+  }
 
   // Generates "if (false) goto label" code. Useful for marking a label as
   // "live" to avoid assertion failures during graph building. In the resulting
@@ -1112,6 +1169,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // {if_not_found}.
   static const int kInlinedDictionaryProbes = 4;
   enum LookupMode { kFindExisting, kFindInsertionIndex };
+
+  template <typename Dictionary>
+  Node* LoadName(Node* key);
+
   template <typename Dictionary>
   void NameDictionaryLookup(Node* dictionary, Node* unique_name,
                             Label* if_found, Variable* var_name_index,
@@ -1119,6 +1180,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                             int inlined_probes = kInlinedDictionaryProbes,
                             LookupMode mode = kFindExisting);
 
+  Node* ComputeIntegerHash(Node* key);
   Node* ComputeIntegerHash(Node* key, Node* seed);
 
   template <typename Dictionary>
@@ -1225,6 +1287,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                Label* if_end, Label* if_bailout);
 
   // Instanceof helpers.
+  // Returns true if {object} has {prototype} somewhere in it's prototype
+  // chain, otherwise false is returned. Might cause arbitrary side effects
+  // due to [[GetPrototypeOf]] invocations.
+  Node* HasInPrototypeChain(Node* context, Node* object, Node* prototype);
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O)
   Node* OrdinaryHasInstance(Node* context, Node* callable, Node* object);
 
@@ -1232,7 +1298,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadFeedbackVectorForStub();
 
   // Update the type feedback vector.
-  void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
+  void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id,
+                      Node* function);
 
   // Combine the new feedback with the existing_feedback.
   void CombineFeedback(Variable* existing_feedback, Node* feedback);
@@ -1350,6 +1417,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                   FixedArray::kHeaderSize);
   }
 
+  Node* GetPropertyArrayAllocationSize(Node* element_count,
+                                       ParameterMode mode) {
+    return GetArrayAllocationSize(element_count, PACKED_ELEMENTS, mode,
+                                  PropertyArray::kHeaderSize);
+  }
+
   void GotoIfFixedArraySizeDoesntFitInNewSpace(Node* element_count,
                                                Label* doesnt_fit, int base_size,
                                                ParameterMode mode);
@@ -1440,6 +1513,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                   UndefinedConstant(), SmiConstant(message), args...);
   }
 
+  void Abort(BailoutReason reason) {
+    CallRuntime(Runtime::kAbort, NoContextConstant(), SmiConstant(reason));
+    Unreachable();
+  }
+
  protected:
   void DescriptorLookup(Node* unique_name, Node* descriptors, Node* bitfield3,
                         Label* if_found, Variable* var_name_index,
@@ -1516,15 +1594,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 class CodeStubArguments {
  public:
   typedef compiler::Node Node;
+  enum ReceiverMode { kHasReceiver, kNoReceiver };
 
   // |argc| is an intptr value which specifies the number of arguments passed
-  // to the builtin excluding the receiver.
-  CodeStubArguments(CodeStubAssembler* assembler, Node* argc)
+  // to the builtin excluding the receiver. The arguments will include a
+  // receiver iff |receiver_mode| is kHasReceiver.
+  CodeStubArguments(CodeStubAssembler* assembler, Node* argc,
+                    ReceiverMode receiver_mode = ReceiverMode::kHasReceiver)
       : CodeStubArguments(assembler, argc, nullptr,
-                          CodeStubAssembler::INTPTR_PARAMETERS) {}
-  // |argc| is either a smi or intptr depending on |param_mode|
+                          CodeStubAssembler::INTPTR_PARAMETERS, receiver_mode) {
+  }
+  // |argc| is either a smi or intptr depending on |param_mode|. The arguments
+  // include a receiver iff |receiver_mode| is kHasReceiver.
   CodeStubArguments(CodeStubAssembler* assembler, Node* argc, Node* fp,
-                    CodeStubAssembler::ParameterMode param_mode);
+                    CodeStubAssembler::ParameterMode param_mode,
+                    ReceiverMode receiver_mode = ReceiverMode::kHasReceiver);
 
   Node* GetReceiver() const;
 
@@ -1537,6 +1621,9 @@ class CodeStubArguments {
 
   Node* AtIndex(int index) const;
 
+  Node* GetOptionalArgumentValue(int index) {
+    return GetOptionalArgumentValue(index, assembler_->UndefinedConstant());
+  }
   Node* GetOptionalArgumentValue(int index, Node* default_value);
 
   Node* GetLength() const { return argc_; }
@@ -1564,6 +1651,7 @@ class CodeStubArguments {
 
   CodeStubAssembler* assembler_;
   CodeStubAssembler::ParameterMode argc_mode_;
+  ReceiverMode receiver_mode_;
   Node* argc_;
   Node* arguments_;
   Node* fp_;

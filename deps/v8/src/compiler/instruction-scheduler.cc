@@ -77,7 +77,6 @@ void InstructionScheduler::ScheduleGraphNode::AddSuccessor(
   node->unscheduled_predecessors_count_++;
 }
 
-
 InstructionScheduler::InstructionScheduler(Zone* zone,
                                            InstructionSequence* sequence)
     : zone_(zone),
@@ -86,16 +85,15 @@ InstructionScheduler::InstructionScheduler(Zone* zone,
       last_side_effect_instr_(nullptr),
       pending_loads_(zone),
       last_live_in_reg_marker_(nullptr),
-      last_deopt_(nullptr),
+      last_deopt_or_trap_(nullptr),
       operands_map_(zone) {}
-
 
 void InstructionScheduler::StartBlock(RpoNumber rpo) {
   DCHECK(graph_.empty());
   DCHECK(last_side_effect_instr_ == nullptr);
   DCHECK(pending_loads_.empty());
   DCHECK(last_live_in_reg_marker_ == nullptr);
-  DCHECK(last_deopt_ == nullptr);
+  DCHECK(last_deopt_or_trap_ == nullptr);
   DCHECK(operands_map_.empty());
   sequence()->StartBlock(rpo);
 }
@@ -112,7 +110,7 @@ void InstructionScheduler::EndBlock(RpoNumber rpo) {
   last_side_effect_instr_ = nullptr;
   pending_loads_.clear();
   last_live_in_reg_marker_ = nullptr;
-  last_deopt_ = nullptr;
+  last_deopt_or_trap_ = nullptr;
   operands_map_.clear();
 }
 
@@ -137,9 +135,9 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
     }
 
     // Make sure that instructions are not scheduled before the last
-    // deoptimization point when they depend on it.
-    if ((last_deopt_ != nullptr) && DependsOnDeoptimization(instr)) {
-      last_deopt_->AddSuccessor(new_node);
+    // deoptimization or trap point when they depend on it.
+    if ((last_deopt_or_trap_ != nullptr) && DependsOnDeoptOrTrap(instr)) {
+      last_deopt_or_trap_->AddSuccessor(new_node);
     }
 
     // Instructions with side effects and memory operations can't be
@@ -160,13 +158,13 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
         last_side_effect_instr_->AddSuccessor(new_node);
       }
       pending_loads_.push_back(new_node);
-    } else if (instr->IsDeoptimizeCall()) {
-      // Ensure that deopts are not reordered with respect to side-effect
-      // instructions.
+    } else if (instr->IsDeoptimizeCall() || instr->IsTrap()) {
+      // Ensure that deopts or traps are not reordered with respect to
+      // side-effect instructions.
       if (last_side_effect_instr_ != nullptr) {
         last_side_effect_instr_->AddSuccessor(new_node);
       }
-      last_deopt_ = new_node;
+      last_deopt_or_trap_ = new_node;
     }
 
     // Look for operand dependencies.
@@ -244,7 +242,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchParentFramePointer:
     case kArchTruncateDoubleToI:
     case kArchStackSlot:
-    case kArchDebugBreak:
     case kArchComment:
     case kIeee754Float64Acos:
     case kIeee754Float64Acosh:
@@ -292,6 +289,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchLookupSwitch:
     case kArchTableSwitch:
     case kArchRet:
+    case kArchDebugBreak:
     case kArchThrowTerminator:
       return kIsBlockTerminator;
 
@@ -370,7 +368,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
   }
 
   UNREACHABLE();
-  return kNoOpcodeFlags;
 }
 
 

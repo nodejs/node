@@ -72,10 +72,6 @@
   # Too slow.
   'dfg-int-overflow-in-loop': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
-['arch == x87', {
-  # Too slow.
-  'dfg-negative-array-index': [SKIP],
-}], # 'arch == x87'
 
 ##############################################################################
 ['asan == True', {

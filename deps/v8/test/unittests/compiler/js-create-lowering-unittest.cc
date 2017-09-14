@@ -53,7 +53,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
         common()->FrameState(
             BailoutId::None(), OutputFrameStateCombine::Ignore(),
             common()->CreateFrameStateFunctionInfo(
-                FrameStateType::kJavaScriptFunction, 1, 0, shared)),
+                FrameStateType::kInterpretedFunction, 1, 0, shared)),
         state_values, state_values, state_values, NumberConstant(0),
         UndefinedConstant(), outer_frame_state);
   }

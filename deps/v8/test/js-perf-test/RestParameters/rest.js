@@ -58,9 +58,9 @@ function ReturnArgsBabelFunction(unused) {
 }
 
 function ReturnArgsBabelSetup() {
-  // Warm up with FAST_HOLEY_ELEMENTS
+  // Warm up with HOLEY_ELEMENTS
   result = ReturnArgsBabelFunction(...strings);
-  // Warm up with FAST_HOLEY_SMI_ELEMENTS
+  // Warm up with HOLEY_SMI_ELEMENTS
   result = ReturnArgsBabelFunction(...numbers);
 }
 
@@ -80,9 +80,9 @@ function ReturnArgsNativeFunction(unused, ...args) {
 }
 
 function ReturnArgsNativeSetup() {
-  // Warm up with FAST_HOLEY_ELEMENTS
+  // Warm up with HOLEY_ELEMENTS
   result = ReturnArgsNativeFunction(...strings);
-  // Warm up with FAST_HOLEY_SMI_ELEMENTS
+  // Warm up with HOLEY_SMI_ELEMENTS
   result = ReturnArgsNativeFunction(...numbers);
 }
 

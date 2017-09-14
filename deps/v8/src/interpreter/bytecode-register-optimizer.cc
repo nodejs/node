@@ -21,6 +21,7 @@ class BytecodeRegisterOptimizer::RegisterInfo final : public ZoneObject {
         equivalence_id_(equivalence_id),
         materialized_(materialized),
         allocated_(allocated),
+        needs_flush_(false),
         next_(this),
         prev_(this) {}
 
@@ -29,6 +30,11 @@ class BytecodeRegisterOptimizer::RegisterInfo final : public ZoneObject {
   bool IsOnlyMemberOfEquivalenceSet() const;
   bool IsOnlyMaterializedMemberOfEquivalenceSet() const;
   bool IsInSameEquivalenceSet(RegisterInfo* info) const;
+
+  // Get a member of the register's equivalence set that is allocated.
+  // Returns itself if allocated, and nullptr if there is no unallocated
+  // equivalent register.
+  RegisterInfo* GetAllocatedEquivalent();
 
   // Get a member of this register's equivalence set that is
   // materialized. The materialized equivalent will be this register
@@ -65,12 +71,16 @@ class BytecodeRegisterOptimizer::RegisterInfo final : public ZoneObject {
     equivalence_id_ = equivalence_id;
   }
   uint32_t equivalence_id() const { return equivalence_id_; }
+  // Indicates if a register should be processed when calling Flush().
+  bool needs_flush() const { return needs_flush_; }
+  void set_needs_flush(bool needs_flush) { needs_flush_ = needs_flush; }
 
  private:
   Register register_;
   uint32_t equivalence_id_;
   bool materialized_;
   bool allocated_;
+  bool needs_flush_;
 
   // Equivalence set pointers.
   RegisterInfo* next_;
@@ -125,6 +135,19 @@ bool BytecodeRegisterOptimizer::RegisterInfo::
 bool BytecodeRegisterOptimizer::RegisterInfo::IsInSameEquivalenceSet(
     RegisterInfo* info) const {
   return equivalence_id() == info->equivalence_id();
+}
+
+BytecodeRegisterOptimizer::RegisterInfo*
+BytecodeRegisterOptimizer::RegisterInfo::GetAllocatedEquivalent() {
+  RegisterInfo* visitor = this;
+  do {
+    if (visitor->allocated()) {
+      return visitor;
+    }
+    visitor = visitor->next_;
+  } while (visitor != this);
+
+  return nullptr;
 }
 
 BytecodeRegisterOptimizer::RegisterInfo*
@@ -199,6 +222,7 @@ BytecodeRegisterOptimizer::BytecodeRegisterOptimizer(
       temporary_base_(fixed_registers_count),
       max_register_index_(fixed_registers_count - 1),
       register_info_table_(zone),
+      registers_needing_flushed_(zone),
       equivalence_id_(0),
       bytecode_writer_(bytecode_writer),
       flush_required_(false),
@@ -226,28 +250,61 @@ BytecodeRegisterOptimizer::BytecodeRegisterOptimizer(
   DCHECK(accumulator_info_->register_value() == accumulator_);
 }
 
+void BytecodeRegisterOptimizer::PushToRegistersNeedingFlush(RegisterInfo* reg) {
+  if (!reg->needs_flush()) {
+    reg->set_needs_flush(true);
+    registers_needing_flushed_.push_back(reg);
+  }
+}
+
+bool BytecodeRegisterOptimizer::EnsureAllRegistersAreFlushed() const {
+  for (RegisterInfo* reg_info : register_info_table_) {
+    if (reg_info->needs_flush()) {
+      return false;
+    } else if (!reg_info->IsOnlyMemberOfEquivalenceSet()) {
+      return false;
+    } else if (reg_info->allocated() && !reg_info->materialized()) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void BytecodeRegisterOptimizer::Flush() {
   if (!flush_required_) {
     return;
   }
 
   // Materialize all live registers and break equivalences.
-  size_t count = register_info_table_.size();
-  for (size_t i = 0; i < count; ++i) {
-    RegisterInfo* reg_info = register_info_table_[i];
-    if (reg_info->materialized()) {
+  for (RegisterInfo* reg_info : registers_needing_flushed_) {
+    if (!reg_info->needs_flush()) continue;
+    reg_info->set_needs_flush(false);
+
+    RegisterInfo* materialized = reg_info->materialized()
+                                     ? reg_info
+                                     : reg_info->GetMaterializedEquivalent();
+
+    if (materialized != nullptr) {
       // Walk equivalents of materialized registers, materializing
       // each equivalent register as necessary and placing in their
       // own equivalence set.
       RegisterInfo* equivalent;
-      while ((equivalent = reg_info->GetEquivalent()) != reg_info) {
+      while ((equivalent = materialized->GetEquivalent()) != materialized) {
         if (equivalent->allocated() && !equivalent->materialized()) {
-          OutputRegisterTransfer(reg_info, equivalent);
+          OutputRegisterTransfer(materialized, equivalent);
         }
         equivalent->MoveToNewEquivalenceSet(NextEquivalenceId(), true);
+        equivalent->set_needs_flush(false);
       }
+    } else {
+      // Equivalernce class containing only unallocated registers.
+      DCHECK(reg_info->GetAllocatedEquivalent() == nullptr);
+      reg_info->MoveToNewEquivalenceSet(NextEquivalenceId(), false);
     }
   }
+
+  registers_needing_flushed_.clear();
+  DCHECK(EnsureAllRegistersAreFlushed());
 
   flush_required_ = false;
 }
@@ -304,12 +361,15 @@ BytecodeRegisterOptimizer::GetMaterializedEquivalentNotAccumulator(
 void BytecodeRegisterOptimizer::Materialize(RegisterInfo* info) {
   if (!info->materialized()) {
     RegisterInfo* materialized = info->GetMaterializedEquivalent();
+    DCHECK_NOT_NULL(materialized);
     OutputRegisterTransfer(materialized, info);
   }
 }
 
 void BytecodeRegisterOptimizer::AddToEquivalenceSet(
     RegisterInfo* set_member, RegisterInfo* non_set_member) {
+  // Equivalence class is now of size >= 2, so we make sure it will be flushed.
+  PushToRegistersNeedingFlush(non_set_member);
   non_set_member->AddToEquivalenceSetOf(set_member);
   // Flushing is only required when two or more registers are placed
   // in the same equivalence set.
@@ -410,13 +470,20 @@ void BytecodeRegisterOptimizer::GrowRegisterMap(Register reg) {
     for (size_t i = old_size; i < new_size; ++i) {
       register_info_table_[i] =
           new (zone()) RegisterInfo(RegisterFromRegisterInfoTableIndex(i),
-                                    NextEquivalenceId(), false, false);
+                                    NextEquivalenceId(), true, false);
     }
   }
 }
 
+void BytecodeRegisterOptimizer::AllocateRegister(RegisterInfo* info) {
+  info->set_allocated(true);
+  if (!info->materialized()) {
+    info->MoveToNewEquivalenceSet(NextEquivalenceId(), true);
+  }
+}
+
 void BytecodeRegisterOptimizer::RegisterAllocateEvent(Register reg) {
-  GetOrCreateRegisterInfo(reg)->set_allocated(true);
+  AllocateRegister(GetOrCreateRegisterInfo(reg));
 }
 
 void BytecodeRegisterOptimizer::RegisterListAllocateEvent(
@@ -425,7 +492,7 @@ void BytecodeRegisterOptimizer::RegisterListAllocateEvent(
     int first_index = reg_list.first_register().index();
     GrowRegisterMap(Register(first_index + reg_list.register_count() - 1));
     for (int i = 0; i < reg_list.register_count(); i++) {
-      GetRegisterInfo(Register(first_index + i))->set_allocated(true);
+      AllocateRegister(GetRegisterInfo(Register(first_index + i)));
     }
   }
 }

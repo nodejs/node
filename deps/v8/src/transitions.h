@@ -7,10 +7,10 @@
 
 #include "src/checks.h"
 #include "src/elements-kind.h"
-#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/map.h"
+#include "src/objects/name.h"
 
 namespace v8 {
 namespace internal {
@@ -51,7 +51,7 @@ class TransitionArray: public FixedArray {
     return MaybeHandle<Map>();
   }
 
-  static Map* SearchSpecial(Map* map, Symbol* name);
+  static Map* SearchSpecial(const Map* map, Symbol* name);
 
   static Handle<Map> FindTransitionToField(Handle<Map> map, Handle<Name> name);
 
@@ -112,7 +112,7 @@ class TransitionArray: public FixedArray {
   static int NumberOfPrototypeTransitions(FixedArray* proto_transitions) {
     if (proto_transitions->length() == 0) return 0;
     Object* raw = proto_transitions->get(kProtoTransitionNumberOfEntriesOffset);
-    return Smi::cast(raw)->value();
+    return Smi::ToInt(raw);
   }
   static int NumberOfPrototypeTransitionsForTest(Map* map);
 
@@ -180,6 +180,8 @@ class TransitionArray: public FixedArray {
   // Print all the transitions.
   static void PrintTransitions(std::ostream& os, Object* transitions,
                                bool print_header = true);  // NOLINT
+  static void PrintTransitionTree(Map* map);
+  static void PrintTransitionTree(std::ostream& os, Map* map, int level = 0);
 #endif
 
 #ifdef OBJECT_PRINT
@@ -267,7 +269,7 @@ class TransitionArray: public FixedArray {
 
   int number_of_transitions() {
     if (length() < kFirstIndex) return 0;
-    return Smi::cast(get(kTransitionLengthIndex))->value();
+    return Smi::ToInt(get(kTransitionLengthIndex));
   }
 
   static inline PropertyDetails GetSimpleTargetDetails(Map* transition) {

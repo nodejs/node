@@ -44,7 +44,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFindSharedFunctionInfosForScript) {
   for (int i = 0; i < found.length(); ++i) {
     Handle<SharedFunctionInfo> shared = found[i];
     SharedInfoWrapper info_wrapper = SharedInfoWrapper::Create(isolate);
-    Handle<String> name(String::cast(shared->name()));
+    Handle<String> name(shared->name(), isolate);
     info_wrapper.SetProperties(name, shared->start_position(),
                                shared->end_position(), shared);
     result->set(i, *info_wrapper.GetJSArray());
@@ -223,7 +223,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
   CHECK(new_shared_array->length() == old_shared_array->length());
   CHECK(old_shared_array->HasFastElements());
   CHECK(new_shared_array->HasFastElements());
-  int array_length = Smi::cast(old_shared_array->length())->value();
+  int array_length = Smi::ToInt(old_shared_array->length());
   for (int i = 0; i < array_length; i++) {
     Handle<Object> old_element;
     Handle<Object> new_element;

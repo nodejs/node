@@ -236,7 +236,7 @@ TEST_F(BytecodeAnalysisTest, SimpleLoop) {
   expected_liveness.emplace_back("..LL", "L.LL");
 
   {
-    interpreter::LoopBuilder loop_builder(&builder);
+    interpreter::LoopBuilder loop_builder(&builder, nullptr, nullptr);
     loop_builder.LoopHeader();
 
     builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean,
@@ -322,7 +322,7 @@ TEST_F(BytecodeAnalysisTest, DiamondInLoop) {
   expected_liveness.emplace_back("...L", "L..L");
 
   {
-    interpreter::LoopBuilder loop_builder(&builder);
+    interpreter::LoopBuilder loop_builder(&builder, nullptr, nullptr);
     loop_builder.LoopHeader();
 
     builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean,
@@ -371,7 +371,7 @@ TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
   expected_liveness.emplace_back(".L.L", "LL..");
 
   {
-    interpreter::LoopBuilder loop_builder(&builder);
+    interpreter::LoopBuilder loop_builder(&builder, nullptr, nullptr);
     loop_builder.LoopHeader();
 
     builder.LoadAccumulatorWithRegister(reg_0);
@@ -385,7 +385,7 @@ TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
     expected_liveness.emplace_back(".L.L", ".L.L");
 
     {
-      interpreter::LoopBuilder inner_loop_builder(&builder);
+      interpreter::LoopBuilder inner_loop_builder(&builder, nullptr, nullptr);
       inner_loop_builder.LoopHeader();
 
       builder.StoreAccumulatorInRegister(reg_0);

@@ -35,7 +35,7 @@ static inline void StringBuilderConcatHelper(String* special, sinkchar* sink,
     Object* element = fixed_array->get(i);
     if (element->IsSmi()) {
       // Smi encoding of position and length.
-      int encoded_slice = Smi::cast(element)->value();
+      int encoded_slice = Smi::ToInt(element);
       int pos;
       int len;
       if (encoded_slice > 0) {
@@ -46,7 +46,7 @@ static inline void StringBuilderConcatHelper(String* special, sinkchar* sink,
         // Position and length encoded in two smis.
         Object* obj = fixed_array->get(++i);
         DCHECK(obj->IsSmi());
-        pos = Smi::cast(obj)->value();
+        pos = Smi::ToInt(obj);
         len = -encoded_slice;
       }
       String::WriteToFlat(special, sink + position, pos, pos + len);
@@ -73,7 +73,7 @@ static inline int StringBuilderConcatLength(int special_length,
     Object* elt = fixed_array->get(i);
     if (elt->IsSmi()) {
       // Smi encoding of position and length.
-      int smi_value = Smi::cast(elt)->value();
+      int smi_value = Smi::ToInt(elt);
       int pos;
       int len;
       if (smi_value > 0) {
@@ -88,7 +88,7 @@ static inline int StringBuilderConcatLength(int special_length,
         if (i >= array_length) return -1;
         Object* next_smi = fixed_array->get(i);
         if (!next_smi->IsSmi()) return -1;
-        pos = Smi::cast(next_smi)->value();
+        pos = Smi::ToInt(next_smi);
         if (pos < 0) return -1;
       }
       DCHECK(pos >= 0);

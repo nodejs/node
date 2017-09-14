@@ -20,7 +20,26 @@ class Variable final : public ZoneObject {
  public:
   Variable(Scope* scope, const AstRawString* name, VariableMode mode,
            VariableKind kind, InitializationFlag initialization_flag,
-           MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
+           MaybeAssignedFlag maybe_assigned_flag = kNotAssigned)
+      : scope_(scope),
+        name_(name),
+        local_if_not_shadowed_(nullptr),
+        next_(nullptr),
+        index_(-1),
+        initializer_position_(kNoSourcePosition),
+        bit_field_(MaybeAssignedFlagField::encode(maybe_assigned_flag) |
+                   InitializationFlagField::encode(initialization_flag) |
+                   VariableModeField::encode(mode) |
+                   IsUsedField::encode(false) |
+                   ForceContextAllocationField::encode(false) |
+                   ForceHoleInitializationField::encode(false) |
+                   LocationField::encode(VariableLocation::UNALLOCATED) |
+                   VariableKindField::encode(kind)) {
+    // Var declared variables never need initialization.
+    DCHECK(!(mode == VAR && initialization_flag == kNeedsInitialization));
+  }
+
+  explicit Variable(Variable* other);
 
   // The source code for an eval() call may refer to a variable that is
   // in an outer scope about which we don't know anything (it may not

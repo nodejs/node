@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-// Flags: --nodead-code-elimination --fold-constants
 // Flags: --allow-natives-syntax --nostress-opt --opt
 
 function test(f) {

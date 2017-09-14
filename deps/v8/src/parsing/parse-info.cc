@@ -5,6 +5,7 @@
 #include "src/parsing/parse-info.h"
 
 #include "src/api.h"
+#include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/heap/heap-inl.h"
@@ -39,6 +40,7 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       ast_string_constants_(nullptr),
       function_name_(nullptr),
       runtime_call_stats_(nullptr),
+      source_range_map_(nullptr),
       literal_(nullptr),
       deferred_handles_(nullptr) {}
 
@@ -135,7 +137,7 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
 bool ParseInfo::is_declaration() const {
-  return (compiler_hints_ & (1 << SharedFunctionInfo::kIsDeclaration)) != 0;
+  return SharedFunctionInfo::IsDeclarationBit::decode(compiler_hints_);
 }
 
 FunctionKind ParseInfo::function_kind() const {
@@ -158,10 +160,11 @@ void ParseInfo::InitFromIsolate(Isolate* isolate) {
   set_hash_seed(isolate->heap()->HashSeed());
   set_stack_limit(isolate->stack_guard()->real_climit());
   set_unicode_cache(isolate->unicode_cache());
-  set_tail_call_elimination_enabled(
-      isolate->is_tail_call_elimination_enabled());
   set_runtime_call_stats(isolate->counters()->runtime_call_stats());
   set_ast_string_constants(isolate->ast_string_constants());
+  if (FLAG_block_coverage && isolate->is_block_code_coverage()) {
+    set_source_range_map(new (zone()) SourceRangeMap(zone()));
+  }
 }
 
 void ParseInfo::UpdateStatisticsAfterBackgroundParse(Isolate* isolate) {

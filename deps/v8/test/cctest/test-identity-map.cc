@@ -149,7 +149,7 @@ class IdentityMapTester : public HandleAndZoneScope {
   void SimulateGCByIncrementingSmisBy(int shift) {
     for (int i = 0; i < map.capacity_; i++) {
       if (map.keys_[i]->IsSmi()) {
-        map.keys_[i] = Smi::FromInt(Smi::cast(map.keys_[i])->value() + shift);
+        map.keys_[i] = Smi::FromInt(Smi::ToInt(map.keys_[i]) + shift);
       }
     }
     map.gc_counter_ = -1;

@@ -15,7 +15,7 @@ server.on('stream', common.mustCall((stream, headers) => {
       ':scheme': 'http',
       ':path': '/foobar',
       ':authority': `localhost:${port}`,
-    }, (push, headers) => {
+    }, common.mustCall((push, headers) => {
       push.respond({
         'content-type': 'text/html',
         ':status': 200,
@@ -23,7 +23,7 @@ server.on('stream', common.mustCall((stream, headers) => {
       });
       push.end('pushed by server data');
       stream.end('test');
-    });
+    }));
   }
   stream.respond({
     'content-type': 'text/html',

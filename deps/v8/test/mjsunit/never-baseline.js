@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --ignition --turbo
+// Flags: --allow-natives-syntax --no-stress-fullcodegen
 
 function f(a, b) {
   %DeoptimizeNow();

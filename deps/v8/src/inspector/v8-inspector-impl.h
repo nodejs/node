@@ -31,7 +31,7 @@
 #ifndef V8_INSPECTOR_V8INSPECTORIMPL_H_
 #define V8_INSPECTOR_V8INSPECTORIMPL_H_
 
-#include <vector>
+#include <functional>
 
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -103,17 +103,15 @@ class V8InspectorImpl : public V8Inspector {
   void unmuteExceptions(int contextGroupId);
   V8ConsoleMessageStorage* ensureConsoleMessageStorage(int contextGroupId);
   bool hasConsoleMessageStorage(int contextGroupId);
-  using ContextByIdMap =
-      protocol::HashMap<int, std::unique_ptr<InspectedContext>>;
   void discardInspectedContext(int contextGroupId, int contextId);
-  const ContextByIdMap* contextGroup(int contextGroupId);
   void disconnect(V8InspectorSessionImpl*);
-  V8InspectorSessionImpl* sessionForContextGroup(int contextGroupId);
+  V8InspectorSessionImpl* sessionById(int contextGroupId, int sessionId);
   InspectedContext* getContext(int groupId, int contextId) const;
-  V8DebuggerAgentImpl* enabledDebuggerAgentForGroup(int contextGroupId);
-  V8RuntimeAgentImpl* enabledRuntimeAgentForGroup(int contextGroupId);
-  V8ProfilerAgentImpl* enabledProfilerAgentForGroup(int contextGroupId);
   V8Console* console();
+  void forEachContext(int contextGroupId,
+                      std::function<void(InspectedContext*)> callback);
+  void forEachSession(int contextGroupId,
+                      std::function<void(V8InspectorSessionImpl*)> callback);
 
  private:
   v8::Isolate* m_isolate;
@@ -123,16 +121,20 @@ class V8InspectorImpl : public V8Inspector {
   int m_capturingStackTracesCount;
   unsigned m_lastExceptionId;
   int m_lastContextId;
+  int m_lastSessionId = 0;
 
   using MuteExceptionsMap = protocol::HashMap<int, int>;
   MuteExceptionsMap m_muteExceptionsMap;
 
+  using ContextByIdMap =
+      protocol::HashMap<int, std::unique_ptr<InspectedContext>>;
   using ContextsByGroupMap =
       protocol::HashMap<int, std::unique_ptr<ContextByIdMap>>;
   ContextsByGroupMap m_contexts;
 
-  using SessionMap = protocol::HashMap<int, V8InspectorSessionImpl*>;
-  SessionMap m_sessions;
+  // contextGroupId -> sessionId -> session
+  protocol::HashMap<int, protocol::HashMap<int, V8InspectorSessionImpl*>>
+      m_sessions;
 
   using ConsoleStorageMap =
       protocol::HashMap<int, std::unique_ptr<V8ConsoleMessageStorage>>;

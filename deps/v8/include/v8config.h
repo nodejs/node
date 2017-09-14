@@ -61,6 +61,7 @@
 //  V8_OS_CYGWIN        - Cygwin
 //  V8_OS_DRAGONFLYBSD  - DragonFlyBSD
 //  V8_OS_FREEBSD       - FreeBSD
+//  V8_OS_FUCHSIA       - Fuchsia
 //  V8_OS_LINUX         - Linux
 //  V8_OS_MACOSX        - Mac OS X
 //  V8_OS_NETBSD        - NetBSD
@@ -94,6 +95,9 @@
 #elif defined(__FreeBSD__)
 # define V8_OS_BSD 1
 # define V8_OS_FREEBSD 1
+# define V8_OS_POSIX 1
+#elif defined(__Fuchsia__)
+# define V8_OS_FUCHSIA 1
 # define V8_OS_POSIX 1
 #elif defined(__DragonFly__)
 # define V8_OS_BSD 1
@@ -169,7 +173,6 @@
 //                                        supported
 //  V8_HAS_ATTRIBUTE_DEPRECATED         - __attribute__((deprecated)) supported
 //  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
-//  V8_HAS_ATTRIBUTE_NORETURN           - __attribute__((noreturn)) supported
 //  V8_HAS_ATTRIBUTE_UNUSED             - __attribute__((unused)) supported
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
@@ -209,7 +212,6 @@
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
-# define V8_HAS_ATTRIBUTE_NORETURN (__has_attribute(noreturn))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
@@ -250,7 +252,6 @@
 # define V8_HAS_ATTRIBUTE_DEPRECATED (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE (V8_GNUC_PREREQ(4, 5, 0))
 # define V8_HAS_ATTRIBUTE_NOINLINE (V8_GNUC_PREREQ(3, 4, 0))
-# define V8_HAS_ATTRIBUTE_NORETURN (V8_GNUC_PREREQ(2, 5, 0))
 # define V8_HAS_ATTRIBUTE_UNUSED (V8_GNUC_PREREQ(2, 95, 0))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (V8_GNUC_PREREQ(4, 3, 0))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
@@ -308,18 +309,6 @@
 # define V8_NOINLINE __declspec(noinline)
 #else
 # define V8_NOINLINE /* NOT SUPPORTED */
-#endif
-
-
-// A macro used to tell the compiler that a particular function never returns.
-// Use like:
-//   V8_NORETURN void MyAbort() { abort(); }
-#if V8_HAS_ATTRIBUTE_NORETURN
-# define V8_NORETURN __attribute__((noreturn))
-#elif V8_HAS_DECLSPEC_NORETURN
-# define V8_NORETURN __declspec(noreturn)
-#else
-# define V8_NORETURN /* NOT SUPPORTED */
 #endif
 
 

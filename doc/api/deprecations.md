@@ -664,7 +664,7 @@ Type: Runtime
 <a id="DEP00XX"></a>
 ### DEP00XX: tls.parseCertString()
 
-Type: Documentation-only
+Type: Runtime
 
 `tls.parseCertString()` is a trivial parsing helper that was made public by
 mistake. This function can usually be replaced with:

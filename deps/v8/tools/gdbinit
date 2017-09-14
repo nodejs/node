@@ -75,6 +75,15 @@ Print a v8 TransitionArray object
 Usage: jta tagged_ptr
 end
 
+# Print TransitionTree.
+define jtt
+call _v8_internal_Print_TransitionTree((void*)($arg0))
+end
+document jtt
+Print the complete transition tree of the given v8 Map.
+Usage: jtt tagged_ptr
+end
+
 # Print JavaScript stack trace.
 define jst
 call _v8_internal_Print_StackTrace()

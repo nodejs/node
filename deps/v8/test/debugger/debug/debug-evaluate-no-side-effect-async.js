@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition --turbo
+// Flags: --no-stress-fullcodegen
 
 // Test that asynchronous features do not work with
 // side-effect free debug-evaluate.

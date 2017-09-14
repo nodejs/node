@@ -26,4 +26,6 @@ command regex -h 'Print a v8 LayoutDescriptor object' jld 's/(.+)/expr -- '_v8_i
 # Print TransitionArray.
 command regex -h 'Print a v8 TransitionArray object' jta 's/(.+)/expr -- '_v8_internal_Print_TransitionArray((void*)(%1))/'
 
+command regex -h 'Print the transition tree of a v8 Map' jtt 's/(.+)/expr -- '_v8_internal_Print_TransitionTree((void*)(%1))/'
+
 command script import ~/lldb_commands.py

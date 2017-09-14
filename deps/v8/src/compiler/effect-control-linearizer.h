@@ -58,6 +58,9 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerCheckNumber(Node* node, Node* frame_state);
   Node* LowerCheckReceiver(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
+  Node* LowerCheckSeqString(Node* node, Node* frame_state);
+  Node* LowerCheckNonEmptyString(Node* node, Node* frame_state);
+  Node* LowerCheckSymbol(Node* node, Node* frame_state);
   Node* LowerCheckIf(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Add(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Sub(Node* node, Node* frame_state);
@@ -96,6 +99,9 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerArrayBufferWasNeutered(Node* node);
   Node* LowerStringCharAt(Node* node);
   Node* LowerStringCharCodeAt(Node* node);
+  Node* LowerSeqStringCharCodeAt(Node* node);
+  Node* LowerStringToLowerCaseIntl(Node* node);
+  Node* LowerStringToUpperCaseIntl(Node* node);
   Node* LowerStringFromCharCode(Node* node);
   Node* LowerStringFromCodePoint(Node* node);
   Node* LowerStringIndexOf(Node* node);
@@ -103,7 +109,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerStringLessThan(Node* node);
   Node* LowerStringLessThanOrEqual(Node* node);
   Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
-  Node* LowerCheckTaggedHole(Node* node, Node* frame_state);
+  Node* LowerCheckNotTaggedHole(Node* node, Node* frame_state);
   Node* LowerConvertTaggedHoleToUndefined(Node* node);
   Node* LowerPlainPrimitiveToNumber(Node* node);
   Node* LowerPlainPrimitiveToWord32(Node* node);
@@ -113,6 +119,9 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   void LowerTransitionElementsKind(Node* node);
   Node* LowerLoadTypedElement(Node* node);
   void LowerStoreTypedElement(Node* node);
+  Node* LowerLookupHashStorageIndex(Node* node);
+  Node* LowerLoadHashMapValue(Node* node);
+  void LowerTransitionAndStoreElement(Node* node);
 
   // Lowering of optional operators.
   Maybe<Node*> LowerFloat64RoundUp(Node* node);
@@ -128,6 +137,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                                  Node* frame_state);
   Node* BuildFloat64RoundDown(Node* value);
   Node* LowerStringComparison(Callable const& callable, Node* node);
+  Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
 
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
@@ -136,6 +146,8 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
 
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
+  void TransitionElementsTo(Node* node, Node* array, ElementsKind from,
+                            ElementsKind to);
 
   Factory* factory() const;
   Isolate* isolate() const;

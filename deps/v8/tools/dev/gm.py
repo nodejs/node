@@ -18,18 +18,22 @@ All arguments are optional. Most combinations should work, e.g.:
 """
 # See HELP below for additional documentation.
 
+from __future__ import print_function
+import errno
+import multiprocessing
 import os
+import pty
 import subprocess
 import sys
 
 BUILD_OPTS_DEFAULT = ""
-BUILD_OPTS_GOMA = "-j1000 -l50"
+BUILD_OPTS_GOMA = "-j1000 -l%d" % (multiprocessing.cpu_count() + 2)
 BUILD_TARGETS_TEST = ["d8", "cctest", "unittests"]
 BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.
 ARCHES = ["ia32", "x64", "arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
-          "s390", "s390x", "x87"]
+          "s390", "s390x"]
 # Arches that get built/run when you don't specify any.
 DEFAULT_ARCHES = ["ia32", "x64", "arm", "arm64"]
 # Modes that this script understands.
@@ -84,6 +88,8 @@ def DetectGoma():
   home_goma = os.path.expanduser("~/goma")
   if os.path.exists(home_goma):
     return home_goma
+  if os.environ.get("GOMA_DIR"):
+    return os.environ.get("GOMA_DIR")
   if os.environ.get("GOMADIR"):
     return os.environ.get("GOMADIR")
   return None
@@ -92,18 +98,18 @@ GOMADIR = DetectGoma()
 IS_GOMA_MACHINE = GOMADIR is not None
 
 USE_GOMA = "true" if IS_GOMA_MACHINE else "false"
-BUILD_OPTS = BUILD_OPTS_GOMA if IS_GOMA_MACHINE else BUILD_OPTS_DEFAULT
 
 RELEASE_ARGS_TEMPLATE = """\
 is_component_build = false
 is_debug = false
 %s
 use_goma = {GOMA}
+goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_disassembler = true
 v8_enable_object_print = true
 v8_enable_verify_heap = true
-""".replace("{GOMA}", USE_GOMA)
+""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
 
 DEBUG_ARGS_TEMPLATE = """\
 is_component_build = true
@@ -111,10 +117,11 @@ is_debug = true
 symbol_level = 2
 %s
 use_goma = {GOMA}
+goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
-""".replace("{GOMA}", USE_GOMA)
+""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
 
 OPTDEBUG_ARGS_TEMPLATE = """\
 is_component_build = true
@@ -122,10 +129,11 @@ is_debug = true
 symbol_level = 1
 %s
 use_goma = {GOMA}
+goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_verify_heap = true
 v8_optimized_debug = true
-""".replace("{GOMA}", USE_GOMA)
+""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
 
 ARGS_TEMPLATES = {
   "release": RELEASE_ARGS_TEMPLATE,
@@ -141,6 +149,35 @@ def PrintHelpAndExit():
 def _Call(cmd, silent=False):
   if not silent: print("# %s" % cmd)
   return subprocess.call(cmd, shell=True)
+
+def _CallWithOutputNoTerminal(cmd):
+  return subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+
+def _CallWithOutput(cmd):
+  print("# %s" % cmd)
+  # The following trickery is required so that the 'cmd' thinks it's running
+  # in a real terminal, while this script gets to intercept its output.
+  master, slave = pty.openpty()
+  p = subprocess.Popen(cmd, shell=True, stdin=slave, stdout=slave, stderr=slave)
+  os.close(slave)
+  output = []
+  try:
+    while True:
+      try:
+        data = os.read(master, 512)
+      except OSError as e:
+        if e.errno != errno.EIO: raise
+        break # EIO means EOF on some systems
+      else:
+        if not data: # EOF
+          break
+        print(data, end="")
+        sys.stdout.flush()
+        output.append(data)
+  finally:
+    os.close(master)
+    p.wait()
+  return p.returncode, "".join(output)
 
 def _Which(cmd):
   for path in os.environ["PATH"].split(os.pathsep):
@@ -191,6 +228,11 @@ class Config(object):
     arch_specific = self.GetTargetCpu() + self.GetV8TargetCpu()
     return template % arch_specific
 
+  def WantsGoma(self):
+    output = _CallWithOutputNoTerminal(
+        "gn args --short --list=use_goma %s" % (GetPath(self.arch, self.mode)))
+    return "true" in output
+
   def Build(self):
     path = GetPath(self.arch, self.mode)
     args_gn = os.path.join(path, "args.gn")
@@ -202,7 +244,22 @@ class Config(object):
       code = _Call("gn gen %s" % path)
       if code != 0: return code
     targets = " ".join(self.targets)
-    return _Call("ninja -C %s %s %s" % (path, BUILD_OPTS, targets))
+    build_opts = BUILD_OPTS_GOMA if self.WantsGoma() else BUILD_OPTS_DEFAULT
+    # The implementation of mksnapshot failure detection relies on
+    # the "pty" module and GDB presence, so skip it on non-Linux.
+    if "linux" not in sys.platform:
+      return _Call("ninja -C %s %s %s" % (path, build_opts, targets))
+
+    return_code, output = _CallWithOutput("ninja -C %s %s %s" %
+                                          (path, build_opts, targets))
+    if return_code != 0 and "FAILED: gen/snapshot.cc" in output:
+      _Notify("V8 build requires your attention",
+              "Detected mksnapshot failure, re-running in GDB...")
+      _Call("gdb -args %(path)s/mksnapshot "
+            "--startup_src %(path)s/gen/snapshot.cc "
+            "--random-seed 314159265 "
+            "--startup-blob %(path)s/snapshot_blob.bin" % {"path": path})
+    return return_code
 
   def RunTests(self):
     if not self.tests: return 0

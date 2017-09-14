@@ -116,7 +116,7 @@ class DescriptorArray : public FixedArray {
       Isolate* isolate, int number_of_descriptors, int slack,
       PretenureFlag pretenure = NOT_TENURED);
 
-  DECLARE_CAST(DescriptorArray)
+  DECL_CAST(DescriptorArray)
 
   // Constant for denoting key was not found.
   static const int kNotFound = -1;

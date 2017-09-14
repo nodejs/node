@@ -224,7 +224,8 @@ void GraphAssembler::Reset(Node* effect, Node* control) {
 
 Operator const* GraphAssembler::ToNumberOperator() {
   if (!to_number_operator_.is_set()) {
-    Callable callable = CodeFactory::ToNumber(jsgraph()->isolate());
+    Callable callable =
+        Builtins::CallableFor(jsgraph()->isolate(), Builtins::kToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
     CallDescriptor* desc = Linkage::GetStubCallDescriptor(
         jsgraph()->isolate(), graph()->zone(), callable.descriptor(), 0, flags,

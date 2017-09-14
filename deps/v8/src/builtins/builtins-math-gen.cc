@@ -59,8 +59,8 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
       } else {
         // Check if {x} is already positive.
         Label if_xispositive(this), if_xisnotpositive(this);
-        BranchIfSmiLessThanOrEqual(SmiConstant(Smi::FromInt(0)), x,
-                                   &if_xispositive, &if_xisnotpositive);
+        BranchIfSmiLessThanOrEqual(SmiConstant(0), x, &if_xispositive,
+                                   &if_xisnotpositive);
 
         BIND(&if_xispositive);
         {
@@ -93,8 +93,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
     {
       // Check if {x} is a HeapNumber.
       Label if_xisheapnumber(this), if_xisnotheapnumber(this, Label::kDeferred);
-      Branch(IsHeapNumberMap(LoadMap(x)), &if_xisheapnumber,
-             &if_xisnotheapnumber);
+      Branch(IsHeapNumber(x), &if_xisheapnumber, &if_xisnotheapnumber);
 
       BIND(&if_xisheapnumber);
       {
@@ -107,8 +106,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
       BIND(&if_xisnotheapnumber);
       {
         // Need to convert {x} to a Number first.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
-        var_x.Bind(CallStub(callable, context, x));
+        var_x.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, x));
         Goto(&loop);
       }
     }
@@ -140,8 +138,7 @@ void MathBuiltinsAssembler::MathRoundingOperation(
     {
       // Check if {x} is a HeapNumber.
       Label if_xisheapnumber(this), if_xisnotheapnumber(this, Label::kDeferred);
-      Branch(IsHeapNumberMap(LoadMap(x)), &if_xisheapnumber,
-             &if_xisnotheapnumber);
+      Branch(IsHeapNumber(x), &if_xisheapnumber, &if_xisnotheapnumber);
 
       BIND(&if_xisheapnumber);
       {
@@ -154,8 +151,7 @@ void MathBuiltinsAssembler::MathRoundingOperation(
       BIND(&if_xisnotheapnumber);
       {
         // Need to convert {x} to a Number first.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
-        var_x.Bind(CallStub(callable, context, x));
+        var_x.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, x));
         Goto(&loop);
       }
     }
@@ -289,8 +285,7 @@ TF_BUILTIN(MathClz32, CodeStubAssembler) {
     {
       // Check if {x} is a HeapNumber.
       Label if_xisheapnumber(this), if_xisnotheapnumber(this, Label::kDeferred);
-      Branch(IsHeapNumberMap(LoadMap(x)), &if_xisheapnumber,
-             &if_xisnotheapnumber);
+      Branch(IsHeapNumber(x), &if_xisheapnumber, &if_xisnotheapnumber);
 
       BIND(&if_xisheapnumber);
       {
@@ -301,8 +296,7 @@ TF_BUILTIN(MathClz32, CodeStubAssembler) {
       BIND(&if_xisnotheapnumber);
       {
         // Need to convert {x} to a Number first.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
-        var_x.Bind(CallStub(callable, context, x));
+        var_x.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, x));
         Goto(&loop);
       }
     }
@@ -427,7 +421,7 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
 
   // Cached random numbers are exhausted if index is 0. Go to slow path.
   Label if_cached(this);
-  GotoIf(SmiAbove(smi_index.value(), SmiConstant(Smi::kZero)), &if_cached);
+  GotoIf(SmiAbove(smi_index.value(), SmiConstant(0)), &if_cached);
 
   // Cache exhausted, populate the cache. Return value is the new index.
   smi_index.Bind(CallRuntime(Runtime::kGenerateRandomNumbers, context));
@@ -435,7 +429,7 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
 
   // Compute next index by decrement.
   BIND(&if_cached);
-  Node* new_smi_index = SmiSub(smi_index.value(), SmiConstant(Smi::FromInt(1)));
+  Node* new_smi_index = SmiSub(smi_index.value(), SmiConstant(1));
   StoreContextElement(native_context, Context::MATH_RANDOM_INDEX_INDEX,
                       new_smi_index);
 
@@ -468,10 +462,10 @@ TF_BUILTIN(MathSign, CodeStubAssembler) {
   Return(ChangeFloat64ToTagged(x_value));
 
   BIND(&if_xisnegative);
-  Return(SmiConstant(Smi::FromInt(-1)));
+  Return(SmiConstant(-1));
 
   BIND(&if_xispositive);
-  Return(SmiConstant(Smi::FromInt(1)));
+  Return(SmiConstant(1));
 }
 
 // ES6 #sec-math.sin

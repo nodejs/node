@@ -39,7 +39,7 @@ int LookupNamedCapture(std::function<bool(String*)> name_matches,
     String* capture_name = String::cast(capture_name_map->get(name_ix));
     if (!name_matches(capture_name)) continue;
 
-    maybe_capture_index = Smi::cast(capture_name_map->get(index_ix))->value();
+    maybe_capture_index = Smi::ToInt(capture_name_map->get(index_ix));
     break;
   }
 
@@ -869,10 +869,10 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   int part_count = indices->length();
 
   Handle<JSArray> result =
-      isolate->factory()->NewJSArray(FAST_ELEMENTS, part_count, part_count,
+      isolate->factory()->NewJSArray(PACKED_ELEMENTS, part_count, part_count,
                                      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 
-  DCHECK(result->HasFastObjectElements());
+  DCHECK(result->HasObjectElements());
 
   Handle<FixedArray> elements(FixedArray::cast(result->elements()));
 
@@ -890,7 +890,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   }
 
   if (limit == 0xffffffffu) {
-    if (result->HasFastObjectElements()) {
+    if (result->HasObjectElements()) {
       RegExpResultsCache::Enter(isolate, subject, pattern, elements,
                                 isolate->factory()->empty_fixed_array(),
                                 RegExpResultsCache::STRING_SPLIT_SUBSTRINGS);
@@ -1140,7 +1140,7 @@ Handle<JSObject> ConstructNamedCaptureGroupsObject(
     const int index_ix = i * 2 + 1;
 
     Handle<String> capture_name(String::cast(capture_map->get(name_ix)));
-    const int capture_ix = Smi::cast(capture_map->get(index_ix))->value();
+    const int capture_ix = Smi::ToInt(capture_map->get(index_ix));
     DCHECK(1 <= capture_ix && capture_ix <= capture_count);
 
     Handle<Object> capture_value(f_get_capture(capture_ix), isolate);
@@ -1177,7 +1177,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
       int capture_registers = (capture_count + 1) * 2;
       int32_t* last_match = NewArray<int32_t>(capture_registers);
       for (int i = 0; i < capture_registers; i++) {
-        last_match[i] = Smi::cast(last_match_cache->get(i))->value();
+        last_match[i] = Smi::ToInt(last_match_cache->get(i));
       }
       Handle<FixedArray> cached_fixed_array =
           Handle<FixedArray>(FixedArray::cast(cached_answer));
@@ -1197,7 +1197,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
   if (global_cache.HasException()) return isolate->heap()->exception();
 
   // Ensured in Runtime_RegExpExecMultiple.
-  DCHECK(result_array->HasFastObjectElements());
+  DCHECK(result_array->HasObjectElements());
   Handle<FixedArray> result_elements(
       FixedArray::cast(result_array->elements()));
   if (result_elements->length() < 16) {
@@ -1423,7 +1423,6 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
   }
 
   UNREACHABLE();
-  return MaybeHandle<String>();
 }
 
 }  // namespace
@@ -1437,7 +1436,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExecMultiple) {
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
   CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, result_array, 3);
-  CHECK(result_array->HasFastObjectElements());
+  CHECK(result_array->HasObjectElements());
 
   subject = String::Flatten(subject);
   CHECK(regexp->GetFlags() & JSRegExp::kGlobal);

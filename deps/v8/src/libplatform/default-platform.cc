@@ -13,8 +13,6 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/sys-info.h"
-#include "src/libplatform/tracing/trace-buffer.h"
-#include "src/libplatform/tracing/trace-writer.h"
 #include "src/libplatform/worker-thread.h"
 
 namespace v8 {
@@ -31,15 +29,15 @@ void PrintStackTrace() {
 
 }  // namespace
 
-v8::Platform* CreateDefaultPlatform(int thread_pool_size,
-                                    IdleTaskSupport idle_task_support,
-                                    InProcessStackDumping in_process_stack_dumping,
-                                    v8::TracingController* tracing_controller) {
+v8::Platform* CreateDefaultPlatform(
+    int thread_pool_size, IdleTaskSupport idle_task_support,
+    InProcessStackDumping in_process_stack_dumping,
+    v8::TracingController* tracing_controller) {
   if (in_process_stack_dumping == InProcessStackDumping::kEnabled) {
     v8::base::debug::EnableInProcessStackDumping();
   }
   DefaultPlatform* platform =
-    new DefaultPlatform(idle_task_support, tracing_controller);
+      new DefaultPlatform(idle_task_support, tracing_controller);
   platform->SetThreadPoolSize(thread_pool_size);
   platform->EnsureInitialized();
   return platform;
@@ -65,7 +63,7 @@ void RunIdleTasks(v8::Platform* platform, v8::Isolate* isolate,
 void SetTracingController(
     v8::Platform* platform,
     v8::platform::tracing::TracingController* tracing_controller) {
-  return static_cast<DefaultPlatform*>(platform)->SetTracingController(
+  static_cast<DefaultPlatform*>(platform)->SetTracingController(
       tracing_controller);
 }
 
@@ -79,11 +77,8 @@ DefaultPlatform::DefaultPlatform(IdleTaskSupport idle_task_support,
   if (tracing_controller) {
     tracing_controller_.reset(tracing_controller);
   } else {
-    tracing::TraceWriter* writer = new tracing::NullTraceWriter();
-    tracing::TraceBuffer* ring_buffer =
-        new tracing::TraceBufferRingBuffer(1, writer);
     tracing::TracingController* controller = new tracing::TracingController();
-    controller->Initialize(ring_buffer);
+    controller->Initialize(nullptr);
     tracing_controller_.reset(controller);
   }
 }

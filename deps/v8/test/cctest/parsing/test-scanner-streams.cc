@@ -254,6 +254,9 @@ void TestCharacterStream(const char* reference, i::Utf16CharacterStream* stream,
     CHECK_EQU(reference[i], stream->Advance());
   }
   CHECK_EQU(end, stream->pos());
+  CHECK_EQU(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
+  CHECK_EQU(end + 1, stream->pos());
+  stream->Back();
 
   // Pushback, re-read, pushback again.
   while (i > end / 4) {

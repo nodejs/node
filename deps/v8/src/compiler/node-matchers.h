@@ -175,8 +175,7 @@ struct FloatMatcher final : public ValueMatcher<T, kOpcode> {
       return false;
     }
     Double value = Double(this->Value());
-    return !value.IsInfinite() &&
-           base::bits::IsPowerOfTwo64(value.Significand());
+    return !value.IsInfinite() && base::bits::IsPowerOfTwo(value.Significand());
   }
 };
 

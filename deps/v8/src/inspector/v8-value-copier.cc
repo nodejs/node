@@ -79,7 +79,6 @@ protocol::Response toProtocolValue(v8::Local<v8::Context> context,
   using protocol::Response;
   if (value.IsEmpty()) {
     UNREACHABLE();
-    return Response::InternalError();
   }
 
   if (!maxDepth) return Response::Error("Object reference chain is too long");

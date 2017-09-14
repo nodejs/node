@@ -171,7 +171,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 56
+bytecode array length: 55
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(2),
@@ -193,9 +193,8 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(3), U8(1),
                 B(Star), R(0),
                 B(Star), R(1),
-  /*   87 S> */ B(Nop),
-  /*   94 E> */ B(Construct), R(1), R(0), U8(0), U8(4),
-  /*  103 S> */ B(Return),
+  /*   94 S> */ B(Construct), R(1), R(0), U8(0), U8(4),
+  /*  102 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,

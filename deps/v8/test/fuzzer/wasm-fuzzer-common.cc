@@ -111,7 +111,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(
 
   ZoneBuffer buffer(&zone);
   int32_t num_args = 0;
-  std::unique_ptr<WasmVal[]> interpreter_args;
+  std::unique_ptr<WasmValue[]> interpreter_args;
   std::unique_ptr<Handle<Object>[]> compiler_args;
   if (!GenerateModule(i_isolate, &zone, data, size, buffer, num_args,
                       interpreter_args, compiler_args)) {
@@ -121,56 +121,73 @@ int WasmExecutionFuzzer::FuzzWasmModule(
   v8::internal::wasm::testing::SetupIsolateForWasmModule(i_isolate);
 
   ErrorThrower interpreter_thrower(i_isolate, "Interpreter");
-  std::unique_ptr<const WasmModule> module(testing::DecodeWasmModuleForTesting(
-      i_isolate, &interpreter_thrower, buffer.begin(), buffer.end(),
-      ModuleOrigin::kWasmOrigin, true));
+  ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
+  MaybeHandle<WasmModuleObject> compiled_module =
+      SyncCompile(i_isolate, &interpreter_thrower, wire_bytes);
   // Clear the flag so that the WebAssembly code is not printed twice.
   FLAG_wasm_code_fuzzer_gen_test = false;
-  if (module == nullptr) {
-    if (generate_test) {
-      OFStream os(stdout);
-      os << "            ])" << std::endl;
-      os << "            .exportFunc();" << std::endl;
-      os << "  assertThrows(function() { builder.instantiate(); });"
-         << std::endl;
-      os << "})();" << std::endl;
-    }
-    return 0;
-  }
+  bool compiles = !compiled_module.is_null();
+
   if (generate_test) {
     OFStream os(stdout);
-    os << "            ])" << std::endl;
-    os << "            .exportFunc();" << std::endl;
-    os << "  var module = builder.instantiate();" << std::endl;
-    os << "  module.exports.test(1, 2, 3);" << std::endl;
+    os << "            ])" << std::endl
+       << "            .exportFunc();" << std::endl;
+    if (compiles) {
+      os << "  var module = builder.instantiate();" << std::endl
+         << "  module.exports.test(1, 2, 3);" << std::endl;
+    } else {
+      OFStream os(stdout);
+      os << "  assertThrows(function() { builder.instantiate(); });"
+         << std::endl;
+    }
     os << "})();" << std::endl;
   }
 
-  ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
+  bool validates = wasm::SyncValidate(i_isolate, wire_bytes);
+
+  if (compiles != validates) {
+    uint32_t hash = StringHasher::HashSequentialString(
+        data, static_cast<int>(size), WASM_CODE_FUZZER_HASH_SEED);
+    V8_Fatal(__FILE__, __LINE__,
+             "compiles != validates (%d vs %d); WasmCodeFuzzerHash=%x",
+             compiles, validates, hash);
+  }
+
+  if (!compiles) return 0;
+
   int32_t result_interpreted;
   bool possible_nondeterminism = false;
   {
+    MaybeHandle<WasmInstanceObject> interpreter_instance = SyncInstantiate(
+        i_isolate, &interpreter_thrower, compiled_module.ToHandleChecked(),
+        MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
+
+    if (interpreter_thrower.error()) {
+      return 0;
+    }
     result_interpreted = testing::InterpretWasmModule(
-        i_isolate, &interpreter_thrower, module.get(), wire_bytes, 0,
-        interpreter_args.get(), &possible_nondeterminism);
+        i_isolate, interpreter_instance.ToHandleChecked(), &interpreter_thrower,
+        0, interpreter_args.get(), &possible_nondeterminism);
   }
 
-  ErrorThrower compiler_thrower(i_isolate, "Compiler");
-  Handle<JSObject> instance = testing::InstantiateModuleForTesting(
-      i_isolate, &compiler_thrower, module.get(), wire_bytes);
-  // Restore the flag.
-  FLAG_wasm_code_fuzzer_gen_test = generate_test;
-  if (!interpreter_thrower.error()) {
-    CHECK(!instance.is_null());
-  } else {
+  // Do not execute the generated code if the interpreter did not finished after
+  // a bounded number of steps.
+  if (interpreter_thrower.error()) {
     return 0;
   }
+
   int32_t result_compiled;
   {
+    ErrorThrower compiler_thrower(i_isolate, "Compiler");
+    MaybeHandle<WasmInstanceObject> compiled_instance = SyncInstantiate(
+        i_isolate, &compiler_thrower, compiled_module.ToHandleChecked(),
+        MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
+
+    DCHECK(!compiler_thrower.error());
     result_compiled = testing::CallWasmFunctionForTesting(
-        i_isolate, instance, &compiler_thrower, "main", num_args,
-        compiler_args.get(), ModuleOrigin::kWasmOrigin);
+        i_isolate, compiled_instance.ToHandleChecked(), &compiler_thrower,
+        "main", num_args, compiler_args.get());
   }
 
   // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.

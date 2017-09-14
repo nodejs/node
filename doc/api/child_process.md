@@ -356,6 +356,9 @@ output on this fd is expected to be line delimited JSON objects.
 *Note*: Unlike the fork(2) POSIX system call, `child_process.fork()` does
 not clone the current process.
 
+*Note*: The `shell` option available in [`child_process.spawn()`][] is not
+supported by `child_process.fork()` and will be ignored if set.
+
 ### child_process.spawn(command[, args][, options])
 <!-- YAML
 added: v0.1.90

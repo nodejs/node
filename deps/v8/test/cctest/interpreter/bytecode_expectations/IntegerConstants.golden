@@ -15,7 +15,7 @@ bytecode array length: 8
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(ExtraWide), B(LdaSmi), I32(12345678),
-  /*   51 S> */ B(Return),
+  /*   50 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -34,7 +34,7 @@ bytecodes: [
   /*   42 S> */ B(Wide), B(LdaSmi), I16(1234),
                 B(Star), R(0),
   /*   48 S> */ B(Wide), B(LdaSmi), I16(5678),
-  /*   61 S> */ B(Return),
+  /*   60 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -53,7 +53,7 @@ bytecodes: [
   /*   42 S> */ B(Wide), B(LdaSmi), I16(1234),
                 B(Star), R(0),
   /*   48 S> */ B(Wide), B(LdaSmi), I16(1234),
-  /*   61 S> */ B(Return),
+  /*   60 S> */ B(Return),
 ]
 constant pool: [
 ]

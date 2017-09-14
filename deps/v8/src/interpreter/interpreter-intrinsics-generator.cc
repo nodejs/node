@@ -202,19 +202,9 @@ Node* IntrinsicsGenerator::IsJSMap(Node* input, Node* arg_count,
   return IsInstanceType(input, JS_MAP_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsJSMapIterator(Node* input, Node* arg_count,
-                                           Node* context) {
-  return IsInstanceType(input, JS_MAP_ITERATOR_TYPE);
-}
-
 Node* IntrinsicsGenerator::IsJSSet(Node* input, Node* arg_count,
                                    Node* context) {
   return IsInstanceType(input, JS_SET_TYPE);
-}
-
-Node* IntrinsicsGenerator::IsJSSetIterator(Node* input, Node* arg_count,
-                                           Node* context) {
-  return IsInstanceType(input, JS_SET_ITERATOR_TYPE);
 }
 
 Node* IntrinsicsGenerator::IsJSWeakMap(Node* input, Node* arg_count,
@@ -276,14 +266,15 @@ Node* IntrinsicsGenerator::IntrinsicAsBuiltinCall(Node* input, Node* context,
 
 Node* IntrinsicsGenerator::CreateIterResultObject(Node* input, Node* arg_count,
                                                   Node* context) {
-  return IntrinsicAsStubCall(input, context,
-                             CodeFactory::CreateIterResultObject(isolate()));
+  return IntrinsicAsStubCall(
+      input, context,
+      Builtins::CallableFor(isolate(), Builtins::kCreateIterResultObject));
 }
 
 Node* IntrinsicsGenerator::HasProperty(Node* input, Node* arg_count,
                                        Node* context) {
-  return IntrinsicAsStubCall(input, context,
-                             CodeFactory::HasProperty(isolate()));
+  return IntrinsicAsStubCall(
+      input, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
 }
 
 Node* IntrinsicsGenerator::SubString(Node* input, Node* arg_count,
@@ -293,27 +284,32 @@ Node* IntrinsicsGenerator::SubString(Node* input, Node* arg_count,
 
 Node* IntrinsicsGenerator::ToString(Node* input, Node* arg_count,
                                     Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::ToString(isolate()));
+  return IntrinsicAsStubCall(
+      input, context, Builtins::CallableFor(isolate(), Builtins::kToString));
 }
 
 Node* IntrinsicsGenerator::ToLength(Node* input, Node* arg_count,
                                     Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::ToLength(isolate()));
+  return IntrinsicAsStubCall(
+      input, context, Builtins::CallableFor(isolate(), Builtins::kToLength));
 }
 
 Node* IntrinsicsGenerator::ToInteger(Node* input, Node* arg_count,
                                      Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::ToInteger(isolate()));
+  return IntrinsicAsStubCall(
+      input, context, Builtins::CallableFor(isolate(), Builtins::kToInteger));
 }
 
 Node* IntrinsicsGenerator::ToNumber(Node* input, Node* arg_count,
                                     Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::ToNumber(isolate()));
+  return IntrinsicAsStubCall(
+      input, context, Builtins::CallableFor(isolate(), Builtins::kToNumber));
 }
 
 Node* IntrinsicsGenerator::ToObject(Node* input, Node* arg_count,
                                     Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::ToObject(isolate()));
+  return IntrinsicAsStubCall(
+      input, context, Builtins::CallableFor(isolate(), Builtins::kToObject));
 }
 
 Node* IntrinsicsGenerator::Call(Node* args_reg, Node* arg_count,
@@ -339,7 +335,7 @@ Node* IntrinsicsGenerator::Call(Node* args_reg, Node* arg_count,
   }
 
   Node* result = __ CallJS(function, context, receiver_arg, target_args_count,
-                           ConvertReceiverMode::kAny, TailCallMode::kDisallow);
+                           ConvertReceiverMode::kAny);
   return result;
 }
 
@@ -387,18 +383,6 @@ Node* IntrinsicsGenerator::CreateAsyncFromSyncIterator(Node* args_reg,
   return return_value.value();
 }
 
-Node* IntrinsicsGenerator::AsyncGeneratorGetAwaitInputOrDebugPos(
-    Node* args_reg, Node* arg_count, Node* context) {
-  Node* generator = __ LoadRegister(args_reg);
-  CSA_SLOW_ASSERT(assembler_, __ HasInstanceType(
-                                  generator, JS_ASYNC_GENERATOR_OBJECT_TYPE));
-
-  Node* const value = __ LoadObjectField(
-      generator, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset);
-
-  return value;
-}
-
 Node* IntrinsicsGenerator::CreateJSGeneratorObject(Node* input, Node* arg_count,
                                                    Node* context) {
   return IntrinsicAsBuiltinCall(input, context,
@@ -437,13 +421,10 @@ Node* IntrinsicsGenerator::GeneratorGetResumeMode(Node* args_reg,
 Node* IntrinsicsGenerator::GeneratorClose(Node* args_reg, Node* arg_count,
                                           Node* context) {
   Node* generator = __ LoadRegister(args_reg);
-  Node* const value =
-      __ LoadObjectField(generator, JSGeneratorObject::kResumeModeOffset);
   __ StoreObjectFieldNoWriteBarrier(
       generator, JSGeneratorObject::kContinuationOffset,
       __ SmiConstant(JSGeneratorObject::kGeneratorClosed));
-
-  return value;
+  return __ UndefinedConstant();
 }
 
 Node* IntrinsicsGenerator::AsyncGeneratorReject(Node* input, Node* arg_count,

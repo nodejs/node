@@ -77,6 +77,6 @@
  * an API is broken in the C++ side, including in v8 or
  * other dependencies.
  */
-#define NODE_MODULE_VERSION 57 /* Node.js v8.0.0 */
+#define NODE_MODULE_VERSION 58 /* Node.js v8.0.0 */
 
 #endif  // SRC_NODE_VERSION_H_

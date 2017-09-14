@@ -220,8 +220,7 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
     while (it.HasNext() &&
            Translation::BEGIN !=
                (opcode = static_cast<Translation::Opcode>(it.Next()))) {
-      if (opcode != Translation::JS_FRAME &&
-          opcode != Translation::INTERPRETED_FRAME) {
+      if (opcode != Translation::INTERPRETED_FRAME) {
         it.Skip(Translation::NumberOfOperandsFor(opcode));
         continue;
       }

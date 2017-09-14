@@ -103,13 +103,13 @@ class Arm64OperandGenerator final : public OperandGenerator {
       case kArithmeticImm:
         return Assembler::IsImmAddSub(value);
       case kLoadStoreImm8:
-        return IsLoadStoreImmediate(value, LSByte);
+        return IsLoadStoreImmediate(value, 0);
       case kLoadStoreImm16:
-        return IsLoadStoreImmediate(value, LSHalfword);
+        return IsLoadStoreImmediate(value, 1);
       case kLoadStoreImm32:
-        return IsLoadStoreImmediate(value, LSWord);
+        return IsLoadStoreImmediate(value, 2);
       case kLoadStoreImm64:
-        return IsLoadStoreImmediate(value, LSDoubleWord);
+        return IsLoadStoreImmediate(value, 3);
       case kNoImmediate:
         return false;
       case kShift32Imm:  // Fall through.
@@ -130,7 +130,7 @@ class Arm64OperandGenerator final : public OperandGenerator {
   }
 
  private:
-  bool IsLoadStoreImmediate(int64_t value, LSDataSize size) {
+  bool IsLoadStoreImmediate(int64_t value, unsigned size) {
     return Assembler::IsImmLSScaled(value, size) ||
            Assembler::IsImmLSUnscaled(value);
   }
@@ -153,6 +153,12 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
                  g.UseRegister(node->InputAt(1)));
 }
 
+void VisitRRI(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
+  Arm64OperandGenerator g(selector);
+  int32_t imm = OpParameter<int32_t>(node);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)), g.UseImmediate(imm));
+}
 
 void VisitRRO(InstructionSelector* selector, ArchOpcode opcode, Node* node,
               ImmediateMode operand_mode) {
@@ -160,6 +166,14 @@ void VisitRRO(InstructionSelector* selector, ArchOpcode opcode, Node* node,
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)),
                  g.UseOperand(node->InputAt(1), operand_mode));
+}
+
+void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
+  Arm64OperandGenerator g(selector);
+  int32_t imm = OpParameter<int32_t>(node);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)), g.UseImmediate(imm),
+                 g.UseRegister(node->InputAt(1)));
 }
 
 struct ExtendingLoadMatcher {
@@ -390,7 +404,6 @@ uint8_t GetBinopProperties(InstructionCode opcode) {
       break;
     default:
       UNREACHABLE();
-      return 0;
   }
   DCHECK_IMPLIES(MustCommuteCondField::decode(result),
                  CanCommuteField::decode(result));
@@ -518,8 +531,8 @@ int32_t LeftShiftForReducedMultiply(Matcher* m) {
   DCHECK(m->IsInt32Mul() || m->IsInt64Mul());
   if (m->right().HasValue() && m->right().Value() >= 3) {
     uint64_t value_minus_one = m->right().Value() - 1;
-    if (base::bits::IsPowerOfTwo64(value_minus_one)) {
-      return WhichPowerOf2_64(value_minus_one);
+    if (base::bits::IsPowerOfTwo(value_minus_one)) {
+      return WhichPowerOf2(value_minus_one);
     }
   }
   return 0;
@@ -602,10 +615,10 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kArm64Ldr;
       immediate_mode = kLoadStoreImm64;
       break;
-    case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
+    case MachineRepresentation::kSimd128:
+      opcode = kArm64LdrQ;
+      immediate_mode = kNoImmediate;
+      break;
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -701,10 +714,10 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kArm64Str;
         immediate_mode = kLoadStoreImm64;
         break;
-      case MachineRepresentation::kSimd128:  // Fall through.
-      case MachineRepresentation::kSimd1x4:  // Fall through.
-      case MachineRepresentation::kSimd1x8:  // Fall through.
-      case MachineRepresentation::kSimd1x16:  // Fall through.
+      case MachineRepresentation::kSimd128:
+        opcode = kArm64StrQ;
+        immediate_mode = kNoImmediate;
+        break;
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -773,9 +786,6 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -828,9 +838,6 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kSimd1x4:  // Fall through.
-    case MachineRepresentation::kSimd1x8:  // Fall through.
-    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -1898,7 +1905,6 @@ FlagsCondition MapForFlagSettingBinop(FlagsCondition cond) {
       return kNotEqual;
     default:
       UNREACHABLE();
-      return cond;
   }
 }
 
@@ -1961,7 +1967,6 @@ FlagsCondition MapForTbz(FlagsCondition cond) {
       return kEqual;
     default:
       UNREACHABLE();
-      return cond;
   }
 }
 
@@ -1979,7 +1984,6 @@ FlagsCondition MapForCbz(FlagsCondition cond) {
       return kNotEqual;
     default:
       UNREACHABLE();
-      return cond;
   }
 }
 
@@ -2396,6 +2400,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
   // Emit either ArchTableSwitch or ArchLookupSwitch.
+  static const size_t kMaxTableSwitchValueRange = 2 << 16;
   size_t table_space_cost = 4 + sw.value_range;
   size_t table_time_cost = 3;
   size_t lookup_space_cost = 3 + 2 * sw.case_count;
@@ -2403,7 +2408,8 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   if (sw.case_count > 0 &&
       table_space_cost + 3 * table_time_cost <=
           lookup_space_cost + 3 * lookup_time_cost &&
-      sw.min_value > std::numeric_limits<int32_t>::min()) {
+      sw.min_value > std::numeric_limits<int32_t>::min() &&
+      sw.value_range <= kMaxTableSwitchValueRange) {
     InstructionOperand index_operand = value_operand;
     if (sw.min_value) {
       index_operand = g.TempRegister();
@@ -2851,6 +2857,376 @@ void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
 
 void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   UNREACHABLE();
+}
+
+#define SIMD_TYPE_LIST(V) \
+  V(F32x4)                \
+  V(I32x4)                \
+  V(I16x8)                \
+  V(I8x16)
+
+#define SIMD_FORMAT_LIST(V) \
+  V(32x4, 4)                \
+  V(16x8, 8)                \
+  V(8x16, 16)
+
+#define SIMD_UNOP_LIST(V)                                 \
+  V(F32x4SConvertI32x4, kArm64F32x4SConvertI32x4)         \
+  V(F32x4UConvertI32x4, kArm64F32x4UConvertI32x4)         \
+  V(F32x4Abs, kArm64F32x4Abs)                             \
+  V(F32x4Neg, kArm64F32x4Neg)                             \
+  V(F32x4RecipApprox, kArm64F32x4RecipApprox)             \
+  V(F32x4RecipSqrtApprox, kArm64F32x4RecipSqrtApprox)     \
+  V(I32x4SConvertF32x4, kArm64I32x4SConvertF32x4)         \
+  V(I32x4SConvertI16x8Low, kArm64I32x4SConvertI16x8Low)   \
+  V(I32x4SConvertI16x8High, kArm64I32x4SConvertI16x8High) \
+  V(I32x4Neg, kArm64I32x4Neg)                             \
+  V(I32x4UConvertF32x4, kArm64I32x4UConvertF32x4)         \
+  V(I32x4UConvertI16x8Low, kArm64I32x4UConvertI16x8Low)   \
+  V(I32x4UConvertI16x8High, kArm64I32x4UConvertI16x8High) \
+  V(I16x8SConvertI8x16Low, kArm64I16x8SConvertI8x16Low)   \
+  V(I16x8SConvertI8x16High, kArm64I16x8SConvertI8x16High) \
+  V(I16x8Neg, kArm64I16x8Neg)                             \
+  V(I16x8UConvertI8x16Low, kArm64I16x8UConvertI8x16Low)   \
+  V(I16x8UConvertI8x16High, kArm64I16x8UConvertI8x16High) \
+  V(I8x16Neg, kArm64I8x16Neg)                             \
+  V(S128Not, kArm64S128Not)                               \
+  V(S1x4AnyTrue, kArm64S1x4AnyTrue)                       \
+  V(S1x4AllTrue, kArm64S1x4AllTrue)                       \
+  V(S1x8AnyTrue, kArm64S1x8AnyTrue)                       \
+  V(S1x8AllTrue, kArm64S1x8AllTrue)                       \
+  V(S1x16AnyTrue, kArm64S1x16AnyTrue)                     \
+  V(S1x16AllTrue, kArm64S1x16AllTrue)
+
+#define SIMD_SHIFT_OP_LIST(V) \
+  V(I32x4Shl)                 \
+  V(I32x4ShrS)                \
+  V(I32x4ShrU)                \
+  V(I16x8Shl)                 \
+  V(I16x8ShrS)                \
+  V(I16x8ShrU)                \
+  V(I8x16Shl)                 \
+  V(I8x16ShrS)                \
+  V(I8x16ShrU)
+
+#define SIMD_BINOP_LIST(V)                        \
+  V(F32x4Add, kArm64F32x4Add)                     \
+  V(F32x4AddHoriz, kArm64F32x4AddHoriz)           \
+  V(F32x4Sub, kArm64F32x4Sub)                     \
+  V(F32x4Mul, kArm64F32x4Mul)                     \
+  V(F32x4Min, kArm64F32x4Min)                     \
+  V(F32x4Max, kArm64F32x4Max)                     \
+  V(F32x4Eq, kArm64F32x4Eq)                       \
+  V(F32x4Ne, kArm64F32x4Ne)                       \
+  V(F32x4Lt, kArm64F32x4Lt)                       \
+  V(F32x4Le, kArm64F32x4Le)                       \
+  V(I32x4Add, kArm64I32x4Add)                     \
+  V(I32x4AddHoriz, kArm64I32x4AddHoriz)           \
+  V(I32x4Sub, kArm64I32x4Sub)                     \
+  V(I32x4Mul, kArm64I32x4Mul)                     \
+  V(I32x4MinS, kArm64I32x4MinS)                   \
+  V(I32x4MaxS, kArm64I32x4MaxS)                   \
+  V(I32x4Eq, kArm64I32x4Eq)                       \
+  V(I32x4Ne, kArm64I32x4Ne)                       \
+  V(I32x4GtS, kArm64I32x4GtS)                     \
+  V(I32x4GeS, kArm64I32x4GeS)                     \
+  V(I32x4MinU, kArm64I32x4MinU)                   \
+  V(I32x4MaxU, kArm64I32x4MaxU)                   \
+  V(I32x4GtU, kArm64I32x4GtU)                     \
+  V(I32x4GeU, kArm64I32x4GeU)                     \
+  V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4) \
+  V(I16x8Add, kArm64I16x8Add)                     \
+  V(I16x8AddSaturateS, kArm64I16x8AddSaturateS)   \
+  V(I16x8AddHoriz, kArm64I16x8AddHoriz)           \
+  V(I16x8Sub, kArm64I16x8Sub)                     \
+  V(I16x8SubSaturateS, kArm64I16x8SubSaturateS)   \
+  V(I16x8Mul, kArm64I16x8Mul)                     \
+  V(I16x8MinS, kArm64I16x8MinS)                   \
+  V(I16x8MaxS, kArm64I16x8MaxS)                   \
+  V(I16x8Eq, kArm64I16x8Eq)                       \
+  V(I16x8Ne, kArm64I16x8Ne)                       \
+  V(I16x8GtS, kArm64I16x8GtS)                     \
+  V(I16x8GeS, kArm64I16x8GeS)                     \
+  V(I16x8UConvertI32x4, kArm64I16x8UConvertI32x4) \
+  V(I16x8AddSaturateU, kArm64I16x8AddSaturateU)   \
+  V(I16x8SubSaturateU, kArm64I16x8SubSaturateU)   \
+  V(I16x8MinU, kArm64I16x8MinU)                   \
+  V(I16x8MaxU, kArm64I16x8MaxU)                   \
+  V(I16x8GtU, kArm64I16x8GtU)                     \
+  V(I16x8GeU, kArm64I16x8GeU)                     \
+  V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8) \
+  V(I8x16Add, kArm64I8x16Add)                     \
+  V(I8x16AddSaturateS, kArm64I8x16AddSaturateS)   \
+  V(I8x16Sub, kArm64I8x16Sub)                     \
+  V(I8x16SubSaturateS, kArm64I8x16SubSaturateS)   \
+  V(I8x16Mul, kArm64I8x16Mul)                     \
+  V(I8x16MinS, kArm64I8x16MinS)                   \
+  V(I8x16MaxS, kArm64I8x16MaxS)                   \
+  V(I8x16Eq, kArm64I8x16Eq)                       \
+  V(I8x16Ne, kArm64I8x16Ne)                       \
+  V(I8x16GtS, kArm64I8x16GtS)                     \
+  V(I8x16GeS, kArm64I8x16GeS)                     \
+  V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8) \
+  V(I8x16AddSaturateU, kArm64I8x16AddSaturateU)   \
+  V(I8x16SubSaturateU, kArm64I8x16SubSaturateU)   \
+  V(I8x16MinU, kArm64I8x16MinU)                   \
+  V(I8x16MaxU, kArm64I8x16MaxU)                   \
+  V(I8x16GtU, kArm64I8x16GtU)                     \
+  V(I8x16GeU, kArm64I8x16GeU)                     \
+  V(S128And, kArm64S128And)                       \
+  V(S128Or, kArm64S128Or)                         \
+  V(S128Xor, kArm64S128Xor)
+
+void InstructionSelector::VisitS128Zero(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArm64S128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
+}
+
+#define SIMD_VISIT_SPLAT(Type)                               \
+  void InstructionSelector::Visit##Type##Splat(Node* node) { \
+    VisitRR(this, kArm64##Type##Splat, node);                \
+  }
+SIMD_TYPE_LIST(SIMD_VISIT_SPLAT)
+#undef SIMD_VISIT_SPLAT
+
+#define SIMD_VISIT_EXTRACT_LANE(Type)                              \
+  void InstructionSelector::Visit##Type##ExtractLane(Node* node) { \
+    VisitRRI(this, kArm64##Type##ExtractLane, node);               \
+  }
+SIMD_TYPE_LIST(SIMD_VISIT_EXTRACT_LANE)
+#undef SIMD_VISIT_EXTRACT_LANE
+
+#define SIMD_VISIT_REPLACE_LANE(Type)                              \
+  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) { \
+    VisitRRIR(this, kArm64##Type##ReplaceLane, node);              \
+  }
+SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
+#undef SIMD_VISIT_REPLACE_LANE
+
+#define SIMD_VISIT_UNOP(Name, instruction)            \
+  void InstructionSelector::Visit##Name(Node* node) { \
+    VisitRR(this, instruction, node);                 \
+  }
+SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
+#undef SIMD_VISIT_UNOP
+
+#define SIMD_VISIT_SHIFT_OP(Name)                     \
+  void InstructionSelector::Visit##Name(Node* node) { \
+    VisitRRI(this, kArm64##Name, node);               \
+  }
+SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
+#undef SIMD_VISIT_SHIFT_OP
+
+#define SIMD_VISIT_BINOP(Name, instruction)           \
+  void InstructionSelector::Visit##Name(Node* node) { \
+    VisitRRR(this, instruction, node);                \
+  }
+SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
+#undef SIMD_VISIT_BINOP
+
+void InstructionSelector::VisitS128Select(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArm64S128Select, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       g.UseRegister(node->InputAt(2)));
+}
+
+// Tries to match 8x16 byte shuffle to equivalent 32x4 word shuffle. If
+// successful, writes the 32x4 shuffle indices.
+bool TryMatch32x4Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x4) {
+  for (int i = 0; i < 4; i++) {
+    if (shuffle[i * 4] % 4 != 0) return false;
+    for (int j = 1; j < 4; j++) {
+      if (shuffle[i * 4 + j] - shuffle[i * 4 + j - 1] != 1) return false;
+    }
+    shuffle32x4[i] = shuffle[i * 4] / 4;
+  }
+  return true;
+}
+
+// Tries to match byte shuffle to concatenate (vext) operation. If successful,
+// writes the vext immediate value.
+bool TryMatchConcat(const uint8_t* shuffle, uint8_t mask, uint8_t* vext) {
+  uint8_t start = shuffle[0];
+  int i = 1;
+  for (; i < 16 - start; i++) {
+    if ((shuffle[i] & mask) != ((shuffle[i - 1] + 1) & mask)) return false;
+  }
+  uint8_t wrap = 16;
+  for (; i < 16; i++, wrap++) {
+    if ((shuffle[i] & mask) != (wrap & mask)) return false;
+  }
+  *vext = start;
+  return true;
+}
+
+namespace {
+
+static const int kShuffleLanes = 16;
+static const int kMaxLaneIndex = 15;
+static const int kMaxShuffleIndex = 31;
+
+struct ShuffleEntry {
+  uint8_t shuffle[kShuffleLanes];
+  ArchOpcode opcode;
+};
+
+static const ShuffleEntry arch_shuffles[] = {
+    {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23},
+     kArm64S32x4ZipLeft},
+    {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31},
+     kArm64S32x4ZipRight},
+    {{0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27},
+     kArm64S32x4UnzipLeft},
+    {{4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31},
+     kArm64S32x4UnzipRight},
+    {{0, 1, 2, 3, 16, 17, 18, 19, 8, 9, 10, 11, 24, 25, 26, 27},
+     kArm64S32x4TransposeLeft},
+    {{4, 5, 6, 7, 20, 21, 22, 23, 12, 13, 14, 15, 21, 22, 23, 24},
+     kArm64S32x4TransposeRight},
+    {{4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11},
+     kArm64S32x2Reverse},
+
+    {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23},
+     kArm64S16x8ZipLeft},
+    {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31},
+     kArm64S16x8ZipRight},
+    {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29},
+     kArm64S16x8UnzipLeft},
+    {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31},
+     kArm64S16x8UnzipRight},
+    {{0, 1, 16, 17, 4, 5, 20, 21, 8, 9, 24, 25, 12, 13, 28, 29},
+     kArm64S16x8TransposeLeft},
+    {{2, 3, 18, 19, 6, 7, 22, 23, 10, 11, 26, 27, 14, 15, 30, 31},
+     kArm64S16x8TransposeRight},
+    {{6, 7, 4, 5, 2, 3, 0, 1, 14, 15, 12, 13, 10, 11, 8, 9},
+     kArm64S16x4Reverse},
+    {{2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14, 15, 12, 13},
+     kArm64S16x2Reverse},
+
+    {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23},
+     kArm64S8x16ZipLeft},
+    {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31},
+     kArm64S8x16ZipRight},
+    {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
+     kArm64S8x16UnzipLeft},
+    {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31},
+     kArm64S8x16UnzipRight},
+    {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30},
+     kArm64S8x16TransposeLeft},
+    {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31},
+     kArm64S8x16TransposeRight},
+    {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8}, kArm64S8x8Reverse},
+    {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12}, kArm64S8x4Reverse},
+    {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14},
+     kArm64S8x2Reverse}};
+
+bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
+                         size_t num_entries, uint8_t mask, ArchOpcode* opcode) {
+  for (size_t i = 0; i < num_entries; i++) {
+    const ShuffleEntry& entry = table[i];
+    int j = 0;
+    for (; j < kShuffleLanes; j++) {
+      if ((entry.shuffle[j] & mask) != (shuffle[j] & mask)) {
+        break;
+      }
+    }
+    if (j == kShuffleLanes) {
+      *opcode = entry.opcode;
+      return true;
+    }
+  }
+  return false;
+}
+
+// Canonicalize shuffles to make pattern matching simpler. Returns a mask that
+// will ignore the high bit of indices in some cases.
+uint8_t CanonicalizeShuffle(InstructionSelector* selector, Node* node) {
+  const uint8_t* shuffle = OpParameter<uint8_t*>(node);
+  uint8_t mask = kMaxShuffleIndex;
+  // If shuffle is unary, set 'mask' to ignore the high bit of the indices.
+  // Replace any unused source with the other.
+  if (selector->GetVirtualRegister(node->InputAt(0)) ==
+      selector->GetVirtualRegister(node->InputAt(1))) {
+    // unary, src0 == src1.
+    mask = kMaxLaneIndex;
+  } else {
+    bool src0_is_used = false;
+    bool src1_is_used = false;
+    for (int i = 0; i < 16; i++) {
+      if (shuffle[i] < 16) {
+        src0_is_used = true;
+      } else {
+        src1_is_used = true;
+      }
+    }
+    if (src0_is_used && !src1_is_used) {
+      node->ReplaceInput(1, node->InputAt(0));
+      mask = kMaxLaneIndex;
+    } else if (src1_is_used && !src0_is_used) {
+      node->ReplaceInput(0, node->InputAt(1));
+      mask = kMaxLaneIndex;
+    }
+  }
+  return mask;
+}
+
+int32_t Pack4Lanes(const uint8_t* shuffle, uint8_t mask) {
+  int32_t result = 0;
+  for (int i = 3; i >= 0; i--) {
+    result <<= 8;
+    result |= shuffle[i] & mask;
+  }
+  return result;
+}
+
+void ArrangeShuffleTable(Arm64OperandGenerator* g, Node* input0, Node* input1,
+                         InstructionOperand* src0, InstructionOperand* src1) {
+  if (input0 == input1) {
+    // Unary, any q-register can be the table.
+    *src0 = *src1 = g->UseRegister(input0);
+  } else {
+    // Binary, table registers must be consecutive.
+    *src0 = g->UseFixed(input0, fp_fixed2);
+    *src1 = g->UseFixed(input1, fp_fixed3);
+  }
+}
+
+}  // namespace
+
+void InstructionSelector::VisitS8x16Shuffle(Node* node) {
+  const uint8_t* shuffle = OpParameter<uint8_t*>(node);
+  uint8_t mask = CanonicalizeShuffle(this, node);
+  uint8_t shuffle32x4[4];
+  Arm64OperandGenerator g(this);
+  ArchOpcode opcode;
+  if (TryMatchArchShuffle(shuffle, arch_shuffles, arraysize(arch_shuffles),
+                          mask, &opcode)) {
+    VisitRRR(this, opcode, node);
+    return;
+  }
+  Node* input0 = node->InputAt(0);
+  Node* input1 = node->InputAt(1);
+  uint8_t bias;
+  if (TryMatchConcat(shuffle, mask, &bias)) {
+    Emit(kArm64S8x16Concat, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1), g.UseImmediate(bias));
+    return;
+  }
+  if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
+    Emit(kArm64S32x4Shuffle, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+         g.UseImmediate(Pack4Lanes(shuffle32x4, mask)));
+    return;
+  }
+  // Code generator uses vtbl, arrange sources to form a valid lookup table.
+  InstructionOperand src0, src1;
+  ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
+  Emit(kArm64S8x16Shuffle, g.DefineAsRegister(node), src0, src1,
+       g.UseImmediate(Pack4Lanes(shuffle, mask)),
+       g.UseImmediate(Pack4Lanes(shuffle + 4, mask)),
+       g.UseImmediate(Pack4Lanes(shuffle + 8, mask)),
+       g.UseImmediate(Pack4Lanes(shuffle + 12, mask)));
 }
 
 // static

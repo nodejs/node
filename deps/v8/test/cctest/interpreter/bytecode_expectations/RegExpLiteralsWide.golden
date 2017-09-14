@@ -784,7 +784,7 @@ bytecodes: [
   /* 2591 S> */ B(LdaConstant), U8(255),
                 B(Star), R(0),
   /* 2601 S> */ B(Wide), B(CreateRegExpLiteral), U16(256), U16(3), U8(0),
-  /* 2616 S> */ B(Return),
+  /* 2615 S> */ B(Return),
 ]
 constant pool: [
   HEAP_NUMBER_TYPE [1.23],

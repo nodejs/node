@@ -52,17 +52,19 @@ inline int Nghttp2Session::OnBeginHeadersCallback(nghttp2_session* session,
                                                   const nghttp2_frame* frame,
                                                   void* user_data) {
   Nghttp2Session* handle = static_cast<Nghttp2Session*>(user_data);
+  // If this is a push promise frame, we want to grab the handle of
+  // the promised stream.
   int32_t id = (frame->hd.type == NGHTTP2_PUSH_PROMISE) ?
-  frame->push_promise.promised_stream_id :
-  frame->hd.stream_id;
+      frame->push_promise.promised_stream_id :
+      frame->hd.stream_id;
   DEBUG_HTTP2("Nghttp2Session %s: beginning headers for stream %d\n",
               handle->TypeName(handle->type()), id);
 
   Nghttp2Stream* stream = handle->FindStream(id);
   if (stream == nullptr) {
-  Nghttp2Stream::Init(id, handle, frame->headers.cat);
+    Nghttp2Stream::Init(id, handle, frame->headers.cat);
   } else {
-  stream->StartHeaders(frame->headers.cat);
+    stream->StartHeaders(frame->headers.cat);
   }
   return 0;
 }
@@ -77,9 +79,11 @@ inline int Nghttp2Session::OnHeaderCallback(nghttp2_session* session,
                                             uint8_t flags,
                                             void* user_data) {
   Nghttp2Session* handle = static_cast<Nghttp2Session*>(user_data);
+  // If this is a push promise frame, we want to grab the handle of
+  // the promised stream.
   int32_t id = (frame->hd.type == NGHTTP2_PUSH_PROMISE) ?
-  frame->push_promise.promised_stream_id :
-  frame->hd.stream_id;
+      frame->push_promise.promised_stream_id :
+      frame->hd.stream_id;
   Nghttp2Stream* stream = handle->FindStream(id);
   nghttp2_header_list* header = header_free_list.pop();
   header->name = name;

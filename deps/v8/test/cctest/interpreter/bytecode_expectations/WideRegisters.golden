@@ -174,7 +174,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /* 1494 S> */ B(Wide), B(Mov), R16(127), R16(0),
   /* 1505 S> */ B(Ldar), R(0),
-  /* 1516 S> */ B(Return),
+  /* 1515 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -350,7 +350,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /* 1494 S> */ B(Wide), B(Mov), R16(126), R16(127),
   /* 1507 S> */ B(Wide), B(Ldar), R16(127),
-  /* 1520 S> */ B(Return),
+  /* 1519 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -528,9 +528,9 @@ bytecodes: [
   /* 1501 E> */ B(TestGreaterThan), R(2), U8(3),
                 B(JumpIfFalse), U8(7),
   /* 1508 S> */ B(Wide), B(Ldar), R16(129),
-  /* 1536 S> */ B(Return),
+  /* 1520 S> */ B(Return),
   /* 1523 S> */ B(Wide), B(Ldar), R16(128),
-  /* 1536 S> */ B(Return),
+  /* 1535 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -703,23 +703,23 @@ snippet: "
 "
 frame size: 157
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 39
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /* 1503 S> */ B(LdaZero),
                 B(Star), R(0),
   /* 1506 S> */ B(LdaSmi), I8(3),
   /* 1515 E> */ B(Wide), B(TestEqual), R16(129), U16(3),
-                B(JumpIfFalse), U8(10),
+                B(JumpIfFalse), U8(12),
   /* 1534 S> */ B(Wide), B(Mov), R16(0), R16(129),
-                B(Ldar), R(0),
+                B(Wide), B(Ldar), R16(129),
   /* 1540 S> */ B(LdaSmi), I8(3),
   /* 1547 E> */ B(TestGreaterThan), R(2), U8(4),
                 B(JumpIfFalse), U8(5),
   /* 1554 S> */ B(Ldar), R(0),
-  /* 1580 S> */ B(Return),
+  /* 1564 S> */ B(Return),
   /* 1567 S> */ B(Wide), B(Ldar), R16(129),
-  /* 1580 S> */ B(Return),
+  /* 1579 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -913,7 +913,7 @@ bytecodes: [
                 B(Wide), B(Star), R16(128),
                 B(JumpLoop), U8(36), I8(0),
   /* 1567 S> */ B(Wide), B(Ldar), R16(128),
-  /* 1580 S> */ B(Return),
+  /* 1579 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -1113,7 +1113,7 @@ bytecodes: [
                 B(Wide), B(Star), R16(161),
                 B(JumpLoop), U8(48), I8(0),
   /* 1553 S> */ B(Ldar), R(1),
-  /* 1564 S> */ B(Return),
+  /* 1563 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -1299,7 +1299,7 @@ bytecodes: [
                 B(Star), R(1),
   /* 1537 S> */ B(CallRuntime), U16(Runtime::kTheHole), R(0), U8(0),
   /* 1549 S> */ B(Ldar), R(1),
-  /* 1560 S> */ B(Return),
+  /* 1559 S> */ B(Return),
 ]
 constant pool: [
 ]

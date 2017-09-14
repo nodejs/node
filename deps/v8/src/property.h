@@ -8,7 +8,6 @@
 #include <iosfwd>
 
 #include "src/factory.h"
-#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

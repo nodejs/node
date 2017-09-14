@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-gc --turbo --always-opt
+// Flags: --expose-gc --always-opt
 
 function f() { this.x = this.x.x; }
 gc();
