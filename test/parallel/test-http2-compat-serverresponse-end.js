@@ -4,7 +4,7 @@
 const { mustCall, mustNotCall, hasCrypto, skip } = require('../common');
 if (!hasCrypto)
   skip('missing crypto');
-const { strictEqual } = require('assert');
+const { doesNotThrow, strictEqual } = require('assert');
 const {
   createServer,
   connect,
@@ -19,6 +19,9 @@ const {
   // but may be invoked repeatedly without throwing errors.
   const server = createServer(mustCall((request, response) => {
     strictEqual(response.closed, false);
+    response.on('finish', mustCall(() => process.nextTick(
+      mustCall(() => doesNotThrow(() => response.end('test', mustNotCall())))
+    )));
     response.end(mustCall(() => {
       server.close();
     }));
