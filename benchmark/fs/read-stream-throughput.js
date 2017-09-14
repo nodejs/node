@@ -1,16 +1,16 @@
 // test the throughput of the fs.WriteStream class.
 'use strict';
 
-var path = require('path');
-var common = require('../common.js');
-var filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
-var fs = require('fs');
-var filesize = 1000 * 1024 * 1024;
-var assert = require('assert');
+const path = require('path');
+const common = require('../common.js');
+const filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
+const fs = require('fs');
+const filesize = 1000 * 1024 * 1024;
+const assert = require('assert');
 
 var type, encoding, size;
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   type: ['buf', 'asc', 'utf'],
   size: [1024, 4096, 65535, 1024 * 1024]
 });
@@ -38,7 +38,7 @@ function main(conf) {
 
 function runTest() {
   assert(fs.statSync(filename).size === filesize);
-  var rs = fs.createReadStream(filename, {
+  const rs = fs.createReadStream(filename, {
     highWaterMark: size,
     encoding: encoding
   });
@@ -60,7 +60,7 @@ function runTest() {
 }
 
 function makeFile() {
-  var buf = Buffer.allocUnsafe(filesize / 1024);
+  const buf = Buffer.allocUnsafe(filesize / 1024);
   if (encoding === 'utf8') {
     // ü
     for (var i = 0; i < buf.length; i++) {
@@ -74,7 +74,7 @@ function makeFile() {
 
   try { fs.unlinkSync(filename); } catch (e) {}
   var w = 1024;
-  var ws = fs.createWriteStream(filename);
+  const ws = fs.createWriteStream(filename);
   ws.on('close', runTest);
   ws.on('drain', write);
   write();

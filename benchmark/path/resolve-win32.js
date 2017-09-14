@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common.js');
-var path = require('path');
+const common = require('../common.js');
+const path = require('path');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   paths: [
     '',
     ['', ''].join('|'),
@@ -13,9 +13,9 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var n = +conf.n;
-  var p = path.win32;
-  var args = String(conf.paths).split('|');
+  const n = +conf.n;
+  const p = path.win32;
+  const args = String(conf.paths).split('|');
 
   bench.start();
   for (var i = 0; i < n; i++) {
