@@ -2837,9 +2837,6 @@ bool Isolate::Init(StartupDeserializer* des) {
            Internals::kExternalMemoryOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.external_memory_limit_)),
            Internals::kExternalMemoryLimitOffset);
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, heap_.external_memory_at_last_mark_compact_)),
-           Internals::kExternalMemoryAtLastMarkCompactOffset);
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
 
