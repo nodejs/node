@@ -72,10 +72,11 @@ const dgram = require('dgram');
   }));
 }
 
-if (!common.hasIPv6) {
-  common.skip('Skipping udp6 tests, no IPv6 support.');
+// If IPv6 is not supported, skip the rest of the test. However, don't call
+// common.skip(), which calls process.exit() while there is outstanding
+// common.mustCall() activity.
+if (!common.hasIPv6)
   return;
-}
 
 {
   const socket = dgram.createSocket('udp6');
