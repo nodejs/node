@@ -7,7 +7,7 @@ const PORT = common.PORT;
 // `num` is the number of send requests to queue up each time.
 // Keep it reasonably high (>10) otherwise you're benchmarking the speed of
 // event loop cycles more than anything else.
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   len: [64, 256, 512, 1024],
   num: [100],
   chunks: [1, 2, 4, 8],
@@ -37,13 +37,13 @@ function main(conf) {
   server();
 }
 
-var dgram = require('dgram');
+const dgram = require('dgram');
 
 function server() {
   var sent = 0;
-  var socket = dgram.createSocket('udp4');
+  const socket = dgram.createSocket('udp4');
 
-  var onsend = type === 'concat' ? onsendConcat : onsendMulti;
+  const onsend = type === 'concat' ? onsendConcat : onsendMulti;
 
   function onsendConcat() {
     if (sent++ % num === 0) {
@@ -66,8 +66,8 @@ function server() {
     onsend();
 
     setTimeout(function() {
-      var bytes = sent * len;
-      var gbits = (bytes * 8) / (1024 * 1024 * 1024);
+      const bytes = sent * len;
+      const gbits = (bytes * 8) / (1024 * 1024 * 1024);
       bench.end(gbits);
       process.exit(0);
     }, dur * 1000);

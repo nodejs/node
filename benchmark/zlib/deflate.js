@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common.js');
-var zlib = require('zlib');
+const common = require('../common.js');
+const zlib = require('zlib');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   method: ['createDeflate', 'deflate', 'deflateSync'],
   inputLen: [1024],
   n: [4e5]
 });
 
 function main(conf) {
-  var n = +conf.n;
-  var method = conf.method;
-  var chunk = Buffer.alloc(+conf.inputLen, 'a');
+  const n = +conf.n;
+  const method = conf.method;
+  const chunk = Buffer.alloc(+conf.inputLen, 'a');
 
   var i = 0;
   switch (method) {

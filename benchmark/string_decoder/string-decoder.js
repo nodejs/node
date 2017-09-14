@@ -79,7 +79,7 @@ function main(conf) {
     }
   }
 
-  var nChunks = chunks.length;
+  const nChunks = chunks.length;
 
   bench.start();
   for (i = 0; i < n; ++i) {

@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common.js');
-var querystring = require('querystring');
-var inputs = require('../fixtures/url-inputs.js').searchParams;
+const common = require('../common.js');
+const querystring = require('querystring');
+const inputs = require('../fixtures/url-inputs.js').searchParams;
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   type: Object.keys(inputs),
   n: [1e6],
 });
 
 function main(conf) {
-  var type = conf.type;
-  var n = conf.n | 0;
-  var input = inputs[type];
+  const type = conf.type;
+  const n = conf.n | 0;
+  const input = inputs[type];
   var i;
   // Execute the function a "sufficient" number of times before the timed
   // loop to ensure the function is optimized just once.
