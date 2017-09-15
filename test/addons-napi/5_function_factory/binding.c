@@ -16,7 +16,7 @@ napi_value CreateFunction(napi_env env, napi_callback_info info) {
 
 napi_value Init(napi_env env, napi_value exports) {
   NAPI_CALL(env,
-      napi_create_function(env, "exports", CreateFunction, NULL, &exports));
+      napi_create_function(env, "exports", -1, CreateFunction, NULL, &exports));
   return exports;
 }
 

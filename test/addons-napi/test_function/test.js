@@ -26,5 +26,6 @@ function func4(input) {
   return func3(input);
 }
 assert.strictEqual(test_function.TestCall(func4, 1), 2);
+
 assert.strictEqual(test_function.TestName.name, 'Name');
 assert.strictEqual(test_function.TestNameShort.name, 'Name_');

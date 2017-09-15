@@ -23,8 +23,7 @@ void MyObject::Init(napi_env env, napi_value exports) {
 
   napi_value cons;
   NAPI_CALL_RETURN_VOID(env,
-      napi_define_class(env, "MyObject", New, nullptr, 3, properties, &cons));
-    napi_define_class(env, "MyObject", -1, New, nullptr, 3, properties, &cons));
+      napi_define_class(env, "MyObject", -1, New, nullptr, 3, properties, &cons));
 
   NAPI_CALL_RETURN_VOID(env, napi_create_reference(env, cons, 1, &constructor));
 
