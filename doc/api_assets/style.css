@@ -559,9 +559,6 @@ th > *:last-child, td > *:last-child {
 }
 
 @media only screen and (max-width: 1024px) and (orientation: portrait) {
-  #content {
-    font-size: 3.5em;
-  }
   #gtoc {
     font-size: 0.6em;
   }
