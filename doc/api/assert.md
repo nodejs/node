@@ -111,7 +111,7 @@ added: v1.2.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/REPLACEME
-    description: zero is now compared using the [Object.is][] comparison.
+    description: -0 and +0 are not considered equal anymore.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/15036
     description: NaN is now compared using the [SameValueZero][] comparison.
