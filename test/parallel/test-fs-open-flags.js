@@ -22,6 +22,7 @@
 // Flags: --expose_internals
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
 const fs = require('fs');
@@ -32,6 +33,7 @@ const O_EXCL = fs.constants.O_EXCL || 0;
 const O_RDONLY = fs.constants.O_RDONLY || 0;
 const O_RDWR = fs.constants.O_RDWR || 0;
 const O_SYNC = fs.constants.O_SYNC || 0;
+const O_DSYNC = fs.constants.O_DSYNC || 0;
 const O_TRUNC = fs.constants.O_TRUNC || 0;
 const O_WRONLY = fs.constants.O_WRONLY || 0;
 
@@ -78,3 +80,11 @@ common.expectsError(
   () => stringToFlags(null),
   { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
 );
+
+if (common.isLinux === true) {
+  const file = fixtures.path('a.js');
+
+  fs.open(file, O_DSYNC, common.mustCall(function(err, fd) {
+    assert.ifError(err);
+  }));
+}
