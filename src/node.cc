@@ -1346,30 +1346,6 @@ void AddPromiseHook(v8::Isolate* isolate, promise_hook_func fn, void* arg) {
   env->AddPromiseHook(fn, arg);
 }
 
-class InternalCallbackScope {
- public:
-  InternalCallbackScope(Environment* env,
-                        Local<Object> object,
-                        const async_context& asyncContext);
-  ~InternalCallbackScope();
-  void Close();
-
-  inline bool Failed() const { return failed_; }
-  inline void MarkAsFailed() { failed_ = true; }
-  inline bool IsInnerMakeCallback() const {
-    return callback_scope_.in_makecallback();
-  }
-
- private:
-  Environment* env_;
-  async_context async_context_;
-  v8::Local<v8::Object> object_;
-  Environment::AsyncCallbackScope callback_scope_;
-  bool failed_ = false;
-  bool pushed_ids_ = false;
-  bool closed_ = false;
-};
-
 CallbackScope::CallbackScope(Isolate* isolate,
                              Local<Object> object,
                              async_context asyncContext)
@@ -1388,17 +1364,21 @@ CallbackScope::~CallbackScope() {
 
 InternalCallbackScope::InternalCallbackScope(Environment* env,
                                              Local<Object> object,
-                                             const async_context& asyncContext)
+                                             const async_context& asyncContext,
+                                             ResourceExpectation expect)
   : env_(env),
     async_context_(asyncContext),
     object_(object),
     callback_scope_(env) {
-  CHECK(!object.IsEmpty());
+  if (expect == kRequireResource) {
+    CHECK(!object.IsEmpty());
+  }
 
+  HandleScope handle_scope(env->isolate());
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
-  if (env->using_domains()) {
+  if (env->using_domains() && !object_.IsEmpty()) {
     failed_ = DomainEnter(env, object_);
     if (failed_)
       return;
@@ -1422,6 +1402,7 @@ InternalCallbackScope::~InternalCallbackScope() {
 void InternalCallbackScope::Close() {
   if (closed_) return;
   closed_ = true;
+  HandleScope handle_scope(env_->isolate());
 
   if (pushed_ids_)
     env_->async_hooks()->pop_async_id(async_context_.async_id);
@@ -1432,7 +1413,7 @@ void InternalCallbackScope::Close() {
     AsyncWrap::EmitAfter(env_, async_context_.async_id);
   }
 
-  if (env_->using_domains()) {
+  if (env_->using_domains() && !object_.IsEmpty()) {
     failed_ = DomainExit(env_, object_);
     if (failed_) return;
   }
@@ -1473,6 +1454,7 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
                                        int argc,
                                        Local<Value> argv[],
                                        async_context asyncContext) {
+  CHECK(!recv.IsEmpty());
   InternalCallbackScope scope(env, recv, asyncContext);
   if (scope.Failed()) {
     return Undefined(env->isolate());
@@ -4707,9 +4689,14 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     do {
       uv_run(env.event_loop(), UV_RUN_DEFAULT);
 
+      v8_platform.DrainVMTasks();
+
+      more = uv_loop_alive(env.event_loop());
+      if (more)
+        continue;
+
       EmitBeforeExit(&env);
 
-      v8_platform.DrainVMTasks();
       // Emit `beforeExit` if the loop became alive either after emitting
       // event, or after running some callbacks.
       more = uv_loop_alive(env.event_loop());
