@@ -21,9 +21,8 @@
 
 // Flags: --expose_internals
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
-
 const fs = require('fs');
 
 const O_APPEND = fs.constants.O_APPEND || 0;
@@ -32,6 +31,7 @@ const O_EXCL = fs.constants.O_EXCL || 0;
 const O_RDONLY = fs.constants.O_RDONLY || 0;
 const O_RDWR = fs.constants.O_RDWR || 0;
 const O_SYNC = fs.constants.O_SYNC || 0;
+const O_DSYNC = fs.constants.O_DSYNC || 0;
 const O_TRUNC = fs.constants.O_TRUNC || 0;
 const O_WRONLY = fs.constants.O_WRONLY || 0;
 
@@ -78,6 +78,14 @@ assert.throws(
   () => stringToFlags(null),
   /^Error: Unknown file open flag: null$/
 );
+
+if (common.isLinux === true) {
+  const file = `${__dirname}/../fixtures/a.js`;
+
+  fs.open(file, O_DSYNC, common.mustCall(function(err, fd) {
+    assert.ifError(err);
+  }));
+}
 
 function escapeRegExp(string) {
   return string.replace(/[\\^$*+?.()|[\]{}]/g, '\\$&');
