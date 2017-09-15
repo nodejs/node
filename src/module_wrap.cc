@@ -23,6 +23,7 @@ using v8::IntegrityLevel;
 using v8::Isolate;
 using v8::JSON;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Module;
 using v8::Object;
@@ -184,12 +185,12 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
 
   ModuleWrap* obj = Unwrap<ModuleWrap>(that);
   Local<Module> mod = obj->module_.Get(iso);
-  bool ok = mod->Instantiate(ctx, ModuleWrap::ResolveCallback);
+  Maybe<bool> ok = mod->InstantiateModule(ctx, ModuleWrap::ResolveCallback);
 
   // clear resolve cache on instantiate
   obj->resolve_cache_.clear();
 
-  if (!ok) {
+  if (!ok.FromMaybe(false)) {
     return;
   }
 }
