@@ -491,7 +491,7 @@ DEFINE_BOOL(wasm_disable_structured_cloning, false,
             "disable wasm structured cloning")
 DEFINE_INT(wasm_num_compilation_tasks, 10,
            "number of parallel compilation tasks for wasm")
-DEFINE_BOOL(wasm_async_compilation, true,
+DEFINE_BOOL(wasm_async_compilation, false,
             "enable actual asynchronous compilation for WebAssembly.compile")
 // Parallel compilation confuses turbo_stats, force single threaded.
 DEFINE_VALUE_IMPLICATION(turbo_stats, wasm_num_compilation_tasks, 0)
