@@ -1,10 +1,14 @@
 #include "node_platform.h"
+#include "node_internals.h"
 
 #include "util.h"
 
 namespace node {
 
+using v8::HandleScope;
 using v8::Isolate;
+using v8::Local;
+using v8::Object;
 using v8::Platform;
 using v8::Task;
 using v8::TracingController;
@@ -63,18 +67,29 @@ size_t NodePlatform::NumberOfAvailableBackgroundThreads() {
   return threads_.size();
 }
 
-static void RunForegroundTask(uv_timer_t* handle) {
-  Task* task = static_cast<Task*>(handle->data);
+static void RunForegroundTask(Task* task) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+  Environment* env = Environment::GetCurrent(isolate);
+  InternalCallbackScope cb_scope(env, Local<Object>(), { 0, 0 },
+                                 InternalCallbackScope::kAllowEmptyResource);
   task->Run();
   delete task;
+}
+
+static void RunForegroundTask(uv_timer_t* handle) {
+  Task* task = static_cast<Task*>(handle->data);
+  RunForegroundTask(task);
   uv_close(reinterpret_cast<uv_handle_t*>(handle), [](uv_handle_t* handle) {
     delete reinterpret_cast<uv_timer_t*>(handle);
   });
 }
 
 void NodePlatform::DrainBackgroundTasks() {
-  FlushForegroundTasksInternal();
-  background_tasks_.BlockingDrain();
+  do {
+    FlushForegroundTasksInternal();
+    background_tasks_.BlockingDrain();
+  } while (foreground_tasks_.HasPending());
 }
 
 void NodePlatform::FlushForegroundTasksInternal() {
@@ -91,8 +106,7 @@ void NodePlatform::FlushForegroundTasksInternal() {
     delete delayed;
   }
   while (Task* task = foreground_tasks_.Pop()) {
-    task->Run();
-    delete task;
+    RunForegroundTask(task);
   }
 }
 
@@ -184,6 +198,12 @@ void TaskQueue<T>::Stop() {
   Mutex::ScopedLock scoped_lock(lock_);
   stopped_ = true;
   tasks_available_.Broadcast(scoped_lock);
+}
+
+template <class T>
+bool TaskQueue<T>::HasPending() {
+  Mutex::ScopedLock scoped_lock(lock_);
+  return !task_queue_.empty();
 }
 
 }  // namespace node

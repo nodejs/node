@@ -22,6 +22,7 @@ class TaskQueue {
   void NotifyOfCompletion();
   void BlockingDrain();
   void Stop();
+  bool HasPending();
 
  private:
   Mutex lock_;
