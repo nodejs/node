@@ -936,7 +936,19 @@ NAPI_NO_RETURN void napi_fatal_error(const char* location,
                                      size_t location_len,
                                      const char* message,
                                      size_t message_len) {
-  node::FatalError(location, message);
+  char* location_string = const_cast<char*>(location);
+  char* message_string = const_cast<char*>(message);
+  if (location_len != -1) {
+    location_string = (char*) malloc(location_len * sizeof(char) + 1);
+    strncpy(location_string, location, location_len);
+    location_string[location_len] = '\0';
+  }
+  if (message_len != -1) {
+    message_string = (char*) malloc(message_len * sizeof(char) + 1);
+    strncpy(message_string, message, message_len);
+    message_string[message_len] = '\0';
+  }
+  node::FatalError(location_string, message_string);
 }
 
 napi_status napi_create_function(napi_env env,
