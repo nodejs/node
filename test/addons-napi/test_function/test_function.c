@@ -28,7 +28,7 @@ napi_value TestCallFunction(napi_env env, napi_callback_info info) {
 
 void TestFunctionName(napi_env env, napi_callback_info info) {}
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_value fn1;
   NAPI_CALL(env, napi_create_function(
       env, NULL, -1, TestCallFunction, NULL, &fn1));
@@ -44,6 +44,8 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   NAPI_CALL(env, napi_set_named_property(env, exports, "TestCall", fn1));
   NAPI_CALL(env, napi_set_named_property(env, exports, "TestName", fn2));
   NAPI_CALL(env, napi_set_named_property(env, exports, "TestNameShort", fn3));
+
+  return exports;
 }
 
 NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

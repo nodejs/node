@@ -552,7 +552,7 @@ thrown to immediately terminate the process.
 added: v8.2.0
 -->
 ```C
-NAPI_EXTERN NAPI_NO_RETURN void napi_fatal_error(const char* location,
+NAPI_NO_RETURN void napi_fatal_error(const char* location,
                                                  size_t location_len,
                                                  const char* message,
                                                  size_t message_len);
