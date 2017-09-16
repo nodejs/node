@@ -571,19 +571,12 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
 
 int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
-  int ret;
-
   X509_STORE* store = SSL_CTX_get_cert_store(ctx);
-  X509_STORE_CTX store_ctx;
-
-  ret = X509_STORE_CTX_init(&store_ctx, store, nullptr, nullptr);
-  if (!ret)
-    goto end;
-
-  ret = X509_STORE_CTX_get1_issuer(issuer, &store_ctx, cert);
-  X509_STORE_CTX_cleanup(&store_ctx);
-
- end:
+  X509_STORE_CTX* store_ctx = X509_STORE_CTX_new();
+  int ret = store_ctx != nullptr &&
+            X509_STORE_CTX_init(store_ctx, store, nullptr, nullptr) == 1 &&
+            X509_STORE_CTX_get1_issuer(issuer, store_ctx, cert) == 1;
+  X509_STORE_CTX_free(store_ctx);
   return ret;
 }
 
