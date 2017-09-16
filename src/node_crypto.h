@@ -106,7 +106,13 @@ class SecureContext : public BaseObject {
   static const int kTicketKeyIVIndex = 4;
 
  protected:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   static const int64_t kExternalSize = sizeof(SSL_CTX);
+#else
+  // OpenSSL 1.1.0 has opaque structures. This is an estimate based on the size
+  // as of OpenSSL 1.1.0f.
+  static const int64_t kExternalSize = 872;
+#endif
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -220,11 +226,17 @@ class SSLWrap {
  protected:
   typedef void (*CertCb)(void* arg);
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   // Size allocated by OpenSSL: one for SSL structure, one for SSL3_STATE and
   // some for buffers.
   // NOTE: Actually it is much more than this
   static const int64_t kExternalSize =
       sizeof(SSL) + sizeof(SSL3_STATE) + 42 * 1024;
+#else
+  // OpenSSL 1.1.0 has opaque structures. This is an estimate based on the size
+  // as of OpenSSL 1.1.0f.
+  static const int64_t kExternalSize = 4448 + 1024 + 42 * 1024;
+#endif
 
   static void InitNPN(SecureContext* sc);
   static void AddMethods(Environment* env, v8::Local<v8::FunctionTemplate> t);
