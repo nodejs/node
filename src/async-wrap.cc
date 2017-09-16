@@ -181,42 +181,6 @@ static void PushBackDestroyId(Environment* env, double id) {
 }
 
 
-bool DomainEnter(Environment* env, Local<Object> object) {
-  Local<Value> domain_v = object->Get(env->domain_string());
-  if (domain_v->IsObject()) {
-    Local<Object> domain = domain_v.As<Object>();
-    if (domain->Get(env->disposed_string())->IsTrue())
-      return true;
-    Local<Value> enter_v = domain->Get(env->enter_string());
-    if (enter_v->IsFunction()) {
-      if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::AsyncWrap::MakeCallback",
-                   "domain enter callback threw, please report this");
-      }
-    }
-  }
-  return false;
-}
-
-
-bool DomainExit(Environment* env, v8::Local<v8::Object> object) {
-  Local<Value> domain_v = object->Get(env->domain_string());
-  if (domain_v->IsObject()) {
-    Local<Object> domain = domain_v.As<Object>();
-    if (domain->Get(env->disposed_string())->IsTrue())
-      return true;
-    Local<Value> exit_v = domain->Get(env->exit_string());
-    if (exit_v->IsFunction()) {
-      if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::AsyncWrap::MakeCallback",
-                  "domain exit callback threw, please report this");
-      }
-    }
-  }
-  return false;
-}
-
-
 void AsyncWrap::EmitBefore(Environment* env, double async_id) {
   AsyncHooks* async_hooks = env->async_hooks();
 
@@ -657,73 +621,8 @@ void AsyncWrap::EmitAsyncInit(Environment* env,
 MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                           int argc,
                                           Local<Value>* argv) {
-  CHECK(env()->context() == env()->isolate()->GetCurrentContext());
-
-  Environment::AsyncCallbackScope callback_scope(env());
-
-  Environment::AsyncHooks::ExecScope exec_scope(env(),
-                                                get_id(),
-                                                get_trigger_id());
-
-  // Return v8::Undefined() because returning an empty handle will cause
-  // ToLocalChecked() to abort.
-  if (env()->using_domains() && DomainEnter(env(), object())) {
-    return Undefined(env()->isolate());
-  }
-
-  // No need to check a return value because the application will exit if an
-  // exception occurs.
-  AsyncWrap::EmitBefore(env(), get_id());
-
-  MaybeLocal<Value> ret = cb->Call(env()->context(), object(), argc, argv);
-
-  if (ret.IsEmpty()) {
-    return ret;
-  }
-
-  AsyncWrap::EmitAfter(env(), get_id());
-
-  // Return v8::Undefined() because returning an empty handle will cause
-  // ToLocalChecked() to abort.
-  if (env()->using_domains() && DomainExit(env(), object())) {
-    return Undefined(env()->isolate());
-  }
-
-  exec_scope.Dispose();
-
-  if (callback_scope.in_makecallback()) {
-    return ret;
-  }
-
-  Environment::TickInfo* tick_info = env()->tick_info();
-
-  if (tick_info->length() == 0) {
-    env()->isolate()->RunMicrotasks();
-  }
-
-  // Make sure the stack unwound properly. If there are nested MakeCallback's
-  // then it should return early and not reach this code.
-  CHECK_EQ(env()->current_async_id(), 0);
-  CHECK_EQ(env()->trigger_id(), 0);
-
-  Local<Object> process = env()->process_object();
-
-  if (tick_info->length() == 0) {
-    tick_info->set_index(0);
-    return ret;
-  }
-
-  MaybeLocal<Value> rcheck =
-      env()->tick_callback_function()->Call(env()->context(),
-                                            process,
-                                            0,
-                                            nullptr);
-
-  // Make sure the stack unwound properly.
-  CHECK_EQ(env()->current_async_id(), 0);
-  CHECK_EQ(env()->trigger_id(), 0);
-
-  return rcheck.IsEmpty() ? MaybeLocal<Value>() : ret;
+  async_context context { get_id(), get_trigger_id() };
+  return InternalMakeCallback(env(), object(), cb, argc, argv, context);
 }
 
 
@@ -744,6 +643,16 @@ async_context EmitAsyncInit(Isolate* isolate,
                             Local<Object> resource,
                             const char* name,
                             async_id trigger_async_id) {
+  Local<String> type =
+      String::NewFromUtf8(isolate, name, v8::NewStringType::kInternalized)
+          .ToLocalChecked();
+  return EmitAsyncInit(isolate, resource, type, trigger_async_id);
+}
+
+async_context EmitAsyncInit(Isolate* isolate,
+                            Local<Object> resource,
+                            v8::Local<v8::String> name,
+                            async_id trigger_async_id) {
   Environment* env = Environment::GetCurrent(isolate);
 
   // Initialize async context struct
@@ -756,10 +665,7 @@ async_context EmitAsyncInit(Isolate* isolate,
   };
 
   // Run init hooks
-  Local<String> type =
-      String::NewFromUtf8(isolate, name, v8::NewStringType::kInternalized)
-          .ToLocalChecked();
-  AsyncWrap::EmitAsyncInit(env, resource, type, context.async_id,
+  AsyncWrap::EmitAsyncInit(env, resource, name, context.async_id,
                            context.trigger_async_id);
 
   return context;

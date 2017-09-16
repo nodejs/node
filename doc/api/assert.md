@@ -112,10 +112,8 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/15036
     description: NaN is now compared using the [SameValueZero][] comparison.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/15001
   - version: v8.5.0
-    pr-url: https://github.com/nodejs/node/pull/12142
+    pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142

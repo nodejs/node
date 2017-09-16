@@ -57,6 +57,19 @@
 namespace v8 {
 namespace internal {
 
+bool Heap::GCCallbackTuple::operator==(
+    const Heap::GCCallbackTuple& other) const {
+  return other.callback == callback && other.data == data;
+}
+
+Heap::GCCallbackTuple& Heap::GCCallbackTuple::operator=(
+    const Heap::GCCallbackTuple& other) {
+  callback = other.callback;
+  gc_type = other.gc_type;
+  data = other.data;
+  return *this;
+}
+
 struct Heap::StrongRootsList {
   Object** start;
   Object** end;
@@ -1501,35 +1514,21 @@ bool Heap::PerformGarbageCollection(
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
   RuntimeCallTimerScope runtime_timer(isolate(),
                                       &RuntimeCallStats::GCPrologueCallback);
-  for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
-    if (gc_type & gc_prologue_callbacks_[i].gc_type) {
-      if (!gc_prologue_callbacks_[i].pass_isolate) {
-        v8::GCCallback callback = reinterpret_cast<v8::GCCallback>(
-            gc_prologue_callbacks_[i].callback);
-        callback(gc_type, flags);
-      } else {
-        v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
-        gc_prologue_callbacks_[i].callback(isolate, gc_type, flags);
-      }
+  for (const GCCallbackTuple& info : gc_prologue_callbacks_) {
+    if (gc_type & info.gc_type) {
+      v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
+      info.callback(isolate, gc_type, flags, info.data);
     }
   }
 }
 
-
-void Heap::CallGCEpilogueCallbacks(GCType gc_type,
-                                   GCCallbackFlags gc_callback_flags) {
+void Heap::CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags) {
   RuntimeCallTimerScope runtime_timer(isolate(),
                                       &RuntimeCallStats::GCEpilogueCallback);
-  for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
-    if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
-      if (!gc_epilogue_callbacks_[i].pass_isolate) {
-        v8::GCCallback callback = reinterpret_cast<v8::GCCallback>(
-            gc_epilogue_callbacks_[i].callback);
-        callback(gc_type, gc_callback_flags);
-      } else {
-        v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
-        gc_epilogue_callbacks_[i].callback(isolate, gc_type, gc_callback_flags);
-      }
+  for (const GCCallbackTuple& info : gc_epilogue_callbacks_) {
+    if (gc_type & info.gc_type) {
+      v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
+      info.callback(isolate, gc_type, flags, info.data);
     }
   }
 }
@@ -5961,42 +5960,46 @@ void Heap::TearDown() {
   memory_allocator_ = nullptr;
 }
 
-
-void Heap::AddGCPrologueCallback(v8::Isolate::GCCallback callback,
-                                 GCType gc_type, bool pass_isolate) {
-  DCHECK(callback != NULL);
-  GCCallbackPair pair(callback, gc_type, pass_isolate);
-  DCHECK(!gc_prologue_callbacks_.Contains(pair));
-  return gc_prologue_callbacks_.Add(pair);
+void Heap::AddGCPrologueCallback(v8::Isolate::GCCallbackWithData callback,
+                                 GCType gc_type, void* data) {
+  DCHECK_NOT_NULL(callback);
+  DCHECK(gc_prologue_callbacks_.end() ==
+         std::find(gc_prologue_callbacks_.begin(), gc_prologue_callbacks_.end(),
+                   GCCallbackTuple(callback, gc_type, data)));
+  gc_prologue_callbacks_.emplace_back(callback, gc_type, data);
 }
 
-
-void Heap::RemoveGCPrologueCallback(v8::Isolate::GCCallback callback) {
-  DCHECK(callback != NULL);
-  for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
-    if (gc_prologue_callbacks_[i].callback == callback) {
-      gc_prologue_callbacks_.Remove(i);
+void Heap::RemoveGCPrologueCallback(v8::Isolate::GCCallbackWithData callback,
+                                    void* data) {
+  DCHECK_NOT_NULL(callback);
+  for (size_t i = 0; i < gc_prologue_callbacks_.size(); i++) {
+    if (gc_prologue_callbacks_[i].callback == callback &&
+        gc_prologue_callbacks_[i].data == data) {
+      gc_prologue_callbacks_[i] = gc_prologue_callbacks_.back();
+      gc_prologue_callbacks_.pop_back();
       return;
     }
   }
   UNREACHABLE();
 }
 
-
-void Heap::AddGCEpilogueCallback(v8::Isolate::GCCallback callback,
-                                 GCType gc_type, bool pass_isolate) {
-  DCHECK(callback != NULL);
-  GCCallbackPair pair(callback, gc_type, pass_isolate);
-  DCHECK(!gc_epilogue_callbacks_.Contains(pair));
-  return gc_epilogue_callbacks_.Add(pair);
+void Heap::AddGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
+                                 GCType gc_type, void* data) {
+  DCHECK_NOT_NULL(callback);
+  DCHECK(gc_epilogue_callbacks_.end() ==
+         std::find(gc_epilogue_callbacks_.begin(), gc_epilogue_callbacks_.end(),
+                   GCCallbackTuple(callback, gc_type, data)));
+  gc_epilogue_callbacks_.emplace_back(callback, gc_type, data);
 }
 
-
-void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallback callback) {
-  DCHECK(callback != NULL);
-  for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
-    if (gc_epilogue_callbacks_[i].callback == callback) {
-      gc_epilogue_callbacks_.Remove(i);
+void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
+                                    void* data) {
+  DCHECK_NOT_NULL(callback);
+  for (size_t i = 0; i < gc_epilogue_callbacks_.size(); i++) {
+    if (gc_epilogue_callbacks_[i].callback == callback &&
+        gc_epilogue_callbacks_[i].data == data) {
+      gc_epilogue_callbacks_[i] = gc_epilogue_callbacks_.back();
+      gc_epilogue_callbacks_.pop_back();
       return;
     }
   }

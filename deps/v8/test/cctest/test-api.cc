@@ -19626,6 +19626,19 @@ void EpilogueCallbackSecond(v8::Isolate* isolate,
   ++epilogue_call_count_second;
 }
 
+void PrologueCallbackNew(v8::Isolate* isolate, v8::GCType,
+                         v8::GCCallbackFlags flags, void* data) {
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+  CHECK_EQ(gc_callbacks_isolate, isolate);
+  ++*static_cast<int*>(data);
+}
+
+void EpilogueCallbackNew(v8::Isolate* isolate, v8::GCType,
+                         v8::GCCallbackFlags flags, void* data) {
+  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
+  CHECK_EQ(gc_callbacks_isolate, isolate);
+  ++*static_cast<int*>(data);
+}
 
 void PrologueCallbackAlloc(v8::Isolate* isolate,
                            v8::GCType,
@@ -19700,6 +19713,52 @@ TEST(GCCallbacksOld) {
   CHECK_EQ(2, epilogue_call_count_second);
 }
 
+TEST(GCCallbacksWithData) {
+  LocalContext context;
+
+  gc_callbacks_isolate = context->GetIsolate();
+  int prologue1 = 0;
+  int epilogue1 = 0;
+  int prologue2 = 0;
+  int epilogue2 = 0;
+
+  context->GetIsolate()->AddGCPrologueCallback(PrologueCallbackNew, &prologue1);
+  context->GetIsolate()->AddGCEpilogueCallback(EpilogueCallbackNew, &epilogue1);
+  CHECK_EQ(0, prologue1);
+  CHECK_EQ(0, epilogue1);
+  CHECK_EQ(0, prologue2);
+  CHECK_EQ(0, epilogue2);
+  CcTest::CollectAllGarbage();
+  CHECK_EQ(1, prologue1);
+  CHECK_EQ(1, epilogue1);
+  CHECK_EQ(0, prologue2);
+  CHECK_EQ(0, epilogue2);
+  context->GetIsolate()->AddGCPrologueCallback(PrologueCallbackNew, &prologue2);
+  context->GetIsolate()->AddGCEpilogueCallback(EpilogueCallbackNew, &epilogue2);
+  CcTest::CollectAllGarbage();
+  CHECK_EQ(2, prologue1);
+  CHECK_EQ(2, epilogue1);
+  CHECK_EQ(1, prologue2);
+  CHECK_EQ(1, epilogue2);
+  context->GetIsolate()->RemoveGCPrologueCallback(PrologueCallbackNew,
+                                                  &prologue1);
+  context->GetIsolate()->RemoveGCEpilogueCallback(EpilogueCallbackNew,
+                                                  &epilogue1);
+  CcTest::CollectAllGarbage();
+  CHECK_EQ(2, prologue1);
+  CHECK_EQ(2, epilogue1);
+  CHECK_EQ(2, prologue2);
+  CHECK_EQ(2, epilogue2);
+  context->GetIsolate()->RemoveGCPrologueCallback(PrologueCallbackNew,
+                                                  &prologue2);
+  context->GetIsolate()->RemoveGCEpilogueCallback(EpilogueCallbackNew,
+                                                  &epilogue2);
+  CcTest::CollectAllGarbage();
+  CHECK_EQ(2, prologue1);
+  CHECK_EQ(2, epilogue1);
+  CHECK_EQ(2, prologue2);
+  CHECK_EQ(2, epilogue2);
+}
 
 TEST(GCCallbacks) {
   LocalContext context;

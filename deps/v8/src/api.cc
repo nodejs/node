@@ -8341,41 +8341,70 @@ v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
   return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
 }
 
-void Isolate::AddGCPrologueCallback(GCCallback callback, GCType gc_type) {
+void Isolate::AddGCPrologueCallback(GCCallbackWithData callback, void* data,
+                                    GCType gc_type) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->heap()->AddGCPrologueCallback(callback, gc_type);
+  isolate->heap()->AddGCPrologueCallback(callback, gc_type, data);
 }
 
+void Isolate::RemoveGCPrologueCallback(GCCallbackWithData callback,
+                                       void* data) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->RemoveGCPrologueCallback(callback, data);
+}
+
+void Isolate::AddGCEpilogueCallback(GCCallbackWithData callback, void* data,
+                                    GCType gc_type) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->AddGCEpilogueCallback(callback, gc_type, data);
+}
+
+void Isolate::RemoveGCEpilogueCallback(GCCallbackWithData callback,
+                                       void* data) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->RemoveGCEpilogueCallback(callback, data);
+}
+
+static void CallGCCallbackWithoutData(Isolate* isolate, GCType type,
+                                      GCCallbackFlags flags, void* data) {
+  reinterpret_cast<Isolate::GCCallback>(data)(isolate, type, flags);
+}
+
+void Isolate::AddGCPrologueCallback(GCCallback callback, GCType gc_type) {
+  void* data = reinterpret_cast<void*>(callback);
+  AddGCPrologueCallback(CallGCCallbackWithoutData, data, gc_type);
+}
 
 void Isolate::RemoveGCPrologueCallback(GCCallback callback) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->heap()->RemoveGCPrologueCallback(callback);
+  void* data = reinterpret_cast<void*>(callback);
+  RemoveGCPrologueCallback(CallGCCallbackWithoutData, data);
 }
-
 
 void Isolate::AddGCEpilogueCallback(GCCallback callback, GCType gc_type) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->heap()->AddGCEpilogueCallback(callback, gc_type);
+  void* data = reinterpret_cast<void*>(callback);
+  AddGCEpilogueCallback(CallGCCallbackWithoutData, data, gc_type);
 }
-
 
 void Isolate::RemoveGCEpilogueCallback(GCCallback callback) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->heap()->RemoveGCEpilogueCallback(callback);
+  void* data = reinterpret_cast<void*>(callback);
+  RemoveGCEpilogueCallback(CallGCCallbackWithoutData, data);
 }
 
-
-void V8::AddGCPrologueCallback(GCCallback callback, GCType gc_type) {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->heap()->AddGCPrologueCallback(
-      reinterpret_cast<v8::Isolate::GCCallback>(callback), gc_type, false);
+static void CallGCCallbackWithoutIsolate(Isolate* isolate, GCType type,
+                                         GCCallbackFlags flags, void* data) {
+  reinterpret_cast<v8::GCCallback>(data)(type, flags);
 }
 
+void V8::AddGCPrologueCallback(v8::GCCallback callback, GCType gc_type) {
+  void* data = reinterpret_cast<void*>(callback);
+  Isolate::GetCurrent()->AddGCPrologueCallback(CallGCCallbackWithoutIsolate,
+                                               data, gc_type);
+}
 
-void V8::AddGCEpilogueCallback(GCCallback callback, GCType gc_type) {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->heap()->AddGCEpilogueCallback(
-      reinterpret_cast<v8::Isolate::GCCallback>(callback), gc_type, false);
+void V8::AddGCEpilogueCallback(v8::GCCallback callback, GCType gc_type) {
+  void* data = reinterpret_cast<void*>(callback);
+  Isolate::GetCurrent()->AddGCEpilogueCallback(CallGCCallbackWithoutIsolate,
+                                               data, gc_type);
 }
 
 void Isolate::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {

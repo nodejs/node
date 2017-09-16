@@ -48,6 +48,10 @@ struct nghttp2_rcbuf;
 
 namespace node {
 
+namespace performance {
+struct performance_state;
+}
+
 // Pick an index that's hopefully out of the way when we're embedded inside
 // another application. Performance-wise or memory-wise it doesn't matter:
 // Context::SetAlignedPointerInEmbedderData() is backed by a FixedArray,
@@ -417,25 +421,6 @@ class Environment {
       DISALLOW_COPY_AND_ASSIGN(InitScope);
     };
 
-    // Used to manage the stack of async and trigger ids as calls are made into
-    // JS. Mainly used in MakeCallback().
-    class ExecScope {
-     public:
-      ExecScope() = delete;
-      explicit ExecScope(Environment* env, double async_id, double trigger_id);
-      ~ExecScope();
-      void Dispose();
-
-     private:
-      Environment* env_;
-      double async_id_;
-      // Manually track if the destructor has run so it isn't accidentally run
-      // twice on RAII cleanup.
-      bool disposed_;
-
-      DISALLOW_COPY_AND_ASSIGN(ExecScope);
-    };
-
    private:
     friend class Environment;  // So we can call the constructor.
     inline explicit AsyncHooks(v8::Isolate* isolate);
@@ -459,7 +444,7 @@ class Environment {
     AsyncCallbackScope() = delete;
     explicit AsyncCallbackScope(Environment* env);
     ~AsyncCallbackScope();
-    inline bool in_makecallback();
+    inline bool in_makecallback() const;
 
    private:
     Environment* env_;

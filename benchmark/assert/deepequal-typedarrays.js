@@ -33,10 +33,13 @@ function main(conf) {
   const actual = new clazz(len);
   const expected = new clazz(len);
   const expectedWrong = Buffer.alloc(len);
-  expectedWrong[100] = 123;
+  const wrongIndex = Math.floor(len / 2);
+  expectedWrong[wrongIndex] = 123;
   var i;
 
   switch (conf.method) {
+    case '':
+      // Empty string falls through to next line as default, mostly for tests.
     case 'deepEqual':
       bench.start();
       for (i = 0; i < n; ++i) {
