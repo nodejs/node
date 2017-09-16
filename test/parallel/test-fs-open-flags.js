@@ -60,21 +60,21 @@ assert.strictEqual(stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
   .forEach(function(flags) {
     common.expectsError(
       () => stringToFlags(flags),
-      { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+      { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }
     );
   });
 
 common.expectsError(
   () => stringToFlags({}),
-  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+  { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }
 );
 
 common.expectsError(
   () => stringToFlags(true),
-  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+  { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }
 );
 
 common.expectsError(
   () => stringToFlags(null),
-  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+  { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }
 );

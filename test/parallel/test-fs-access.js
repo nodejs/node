@@ -81,9 +81,14 @@ fs.access(readOnlyFile, fs.W_OK, common.mustCall((err) => {
   }
 }));
 
-assert.throws(() => {
-  fs.access(100, fs.F_OK, common.mustNotCall());
-}, /^TypeError: path must be a string or Buffer$/);
+common.expectsError(
+  () => fs.access(100, fs.F_OK, common.mustNotCall()),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "path" argument must be one of type string, Buffer, or URL'
+  }
+);
 
 common.expectsError(
   () => {

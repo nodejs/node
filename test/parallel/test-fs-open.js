@@ -43,3 +43,40 @@ fs.open(__filename, 'r', common.mustCall((err) => {
 fs.open(__filename, 'rs', common.mustCall((err) => {
   assert.ifError(err);
 }));
+
+[-1, {}, [], null, undefined, Infinity, true].forEach((i) => {
+  common.expectsError(
+    () => fs.openSync(i, 'r'),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "path" argument must be one of type string, Buffer, or URL'
+    }
+  );
+  common.expectsError(
+    () => fs.open(i, 'r', common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "path" argument must be one of type string, Buffer, or URL'
+    }
+  );
+  common.expectsError(
+    () => fs.openSync(__filename, i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message:
+        'The "flags" argument must be one of type string or unsigned integer'
+    }
+  );
+  common.expectsError(
+    () => fs.open(__filename, i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message:
+        'The "flags" argument must be one of type string or unsigned integer'
+    }
+  );
+});

@@ -69,9 +69,14 @@ common.expectsError(() => {
 });
 
 // Throws if the source path is not a string.
-assert.throws(() => {
-  fs.copyFileSync(null, dest);
-}, /^TypeError: src must be a string$/);
+common.expectsError(
+  () => fs.copyFileSync(null, dest),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "src" argument must be one of type string, Buffer, or URL'
+  }
+);
 
 // Throws if the source path is an invalid path.
 common.expectsError(() => {
@@ -84,9 +89,14 @@ common.expectsError(() => {
 });
 
 // Throws if the destination path is not a string.
-assert.throws(() => {
-  fs.copyFileSync(src, null);
-}, /^TypeError: dest must be a string$/);
+common.expectsError(
+  () => fs.copyFileSync(src, null),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "dest" argument must be one of type string, Buffer, or URL'
+  }
+);
 
 // Throws if the destination path is an invalid path.
 common.expectsError(() => {

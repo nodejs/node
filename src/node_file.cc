@@ -56,14 +56,13 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
+using v8::Promise;
 using v8::String;
 using v8::Value;
 
 #ifndef MIN
 # define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
-
-#define TYPE_ERROR(msg) env->ThrowTypeError(msg)
 
 #define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
 
@@ -93,6 +92,40 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
 
   size_t self_size() const override { return sizeof(*this); }
 
+  void Resolve(Environment* env, Local<Value> arg) {
+    Local<Context> context = env->context();
+    Local<Value> promise =
+        object()->Get(context, env->oncomplete_string()).ToLocalChecked();
+    if (promise->IsPromise()) {
+      if (promise.As<Promise>()->State() != Promise::kPending) return;
+      Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
+      resolver->Resolve(context, arg).FromJust();
+      return;
+    }
+    if (arg.IsEmpty()) {
+      Local<Value> arg = Null(env->isolate());
+      MakeCallback(env->oncomplete_string(), 1, &arg);
+    } else {
+      Local<Value> argv[2];
+      argv[0] = Null(env->isolate());
+      argv[1] = arg;
+      MakeCallback(env->oncomplete_string(), 2, argv);
+    }
+  }
+
+  void Reject(Environment* env, Local<Value> arg) {
+    Local<Context> context = env->context();
+    Local<Value> promise =
+        object()->Get(context, env->oncomplete_string()).ToLocalChecked();
+    if (promise->IsPromise()) {
+      if (promise.As<Promise>()->State() != Promise::kPending) return;
+      Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
+      resolver->Reject(context, arg).FromJust();
+      return;
+    }
+    MakeCallback(env->oncomplete_string(), 1, &arg);
+  }
+
  private:
   FSReqWrap(Environment* env,
             Local<Object> req,
@@ -121,9 +154,6 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
   DISALLOW_COPY_AND_ASSIGN(FSReqWrap);
 };
 
-#define ASSERT_PATH(path)                                                   \
-  if (*path == nullptr)                                                     \
-    return TYPE_ERROR( #path " must be a string or Buffer");
 
 FSReqWrap* FSReqWrap::New(Environment* env,
                           Local<Object> req,
@@ -167,30 +197,20 @@ void After(uv_fs_t *req) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  // there is always at least one argument. "error"
-  int argc = 1;
-
-  // Allocate space for two args. We may only use one depending on the case.
-  // (Feel free to increase this if you need more)
-  Local<Value> argv[2];
   MaybeLocal<Value> link;
+  Local<Value> arg = Undefined(env->isolate());
   Local<Value> error;
 
   if (req->result < 0) {
     // An error happened.
-    argv[0] = UVException(env->isolate(),
-                          req->result,
-                          req_wrap->syscall(),
-                          nullptr,
-                          req->path,
-                          req_wrap->data());
+    error = UVException(env->isolate(),
+                        req->result,
+                        req_wrap->syscall(),
+                        nullptr,
+                        req->path,
+                        req_wrap->data());
+    req_wrap->Reject(env, error);
   } else {
-    // error value is empty or null for non-error.
-    argv[0] = Null(env->isolate());
-
-    // All have at least two args now.
-    argc = 2;
-
     switch (req->fs_type) {
       // These all have no data to pass.
       case UV_FS_ACCESS:
@@ -210,28 +230,25 @@ void After(uv_fs_t *req) {
       case UV_FS_FCHOWN:
       case UV_FS_COPYFILE:
         // These, however, don't.
-        argc = 1;
         break;
 
       case UV_FS_STAT:
       case UV_FS_LSTAT:
       case UV_FS_FSTAT:
-        argc = 1;
         FillStatsArray(env->fs_stats_field_array(),
                        static_cast<const uv_stat_t*>(req->ptr));
         break;
 
       case UV_FS_UTIME:
       case UV_FS_FUTIME:
-        argc = 0;
         break;
 
       case UV_FS_OPEN:
-        argv[1] = Integer::New(env->isolate(), req->result);
+        arg = Integer::New(env->isolate(), req->result);
         break;
 
       case UV_FS_WRITE:
-        argv[1] = Integer::New(env->isolate(), req->result);
+        arg = Integer::New(env->isolate(), req->result);
         break;
 
       case UV_FS_MKDTEMP:
@@ -241,9 +258,10 @@ void After(uv_fs_t *req) {
                                    req_wrap->encoding_,
                                    &error);
         if (link.IsEmpty()) {
-          argv[0] = error;
+          req_wrap->Reject(env, error);
+          goto cleanup;
         } else {
-          argv[1] = link.ToLocalChecked();
+          arg = link.ToLocalChecked();
         }
         break;
       }
@@ -254,9 +272,10 @@ void After(uv_fs_t *req) {
                                    req_wrap->encoding_,
                                    &error);
         if (link.IsEmpty()) {
-          argv[0] = error;
+          req_wrap->Reject(env, error);
+          goto cleanup;
         } else {
-          argv[1] = link.ToLocalChecked();
+          arg = link.ToLocalChecked();
         }
         break;
 
@@ -266,15 +285,16 @@ void After(uv_fs_t *req) {
                                    req_wrap->encoding_,
                                    &error);
         if (link.IsEmpty()) {
-          argv[0] = error;
+          req_wrap->Reject(env, error);
+          goto cleanup;
         } else {
-          argv[1] = link.ToLocalChecked();
+          arg = link.ToLocalChecked();
         }
         break;
 
       case UV_FS_READ:
         // Buffer interface
-        argv[1] = Integer::New(env->isolate(), req->result);
+        arg = Integer::New(env->isolate(), req->result);
         break;
 
       case UV_FS_SCANDIR:
@@ -292,11 +312,12 @@ void After(uv_fs_t *req) {
             if (r == UV_EOF)
               break;
             if (r != 0) {
-              argv[0] = UVException(r,
-                                    nullptr,
-                                    req_wrap->syscall(),
-                                    static_cast<const char*>(req->path));
-              break;
+              error = UVException(r,
+                                  nullptr,
+                                  req_wrap->syscall(),
+                                  static_cast<const char*>(req->path));
+              req_wrap->Reject(env, error);
+              goto cleanup;
             }
 
             MaybeLocal<Value> filename =
@@ -305,8 +326,8 @@ void After(uv_fs_t *req) {
                                     req_wrap->encoding_,
                                     &error);
             if (filename.IsEmpty()) {
-              argv[0] = error;
-              break;
+              req_wrap->Reject(env, error);
+              goto cleanup;
             }
             name_argv[name_idx++] = filename.ToLocalChecked();
 
@@ -322,17 +343,17 @@ void After(uv_fs_t *req) {
                 .ToLocalChecked();
           }
 
-          argv[1] = names;
+          arg = names;
         }
         break;
 
       default:
         CHECK(0 && "Unhandled eio response");
     }
+    req_wrap->Resolve(env, arg);
   }
 
-  req_wrap->MakeCallback(env->oncomplete_string(), argc, argv);
-
+ cleanup:
   uv_fs_req_cleanup(req_wrap->req());
   req_wrap->Dispose();
 }
@@ -395,13 +416,8 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
-  if (args.Length() < 2)
-    return TYPE_ERROR("path and mode are required");
-  if (!args[1]->IsInt32())
-    return TYPE_ERROR("mode must be an integer");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   int mode = static_cast<int>(args[1]->Int32Value());
 
@@ -415,11 +431,6 @@ void Access(const FunctionCallbackInfo<Value>& args) {
 
 void Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
-  if (args.Length() < 1)
-    return TYPE_ERROR("fd is required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
 
   int fd = args[0]->Int32Value();
 
@@ -547,11 +558,8 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
 static void Stat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 1)
-    return TYPE_ERROR("path required");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(stat, args[1], UTF8, *path)
@@ -565,11 +573,8 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
 static void LStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 1)
-    return TYPE_ERROR("path required");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(lstat, args[1], UTF8, *path)
@@ -582,11 +587,6 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
 
 static void FStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
-  if (args.Length() < 1)
-    return TYPE_ERROR("fd is required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
 
   int fd = args[0]->Int32Value();
 
@@ -602,29 +602,13 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
 static void Symlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  int len = args.Length();
-  if (len < 1)
-    return TYPE_ERROR("target path required");
-  if (len < 2)
-    return TYPE_ERROR("src path required");
-
   BufferValue target(env->isolate(), args[0]);
-  ASSERT_PATH(target)
+  CHECK_NE(*target, nullptr);
+
   BufferValue path(env->isolate(), args[1]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
-  int flags = 0;
-
-  if (args[2]->IsString()) {
-    node::Utf8Value mode(env->isolate(), args[2]);
-    if (strcmp(*mode, "dir") == 0) {
-      flags |= UV_FS_SYMLINK_DIR;
-    } else if (strcmp(*mode, "junction") == 0) {
-      flags |= UV_FS_SYMLINK_JUNCTION;
-    } else if (strcmp(*mode, "file") != 0) {
-      return env->ThrowError("Unknown symlink type");
-    }
-  }
+  int flags = args[2]->Int32Value(env->context()).ToChecked();
 
   if (args[3]->IsObject()) {
     ASYNC_DEST_CALL(symlink, args[3], *path, UTF8, *target, *path, flags)
@@ -636,17 +620,11 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
 static void Link(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  int len = args.Length();
-  if (len < 1)
-    return TYPE_ERROR("src path required");
-  if (len < 2)
-    return TYPE_ERROR("dest path required");
-
   BufferValue src(env->isolate(), args[0]);
-  ASSERT_PATH(src)
+  CHECK_NE(*src, nullptr);
 
   BufferValue dest(env->isolate(), args[1]);
-  ASSERT_PATH(dest)
+  CHECK_NE(*dest, nullptr);
 
   if (args[2]->IsObject()) {
     ASYNC_DEST_CALL(link, args[2], *dest, UTF8, *src, *dest)
@@ -660,11 +638,8 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
 
   const int argc = args.Length();
 
-  if (argc < 1)
-    return TYPE_ERROR("path required");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
@@ -694,16 +669,11 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
 static void Rename(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  int len = args.Length();
-  if (len < 1)
-    return TYPE_ERROR("old path required");
-  if (len < 2)
-    return TYPE_ERROR("new path required");
-
   BufferValue old_path(env->isolate(), args[0]);
-  ASSERT_PATH(old_path)
+  CHECK_NE(*old_path, nullptr);
+
   BufferValue new_path(env->isolate(), args[1]);
-  ASSERT_PATH(new_path)
+  CHECK_NE(*new_path, nullptr);
 
   if (args[2]->IsObject()) {
     ASYNC_DEST_CALL(rename, args[2], *new_path, UTF8, *old_path, *new_path)
@@ -715,24 +685,8 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
 static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 2)
-    return TYPE_ERROR("fd and length are required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
-
   int fd = args[0]->Int32Value();
-
-  // FIXME(bnoordhuis) It's questionable to reject non-ints here but still
-  // allow implicit coercion from null or undefined to zero.  Probably best
-  // handled in lib/fs.js.
-  Local<Value> len_v(args[1]);
-  if (!len_v->IsUndefined() &&
-      !len_v->IsNull() &&
-      !IsInt64(len_v->NumberValue())) {
-    return env->ThrowTypeError("Not an integer");
-  }
-
-  const int64_t len = len_v->IntegerValue();
+  const int64_t len = args[1]->IntegerValue();
 
   if (args[2]->IsObject()) {
     ASYNC_CALL(ftruncate, args[2], UTF8, fd, len)
@@ -743,11 +697,6 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
 
 static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
-  if (args.Length() < 1)
-    return TYPE_ERROR("fd is required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
 
   int fd = args[0]->Int32Value();
 
@@ -761,11 +710,6 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
 static void Fsync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 1)
-    return TYPE_ERROR("fd is required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
-
   int fd = args[0]->Int32Value();
 
   if (args[1]->IsObject()) {
@@ -778,11 +722,8 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
 static void Unlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 1)
-    return TYPE_ERROR("path required");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(unlink, args[1], UTF8, *path)
@@ -794,11 +735,8 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
 static void RMDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 1)
-    return TYPE_ERROR("path required");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(rmdir, args[1], UTF8, *path)
@@ -810,13 +748,8 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
 static void MKDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 2)
-    return TYPE_ERROR("path and mode are required");
-  if (!args[1]->IsInt32())
-    return TYPE_ERROR("mode must be an integer");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   int mode = static_cast<int>(args[1]->Int32Value());
 
@@ -832,11 +765,8 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
 
   const int argc = args.Length();
 
-  if (argc < 1)
-    return TYPE_ERROR("path required");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
@@ -868,11 +798,8 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
   const int argc = args.Length();
 
-  if (argc < 1)
-    return TYPE_ERROR("path required");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
@@ -931,20 +858,8 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 static void Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  int len = args.Length();
-  if (len < 1)
-    return TYPE_ERROR("path required");
-  if (len < 2)
-    return TYPE_ERROR("flags required");
-  if (len < 3)
-    return TYPE_ERROR("mode required");
-  if (!args[1]->IsInt32())
-    return TYPE_ERROR("flags must be an int");
-  if (!args[2]->IsInt32())
-    return TYPE_ERROR("mode must be an int");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   int flags = args[1]->Int32Value();
   int mode = static_cast<int>(args[2]->Int32Value());
@@ -961,17 +876,10 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsString())
-    return TYPE_ERROR("src must be a string");
-  if (!args[1]->IsString())
-    return TYPE_ERROR("dest must be a string");
-  if (!args[2]->IsInt32())
-    return TYPE_ERROR("flags must be an int");
-
   BufferValue src(env->isolate(), args[0]);
-  ASSERT_PATH(src)
+  CHECK_NE(*src, nullptr);
   BufferValue dest(env->isolate(), args[1]);
-  ASSERT_PATH(dest)
+  CHECK_NE(*dest, nullptr);
   int flags = args[2]->Int32Value();
 
   if (args[3]->IsObject()) {
@@ -994,12 +902,9 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
 static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsInt32())
-    return env->ThrowTypeError("First argument must be file descriptor");
+  int fd = args[0]->Int32Value();
 
   CHECK(Buffer::HasInstance(args[1]));
-
-  int fd = args[0]->Int32Value();
   Local<Object> obj = args[1].As<Object>();
   const char* buf = Buffer::Data(obj);
   size_t buffer_length = Buffer::Length(obj);
@@ -1008,14 +913,7 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   int64_t pos = GET_OFFSET(args[4]);
   Local<Value> req = args[5];
 
-  if (off > buffer_length)
-    return env->ThrowRangeError("offset out of bounds");
-  if (len > buffer_length)
-    return env->ThrowRangeError("length out of bounds");
-  if (off + len < off)
-    return env->ThrowRangeError("off + len overflow");
-  if (!Buffer::IsWithinBounds(off, len, buffer_length))
-    return env->ThrowRangeError("off + len > buffer.length");
+  CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
 
   buf += off;
 
@@ -1080,9 +978,6 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
 // 3 enc       encoding of string
 static void WriteString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
-  if (!args[0]->IsInt32())
-    return env->ThrowTypeError("First argument must be file descriptor");
 
   Local<Value> req;
   Local<Value> string = args[1];
@@ -1158,13 +1053,6 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 static void Read(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 2)
-    return TYPE_ERROR("fd and buffer are required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
-  if (!Buffer::HasInstance(args[1]))
-    return TYPE_ERROR("Second argument needs to be a buffer");
-
   int fd = args[0]->Int32Value();
 
   Local<Value> req;
@@ -1210,13 +1098,8 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
 static void Chmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 2)
-    return TYPE_ERROR("path and mode are required");
-  if (!args[1]->IsInt32())
-    return TYPE_ERROR("mode must be an integer");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   int mode = static_cast<int>(args[1]->Int32Value());
 
@@ -1233,13 +1116,6 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
  */
 static void FChmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
-  if (args.Length() < 2)
-    return TYPE_ERROR("fd and mode are required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
-  if (!args[1]->IsInt32())
-    return TYPE_ERROR("mode must be an integer");
 
   int fd = args[0]->Int32Value();
   int mode = static_cast<int>(args[1]->Int32Value());
@@ -1258,20 +1134,8 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
 static void Chown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  int len = args.Length();
-  if (len < 1)
-    return TYPE_ERROR("path required");
-  if (len < 2)
-    return TYPE_ERROR("uid required");
-  if (len < 3)
-    return TYPE_ERROR("gid required");
-  if (!args[1]->IsUint32())
-    return TYPE_ERROR("uid must be an unsigned int");
-  if (!args[2]->IsUint32())
-    return TYPE_ERROR("gid must be an unsigned int");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   uv_uid_t uid = static_cast<uv_uid_t>(args[1]->Uint32Value());
   uv_gid_t gid = static_cast<uv_gid_t>(args[2]->Uint32Value());
@@ -1290,20 +1154,6 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
 static void FChown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  int len = args.Length();
-  if (len < 1)
-    return TYPE_ERROR("fd required");
-  if (len < 2)
-    return TYPE_ERROR("uid required");
-  if (len < 3)
-    return TYPE_ERROR("gid required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be an int");
-  if (!args[1]->IsUint32())
-    return TYPE_ERROR("uid must be an unsigned int");
-  if (!args[2]->IsUint32())
-    return TYPE_ERROR("gid must be an unsigned int");
-
   int fd = args[0]->Int32Value();
   uv_uid_t uid = static_cast<uv_uid_t>(args[1]->Uint32Value());
   uv_gid_t gid = static_cast<uv_gid_t>(args[2]->Uint32Value());
@@ -1319,20 +1169,8 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
 static void UTimes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  int len = args.Length();
-  if (len < 1)
-    return TYPE_ERROR("path required");
-  if (len < 2)
-    return TYPE_ERROR("atime required");
-  if (len < 3)
-    return TYPE_ERROR("mtime required");
-  if (!args[1]->IsNumber())
-    return TYPE_ERROR("atime must be a number");
-  if (!args[2]->IsNumber())
-    return TYPE_ERROR("mtime must be a number");
-
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
+  CHECK_NE(*path, nullptr);
 
   const double atime = static_cast<double>(args[1]->NumberValue());
   const double mtime = static_cast<double>(args[2]->NumberValue());
@@ -1346,20 +1184,6 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
 
 static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
-  int len = args.Length();
-  if (len < 1)
-    return TYPE_ERROR("fd required");
-  if (len < 2)
-    return TYPE_ERROR("atime required");
-  if (len < 3)
-    return TYPE_ERROR("mtime required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be an int");
-  if (!args[1]->IsNumber())
-    return TYPE_ERROR("atime must be a number");
-  if (!args[2]->IsNumber())
-    return TYPE_ERROR("mtime must be a number");
 
   const int fd = args[0]->Int32Value();
   const double atime = static_cast<double>(args[1]->NumberValue());
@@ -1378,8 +1202,7 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 2);
 
   BufferValue tmpl(env->isolate(), args[0]);
-  if (*tmpl == nullptr)
-    return TYPE_ERROR("template must be a string or Buffer");
+  CHECK_NE(*tmpl, nullptr);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 

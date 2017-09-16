@@ -34,7 +34,15 @@ fs.exists(`${f}-NO`, common.mustCall(function(y) {
   assert.strictEqual(y, false);
 }));
 
-fs.exists(new URL('https://foo'), common.mustCall(function(y) {
+common.expectsError(
+  () => fs.exists(new URL('https://foo'), common.mustNotCall()),
+  {
+    code: 'ERR_INVALID_URL_SCHEME',
+    type: TypeError,
+    message: 'The URL must be of scheme file'
+  }
+);
+fs.exists(new URL(`file://${f}-NO`), common.mustCall(function(y) {
   assert.strictEqual(y, false);
 }));
 

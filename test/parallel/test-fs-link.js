@@ -21,16 +21,38 @@ fs.link(srcPath, dstPath, common.mustCall(callback));
 
 // test error outputs
 
-assert.throws(
-  function() {
-    fs.link();
-  },
-  /src must be a string or Buffer/
+common.expectsError(
+  () => fs.linkSync(),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "src" argument must be one of type string, Buffer, or URL'
+  }
 );
 
-assert.throws(
-  function() {
-    fs.link('abc');
-  },
-  /dest must be a string or Buffer/
+common.expectsError(
+  () => fs.linkSync('abc'),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "dest" argument must be one of type string, Buffer, or URL'
+  }
+);
+
+common.expectsError(
+  () => fs.link(undefined, undefined, common.mustNotCall()),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "src" argument must be one of type string, Buffer, or URL'
+  }
+);
+
+common.expectsError(
+  () => fs.link('abc', undefined, common.mustNotCall()),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "dest" argument must be one of type string, Buffer, or URL'
+  }
 );

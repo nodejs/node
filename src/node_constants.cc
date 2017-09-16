@@ -1164,6 +1164,14 @@ void DefineSystemConstants(Local<Object> target) {
 #ifdef X_OK
   NODE_DEFINE_CONSTANT(target, X_OK);
 #endif
+
+#ifdef UV_FS_SYMLINK_DIR
+  NODE_DEFINE_CONSTANT(target, UV_FS_SYMLINK_DIR);
+#endif
+
+#ifdef UV_FS_SYMLINK_JUNCTION
+  NODE_DEFINE_CONSTANT(target, UV_FS_SYMLINK_JUNCTION);
+#endif
 }
 
 void DefineCryptoConstants(Local<Object> target) {

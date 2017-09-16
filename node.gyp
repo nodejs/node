@@ -76,6 +76,7 @@
       'lib/v8.js',
       'lib/vm.js',
       'lib/zlib.js',
+      'lib/internal/async/fs.js',
       'lib/internal/buffer.js',
       'lib/internal/child_process.js',
       'lib/internal/cluster/child.js',

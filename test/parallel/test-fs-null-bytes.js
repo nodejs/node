@@ -25,32 +25,25 @@ const assert = require('assert');
 const fs = require('fs');
 const URL = require('url').URL;
 
-function check(async, sync) {
-  const argsSync = Array.prototype.slice.call(arguments, 2);
-  const argsAsync = argsSync.concat((er) => {
-    common.expectsError(
-      () => {
-        throw er;
-      },
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: Error
-      });
-  });
+function check(async, sync, ...args) {
 
   if (sync) {
     common.expectsError(
-      () => {
-        sync.apply(null, argsSync);
-      },
+      () => sync(...args),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: Error,
-      });
+      }
+    );
   }
 
   if (async) {
-    async.apply(null, argsAsync);
+    common.expectsError(
+      () => async(...args, common.mustNotCall()),
+      {
+        code: 'ERR_INVALID_ARG_TYPE'
+      }
+    );
   }
 }
 
@@ -81,6 +74,7 @@ check(fs.utimes, fs.utimesSync, 'foo\u0000bar', 0, 0);
 check(null, fs.watch, 'foo\u0000bar', common.mustNotCall());
 check(null, fs.watchFile, 'foo\u0000bar', common.mustNotCall());
 check(fs.writeFile, fs.writeFileSync, 'foo\u0000bar', 'abc');
+check(fs.exists, fs.existsSync, 'foo\u0000bar');
 
 const fileUrl = new URL('file:///C:/foo\u0000bar');
 const fileUrl2 = new URL('file:///C:/foo%00bar');
@@ -112,6 +106,7 @@ check(fs.utimes, fs.utimesSync, fileUrl, 0, 0);
 check(null, fs.watch, fileUrl, assert.fail);
 check(null, fs.watchFile, fileUrl, assert.fail);
 check(fs.writeFile, fs.writeFileSync, fileUrl, 'abc');
+check(fs.exists, fs.existsSync, fileUrl);
 
 check(fs.access, fs.accessSync, fileUrl2);
 check(fs.access, fs.accessSync, fileUrl2, fs.F_OK);
@@ -140,10 +135,4 @@ check(fs.utimes, fs.utimesSync, fileUrl2, 0, 0);
 check(null, fs.watch, fileUrl2, assert.fail);
 check(null, fs.watchFile, fileUrl2, assert.fail);
 check(fs.writeFile, fs.writeFileSync, fileUrl2, 'abc');
-
-// an 'error' for exists means that it doesn't exist.
-// one of many reasons why this file is the absolute worst.
-fs.exists('foo\u0000bar', common.mustCall((exists) => {
-  assert(!exists);
-}));
-assert(!fs.existsSync('foo\u0000bar'));
+check(fs.exists, fs.existsSync, fileUrl2);
