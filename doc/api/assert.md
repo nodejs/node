@@ -306,7 +306,7 @@ added: v0.1.21
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any} **Default:** 'Failed'
+* `message` {any} **Default:** `'Failed'`
 * `operator` {string} **Default:** '!='
 * `stackStartFunction` {function} **Default:** `assert.fail`
 

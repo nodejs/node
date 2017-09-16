@@ -87,7 +87,7 @@ added: v0.6.9
 -->
 
 * `multicastAddress` {string}
-* `multicastInterface` {string} Optional.
+* `multicastInterface` {string}
 
 Tells the kernel to join a multicast group at the given `multicastAddress` and
 `multicastInterface` using the `IP_ADD_MEMBERSHIP` socket option. If the
@@ -109,10 +109,9 @@ properties.
 added: v0.1.99
 -->
 
-* `port` {number} Integer, Optional.
-* `address` {string} Optional.
-* `callback` {Function} with no parameters, Optional. Called when
-  binding is complete.
+* `port` {number} Integer.
+* `address` {string}
+* `callback` {Function} with no parameters. Called when binding is complete.
 
 For UDP sockets, causes the `dgram.Socket` to listen for datagram
 messages on a named `port` and optional `address`. If `port` is not
@@ -162,10 +161,10 @@ added: v0.11.14
 -->
 
 * `options` {Object} Required. Supports the following properties:
-  * `port` {number} Optional.
-  * `address` {string} Optional.
-  * `exclusive` {boolean} Optional.
-* `callback` {Function} Optional.
+  * `port` {Integer}
+  * `address` {string}
+  * `exclusive` {boolean}
+* `callback` {Function}
 
 For UDP sockets, causes the `dgram.Socket` to listen for datagram
 messages on a named `port` and optional `address` that are passed as
@@ -217,7 +216,7 @@ added: v0.6.9
 -->
 
 * `multicastAddress` {string}
-* `multicastInterface` {string} Optional.
+* `multicastInterface` {string}
 
 Instructs the kernel to leave a multicast group at `multicastAddress` using the
 `IP_DROP_MEMBERSHIP` socket option. This method is automatically called by the
@@ -277,12 +276,12 @@ changes:
                  and `length` parameters are optional now.
 -->
 
-* `msg` {Buffer|Uint8Array|string|array} Message to be sent.
-* `offset` {number} Integer. Optional. Offset in the buffer where the message starts.
-* `length` {number} Integer. Optional. Number of bytes in the message.
+* `msg` {Buffer|Uint8Array|string|Array} Message to be sent.
+* `offset` {number} Integer. Offset in the buffer where the message starts.
+* `length` {number} Integer. Number of bytes in the message.
 * `port` {number} Integer. Destination port.
-* `address` {string} Destination hostname or IP address. Optional.
-* `callback` {Function} Called when the message has been sent. Optional.
+* `address` {string} Destination hostname or IP address.
+* `callback` {Function} Called when the message has been sent.
 
 Broadcasts a datagram on the socket. The destination `port` and `address` must
 be specified.
@@ -583,12 +582,11 @@ changes:
   * `type` {string} The family of socket. Must be either `'udp4'` or `'udp6'`.
     Required.
   * `reuseAddr` {boolean} When `true` [`socket.bind()`][] will reuse the
-    address, even if another process has already bound a socket on it. Optional.
+    address, even if another process has already bound a socket on it.
     Defaults to `false`.
-  * `recvBufferSize` {number} - Optional. Sets the `SO_RCVBUF` socket value.
-  * `sendBufferSize` {number} - Optional. Sets the `SO_SNDBUF` socket value.
+  * `recvBufferSize` {number} - Sets the `SO_RCVBUF` socket value.
+  * `sendBufferSize` {number} - Sets the `SO_SNDBUF` socket value.
   * `lookup` {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
-    Optional.
 * `callback` {Function} Attached as a listener for `'message'` events. Optional.
 * Returns: {dgram.Socket}
 
@@ -607,7 +605,6 @@ added: v0.1.99
 
 * `type` {string} - Either 'udp4' or 'udp6'.
 * `callback` {Function} - Attached as a listener to `'message'` events.
-  Optional.
 * Returns: {dgram.Socket}
 
 Creates a `dgram.Socket` object of the specified `type`. The `type` argument

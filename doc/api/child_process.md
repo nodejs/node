@@ -241,7 +241,7 @@ added: v0.1.91
 -->
 
 * `file` {string} The name or path of the executable file to run.
-* `args` {Array} List of string arguments.
+* `args` {string[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
   * `env` {Object} Environment key-value pairs.
@@ -658,7 +658,7 @@ changes:
 -->
 
 * `file` {string} The name or path of the executable file to run.
-* `args` {Array} List of string arguments.
+* `args` {string[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
   * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
