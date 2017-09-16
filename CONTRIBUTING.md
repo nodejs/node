@@ -32,6 +32,7 @@ expect throughout each step of the process.
       * [Commit message guidelines](#commit-message-guidelines)
     * [Step 5: Rebase](#step-5-rebase)
     * [Step 6: Test](#step-6-test)
+    * [Step 6.5: Test Coverage](#step-65-test-coverage)
     * [Step 7: Push](#step-7-push)
     * [Step 8: Opening the Pull Request](#step-8-opening-the-pull-request)
     * [Step 9: Discuss and Update](#step-9-discuss-and-update)
@@ -371,10 +372,16 @@ Bug fixes and features should always come with tests. A
 provided to make the process easier. Looking at other tests to see how they
 should be structured can also help.
 
-The `test` directory within the `nodejs/node` repository is complex and it is
-often not clear where a new test file should go. When in doubt, add new tests
-to the `test/parallel/` directory and the right location will be sorted out
-later.
+Tests should be placed in a directory corresponding to the subsystem that
+they exercise, e.g., `es-module` for ESM loader tests, `child-process` for
+tests related to the `child-process` module. Tests can be further organized
+into the following subtypes:
+
+* `subsystem/parallel`: tests that can be run in parallel with each other.
+  Most new tests should be placed in this location.
+* `subsystem/pummel`: tests that should be run while the system is under
+  heavy load.
+* `subsystem/sequential`: tests that should be run sequentially.
 
 Before submitting your changes in a Pull Request, always run the full Node.js
 test suite. To run the tests (including code linting) on Unix / macOS:
@@ -419,6 +426,31 @@ $ ./node ./test/parallel/test-stream2-transform.js
 
 Remember to recompile with `make -j4` in between test runs if you change code in
 the `lib` or `src` directories.
+
+#### Step 6.5: Test coverage
+
+A great way to find nooks and crannies of the codebase that could use more
+testing is to use coverage reports. To generate a coverage report simply
+run:
+
+```console
+$ ./configure --coverage
+$ make coverage
+```
+
+Afterwards a detailed HTML coverage report can be found in
+`coverage/index.html`.
+
+It is also possible to generate coverage for a specific subsystem. For instance,
+the following generates coverage for the `child-process` submodule:
+
+```console
+$ ./configure --coverage
+$ CI_JS_SUITES=child-process* CI_NATIVE_SUITES= make coverage
+```
+
+recent coverage reports can be found at
+[coverage.nodejs.org](https://coverage.nodejs.org/).
 
 #### Step 7: Push
 

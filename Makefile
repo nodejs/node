@@ -333,8 +333,8 @@ test-all: test-build test/gc/build/Release/binding.node
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
-CI_NATIVE_SUITES := addons addons-napi
-CI_JS_SUITES := abort async-hooks doctool inspector known_issues message parallel pseudo-tty sequential
+CI_NATIVE_SUITES ?= addons addons-napi
+CI_JS_SUITES ?= DEFAULT_JS_SUITES
 
 # Build and test addons without building anything else
 test-ci-native: LOGLEVEL := info
