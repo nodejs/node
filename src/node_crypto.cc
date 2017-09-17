@@ -115,6 +115,77 @@ using v8::Value;
 
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
+static void RSA_get0_key(const RSA* r, const BIGNUM** n, const BIGNUM** e,
+                         const BIGNUM** d) {
+  if (n != nullptr) {
+    *n = r->n;
+  }
+  if (e != nullptr) {
+    *e = r->e;
+  }
+  if (d != nullptr) {
+    *d = r->d;
+  }
+}
+
+static void DH_get0_pqg(const DH* dh, const BIGNUM** p, const BIGNUM** q,
+                        const BIGNUM** g) {
+  if (p != nullptr) {
+    *p = dh->p;
+  }
+  if (q != nullptr) {
+    *q = dh->q;
+  }
+  if (g != nullptr) {
+    *g = dh->g;
+  }
+}
+
+static int DH_set0_pqg(DH* dh, BIGNUM* p, BIGNUM* q, BIGNUM* g) {
+  if ((dh->p == nullptr && p == nullptr) ||
+      (dh->g == nullptr && g == nullptr)) {
+    return 0;
+  }
+
+  if (p != nullptr) {
+    BN_free(dh->p);
+    dh->p = p;
+  }
+  if (q != nullptr) {
+    BN_free(dh->q);
+    dh->q = q;
+  }
+  if (g != nullptr) {
+    BN_free(dh->g);
+    dh->g = g;
+  }
+
+  return 1;
+}
+
+static void DH_get0_key(const DH* dh, const BIGNUM** pub_key,
+                        const BIGNUM** priv_key) {
+  if (pub_key != nullptr) {
+    *pub_key = dh->pub_key;
+  }
+  if (priv_key != nullptr) {
+    *priv_key = dh->priv_key;
+  }
+}
+
+static int DH_set0_key(DH* dh, BIGNUM* pub_key, BIGNUM* priv_key) {
+  if (pub_key != nullptr) {
+    BN_free(dh->pub_key);
+    dh->pub_key = pub_key;
+  }
+  if (priv_key != nullptr) {
+    BN_free(dh->priv_key);
+    dh->priv_key = priv_key;
+  }
+
+  return 1;
+}
+
 static void SSL_SESSION_get0_ticket(const SSL_SESSION* s,
                                     const unsigned char** tick, size_t* len) {
   *len = s->tlsext_ticklen;
@@ -1011,7 +1082,9 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   if (dh == nullptr)
     return;
 
-  const int size = BN_num_bits(dh->p);
+  const BIGNUM* p;
+  DH_get0_pqg(dh, &p, nullptr, nullptr);
+  const int size = BN_num_bits(p);
   if (size < 1024) {
     return env->ThrowError("DH parameter is less than 1024 bits");
   } else if (size < 2048) {
@@ -1631,14 +1704,17 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     rsa = EVP_PKEY_get1_RSA(pkey);
 
   if (rsa != nullptr) {
-    BN_print(bio, rsa->n);
+    const BIGNUM* n;
+    const BIGNUM* e;
+    RSA_get0_key(rsa, &n, &e, nullptr);
+    BN_print(bio, n);
     BIO_get_mem_ptr(bio, &mem);
     info->Set(env->modulus_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
                                   String::kNormalString, mem->length));
     (void) BIO_reset(bio);
 
-    uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(rsa->e));
+    uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(e));
     uint32_t lo = static_cast<uint32_t>(exponent_word);
     uint32_t hi = static_cast<uint32_t>(exponent_word >> 32);
     if (hi == 0) {
@@ -4719,10 +4795,15 @@ bool DiffieHellman::Init(int primeLength, int g) {
 
 bool DiffieHellman::Init(const char* p, int p_len, int g) {
   dh = DH_new();
-  dh->p = BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, 0);
-  dh->g = BN_new();
-  if (!BN_set_word(dh->g, g))
+  BIGNUM* bn_p =
+      BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, nullptr);
+  BIGNUM* bn_g = BN_new();
+  if (!BN_set_word(bn_g, g) ||
+      !DH_set0_pqg(dh, bn_p, nullptr, bn_g)) {
+    BN_free(bn_p);
+    BN_free(bn_g);
     return false;
+  }
   bool result = VerifyContext();
   if (!result)
     return false;
@@ -4733,8 +4814,13 @@ bool DiffieHellman::Init(const char* p, int p_len, int g) {
 
 bool DiffieHellman::Init(const char* p, int p_len, const char* g, int g_len) {
   dh = DH_new();
-  dh->p = BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, 0);
-  dh->g = BN_bin2bn(reinterpret_cast<const unsigned char*>(g), g_len, 0);
+  BIGNUM *bn_p = BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, 0);
+  BIGNUM *bn_g = BN_bin2bn(reinterpret_cast<const unsigned char*>(g), g_len, 0);
+  if (!DH_set0_pqg(dh, bn_p, nullptr, bn_g)) {
+    BN_free(bn_p);
+    BN_free(bn_g);
+    return false;
+  }
   bool result = VerifyContext();
   if (!result)
     return false;
@@ -4822,22 +4908,25 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, ERR_get_error(), "Key generation failed");
   }
 
-  size_t size = BN_num_bytes(diffieHellman->dh->pub_key);
+  const BIGNUM* pub_key;
+  DH_get0_key(diffieHellman->dh, &pub_key, nullptr);
+  size_t size = BN_num_bytes(pub_key);
   char* data = Malloc(size);
-  BN_bn2bin(diffieHellman->dh->pub_key, reinterpret_cast<unsigned char*>(data));
+  BN_bn2bin(pub_key, reinterpret_cast<unsigned char*>(data));
   args.GetReturnValue().Set(Buffer::New(env, data, size).ToLocalChecked());
 }
 
 
 void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
-                             BIGNUM* (DH::*field), const char* err_if_null) {
+                             const BIGNUM* (*get_field)(const DH*),
+                             const char* err_if_null) {
   Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* dh;
   ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
   if (!dh->initialised_) return env->ThrowError("Not initialized");
 
-  const BIGNUM* num = (dh->dh)->*field;
+  const BIGNUM* num = get_field(dh->dh);
   if (num == nullptr) return env->ThrowError(err_if_null);
 
   size_t size = BN_num_bytes(num);
@@ -4847,24 +4936,38 @@ void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
 }
 
 void DiffieHellman::GetPrime(const FunctionCallbackInfo<Value>& args) {
-  GetField(args, &DH::p, "p is null");
+  GetField(args, [](const DH* dh) -> const BIGNUM* {
+    const BIGNUM* p;
+    DH_get0_pqg(dh, &p, nullptr, nullptr);
+    return p;
+  }, "p is null");
 }
 
 
 void DiffieHellman::GetGenerator(const FunctionCallbackInfo<Value>& args) {
-  GetField(args, &DH::g, "g is null");
+  GetField(args, [](const DH* dh) -> const BIGNUM* {
+    const BIGNUM* g;
+    DH_get0_pqg(dh, nullptr, nullptr, &g);
+    return g;
+  }, "g is null");
 }
 
 
 void DiffieHellman::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  GetField(args, &DH::pub_key,
-           "No public key - did you forget to generate one?");
+  GetField(args, [](const DH* dh) -> const BIGNUM* {
+    const BIGNUM* pub_key;
+    DH_get0_key(dh, &pub_key, nullptr);
+    return pub_key;
+  }, "No public key - did you forget to generate one?");
 }
 
 
 void DiffieHellman::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  GetField(args, &DH::priv_key,
-           "No private key - did you forget to generate one?");
+  GetField(args, [](const DH* dh) -> const BIGNUM* {
+    const BIGNUM* priv_key;
+    DH_get0_key(dh, nullptr, &priv_key);
+    return priv_key;
+  }, "No private key - did you forget to generate one?");
 }
 
 
@@ -4940,16 +5043,14 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(rc);
 }
 
-
 void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
-                           BIGNUM* (DH::*field), const char* what) {
+                           void (*set_field)(DH*, BIGNUM*), const char* what) {
   Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* dh;
   ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
   if (!dh->initialised_) return env->ThrowError("Not initialized");
 
-  BIGNUM** num = &((dh->dh)->*field);
   char errmsg[64];
 
   if (args.Length() == 0) {
@@ -4962,19 +5063,28 @@ void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
     return env->ThrowTypeError(errmsg);
   }
 
-  *num = BN_bin2bn(reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
-                   Buffer::Length(args[0]), *num);
-  CHECK_NE(*num, nullptr);
+  BIGNUM* num =
+      BN_bin2bn(reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
+                Buffer::Length(args[0]), nullptr);
+  CHECK_NE(num, nullptr);
+  set_field(dh->dh, num);
 }
 
 
 void DiffieHellman::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  SetKey(args, &DH::pub_key, "Public key");
+  SetKey(args, [](DH* dh, BIGNUM* num) { DH_set0_key(dh, num, nullptr); },
+         "Public key");
 }
 
-
 void DiffieHellman::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  SetKey(args, &DH::priv_key, "Private key");
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && \
+    OPENSSL_VERSION_NUMBER < 0x10100070L
+// Older versions of OpenSSL 1.1.0 have a DH_set0_key which does not work for
+// Node. See https://github.com/openssl/openssl/pull/4384.
+#error "OpenSSL 1.1.0 revisions before 1.1.0g are not supported"
+#endif
+  SetKey(args, [](DH* dh, BIGNUM* num) { DH_set0_key(dh, nullptr, num); },
+         "Private key");
 }
 
 
