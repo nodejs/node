@@ -707,9 +707,10 @@ class DiffieHellman : public BaseObject {
 
  private:
   static void GetField(const v8::FunctionCallbackInfo<v8::Value>& args,
-                       BIGNUM* (DH::*field), const char* err_if_null);
+                       const BIGNUM* (*get_field)(const DH*),
+                       const char* err_if_null);
   static void SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
-                     BIGNUM* (DH::*field), const char* what);
+                     void (*set_field)(DH*, BIGNUM*), const char* what);
   bool VerifyContext();
 
   bool initialised_;
