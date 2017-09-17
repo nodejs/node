@@ -58,6 +58,19 @@ const secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 
 assert.strictEqual(secret1, secret3);
 
+// computeSecret works without a public key set at all.
+const dh4 = crypto.createDiffieHellman(p1, 'buffer');
+dh4.setPrivateKey(privkey1);
+
+assert.deepStrictEqual(dh1.getPrime(), dh4.getPrime());
+assert.deepStrictEqual(dh1.getGenerator(), dh4.getGenerator());
+assert.deepStrictEqual(dh1.getPrivateKey(), dh4.getPrivateKey());
+assert.strictEqual(dh4.verifyError, 0);
+
+const secret4 = dh4.computeSecret(key2, 'hex', 'base64');
+
+assert.strictEqual(secret1, secret4);
+
 const wrongBlockLength =
   /^Error: error:0606506D:digital envelope routines:EVP_DecryptFinal_ex:wrong final block length$/;
 
