@@ -575,7 +575,8 @@ changes:
     description: The `lookup` option is supported.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/13623
-    description: `recvBufferSize` and `sendBufferSize` options are supported now.
+    description: The `recvBufferSize` and `sendBufferSize` options are
+                 supported now.
 -->
 
 * `options` {Object} Available options are:
