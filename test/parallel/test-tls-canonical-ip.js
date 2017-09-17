@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 require('../common');
 
