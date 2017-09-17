@@ -72,3 +72,24 @@ const dgram = require('dgram');
     socket.close();
   }));
 }
+
+function checkBufferSizeError(type, size) {
+  const errorObj = {
+    code: 'ERR_SOCKET_BUFFER_SIZE',
+    type: Error,
+    message: 'Could not get or set buffer size: Error: EINVAL: ' +
+      `invalid argument, uv_${type}_buffer_size`
+  };
+  const functionName = `set${type.charAt(0).toUpperCase()}${type.slice(1)}` +
+    'BufferSize';
+  const socket = dgram.createSocket('udp4');
+  socket.bind(common.mustCall(() => {
+    assert.throws(() => {
+      socket[functionName](size);
+    }, common.expectsError(errorObj));
+    socket.close();
+  }));
+}
+
+checkBufferSizeError('recv', 2147483648);
+checkBufferSizeError('send', 2147483648);
