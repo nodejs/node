@@ -241,10 +241,17 @@ class SSLWrap {
   static void InitNPN(SecureContext* sc);
   static void AddMethods(Environment* env, v8::Local<v8::FunctionTemplate> t);
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   static SSL_SESSION* GetSessionCallback(SSL* s,
                                          unsigned char* key,
                                          int len,
                                          int* copy);
+#else
+  static SSL_SESSION* GetSessionCallback(SSL* s,
+                                         const unsigned char* key,
+                                         int len,
+                                         int* copy);
+#endif
   static int NewSessionCallback(SSL* s, SSL_SESSION* sess);
   static void OnClientHello(void* arg,
                             const ClientHelloParser::ClientHello& hello);
