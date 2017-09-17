@@ -237,9 +237,9 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
 
   if (!args[0]->IsInt32()) {
     if (args[1].As<Uint32>()->Value() == 0)
-      return env->ThrowUVException(EINVAL, "uv_recv_buffer_size");
+      return env->ThrowUVException(UV_EINVAL, "uv_recv_buffer_size");
     else
-      return env->ThrowUVException(EINVAL, "uv_send_buffer_size");
+      return env->ThrowUVException(UV_EINVAL, "uv_send_buffer_size");
   }
 
   int err;
