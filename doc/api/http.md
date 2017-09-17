@@ -1959,7 +1959,7 @@ const req = http.request(options, (res) => {
 [`agent.createConnection()`]: #http_agent_createconnection_options_callback
 [`agent.getName()`]: #http_agent_getname_options
 [`destroy()`]: #http_agent_destroy
-[`getHeader(name)`]: #requestgetheadername
+[`getHeader(name)`]: #http_request_getheader_name
 [`http.Agent`]: #http_class_http_agent
 [`http.ClientRequest`]: #http_class_http_clientrequest
 [`http.IncomingMessage`]: #http_class_http_incomingmessage
@@ -1974,7 +1974,7 @@ const req = http.request(options, (res) => {
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
-[`removeHeader(name)`]: #requestremoveheadername
+[`removeHeader(name)`]: #http_request_removeheader_name
 [`request.end()`]: #http_request_end_data_encoding_callback
 [`request.setTimeout()`]: #http_request_settimeout_timeout_callback
 [`request.socket`]: #http_request_socket
@@ -1988,7 +1988,7 @@ const req = http.request(options, (res) => {
 [`response.writeContinue()`]: #http_response_writecontinue
 [`response.writeHead()`]: #http_response_writehead_statuscode_statusmessage_headers
 [`server.timeout`]: #http_server_timeout
-[`setHeader(name, value)`]: #requestsetheadername-value
+[`setHeader(name, value)`]: #http_request_setheader_name_value
 [`socket.setKeepAlive()`]: net.html#net_socket_setkeepalive_enable_initialdelay
 [`socket.setNoDelay()`]: net.html#net_socket_setnodelay_nodelay
 [`socket.setTimeout()`]: net.html#net_socket_settimeout_timeout_callback
