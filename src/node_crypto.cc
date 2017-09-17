@@ -114,6 +114,28 @@ using v8::String;
 using v8::Value;
 
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static void SSL_SESSION_get0_ticket(const SSL_SESSION* s,
+                                    const unsigned char** tick, size_t* len) {
+  *len = s->tlsext_ticklen;
+  if (tick != nullptr) {
+    *tick = s->tlsext_tick;
+  }
+}
+
+#define SSL_get_tlsext_status_type(ssl) (ssl->tlsext_status_type)
+
+static int X509_STORE_up_ref(X509_STORE* store) {
+  CRYPTO_add(&store->references, 1, CRYPTO_LOCK_X509_STORE);
+  return 1;
+}
+
+static int X509_up_ref(X509* cert) {
+  CRYPTO_add(&cert->references, 1, CRYPTO_LOCK_X509);
+  return 1;
+}
+#endif  // OPENSSL_VERSION_NUMBER < 0x10100000L
+
 // Subject DER of CNNIC ROOT CA and CNNIC EV ROOT CA are taken from
 // https://hg.mozilla.org/mozilla-central/file/98820360ab66/security/
 // certverifier/NSSCertDBTrustDomain.cpp#l672
@@ -158,11 +180,19 @@ template void SSLWrap<TLSWrap>::AddMethods(Environment* env,
 template void SSLWrap<TLSWrap>::InitNPN(SecureContext* sc);
 template void SSLWrap<TLSWrap>::SetSNIContext(SecureContext* sc);
 template int SSLWrap<TLSWrap>::SetCACerts(SecureContext* sc);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 template SSL_SESSION* SSLWrap<TLSWrap>::GetSessionCallback(
     SSL* s,
     unsigned char* key,
     int len,
     int* copy);
+#else
+template SSL_SESSION* SSLWrap<TLSWrap>::GetSessionCallback(
+    SSL* s,
+    const unsigned char* key,
+    int len,
+    int* copy);
+#endif
 template int SSLWrap<TLSWrap>::NewSessionCallback(SSL* s,
                                                   SSL_SESSION* sess);
 template void SSLWrap<TLSWrap>::OnClientHello(
@@ -759,22 +789,6 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
-// This section contains OpenSSL 1.1.0 functions reimplemented for OpenSSL
-// 1.0.2 so that the following code can be written without lots of #if lines.
-
-static int X509_STORE_up_ref(X509_STORE* store) {
-  CRYPTO_add(&store->references, 1, CRYPTO_LOCK_X509_STORE);
-  return 1;
-}
-
-static int X509_up_ref(X509* cert) {
-  CRYPTO_add(&cert->references, 1, CRYPTO_LOCK_X509);
-  return 1;
-}
-#endif  // OPENSSL_VERSION_NUMBER < 0x10100000L && !OPENSSL_IS_BORINGSSL
-
-
 static X509_STORE* NewRootCertStore() {
   static std::vector<X509*> root_certs_vector;
   if (root_certs_vector.empty()) {
@@ -1221,7 +1235,7 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
 
 void SecureContext::SetFreeListLength(const FunctionCallbackInfo<Value>& args) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   // |freelist_max_len| was removed in OpenSSL 1.1.0. In that version OpenSSL
   // mallocs and frees buffers directly, without the use of a freelist.
   SecureContext* wrap;
@@ -1428,11 +1442,19 @@ void SSLWrap<Base>::InitNPN(SecureContext* sc) {
 }
 
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 template <class Base>
 SSL_SESSION* SSLWrap<Base>::GetSessionCallback(SSL* s,
                                                unsigned char* key,
                                                int len,
                                                int* copy) {
+#else
+template <class Base>
+SSL_SESSION* SSLWrap<Base>::GetSessionCallback(SSL* s,
+                                               const unsigned char* key,
+                                               int len,
+                                               int* copy) {
+#endif
   Base* w = static_cast<Base*>(SSL_get_app_data(s));
 
   *copy = 0;
@@ -1942,13 +1964,18 @@ void SSLWrap<Base>::GetTLSTicket(const FunctionCallbackInfo<Value>& args) {
   Environment* env = w->ssl_env();
 
   SSL_SESSION* sess = SSL_get_session(w->ssl_);
-  if (sess == nullptr || sess->tlsext_tick == nullptr)
+  if (sess == nullptr)
+    return;
+
+  const unsigned char *ticket;
+  size_t length;
+  SSL_SESSION_get0_ticket(sess, &ticket, &length);
+
+  if (ticket == nullptr)
     return;
 
   Local<Object> buff = Buffer::Copy(
-      env,
-      reinterpret_cast<char*>(sess->tlsext_tick),
-      sess->tlsext_ticklen).ToLocalChecked();
+      env, reinterpret_cast<const char*>(ticket), length).ToLocalChecked();
 
   args.GetReturnValue().Set(buff);
 }
@@ -2475,7 +2502,7 @@ int SSLWrap<Base>::SSLCertCallback(SSL* s, void* arg) {
 
   bool ocsp = false;
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
-  ocsp = s->tlsext_status_type == TLSEXT_STATUSTYPE_ocsp;
+  ocsp = SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp;
 #endif
 
   info->Set(env->ocsp_request_string(), Boolean::New(env->isolate(), ocsp));
