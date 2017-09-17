@@ -3661,7 +3661,7 @@ NAPI_EXTERN napi_status napi_run_script(napi_env env,
 - `[out] result`: The value resulting from having executed the script.
 
 [Promises]: #n_api_promises
-[Simple Asynchronous Operations]: #n_api_asynchronous_operations
+[Simple Asynchronous Operations]: #n_api_simple_asynchronous_operations
 [Custom Asynchronous Operations]: #n_api_custom_asynchronous_operations
 [Basic N-API Data Types]: #n_api_basic_n_api_data_types
 [ECMAScript Language Specification]: https://tc39.github.io/ecma262/
