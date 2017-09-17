@@ -810,7 +810,12 @@ class TestRepository(TestSuite):
 
   def __init__(self, path):
     normalized_path = abspath(path)
-    super(TestRepository, self).__init__(basename(normalized_path))
+    # the relative path from the ./test directory is used
+    # for the test's name.
+    test_directory = abspath(join(dirname(sys.argv[0]), '../test'))
+    super(TestRepository, self).__init__(
+      os.path.relpath(normalized_path, test_directory)
+    )
     self.path = normalized_path
     self.is_loaded = False
     self.config = None
@@ -1531,28 +1536,15 @@ def GetSpecialCommandProcessor(value):
       return prefix + args + suffix
     return ExpandCommand
 
-
-BUILT_IN_TESTS = [
-  'sequential',
-  'parallel',
-  'pummel',
-  'message',
-  'internet',
-  'addons',
-  'addons-napi',
-  'gc',
-  'debugger',
-  'doctool',
-  'inspector',
-  'async-hooks',
-]
-
-
+# we recursively walk folders in ./test and
+# collect any folders that have a testcfg.py.
 def GetSuites(test_root):
-  def IsSuite(path):
-    return isdir(path) and exists(join(path, 'testcfg.py'))
-  return [ f for f in os.listdir(test_root) if IsSuite(join(test_root, f)) ]
-
+  suites = []
+  for root, dirs, files in os.walk(test_root):
+    for d in dirs:
+      if exists(join(root, d, 'testcfg.py')):
+        suites.append(join(root, d))
+  return suites
 
 def FormatTime(d):
   millis = round(d * 1000) % 1000
@@ -1565,6 +1557,25 @@ def PrintCrashed(code):
   else:
     return "CRASHED (Signal: %d)" % -code
 
+IGNORED_SUITES = [
+  'addons',
+  'addons-napi',
+  'gc',
+  'internet',
+  'pummel',
+  'test-known-issues',
+  'timers'
+]
+
+# return any test suite folders that aren't ignored. Ignored
+# suites represent special categories of tests, e.g.,
+# ./test/internet contains tests that require network connections.
+def DefaultSuites(test_root):
+  built_in_tests = []
+  for testdir in os.listdir(test_root):
+    if isdir(join(test_root, testdir)) and (testdir not in IGNORED_SUITES):
+      built_in_tests.append(testdir + '*')
+  return built_in_tests
 
 def Main():
   parser = BuildOptions()
@@ -1581,18 +1592,23 @@ def Main():
     logger.addHandler(fh)
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
-  suites = GetSuites(join(workspace, 'test'))
+  test_root = join(workspace, 'test')
+  suites = GetSuites(test_root)
   repositories = [TestRepository(join(workspace, 'test', name)) for name in suites]
   repositories += [TestRepository(a) for a in options.suite]
 
   root = LiteralTestSuite(repositories)
+  default_suites = [SplitPath(t) for t in DefaultSuites(test_root)]
   if len(args) == 0:
-    paths = [SplitPath(t) for t in BUILT_IN_TESTS]
+    paths = default_suites
   else:
     paths = [ ]
     for arg in args:
-      path = SplitPath(NormalizePath(arg))
-      paths.append(path)
+      if arg == 'DEFAULT_JS_SUITES':
+        paths += default_suites
+      else:
+        path = SplitPath(NormalizePath(arg))
+        paths.append(path)
 
   # Check for --valgrind option. If enabled, we overwrite the special
   # command flag with a command that uses the run-valgrind.py script.
