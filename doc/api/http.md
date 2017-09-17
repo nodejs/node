@@ -427,6 +427,16 @@ added: v0.5.3
 
 Emitted after a socket is assigned to this request.
 
+### Event: 'timeout'
+<!-- YAML
+added: v0.7.8
+-->
+
+Emitted when the underlying socket times out from inactivity. This only notifies
+that the socket has been idle. The request must be aborted manually.
+
+See also: [`request.setTimeout()`][]
+
 ### Event: 'upgrade'
 <!-- YAML
 added: v0.1.94
@@ -1966,6 +1976,7 @@ const req = http.request(options, (res) => {
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
 [`removeHeader(name)`]: #requestremoveheadername
 [`request.end()`]: #http_request_end_data_encoding_callback
+[`request.setTimeout()`]: #http_request_settimeout_timeout_callback
 [`request.socket`]: #http_request_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`request.write(data, encoding)`]: #http_request_write_chunk_encoding_callback
