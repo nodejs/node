@@ -257,7 +257,7 @@ assert.throws(function() {
   // Throws crypto error, so there is an opensslErrorStack property.
   // The openSSL stack should have content.
   if ((err instanceof Error) &&
-      /asn1 encoding routines:ASN1_CHECK_TLEN:wrong tag/.test(err) &&
+      /asn1 encoding routines:[^:]*:wrong tag/.test(err) &&
       err.opensslErrorStack !== undefined &&
       Array.isArray(err.opensslErrorStack) &&
       err.opensslErrorStack.length > 0) {
