@@ -26,11 +26,6 @@ internal.nextTick(null, common.mustCall(function() {
   assert.strictEqual(async_hooks.triggerAsyncId(), rootAsyncId);
 }));
 
-// internal default
-internal.nextTick(undefined, common.mustCall(function() {
-  assert.strictEqual(async_hooks.triggerAsyncId(), rootAsyncId);
-}));
-
 // internal
 internal.nextTick(rootAsyncId + 1, common.mustCall(function() {
   assert.strictEqual(async_hooks.triggerAsyncId(), rootAsyncId + 1);

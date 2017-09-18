@@ -208,6 +208,14 @@ added: v2.1.0
 Prints a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
 
+### `--force-async-hooks-checks`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enables runtime checks for `async_hooks`. These can also be enabled dynamically
+by enabling one of the `async_hooks` hooks.
+
 ### `--trace-events-enabled`
 <!-- YAML
 added: v7.7.0
