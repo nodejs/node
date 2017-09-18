@@ -77,9 +77,9 @@ function checkBufferSizeError(type, size) {
   const errorObj = {
     code: 'ERR_SOCKET_BUFFER_SIZE',
     type: Error,
-    message: new RegExp('^Could not get or set buffer' +
+    message: 'Could not get or set buffer' +
       ' size: Error: EINVAL: invalid argument,' +
-      ' uv_' + type + '_buffer_size$')
+      ' uv_' + type + '_buffer_size'
   };
   const functionName = 'set' + type.charAt(0).toUpperCase() +
     type.slice(1) + 'BufferSize';
