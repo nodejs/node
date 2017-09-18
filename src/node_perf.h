@@ -70,11 +70,11 @@ class PerformanceEntry : public BaseObject {
       return env_;
     }
 
-    std::string name() const {
+    const std::string& name() const {
       return name_;
     }
 
-    std::string type() const {
+    const std::string& type() const {
       return type_;
     }
 
@@ -132,11 +132,11 @@ class PerformanceEntry : public BaseObject {
 
   ~PerformanceEntry() {}
 
-  std::string name() const {
+  const std::string& name() const {
     return name_;
   }
 
-  std::string type() const {
+  const std::string& type() const {
     return type_;
   }
 
