@@ -60,11 +60,12 @@ const cert1 = new crypto.Certificate();
 const cert2 = crypto.Certificate();
 ```
 
-### certificate.exportChallenge(spkac)
+### certificate.exportChallenge(spkac[, encoding])
 <!-- YAML
 added: v0.11.8
 -->
 - `spkac` {string | Buffer | TypedArray | DataView}
+- `encoding` {string} (Default `utf-8`) used to encode the `spkac` into a Buffer
 - Returns {Buffer} The challenge component of the `spkac` data structure, which
 includes a public key and a challenge.
 
@@ -76,11 +77,12 @@ console.log(challenge.toString('utf8'));
 // Prints: the challenge as a UTF8 string
 ```
 
-### certificate.exportPublicKey(spkac)
+### certificate.exportPublicKey(spkac[, encoding])
 <!-- YAML
 added: v0.11.8
 -->
 - `spkac` {string | Buffer | TypedArray | DataView}
+- `encoding` {string} (Default `utf-8`) used to encode the `spkac` into a Buffer
 - Returns {Buffer} The public key component of the `spkac` data structure,
 which includes a public key and a challenge.
 
@@ -174,7 +176,7 @@ console.log(encrypted);
 <!-- YAML
 added: v0.1.94
 -->
-- `outputEncoding` {string}
+- `outputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Returns any remaining enciphered contents. If `outputEncoding`
 parameter is one of `'latin1'`, `'base64'` or `'hex'`, a string is returned.
@@ -213,7 +215,7 @@ been completed using the [`cipher.final()`][] method.
 <!-- YAML
 added: v0.7.1
 -->
-- `autoPadding` {boolean} Defaults to `true`.
+- `autoPadding` {boolean} (Default `true`)
 - Returns the {Cipher} for method chaining.
 
 When using block encryption algorithms, the `Cipher` class will automatically
@@ -237,8 +239,8 @@ changes:
     description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 - `data` {string | Buffer | TypedArray | DataView}
-- `inputEncoding` {string}
-- `outputEncoding` {string}
+- `inputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
+- `outputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Updates the cipher with `data`. If the `inputEncoding` argument is given,
 its value must be one of `'utf8'`, `'ascii'`, or `'latin1'` and the `data`
@@ -327,7 +329,7 @@ console.log(decrypted);
 <!-- YAML
 added: v0.1.94
 -->
-- `outputEncoding` {string}
+- `outputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Returns any remaining deciphered contents. If `outputEncoding`
 parameter is one of `'latin1'`, `'ascii'` or `'utf8'`, a string is returned.
@@ -378,7 +380,7 @@ The `decipher.setAuthTag()` method must be called before
 <!-- YAML
 added: v0.7.1
 -->
-- `autoPadding` {boolean} Defaults to `true`.
+- `autoPadding` {boolean} (Default `true`).
 - Returns the {Cipher} for method chaining.
 
 When data has been encrypted without standard block padding, calling
@@ -400,8 +402,8 @@ changes:
     description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 - `data` {string | Buffer | TypedArray | DataView}
-- `inputEncoding` {string}
-- `outputEncoding` {string}
+- `inputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
+- `outputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Updates the decipher with `data`. If the `inputEncoding` argument is given,
 its value must be one of `'latin1'`, `'base64'`, or `'hex'` and the `data`
@@ -454,8 +456,8 @@ assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 added: v0.5.0
 -->
 - `otherPublicKey` {string | Buffer | TypedArray | DataView}
-- `inputEncoding` {string}
-- `outputEncoding` {string}
+- `inputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
+- `outputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Computes the shared secret using `otherPublicKey` as the other
 party's public key and returns the computed shared secret. The supplied
@@ -472,7 +474,7 @@ If `outputEncoding` is given a string is returned; otherwise, a
 <!-- YAML
 added: v0.5.0
 -->
-- `encoding` {string}
+- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Generates private and public Diffie-Hellman key values, and returns
 the public key in the specified `encoding`. This key should be
@@ -484,7 +486,7 @@ or `'base64'`. If `encoding` is provided a string is returned; otherwise a
 <!-- YAML
 added: v0.5.0
 -->
-- `encoding` {string}
+- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Returns the Diffie-Hellman generator in the specified `encoding`, which can
 be `'latin1'`, `'hex'`, or `'base64'`. If  `encoding` is provided a string is
@@ -494,7 +496,7 @@ returned; otherwise a [`Buffer`][] is returned.
 <!-- YAML
 added: v0.5.0
 -->
-- `encoding` {string}
+- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Returns the Diffie-Hellman prime in the specified `encoding`, which can
 be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a string is
@@ -514,7 +516,7 @@ string is returned; otherwise a [`Buffer`][] is returned.
 <!-- YAML
 added: v0.5.0
 -->
-- `encoding` {string}
+- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Returns the Diffie-Hellman public key in the specified `encoding`, which
 can be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a
@@ -525,7 +527,7 @@ string is returned; otherwise a [`Buffer`][] is returned.
 added: v0.5.0
 -->
 - `privateKey` {string | Buffer | TypedArray | DataView}
-- `encoding` {string}
+- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Sets the Diffie-Hellman private key. If the `encoding` argument is provided
 and is either `'latin1'`, `'hex'`, or `'base64'`, `privateKey` is expected
@@ -537,7 +539,7 @@ to be a [`Buffer`][], `TypedArray`, or `DataView`.
 added: v0.5.0
 -->
 - `publicKey` {string | Buffer | TypedArray | DataView}
-- `encoding` {string}
+- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Sets the Diffie-Hellman public key. If the `encoding` argument is provided
 and is either `'latin1'`, `'hex'` or `'base64'`, `publicKey` is expected
@@ -600,8 +602,8 @@ changes:
     description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 - `otherPublicKey` {string | Buffer | TypedArray | DataView}
-- `inputEncoding` {string}
-- `outputEncoding` {string}
+- `inputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
+- `outputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Computes the shared secret using `otherPublicKey` as the other
 party's public key and returns the computed shared secret. The supplied
@@ -618,7 +620,7 @@ If `outputEncoding` is given a string will be returned; otherwise a
 <!-- YAML
 added: v0.11.14
 -->
-- `encoding` {string}
+- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
 - `format` {string} Defaults to `uncompressed`.
 
 Generates private and public EC Diffie-Hellman key values, and returns
@@ -637,7 +639,7 @@ is returned.
 <!-- YAML
 added: v0.11.14
 -->
-- `encoding` {string}
+- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Returns the EC Diffie-Hellman private key in the specified `encoding`,
 which can be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided
@@ -647,7 +649,7 @@ a string is returned; otherwise a [`Buffer`][] is returned.
 <!-- YAML
 added: v0.11.14
 -->
-- `encoding` {string}
+- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
 - `format` {string} Defaults to `uncompressed`.
 
 Returns the EC Diffie-Hellman public key in the specified `encoding` and
@@ -666,7 +668,7 @@ returned.
 added: v0.11.14
 -->
 - `privateKey` {string | Buffer | TypedArray | DataView}
-- `encoding` {string}
+- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Sets the EC Diffie-Hellman private key. The `encoding` can be `'latin1'`,
 `'hex'` or `'base64'`. If `encoding` is provided, `privateKey` is expected
@@ -686,7 +688,7 @@ deprecated: v5.2.0
 > Stability: 0 - Deprecated
 
 - `publicKey` {string | Buffer | TypedArray | DataView}
-- `encoding` {string}
+- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Sets the EC Diffie-Hellman public key. Key encoding can be `'latin1'`,
 `'hex'` or `'base64'`. If `encoding` is provided `publicKey` is expected to
@@ -782,11 +784,11 @@ console.log(hash.digest('hex'));
 //   6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50
 ```
 
-### hash.digest([encoding])
+### hash.digest([outputEncoding])
 <!-- YAML
 added: v0.1.92
 -->
-- `encoding` {string}
+- `outputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Calculates the digest of all of the data passed to be hashed (using the
 [`hash.update()`][] method). The `encoding` can be `'hex'`, `'latin1'` or
@@ -805,7 +807,7 @@ changes:
     description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 - `data` {string | Buffer | TypedArray | DataView}
-- `inputEncoding` {string}
+- `inputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Updates the hash content with the given `data`, the encoding of which
 is given in `inputEncoding` and can be `'utf8'`, `'ascii'` or
@@ -877,7 +879,7 @@ console.log(hmac.digest('hex'));
 <!-- YAML
 added: v0.1.94
 -->
-- `encoding` {string}
+- `encoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Calculates the HMAC digest of all of the data passed using [`hmac.update()`][].
 The `encoding` can be `'hex'`, `'latin1'` or `'base64'`. If `encoding` is
@@ -895,7 +897,7 @@ changes:
     description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 - `data` {string | Buffer | TypedArray | DataView}
-- `inputEncoding` {string}
+- `inputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Updates the `Hmac` content with the given `data`, the encoding of which
 is given in `inputEncoding` and can be `'utf8'`, `'ascii'` or
@@ -978,9 +980,7 @@ changes:
     description: Support for RSASSA-PSS and additional options was added.
 -->
 - `privateKey` {string | Object}
-  - `key` {string}
-  - `passphrase` {string}
-- `outputFormat` {string}
+- `outputFormat` {string} (Default [`DEFAULT_ENCODING`][])
 
 Calculates the signature on all the data passed through using either
 [`sign.update()`][] or [`sign.write()`][stream-writable-write].
@@ -989,7 +989,7 @@ The `privateKey` argument can be an object or a string. If `privateKey` is a
 string, it is treated as a raw key with no passphrase. If `privateKey` is an
 object, it must contain one or more of the following properties:
 
-* `key`: {string} - PEM encoded private key (required)
+* `key`: {string | Buffer | TypedArray | DataView} - PEM encoded private key (required)
 * `passphrase`: {string} - passphrase for the private key
 * `padding`: {integer} - Optional padding value for RSA, one of the following:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
@@ -1019,7 +1019,7 @@ changes:
     description: The default `inputEncoding` changed from `binary` to `utf8`.
 -->
 - `data` {string | Buffer | TypedArray | DataView}
-- `inputEncoding` {string}
+- `inputEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Updates the `Sign` content with the given `data`, the encoding of which
 is given in `inputEncoding` and can be `'utf8'`, `'ascii'` or
@@ -1103,14 +1103,14 @@ changes:
 -->
 - `object` {string | Object}
 - `signature` {string | Buffer | TypedArray | DataView}
-- `signatureFormat` {string}
+- `signatureFormat` {string} (Default [`DEFAULT_ENCODING`][])
 
 Verifies the provided data using the given `object` and `signature`.
 The `object` argument can be either a string containing a PEM encoded object,
 which can be an RSA public key, a DSA public key, or an X.509 certificate,
 or an object with one or more of the following properties:
 
-* `key`: {string} - PEM encoded public key (required)
+* `key`: {string | Buffer | TypedArray | DataView} - PEM encoded public key (required)
 * `padding`: {integer} - Optional padding value for RSA, one of the following:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
@@ -1300,9 +1300,9 @@ changes:
                  from `binary` to `utf8`.
 -->
 - `prime` {string | Buffer | TypedArray | DataView}
-- `primeEncoding` {string}
+- `primeEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 - `generator` {number | string | Buffer | TypedArray | DataView} Defaults to `2`.
-- `generatorEncoding` {string}
+- `generatorEncoding` {string} (Default [`DEFAULT_ENCODING`][])
 
 Creates a `DiffieHellman` key exchange object using the supplied `prime` and an
 optional specific `generator`.
@@ -1533,8 +1533,8 @@ changes:
     description: The default encoding for `password` if it is a string changed
                  from `binary` to `utf8`.
 -->
-- `password` {string}
-- `salt` {string}
+- `password` {string | Buffer | TypedArray | DataView}
+- `salt` {string | Buffer | TypedArray | DataView}
 - `iterations` {number}
 - `keylen` {number}
 - `digest` {string}
@@ -1589,8 +1589,8 @@ changes:
     description: The default encoding for `password` if it is a string changed
                  from `binary` to `utf8`.
 -->
-- `password` {string}
-- `salt` {string}
+- `password` {string | Buffer | TypedArray | DataView}
+- `salt` {string | Buffer | TypedArray | DataView}
 - `iterations` {number}
 - `keylen` {number}
 - `digest` {string}
@@ -1627,7 +1627,7 @@ An array of supported digest functions can be retrieved using
 added: v0.11.14
 -->
 - `privateKey` {Object | string}
-  - `key` {string} A PEM encoded private key.
+  - `key` {string | Buffer | TypedArray | DataView} A PEM encoded private key.
   - `passphrase` {string} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
@@ -1644,7 +1644,7 @@ treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
 added: v1.1.0
 -->
 - `privateKey` {Object | string}
-  - `key` {string} A PEM encoded private key.
+  - `key` {string | Buffer | TypedArray | DataView} A PEM encoded private key.
   - `passphrase` {string} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
@@ -1661,7 +1661,7 @@ treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
 added: v1.1.0
 -->
 - `publicKey` {Object | string}
-  - `key` {string} A PEM encoded private key.
+  - `key` {string | Buffer | TypedArray | DataView} A PEM encoded private key.
   - `passphrase` {string} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
@@ -1681,7 +1681,7 @@ be passed instead of a public key.
 added: v0.11.14
 -->
 - `publicKey` {Object | string}
-  - `key` {string} A PEM encoded private key.
+  - `key` {string | Buffer | TypedArray | DataView} A PEM encoded private key.
   - `passphrase` {string} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
@@ -1701,7 +1701,7 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.5.8
 -->
-- `size` {number}
+- `size` {integer}
 - `callback` {Function}
   - `err` {Error}
   - `buf` {Buffer}
@@ -1750,8 +1750,8 @@ added: v7.10.0
 -->
 
 * `buffer` {Buffer|Uint8Array} Must be supplied.
-* `offset` {number} Defaults to `0`.
-* `size` {number} Defaults to `buffer.length - offset`.
+* `offset` {integer} Defaults to `0`.
+* `size` {integer} Defaults to `buffer.length - offset`.
 
 Synchronous version of [`crypto.randomFill()`][].
 
@@ -2257,7 +2257,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`ecdh.generateKeys()`]: #crypto_ecdh_generatekeys_encoding_format
 [`ecdh.setPrivateKey()`]: #crypto_ecdh_setprivatekey_privatekey_encoding
 [`ecdh.setPublicKey()`]: #crypto_ecdh_setpublickey_publickey_encoding
-[`hash.digest()`]: #crypto_hash_digest_encoding
+[`hash.digest()`]: #crypto_hash_digest_outputencoding
 [`hash.update()`]: #crypto_hash_update_data_inputencoding
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
 [`hmac.update()`]: #crypto_hmac_update_data_inputencoding
@@ -2268,6 +2268,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`verify.update()`]: #crypto_verify_update_data_inputencoding
 [`verify.verify()`]: #crypto_verify_verify_object_signature_signatureformat
+[`DEFAULT_ENCODING`]: #crypto_crypto_DEFAULT_ENCODING
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
 [Crypto Constants]: #crypto_crypto_constants_1
 [HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element
