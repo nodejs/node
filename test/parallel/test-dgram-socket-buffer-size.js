@@ -77,9 +77,11 @@ function checkBufferSizeError(type, size) {
   const errorObj = {
     code: 'ERR_SOCKET_BUFFER_SIZE',
     type: Error,
-    message: `Could not get or set buffer size: Error: EINVAL: invalid argument, uv_${type}_buffer_size` // eslint-disable-line max-len
+    message: 'Could not get or set buffer size: Error: EINVAL: ' +
+      `invalid argument, uv_${type}_buffer_size`
   };
-  const functionName = `set${type.charAt(0).toUpperCase()}${type.slice(1)}BufferSize`; // eslint-disable-line max-len
+  const functionName = `set${type.charAt(0).toUpperCase()}${type.slice(1)}` +
+    'BufferSize';
   const socket = dgram.createSocket('udp4');
   socket.bind(common.mustCall(() => {
     assert.throws(() => {
