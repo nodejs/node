@@ -1147,7 +1147,8 @@ of the given file:
 
 If an error occurs while attempting to read the file data, the `Http2Stream`
 will be closed using an `RST_STREAM` frame using the standard `INTERNAL_ERROR`
-code.
+code. If the `onError` callback is defined it will be called, otherwise
+the stream will be destroyed.
 
 Example using a file path:
 
@@ -1170,7 +1171,7 @@ server.on('stream', (stream) => {
 
   stream.respondWithFile('/some/file',
                          { 'content-type': 'text/plain' },
-                         { statCheck });
+                         { statCheck, onError });
 });
 ```
 
