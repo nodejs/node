@@ -186,6 +186,8 @@ static int DH_set0_key(DH* dh, BIGNUM* pub_key, BIGNUM* priv_key) {
   return 1;
 }
 
+static const SSL_METHOD* TLS_method() { return SSLv23_method(); }
+
 static void SSL_SESSION_get0_ticket(const SSL_SESSION* s,
                                     const unsigned char** tick, size_t* len) {
   *len = s->tlsext_ticklen;
@@ -547,12 +549,12 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
   Environment* env = sc->env();
 
-  const SSL_METHOD* method = SSLv23_method();
+  const SSL_METHOD* method = TLS_method();
 
   if (args.Length() == 1 && args[0]->IsString()) {
     const node::Utf8Value sslmethod(env->isolate(), args[0]);
 
-    // Note that SSLv2 and SSLv3 are disallowed but SSLv2_method and friends
+    // Note that SSLv2 and SSLv3 are disallowed but SSLv23_method and friends
     // are still accepted.  They are OpenSSL's way of saying that all known
     // protocols are supported unless explicitly disabled (which we do below
     // for SSLv2 and SSLv3.)
@@ -600,7 +602,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   sc->ctx_ = SSL_CTX_new(method);
   SSL_CTX_set_app_data(sc->ctx_, sc);
 
-  // Disable SSLv2 in the case when method == SSLv23_method() and the
+  // Disable SSLv2 in the case when method == TLS_method() and the
   // cipher list contains SSLv2 ciphers (not the default, should be rare.)
   // The bundled OpenSSL doesn't have SSLv2 support but the system OpenSSL may.
   // SSLv3 is disabled because it's susceptible to downgrade attacks (POODLE.)
@@ -5947,7 +5949,7 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
 void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  SSL_CTX* ctx = SSL_CTX_new(TLSv1_server_method());
+  SSL_CTX* ctx = SSL_CTX_new(TLS_method());
   if (ctx == nullptr) {
     return env->ThrowError("SSL_CTX_new() failed.");
   }
