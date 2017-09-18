@@ -144,6 +144,50 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   generator.Generate();
 }
 
+namespace {
+class ActivationsFinder : public ThreadVisitor {
+ public:
+  explicit ActivationsFinder(std::set<Code*>* codes,
+                             Code* topmost_optimized_code,
+                             bool safe_to_deopt_topmost_optimized_code)
+      : codes_(codes) {
+#ifdef DEBUG
+    topmost_ = topmost_optimized_code;
+    safe_to_deopt_ = safe_to_deopt_topmost_optimized_code;
+#endif
+  }
+
+  // Find the frames with activations of codes marked for deoptimization, search
+  // for the trampoline to the deoptimizer call respective to each code, and use
+  // it to replace the current pc on the stack.
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+    for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+      if (it.frame()->type() == StackFrame::OPTIMIZED) {
+        Code* code = it.frame()->LookupCode();
+        if (code->kind() == Code::OPTIMIZED_FUNCTION &&
+            code->marked_for_deoptimization()) {
+          codes_->erase(code);
+          // Obtain the trampoline to the deoptimizer call.
+          SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
+          int trampoline_pc = safepoint.trampoline_pc();
+          DCHECK_IMPLIES(code == topmost_, safe_to_deopt_);
+          // Replace the current pc on the stack with the trampoline.
+          it.frame()->set_pc(code->instruction_start() + trampoline_pc);
+        }
+      }
+    }
+  }
+
+ private:
+  std::set<Code*>* codes_;
+
+#ifdef DEBUG
+  Code* topmost_;
+  bool safe_to_deopt_;
+#endif
+};
+}  // namespace
+
 void Deoptimizer::VisitAllOptimizedFunctionsForContext(
     Context* context, OptimizedFunctionVisitor* visitor) {
   DisallowHeapAllocation no_allocation;
@@ -264,9 +308,9 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   VisitAllOptimizedFunctionsForContext(context, &unlinker);
 
   Isolate* isolate = context->GetHeap()->isolate();
-#ifdef DEBUG
   Code* topmost_optimized_code = NULL;
   bool safe_to_deopt_topmost_optimized_code = false;
+#ifdef DEBUG
   // Make sure all activations of optimized code can deopt at their current PC.
   // The topmost optimized code has special handling because it cannot be
   // deoptimized due to weak object dependency.
@@ -304,6 +348,10 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   }
 #endif
 
+  // We will use this set to mark those Code objects that are marked for
+  // deoptimization and have not been found in stack frames.
+  std::set<Code*> codes;
+
   // Move marked code from the optimized code list to the deoptimized
   // code list.
   // Walk over all optimized code objects in this native context.
@@ -335,25 +383,14 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     element = next;
   }
 
-  // Finds the with activations of codes marked for deoptimization, search for
-  // the trampoline to the deoptimizer call respective to each code, and use it
-  // to replace the current pc on the stack.
-  for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
-       it.Advance()) {
-    if (it.frame()->type() == StackFrame::OPTIMIZED) {
-      Code* code = it.frame()->LookupCode();
-      if (code->kind() == Code::OPTIMIZED_FUNCTION &&
-          code->marked_for_deoptimization()) {
-        // Obtain the trampoline to the deoptimizer call.
-        SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
-        int trampoline_pc = safepoint.trampoline_pc();
-        DCHECK_IMPLIES(code == topmost_optimized_code,
-                       safe_to_deopt_topmost_optimized_code);
-        // Replace the current pc on the stack with the trampoline.
-        it.frame()->set_pc(code->instruction_start() + trampoline_pc);
-      }
-    }
-  }
+  ActivationsFinder visitor(&codes, topmost_optimized_code,
+                            safe_to_deopt_topmost_optimized_code);
+  // Iterate over the stack of this thread.
+  visitor.VisitThread(isolate, isolate->thread_local_top());
+  // In addition to iterate over the stack of this thread, we also
+  // need to consider all the other threads as they may also use
+  // the code currently beings deoptimized.
+  isolate->thread_manager()->IterateArchivedThreads(&visitor);
 }
 
 
