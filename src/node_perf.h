@@ -94,12 +94,12 @@ class PerformanceEntry : public BaseObject {
     }
 
    private:
-    Environment* env_;
-    std::string name_;
-    std::string type_;
-    uint64_t startTime_;
-    uint64_t endTime_;
-    int data_;
+    Environment* const env_;
+    const std::string name_;
+    const std::string type_;
+    const uint64_t startTime_;
+    const uint64_t endTime_;
+    const int data_;
   };
 
   static void NotifyObservers(Environment* env, PerformanceEntry* entry);
@@ -160,10 +160,10 @@ class PerformanceEntry : public BaseObject {
   }
 
  private:
-  std::string name_;
-  std::string type_;
-  uint64_t startTime_;
-  uint64_t endTime_;
+  const std::string name_;
+  const std::string type_;
+  const uint64_t startTime_;
+  const uint64_t endTime_;
 };
 
 enum PerformanceGCKind {
