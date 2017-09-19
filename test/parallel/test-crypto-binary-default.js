@@ -568,9 +568,12 @@ testCipher4(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
 
 
 // update() should only take buffers / strings
-assert.throws(function() {
-  crypto.createHash('sha1').update({ foo: 'bar' });
-}, /^TypeError: Data must be a string or a buffer$/);
+common.expectsError(
+  () => crypto.createHash('sha1').update({ foo: 'bar' }),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  });
 
 
 // Test Diffie-Hellman with two parties sharing a secret,

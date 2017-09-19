@@ -4,13 +4,20 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const assert = require('assert');
 const crypto = require('crypto');
 
-assert.throws(function() {
-  crypto.setEngine(true);
-}, /^TypeError: "id" argument should be a string$/);
+common.expectsError(
+  () => crypto.setEngine(true),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "id" argument must be of type string'
+  });
 
-assert.throws(function() {
-  crypto.setEngine('/path/to/engine', 'notANumber');
-}, /^TypeError: "flags" argument should be a number, if present$/);
+common.expectsError(
+  () => crypto.setEngine('/path/to/engine', 'notANumber'),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "flags" argument must be of type number'
+  });
