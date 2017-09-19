@@ -103,6 +103,14 @@ server.listen(0, common.mustCall(function() {
         message: 'The "name" argument must be of type string'
       }
     );
+    common.expectsError(
+      () => response.setHeader(''),
+      {
+        code: 'ERR_INVALID_HTTP_TOKEN',
+        type: TypeError,
+        message: 'Header name must be a valid HTTP token [""]'
+      }
+    );
 
     response.setHeader(real, expectedValue);
     const expectedHeaderNames = [real];
@@ -122,7 +130,12 @@ server.listen(0, common.mustCall(function() {
     response.on('finish', common.mustCall(function() {
       assert.strictEqual(response.code, h2.constants.NGHTTP2_NO_ERROR);
       assert.strictEqual(response.headersSent, true);
-      server.close();
+      process.nextTick(() => {
+        // can access headersSent after stream is undefined
+        assert.strictEqual(response.stream, undefined);
+        assert.strictEqual(response.headersSent, true);
+        server.close();
+      });
     }));
     response.end();
   }));
