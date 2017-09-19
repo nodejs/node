@@ -110,7 +110,7 @@ try {
   assert.strictEqual('blah', e.message);
 }
 
-assert.strictEqual(require('path').dirname(__filename), __dirname);
+assert.strictEqual(path.dirname(__filename), __dirname);
 
 console.error('load custom file types with extensions');
 require.extensions['.test'] = function(module, filename) {
