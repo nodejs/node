@@ -22,7 +22,6 @@ class TaskQueue {
   void NotifyOfCompletion();
   void BlockingDrain();
   void Stop();
-  bool HasPending();
 
  private:
   Mutex lock_;
@@ -40,7 +39,8 @@ class NodePlatform : public v8::Platform {
   virtual ~NodePlatform() {}
 
   void DrainBackgroundTasks();
-  void FlushForegroundTasksInternal();
+  // returns true iff work was dispatched or executed
+  bool FlushForegroundTasksInternal();
   void Shutdown();
 
   // v8::Platform implementation.

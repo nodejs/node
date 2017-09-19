@@ -86,14 +86,14 @@ static void RunForegroundTask(uv_timer_t* handle) {
 }
 
 void NodePlatform::DrainBackgroundTasks() {
-  do {
-    FlushForegroundTasksInternal();
+  while (FlushForegroundTasksInternal())
     background_tasks_.BlockingDrain();
-  } while (foreground_tasks_.HasPending());
 }
 
-void NodePlatform::FlushForegroundTasksInternal() {
+bool NodePlatform::FlushForegroundTasksInternal() {
+  bool did_work = false;
   while (auto delayed = foreground_delayed_tasks_.Pop()) {
+    did_work = true;
     uint64_t delay_millis =
         static_cast<uint64_t>(delayed->second + 0.5) * 1000;
     uv_timer_t* handle = new uv_timer_t();
@@ -106,8 +106,10 @@ void NodePlatform::FlushForegroundTasksInternal() {
     delete delayed;
   }
   while (Task* task = foreground_tasks_.Pop()) {
+    did_work = true;
     RunForegroundTask(task);
   }
+  return did_work;
 }
 
 void NodePlatform::CallOnBackgroundThread(Task* task,
@@ -198,12 +200,6 @@ void TaskQueue<T>::Stop() {
   Mutex::ScopedLock scoped_lock(lock_);
   stopped_ = true;
   tasks_available_.Broadcast(scoped_lock);
-}
-
-template <class T>
-bool TaskQueue<T>::HasPending() {
-  Mutex::ScopedLock scoped_lock(lock_);
-  return !task_queue_.empty();
 }
 
 }  // namespace node
