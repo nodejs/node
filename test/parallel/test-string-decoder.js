@@ -69,7 +69,11 @@ test('utf-8', Buffer.from('E2B8CCB8', 'hex'), '\ufffd\u0338');
 test('utf-8', Buffer.from('E2FBCC01', 'hex'), '\ufffd\ufffd\ufffd\u0001');
 test('utf-8', Buffer.from('CCB8CDB9', 'hex'), '\u0338\u0379');
 // CESU-8 of U+1D40D
-test('utf-8', Buffer.from('EDA0B5EDB08D', 'hex'), '\ufffd\ufffd');
+
+// V8 has changed their invalid UTF-8 handling, see
+// https://chromium-review.googlesource.com/c/v8/v8/+/671020 for more info.
+test('utf-8', Buffer.from('EDA0B5EDB08D', 'hex'),
+     '\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd');
 
 // UCS-2
 test('ucs2', Buffer.from('ababc', 'ucs2'), 'ababc');
