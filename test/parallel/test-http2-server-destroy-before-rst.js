@@ -39,6 +39,3 @@ server.on('listening', common.mustCall(() => {
   req.end();
 
 }));
-
-
-
