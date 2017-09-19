@@ -266,7 +266,7 @@ records. The type and structure of individual results varies based on `rrtype`:
 | `'PTR'`   | pointer records                | {string}    | [`dns.resolvePtr()`][]   |
 | `'SOA'`   | start of authority records     | {Object}    | [`dns.resolveSoa()`][]   |
 | `'SRV'`   | service records                | {Object}    | [`dns.resolveSrv()`][]   |
-| `'TXT'`   | text records                   | {string}    | [`dns.resolveTxt()`][]   |
+| `'TXT'`   | text records                   | {string[]}  | [`dns.resolveTxt()`][]   |
 | `'ANY'`   | any records                    | {Object}    | [`dns.resolveAny()`][]   |
 
 On error, `err` is an [`Error`][] object, where `err.code` is one of the
@@ -479,11 +479,11 @@ added: v0.1.27
 - `hostname` {string}
 - `callback` {Function}
   - `err` {Error}
-  - `addresses` {string[]}
+  - `records` {string[][]}
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
-`hostname`. The `addresses` argument passed to the `callback` function is
-is a two-dimensional array of the text records available for `hostname` (e.g.,
+`hostname`. The `records` argument passed to the `callback` function is a
+two-dimensional array of the text records available for `hostname` (e.g.,
 `[ ['v=spf1 ip4:0.0.0.0 ', '~all' ] ]`). Each sub-array contains TXT chunks of
 one record. Depending on the use case, these could be either joined together or
 treated separately.
