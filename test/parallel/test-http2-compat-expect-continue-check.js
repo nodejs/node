@@ -21,6 +21,11 @@ function handler(req, res) {
     'abcd': '1'
   });
   res.end(testResBody);
+  // should simply return false if already too late to write
+  assert.strictEqual(res.writeContinue(), false);
+  res.on('finish', common.mustCall(
+    () => process.nextTick(() => assert.strictEqual(res.writeContinue(), false))
+  ));
 }
 
 const server = http2.createServer(
