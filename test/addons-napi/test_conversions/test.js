@@ -106,7 +106,10 @@ assert.strictEqual(0, test.toNumber(''));
 assert.ok(Number.isNaN(test.toNumber(Number.NaN)));
 assert.ok(Number.isNaN(test.toNumber({})));
 assert.ok(Number.isNaN(test.toNumber(undefined)));
-assert.throws(() => test.toNumber(testSym), TypeError);
+assert.throws(
+  () => test.toNumber(testSym),
+  /^TypeError: Cannot convert a Symbol value to a number$/
+);
 
 assert.deepStrictEqual({}, test.toObject({}));
 assert.deepStrictEqual({ 'test': 1 }, test.toObject({ 'test': 1 }));
@@ -137,4 +140,7 @@ assert.strictEqual('[object Object]', test.toString({}));
 assert.strictEqual('test', test.toString({ toString: () => 'test' }));
 assert.strictEqual('', test.toString([]));
 assert.strictEqual('1,2,3', test.toString([ 1, 2, 3 ]));
-assert.throws(() => test.toString(testSym), TypeError);
+assert.throws(
+  () => test.toString(testSym),
+  /^TypeError: Cannot convert a Symbol value to a string$/
+);
