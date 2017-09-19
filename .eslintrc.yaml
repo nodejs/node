@@ -117,6 +117,12 @@ rules:
   no-mixed-spaces-and-tabs: 2
   no-multiple-empty-lines: [2, {max: 2, maxEOF: 0, maxBOF: 0}]
   no-restricted-syntax: [2, {
+    selector: "CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.1.type='Literal']:not([arguments.1.regex])",
+    message: "use a regular expression for second argument of assert.throws()"
+  }, {
+    selector: "CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.length<2]",
+    message: "assert.throws() must be invoked with at least two arguments."
+  }, {
     selector: "CallExpression[callee.name='setTimeout'][arguments.length<2]",
     message: "setTimeout() must be invoked with at least two arguments."
   }, {
@@ -161,7 +167,6 @@ rules:
   template-curly-spacing: 2
 
   # Custom rules in tools/eslint-rules
-  assert-throws-arguments: [2, { requireTwo: true }]
 
 # Global scoped method and vars
 globals:
