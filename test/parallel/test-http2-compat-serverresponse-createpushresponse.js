@@ -16,6 +16,19 @@ const server = h2.createServer((request, response) => {
   assert.strictEqual(response.stream.id % 2, 1);
   response.write(servExpect);
 
+  // callback must be specified (and be a function)
+  common.expectsError(
+    () => response.createPushResponse({
+      ':path': '/pushed',
+      ':method': 'GET'
+    }, undefined),
+    {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+      message: 'Callback must be a function'
+    }
+  );
+
   response.createPushResponse({
     ':path': '/pushed',
     ':method': 'GET'
