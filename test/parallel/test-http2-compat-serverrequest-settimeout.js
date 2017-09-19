@@ -4,13 +4,24 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const assert = require('assert');
 const http2 = require('http2');
 
+const msecs = common.platformTimeout(1);
 const server = http2.createServer();
 
 server.on('request', (req, res) => {
-  req.setTimeout(common.platformTimeout(1), common.mustCall(() => {
+  req.setTimeout(msecs, common.mustCall(() => {
     res.end();
+  }));
+  res.on('finish', common.mustCall(() => {
+    req.setTimeout(msecs, common.mustNotCall());
+    process.nextTick(() => {
+      assert.doesNotThrow(
+        () => req.setTimeout(msecs, common.mustNotCall())
+      );
+      server.close();
+    });
   }));
 });
 
@@ -24,7 +35,6 @@ server.listen(0, common.mustCall(() => {
     ':authority': `localhost:${port}`
   });
   req.on('end', common.mustCall(() => {
-    server.close();
     client.destroy();
   }));
   req.resume();
