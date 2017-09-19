@@ -132,7 +132,7 @@ coverage-clean:
 	$(RM) -r node_modules
 	$(RM) -r gcovr testing
 	$(RM) -r out/$(BUILDTYPE)/.coverage
-	$(RM) -r .cov_tmp coverage
+	$(RM) -r .cov_tmp
 	$(RM) out/$(BUILDTYPE)/obj.target/node/{src,gen}/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/{src,gen}/*.gcno
