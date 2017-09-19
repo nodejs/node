@@ -69,7 +69,14 @@ using v8::MaybeLocal;
   V(ACCEPT_LANGUAGE, "accept-language")                                       \
   V(ACCEPT_RANGES, "accept-ranges")                                           \
   V(ACCEPT, "accept")                                                         \
+  V(ACCESS_CONTROL_ALLOW_CREDENTIALS, "access-control-allow-credentials")     \
+  V(ACCESS_CONTROL_ALLOW_HEADERS, "access-control-allow-headers")             \
+  V(ACCESS_CONTROL_ALLOW_METHODS, "access-control-allow-methods")             \
   V(ACCESS_CONTROL_ALLOW_ORIGIN, "access-control-allow-origin")               \
+  V(ACCESS_CONTROL_EXPOSE_HEADERS, "access-control-expose-headers")           \
+  V(ACCESS_CONTROL_MAX_AGE, "access-control-max-age")                         \
+  V(ACCESS_CONTROL_REQUEST_HEADERS, "access-control-request-headers")         \
+  V(ACCESS_CONTROL_REQUEST_METHOD, "access-control-request-method")           \
   V(AGE, "age")                                                               \
   V(ALLOW, "allow")                                                           \
   V(AUTHORIZATION, "authorization")                                           \
@@ -85,9 +92,11 @@ using v8::MaybeLocal;
   V(CONTENT_TYPE, "content-type")                                             \
   V(COOKIE, "cookie")                                                         \
   V(DATE, "date")                                                             \
+  V(DNT, "dnt")                                                               \
   V(ETAG, "etag")                                                             \
   V(EXPECT, "expect")                                                         \
   V(EXPIRES, "expires")                                                       \
+  V(FORWARDED, "forwarded")                                                   \
   V(FROM, "from")                                                             \
   V(HOST, "host")                                                             \
   V(IF_MATCH, "if-match")                                                     \
@@ -109,13 +118,19 @@ using v8::MaybeLocal;
   V(SERVER, "server")                                                         \
   V(SET_COOKIE, "set-cookie")                                                 \
   V(STRICT_TRANSPORT_SECURITY, "strict-transport-security")                   \
+  V(TRAILER, "trailer")                                                       \
   V(TRANSFER_ENCODING, "transfer-encoding")                                   \
   V(TE, "te")                                                                 \
+  V(TK, "tk")                                                                 \
+  V(UPGRADE_INSECURE_REQUESTS, "upgrade-insecure-requests")                   \
   V(UPGRADE, "upgrade")                                                       \
   V(USER_AGENT, "user-agent")                                                 \
   V(VARY, "vary")                                                             \
   V(VIA, "via")                                                               \
+  V(WARNING, "warning")                                                       \
   V(WWW_AUTHENTICATE, "www-authenticate")                                     \
+  V(X_CONTENT_TYPE_OPTIONS, "x-content-type-options")                         \
+  V(X_FRAME_OPTIONS, "x-frame-options")                                       \
   V(HTTP2_SETTINGS, "http2-settings")                                         \
   V(KEEP_ALIVE, "keep-alive")                                                 \
   V(PROXY_CONNECTION, "proxy-connection")
