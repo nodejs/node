@@ -296,6 +296,7 @@ v8::MaybeLocal<v8::Value> InternalMakeCallback(
 
 class InternalCallbackScope {
  public:
+  // Tell the constructor whether its `object` parameter may be empty or not.
   enum ResourceExpectation { kRequireResource, kAllowEmptyResource };
   InternalCallbackScope(Environment* env,
                         v8::Local<v8::Object> object,
