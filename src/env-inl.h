@@ -506,6 +506,14 @@ inline void Environment::set_fs_stats_field_array(double* fields) {
   fs_stats_field_array_ = fields;
 }
 
+inline bool Environment::can_call_into_js() const {
+  return can_call_into_js_;
+}
+
+inline void Environment::set_can_call_into_js(bool can_call_into_js) {
+  can_call_into_js_ = can_call_into_js;
+}
+
 inline performance::performance_state* Environment::performance_state() {
   return performance_state_;
 }

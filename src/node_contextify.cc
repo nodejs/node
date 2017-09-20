@@ -986,6 +986,8 @@ class ContextifyScript : public BaseObject {
                           const bool break_on_sigint,
                           const FunctionCallbackInfo<Value>& args,
                           TryCatch* try_catch) {
+    if (!env->can_call_into_js())
+      return false;
     if (!ContextifyScript::InstanceOf(env, args.Holder())) {
       env->ThrowTypeError(
           "Script methods can only be called on script instances.");
