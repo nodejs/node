@@ -66,8 +66,8 @@ differently based on what arguments are provided:
   memory.
 * Passing a string, array, or `Buffer` as the first argument copies the
   passed object's data into the `Buffer`.
-* Passing an [`ArrayBuffer`] returns a `Buffer` that shares allocated memory with
-  the given [`ArrayBuffer`].
+* Passing an [`ArrayBuffer`] or a [`SharedArrayBuffer`] returns a `Buffer` that
+  shares allocated memory with the given array buffer.
 
 Because the behavior of `new Buffer()` changes significantly based on the type
 of value passed as the first argument, applications that do not properly
@@ -361,16 +361,16 @@ changes:
 > [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
 > instead.
 
-* `arrayBuffer` {ArrayBuffer} An [`ArrayBuffer`] or the `.buffer` property of a
-  [`TypedArray`].
+* `arrayBuffer` {ArrayBuffer} An [`ArrayBuffer`], [`SharedArrayBuffer`] or the
+  `.buffer` property of a [`TypedArray`].
 * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`
 * `length` {integer} Number of bytes to expose.
   **Default:** `arrayBuffer.length - byteOffset`
 
-This creates a view of the [`ArrayBuffer`] without copying the underlying
-memory. For example, when passed a reference to the `.buffer` property of a
-[`TypedArray`] instance, the newly created `Buffer` will share the same
-allocated memory as the [`TypedArray`].
+This creates a view of the [`ArrayBuffer`] or [`SharedArrayBuffer`] without
+copying the underlying memory. For example, when passed a reference to the
+`.buffer` property of a [`TypedArray`] instance, the newly created `Buffer` will
+share the same allocated memory as the [`TypedArray`].
 
 The optional `byteOffset` and `length` arguments specify a memory range within
 the `arrayBuffer` that will be shared by the `Buffer`.
@@ -703,8 +703,8 @@ console.log(`${str}: ${str.length} characters, ` +
             `${Buffer.byteLength(str, 'utf8')} bytes`);
 ```
 
-When `string` is a `Buffer`/[`DataView`]/[`TypedArray`]/[`ArrayBuffer`], the
-actual byte length is returned.
+When `string` is a `Buffer`/[`DataView`]/[`TypedArray`]/[`ArrayBuffer`]/
+[`SharedArrayBuffer`], the actual byte length is returned.
 
 ### Class Method: Buffer.compare(buf1, buf2)
 <!-- YAML
@@ -807,8 +807,8 @@ A `TypeError` will be thrown if `array` is not an `Array`.
 added: v5.10.0
 -->
 
-* `arrayBuffer` {ArrayBuffer} An [`ArrayBuffer`] or the `.buffer` property of a
-  [`TypedArray`].
+* `arrayBuffer` {ArrayBuffer} An [`ArrayBuffer`], [`SharedArrayBuffer`], or the
+  `.buffer` property of a [`TypedArray`].
 * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`
 * `length` {integer} Number of bytes to expose.
   **Default:** `arrayBuffer.length - byteOffset`
@@ -852,7 +852,8 @@ const buf = Buffer.from(ab, 0, 2);
 console.log(buf.length);
 ```
 
-A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`].
+A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`] or a
+[`SharedArrayBuffer`].
 
 ### Class Method: Buffer.from(buffer)
 <!-- YAML
@@ -2702,6 +2703,7 @@ This value may depend on the JS engine that is being used.
 
 [`ArrayBuffer#slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/slice
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+[`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`Buffer.alloc()`]: #buffer_class_method_buffer_alloc_size_fill_encoding
 [`Buffer.allocUnsafe()`]: #buffer_class_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow()`]: #buffer_class_method_buffer_allocunsafeslow_size
