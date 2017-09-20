@@ -97,7 +97,7 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
     Local<Value> promise =
         object()->Get(context, env->oncomplete_string()).ToLocalChecked();
     if (promise->IsPromise()) {
-      if (promise.As<Promise>()->State() != Promise::kPending) return;
+      CHECK_EQ(promise.As<Promise>()->State(), Promise::kPending);
       Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
       resolver->Resolve(context, arg).FromJust();
       return;
@@ -109,7 +109,7 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
       Local<Value> argv[2];
       argv[0] = Null(env->isolate());
       argv[1] = arg;
-      MakeCallback(env->oncomplete_string(), 2, argv);
+      MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
     }
   }
 
@@ -118,7 +118,7 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
     Local<Value> promise =
         object()->Get(context, env->oncomplete_string()).ToLocalChecked();
     if (promise->IsPromise()) {
-      if (promise.As<Promise>()->State() != Promise::kPending) return;
+      CHECK_EQ(promise.As<Promise>()->State(), Promise::kPending);
       Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
       resolver->Reject(context, arg).FromJust();
       return;
