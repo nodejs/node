@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common.js');
+const common = require('../common.js');
 
-var types = [
+const types = [
   'UInt8',
   'UInt16LE',
   'UInt16BE',
@@ -18,7 +18,7 @@ var types = [
   'DoubleBE'
 ];
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   noAssert: ['false', 'true'],
   buffer: ['fast', 'slow'],
   type: types,

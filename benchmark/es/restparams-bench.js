@@ -9,8 +9,8 @@ const bench = common.createBenchmark(main, {
 });
 
 function copyArguments() {
-  var len = arguments.length;
-  var args = new Array(len);
+  const len = arguments.length;
+  const args = new Array(len);
   for (var i = 0; i < len; i++)
     args[i] = arguments[i];
   assert.strictEqual(args[0], 1);

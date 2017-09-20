@@ -3,8 +3,8 @@ var fs = require('fs'),
   path = require('path'),
   tls = require('tls');
 
-var common = require('../common.js');
-var bench = common.createBenchmark(main, {
+const common = require('../common.js');
+const bench = common.createBenchmark(main, {
   concurrency: [1, 10],
   dur: [5]
 });
@@ -20,8 +20,8 @@ function main(conf) {
   dur = +conf.dur;
   concurrency = +conf.concurrency;
 
-  var cert_dir = path.resolve(__dirname, '../../test/fixtures');
-  var options = {
+  const cert_dir = path.resolve(__dirname, '../../test/fixtures');
+  const options = {
     key: fs.readFileSync(`${cert_dir}/test_key.pem`),
     cert: fs.readFileSync(`${cert_dir}/test_cert.pem`),
     ca: [ fs.readFileSync(`${cert_dir}/test_ca.pem`) ],
@@ -44,7 +44,7 @@ function onConnection(conn) {
 }
 
 function makeConnection() {
-  var options = {
+  const options = {
     port: common.PORT,
     rejectUnauthorized: false
   };

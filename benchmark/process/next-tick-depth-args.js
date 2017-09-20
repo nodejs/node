@@ -1,7 +1,7 @@
 'use strict';
 
-var common = require('../common.js');
-var bench = common.createBenchmark(main, {
+const common = require('../common.js');
+const bench = common.createBenchmark(main, {
   millions: [12]
 });
 

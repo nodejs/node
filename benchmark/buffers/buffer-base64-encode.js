@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-var common = require('../common.js');
+const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   len: [64 * 1024 * 1024],

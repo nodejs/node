@@ -1,14 +1,14 @@
 'use strict';
-var util = require('util');
+const util = require('util');
 
-var common = require('../common.js');
+const common = require('../common.js');
 
 const opts = {
   showHidden: { showHidden: true },
   colors: { colors: true },
   none: undefined
 };
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   n: [2e6],
   method: [
     'Object',

@@ -1,18 +1,18 @@
 'use strict';
 
-var http = require('http');
+const http = require('http');
 
-var fixed = 'C'.repeat(20 * 1024);
-var storedBytes = Object.create(null);
-var storedBuffer = Object.create(null);
-var storedUnicode = Object.create(null);
+const fixed = 'C'.repeat(20 * 1024);
+const storedBytes = Object.create(null);
+const storedBuffer = Object.create(null);
+const storedUnicode = Object.create(null);
 
-var useDomains = process.env.NODE_USE_DOMAINS;
+const useDomains = process.env.NODE_USE_DOMAINS;
 
 // set up one global domain.
 if (useDomains) {
   var domain = require('domain');
-  var gdom = domain.create();
+  const gdom = domain.create();
   gdom.on('error', function(er) {
     console.error('Error on global domain', er);
     throw er;
@@ -22,19 +22,19 @@ if (useDomains) {
 
 module.exports = http.createServer(function(req, res) {
   if (useDomains) {
-    var dom = domain.create();
+    const dom = domain.create();
     dom.add(req);
     dom.add(res);
   }
 
   // URL format: /<type>/<length>/<chunks>/<responseBehavior>/chunkedEnc
-  var params = req.url.split('/');
-  var command = params[1];
+  const params = req.url.split('/');
+  const command = params[1];
   var body = '';
-  var arg = params[2];
-  var n_chunks = parseInt(params[3], 10);
-  var resHow = (params.length >= 5 ? params[4] : 'normal');
-  var chunkedEnc = (params.length >= 6 && params[5] === 'false' ? false : true);
+  const arg = params[2];
+  const n_chunks = parseInt(params[3], 10);
+  const resHow = params.length >= 5 ? params[4] : 'normal';
+  const chunkedEnc = params.length >= 6 && params[5] === 'false' ? false : true;
   var status = 200;
 
   var n, i;
@@ -96,7 +96,7 @@ module.exports = http.createServer(function(req, res) {
 
   // example: http://localhost:port/bytes/512/4
   // sends a 512 byte body in 4 chunks of 128 bytes
-  var len = body.length;
+  const len = body.length;
   switch (resHow) {
     case 'setHeader':
       res.statusCode = status;
@@ -128,7 +128,7 @@ module.exports = http.createServer(function(req, res) {
   }
   // send body in chunks
   if (n_chunks > 1) {
-    var step = Math.floor(len / n_chunks) || 1;
+    const step = Math.floor(len / n_chunks) || 1;
     for (i = 0, n = (n_chunks - 1); i < n; ++i)
       res.write(body.slice(i * step, i * step + step));
     res.end(body.slice((n_chunks - 1) * step));
