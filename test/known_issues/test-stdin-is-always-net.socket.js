@@ -11,7 +11,8 @@ if (process.argv[2] === 'child') {
   return;
 }
 
-const proc = spawn(process.execPath, [__filename, 'child'], {stdio: 'ignore'});
+const proc = spawn(process.execPath, [__filename, 'child'],
+                   { stdio: 'ignore' });
 // To double-check this test, set stdio to 'pipe' and uncomment the line below.
 // proc.stderr.pipe(process.stderr);
 proc.on('exit', common.mustCall(function(exitCode) {

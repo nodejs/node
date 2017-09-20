@@ -13,7 +13,7 @@ const handler = {
     throw new Error('whoops');
   }
 };
-const sandbox = new Proxy({foo: 'bar'}, handler);
+const sandbox = new Proxy({ foo: 'bar' }, handler);
 const context = vm.createContext(sandbox);
 
 

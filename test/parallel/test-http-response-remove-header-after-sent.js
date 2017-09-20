@@ -15,7 +15,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(0, () => {
-  http.get({port: server.address().port}, () => {
+  http.get({ port: server.address().port }, () => {
     server.close();
   });
 });

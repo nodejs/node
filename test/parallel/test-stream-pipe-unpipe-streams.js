@@ -4,9 +4,9 @@ const assert = require('assert');
 
 const { Readable, Writable } = require('stream');
 
-const source = Readable({read: () => {}});
-const dest1 = Writable({write: () => {}});
-const dest2 = Writable({write: () => {}});
+const source = Readable({ read: () => {} });
+const dest1 = Writable({ write: () => {} });
+const dest2 = Writable({ write: () => {} });
 
 source.pipe(dest1);
 source.pipe(dest2);

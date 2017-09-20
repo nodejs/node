@@ -17,4 +17,4 @@ assert.throws(() => { zlib.deflateSync(false); }, expected);
 assert.throws(() => { zlib.deflateSync(0); }, expected);
 assert.throws(() => { zlib.deflateSync(1); }, expected);
 assert.throws(() => { zlib.deflateSync([1, 2, 3]); }, expected);
-assert.throws(() => { zlib.deflateSync({foo: 'bar'}); }, expected);
+assert.throws(() => { zlib.deflateSync({ foo: 'bar' }); }, expected);

@@ -44,6 +44,6 @@ assert.strictEqual(worker.state, 'online');
 assert.strictEqual(worker.id, 3);
 assert.strictEqual(worker.process, process);
 
-worker = cluster.Worker.call({}, {id: 5});
+worker = cluster.Worker.call({}, { id: 5 });
 assert(worker instanceof cluster.Worker);
 assert.strictEqual(worker.id, 5);

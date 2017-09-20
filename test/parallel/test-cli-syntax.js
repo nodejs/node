@@ -95,7 +95,7 @@ const notFoundRE = /^Error: Cannot find module/m;
 // loop each possible option, `-c` or `--check`
 syntaxArgs.forEach(function(args) {
   const stdin = 'throw new Error("should not get run");';
-  const c = spawnSync(node, args, {encoding: 'utf8', input: stdin});
+  const c = spawnSync(node, args, { encoding: 'utf8', input: stdin });
 
   // no stdout or stderr should be produced
   assert.strictEqual(c.stdout, '', 'stdout produced');
@@ -108,7 +108,7 @@ syntaxArgs.forEach(function(args) {
 // loop each possible option, `-c` or `--check`
 syntaxArgs.forEach(function(args) {
   const stdin = 'var foo bar;';
-  const c = spawnSync(node, args, {encoding: 'utf8', input: stdin});
+  const c = spawnSync(node, args, { encoding: 'utf8', input: stdin });
 
   // stderr should include '[stdin]' as the filename
   assert(c.stderr.startsWith('[stdin]'), "stderr doesn't start with [stdin]");

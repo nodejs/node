@@ -63,7 +63,7 @@ const net = require('net');
   const regexp = /^TypeError: Invalid argument: hints must use valid flags$/;
   // connect({hint}, cb) and connect({hint})
   const hints = (dns.ADDRCONFIG | dns.V4MAPPED) + 42;
-  const hintOptBlocks = doConnect([{hints: hints}],
+  const hintOptBlocks = doConnect([{ hints: hints }],
                                   () => common.mustNotCall());
   for (const block of hintOptBlocks) {
     assert.throws(block, regexp,
@@ -143,14 +143,14 @@ function syncFailToConnect(port, regexp, optOnly) {
     }
   }
   // connect({port}, cb) and connect({port})
-  const portOptBlocks = doConnect([{port}],
+  const portOptBlocks = doConnect([{ port }],
                                   () => common.mustNotCall());
   for (const block of portOptBlocks) {
     assert.throws(block, regexp, `${block.name}({port: ${port}})`);
   }
 
   // connect({port, host}, cb) and connect({port, host})
-  const portHostOptBlocks = doConnect([{port: port, host: 'localhost'}],
+  const portHostOptBlocks = doConnect([{ port: port, host: 'localhost' }],
                                       () => common.mustNotCall());
   for (const block of portHostOptBlocks) {
     assert.throws(block, regexp,
@@ -174,13 +174,13 @@ function canConnect(port) {
   }
 
   // connect({port}, cb) and connect({port})
-  const portOptBlocks = doConnect([{port}], noop);
+  const portOptBlocks = doConnect([{ port }], noop);
   for (const block of portOptBlocks) {
     assert.doesNotThrow(block, `${block.name}({port: ${port}})`);
   }
 
   // connect({port, host}, cb) and connect({port, host})
-  const portHostOptBlocks = doConnect([{port: port, host: 'localhost'}],
+  const portHostOptBlocks = doConnect([{ port: port, host: 'localhost' }],
                                       noop);
   for (const block of portHostOptBlocks) {
     assert.doesNotThrow(block,
@@ -204,7 +204,7 @@ function asyncFailToConnect(port) {
   }
 
   // connect({port}, cb) and connect({port})
-  const portOptBlocks = doConnect([{port}], dont);
+  const portOptBlocks = doConnect([{ port }], dont);
   for (const block of portOptBlocks) {
     assert.doesNotThrow(function() {
       block().on('error', onError());
@@ -212,7 +212,7 @@ function asyncFailToConnect(port) {
   }
 
   // connect({port, host}, cb) and connect({port, host})
-  const portHostOptBlocks = doConnect([{port: port, host: 'localhost'}],
+  const portHostOptBlocks = doConnect([{ port: port, host: 'localhost' }],
                                       dont);
   for (const block of portHostOptBlocks) {
     assert.doesNotThrow(function() {

@@ -49,7 +49,7 @@ assert.strictEqual(-1, a.compare(b, 0, 7, 4, 6));
 assert.strictEqual(1, a.compare(b, 0, null));
 
 // coerces to targetEnd == 5
-assert.strictEqual(-1, a.compare(b, 0, {valueOf: () => 5}));
+assert.strictEqual(-1, a.compare(b, 0, { valueOf: () => 5 }));
 
 // zero length target
 assert.strictEqual(1, a.compare(b, Infinity, -Infinity));

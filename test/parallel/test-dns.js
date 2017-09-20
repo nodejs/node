@@ -166,7 +166,7 @@ assert.throws(() => dns.lookup('nodejs.org'),
 assert.throws(() => dns.lookup('nodejs.org', 4),
               /^TypeError: Invalid arguments: callback must be passed$/);
 
-assert.doesNotThrow(() => dns.lookup('', {family: 4, hints: 0},
+assert.doesNotThrow(() => dns.lookup('', { family: 4, hints: 0 },
                                      common.mustCall()));
 
 assert.doesNotThrow(() => {
@@ -176,7 +176,7 @@ assert.doesNotThrow(() => {
   }, common.mustCall());
 });
 
-assert.doesNotThrow(() => dns.lookup('', {hints: dns.V4MAPPED},
+assert.doesNotThrow(() => dns.lookup('', { hints: dns.V4MAPPED },
                                      common.mustCall()));
 
 assert.doesNotThrow(() => {

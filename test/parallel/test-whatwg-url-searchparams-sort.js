@@ -65,7 +65,7 @@ test(function() {
 // Tests below are not from WPT.
 
 // Test bottom-up iterative stable merge sort
-const tests = [{input: '', output: []}];
+const tests = [{ input: '', output: [] }];
 const pairs = [];
 for (let i = 10; i < 100; i++) {
   pairs.push([`a${i}`, 'b']);

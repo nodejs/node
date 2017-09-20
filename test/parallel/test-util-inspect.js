@@ -52,33 +52,34 @@ assert.strictEqual(util.inspect([1, 2]), '[ 1, 2 ]');
 assert.strictEqual(util.inspect([1, [2, 3]]), '[ 1, [ 2, 3 ] ]');
 
 assert.strictEqual(util.inspect({}), '{}');
-assert.strictEqual(util.inspect({a: 1}), '{ a: 1 }');
-assert.strictEqual(util.inspect({a: function() {}}), '{ a: [Function: a] }');
-assert.strictEqual(util.inspect({a: () => {}}), '{ a: [Function: a] }');
-assert.strictEqual(util.inspect({a: async function() {}}),
+assert.strictEqual(util.inspect({ a: 1 }), '{ a: 1 }');
+assert.strictEqual(util.inspect({ a: function() {} }), '{ a: [Function: a] }');
+assert.strictEqual(util.inspect({ a: () => {} }), '{ a: [Function: a] }');
+assert.strictEqual(util.inspect({ a: async function() {} }),
                    '{ a: [AsyncFunction: a] }');
-assert.strictEqual(util.inspect({a: async () => {}}),
+assert.strictEqual(util.inspect({ a: async () => {} }),
                    '{ a: [AsyncFunction: a] }');
-assert.strictEqual(util.inspect({a: function*() {}}),
+assert.strictEqual(util.inspect({ a: function*() {} }),
                    '{ a: [GeneratorFunction: a] }');
-assert.strictEqual(util.inspect({a: 1, b: 2}), '{ a: 1, b: 2 }');
-assert.strictEqual(util.inspect({'a': {}}), '{ a: {} }');
-assert.strictEqual(util.inspect({'a': {'b': 2}}), '{ a: { b: 2 } }');
-assert.strictEqual(util.inspect({'a': {'b': { 'c': { 'd': 2 }}}}),
+assert.strictEqual(util.inspect({ a: 1, b: 2 }), '{ a: 1, b: 2 }');
+assert.strictEqual(util.inspect({ 'a': {} }), '{ a: {} }');
+assert.strictEqual(util.inspect({ 'a': { 'b': 2 } }), '{ a: { b: 2 } }');
+assert.strictEqual(util.inspect({ 'a': { 'b': { 'c': { 'd': 2 } } } }),
                    '{ a: { b: { c: [Object] } } }');
-assert.strictEqual(util.inspect({'a': {'b': { 'c': { 'd': 2 }}}}, false, null),
+assert.strictEqual(util.inspect({ 'a': { 'b': { 'c': { 'd': 2 } } } },
+                                false, null),
                    '{ a: { b: { c: { d: 2 } } } }');
 assert.strictEqual(util.inspect([1, 2, 3], true), '[ 1, 2, 3, [length]: 3 ]');
-assert.strictEqual(util.inspect({'a': {'b': { 'c': 2}}}, false, 0),
+assert.strictEqual(util.inspect({ 'a': { 'b': { 'c': 2 } } }, false, 0),
                    '{ a: [Object] }');
-assert.strictEqual(util.inspect({'a': {'b': { 'c': 2}}}, false, 1),
+assert.strictEqual(util.inspect({ 'a': { 'b': { 'c': 2 } } }, false, 1),
                    '{ a: { b: [Object] } }');
-assert.strictEqual(util.inspect({'a': {'b': ['c']}}, false, 1),
+assert.strictEqual(util.inspect({ 'a': { 'b': ['c'] } }, false, 1),
                    '{ a: { b: [Array] } }');
 assert.strictEqual(
   util.inspect(
     Object.create(
-      {}, {visible: {value: 1, enumerable: true}, hidden: {value: 2}}
+      {}, { visible: { value: 1, enumerable: true }, hidden: { value: 2 } }
     )
   ),
   '{ visible: 1 }'
@@ -90,14 +91,14 @@ assert.strictEqual(util.inspect((new JSStream())._externalStream),
 {
   const regexp = /regexp/;
   regexp.aprop = 42;
-  assert.strictEqual(util.inspect({a: regexp}, false, 0), '{ a: /regexp/ }');
+  assert.strictEqual(util.inspect({ a: regexp }, false, 0), '{ a: /regexp/ }');
 }
 
 assert(/Object/.test(
-  util.inspect({a: {a: {a: {a: {}}}}}, undefined, undefined, true)
+  util.inspect({ a: { a: { a: { a: {} } } } }, undefined, undefined, true)
 ));
 assert(!/Object/.test(
-  util.inspect({a: {a: {a: {a: {}}}}}, undefined, null, true)
+  util.inspect({ a: { a: { a: { a: {} } } } }, undefined, null, true)
 ));
 
 for (const showHidden of [true, false]) {
@@ -241,7 +242,7 @@ for (const showHidden of [true, false]) {
     util.inspect(
       Object.create(
         {},
-        {visible: {value: 1, enumerable: true}, hidden: {value: 2}}
+        { visible: { value: 1, enumerable: true }, hidden: { value: 2 } }
       ),
       true
     );
@@ -253,10 +254,17 @@ for (const showHidden of [true, false]) {
 
 // Objects without prototype
 {
-  const out = util.inspect(Object.create(null,
-                                         { name: {value: 'Tim',
-                                                  enumerable: true},
-                                           hidden: {value: 'secret'}}), true);
+  const out =
+    util.inspect(Object.create(null,
+                               {
+                                 name: {
+                                   value: 'Tim',
+                                   enumerable: true
+                                 },
+                                 hidden: {
+                                   value: 'secret'
+                                 }
+                               }), true);
   if (out !== "{ [hidden]: 'secret', name: 'Tim' }" &&
       out !== "{ name: 'Tim', [hidden]: 'secret' }") {
     assert.fail(`unexpected value for out ${out}`);
@@ -265,21 +273,22 @@ for (const showHidden of [true, false]) {
 
 assert.strictEqual(
   util.inspect(Object.create(null,
-                             {name: {value: 'Tim', enumerable: true},
-                              hidden: {value: 'secret'}})),
+                             { name: { value: 'Tim', enumerable: true },
+                               hidden: { value: 'secret' } })),
   '{ name: \'Tim\' }'
 );
 
 
 // Dynamic properties
 {
-  assert.strictEqual(util.inspect({get readonly() {}}),
+  assert.strictEqual(util.inspect({ get readonly() {} }),
                      '{ readonly: [Getter] }');
 
-  assert.strictEqual(util.inspect({get readwrite() {}, set readwrite(val) {}}),
-                     '{ readwrite: [Getter/Setter] }');
+  assert.strictEqual(
+    util.inspect({ get readwrite() {}, set readwrite(val) {} }),
+    '{ readwrite: [Getter/Setter] }');
 
-  assert.strictEqual(util.inspect({set writeonly(val) {}}),
+  assert.strictEqual(util.inspect({ set writeonly(val) {} }),
                      '{ writeonly: [Setter] }');
 
   const value = {};
@@ -696,7 +705,7 @@ assert.doesNotThrow(() => {
   function testLines(input) {
     const countLines = (str) => (str.match(/\n/g) || []).length;
     const withoutColor = util.inspect(input);
-    const withColor = util.inspect(input, {colors: true});
+    const withColor = util.inspect(input, { colors: true });
     assert.strictEqual(countLines(withoutColor), countLines(withColor));
   }
 
@@ -704,11 +713,11 @@ assert.doesNotThrow(() => {
 
   testLines([1, 2, 3, 4, 5, 6, 7]);
   testLines(bigArray);
-  testLines({foo: 'bar', baz: 35, b: {a: 35}});
+  testLines({ foo: 'bar', baz: 35, b: { a: 35 } });
   testLines({
     foo: 'bar',
     baz: 35,
-    b: {a: 35},
+    b: { a: 35 },
     veryLongKey: 'very long value',
     evenLongerKey: ['with even longer value in array']
   });
@@ -764,7 +773,7 @@ if (typeof Symbol !== 'undefined') {
   Object.defineProperty(
     subject,
     Symbol(),
-    {enumerable: false, value: 'non-enum'});
+    { enumerable: false, value: 'non-enum' });
   assert.strictEqual(util.inspect(subject), '{ [Symbol(symbol)]: 42 }');
   assert.strictEqual(
     util.inspect(subject, options),
@@ -1035,22 +1044,23 @@ if (typeof Symbol !== 'undefined') {
 }
 
 {
-  const obj = {foo: 'abc', bar: 'xyz'};
-  const oneLine = util.inspect(obj, {breakLength: Infinity});
+  const obj = { foo: 'abc', bar: 'xyz' };
+  const oneLine = util.inspect(obj, { breakLength: Infinity });
   // Subtract four for the object's two curly braces and two spaces of padding.
   // Add one more to satisfy the strictly greater than condition in the code.
   const breakpoint = oneLine.length - 5;
-  const twoLines = util.inspect(obj, {breakLength: breakpoint});
+  const twoLines = util.inspect(obj, { breakLength: breakpoint });
 
   assert.strictEqual(oneLine, '{ foo: \'abc\', bar: \'xyz\' }');
-  assert.strictEqual(oneLine, util.inspect(obj, {breakLength: breakpoint + 1}));
+  assert.strictEqual(oneLine,
+                     util.inspect(obj, { breakLength: breakpoint + 1 }));
   assert.strictEqual(twoLines, '{ foo: \'abc\',\n  bar: \'xyz\' }');
 }
 
 // util.inspect.defaultOptions tests
 {
   const arr = new Array(101).fill();
-  const obj = {a: {a: {a: {a: 1}}}};
+  const obj = { a: { a: { a: { a: 1 } } } };
 
   const oldOptions = Object.assign({}, util.inspect.defaultOptions);
 
@@ -1069,7 +1079,7 @@ if (typeof Symbol !== 'undefined') {
   );
 
   // Set multiple options through object assignment
-  util.inspect.defaultOptions = {maxArrayLength: null, depth: null};
+  util.inspect.defaultOptions = { maxArrayLength: null, depth: null };
   assert(!/1 more item/.test(util.inspect(arr)));
   assert(!/Object/.test(util.inspect(obj)));
   util.inspect.defaultOptions = oldOptions;

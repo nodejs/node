@@ -32,7 +32,7 @@ if (cluster.isMaster) {
   const server = net.createServer(common.mustNotCall());
 
   server.listen(0, common.mustCall(() => {
-    const worker = cluster.fork({PORT: server.address().port});
+    const worker = cluster.fork({ PORT: server.address().port });
     worker.on('exit', common.mustCall((exitCode) => {
       assert.strictEqual(exitCode, 0);
       server.close();
