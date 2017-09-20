@@ -374,7 +374,7 @@ packets may be sent to a local interface's broadcast address.
 
 ### socket.setMulticastInterface(multicastInterface)
 <!-- YAML
-added: REPLACEME
+added: v8.6.0
 -->
 
 * `multicastInterface` {String}
@@ -536,7 +536,7 @@ s.bind(1234, () => {
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v8.6.0
     pr-url: https://github.com/nodejs/node/pull/14560
     description: The `lookup` option is supported.
 -->
