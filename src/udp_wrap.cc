@@ -233,31 +233,26 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
                           args.GetReturnValue().Set(UV_EBADF));
 
   CHECK(args[0]->IsUint32());
-  CHECK(args[1]->IsUint32());
+  CHECK(args[1]->IsBoolean());
+  bool is_recv = args[1].As<v8::Boolean>()->Value();
+  const char* uv_func_name = is_recv ? "uv_recv_buffer_size" :
+                                       "uv_send_buffer_size";
 
-  if (!args[0]->IsInt32()) {
-    if (args[1].As<Uint32>()->Value() == 0)
-      return env->ThrowUVException(UV_EINVAL, "uv_recv_buffer_size");
-    else
-      return env->ThrowUVException(UV_EINVAL, "uv_send_buffer_size");
-  }
+  if (!args[0]->IsInt32())
+    return env->ThrowUVException(UV_EINVAL, uv_func_name);
 
-  int err;
+  uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&wrap->handle_);
   int size = static_cast<int>(args[0].As<Uint32>()->Value());
-  if (args[1].As<Uint32>()->Value() == 0) {
-    err = uv_recv_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
-                              &size);
-  } else {
-    err = uv_send_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
-                              &size);
-  }
+  int err;
 
-  if (err != 0) {
-    if (args[1].As<Uint32>()->Value() == 0)
-      return env->ThrowUVException(err, "uv_recv_buffer_size");
-    else
-      return env->ThrowUVException(err, "uv_send_buffer_size");
-  }
+  if (is_recv)
+    err = uv_recv_buffer_size(handle, &size);
+  else
+    err = uv_send_buffer_size(handle, &size);
+
+  if (err != 0)
+    return env->ThrowUVException(err, uv_func_name);
+
   args.GetReturnValue().Set(size);
 }
 
