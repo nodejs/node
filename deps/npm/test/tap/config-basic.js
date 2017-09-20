@@ -5,7 +5,6 @@ var path = require('path')
 
 var projectData = {
   'save-prefix': '~',
-  'proprietary-attribs': false,
   'legacy-bundling': true
 }
 
