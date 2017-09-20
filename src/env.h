@@ -679,6 +679,12 @@ class Environment {
                               const char* path = nullptr,
                               const char* dest = nullptr);
 
+  // If this flag is set, calls into JS (if they would be observable
+  // from userland) must be avoided.  This flag does not indicate whether
+  // calling into JS is allowed from a VM perspective at this point.
+  inline bool can_call_into_js() const;
+  inline void set_can_call_into_js(bool can_call_into_js);
+
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);
@@ -821,6 +827,7 @@ class Environment {
 
   std::unique_ptr<performance::performance_state> performance_state_;
   std::unordered_map<std::string, uint64_t> performance_marks_;
+  bool can_call_into_js_ = true;
 
 #if HAVE_INSPECTOR
   std::unique_ptr<inspector::Agent> inspector_agent_;

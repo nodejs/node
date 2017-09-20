@@ -559,6 +559,14 @@ void Environment::SetUnrefImmediate(native_immediate_callback cb,
   CreateImmediate(cb, data, obj, false);
 }
 
+inline bool Environment::can_call_into_js() const {
+  return can_call_into_js_;
+}
+
+inline void Environment::set_can_call_into_js(bool can_call_into_js) {
+  can_call_into_js_ = can_call_into_js;
+}
+
 inline performance::performance_state* Environment::performance_state() {
   return performance_state_.get();
 }
