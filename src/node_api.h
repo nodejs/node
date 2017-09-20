@@ -37,11 +37,15 @@
 # define NAPI_MODULE_EXPORT __attribute__((visibility("default")))
 #endif
 
+#ifdef __GNUC__
+#define NAPI_NO_RETURN __attribute__((noreturn))
+#else
+#define NAPI_NO_RETURN
+#endif
 
-typedef void (*napi_addon_register_func)(napi_env env,
-                                         napi_value exports,
-                                         napi_value module,
-                                         void* priv);
+
+typedef napi_value (*napi_addon_register_func)(napi_env env,
+                                               napi_value exports);
 
 typedef struct {
   int nm_version;
@@ -104,6 +108,11 @@ NAPI_EXTERN napi_status
 napi_get_last_error_info(napi_env env,
                          const napi_extended_error_info** result);
 
+NAPI_EXTERN NAPI_NO_RETURN void napi_fatal_error(const char* location,
+                                                 size_t location_len,
+                                                 const char* message,
+                                                 size_t message_len);
+
 // Getters for defined singletons
 NAPI_EXTERN napi_status napi_get_undefined(napi_env env, napi_value* result);
 NAPI_EXTERN napi_status napi_get_null(napi_env env, napi_value* result);
@@ -118,9 +127,18 @@ NAPI_EXTERN napi_status napi_create_array(napi_env env, napi_value* result);
 NAPI_EXTERN napi_status napi_create_array_with_length(napi_env env,
                                                       size_t length,
                                                       napi_value* result);
-NAPI_EXTERN napi_status napi_create_number(napi_env env,
+NAPI_EXTERN napi_status napi_create_double(napi_env env,
                                            double value,
                                            napi_value* result);
+NAPI_EXTERN napi_status napi_create_int32(napi_env env,
+                                          int32_t value,
+                                          napi_value* result);
+NAPI_EXTERN napi_status napi_create_uint32(napi_env env,
+                                           uint32_t value,
+                                           napi_value* result);
+NAPI_EXTERN napi_status napi_create_int64(napi_env env,
+                                          int64_t value,
+                                          napi_value* result);
 NAPI_EXTERN napi_status napi_create_string_latin1(napi_env env,
                                                   const char* str,
                                                   size_t length,
@@ -138,16 +156,20 @@ NAPI_EXTERN napi_status napi_create_symbol(napi_env env,
                                            napi_value* result);
 NAPI_EXTERN napi_status napi_create_function(napi_env env,
                                              const char* utf8name,
+                                             size_t length,
                                              napi_callback cb,
                                              void* data,
                                              napi_value* result);
 NAPI_EXTERN napi_status napi_create_error(napi_env env,
+                                          napi_value code,
                                           napi_value msg,
                                           napi_value* result);
 NAPI_EXTERN napi_status napi_create_type_error(napi_env env,
+                                               napi_value code,
                                                napi_value msg,
                                                napi_value* result);
 NAPI_EXTERN napi_status napi_create_range_error(napi_env env,
+                                                napi_value code,
                                                 napi_value msg,
                                                 napi_value* result);
 
@@ -226,6 +248,14 @@ NAPI_EXTERN napi_status napi_get_property(napi_env env,
                                           napi_value object,
                                           napi_value key,
                                           napi_value* result);
+NAPI_EXTERN napi_status napi_delete_property(napi_env env,
+                                             napi_value object,
+                                             napi_value key,
+                                             bool* result);
+NAPI_EXTERN napi_status napi_has_own_property(napi_env env,
+                                              napi_value object,
+                                              napi_value key,
+                                              bool* result);
 NAPI_EXTERN napi_status napi_set_named_property(napi_env env,
                                           napi_value object,
                                           const char* utf8name,
@@ -250,6 +280,10 @@ NAPI_EXTERN napi_status napi_get_element(napi_env env,
                                          napi_value object,
                                          uint32_t index,
                                          napi_value* result);
+NAPI_EXTERN napi_status napi_delete_element(napi_env env,
+                                            napi_value object,
+                                            uint32_t index,
+                                            bool* result);
 NAPI_EXTERN napi_status
 napi_define_properties(napi_env env,
                        napi_value object,
@@ -287,14 +321,6 @@ NAPI_EXTERN napi_status napi_instanceof(napi_env env,
                                         napi_value constructor,
                                         bool* result);
 
-// Napi version of node::MakeCallback(...)
-NAPI_EXTERN napi_status napi_make_callback(napi_env env,
-                                           napi_value recv,
-                                           napi_value func,
-                                           size_t argc,
-                                           const napi_value* argv,
-                                           napi_value* result);
-
 // Methods to work with napi_callbacks
 
 // Gets all callback info in a single call. (Ugly, but faster.)
@@ -307,12 +333,13 @@ NAPI_EXTERN napi_status napi_get_cb_info(
     napi_value* this_arg,  // [out] Receives the JS 'this' arg for the call
     void** data);          // [out] Receives the data pointer for the callback.
 
-NAPI_EXTERN napi_status napi_is_construct_call(napi_env env,
-                                               napi_callback_info cbinfo,
-                                               bool* result);
+NAPI_EXTERN napi_status napi_get_new_target(napi_env env,
+                                            napi_callback_info cbinfo,
+                                            napi_value* result);
 NAPI_EXTERN napi_status
 napi_define_class(napi_env env,
                   const char* utf8name,
+                  size_t length,
                   napi_callback constructor,
                   void* data,
                   size_t property_count,
@@ -329,6 +356,9 @@ NAPI_EXTERN napi_status napi_wrap(napi_env env,
 NAPI_EXTERN napi_status napi_unwrap(napi_env env,
                                     napi_value js_object,
                                     void** result);
+NAPI_EXTERN napi_status napi_remove_wrap(napi_env env,
+                                         napi_value js_object,
+                                         void** result);
 NAPI_EXTERN napi_status napi_create_external(napi_env env,
                                              void* data,
                                              napi_finalize finalize_cb,
@@ -392,9 +422,15 @@ NAPI_EXTERN napi_status napi_escape_handle(napi_env env,
 
 // Methods to support error handling
 NAPI_EXTERN napi_status napi_throw(napi_env env, napi_value error);
-NAPI_EXTERN napi_status napi_throw_error(napi_env env, const char* msg);
-NAPI_EXTERN napi_status napi_throw_type_error(napi_env env, const char* msg);
-NAPI_EXTERN napi_status napi_throw_range_error(napi_env env, const char* msg);
+NAPI_EXTERN napi_status napi_throw_error(napi_env env,
+                                         const char* code,
+                                         const char* msg);
+NAPI_EXTERN napi_status napi_throw_type_error(napi_env env,
+                                         const char* code,
+                                         const char* msg);
+NAPI_EXTERN napi_status napi_throw_range_error(napi_env env,
+                                         const char* code,
+                                         const char* msg);
 NAPI_EXTERN napi_status napi_is_error(napi_env env,
                                       napi_value value,
                                       bool* result);
@@ -464,9 +500,26 @@ NAPI_EXTERN napi_status napi_get_typedarray_info(napi_env env,
                                                  napi_value* arraybuffer,
                                                  size_t* byte_offset);
 
+NAPI_EXTERN napi_status napi_create_dataview(napi_env env,
+                                             size_t length,
+                                             napi_value arraybuffer,
+                                             size_t byte_offset,
+                                             napi_value* result);
+NAPI_EXTERN napi_status napi_is_dataview(napi_env env,
+                                         napi_value value,
+                                         bool* result);
+NAPI_EXTERN napi_status napi_get_dataview_info(napi_env env,
+                                               napi_value dataview,
+                                               size_t* bytelength,
+                                               void** data,
+                                               napi_value* arraybuffer,
+                                               size_t* byte_offset);
+
 // Methods to manage simple async operations
 NAPI_EXTERN
 napi_status napi_create_async_work(napi_env env,
+                                   napi_value async_resource,
+                                   napi_value async_resource_name,
                                    napi_async_execute_callback execute,
                                    napi_async_complete_callback complete,
                                    void* data,
@@ -478,6 +531,54 @@ NAPI_EXTERN napi_status napi_queue_async_work(napi_env env,
 NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
                                                napi_async_work work);
 
+// Methods for custom handling of async operations
+NAPI_EXTERN napi_status napi_async_init(napi_env env,
+                                        napi_value async_resource,
+                                        napi_value async_resource_name,
+                                        napi_async_context* result);
+
+NAPI_EXTERN napi_status napi_async_destroy(napi_env env,
+                                           napi_async_context async_context);
+
+NAPI_EXTERN napi_status napi_make_callback(napi_env env,
+                                           napi_async_context async_context,
+                                           napi_value recv,
+                                           napi_value func,
+                                           size_t argc,
+                                           const napi_value* argv,
+                                           napi_value* result);
+
+// version management
+NAPI_EXTERN napi_status napi_get_version(napi_env env, uint32_t* result);
+
+NAPI_EXTERN
+napi_status napi_get_node_version(napi_env env,
+                                  const napi_node_version** version);
+
+// Promises
+NAPI_EXTERN napi_status napi_create_promise(napi_env env,
+                                            napi_deferred* deferred,
+                                            napi_value* promise);
+NAPI_EXTERN napi_status napi_resolve_deferred(napi_env env,
+                                              napi_deferred deferred,
+                                              napi_value resolution);
+NAPI_EXTERN napi_status napi_reject_deferred(napi_env env,
+                                             napi_deferred deferred,
+                                             napi_value rejection);
+NAPI_EXTERN napi_status napi_is_promise(napi_env env,
+                                        napi_value promise,
+                                        bool* is_promise);
+
+// Memory management
+NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
+                                                    int64_t change_in_bytes,
+                                                    int64_t* adjusted_value);
+
+// Runnig a script
+NAPI_EXTERN napi_status napi_run_script(napi_env env,
+                                        napi_value script,
+                                        napi_value* result);
+
 EXTERN_C_END
 
-#endif  // SRC_NODE_API_H__
+#endif  // SRC_NODE_API_H_

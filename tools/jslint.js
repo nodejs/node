@@ -1,6 +1,7 @@
 'use strict';
 
 const rulesDirs = ['tools/eslint-rules'];
+const extensions = ['.js', '.md'];
 // This is the maximum number of files to be linted per worker at any given time
 const maxWorkload = 40;
 
@@ -14,7 +15,8 @@ const glob = require('./eslint/node_modules/glob');
 
 const cwd = process.cwd();
 const cliOptions = {
-  rulePaths: rulesDirs
+  rulePaths: rulesDirs,
+  extensions: extensions,
 };
 
 // Check if we should fix errors that are fixable
@@ -118,7 +120,7 @@ if (cluster.isMaster) {
 
   if (showProgress) {
     // Start the progress display update timer when the first worker is ready
-    cluster.once('online', function(worker) {
+    cluster.once('online', function() {
       startTime = process.hrtime();
       setInterval(printProgress, 1000).unref();
       printProgress();

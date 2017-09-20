@@ -48,8 +48,10 @@ assertEquals("string", typeof Reflect.get(foo, Symbol.toStringTag));
 assertEquals(
     {value: "Module", configurable: false, writable: false, enumerable: false},
     Reflect.getOwnPropertyDescriptor(foo, Symbol.toStringTag));
-// TODO(neis): Spec currently says the next one should return true.
 assertFalse(Reflect.deleteProperty(foo, Symbol.toStringTag));
+assertEquals(
+    {value: "Module", configurable: false, writable: false, enumerable: false},
+    Reflect.getOwnPropertyDescriptor(foo, Symbol.toStringTag));
 
 // Nonexistant properties.
 let nonexistant = ["gaga", 123, Symbol('')];

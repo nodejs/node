@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --allow-natives-syntax
+
 var typedArrayConstructors = [
   Uint8Array,
   Int8Array,
@@ -13,6 +15,14 @@ var typedArrayConstructors = [
   Float32Array,
   Float64Array
 ];
+
+var tmp = {
+  [Symbol.toPrimitive]() {
+    assertUnreachable("Parameter should not be processed when " +
+                      "array.[[ViewedArrayBuffer]] is neutered.");
+    return 0;
+  }
+};
 
 for (var constructor of typedArrayConstructors) {
   var array = new constructor([1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3]);
@@ -42,6 +52,21 @@ for (var constructor of typedArrayConstructors) {
   Object.defineProperty(array, 'length', {value: 1});
   assertEquals(array.indexOf(2), 1);
 
+  // Index of infinite value
+  array = new constructor([NaN, 2, 3, +Infinity, -Infinity, 5, 6]);
+  if (constructor == Float32Array || constructor == Float64Array) {
+    assertEquals(3, array.indexOf(Infinity));
+    assertEquals(4, array.indexOf(-Infinity));
+  } else {
+    assertEquals(-1, array.indexOf(Infinity));
+    assertEquals(-1, array.indexOf(-Infinity));
+  }
+  assertEquals(-1, array.indexOf(NaN));
+
+  // Detached Operation
+  var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  %ArrayBufferNeuter(array.buffer);
+  assertThrows(() => array.indexOf(tmp), TypeError);
 
   // ----------------------------------------------------------------------
   // %TypedArray%.prototype.lastIndexOf.
@@ -68,4 +93,20 @@ for (var constructor of typedArrayConstructors) {
   Object.defineProperty(array, 'length', {value: 1});
   assertEquals(array.lastIndexOf(2), 10);
   delete array.length;
+
+  // Index of infinite value
+  array = new constructor([NaN, 2, 3, +Infinity, -Infinity, 5, 6]);
+  if (constructor == Float32Array || constructor == Float64Array) {
+    assertEquals(3, array.lastIndexOf(Infinity));
+    assertEquals(4, array.lastIndexOf(-Infinity));
+  } else {
+    assertEquals(-1, array.lastIndexOf(Infinity));
+    assertEquals(-1, array.lastIndexOf(-Infinity));
+  }
+  assertEquals(-1, array.lastIndexOf(NaN));
+
+  // Detached Operation
+  var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  %ArrayBufferNeuter(array.buffer);
+  assertThrows(() => array.lastIndexOf(tmp), TypeError);
 }

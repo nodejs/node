@@ -30,6 +30,9 @@ const OPTION_VALUE = {
                 minProperties: {
                     type: "integer",
                     minimum: 0
+                },
+                consistent: {
+                    type: "boolean"
                 }
             },
             additionalProperties: false,
@@ -42,11 +45,12 @@ const OPTION_VALUE = {
  * Normalizes a given option value.
  *
  * @param {string|Object|undefined} value - An option value to parse.
- * @returns {{multiline: boolean, minProperties: number}} Normalized option object.
+ * @returns {{multiline: boolean, minProperties: number, consistent: boolean}} Normalized option object.
  */
 function normalizeOptionValue(value) {
     let multiline = false;
     let minProperties = Number.POSITIVE_INFINITY;
+    let consistent = false;
 
     if (value) {
         if (value === "always") {
@@ -56,12 +60,13 @@ function normalizeOptionValue(value) {
         } else {
             multiline = Boolean(value.multiline);
             minProperties = value.minProperties || Number.POSITIVE_INFINITY;
+            consistent = Boolean(value.consistent);
         }
     } else {
         multiline = true;
     }
 
-    return { multiline, minProperties };
+    return { multiline, minProperties, consistent };
 }
 
 /**
@@ -138,6 +143,8 @@ module.exports = {
                     first.loc.start.line !== last.loc.end.line
                 )
             );
+            const hasCommentsFirstToken = astUtils.isCommentToken(first);
+            const hasCommentsLastToken = astUtils.isCommentToken(last);
 
             /*
              * Use tokens or comments to check multiline or not.
@@ -157,6 +164,10 @@ module.exports = {
                         node,
                         loc: openBrace.loc.start,
                         fix(fixer) {
+                            if (hasCommentsFirstToken) {
+                                return null;
+                            }
+
                             return fixer.insertTextAfter(openBrace, "\n");
                         }
                     });
@@ -167,17 +178,32 @@ module.exports = {
                         node,
                         loc: closeBrace.loc.start,
                         fix(fixer) {
+                            if (hasCommentsLastToken) {
+                                return null;
+                            }
+
                             return fixer.insertTextBefore(closeBrace, "\n");
                         }
                     });
                 }
             } else {
-                if (!astUtils.isTokenOnSameLine(openBrace, first)) {
+                const consistent = options.consistent;
+                const hasLineBreakBetweenOpenBraceAndFirst = !astUtils.isTokenOnSameLine(openBrace, first);
+                const hasLineBreakBetweenCloseBraceAndLast = !astUtils.isTokenOnSameLine(last, closeBrace);
+
+                if (
+                    (!consistent && hasLineBreakBetweenOpenBraceAndFirst) ||
+                    (consistent && hasLineBreakBetweenOpenBraceAndFirst && !hasLineBreakBetweenCloseBraceAndLast)
+                ) {
                     context.report({
                         message: "Unexpected line break after this opening brace.",
                         node,
                         loc: openBrace.loc.start,
                         fix(fixer) {
+                            if (hasCommentsFirstToken) {
+                                return null;
+                            }
+
                             return fixer.removeRange([
                                 openBrace.range[1],
                                 first.range[0]
@@ -185,12 +211,19 @@ module.exports = {
                         }
                     });
                 }
-                if (!astUtils.isTokenOnSameLine(last, closeBrace)) {
+                if (
+                    (!consistent && hasLineBreakBetweenCloseBraceAndLast) ||
+                    (consistent && !hasLineBreakBetweenOpenBraceAndFirst && hasLineBreakBetweenCloseBraceAndLast)
+                ) {
                     context.report({
                         message: "Unexpected line break before this closing brace.",
                         node,
                         loc: closeBrace.loc.start,
                         fix(fixer) {
+                            if (hasCommentsLastToken) {
+                                return null;
+                            }
+
                             return fixer.removeRange([
                                 last.range[1],
                                 closeBrace.range[0]

@@ -22,17 +22,14 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-const fs = require('fs');
-const path = require('path');
-
-const cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
-const key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
+const cert = fixtures.readSync('test_cert.pem');
+const key = fixtures.readSync('test_key.pem');
 
 const server = tls.createServer({
   cert: cert,

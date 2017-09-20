@@ -72,6 +72,7 @@ consts_misc = [
     { 'name': 'ConsStringTag',          'value': 'kConsStringTag' },
     { 'name': 'ExternalStringTag',      'value': 'kExternalStringTag' },
     { 'name': 'SlicedStringTag',        'value': 'kSlicedStringTag' },
+    { 'name': 'ThinStringTag',          'value': 'kThinStringTag' },
 
     { 'name': 'HeapObjectTag',          'value': 'kHeapObjectTag' },
     { 'name': 'HeapObjectTagMask',      'value': 'kHeapObjectTagMask' },
@@ -99,6 +100,22 @@ consts_misc = [
         'value': 'kAccessor' },
     { 'name': 'prop_kind_mask',
         'value': 'PropertyDetails::KindField::kMask' },
+    { 'name': 'prop_location_Descriptor',
+        'value': 'kDescriptor' },
+    { 'name': 'prop_location_Field',
+        'value': 'kField' },
+    { 'name': 'prop_location_mask',
+        'value': 'PropertyDetails::LocationField::kMask' },
+    { 'name': 'prop_location_shift',
+        'value': 'PropertyDetails::LocationField::kShift' },
+    { 'name': 'prop_attributes_NONE', 'value': 'NONE' },
+    { 'name': 'prop_attributes_READ_ONLY', 'value': 'READ_ONLY' },
+    { 'name': 'prop_attributes_DONT_ENUM', 'value': 'DONT_ENUM' },
+    { 'name': 'prop_attributes_DONT_DELETE', 'value': 'DONT_DELETE' },
+    { 'name': 'prop_attributes_mask',
+        'value': 'PropertyDetails::AttributesField::kMask' },
+    { 'name': 'prop_attributes_shift',
+        'value': 'PropertyDetails::AttributesField::kShift' },
     { 'name': 'prop_index_mask',
         'value': 'PropertyDetails::FieldIndexField::kMask' },
     { 'name': 'prop_index_shift',
@@ -129,18 +146,18 @@ consts_misc = [
         'value': 'Representation::Kind::kExternal' },
 
     { 'name': 'prop_desc_key',
-        'value': 'DescriptorArray::kDescriptorKey' },
+        'value': 'DescriptorArray::kEntryKeyIndex' },
     { 'name': 'prop_desc_details',
-        'value': 'DescriptorArray::kDescriptorDetails' },
+        'value': 'DescriptorArray::kEntryDetailsIndex' },
     { 'name': 'prop_desc_value',
-        'value': 'DescriptorArray::kDescriptorValue' },
+        'value': 'DescriptorArray::kEntryValueIndex' },
     { 'name': 'prop_desc_size',
-        'value': 'DescriptorArray::kDescriptorSize' },
+        'value': 'DescriptorArray::kEntrySize' },
 
     { 'name': 'elements_fast_holey_elements',
-        'value': 'FAST_HOLEY_ELEMENTS' },
+        'value': 'HOLEY_ELEMENTS' },
     { 'name': 'elements_fast_elements',
-        'value': 'FAST_ELEMENTS' },
+        'value': 'PACKED_ELEMENTS' },
     { 'name': 'elements_dictionary_elements',
         'value': 'DICTIONARY_ELEMENTS' },
 
@@ -155,6 +172,8 @@ consts_misc = [
     { 'name': 'bit_field3_number_of_own_descriptors_shift',
         'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
 
+    { 'name': 'off_fp_context_or_frame_type',
+        'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'},
     { 'name': 'off_fp_context',
         'value': 'StandardFrameConstants::kContextOffset' },
     { 'name': 'off_fp_constant_pool',
@@ -174,9 +193,9 @@ consts_misc = [
         'value': 'ScopeInfo::kVariablePartIndex' },
 
     { 'name': 'sharedfunctioninfo_start_position_mask',
-        'value': 'SharedFunctionInfo::kStartPositionMask' },
+        'value': 'SharedFunctionInfo::StartPositionBits::kMask' },
     { 'name': 'sharedfunctioninfo_start_position_shift',
-        'value': 'SharedFunctionInfo::kStartPositionShift' },
+        'value': 'SharedFunctionInfo::StartPositionBits::kShift' },
 
     { 'name': 'jsarray_buffer_was_neutered_mask',
         'value': 'JSArrayBuffer::WasNeutered::kMask' },
@@ -229,6 +248,7 @@ extras_accessors = [
     'JSObject, elements, Object, kElementsOffset',
     'JSObject, internal_fields, uintptr_t, kHeaderSize',
     'FixedArray, data, uintptr_t, kHeaderSize',
+    'FixedTypedArrayBase, external_pointer, Object, kExternalPointerOffset',
     'JSArrayBuffer, backing_store, Object, kBackingStoreOffset',
     'JSArrayBufferView, byte_offset, Object, kByteOffsetOffset',
     'JSTypedArray, length, Object, kLengthOffset',
@@ -248,6 +268,12 @@ extras_accessors = [
     'SeqTwoByteString, chars, char, kHeaderSize',
     'SharedFunctionInfo, code, Code, kCodeOffset',
     'SharedFunctionInfo, scope_info, ScopeInfo, kScopeInfoOffset',
+    'SharedFunctionInfo, function_token_position, int, kFunctionTokenPositionOffset',
+    'SharedFunctionInfo, start_position_and_type, int, kStartPositionAndTypeOffset',
+    'SharedFunctionInfo, end_position, int, kEndPositionOffset',
+    'SharedFunctionInfo, internal_formal_parameter_count, int, kFormalParameterCountOffset',
+    'SharedFunctionInfo, compiler_hints, int, kCompilerHintsOffset',
+    'SharedFunctionInfo, length, int, kLengthOffset',
     'SlicedString, parent, String, kParentOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
@@ -317,15 +343,9 @@ def get_base_class(klass):
         return get_base_class(k['parent']);
 
 #
-# Loads class hierarchy and type information from "objects.h".
+# Loads class hierarchy and type information from "objects.h" etc.
 #
 def load_objects():
-        objfilename = sys.argv[2];
-        objfile = open(objfilename, 'r');
-        in_insttype = False;
-
-        typestr = '';
-
         #
         # Construct a dictionary for the classes we're sure should be present.
         #
@@ -333,14 +353,32 @@ def load_objects():
         for klass in expected_classes:
                 checktypes[klass] = True;
 
+
+        for filename in sys.argv[2:]:
+                if not filename.endswith("-inl.h"):
+                        load_objects_from_file(filename, checktypes)
+
+        if (len(checktypes) > 0):
+                for klass in checktypes:
+                        print('error: expected class \"%s\" not found' % klass);
+
+                sys.exit(1);
+
+
+def load_objects_from_file(objfilename, checktypes):
+        objfile = open(objfilename, 'r');
+        in_insttype = False;
+
+        typestr = '';
+
         #
-        # Iterate objects.h line-by-line to collect type and class information.
-        # For types, we accumulate a string representing the entire InstanceType
-        # enum definition and parse it later because it's easier to do so
-        # without the embedded newlines.
+        # Iterate the header file line-by-line to collect type and class
+        # information. For types, we accumulate a string representing the entire
+        # InstanceType enum definition and parse it later because it's easier to
+        # do so without the embedded newlines.
         #
         for line in objfile:
-                if (line.startswith('enum InstanceType {')):
+                if (line.startswith('enum InstanceType : uint8_t {')):
                         in_insttype = True;
                         continue;
 
@@ -464,13 +502,6 @@ def load_objects():
                         if (cctype in checktypes):
                                 del checktypes[cctype];
 
-        if (len(checktypes) > 0):
-                for klass in checktypes:
-                        print('error: expected class \"%s\" not found' % klass);
-
-                sys.exit(1);
-
-
 #
 # For a given macro call, pick apart the arguments and return an object
 # describing the corresponding output constant.  See load_fields().
@@ -491,7 +522,7 @@ def parse_field(call):
         if (kind == 'ACCESSORS' or kind == 'ACCESSORS_GCSAFE'):
                 klass = args[0];
                 field = args[1];
-                dtype = args[2];
+                dtype = args[2].replace('<', '_').replace('>', '_')
                 offset = args[3];
 
                 return ({
@@ -510,11 +541,19 @@ def parse_field(call):
         });
 
 #
-# Load field offset information from objects-inl.h.
+# Load field offset information from objects-inl.h etc.
 #
 def load_fields():
-        inlfilename = sys.argv[3];
-        inlfile = open(inlfilename, 'r');
+        for filename in sys.argv[2:]:
+                if filename.endswith("-inl.h"):
+                        load_fields_from_file(filename)
+
+        for body in extras_accessors:
+                fields.append(parse_field('ACCESSORS(%s)' % body));
+
+
+def load_fields_from_file(filename):
+        inlfile = open(filename, 'r');
 
         #
         # Each class's fields and the corresponding offsets are described in the
@@ -565,9 +604,6 @@ def load_fields():
         if (len(current) > 0):
                 fields.append(parse_field(current));
                 current = '';
-
-        for body in extras_accessors:
-                fields.append(parse_field('ACCESSORS(%s)' % body));
 
 #
 # Emit a block of constants.

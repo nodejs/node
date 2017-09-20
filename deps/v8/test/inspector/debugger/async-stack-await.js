@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks that async stacks works for async/await');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that async stacks works for async/await');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 async function foo1() {
   debugger;
   return Promise.resolve();
@@ -25,15 +25,10 @@ async function test() {
 }
 //# sourceURL=test.js`, 7, 26);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
-  InspectorTest.logCallFrames(message.params.callFrames);
-  var asyncStackTrace = message.params.asyncStackTrace;
-  while (asyncStackTrace) {
-    InspectorTest.log(`-- ${asyncStackTrace.description} --`);
-    InspectorTest.logCallFrames(asyncStackTrace.callFrames);
-    asyncStackTrace = asyncStackTrace.parent;
-  }
+  session.logCallFrames(message.params.callFrames);
+  session.logAsyncStackTrace(message.params.asyncStackTrace);
   InspectorTest.log('');
   Protocol.Debugger.resume();
 });

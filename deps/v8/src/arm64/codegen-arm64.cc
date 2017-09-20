@@ -6,6 +6,8 @@
 
 #if V8_TARGET_ARCH_ARM64
 
+#include "src/arm64/assembler-arm64-inl.h"
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/arm64/simulator-arm64.h"
 #include "src/codegen.h"
 #include "src/macro-assembler.h"
@@ -99,6 +101,9 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                        Register result,
                                        Label* call_runtime) {
   DCHECK(string.Is64Bits() && index.Is32Bits() && result.Is64Bits());
+  Label indirect_string_loaded;
+  __ Bind(&indirect_string_loaded);
+
   // Fetch the instance type of the receiver into result register.
   __ Ldr(result, FieldMemOperand(string, HeapObject::kMapOffset));
   __ Ldrb(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
@@ -108,15 +113,23 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ TestAndBranchIfAllClear(result, kIsIndirectStringMask, &check_sequential);
 
   // Dispatch on the indirect string shape: slice or cons.
-  Label cons_string;
-  __ TestAndBranchIfAllClear(result, kSlicedNotConsMask, &cons_string);
+  Label cons_string, thin_string;
+  __ And(result, result, kStringRepresentationMask);
+  __ Cmp(result, kConsStringTag);
+  __ B(eq, &cons_string);
+  __ Cmp(result, kThinStringTag);
+  __ B(eq, &thin_string);
 
   // Handle slices.
-  Label indirect_string_loaded;
   __ Ldr(result.W(),
          UntagSmiFieldMemOperand(string, SlicedString::kOffsetOffset));
   __ Ldr(string, FieldMemOperand(string, SlicedString::kParentOffset));
   __ Add(index, index, result.W());
+  __ B(&indirect_string_loaded);
+
+  // Handle thin strings.
+  __ Bind(&thin_string);
+  __ Ldr(string, FieldMemOperand(string, ThinString::kActualOffset));
   __ B(&indirect_string_loaded);
 
   // Handle cons strings.
@@ -129,10 +142,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ JumpIfNotRoot(result, Heap::kempty_stringRootIndex, call_runtime);
   // Get the first of the two strings and load its instance type.
   __ Ldr(string, FieldMemOperand(string, ConsString::kFirstOffset));
-
-  __ Bind(&indirect_string_loaded);
-  __ Ldr(result, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ Ldrb(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
+  __ B(&indirect_string_loaded);
 
   // Distinguish sequential and external strings. Only these two string
   // representations can reach here (slices and flat cons strings have been

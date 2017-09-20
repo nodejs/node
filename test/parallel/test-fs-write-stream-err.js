@@ -26,7 +26,7 @@ const fs = require('fs');
 
 common.refreshTmpDir();
 
-const stream = fs.createWriteStream(common.tmpDir + '/out', {
+const stream = fs.createWriteStream(`${common.tmpDir}/out`, {
   highWaterMark: 10
 });
 const err = new Error('BAM');

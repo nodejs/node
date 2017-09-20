@@ -1,17 +1,15 @@
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const assert = require('assert');
-
 const tls = require('tls');
-const fs = require('fs');
 const net = require('net');
+const fixtures = require('../common/fixtures');
 
-const key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
-const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
+const key = fixtures.readKey('agent2-key.pem');
+const cert = fixtures.readKey('agent2-cert.pem');
 
 let tlsSocket;
 // tls server
@@ -32,12 +30,17 @@ const netServer = net.createServer((socket) => {
 
   netSocket = socket;
 }).listen(0, common.mustCall(function() {
-  // connect client
-  tls.connect({
+  connectClient(netServer);
+}));
+
+function connectClient(server) {
+  const tlsConnection = tls.connect({
     host: 'localhost',
-    port: this.address().port,
+    port: server.address().port,
     rejectUnauthorized: false
-  }).write('foo', 'utf8', common.mustCall(() => {
+  });
+
+  tlsConnection.write('foo', 'utf8', common.mustCall(() => {
     assert(netSocket);
     netSocket.setTimeout(1, common.mustCall(() => {
       assert(tlsSocket);
@@ -55,4 +58,10 @@ const netServer = net.createServer((socket) => {
       }, 1);
     }));
   }));
-}));
+  tlsConnection.on('error', (e) => {
+    // Tolerate the occasional ECONNRESET.
+    // Ref: https://github.com/nodejs/node/issues/13184
+    if (e.code !== 'ECONNRESET')
+      throw e;
+  });
+}

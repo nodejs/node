@@ -29,12 +29,8 @@ if (cluster.isWorker) {
   http.Server(() => {
 
   }).listen(0, '127.0.0.1');
-  const worker = cluster.worker;
-  assert.strictEqual(worker.exitedAfterDisconnect, worker.suicide);
 
   cluster.worker.on('disconnect', common.mustCall(() => {
-    assert.strictEqual(cluster.worker.exitedAfterDisconnect,
-                       cluster.worker.suicide);
     process.exit(42);
   }));
 

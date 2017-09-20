@@ -2,7 +2,6 @@
 'use strict';
 
 const common = require('../common');
-const Buffer = require('buffer').Buffer;
 
 const bufferWarning = 'The Buffer() and new Buffer() constructors are not ' +
                       'recommended for use due to security and usability ' +

@@ -36,13 +36,9 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorClose) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  generator->set_continuation(JSGeneratorObject::kGeneratorClosed);
-
-  return isolate->heap()->undefined_value();
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
@@ -62,27 +58,33 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetContext) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  return generator->context();
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
 
-  return generator->input_or_debug_pos();
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorResolve) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorReject) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  return Smi::FromInt(generator->resume_mode());
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetContinuation) {

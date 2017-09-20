@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -17,7 +17,6 @@
 #include "unicode/utypes.h"
 #include "unicode/uobject.h"
 #include "unicode/unistr.h"
-#include "putilimp.h"
 
 U_NAMESPACE_BEGIN
 
@@ -66,7 +65,7 @@ public:
 
     UChar getDecimalPoint() const { return decimalPoint; }
 
-    double getDivisor() const { return uprv_pow(radix, exponent); }
+    int64_t getDivisor() const;
 
     void doFormat(int64_t number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
     void doFormat(double  number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
@@ -77,7 +76,7 @@ public:
                   double upperBound,
                   Formattable& result) const;
 
-    UBool shouldRollBack(double number) const;
+    UBool shouldRollBack(int64_t number) const;
 
     void _appendRuleText(UnicodeString& result) const;
 

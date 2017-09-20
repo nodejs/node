@@ -1,7 +1,0 @@
-{
-  "globals": {
-    "expect": false,
-    "run": false
-  },
-  "expr": true
-}

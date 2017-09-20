@@ -138,7 +138,7 @@ class ProfilerEventsProcessor : public base::Thread {
   // Thread control.
   virtual void Run();
   void StopSynchronously();
-  INLINE(bool running()) { return !!base::NoBarrier_Load(&running_); }
+  INLINE(bool running()) { return !!base::Relaxed_Load(&running_); }
   void Enqueue(const CodeEventsContainer& event);
 
   // Puts current stack into tick sample events buffer.
@@ -220,12 +220,14 @@ class CpuProfiler : public CodeEventObserver {
   void StopProcessor();
   void ResetProfiles();
   void LogBuiltins();
+  void CreateEntriesForRuntimeCallStats();
 
   Isolate* const isolate_;
   base::TimeDelta sampling_interval_;
   std::unique_ptr<CpuProfilesCollection> profiles_;
   std::unique_ptr<ProfileGenerator> generator_;
   std::unique_ptr<ProfilerEventsProcessor> processor_;
+  std::vector<std::unique_ptr<CodeEntry>> static_entries_;
   bool saved_is_logging_;
   bool is_profiling_;
 

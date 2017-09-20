@@ -22,14 +22,13 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-const tls = require('tls');
 
+const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const tls = require('tls');
 
 // https://github.com/joyent/node/issues/1218
 // uncatchable exception on TLS connection error
@@ -37,10 +36,13 @@ const path = require('path');
   const cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
   const key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
 
-  const options = {cert: cert, key: key, port: common.PORT};
+  const options = { cert: cert, key: key, port: common.PORT };
   const conn = tls.connect(options, common.mustNotCall());
 
-  conn.on('error', common.mustCall());
+  conn.on(
+    'error',
+    common.mustCall((e) => { assert.strictEqual(e.code, 'ECONNREFUSED'); })
+  );
 }
 
 // SSL_accept/SSL_connect error handling
@@ -55,5 +57,8 @@ const path = require('path');
     ciphers: 'rick-128-roll'
   }, common.mustNotCall());
 
-  conn.on('error', common.mustCall());
+  conn.on(
+    'error',
+    common.mustCall((e) => { assert.strictEqual(e.code, 'ECONNREFUSED'); })
+  );
 }

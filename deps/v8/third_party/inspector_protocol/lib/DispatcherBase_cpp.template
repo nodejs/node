@@ -276,7 +276,7 @@ DispatchResponse::Status UberDispatcher::dispatch(std::unique_ptr<Value> parsedM
         return DispatchResponse::kError;
     }
 
-    size_t dotIndex = method.find(".");
+    size_t dotIndex = StringUtil::find(method, ".");
     if (dotIndex == StringUtil::kNotFound) {
         if (m_fallThroughForNotFound)
             return DispatchResponse::kFallThrough;

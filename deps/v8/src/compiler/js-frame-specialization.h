@@ -25,11 +25,12 @@ class JSFrameSpecialization final : public AdvancedReducer {
       : AdvancedReducer(editor), frame_(frame), jsgraph_(jsgraph) {}
   ~JSFrameSpecialization() final {}
 
+  const char* reducer_name() const override { return "JSFrameSpecialization"; }
+
   Reduction Reduce(Node* node) final;
 
  private:
   Reduction ReduceOsrValue(Node* node);
-  Reduction ReduceOsrGuard(Node* node);
   Reduction ReduceParameter(Node* node);
 
   Isolate* isolate() const;

@@ -395,7 +395,7 @@ class GitInterface(VCInterface):
                     "git updater is lagging behind?")
 
     self.step.Git("tag %s %s" % (tag, commit))
-    self.step.Git("push origin %s" % tag)
+    self.step.Git("push origin refs/tags/%s:refs/tags/%s" % (tag, tag))
 
   def CLLand(self):
     self.step.GitCLLand()
@@ -549,7 +549,8 @@ class Step(GitRecipesMixin):
   def InitialEnvironmentChecks(self, cwd):
     # Cancel if this is not a git checkout.
     if not os.path.exists(os.path.join(cwd, ".git")):  # pragma: no cover
-      self.Die("This is not a git checkout, this script won't work for you.")
+      self.Die("%s is not a git checkout. If you know what you're doing, try "
+               "deleting it and rerunning this script." % cwd)
 
     # Cancel if EDITOR is unset or not executable.
     if (self._options.requires_editor and (not os.environ.get("EDITOR") or
@@ -611,7 +612,7 @@ class Step(GitRecipesMixin):
   def WaitForResolvingConflicts(self, patch_file):
     print("Applying the patch \"%s\" failed. Either type \"ABORT<Return>\", "
           "or resolve the conflicts, stage *all* touched files with "
-          "'git add', and type \"RESOLVED<Return>\"")
+          "'git add', and type \"RESOLVED<Return>\"" % (patch_file))
     self.DieNoManualMode()
     answer = ""
     while answer != "RESOLVED":
@@ -813,7 +814,7 @@ class ScriptsBase(object):
   def MakeOptions(self, args=None):
     parser = argparse.ArgumentParser(description=self._Description())
     parser.add_argument("-a", "--author", default="",
-                        help="The author email used for rietveld.")
+                        help="The author email used for code review.")
     parser.add_argument("--dry-run", default=False, action="store_true",
                         help="Perform only read-only actions.")
     parser.add_argument("--json-output",

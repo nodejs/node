@@ -24,7 +24,8 @@ class V8_EXPORT_PRIVATE StateValuesCache {
   explicit StateValuesCache(JSGraph* js_graph);
 
   Node* GetNodeForValues(Node** values, size_t count,
-                         const BitVector* liveness = nullptr);
+                         const BitVector* liveness = nullptr,
+                         int liveness_offset = 0);
 
  private:
   static const size_t kMaxInputCount = 8;
@@ -58,10 +59,11 @@ class V8_EXPORT_PRIVATE StateValuesCache {
                                                     size_t* node_count,
                                                     size_t* values_idx,
                                                     Node** values, size_t count,
-                                                    const BitVector* liveness);
+                                                    const BitVector* liveness,
+                                                    int liveness_offset);
 
   Node* BuildTree(size_t* values_idx, Node** values, size_t count,
-                  const BitVector* liveness, size_t level);
+                  const BitVector* liveness, int liveness_offset, size_t level);
 
   WorkingBuffer* GetWorkingSpace(size_t level);
   Node* GetEmptyStateValues();

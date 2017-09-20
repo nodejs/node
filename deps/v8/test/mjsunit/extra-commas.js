@@ -38,9 +38,9 @@ function assertSyntaxError(x) {
 
 
 assertSyntaxError("f(,)");
-assertSyntaxError("f(1,)");
-assertSyntaxError("f(1,2,)");
+assertSyntaxError("f(1,,)");
+assertSyntaxError("f(1,2,,)");
 
 assertSyntaxError("function f(,) {}");
-assertSyntaxError("function f(1,) {}");
-assertSyntaxError("function f(1,2,) {}");
+assertSyntaxError("function f(1,,) {}");
+assertSyntaxError("function f(1,2,,) {}");

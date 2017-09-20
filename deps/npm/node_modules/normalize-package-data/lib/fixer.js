@@ -5,7 +5,7 @@ var isBuiltinModule = require("is-builtin-module")
 var depTypes = ["dependencies","devDependencies","optionalDependencies"]
 var extractDescription = require("./extract_description")
 var url = require("url")
-var typos = require("./typos")
+var typos = require("./typos.json")
 
 var fixer = module.exports = {
   // default warning function
@@ -289,7 +289,6 @@ var fixer = module.exports = {
       return delete data.homepage
     }
     if(!url.parse(data.homepage).protocol) {
-      this.warn("missingProtocolHomepage")
       data.homepage = "http://" + data.homepage
     }
   }

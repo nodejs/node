@@ -33,8 +33,7 @@ const expected = {
 
 function test(httpVersion, callback) {
   const server = net.createServer(function(conn) {
-    const reply = 'HTTP/' + httpVersion + ' 200 OK\r\n\r\n' +
-                  expected[httpVersion];
+    const reply = `HTTP/${httpVersion} 200 OK\r\n\r\n${expected[httpVersion]}`;
 
     conn.end(reply);
   });

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  normalizer2impl.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -176,7 +176,7 @@ public:
         lastCC=0;
     }
     void copyReorderableSuffixTo(UnicodeString &s) const {
-        s.setTo(reorderStart, (int32_t)(limit-reorderStart));
+        s.setTo(ConstChar16Ptr(reorderStart), (int32_t)(limit-reorderStart));
     }
 private:
     /*

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt
 
 "use strict";
 
@@ -480,5 +480,5 @@ for (var i=0; i<10; i++) {
 f(12);
 g(12);
 
-assertTrue(%GetOptimizationStatus(f) != 2);
-assertTrue(%GetOptimizationStatus(g) != 2);
+assertOptimized(f);
+assertOptimized(g);

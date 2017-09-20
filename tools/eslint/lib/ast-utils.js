@@ -10,6 +10,7 @@
 //------------------------------------------------------------------------------
 
 const esutils = require("esutils");
+const espree = require("espree");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -27,6 +28,7 @@ const thisTagPattern = /^[\s*]*@this/m;
 const COMMENTS_IGNORE_PATTERN = /^\s*(?:eslint|jshint\s+|jslint\s+|istanbul\s+|globals?\s+|exported\s+|jscs)/;
 const LINEBREAKS = new Set(["\r\n", "\r", "\n", "\u2028", "\u2029"]);
 const LINEBREAK_MATCHER = /\r\n|[\r\n\u2028\u2029]/;
+const SHEBANG_MATCHER = /^#!([^\r\n]+)/;
 
 // A set of node types that can contain a list of statements
 const STATEMENT_LIST_PARENTS = new Set(["Program", "BlockStatement", "SwitchCase"]);
@@ -243,7 +245,7 @@ function hasJSDocThisTag(node, sourceCode) {
     // because callbacks don't have its JSDoc comment.
     // e.g.
     //     sinon.test(/* @this sinon.Sandbox */function() { this.spy(); });
-    return sourceCode.getComments(node).leading.some(comment => thisTagPattern.test(comment.value));
+    return sourceCode.getCommentsBefore(node).some(comment => thisTagPattern.test(comment.value));
 }
 
 /**
@@ -412,6 +414,7 @@ module.exports = {
     COMMENTS_IGNORE_PATTERN,
     LINEBREAKS,
     LINEBREAK_MATCHER,
+    SHEBANG_MATCHER,
     STATEMENT_LIST_PARENTS,
 
     /**
@@ -524,7 +527,7 @@ module.exports = {
 
     /**
      * Returns whether the provided node is an ESLint directive comment or not
-     * @param {LineComment|BlockComment} node The node to be checked
+     * @param {Line|Block} node The comment token to be checked
      * @returns {boolean} `true` if the node is an ESLint directive comment
      */
     isDirectiveComment(node) {
@@ -556,9 +559,9 @@ module.exports = {
     /**
      * Finds the variable by a given name in a given scope and its upper scopes.
      *
-     * @param {escope.Scope} initScope - A scope to start find.
+     * @param {eslint-scope.Scope} initScope - A scope to start find.
      * @param {string} name - A variable name to find.
-     * @returns {escope.Variable|null} A found variable or `null`.
+     * @returns {eslint-scope.Variable|null} A found variable or `null`.
      */
     getVariableByName(initScope, name) {
         let scope = initScope;
@@ -1252,5 +1255,52 @@ module.exports = {
          * `node.regex` instead. Also see: https://github.com/eslint/eslint/issues/8020
          */
         return node.type === "Literal" && node.value === null && !node.regex;
+    },
+
+    /**
+     * Determines whether two tokens can safely be placed next to each other without merging into a single token
+     * @param {Token|string} leftValue The left token. If this is a string, it will be tokenized and the last token will be used.
+     * @param {Token|string} rightValue The right token. If this is a string, it will be tokenized and the first token will be used.
+     * @returns {boolean} If the tokens cannot be safely placed next to each other, returns `false`. If the tokens can be placed
+     * next to each other, behavior is undefined (although it should return `true` in most cases).
+     */
+    canTokensBeAdjacent(leftValue, rightValue) {
+        let leftToken;
+
+        if (typeof leftValue === "string") {
+            const leftTokens = espree.tokenize(leftValue, { ecmaVersion: 2015 });
+
+            leftToken = leftTokens[leftTokens.length - 1];
+        } else {
+            leftToken = leftValue;
+        }
+
+        const rightToken = typeof rightValue === "string" ? espree.tokenize(rightValue, { ecmaVersion: 2015 })[0] : rightValue;
+
+        if (leftToken.type === "Punctuator" || rightToken.type === "Punctuator") {
+            if (leftToken.type === "Punctuator" && rightToken.type === "Punctuator") {
+                const PLUS_TOKENS = new Set(["+", "++"]);
+                const MINUS_TOKENS = new Set(["-", "--"]);
+
+                return !(
+                    PLUS_TOKENS.has(leftToken.value) && PLUS_TOKENS.has(rightToken.value) ||
+                    MINUS_TOKENS.has(leftToken.value) && MINUS_TOKENS.has(rightToken.value)
+                );
+            }
+            return true;
+        }
+
+        if (
+            leftToken.type === "String" || rightToken.type === "String" ||
+            leftToken.type === "Template" || rightToken.type === "Template"
+        ) {
+            return true;
+        }
+
+        if (leftToken.type !== "Numeric" && rightToken.type === "Numeric" && rightToken.value.startsWith(".")) {
+            return true;
+        }
+
+        return false;
     }
 };

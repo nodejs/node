@@ -30,6 +30,7 @@
 #include <stdlib.h>  // nullptr
 
 namespace node {
+namespace crypto {
 
 class ClientHelloParser {
  public:
@@ -133,6 +134,7 @@ class ClientHelloParser {
   const uint8_t* tls_ticket_;
 };
 
+}  // namespace crypto
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

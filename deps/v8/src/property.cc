@@ -25,21 +25,48 @@ std::ostream& operator<<(std::ostream& os,
 Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
                                  PropertyAttributes attributes,
                                  Representation representation) {
-  return DataField(key, field_index, FieldType::Any(key->GetIsolate()),
-                   attributes, representation);
+  return DataField(key, field_index, attributes, kMutable, representation,
+                   FieldType::Any(key->GetIsolate()));
+}
+
+Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
+                                 PropertyAttributes attributes,
+                                 PropertyConstness constness,
+                                 Representation representation,
+                                 Handle<Object> wrapped_field_type) {
+  DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeakCell());
+  PropertyDetails details(kData, attributes, kField, constness, representation,
+                          field_index);
+  return Descriptor(key, wrapped_field_type, details);
+}
+
+Descriptor Descriptor::DataConstant(Handle<Name> key, int field_index,
+                                    Handle<Object> value,
+                                    PropertyAttributes attributes) {
+  if (FLAG_track_constant_fields) {
+    Handle<Object> any_type(FieldType::Any(), key->GetIsolate());
+    return DataField(key, field_index, attributes, kConst,
+                     Representation::Tagged(), any_type);
+
+  } else {
+    return Descriptor(key, value, kData, attributes, kDescriptor, kConst,
+                      value->OptimalRepresentation(), field_index);
+  }
 }
 
 // Outputs PropertyDetails as a dictionary details.
 void PropertyDetails::PrintAsSlowTo(std::ostream& os) {
   os << "(";
+  if (constness() == kConst) os << "const ";
   os << (kind() == kData ? "data" : "accessor");
-  os << ", dictionary_index: " << dictionary_index();
+  os << ", dict_index: " << dictionary_index();
   os << ", attrs: " << attributes() << ")";
 }
 
 // Outputs PropertyDetails as a descriptor array details.
 void PropertyDetails::PrintAsFastTo(std::ostream& os, PrintMode mode) {
   os << "(";
+  if (constness() == kConst) os << "const ";
   os << (kind() == kData ? "data" : "accessor");
   if (location() == kField) {
     os << " field";

@@ -1,5 +1,7 @@
 # OS
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `os` module provides a number of operating system-related utility methods.
@@ -46,7 +48,7 @@ added: v6.3.0
 
 Returns an object containing commonly used operating system specific constants
 for error codes, process signals, and so on. The specific constants currently
-defined are described in [OS Constants][].
+defined are described in [OS Constants](#os_os_constants_1).
 
 ## os.cpus()
 <!-- YAML
@@ -165,8 +167,8 @@ For example:
 ]
 ```
 
-*Note*: Because `nice` values are UNIX-specific, on Windows the `nice` values of
-all processors are always 0.
+*Note*: Because `nice` values are UNIX-specific, on Windows the `nice` values
+of all processors are always 0.
 
 ## os.endianness()
 <!-- YAML
@@ -253,8 +255,11 @@ The properties available on the assigned network address object include:
   similar interface that is not remotely accessible; otherwise `false`
 * `scopeid` {number} The numeric IPv6 scope ID (only specified when `family`
   is `IPv6`)
+* `cidr` {string} The assigned IPv4 or IPv6 address with the routing prefix
+  in CIDR notation. If the `netmask` is invalid, this property is set
+  to `null`
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   lo: [
@@ -263,14 +268,16 @@ The properties available on the assigned network address object include:
       netmask: '255.0.0.0',
       family: 'IPv4',
       mac: '00:00:00:00:00:00',
-      internal: true
+      internal: true,
+      cidr: '127.0.0.1/8'
     },
     {
       address: '::1',
       netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
       family: 'IPv6',
       mac: '00:00:00:00:00:00',
-      internal: true
+      internal: true,
+      cidr: '::1/128'
     }
   ],
   eth0: [
@@ -279,14 +286,16 @@ The properties available on the assigned network address object include:
       netmask: '255.255.255.0',
       family: 'IPv4',
       mac: '01:02:03:0a:0b:0c',
-      internal: false
+      internal: false,
+      cidr: '192.168.1.108/24'
     },
     {
       address: 'fe80::a00:27ff:fe4e:66a1',
       netmask: 'ffff:ffff:ffff:ffff::',
       family: 'IPv6',
       mac: '01:02:03:0a:0b:0c',
-      internal: false
+      internal: false,
+      cidr: 'fe80::a00:27ff:fe4e:66a1/64'
     }
   ]
 }
@@ -328,8 +337,8 @@ added: v0.3.3
 The `os.release()` method returns a string identifying the operating system
 release.
 
-*Note*: On POSIX systems, the operating system release is determined by calling
-uname(3). On Windows, `GetVersionExW()` is used. Please see
+*Note*: On POSIX systems, the operating system release is determined by
+calling [uname(3)][]. On Windows, `GetVersionExW()` is used. Please see
 https://en.wikipedia.org/wiki/Uname#Examples for more information.
 
 ## os.tmpdir()
@@ -365,11 +374,12 @@ added: v0.3.3
 * Returns: {string}
 
 The `os.type()` method returns a string identifying the operating system name
-as returned by uname(3). For example `'Linux'` on Linux, `'Darwin'` on macOS and
-`'Windows_NT'` on Windows.
+as returned by [uname(3)][]. For example `'Linux'` on Linux, `'Darwin'` on macOS
+and `'Windows_NT'` on Windows.
 
 Please see https://en.wikipedia.org/wiki/Uname#Examples for additional
-information about the output of running uname(3) on various operating systems.
+information about the output of running [uname(3)][] on various operating
+systems.
 
 ## os.uptime()
 <!-- YAML
@@ -406,8 +416,9 @@ operating system response.
 
 ## OS Constants
 
-The following constants are exported by `os.constants`. **Note:** Not all
-constants will be available on every operating system.
+The following constants are exported by `os.constants`.
+
+*Note*: Not all constants will be available on every operating system.
 
 ### Signal Constants
 <!-- YAML
@@ -1160,6 +1171,43 @@ The following error codes are specific to the Windows operating system:
   </tr>
 </table>
 
+### dlopen Constants
+
+If available on the operating system, the following constants
+are exported in `os.constants.dlopen`. See dlopen(3) for detailed
+information.
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>RTLD_LAZY</code></td>
+    <td>Perform lazy binding. Node.js sets this flag by default.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_NOW</code></td>
+    <td>Resolve all undefined symbols in the library before dlopen(3)
+    returns.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_GLOBAL</code></td>
+    <td>Symbols defined by the library will be made available for symbol
+    resolution of subsequently loaded libraries.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_LOCAL</code></td>
+    <td>The converse of RTLD_GLOBAL. This is the default behavior if neither
+    flag is specified.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_DEEPBIND</code></td>
+    <td>Make a self-contained library use its own symbols in preference to
+    symbols from previously loaded libraries.</td>
+  </tr>
+</table>
+
 ### libuv Constants
 
 <table>
@@ -1176,3 +1224,4 @@ The following error codes are specific to the Windows operating system:
 [`process.arch`]: process.html#process_process_arch
 [`process.platform`]: process.html#process_process_platform
 [OS Constants]: #os_os_constants
+[uname(3)]: https://linux.die.net/man/3/uname

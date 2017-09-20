@@ -39,6 +39,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -93,6 +94,7 @@ void FSEventWrap::Initialize(Local<Object> target,
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(fsevent_string);
 
+  AsyncWrap::AddWrapMethods(env, t);
   env->SetProtoMethod(t, "start", Start);
   env->SetProtoMethod(t, "close", Close);
 
@@ -187,17 +189,20 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   };
 
   if (filename != nullptr) {
-    Local<Value> fn = StringBytes::Encode(env->isolate(),
-                                          filename,
-                                          wrap->encoding_);
+    Local<Value> error;
+    MaybeLocal<Value> fn = StringBytes::Encode(env->isolate(),
+                                               filename,
+                                               wrap->encoding_,
+                                               &error);
     if (fn.IsEmpty()) {
       argv[0] = Integer::New(env->isolate(), UV_EINVAL);
       argv[2] = StringBytes::Encode(env->isolate(),
                                     filename,
                                     strlen(filename),
-                                    BUFFER);
+                                    BUFFER,
+                                    &error).ToLocalChecked();
     } else {
-      argv[2] = fn;
+      argv[2] = fn.ToLocalChecked();
     }
   }
 

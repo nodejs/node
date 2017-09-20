@@ -21,27 +21,21 @@
 
 'use strict';
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-if (!common.opensslCli) {
+if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
-  return;
-}
 
 const assert = require('assert');
 const join = require('path').join;
-
 const fs = require('fs');
 const spawn = require('child_process').spawn;
-
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
 const https = require('https');
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/agent.key'),
-  cert: fs.readFileSync(common.fixturesDir + '/agent.crt'),
+  key: fs.readFileSync(`${common.fixturesDir}/agent.key`),
+  cert: fs.readFileSync(`${common.fixturesDir}/agent.crt`),
   requestCert: true,
   rejectUnauthorized: false
 };

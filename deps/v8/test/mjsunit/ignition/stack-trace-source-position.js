@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition-filter=f
 // Flags: --no-turbo
 
 // TODO(yangguo): fix for turbofan
@@ -16,6 +15,6 @@ function f(x) {
 
 var stack_lines = f(2).split("\n");
 
-assertTrue(/at f \(.*?:12:12\)/.test(stack_lines[1]));
-assertTrue(/at f \(.*?:14:10\)/.test(stack_lines[2]));
-assertTrue(/at f \(.*?:14:10\)/.test(stack_lines[3]));
+assertTrue(/at f \(.*?:11:12\)/.test(stack_lines[1]));
+assertTrue(/at f \(.*?:13:10\)/.test(stack_lines[2]));
+assertTrue(/at f \(.*?:13:10\)/.test(stack_lines[3]));

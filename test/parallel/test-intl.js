@@ -34,7 +34,7 @@ if (enablei18n === undefined) {
 // Else, returns false
 function haveLocale(loc) {
   const locs = process.config.variables.icu_locales.split(',');
-  return locs.indexOf(loc) !== -1;
+  return locs.includes(loc);
 }
 
 // Always run these. They should always pass, even if the locale
@@ -49,16 +49,13 @@ assert.strictEqual('ç'.toUpperCase(), 'Ç');
 
 if (!common.hasIntl) {
   const erMsg =
-      '"Intl" object is NOT present but v8_enable_i18n_support is ' +
-      enablei18n;
+    `"Intl" object is NOT present but v8_enable_i18n_support is ${enablei18n}`;
   assert.strictEqual(enablei18n, 0, erMsg);
   common.skip('Intl tests because Intl object not present.');
-
 } else {
   const erMsg =
-    '"Intl" object is present but v8_enable_i18n_support is ' +
-    enablei18n +
-    '. Is this test out of date?';
+    `"Intl" object is present but v8_enable_i18n_support is ${
+      enablei18n}. Is this test out of date?`;
   assert.strictEqual(enablei18n, 1, erMsg);
 
   // Construct a new date at the beginning of Unix time
@@ -68,16 +65,18 @@ if (!common.hasIntl) {
   const GMT = 'Etc/GMT';
 
   // Construct an English formatter. Should format to "Jan 70"
-  const dtf =
-      new Intl.DateTimeFormat(['en'],
-                              {timeZone: GMT, month: 'short', year: '2-digit'});
+  const dtf = new Intl.DateTimeFormat(['en'], {
+    timeZone: GMT,
+    month: 'short',
+    year: '2-digit'
+  });
 
   // If list is specified and doesn't contain 'en' then return.
   if (process.config.variables.icu_locales && !haveLocale('en')) {
-    common.skip('detailed Intl tests because English is not ' +
-                'listed as supported.');
+    common.printSkipMessage(
+      'detailed Intl tests because English is not listed as supported.');
     // Smoke test. Does it format anything, or fail?
-    console.log('Date(0) formatted to: ' + dtf.format(date0));
+    console.log(`Date(0) formatted to: ${dtf.format(date0)}`);
     return;
   }
 
@@ -92,7 +91,7 @@ if (!common.hasIntl) {
     assert.strictEqual(localeString, 'Jan 70');
   }
   // Options to request GMT
-  const optsGMT = {timeZone: GMT};
+  const optsGMT = { timeZone: GMT };
 
   // Test format
   {

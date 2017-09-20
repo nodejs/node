@@ -43,9 +43,9 @@ process.on('exit', function() {
     console.log('  Test callback events missing or out of order:');
     console.log('    expected: %j', cb_expected);
     console.log('    occurred: %j', cb_occurred);
-    assert.strictEqual(cb_occurred, cb_expected,
-                       'events missing or out of order: "' +
-                       cb_occurred + '" !== "' + cb_expected + '"');
+    assert.strictEqual(
+      cb_occurred, cb_expected,
+      `events missing or out of order: "${cb_occurred}" !== "${cb_expected}"`);
   } else {
     console.log('ok');
   }
@@ -101,7 +101,7 @@ file.on('error', function(err) {
 
 
 for (let i = 0; i < 11; i++) {
-  const ret = file.write(i + '');
+  const ret = file.write(String(i));
   console.error('%d %j', i, ret);
 
   // return false when i hits 10

@@ -21,8 +21,8 @@ napi_status MyObject::Init(napi_env env) {
   };
 
   napi_value cons;
-  status =
-      napi_define_class(env, "MyObject", New, nullptr, 1, properties, &cons);
+  status = napi_define_class(
+      env, "MyObject", -1, New, nullptr, 1, properties, &cons);
   if (status != napi_ok) return status;
 
   status = napi_create_reference(env, cons, 1, &constructor);
@@ -45,16 +45,16 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
   if (valuetype == napi_undefined) {
     obj->counter_ = 0;
   } else {
-    NAPI_CALL(env, napi_get_value_double(env, args[0], &obj->counter_));
+    NAPI_CALL(env, napi_get_value_uint32(env, args[0], &obj->counter_));
   }
 
   obj->env_ = env;
   NAPI_CALL(env, napi_wrap(env,
-                          _this,
-                          obj,
-                          MyObject::Destructor,
-                          nullptr, /* finalize_hint */
-                          &obj->wrapper_));
+                           _this,
+                           obj,
+                           MyObject::Destructor,
+                           nullptr, /* finalize_hint */
+                           &obj->wrapper_));
 
   return _this;
 }
@@ -80,7 +80,7 @@ napi_status MyObject::NewInstance(napi_env env,
 napi_value MyObject::PlusOne(napi_env env, napi_callback_info info) {
   napi_value _this;
   NAPI_CALL(env,
-    napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
+      napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
 
   MyObject* obj;
   NAPI_CALL(env, napi_unwrap(env, _this, reinterpret_cast<void**>(&obj)));
@@ -88,7 +88,7 @@ napi_value MyObject::PlusOne(napi_env env, napi_callback_info info) {
   obj->counter_ += 1;
 
   napi_value num;
-  NAPI_CALL(env, napi_create_number(env, obj->counter_, &num));
+  NAPI_CALL(env, napi_create_uint32(env, obj->counter_, &num));
 
   return num;
 }

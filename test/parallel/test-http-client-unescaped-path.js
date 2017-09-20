@@ -25,7 +25,13 @@ const assert = require('assert');
 const http = require('http');
 
 for (let i = 0; i <= 32; i += 1) {
-  const path = 'bad' + String.fromCharCode(i) + 'path';
-  assert.throws(() => http.get({ path }, common.mustNotCall()),
-                /contains unescaped characters/);
+  const path = `bad${String.fromCharCode(i)}path`;
+  assert.throws(
+    () => http.get({ path }, common.mustNotCall()),
+    common.expectsError({
+      code: 'ERR_UNESCAPED_CHARACTERS',
+      type: TypeError,
+      message: 'Request path contains unescaped characters'
+    })
+  );
 }

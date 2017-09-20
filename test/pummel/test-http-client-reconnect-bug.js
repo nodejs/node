@@ -34,10 +34,10 @@ server.on('listening', common.mustCall(function() {
   client.on('error', common.mustCall());
   client.on('end', common.mustCall());
 
-  const request = client.request('GET', '/', {'host': 'localhost'});
+  const request = client.request('GET', '/', { 'host': 'localhost' });
   request.end();
   request.on('response', function(response) {
-    console.log('STATUS: ' + response.statusCode);
+    console.log(`STATUS: ${response.statusCode}`);
   });
 }));
 

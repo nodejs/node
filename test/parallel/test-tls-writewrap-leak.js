@@ -1,10 +1,8 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const assert = require('assert');
 const net = require('net');
@@ -16,7 +14,7 @@ const server = net.createServer(common.mustCall((c) => {
   const c = tls.connect({ port: server.address().port });
   c.on('error', () => {
     // Otherwise `.write()` callback won't be invoked.
-    c.destroyed = false;
+    c._undestroy();
   });
 
   c.write('hello', common.mustCall((err) => {

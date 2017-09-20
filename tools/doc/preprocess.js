@@ -2,11 +2,11 @@
 
 module.exports = preprocess;
 
-var path = require('path');
-var fs = require('fs');
+const path = require('path');
+const fs = require('fs');
 
-var includeExpr = /^@include\s+([A-Za-z0-9-_]+)(?:\.)?([a-zA-Z]*)$/gmi;
-var includeData = {};
+const includeExpr = /^@include\s+([A-Za-z0-9-_]+)(?:\.)?([a-zA-Z]*)$/gmi;
+const includeData = {};
 
 function preprocess(inputFile, input, cb) {
   input = stripComments(input);
@@ -22,7 +22,7 @@ function stripComments(input) {
 }
 
 function processIncludes(inputFile, input, cb) {
-  var includes = input.match(includeExpr);
+  const includes = input.match(includeExpr);
   if (includes === null) return cb(null, input);
   var errState = null;
   console.error(includes);
@@ -40,7 +40,7 @@ function processIncludes(inputFile, input, cb) {
       }
     }
 
-    var fullFname = path.resolve(path.dirname(inputFile), fname);
+    const fullFname = path.resolve(path.dirname(inputFile), fname);
     fs.readFile(fullFname, 'utf8', function(er, inc) {
       if (errState) return;
       if (er) return cb(errState = er);

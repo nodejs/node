@@ -21,14 +21,12 @@
 
 'use strict';
 const common = require('../common');
+if (common.isWindows)
+  common.skip('no RLIMIT_NOFILE on Windows');
+
 const assert = require('assert');
 const child_process = require('child_process');
 const fs = require('fs');
-
-if (common.isWindows) {
-  common.skip('no RLIMIT_NOFILE on Windows');
-  return;
-}
 
 const ulimit = Number(child_process.execSync('ulimit -Hn'));
 if (ulimit > 64 || Number.isNaN(ulimit)) {

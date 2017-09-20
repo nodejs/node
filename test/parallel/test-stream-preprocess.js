@@ -3,32 +3,26 @@ const common = require('../common');
 const assert = require('assert');
 
 const fs = require('fs');
-const path = require('path');
 const rl = require('readline');
+const fixtures = require('../common/fixtures');
 
 const BOM = '\uFEFF';
 
 // Get the data using a non-stream way to compare with the streamed data.
-const modelData = fs.readFileSync(
-  path.join(common.fixturesDir, 'file-to-read-without-bom.txt'), 'utf8'
-);
+const modelData = fixtures.readSync('file-to-read-without-bom.txt', 'utf8');
 const modelDataFirstCharacter = modelData[0];
 
 // Detect the number of forthcoming 'line' events for mustCall() 'expected' arg.
 const lineCount = modelData.match(/\n/g).length;
 
 // Ensure both without-bom and with-bom test files are textwise equal.
-assert.strictEqual(
-  fs.readFileSync(
-    path.join(common.fixturesDir, 'file-to-read-with-bom.txt'), 'utf8'
-  ),
-  `${BOM}${modelData}`
+assert.strictEqual(fixtures.readSync('file-to-read-with-bom.txt', 'utf8'),
+                   `${BOM}${modelData}`
 );
 
 // An unjustified BOM stripping with a non-BOM character unshifted to a stream.
-const inputWithoutBOM = fs.createReadStream(
-  path.join(common.fixturesDir, 'file-to-read-without-bom.txt'), 'utf8'
-);
+const inputWithoutBOM =
+  fs.createReadStream(fixtures.path('file-to-read-without-bom.txt'), 'utf8');
 
 inputWithoutBOM.once('readable', common.mustCall(() => {
   const maybeBOM = inputWithoutBOM.read(1);
@@ -48,9 +42,8 @@ inputWithoutBOM.once('readable', common.mustCall(() => {
 }));
 
 // A justified BOM stripping.
-const inputWithBOM = fs.createReadStream(
-  path.join(common.fixturesDir, 'file-to-read-with-bom.txt'), 'utf8'
-);
+const inputWithBOM =
+  fs.createReadStream(fixtures.path('file-to-read-with-bom.txt'), 'utf8');
 
 inputWithBOM.once('readable', common.mustCall(() => {
   const maybeBOM = inputWithBOM.read(1);

@@ -21,6 +21,7 @@
     ((value & V8_SmiTagMask) == V8_SmiTag)
 #define	SMI_VALUE(value)	\
     ((uint32_t) ((value) >> V8_SmiValueShift))
+#define NO_SHARED_FUNCTION_NAME_SENTINEL NULL
 
 /*
  * Heap objects usually start off with a Map pointer, itself another heap
@@ -372,7 +373,8 @@ dtrace:helper:ustack:
 	this->shared = (off_t) 0;
 	this->map = (off_t) 0;
 	this->attrs = 0;
-	this->funcnamestr = (off_t) 0;
+	this->funcrawnamestr = (off_t) 0;
+	this->hassharedname = 0;
 	this->funcnamelen = 0;
 	this->funcnameattrs = 0;
 	this->script = (off_t) 0;
@@ -515,9 +517,16 @@ dtrace:helper:ustack:
 	this->attrs = 0;
 
 	this->shared = COPYIN_PTR(this->func + V8_OFF_FUNC_SHARED);
-	this->funcnamestr = COPYIN_PTR(this->shared + V8_OFF_SHARED_NAME);
-	LOAD_STRFIELDS(this->funcnamestr, this->funcnamelen,
-	    this->funcnameattrs);
+	this->funcrawnamestr = COPYIN_PTR(this->shared + V8_OFF_RAW_NAME);
+	this->hassharedname = this->funcrawnamestr !=
+		NO_SHARED_FUNCTION_NAME_SENTINEL;
+}
+
+dtrace:helper:ustack:
+/!this->done && this->hassharedname/
+{
+	LOAD_STRFIELDS(this->funcrawnamestr, this->funcnamelen,
+		this->funcnameattrs);
 }
 
 dtrace:helper:ustack:
@@ -532,8 +541,8 @@ dtrace:helper:ustack:
 	APPEND_CHR('s');
 	APPEND_CHR(' ');
 
-	this->funcnamestr = COPYIN_PTR(this->shared + V8_OFF_SHARED_IDENT);
-	LOAD_STRFIELDS(this->funcnamestr, this->funcnamelen,
+	this->funcrawnamestr = COPYIN_PTR(this->shared + V8_OFF_SHARED_IDENT);
+	LOAD_STRFIELDS(this->funcrawnamestr, this->funcnamelen,
 	    this->funcnameattrs);
 }
 
@@ -545,7 +554,7 @@ dtrace:helper:ustack:
 	APPEND_CHR(')');
 }
 
-APPEND_V8STR(this->funcnamestr, this->funcnamelen, this->funcnameattrs)
+APPEND_V8STR(this->funcrawnamestr, this->funcnamelen, this->funcnameattrs)
 
 /*
  * Now look for the name of the script where the function was defined.  The

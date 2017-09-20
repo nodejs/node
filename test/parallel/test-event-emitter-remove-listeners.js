@@ -140,7 +140,7 @@ function listener2() {}
 {
   const ee = new EventEmitter();
 
-  assert.deepStrictEqual(ee, ee.removeListener('foo', common.noop));
+  assert.deepStrictEqual(ee, ee.removeListener('foo', () => {}));
 }
 
 // Verify that the removed listener must be a function
@@ -152,7 +152,7 @@ assert.throws(() => {
 
 {
   const ee = new EventEmitter();
-  const listener = common.noop;
+  const listener = () => {};
   ee._events = undefined;
   const e = ee.removeListener('foo', listener);
   assert.strictEqual(e, ee);

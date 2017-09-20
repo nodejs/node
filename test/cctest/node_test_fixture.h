@@ -4,16 +4,10 @@
 #include <stdlib.h>
 #include "gtest/gtest.h"
 #include "node.h"
+#include "node_platform.h"
 #include "env.h"
 #include "v8.h"
 #include "libplatform/libplatform.h"
-
-using node::Environment;
-using node::IsolateData;
-using node::CreateIsolateData;
-using node::CreateEnvironment;
-using node::AtExit;
-using node::RunAtExit;
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
@@ -36,12 +30,12 @@ struct Argv {
 
   Argv(const std::initializer_list<const char*> &args) {
     nr_args_ = args.size();
-    int totalLen = 0;
+    int total_len = 0;
     for (auto it = args.begin(); it != args.end(); ++it) {
-      totalLen += strlen(*it) + 1;
+      total_len += strlen(*it) + 1;
     }
     argv_ = static_cast<char**>(malloc(nr_args_ * sizeof(char*)));
-    argv_[0] = static_cast<char*>(malloc(totalLen));
+    argv_[0] = static_cast<char*>(malloc(total_len));
     int i = 0;
     int offset = 0;
     for (auto it = args.begin(); it != args.end(); ++it, ++i) {
@@ -73,7 +67,12 @@ struct Argv {
   int nr_args_;
 };
 
+extern uv_loop_t current_loop;
+
 class NodeTestFixture : public ::testing::Test {
+ public:
+  static uv_loop_t* CurrentLoop() { return &current_loop; }
+
  protected:
   v8::Isolate::CreateParams params_;
   ArrayBufferAllocator allocator_;
@@ -84,7 +83,8 @@ class NodeTestFixture : public ::testing::Test {
   }
 
   virtual void SetUp() {
-    platform_ = v8::platform::CreateDefaultPlatform();
+    CHECK_EQ(0, uv_loop_init(&current_loop));
+    platform_ = new node::NodePlatform(8, &current_loop, nullptr);
     v8::V8::InitializePlatform(platform_);
     v8::V8::Initialize();
     params_.array_buffer_allocator = &allocator_;
@@ -93,13 +93,18 @@ class NodeTestFixture : public ::testing::Test {
 
   virtual void TearDown() {
     if (platform_ == nullptr) return;
+    platform_->Shutdown();
+    while (uv_loop_alive(&current_loop)) {
+      uv_run(&current_loop, UV_RUN_ONCE);
+    }
     v8::V8::ShutdownPlatform();
     delete platform_;
     platform_ = nullptr;
+    CHECK_EQ(0, uv_loop_close(&current_loop));
   }
 
  private:
-  v8::Platform* platform_ = nullptr;
+  node::NodePlatform* platform_ = nullptr;
 };
 
 #endif  // TEST_CCTEST_NODE_TEST_FIXTURE_H_

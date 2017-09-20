@@ -7,11 +7,14 @@
 
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
-#include "src/handles.h"
+#include "src/globals.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Handle;
 
 class Execution final : public AllStatic {
  public:
@@ -30,7 +33,8 @@ class Execution final : public AllStatic {
 
   // Construct object from function, the caller supplies an array of
   // arguments.
-  MUST_USE_RESULT static MaybeHandle<Object> New(Handle<JSFunction> constructor,
+  MUST_USE_RESULT static MaybeHandle<Object> New(Isolate* isolate,
+                                                 Handle<Object> constructor,
                                                  int argc,
                                                  Handle<Object> argv[]);
   MUST_USE_RESULT static MaybeHandle<Object> New(Isolate* isolate,
@@ -61,7 +65,7 @@ class PostponeInterruptsScope;
 // StackGuard contains the handling of the limits that are used to limit the
 // number of nested invocations of JavaScript and the stack size used in each
 // invocation.
-class StackGuard final {
+class V8_EXPORT_PRIVATE StackGuard final {
  public:
   // Pass the address beyond which the stack should not grow.  The stack
   // is assumed to grow downwards.
@@ -86,16 +90,16 @@ class StackGuard final {
 
 #define INTERRUPT_LIST(V)                       \
   V(DEBUGBREAK, DebugBreak, 0)                  \
-  V(DEBUGCOMMAND, DebugCommand, 1)              \
-  V(TERMINATE_EXECUTION, TerminateExecution, 2) \
-  V(GC_REQUEST, GC, 3)                          \
-  V(INSTALL_CODE, InstallCode, 4)               \
-  V(API_INTERRUPT, ApiInterrupt, 5)             \
-  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 6)
+  V(TERMINATE_EXECUTION, TerminateExecution, 1) \
+  V(GC_REQUEST, GC, 2)                          \
+  V(INSTALL_CODE, InstallCode, 3)               \
+  V(API_INTERRUPT, ApiInterrupt, 4)             \
+  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 5)
 
-#define V(NAME, Name, id)                                          \
-  inline bool Check##Name() { return CheckInterrupt(NAME); }  \
-  inline void Request##Name() { RequestInterrupt(NAME); }     \
+#define V(NAME, Name, id)                                                    \
+  inline bool Check##Name() { return CheckInterrupt(NAME); }                 \
+  inline bool CheckAndClear##Name() { return CheckAndClearInterrupt(NAME); } \
+  inline void Request##Name() { RequestInterrupt(NAME); }                    \
   inline void Clear##Name() { ClearInterrupt(NAME); }
   INTERRUPT_LIST(V)
 #undef V
@@ -196,18 +200,18 @@ class StackGuard final {
     base::AtomicWord climit_;
 
     uintptr_t jslimit() {
-      return bit_cast<uintptr_t>(base::NoBarrier_Load(&jslimit_));
+      return bit_cast<uintptr_t>(base::Relaxed_Load(&jslimit_));
     }
     void set_jslimit(uintptr_t limit) {
-      return base::NoBarrier_Store(&jslimit_,
-                                   static_cast<base::AtomicWord>(limit));
+      return base::Relaxed_Store(&jslimit_,
+                                 static_cast<base::AtomicWord>(limit));
     }
     uintptr_t climit() {
-      return bit_cast<uintptr_t>(base::NoBarrier_Load(&climit_));
+      return bit_cast<uintptr_t>(base::Relaxed_Load(&climit_));
     }
     void set_climit(uintptr_t limit) {
-      return base::NoBarrier_Store(&climit_,
-                                   static_cast<base::AtomicWord>(limit));
+      return base::Relaxed_Store(&climit_,
+                                 static_cast<base::AtomicWord>(limit));
     }
 
     PostponeInterruptsScope* postpone_interrupts_;

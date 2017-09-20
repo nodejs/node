@@ -14,10 +14,10 @@ napi_value CreateObject(napi_env env, napi_callback_info info) {
   return obj;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
-  napi_property_descriptor desc =
-    DECLARE_NAPI_PROPERTY("exports", CreateObject);
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(env, module, 1, &desc));
+napi_value Init(napi_env env, napi_value exports) {
+  NAPI_CALL(env,
+      napi_create_function(env, "exports", -1, CreateObject, NULL, &exports));
+  return exports;
 }
 
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

@@ -39,14 +39,14 @@ class SnapshotData : public SerializedData {
   bool IsSane();
 
   // The data header consists of uint32_t-sized entries:
-  // [0] magic number and external reference count
-  // [1] version hash
-  // [2] number of reservation size entries
-  // [3] payload length
+  // [0] magic number and (internal) external reference count
+  // [1] API-provided external reference count
+  // [2] version hash
+  // [3] number of reservation size entries
+  // [4] payload length
   // ... reservations
   // ... serialized payload
-  static const int kCheckSumOffset = kMagicNumberOffset + kInt32Size;
-  static const int kNumReservationsOffset = kCheckSumOffset + kInt32Size;
+  static const int kNumReservationsOffset = kVersionHashOffset + kInt32Size;
   static const int kPayloadLengthOffset = kNumReservationsOffset + kInt32Size;
   static const int kHeaderSize = kPayloadLengthOffset + kInt32Size;
 };
@@ -60,9 +60,7 @@ class Snapshot : public AllStatic {
   static MaybeHandle<Context> NewContextFromSnapshot(
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
       size_t context_index,
-      v8::DeserializeInternalFieldsCallback internal_fields_deserializer);
-
-  static bool HaveASnapshotToStartFrom(Isolate* isolate);
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
   static bool HasContextSnapshot(Isolate* isolate, size_t index);
 
@@ -73,7 +71,7 @@ class Snapshot : public AllStatic {
 
   static v8::StartupData CreateSnapshotBlob(
       const SnapshotData* startup_snapshot,
-      const List<SnapshotData*>* context_snapshots);
+      const List<SnapshotData*>* context_snapshots, bool can_be_rehashed);
 
 #ifdef DEBUG
   static bool SnapshotIsValid(v8::StartupData* snapshot_blob);
@@ -81,14 +79,16 @@ class Snapshot : public AllStatic {
 
  private:
   static int ExtractNumContexts(const v8::StartupData* data);
+  static bool ExtractRehashability(const v8::StartupData* data);
   static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
   static Vector<const byte> ExtractContextData(const v8::StartupData* data,
                                                int index);
 
   // Snapshot blob layout:
   // [0] number of contexts N
-  // [1] offset to context 0
-  // [2] offset to context 1
+  // [1] rehashability
+  // [2] offset to context 0
+  // [3] offset to context 1
   // ...
   // ... offset to context N - 1
   // ... startup snapshot data
@@ -96,8 +96,10 @@ class Snapshot : public AllStatic {
   // ... context 1 snapshot data
 
   static const int kNumberOfContextsOffset = 0;
+  // TODO(yangguo): generalize rehashing, and remove this flag.
+  static const int kRehashabilityOffset = kNumberOfContextsOffset + kInt32Size;
   static const int kFirstContextOffsetOffset =
-      kNumberOfContextsOffset + kInt32Size;
+      kRehashabilityOffset + kInt32Size;
 
   static int StartupSnapshotOffset(int num_contexts) {
     return kFirstContextOffsetOffset + num_contexts * kInt32Size;

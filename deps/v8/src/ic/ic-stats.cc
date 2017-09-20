@@ -17,21 +17,21 @@ base::LazyInstance<ICStats>::type ICStats::instance_ =
     LAZY_INSTANCE_INITIALIZER;
 
 ICStats::ICStats() : ic_infos_(MAX_IC_INFO), pos_(0) {
-  base::NoBarrier_Store(&enabled_, 0);
+  base::Relaxed_Store(&enabled_, 0);
 }
 
 void ICStats::Begin() {
   if (V8_LIKELY(!FLAG_ic_stats)) return;
-  base::NoBarrier_Store(&enabled_, 1);
+  base::Relaxed_Store(&enabled_, 1);
 }
 
 void ICStats::End() {
-  if (base::NoBarrier_Load(&enabled_) != 1) return;
+  if (base::Relaxed_Load(&enabled_) != 1) return;
   ++pos_;
   if (pos_ == MAX_IC_INFO) {
     Dump();
   }
-  base::NoBarrier_Store(&enabled_, 0);
+  base::Relaxed_Store(&enabled_, 0);
 }
 
 void ICStats::Reset() {

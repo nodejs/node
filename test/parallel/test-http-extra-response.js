@@ -32,7 +32,7 @@ const net = require('net');
 const body = 'hello world\r\n';
 const fullResponse =
     'HTTP/1.1 500 Internal Server Error\r\n' +
-    'Content-Length: ' + body.length + '\r\n' +
+    `Content-Length: ${body.length}\r\n` +
     'Content-Type: text/plain\r\n' +
     'Date: Fri + 18 Feb 2011 06:22:45 GMT\r\n' +
     'Host: 10.20.149.2\r\n' +
@@ -49,7 +49,7 @@ const server = net.createServer(function(socket) {
   socket.on('data', function(chunk) {
     postBody += chunk;
 
-    if (postBody.indexOf('\r\n') > -1) {
+    if (postBody.includes('\r\n')) {
       socket.write(fullResponse);
       // omg, I wrote the response twice, what a terrible HTTP server I am.
       socket.end(fullResponse);
@@ -65,7 +65,7 @@ const server = net.createServer(function(socket) {
 server.listen(0, common.mustCall(function() {
   http.get({ port: this.address().port }, common.mustCall(function(res) {
     let buffer = '';
-    console.log('Got res code: ' + res.statusCode);
+    console.log(`Got res code: ${res.statusCode}`);
 
     res.setEncoding('utf8');
     res.on('data', function(chunk) {
@@ -73,7 +73,7 @@ server.listen(0, common.mustCall(function() {
     });
 
     res.on('end', common.mustCall(function() {
-      console.log('Response ended, read ' + buffer.length + ' bytes');
+      console.log(`Response ended, read ${buffer.length} bytes`);
       assert.strictEqual(body, buffer);
       server.close();
     }));

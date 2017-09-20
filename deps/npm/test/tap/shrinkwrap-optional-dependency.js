@@ -43,7 +43,7 @@ test('shrinkwrap does not fail on missing optional dependency', function (t) {
         npm.commands.shrinkwrap([], true, function (err, results) {
           if (err) return fail(err)
 
-          t.deepEqual(results, desired)
+          t.deepEqual(results.dependencies, desired.dependencies)
           s.close()
           t.end()
         })
@@ -63,8 +63,8 @@ var desired = {
   dependencies: {
     'test-package': {
       version: '0.0.0',
-      from: 'test-package@0.0.0',
-      resolved: common.registry + '/test-package/-/test-package-0.0.0.tgz'
+      resolved: common.registry + '/test-package/-/test-package-0.0.0.tgz',
+      integrity: 'sha1-sNMrbEXCWcV4uiADdisgUTG9+9E='
     }
   }
 }

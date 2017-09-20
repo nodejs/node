@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to check empty newline after "var" statement
  * @author Gopal Venkatesan
+ * @deprecated
  */
 
 "use strict";
@@ -20,7 +21,8 @@ module.exports = {
         docs: {
             description: "require or disallow an empty line after variable declarations",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            replacedBy: ["padding-line-between-statements"]
         },
 
         schema: [
@@ -29,7 +31,9 @@ module.exports = {
             }
         ],
 
-        fixable: "whitespace"
+        fixable: "whitespace",
+
+        deprecated: true
     },
 
     create(context) {

@@ -1,9 +1,10 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
-const filepath = path.join(common.fixturesDir, 'x.txt');
+const fixtures = require('../common/fixtures');
+
+const filepath = fixtures.path('x.txt');
 const fd = fs.openSync(filepath, 'r');
 const expected = 'xyz\n';
 
@@ -13,9 +14,9 @@ assert.throws(() => {
           expected.length,
           0,
           'utf-8',
-          common.noop);
-}, /Second argument needs to be a buffer/);
+          common.mustNotCall());
+}, /^TypeError: Second argument needs to be a buffer$/);
 
 assert.throws(() => {
   fs.readSync(fd, expected.length, 0, 'utf-8');
-}, /Second argument needs to be a buffer/);
+}, /^TypeError: Second argument needs to be a buffer$/);

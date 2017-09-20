@@ -10,12 +10,13 @@
 //------------------------------------------------------------------------------
 
 const lodash = require("lodash"),
-    eslint = require("../eslint"),
+    Linter = require("../linter"),
     configRule = require("./config-rule"),
     ConfigOps = require("./config-ops"),
     recConfig = require("../../conf/eslint-recommended");
 
 const debug = require("debug")("eslint:autoconfig");
+const linter = new Linter();
 
 //------------------------------------------------------------------------------
 // Data
@@ -37,11 +38,11 @@ const MAX_CONFIG_COMBINATIONS = 17, // 16 combinations + 1 for severity only
  * @param   {number}     errorCount    The number of errors encountered when linting with the config
  */
 
- /**
-  * This callback is used to measure execution status in a progress bar
-  * @callback progressCallback
-  * @param {number} The total number of times the callback will be called.
-  */
+/**
+ * This callback is used to measure execution status in a progress bar
+ * @callback progressCallback
+ * @param {number} The total number of times the callback will be called.
+ */
 
 /**
  * Create registryItems for rules
@@ -290,7 +291,7 @@ class Registry {
 
             ruleSets.forEach(ruleSet => {
                 const lintConfig = Object.assign({}, config, { rules: ruleSet });
-                const lintResults = eslint.verify(sourceCodes[filename], lintConfig);
+                const lintResults = linter.verify(sourceCodes[filename], lintConfig);
 
                 lintResults.forEach(result => {
 
@@ -310,7 +311,7 @@ class Registry {
                 ruleSetIdx += 1;
 
                 if (cb) {
-                    cb(totalFilesLinting);  // eslint-disable-line callback-return
+                    cb(totalFilesLinting); // eslint-disable-line callback-return
                 }
             });
 

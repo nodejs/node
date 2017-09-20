@@ -6,7 +6,7 @@
 #define V8_ARGUMENTS_H_
 
 #include "src/allocation.h"
-#include "src/objects-inl.h"
+#include "src/objects.h"
 #include "src/tracing/trace-event.h"
 
 namespace v8 {
@@ -50,9 +50,7 @@ class Arguments BASE_EMBEDDED {
     return Handle<S>(reinterpret_cast<S**>(value));
   }
 
-  int smi_at(int index) {
-    return Smi::cast((*this)[index])->value();
-  }
+  int smi_at(int index) { return Smi::ToInt((*this)[index]); }
 
   double number_at(int index) {
     return (*this)[index]->Number();

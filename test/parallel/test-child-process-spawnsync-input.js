@@ -30,8 +30,8 @@ const msgOut = 'this is stdout';
 const msgErr = 'this is stderr';
 
 // this is actually not os.EOL?
-const msgOutBuf = Buffer.from(msgOut + '\n');
-const msgErrBuf = Buffer.from(msgErr + '\n');
+const msgOutBuf = Buffer.from(`${msgOut}\n`);
+const msgErrBuf = Buffer.from(`${msgErr}\n`);
 
 const args = [
   '-e',
@@ -52,7 +52,7 @@ function verifyBufOutput(ret) {
   assert.deepStrictEqual(ret.stderr, msgErrBuf);
 }
 
-if (process.argv.indexOf('spawnchild') !== -1) {
+if (process.argv.includes('spawnchild')) {
   switch (process.argv[3]) {
     case '1':
       ret = spawnSync(process.execPath, args, { stdio: 'inherit' });
@@ -117,5 +117,5 @@ verifyBufOutput(spawnSync(process.execPath, args));
 ret = spawnSync(process.execPath, args, { encoding: 'utf8' });
 
 checkSpawnSyncRet(ret);
-assert.strictEqual(ret.stdout, msgOut + '\n');
-assert.strictEqual(ret.stderr, msgErr + '\n');
+assert.strictEqual(ret.stdout, `${msgOut}\n`);
+assert.strictEqual(ret.stderr, `${msgErr}\n`);

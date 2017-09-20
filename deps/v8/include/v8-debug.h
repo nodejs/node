@@ -8,7 +8,9 @@
 #include "v8.h"  // NOLINT(build/include)
 
 /**
- * Debugger support for the V8 JavaScript engine.
+ * ATTENTION: The debugger API exposed by this file is deprecated and will be
+ *            removed by the end of 2017. Please use the V8 inspector declared
+ *            in include/v8-inspector.h instead.
  */
 namespace v8 {
 
@@ -116,9 +118,7 @@ class V8_EXPORT Debug {
     virtual Local<Value> GetCallbackData() const = 0;
 
     /**
-     * Client data passed to DebugBreakForCommand function. The
-     * debugger takes ownership of the data and will delete it even if
-     * there is no message handler.
+     * This is now a dummy that returns nullptr.
      */
     virtual ClientData* GetClientData() const = 0;
 
@@ -132,46 +132,40 @@ class V8_EXPORT Debug {
    *
    * \param event_details object providing information about the debug event
    *
-   * A EventCallback2 does not take possession of the event data,
+   * A EventCallback does not take possession of the event data,
    * and must not rely on the data persisting after the handler returns.
    */
   typedef void (*EventCallback)(const EventDetails& event_details);
 
   /**
-   * Debug message callback function.
-   *
-   * \param message the debug message handler message object
-   *
-   * A MessageHandler does not take possession of the message data,
-   * and must not rely on the data persisting after the handler returns.
+   * This is now a no-op.
    */
   typedef void (*MessageHandler)(const Message& message);
 
-  /**
-   * Callback function for the host to ensure debug messages are processed.
-   */
-  typedef void (*DebugMessageDispatchHandler)();
-
-  static bool SetDebugEventListener(Isolate* isolate, EventCallback that,
-                                    Local<Value> data = Local<Value>());
+  V8_DEPRECATED("No longer supported", static bool SetDebugEventListener(
+                                           Isolate* isolate, EventCallback that,
+                                           Local<Value> data = Local<Value>()));
 
   // Schedule a debugger break to happen when JavaScript code is run
   // in the given isolate.
-  static void DebugBreak(Isolate* isolate);
+  V8_DEPRECATED("No longer supported",
+                static void DebugBreak(Isolate* isolate));
 
   // Remove scheduled debugger break in given isolate if it has not
   // happened yet.
-  static void CancelDebugBreak(Isolate* isolate);
+  V8_DEPRECATED("No longer supported",
+                static void CancelDebugBreak(Isolate* isolate));
 
   // Check if a debugger break is scheduled in the given isolate.
   V8_DEPRECATED("No longer supported",
                 static bool CheckDebugBreak(Isolate* isolate));
 
-  // Message based interface. The message protocol is JSON.
+  // This is now a no-op.
   V8_DEPRECATED("No longer supported",
                 static void SetMessageHandler(Isolate* isolate,
                                               MessageHandler handler));
 
+  // This is now a no-op.
   V8_DEPRECATED("No longer supported",
                 static void SendCommand(Isolate* isolate,
                                         const uint16_t* command, int length,
@@ -195,49 +189,12 @@ class V8_EXPORT Debug {
    *   }
    * \endcode
    */
-  // TODO(dcarney): data arg should be a MaybeLocal
-  static MaybeLocal<Value> Call(Local<Context> context,
-                                v8::Local<v8::Function> fun,
-                                Local<Value> data = Local<Value>());
-
-  /**
-   * Returns a mirror object for the given object.
-   */
   V8_DEPRECATED("No longer supported",
-                static MaybeLocal<Value> GetMirror(Local<Context> context,
-                                                   v8::Local<v8::Value> obj));
+                static MaybeLocal<Value> Call(
+                    Local<Context> context, v8::Local<v8::Function> fun,
+                    Local<Value> data = Local<Value>()));
 
-  /**
-   * Makes V8 process all pending debug messages.
-   *
-   * From V8 point of view all debug messages come asynchronously (e.g. from
-   * remote debugger) but they all must be handled synchronously: V8 cannot
-   * do 2 things at one time so normal script execution must be interrupted
-   * for a while.
-   *
-   * Generally when message arrives V8 may be in one of 3 states:
-   * 1. V8 is running script; V8 will automatically interrupt and process all
-   * pending messages;
-   * 2. V8 is suspended on debug breakpoint; in this state V8 is dedicated
-   * to reading and processing debug messages;
-   * 3. V8 is not running at all or has called some long-working C++ function;
-   * by default it means that processing of all debug messages will be deferred
-   * until V8 gets control again; however, embedding application may improve
-   * this by manually calling this method.
-   *
-   * Technically this method in many senses is equivalent to executing empty
-   * script:
-   * 1. It does nothing except for processing all pending debug messages.
-   * 2. It should be invoked with the same precautions and from the same context
-   * as V8 script would be invoked from, because:
-   *   a. with "evaluate" command it can do whatever normal script can do,
-   *   including all native calls;
-   *   b. no other thread should call V8 while this method is running
-   *   (v8::Locker may be used here).
-   *
-   * "Evaluate" debug command behavior currently is not specified in scope
-   * of this method.
-   */
+  // This is now a no-op.
   V8_DEPRECATED("No longer supported",
                 static void ProcessDebugMessages(Isolate* isolate));
 
@@ -264,23 +221,28 @@ class V8_EXPORT Debug {
    * (default Isolate if not provided). V8 will abort if LiveEdit is
    * unexpectedly used. LiveEdit is enabled by default.
    */
-  static void SetLiveEditEnabled(Isolate* isolate, bool enable);
+  V8_DEPRECATED("No longer supported",
+                static void SetLiveEditEnabled(Isolate* isolate, bool enable));
 
   /**
    * Returns array of internal properties specific to the value type. Result has
    * the following format: [<name>, <value>,...,<name>, <value>]. Result array
    * will be allocated in the current context.
    */
-  static MaybeLocal<Array> GetInternalProperties(Isolate* isolate,
-                                                 Local<Value> value);
+  V8_DEPRECATED("No longer supported",
+                static MaybeLocal<Array> GetInternalProperties(
+                    Isolate* isolate, Local<Value> value));
 
   /**
    * Defines if the ES2015 tail call elimination feature is enabled or not.
    * The change of this flag triggers deoptimization of all functions that
    * contain calls at tail position.
    */
-  static bool IsTailCallEliminationEnabled(Isolate* isolate);
-  static void SetTailCallEliminationEnabled(Isolate* isolate, bool enabled);
+  V8_DEPRECATED("No longer supported",
+                static bool IsTailCallEliminationEnabled(Isolate* isolate));
+  V8_DEPRECATED("No longer supported",
+                static void SetTailCallEliminationEnabled(Isolate* isolate,
+                                                          bool enabled));
 };
 
 

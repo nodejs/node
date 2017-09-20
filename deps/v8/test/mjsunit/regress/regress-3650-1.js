@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --deopt-every-n-times=55
-// Flags: --nodead-code-elimination
 
 function f(t) {
   var result = [];

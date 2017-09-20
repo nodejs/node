@@ -22,11 +22,14 @@ class V8_EXPORT_PRIVATE ScavengeJob {
   class IdleTask : public CancelableIdleTask {
    public:
     explicit IdleTask(Isolate* isolate, ScavengeJob* job)
-        : CancelableIdleTask(isolate), job_(job) {}
+        : CancelableIdleTask(isolate), isolate_(isolate), job_(job) {}
     // CancelableIdleTask overrides.
     void RunInternal(double deadline_in_seconds) override;
 
+    Isolate* isolate() { return isolate_; }
+
    private:
+    Isolate* isolate_;
     ScavengeJob* job_;
   };
 

@@ -12,11 +12,11 @@ const asyncTest = (function() {
 
   function fail(error) {
     const stack = currentTest ?
-      error.stack + '\nFrom previous event:\n' + currentTest.stack :
+      `${error.stack}\nFrom previous event:\n${currentTest.stack}` :
       error.stack;
 
     if (currentTest)
-      process.stderr.write('\'' + currentTest.description + '\' failed\n\n');
+      process.stderr.write(`'${currentTest.description}' failed\n\n`);
 
     process.stderr.write(stack);
     process.exit(2);
@@ -634,7 +634,6 @@ asyncTest(
       onUnhandledSucceed(done, function(reason, promise) {
         assert.strictEqual(reason, e);
         assert.strictEqual(domainReceivedError, domainError);
-        d.dispose();
       });
       Promise.reject(e);
       process.nextTick(function() {

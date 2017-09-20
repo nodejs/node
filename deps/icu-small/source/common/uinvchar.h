@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  uinvchar.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:2
 *
@@ -64,7 +64,7 @@ uprv_isInvariantUString(const UChar *s, int32_t length);
  */
 U_INTERNAL inline UBool U_EXPORT2
 uprv_isInvariantUnicodeString(const icu::UnicodeString &s) {
-    return uprv_isInvariantUString(s.getBuffer(), s.length());
+    return uprv_isInvariantUString(icu::toUCharPtr(s.getBuffer()), s.length());
 }
 
 #endif  /* __cplusplus */

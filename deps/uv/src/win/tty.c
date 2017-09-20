@@ -138,7 +138,7 @@ typedef enum {
 static uv_vtermstate_t uv__vterm_state = UV_UNCHECKED;
 static void uv__determine_vterm_state(HANDLE handle);
 
-void uv_console_init() {
+void uv_console_init(void) {
   if (uv_sem_init(&uv_tty_output_lock, 1))
     abort();
 }
@@ -148,6 +148,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
   HANDLE handle;
   CONSOLE_SCREEN_BUFFER_INFO screen_buffer_info;
 
+  uv__once_init();
   handle = (HANDLE) uv__get_osfhandle(fd);
   if (handle == INVALID_HANDLE_VALUE)
     return UV_EBADF;
@@ -2126,8 +2127,7 @@ int uv_tty_write(uv_loop_t* loop,
                  uv_write_cb cb) {
   DWORD error;
 
-  uv_req_init(loop, (uv_req_t*) req);
-  req->type = UV_WRITE;
+  UV_REQ_INIT(req, UV_WRITE);
   req->handle = (uv_stream_t*) handle;
   req->cb = cb;
 

@@ -37,7 +37,7 @@ function parseOptions(options) {
 /**
  * Checks whether or not a given variable is a function declaration.
  *
- * @param {escope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable - A variable to check.
  * @returns {boolean} `true` if the variable is a function declaration.
  */
 function isFunction(variable) {
@@ -47,8 +47,8 @@ function isFunction(variable) {
 /**
  * Checks whether or not a given variable is a class declaration in an upper function scope.
  *
- * @param {escope.Variable} variable - A variable to check.
- * @param {escope.Reference} reference - A reference to check.
+ * @param {eslint-scope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Reference} reference - A reference to check.
  * @returns {boolean} `true` if the variable is a class declaration.
  */
 function isOuterClass(variable, reference) {
@@ -60,8 +60,8 @@ function isOuterClass(variable, reference) {
 
 /**
 * Checks whether or not a given variable is a variable declaration in an upper function scope.
-* @param {escope.Variable} variable - A variable to check.
-* @param {escope.Reference} reference - A reference to check.
+* @param {eslint-scope.Variable} variable - A variable to check.
+* @param {eslint-scope.Reference} reference - A reference to check.
 * @returns {boolean} `true` if the variable is a variable declaration.
 */
 function isOuterVariable(variable, reference) {
@@ -167,8 +167,8 @@ module.exports = {
 
         /**
          * Determines whether a given use-before-define case should be reported according to the options.
-         * @param {escope.Variable} variable The variable that gets used before being defined
-         * @param {escope.Reference} reference The reference to the variable
+         * @param {eslint-scope.Variable} variable The variable that gets used before being defined
+         * @param {eslint-scope.Reference} reference The reference to the variable
          * @returns {boolean} `true` if the usage should be reported
          */
         function isForbidden(variable, reference) {
@@ -250,7 +250,7 @@ module.exports = {
 
             ruleDefinition["ArrowFunctionExpression:exit"] = function(node) {
                 if (node.body.type !== "BlockStatement") {
-                    findVariables(node);
+                    findVariables();
                 }
             };
         } else {

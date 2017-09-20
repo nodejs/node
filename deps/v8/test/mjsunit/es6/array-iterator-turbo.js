@@ -2,36 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo --turbo-escape --allow-natives-syntax
+// Flags: --turbo-escape --allow-natives-syntax --no-always-opt
+// Flags: --opt --turbo-filter=*
 
 "use strict";
-
-const kDeoptimized = 2;
-const kTurbofanned = 7;
-const kInterpreted = 8;
-
-function GetOptimizationStatus(fn) {
-  let status = %GetOptimizationStatus(fn);
-  switch (status) {
-  case kInterpreted: // Treat interpreted frames as unoptimized
-    status = kDeoptimized;
-    break;
-  }
-
-  return status;
-}
 
 let global = this;
 let tests = {
   FastElementsKind() {
     let runners = {
-      FAST_SMI_ELEMENTS(array) {
+      PACKED_SMI_ELEMENTS(array) {
         let sum = 0;
         for (let x of array) sum += x;
         return sum;
       },
 
-      FAST_HOLEY_SMI_ELEMENTS(array) {
+      HOLEY_SMI_ELEMENTS(array) {
         let sum = 0;
         for (let x of array) {
           if (x) sum += x;
@@ -39,71 +25,75 @@ let tests = {
         return sum;
       },
 
-      FAST_ELEMENTS(array) {
+      PACKED_ELEMENTS(array) {
         let ret = "";
         for (let str of array) ret += `> ${str}`;
         return ret;
       },
 
-      FAST_HOLEY_ELEMENTS(array) {
+      HOLEY_ELEMENTS(array) {
         let ret = "";
         for (let str of array) ret += `> ${str}`;
         return ret;
       },
 
-      FAST_DOUBLE_ELEMENTS(array) {
+      PACKED_DOUBLE_ELEMENTS(array) {
         let sum = 0.0;
         for (let x of array) sum += x;
           return sum;
       },
 
-      FAST_HOLEY_DOUBLE_ELEMENTS(array) {
+      // TODO(6587): Re-enable the below test case once we no longer deopt due
+      // to non-truncating uses of {CheckFloat64Hole} nodes.
+      /*HOLEY_DOUBLE_ELEMENTS(array) {
         let sum = 0.0;
         for (let x of array) {
           if (x) sum += x;
         }
         return sum;
-      }
+      }*/
     };
 
     let tests = {
-      FAST_SMI_ELEMENTS: {
+      PACKED_SMI_ELEMENTS: {
         array: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         expected: 55,
         array2: [1, 2, 3],
         expected2: 6
       },
-      FAST_HOLEY_SMI_ELEMENTS: {
+      HOLEY_SMI_ELEMENTS: {
         array: [1, , 3, , 5, , 7, , 9, ,],
         expected: 25,
         array2: [1, , 3],
         expected2: 4
       },
-      FAST_ELEMENTS: {
+      PACKED_ELEMENTS: {
         array: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
         expected: "> a> b> c> d> e> f> g> h> i> j",
         array2: ["a", "b", "c"],
         expected2: "> a> b> c"
       },
-      FAST_HOLEY_ELEMENTS: {
+      HOLEY_ELEMENTS: {
         array: ["a", , "c", , "e", , "g", , "i", ,],
         expected: "> a> undefined> c> undefined> e> undefined> g" +
                   "> undefined> i> undefined",
         array2: ["a", , "c"],
         expected2: "> a> undefined> c"
       },
-      FAST_DOUBLE_ELEMENTS: {
+      PACKED_DOUBLE_ELEMENTS: {
         array: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
         expected: 5.5,
         array2: [0.6, 0.4, 0.2],
         expected2: 1.2
       },
-      FAST_HOLEY_DOUBLE_ELEMENTS: {
+      // TODO(6587): Re-enable the below test case once we no longer deopt due
+      // to non-truncating uses of {CheckFloat64Hole} nodes.
+      /*HOLEY_DOUBLE_ELEMENTS: {
         array: [0.1, , 0.3, , 0.5, , 0.7, , 0.9, ,],
         expected: 2.5,
         array2: [0.1, , 0.3],
         expected2: 0.4
-      }
+      }*/
     };
 
     for (let key of Object.keys(runners)) {
@@ -116,17 +106,13 @@ let tests = {
       %OptimizeFunctionOnNextCall(fn);
       fn(array);
 
-      // TODO(bmeurer): FAST_HOLEY_DOUBLE_ELEMENTS maps generally deopt when
-      // a hole is encountered. Test should be fixed once that is corrected.
-      let status = /HOLEY_DOUBLE/.test(key) ? kDeoptimized : kTurbofanned;
-
-      assertEquals(status, GetOptimizationStatus(fn), key);
+      assertOptimized(fn, '', key);
       assertEquals(expected, fn(array), key);
-      assertEquals(status, GetOptimizationStatus(fn), key);
+      assertOptimized(fn, '', key);
 
-      // Check no deopt when another arra with the same map is used
+      // Check no deopt when another array with the same map is used
       assertTrue(%HaveSameMap(array, array2), key);
-      assertEquals(status, GetOptimizationStatus(fn), key);
+      assertOptimized(fn, '', key);
       assertEquals(expected2, fn(array2), key);
 
       // CheckMaps bailout
@@ -134,7 +120,7 @@ let tests = {
           [1, 2, 3], 2, { enumerable: false, configurable: false,
                           get() { return 7; } });
       fn(newArray);
-      assertEquals(kDeoptimized, GetOptimizationStatus(fn), key);
+      assertUnoptimized(fn, '', key);
     }
   },
 
@@ -222,17 +208,21 @@ let tests = {
       %OptimizeFunctionOnNextCall(sum);
       assertEquals(expected, sum(array), key);
 
-      assertEquals(kTurbofanned, GetOptimizationStatus(sum), key);
+      assertOptimized(sum, '', key);
 
       // Not deoptimized when called on typed array of same type / map
       assertTrue(%HaveSameMap(array, array2));
       assertEquals(expected2, sum(array2), key);
-      assertEquals(kTurbofanned, GetOptimizationStatus(sum), key);
+      assertOptimized(sum, '', key);
 
       // Throw when detached
       let clone = new array.constructor(array);
       %ArrayBufferNeuter(clone.buffer);
       assertThrows(() => sum(clone), TypeError);
+
+      // Clear the slate for the next iteration.
+      %DeoptimizeFunction(sum);
+      %ClearFunctionFeedback(sum);
     }
   }
 };

@@ -438,3 +438,7 @@ FormData.prototype._error = function(err) {
     this.emit('error', err);
   }
 };
+
+FormData.prototype.toString = function () {
+  return '[object FormData]';
+};

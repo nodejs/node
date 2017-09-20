@@ -26,18 +26,15 @@ namespace internal {
 #define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
   entry(p0, p1, p2, p3, p4)
 
-typedef int (*mips_regexp_matcher)(String*, int, const byte*, const byte*,
-                                   void*, int*, int, Address, int, Isolate*);
-
+typedef int (*mips_regexp_matcher)(String*, int, const byte*, const byte*, int*,
+                                   int, Address, int, Isolate*);
 
 // Call the generated regexp code directly. The code at the entry address
 // should act as a function matching the type arm_regexp_matcher.
-// The fifth argument is a dummy that reserves the space used for
-// the return address added by the ExitFrame in native calls.
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
-  (FUNCTION_CAST<mips_regexp_matcher>(entry)(p0, p1, p2, p3, NULL, p4, p5, p6, \
-                                             p7, p8))
+  (FUNCTION_CAST<mips_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,   \
+                                             p8))
 
 // The stack limit beyond which we will throw stack overflow errors in
 // generated code. Because generated code on mips uses the C stack, we
@@ -184,6 +181,43 @@ class Simulator {
     kNumFPURegisters
   };
 
+  // MSA registers
+  enum MSARegister {
+    w0,
+    w1,
+    w2,
+    w3,
+    w4,
+    w5,
+    w6,
+    w7,
+    w8,
+    w9,
+    w10,
+    w11,
+    w12,
+    w13,
+    w14,
+    w15,
+    w16,
+    w17,
+    w18,
+    w19,
+    w20,
+    w21,
+    w22,
+    w23,
+    w24,
+    w25,
+    w26,
+    w27,
+    w28,
+    w29,
+    w30,
+    w31,
+    kNumMSARegisters
+  };
+
   explicit Simulator(Isolate* isolate);
   ~Simulator();
 
@@ -216,6 +250,10 @@ class Simulator {
   int32_t get_fpu_register_hi_word(int fpureg) const;
   float get_fpu_register_float(int fpureg) const;
   double get_fpu_register_double(int fpureg) const;
+  template <typename T>
+  void get_msa_register(int wreg, T* value);
+  template <typename T>
+  void set_msa_register(int wreg, const T* value);
   void set_fcsr_bit(uint32_t cc, bool value);
   bool test_fcsr_bit(uint32_t cc);
   void set_fcsr_rounding_mode(FPURoundingMode mode);
@@ -293,6 +331,22 @@ class Simulator {
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
 
+  // Helpers for data value tracing.
+  enum TraceType { BYTE, HALF, WORD, DWORD, FLOAT, DOUBLE, FLOAT_DOUBLE };
+
+  // MSA Data Format
+  enum MSADataFormat { MSA_VECT = 0, MSA_BYTE, MSA_HALF, MSA_WORD, MSA_DWORD };
+  typedef union {
+    int8_t b[kMSALanesByte];
+    uint8_t ub[kMSALanesByte];
+    int16_t h[kMSALanesHalf];
+    uint16_t uh[kMSALanesHalf];
+    int32_t w[kMSALanesWord];
+    uint32_t uw[kMSALanesWord];
+    int64_t d[kMSALanesDword];
+    uint64_t ud[kMSALanesDword];
+  } msa_reg_t;
+
   // Read and write memory.
   inline uint32_t ReadBU(int32_t addr);
   inline int32_t ReadB(int32_t addr);
@@ -305,24 +359,22 @@ class Simulator {
   inline void WriteH(int32_t addr, uint16_t value, Instruction* instr);
   inline void WriteH(int32_t addr, int16_t value, Instruction* instr);
 
-  inline int ReadW(int32_t addr, Instruction* instr);
+  inline int ReadW(int32_t addr, Instruction* instr, TraceType t = WORD);
   inline void WriteW(int32_t addr, int value, Instruction* instr);
 
   inline double ReadD(int32_t addr, Instruction* instr);
   inline void WriteD(int32_t addr, double value, Instruction* instr);
 
-  // Helpers for data value tracing.
-  enum TraceType {
-    BYTE,
-    HALF,
-    WORD
-    // DWORD,
-    // DFLOAT - Floats may have printing issues due to paired lwc1's
-  };
-
-  void TraceRegWr(int32_t value);
-  void TraceMemWr(int32_t addr, int32_t value, TraceType t);
-  void TraceMemRd(int32_t addr, int32_t value);
+  void TraceRegWr(int32_t value, TraceType t = WORD);
+  void TraceRegWr(int64_t value, TraceType t = DWORD);
+  template <typename T>
+  void TraceMSARegWr(T* value, TraceType t);
+  template <typename T>
+  void TraceMSARegWr(T* value);
+  void TraceMemWr(int32_t addr, int32_t value, TraceType t = WORD);
+  void TraceMemRd(int32_t addr, int32_t value, TraceType t = WORD);
+  void TraceMemWr(int32_t addr, int64_t value, TraceType t = DWORD);
+  void TraceMemRd(int32_t addr, int64_t value, TraceType t = DWORD);
   EmbeddedVector<char, 128> trace_buf_;
 
   // Operations depending on endianness.
@@ -358,6 +410,21 @@ class Simulator {
 
   void DecodeTypeRegisterLRsType();
 
+  int DecodeMsaDataFormat();
+  void DecodeTypeMsaI8();
+  void DecodeTypeMsaI5();
+  void DecodeTypeMsaI10();
+  void DecodeTypeMsaELM();
+  void DecodeTypeMsaBIT();
+  void DecodeTypeMsaMI10();
+  void DecodeTypeMsa3R();
+  void DecodeTypeMsa3RF();
+  void DecodeTypeMsaVec();
+  void DecodeTypeMsa2R();
+  void DecodeTypeMsa2RF();
+  template <typename T>
+  T MsaI5InstrHelper(uint32_t opcode, T ws, int32_t i5);
+
   inline int32_t rs_reg() const { return instr_.RsValue(); }
   inline int32_t rs() const { return get_register(rs_reg()); }
   inline uint32_t rs_u() const {
@@ -375,10 +442,33 @@ class Simulator {
   inline int32_t fd_reg() const { return instr_.FdValue(); }
   inline int32_t sa() const { return instr_.SaValue(); }
   inline int32_t lsa_sa() const { return instr_.LsaSaValue(); }
+  inline int32_t ws_reg() const { return instr_.WsValue(); }
+  inline int32_t wt_reg() const { return instr_.WtValue(); }
+  inline int32_t wd_reg() const { return instr_.WdValue(); }
 
   inline void SetResult(int32_t rd_reg, int32_t alu_out) {
     set_register(rd_reg, alu_out);
     TraceRegWr(alu_out);
+  }
+
+  inline void SetFPUWordResult(int32_t fd_reg, int32_t alu_out) {
+    set_fpu_register_word(fd_reg, alu_out);
+    TraceRegWr(get_fpu_register_word(fd_reg));
+  }
+
+  inline void SetFPUResult(int32_t fd_reg, int64_t alu_out) {
+    set_fpu_register(fd_reg, alu_out);
+    TraceRegWr(get_fpu_register(fd_reg));
+  }
+
+  inline void SetFPUFloatResult(int32_t fd_reg, float alu_out) {
+    set_fpu_register_float(fd_reg, alu_out);
+    TraceRegWr(get_fpu_register_word(fd_reg), FLOAT);
+  }
+
+  inline void SetFPUDoubleResult(int32_t fd_reg, double alu_out) {
+    set_fpu_register_double(fd_reg, alu_out);
+    TraceRegWr(get_fpu_register(fd_reg), DOUBLE);
   }
 
   void DecodeTypeImmediate();
@@ -449,7 +539,7 @@ class Simulator {
   // Exceptions.
   void SignalException(Exception e);
 
-  // Runtime call support.
+  // Runtime call support. Uses the isolate in a thread-safe way.
   static void* RedirectExternalReference(Isolate* isolate,
                                          void* external_function,
                                          ExternalReference::Type type);
@@ -466,7 +556,9 @@ class Simulator {
   // Coprocessor Registers.
   // Note: FP32 mode uses only the lower 32-bit part of each element,
   // the upper 32-bit is unpredictable.
-  int64_t FPUregisters_[kNumFPURegisters];
+  // Note: FPUregisters_[] array is increased to 64 * 8B = 32 * 16B in
+  // order to support MSA registers
+  int64_t FPUregisters_[kNumFPURegisters * 2];
   // FPU control register.
   uint32_t FCSR_;
 
@@ -513,9 +605,8 @@ class Simulator {
 
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
-  Simulator::current(isolate)                                                  \
-      ->Call(entry, 10, p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8)
-
+  Simulator::current(isolate)->Call(entry, 9, p0, p1, p2, p3, p4, p5, p6, p7,  \
+                                    p8)
 
 // The simulator has its own stack. Thus it has a different stack limit from
 // the C-based native code.  The JS-based limit normally points near the end of

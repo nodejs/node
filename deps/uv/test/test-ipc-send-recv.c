@@ -224,10 +224,16 @@ static int run_ipc_send_recv_pipe(int inprocess) {
 }
 
 TEST_IMPL(ipc_send_recv_pipe) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
   return run_ipc_send_recv_pipe(0);
 }
 
 TEST_IMPL(ipc_send_recv_pipe_inprocess) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
   return run_ipc_send_recv_pipe(1);
 }
 
@@ -259,10 +265,16 @@ static int run_ipc_send_recv_tcp(int inprocess) {
 }
 
 TEST_IMPL(ipc_send_recv_tcp) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
   return run_ipc_send_recv_tcp(0);
 }
 
 TEST_IMPL(ipc_send_recv_tcp_inprocess) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
   return run_ipc_send_recv_tcp(1);
 }
 
@@ -335,7 +347,7 @@ static void read_cb(uv_stream_t* handle,
   } while (uv_pipe_pending_count(pipe) > 0);
 }
 
-static void send_recv_start() {
+static void send_recv_start(void) {
   int r;
   ASSERT(1 == uv_is_readable((uv_stream_t*)&ctx2.channel));
   ASSERT(1 == uv_is_writable((uv_stream_t*)&ctx2.channel));

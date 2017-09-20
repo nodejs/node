@@ -6051,7 +6051,7 @@ def ParseArguments(args):
       try:
           _valid_extensions = set(val.split(','))
       except ValueError:
-          PrintUsage('Extensions must be comma seperated list.')
+          PrintUsage('Extensions must be comma separated list.')
     elif opt == '--logfile':
       logger.addHandler(logging.FileHandler(val, mode='wb'))
 

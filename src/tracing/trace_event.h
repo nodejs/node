@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include "node_platform.h"
 #include "v8-platform.h"
 #include "trace_event_common.h"
 
@@ -70,7 +71,7 @@ enum CategoryGroupEnabledFlags {
 // const uint8_t*
 //     TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(const char* category_group)
 #define TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED              \
-  node::tracing::TraceEventHelper::GetCurrentPlatform() \
+  node::tracing::TraceEventHelper::GetTracingController() \
       ->GetCategoryGroupEnabled
 
 // Get the number of times traces have been recorded. This is used to implement
@@ -99,7 +100,7 @@ enum CategoryGroupEnabledFlags {
 //     const char* name,
 //     uint64_t id)
 #define TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION             \
-  node::tracing::TraceEventHelper::GetCurrentPlatform() \
+  node::tracing::TraceEventHelper::GetTracingController() \
       ->UpdateTraceEventDuration
 
 // Defines atomic operations used internally by the tracing system.
@@ -258,8 +259,8 @@ extern intptr_t kRuntimeCallStatsTracingEnabled;
 
 class TraceEventHelper {
  public:
-  static v8::Platform* GetCurrentPlatform();
-  static void SetCurrentPlatform(v8::Platform* platform);
+  static v8::TracingController* GetTracingController();
+  static void SetTracingController(v8::TracingController* controller);
 };
 
 // TraceID encapsulates an ID that can either be an integer or pointer. Pointers
@@ -396,21 +397,21 @@ static inline uint64_t AddTraceEventImpl(
     const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
     const char** arg_names, const uint8_t* arg_types,
     const uint64_t* arg_values, unsigned int flags) {
-  std::unique_ptr<v8::ConvertableToTraceFormat> arg_convertables[2];
+  std::unique_ptr<v8::ConvertableToTraceFormat> arg_convertibles[2];
   if (num_args > 0 && arg_types[0] == TRACE_VALUE_TYPE_CONVERTABLE) {
-    arg_convertables[0].reset(reinterpret_cast<v8::ConvertableToTraceFormat*>(
+    arg_convertibles[0].reset(reinterpret_cast<v8::ConvertableToTraceFormat*>(
         static_cast<intptr_t>(arg_values[0])));
   }
   if (num_args > 1 && arg_types[1] == TRACE_VALUE_TYPE_CONVERTABLE) {
-    arg_convertables[1].reset(reinterpret_cast<v8::ConvertableToTraceFormat*>(
+    arg_convertibles[1].reset(reinterpret_cast<v8::ConvertableToTraceFormat*>(
         static_cast<intptr_t>(arg_values[1])));
   }
   // DCHECK(num_args <= 2);
-  v8::Platform* platform =
-      node::tracing::TraceEventHelper::GetCurrentPlatform();
-  return platform->AddTraceEvent(phase, category_group_enabled, name, scope, id,
-                                 bind_id, num_args, arg_names, arg_types,
-                                 arg_values, arg_convertables, flags);
+  v8::TracingController* controller =
+      node::tracing::TraceEventHelper::GetTracingController();
+  return controller->AddTraceEvent(phase, category_group_enabled, name, scope, id,
+                                   bind_id, num_args, arg_names, arg_types,
+                                   arg_values, arg_convertibles, flags);
 }
 
 // Define SetTraceValue for each allowed type. It stores the type and

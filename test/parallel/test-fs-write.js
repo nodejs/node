@@ -23,7 +23,6 @@
 const common = require('../common');
 const assert = require('assert');
 const path = require('path');
-const Buffer = require('buffer').Buffer;
 const fs = require('fs');
 const fn = path.join(common.tmpDir, 'write.txt');
 const fn2 = path.join(common.tmpDir, 'write2.txt');

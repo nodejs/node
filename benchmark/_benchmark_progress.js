@@ -3,8 +3,8 @@
 const readline = require('readline');
 
 function pad(input, minLength, fill) {
-  var result = String(input);
-  var padding = fill.repeat(Math.max(0, minLength - result.length));
+  const result = String(input);
+  const padding = fill.repeat(Math.max(0, minLength - result.length));
   return `${padding}${result}`;
 }
 
@@ -65,12 +65,12 @@ class BenchmarkProgress {
     this.updateProgress();
   }
 
-  completeConfig(data) {
+  completeConfig() {
     this.completedConfig++;
     this.updateProgress();
   }
 
-  completeRun(job) {
+  completeRun() {
     this.completedRuns++;
     this.updateProgress();
   }
@@ -87,8 +87,8 @@ class BenchmarkProgress {
     const runsPerFile = this.runsPerFile;
     const completedFiles = Math.floor(completedRuns / runsPerFile);
     const scheduledFiles = this.benchmarks.length;
-    const completedRunsForFile = finished ? runsPerFile :
-                                 completedRuns % runsPerFile;
+    const completedRunsForFile =
+      finished ? runsPerFile : completedRuns % runsPerFile;
     const completedConfig = this.completedConfig;
     const scheduledConfig = this.scheduledConfig;
 
@@ -101,15 +101,14 @@ class BenchmarkProgress {
     const percent = pad(Math.floor(completedRate * 100), 3, ' ');
 
     const caption = finished ? 'Done\n' : this.currentFile;
-    return `[${getTime(diff)}|% ${
-               percent}| ${
-               fraction(completedFiles, scheduledFiles)} files | ${
-               fraction(completedRunsForFile, runsPerFile)} runs | ${
-               fraction(completedConfig, scheduledConfig)} configs]: ${
-               caption} `;
+    return `[${getTime(diff)}|% ${percent}| ` +
+           `${fraction(completedFiles, scheduledFiles)} files | ` +
+           `${fraction(completedRunsForFile, runsPerFile)} runs | ` +
+           `${fraction(completedConfig, scheduledConfig)} configs]: ` +
+           `${caption} `;
   }
 
-  updateProgress(finished) {
+  updateProgress() {
     if (!process.stderr.isTTY || process.stdout.isTTY) {
       return;
     }

@@ -43,6 +43,6 @@ process.on('exit', function() {
                 common.expectsError({
                   code: 'ERR_INVALID_CALLBACK',
                   type: TypeError,
-                  message: 'callback must be a function'
+                  message: 'Callback must be a function'
                 }));
 });

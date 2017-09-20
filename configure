@@ -1,4 +1,15 @@
-#!/usr/bin/env python
+#!/bin/sh
+
+# Locate python2 interpreter and re-execute the script.  Note that the
+# mix of single and double quotes is intentional, as is the fact that
+# the ] goes on a new line.
+_=[ 'exec' '/bin/sh' '-c' '''
+which python2.7 >/dev/null && exec python2.7 "$0" "$@"
+which python2 >/dev/null && exec python2 "$0" "$@"
+exec python "$0" "$@"
+''' "$0" "$@"
+]
+del _
 
 import sys
 if sys.version_info[0] != 2 or sys.version_info[1] not in (6, 7):
@@ -40,14 +51,15 @@ import nodedownload
 # imports in tools/
 sys.path.insert(0, os.path.join(root_dir, 'tools'))
 import getmoduleversion
+from gyp_node import run_gyp
 
 # parse our options
 parser = optparse.OptionParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
             'android', 'aix')
-valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'ppc', 'ppc64', 'x32',
-              'x64', 'x86', 's390', 's390x')
+valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'mips64el', 'ppc',
+              'ppc64', 'x32','x64', 'x86', 's390', 's390x')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
 valid_arm_fpu = ('vfp', 'vfpv3', 'vfpv3-d16', 'neon')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
@@ -63,6 +75,8 @@ shared_optgroup = optparse.OptionGroup(parser, "Shared libraries",
 intl_optgroup = optparse.OptionGroup(parser, "Internationalization",
     "Flags that lets you enable i18n features in Node.js as well as which "
     "library you want to build against.")
+http2_optgroup = optparse.OptionGroup(parser, "HTTP2",
+    "Flags that allows you to control HTTP2 features in Node.js")
 
 # Options should be in alphabetical order but keep --prefix at the top,
 # that's arguably the one people will be looking for most.
@@ -287,6 +301,11 @@ parser.add_option('--enable-d8',
     dest='enable_d8',
     help=optparse.SUPPRESS_HELP)  # Unsupported, undocumented.
 
+parser.add_option('--enable-trace-maps',
+    action='store_true',
+    dest='trace_maps',
+    help='Enable the --trace-maps flag in V8 (use at your own risk)')
+
 parser.add_option('--v8-options',
     action='store',
     dest='v8_options',
@@ -357,7 +376,7 @@ intl_optgroup.add_option('--without-intl',
     action='store_const',
     dest='with_intl',
     const='none',
-    help='Disable Intl, same as --with-intl=none')
+    help='Disable Intl, same as --with-intl=none (disables inspector)')
 
 intl_optgroup.add_option('--with-icu-path',
     action='store',
@@ -390,6 +409,18 @@ intl_optgroup.add_option('--download-path',
     help='Download directory [default: %default]')
 
 parser.add_option_group(intl_optgroup)
+
+http2_optgroup.add_option('--debug-http2',
+    action='store_true',
+    dest='debug_http2',
+    help='build with http2 debug statements on (default is false)')
+
+http2_optgroup.add_option('--debug-nghttp2',
+    action='store_true',
+    dest='debug_nghttp2',
+    help='build nghttp2 with DEBUGBUILD (default is false)')
+
+parser.add_option_group(http2_optgroup)
 
 parser.add_option('--with-perfctr',
     action='store_true',
@@ -430,7 +461,12 @@ parser.add_option('--without-snapshot',
 parser.add_option('--without-ssl',
     action='store_true',
     dest='without_ssl',
-    help='build without SSL')
+    help='build without SSL (disables crypto, https, inspector, etc.)')
+
+parser.add_option('--without-node-options',
+    action='store_true',
+    dest='without_node_options',
+    help='build without NODE_OPTIONS support')
 
 parser.add_option('--xcode',
     action='store_true',
@@ -461,7 +497,7 @@ parser.add_option('--no-browser-globals',
 parser.add_option('--without-inspector',
     action='store_true',
     dest='without_inspector',
-    help='disable experimental V8 inspector support')
+    help='disable the V8 inspector protocol')
 
 parser.add_option('--shared',
     action='store_true',
@@ -617,8 +653,8 @@ def check_compiler(o):
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CXX, 'c++')
   if not ok:
     warn('failed to autodetect C++ compiler version (CXX=%s)' % CXX)
-  elif clang_version < '3.4.2' if is_clang else gcc_version < '4.8.0':
-    warn('C++ compiler too old, need g++ 4.8 or clang++ 3.4.2 (CXX=%s)' % CXX)
+  elif clang_version < '3.4.2' if is_clang else gcc_version < '4.9.4':
+    warn('C++ compiler too old, need g++ 4.9.4 or clang++ 3.4.2 (CXX=%s)' % CXX)
 
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CC, 'c')
   if not ok:
@@ -629,12 +665,14 @@ def check_compiler(o):
     # to a version that is not completely ancient.
     warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s)' % CC)
 
-  # Need llvm_version or gas_version when openssl asm files are compiled
+  if is_clang:
+    o['variables']['llvm_version'] = get_llvm_version(CC)
+
+  # Need xcode_version or gas_version when openssl asm files are compiled.
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
     return
 
   if is_clang:
-    o['variables']['llvm_version'] = get_llvm_version(CC)
     if sys.platform == 'darwin':
       o['variables']['xcode_version'] = get_xcode_version(CC)
   else:
@@ -805,8 +843,6 @@ def configure_node(o):
   want_snapshots = not options.without_snapshot
   o['variables']['want_separate_host_toolset'] = int(
       cross_compiling and want_snapshots)
-  o['variables']['want_separate_host_toolset_mkpeephole'] = int(
-      cross_compiling)
 
   if target_arch == 'arm':
     configure_arm(o)
@@ -885,6 +921,16 @@ def configure_node(o):
   if options.enable_static:
     o['variables']['node_target_type'] = 'static_library'
 
+  if options.debug_http2:
+    o['variables']['debug_http2'] = 1
+  else:
+    o['variables']['debug_http2'] = 'false'
+
+  if options.debug_nghttp2:
+    o['variables']['debug_nghttp2'] = 1
+  else:
+    o['variables']['debug_nghttp2'] = 'false'
+
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
   o['variables']['node_shared'] = b(options.shared)
   node_module_version = getmoduleversion.get_version()
@@ -948,7 +994,9 @@ def configure_v8(o):
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
   o['variables']['v8_optimized_debug'] = 0  # Compile with -O0 in debug builds.
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
+  o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_snapshot'] = 'false' if options.without_snapshot else 'true'
+  o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
@@ -965,16 +1013,25 @@ def configure_openssl(o):
   o['variables']['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
   if options.use_openssl_ca_store:
     o['defines'] += ['NODE_OPENSSL_CERT_STORE']
+  o['variables']['node_without_node_options'] = b(options.without_node_options)
+  if options.without_node_options:
+      o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
   if options.openssl_fips:
     o['variables']['openssl_fips'] = options.openssl_fips
     fips_dir = os.path.join(root_dir, 'deps', 'openssl', 'fips')
     fips_ld = os.path.abspath(os.path.join(fips_dir, 'fipsld'))
+    # LINK is for Makefiles, LD/LDXX is for ninja
     o['make_fips_settings'] = [
       ['LINK', fips_ld + ' <(openssl_fips)/bin/fipsld'],
+      ['LD', fips_ld + ' <(openssl_fips)/bin/fipsld'],
+      ['LDXX', fips_ld + ' <(openssl_fips)/bin/fipsld'],
     ]
   else:
     o['variables']['openssl_fips'] = ''
-
+    try:
+      os.remove('config_fips.gypi')
+    except OSError:
+      pass
 
   if options.without_ssl:
     def without_ssl_error(option):
@@ -1035,8 +1092,8 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
 def configure_intl(o):
   icus = [
     {
-      'url': 'https://ssl.icu-project.org/files/icu4c/58.2/icu4c-58_2-src.zip',
-      'md5': 'f4fca37508fc5d14390501cf17aef084',
+      'url': 'https://ssl.icu-project.org/files/icu4c/59.1/icu4c-59_1-src.zip',
+      'md5': '29a41f9bb576b06c7eef0487a84a7674',
     },
   ]
   def icu_download(path):
@@ -1271,7 +1328,6 @@ def configure_intl(o):
     'stubdata': 'stubdata',
     'common': 'common',
     'i18n': 'i18n',
-    'io': 'io',
     'tools': 'tools/toolutil',
     'genccode': 'tools/genccode',
     'genrb': 'tools/genrb',
@@ -1363,6 +1419,8 @@ config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
   'USE_XCODE': str(int(options.use_xcode or 0)),
   'PYTHON': sys.executable,
+  'NODE_TARGET_TYPE': variables['node_target_type'] if options.enable_static \
+      else '',
 }
 
 if options.prefix:
@@ -1370,10 +1428,9 @@ if options.prefix:
 
 config = '\n'.join(map('='.join, config.iteritems())) + '\n'
 
-write('config.mk',
-      '# Do not edit. Generated by the configure script.\n' + config)
+write('config.mk', do_not_edit + config)
 
-gyp_args = [sys.executable, 'tools/gyp_node.py', '--no-parallel']
+gyp_args = ['--no-parallel']
 
 if options.use_xcode:
   gyp_args += ['-f', 'xcode']
@@ -1392,4 +1449,4 @@ gyp_args += args
 if warn.warned:
   warn('warnings were emitted in the configure phase')
 
-sys.exit(subprocess.call(gyp_args))
+run_gyp(gyp_args)

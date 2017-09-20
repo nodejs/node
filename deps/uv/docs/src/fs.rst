@@ -1,15 +1,15 @@
 
 .. _fs:
 
-Filesystem operations
-=====================
+File system operations
+======================
 
-libuv provides a wide variety of cross-platform sync and async filesystem
+libuv provides a wide variety of cross-platform sync and async file system
 operations. All functions defined in this document take a callback, which is
 allowed to be NULL. If the callback is NULL the request is completed synchronously,
 otherwise it will be performed asynchronously.
 
-All file operations are run on the threadpool, see :ref:`threadpool` for information
+All file operations are run on the threadpool. See :ref:`threadpool` for information
 on the threadpool size.
 
 
@@ -18,7 +18,7 @@ Data types
 
 .. c:type:: uv_fs_t
 
-    Filesystem request type.
+    File system request type.
 
 .. c:type:: uv_timespec_t
 
@@ -58,7 +58,7 @@ Data types
 
 .. c:type:: uv_fs_type
 
-    Filesystem request type.
+    File system request type.
 
     ::
 
@@ -92,7 +92,8 @@ Data types
             UV_FS_READLINK,
             UV_FS_CHOWN,
             UV_FS_FCHOWN,
-            UV_FS_REALPATH
+            UV_FS_REALPATH,
+            UV_FS_COPYFILE
         } uv_fs_type;
 
 .. c:type:: uv_dirent_t
@@ -216,7 +217,7 @@ API
         Unlike `scandir(3)`, this function does not return the "." and ".." entries.
 
     .. note::
-        On Linux, getting the type of an entry is only supported by some filesystems (btrfs, ext2,
+        On Linux, getting the type of an entry is only supported by some file systems (btrfs, ext2,
         ext3 and ext4 at the time of this writing), check the :man:`getdents(2)` man page.
 
 .. c:function:: int uv_fs_stat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
@@ -240,6 +241,22 @@ API
 .. c:function:: int uv_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req, uv_file file, int64_t offset, uv_fs_cb cb)
 
     Equivalent to :man:`ftruncate(2)`.
+
+.. c:function:: int uv_fs_copyfile(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, int flags, uv_fs_cb cb)
+
+    Copies a file from `path` to `new_path`. Supported `flags` are described below.
+
+    - `UV_FS_COPYFILE_EXCL`: If present, `uv_fs_copyfile()` will fail with
+      `UV_EEXIST` if the destination path already exists. The default behavior
+      is to overwrite the destination if it exists.
+
+    .. warning::
+        If the destination path is created, but an error occurs while copying
+        the data, then the destination path is removed. There is a brief window
+        of time between closing and removing the file where another process
+        could access the file.
+
+    .. versionadded:: 1.14.0
 
 .. c:function:: int uv_fs_sendfile(uv_loop_t* loop, uv_fs_t* req, uv_file out_fd, uv_file in_fd, int64_t in_offset, size_t length, uv_fs_cb cb)
 
@@ -291,7 +308,7 @@ API
     Equivalent to :man:`realpath(3)` on Unix. Windows uses `GetFinalPathNameByHandle <https://msdn.microsoft.com/en-us/library/windows/desktop/aa364962(v=vs.85).aspx>`_.
 
     .. warning::
-        This function has certain platform specific caveats that were discovered when used in Node.
+        This function has certain platform-specific caveats that were discovered when used in Node.
 
         * macOS and other BSDs: this function will fail with UV_ELOOP if more than 32 symlinks are
           found while resolving the given path.  This limit is hardcoded and cannot be sidestepped.
@@ -324,3 +341,15 @@ API
         These functions are not implemented on Windows.
 
 .. seealso:: The :c:type:`uv_req_t` API functions also apply.
+
+Helper functions
+----------------
+
+.. c:function:: uv_os_fd_t uv_get_osfhandle(int fd)
+
+   For a file descriptor in the C runtime, get the OS-dependent handle.
+   On UNIX, returns the ``fd`` intact. On Windows, this calls `_get_osfhandle <https://msdn.microsoft.com/en-us/library/ks2530z6.aspx>`_.
+   Note that the return value is still owned by the C runtime,
+   any attempts to close it or to use it after closing the fd may lead to malfunction.
+
+    .. versionadded:: 1.12.0

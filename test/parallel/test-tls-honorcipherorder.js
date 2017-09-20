@@ -1,14 +1,12 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-const tls = require('tls');
 
+const assert = require('assert');
+const tls = require('tls');
 const fs = require('fs');
+
 let nconns = 0;
 
 // We explicitly set TLS version to 1.2 so as to be safe when the
@@ -23,8 +21,8 @@ process.on('exit', function() {
 function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
   const soptions = {
     secureProtocol: SSL_Method,
-    key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
-    cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
+    key: fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`),
+    cert: fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`),
     ciphers: 'AES256-SHA256:AES128-GCM-SHA256:AES128-SHA256:' +
              'ECDHE-RSA-AES128-GCM-SHA256',
     honorCipherOrder: !!honorCipherOrder

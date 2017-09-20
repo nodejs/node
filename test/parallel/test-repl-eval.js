@@ -16,7 +16,7 @@ const repl = require('repl');
   };
 
   const r = repl.start(options);
-  r.context = {foo: 'bar'};
+  r.context = { foo: 'bar' };
 
   try {
     // Default preprocessor transforms

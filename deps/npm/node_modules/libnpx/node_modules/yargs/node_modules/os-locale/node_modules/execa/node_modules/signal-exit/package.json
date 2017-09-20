@@ -1,0 +1,44 @@
+{
+  "_from": "signal-exit@^3.0.0",
+  "_id": "signal-exit@3.0.2",
+  "_inBundle": false,
+  "_integrity": "sha1-tf3AjxKH6hF4Yo5BXiUTK3NkbG0=",
+  "_location": "/libnpx/yargs/os-locale/execa/signal-exit",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "signal-exit@^3.0.0",
+    "name": "signal-exit",
+    "escapedName": "signal-exit",
+    "rawSpec": "^3.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^3.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/os-locale/execa"
+  ],
+  "_resolved": "https://registry.npmjs.org/signal-exit/-/signal-exit-3.0.2.tgz",
+  "_shasum": "b5fdc08f1287ea1178628e415e25132b73646c6d",
+  "_shrinkwrap": null,
+  "_spec": "signal-exit@^3.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/os-locale/node_modules/execa",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "[![Build Status](https://travis-ci.org/tapjs/signal-exit.png)](https://travis-ci.org/tapjs/signal-exit) [![Coverage](https://coveralls.io/repos/tapjs/signal-exit/badge.svg?branch=master)](https://coveralls.io/r/tapjs/signal-exit?branch=master) [![NPM version](https://img.shields.io/npm/v/signal-exit.svg)](https://www.npmjs.com/package/signal-exit) [![Windows Tests](https://img.shields.io/appveyor/ci/bcoe/signal-exit/master.svg?label=Windows%20Tests)](https://ci.appveyor.com/project/bcoe/signal-exit) [![Standard Version](https://img.shields.io/badge/release-standard%20version-brightgreen.svg)](https://github.com/conventional-changelog/standard-version)",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "coveralls": "^2.11.10",
+    "nyc": "^8.1.0",
+    "standard": "^7.1.2",
+    "standard-version": "^2.3.0",
+    "tap": "^8.0.1"
+  },
+  "name": "signal-exit",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "3.0.2"
+}

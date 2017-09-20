@@ -25,7 +25,7 @@ const R = require('_stream_readable');
 const W = require('_stream_writable');
 const assert = require('assert');
 
-const src = new R({encoding: 'base64'});
+const src = new R({ encoding: 'base64' });
 const dst = new W();
 let hasRead = false;
 const accum = [];
@@ -46,7 +46,7 @@ dst._write = function(chunk, enc, cb) {
 };
 
 src.on('end', function() {
-  assert.strictEqual(Buffer.concat(accum) + '', 'MQ==');
+  assert.strictEqual(String(Buffer.concat(accum)), 'MQ==');
   clearTimeout(timeout);
 });
 

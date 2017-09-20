@@ -122,6 +122,44 @@ int FPURegisters::Number(const char* name) {
   return kInvalidFPURegister;
 }
 
+const char* MSARegisters::names_[kNumMSARegisters] = {
+    "w0",  "w1",  "w2",  "w3",  "w4",  "w5",  "w6",  "w7",  "w8",  "w9",  "w10",
+    "w11", "w12", "w13", "w14", "w15", "w16", "w17", "w18", "w19", "w20", "w21",
+    "w22", "w23", "w24", "w25", "w26", "w27", "w28", "w29", "w30", "w31"};
+
+const MSARegisters::RegisterAlias MSARegisters::aliases_[] = {
+    {kInvalidRegister, NULL}};
+
+const char* MSARegisters::Name(int creg) {
+  const char* result;
+  if ((0 <= creg) && (creg < kNumMSARegisters)) {
+    result = names_[creg];
+  } else {
+    result = "nocreg";
+  }
+  return result;
+}
+
+int MSARegisters::Number(const char* name) {
+  // Look through the canonical names.
+  for (int i = 0; i < kNumMSARegisters; i++) {
+    if (strcmp(names_[i], name) == 0) {
+      return i;
+    }
+  }
+
+  // Look through the alias names.
+  int i = 0;
+  while (aliases_[i].creg != kInvalidRegister) {
+    if (strcmp(aliases_[i].name, name) == 0) {
+      return aliases_[i].creg;
+    }
+    i++;
+  }
+
+  // No Cregister with the reguested name found.
+  return kInvalidMSARegister;
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -42,6 +42,7 @@
 #include <pwd.h>
 
 #ifdef __sun
+# include <netdb.h> /* MAXHOSTNAMELEN on Solaris */
 # include <sys/filio.h>
 # include <sys/types.h>
 # include <sys/wait.h>
@@ -78,6 +79,15 @@
 
 #if defined(__MVS__)
 #include <sys/ioctl.h>
+#endif
+
+#if !defined(__MVS__)
+#include <sys/param.h> /* MAXHOSTNAMELEN on Linux and the BSDs */
+#endif
+
+/* Fallback for the maximum hostname length */
+#ifndef MAXHOSTNAMELEN
+# define MAXHOSTNAMELEN 256
 #endif
 
 static int uv__run_pending(uv_loop_t* loop);
@@ -538,6 +548,7 @@ int uv__nonblock_ioctl(int fd, int set) {
 }
 
 
+#if !defined(__CYGWIN__) && !defined(__MSYS__)
 int uv__cloexec_ioctl(int fd, int set) {
   int r;
 
@@ -550,6 +561,7 @@ int uv__cloexec_ioctl(int fd, int set) {
 
   return 0;
 }
+#endif
 
 
 int uv__nonblock_fcntl(int fd, int set) {
@@ -826,7 +838,7 @@ void uv__io_init(uv__io_t* w, uv__io_cb cb, int fd) {
 
 
 void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
-  assert(0 == (events & ~(POLLIN | POLLOUT | UV__POLLRDHUP)));
+  assert(0 == (events & ~(POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI)));
   assert(0 != events);
   assert(w->fd >= 0);
   assert(w->fd < INT_MAX);
@@ -839,13 +851,8 @@ void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
    * every tick of the event loop but the other backends allow us to
    * short-circuit here if the event mask is unchanged.
    */
-  if (w->events == w->pevents) {
-    if (w->events == 0 && !QUEUE_EMPTY(&w->watcher_queue)) {
-      QUEUE_REMOVE(&w->watcher_queue);
-      QUEUE_INIT(&w->watcher_queue);
-    }
+  if (w->events == w->pevents)
     return;
-  }
 #endif
 
   if (QUEUE_EMPTY(&w->watcher_queue))
@@ -859,7 +866,7 @@ void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 
 
 void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
-  assert(0 == (events & ~(POLLIN | POLLOUT | UV__POLLRDHUP)));
+  assert(0 == (events & ~(POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI)));
   assert(0 != events);
 
   if (w->fd == -1)
@@ -891,7 +898,7 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 
 
 void uv__io_close(uv_loop_t* loop, uv__io_t* w) {
-  uv__io_stop(loop, w, POLLIN | POLLOUT | UV__POLLRDHUP);
+  uv__io_stop(loop, w, POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI);
   QUEUE_REMOVE(&w->pending_queue);
 
   /* Remove stale events for this file descriptor */
@@ -906,7 +913,7 @@ void uv__io_feed(uv_loop_t* loop, uv__io_t* w) {
 
 
 int uv__io_active(const uv__io_t* w, unsigned int events) {
-  assert(0 == (events & ~(POLLIN | POLLOUT | UV__POLLRDHUP)));
+  assert(0 == (events & ~(POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI)));
   assert(0 != events);
   return 0 != (w->pevents & events);
 }
@@ -1244,4 +1251,87 @@ int uv_os_get_passwd(uv_passwd_t* pwd) {
 int uv_translate_sys_error(int sys_errno) {
   /* If < 0 then it's already a libuv error. */
   return sys_errno <= 0 ? sys_errno : -sys_errno;
+}
+
+
+int uv_os_getenv(const char* name, char* buffer, size_t* size) {
+  char* var;
+  size_t len;
+
+  if (name == NULL || buffer == NULL || size == NULL || *size == 0)
+    return -EINVAL;
+
+  var = getenv(name);
+
+  if (var == NULL)
+    return -ENOENT;
+
+  len = strlen(var);
+
+  if (len >= *size) {
+    *size = len + 1;
+    return -ENOBUFS;
+  }
+
+  memcpy(buffer, var, len + 1);
+  *size = len;
+
+  return 0;
+}
+
+
+int uv_os_setenv(const char* name, const char* value) {
+  if (name == NULL || value == NULL)
+    return -EINVAL;
+
+  if (setenv(name, value, 1) != 0)
+    return -errno;
+
+  return 0;
+}
+
+
+int uv_os_unsetenv(const char* name) {
+  if (name == NULL)
+    return -EINVAL;
+
+  if (unsetenv(name) != 0)
+    return -errno;
+
+  return 0;
+}
+
+
+int uv_os_gethostname(char* buffer, size_t* size) {
+  /*
+    On some platforms, if the input buffer is not large enough, gethostname()
+    succeeds, but truncates the result. libuv can detect this and return ENOBUFS
+    instead by creating a large enough buffer and comparing the hostname length
+    to the size input.
+  */
+  char buf[MAXHOSTNAMELEN + 1];
+  size_t len;
+
+  if (buffer == NULL || size == NULL || *size == 0)
+    return -EINVAL;
+
+  if (gethostname(buf, sizeof(buf)) != 0)
+    return -errno;
+
+  buf[sizeof(buf) - 1] = '\0'; /* Null terminate, just to be safe. */
+  len = strlen(buf);
+
+  if (len >= *size) {
+    *size = len + 1;
+    return -ENOBUFS;
+  }
+
+  memcpy(buffer, buf, len + 1);
+  *size = len;
+  return 0;
+}
+
+
+uv_os_fd_t uv_get_osfhandle(int fd) {
+  return fd;
 }

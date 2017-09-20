@@ -3,13 +3,15 @@
 const common = require('../common');
 const assert = require('assert');
 const { URL, URLSearchParams } = require('url');
-const { test, assert_equals, assert_true, assert_false } = common.WPT;
+const { test, assert_equals, assert_true, assert_false } =
+  require('../common/wpt');
 
-/* eslint-disable */
-/* WPT Refs:
-   https://github.com/w3c/web-platform-tests/blob/8791bed/url/urlsearchparams-delete.html
+/* The following tests are copied from WPT. Modifications to them should be
+   upstreamed first. Refs:
+   https://github.com/w3c/web-platform-tests/blob/70a0898763/url/urlsearchparams-delete.html
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
+/* eslint-disable */
 test(function() {
     var params = new URLSearchParams('a=b&c=d');
     params.delete('a');
@@ -40,6 +42,21 @@ test(function() {
     params.delete('first');
     assert_false(params.has('first'), 'Search params object has no "first" name');
 }, 'Deleting appended multiple');
+
+test(function() {
+    var url = new URL('http://example.com/?param1&param2');
+    url.searchParams.delete('param1');
+    url.searchParams.delete('param2');
+    assert_equals(url.href, 'http://example.com/', 'url.href does not have ?');
+    assert_equals(url.search, '', 'url.search does not have ?');
+}, 'Deleting all params removes ? from URL');
+
+test(function() {
+    var url = new URL('http://example.com/?');
+    url.searchParams.delete('param1');
+    assert_equals(url.href, 'http://example.com/', 'url.href does not have ?');
+    assert_equals(url.search, '', 'url.search does not have ?');
+}, 'Removing non-existent param removes ? from URL');
 /* eslint-enable */
 
 // Tests below are not from WPT.
@@ -47,10 +64,18 @@ test(function() {
   const params = new URLSearchParams();
   assert.throws(() => {
     params.delete.call(undefined);
-  }, /^TypeError: Value of `this` is not a URLSearchParams$/);
+  }, common.expectsError({
+    code: 'ERR_INVALID_THIS',
+    type: TypeError,
+    message: 'Value of "this" must be of type URLSearchParams'
+  }));
   assert.throws(() => {
     params.delete();
-  }, /^TypeError: "name" argument must be specified$/);
+  }, common.expectsError({
+    code: 'ERR_MISSING_ARGS',
+    type: TypeError,
+    message: 'The "name" argument must be specified'
+  }));
 
   const obj = {
     toString() { throw new Error('toString'); },

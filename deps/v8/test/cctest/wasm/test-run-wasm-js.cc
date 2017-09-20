@@ -7,12 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/wasm/wasm-macro-gen.h"
-
+#include "src/assembler-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -80,7 +80,7 @@ void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc,
   CHECK(!retval.is_null());
   Handle<Object> result = retval.ToHandleChecked();
   if (result->IsSmi()) {
-    CHECK_EQ(expected, Smi::cast(*result)->value());
+    CHECK_EQ(expected, Smi::ToInt(*result));
   } else {
     CHECK(result->IsHeapNumber());
     CheckFloatEq(expected, HeapNumber::cast(*result)->value());

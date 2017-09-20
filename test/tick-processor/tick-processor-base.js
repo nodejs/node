@@ -24,23 +24,25 @@ function runTest(test) {
 
   // Try to match after timeout
   setTimeout(() => {
-    match(test.pattern, proc, () => ticks);
+    match(test.pattern, proc, () => ticks, test.profProcessFlags);
   }, RETRY_TIMEOUT);
 }
 
-function match(pattern, parent, ticks) {
+function match(pattern, parent, ticks, flags = []) {
   // Store current ticks log
   fs.writeFileSync(LOG_FILE, ticks());
 
   const proc = cp.spawn(process.execPath, [
     '--prof-process',
     '--call-graph-size=10',
+    ...flags,
     LOG_FILE
   ], {
     stdio: [ 'ignore', 'pipe', 'inherit' ]
   });
 
   let out = '';
+
   proc.stdout.on('data', (chunk) => out += chunk);
   proc.stdout.once('end', () => {
     proc.once('exit', () => {

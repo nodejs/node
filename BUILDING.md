@@ -33,15 +33,19 @@ Support is divided into three tiers:
 
 ### Supported platforms
 
+The community does not build or test against end of life distributions (EoL).
+Thus we do not recommend that you use Node on end of life or unsupported platforms
+in production.
+
 |  System      | Support type | Version                          | Architectures        | Notes            |
 |--------------|--------------|----------------------------------|----------------------|------------------|
-| GNU/Linux    | Tier 1       | kernel >= 2.6.18, glibc >= 2.5   | x86, x64, arm, arm64 |                  |
+| GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12  | x86, x64, arm, arm64 |                  |
 | macOS        | Tier 1       | >= 10.10                         | x64                  |                  |
-| Windows      | Tier 1       | >= Windows 7 or >= Windows2008R2 | x86, x64             |                  |
+| Windows      | Tier 1       | >= Windows 7 / 2008 R2           | x86, x64             | vs2015 or vs2017 |
 | SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1        |
 | FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
-| GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le              |                  |
-| AIX          | Tier 2       | >= 7.1 TL04                      | ppc64be              |                  |
+| GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le >=power8     |                  |
+| AIX          | Tier 2       | >= 7.1 TL04                      | ppc64be >=power7     |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17    | s390x                |                  |
 | macOS        | Experimental | >= 10.8 < 10.10                  | x64                  | no test coverage |
 | Linux (musl) | Experimental | musl >= 1.0                      | x64                  |                  |
@@ -61,14 +65,12 @@ Depending on host platform, the selection of toolchains may vary.
 
 #### Unix
 
-* GCC 4.8.5 or newer
+* GCC 4.9.4 or newer
 * Clang 3.4.2 or newer
 
 #### Windows
 
-* Building Node: Visual Studio 2015 or Visual C++ Build Tools 2015 or newer
-* Building native add-ons: Visual Studio 2013 or Visual C++ Build Tools 2015
-  or newer
+* Visual Studio 2015 or Visual C++ Build Tools 2015 or newer
 
 ## Building Node.js on supported platforms
 
@@ -76,19 +78,20 @@ Depending on host platform, the selection of toolchains may vary.
 
 Prerequisites:
 
-* `gcc` and `g++` 4.8.5 or newer, or
-* `clang` and `clang++` 3.4.2 or newer
+* `gcc` and `g++` 4.9.4 or newer, or
+* `clang` and `clang++` 3.4.2 or newer (macOS: latest Xcode Command Line Tools)
 * Python 2.6 or 2.7
 * GNU Make 3.81 or newer
 
-On macOS, you will also need:
-* [Xcode](https://developer.apple.com/xcode/download/)
-  - You also need to install the `Command Line Tools` via Xcode. You can find
-    this under the menu `Xcode -> Preferences -> Downloads`
-  - This step will install `gcc` and the related toolchain containing `make`
-
-* After building, you may want to setup [firewall rules](tools/macosx-firewall.sh)
+On macOS you will need to install the `Xcode Command Line Tools` by running
+`xcode-select --install`. Alternatively, if you already have the full Xcode
+installed, you can find them under the menu `Xcode -> Open Developer Tool ->
+More Developer Tools...`. This step will install `clang`, `clang++`, and
+`make`.
+* You may want to setup [firewall rules](tools/macosx-firewall.sh)
 to avoid popups asking to accept incoming network connections when running tests:
+
+If the path to your build directory contains a space, the build will likely fail.
 
 ```console
 $ sudo ./tools/macosx-firewall.sh
@@ -119,17 +122,27 @@ and not a newer version.
 
 To run the tests:
 
-```
+```console
 $ make test
 ```
 
-To run the npm test suite:
-
-*note: to run the suite on node v4 or earlier you must first*
-*run `make install`*
+To run the tests and generate code coverage reports:
 
 ```console
-$ make test-npm
+$ ./configure --coverage
+$ make coverage
+```
+
+This will generate coverage reports for both JavaScript and C++ tests (if you
+only want to run the JavaScript tests then you do not need to run the first
+command `./configure --coverage`).
+
+The `make coverage` command downloads some tools to the project root directory
+and overwrites the `lib/` directory. To clean up after generating the coverage
+reports:
+
+```console
+make coverage-clean
 ```
 
 To build the documentation:
@@ -140,7 +153,7 @@ This will build Node.js first (if necessary) and then use it to build the docs:
 $ make doc
 ```
 
-If you have an existing Node.js you can build just the docs with:
+If you have an existing Node.js build, you can build just the docs with:
 
 ```console
 $ NODE=/path/to/node make doc-only
@@ -175,9 +188,14 @@ Prerequisites:
   * [Visual Studio 2015 Update 3](https://www.visualstudio.com/), all editions
     including the Community edition (remember to select
     "Common Tools for Visual C++ 2015" feature during installation).
+  * [Visual Studio 2017](https://www.visualstudio.com/downloads/), any edition (including the Build Tools SKU).
+    **Required Components:** "MSbuild", "VC++ 2017 v141 toolset" and at least one of the Windows SDKs.
+    *Note*: For "Windows 10 SDK (10.0.15063.0)" only the "Desktop C++ x86 and x64" flavor is required.
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
+
+If the path to your build directory contains a space, the build will likely fail.
 
 ```console
 > .\vcbuild

@@ -5,7 +5,7 @@ const assert = require('assert');
 const cp = require('child_process');
 
 if (process.argv[2] === 'child') {
-  setTimeout(common.noop, common.platformTimeout(100));
+  setTimeout(() => {}, common.platformTimeout(100));
   return;
 }
 
@@ -27,7 +27,7 @@ ChildProcess.prototype.spawn = function() {
 };
 
 function createChild(options, callback) {
-  const cmd = `${process.execPath} ${__filename} child`;
+  const cmd = `"${process.execPath}" "${__filename}" child`;
 
   return cp.exec(cmd, options, common.mustCall(callback));
 }

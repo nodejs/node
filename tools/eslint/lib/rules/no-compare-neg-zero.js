@@ -13,7 +13,7 @@ module.exports = {
         docs: {
             description: "disallow comparing against -0",
             category: "Possible Errors",
-            recommended: false
+            recommended: true
         },
         fixable: null,
         schema: []

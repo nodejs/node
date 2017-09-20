@@ -55,5 +55,3 @@ exports.default = (unmappedRows, rowHeightIndex, config) => {
 
   return _lodash2.default.flatten(mappedRows);
 };
-
-module.exports = exports['default'];

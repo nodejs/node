@@ -25,7 +25,7 @@ const parseTestsWithQueryString = {
     href: '/foo/bar?baz=quux#frag',
     hash: '#frag',
     search: '?baz=quux',
-    query: createWithNoPrototype([{key: 'baz', value: 'quux'}]),
+    query: createWithNoPrototype([{ key: 'baz', value: 'quux' }]),
     pathname: '/foo/bar',
     path: '/foo/bar?baz=quux'
   },
@@ -36,7 +36,7 @@ const parseTestsWithQueryString = {
     host: 'example.com',
     hostname: 'example.com',
     query: createWithNoPrototype(),
-    search: '',
+    search: null,
     pathname: '/',
     path: '/'
   },
@@ -48,7 +48,7 @@ const parseTestsWithQueryString = {
     port: null,
     hostname: null,
     hash: null,
-    search: '',
+    search: null,
     query: createWithNoPrototype(),
     pathname: '/example',
     path: '/example',

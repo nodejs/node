@@ -1,0 +1,32 @@
+.TH "NPM\-SHRINKWRAP\.JSON" "5" "July 2017" "" ""
+.SH "NAME"
+\fBnpm-shrinkwrap.json\fR \- A publishable lockfile
+.SH DESCRIPTION
+.P
+\fBnpm\-shrinkwrap\.json\fP is a file created by npm help shrinkwrap\. It is identical to
+\fBpackage\-lock\.json\fP, with one major caveat: Unlike \fBpackage\-lock\.json\fP,
+\fBnpm\-shrinkwrap\.json\fP may be included when publishing a package\.
+.P
+The recommended use\-case for \fBnpm\-shrinkwrap\.json\fP is applications deployed
+through the publishing process on the registry: for example, daemons and
+command\-line tools intended as global installs or \fBdevDependencies\fP\|\. It's
+strongly discouraged for library authors to publish this file, since that would
+prevent end users from having control over transitive dependency updates\.
+.P
+Additionally, if both \fBpackage\-lock\.json\fP and \fBnpm\-shrinkwrap\.json\fP are present
+in a package root, \fBpackage\-lock\.json\fP will be ignored in favor of this file\.
+.P
+For full details and description of the \fBnpm\-shrinkwrap\.json\fP file format, refer
+to the manual page for npm help 5 package\-lock\.json\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help shrinkwrap
+.IP \(bu 2
+npm help 5 package\-lock\.json
+.IP \(bu 2
+npm help 5 package\.json
+.IP \(bu 2
+npm help install
+
+.RE

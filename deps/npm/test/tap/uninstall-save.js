@@ -10,9 +10,9 @@ var test = require('tap').test
 var common = require('../common-tap.js')
 var server
 
-var pkg = path.join(__dirname, 'uninstall-save')
+var pkg = path.join(__dirname, path.basename(__filename, '.js'))
 
-var EXEC_OPTS = { cwd: pkg }
+var EXEC_OPTS = { cwd: pkg, stdio: [0, 'ignore', 2] }
 
 var json = {
   name: 'uninstall-save',
@@ -29,62 +29,44 @@ test('setup', function (t) {
 })
 
 test('uninstall --save removes rm-ed package from package.json', function (t) {
-  common.npm(
-    [
-      '--registry', common.registry,
-      '--loglevel', 'silent',
-      '--save-prefix', '^',
-      '--save',
-      'install', 'underscore@latest'
-    ],
-    EXEC_OPTS,
-    function (err, code) {
-      t.ifError(err, 'npm install ran without issue')
-      t.notOk(code, 'npm install exited with code 0')
+  var config = [
+    '--registry', common.registry,
+    '--save-prefix', '^',
+    '--save',
+    '--loglevel=error'
+  ]
+  return common.npm(config.concat(['install', 'underscore@latest']), EXEC_OPTS).spread((code) => {
+    t.notOk(code, 'npm install exited with code 0')
 
-      var p = path.join(pkg, 'node_modules', 'underscore', 'package.json')
-      t.ok(JSON.parse(fs.readFileSync(p)))
+    var p = path.join(pkg, 'node_modules', 'underscore', 'package.json')
+    t.ok(JSON.parse(fs.readFileSync(p)))
 
-      var pkgJson = JSON.parse(fs.readFileSync(
-        path.join(pkg, 'package.json'),
-        'utf8'
-      ))
-      t.deepEqual(
-        pkgJson.dependencies,
-        { 'underscore': '^1.5.1' },
-        'got expected save prefix and version of 1.5.1'
-      )
+    var pkgJson = JSON.parse(fs.readFileSync(
+      path.join(pkg, 'package.json'),
+      'utf8'
+    ))
+    t.deepEqual(
+      pkgJson.dependencies,
+      { 'underscore': '^1.5.1' },
+      'got expected save prefix and version of 1.5.1'
+    )
 
-      var installed = path.join(pkg, 'node_modules', 'underscore')
-      rimraf.sync(installed)
+    var installed = path.join(pkg, 'node_modules', 'underscore')
+    rimraf.sync(installed)
 
-      common.npm(
-        [
-          '--registry', common.registry,
-          '--loglevel', 'debug',
-          '--save',
-          'uninstall', 'underscore'
-        ],
-        EXEC_OPTS,
-        function (err, code) {
-          t.ifError(err, 'npm uninstall ran without issue')
+    return common.npm(config.concat(['uninstall', 'underscore']), EXEC_OPTS)
+  }).spread((code) => {
+    var pkgJson = JSON.parse(fs.readFileSync(
+      path.join(pkg, 'package.json'),
+      'utf8'
+    ))
 
-          var pkgJson = JSON.parse(fs.readFileSync(
-            path.join(pkg, 'package.json'),
-            'utf8'
-          ))
-
-          t.deepEqual(
-            pkgJson.dependencies,
-            { },
-            'dependency removed as expected'
-          )
-
-          t.end()
-        }
-      )
-    }
-  )
+    t.deepEqual(
+      pkgJson.dependencies,
+      { },
+      'dependency removed as expected'
+    )
+  })
 })
 
 test('cleanup', function (t) {

@@ -1,8 +1,6 @@
 'use strict';
-const common = require('../common');
 const assert = require('assert');
-
-const Buffer = require('buffer').Buffer;
+const common = require('../common');
 
 const b = Buffer.from('abcdef');
 const buf_a = Buffer.from('a');
@@ -29,10 +27,10 @@ assert(b.includes('bc', -Infinity));
 assert(!b.includes('bc', Infinity));
 assert(b.includes('f'), b.length - 1);
 assert(!b.includes('z'));
-assert(!b.includes(''));
-assert(!b.includes('', 1));
-assert(!b.includes('', b.length + 1));
-assert(!b.includes('', Infinity));
+assert(b.includes(''));
+assert(b.includes('', 1));
+assert(b.includes('', b.length + 1));
+assert(b.includes('', Infinity));
 assert(b.includes(buf_a));
 assert(!b.includes(buf_a, 1));
 assert(!b.includes(buf_a, -1));
@@ -51,10 +49,10 @@ assert(b.includes(buf_bc, -Infinity));
 assert(!b.includes(buf_bc, Infinity));
 assert(b.includes(buf_f), b.length - 1);
 assert(!b.includes(buf_z));
-assert(!b.includes(buf_empty));
-assert(!b.includes(buf_empty, 1));
-assert(!b.includes(buf_empty, b.length + 1));
-assert(!b.includes(buf_empty, Infinity));
+assert(b.includes(buf_empty));
+assert(b.includes(buf_empty, 1));
+assert(b.includes(buf_empty, b.length + 1));
+assert(b.includes(buf_empty, Infinity));
 assert(b.includes(0x61));
 assert(!b.includes(0x61, 1));
 assert(!b.includes(0x61, -1));
@@ -150,17 +148,17 @@ assert(twoByteString.includes(
 assert(!twoByteString.includes('\u03a3', -2, 'ucs2'));
 
 const mixedByteStringUcs2 =
-    Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395', 'ucs2');
+  Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395', 'ucs2');
 assert(mixedByteStringUcs2.includes('bc', 0, 'ucs2'));
 assert(mixedByteStringUcs2.includes('\u03a3', 0, 'ucs2'));
 assert(!mixedByteStringUcs2.includes('\u0396', 0, 'ucs2'));
 
 assert.ok(
-    mixedByteStringUcs2.includes(Buffer.from('bc', 'ucs2'), 0, 'ucs2'));
+  mixedByteStringUcs2.includes(Buffer.from('bc', 'ucs2'), 0, 'ucs2'));
 assert.ok(
-    mixedByteStringUcs2.includes(Buffer.from('\u03a3', 'ucs2'), 0, 'ucs2'));
+  mixedByteStringUcs2.includes(Buffer.from('\u03a3', 'ucs2'), 0, 'ucs2'));
 assert.ok(
-    !mixedByteStringUcs2.includes(Buffer.from('\u0396', 'ucs2'), 0, 'ucs2'));
+  !mixedByteStringUcs2.includes(Buffer.from('\u0396', 'ucs2'), 0, 'ucs2'));
 
 twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
@@ -199,7 +197,7 @@ const longBufferString = Buffer.from(longString);
 let pattern = 'ABACABADABACABA';
 for (let i = 0; i < longBufferString.length - pattern.length; i += 7) {
   const includes = longBufferString.includes(pattern, i);
-  assert(includes, 'Long ABACABA...-string at index ' + i);
+  assert(includes, `Long ABACABA...-string at index ${i}`);
 }
 assert(longBufferString.includes('AJABACA'), 'Long AJABACA, First J');
 assert(longBufferString.includes('AJABACA', 511), 'Long AJABACA, Second J');
@@ -210,7 +208,7 @@ assert(longBufferString.includes(pattern, 512), 'Long JABACABA..., Second J');
 
 // Search for a non-ASCII string in a pure ASCII string.
 const asciiString = Buffer.from(
-    'arglebargleglopglyfarglebargleglopglyfarglebargleglopglyf');
+  'arglebargleglopglyfarglebargleglopglyfarglebargleglopglyf');
 assert(!asciiString.includes('\x2061'));
 assert(asciiString.includes('leb', 0));
 
@@ -263,27 +261,31 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
     const length = lengths[lengthIndex];
 
     const patternBufferUcs2 =
-        allCharsBufferUcs2.slice(index, index + length);
+      allCharsBufferUcs2.slice(index, index + length);
     assert.ok(
-        allCharsBufferUcs2.includes(patternBufferUcs2, 0, 'ucs2'));
+      allCharsBufferUcs2.includes(patternBufferUcs2, 0, 'ucs2'));
 
     const patternStringUcs2 = patternBufferUcs2.toString('ucs2');
     assert.ok(
-        allCharsBufferUcs2.includes(patternStringUcs2, 0, 'ucs2'));
+      allCharsBufferUcs2.includes(patternStringUcs2, 0, 'ucs2'));
   }
 }
 
-const expectedError =
-  /^TypeError: "val" argument must be string, number, Buffer or Uint8Array$/;
-assert.throws(() => {
-  b.includes(common.noop);
-}, expectedError);
-assert.throws(() => {
-  b.includes({});
-}, expectedError);
-assert.throws(() => {
-  b.includes([]);
-}, expectedError);
+[
+  () => { },
+  {},
+  []
+].forEach((val) => {
+  common.expectsError(
+    () => b.includes(val),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "value" argument must be one of type string, ' +
+               `buffer, or uint8Array. Received type ${typeof val}`
+    }
+  );
+});
 
 // test truncation of Number arguments to uint8
 {

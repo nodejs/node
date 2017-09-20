@@ -20,14 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
-const path = require('path');
+require('../common');
 const assert = require('assert');
+const fixtures = require('../common/fixtures');
 
 try {
-  require(path.join(common.fixturesDir, 'invalid.json'));
+  require(fixtures.path('invalid.json'));
 } catch (err) {
-  const re = /test[/\\]fixtures[/\\]invalid\.json: Unexpected string/;
-  const i = err.message.match(re);
-  assert.notStrictEqual(null, i, 'require() json error should include path');
+  assert.ok(
+    /test[/\\]fixtures[/\\]invalid\.json: Unexpected string/.test(err.message),
+    'require() json error should include path');
 }

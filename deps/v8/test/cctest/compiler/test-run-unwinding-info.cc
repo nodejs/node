@@ -17,7 +17,7 @@ namespace internal {
 namespace compiler {
 
 TEST(RunUnwindingInfo) {
-  FLAG_turbo = true;
+  FLAG_always_opt = true;
   FLAG_perf_prof_unwinding_info = true;
 
   FunctionTester tester(

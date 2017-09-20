@@ -40,9 +40,10 @@ function Benchmark(fn, configs, options) {
 Benchmark.prototype._parseArgs = function(argv, configs) {
   const cliOptions = {};
   const extraOptions = {};
+  const validArgRE = /^(.+?)=([\s\S]*)$/;
   // Parse configuration arguments
   for (const arg of argv) {
-    const match = arg.match(/^(.+?)=([\s\S]*)$/);
+    const match = arg.match(validArgRE);
     if (!match) {
       console.error(`bad argument: ${arg}`);
       process.exit(1);
@@ -196,6 +197,12 @@ Benchmark.prototype.end = function(operations) {
   if (!process.env.NODEJS_BENCHMARK_ZERO_ALLOWED && operations <= 0) {
     throw new Error('called end() with operation count <= 0');
   }
+  if (elapsed[0] === 0 && elapsed[1] === 0) {
+    if (!process.env.NODEJS_BENCHMARK_ZERO_ALLOWED)
+      throw new Error('insufficient clock precision for short benchmark');
+    // avoid dividing by zero
+    elapsed[1] = 1;
+  }
 
   const time = elapsed[0] + elapsed[1] / 1e9;
   const rate = operations / time;
@@ -210,7 +217,7 @@ function formatResult(data) {
   }
 
   var rate = data.rate.toString().split('.');
-  rate[0] = rate[0].replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,');
+  rate[0] = rate[0].replace(/(\d)(?=(?:\d\d\d)+(?!\d))/g, '$1,');
   rate = (rate[1] ? rate.join('.') : rate[0]);
   return `${data.name}${conf}: ${rate}`;
 }

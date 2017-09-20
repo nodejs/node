@@ -24,8 +24,27 @@ eval(`
   }
 `);
 
+function ExecuteInDebugContext(f) {
+  var result;
+  var exception = null;
+  Debug.setListener(function(event) {
+    if (event == Debug.DebugEvent.Break) {
+      try {
+        result = f();
+      } catch (e) {
+        // Rethrow this exception later.
+        exception = e;
+      }
+    }
+  });
+  debugger;
+  Debug.setListener(null);
+  if (exception !== null) throw exception;
+  return result;
+}
+
 function Replace(fun, original, patch) {
-  %ExecuteInDebugContext(function() {
+  ExecuteInDebugContext(function() {
     var change_log = [];
     try {
       var script = Debug.findScript(fun);

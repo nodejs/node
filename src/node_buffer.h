@@ -22,8 +22,7 @@
 #ifndef SRC_NODE_BUFFER_H_
 #define SRC_NODE_BUFFER_H_
 
-#include "node.h"
-#include "v8.h"
+#include "node_internals.h"
 
 namespace node {
 
@@ -34,7 +33,7 @@ namespace Buffer {
 static const unsigned int kMaxLength =
     sizeof(int32_t) == sizeof(intptr_t) ? 0x3fffffff : 0x7fffffff;
 
-NODE_EXTERN typedef void (*FreeCallback)(char* data, void* hint);
+typedef void (*FreeCallback)(char* data, void* hint);
 
 NODE_EXTERN bool HasInstance(v8::Local<v8::Value> val);
 NODE_EXTERN bool HasInstance(v8::Local<v8::Object> val);

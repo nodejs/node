@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+  <title>npm-package-locks</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <link rel="canonical" href="https://www.npmjs.org/doc/files/npm-package-locks.html">
+  <script async=true src="../../static/toc.js"></script>
+
+  <body>
+    <div id="wrapper">
+
+<h1><a href="../files/npm-package-locks.html">npm-package-locks</a></h1> <p>An explanation of npm lockfiles</p>
+<h2 id="description">DESCRIPTION</h2>
+<p>Conceptually, the &quot;input&quot; to <a href="../cli/npm-install.html">npm-install(1)</a> is a <a href="../files/package.json.html">package.json(5)</a>, while its
+&quot;output&quot; is a fully-formed <code>node_modules</code> tree: a representation of the
+dependencies you declared. In an ideal world, npm would work like a pure
+function: the same <code>package.json</code> should produce the exact same <code>node_modules</code>
+tree, any time. In some cases, this is indeed true. But in many others, npm is
+unable to do this. There are multiple reasons for this:</p>
+<ul>
+<li><p>different versions of npm (or other package managers) may have been used to install a package, each using slightly different installation algorithms.</p>
+</li>
+<li><p>a new version of a direct semver-range package may have been published since the last time your packages were installed, and thus a newer version will be used.</p>
+</li>
+<li><p>A dependency of one of your dependencies may have published a new version, which will update even if you used pinned dependency specifiers (<code>1.2.3</code> instead of <code>^1.2.3</code>)</p>
+</li>
+<li><p>The registry you installed from is no longer available, or allows mutation of versions (unlike the primary npm registry), and a different version of a package exists under the same version number now.</p>
+</li>
+</ul>
+<p>As an example, consider package A:</p>
+<pre><code>{
+  &quot;name&quot;: &quot;A&quot;,
+  &quot;version&quot;: &quot;0.1.0&quot;,
+  &quot;dependencies&quot;: {
+    &quot;B&quot;: &quot;&lt;0.1.0&quot;
+  }
+}
+</code></pre><p>package B:</p>
+<pre><code>{
+  &quot;name&quot;: &quot;B&quot;,
+  &quot;version&quot;: &quot;0.0.1&quot;,
+  &quot;dependencies&quot;: {
+    &quot;C&quot;: &quot;&lt;0.1.0&quot;
+  }
+}
+</code></pre><p>and package C:</p>
+<pre><code>{
+  &quot;name&quot;: &quot;C&quot;,
+  &quot;version&quot;: &quot;0.0.1&quot;
+}
+</code></pre><p>If these are the only versions of A, B, and C available in the
+registry, then a normal <code>npm install A</code> will install:</p>
+<pre><code>A@0.1.0
+`-- B@0.0.1
+    `-- C@0.0.1
+</code></pre><p>However, if B@0.0.2 is published, then a fresh <code>npm install A</code> will
+install:</p>
+<pre><code>A@0.1.0
+`-- B@0.0.2
+    `-- C@0.0.1
+</code></pre><p>assuming the new version did not modify B&#39;s dependencies. Of course,
+the new version of B could include a new version of C and any number
+of new dependencies. If such changes are undesirable, the author of A
+could specify a dependency on B@0.0.1. However, if A&#39;s author and B&#39;s
+author are not the same person, there&#39;s no way for A&#39;s author to say
+that he or she does not want to pull in newly published versions of C
+when B hasn&#39;t changed at all.</p>
+<p>To prevent this potential issue, npm uses <a href="../files/package-lock.json.html">package-lock.json(5)</a> or, if present,
+n<a href="../files/pm-shrinkwrap.json.html">pm-shrinkwrap.json(5)</a>. These files are called package locks, or lockfiles.</p>
+<p>Whenever you run <code>npm install</code>, npm generates or updates your package lock,
+which will look something like this:</p>
+<pre><code>{
+  &quot;name&quot;: &quot;A&quot;,
+  &quot;version&quot;: &quot;0.1.0&quot;,
+  ...metadata fields...
+  &quot;dependencies&quot;: {
+    &quot;B&quot;: {
+      &quot;version&quot;: &quot;0.0.1&quot;,
+      &quot;resolved&quot;: &quot;https://registry.npmjs.org/B/-/B-0.0.1.tgz&quot;,
+      &quot;integrity&quot;: &quot;sha512-DeAdb33F+&quot;
+      &quot;dependencies&quot;: {
+        &quot;C&quot;: {
+          &quot;version&quot;: &quot;git://github.com/org/C.git#5c380ae319fc4efe9e7f2d9c78b0faa588fd99b4&quot;
+        }
+      }
+    }
+  }
+}
+</code></pre><p>This file describes an <em>exact</em>, and more importantly <em>reproducible</em>
+<code>node_modules</code> tree. Once it&#39;s present, and future installation will base its
+work off this file, instead of recalculating dependency versions off
+p<a href="../files/ackage.json.html">ackage.json(5)</a>.</p>
+<p>The presence of a package lock changes the installation behavior such that:</p>
+<ol>
+<li><p>The module tree described by the package lock is reproduced. This means
+reproducing the structure described in the file, using the specific files
+referenced in &quot;resolved&quot; if available, falling back to normal package resolution
+using &quot;version&quot; if one isn&#39;t.</p>
+</li>
+<li><p>The tree is walked and any missing dependencies are installed in the usual
+fashion.</p>
+</li>
+</ol>
+<p>If <code>preshrinkwrap</code>, <code>shrinkwrap</code> or <code>postshrinkwrap</code> are in the <code>scripts</code>
+property of the <code>package.json</code>, they will be executed in order. <code>preshrinkwrap</code>
+and <code>shrinkwrap</code> are executed before the shrinkwrap, <code>postshrinkwrap</code> is
+executed afterwards. These scripts run for both <code>package-lock.json</code> and
+<code>npm-shrinkwrap.json</code>. For example to run some postprocessing on the generated
+file:</p>
+<pre><code>&quot;scripts&quot;: {
+  &quot;postshrinkwrap&quot;: &quot;json -I -e \&quot;this.myMetadata = $MY_APP_METADATA\&quot;&quot;
+}
+</code></pre><h3 id="using-locked-packages">Using locked packages</h3>
+<p>Using a locked package is no different than using any package without a package
+lock: any commands that update <code>node_modules</code> and/or <code>package.json</code>&#39;s
+dependencies will automatically sync the existing lockfile. This includes <code>npm
+install</code>, <code>npm rm</code>, <code>npm update</code>, etc. To prevent this update from happening,
+you can use the <code>--no-save</code> option to prevent saving altogether, or
+<code>--no-shrinkwrap</code> to allow <code>package.json</code> to be updated while leaving
+<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> intact.</p>
+<p>It is highly recommended you commit the generated package lock to source
+control: this will allow anyone else on your team, your deployments, your
+CI/continuous integration, and anyone else who runs <code>npm install</code> in your
+package source to get the exact same dependency tree that you were developing
+on. Additionally, the diffs from these changes are human-readable and will
+inform you of any changes npm has made to your <code>node_modules</code>, so you can notice
+if any transitive dependencies were updated, hoisted, etc.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="https://medium.com/@sdboyer/so-you-want-to-write-a-package-manager-4ae9c17d9527">https://medium.com/@sdboyer/so-you-want-to-write-a-package-manager-4ae9c17d9527</a></li>
+<li><a href="../files/package.json.html">package.json(5)</a></li>
+<li><a href="../files/package-lock.json.html">package-lock.json(5)</a></li>
+<li><a href="../files/npm-shrinkwrap.json.html">npm-shrinkwrap.json(5)</a></li>
+<li><a href="../cli/npm-shrinkwrap.html">npm-shrinkwrap(1)</a></li>
+</ul>
+
+</div>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-package-locks &mdash; npm@5.3.0</p>

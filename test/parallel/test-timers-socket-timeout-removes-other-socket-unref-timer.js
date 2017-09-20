@@ -6,6 +6,7 @@
 
 const common = require('../common');
 const net = require('net');
+const Countdown = require('../common/countdown');
 
 const clients = [];
 
@@ -19,7 +20,7 @@ const server = net.createServer(function onClient(client) {
      * the list of unref timers when traversing it, and exposes the
      * original issue in joyent/node#8897.
      */
-    clients[0].setTimeout(1, function onTimeout() {
+    clients[0].setTimeout(1, () => {
       clients[1].setTimeout(0);
       clients[0].end();
       clients[1].end();
@@ -31,19 +32,16 @@ const server = net.createServer(function onClient(client) {
   }
 });
 
-server.listen(0, common.localhostIPv4, function() {
-  let nbClientsEnded = 0;
+server.listen(0, common.localhostIPv4, common.mustCall(() => {
+  const countdown = new Countdown(2, common.mustCall(() => server.close()));
 
-  function addEndedClient(client) {
-    ++nbClientsEnded;
-    if (nbClientsEnded === 2) {
-      server.close();
-    }
+  {
+    const client = net.connect({ port: server.address().port });
+    client.on('end', () => countdown.dec());
   }
 
-  const client1 = net.connect({ port: this.address().port });
-  client1.on('end', addEndedClient);
-
-  const client2 = net.connect({ port: this.address().port });
-  client2.on('end', addEndedClient);
-});
+  {
+    const client = net.connect({ port: server.address().port });
+    client.on('end', () => countdown.dec());
+  }
+}));

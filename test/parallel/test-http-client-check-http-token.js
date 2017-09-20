@@ -2,39 +2,33 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
+const Countdown = require('../common/countdown');
 
 const expectedSuccesses = [undefined, null, 'GET', 'post'];
-let requestCount = 0;
+const expectedFails = [-1, 1, 0, {}, true, false, [], Symbol()];
 
-const server = http.createServer((req, res) => {
-  requestCount++;
+const countdown =
+  new Countdown(expectedSuccesses.length,
+                common.mustCall(() => server.close()));
+
+const server = http.createServer(common.mustCall((req, res) => {
   res.end();
+  countdown.dec();
+}, expectedSuccesses.length));
 
-  if (expectedSuccesses.length === requestCount) {
-    server.close();
-  }
-}).listen(0, test);
-
-function test() {
-  function fail(input) {
+server.listen(0, common.mustCall(() => {
+  expectedFails.forEach((method) => {
     assert.throws(() => {
-      http.request({ method: input, path: '/' }, common.mustNotCall());
-    }, /^TypeError: Method must be a string$/);
-  }
-
-  fail(-1);
-  fail(1);
-  fail(0);
-  fail({});
-  fail(true);
-  fail(false);
-  fail([]);
-
-  function ok(method) {
-    http.request({ method: method, port: server.address().port }).end();
-  }
+      http.request({ method, path: '/' }, common.mustNotCall());
+    }, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "method" argument must be of type string. ' +
+               `Received type ${typeof method}`
+    }));
+  });
 
   expectedSuccesses.forEach((method) => {
-    ok(method);
+    http.request({ method, port: server.address().port }).end();
   });
-}
+}));

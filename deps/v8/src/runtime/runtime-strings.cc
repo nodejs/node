@@ -5,13 +5,63 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/conversions.h"
+#include "src/counters.h"
+#include "src/objects-inl.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/string-builder.h"
-#include "src/string-case.h"
 #include "src/string-search.h"
 
 namespace v8 {
 namespace internal {
+
+RUNTIME_FUNCTION(Runtime_GetSubstitution) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, matched, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
+  CONVERT_SMI_ARG_CHECKED(position, 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, replacement, 3);
+  CONVERT_SMI_ARG_CHECKED(start_index, 4);
+
+  // A simple match without captures.
+  class SimpleMatch : public String::Match {
+   public:
+    SimpleMatch(Handle<String> match, Handle<String> prefix,
+                Handle<String> suffix)
+        : match_(match), prefix_(prefix), suffix_(suffix) {}
+
+    Handle<String> GetMatch() override { return match_; }
+    Handle<String> GetPrefix() override { return prefix_; }
+    Handle<String> GetSuffix() override { return suffix_; }
+
+    int CaptureCount() override { return 0; }
+    bool HasNamedCaptures() override { return false; }
+    MaybeHandle<String> GetCapture(int i, bool* capture_exists) override {
+      *capture_exists = false;
+      return match_;  // Return arbitrary string handle.
+    }
+    MaybeHandle<String> GetNamedCapture(Handle<String> name,
+                                        CaptureState* state) override {
+      UNREACHABLE();
+      *state = INVALID;
+      return MaybeHandle<String>();
+    }
+
+   private:
+    Handle<String> match_, prefix_, suffix_;
+  };
+
+  Handle<String> prefix =
+      isolate->factory()->NewSubString(subject, 0, position);
+  Handle<String> suffix = isolate->factory()->NewSubString(
+      subject, position + matched->length(), subject->length());
+  SimpleMatch match(matched, prefix, suffix);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      String::GetSubstitution(isolate, &match, replacement, start_index));
+}
 
 // This may return an empty MaybeHandle if an exception is thrown or
 // we abort due to reaching the recursion limit.
@@ -57,7 +107,6 @@ MaybeHandle<String> StringReplaceOneCharWithString(
     return isolate->factory()->NewConsString(cons1, second);
   }
 }
-
 
 RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   HandleScope scope(isolate);
@@ -147,23 +196,32 @@ RUNTIME_FUNCTION(Runtime_SubString) {
   return *isolate->factory()->NewSubString(string, start, end);
 }
 
-
 RUNTIME_FUNCTION(Runtime_StringAdd) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, obj1, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, obj2, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, str2, 1);
   isolate->counters()->string_add_runtime()->Increment();
-  MaybeHandle<String> maybe_str1(Object::ToString(isolate, obj1));
-  MaybeHandle<String> maybe_str2(Object::ToString(isolate, obj2));
-  Handle<String> str1;
-  Handle<String> str2;
-  maybe_str1.ToHandle(&str1);
-  maybe_str2.ToHandle(&str2);
   RETURN_RESULT_OR_FAILURE(isolate,
                            isolate->factory()->NewConsString(str1, str2));
 }
 
+RUNTIME_FUNCTION(Runtime_StringConcat) {
+  HandleScope scope(isolate);
+  DCHECK_LE(2, args.length());
+  int const argc = args.length();
+  ScopedVector<Handle<Object>> argv(argc);
+
+  isolate->counters()->string_add_runtime()->Increment();
+  IncrementalStringBuilder builder(isolate);
+  for (int i = 0; i < argc; ++i) {
+    Handle<String> str = Handle<String>::cast(args.at(i));
+    if (str->length() != 0) {
+      builder.AppendString(str);
+    }
+  }
+  RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
+}
 
 RUNTIME_FUNCTION(Runtime_InternalizeString) {
   HandleScope handles(isolate);
@@ -171,7 +229,6 @@ RUNTIME_FUNCTION(Runtime_InternalizeString) {
   CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
   return *isolate->factory()->InternalizeString(string);
 }
-
 
 RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
   HandleScope handle_scope(isolate);
@@ -192,7 +249,6 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
   return Smi::FromInt(subject->Get(i));
 }
 
-
 RUNTIME_FUNCTION(Runtime_StringCompare) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -210,9 +266,7 @@ RUNTIME_FUNCTION(Runtime_StringCompare) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
-
 
 RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   HandleScope scope(isolate);
@@ -236,7 +290,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   JSObject::EnsureCanContainHeapObjectElements(array);
 
   int special_length = special->length();
-  if (!array->HasFastObjectElements()) {
+  if (!array->HasObjectElements()) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
@@ -263,6 +317,9 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   if (length == -1) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
+  if (length == 0) {
+    return isolate->heap()->empty_string();
+  }
 
   if (one_byte) {
     Handle<SeqOneByteString> answer;
@@ -283,7 +340,6 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   }
 }
 
-
 RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -293,7 +349,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
     THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
   }
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
-  CHECK(array->HasFastObjectElements());
+  CHECK(array->HasObjectElements());
   CHECK(array_length >= 0);
 
   Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
@@ -424,7 +480,6 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
   DCHECK(cursor <= buffer.length());
 }
 
-
 RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -433,7 +488,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
   // elements_array is fast-mode JSarray of alternating positions
   // (increasing order) and strings.
-  CHECK(elements_array->HasFastSmiOrObjectElements());
+  CHECK(elements_array->HasSmiOrObjectElements());
   // array_length is length of original array (used to add separators);
   // separator is string to put between elements. Assumed to be non-empty.
   CHECK(array_length > 0);
@@ -509,7 +564,6 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   }
 }
 
-
 // Copies Latin1 characters to the given fixed array looking up
 // one-char strings in the cache. Gives up on the first char that is
 // not in the cache and fills the remainder with smi zeros. Returns
@@ -539,7 +593,6 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
 #endif
   return i;
 }
-
 
 // Converts a String to JSArray.
 // For example, "foo" => ["f", "o", "o"].
@@ -588,183 +641,6 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
   return *isolate->factory()->NewJSArrayWithElements(elements);
 }
 
-
-static inline bool ToUpperOverflows(uc32 character) {
-  // y with umlauts and the micro sign are the only characters that stop
-  // fitting into one-byte when converting to uppercase.
-  static const uc32 yuml_code = 0xff;
-  static const uc32 micro_code = 0xb5;
-  return (character == yuml_code || character == micro_code);
-}
-
-
-template <class Converter>
-MUST_USE_RESULT static Object* ConvertCaseHelper(
-    Isolate* isolate, String* string, SeqString* result, int result_length,
-    unibrow::Mapping<Converter, 128>* mapping) {
-  DisallowHeapAllocation no_gc;
-  // We try this twice, once with the assumption that the result is no longer
-  // than the input and, if that assumption breaks, again with the exact
-  // length.  This may not be pretty, but it is nicer than what was here before
-  // and I hereby claim my vaffel-is.
-  //
-  // NOTE: This assumes that the upper/lower case of an ASCII
-  // character is also ASCII.  This is currently the case, but it
-  // might break in the future if we implement more context and locale
-  // dependent upper/lower conversions.
-  bool has_changed_character = false;
-
-  // Convert all characters to upper case, assuming that they will fit
-  // in the buffer
-  StringCharacterStream stream(string);
-  unibrow::uchar chars[Converter::kMaxWidth];
-  // We can assume that the string is not empty
-  uc32 current = stream.GetNext();
-  bool ignore_overflow = Converter::kIsToLower || result->IsSeqTwoByteString();
-  for (int i = 0; i < result_length;) {
-    bool has_next = stream.HasMore();
-    uc32 next = has_next ? stream.GetNext() : 0;
-    int char_length = mapping->get(current, next, chars);
-    if (char_length == 0) {
-      // The case conversion of this character is the character itself.
-      result->Set(i, current);
-      i++;
-    } else if (char_length == 1 &&
-               (ignore_overflow || !ToUpperOverflows(current))) {
-      // Common case: converting the letter resulted in one character.
-      DCHECK(static_cast<uc32>(chars[0]) != current);
-      result->Set(i, chars[0]);
-      has_changed_character = true;
-      i++;
-    } else if (result_length == string->length()) {
-      bool overflows = ToUpperOverflows(current);
-      // We've assumed that the result would be as long as the
-      // input but here is a character that converts to several
-      // characters.  No matter, we calculate the exact length
-      // of the result and try the whole thing again.
-      //
-      // Note that this leaves room for optimization.  We could just
-      // memcpy what we already have to the result string.  Also,
-      // the result string is the last object allocated we could
-      // "realloc" it and probably, in the vast majority of cases,
-      // extend the existing string to be able to hold the full
-      // result.
-      int next_length = 0;
-      if (has_next) {
-        next_length = mapping->get(next, 0, chars);
-        if (next_length == 0) next_length = 1;
-      }
-      int current_length = i + char_length + next_length;
-      while (stream.HasMore()) {
-        current = stream.GetNext();
-        overflows |= ToUpperOverflows(current);
-        // NOTE: we use 0 as the next character here because, while
-        // the next character may affect what a character converts to,
-        // it does not in any case affect the length of what it convert
-        // to.
-        int char_length = mapping->get(current, 0, chars);
-        if (char_length == 0) char_length = 1;
-        current_length += char_length;
-        if (current_length > String::kMaxLength) {
-          AllowHeapAllocation allocate_error_and_return;
-          THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                         NewInvalidStringLengthError());
-        }
-      }
-      // Try again with the real length.  Return signed if we need
-      // to allocate a two-byte string for to uppercase.
-      return (overflows && !ignore_overflow) ? Smi::FromInt(-current_length)
-                                             : Smi::FromInt(current_length);
-    } else {
-      for (int j = 0; j < char_length; j++) {
-        result->Set(i, chars[j]);
-        i++;
-      }
-      has_changed_character = true;
-    }
-    current = next;
-  }
-  if (has_changed_character) {
-    return result;
-  } else {
-    // If we didn't actually change anything in doing the conversion
-    // we simple return the result and let the converted string
-    // become garbage; there is no reason to keep two identical strings
-    // alive.
-    return string;
-  }
-}
-
-template <class Converter>
-MUST_USE_RESULT static Object* ConvertCase(
-    Handle<String> s, Isolate* isolate,
-    unibrow::Mapping<Converter, 128>* mapping) {
-  s = String::Flatten(s);
-  int length = s->length();
-  // Assume that the string is not empty; we need this assumption later
-  if (length == 0) return *s;
-
-  // Simpler handling of ASCII strings.
-  //
-  // NOTE: This assumes that the upper/lower case of an ASCII
-  // character is also ASCII.  This is currently the case, but it
-  // might break in the future if we implement more context and locale
-  // dependent upper/lower conversions.
-  if (s->IsOneByteRepresentationUnderneath()) {
-    // Same length as input.
-    Handle<SeqOneByteString> result =
-        isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
-    DisallowHeapAllocation no_gc;
-    String::FlatContent flat_content = s->GetFlatContent();
-    DCHECK(flat_content.IsFlat());
-    bool has_changed_character = false;
-    int index_to_first_unprocessed = FastAsciiConvert<Converter::kIsToLower>(
-        reinterpret_cast<char*>(result->GetChars()),
-        reinterpret_cast<const char*>(flat_content.ToOneByteVector().start()),
-        length, &has_changed_character);
-    // If not ASCII, we discard the result and take the 2 byte path.
-    if (index_to_first_unprocessed == length)
-      return has_changed_character ? *result : *s;
-  }
-
-  Handle<SeqString> result;  // Same length as input.
-  if (s->IsOneByteRepresentation()) {
-    result = isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
-  } else {
-    result = isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
-  }
-
-  Object* answer = ConvertCaseHelper(isolate, *s, *result, length, mapping);
-  if (answer->IsException(isolate) || answer->IsString()) return answer;
-
-  DCHECK(answer->IsSmi());
-  length = Smi::cast(answer)->value();
-  if (s->IsOneByteRepresentation() && length > 0) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, isolate->factory()->NewRawOneByteString(length));
-  } else {
-    if (length < 0) length = -length;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, isolate->factory()->NewRawTwoByteString(length));
-  }
-  return ConvertCaseHelper(isolate, *s, *result, length, mapping);
-}
-
-
-RUNTIME_FUNCTION(Runtime_StringToLowerCase) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
-  return ConvertCase(s, isolate, isolate->runtime_state()->to_lower_mapping());
-}
-
-RUNTIME_FUNCTION(Runtime_StringToUpperCase) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
-  return ConvertCase(s, isolate, isolate->runtime_state()->to_upper_mapping());
-}
-
 RUNTIME_FUNCTION(Runtime_StringLessThan) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -780,7 +656,6 @@ RUNTIME_FUNCTION(Runtime_StringLessThan) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
@@ -798,7 +673,6 @@ RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
@@ -816,7 +690,6 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
@@ -834,7 +707,6 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
       break;
   }
   UNREACHABLE();
-  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringEqual) {
@@ -859,7 +731,6 @@ RUNTIME_FUNCTION(Runtime_FlattenString) {
   CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
   return *String::Flatten(str);
 }
-
 
 RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
   HandleScope handlescope(isolate);

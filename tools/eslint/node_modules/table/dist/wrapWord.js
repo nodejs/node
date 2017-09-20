@@ -54,5 +54,3 @@ exports.default = (input, size) => {
 
   return chunks;
 };
-
-module.exports = exports['default'];

@@ -6,4 +6,9 @@ prefix inspector
 
 [true] # This section applies to all platforms
 
+[$system==aix]
+test-stop-profile-after-done: PASS, FLAKY
+
 [$system==win32]
+test-stop-profile-after-done: PASS, FLAKY
+

@@ -1,4 +1,5 @@
-<h1 id="table">Table</h1>
+<a name="table"></a>
+# Table
 
 [![Travis build status](http://img.shields.io/travis/gajus/table/master.svg?style=flat)](https://travis-ci.org/gajus/table)
 [![NPM version](http://img.shields.io/npm/v/table.svg?style=flat)](https://www.npmjs.com/package/table)
@@ -22,7 +23,8 @@ Produces a string that represents array data in a text table.
 
 ![Demo of table displaying a list of missions to the Moon.](./.README/demo.png)
 
-<h2 id="table-features">Features</h2>
+<a name="table-features"></a>
+## Features
 
 * Works with strings containing [fullwidth](https://en.wikipedia.org/wiki/Halfwidth_and_fullwidth_forms) characters.
 * Works with strings containing [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code).
@@ -32,12 +34,18 @@ Produces a string that represents array data in a text table.
 * Configurable column width.
 * Text wrapping.
 
-<h2 id="table-usage">Usage</h2>
+<a name="table-usage"></a>
+## Usage
 
 Table data is described using an array (rows) of array (cells).
 
 ```js
-import table from 'table';
+import {
+  table
+} from 'table';
+
+// Using commonjs?
+// const {table} = require('table');
 
 let data,
     output;
@@ -125,7 +133,8 @@ console.log(output);
 ```
 
 
-<h3 id="table-usage-cell-content-alignment">Cell Content Alignment</h3>
+<a name="table-usage-cell-content-alignment"></a>
+### Cell Content Alignment
 
 `{string} config.columns[{number}].alignment` property controls content horizontal alignment within a cell.
 
@@ -174,7 +183,8 @@ console.log(output);
 ╚════════════╧════════════╧════════════╝
 ```
 
-<h3 id="table-usage-column-width">Column Width</h3>
+<a name="table-usage-column-width"></a>
+### Column Width
 
 `{number} config.columns[{number}].width` property restricts column width to a fixed width.
 
@@ -212,7 +222,8 @@ console.log(output);
 ╚════╧════════════╧════╝
 ```
 
-<h3 id="table-usage-custom-border">Custom Border</h3>
+<a name="table-usage-custom-border"></a>
+### Custom Border
 
 `{object} config.border` property describes characters used to draw the table border.
 
@@ -265,7 +276,8 @@ console.log(output);
 └────┴────┴────┘
 ```
 
-<h3 id="table-usage-draw-horizontal-line">Draw Horizontal Line</h3>
+<a name="table-usage-draw-horizontal-line"></a>
+### Draw Horizontal Line
 
 `{function} config.drawHorizontalLine` property is a function that is called for every non-content row in the table. The result of the function `{boolean}` determines whether a row is drawn.
 
@@ -311,7 +323,8 @@ console.log(output);
 ╚════╧════╧════╝
 ```
 
-<h3 id="table-usage-padding-cell-content">Padding Cell Content</h3>
+<a name="table-usage-padding-cell-content"></a>
+### Padding Cell Content
 
 `{number} config.columns[{number}].paddingLeft` and `{number} config.columns[{number}].paddingRight` properties control content padding within a cell. Property value represents a number of whitespaces used to pad the content.
 
@@ -355,12 +368,14 @@ console.log(output);
 ╚══════╧══════╧════╝
 ```
 
-<h3 id="table-usage-predefined-border-templates">Predefined Border Templates</h3>
+<a name="table-usage-predefined-border-templates"></a>
+### Predefined Border Templates
 
 You can load one of the predefined border templates using `getBorderCharacters` function.
 
 ```js
-import table, {
+import {
+    table,
     getBorderCharacters
 } from 'table';
 
@@ -423,7 +438,8 @@ table(data, config);
 
 Raise [an issue](https://github.com/gajus/table/issues) if you'd like to contribute a new border template.
 
-<h4 id="table-usage-predefined-border-templates-borderless-table">Borderless Table</h4>
+<a name="table-usage-predefined-border-templates-borderless-table"></a>
+#### Borderless Table
 
 Simply using "void" border character template creates a table with a lot of unnecessary spacing.
 
@@ -452,7 +468,8 @@ console.log(output);
 2A 2B 2C
 ```
 
-<h3 id="table-usage-streaming">Streaming</h3>
+<a name="table-usage-streaming"></a>
+### Streaming
 
 `table` package exports `createStream` function used to draw a table and append rows.
 
@@ -532,7 +549,8 @@ setInterval(() => {
 ```
 
 ![Streaming random data.](./.README/streaming-random.gif)
-<h3 id="table-usage-text-truncation">Text Truncation</h3>
+<a name="table-usage-text-truncation"></a>
+### Text Truncation
 
 To handle a content that overflows the container width, `table` package implements [text wrapping](#table-usage-text-wrapping). However, sometimes you may want to truncate content that is too long to be displayed in the table.
 
@@ -571,7 +589,8 @@ console.log(output);
 ╚══════════════════════╝
 ```
 
-<h3 id="table-usage-text-wrapping">Text Wrapping</h3>
+<a name="table-usage-text-wrapping"></a>
+### Text Wrapping
 
 `table` package implements auto text wrapping, i.e. text that has width greater than the container width will be separated into multiple lines, e.g.
 

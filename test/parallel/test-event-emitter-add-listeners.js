@@ -68,8 +68,8 @@ const EventEmitter = require('events');
 }
 
 {
-  const listen1 = function listen1() {};
-  const listen2 = function listen2() {};
+  const listen1 = () => {};
+  const listen2 = () => {};
   const ee = new EventEmitter();
 
   ee.once('newListener', function() {

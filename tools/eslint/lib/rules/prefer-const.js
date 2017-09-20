@@ -73,7 +73,7 @@ function canBecomeVariableDeclaration(identifier) {
  *   warn such variables because this rule cannot distinguish whether the
  *   exported variables are reassigned or not.
  *
- * @param {escope.Variable} variable - A variable to get.
+ * @param {eslint-scope.Variable} variable - A variable to get.
  * @param {boolean} ignoreReadBeforeAssign -
  *      The value of `ignoreReadBeforeAssign` option.
  * @returns {ASTNode|null}
@@ -82,17 +82,6 @@ function canBecomeVariableDeclaration(identifier) {
  */
 function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
     if (variable.eslintUsed && variable.scope.type === "global") {
-        return null;
-    }
-
-    /*
-     * Due to a bug in acorn, code such as `let foo = 1; let foo = 2;` will not throw a syntax error. As a sanity
-     * check, make sure that the variable only has one declaration. After the parsing bug is fixed, this check
-     * will no longer be necessary, because variables declared with `let` or `const` should always have exactly one
-     * declaration.
-     * https://github.com/ternjs/acorn/issues/487
-     */
-    if (variable.defs.length > 1) {
         return null;
     }
 
@@ -146,7 +135,7 @@ function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
  * This is used to detect a mix of reassigned and never reassigned in a
  * destructuring.
  *
- * @param {escope.Reference} reference - A reference to get.
+ * @param {eslint-scope.Reference} reference - A reference to get.
  * @returns {ASTNode|null} A VariableDeclarator/AssignmentExpression node or
  *      null.
  */
@@ -172,7 +161,7 @@ function getDestructuringHost(reference) {
  * This is used to detect a mix of reassigned and never reassigned in a
  * destructuring.
  *
- * @param {escope.Variable[]} variables - Variables to group by destructuring.
+ * @param {eslint-scope.Variable[]} variables - Variables to group by destructuring.
  * @param {boolean} ignoreReadBeforeAssign -
  *      The value of `ignoreReadBeforeAssign` option.
  * @returns {Map<ASTNode, ASTNode[]>} Grouped identifier nodes.
@@ -274,7 +263,7 @@ module.exports = {
          * the array is 1. In destructuring cases, the length of the array can
          * be 2 or more.
          *
-         * @param {(escope.Reference|null)[]} nodes -
+         * @param {(eslint-scope.Reference|null)[]} nodes -
          *      References which are grouped by destructuring to report.
          * @returns {void}
          */

@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests that protocol works with different locales');
+
 Protocol.Runtime.enable();
 
-Protocol.Runtime.onConsoleAPICalled(dumpConsoleApiCalled);
+Protocol.Runtime.onConsoleAPICalled(InspectorTest.logMessage);
 
 InspectorTest.runTestSuite([
   function consoleLogWithDefaultLocale(next) {
@@ -13,28 +15,28 @@ InspectorTest.runTestSuite([
 
   function consoleTimeWithCommaAsSeparator(next) {
     InspectorTest.log("set locale to fr_CA.UTF-8 (has comma as separator)");
-    setlocale("fr_CA.UTF-8");
-    Protocol.Runtime.evaluate({ expression: "console.time(\"a\"); console.timeEnd(\"a\")"}).then(next);
+    utils.setlocale("fr_CA.UTF-8");
+    utils.setCurrentTimeMSForTest(0.0);
+    Protocol.Runtime.evaluate({ expression: "console.time(\"a\");"})
+      .then(() => utils.setCurrentTimeMSForTest(0.001))
+      .then(() => Protocol.Runtime.evaluate({ expression: "console.timeEnd(\"a\");"}))
+      .then(next);
   },
 
   function consoleLogWithCommaAsSeparator(next) {
     InspectorTest.log("set locale to fr_CA.UTF-8 (has comma as separator)");
-    setlocale("fr_CA.UTF-8");
+    utils.setlocale("fr_CA.UTF-8");
     Protocol.Runtime.evaluate({ expression: "console.log(239) "}).then(next);
   },
 
   function consoleTimeWithCommaAfterConsoleLog(next) {
     InspectorTest.log("set locale to fr_CA.UTF-8 (has comma as separator)");
-    setlocale("fr_CA.UTF-8");
+    utils.setlocale("fr_CA.UTF-8");
     Protocol.Runtime.evaluate({ expression: "console.log(239) "})
-      .then(() => Protocol.Runtime.evaluate({ expression: "console.time(\"a\"); console.timeEnd(\"a\")"}))
+      .then(() => utils.setCurrentTimeMSForTest(0.0))
+      .then(() => Protocol.Runtime.evaluate({ expression: "console.time(\"a\");"}))
+      .then(() => utils.setCurrentTimeMSForTest(0.001))
+      .then(() => Protocol.Runtime.evaluate({ expression: "console.timeEnd(\"a\");"}))
       .then(next);
   }
 ]);
-
-function dumpConsoleApiCalled(message) {
-  var firstArg = message.params.args[0];
-  if (firstArg.type === "string")
-    firstArg.value = firstArg.value.replace(/[0-9]+/g, "x");
-  InspectorTest.logMessage(message);
-}

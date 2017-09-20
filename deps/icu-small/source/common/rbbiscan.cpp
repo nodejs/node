@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 //
 //  file:  rbbiscan.cpp
@@ -1179,13 +1179,12 @@ RBBINode  *RBBIRuleScanner::pushNewNode(RBBINode::NodeType  t) {
     if (U_FAILURE(*fRB->fStatus)) {
         return NULL;
     }
-    fNodeStackPtr++;
-    if (fNodeStackPtr >= kStackSize) {
-        error(U_BRK_INTERNAL_ERROR);
+    if (fNodeStackPtr >= kStackSize - 1) {
+        error(U_BRK_RULE_SYNTAX);
         RBBIDebugPuts("RBBIRuleScanner::pushNewNode - stack overflow.");
-        *fRB->fStatus = U_BRK_INTERNAL_ERROR;
         return NULL;
     }
+    fNodeStackPtr++;
     fNodeStack[fNodeStackPtr] = new RBBINode(t);
     if (fNodeStack[fNodeStackPtr] == NULL) {
         *fRB->fStatus = U_MEMORY_ALLOCATION_ERROR;

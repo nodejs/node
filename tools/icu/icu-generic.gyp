@@ -30,15 +30,6 @@
       'type': 'none',
       'toolsets': [ 'host', 'target' ],
       'direct_dependent_settings': {
-        'conditions': [
-          [ 'icu_endianness == "l"', {
-             'defines': [
-                # ICU cannot swap the initial data without this.
-                # http://bugs.icu-project.org/trac/ticket/11046
-                'UCONFIG_NO_LEGACY_CONVERSION=1'
-             ],
-          }],
-        ],
         'defines': [
           'UCONFIG_NO_SERVICE=1',
           'UCONFIG_NO_REGULAR_EXPRESSIONS=1',
@@ -480,7 +471,6 @@
         '<@(icu_src_tools)',
         '<@(icu_src_common)',
         '<@(icu_src_i18n)',
-        '<@(icu_src_io)',
         '<@(icu_src_stubdata)',
       ],
       'sources!': [
@@ -492,7 +482,6 @@
       'include_dirs': [
         '<(icu_path)/source/common',
         '<(icu_path)/source/i18n',
-        '<(icu_path)/source/io',
         '<(icu_path)/source/tools/toolutil',
       ],
       'defines': [
@@ -512,7 +501,6 @@
         'include_dirs': [
           '<(icu_path)/source/common',
           '<(icu_path)/source/i18n',
-          '<(icu_path)/source/io',
           '<(icu_path)/source/tools/toolutil',
         ],
         'conditions': [

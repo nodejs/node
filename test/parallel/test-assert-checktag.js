@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 
@@ -7,13 +7,17 @@ const util = require('util');
 // for assert.throws()
 function re(literals, ...values) {
   let result = literals[0];
+  const escapeRE = /[\\^$.*+?()[\]{}|=!<>:-]/g;
   for (const [i, value] of values.entries()) {
     const str = util.inspect(value);
     // Need to escape special characters.
-    result += str.replace(/[\\^$.*+?()[\]{}|=!<>:-]/g, '\\$&');
+    result += str.replace(escapeRE, '\\$&');
     result += literals[i + 1];
   }
-  return new RegExp('^AssertionError: ' + result + '$');
+  return common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: new RegExp(`^${result}$`)
+  });
 }
 
 // Turn off no-restricted-properties because we are testing deepEqual!

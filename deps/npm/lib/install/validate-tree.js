@@ -26,7 +26,8 @@ module.exports = function (idealTree, log, next) {
       ], done)
     }],
     [thenValidateAllPeerDeps, idealTree],
-    [thenCheckTop, idealTree]
+    [thenCheckTop, idealTree],
+    [thenCheckDuplicateDeps, idealTree]
   ], andFinishTracker(log, next))
 }
 
@@ -73,5 +74,22 @@ function thenCheckTop (idealTree, next) {
     warnObj.code = 'ENODEPRE'
     idealTree.warnings.push(warnObj)
   }
+
+  next()
+}
+
+// check for deps duplciated between devdeps and regular deps
+function thenCheckDuplicateDeps (idealTree, next) {
+  var deps = idealTree.package.dependencies || {}
+  var devDeps = idealTree.package.devDependencies || {}
+
+  for (var pkg in devDeps) {
+    if (pkg in deps) {
+      var warnObj = new Error('The package ' + pkg + ' is included as both a dev and production dependency.')
+      warnObj.code = 'EDUPLICATEDEP'
+      idealTree.warnings.push(warnObj)
+    }
+  }
+
   next()
 }

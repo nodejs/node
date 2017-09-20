@@ -1,12 +1,10 @@
 'use strict';
 const common = require('../common');
+if (!common.isWindows)
+  common.skip('this test is Windows-specific.');
+
 const fs = require('fs');
 const path = require('path');
-
-if (!common.isWindows) {
-  common.skip('this test is Windows-specific.');
-  return;
-}
 
 // make a path that is more than 260 chars long.
 const dirNameLen = Math.max(260 - common.tmpDir.length, 1);

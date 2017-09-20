@@ -6,6 +6,7 @@
 
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
+#include "src/inspector/wasm-translation.h"
 
 namespace v8_inspector {
 
@@ -43,7 +44,11 @@ String16 calculateHash(const String16& str) {
   size_t sizeInBytes = sizeof(UChar) * str.length();
   data = reinterpret_cast<const uint32_t*>(str.characters16());
   for (size_t i = 0; i < sizeInBytes / 4; i += 4) {
+#if V8_TARGET_LITTLE_ENDIAN
     uint32_t v = data[i];
+#else
+    uint32_t v = (data[i] << 16) | (data[i] >> 16);
+#endif
     uint64_t xi = v * randomOdd[current] & 0x7FFFFFFF;
     hashes[current] = (hashes[current] + zi[current] * xi) % prime[current];
     zi[current] = (zi[current] * random[current]) % prime[current];
@@ -53,7 +58,15 @@ String16 calculateHash(const String16& str) {
     uint32_t v = 0;
     for (size_t i = sizeInBytes - sizeInBytes % 4; i < sizeInBytes; ++i) {
       v <<= 8;
+#if V8_TARGET_LITTLE_ENDIAN
       v |= reinterpret_cast<const uint8_t*>(data)[i];
+#else
+      if (i % 2) {
+        v |= reinterpret_cast<const uint8_t*>(data)[i - 1];
+      } else {
+        v |= reinterpret_cast<const uint8_t*>(data)[i + 1];
+      }
+#endif
     }
     uint64_t xi = v * randomOdd[current] & 0x7FFFFFFF;
     hashes[current] = (hashes[current] + zi[current] * xi) % prime[current];
@@ -67,6 +80,32 @@ String16 calculateHash(const String16& str) {
   String16Builder hash;
   for (size_t i = 0; i < hashesSize; ++i) appendUnsignedAsHex(hashes[i], &hash);
   return hash.toString();
+}
+
+void TranslateProtocolLocationToV8Location(WasmTranslation* wasmTranslation,
+                                           v8::debug::Location* loc,
+                                           const String16& scriptId,
+                                           const String16& expectedV8ScriptId) {
+  if (loc->IsEmpty()) return;
+  int lineNumber = loc->GetLineNumber();
+  int columnNumber = loc->GetColumnNumber();
+  String16 translatedScriptId = scriptId;
+  wasmTranslation->TranslateProtocolLocationToWasmScriptLocation(
+      &translatedScriptId, &lineNumber, &columnNumber);
+  DCHECK_EQ(expectedV8ScriptId.utf8(), translatedScriptId.utf8());
+  *loc = v8::debug::Location(lineNumber, columnNumber);
+}
+
+void TranslateV8LocationToProtocolLocation(
+    WasmTranslation* wasmTranslation, v8::debug::Location* loc,
+    const String16& scriptId, const String16& expectedProtocolScriptId) {
+  int lineNumber = loc->GetLineNumber();
+  int columnNumber = loc->GetColumnNumber();
+  String16 translatedScriptId = scriptId;
+  wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
+      &translatedScriptId, &lineNumber, &columnNumber);
+  DCHECK_EQ(expectedProtocolScriptId.utf8(), translatedScriptId.utf8());
+  *loc = v8::debug::Location(lineNumber, columnNumber);
 }
 
 class ActualScript : public V8DebuggerScript {
@@ -99,53 +138,81 @@ class ActualScript : public V8DebuggerScript {
       m_endColumn = m_startColumn;
     }
 
-    v8::Local<v8::Value> contextData;
-    if (script->ContextData().ToLocal(&contextData) && contextData->IsInt32()) {
-      m_executionContextId =
-          static_cast<int>(contextData.As<v8::Int32>()->Value());
-    }
+    USE(script->ContextId().To(&m_executionContextId));
 
     if (script->Source().ToLocal(&tmp)) {
-      m_sourceObj.Reset(m_isolate, tmp);
-      String16 source = toProtocolString(tmp);
-      // V8 will not count last line if script source ends with \n.
-      if (source.length() > 1 && source[source.length() - 1] == '\n') {
-        m_endLine++;
-        m_endColumn = 0;
-      }
+      m_source = toProtocolString(tmp);
     }
+
+    m_isModule = script->IsModule();
 
     m_script.Reset(m_isolate, script);
   }
 
   bool isLiveEdit() const override { return m_isLiveEdit; }
+  bool isModule() const override { return m_isModule; }
 
   const String16& sourceMappingURL() const override {
     return m_sourceMappingURL;
-  }
-
-  String16 source(v8::Isolate* isolate) const override {
-    if (!m_sourceObj.IsEmpty())
-      return toProtocolString(m_sourceObj.Get(isolate));
-    return V8DebuggerScript::source(isolate);
   }
 
   void setSourceMappingURL(const String16& sourceMappingURL) override {
     m_sourceMappingURL = sourceMappingURL;
   }
 
-  void setSource(v8::Local<v8::String> source) override {
-    m_source = String16();
-    m_sourceObj.Reset(m_isolate, source);
-    m_hash = String16();
-  }
-
   bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
-      std::vector<v8::debug::Location>* locations) override {
+      bool restrictToFunction,
+      std::vector<v8::debug::BreakLocation>* locations) override {
     v8::HandleScope scope(m_isolate);
     v8::Local<v8::debug::Script> script = m_script.Get(m_isolate);
-    return script->GetPossibleBreakpoints(start, end, locations);
+    std::vector<v8::debug::BreakLocation> allLocations;
+    if (!script->GetPossibleBreakpoints(start, end, restrictToFunction,
+                                        &allLocations)) {
+      return false;
+    }
+    if (!allLocations.size()) return true;
+    v8::debug::BreakLocation current = allLocations[0];
+    for (size_t i = 1; i < allLocations.size(); ++i) {
+      if (allLocations[i].GetLineNumber() == current.GetLineNumber() &&
+          allLocations[i].GetColumnNumber() == current.GetColumnNumber()) {
+        if (allLocations[i].type() != v8::debug::kCommonBreakLocation) {
+          DCHECK(allLocations[i].type() == v8::debug::kCallBreakLocation ||
+                 allLocations[i].type() == v8::debug::kReturnBreakLocation);
+          // debugger can returns more then one break location at the same
+          // source location, e.g. foo() - in this case there are two break
+          // locations before foo: for statement and for function call, we can
+          // merge them for inspector and report only one with call type.
+          current = allLocations[i];
+        }
+      } else {
+        // we assume that returned break locations are sorted.
+        DCHECK(
+            allLocations[i].GetLineNumber() > current.GetLineNumber() ||
+            (allLocations[i].GetColumnNumber() >= current.GetColumnNumber() &&
+             allLocations[i].GetLineNumber() == current.GetLineNumber()));
+        locations->push_back(current);
+        current = allLocations[i];
+      }
+    }
+    locations->push_back(current);
+    return true;
+  }
+
+  void resetBlackboxedStateCache() override {
+    v8::HandleScope scope(m_isolate);
+    v8::debug::ResetBlackboxedStateCache(m_isolate, m_script.Get(m_isolate));
+  }
+
+  int offset(int lineNumber, int columnNumber) const override {
+    v8::HandleScope scope(m_isolate);
+    return m_script.Get(m_isolate)->GetSourceOffset(
+        v8::debug::Location(lineNumber, columnNumber));
+  }
+
+  v8::debug::Location location(int offset) const override {
+    v8::HandleScope scope(m_isolate);
+    return m_script.Get(m_isolate)->GetSourceLocation(offset);
   }
 
  private:
@@ -157,8 +224,8 @@ class ActualScript : public V8DebuggerScript {
   }
 
   String16 m_sourceMappingURL;
-  v8::Global<v8::String> m_sourceObj;
   bool m_isLiveEdit = false;
+  bool m_isModule = false;
   v8::Global<v8::debug::Script> m_script;
 };
 
@@ -166,11 +233,12 @@ class WasmVirtualScript : public V8DebuggerScript {
   friend class V8DebuggerScript;
 
  public:
-  WasmVirtualScript(v8::Isolate* isolate,
+  WasmVirtualScript(v8::Isolate* isolate, WasmTranslation* wasmTranslation,
                     v8::Local<v8::debug::WasmScript> script, String16 id,
                     String16 url, String16 source)
       : V8DebuggerScript(isolate, std::move(id), std::move(url)),
-        m_script(isolate, script) {
+        m_script(isolate, script),
+        m_wasmTranslation(wasmTranslation) {
     int num_lines = 0;
     int last_newline = -1;
     size_t next_newline = source.find('\n', last_newline + 1);
@@ -186,15 +254,48 @@ class WasmVirtualScript : public V8DebuggerScript {
 
   const String16& sourceMappingURL() const override { return emptyString(); }
   bool isLiveEdit() const override { return false; }
+  bool isModule() const override { return false; }
   void setSourceMappingURL(const String16&) override {}
 
   bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
-      std::vector<v8::debug::Location>* locations) override {
-    // TODO(clemensh): Returning false produces the protocol error "Internal
-    // error". Implement and fix expected output of
-    // wasm-get-breakable-locations.js.
-    return false;
+      bool restrictToFunction,
+      std::vector<v8::debug::BreakLocation>* locations) override {
+    v8::HandleScope scope(m_isolate);
+    v8::Local<v8::debug::Script> script = m_script.Get(m_isolate);
+    String16 v8ScriptId = String16::fromInteger(script->Id());
+
+    v8::debug::Location translatedStart = start;
+    TranslateProtocolLocationToV8Location(m_wasmTranslation, &translatedStart,
+                                          scriptId(), v8ScriptId);
+
+    v8::debug::Location translatedEnd = end;
+    if (translatedEnd.IsEmpty()) {
+      // Stop before the start of the next function.
+      translatedEnd =
+          v8::debug::Location(translatedStart.GetLineNumber() + 1, 0);
+    } else {
+      TranslateProtocolLocationToV8Location(m_wasmTranslation, &translatedEnd,
+                                            scriptId(), v8ScriptId);
+    }
+
+    bool success = script->GetPossibleBreakpoints(
+        translatedStart, translatedEnd, restrictToFunction, locations);
+    for (v8::debug::BreakLocation& loc : *locations) {
+      TranslateV8LocationToProtocolLocation(m_wasmTranslation, &loc, v8ScriptId,
+                                            scriptId());
+    }
+    return success;
+  }
+
+  void resetBlackboxedStateCache() override {}
+
+  int offset(int lineNumber, int columnNumber) const override {
+    return kNoOffset;
+  }
+
+  v8::debug::Location location(int offset) const override {
+    return v8::debug::Location();
   }
 
  private:
@@ -204,6 +305,7 @@ class WasmVirtualScript : public V8DebuggerScript {
   }
 
   v8::Global<v8::debug::WasmScript> m_script;
+  WasmTranslation* m_wasmTranslation;
 };
 
 }  // namespace
@@ -216,11 +318,12 @@ std::unique_ptr<V8DebuggerScript> V8DebuggerScript::Create(
 }
 
 std::unique_ptr<V8DebuggerScript> V8DebuggerScript::CreateWasm(
-    v8::Isolate* isolate, v8::Local<v8::debug::WasmScript> underlyingScript,
-    String16 id, String16 url, String16 source) {
+    v8::Isolate* isolate, WasmTranslation* wasmTranslation,
+    v8::Local<v8::debug::WasmScript> underlyingScript, String16 id,
+    String16 url, String16 source) {
   return std::unique_ptr<WasmVirtualScript>(
-      new WasmVirtualScript(isolate, underlyingScript, std::move(id),
-                            std::move(url), std::move(source)));
+      new WasmVirtualScript(isolate, wasmTranslation, underlyingScript,
+                            std::move(id), std::move(url), std::move(source)));
 }
 
 V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate, String16 id,
@@ -233,8 +336,8 @@ const String16& V8DebuggerScript::sourceURL() const {
   return m_sourceURL.isEmpty() ? m_url : m_sourceURL;
 }
 
-const String16& V8DebuggerScript::hash(v8::Isolate* isolate) const {
-  if (m_hash.isEmpty()) m_hash = calculateHash(source(isolate));
+const String16& V8DebuggerScript::hash() const {
+  if (m_hash.isEmpty()) m_hash = calculateHash(source());
   DCHECK(!m_hash.isEmpty());
   return m_hash;
 }

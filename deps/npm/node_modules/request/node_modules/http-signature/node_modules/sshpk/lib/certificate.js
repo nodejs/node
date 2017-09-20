@@ -39,6 +39,8 @@ function Certificate(opts) {
 	assert.date(opts.validFrom, 'options.validFrom');
 	assert.date(opts.validUntil, 'optons.validUntil');
 
+	assert.optionalArrayOfString(opts.purposes, 'options.purposes');
+
 	this._hashCache = {};
 
 	this.subjects = opts.subjects;
@@ -49,6 +51,7 @@ function Certificate(opts) {
 	this.serial = opts.serial;
 	this.validFrom = opts.validFrom;
 	this.validUntil = opts.validUntil;
+	this.purposes = opts.purposes;
 }
 
 Certificate.formats = formats;
@@ -108,6 +111,10 @@ Certificate.prototype.isSignedBy = function (issuerCert) {
 
 	if (!this.issuer.equals(issuerCert.subjects[0]))
 		return (false);
+	if (this.issuer.purposes && this.issuer.purposes.length > 0 &&
+	    this.issuer.purposes.indexOf('ca') === -1) {
+		return (false);
+	}
 
 	return (this.isSignedByKey(issuerCert.subjectKey));
 };
@@ -180,6 +187,47 @@ Certificate.createSelfSigned = function (subjectOrSubjects, key, options) {
 	if (serial === undefined)
 		serial = new Buffer('0000000000000001', 'hex');
 
+	var purposes = options.purposes;
+	if (purposes === undefined)
+		purposes = [];
+
+	if (purposes.indexOf('signature') === -1)
+		purposes.push('signature');
+
+	/* Self-signed certs are always CAs. */
+	if (purposes.indexOf('ca') === -1)
+		purposes.push('ca');
+	if (purposes.indexOf('crl') === -1)
+		purposes.push('crl');
+
+	/*
+	 * If we weren't explicitly given any other purposes, do the sensible
+	 * thing and add some basic ones depending on the subject type.
+	 */
+	if (purposes.length <= 3) {
+		var hostSubjects = subjects.filter(function (subject) {
+			return (subject.type === 'host');
+		});
+		var userSubjects = subjects.filter(function (subject) {
+			return (subject.type === 'user');
+		});
+		if (hostSubjects.length > 0) {
+			if (purposes.indexOf('serverAuth') === -1)
+				purposes.push('serverAuth');
+		}
+		if (userSubjects.length > 0) {
+			if (purposes.indexOf('clientAuth') === -1)
+				purposes.push('clientAuth');
+		}
+		if (userSubjects.length > 0 || hostSubjects.length > 0) {
+			if (purposes.indexOf('keyAgreement') === -1)
+				purposes.push('keyAgreement');
+			if (key.type === 'rsa' &&
+			    purposes.indexOf('encryption') === -1)
+				purposes.push('encryption');
+		}
+	}
+
 	var cert = new Certificate({
 		subjects: subjects,
 		issuer: subjects[0],
@@ -188,7 +236,8 @@ Certificate.createSelfSigned = function (subjectOrSubjects, key, options) {
 		signatures: {},
 		serial: serial,
 		validFrom: validFrom,
-		validUntil: validUntil
+		validUntil: validUntil,
+		purposes: purposes
 	});
 	cert.signWith(key);
 
@@ -236,6 +285,42 @@ Certificate.create =
 	if (serial === undefined)
 		serial = new Buffer('0000000000000001', 'hex');
 
+	var purposes = options.purposes;
+	if (purposes === undefined)
+		purposes = [];
+
+	if (purposes.indexOf('signature') === -1)
+		purposes.push('signature');
+
+	if (options.ca === true) {
+		if (purposes.indexOf('ca') === -1)
+			purposes.push('ca');
+		if (purposes.indexOf('crl') === -1)
+			purposes.push('crl');
+	}
+
+	var hostSubjects = subjects.filter(function (subject) {
+		return (subject.type === 'host');
+	});
+	var userSubjects = subjects.filter(function (subject) {
+		return (subject.type === 'user');
+	});
+	if (hostSubjects.length > 0) {
+		if (purposes.indexOf('serverAuth') === -1)
+			purposes.push('serverAuth');
+	}
+	if (userSubjects.length > 0) {
+		if (purposes.indexOf('clientAuth') === -1)
+			purposes.push('clientAuth');
+	}
+	if (userSubjects.length > 0 || hostSubjects.length > 0) {
+		if (purposes.indexOf('keyAgreement') === -1)
+			purposes.push('keyAgreement');
+		if (key.type === 'rsa' &&
+		    purposes.indexOf('encryption') === -1)
+			purposes.push('encryption');
+	}
+
 	var cert = new Certificate({
 		subjects: subjects,
 		issuer: issuer,
@@ -244,7 +329,8 @@ Certificate.create =
 		signatures: {},
 		serial: serial,
 		validFrom: validFrom,
-		validUntil: validUntil
+		validUntil: validUntil,
+		purposes: purposes
 	});
 	cert.signWith(issuerKey);
 

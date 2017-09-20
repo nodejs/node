@@ -256,8 +256,8 @@ cd "$TMP" \
         make="NOMAKE"
       fi
       if [ "$make" = "NOMAKE" ]; then
-        "$node" cli.js rm npm -gf
-        "$node" cli.js install -gf
+        "$node" bin/npm-cli.js rm npm -gf
+        "$node" bin/npm-cli.js install -gf $("$node" bin/npm-cli.js pack | tail -1)
       fi) \
   && cd "$BACK" \
   && rm -rf "$TMP" \

@@ -62,6 +62,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -308,7 +309,7 @@ class Parser : public AsyncWrap {
 
     Environment::AsyncCallbackScope callback_scope(env());
 
-    Local<Value> head_response =
+    MaybeLocal<Value> head_response =
         MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (head_response.IsEmpty()) {
@@ -316,7 +317,7 @@ class Parser : public AsyncWrap {
       return -1;
     }
 
-    return head_response->IntegerValue();
+    return head_response.ToLocalChecked()->IntegerValue();
   }
 
 
@@ -344,7 +345,9 @@ class Parser : public AsyncWrap {
       Integer::NewFromUnsigned(env()->isolate(), length)
     };
 
-    Local<Value> r = MakeCallback(cb.As<Function>(), arraysize(argv), argv);
+    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(),
+                                       arraysize(argv),
+                                       argv);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -369,7 +372,7 @@ class Parser : public AsyncWrap {
 
     Environment::AsyncCallbackScope callback_scope(env());
 
-    Local<Value> r = MakeCallback(cb.As<Function>(), 0, nullptr);
+    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(), 0, nullptr);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -476,6 +479,8 @@ class Parser : public AsyncWrap {
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
+    // The parser is being reused. Reset the uid and call init() callbacks.
+    parser->AsyncReset();
     parser->Init(type);
   }
 
@@ -494,6 +499,7 @@ class Parser : public AsyncWrap {
   static void Consume(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    CHECK(args[0]->IsExternal());
     Local<External> stream_obj = args[0].As<External>();
     StreamBase* stream = static_cast<StreamBase*>(stream_obj->Value());
     CHECK_NE(stream, nullptr);
@@ -524,6 +530,7 @@ class Parser : public AsyncWrap {
 
       stream->set_alloc_cb(parser->prev_alloc_cb_);
       stream->set_read_cb(parser->prev_read_cb_);
+      stream->Unconsume();
     }
 
     parser->prev_alloc_cb_.clear();
@@ -698,7 +705,9 @@ class Parser : public AsyncWrap {
       url_.ToString(env())
     };
 
-    Local<Value> r = MakeCallback(cb.As<Function>(), arraysize(argv), argv);
+    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(),
+                                       arraysize(argv),
+                                       argv);
 
     if (r.IsEmpty())
       got_exception_ = true;
@@ -785,6 +794,7 @@ void InitHttpParser(Local<Object> target,
 #undef V
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
 
+  AsyncWrap::AddWrapMethods(env, t);
   env->SetProtoMethod(t, "close", Parser::Close);
   env->SetProtoMethod(t, "execute", Parser::Execute);
   env->SetProtoMethod(t, "finish", Parser::Finish);

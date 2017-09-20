@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  uniset_props.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -195,7 +195,7 @@ void U_CALLCONV UnicodeSet_initInclusion(int32_t src, UErrorCode &status) {
         if(U_SUCCESS(status)) {
             impl->addPropertyStarts(&sa, status);
         }
-        ucase_addPropertyStarts(ucase_getSingleton(), &sa, &status);
+        ucase_addPropertyStarts(&sa, &status);
         break;
     }
     case UPROPS_SRC_NFC: {
@@ -228,7 +228,7 @@ void U_CALLCONV UnicodeSet_initInclusion(int32_t src, UErrorCode &status) {
     }
 #endif
     case UPROPS_SRC_CASE:
-        ucase_addPropertyStarts(ucase_getSingleton(), &sa, &status);
+        ucase_addPropertyStarts(&sa, &status);
         break;
     case UPROPS_SRC_BIDI:
         ubidi_addPropertyStarts(ubidi_getSingleton(), &sa, &status);

@@ -8,7 +8,6 @@
 #include "src/allocation.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
-#include "src/type-info.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

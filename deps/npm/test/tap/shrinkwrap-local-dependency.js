@@ -4,6 +4,7 @@ var fs = require('fs')
 var rimraf = require('rimraf')
 var common = require('../common-tap.js')
 var Tacks = require('tacks')
+var unixFormatPath = require('../../lib/utils/unix-format-path.js')
 var File = Tacks.File
 var Dir = Tacks.Dir
 
@@ -16,14 +17,11 @@ var shrinkwrap = {
   version: '1.0.0',
   dependencies: {
     mod2: {
-      version: '1.0.0',
-      from: path.join('mods', 'mod2'),
-      resolved: 'file:' + path.join('mods', 'mod2'),
+      version: 'file:' + unixFormatPath(path.join('mods', 'mod2')),
       dependencies: {
         mod1: {
-          version: '1.0.0',
-          from: path.join('mods', 'mod1'),
-          resolved: 'file:' + path.join('mods', 'mod1')
+          version: 'file:' + unixFormatPath(path.join('mods', 'mod1')),
+          bundled: true
         }
       }
     }
@@ -88,7 +86,11 @@ test('shrinkwrap uses resolved with file: on local deps', function (t) {
       t.comment(stderr.trim())
       t.equal(code, 0, 'npm exited normally')
       var data = fs.readFileSync(path.join(testdir, 'npm-shrinkwrap.json'), { encoding: 'utf8' })
-      t.deepEqual(JSON.parse(data), shrinkwrap, 'shrinkwrap looks correct')
+      t.like(
+        JSON.parse(data).dependencies,
+        shrinkwrap.dependencies,
+        'shrinkwrap looks correct'
+      )
       t.end()
     })
   })

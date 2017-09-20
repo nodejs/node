@@ -38,7 +38,7 @@ module.exports = {
         return {
             NewExpression(node) {
                 if (node.arguments.length !== 0) {
-                    return;  // shortcut: if there are arguments, there have to be parens
+                    return; // shortcut: if there are arguments, there have to be parens
                 }
 
                 const lastToken = sourceCode.getLastToken(node);

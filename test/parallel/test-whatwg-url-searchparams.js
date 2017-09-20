@@ -2,8 +2,8 @@
 
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const { URL, URLSearchParams } = require('url');
+const fixtures = require('../common/fixtures');
 
 // Tests below are not from WPT.
 const serialized = 'a=a&a=1&a=true&a=undefined&a=null&a=%EF%BF%BD' +
@@ -71,15 +71,20 @@ sp.forEach(function(val, key, obj) {
 sp.forEach(function() {
   assert.strictEqual(this, m);
 }, m);
-assert.throws(() => sp.forEach(),
-              /^TypeError: "callback" argument must be a function$/);
-assert.throws(() => sp.forEach(1),
-              /^TypeError: "callback" argument must be a function$/);
+
+{
+  const callbackErr = common.expectsError({
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  }, 2);
+  assert.throws(() => sp.forEach(), callbackErr);
+  assert.throws(() => sp.forEach(1), callbackErr);
+}
 
 m.search = '?a=a&b=b';
 assert.strictEqual(sp.toString(), 'a=a&b=b');
 
-const tests = require(path.join(common.fixturesDir, 'url-searchparams.js'));
+const tests = require(fixtures.path('url-searchparams.js'));
 
 for (const [input, expected, parsed] of tests) {
   if (input[0] !== '?') {

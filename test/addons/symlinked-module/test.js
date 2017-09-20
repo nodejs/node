@@ -22,7 +22,6 @@ try {
 } catch (err) {
   if (err.code !== 'EPERM') throw err;
   common.skip('module identity test (no privs for symlinks)');
-  return;
 }
 
 const sub = require('./submodule');

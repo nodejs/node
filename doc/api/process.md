@@ -1,5 +1,6 @@
 # Process
 
+<!-- introduced_in=v0.10.0 -->
 <!-- type=global -->
 
 The `process` object is a `global` that provides information about, and control
@@ -398,7 +399,7 @@ It is important to take note of the following:
    called asynchronously and therefore unable to correct the underlying problem.
 
 *Note*: Windows does not support sending signals, but Node.js offers some
-emulation with [`process.kill()`][], and [`ChildProcess.kill()`][]. Sending
+emulation with [`process.kill()`][], and [`subprocess.kill()`][]. Sending
 signal `0` can be used to test for the existence of a process. Sending `SIGINT`,
 `SIGTERM`, and `SIGKILL` cause the unconditional termination of the target
 process.
@@ -528,7 +529,7 @@ running the `./configure` script.
 
 An example of the possible output looks like:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   target_defaults:
@@ -637,6 +638,94 @@ process's [`ChildProcess.disconnect()`][].
 If the Node.js process was not spawned with an IPC channel,
 `process.disconnect()` will be `undefined`.
 
+## process.dlopen(module, filename[, flags])
+<!-- YAML
+added: v0.1.16
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12794
+    description: Added support for the `flags` argument.
+-->
+
+* `module` {Object}
+* `filename` {string}
+* `flags` {os.constants.dlopen}. Defaults to `os.constants.dlopen.RTLD_LAZY`.
+
+The `process.dlopen()` method allows to dynamically load shared
+objects. It is primarily used by `require()` to load
+C++ Addons, and should not be used directly, except in special
+cases. In other words, [`require()`][] should be preferred over
+`process.dlopen()`, unless there are specific reasons.
+
+The `flags` argument is an integer that allows to specify dlopen
+behavior. See the [`os.constants.dlopen`][] documentation for details.
+
+If there are specific reasons to use `process.dlopen()` (for instance,
+to specify dlopen flags), it's often useful to use [`require.resolve()`][]
+to look up the module's path.
+
+*Note*: An important drawback when calling `process.dlopen()` is that the
+`module` instance must be passed. Functions exported by the C++ Addon will
+be accessible via `module.exports`.
+
+The example below shows how to load a C++ Addon, named as `binding`,
+that exports a `foo` function. All the symbols will be loaded before
+the call returns, by passing the `RTLD_NOW` constant. In this example
+the constant is assumed to be available.
+
+```js
+const os = require('os');
+process.dlopen(module, require.resolve('binding'),
+               os.constants.dlopen.RTLD_NOW);
+module.exports.foo();
+```
+
+## process.emitWarning(warning[, options])
+<!-- YAML
+added: 8.0.0
+-->
+
+* `warning` {string|Error} The warning to emit.
+* `options` {Object}
+  * `type` {string} When `warning` is a String, `type` is the name to use
+    for the *type* of warning being emitted. Default: `Warning`.
+  * `code` {string} A unique identifier for the warning instance being emitted.
+  * `ctor` {Function} When `warning` is a String, `ctor` is an optional
+    function used to limit the generated stack trace. Default
+    `process.emitWarning`
+  * `detail` {string} Additional text to include with the error.
+
+The `process.emitWarning()` method can be used to emit custom or application
+specific process warnings. These can be listened for by adding a handler to the
+[`process.on('warning')`][process_warning] event.
+
+```js
+// Emit a warning with a code and additional detail.
+process.emitWarning('Something happened!', {
+  code: 'MY_WARNING',
+  detail: 'This is some additional information'
+});
+// Emits:
+// (node:56338) [MY_WARNING] Warning: Something happened!
+// This is some additional information
+```
+
+In this example, an `Error` object is generated internally by
+`process.emitWarning()` and passed through to the
+[`process.on('warning')`][process_warning] event.
+
+```js
+process.on('warning', (warning) => {
+  console.warn(warning.name);    // 'Warning'
+  console.warn(warning.message); // 'Something happened!'
+  console.warn(warning.code);    // 'MY_WARNING'
+  console.warn(warning.stack);   // Stack trace
+  console.warn(warning.detail);  // 'This is some additional information'
+});
+```
+
+If `warning` is passed as an `Error` object, the `options` argument is ignored.
+
 ## process.emitWarning(warning[, type[, code]][, ctor])
 <!-- YAML
 added: v6.0.0
@@ -655,13 +744,13 @@ specific process warnings. These can be listened for by adding a handler to the
 [`process.on('warning')`][process_warning] event.
 
 ```js
-// Emit a warning using a string...
+// Emit a warning using a string.
 process.emitWarning('Something happened!');
 // Emits: (node: 56338) Warning: Something happened!
 ```
 
 ```js
-// Emit a warning using a string and a type...
+// Emit a warning using a string and a type.
 process.emitWarning('Something Happened!', 'CustomWarning');
 // Emits: (node:56338) CustomWarning: Something Happened!
 ```
@@ -689,14 +778,14 @@ If `warning` is passed as an `Error` object, it will be passed through to the
 `code` and `ctor` arguments will be ignored):
 
 ```js
-// Emit a warning using an Error object...
-const myWarning = new Error('Warning! Something happened!');
+// Emit a warning using an Error object.
+const myWarning = new Error('Something happened!');
 // Use the Error name property to specify the type name
 myWarning.name = 'CustomWarning';
 myWarning.code = 'WARN001';
 
 process.emitWarning(myWarning);
-// Emits: (node:56338) [WARN001] CustomWarning: Warning! Something happened!
+// Emits: (node:56338) [WARN001] CustomWarning: Something happened!
 ```
 
 A `TypeError` is thrown if `warning` is anything other than a string or `Error`
@@ -746,7 +835,7 @@ See environ(7).
 
 An example of this object looks like:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   TERM: 'xterm-256color',
@@ -959,7 +1048,7 @@ if (process.getegid) {
 ```
 
 *Note*: This function is only available on POSIX platforms (i.e. not Windows
-or Android)
+or Android).
 
 ## process.geteuid()
 <!-- YAML
@@ -977,8 +1066,8 @@ if (process.geteuid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.getgid()
 <!-- YAML
@@ -996,8 +1085,8 @@ if (process.getgid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 
 ## process.getgroups()
@@ -1011,8 +1100,8 @@ The `process.getgroups()` method returns an array with the supplementary group
 IDs. POSIX leaves it unspecified if the effective group ID is included but
 Node.js ensures it always is.
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.getuid()
 <!-- YAML
@@ -1030,8 +1119,8 @@ if (process.getuid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.hrtime([time])
 <!-- YAML
@@ -1093,8 +1182,8 @@ process.setgid(1000);                     // drop root gid
 console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.kill(pid[, signal])
 <!-- YAML
@@ -1116,9 +1205,9 @@ case, a signal of `0` can be used to test for the existence of a process.
 Windows platforms will throw an error if the `pid` is used to kill a process
 group.
 
-*Note*:Even though the name of this function is `process.kill()`, it is really
-just a signal sender, like the `kill` system call.  The signal sent may do
-something other than kill the target process.
+*Note*: Even though the name of this function is `process.kill()`, it is
+really just a signal sender, like the `kill` system call.  The signal sent may
+do something other than kill the target process.
 
 For example:
 
@@ -1135,8 +1224,8 @@ setTimeout(() => {
 process.kill(process.pid, 'SIGHUP');
 ```
 
-*Note*: When `SIGUSR1` is received by a Node.js process, Node.js will start the
-debugger, see [Signal Events][].
+*Note*: When `SIGUSR1` is received by a Node.js process, Node.js will start
+the debugger, see [Signal Events][].
 
 ## process.mainModule
 <!-- YAML
@@ -1178,7 +1267,7 @@ console.log(process.memoryUsage());
 
 Will generate:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   rss: 4935680,
@@ -1285,7 +1374,7 @@ function definitelyAsync(arg, cb) {
 }
 ```
 
-*Note*: the next tick queue is completely drained on each pass of the
+*Note*: The next tick queue is completely drained on each pass of the
 event loop **before** additional I/O is processed.  As a result,
 recursively setting nextTick callbacks will block any I/O from
 happening, just like a `while(true);` loop.
@@ -1350,7 +1439,7 @@ tarball.
 
 For example:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   name: 'node',
@@ -1384,7 +1473,7 @@ If Node.js was not spawned with an IPC channel, `process.send()` will be
 `undefined`.
 
 *Note*: This function uses [`JSON.stringify()`][] internally to serialize the
-`message`.*
+`message`.
 
 ## process.setegid(id)
 <!-- YAML
@@ -1410,8 +1499,8 @@ if (process.getegid && process.setegid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 
 ## process.seteuid(id)
@@ -1438,8 +1527,8 @@ if (process.geteuid && process.seteuid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.setgid(id)
 <!-- YAML
@@ -1465,8 +1554,8 @@ if (process.getgid && process.setgid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.setgroups(groups)
 <!-- YAML
@@ -1481,8 +1570,8 @@ to have `root` or the `CAP_SETGID` capability.
 
 The `groups` array can contain numeric group IDs, group names or both.
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 ## process.setuid(id)
 <!-- YAML
@@ -1506,8 +1595,8 @@ if (process.getuid && process.setuid) {
 }
 ```
 
-*Note*: This function is only available on POSIX platforms (i.e. not Windows or
-Android)
+*Note*: This function is only available on POSIX platforms (i.e. not Windows
+or Android).
 
 
 ## process.stderr
@@ -1519,7 +1608,7 @@ The `process.stderr` property returns a stream connected to
 stream) unless fd `2` refers to a file, in which case it is
 a [Writable][] stream.
 
-Note: `process.stderr` differs from other Node.js streams in important ways,
+*Note*: `process.stderr` differs from other Node.js streams in important ways,
 see [note on process I/O][] for more information.
 
 ## process.stdin
@@ -1571,7 +1660,7 @@ For example, to copy process.stdin to process.stdout:
 process.stdin.pipe(process.stdout);
 ```
 
-Note: `process.stdout` differs from other Node.js streams in important ways,
+*Note*: `process.stdout` differs from other Node.js streams in important ways,
 see [note on process I/O][] for more information.
 
 ### A note on process I/O
@@ -1584,12 +1673,12 @@ important ways:
 2. They cannot be closed ([`end()`][] will throw).
 3. They will never emit the [`'finish'`][] event.
 4. Writes may be synchronous depending on the what the stream is connected to
-   and whether the system is Windows or Unix:
-   - Files: *synchronous* on Windows and Linux
-   - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on Unix
-   - Pipes (and sockets): *synchronous* on Windows, *asynchronous* on Unix
+   and whether the system is Windows or POSIX:
+   - Files: *synchronous* on Windows and POSIX
+   - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on POSIX
+   - Pipes (and sockets): *synchronous* on Windows, *asynchronous* on POSIX
 
-These behaviours are partly for historical reasons, as changing them would
+These behaviors are partly for historical reasons, as changing them would
 create backwards incompatibility, but they are also expected by some users.
 
 Synchronous writes avoid problems such as output written with `console.log()` or
@@ -1634,14 +1723,14 @@ The `process.title` property returns the current process title (i.e. returns
 the current value of `ps`). Assigning a new value to `process.title` modifies
 the current value of `ps`.
 
-*Note*: When a new value is assigned, different platforms will impose different
-maximum length restrictions on the title. Usually such restrictions are quite
-limited. For instance, on Linux and macOS, `process.title` is limited to the
-size of the binary name plus the length of the command line arguments because
-setting the `process.title` overwrites the `argv` memory of the process.
-Node.js v0.8 allowed for longer process title strings by also overwriting the
-`environ` memory but that was potentially insecure and confusing in some
-(rather obscure) cases.
+*Note*: When a new value is assigned, different platforms will impose
+different maximum length restrictions on the title. Usually such restrictions
+are quite limited. For instance, on Linux and macOS, `process.title` is limited
+to the size of the binary name plus the length of the command line arguments
+because setting the `process.title` overwrites the `argv` memory of the
+process.  Node.js v0.8 allowed for longer process title strings by also
+overwriting the `environ` memory but that was potentially insecure and
+confusing in some (rather obscure) cases.
 
 ## process.umask([mask])
 <!-- YAML
@@ -1651,9 +1740,9 @@ added: v0.1.19
 * `mask` {number}
 
 The `process.umask()` method sets or returns the Node.js process's file mode
-creation mask. Child processes inherit the mask from the parent process. The old
-mask is return if the `mask` argument is given, otherwise returns the current
-mask.
+creation mask. Child processes inherit the mask from the parent process. Invoked
+without an argument, the current mask is returned, otherwise the umask is set to
+the argument value and the previous mask is returned.
 
 ```js
 const newmask = 0o022;
@@ -1674,7 +1763,7 @@ added: v0.5.0
 The `process.uptime()` method returns the number of seconds the current Node.js
 process has been running.
 
-*Note*: the return value includes fractions of a second. Use `Math.floor()`
+*Note*: The return value includes fractions of a second. Use `Math.floor()`
 to get whole seconds.
 
 ## process.version
@@ -1712,7 +1801,7 @@ console.log(process.versions);
 
 Will generate an object similar to:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 {
   http_parser: '2.3.0',
@@ -1770,9 +1859,11 @@ cases:
   options were set, but the port number chosen was invalid or unavailable.
 * `>128` **Signal Exits** - If Node.js receives a fatal signal such as
   `SIGKILL` or `SIGHUP`, then its exit code will be `128` plus the
-  value of the signal code.  This is a standard Unix practice, since
+  value of the signal code.  This is a standard POSIX practice, since
   exit codes are defined to be 7-bit integers, and signal exits set
   the high-order bit, and then contain the value of the signal code.
+  For example, signal `SIGABRT` has value `6`, so the expected exit
+  code will be `128` + `6`, or `134`.
 
 
 [`'exit'`]: #process_event_exit
@@ -1780,35 +1871,38 @@ cases:
 [`'message'`]: child_process.html#child_process_event_message
 [`'rejectionHandled'`]: #process_event_rejectionhandled
 [`'uncaughtException'`]: #process_event_uncaughtexception
-[`ChildProcess.disconnect()`]: child_process.html#child_process_child_disconnect
-[`ChildProcess.kill()`]: child_process.html#child_process_child_kill_signal
-[`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
+[`ChildProcess.disconnect()`]: child_process.html#child_process_subprocess_disconnect
+[`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
+[`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`ChildProcess`]: child_process.html#child_process_class_childprocess
-[`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
+[`os.constants.dlopen`]: os.html#os_dlopen_constants
 [`process.argv`]: #process_process_argv
-[`process.exit()`]: #process_process_exit_code
-[`process.kill()`]: #process_process_kill_pid_signal
 [`process.execPath`]: #process_process_execpath
+[`process.exit()`]: #process_process_exit_code
+[`process.exitCode`]: #process_process_exitcode
+[`process.kill()`]: #process_process_kill_pid_signal
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
+[`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
+[`require.resolve()`]: modules.html#modules_require_resolve
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
+[Child Process]: child_process.html
+[Cluster]: cluster.html
+[Duplex]: stream.html#stream_duplex_and_transform_streams
+[LTS]: https://github.com/nodejs/LTS/
 [note on process I/O]: process.html#process_a_note_on_process_i_o
-[process_emit_warning]: #process_process_emitwarning_warning_name_ctor
+[process_emit_warning]: #process_process_emitwarning_warning_type_code_ctor
 [process_warning]: #process_event_warning
+[Readable]: stream.html#stream_readable_streams
 [Signal Events]: #process_signal_events
 [Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
 [TTY]: tty.html#tty_tty
 [Writable]: stream.html#stream_writable_streams
-[Readable]: stream.html#stream_readable_streams
-[Duplex]: stream.html#stream_duplex_and_transform_streams
-[Child Process]: child_process.html
-[Cluster]: cluster.html
-[`process.exitCode`]: #process_process_exitcode
-[LTS]: https://github.com/nodejs/LTS/

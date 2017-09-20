@@ -229,6 +229,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         // Unless the first option is never, require a space
         const requireSpace = context.options[0] !== "never";
 
@@ -363,10 +365,11 @@ module.exports = {
         }
 
         return {
+            Program() {
+                const comments = sourceCode.getAllComments();
 
-            LineComment: checkCommentForSpace,
-            BlockComment: checkCommentForSpace
-
+                comments.filter(token => token.type !== "Shebang").forEach(checkCommentForSpace);
+            }
         };
     }
 };

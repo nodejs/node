@@ -17,7 +17,6 @@
 
 const fs = require("fs"),
     path = require("path"),
-    shell = require("shelljs"),
     options = require("./options"),
     CLIEngine = require("./cli-engine"),
     mkdirp = require("mkdirp"),
@@ -28,6 +27,17 @@ const debug = require("debug")("eslint:cli");
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
+
+/**
+ * Predicate function for whether or not to apply fixes in quiet mode.
+ * If a message is a warning, do not apply a fix.
+ * @param {LintResult} lintResult The lint result.
+ * @returns {boolean} True if the lint message is an error (and thus should be
+ * autofixed), false otherwise.
+ */
+function quietFixPredicate(lintResult) {
+    return lintResult.severity === 2;
+}
 
 /**
  * Translates the CLI options into the options expected by the CLIEngine.
@@ -53,7 +63,7 @@ function translateOptions(cliOptions) {
         cache: cliOptions.cache,
         cacheFile: cliOptions.cacheFile,
         cacheLocation: cliOptions.cacheLocation,
-        fix: cliOptions.fix,
+        fix: cliOptions.fix && (cliOptions.quiet ? quietFixPredicate : true),
         allowInlineConfig: cliOptions.inlineConfig
     };
 }
@@ -83,7 +93,7 @@ function printResults(engine, results, format, outputFile) {
         if (outputFile) {
             const filePath = path.resolve(process.cwd(), outputFile);
 
-            if (shell.test("-d", filePath)) {
+            if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
                 log.error("Cannot write to output file path, it is a directory: %s", outputFile);
                 return false;
             }

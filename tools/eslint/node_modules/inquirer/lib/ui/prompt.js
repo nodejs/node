@@ -1,11 +1,10 @@
 'use strict';
 var _ = require('lodash');
-var rx = require('rx-lite');
+var rx = require('rx-lite-aggregates');
 var util = require('util');
 var runAsync = require('run-async');
 var utils = require('../utils/utils');
 var Base = require('./baseUI');
-
 
 /**
  * Base interface class other can inherits from
@@ -17,10 +16,9 @@ var PromptUI = module.exports = function (prompts, opt) {
 };
 util.inherits(PromptUI, Base);
 
-PromptUI.prototype.run = function (questions, allDone) {
+PromptUI.prototype.run = function (questions) {
   // Keep global reference to the answers
   this.answers = {};
-  this.completed = allDone;
 
   // Make sure questions is an array.
   if (_.isPlainObject(questions)) {
@@ -34,36 +32,34 @@ PromptUI.prototype.run = function (questions, allDone) {
 
   this.process = obs
     .concatMap(this.processQuestion.bind(this))
-    .publish(); // `publish` creates a hot Observable. It prevents duplicating prompts.
+    // `publish` creates a hot Observable. It prevents duplicating prompts.
+    .publish();
 
-  this.process.subscribe(
-    _.noop,
-    function (err) { throw err; },
-    this.onCompletion.bind(this)
-  );
+  this.process.connect();
 
-  return this.process.connect();
+  return this.process
+    .reduce(function (answers, answer) {
+      _.set(this.answers, answer.name, answer.answer);
+      return this.answers;
+    }.bind(this), {})
+    .toPromise(Promise)
+    .then(this.onCompletion.bind(this));
 };
-
 
 /**
  * Once all prompt are over
  */
 
-PromptUI.prototype.onCompletion = function () {
+PromptUI.prototype.onCompletion = function (answers) {
   this.close();
 
-  if (_.isFunction(this.completed)) {
-    this.completed(this.answers);
-  }
+  return answers;
 };
 
 PromptUI.prototype.processQuestion = function (question) {
+  question = _.clone(question);
   return rx.Observable.defer(function () {
-    var obs = rx.Observable.create(function (obs) {
-      obs.onNext(question);
-      obs.onCompleted();
-    });
+    var obs = rx.Observable.of(question);
 
     return obs
       .concatMap(this.setDefaultType.bind(this))
@@ -77,15 +73,12 @@ PromptUI.prototype.processQuestion = function (question) {
 
 PromptUI.prototype.fetchAnswer = function (question) {
   var Prompt = this.prompts[question.type];
-  var prompt = new Prompt(question, this.rl, this.answers);
-  var answers = this.answers;
-  return utils.createObservableFromAsync(function () {
-    var done = this.async();
-    prompt.run(function (answer) {
-      answers[question.name] = answer;
-      done({ name: question.name, answer: answer });
-    });
-  });
+  this.activePrompt = new Prompt(question, this.rl, this.answers);
+  return rx.Observable.defer(function () {
+    return rx.Observable.fromPromise(this.activePrompt.run().then(function (answer) {
+      return {name: question.name, answer: answer};
+    }));
+  }.bind(this));
 };
 
 PromptUI.prototype.setDefaultType = function (question) {
@@ -99,28 +92,24 @@ PromptUI.prototype.setDefaultType = function (question) {
 };
 
 PromptUI.prototype.filterIfRunnable = function (question) {
-  if (question.when == null) {
+  if (question.when === false) {
+    return rx.Observable.empty();
+  }
+
+  if (!_.isFunction(question.when)) {
     return rx.Observable.return(question);
   }
 
-  var handleResult = function (obs, shouldRun) {
-    if (shouldRun) {
-      obs.onNext(question);
-    }
-    obs.onCompleted();
-  };
-
   var answers = this.answers;
   return rx.Observable.defer(function () {
-    return rx.Observable.create(function (obs) {
-      if (_.isBoolean(question.when)) {
-        handleResult(obs, question.when);
-        return;
-      }
-
-      runAsync(question.when, function (shouldRun) {
-        handleResult(obs, shouldRun);
-      }, answers);
+    return rx.Observable.fromPromise(
+      runAsync(question.when)(answers).then(function (shouldRun) {
+        if (shouldRun) {
+          return question;
+        }
+      })
+    ).filter(function (val) {
+      return val != null;
     });
   });
 };

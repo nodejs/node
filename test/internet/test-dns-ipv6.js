@@ -1,5 +1,8 @@
 'use strict';
 const common = require('../common');
+if (!common.hasIPv6)
+  common.skip('this test, no IPv6 support');
+
 const assert = require('assert');
 const dns = require('dns');
 const net = require('net');
@@ -7,11 +10,6 @@ const isIPv6 = net.isIPv6;
 
 let running = false;
 const queue = [];
-
-if (!common.hasIPv6) {
-  common.skip('this test, no IPv6 support');
-  return;
-}
 
 function TEST(f) {
   function next() {
@@ -156,7 +154,7 @@ TEST(function test_lookup_ip_ipv6(done) {
 TEST(function test_lookup_all_ipv6(done) {
   const req = dns.lookup(
     'www.google.com',
-    {all: true, family: 6},
+    { all: true, family: 6 },
     common.mustCall((err, ips) => {
       assert.ifError(err);
       assert.ok(Array.isArray(ips));
@@ -164,7 +162,7 @@ TEST(function test_lookup_all_ipv6(done) {
 
       ips.forEach((ip) => {
         assert.ok(isIPv6(ip.address),
-                  'Invalid IPv6: ' + ip.address.toString());
+                  `Invalid IPv6: ${ip.address.toString()}`);
         assert.strictEqual(ip.family, 6);
       });
 

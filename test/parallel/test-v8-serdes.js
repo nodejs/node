@@ -20,6 +20,11 @@ const objects = [
   circular
 ];
 
+const serializerTypeError =
+  /^TypeError: Class constructor Serializer cannot be invoked without 'new'$/;
+const deserializerTypeError =
+  /^TypeError: Class constructor Deserializer cannot be invoked without 'new'$/;
+
 {
   const ser = new v8.DefaultSerializer();
   ser.writeHeader();
@@ -127,7 +132,12 @@ const objects = [
   buf = buf.slice(32);
 
   const expectedResult = os.endianness() === 'LE' ?
-      new Uint16Array([0xdead, 0xbeef]) : new Uint16Array([0xadde, 0xefbe]);
+    new Uint16Array([0xdead, 0xbeef]) : new Uint16Array([0xadde, 0xefbe]);
 
   assert.deepStrictEqual(v8.deserialize(buf), expectedResult);
+}
+
+{
+  assert.throws(v8.Serializer, serializerTypeError);
+  assert.throws(v8.Deserializer, deserializerTypeError);
 }

@@ -1,0 +1,56 @@
+{
+  "_from": "prr@~0.0.0",
+  "_id": "prr@0.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-GoS4WQgyVQFBGFPQCB7j+obikmo=",
+  "_location": "/worker-farm/errno/prr",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "prr@~0.0.0",
+    "name": "prr",
+    "escapedName": "prr",
+    "rawSpec": "~0.0.0",
+    "saveSpec": null,
+    "fetchSpec": "~0.0.0"
+  },
+  "_requiredBy": [
+    "/worker-farm/errno"
+  ],
+  "_resolved": "https://registry.npmjs.org/prr/-/prr-0.0.0.tgz",
+  "_shasum": "1a84b85908325501411853d0081ee3fa86e2926a",
+  "_spec": "prr@~0.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/worker-farm/node_modules/errno",
+  "authors": [
+    "Rod Vagg <rod@vagg.org> (https://github.com/rvagg)"
+  ],
+  "bugs": {
+    "url": "https://github.com/rvagg/prr/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "A better Object.defineProperty()",
+  "devDependencies": {
+    "tap": "*"
+  },
+  "homepage": "https://github.com/rvagg/prr",
+  "keywords": [
+    "property",
+    "properties",
+    "defineProperty",
+    "ender"
+  ],
+  "license": "MIT",
+  "main": "./prr.js",
+  "name": "prr",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rvagg/prr.git"
+  },
+  "scripts": {
+    "test": "node ./test.js"
+  },
+  "version": "0.0.0"
+}

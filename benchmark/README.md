@@ -98,6 +98,12 @@ directory, see [the guide on benchmarks](../doc/guides/writing-and-running-bench
       </td>
     </tr>
     <tr>
+      <td>http2</td>
+      <td>
+        Benchmarks for the <code>http2</code> subsystem.
+      </td>
+    </tr>
+    <tr>
       <td>misc</td>
       <td>
         Miscellaneous benchmarks and benchmarks for shared

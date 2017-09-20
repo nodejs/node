@@ -1,4 +1,4 @@
-.TH "NPM\-PUBLISH" "1" "February 2017" "" ""
+.TH "NPM\-PUBLISH" "1" "July 2017" "" ""
 .SH "NAME"
 \fBnpm-publish\fR \- Publish a package
 .SH SYNOPSIS
@@ -52,6 +52,10 @@ the specified registry\.
 Once a package is published with a given name and version, that
 specific name and version combination can never be used again, even if
 it is removed with npm help unpublish\.
+.P
+As of \fBnpm@5\fP, both a sha1sum and an integrity field with a sha512sum of the
+tarball will be submitted to the registry during publication\. Subsequent
+installs will use the strongest supported algorithm to verify downloads\.
 .P
 For a "dry run" that does everything except actually publishing to the
 registry, see npm help \fBnpm\-pack\fP, which figures out the files to be included and

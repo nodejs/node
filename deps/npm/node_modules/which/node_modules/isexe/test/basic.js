@@ -207,5 +207,15 @@ function runTest (t, options) {
     })
   })
 
+  t.test('directory is not executable', function (t) {
+    isexe(__dirname, options, function (er, is) {
+      if (er) {
+        throw er
+      }
+      t.notOk(is)
+      t.end()
+    })
+  })
+
   t.end()
 }

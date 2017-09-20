@@ -10,7 +10,8 @@
 #include "src/base/ring-buffer.h"
 #include "src/counters.h"
 #include "src/globals.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
+#include "src/heap/heap.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace internal {
@@ -31,65 +32,82 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_INCREMENTAL_WRAPPER_TRACING)                                \
   F(MC_INCREMENTAL_FINALIZE)                                       \
   F(MC_INCREMENTAL_FINALIZE_BODY)                                  \
-  F(MC_INCREMENTAL_FINALIZE_OBJECT_GROUPING)                       \
   F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
   F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)
 
-#define TRACER_SCOPES(F)                      \
-  INCREMENTAL_SCOPES(F)                       \
-  F(EXTERNAL_EPILOGUE)                        \
-  F(EXTERNAL_PROLOGUE)                        \
-  F(EXTERNAL_WEAK_GLOBAL_HANDLES)             \
-  F(MC_CLEAR)                                 \
-  F(MC_CLEAR_CODE_FLUSH)                      \
-  F(MC_CLEAR_DEPENDENT_CODE)                  \
-  F(MC_CLEAR_GLOBAL_HANDLES)                  \
-  F(MC_CLEAR_MAPS)                            \
-  F(MC_CLEAR_SLOTS_BUFFER)                    \
-  F(MC_CLEAR_STORE_BUFFER)                    \
-  F(MC_CLEAR_STRING_TABLE)                    \
-  F(MC_CLEAR_WEAK_CELLS)                      \
-  F(MC_CLEAR_WEAK_COLLECTIONS)                \
-  F(MC_CLEAR_WEAK_LISTS)                      \
-  F(MC_EPILOGUE)                              \
-  F(MC_EVACUATE)                              \
-  F(MC_EVACUATE_CANDIDATES)                   \
-  F(MC_EVACUATE_CLEAN_UP)                     \
-  F(MC_EVACUATE_COPY)                         \
-  F(MC_EVACUATE_UPDATE_POINTERS)              \
-  F(MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED) \
-  F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW)       \
-  F(MC_EVACUATE_UPDATE_POINTERS_WEAK)         \
-  F(MC_FINISH)                                \
-  F(MC_MARK)                                  \
-  F(MC_MARK_FINISH_INCREMENTAL)               \
-  F(MC_MARK_PREPARE_CODE_FLUSH)               \
-  F(MC_MARK_ROOTS)                            \
-  F(MC_MARK_WEAK_CLOSURE)                     \
-  F(MC_MARK_WEAK_CLOSURE_EPHEMERAL)           \
-  F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)        \
-  F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)          \
-  F(MC_MARK_WEAK_CLOSURE_HARMONY)             \
-  F(MC_MARK_WRAPPER_EPILOGUE)                 \
-  F(MC_MARK_WRAPPER_PROLOGUE)                 \
-  F(MC_MARK_WRAPPER_TRACING)                  \
-  F(MC_MARK_OBJECT_GROUPING)                  \
-  F(MC_PROLOGUE)                              \
-  F(MC_SWEEP)                                 \
-  F(MC_SWEEP_CODE)                            \
-  F(MC_SWEEP_MAP)                             \
-  F(MC_SWEEP_OLD)                             \
-  F(MINOR_MC_MARK)                            \
-  F(MINOR_MC_MARK_CODE_FLUSH_CANDIDATES)      \
-  F(MINOR_MC_MARK_GLOBAL_HANDLES)             \
-  F(MINOR_MC_MARK_OLD_TO_NEW_POINTERS)        \
-  F(MINOR_MC_MARK_ROOTS)                      \
-  F(MINOR_MC_MARK_WEAK)                       \
-  F(SCAVENGER_CODE_FLUSH_CANDIDATES)          \
-  F(SCAVENGER_OLD_TO_NEW_POINTERS)            \
-  F(SCAVENGER_ROOTS)                          \
-  F(SCAVENGER_SCAVENGE)                       \
-  F(SCAVENGER_SEMISPACE)                      \
+#define TRACER_SCOPES(F)                            \
+  INCREMENTAL_SCOPES(F)                             \
+  F(HEAP_EPILOGUE)                                  \
+  F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)                 \
+  F(HEAP_EXTERNAL_EPILOGUE)                         \
+  F(HEAP_EXTERNAL_PROLOGUE)                         \
+  F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)              \
+  F(HEAP_PROLOGUE)                                  \
+  F(MC_CLEAR)                                       \
+  F(MC_CLEAR_DEPENDENT_CODE)                        \
+  F(MC_CLEAR_MAPS)                                  \
+  F(MC_CLEAR_SLOTS_BUFFER)                          \
+  F(MC_CLEAR_STORE_BUFFER)                          \
+  F(MC_CLEAR_STRING_TABLE)                          \
+  F(MC_CLEAR_WEAK_CELLS)                            \
+  F(MC_CLEAR_WEAK_COLLECTIONS)                      \
+  F(MC_CLEAR_WEAK_LISTS)                            \
+  F(MC_EPILOGUE)                                    \
+  F(MC_EVACUATE)                                    \
+  F(MC_EVACUATE_CANDIDATES)                         \
+  F(MC_EVACUATE_CLEAN_UP)                           \
+  F(MC_EVACUATE_COPY)                               \
+  F(MC_EVACUATE_EPILOGUE)                           \
+  F(MC_EVACUATE_PROLOGUE)                           \
+  F(MC_EVACUATE_REBALANCE)                          \
+  F(MC_EVACUATE_UPDATE_POINTERS)                    \
+  F(MC_EVACUATE_UPDATE_POINTERS_SLOTS)              \
+  F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)       \
+  F(MC_EVACUATE_UPDATE_POINTERS_WEAK)               \
+  F(MC_FINISH)                                      \
+  F(MC_MARK)                                        \
+  F(MC_MARK_FINISH_INCREMENTAL)                     \
+  F(MC_MARK_ROOTS)                                  \
+  F(MC_MARK_WEAK_CLOSURE)                           \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERAL)                 \
+  F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)              \
+  F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)                \
+  F(MC_MARK_WEAK_CLOSURE_HARMONY)                   \
+  F(MC_MARK_WRAPPER_EPILOGUE)                       \
+  F(MC_MARK_WRAPPER_PROLOGUE)                       \
+  F(MC_MARK_WRAPPER_TRACING)                        \
+  F(MC_PROLOGUE)                                    \
+  F(MC_SWEEP)                                       \
+  F(MC_SWEEP_CODE)                                  \
+  F(MC_SWEEP_MAP)                                   \
+  F(MC_SWEEP_OLD)                                   \
+  F(MINOR_MC)                                       \
+  F(MINOR_MC_CLEAR)                                 \
+  F(MINOR_MC_CLEAR_STRING_TABLE)                    \
+  F(MINOR_MC_CLEAR_WEAK_LISTS)                      \
+  F(MINOR_MC_EVACUATE)                              \
+  F(MINOR_MC_EVACUATE_CLEAN_UP)                     \
+  F(MINOR_MC_EVACUATE_COPY)                         \
+  F(MINOR_MC_EVACUATE_EPILOGUE)                     \
+  F(MINOR_MC_EVACUATE_PROLOGUE)                     \
+  F(MINOR_MC_EVACUATE_REBALANCE)                    \
+  F(MINOR_MC_EVACUATE_UPDATE_POINTERS)              \
+  F(MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS)        \
+  F(MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS) \
+  F(MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK)         \
+  F(MINOR_MC_MARK)                                  \
+  F(MINOR_MC_MARK_GLOBAL_HANDLES)                   \
+  F(MINOR_MC_MARK_SEED)                             \
+  F(MINOR_MC_MARK_ROOTS)                            \
+  F(MINOR_MC_MARK_WEAK)                             \
+  F(MINOR_MC_MARKING_DEQUE)                         \
+  F(MINOR_MC_RESET_LIVENESS)                        \
+  F(MINOR_MC_SWEEPING)                              \
+  F(SCAVENGER_EVACUATE)                             \
+  F(SCAVENGER_OLD_TO_NEW_POINTERS)                  \
+  F(SCAVENGER_ROOTS)                                \
+  F(SCAVENGER_SCAVENGE)                             \
+  F(SCAVENGER_SEMISPACE)                            \
   F(SCAVENGER_WEAK)
 
 #define TRACE_GC(tracer, scope_id)                             \
@@ -234,6 +252,9 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Stop collecting data and print results.
   void Stop(GarbageCollector collector);
 
+  void NotifyYoungGenerationHandling(
+      YoungGenerationHandling young_generation_handling);
+
   // Sample and accumulate bytes allocated since the last GC.
   void SampleAllocation(double current_ms, size_t new_space_counter_bytes,
                         size_t old_generation_counter_bytes);
@@ -367,9 +388,9 @@ class V8_EXPORT_PRIVATE GCTracer {
   void PRINTF_FORMAT(2, 3) Output(const char* format, ...) const;
 
   double TotalExternalTime() const {
-    return current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES] +
-           current_.scopes[Scope::EXTERNAL_EPILOGUE] +
-           current_.scopes[Scope::EXTERNAL_PROLOGUE] +
+    return current_.scopes[Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES] +
+           current_.scopes[Scope::HEAP_EXTERNAL_EPILOGUE] +
+           current_.scopes[Scope::HEAP_EXTERNAL_PROLOGUE] +
            current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE] +
            current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE];
   }

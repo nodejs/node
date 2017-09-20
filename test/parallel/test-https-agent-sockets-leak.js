@@ -1,19 +1,17 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const fs = require('fs');
 const https = require('https');
 const assert = require('assert');
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
-  ca: fs.readFileSync(common.fixturesDir + '/keys/ca1-cert.pem')
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`),
+  ca: fs.readFileSync(`${common.fixturesDir}/keys/ca1-cert.pem`)
 };
 
 const server = https.Server(options, common.mustCall((req, res) => {
@@ -29,7 +27,7 @@ server.listen(0, common.mustCall(() => {
   https.get({
     host: server.address().host,
     port: server.address().port,
-    headers: {host: 'agent1'},
+    headers: { host: 'agent1' },
     rejectUnauthorized: true,
     ca: options.ca,
     agent: agent

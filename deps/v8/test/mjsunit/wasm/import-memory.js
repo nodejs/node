@@ -149,6 +149,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestGrowMemoryZeroInitialMemory() {
   print("ZeroInitialMemory");
+  let kV8MaxPages = 32767;
   let memory = new WebAssembly.Memory({initial: 0});
   assertEquals(0, memory.buffer.byteLength);
   let i32 = new Int32Array(memory.buffer);
@@ -176,7 +177,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   for (offset = 5 * kPageSize; offset < 5 * kPageSize + 4; offset++) {
     assertThrows(load);
   }
-  assertThrows(() => memory.grow(16381));
+  assertThrows(() => memory.grow(kV8MaxPages - 3));
 })();
 
 (function ImportedMemoryBufferLength() {
@@ -396,4 +397,18 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   // no maximum
   assertThrows(() => builder.instantiate({m: {m: new WebAssembly.Memory({initial: 1})}}));
+})();
+
+(function TestMemoryGrowDetachBuffer() {
+  print("TestMemoryGrowDetachBuffer");
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 5});
+  var builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "imported_mem");
+  let instance = builder.instantiate({m: {imported_mem: memory}});
+  let buffer = memory.buffer;
+  assertEquals(kPageSize, buffer.byteLength);
+  assertEquals(1, memory.grow(2));
+  assertTrue(buffer !== memory.buffer);
+  assertEquals(0, buffer.byteLength);
+  assertEquals(3*kPageSize, memory.buffer.byteLength);
 })();

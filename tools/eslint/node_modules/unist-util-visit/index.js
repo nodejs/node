@@ -13,8 +13,6 @@ function visit(tree, type, visitor, reverse) {
 
   one(tree);
 
-  return;
-
   /* Visit a single node. */
   function one(node, index, parent) {
     var result;

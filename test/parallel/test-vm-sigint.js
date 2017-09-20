@@ -1,30 +1,28 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const vm = require('vm');
-
-const spawn = require('child_process').spawn;
-
 if (common.isWindows) {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
-  return;
 }
+
+const assert = require('assert');
+const vm = require('vm');
+const spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'child') {
   const method = process.argv[3];
   const listeners = +process.argv[4];
   assert.ok(method);
-  assert.ok(typeof listeners, 'number');
+  assert.ok(Number.isInteger(listeners));
 
   const script = `process.send('${method}'); while(true) {}`;
   const args = method === 'runInContext' ?
-                          [vm.createContext({ process })] :
-                          [];
+    [vm.createContext({ process })] :
+    [];
   const options = { breakOnSigint: true };
 
   for (let i = 0; i < listeners; i++)
-    process.on('SIGINT', common.noop);
+    process.on('SIGINT', common.mustNotCall());
 
   assert.throws(() => { vm[method](script, ...args, options); },
                 /^Error: Script execution interrupted\.$/);

@@ -72,8 +72,8 @@ enum CategoryGroupEnabledFlags {
 // for best performance when tracing is disabled.
 // const uint8_t*
 //     TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(const char* category_group)
-#define TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED              \
-  v8::internal::tracing::TraceEventHelper::GetCurrentPlatform() \
+#define TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED                \
+  v8::internal::tracing::TraceEventHelper::GetTracingController() \
       ->GetCategoryGroupEnabled
 
 // Get the number of times traces have been recorded. This is used to implement
@@ -101,15 +101,15 @@ enum CategoryGroupEnabledFlags {
 //     const uint8_t* category_group_enabled,
 //     const char* name,
 //     uint64_t id)
-#define TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION             \
-  v8::internal::tracing::TraceEventHelper::GetCurrentPlatform() \
+#define TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION               \
+  v8::internal::tracing::TraceEventHelper::GetTracingController() \
       ->UpdateTraceEventDuration
 
 // Defines atomic operations used internally by the tracing system.
 #define TRACE_EVENT_API_ATOMIC_WORD v8::base::AtomicWord
-#define TRACE_EVENT_API_ATOMIC_LOAD(var) v8::base::NoBarrier_Load(&(var))
+#define TRACE_EVENT_API_ATOMIC_LOAD(var) v8::base::Relaxed_Load(&(var))
 #define TRACE_EVENT_API_ATOMIC_STORE(var, value) \
-  v8::base::NoBarrier_Store(&(var), (value))
+  v8::base::Relaxed_Store(&(var), (value))
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -275,11 +275,9 @@ const int kZeroNumArgs = 0;
 const decltype(nullptr) kGlobalScope = nullptr;
 const uint64_t kNoId = 0;
 
-extern base::Atomic32 kRuntimeCallStatsTracingEnabled;
-
 class TraceEventHelper {
  public:
-  static v8::Platform* GetCurrentPlatform();
+  static v8::TracingController* GetTracingController();
 };
 
 // TraceID encapsulates an ID that can either be an integer or pointer. Pointers
@@ -426,11 +424,11 @@ static V8_INLINE uint64_t AddTraceEventImpl(
         static_cast<intptr_t>(arg_values[1])));
   }
   DCHECK(num_args <= 2);
-  v8::Platform* platform =
-      v8::internal::tracing::TraceEventHelper::GetCurrentPlatform();
-  return platform->AddTraceEvent(phase, category_group_enabled, name, scope, id,
-                                 bind_id, num_args, arg_names, arg_types,
-                                 arg_values, arg_convertables, flags);
+  v8::TracingController* controller =
+      v8::internal::tracing::TraceEventHelper::GetTracingController();
+  return controller->AddTraceEvent(phase, category_group_enabled, name, scope,
+                                   id, bind_id, num_args, arg_names, arg_types,
+                                   arg_values, arg_convertables, flags);
 }
 
 // Define SetTraceValue for each allowed type. It stores the type and

@@ -31,12 +31,12 @@ e.on('maxListeners', common.mustCall());
 e.setMaxListeners(42);
 
 const throwsObjs = [NaN, -1, 'and even this'];
+const maxError = /^TypeError: "n" argument must be a positive number$/;
+const defError = /^TypeError: "defaultMaxListeners" must be a positive number$/;
 
 for (const obj of throwsObjs) {
-  assert.throws(() => e.setMaxListeners(obj),
-                /^TypeError: "n" argument must be a positive number$/);
-  assert.throws(() => events.defaultMaxListeners = obj,
-                /^TypeError: "defaultMaxListeners" must be a positive number$/);
+  assert.throws(() => e.setMaxListeners(obj), maxError);
+  assert.throws(() => events.defaultMaxListeners = obj, defError);
 }
 
 e.emit('maxListeners');

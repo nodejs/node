@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/assembler-inl.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
@@ -32,25 +34,28 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
-  if (FLAG_zap_code_space) {
-    // Fail hard and early if we enter this code object again.
-    byte* pointer = code->FindCodeAgeSequence();
-    if (pointer != NULL) {
-      pointer += kNoCodeAgeSequenceLength;
-    } else {
-      pointer = code->instruction_start();
-    }
-    CodePatcher patcher(isolate, pointer, 1);
-    patcher.masm()->bkpt(0);
+  // Fail hard and early if we enter this code object again.
+  byte* pointer = code->FindCodeAgeSequence();
+  if (pointer != NULL) {
+    pointer += kNoCodeAgeSequenceLength;
+  } else {
+    pointer = code->instruction_start();
+  }
 
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
-    int osr_offset = data->OsrPcOffset()->value();
-    if (osr_offset > 0) {
-      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
-                              1);
-      osr_patcher.masm()->bkpt(0);
-    }
+  {
+    PatchingAssembler patcher(Assembler::IsolateData(isolate), pointer, 1);
+    patcher.bkpt(0);
+    patcher.FlushICache(isolate);
+  }
+
+  DeoptimizationInputData* data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  int osr_offset = data->OsrPcOffset()->value();
+  if (osr_offset > 0) {
+    PatchingAssembler patcher(Assembler::IsolateData(isolate),
+                              code_start_address + osr_offset, 1);
+    patcher.bkpt(0);
+    patcher.FlushICache(isolate);
   }
 
   DeoptimizationInputData* deopt_data =
@@ -82,24 +87,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-void Deoptimizer::SetPlatformCompiledStubRegisters(
-    FrameDescription* output_frame, CodeStubDescriptor* descriptor) {
-  ApiFunction function(descriptor->deoptimization_handler());
-  ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
-  intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
-  int params = descriptor->GetHandlerParameterCount();
-  output_frame->SetRegister(r0.code(), params);
-  output_frame->SetRegister(r1.code(), handler);
-}
-
-
-void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
-  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
-    double double_value = input_->GetDoubleRegister(i);
-    output_frame->SetDoubleRegister(i, double_value);
-  }
-}
-
 #define __ masm()->
 
 // This code tries to be close to ia32 code so that any changes can be
@@ -114,24 +101,30 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   RegList restored_regs = kJSCallerSaved | kCalleeSaved | ip.bit();
 
   const int kDoubleRegsSize = kDoubleSize * DwVfpRegister::kMaxNumRegisters;
+  const int kFloatRegsSize = kFloatSize * SwVfpRegister::kMaxNumRegisters;
 
   // Save all allocatable VFP registers before messing with them.
-  DCHECK(kDoubleRegZero.code() == 14);
-  DCHECK(kScratchDoubleReg.code() == 15);
+  DCHECK(kDoubleRegZero.code() == 13);
+  DCHECK(kScratchDoubleReg.code() == 14);
 
   {
     // We use a run-time check for VFP32DREGS.
     CpuFeatureScope scope(masm(), VFP32DREGS,
                           CpuFeatureScope::kDontCheckSupported);
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
 
     // Check CPU flags for number of registers, setting the Z condition flag.
-    __ CheckFor32DRegs(ip);
+    __ CheckFor32DRegs(scratch);
 
     // Push registers d0-d15, and possibly d16-d31, on the stack.
     // If d16-d31 are not pushed, decrease the stack pointer instead.
     __ vstm(db_w, sp, d16, d31, ne);
     __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
     __ vstm(db_w, sp, d0, d15);
+
+    // Push registers s0-s31 on the stack.
+    __ vstm(db_w, sp, s0, s31);
   }
 
   // Push all 16 registers (needed to populate FrameDescription::registers_).
@@ -139,11 +132,16 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // handle this a bit differently.
   __ stm(db_w, sp, restored_regs  | sp.bit() | lr.bit() | pc.bit());
 
-  __ mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
-  __ str(fp, MemOperand(ip));
+  {
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+    __ mov(scratch, Operand(ExternalReference(
+                        IsolateAddressId::kCEntryFPAddress, isolate())));
+    __ str(fp, MemOperand(scratch));
+  }
 
   const int kSavedRegistersAreaSize =
-      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize;
+      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
 
   // Get the bailout id from the stack.
   __ ldr(r2, MemOperand(sp, kSavedRegistersAreaSize));
@@ -158,7 +156,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Allocate a new deoptimizer object.
   // Pass four arguments in r0 to r3 and fifth argument on stack.
-  __ PrepareCallCFunction(6, r5);
+  __ PrepareCallCFunction(6);
   __ mov(r0, Operand(0));
   Label context_check;
   __ ldr(r1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
@@ -196,9 +194,21 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
-    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    int src_offset =
+        code * kDoubleSize + kNumberOfRegisters * kPointerSize + kFloatRegsSize;
     __ vldr(d0, sp, src_offset);
     __ vstr(d0, r1, dst_offset);
+  }
+
+  // Copy VFP registers to
+  // float_registers_[FloatRegister::kMaxNumAllocatableRegisters]
+  int float_regs_offset = FrameDescription::float_registers_offset();
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    int dst_offset = code * kFloatSize + float_regs_offset;
+    int src_offset = code * kFloatSize + kNumberOfRegisters * kPointerSize;
+    __ ldr(r2, MemOperand(sp, src_offset));
+    __ str(r2, MemOperand(r1, dst_offset));
   }
 
   // Remove the bailout id and the saved registers from the stack.
@@ -227,7 +237,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Compute the output frame in the deoptimizer.
   __ push(r0);  // Preserve deoptimizer object across call.
   // r0: deoptimizer object; r1: scratch.
-  __ PrepareCallCFunction(1, r1);
+  __ PrepareCallCFunction(1);
   // Call Deoptimizer::ComputeOutputFrames().
   {
     AllowExternalCallThatCantCauseGC scope(masm());
@@ -290,15 +300,18 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Restore the registers from the stack.
   __ ldm(ia_w, sp, restored_regs);  // all but pc registers.
-  __ pop(ip);  // remove sp
-  __ pop(ip);  // remove lr
 
   __ InitializeRootRegister();
 
-  __ pop(ip);  // remove pc
-  __ pop(ip);  // get continuation, leave pc on stack
-  __ pop(lr);
-  __ Jump(ip);
+  // Remove sp, lr and pc.
+  __ Drop(3);
+  {
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+    __ pop(scratch);  // get continuation, leave pc on stack
+    __ pop(lr);
+    __ Jump(scratch);
+  }
   __ stop("Unreachable.");
 }
 
@@ -311,13 +324,15 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   // ARMv7, we can use movw (with a maximum immediate of 0xffff). On ARMv6, we
   // need two instructions.
   STATIC_ASSERT((kMaxNumberOfEntries - 1) <= 0xffff);
+  UseScratchRegisterScope temps(masm());
+  Register scratch = temps.Acquire();
   if (CpuFeatures::IsSupported(ARMv7)) {
     CpuFeatureScope scope(masm(), ARMv7);
     Label done;
     for (int i = 0; i < count(); i++) {
       int start = masm()->pc_offset();
       USE(start);
-      __ movw(ip, i);
+      __ movw(scratch, i);
       __ b(&done);
       DCHECK_EQ(table_entry_size_, masm()->pc_offset() - start);
     }
@@ -333,14 +348,14 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     for (int i = 0; i < count(); i++) {
       int start = masm()->pc_offset();
       USE(start);
-      __ mov(ip, Operand(i & 0xff));  // Set the low byte.
+      __ mov(scratch, Operand(i & 0xff));  // Set the low byte.
       __ b(&high_fixes[i >> 8]);      // Jump to the secondary table.
       DCHECK_EQ(table_entry_size_, masm()->pc_offset() - start);
     }
     // Generate the secondary table, to set the high byte.
     for (int high = 1; high <= high_fix_max; high++) {
       __ bind(&high_fixes[high]);
-      __ orr(ip, ip, Operand(high << 8));
+      __ orr(scratch, scratch, Operand(high << 8));
       // If this isn't the last entry, emit a branch to the end of the table.
       // The last entry can just fall through.
       if (high < high_fix_max) __ b(&high_fixes[0]);
@@ -350,7 +365,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     // through with no additional branch.
     __ bind(&high_fixes[0]);
   }
-  __ push(ip);
+  __ push(scratch);
 }
 
 
@@ -365,8 +380,8 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 
 
 void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
-  DCHECK(FLAG_enable_embedded_constant_pool);
-  SetFrameSlot(offset, value);
+  // No embedded constant pool support.
+  UNREACHABLE();
 }
 
 

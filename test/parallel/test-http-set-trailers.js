@@ -29,8 +29,8 @@ let outstanding_reqs = 0;
 
 const server = http.createServer(function(req, res) {
   res.writeHead(200, [['content-type', 'text/plain']]);
-  res.addTrailers({'x-foo': 'bar'});
-  res.end('stuff' + '\n');
+  res.addTrailers({ 'x-foo': 'bar' });
+  res.end('stuff\n');
 });
 server.listen(0);
 
@@ -84,8 +84,8 @@ server.on('listening', function() {
       outstanding_reqs--;
       clearTimeout(tid);
       assert.ok(
-          /0\r\nx-foo: bar\r\n\r\n$/.test(res_buffer),
-          'No trailer in HTTP/1.1 response.'
+        /0\r\nx-foo: bar\r\n\r\n$/.test(res_buffer),
+        'No trailer in HTTP/1.1 response.'
       );
       if (outstanding_reqs === 0) {
         server.close();

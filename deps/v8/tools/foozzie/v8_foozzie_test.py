@@ -18,7 +18,7 @@ class UnitTest(unittest.TestCase):
   def testDiff(self):
     # TODO(machenbach): Mock out suppression configuration.
     suppress = v8_suppressions.get_suppression(
-        'x64', 'fullcode', 'x64', 'default')
+        'x64', 'ignition', 'x64', 'ignition_turbo')
     one = ''
     two = ''
     diff = None, None
@@ -29,15 +29,12 @@ class UnitTest(unittest.TestCase):
     diff = None, None
     self.assertEquals(diff, suppress.diff(one, two))
 
-    # Ignore line before caret, caret position, stack trace char numbers
-    # error message and validator output.
+    # Ignore line before caret, caret position and error message.
     one = """
 undefined
 weird stuff
       ^
-Validation of asm.js module failed: foo bar
 somefile.js: TypeError: undefined is not a function
-stack line :15: foo
   undefined
 """
     two = """
@@ -45,8 +42,6 @@ undefined
 other weird stuff
             ^
 somefile.js: TypeError: baz is not a function
-stack line :2: foo
-Validation of asm.js module failed: baz
   undefined
 """
     diff = None, None
@@ -85,13 +80,18 @@ otherfile.js: TypeError: undefined is not a constructor
     self.assertEquals(diff, suppress.diff(one, two))
 
 
+def cut_verbose_output(stdout):
+  return '\n'.join(stdout.split('\n')[2:])
+
+
 def run_foozzie(first_d8, second_d8):
   return subprocess.check_output([
     sys.executable, FOOZZIE,
     '--random-seed', '12345',
     '--first-d8', os.path.join(TEST_DATA, first_d8),
     '--second-d8', os.path.join(TEST_DATA, second_d8),
-    '--second-config', 'ignition_staging',
+    '--first-config', 'ignition',
+    '--second-config', 'ignition_turbo',
     os.path.join(TEST_DATA, 'fuzz-123.js'),
   ])
 
@@ -99,7 +99,7 @@ def run_foozzie(first_d8, second_d8):
 class SystemTest(unittest.TestCase):
   def testSyntaxErrorDiffPass(self):
     stdout = run_foozzie('test_d8_1.py', 'test_d8_2.py')
-    self.assertEquals('# V8 correctness - pass\n', stdout)
+    self.assertEquals('# V8 correctness - pass\n', cut_verbose_output(stdout))
 
   def testDifferentOutputFail(self):
     with open(os.path.join(TEST_DATA, 'failure_output.txt')) as f:
@@ -108,4 +108,4 @@ class SystemTest(unittest.TestCase):
       run_foozzie('test_d8_1.py', 'test_d8_3.py')
     e = ctx.exception
     self.assertEquals(v8_foozzie.RETURN_FAIL, e.returncode)
-    self.assertEquals(expected_output, e.output)
+    self.assertEquals(expected_output, cut_verbose_output(e.output))

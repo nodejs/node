@@ -35,4 +35,4 @@ for (const family of [0, null, undefined, 'bogus'])
   assert.strictEqual(agent.getName({ family }), 'localhost::');
 
 for (const family of [4, 6])
-  assert.strictEqual(agent.getName({ family }), 'localhost:::' + family);
+  assert.strictEqual(agent.getName({ family }), `localhost:::${family}`);

@@ -89,7 +89,7 @@ module.exports = {
          */
         function isBeforeCallOfSuper() {
             return (
-                isInConstructorOfDerivedClass(funcInfo) &&
+                isInConstructorOfDerivedClass() &&
                 !funcInfo.codePath.currentSegments.every(isCalled)
             );
         }
@@ -206,7 +206,7 @@ module.exports = {
              * @returns {void}
              */
             onCodePathSegmentStart(segment) {
-                if (!isInConstructorOfDerivedClass(funcInfo)) {
+                if (!isInConstructorOfDerivedClass()) {
                     return;
                 }
 
@@ -230,7 +230,7 @@ module.exports = {
              * @returns {void}
              */
             onCodePathSegmentLoop(fromSegment, toSegment) {
-                if (!isInConstructorOfDerivedClass(funcInfo)) {
+                if (!isInConstructorOfDerivedClass()) {
                     return;
                 }
 

@@ -1,12 +1,11 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
 const crypto = require('crypto');
+
 const DH_NOT_SUITABLE_GENERATOR = crypto.constants.DH_NOT_SUITABLE_GENERATOR;
 
 // Test Diffie-Hellman with two parties sharing a secret,
@@ -23,25 +22,22 @@ assert.strictEqual(secret2.toString('base64'), secret1);
 assert.strictEqual(dh1.verifyError, 0);
 assert.strictEqual(dh2.verifyError, 0);
 
-const argumentsError = new RegExp('^TypeError: First argument should be ' +
-                                  'number, string, Buffer, TypedArray, or ' +
-                                  'DataView$');
-
-assert.throws(() => {
-  crypto.createDiffieHellman([0x1, 0x2]);
-}, argumentsError);
-
-assert.throws(() => {
-  crypto.createDiffieHellman(() => { });
-}, argumentsError);
-
-assert.throws(() => {
-  crypto.createDiffieHellman(/abc/);
-}, argumentsError);
-
-assert.throws(() => {
-  crypto.createDiffieHellman({});
-}, argumentsError);
+[
+  [0x1, 0x2],
+  () => { },
+  /abc/,
+  {}
+].forEach((i) => {
+  common.expectsError(
+    () => crypto.createDiffieHellman(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "sizeOrKey" argument must be one of type number, string, ' +
+               'Buffer, TypedArray, or DataView'
+    }
+  );
+});
 
 // Create "another dh1" using generated keys from dh1,
 // and compute secret again
@@ -61,8 +57,7 @@ const secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 assert.strictEqual(secret1, secret3);
 
 const wrongBlockLength =
-    new RegExp('^Error: error:0606506D:digital envelope' +
-    ' routines:EVP_DecryptFinal_ex:wrong final block length$');
+  /^Error: error:0606506D:digital envelope routines:EVP_DecryptFinal_ex:wrong final block length$/;
 
 // Run this one twice to make sure that the dh3 clears its error properly
 {
@@ -174,6 +169,7 @@ assert.strictEqual(bad_dh.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 const availableCurves = new Set(crypto.getCurves());
+const availableHashes = new Set(crypto.getHashes());
 
 // Oakley curves do not clean up ERR stack, it was causing unexpected failure
 // when accessing other OpenSSL APIs afterwards.
@@ -200,9 +196,14 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   firstByte = ecdh1.getPublicKey('buffer', 'hybrid')[0];
   assert(firstByte === 6 || firstByte === 7);
   // format value should be string
-  assert.throws(() => {
-    ecdh1.getPublicKey('buffer', 10);
-  }, /^TypeError: Bad format: 10$/);
+
+  common.expectsError(
+    () => ecdh1.getPublicKey('buffer', 10),
+    {
+      code: 'ERR_CRYPTO_ECDH_INVALID_FORMAT',
+      type: TypeError,
+      message: 'Invalid ECDH format: 10'
+    });
 
   // ECDH should check that point is on curve
   const ecdh3 = crypto.createECDH('secp256k1');
@@ -296,20 +297,47 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   // rejected.
   ecdh5.setPrivateKey(cafebabeKey, 'hex');
 
-  [ // Some invalid private keys for the secp256k1 curve.
-    '0000000000000000000000000000000000000000000000000000000000000000',
-    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141',
-    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
+  // Some invalid private keys for the secp256k1 curve.
+  const errMessage = /^Error: Private key is not valid for specified curve\.$/;
+  ['0000000000000000000000000000000000000000000000000000000000000000',
+   'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141',
+   'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
   ].forEach((element) => {
     assert.throws(() => {
       ecdh5.setPrivateKey(element, 'hex');
-    }, /^Error: Private key is not valid for specified curve\.$/);
+    }, errMessage);
     // Verify object state did not change.
     assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
   });
 }
 
+// Use of invalid keys was not cleaning up ERR stack, and was causing
+// unexpected failure in subsequent signing operations.
+if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
+  const curve = crypto.createECDH('prime256v1');
+  const invalidKey = Buffer.alloc(65);
+  invalidKey.fill('\0');
+  curve.generateKeys();
+  assert.throws(() => {
+    curve.computeSecret(invalidKey);
+  }, /^Error: Failed to translate Buffer to a EC_POINT$/);
+  // Check that signing operations are not impacted by the above error.
+  const ecPrivateKey =
+    '-----BEGIN EC PRIVATE KEY-----\n' +
+    'MHcCAQEEIF+jnWY1D5kbVYDNvxxo/Y+ku2uJPDwS0r/VuPZQrjjVoAoGCCqGSM49\n' +
+    'AwEHoUQDQgAEurOxfSxmqIRYzJVagdZfMMSjRNNhB8i3mXyIMq704m2m52FdfKZ2\n' +
+    'pQhByd5eyj3lgZ7m7jbchtdgyOF8Io/1ng==\n' +
+    '-----END EC PRIVATE KEY-----';
+  assert.doesNotThrow(() => {
+    crypto.createSign('SHA256').sign(ecPrivateKey);
+  });
+}
+
 // invalid test: curve argument is undefined
-assert.throws(() => {
-  crypto.createECDH();
-}, /^TypeError: "curve" argument should be a string$/);
+common.expectsError(
+  () => crypto.createECDH(),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "curve" argument must be of type string'
+  });

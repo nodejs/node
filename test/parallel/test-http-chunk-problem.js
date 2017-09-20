@@ -1,11 +1,10 @@
 'use strict';
 // http://groups.google.com/group/nodejs/browse_thread/thread/f66cd3c960406919
 const common = require('../common');
-const assert = require('assert');
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
 
 if (process.argv[2] === 'request') {
   const http = require('http');
@@ -42,13 +41,13 @@ const filename = require('path').join(common.tmpDir, 'big');
 let server;
 
 function executeRequest(cb) {
-  cp.exec([process.execPath,
-           __filename,
+  cp.exec([`"${process.execPath}"`,
+           `"${__filename}"`,
            'request',
            server.address().port,
            '|',
-           process.execPath,
-           __filename,
+           `"${process.execPath}"`,
+           `"${__filename}"`,
            'shasum' ].join(' '),
           (err, stdout, stderr) => {
             assert.ifError(err);
@@ -82,7 +81,7 @@ cp.exec(ddcmd, function(err, stdout, stderr) {
     // End the response on exit (and log errors)
     cat.on('exit', (code) => {
       if (code !== 0) {
-        console.error('subprocess exited with code ' + code);
+        console.error(`subprocess exited with code ${code}`);
         process.exit(1);
       }
     });

@@ -1,7 +1,8 @@
 'use strict';
 
-/* WPT Refs:
-   https://github.com/w3c/web-platform-tests/blob/3eff1bd/url/setters_tests.json
+/* The following tests are copied from WPT. Modifications to them should be
+   upstreamed first. Refs:
+   https://github.com/w3c/web-platform-tests/blob/b30abaecf4/url/setters_tests.json
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
 module.exports =
@@ -266,6 +267,16 @@ module.exports =
                 "href": "view-source+data:text/html,<p>Test",
                 "protocol": "view-source+data:"
             }
+        },
+        {
+            "comment": "Port is set to null if it is the default for new scheme.",
+            "href": "http://foo.com:443/",
+            "new_value": "https",
+            "expected": {
+                "href": "https://foo.com/",
+                "protocol": "https:",
+                "port": ""
+            }
         }
     ],
     "username": [
@@ -370,14 +381,14 @@ module.exports =
                 "username": "wario"
             }
         },
-        // {
-        //     "href": "file://test/",
-        //     "new_value": "test",
-        //     "expected": {
-        //         "href": "file://test/",
-        //         "username": ""
-        //     }
-        // }
+        {
+            "href": "file://test/",
+            "new_value": "test",
+            "expected": {
+                "href": "file://test/",
+                "username": ""
+            }
+        }
     ],
     "password": [
         {
@@ -473,14 +484,14 @@ module.exports =
                 "password": "bowser"
             }
         },
-        // {
-        //     "href": "file://test/",
-        //     "new_value": "test",
-        //     "expected": {
-        //         "href": "file://test/",
-        //         "password": ""
-        //     }
-        // }
+        {
+            "href": "file://test/",
+            "new_value": "test",
+            "expected": {
+                "href": "file://test/",
+                "password": ""
+            }
+        }
     ],
     "host": [
         {
@@ -493,33 +504,33 @@ module.exports =
                 "hostname": "x"
             }
         },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "\u0009",
-        //     "expected": {
-        //         "href": "sc:///",
-        //         "host": "",
-        //         "hostname": ""
-        //     }
-        // },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "\u000A",
-        //     "expected": {
-        //         "href": "sc:///",
-        //         "host": "",
-        //         "hostname": ""
-        //     }
-        // },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "\u000D",
-        //     "expected": {
-        //         "href": "sc:///",
-        //         "host": "",
-        //         "hostname": ""
-        //     }
-        // },
+        {
+            "href": "sc://x/",
+            "new_value": "\u0009",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
+        {
+            "href": "sc://x/",
+            "new_value": "\u000A",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
+        {
+            "href": "sc://x/",
+            "new_value": "\u000D",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
         {
             "href": "sc://x/",
             "new_value": " ",
@@ -529,33 +540,33 @@ module.exports =
                 "hostname": "x"
             }
         },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "#",
-        //     "expected": {
-        //         "href": "sc:///",
-        //         "host": "",
-        //         "hostname": ""
-        //     }
-        // },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "/",
-        //     "expected": {
-        //         "href": "sc:///",
-        //         "host": "",
-        //         "hostname": ""
-        //     }
-        // },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "?",
-        //     "expected": {
-        //         "href": "sc:///",
-        //         "host": "",
-        //         "hostname": ""
-        //     }
-        // },
+        {
+            "href": "sc://x/",
+            "new_value": "#",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
+        {
+            "href": "sc://x/",
+            "new_value": "/",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
+        {
+            "href": "sc://x/",
+            "new_value": "?",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
         {
             "href": "sc://x/",
             "new_value": "@",
@@ -565,15 +576,15 @@ module.exports =
                 "hostname": "x"
             }
         },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "ß",
-        //     "expected": {
-        //         "href": "sc://%C3%9F/",
-        //         "host": "%C3%9F",
-        //         "hostname": "%C3%9F"
-        //     }
-        // },
+        {
+            "href": "sc://x/",
+            "new_value": "ß",
+            "expected": {
+                "href": "sc://%C3%9F/",
+                "host": "%C3%9F",
+                "hostname": "%C3%9F"
+            }
+        },
         {
             "comment": "IDNA Nontransitional_Processing",
             "href": "https://x/",
@@ -916,56 +927,56 @@ module.exports =
                 "hostname": "example.net"
             }
         },
-        // {
-        //     "href": "file://y/",
-        //     "new_value": "x:123",
-        //     "expected": {
-        //         "href": "file://y/",
-        //         "host": "y",
-        //         "hostname": "y",
-        //         "port": ""
-        //     }
-        // },
-        // {
-        //     "href": "file://y/",
-        //     "new_value": "loc%41lhost",
-        //     "expected": {
-        //         "href": "file:///",
-        //         "host": "",
-        //         "hostname": "",
-        //         "port": ""
-        //     }
-        // },
-        // {
-        //     "href": "file://hi/x",
-        //     "new_value": "",
-        //     "expected": {
-        //         "href": "file:///x",
-        //         "host": "",
-        //         "hostname": "",
-        //         "port": ""
-        //     }
-        // },
-        // {
-        //     "href": "sc://test@test/",
-        //     "new_value": "",
-        //     "expected": {
-        //         "href": "sc://test@test/",
-        //         "host": "test",
-        //         "hostname": "test",
-        //         "username": "test"
-        //     }
-        // },
-        // {
-        //     "href": "sc://test:12/",
-        //     "new_value": "",
-        //     "expected": {
-        //         "href": "sc://test:12/",
-        //         "host": "test:12",
-        //         "hostname": "test",
-        //         "port": "12"
-        //     }
-        // }
+        {
+            "href": "file://y/",
+            "new_value": "x:123",
+            "expected": {
+                "href": "file://y/",
+                "host": "y",
+                "hostname": "y",
+                "port": ""
+            }
+        },
+        {
+            "href": "file://y/",
+            "new_value": "loc%41lhost",
+            "expected": {
+                "href": "file:///",
+                "host": "",
+                "hostname": "",
+                "port": ""
+            }
+        },
+        {
+            "href": "file://hi/x",
+            "new_value": "",
+            "expected": {
+                "href": "file:///x",
+                "host": "",
+                "hostname": "",
+                "port": ""
+            }
+        },
+        {
+            "href": "sc://test@test/",
+            "new_value": "",
+            "expected": {
+                "href": "sc://test@test/",
+                "host": "test",
+                "hostname": "test",
+                "username": "test"
+            }
+        },
+        {
+            "href": "sc://test:12/",
+            "new_value": "",
+            "expected": {
+                "href": "sc://test:12/",
+                "host": "test:12",
+                "hostname": "test",
+                "port": "12"
+            }
+        }
     ],
     "hostname": [
         {
@@ -978,33 +989,33 @@ module.exports =
                 "hostname": "x"
             }
         },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "\u0009",
-        //     "expected": {
-        //         "href": "sc:///",
-        //         "host": "",
-        //         "hostname": ""
-        //     }
-        // },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "\u000A",
-        //     "expected": {
-        //         "href": "sc:///",
-        //         "host": "",
-        //         "hostname": ""
-        //     }
-        // },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "\u000D",
-        //     "expected": {
-        //         "href": "sc:///",
-        //         "host": "",
-        //         "hostname": ""
-        //     }
-        // },
+        {
+            "href": "sc://x/",
+            "new_value": "\u0009",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
+        {
+            "href": "sc://x/",
+            "new_value": "\u000A",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
+        {
+            "href": "sc://x/",
+            "new_value": "\u000D",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
         {
             "href": "sc://x/",
             "new_value": " ",
@@ -1014,33 +1025,33 @@ module.exports =
                 "hostname": "x"
             }
         },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "#",
-        //     "expected": {
-        //         "href": "sc:///",
-        //         "host": "",
-        //         "hostname": ""
-        //     }
-        // },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "/",
-        //     "expected": {
-        //         "href": "sc:///",
-        //         "host": "",
-        //         "hostname": ""
-        //     }
-        // },
-        // {
-        //     "href": "sc://x/",
-        //     "new_value": "?",
-        //     "expected": {
-        //         "href": "sc:///",
-        //         "host": "",
-        //         "hostname": ""
-        //     }
-        // },
+        {
+            "href": "sc://x/",
+            "new_value": "#",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
+        {
+            "href": "sc://x/",
+            "new_value": "/",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
+        {
+            "href": "sc://x/",
+            "new_value": "?",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
         {
             "href": "sc://x/",
             "new_value": "@",
@@ -1250,56 +1261,56 @@ module.exports =
                 "hostname": "example.net"
             }
         },
-        // {
-        //     "href": "file://y/",
-        //     "new_value": "x:123",
-        //     "expected": {
-        //         "href": "file://y/",
-        //         "host": "y",
-        //         "hostname": "y",
-        //         "port": ""
-        //     }
-        // },
-        // {
-        //     "href": "file://y/",
-        //     "new_value": "loc%41lhost",
-        //     "expected": {
-        //         "href": "file:///",
-        //         "host": "",
-        //         "hostname": "",
-        //         "port": ""
-        //     }
-        // },
-        // {
-        //     "href": "file://hi/x",
-        //     "new_value": "",
-        //     "expected": {
-        //         "href": "file:///x",
-        //         "host": "",
-        //         "hostname": "",
-        //         "port": ""
-        //     }
-        // },
-        // {
-        //     "href": "sc://test@test/",
-        //     "new_value": "",
-        //     "expected": {
-        //         "href": "sc://test@test/",
-        //         "host": "test",
-        //         "hostname": "test",
-        //         "username": "test"
-        //     }
-        // },
-        // {
-        //     "href": "sc://test:12/",
-        //     "new_value": "",
-        //     "expected": {
-        //         "href": "sc://test:12/",
-        //         "host": "test:12",
-        //         "hostname": "test",
-        //         "port": "12"
-        //     }
-        // }
+        {
+            "href": "file://y/",
+            "new_value": "x:123",
+            "expected": {
+                "href": "file://y/",
+                "host": "y",
+                "hostname": "y",
+                "port": ""
+            }
+        },
+        {
+            "href": "file://y/",
+            "new_value": "loc%41lhost",
+            "expected": {
+                "href": "file:///",
+                "host": "",
+                "hostname": "",
+                "port": ""
+            }
+        },
+        {
+            "href": "file://hi/x",
+            "new_value": "",
+            "expected": {
+                "href": "file:///x",
+                "host": "",
+                "hostname": "",
+                "port": ""
+            }
+        },
+        {
+            "href": "sc://test@test/",
+            "new_value": "",
+            "expected": {
+                "href": "sc://test@test/",
+                "host": "test",
+                "hostname": "test",
+                "username": "test"
+            }
+        },
+        {
+            "href": "sc://test:12/",
+            "new_value": "",
+            "expected": {
+                "href": "sc://test:12/",
+                "host": "test:12",
+                "hostname": "test",
+                "port": "12"
+            }
+        }
     ],
     "port": [
         {

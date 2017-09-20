@@ -105,7 +105,7 @@ class OperandSet {
   }
 
   static bool HasMixedFPReps(int reps) {
-    return reps && !base::bits::IsPowerOfTwo32(reps);
+    return reps && !base::bits::IsPowerOfTwo(reps);
   }
 
   ZoneVector<InstructionOperand>* set_;

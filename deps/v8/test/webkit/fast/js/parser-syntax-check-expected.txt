@@ -143,8 +143,8 @@ PASS Invalid: "a(5"
 PASS Invalid: "function f() { a(5 }"
 PASS Invalid: "a(5,"
 PASS Invalid: "function f() { a(5, }"
-PASS Invalid: "a(5,)"
-PASS Invalid: "function f() { a(5,) }"
+FAIL Invalid: "a(5,)" should throw undefined
+FAIL Invalid: "function f() { a(5,) }" should throw undefined
 PASS Invalid: "a(5,6"
 PASS Invalid: "function f() { a(5,6 }"
 PASS Valid:   "a(b[7], c <d> e.l, new a() > b)"
@@ -178,8 +178,8 @@ PASS Invalid: "function () {}"
 PASS Invalid: "function f() { function () {} }"
 PASS Invalid: "function f(a b) {}"
 PASS Invalid: "function f() { function f(a b) {} }"
-PASS Invalid: "function f(a,) {}"
-PASS Invalid: "function f() { function f(a,) {} }"
+FAIL Invalid: "function f(a,) {}" should throw undefined
+FAIL Invalid: "function f() { function f(a,) {} }" should throw undefined
 PASS Invalid: "function f(a,"
 PASS Invalid: "function f() { function f(a, }"
 PASS Invalid: "function f(a, 1) {}"

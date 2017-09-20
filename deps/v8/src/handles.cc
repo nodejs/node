@@ -12,6 +12,16 @@
 namespace v8 {
 namespace internal {
 
+// Handles should be trivially copyable so that they can be efficiently passed
+// by value. If they are not trivially copyable, they cannot be passed in
+// registers.
+static_assert(IS_TRIVIALLY_COPYABLE(HandleBase),
+              "HandleBase should be trivially copyable");
+static_assert(IS_TRIVIALLY_COPYABLE(Handle<Object>),
+              "Handle<Object> should be trivially copyable");
+static_assert(IS_TRIVIALLY_COPYABLE(MaybeHandle<Object>),
+              "MaybeHandle<Object> should be trivially copyable");
+
 #ifdef DEBUG
 bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   DCHECK_NOT_NULL(location_);
@@ -124,7 +134,8 @@ CanonicalHandleScope::CanonicalHandleScope(Isolate* isolate)
   prev_canonical_scope_ = handle_scope_data->canonical_scope;
   handle_scope_data->canonical_scope = this;
   root_index_map_ = new RootIndexMap(isolate);
-  identity_map_ = new IdentityMap<Object**>(isolate->heap(), &zone_);
+  identity_map_ = new IdentityMap<Object**, ZoneAllocationPolicy>(
+      isolate->heap(), ZoneAllocationPolicy(&zone_));
   canonical_level_ = handle_scope_data->level;
 }
 
@@ -166,6 +177,9 @@ DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
   HandleScopeData* data = impl_->isolate()->handle_scope_data();
   Object** new_next = impl_->GetSpareOrNewBlock();
   Object** new_limit = &new_next[kHandleBlockSize];
+  // Check that at least one HandleScope exists, see the class description.
+  DCHECK(!impl_->blocks()->is_empty());
+  // Check that we are not in a SealedHandleScope.
   DCHECK(data->limit == &impl_->blocks()->last()[kHandleBlockSize]);
   impl_->blocks()->Add(new_next);
 

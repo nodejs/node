@@ -41,7 +41,7 @@ if (common.isWindows) {
   // on CI for a POSIX socket. Even though this isn't actually a socket file,
   // the error will be different from the one we are expecting if we exceed the
   // limit.
-  emptyTxt = common.tmpDir + '0.txt';
+  emptyTxt = `${common.tmpDir}0.txt`;
 
   function cleanup() {
     try {

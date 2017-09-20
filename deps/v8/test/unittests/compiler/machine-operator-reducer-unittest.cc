@@ -1050,14 +1050,14 @@ TEST_F(MachineOperatorReducerTest, Int32DivWithConstant) {
   }
   TRACED_FOREACH(int32_t, divisor, kInt32Values) {
     if (divisor < 0) {
-      if (base::bits::IsPowerOfTwo32(-divisor)) continue;
+      if (divisor == kMinInt || base::bits::IsPowerOfTwo(-divisor)) continue;
       Reduction const r = Reduce(graph()->NewNode(
           machine()->Int32Div(), p0, Int32Constant(divisor), graph()->start()));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(), IsInt32Sub(IsInt32Constant(0),
                                               IsTruncatingDiv(p0, -divisor)));
     } else if (divisor > 0) {
-      if (base::bits::IsPowerOfTwo32(divisor)) continue;
+      if (base::bits::IsPowerOfTwo(divisor)) continue;
       Reduction const r = Reduce(graph()->NewNode(
           machine()->Int32Div(), p0, Int32Constant(divisor), graph()->start()));
       ASSERT_TRUE(r.Changed());
@@ -1215,7 +1215,7 @@ TEST_F(MachineOperatorReducerTest, Int32ModWithConstant) {
                                        graph()->start())))));
   }
   TRACED_FOREACH(int32_t, divisor, kInt32Values) {
-    if (divisor == 0 || base::bits::IsPowerOfTwo32(Abs(divisor))) continue;
+    if (divisor == 0 || base::bits::IsPowerOfTwo(Abs(divisor))) continue;
     Reduction const r = Reduce(graph()->NewNode(
         machine()->Int32Mod(), p0, Int32Constant(divisor), graph()->start()));
     ASSERT_TRUE(r.Changed());

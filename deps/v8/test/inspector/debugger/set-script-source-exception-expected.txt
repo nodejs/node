@@ -4,7 +4,7 @@ Running test: testIncorrectScriptId
 {
     error : {
         code : -32000
-        message : Uncaught Script not found
+        message : No script with given id found
     }
     id : <messageId>
 }

@@ -13,7 +13,7 @@ assert.strictEqual(util.inspect(sp.keys()),
                    "URLSearchParamsIterator { 'a', 'b', 'b' }");
 assert.strictEqual(util.inspect(sp.values()),
                    "URLSearchParamsIterator { 'a', 'b', 'c' }");
-assert.strictEqual(util.inspect(sp.keys(), {breakLength: 1}),
+assert.strictEqual(util.inspect(sp.keys(), { breakLength: 1 }),
                    "URLSearchParamsIterator {\n  'a',\n  'b',\n  'b' }");
 
 const iterator = sp.entries();

@@ -23,7 +23,7 @@
 require('../common');
 const assert = require('assert');
 
-const func = function() {};
+function func() {}
 let toStringCalled = false;
 func.toString = function() {
   toStringCalled = true;

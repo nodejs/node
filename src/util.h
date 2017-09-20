@@ -77,7 +77,7 @@ void LowMemoryNotification();
 #endif
 
 // The slightly odd function signature for Assert() is to ease
-// instruction cache pressure in calls from ASSERT and CHECK.
+// instruction cache pressure in calls from CHECK.
 NO_RETURN void Abort();
 NO_RETURN void Assert(const char* const (*args)[4]);
 void DumpBacktrace(FILE* fp);
@@ -95,7 +95,7 @@ template <typename T> using remove_reference = std::remove_reference<T>;
 
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
-#define ABORT_NO_BACKTRACE() raise(SIGABRT)
+#define ABORT_NO_BACKTRACE() _exit(134)
 #else
 #define ABORT_NO_BACKTRACE() abort()
 #endif
@@ -123,27 +123,6 @@ template <typename T> using remove_reference = std::remove_reference<T>;
       node::Assert(&args);                                                    \
     }                                                                         \
   } while (0)
-
-// FIXME(bnoordhuis) cctests don't link in node::Abort() and node::Assert().
-#ifdef GTEST_DONT_DEFINE_ASSERT_EQ
-#undef ABORT
-#undef CHECK
-#define ABORT ABORT_NO_BACKTRACE
-#define CHECK assert
-#endif
-
-#ifdef NDEBUG
-#define ASSERT(expr)
-#else
-#define ASSERT(expr) CHECK(expr)
-#endif
-
-#define ASSERT_EQ(a, b) ASSERT((a) == (b))
-#define ASSERT_GE(a, b) ASSERT((a) >= (b))
-#define ASSERT_GT(a, b) ASSERT((a) > (b))
-#define ASSERT_LE(a, b) ASSERT((a) <= (b))
-#define ASSERT_LT(a, b) ASSERT((a) < (b))
-#define ASSERT_NE(a, b) ASSERT((a) != (b))
 
 #define CHECK_EQ(a, b) CHECK((a) == (b))
 #define CHECK_GE(a, b) CHECK((a) >= (b))

@@ -32,12 +32,12 @@ void ErrorSupport::addError(const String& error)
     StringBuilder builder;
     for (size_t i = 0; i < m_path.size(); ++i) {
         if (i)
-            builder.append('.');
-        builder.append(m_path[i]);
+            StringUtil::builderAppend(builder, '.');
+        StringUtil::builderAppend(builder, m_path[i]);
     }
-    builder.append(": ");
-    builder.append(error);
-    m_errors.push_back(builder.toString());
+    StringUtil::builderAppend(builder, ": ");
+    StringUtil::builderAppend(builder, error);
+    m_errors.push_back(StringUtil::builderToString(builder));
 }
 
 bool ErrorSupport::hasErrors()
@@ -50,10 +50,10 @@ String ErrorSupport::errors()
     StringBuilder builder;
     for (size_t i = 0; i < m_errors.size(); ++i) {
         if (i)
-            builder.append("; ");
-        builder.append(m_errors[i]);
+            StringUtil::builderAppend(builder, "; ");
+        StringUtil::builderAppend(builder, m_errors[i]);
     }
-    return builder.toString();
+    return StringUtil::builderToString(builder);
 }
 
 {% for namespace in config.protocol.namespace %}

@@ -6,6 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/compiler.h"
+#include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
@@ -16,6 +17,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
+#include "src/objects/debug-objects-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -27,28 +29,27 @@ RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  isolate->debug()->set_return_value(value);
+  HandleScope scope(isolate);
+  ReturnValueScope result_scope(isolate->debug());
+  isolate->debug()->set_return_value(*value);
 
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
   isolate->debug()->Break(it.frame());
-
-  isolate->debug()->SetAfterBreakTarget(it.frame());
-  return *isolate->debug()->return_value();
+  return isolate->debug()->return_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  isolate->debug()->set_return_value(value);
+  HandleScope scope(isolate);
+  ReturnValueScope result_scope(isolate->debug());
+  isolate->debug()->set_return_value(*value);
 
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
   isolate->debug()->Break(it.frame());
-
-  // If live-edit has dropped frames, we are not going back to dispatch.
-  if (LiveEdit::SetAfterBreakTarget(isolate->debug())) return Smi::kZero;
 
   // Return the handler from the original bytecode array.
   DCHECK(it.frame()->is_interpreted());
@@ -68,7 +69,7 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
   if (isolate->debug()->break_points_active()) {
-    isolate->debug()->HandleDebugBreak();
+    isolate->debug()->HandleDebugBreak(kIgnoreIfTopFrameBlackboxed);
   }
   return isolate->heap()->undefined_value();
 }
@@ -84,8 +85,13 @@ RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
   CHECK(args[0]->IsJSFunction() || args[0]->IsNullOrUndefined(isolate));
   CONVERT_ARG_HANDLE_CHECKED(Object, callback, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, data, 1);
-  isolate->debug()->SetEventListener(callback, data);
-
+  if (callback->IsJSFunction()) {
+    JavaScriptDebugDelegate* delegate = new JavaScriptDebugDelegate(
+        isolate, Handle<JSFunction>::cast(callback), data);
+    isolate->debug()->SetDebugDelegate(delegate, true);
+  } else {
+    isolate->debug()->SetDebugDelegate(nullptr, false);
+  }
   return isolate->heap()->undefined_value();
 }
 
@@ -141,17 +147,18 @@ static MaybeHandle<JSArray> GetIteratorInternalProperties(
     Isolate* isolate, Handle<IteratorType> object) {
   Factory* factory = isolate->factory();
   Handle<IteratorType> iterator = Handle<IteratorType>::cast(object);
-  CHECK(iterator->kind()->IsSmi());
   const char* kind = NULL;
-  switch (Smi::cast(iterator->kind())->value()) {
-    case IteratorType::kKindKeys:
+  switch (iterator->map()->instance_type()) {
+    case JS_MAP_KEY_ITERATOR_TYPE:
       kind = "keys";
       break;
-    case IteratorType::kKindValues:
-      kind = "values";
-      break;
-    case IteratorType::kKindEntries:
+    case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
+    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
       kind = "entries";
+      break;
+    case JS_MAP_VALUE_ITERATOR_TYPE:
+    case JS_SET_VALUE_ITERATOR_TYPE:
+      kind = "values";
       break;
     default:
       UNREACHABLE();
@@ -546,7 +553,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     //   bit 0: invoked in the debugger context.
     //   bit 1: optimized frame.
     //   bit 2: inlined in optimized frame
-    int flags = 0;
+    int flags = inlined_frame_index << 2;
     if (*save->context() == *isolate->debug()->debug_context()) {
       flags |= 1 << 0;
     }
@@ -632,7 +639,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // to the frame information.
   Handle<Object> return_value = isolate->factory()->undefined_value();
   if (at_return) {
-    return_value = isolate->debug()->return_value();
+    return_value = handle(isolate->debug()->return_value(), isolate);
   }
 
   // Now advance to the arguments adapter frame (if any). It contains all
@@ -731,9 +738,12 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   }
 
   // Add the receiver (same as in function frame).
-  Handle<Object> receiver(it.frame()->receiver(), isolate);
+  Handle<Object> receiver = frame_inspector.summary().receiver();
   DCHECK(function->shared()->IsUserJavaScript());
-  DCHECK_IMPLIES(is_sloppy(shared->language_mode()), receiver->IsJSReceiver());
+  // Optimized frames only restore the receiver as best-effort (see
+  // OptimizedFrame::Summarize).
+  DCHECK_IMPLIES(!is_optimized && is_sloppy(shared->language_mode()),
+                 receiver->IsJSReceiver());
   details->set(kFrameDetailsReceiverIndex, *receiver);
 
   DCHECK_EQ(details_size, details_index);
@@ -751,8 +761,10 @@ RUNTIME_FUNCTION(Runtime_GetScopeCount) {
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
-  JavaScriptFrameIterator it(isolate, id);
-  JavaScriptFrame* frame = it.frame();
+  StackTraceFrameIterator it(isolate, id);
+  StandardFrame* frame = it.frame();
+  if (it.frame()->is_wasm()) return 0;
+
   FrameInspector frame_inspector(frame, 0, isolate);
 
   // Count the visible scopes.
@@ -786,8 +798,9 @@ RUNTIME_FUNCTION(Runtime_GetScopeDetails) {
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
-  JavaScriptFrameIterator frame_it(isolate, id);
-  JavaScriptFrame* frame = frame_it.frame();
+  StackTraceFrameIterator frame_it(isolate, id);
+  // Wasm has no scopes, this must be javascript.
+  JavaScriptFrame* frame = JavaScriptFrame::cast(frame_it.frame());
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
   // Find the requested scope.
@@ -819,7 +832,7 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
-  CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
+  CONVERT_NUMBER_CHECKED(int, inlined_frame_index, Int32, args[2]);
 
   ScopeIterator::Option option = ScopeIterator::DEFAULT;
   if (args.length() == 4) {
@@ -831,9 +844,19 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
   StackTraceFrameIterator frame_it(isolate, id);
   StandardFrame* frame = frame_it.frame();
-  FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
-  List<Handle<JSObject> > result(4);
+  // Handle wasm frames specially. They provide exactly two scopes (global /
+  // local).
+  if (frame->is_wasm_interpreter_entry()) {
+    Handle<WasmDebugInfo> debug_info(
+        WasmInterpreterEntryFrame::cast(frame)->wasm_instance()->debug_info(),
+        isolate);
+    return *WasmDebugInfo::GetScopeDetails(debug_info, frame->fp(),
+                                           inlined_frame_index);
+  }
+
+  FrameInspector frame_inspector(frame, inlined_frame_index, isolate);
+  List<Handle<JSObject>> result(4);
   ScopeIterator it(isolate, &frame_inspector, option);
   for (; !it.Done(); it.Next()) {
     Handle<JSObject> details;
@@ -900,6 +923,11 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
   // Check arguments.
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
 
+  // Only inspect suspended generator scopes.
+  if (!gen->is_suspended()) {
+    return Smi::kZero;
+  }
+
   // Count the visible scopes.
   int n = 0;
   for (ScopeIterator it(isolate, gen); !it.Done(); it.Next()) {
@@ -920,6 +948,11 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
   // Check arguments.
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
+
+  // Only inspect suspended generator scopes.
+  if (!gen->is_suspended()) {
+    return isolate->heap()->undefined_value();
+  }
 
   // Find the requested scope.
   int n = 0;
@@ -975,8 +1008,9 @@ RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
 
     // Get the frame where the debugging is performed.
     StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
-    JavaScriptFrameIterator frame_it(isolate, id);
-    JavaScriptFrame* frame = frame_it.frame();
+    StackTraceFrameIterator frame_it(isolate, id);
+    // Wasm has no scopes, this must be javascript.
+    JavaScriptFrame* frame = JavaScriptFrame::cast(frame_it.frame());
     FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
     ScopeIterator it(isolate, &frame_inspector);
@@ -1024,28 +1058,15 @@ RUNTIME_FUNCTION(Runtime_SetBreakPointsActive) {
 }
 
 
-static bool IsPositionAlignmentCodeCorrect(int alignment) {
-  return alignment == STATEMENT_ALIGNED || alignment == BREAK_POSITION_ALIGNED;
-}
-
-
 RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  CONVERT_NUMBER_CHECKED(int32_t, statement_aligned_code, Int32, args[1]);
-
-  if (!IsPositionAlignmentCodeCorrect(statement_aligned_code)) {
-    return isolate->ThrowIllegalOperation();
-  }
-  BreakPositionAlignment alignment =
-      static_cast<BreakPositionAlignment>(statement_aligned_code);
 
   Handle<SharedFunctionInfo> shared(fun->shared());
   // Find the number of break points
-  Handle<Object> break_locations =
-      Debug::GetSourceBreakLocations(shared, alignment);
+  Handle<Object> break_locations = Debug::GetSourceBreakLocations(shared);
   if (break_locations->IsUndefined(isolate)) {
     return isolate->heap()->undefined_value();
   }
@@ -1076,29 +1097,20 @@ RUNTIME_FUNCTION(Runtime_SetFunctionBreakPoint) {
   return Smi::FromInt(source_position);
 }
 
-
 // Changes the state of a break point in a script and returns source position
 // where break point was set. NOTE: Regarding performance see the NOTE for
 // GetScriptFromScriptData.
 // args[0]: script to set break point in
 // args[1]: number: break source position (within the script source)
-// args[2]: number, breakpoint position alignment
-// args[3]: number: break point object
+// args[2]: number: break point object
 RUNTIME_FUNCTION(Runtime_SetScriptBreakPoint) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(3, args.length());
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSValue, wrapper, 0);
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
   CHECK(source_position >= 0);
-  CONVERT_NUMBER_CHECKED(int32_t, statement_aligned_code, Int32, args[2]);
-  CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 3);
-
-  if (!IsPositionAlignmentCodeCorrect(statement_aligned_code)) {
-    return isolate->ThrowIllegalOperation();
-  }
-  BreakPositionAlignment alignment =
-      static_cast<BreakPositionAlignment>(statement_aligned_code);
+  CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 2);
 
   // Get the script from the script wrapper.
   CHECK(wrapper->value()->IsScript());
@@ -1106,7 +1118,7 @@ RUNTIME_FUNCTION(Runtime_SetScriptBreakPoint) {
 
   // Set break point.
   if (!isolate->debug()->SetBreakPointForScript(script, break_point_object_arg,
-                                                &source_position, alignment)) {
+                                                &source_position)) {
     return isolate->heap()->undefined_value();
   }
 
@@ -1178,7 +1190,7 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
   // Get the step action and check validity.
   StepAction step_action = static_cast<StepAction>(NumberToInt32(args[1]));
   if (step_action != StepIn && step_action != StepNext &&
-      step_action != StepOut && step_action != StepFrame) {
+      step_action != StepOut) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
@@ -1187,19 +1199,6 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
 
   // Prepare step.
   isolate->debug()->PrepareStep(static_cast<StepAction>(step_action));
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_PrepareStepFrame) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  CHECK(isolate->debug()->CheckExecutionState());
-
-  // Clear all current stepping setup.
-  isolate->debug()->ClearStepping();
-
-  // Prepare step.
-  isolate->debug()->PrepareStep(StepFrame);
   return isolate->heap()->undefined_value();
 }
 
@@ -1218,19 +1217,20 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 3);
+  CONVERT_BOOLEAN_ARG_CHECKED(throw_on_side_effect, 4);
 
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source));
+      isolate, DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source,
+                                    throw_on_side_effect));
 }
 
 
@@ -1252,10 +1252,6 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
 RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-
-  // This runtime function is used by the debugger to determine whether the
-  // debugger is active or not. Hence we fail gracefully here and don't crash.
-  if (!isolate->debug()->is_active()) return isolate->ThrowIllegalOperation();
 
   Handle<FixedArray> instances;
   {
@@ -1316,7 +1312,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
     // Get the constructor function for context extension and arguments array.
     Object* arguments_fun = isolate->sloppy_arguments_map()->GetConstructor();
     HeapObject* heap_obj;
-    while ((heap_obj = iterator.next())) {
+    while ((heap_obj = iterator.next()) != nullptr) {
       if (!heap_obj->IsJSObject()) continue;
       JSObject* obj = JSObject::cast(heap_obj);
       if (obj->IsJSContextExtensionObject()) continue;
@@ -1369,7 +1365,7 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
   {
     HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
     HeapObject* heap_obj;
-    while ((heap_obj = iterator.next())) {
+    while ((heap_obj = iterator.next()) != nullptr) {
       if (!heap_obj->IsJSObject()) continue;
       JSObject* obj = JSObject::cast(heap_obj);
       if (obj->map()->GetConstructor() != *constructor) continue;
@@ -1449,26 +1445,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetDebugName) {
   } else {
     return *JSFunction::GetDebugName(Handle<JSFunction>::cast(function));
   }
-}
-
-
-// Calls specified function with or without entering the debugger.
-// This is used in unit tests to run code as if debugger is entered or simply
-// to have a stack with C++ frame in the middle.
-RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
-  DebugScope debug_scope(isolate->debug());
-  if (debug_scope.failed()) {
-    DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
-  }
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Execution::Call(isolate, function,
-                               handle(function->global_proxy()), 0, NULL));
 }
 
 
@@ -1581,7 +1557,7 @@ int ScriptLinePosition(Handle<Script> script, int line) {
   if (line == 0) return 0;
   // If line == line_count, we return the first position beyond the last line.
   if (line > line_count) return -1;
-  return Smi::cast(line_ends_array->get(line - 1))->value() + 1;
+  return Smi::ToInt(line_ends_array->get(line - 1)) + 1;
 }
 
 }  // namespace
@@ -1662,7 +1638,8 @@ namespace {
 int ScriptLinePositionWithOffset(Handle<Script> script, int line, int offset) {
   if (line < 0 || offset < 0) return -1;
 
-  if (line == 0) return ScriptLinePosition(script, line) + offset;
+  if (line == 0 || offset == 0)
+    return ScriptLinePosition(script, line) + offset;
 
   Script::PositionInfo info;
   if (!Script::GetPositionInfo(script, offset, &info, Script::NO_OFFSET)) {
@@ -1815,8 +1792,8 @@ RUNTIME_FUNCTION(Runtime_ScriptSourceLine) {
   }
 
   const int start =
-      (line == 0) ? 0 : Smi::cast(line_ends_array->get(line - 1))->value() + 1;
-  const int end = Smi::cast(line_ends_array->get(line))->value();
+      (line == 0) ? 0 : Smi::ToInt(line_ends_array->get(line - 1)) + 1;
+  const int end = Smi::ToInt(line_ends_array->get(line));
 
   Handle<String> source =
       handle(String::cast(script_handle->source()), isolate);
@@ -1874,13 +1851,6 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugNextAsyncTaskId) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  return Smi::FromInt(isolate->debug()->NextAsyncTaskId(promise));
-}
-
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
@@ -1892,7 +1862,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
   JSObject::SetProperty(promise, async_stack_id_symbol,
                         handle(Smi::FromInt(id), isolate), STRICT)
       .Assert();
-  isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueAsyncFunction, id);
+  isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueAsyncFunction, id, 0);
   return isolate->heap()->undefined_value();
 }
 
@@ -1915,7 +1885,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncEventEnqueueRecurring) {
     isolate->debug()->OnAsyncTaskEvent(
         status == v8::Promise::kFulfilled ? debug::kDebugEnqueuePromiseResolve
                                           : debug::kDebugEnqueuePromiseReject,
-        isolate->debug()->NextAsyncTaskId(promise));
+        isolate->debug()->NextAsyncTaskId(promise), 0);
   }
   return isolate->heap()->undefined_value();
 }
@@ -1925,10 +1895,116 @@ RUNTIME_FUNCTION(Runtime_DebugIsActive) {
   return Smi::FromInt(isolate->debug()->is_active());
 }
 
-
 RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   UNIMPLEMENTED();
   return NULL;
+}
+
+namespace {
+Handle<JSObject> MakeRangeObject(Isolate* isolate, const CoverageBlock& range) {
+  Factory* factory = isolate->factory();
+
+  Handle<String> start_string = factory->InternalizeUtf8String("start");
+  Handle<String> end_string = factory->InternalizeUtf8String("end");
+  Handle<String> count_string = factory->InternalizeUtf8String("count");
+
+  Handle<JSObject> range_obj = factory->NewJSObjectWithNullProto();
+  JSObject::AddProperty(range_obj, start_string,
+                        factory->NewNumberFromInt(range.start), NONE);
+  JSObject::AddProperty(range_obj, end_string,
+                        factory->NewNumberFromInt(range.end), NONE);
+  JSObject::AddProperty(range_obj, count_string,
+                        factory->NewNumberFromUint(range.count), NONE);
+
+  return range_obj;
+}
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  // Collect coverage data.
+  std::unique_ptr<Coverage> coverage;
+  if (isolate->is_best_effort_code_coverage()) {
+    coverage.reset(Coverage::CollectBestEffort(isolate));
+  } else {
+    coverage.reset(Coverage::CollectPrecise(isolate));
+  }
+  Factory* factory = isolate->factory();
+  // Turn the returned data structure into JavaScript.
+  // Create an array of scripts.
+  int num_scripts = static_cast<int>(coverage->size());
+  // Prepare property keys.
+  Handle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
+  Handle<String> script_string = factory->NewStringFromStaticChars("script");
+  for (int i = 0; i < num_scripts; i++) {
+    const auto& script_data = coverage->at(i);
+    HandleScope inner_scope(isolate);
+
+    std::vector<CoverageBlock> ranges;
+    int num_functions = static_cast<int>(script_data.functions.size());
+    for (int j = 0; j < num_functions; j++) {
+      const auto& function_data = script_data.functions[j];
+      ranges.emplace_back(function_data.start, function_data.end,
+                          function_data.count);
+      for (size_t k = 0; k < function_data.blocks.size(); k++) {
+        const auto& block_data = function_data.blocks[k];
+        ranges.emplace_back(block_data.start, block_data.end, block_data.count);
+      }
+    }
+
+    int num_ranges = static_cast<int>(ranges.size());
+    Handle<FixedArray> ranges_array = factory->NewFixedArray(num_ranges);
+    for (int j = 0; j < num_ranges; j++) {
+      Handle<JSObject> range_object = MakeRangeObject(isolate, ranges[j]);
+      ranges_array->set(j, *range_object);
+    }
+
+    Handle<JSArray> script_obj =
+        factory->NewJSArrayWithElements(ranges_array, PACKED_ELEMENTS);
+    Handle<JSObject> wrapper = Script::GetWrapper(script_data.script);
+    JSObject::AddProperty(script_obj, script_string, wrapper, NONE);
+    scripts_array->set(i, *script_obj);
+  }
+  return *factory->NewJSArrayWithElements(scripts_array, PACKED_ELEMENTS);
+}
+
+RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
+  SealHandleScope shs(isolate);
+  CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
+  Coverage::SelectMode(isolate, enable ? debug::Coverage::kPreciseCount
+                                       : debug::Coverage::kBestEffort);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugToggleBlockCoverage) {
+  SealHandleScope shs(isolate);
+  CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
+  Coverage::SelectMode(isolate, enable ? debug::Coverage::kBlockCount
+                                       : debug::Coverage::kBestEffort);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
+  SealHandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_SMI_ARG_CHECKED(coverage_array_slot_index, 1);
+
+  DCHECK(FLAG_block_coverage);
+
+  // It's quite possible that a function contains IncBlockCounter bytecodes, but
+  // no coverage info exists. This happens e.g. by selecting the best-effort
+  // coverage collection mode, which triggers deletion of all coverage infos in
+  // order to avoid memory leaks.
+
+  SharedFunctionInfo* shared = function->shared();
+  if (shared->HasCoverageInfo()) {
+    CoverageInfo* coverage_info = shared->GetCoverageInfo();
+    coverage_info->IncrementBlockCount(coverage_array_slot_index);
+  }
+
+  return isolate->heap()->undefined_value();
 }
 
 }  // namespace internal

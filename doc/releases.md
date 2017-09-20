@@ -86,7 +86,7 @@ This macro is used to signal an ABI version for native addons. It currently has 
 
 The general rule is to bump this version when there are _breaking ABI_ changes and also if there are non-trivial API changes. The rules are not yet strictly defined, so if in doubt, please confer with someone that will have a more informed perspective, such as a member of the NAN team.
 
-**Note** that it is current TSC policy to bump major version when ABI changes. If you see a need to bump `NODE_MODULE_VERSION` then you should consult the TSC. Commits may need to be reverted or a major version bump may need to happen.
+*Note*: It is current TSC policy to bump major version when ABI changes. If you see a need to bump `NODE_MODULE_VERSION` then you should consult the TSC. Commits may need to be reverted or a major version bump may need to happen.
 
 ### 3. Update the Changelog
 
@@ -144,7 +144,7 @@ is shown in **bold** in the index. When updating the index, please make sure
 to update the display accordingly by removing the bold styling from the previous
 release.
 
-#### Step 3: Update any REPLACEME tags in the docs
+#### Step 3: Update any REPLACEME and DEP00XX tags in the docs
 
 If this release includes new APIs then it is necessary to document that they
 were first added in this version. The relevant commits should already include
@@ -153,6 +153,13 @@ were first added in this version. The relevant commits should already include
 `grep REPLACEME doc/api/*.md`, and substitute this node version with
 `sed -i "s/REPLACEME/$VERSION/g" doc/api/*.md` or
 `perl -pi -e "s/REPLACEME/$VERSION/g" doc/api/*.md`.
+
+If this release includes any new deprecations it is necessary to ensure that
+those are assigned a proper static deprecation code. These are listed in the
+docs (see `doc/api/deprecations.md`) and in the source as `DEP00XX`. The code
+must be assigned a number (e.g. `DEP0012`). Note that this assignment should
+occur when the PR is landed, but a check will be made when the release built
+is run.
 
 ### 4. Create Release Commit
 
@@ -253,7 +260,7 @@ PR-URL: <full URL to your release proposal PR>
 
 This sets up the branch so that nightly builds are produced with the next version number _and_ a pre-release tag.
 
-Merge your release branch into the stable branch that you are releasing from (not master).
+Merge your release proposal branch into the stable branch that you are releasing from (e.g. `v8.x`), and rebase the corresponding staging branch (`v8.x-staging`) on top of that.
 
 Cherry-pick the release commit to `master`. After cherry-picking, edit `src/node_version.h` to ensure the version macros contain whatever values were previously on `master`. `NODE_VERSION_IS_RELEASE` should be `0`.
 
@@ -279,7 +286,8 @@ Use `tools/release.sh` to promote and sign the build. When run, it will perform 
 
 If you didn't wait for ARM builds in the previous step before promoting the release, you should re-run `tools/release.sh` after the ARM builds have finished. That will move the ARM artifacts into the correct location. You will be prompted to re-sign SHASUMS256.txt.
 
-Note: it is possible to only sign a release by running `./tools/release.sh -s vX.Y.Z`.
+*Note*: It is possible to only sign a release by running
+`./tools/release.sh -s vX.Y.Z`.
 
 ### 13. Check the Release
 
@@ -295,7 +303,7 @@ Create a new blog post by running the [nodejs.org release-post.js script](https:
 * The links to the download files won't be complete unless you waited for the ARMv6 builds. Any downloads that are missing will have `*Coming soon*` next to them. It's your responsibility to manually update these later when you have the outstanding builds.
 * The SHASUMS256.txt.asc content is at the bottom of the post. When you update the list of tarballs you'll need to copy/paste the new contents of this file to reflect those changes.
 * Always use pull-requests on the nodejs.org repo. Be respectful of that working group, but you shouldn't have to wait for PR sign-off. Opening a PR and merging it immediately _should_ be fine. However, please follow the following commit message format:
-```
+```console
 Blog: vX.Y.Z release post
 
 Refs: <full URL to your release proposal PR>

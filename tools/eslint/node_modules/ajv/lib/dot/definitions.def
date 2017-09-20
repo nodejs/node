@@ -113,12 +113,12 @@
 {{## def.cleanUp: {{ out = it.util.cleanUpCode(out); }} #}}
 
 
-{{## def.cleanUpVarErrors: {{ out = it.util.cleanUpVarErrors(out, $async); }} #}}
+{{## def.finalCleanUp: {{ out = it.util.finalCleanUpCode(out, $async); }} #}}
 
 
 {{## def.$data:
   {{
-    var $isData = it.opts.v5 && $schema && $schema.$data
+    var $isData = it.opts.$data && $schema && $schema.$data
       , $schemaValue;
   }}
   {{? $isData }}
@@ -175,8 +175,25 @@
 #}}
 
 
-{{## def.checkOwnProperty:
+{{## def.iterateProperties:
   {{? $ownProperties }}
-    if (!Object.prototype.hasOwnProperty.call({{=$data}}, {{=$key}})) continue;
+    {{=$dataProperties}} = {{=$dataProperties}} || Object.keys({{=$data}});
+    for (var {{=$idx}}=0; {{=$idx}}<{{=$dataProperties}}.length; {{=$idx}}++) {
+      var {{=$key}} = {{=$dataProperties}}[{{=$idx}}];
+  {{??}}
+    for (var {{=$key}} in {{=$data}}) {
   {{?}}
+#}}
+
+
+{{## def.noPropertyInData:
+  {{=$useData}} === undefined
+  {{? $ownProperties }}
+    || !{{# def.isOwnProperty }}
+  {{?}}
+#}}
+
+
+{{## def.isOwnProperty:
+  Object.prototype.hasOwnProperty.call({{=$data}}, '{{=it.util.escapeQuotes($propertyKey)}}')
 #}}

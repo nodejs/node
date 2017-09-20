@@ -29,7 +29,7 @@ function adduser (uri, params, cb) {
   if (!username) return cb(new Error('No username supplied.'))
   if (!password) return cb(new Error('No password supplied.'))
   if (!email) return cb(new Error('No email address supplied.'))
-  if (!email.match(/^[^@]+@[^\.]+\.[^\.]+/)) {
+  if (!email.match(/^[^@]+@[^.]+\.[^.]+/)) {
     return cb(new Error('Please use a real email address.'))
   }
 
@@ -111,7 +111,7 @@ function adduser (uri, params, cb) {
       client.log.verbose('adduser', 'back', [error, data, json])
       if (!error) {
         error = new Error(
-          (response && response.statusCode || '') + ' ' +
+          ((response && response.statusCode) || '') + ' ' +
           'Could not create user\n' + JSON.stringify(data)
         )
       }

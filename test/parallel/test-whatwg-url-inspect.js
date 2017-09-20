@@ -1,15 +1,14 @@
 'use strict';
 
 const common = require('../common');
-const util = require('util');
-const URL = require('url').URL;
-const assert = require('assert');
-
 if (!common.hasIntl) {
   // A handful of the tests fail when ICU is not included.
   common.skip('missing Intl');
-  return;
 }
+
+const util = require('util');
+const URL = require('url').URL;
+const assert = require('assert');
 
 // Tests below are not from WPT.
 const url = new URL('https://username:password@host.name:8080/path/name/?que=ry#hash');
@@ -21,7 +20,7 @@ assert.strictEqual(
   origin: 'https://host.name:8080',
   protocol: 'https:',
   username: 'username',
-  password: '--------',
+  password: 'password',
   host: 'host.name:8080',
   hostname: 'host.name',
   port: '8080',

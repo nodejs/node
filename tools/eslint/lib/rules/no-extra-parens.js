@@ -9,7 +9,6 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("../ast-utils.js");
-const esUtils = require("esutils");
 
 module.exports = {
     meta: {
@@ -45,7 +44,8 @@ module.exports = {
                                 conditionalAssign: { type: "boolean" },
                                 nestedBinaryExpressions: { type: "boolean" },
                                 returnAssign: { type: "boolean" },
-                                ignoreJSX: { enum: ["none", "all", "single-line", "multi-line"] }
+                                ignoreJSX: { enum: ["none", "all", "single-line", "multi-line"] },
+                                enforceForArrowConditionals: { type: "boolean" }
                             },
                             additionalProperties: false
                         }
@@ -68,6 +68,9 @@ module.exports = {
         const NESTED_BINARY = ALL_NODES && context.options[1] && context.options[1].nestedBinaryExpressions === false;
         const EXCEPT_RETURN_ASSIGN = ALL_NODES && context.options[1] && context.options[1].returnAssign === false;
         const IGNORE_JSX = ALL_NODES && context.options[1] && context.options[1].ignoreJSX;
+        const IGNORE_ARROW_CONDITIONALS = ALL_NODES && context.options[1] &&
+            context.options[1].enforceForArrowConditionals === false;
+
         const PRECEDENCE_OF_ASSIGNMENT_EXPR = precedence({ type: "AssignmentExpression" });
         const PRECEDENCE_OF_UPDATE_EXPR = precedence({ type: "UpdateExpression" });
 
@@ -250,28 +253,27 @@ module.exports = {
             const tokenBeforeLeftParen = sourceCode.getTokenBefore(node, 1);
             const firstToken = sourceCode.getFirstToken(node);
 
-            // If there is already whitespace before the previous token, don't add more.
-            if (!tokenBeforeLeftParen || tokenBeforeLeftParen.end !== leftParenToken.start) {
-                return false;
-            }
+            return tokenBeforeLeftParen &&
+                tokenBeforeLeftParen.range[1] === leftParenToken.range[0] &&
+                leftParenToken.range[1] === firstToken.range[0] &&
+                !astUtils.canTokensBeAdjacent(tokenBeforeLeftParen, firstToken);
+        }
 
-            // If the parens are preceded by a keyword (e.g. `typeof(0)`), a space should be inserted (`typeof 0`)
-            const precededByIdentiferPart = esUtils.code.isIdentifierPartES6(tokenBeforeLeftParen.value.slice(-1).charCodeAt(0));
+        /**
+         * Determines whether a node should be followed by an additional space when removing parens
+         * @param {ASTNode} node node to evaluate; must be surrounded by parentheses
+         * @returns {boolean} `true` if a space should be inserted after the node
+         * @private
+         */
+        function requiresTrailingSpace(node) {
+            const nextTwoTokens = sourceCode.getTokensAfter(node, { count: 2 });
+            const rightParenToken = nextTwoTokens[0];
+            const tokenAfterRightParen = nextTwoTokens[1];
+            const tokenBeforeRightParen = sourceCode.getLastToken(node);
 
-            // However, a space should not be inserted unless the first character of the token is an identifier part
-            // e.g. `typeof([])` should be fixed to `typeof[]`
-            const startsWithIdentifierPart = esUtils.code.isIdentifierPartES6(firstToken.value.charCodeAt(0));
-
-            // If the parens are preceded by and start with a unary plus/minus (e.g. `+(+foo)`), a space should be inserted (`+ +foo`)
-            const precededByUnaryPlus = tokenBeforeLeftParen.type === "Punctuator" && tokenBeforeLeftParen.value === "+";
-            const precededByUnaryMinus = tokenBeforeLeftParen.type === "Punctuator" && tokenBeforeLeftParen.value === "-";
-
-            const startsWithUnaryPlus = firstToken.type === "Punctuator" && firstToken.value === "+";
-            const startsWithUnaryMinus = firstToken.type === "Punctuator" && firstToken.value === "-";
-
-            return (precededByIdentiferPart && startsWithIdentifierPart) ||
-                (precededByUnaryPlus && startsWithUnaryPlus) ||
-                (precededByUnaryMinus && startsWithUnaryMinus);
+            return rightParenToken && tokenAfterRightParen &&
+                !sourceCode.isSpaceBetweenTokens(rightParenToken, tokenAfterRightParen) &&
+                !astUtils.canTokensBeAdjacent(tokenBeforeRightParen, tokenAfterRightParen);
         }
 
         /**
@@ -298,7 +300,7 @@ module.exports = {
                     return fixer.replaceTextRange([
                         leftParenToken.range[0],
                         rightParenToken.range[1]
-                    ], (requiresLeadingSpace(node) ? " " : "") + parenthesizedSource);
+                    ], (requiresLeadingSpace(node) ? " " : "") + parenthesizedSource + (requiresTrailingSpace(node) ? " " : ""));
                 }
             });
         }
@@ -424,7 +426,7 @@ module.exports = {
                     secondToken.type === "Keyword" && (
                         secondToken.value === "function" ||
                         secondToken.value === "class" ||
-                        secondToken.value === "let" && astUtils.isOpeningBracketToken(sourceCode.getTokenAfter(secondToken))
+                        secondToken.value === "let" && astUtils.isOpeningBracketToken(sourceCode.getTokenAfter(secondToken, astUtils.isNotClosingParenToken))
                     )
                 )
             ) {
@@ -447,6 +449,13 @@ module.exports = {
 
             ArrowFunctionExpression(node) {
                 if (isReturnAssignException(node)) {
+                    return;
+                }
+
+                if (node.body.type === "ConditionalExpression" &&
+                    IGNORE_ARROW_CONDITIONALS &&
+                    !isParenthesisedTwice(node.body)
+                ) {
                     return;
                 }
 
@@ -503,15 +512,32 @@ module.exports = {
             ExportDefaultDeclaration: node => checkExpressionOrExportStatement(node.declaration),
             ExpressionStatement: node => checkExpressionOrExportStatement(node.expression),
 
-            ForInStatement(node) {
+            "ForInStatement, ForOfStatement"(node) {
+                if (node.left.type !== "VariableDeclarator") {
+                    const firstLeftToken = sourceCode.getFirstToken(node.left, astUtils.isNotOpeningParenToken);
+
+                    if (
+                        firstLeftToken.value === "let" && (
+
+                            // If `let` is the only thing on the left side of the loop, it's the loop variable: `for ((let) of foo);`
+                            // Removing it will cause a syntax error, because it will be parsed as the start of a VariableDeclarator.
+                            firstLeftToken.range[1] === node.left.range[1] ||
+
+                            // If `let` is followed by a `[` token, it's a property access on the `let` value: `for ((let[foo]) of bar);`
+                            // Removing it will cause the property access to be parsed as a destructuring declaration of `foo` instead.
+                            astUtils.isOpeningBracketToken(
+                                sourceCode.getTokenAfter(firstLeftToken, astUtils.isNotClosingParenToken)
+                            )
+                        )
+                    ) {
+                        tokensToIgnore.add(firstLeftToken);
+                    }
+                }
                 if (hasExcessParens(node.right)) {
                     report(node.right);
                 }
-            },
-
-            ForOfStatement(node) {
-                if (hasExcessParens(node.right)) {
-                    report(node.right);
+                if (hasExcessParens(node.left)) {
+                    report(node.left);
                 }
             },
 

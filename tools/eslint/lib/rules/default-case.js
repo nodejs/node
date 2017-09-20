@@ -74,7 +74,7 @@ module.exports = {
                     let comment;
 
                     const lastCase = last(node.cases);
-                    const comments = sourceCode.getComments(lastCase).trailing;
+                    const comments = sourceCode.getCommentsAfter(lastCase);
 
                     if (comments.length) {
                         comment = last(comments);

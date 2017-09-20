@@ -26,7 +26,7 @@ if (process.argv[2] === 'child') {
 
     const options = { 'stdio': ['ignore', 1, 2, 'ipc'] };
     const child = spawn(process.argv[0],
-      [process.argv[1], 'child', len], options);
+                        [process.argv[1], 'child', len], options);
 
     var bytes = 0;
     child.on('message', function(msg) {

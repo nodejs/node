@@ -41,7 +41,7 @@ static void set_title(const char* title) {
 }
 
 
-static void uv_get_process_title_edge_cases() {
+static void uv_get_process_title_edge_cases(void) {
   char buffer[512];
   int r;
 
@@ -60,7 +60,7 @@ static void uv_get_process_title_edge_cases() {
 
 
 TEST_IMPL(process_title) {
-#if defined(__sun)
+#if defined(__sun) || defined(__CYGWIN__) || defined(__MSYS__)
   RETURN_SKIP("uv_(get|set)_process_title is not implemented.");
 #else
   /* Check for format string vulnerabilities. */

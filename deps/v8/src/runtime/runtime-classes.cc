@@ -32,7 +32,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
-  Handle<Object> name(constructor->shared()->name(), isolate);
+  Handle<String> name(constructor->shared()->name(), isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kConstructorNonCallable, name));
 }
@@ -52,11 +52,18 @@ RUNTIME_FUNCTION(Runtime_ThrowSuperAlreadyCalledError) {
       isolate, NewReferenceError(MessageTemplate::kSuperAlreadyCalled));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowSuperNotCalled) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewReferenceError(MessageTemplate::kSuperNotCalled));
+}
+
 namespace {
 
 Object* ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,
                                  Handle<JSFunction> function) {
-  Handle<Object> super_name;
+  Handle<String> super_name;
   if (constructor->IsJSFunction()) {
     super_name = handle(Handle<JSFunction>::cast(constructor)->shared()->name(),
                         isolate);
@@ -67,12 +74,12 @@ Object* ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,
     super_name = Object::NoSideEffectsToString(isolate, constructor);
   }
   // null constructor
-  if (Handle<String>::cast(super_name)->length() == 0) {
+  if (super_name->length() == 0) {
     super_name = isolate->factory()->null_string();
   }
-  Handle<Object> function_name(function->shared()->name(), isolate);
+  Handle<String> function_name(function->shared()->name(), isolate);
   // anonymous class
-  if (Handle<String>::cast(function_name)->length() == 0) {
+  if (function_name->length() == 0) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kNotSuperConstructorAnonymousClass,
@@ -141,15 +148,6 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
   Map::SetPrototype(map, prototype_parent);
   map->SetConstructor(*constructor);
   Handle<JSObject> prototype = isolate->factory()->NewJSObjectFromMap(map);
-
-  if (!super_class->IsTheHole(isolate)) {
-    // Derived classes, just like builtins, don't create implicit receivers in
-    // [[construct]]. Instead they just set up new.target and call into the
-    // constructor. Hence we can reuse the builtins construct stub for derived
-    // classes.
-    Handle<Code> stub(isolate->builtins()->JSBuiltinsConstructStubForDerived());
-    constructor->shared()->SetConstructStub(*stub);
-  }
 
   JSFunction::SetPrototype(constructor, prototype);
   PropertyAttributes attribs =
@@ -457,49 +455,6 @@ RUNTIME_FUNCTION(Runtime_GetSuperConstructor) {
                                     handle(active_function, isolate));
   }
   return prototype;
-}
-
-RUNTIME_FUNCTION(Runtime_NewWithSpread) {
-  HandleScope scope(isolate);
-  DCHECK_LE(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, constructor, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, new_target, 1);
-
-  int constructor_argc = args.length() - 2;
-  CONVERT_ARG_HANDLE_CHECKED(Object, spread, args.length() - 1);
-
-  // Iterate over the spread if we need to.
-  if (spread->IterationHasObservableEffects()) {
-    Handle<JSFunction> spread_iterable_function = isolate->spread_iterable();
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, spread,
-        Execution::Call(isolate, spread_iterable_function,
-                        isolate->factory()->undefined_value(), 1, &spread));
-  }
-
-  uint32_t spread_length;
-  Handle<JSArray> spread_array = Handle<JSArray>::cast(spread);
-  CHECK(spread_array->length()->ToArrayIndex(&spread_length));
-  int result_length = constructor_argc - 1 + spread_length;
-  ScopedVector<Handle<Object>> construct_args(result_length);
-
-  // Append each of the individual args to the result.
-  for (int i = 0; i < constructor_argc - 1; i++) {
-    construct_args[i] = args.at<Object>(2 + i);
-  }
-
-  // Append element of the spread to the result.
-  ElementsAccessor* accessor = spread_array->GetElementsAccessor();
-  for (uint32_t i = 0; i < spread_length; i++) {
-    DCHECK(accessor->HasElement(spread_array, i));
-    Handle<Object> element = accessor->Get(spread_array, i);
-    construct_args[constructor_argc - 1 + i] = element;
-  }
-
-  // Call the constructor.
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Execution::New(isolate, constructor, new_target, result_length,
-                              construct_args.start()));
 }
 
 }  // namespace internal

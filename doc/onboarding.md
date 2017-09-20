@@ -13,7 +13,9 @@ onboarding session.
 ## Fifteen minutes before the onboarding session
 
 * Prior to the onboarding session, add the new Collaborator to
-  [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
+  [the Collaborators team](https://github.com/orgs/nodejs/teams/collaborators),
+  and to [the Members team](https://github.com/orgs/nodejs/teams/members) if
+  they are not already part of it.
   Note that this is the step that gives the account elevated privileges, so
   do not perform this step (or any subsequent steps) unless two-factor
   authentication is enabled on the new Collaborator's GitHub account.
@@ -21,8 +23,7 @@ onboarding session.
 
 ## Onboarding session
 
-* **thank you** for doing this
-* will cover:
+* This session will cover:
     * [local setup](#local-setup)
     * [project goals & values](#project-goals--values)
     * [managing the issue tracker](#managing-the-issue-tracker)
@@ -32,46 +33,52 @@ onboarding session.
 ## Local setup
 
   * git:
-    * make sure you have whitespace=fix: `git config --global --add apply.whitespace fix`
-    * usually PR from your own github fork
+    * Make sure you have whitespace=fix: `git config --global --add apply.whitespace fix`
+    * Always continue to PR from your own github fork
+      * Branches in the nodejs/node repository are only for release lines
     * [See "Updating Node.js from Upstream"](./onboarding-extras.md#updating-nodejs-from-upstream)
-    * make new branches for all commits you make!
+    * Make a new branch for each PR you submit.
 
-  * notifications:
-    * use [https://github.com/notifications](https://github.com/notifications) or set up email
-    * watching the main repo will flood your inbox, so be prepared
+  * Notifications:
+    * Use [https://github.com/notifications](https://github.com/notifications) or set up email
+    * Watching the main repo will flood your inbox (several hundred notifications on typical weekdays), so be prepared
 
-  * `#node-dev` on [webchat.freenode.net](https://webchat.freenode.net/) is the best place to interact with the CTC / other collaborators
+  * `#node-dev` on [webchat.freenode.net](https://webchat.freenode.net/) is the best place to interact with the TSC / other Collaborators
+    * If there are any questions after the session, a good place to ask is there!
+    * Presence is not mandatory, but please drop a note there if force-pushing to `master`
 
 
 ## Project goals & values
 
-  * collaborators are effectively part owners
-    * the project has the goals of its contributors
+  * Collaborators are the collective owners of the project
+    * The project has the goals of its contributors
 
-  * but, there are some higher-level goals and values
-    * not everything belongs in core (if it can be done reasonably in userland, let it stay in userland)
-    * empathy towards users matters (this is in part why we onboard people)
-    * generally: try to be nice to people
+  * There are some higher-level goals and values
+    * Empathy towards users matters (this is in part why we onboard people)
+    * Generally: try to be nice to people!
+    * The best outcome is for people who come to our issue tracker to feel like they can come back again.
+
+  * We have a [Code of Conduct][] that you are expected to follow *and* hold others accountable to
 
 ## Managing the issue tracker
 
-  * you have (mostly) free rein – don't hesitate to close an issue if you are confident that it should be closed
-    * **IMPORTANT**: be nice about closing issues, let people know why, and that issues and PRs can be reopened if necessary
-    * Still need to follow the Code of Conduct
+  * You have (mostly) free rein; don't hesitate to close an issue if you are confident that it should be closed
+    * Be nice about closing issues! Let people know why, and that issues and PRs can be reopened if necessary
 
   * [**See "Labels"**](./onboarding-extras.md#labels)
     * There is [a bot](https://github.com/nodejs-github-bot/github-bot) that applies subsystem labels (for example, `doc`, `test`, `assert`, or `buffer`) so that we know what parts of the code base the pull request modifies. It is not perfect, of course. Feel free to apply relevant labels and remove irrelevant labels from pull requests and issues.
-    * Use the `ctc-review` label if a topic is controversial or isn't coming to
+    * Use the `tsc-review` label if a topic is controversial or isn't coming to
       a conclusion after an extended time.
     * `semver-{minor,major}`:
       * If a change has the remote *chance* of breaking something, use the `semver-major` label
       * When adding a semver label, add a comment explaining why you're adding it. Do it right away so you don't forget!
 
   * [**See "Who to CC in issues"**](./onboarding-extras.md#who-to-cc-in-issues)
-    * will also come more naturally over time
+    * This will come more naturally over time
+    * For many of the teams listed there, you can ask to be added if you are interested
+      * Some are WGs with some process around adding people, others are only there for notifications
 
-  * When a discussion gets heated, you can request that other collaborators keep an eye on it by opening an issue at the private [nodejs/moderation](https://github.com/nodejs/moderation) repository.
+  * When a discussion gets heated, you can request that other Collaborators keep an eye on it by opening an issue at the private [nodejs/moderation](https://github.com/nodejs/moderation) repository.
     * This is a repository to which all members of the `nodejs` GitHub organization (not just Collaborators on Node.js core) have access. Its contents should not be shared externally.
     * You can find the full moderation policy [here](https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md).
 
@@ -100,18 +107,24 @@ onboarding session.
         (especially if it just has nits left).
   * Approving a change
     * Collaborators indicate that they have reviewed and approve of the
-        the changes in a pull request by commenting with `LGTM`, which stands
-        for "looks good to me".
-    * You have the power to `LGTM` another collaborator's (including TSC/CTC
-        members) work.
-    * You may not `LGTM` your own pull requests.
-    * You have the power to `LGTM` anyone else's pull requests.
+        the changes in a pull request using Github’s approval interface
+    * Some people like to comment `LGTM` (“Looks Good To Me”)
+    * You have the authority to approve any other collaborator’s work.
+    * You cannot approve your own pull requests.
+    * When explicitly using `Changes requested`, show empathy – comments will
+      usually be addressed even if you don’t use it.
+      * If you do, it is nice if you are available later to check whether your
+        comments have been addressed
+      * If you see that the requested changes have been made, you can clear another collaborator's
+        `Changes requested` review.
+      * Use `Changes requested` to indicate that you are considering some of
+        your comments to block the PR from landing.
 
-  * What belongs in node:
-    * opinions vary, but I find the following helpful:
-    * if node itself needs it (due to historic reasons), then it belongs in node
-      * that is to say, url is there because of http, freelist is there because of http, et al
-    * also, things that cannot be done outside of core, or only with significant pain (example: async-wrap)
+  * What belongs in Node.js:
+    * Opinions vary – it’s good to have a broad collaborator base for that reason!
+    * If Node.js itself needs it (due to historic reasons), then it belongs in Node.js
+      * That is to say, url is there because of http, freelist is there because of http, etc.
+    * Things that cannot be done outside of core, or only with significant pain (for example `async_hooks`)
 
   * Continuous Integration (CI) Testing:
     * [https://ci.nodejs.org/](https://ci.nodejs.org/)
@@ -136,26 +149,30 @@ onboarding session.
 
 ## Exercise: Make a PR adding yourself to the README
 
-  * Example: [https://github.com/nodejs/node/commit/7b09aade8468e1c930f36b9c81e6ac2ed5bc8732](https://github.com/nodejs/node/commit/7b09aade8468e1c930f36b9c81e6ac2ed5bc8732)
-    * For raw commit message: `git log 7b09aade8468e1c930f36b9c81e6ac2ed5bc8732 -1`
+  * Example: [https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0](https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0)
+    * For raw commit message: `git log ce986de829457c39257cd205067602e765768fb0 -1`
   * Collaborators are in alphabetical order by GitHub username.
   * Optionally, include your personal pronouns.
   * Label your pull request with the `doc` subsystem label.
   * Run CI on your PR.
-  * After a `LGTM` or two, land the PR.
+  * After one or two approvals, land the PR.
     * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:` metadata!
+    * [`core-validate-commit`][] helps a lot with this – install and use it if you can!
+    * If you use Chrome, [`node-review`][] fetches the metadata for you
 
 ## Final notes
 
-  * don't worry about making mistakes: everybody makes them, there's a lot to internalize and that takes time (and we recognize that!)
-  * very few (no?) mistakes are unrecoverable
-  * the existing collaborators trust you and are grateful for your help!
-  * other repos:
-    * [https://github.com/nodejs/dev-policy](https://github.com/nodejs/dev-policy)
-    * [https://github.com/nodejs/NG](https://github.com/nodejs/NG)
-    * [https://github.com/nodejs/api](https://github.com/nodejs/api)
+  * Don't worry about making mistakes: everybody makes them, there's a lot to internalize and that takes time (and we recognize that!)
+  * Almost any mistake you could make can be fixed or reverted.
+  * The existing Collaborators trust you and are grateful for your help!
+  * Other repositories:
+    * [https://github.com/nodejs/TSC](https://github.com/nodejs/TSC)
     * [https://github.com/nodejs/build](https://github.com/nodejs/build)
-    * [https://github.com/nodejs/docs](https://github.com/nodejs/docs)
     * [https://github.com/nodejs/nodejs.org](https://github.com/nodejs/nodejs.org)
     * [https://github.com/nodejs/readable-stream](https://github.com/nodejs/readable-stream)
     * [https://github.com/nodejs/LTS](https://github.com/nodejs/LTS)
+    * [https://github.com/nodejs/citgm](https://github.com/nodejs/citgm)
+
+[Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
+[`core-validate-commit`]: https://github.com/evanlucas/core-validate-commit
+[`node-review`]: https://github.com/evanlucas/node-review

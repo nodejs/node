@@ -46,12 +46,12 @@ if (process.getuid() !== 0) {
 
   assert.throws(
     () => { process.setgid('nobody'); },
-    /^Error: (EPERM, .+|setgid group id does not exist)$/
+    /^Error: (?:EPERM, .+|setgid group id does not exist)$/
   );
 
   assert.throws(
     () => { process.setuid('nobody'); },
-    /^Error: EPERM, /
+    /^Error: (?:EPERM, .+|setuid user id does not exist)$/
   );
   return;
 }

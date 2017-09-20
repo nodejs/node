@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm  --stress-gc --expose-gc
+// Flags: --expose-wasm --gc-interval=500 --stress-compaction --expose-gc
 
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function run(f) {
   // wrap the creation in a closure so that the only thing returned is
-  // the module (i.e. the underlying array buffer of WASM wire bytes dies).
+  // the module (i.e. the underlying array buffer of wasm wire bytes dies).
   var module = (() => {
     var builder = new WasmModuleBuilder();
     builder.addImport("mod", "the_name_of_my_import", kSig_i_i);

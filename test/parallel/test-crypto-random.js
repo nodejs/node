@@ -22,10 +22,9 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const assert = require('assert');
 const crypto = require('crypto');
 
@@ -38,13 +37,14 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
 [crypto.randomBytes, crypto.pseudoRandomBytes].forEach(function(f) {
   [-1, undefined, null, false, true, {}, []].forEach(function(value) {
     assert.throws(function() { f(value); }, expectedErrorRegexp);
-    assert.throws(function() { f(value, common.noop); }, expectedErrorRegexp);
+    assert.throws(function() { f(value, common.mustNotCall()); },
+                  expectedErrorRegexp);
   });
 
-  [0, 1, 2, 4, 16, 256, 1024].forEach(function(len) {
+  [0, 1, 2, 4, 16, 256, 1024, 101.2].forEach(function(len) {
     f(len, common.mustCall(function(ex, buf) {
       assert.strictEqual(ex, null);
-      assert.strictEqual(buf.length, len);
+      assert.strictEqual(buf.length, Math.floor(len));
       assert.ok(Buffer.isBuffer(buf));
     }));
   });
@@ -66,6 +66,46 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
 }
 
 {
+  const buf = new Uint16Array(10);
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFillSync(buf);
+  const after = Buffer.from(buf.buffer).toString('hex');
+  assert.notStrictEqual(before, after);
+}
+
+{
+  const buf = new Uint32Array(10);
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFillSync(buf);
+  const after = Buffer.from(buf.buffer).toString('hex');
+  assert.notStrictEqual(before, after);
+}
+
+{
+  const buf = new Float32Array(10);
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFillSync(buf);
+  const after = Buffer.from(buf.buffer).toString('hex');
+  assert.notStrictEqual(before, after);
+}
+
+{
+  const buf = new Float64Array(10);
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFillSync(buf);
+  const after = Buffer.from(buf.buffer).toString('hex');
+  assert.notStrictEqual(before, after);
+}
+
+{
+  const buf = new DataView(new ArrayBuffer(10));
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFillSync(buf);
+  const after = Buffer.from(buf.buffer).toString('hex');
+  assert.notStrictEqual(before, after);
+}
+
+{
   const buf = Buffer.alloc(10);
   const before = buf.toString('hex');
   crypto.randomFill(buf, common.mustCall((err, buf) => {
@@ -81,6 +121,56 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
   crypto.randomFill(buf, common.mustCall((err, buf) => {
     assert.ifError(err);
     const after = Buffer.from(buf).toString('hex');
+    assert.notStrictEqual(before, after);
+  }));
+}
+
+{
+  const buf = new Uint16Array(10);
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFill(buf, common.mustCall((err, buf) => {
+    assert.ifError(err);
+    const after = Buffer.from(buf.buffer).toString('hex');
+    assert.notStrictEqual(before, after);
+  }));
+}
+
+{
+  const buf = new Uint32Array(10);
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFill(buf, common.mustCall((err, buf) => {
+    assert.ifError(err);
+    const after = Buffer.from(buf.buffer).toString('hex');
+    assert.notStrictEqual(before, after);
+  }));
+}
+
+{
+  const buf = new Float32Array(10);
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFill(buf, common.mustCall((err, buf) => {
+    assert.ifError(err);
+    const after = Buffer.from(buf.buffer).toString('hex');
+    assert.notStrictEqual(before, after);
+  }));
+}
+
+{
+  const buf = new Float64Array(10);
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFill(buf, common.mustCall((err, buf) => {
+    assert.ifError(err);
+    const after = Buffer.from(buf.buffer).toString('hex');
+    assert.notStrictEqual(before, after);
+  }));
+}
+
+{
+  const buf = new DataView(new ArrayBuffer(10));
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFill(buf, common.mustCall((err, buf) => {
+    assert.ifError(err);
+    const after = Buffer.from(buf.buffer).toString('hex');
     assert.notStrictEqual(before, after);
   }));
 }
@@ -140,114 +230,234 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     new Uint8Array(new Array(10).fill(0))
   ];
 
+  const max = require('buffer').kMaxLength + 1;
+
   for (const buf of bufs) {
     const len = Buffer.byteLength(buf);
     assert.strictEqual(len, 10, `Expected byteLength of 10, got ${len}`);
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, 'test');
-    }, /offset must be a number/);
+    common.expectsError(
+      () => crypto.randomFillSync(buf, 'test'),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "offset" argument must be of type number'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, NaN);
-    }, /offset must be a number/);
+    common.expectsError(
+      () => crypto.randomFillSync(buf, NaN),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "offset" argument must be of type number'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, 'test', common.noop);
-    }, /offset must be a number/);
+    common.expectsError(
+      () => crypto.randomFill(buf, 'test', common.mustNotCall()),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "offset" argument must be of type number'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, NaN, common.noop);
-    }, /offset must be a number/);
+    common.expectsError(
+      () => crypto.randomFill(buf, NaN, common.mustNotCall()),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "offset" argument must be of type number'
+      }
+    );
 
-    const max = require('buffer').kMaxLength + 1;
+    common.expectsError(
+      () => crypto.randomFillSync(buf, 11),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        type: RangeError,
+        message: 'The "offset" argument is out of range'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, 11);
-    }, /offset out of range/);
+    common.expectsError(
+      () => crypto.randomFillSync(buf, max),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        type: RangeError,
+        message: 'The "offset" argument is out of range'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, max);
-    }, /offset out of range/);
+    common.expectsError(
+      () => crypto.randomFill(buf, 11, common.mustNotCall()),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        type: RangeError,
+        message: 'The "offset" argument is out of range'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, 11, common.noop);
-    }, /offset out of range/);
+    common.expectsError(
+      () => crypto.randomFill(buf, max, common.mustNotCall()),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        type: RangeError,
+        message: 'The "offset" argument is out of range'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, max, common.noop);
-    }, /offset out of range/);
+    common.expectsError(
+      () => crypto.randomFillSync(buf, 0, 'test'),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "size" argument must be of type number'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, 0, 'test');
-    }, /size must be a number/);
+    common.expectsError(
+      () => crypto.randomFillSync(buf, 0, NaN),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "size" argument must be of type number'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, 0, NaN);
-    }, /size must be a number/);
+    common.expectsError(
+      () => crypto.randomFill(buf, 0, 'test', common.mustNotCall()),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "size" argument must be of type number'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, 0, 'test', common.noop);
-    }, /size must be a number/);
-
-    assert.throws(() => {
-      crypto.randomFill(buf, 0, NaN, common.noop);
-    }, /size must be a number/);
+    common.expectsError(
+      () => crypto.randomFill(buf, 0, NaN, common.mustNotCall()),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "size" argument must be of type number'
+      }
+    );
 
     {
       const size = (-1 >>> 0) + 1;
 
-      assert.throws(() => {
-        crypto.randomFillSync(buf, 0, -10);
-      }, /size must be a uint32/);
+      common.expectsError(
+        () => crypto.randomFillSync(buf, 0, -10),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError,
+          message: 'The "size" argument must be of type uint32'
+        }
+      );
 
-      assert.throws(() => {
-        crypto.randomFillSync(buf, 0, size);
-      }, /size must be a uint32/);
+      common.expectsError(
+        () => crypto.randomFillSync(buf, 0, size),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError,
+          message: 'The "size" argument must be of type uint32'
+        }
+      );
 
-      assert.throws(() => {
-        crypto.randomFill(buf, 0, -10, common.noop);
-      }, /size must be a uint32/);
+      common.expectsError(
+        () => crypto.randomFill(buf, 0, -10, common.mustNotCall()),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError,
+          message: 'The "size" argument must be of type uint32'
+        }
+      );
 
-      assert.throws(() => {
-        crypto.randomFill(buf, 0, size, common.noop);
-      }, /size must be a uint32/);
+      common.expectsError(
+        () => crypto.randomFill(buf, 0, size, common.mustNotCall()),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError,
+          message: 'The "size" argument must be of type uint32'
+        }
+      );
     }
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, -10);
-    }, /offset must be a uint32/);
+    common.expectsError(
+      () => crypto.randomFillSync(buf, -10),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "offset" argument must be of type uint32'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, -10, common.noop);
-    }, /offset must be a uint32/);
+    common.expectsError(
+      () => crypto.randomFill(buf, -10, common.mustNotCall()),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "offset" argument must be of type uint32'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, 1, 10);
-    }, /buffer too small/);
+    common.expectsError(
+      () => crypto.randomFillSync(buf, 1, 10),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        type: RangeError,
+        message: 'The "size" argument is out of range'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, 1, 10, common.noop);
-    }, /buffer too small/);
+    common.expectsError(
+      () => crypto.randomFill(buf, 1, 10, common.mustNotCall()),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        type: RangeError,
+        message: 'The "size" argument is out of range'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFillSync(buf, 0, 12);
-    }, /buffer too small/);
+    common.expectsError(
+      () => crypto.randomFillSync(buf, 0, 12),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        type: RangeError,
+        message: 'The "size" argument is out of range'
+      }
+    );
 
-    assert.throws(() => {
-      crypto.randomFill(buf, 0, 12, common.noop);
-    }, /buffer too small/);
+    common.expectsError(
+      () => crypto.randomFill(buf, 0, 12, common.mustNotCall()),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        type: RangeError,
+        message: 'The "size" argument is out of range'
+      }
+    );
 
     {
       // Offset is too big
       const offset = (-1 >>> 0) + 1;
-      assert.throws(() => {
-        crypto.randomFillSync(buf, offset, 10);
-      }, /offset must be a uint32/);
+      common.expectsError(
+        () => crypto.randomFillSync(buf, offset, 10),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError,
+          message: 'The "offset" argument must be of type uint32'
+        }
+      );
 
-      assert.throws(() => {
-        crypto.randomFill(buf, offset, 10, common.noop);
-      }, /offset must be a uint32/);
+      common.expectsError(
+        () => crypto.randomFill(buf, offset, 10, common.mustNotCall()),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError,
+          message: 'The "offset" argument must be of type uint32'
+        }
+      );
     }
   }
 }
@@ -256,4 +466,21 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
 // length exceeds max acceptable value"
 assert.throws(function() {
   crypto.randomBytes((-1 >>> 0) + 1);
-}, TypeError);
+}, /^TypeError: size must be a uint32$/);
+
+[1, true, NaN, null, undefined, {}, []].forEach((i) => {
+  common.expectsError(
+    () => crypto.randomFillSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => crypto.randomFill(i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});

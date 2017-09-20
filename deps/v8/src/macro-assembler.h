@@ -28,10 +28,6 @@ enum AllocationFlags {
   DOUBLE_ALIGNMENT = 1 << 2,
   // Directly allocate in old space
   PRETENURE = 1 << 3,
-  // Allocation folding dominator
-  ALLOCATION_FOLDING_DOMINATOR = 1 << 4,
-  // Folded allocation
-  ALLOCATION_FOLDED = 1 << 5
 };
 
 #if V8_TARGET_ARCH_IA32
@@ -41,7 +37,6 @@ enum AllocationFlags {
 #elif V8_TARGET_ARCH_ARM64
 #include "src/arm64/constants-arm64.h"
 #include "src/arm64/macro-assembler-arm64.h"
-#include "src/arm64/macro-assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/constants-arm.h"
 #include "src/arm/macro-assembler-arm.h"
@@ -57,8 +52,6 @@ enum AllocationFlags {
 #elif V8_TARGET_ARCH_S390
 #include "src/s390/constants-s390.h"
 #include "src/s390/macro-assembler-s390.h"
-#elif V8_TARGET_ARCH_X87
-#include "src/x87/macro-assembler-x87.h"
 #else
 #error Unsupported target architecture.
 #endif
@@ -66,21 +59,24 @@ enum AllocationFlags {
 namespace v8 {
 namespace internal {
 
+// Simulators only support C calls with up to kMaxCParameters parameters.
+static constexpr int kMaxCParameters = 9;
+
 class FrameScope {
  public:
-  explicit FrameScope(MacroAssembler* masm, StackFrame::Type type)
-      : masm_(masm), type_(type), old_has_frame_(masm->has_frame()) {
-    masm->set_has_frame(true);
+  explicit FrameScope(TurboAssembler* tasm, StackFrame::Type type)
+      : tasm_(tasm), type_(type), old_has_frame_(tasm->has_frame()) {
+    tasm->set_has_frame(true);
     if (type != StackFrame::MANUAL && type_ != StackFrame::NONE) {
-      masm->EnterFrame(type);
+      tasm->EnterFrame(type);
     }
   }
 
   ~FrameScope() {
     if (type_ != StackFrame::MANUAL && type_ != StackFrame::NONE) {
-      masm_->LeaveFrame(type_);
+      tasm_->LeaveFrame(type_);
     }
-    masm_->set_has_frame(old_has_frame_);
+    tasm_->set_has_frame(old_has_frame_);
   }
 
   // Normally we generate the leave-frame code when this object goes
@@ -90,11 +86,11 @@ class FrameScope {
   // the code will be generated again when it goes out of scope.
   void GenerateLeaveFrame() {
     DCHECK(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
-    masm_->LeaveFrame(type_);
+    tasm_->LeaveFrame(type_);
   }
 
  private:
-  MacroAssembler* masm_;
+  TurboAssembler* tasm_;
   StackFrame::Type type_;
   bool old_has_frame_;
 };
@@ -146,22 +142,22 @@ class FrameAndConstantPoolScope {
 // Class for scoping the the unavailability of constant pool access.
 class ConstantPoolUnavailableScope {
  public:
-  explicit ConstantPoolUnavailableScope(MacroAssembler* masm)
-      : masm_(masm),
+  explicit ConstantPoolUnavailableScope(Assembler* assembler)
+      : assembler_(assembler),
         old_constant_pool_available_(FLAG_enable_embedded_constant_pool &&
-                                     masm->is_constant_pool_available()) {
+                                     assembler->is_constant_pool_available()) {
     if (FLAG_enable_embedded_constant_pool) {
-      masm_->set_constant_pool_available(false);
+      assembler->set_constant_pool_available(false);
     }
   }
   ~ConstantPoolUnavailableScope() {
     if (FLAG_enable_embedded_constant_pool) {
-      masm_->set_constant_pool_available(old_constant_pool_available_);
+      assembler_->set_constant_pool_available(old_constant_pool_available_);
     }
   }
 
  private:
-  MacroAssembler* masm_;
+  Assembler* assembler_;
   int old_constant_pool_available_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantPoolUnavailableScope);
@@ -197,11 +193,11 @@ class NoCurrentFrameScope {
 
 class Comment {
  public:
-  Comment(MacroAssembler* masm, const char* msg);
+  Comment(Assembler* assembler, const char* msg);
   ~Comment();
 
  private:
-  MacroAssembler* masm_;
+  Assembler* assembler_;
   const char* msg_;
 };
 
@@ -209,7 +205,7 @@ class Comment {
 
 class Comment {
  public:
-  Comment(MacroAssembler*, const char*)  {}
+  Comment(Assembler*, const char*) {}
 };
 
 #endif  // DEBUG

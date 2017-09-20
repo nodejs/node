@@ -20,7 +20,7 @@ test (test.js:24:8)
 
 foo1 (test.js:9:2)
 -- Promise.resolve --
-foo2 (test.js:19:30)
+foo2 (test.js:19:43)
 -- async function --
 foo2 (test.js:13:19)
 test (test.js:24:8)

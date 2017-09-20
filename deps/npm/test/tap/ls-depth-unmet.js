@@ -35,7 +35,7 @@ test('setup', function (t) {
     common.npm(
       [
         '--registry', common.registry,
-        'install', 'underscore@1.3.1', 'mkdirp', 'test-package-with-one-dep'
+        'install', '--no-save', 'underscore@1.3.1', 'mkdirp', 'test-package-with-one-dep'
       ],
       EXEC_OPTS,
       function (er, c) {

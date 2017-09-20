@@ -1931,6 +1931,10 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       ld = os.path.join(build_to_root, value)
     if key == 'LD.host':
       ld_host = os.path.join(build_to_root, value)
+    if key == 'LDXX':
+      ldxx = os.path.join(build_to_root, value)
+    if key == 'LDXX.host':
+      ldxx_host = os.path.join(build_to_root, value)
     if key == 'NM':
       nm = os.path.join(build_to_root, value)
     if key == 'NM.host':
@@ -2024,6 +2028,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
                           CommandWithWrapper('CXX.host', wrappers, cxx_host))
     if flavor == 'win':
       master_ninja.variable('ld_host', ld_host)
+      master_ninja.variable('ldxx_host', ldxx_host)
     else:
       master_ninja.variable('ld_host', CommandWithWrapper(
           'LINK', wrappers, ld_host))
@@ -2148,13 +2153,13 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       restat=True,
       command=mtime_preserving_solink_base % {'suffix': '@$link_file_list'},
       rspfile='$link_file_list',
-      rspfile_content='-Wl,--start-group $in -Wl,--end-group $solibs $libs',
+      rspfile_content='-Wl,--start-group $in $solibs $libs -Wl,--end-group',
       pool='link_pool')
     master_ninja.rule(
       'link',
       description='LINK $out',
       command=('$ld $ldflags -o $out '
-               '-Wl,--start-group $in -Wl,--end-group $solibs $libs'),
+               '-Wl,--start-group $in $solibs $libs -Wl,--end-group'),
       pool='link_pool')
   elif flavor == 'win':
     master_ninja.rule(

@@ -2,8 +2,7 @@
 require('../common');
 const assert = require('assert');
 const inspect = require('util').inspect;
-const checkIsHttpToken = require('_http_common')._checkIsHttpToken;
-const checkInvalidHeaderChar = require('_http_common')._checkInvalidHeaderChar;
+const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
 
 // Good header field names
 [
@@ -28,11 +27,9 @@ const checkInvalidHeaderChar = require('_http_common')._checkInvalidHeaderChar;
   '4+2',
   '3.14159265359'
 ].forEach(function(str) {
-  assert.strictEqual(checkIsHttpToken(str),
-                     true,
-                     'checkIsHttpToken(' +
-                       inspect(str) +
-                       ') unexpectedly failed');
+  assert.strictEqual(
+    _checkIsHttpToken(str), true,
+    `_checkIsHttpToken(${inspect(str)}) unexpectedly failed`);
 });
 // Bad header field names
 [
@@ -56,11 +53,9 @@ const checkInvalidHeaderChar = require('_http_common')._checkInvalidHeaderChar;
   '"Quote"',
   'This,That'
 ].forEach(function(str) {
-  assert.strictEqual(checkIsHttpToken(str),
-                     false,
-                     'checkIsHttpToken(' +
-                       inspect(str) +
-                       ') unexpectedly succeeded');
+  assert.strictEqual(
+    _checkIsHttpToken(str), false,
+    `_checkIsHttpToken(${inspect(str)}) unexpectedly succeeded`);
 });
 
 
@@ -71,11 +66,9 @@ const checkInvalidHeaderChar = require('_http_common')._checkInvalidHeaderChar;
   '0123456789ABCdef',
   '!@#$%^&*()-_=+\\;\':"[]{}<>,./?|~`'
 ].forEach(function(str) {
-  assert.strictEqual(checkInvalidHeaderChar(str),
-                     false,
-                     'checkInvalidHeaderChar(' +
-                       inspect(str) +
-                       ') unexpectedly failed');
+  assert.strictEqual(
+    _checkInvalidHeaderChar(str), false,
+    `_checkInvalidHeaderChar(${inspect(str)}) unexpectedly failed`);
 });
 
 // Bad header field values
@@ -89,9 +82,7 @@ const checkInvalidHeaderChar = require('_http_common')._checkInvalidHeaderChar;
   'foo\vbar',
   'Ding!\x07'
 ].forEach(function(str) {
-  assert.strictEqual(checkInvalidHeaderChar(str),
-                     true,
-                     'checkInvalidHeaderChar(' +
-                       inspect(str) +
-                       ') unexpectedly succeeded');
+  assert.strictEqual(
+    _checkInvalidHeaderChar(str), true,
+    `_checkInvalidHeaderChar(${inspect(str)}) unexpectedly succeeded`);
 });

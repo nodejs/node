@@ -4,12 +4,6 @@
  */
 'use strict';
 
-const path = require('path');
-const utilsPath = path.join(__dirname, '..', 'eslint', 'lib', 'ast-utils.js');
-const astUtils = require(utilsPath);
-const getLocationFromRangeIndex = astUtils.getLocationFromRangeIndex;
-const getRangeIndexFromLocation = astUtils.getRangeIndexFromLocation;
-
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -20,32 +14,11 @@ module.exports = function(context) {
   var regexpBuffer = [];
   var inRegExp = false;
 
-  var getLocFromIndex;
-  if (typeof sourceCode.getLocFromIndex === 'function') {
-    getLocFromIndex = function(index) {
-      return sourceCode.getLocFromIndex(index);
-    };
-  } else {
-    getLocFromIndex = function(index) {
-      return getLocationFromRangeIndex(sourceCode, index);
-    };
-  }
-
-  var getIndexFromLoc;
-  if (typeof sourceCode.getIndexFromLoc === 'function') {
-    getIndexFromLoc = function(loc) {
-      return sourceCode.getIndexFromLoc(loc);
-    };
-  } else {
-    getIndexFromLoc = function(loc) {
-      return getRangeIndexFromLocation(sourceCode, loc);
-    };
-  }
-
   function report(node, startOffset) {
+    const indexOfDot = sourceCode.getIndexFromLoc(node.loc.start) + startOffset;
     context.report({
       node,
-      loc: getLocFromIndex(getIndexFromLoc(node.loc.start) + startOffset),
+      loc: sourceCode.getLocFromIndex(indexOfDot),
       message: 'Unescaped dot character in regular expression'
     });
   }

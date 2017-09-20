@@ -21,21 +21,17 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-const tls = require('tls');
 
-const fs = require('fs');
+const assert = require('assert');
+const tls = require('tls');
 const util = require('util');
-const join = require('path').join;
+const fixtures = require('../common/fixtures');
 
 const options = {
-  key: fs.readFileSync(join(common.fixturesDir, 'agent.key')),
-  cert: fs.readFileSync(join(common.fixturesDir, 'multi-alice.crt'))
+  key: fixtures.readSync('agent.key'),
+  cert: fixtures.readSync('multi-alice.crt')
 };
 
 const server = tls.createServer(options, function(cleartext) {

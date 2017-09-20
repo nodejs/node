@@ -20,8 +20,8 @@ bytecodes: [
                 B(Ldar), R(arg0),
                 B(StaCurrentContextSlot), U8(4),
   /*   10 E> */ B(StackCheck),
-  /*   19 S> */ B(CreateClosure), U8(0), U8(2), U8(2),
-  /*   52 S> */ B(Return),
+  /*   19 S> */ B(CreateClosure), U8(0), U8(3), U8(2),
+  /*   51 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
@@ -43,10 +43,10 @@ bytecodes: [
                 B(Ldar), R(arg0),
                 B(StaCurrentContextSlot), U8(4),
   /*   10 E> */ B(StackCheck),
-  /*   27 S> */ B(CreateClosure), U8(0), U8(2), U8(2),
+  /*   27 S> */ B(CreateClosure), U8(0), U8(3), U8(2),
                 B(Star), R(0),
   /*   53 S> */ B(LdaCurrentContextSlot), U8(4),
-  /*   66 S> */ B(Return),
+  /*   65 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
@@ -70,8 +70,8 @@ bytecodes: [
                 B(Ldar), R(arg2),
                 B(StaCurrentContextSlot), U8(4),
   /*   10 E> */ B(StackCheck),
-  /*   29 S> */ B(CreateClosure), U8(0), U8(2), U8(2),
-  /*   61 S> */ B(Return),
+  /*   29 S> */ B(CreateClosure), U8(0), U8(3), U8(2),
+  /*   60 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
@@ -93,8 +93,8 @@ bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   26 S> */ B(Ldar), R(this),
   /*   26 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   32 S> */ B(CreateClosure), U8(0), U8(2), U8(2),
-  /*   65 S> */ B(Return),
+  /*   32 S> */ B(CreateClosure), U8(0), U8(3), U8(2),
+  /*   64 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,

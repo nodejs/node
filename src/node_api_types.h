@@ -16,7 +16,9 @@ typedef struct napi_ref__ *napi_ref;
 typedef struct napi_handle_scope__ *napi_handle_scope;
 typedef struct napi_escapable_handle_scope__ *napi_escapable_handle_scope;
 typedef struct napi_callback_info__ *napi_callback_info;
+typedef struct napi_async_context__ *napi_async_context;
 typedef struct napi_async_work__ *napi_async_work;
+typedef struct napi_deferred__ *napi_deferred;
 
 typedef enum {
   napi_default = 0,
@@ -67,7 +69,7 @@ typedef enum {
   napi_generic_failure,
   napi_pending_exception,
   napi_cancelled,
-  napi_status_last
+  napi_escape_called_twice
 } napi_status;
 
 typedef napi_value (*napi_callback)(napi_env env,
@@ -101,5 +103,12 @@ typedef struct {
   uint32_t engine_error_code;
   napi_status error_code;
 } napi_extended_error_info;
+
+typedef struct {
+  uint32_t major;
+  uint32_t minor;
+  uint32_t patch;
+  const char* release;
+} napi_node_version;
 
 #endif  // SRC_NODE_API_TYPES_H_

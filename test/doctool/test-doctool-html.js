@@ -1,17 +1,17 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
-
 // The doctool currently uses js-yaml from the tool/eslint/ tree.
 try {
   require('../../tools/eslint/node_modules/js-yaml');
 } catch (e) {
-  return common.skip('missing js-yaml (eslint not present)');
+  common.skip('missing js-yaml (eslint not present)');
 }
 
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const fixtures = require('../common/fixtures');
 const processIncludes = require('../../tools/doc/preprocess.js');
 const html = require('../../tools/doc/html.js');
 
@@ -22,12 +22,12 @@ const html = require('../../tools/doc/html.js');
 // have an html parser.
 const testData = [
   {
-    file: path.join(common.fixturesDir, 'sample_document.md'),
+    file: fixtures.path('sample_document.md'),
     html: '<ol><li>fish</li><li><p>fish</p></li><li><p>Redfish</p></li>' +
       '<li>Bluefish</li></ol>'
   },
   {
-    file: path.join(common.fixturesDir, 'order_of_end_tags_5873.md'),
+    file: fixtures.path('order_of_end_tags_5873.md'),
     html: '<h3>ClassMethod: Buffer.from(array) <span> ' +
       '<a class="mark" href="#foo_class_method_buffer_from_array" ' +
       'id="foo_class_method_buffer_from_array">#</a> </span> </h3><div' +
@@ -37,7 +37,7 @@ const testData = [
       '</ul></div>'
   },
   {
-    file: path.join(common.fixturesDir, 'doc_with_yaml.md'),
+    file: fixtures.path('doc_with_yaml.md'),
     html: '<h1>Sample Markdown with YAML info' +
       '<span><a class="mark" href="#foo_sample_markdown_with_yaml_info" ' +
       ' id="foo_sample_markdown_with_yaml_info">#</a></span></h1>' +
@@ -73,7 +73,7 @@ const testData = [
       '</p>'
   },
   {
-    file: path.join(common.fixturesDir, 'doc_with_includes.md'),
+    file: fixtures.path('doc_with_includes.md'),
     html: '<!-- [start-include:doc_inc_1.md] -->' +
     '<p>Look <a href="doc_inc_2.html#doc_inc_2_foobar">here</a>!</p>' +
     '<!-- [end-include:doc_inc_1.md] -->' +
@@ -84,16 +84,18 @@ const testData = [
     '<!-- [end-include:doc_inc_2.md] -->'
   },
   {
-    file: path.join(common.fixturesDir, 'sample_document.md'),
+    file: fixtures.path('sample_document.md'),
     html: '<ol><li>fish</li><li><p>fish</p></li><li><p>Redfish</p></li>' +
       '<li>Bluefish</li></ol>',
     analyticsId: 'UA-67020396-1'
   },
 ];
 
+const spaces = /\s/g;
+
 testData.forEach((item) => {
   // Normalize expected data by stripping whitespace
-  const expected = item.html.replace(/\s/g, '');
+  const expected = item.html.replace(spaces, '');
   const includeAnalytics = typeof item.analyticsId !== 'undefined';
 
   fs.readFile(item.file, 'utf8', common.mustCall((err, input) => {
@@ -105,25 +107,25 @@ testData.forEach((item) => {
         {
           input: preprocessed,
           filename: 'foo',
-          template: 'doc/template.html',
+          template: path.resolve(__dirname, '../../doc/template.html'),
           nodeVersion: process.version,
           analytics: item.analyticsId,
         },
         common.mustCall((err, output) => {
           assert.ifError(err);
 
-          const actual = output.replace(/\s/g, '');
+          const actual = output.replace(spaces, '');
           // Assert that the input stripped of all whitespace contains the
           // expected list
-          assert.notStrictEqual(actual.indexOf(expected), -1);
+          assert(actual.includes(expected));
 
           // Testing the insertion of Google Analytics script when
           // an analytics id is provided. Should not be present by default
           if (includeAnalytics) {
-            assert.notStrictEqual(actual.indexOf('google-analytics.com'), -1,
-                                  'Google Analytics script was not present');
+            assert(actual.includes('google-analytics.com'),
+                   'Google Analytics script was not present');
           } else {
-            assert.strictEqual(actual.indexOf('google-analytics.com'), -1,
+            assert.strictEqual(actual.includes('google-analytics.com'), false,
                                'Google Analytics script was present');
           }
         }));

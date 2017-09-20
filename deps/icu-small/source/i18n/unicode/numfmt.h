@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
@@ -931,7 +931,7 @@ public:
      * @param ec input-output error code
      * @stable ICU 3.0
      */
-    virtual void setCurrency(const UChar* theCurrency, UErrorCode& ec);
+    virtual void setCurrency(const char16_t* theCurrency, UErrorCode& ec);
 
     /**
      * Gets the currency used to display currency
@@ -940,7 +940,7 @@ public:
      * the currency in use, or a pointer to the empty string.
      * @stable ICU 2.6
      */
-    const UChar* getCurrency() const;
+    const char16_t* getCurrency() const;
 
     /**
      * Set a particular UDisplayContext value in the formatter, such as
@@ -1018,7 +1018,7 @@ protected:
      * have a capacity of at least 4
      * @internal
      */
-    virtual void getEffectiveCurrency(UChar* result, UErrorCode& ec) const;
+    virtual void getEffectiveCurrency(char16_t* result, UErrorCode& ec) const;
 
 #ifndef U_HIDE_INTERNAL_API
     /**
@@ -1065,7 +1065,7 @@ private:
     UBool      fLenient; // TRUE => lenient parse is enabled
 
     // ISO currency code
-    UChar      fCurrency[4];
+    char16_t      fCurrency[4];
 
     UDisplayContext fCapitalizationContext;
 

@@ -18,6 +18,6 @@ process.on('warning', common.mustCall((warning) => {
   assert.ok(warning.message.includes('2 event-type listeners added.'));
 }));
 
-e.on('event-type', common.noop);
-e.on('event-type', common.noop);  // Trigger warning.
-e.on('event-type', common.noop);  // Verify that warning is emitted only once.
+e.on('event-type', () => {});
+e.on('event-type', () => {});  // Trigger warning.
+e.on('event-type', () => {});  // Verify that warning is emitted only once.

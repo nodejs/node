@@ -30,7 +30,7 @@ let responses = 0;
 const headers = {};
 const N = 2000;
 for (let i = 0; i < N; ++i) {
-  headers['key' + i] = i;
+  headers[`key${i}`] = i;
 }
 
 const maxAndExpected = [ // for server

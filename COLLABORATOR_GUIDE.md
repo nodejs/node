@@ -4,14 +4,15 @@
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
- - [Internal vs. Public API](#internal-vs-public-api)
- - [Breaking Changes](#breaking-changes)
- - [Deprecations](#deprecations)
- - [Involving the CTC](#involving-the-ctc)
+   - [Useful CI Jobs](#useful-ci-jobs)
+   - [Internal vs. Public API](#internal-vs-public-api)
+   - [Breaking Changes](#breaking-changes)
+   - [Deprecations](#deprecations)
+   - [Involving the TSC](#involving-the-TSC)
 * [Landing Pull Requests](#landing-pull-requests)
- - [Technical HOWTO](#technical-howto)
- - [I Just Made a Mistake](#i-just-made-a-mistake)
- - [Long Term Support](#long-term-support)
+   - [Technical HOWTO](#technical-howto)
+   - [I Just Made a Mistake](#i-just-made-a-mistake)
+   - [Long Term Support](#long-term-support)
 
 This document contains information for Collaborators of the Node.js
 project regarding maintaining the code, documentation and issues.
@@ -29,7 +30,7 @@ pull requests to the Node.js project.
 Collaborators should feel free to take full responsibility for
 managing issues and pull requests they feel qualified to handle, as
 long as this is done while being mindful of these guidelines, the
-opinions of other Collaborators and guidance of the CTC.
+opinions of other Collaborators and guidance of the TSC.
 
 Collaborators may **close** any issue or pull request they believe is
 not relevant for the future of the Node.js project. Where this is
@@ -45,7 +46,7 @@ necessary.
 
 All modifications to the Node.js code and documentation should be
 performed via GitHub pull requests, including modifications by
-Collaborators and CTC members.
+Collaborators and TSC members.
 
 All pull requests must be reviewed and accepted by a Collaborator with
 sufficient expertise who is able to take full responsibility for the
@@ -69,16 +70,16 @@ For non-breaking changes, if there is no disagreement amongst
 Collaborators, a pull request may be landed given appropriate review.
 Where there is discussion amongst Collaborators, consensus should be
 sought if possible. The lack of consensus may indicate the need to
-elevate discussion to the CTC for resolution (see below).
+elevate discussion to the TSC for resolution (see below).
 
 Breaking changes (that is, pull requests that require an increase in
 the major version number, known as `semver-major` changes) must be
-elevated for review by the CTC. This does not necessarily mean that the
-PR must be put onto the CTC meeting agenda. If multiple CTC members
+elevated for review by the TSC. This does not necessarily mean that the
+PR must be put onto the TSC meeting agenda. If multiple TSC members
 approve (`LGTM`) the PR and no Collaborators oppose the PR, it can be
-landed. Where there is disagreement among CTC members or objections
+landed. Where there is disagreement among TSC members or objections
 from one or more Collaborators, `semver-major` pull requests should be
-put on the CTC meeting agenda.
+put on the TSC meeting agenda.
 
 All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
@@ -86,6 +87,37 @@ test should *fail* before the change, and *pass* after the change.
 All pull requests that modify executable code should be subjected to
 continuous integration tests on the
 [project CI server](https://ci.nodejs.org/).
+
+If any Collaborator objects to a change *without giving any additional
+explanation or context*, and the objecting Collaborator fails to respond to
+explicit requests for explanation or context within a reasonable period of
+time, the objection may be dismissed. Note that this does not apply to
+objections that are explained.
+
+#### Useful CI Jobs
+
+* [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
+is the standard CI run we do to check Pull Requests. It triggers `node-test-commit`,
+which runs the `build-ci` and `test-ci` targets on all supported platforms.
+
+* [`node-test-linter`](https://ci.nodejs.org/job/node-test-linter/)
+only runs the linter targets, which is useful for changes that only affect comments
+or documentation.
+
+* [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
+uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run `npm install && npm test`
+on a large selection of common modules. This is useful to check whether a
+change will cause breakage in the ecosystem. To test Node.JS ABI changes
+you can run [`citgm-abi-smoker`](https://ci.nodejs.org/job/citgm-abi-smoker/).
+
+* [`node-stress-single-test`](https://ci.nodejs.org/job/node-stress-single-test/)
+is designed to allow one to run a group of tests over and over on a specific
+platform to confirm that the test is reliable.
+
+* [`node-test-commit-v8-linux`](https://ci.nodejs.org/job/node-test-commit-v8-linux/)
+is designed to allow validation of changes to the copy of V8 in the Node.js
+tree by running the standard V8 tests. It should be run whenever the
+level of V8 within Node.js is updated or new patches are floated on V8.
 
 ### Internal vs. Public API
 
@@ -124,7 +156,7 @@ Exception to each of these points can be made if use or behavior of a given
 internal API can be demonstrated to be sufficiently relied upon by the Node.js
 ecosystem such that any changes would cause too much breakage. The threshold
 for what qualifies as "too much breakage" is to be decided on a case-by-case
-basis by the CTC.
+basis by the TSC.
 
 If it is determined that a currently undocumented object, property, method,
 argument, or event *should* be documented, then a pull request adding the
@@ -145,7 +177,7 @@ making and reviewing such changes. Before landing such commits, an effort
 must be made to determine the potential impact of the change in the ecosystem
 by analyzing current use and by validating such changes through ecosystem
 testing using the [Canary in the Goldmine](https://github.com/nodejs/citgm)
-tool. If a change cannot be made without ecosystem breakage, then CTC review is
+tool. If a change cannot be made without ecosystem breakage, then TSC review is
 required before landing the change as anything less than semver-major.
 
 If a determination is made that a particular internal API (for instance, an
@@ -157,7 +189,7 @@ breaking changes are made.
 ### Breaking Changes
 
 Backwards-incompatible changes may land on the master branch at any time after
-sufficient review by collaborators and approval of at least two CTC members.
+sufficient review by collaborators and approval of at least two TSC members.
 
 Examples of breaking changes include, but are not necessarily limited to,
 removal or redefinition of existing API arguments, changing return values
@@ -183,7 +215,7 @@ Exception to this rule is given in the following cases:
 Such changes *must* be handled as semver-major changes but MAY be landed
 without a [Deprecation cycle](#deprecation-cycle).
 
-From time-to-time, in particularly exceptional cases, the CTC may be asked to
+From time-to-time, in particularly exceptional cases, the TSC may be asked to
 consider and approve additional exceptions to this rule.
 
 Purely additive changes (e.g. adding new events to EventEmitter
@@ -218,7 +250,7 @@ Specifically:
   * Resolving critical security issues.
   * Fixing a critical bug (e.g. fixing a memory leak) requires a breaking
     change.
-  * There is CTC consensus that the change is required.
+  * There is TSC consensus that the change is required.
 * If a breaking commit does accidentally land in a Current or LTS branch, an
   attempt to fix the issue will be made before the next release; If no fix is
   provided then the commit will be reverted.
@@ -229,6 +261,39 @@ changes either temporarily or permanently. However, the decision to revert or
 not can often be based on many complex factors that are not easily codified. It
 is also possible that the breaking commit can be labeled retroactively as a
 semver-major change that will not be backported to Current or LTS branches.
+
+##### Reverting commits
+
+Commits are reverted with `git revert <HASH>`, or `git revert <FROM>..<TO>` for
+multiple commits. Commit metadata and the reason for the revert should be
+appended. Commit message rules about line length and subsystem can be ignored.
+A Pull Request should be raised and approved like any other change.
+
+### Introducing New Modules
+
+Semver-minor commits that introduce new core modules should be treated with
+extra care.
+
+The name of the new core module should not conflict with any existing
+module in the ecosystem unless a written agreement with the owner of those
+modules is reached to transfer ownership.
+
+If the new module name is free, a Collaborator should register a placeholder
+in the module registry as soon as possible, linking to the pull request that
+introduces the new core module.
+
+Pull requests introducing new core modules:
+
+* Must be left open for at least one week for review.
+* Must be labeled using the `ctc-review` label.
+* Must have signoff from at least two CTC members.
+
+New core modules must be landed with a [Stability Index][] of Experimental,
+and must remain Experimental until a semver-major release.
+
+For new modules that involve significant effort, non-trivial additions to
+Node.js or significant new capabilities, an [Enhancement Proposal][] is
+recommended but not required.
 
 ### Deprecations
 
@@ -261,7 +326,7 @@ operation of running code and therefore should not be viewed as breaking
 changes.
 
 Runtime Deprecations and End-of-life APIs (internal or public) *must* be
-handled as semver-major changes unless there is CTC consensus to land the
+handled as semver-major changes unless there is TSC consensus to land the
 deprecation as a semver-minor.
 
 All Documentation-Only and Runtime deprecations will be assigned a unique
@@ -287,10 +352,10 @@ request adding the deprecation lands in master). All deprecations included in
 a Node.js release should be listed prominently in the "Notable Changes" section
 of the release notes.
 
-### Involving the CTC
+### Involving the TSC
 
-Collaborators may opt to elevate pull requests or issues to the CTC for
-discussion by assigning the `ctc-review` label. This should be done
+Collaborators may opt to elevate pull requests or issues to the TSC for
+discussion by assigning the `tsc-review` label. This should be done
 where a pull request:
 
 - has a significant impact on the codebase,
@@ -298,7 +363,7 @@ where a pull request:
 - has failed to reach consensus amongst the Collaborators who are
   actively participating in the discussion.
 
-The CTC should serve as the final arbiter where required.
+The TSC should serve as the final arbiter where required.
 
 ## Landing Pull Requests
 
@@ -479,9 +544,36 @@ your pull request shows the purple merged status then you should still
 add the "Landed in <commit hash>..<commit hash>" comment if you added
 multiple commits.
 
+### Troubleshooting
+
+Sometimes, when running `git push upstream master`, you may get an error message
+like this:
+
+```console
+To https://github.com/nodejs/node
+ ! [rejected]              master -> master (fetch first)
+error: failed to push some refs to 'https://github.com/nodejs/node'
+hint: Updates were rejected because the remote contains work that you do
+hint: not have locally. This is usually caused by another repository pushing
+hint: to the same ref. You may want to first integrate the remote changes
+hint: (e.g., 'git pull ...') before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+```
+
+That means a commit has landed since your last rebase against `upstream/master`.
+To fix this, fetch, rebase, run the tests again (to make sure no interactions
+between your changes and the new changes cause any problems), and push again:
+
+```sh
+git fetch upstream
+git rebase upstream/master
+make -j4 test
+git push upstream master
+```
+
 ### I Just Made a Mistake
 
-* Ping a CTC member.
+* Ping a TSC member.
 * `#node-dev` on freenode
 * With `git`, there's a way to override remote trees by force pushing
 (`git push -f`). This should generally be seen as forbidden (since
@@ -510,9 +602,9 @@ Once a Current branch enters LTS, changes in that branch are limited to bug
 fixes, security updates, possible npm updates, documentation updates, and
 certain performance improvements that can be demonstrated to not break existing
 applications. Semver-minor changes are only permitted if required for bug fixes
-and then only on a case-by-case basis with LTS WG and possibly Core Technical
-Committee (CTC) review. Semver-major changes are permitted only if required for
-security related fixes.
+and then only on a case-by-case basis with LTS WG and possibly Technical
+Steering Committee (TSC) review. Semver-major changes are permitted only if
+required for security related fixes.
 
 Once a Current branch moves into Maintenance mode, only **critical** bugs,
 **critical** security fixes, and documentation updates will be permitted.
@@ -520,7 +612,7 @@ Once a Current branch moves into Maintenance mode, only **critical** bugs,
 #### Landing semver-minor commits in LTS
 
 The default policy is to not land semver-minor or higher commits in any LTS
-branch. However, the LTS WG or CTC can evaluate any individual semver-minor
+branch. However, the LTS WG or TSC can evaluate any individual semver-minor
 commit and decide whether a special exception ought to be made. It is
 expected that such exceptions would be evaluated, in part, on the scope
 and impact of the changes on the code, the risk to ecosystem stability
@@ -530,7 +622,7 @@ commit will have for the ecosystem.
 Any collaborator who feels a semver-minor commit should be landed in an LTS
 branch should attach the `lts-agenda` label to the pull request. The LTS WG
 will discuss the issue and, if necessary, will escalate the issue up to the
-CTC for further discussion.
+TSC for further discussion.
 
 #### How are LTS Branches Managed?
 
@@ -582,3 +674,5 @@ release. This process of making a release will be a collaboration between the
 LTS working group and the Release team.
 
 [backporting guide]: doc/guides/backporting-to-release-lines.md
+[Stability Index]: https://github.com/nodejs/node/pull/doc/api/documentation.md#stability-index
+[Enhancement Proposal]: https://github.com/nodejs/node-eps

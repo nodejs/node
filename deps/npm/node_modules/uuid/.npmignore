@@ -1,8 +1,0 @@
-node_modules
-.DS_Store
-
-# VIM temp files
-*.sw*
-
-# Mac desktop services store
-.DS_Store

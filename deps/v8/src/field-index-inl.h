@@ -6,12 +6,12 @@
 #define V8_FIELD_INDEX_INL_H_
 
 #include "src/field-index.h"
+#include "src/objects/descriptor-array.h"
 
 namespace v8 {
 namespace internal {
 
-
-inline FieldIndex FieldIndex::ForInObjectOffset(int offset, Map* map) {
+inline FieldIndex FieldIndex::ForInObjectOffset(int offset, const Map* map) {
   DCHECK((offset % kPointerSize) == 0);
   int index = offset / kPointerSize;
   DCHECK(map == NULL ||
@@ -20,8 +20,7 @@ inline FieldIndex FieldIndex::ForInObjectOffset(int offset, Map* map) {
   return FieldIndex(true, index, false, 0, 0, true);
 }
 
-
-inline FieldIndex FieldIndex::ForPropertyIndex(Map* map,
+inline FieldIndex FieldIndex::ForPropertyIndex(const Map* map,
                                                int property_index,
                                                bool is_double) {
   DCHECK(map->instance_type() >= FIRST_NONSTRING_TYPE);
@@ -41,9 +40,10 @@ inline FieldIndex FieldIndex::ForPropertyIndex(Map* map,
 
 // Takes an index as computed by GetLoadByFieldIndex and reconstructs a
 // FieldIndex object from it.
-inline FieldIndex FieldIndex::ForLoadByFieldIndex(Map* map, int orig_index) {
+inline FieldIndex FieldIndex::ForLoadByFieldIndex(const Map* map,
+                                                  int orig_index) {
   int field_index = orig_index;
-  int is_inobject = true;
+  bool is_inobject = true;
   bool is_double = field_index & 1;
   int first_inobject_offset = 0;
   field_index >>= 1;
@@ -84,7 +84,8 @@ inline int FieldIndex::GetLoadByFieldIndex() const {
   return is_double() ? (result | 1) : result;
 }
 
-inline FieldIndex FieldIndex::ForDescriptor(Map* map, int descriptor_index) {
+inline FieldIndex FieldIndex::ForDescriptor(const Map* map,
+                                            int descriptor_index) {
   PropertyDetails details =
       map->instance_descriptors()->GetDetails(descriptor_index);
   int field_index = details.field_index();

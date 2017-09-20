@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  ustrcase_locale.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -18,66 +18,24 @@
 */
 
 #include "unicode/utypes.h"
+#include "uassert.h"
+#include "unicode/brkiter.h"
+#include "unicode/casemap.h"
 #include "unicode/ucasemap.h"
 #include "unicode/uloc.h"
 #include "unicode/ustring.h"
 #include "ucase.h"
-#include "ustr_imp.h"
+#include "ucasemap_imp.h"
 
-U_CFUNC void
-ustrcase_setTempCaseMapLocale(UCaseMap *csm, const char *locale) {
-    /*
-     * We could call ucasemap_setLocale(), but here we really only care about
-     * the initial language subtag, we need not return the real string via
-     * ucasemap_getLocale(), and we don't care about only getting "x" from
-     * "x-some-thing" etc.
-     *
-     * We ignore locales with a longer-than-3 initial subtag.
-     *
-     * We also do not fill in the locCache because it is rarely used,
-     * and not worth setting unless we reuse it for many case mapping operations.
-     * (That's why UCaseMap was created.)
-     */
-    int i;
-    char c;
-
-    /* the internal functions require locale!=NULL */
-    if(locale==NULL) {
-        // Do not call uprv_getDefaultLocaleID() because that does not see
-        // changes to the default locale via uloc_setDefault().
-        // It would also be inefficient if used frequently because uprv_getDefaultLocaleID()
-        // does not cache the locale ID.
-        //
-        // Unfortunately, uloc_getDefault() has many dependencies.
-        // We only care about a small set of language subtags,
-        // and we do not need the locale ID to be canonicalized.
-        //
-        // Best is to not call case mapping functions with a NULL locale ID.
-        locale=uloc_getDefault();
+U_CFUNC int32_t
+ustrcase_getCaseLocale(const char *locale) {
+    if (locale == NULL) {
+        locale = uloc_getDefault();
     }
-    for(i=0; i<4 && (c=locale[i])!=0 && c!='-' && c!='_'; ++i) {
-        csm->locale[i]=c;
-    }
-    if(i<=3) {
-        csm->locale[i]=0;  /* Up to 3 non-separator characters. */
+    if (*locale == 0) {
+        return UCASE_LOC_ROOT;
     } else {
-        csm->locale[0]=0;  /* Longer-than-3 initial subtag: Ignore. */
-    }
-}
-
-/*
- * Set parameters on an empty UCaseMap, for UCaseMap-less API functions.
- * Do this fast because it is called with every function call.
- */
-static inline void
-setTempCaseMap(UCaseMap *csm, const char *locale) {
-    if(csm->csp==NULL) {
-        csm->csp=ucase_getSingleton();
-    }
-    if(locale!=NULL && locale[0]==0) {
-        csm->locale[0]=0;
-    } else {
-        ustrcase_setTempCaseMapLocale(csm, locale);
+        return ucase_getCaseLocale(locale);
     }
 }
 
@@ -88,13 +46,11 @@ u_strToLower(UChar *dest, int32_t destCapacity,
              const UChar *src, int32_t srcLength,
              const char *locale,
              UErrorCode *pErrorCode) {
-    UCaseMap csm=UCASEMAP_INITIALIZER;
-    setTempCaseMap(&csm, locale);
-    return ustrcase_map(
-        &csm,
+    return ustrcase_mapWithOverlap(
+        ustrcase_getCaseLocale(locale), 0, UCASEMAP_BREAK_ITERATOR_NULL
         dest, destCapacity,
         src, srcLength,
-        ustrcase_internalToLower, pErrorCode);
+        ustrcase_internalToLower, *pErrorCode);
 }
 
 U_CAPI int32_t U_EXPORT2
@@ -102,11 +58,37 @@ u_strToUpper(UChar *dest, int32_t destCapacity,
              const UChar *src, int32_t srcLength,
              const char *locale,
              UErrorCode *pErrorCode) {
-    UCaseMap csm=UCASEMAP_INITIALIZER;
-    setTempCaseMap(&csm, locale);
-    return ustrcase_map(
-        &csm,
+    return ustrcase_mapWithOverlap(
+        ustrcase_getCaseLocale(locale), 0, UCASEMAP_BREAK_ITERATOR_NULL
         dest, destCapacity,
         src, srcLength,
-        ustrcase_internalToUpper, pErrorCode);
+        ustrcase_internalToUpper, *pErrorCode);
 }
+
+U_NAMESPACE_BEGIN
+
+int32_t CaseMap::toLower(
+        const char *locale, uint32_t options,
+        const UChar *src, int32_t srcLength,
+        UChar *dest, int32_t destCapacity, Edits *edits,
+        UErrorCode &errorCode) {
+    return ustrcase_map(
+        ustrcase_getCaseLocale(locale), options, UCASEMAP_BREAK_ITERATOR_NULL
+        dest, destCapacity,
+        src, srcLength,
+        ustrcase_internalToLower, edits, errorCode);
+}
+
+int32_t CaseMap::toUpper(
+        const char *locale, uint32_t options,
+        const UChar *src, int32_t srcLength,
+        UChar *dest, int32_t destCapacity, Edits *edits,
+        UErrorCode &errorCode) {
+    return ustrcase_map(
+        ustrcase_getCaseLocale(locale), options, UCASEMAP_BREAK_ITERATOR_NULL
+        dest, destCapacity,
+        src, srcLength,
+        ustrcase_internalToUpper, edits, errorCode);
+}
+
+U_NAMESPACE_END

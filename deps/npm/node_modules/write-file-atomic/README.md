@@ -13,6 +13,7 @@ atomic and allows you set ownership (uid/gid of the file).
     * uid **Number**
     * gid **Number**
   * encoding **String** | **Null** default = 'utf8'
+  * fsync **Boolean** default = true
   * mode **Number** default = 438 (aka 0666 in Octal)
 callback **Function**
 
@@ -29,6 +30,8 @@ If provided, the **chown** option requires both **uid** and **gid** properties o
 you'll get an error.
 
 The **encoding** option is ignored if **data** is a buffer. It defaults to 'utf8'.
+
+If the **fsync** option is **false**, writeFile will skip the final fsync call.
 
 Example:
 

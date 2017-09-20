@@ -21,32 +21,30 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-const tls = require('tls');
 
+const assert = require('assert');
 const fs = require('fs');
-
+const tls = require('tls');
 
 let received = '';
 
 const server = tls.createServer({
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
-}, function(c) {
-  c._write('hello ', null, function() {
-    c._write('world!', null, function() {
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
+}, common.mustCall(function(c) {
+  c._write('hello ', null, common.mustCall(function() {
+    c._write('world!', null, common.mustCall(function() {
       c.destroy();
-    });
-    c._write(' gosh', null, common.noop);
-  });
+    }));
+    // Data on next _write() will be written but callback will not be invoked
+    c._write(' gosh', null, common.mustNotCall());
+  }));
 
   server.close();
-}).listen(0, common.mustCall(function() {
+})).listen(0, common.mustCall(function() {
   const c = tls.connect(this.address().port, {
     rejectUnauthorized: false
   }, common.mustCall(function() {

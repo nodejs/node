@@ -34,41 +34,6 @@ function last(arr) {
 }
 
 /**
- * Checks whether a property is a member of the property group it follows.
- * @param {ASTNode} lastMember The last Property known to be in the group.
- * @param {ASTNode} candidate The next Property that might be in the group.
- * @returns {boolean} True if the candidate property is part of the group.
- */
-function continuesPropertyGroup(lastMember, candidate) {
-    const groupEndLine = lastMember.loc.start.line,
-        candidateStartLine = candidate.loc.start.line;
-
-    if (candidateStartLine - groupEndLine <= 1) {
-        return true;
-    }
-
-    // Check that the first comment is adjacent to the end of the group, the
-    // last comment is adjacent to the candidate property, and that successive
-    // comments are adjacent to each other.
-    const comments = candidate.leadingComments;
-
-    if (
-        comments &&
-        comments[0].loc.start.line - groupEndLine <= 1 &&
-        candidateStartLine - last(comments).loc.end.line <= 1
-    ) {
-        for (let i = 1; i < comments.length; i++) {
-            if (comments[i].loc.start.line - comments[i - 1].loc.end.line > 1) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    return false;
-}
-
-/**
  * Checks whether a node is contained on a single line.
  * @param {ASTNode} node AST Node being evaluated.
  * @returns {boolean} True if the node is a single line.
@@ -349,6 +314,41 @@ module.exports = {
             alignmentOptions = ruleOptions.align || null;
 
         const sourceCode = context.getSourceCode();
+
+        /**
+         * Checks whether a property is a member of the property group it follows.
+         * @param {ASTNode} lastMember The last Property known to be in the group.
+         * @param {ASTNode} candidate The next Property that might be in the group.
+         * @returns {boolean} True if the candidate property is part of the group.
+         */
+        function continuesPropertyGroup(lastMember, candidate) {
+            const groupEndLine = lastMember.loc.start.line,
+                candidateStartLine = candidate.loc.start.line;
+
+            if (candidateStartLine - groupEndLine <= 1) {
+                return true;
+            }
+
+            // Check that the first comment is adjacent to the end of the group, the
+            // last comment is adjacent to the candidate property, and that successive
+            // comments are adjacent to each other.
+            const leadingComments = sourceCode.getCommentsBefore(candidate);
+
+            if (
+                leadingComments.length &&
+                leadingComments[0].loc.start.line - groupEndLine <= 1 &&
+                candidateStartLine - last(leadingComments).loc.end.line <= 1
+            ) {
+                for (let i = 1; i < leadingComments.length; i++) {
+                    if (leadingComments[i].loc.start.line - leadingComments[i - 1].loc.end.line > 1) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            return false;
+        }
 
         /**
          * Determines if the given property is key-value property.
@@ -632,7 +632,6 @@ module.exports = {
                 verifySpacing(node, isSingleLine(node.parent) ? singleLineOptions : multiLineOptions);
             }
         };
-
 
 
     }

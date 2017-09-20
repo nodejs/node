@@ -6,7 +6,8 @@
 
 #include <iomanip>
 
-#include "src/utils.h"
+#include "src/interpreter/interpreter-intrinsics.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -67,6 +68,22 @@ uint32_t BytecodeDecoder::DecodeUnsignedOperand(const uint8_t* operand_start,
   return 0;
 }
 
+namespace {
+const char* NameForRuntimeId(uint32_t idx) {
+  switch (idx) {
+#define CASE(name, nargs, ressize) \
+  case Runtime::k##name:           \
+    return #name;                  \
+  case Runtime::kInline##name:     \
+    return "_" #name;
+    FOR_EACH_INTRINSIC(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+}  // anonymous namespace
+
 // static
 std::ostream& BytecodeDecoder::Decode(std::ostream& os,
                                       const uint8_t* bytecode_start,
@@ -112,10 +129,19 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
     switch (op_type) {
       case interpreter::OperandType::kIdx:
       case interpreter::OperandType::kUImm:
-      case interpreter::OperandType::kRuntimeId:
-      case interpreter::OperandType::kIntrinsicId:
         os << "["
            << DecodeUnsignedOperand(operand_start, op_type, operand_scale)
+           << "]";
+        break;
+      case interpreter::OperandType::kIntrinsicId: {
+        auto id = static_cast<IntrinsicsHelper::IntrinsicId>(
+            DecodeUnsignedOperand(operand_start, op_type, operand_scale));
+        os << "[" << NameForRuntimeId(IntrinsicsHelper::ToRuntimeId(id)) << "]";
+        break;
+      }
+      case interpreter::OperandType::kRuntimeId:
+        os << "[" << NameForRuntimeId(DecodeUnsignedOperand(
+                         operand_start, op_type, operand_scale))
            << "]";
         break;
       case interpreter::OperandType::kImm:
@@ -148,6 +174,7 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
            << reg_list.last_register().ToString(parameter_count);
         break;
       }
+      case interpreter::OperandType::kRegOutList:
       case interpreter::OperandType::kRegList: {
         DCHECK_LT(i, number_of_operands - 1);
         DCHECK_EQ(Bytecodes::GetOperandType(bytecode, i + 1),

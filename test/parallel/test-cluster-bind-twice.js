@@ -54,21 +54,21 @@ if (!id) {
   a.on('exit', common.mustCall((c) => {
     if (c) {
       b.send('QUIT');
-      throw new Error('A exited with ' + c);
+      throw new Error(`A exited with ${c}`);
     }
   }));
 
   b.on('exit', common.mustCall((c) => {
     if (c) {
       a.send('QUIT');
-      throw new Error('B exited with ' + c);
+      throw new Error(`B exited with ${c}`);
     }
   }));
 
 
   a.on('message', common.mustCall((m) => {
     assert.strictEqual(m.msg, 'READY');
-    b.send({msg: 'START', port: m.port});
+    b.send({ msg: 'START', port: m.port });
   }));
 
   b.on('message', common.mustCall((m) => {
@@ -82,7 +82,7 @@ if (!id) {
 
   const server = http.createServer(common.mustNotCall());
   server.listen(0, common.mustCall(() => {
-    process.send({msg: 'READY', port: server.address().port});
+    process.send({ msg: 'READY', port: server.address().port });
   }));
 
   process.on('message', common.mustCall((m) => {

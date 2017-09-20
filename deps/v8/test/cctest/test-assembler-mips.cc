@@ -46,7 +46,7 @@ using namespace v8::internal;
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 typedef Object* (*F2)(int x, int y, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
-
+typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 
@@ -63,7 +63,7 @@ TEST(MIPS0) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
@@ -99,7 +99,7 @@ TEST(MIPS1) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F1 f = FUNCTION_CAST<F1>(code->entry());
@@ -237,7 +237,7 @@ TEST(MIPS2) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
@@ -279,36 +279,36 @@ TEST(MIPS3) {
   Label L, C;
 
   // Double precision floating point instructions.
-  __ ldc1(f4, MemOperand(a0, offsetof(T, a)) );
-  __ ldc1(f6, MemOperand(a0, offsetof(T, b)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
+  __ Ldc1(f6, MemOperand(a0, offsetof(T, b)));
   __ add_d(f8, f4, f6);
-  __ sdc1(f8, MemOperand(a0, offsetof(T, c)) );  // c = a + b.
+  __ Sdc1(f8, MemOperand(a0, offsetof(T, c)));  // c = a + b.
 
   __ mov_d(f10, f8);  // c
   __ neg_d(f12, f6);  // -b
   __ sub_d(f10, f10, f12);
-  __ sdc1(f10, MemOperand(a0, offsetof(T, d)) );  // d = c - (-b).
+  __ Sdc1(f10, MemOperand(a0, offsetof(T, d)));  // d = c - (-b).
 
-  __ sdc1(f4, MemOperand(a0, offsetof(T, b)) );   // b = a.
+  __ Sdc1(f4, MemOperand(a0, offsetof(T, b)));  // b = a.
 
   __ li(t0, 120);
   __ mtc1(t0, f14);
   __ cvt_d_w(f14, f14);   // f14 = 120.0.
   __ mul_d(f10, f10, f14);
-  __ sdc1(f10, MemOperand(a0, offsetof(T, e)) );  // e = d * 120 = 1.8066e16.
+  __ Sdc1(f10, MemOperand(a0, offsetof(T, e)));  // e = d * 120 = 1.8066e16.
 
   __ div_d(f12, f10, f4);
-  __ sdc1(f12, MemOperand(a0, offsetof(T, f)) );  // f = e / a = 120.44.
+  __ Sdc1(f12, MemOperand(a0, offsetof(T, f)));  // f = e / a = 120.44.
 
   __ sqrt_d(f14, f12);
-  __ sdc1(f14, MemOperand(a0, offsetof(T, g)) );
+  __ Sdc1(f14, MemOperand(a0, offsetof(T, g)));
   // g = sqrt(f) = 10.97451593465515908537
 
   if (IsMipsArchVariant(kMips32r2)) {
-    __ ldc1(f4, MemOperand(a0, offsetof(T, h)) );
-    __ ldc1(f6, MemOperand(a0, offsetof(T, i)) );
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, h)));
+    __ Ldc1(f6, MemOperand(a0, offsetof(T, i)));
     __ madd_d(f14, f6, f4, f6);
-    __ sdc1(f14, MemOperand(a0, offsetof(T, h)) );
+    __ Sdc1(f14, MemOperand(a0, offsetof(T, h)));
   }
 
   // Single precision floating point instructions.
@@ -339,7 +339,7 @@ TEST(MIPS3) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -404,11 +404,11 @@ TEST(MIPS4) {
   } T;
   T t;
 
-  Assembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label L, C;
 
-  __ ldc1(f4, MemOperand(a0, offsetof(T, a)) );
-  __ ldc1(f6, MemOperand(a0, offsetof(T, b)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
+  __ Ldc1(f6, MemOperand(a0, offsetof(T, b)));
 
   // Swap f4 and f6, by using four integer registers, t0-t3.
   if (IsFp32Mode()) {
@@ -436,14 +436,14 @@ TEST(MIPS4) {
   }
 
   // Store the swapped f4 and f5 back to memory.
-  __ sdc1(f4, MemOperand(a0, offsetof(T, a)) );
-  __ sdc1(f6, MemOperand(a0, offsetof(T, c)) );
+  __ Sdc1(f4, MemOperand(a0, offsetof(T, a)));
+  __ Sdc1(f6, MemOperand(a0, offsetof(T, c)));
 
   __ jr(ra);
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -473,12 +473,12 @@ TEST(MIPS5) {
   } T;
   T t;
 
-  Assembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label L, C;
 
   // Load all structure elements to registers.
-  __ ldc1(f4, MemOperand(a0, offsetof(T, a)) );
-  __ ldc1(f6, MemOperand(a0, offsetof(T, b)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
+  __ Ldc1(f6, MemOperand(a0, offsetof(T, b)));
   __ lw(t0, MemOperand(a0, offsetof(T, i)) );
   __ lw(t1, MemOperand(a0, offsetof(T, j)) );
 
@@ -495,18 +495,18 @@ TEST(MIPS5) {
   // Convert int in original i (t0) to double in a.
   __ mtc1(t0, f12);
   __ cvt_d_w(f0, f12);
-  __ sdc1(f0, MemOperand(a0, offsetof(T, a)) );
+  __ Sdc1(f0, MemOperand(a0, offsetof(T, a)));
 
   // Convert int in original j (t1) to double in b.
   __ mtc1(t1, f14);
   __ cvt_d_w(f2, f14);
-  __ sdc1(f2, MemOperand(a0, offsetof(T, b)) );
+  __ Sdc1(f2, MemOperand(a0, offsetof(T, b)));
 
   __ jr(ra);
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -576,7 +576,7 @@ TEST(MIPS6) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -626,8 +626,8 @@ TEST(MIPS7) {
   MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label neither_is_nan, less_than, outa_here;
 
-  __ ldc1(f4, MemOperand(a0, offsetof(T, a)) );
-  __ ldc1(f6, MemOperand(a0, offsetof(T, b)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(T, a)));
+  __ Ldc1(f6, MemOperand(a0, offsetof(T, b)));
   if (!IsMipsArchVariant(kMips32r6)) {
   __ c(UN, D, f4, f6);
   __ bc1f(&neither_is_nan);
@@ -669,7 +669,7 @@ TEST(MIPS7) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -767,7 +767,7 @@ TEST(MIPS8) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -813,7 +813,7 @@ TEST(MIPS9) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 }
@@ -835,14 +835,14 @@ TEST(MIPS10) {
   } T;
   T t;
 
-  Assembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label L, C;
 
   if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) return;
 
   // Load all structure elements to registers.
   // (f0, f1) = a (fp32), f0 = a (fp64)
-  __ ldc1(f0, MemOperand(a0, offsetof(T, a)));
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, a)));
 
   __ mfc1(t0, f0);   // t0 = f0(31..0)
   __ mfhc1(t1, f0);  // t1 = sign_extend(f0(63..32))
@@ -858,13 +858,13 @@ TEST(MIPS10) {
   __ lw(t0, MemOperand(a0, offsetof(T, b_word)));
   __ mtc1(t0, f8);  // f8 has a 32-bits word.
   __ cvt_d_w(f10, f8);
-  __ sdc1(f10, MemOperand(a0, offsetof(T, b)));
+  __ Sdc1(f10, MemOperand(a0, offsetof(T, b)));
 
   __ jr(ra);
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -992,7 +992,7 @@ TEST(MIPS11) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1118,7 +1118,7 @@ TEST(MIPS12) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1156,14 +1156,14 @@ TEST(MIPS13) {
 
   __ sw(t0, MemOperand(a0, offsetof(T, cvt_small_in)));
   __ Cvt_d_uw(f10, t0, f4);
-  __ sdc1(f10, MemOperand(a0, offsetof(T, cvt_small_out)));
+  __ Sdc1(f10, MemOperand(a0, offsetof(T, cvt_small_out)));
 
   __ Trunc_uw_d(f10, f10, f4);
   __ swc1(f10, MemOperand(a0, offsetof(T, trunc_small_out)));
 
   __ sw(t0, MemOperand(a0, offsetof(T, cvt_big_in)));
   __ Cvt_d_uw(f8, t0, f4);
-  __ sdc1(f8, MemOperand(a0, offsetof(T, cvt_big_out)));
+  __ Sdc1(f8, MemOperand(a0, offsetof(T, cvt_big_out)));
 
   __ Trunc_uw_d(f8, f8, f4);
   __ swc1(f8, MemOperand(a0, offsetof(T, trunc_big_out)));
@@ -1172,7 +1172,7 @@ TEST(MIPS13) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1236,48 +1236,48 @@ TEST(MIPS14) {
   __ cfc1(a1, FCSR);
   // Disable FPU exceptions.
   __ ctc1(zero_reg, FCSR);
-#define RUN_ROUND_TEST(x) \
-  __ cfc1(t0, FCSR);\
-  __ sw(t0, MemOperand(a0, offsetof(T, x##_isNaN2008))); \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, round_up_in))); \
-  __ x##_w_d(f0, f0); \
-  __ swc1(f0, MemOperand(a0, offsetof(T, x##_up_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, round_down_in))); \
-  __ x##_w_d(f0, f0); \
-  __ swc1(f0, MemOperand(a0, offsetof(T, x##_down_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, neg_round_up_in))); \
-  __ x##_w_d(f0, f0); \
-  __ swc1(f0, MemOperand(a0, offsetof(T, neg_##x##_up_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, neg_round_down_in))); \
-  __ x##_w_d(f0, f0); \
+#define RUN_ROUND_TEST(x)                                       \
+  __ cfc1(t0, FCSR);                                            \
+  __ sw(t0, MemOperand(a0, offsetof(T, x##_isNaN2008)));        \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, round_up_in)));        \
+  __ x##_w_d(f0, f0);                                           \
+  __ swc1(f0, MemOperand(a0, offsetof(T, x##_up_out)));         \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, round_down_in)));      \
+  __ x##_w_d(f0, f0);                                           \
+  __ swc1(f0, MemOperand(a0, offsetof(T, x##_down_out)));       \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, neg_round_up_in)));    \
+  __ x##_w_d(f0, f0);                                           \
+  __ swc1(f0, MemOperand(a0, offsetof(T, neg_##x##_up_out)));   \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, neg_round_down_in)));  \
+  __ x##_w_d(f0, f0);                                           \
   __ swc1(f0, MemOperand(a0, offsetof(T, neg_##x##_down_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, err1_in))); \
-  __ ctc1(zero_reg, FCSR); \
-  __ x##_w_d(f0, f0); \
-  __ cfc1(a2, FCSR); \
-  __ sw(a2, MemOperand(a0, offsetof(T, x##_err1_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, err2_in))); \
-  __ ctc1(zero_reg, FCSR); \
-  __ x##_w_d(f0, f0); \
-  __ cfc1(a2, FCSR); \
-  __ sw(a2, MemOperand(a0, offsetof(T, x##_err2_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, err3_in))); \
-  __ ctc1(zero_reg, FCSR); \
-  __ x##_w_d(f0, f0); \
-  __ cfc1(a2, FCSR); \
-  __ sw(a2, MemOperand(a0, offsetof(T, x##_err3_out))); \
-  \
-  __ ldc1(f0, MemOperand(a0, offsetof(T, err4_in))); \
-  __ ctc1(zero_reg, FCSR); \
-  __ x##_w_d(f0, f0); \
-  __ cfc1(a2, FCSR); \
-  __ sw(a2, MemOperand(a0, offsetof(T, x##_err4_out))); \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, err1_in)));            \
+  __ ctc1(zero_reg, FCSR);                                      \
+  __ x##_w_d(f0, f0);                                           \
+  __ cfc1(a2, FCSR);                                            \
+  __ sw(a2, MemOperand(a0, offsetof(T, x##_err1_out)));         \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, err2_in)));            \
+  __ ctc1(zero_reg, FCSR);                                      \
+  __ x##_w_d(f0, f0);                                           \
+  __ cfc1(a2, FCSR);                                            \
+  __ sw(a2, MemOperand(a0, offsetof(T, x##_err2_out)));         \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, err3_in)));            \
+  __ ctc1(zero_reg, FCSR);                                      \
+  __ x##_w_d(f0, f0);                                           \
+  __ cfc1(a2, FCSR);                                            \
+  __ sw(a2, MemOperand(a0, offsetof(T, x##_err3_out)));         \
+                                                                \
+  __ Ldc1(f0, MemOperand(a0, offsetof(T, err4_in)));            \
+  __ ctc1(zero_reg, FCSR);                                      \
+  __ x##_w_d(f0, f0);                                           \
+  __ cfc1(a2, FCSR);                                            \
+  __ sw(a2, MemOperand(a0, offsetof(T, x##_err4_out)));         \
   __ swc1(f0, MemOperand(a0, offsetof(T, x##_invalid_result)));
 
   RUN_ROUND_TEST(round)
@@ -1293,7 +1293,7 @@ TEST(MIPS14) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1384,32 +1384,32 @@ TEST(seleqz_selnez) {
     __ selnez(t3, t1, t1);                          // t3 = 1
     __ sw(t3, MemOperand(a0, offsetof(Test, d)));  // d = 1
     // Floating point part of test.
-    __ ldc1(f0, MemOperand(a0, offsetof(Test, e)) );  // src
-    __ ldc1(f2, MemOperand(a0, offsetof(Test, f)) );  // test
+    __ Ldc1(f0, MemOperand(a0, offsetof(Test, e)));   // src
+    __ Ldc1(f2, MemOperand(a0, offsetof(Test, f)));   // test
     __ lwc1(f8, MemOperand(a0, offsetof(Test, i)) );  // src
     __ lwc1(f10, MemOperand(a0, offsetof(Test, j)) );  // test
     __ seleqz_d(f4, f0, f2);
     __ selnez_d(f6, f0, f2);
     __ seleqz_s(f12, f8, f10);
     __ selnez_s(f14, f8, f10);
-    __ sdc1(f4, MemOperand(a0, offsetof(Test, g)) );  // src
-    __ sdc1(f6, MemOperand(a0, offsetof(Test, h)) );  // src
+    __ Sdc1(f4, MemOperand(a0, offsetof(Test, g)));    // src
+    __ Sdc1(f6, MemOperand(a0, offsetof(Test, h)));    // src
     __ swc1(f12, MemOperand(a0, offsetof(Test, k)) );  // src
     __ swc1(f14, MemOperand(a0, offsetof(Test, l)) );  // src
     __ jr(ra);
     __ nop();
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
 
     (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
 
-    CHECK_EQ(test.a, 1);
-    CHECK_EQ(test.b, 0);
-    CHECK_EQ(test.c, 0);
-    CHECK_EQ(test.d, 1);
+    CHECK_EQ(1, test.a);
+    CHECK_EQ(0, test.b);
+    CHECK_EQ(0, test.c);
+    CHECK_EQ(1, test.d);
 
     const int test_size = 3;
     const int input_size = 5;
@@ -1433,18 +1433,18 @@ TEST(seleqz_selnez) {
         test.i = inputs_S[i];
         test.j = tests_S[j];
         (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-        CHECK_EQ(test.g, outputs_D[i]);
-        CHECK_EQ(test.h, 0);
-        CHECK_EQ(test.k, outputs_S[i]);
-        CHECK_EQ(test.l, 0);
+        CHECK_EQ(outputs_D[i], test.g);
+        CHECK_EQ(0, test.h);
+        CHECK_EQ(outputs_S[i], test.k);
+        CHECK_EQ(0, test.l);
 
         test.f = tests_D[j+1];
         test.j = tests_S[j+1];
         (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-        CHECK_EQ(test.g, 0);
-        CHECK_EQ(test.h, outputs_D[i]);
-        CHECK_EQ(test.k, 0);
-        CHECK_EQ(test.l, outputs_S[i]);
+        CHECK_EQ(0, test.g);
+        CHECK_EQ(outputs_D[i], test.h);
+        CHECK_EQ(0, test.k);
+        CHECK_EQ(outputs_S[i], test.l);
       }
     }
   }
@@ -1498,23 +1498,23 @@ TEST(min_max) {
     float outputsfmax[kTableLength] = {3.0,  3.0,  3.0,  3.0,  0.0,  0.0, finf,
                                        finf, finf, finf, finf, finf, fnan};
 
-    __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
-    __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+    __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
     __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, e)));
     __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, f)));
     __ min_d(f10, f4, f8);
     __ max_d(f12, f4, f8);
     __ min_s(f14, f2, f6);
     __ max_s(f16, f2, f6);
-    __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
-    __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, d)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
+    __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, d)));
     __ swc1(f14, MemOperand(a0, offsetof(TestFloat, g)));
     __ swc1(f16, MemOperand(a0, offsetof(TestFloat, h)));
     __ jr(ra);
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1614,18 +1614,18 @@ TEST(rint_d)  {
     int fcsr_inputs[4] =
       {kRoundToNearest, kRoundToZero, kRoundToPlusInf, kRoundToMinusInf};
     double* outputs[4] = {outputs_RN, outputs_RZ, outputs_RP, outputs_RM};
-    __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)) );
+    __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
     __ lw(t0, MemOperand(a0, offsetof(TestFloat, fcsr)) );
     __ cfc1(t1, FCSR);
     __ ctc1(t0, FCSR);
     __ rint_d(f8, f4);
-    __ sdc1(f8, MemOperand(a0, offsetof(TestFloat, b)) );
+    __ Sdc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
     __ ctc1(t1, FCSR);
     __ jr(ra);
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1660,20 +1660,20 @@ TEST(sel) {
     } Test;
 
     Test test;
-    __ ldc1(f0, MemOperand(a0, offsetof(Test, dd)) );  // test
-    __ ldc1(f2, MemOperand(a0, offsetof(Test, ds)) );  // src1
-    __ ldc1(f4, MemOperand(a0, offsetof(Test, dt)) );  // src2
+    __ Ldc1(f0, MemOperand(a0, offsetof(Test, dd)));   // test
+    __ Ldc1(f2, MemOperand(a0, offsetof(Test, ds)));   // src1
+    __ Ldc1(f4, MemOperand(a0, offsetof(Test, dt)));   // src2
     __ lwc1(f6, MemOperand(a0, offsetof(Test, fd)) );  // test
     __ lwc1(f8, MemOperand(a0, offsetof(Test, fs)) );  // src1
     __ lwc1(f10, MemOperand(a0, offsetof(Test, ft)) );  // src2
     __ sel_d(f0, f2, f4);
     __ sel_s(f6, f8, f10);
-    __ sdc1(f0, MemOperand(a0, offsetof(Test, dd)) );
+    __ Sdc1(f0, MemOperand(a0, offsetof(Test, dd)));
     __ swc1(f6, MemOperand(a0, offsetof(Test, fd)) );
     __ jr(ra);
     __ nop();
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1806,7 +1806,7 @@ TEST(rint_s)  {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1850,12 +1850,12 @@ TEST(Cvt_d_uw) {
 
   __ lw(t1, MemOperand(a0, offsetof(TestStruct, input)));
   __ Cvt_d_uw(f4, t1, f6);
-  __ sdc1(f4, MemOperand(a0, offsetof(TestStruct, output)));
+  __ Sdc1(f4, MemOperand(a0, offsetof(TestStruct, output)));
   __ jr(ra);
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -1921,8 +1921,8 @@ TEST(mina_maxa) {
         5.3, 5.3, 6.1, -10.0, 9.8,  9.8,  -10.0, 9.8,  9.8,  -10.0, -11.2, -9.8,
         3.0, 3.0, 0.0, 0.0,   finf, finf, finf,  finf, finf, finf,  fnan};
 
-    __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
-    __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, b)) );
+    __ Ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, b)));
     __ lwc1(f8, MemOperand(a0, offsetof(TestFloat, c)) );
     __ lwc1(f10, MemOperand(a0, offsetof(TestFloat, d)) );
     __ mina_d(f6, f2, f4);
@@ -1930,14 +1930,14 @@ TEST(mina_maxa) {
     __ maxa_d(f14, f2, f4);
     __ maxa_s(f16, f8, f10);
     __ swc1(f12, MemOperand(a0, offsetof(TestFloat, resf)) );
-    __ sdc1(f6, MemOperand(a0, offsetof(TestFloat, resd)) );
+    __ Sdc1(f6, MemOperand(a0, offsetof(TestFloat, resd)));
     __ swc1(f16, MemOperand(a0, offsetof(TestFloat, resf1)) );
-    __ sdc1(f14, MemOperand(a0, offsetof(TestFloat, resd1)) );
+    __ Sdc1(f14, MemOperand(a0, offsetof(TestFloat, resd1)));
     __ jr(ra);
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2008,17 +2008,17 @@ TEST(trunc_l) {
 
     __ cfc1(t1, FCSR);
     __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-    __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
+    __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
     __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
     __ trunc_l_d(f8, f4);
     __ trunc_l_s(f10, f6);
-    __ sdc1(f8, MemOperand(a0, offsetof(Test, c)) );
-    __ sdc1(f10, MemOperand(a0, offsetof(Test, d)) );
+    __ Sdc1(f8, MemOperand(a0, offsetof(Test, c)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(Test, d)));
     __ jr(ra);
     __ nop();
     Test test;
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2076,30 +2076,30 @@ TEST(movz_movn) {
       5.3, -5.3, 5.3, -2.9
     };
 
-    __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
+    __ Ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)));
     __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, c)) );
     __ lw(t0, MemOperand(a0, offsetof(TestFloat, rt)) );
     __ Move(f12, 0.0);
     __ Move(f10, 0.0);
     __ Move(f16, 0.0);
     __ Move(f14, 0.0);
-    __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, bold)) );
+    __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, bold)));
     __ swc1(f10, MemOperand(a0, offsetof(TestFloat, dold)) );
-    __ sdc1(f16, MemOperand(a0, offsetof(TestFloat, bold1)) );
+    __ Sdc1(f16, MemOperand(a0, offsetof(TestFloat, bold1)));
     __ swc1(f14, MemOperand(a0, offsetof(TestFloat, dold1)) );
     __ movz_s(f10, f6, t0);
     __ movz_d(f12, f2, t0);
     __ movn_s(f14, f6, t0);
     __ movn_d(f16, f2, t0);
     __ swc1(f10, MemOperand(a0, offsetof(TestFloat, d)) );
-    __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, b)) );
+    __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, b)));
     __ swc1(f14, MemOperand(a0, offsetof(TestFloat, d1)) );
-    __ sdc1(f16, MemOperand(a0, offsetof(TestFloat, b1)) );
+    __ Sdc1(f16, MemOperand(a0, offsetof(TestFloat, b1)));
     __ jr(ra);
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2176,7 +2176,7 @@ TEST(movt_movd) {
         HandleScope scope(isolate);
         MacroAssembler assm(isolate, NULL, 0,
                             v8::internal::CodeObjectRequired::kYes);
-        __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, srcd)) );
+        __ Ldc1(f2, MemOperand(a0, offsetof(TestFloat, srcd)));
         __ lwc1(f4, MemOperand(a0, offsetof(TestFloat, srcf)) );
         __ lw(t1, MemOperand(a0, offsetof(TestFloat, fcsr)) );
         __ cfc1(t0, FCSR);
@@ -2184,24 +2184,24 @@ TEST(movt_movd) {
         __ li(t2, 0x0);
         __ mtc1(t2, f12);
         __ mtc1(t2, f10);
-        __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstdold)) );
+        __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstdold)));
         __ swc1(f12, MemOperand(a0, offsetof(TestFloat, dstfold)) );
         __ movt_s(f12, f4, test.cc);
         __ movt_d(f10, f2, test.cc);
         __ swc1(f12, MemOperand(a0, offsetof(TestFloat, dstf)) );
-        __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstd)) );
-        __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstdold1)) );
+        __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstd)));
+        __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstdold1)));
         __ swc1(f12, MemOperand(a0, offsetof(TestFloat, dstfold1)) );
         __ movf_s(f12, f4, test.cc);
         __ movf_d(f10, f2, test.cc);
         __ swc1(f12, MemOperand(a0, offsetof(TestFloat, dstf1)) );
-        __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstd1)) );
+        __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstd1)));
         __ ctc1(t0, FCSR);
         __ jr(ra);
         __ nop();
 
         CodeDesc desc;
-        assm.GetCode(&desc);
+        assm.GetCode(isolate, &desc);
         Handle<Code> code = isolate->factory()->NewCode(
             desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
         F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2275,7 +2275,7 @@ TEST(cvt_w_d) {
   int fcsr_inputs[4] =
       {kRoundToNearest, kRoundToZero, kRoundToPlusInf, kRoundToMinusInf};
   double* outputs[4] = {outputs_RN, outputs_RZ, outputs_RP, outputs_RM};
-  __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
   __ lw(t0, MemOperand(a0, offsetof(Test, fcsr)) );
   __ cfc1(t1, FCSR);
   __ ctc1(t0, FCSR);
@@ -2286,7 +2286,7 @@ TEST(cvt_w_d) {
   __ nop();
   Test test;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2343,7 +2343,7 @@ TEST(trunc_w) {
 
   __ cfc1(t1, FCSR);
   __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-  __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
   __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
   __ trunc_w_d(f8, f4);
   __ trunc_w_s(f10, f6);
@@ -2353,7 +2353,7 @@ TEST(trunc_w) {
   __ nop();
   Test test;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2412,7 +2412,7 @@ TEST(round_w) {
 
   __ cfc1(t1, FCSR);
   __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-  __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
   __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
   __ round_w_d(f8, f4);
   __ round_w_s(f10, f6);
@@ -2422,7 +2422,7 @@ TEST(round_w) {
   __ nop();
   Test test;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2484,17 +2484,17 @@ TEST(round_l) {
 
     __ cfc1(t1, FCSR);
     __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-    __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
+    __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
     __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
     __ round_l_d(f8, f4);
     __ round_l_s(f10, f6);
-    __ sdc1(f8, MemOperand(a0, offsetof(Test, c)) );
-    __ sdc1(f10, MemOperand(a0, offsetof(Test, d)) );
+    __ Sdc1(f8, MemOperand(a0, offsetof(Test, c)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(Test, d)));
     __ jr(ra);
     __ nop();
     Test test;
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2557,17 +2557,17 @@ TEST(sub) {
   };
   __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
   __ lwc1(f4, MemOperand(a0, offsetof(TestFloat, b)) );
-  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)) );
-  __ ldc1(f10, MemOperand(a0, offsetof(TestFloat, d)) );
+  __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)));
+  __ Ldc1(f10, MemOperand(a0, offsetof(TestFloat, d)));
   __ sub_s(f6, f2, f4);
   __ sub_d(f12, f8, f10);
   __ swc1(f6, MemOperand(a0, offsetof(TestFloat, resultS)) );
-  __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)) );
+  __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)));
   __ jr(ra);
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2623,7 +2623,7 @@ TEST(sqrt_rsqrt_recip) {
 
 
   __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
-  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)) );
+  __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)));
   __ sqrt_s(f6, f2);
   __ sqrt_d(f12, f8);
 
@@ -2634,19 +2634,19 @@ TEST(sqrt_rsqrt_recip) {
     __ recip_s(f4, f2);
   }
   __ swc1(f6, MemOperand(a0, offsetof(TestFloat, resultS)) );
-  __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)) );
+  __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)));
 
   if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
     __ swc1(f16, MemOperand(a0, offsetof(TestFloat, resultS1)) );
-    __ sdc1(f14, MemOperand(a0, offsetof(TestFloat, resultD1)) );
+    __ Sdc1(f14, MemOperand(a0, offsetof(TestFloat, resultD1)));
     __ swc1(f4, MemOperand(a0, offsetof(TestFloat, resultS2)) );
-    __ sdc1(f18, MemOperand(a0, offsetof(TestFloat, resultD2)) );
+    __ Sdc1(f18, MemOperand(a0, offsetof(TestFloat, resultD2)));
   }
   __ jr(ra);
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2717,16 +2717,16 @@ TEST(neg) {
     0.0, -4.0, 2.0
   };
   __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
-  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)) );
+  __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, c)));
   __ neg_s(f6, f2);
   __ neg_d(f12, f8);
   __ swc1(f6, MemOperand(a0, offsetof(TestFloat, resultS)) );
-  __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)) );
+  __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)));
   __ jr(ra);
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2773,17 +2773,17 @@ TEST(mul) {
 
   __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
   __ lwc1(f4, MemOperand(a0, offsetof(TestFloat, b)) );
-  __ ldc1(f6, MemOperand(a0, offsetof(TestFloat, c)) );
-  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, d)) );
+  __ Ldc1(f6, MemOperand(a0, offsetof(TestFloat, c)));
+  __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, d)));
   __ mul_s(f10, f2, f4);
   __ mul_d(f12, f6, f8);
   __ swc1(f10, MemOperand(a0, offsetof(TestFloat, resultS)) );
-  __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)) );
+  __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)));
   __ jr(ra);
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2828,18 +2828,18 @@ TEST(mov) {
     5.3, -5.3, 5.3, -2.9
   };
 
-  __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
   __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, c)) );
   __ mov_s(f8, f6);
   __ mov_d(f10, f4);
   __ swc1(f8, MemOperand(a0, offsetof(TestFloat, d)) );
-  __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, b)) );
+  __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, b)));
 
   __ jr(ra);
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2896,7 +2896,7 @@ TEST(floor_w) {
 
   __ cfc1(t1, FCSR);
   __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-  __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
   __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
   __ floor_w_d(f8, f4);
   __ floor_w_s(f10, f6);
@@ -2906,7 +2906,7 @@ TEST(floor_w) {
   __ nop();
   Test test;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -2968,17 +2968,17 @@ TEST(floor_l) {
 
     __ cfc1(t1, FCSR);
     __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-    __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
+    __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
     __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
     __ floor_l_d(f8, f4);
     __ floor_l_s(f10, f6);
-    __ sdc1(f8, MemOperand(a0, offsetof(Test, c)) );
-    __ sdc1(f10, MemOperand(a0, offsetof(Test, d)) );
+    __ Sdc1(f8, MemOperand(a0, offsetof(Test, c)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(Test, d)));
     __ jr(ra);
     __ nop();
     Test test;
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3040,7 +3040,7 @@ TEST(ceil_w) {
 
   __ cfc1(t1, FCSR);
   __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-  __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
   __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
   __ ceil_w_d(f8, f4);
   __ ceil_w_s(f10, f6);
@@ -3050,7 +3050,7 @@ TEST(ceil_w) {
   __ nop();
   Test test;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3112,17 +3112,17 @@ TEST(ceil_l) {
 
     __ cfc1(t1, FCSR);
     __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
-    __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
+    __ Ldc1(f4, MemOperand(a0, offsetof(Test, a)));
     __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
     __ ceil_l_d(f8, f4);
     __ ceil_l_s(f10, f6);
-    __ sdc1(f8, MemOperand(a0, offsetof(Test, c)) );
-    __ sdc1(f10, MemOperand(a0, offsetof(Test, d)) );
+    __ Sdc1(f8, MemOperand(a0, offsetof(Test, c)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(Test, d)));
     __ jr(ra);
     __ nop();
     Test test;
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3191,10 +3191,10 @@ TEST(jump_tables1) {
   __ jr(ra);
   __ nop();
 
-  CHECK_EQ(assm.UnboundLabelsCount(), 0);
+  CHECK_EQ(0, assm.UnboundLabelsCount());
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
@@ -3264,7 +3264,7 @@ TEST(jump_tables2) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
@@ -3341,7 +3341,7 @@ TEST(jump_tables3) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
@@ -3392,7 +3392,7 @@ TEST(BITSWAP) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3442,45 +3442,45 @@ TEST(class_fmt) {
     MacroAssembler assm(isolate, NULL, 0,
                         v8::internal::CodeObjectRequired::kYes);
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dSignalingNan)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dSignalingNan)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dSignalingNan)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dSignalingNan)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dQuietNan)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dQuietNan)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dQuietNan)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dQuietNan)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dNegInf)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dNegInf)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dNegInf)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dNegInf)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dNegNorm)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dNegNorm)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dNegNorm)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dNegNorm)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dNegSubnorm)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dNegSubnorm)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dNegSubnorm)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dNegSubnorm)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dNegZero)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dNegZero)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dNegZero)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dNegZero)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dPosInf)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dPosInf)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dPosInf)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dPosInf)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dPosNorm)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dPosNorm)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dPosNorm)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dPosNorm)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dPosSubnorm)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dPosSubnorm)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dPosSubnorm)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dPosSubnorm)));
 
-    __ ldc1(f4, MemOperand(a0, offsetof(T, dPosZero)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(T, dPosZero)));
     __ class_d(f6, f4);
-    __ sdc1(f6, MemOperand(a0, offsetof(T, dPosZero)));
+    __ Sdc1(f6, MemOperand(a0, offsetof(T, dPosZero)));
 
     // Testing instruction CLASS.S
     __ lwc1(f4, MemOperand(a0, offsetof(T, fSignalingNan)));
@@ -3527,7 +3527,7 @@ TEST(class_fmt) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3604,9 +3604,9 @@ TEST(ABS) {
   // Disable FPU exceptions.
   __ ctc1(zero_reg, FCSR);
 
-  __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
   __ abs_d(f10, f4);
-  __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, a)));
 
   __ lwc1(f4, MemOperand(a0, offsetof(TestFloat, b)));
   __ abs_s(f10, f4);
@@ -3619,7 +3619,7 @@ TEST(ABS) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3670,14 +3670,14 @@ TEST(ABS) {
   test.a = std::numeric_limits<double>::quiet_NaN();
   test.b = std::numeric_limits<float>::quiet_NaN();
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(std::isnan(test.a), true);
-  CHECK_EQ(std::isnan(test.b), true);
+  CHECK(std::isnan(test.a));
+  CHECK(std::isnan(test.b));
 
   test.a = std::numeric_limits<double>::signaling_NaN();
   test.b = std::numeric_limits<float>::signaling_NaN();
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(std::isnan(test.a), true);
-  CHECK_EQ(std::isnan(test.b), true);
+  CHECK(std::isnan(test.a));
+  CHECK(std::isnan(test.b));
 }
 
 
@@ -3698,10 +3698,10 @@ TEST(ADD_FMT) {
 
   TestFloat test;
 
-  __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
-  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
+  __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
   __ add_d(f10, f8, f4);
-  __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
+  __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
 
   __ lwc1(f4, MemOperand(a0, offsetof(TestFloat, fa)));
   __ lwc1(f8, MemOperand(a0, offsetof(TestFloat, fb)));
@@ -3712,7 +3712,7 @@ TEST(ADD_FMT) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -3737,16 +3737,16 @@ TEST(ADD_FMT) {
   test.fa = std::numeric_limits<float>::max();
   test.fb = std::numeric_limits<float>::max();
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(std::isfinite(test.c), false);
-  CHECK_EQ(std::isfinite(test.fc), false);
+  CHECK(!std::isfinite(test.c));
+  CHECK(!std::isfinite(test.fc));
 
   test.a = 5.0;
   test.b = std::numeric_limits<double>::signaling_NaN();
   test.fa = 5.0;
   test.fb = std::numeric_limits<float>::signaling_NaN();
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(std::isnan(test.c), true);
-  CHECK_EQ(std::isnan(test.fc), true);
+  CHECK(std::isnan(test.c));
+  CHECK(std::isnan(test.fc));
 }
 
 
@@ -3785,8 +3785,8 @@ TEST(C_COND_FMT) {
 
     __ li(t1, 1);
 
-    __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, dOp1)));
-    __ ldc1(f6, MemOperand(a0, offsetof(TestFloat, dOp2)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, dOp1)));
+    __ Ldc1(f6, MemOperand(a0, offsetof(TestFloat, dOp2)));
 
     __ lwc1(f14, MemOperand(a0, offsetof(TestFloat, fOp1)));
     __ lwc1(f16, MemOperand(a0, offsetof(TestFloat, fOp2)));
@@ -3867,7 +3867,7 @@ TEST(C_COND_FMT) {
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -4003,72 +4003,72 @@ TEST(CMP_COND_FMT) {
 
     __ li(t1, 1);
 
-    __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, dOp1)));
-    __ ldc1(f6, MemOperand(a0, offsetof(TestFloat, dOp2)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, dOp1)));
+    __ Ldc1(f6, MemOperand(a0, offsetof(TestFloat, dOp2)));
 
     __ lwc1(f14, MemOperand(a0, offsetof(TestFloat, fOp1)));
     __ lwc1(f16, MemOperand(a0, offsetof(TestFloat, fOp2)));
 
     __ cmp_d(F, f2, f4, f6);
     __ cmp_s(F, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dF)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dF)));
     __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fF)) );
 
     __ cmp_d(UN, f2, f4, f6);
     __ cmp_s(UN, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUn)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUn)));
     __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fUn)) );
 
     __ cmp_d(EQ, f2, f4, f6);
     __ cmp_s(EQ, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dEq)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dEq)));
     __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fEq)) );
 
     __ cmp_d(UEQ, f2, f4, f6);
     __ cmp_s(UEQ, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUeq)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUeq)));
     __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fUeq)) );
 
     __ cmp_d(LT, f2, f4, f6);
     __ cmp_s(LT, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dOlt)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dOlt)));
     __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fOlt)) );
 
     __ cmp_d(ULT, f2, f4, f6);
     __ cmp_s(ULT, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUlt)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUlt)));
     __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fUlt)) );
 
     __ cmp_d(LE, f2, f4, f6);
     __ cmp_s(LE, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dOle)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dOle)));
     __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fOle)) );
 
     __ cmp_d(ULE, f2, f4, f6);
     __ cmp_s(ULE, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUle)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUle)));
     __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fUle)) );
 
     __ cmp_d(ORD, f2, f4, f6);
     __ cmp_s(ORD, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dOr)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dOr)));
     __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fOr)) );
 
     __ cmp_d(UNE, f2, f4, f6);
     __ cmp_s(UNE, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUne)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUne)));
     __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fUne)) );
 
     __ cmp_d(NE, f2, f4, f6);
     __ cmp_s(NE, f12, f14, f16);
-    __ sdc1(f2, MemOperand(a0, offsetof(TestFloat, dNe)) );
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dNe)));
     __ swc1(f12, MemOperand(a0, offsetof(TestFloat, fNe)) );
 
     __ jr(ra);
     __ nop();
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -4225,27 +4225,27 @@ TEST(CVT) {
   __ nop(); \
   __ z##c1(f0, MemOperand(a0, offsetof(TestFloat, x##_out)));
 
-  GENERATE_CVT_TEST(cvt_d_s, lw, sd)
-  GENERATE_CVT_TEST(cvt_d_w, lw, sd)
+  GENERATE_CVT_TEST(cvt_d_s, lw, Sd)
+  GENERATE_CVT_TEST(cvt_d_w, lw, Sd)
   if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
          IsFp64Mode()) {
-    GENERATE_CVT_TEST(cvt_d_l, ld, sd)
+    GENERATE_CVT_TEST(cvt_d_l, Ld, Sd)
   }
 
   if (IsFp64Mode()) {
-    GENERATE_CVT_TEST(cvt_l_s, lw, sd)
-    GENERATE_CVT_TEST(cvt_l_d, ld, sd)
+    GENERATE_CVT_TEST(cvt_l_s, lw, Sd)
+    GENERATE_CVT_TEST(cvt_l_d, Ld, Sd)
   }
 
-  GENERATE_CVT_TEST(cvt_s_d, ld, sw)
+  GENERATE_CVT_TEST(cvt_s_d, Ld, sw)
   GENERATE_CVT_TEST(cvt_s_w, lw, sw)
   if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
          IsFp64Mode()) {
-    GENERATE_CVT_TEST(cvt_s_l, ld, sw)
+    GENERATE_CVT_TEST(cvt_s_l, Ld, sw)
   }
 
   GENERATE_CVT_TEST(cvt_w_s, lw, sw)
-  GENERATE_CVT_TEST(cvt_w_d, ld, sw)
+  GENERATE_CVT_TEST(cvt_w_d, Ld, sw)
 
   // Restore FCSR.
   __ ctc1(a1, FCSR);
@@ -4254,7 +4254,7 @@ TEST(CVT) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -4278,8 +4278,8 @@ TEST(CVT) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   if (IsFp64Mode()) {
-    CHECK_EQ(test.cvt_l_s_out, -1);
-    CHECK_EQ(test.cvt_l_d_out, -1);
+    CHECK_EQ(-1, test.cvt_l_s_out);
+    CHECK_EQ(-1, test.cvt_l_d_out);
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
@@ -4287,9 +4287,8 @@ TEST(CVT) {
          IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
-  CHECK_EQ(test.cvt_w_s_out, -1);
-  CHECK_EQ(test.cvt_w_d_out, -1);
-
+  CHECK_EQ(-1, test.cvt_w_s_out);
+  CHECK_EQ(-1, test.cvt_w_d_out);
 
   test.cvt_d_s_in = 0.49;
   test.cvt_d_w_in = 1;
@@ -4310,8 +4309,8 @@ TEST(CVT) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   if (IsFp64Mode()) {
-    CHECK_EQ(test.cvt_l_s_out, 0);
-    CHECK_EQ(test.cvt_l_d_out, 0);
+    CHECK_EQ(0, test.cvt_l_s_out);
+    CHECK_EQ(0, test.cvt_l_d_out);
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
@@ -4319,8 +4318,8 @@ TEST(CVT) {
          IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
-  CHECK_EQ(test.cvt_w_s_out, 0);
-  CHECK_EQ(test.cvt_w_d_out, 0);
+  CHECK_EQ(0, test.cvt_w_s_out);
+  CHECK_EQ(0, test.cvt_w_d_out);
 
   test.cvt_d_s_in = std::numeric_limits<float>::max();
   test.cvt_d_w_in = std::numeric_limits<int32_t>::max();
@@ -4412,8 +4411,8 @@ TEST(CVT) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   if (IsFp64Mode()) {
-    CHECK_EQ(test.cvt_l_s_out, 0);
-    CHECK_EQ(test.cvt_l_d_out, 0);
+    CHECK_EQ(0, test.cvt_l_s_out);
+    CHECK_EQ(0, test.cvt_l_d_out);
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
@@ -4421,8 +4420,8 @@ TEST(CVT) {
          IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
-  CHECK_EQ(test.cvt_w_s_out, 0);
-  CHECK_EQ(test.cvt_w_d_out, 0);
+  CHECK_EQ(0, test.cvt_w_s_out);
+  CHECK_EQ(0, test.cvt_w_d_out);
 }
 
 
@@ -4448,11 +4447,11 @@ TEST(DIV_FMT) {
   // Disable FPU exceptions.
   __ ctc1(zero_reg, FCSR);
 
-  __ ldc1(f4, MemOperand(a0, offsetof(Test, dOp1)) );
-  __ ldc1(f2, MemOperand(a0, offsetof(Test, dOp2)) );
+  __ Ldc1(f4, MemOperand(a0, offsetof(Test, dOp1)));
+  __ Ldc1(f2, MemOperand(a0, offsetof(Test, dOp2)));
   __ nop();
   __ div_d(f6, f4, f2);
-  __ sdc1(f6, MemOperand(a0, offsetof(Test, dRes)) );
+  __ Sdc1(f6, MemOperand(a0, offsetof(Test, dRes)));
 
   __ lwc1(f4, MemOperand(a0, offsetof(Test, fOp1)) );
   __ lwc1(f2, MemOperand(a0, offsetof(Test, fOp2)) );
@@ -4467,7 +4466,7 @@ TEST(DIV_FMT) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4525,8 +4524,8 @@ TEST(DIV_FMT) {
   test.fOp2 = -0.0;
 
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(false, std::isfinite(test.dRes));
-  CHECK_EQ(false, std::isfinite(test.fRes));
+  CHECK(!std::isfinite(test.dRes));
+  CHECK(!std::isfinite(test.fRes));
 
   test.dOp1 = 0.0;
   test.dOp2 = -0.0;
@@ -4534,8 +4533,8 @@ TEST(DIV_FMT) {
   test.fOp2 = -0.0;
 
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(true, std::isnan(test.dRes));
-  CHECK_EQ(true, std::isnan(test.fRes));
+  CHECK(std::isnan(test.dRes));
+  CHECK(std::isnan(test.fRes));
 
   test.dOp1 = std::numeric_limits<double>::quiet_NaN();
   test.dOp2 = -5.0;
@@ -4543,8 +4542,8 @@ TEST(DIV_FMT) {
   test.fOp2 = -5.0;
 
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(true, std::isnan(test.dRes));
-  CHECK_EQ(true, std::isnan(test.fRes));
+  CHECK(std::isnan(test.dRes));
+  CHECK(std::isnan(test.fRes));
 }
 
 
@@ -4559,7 +4558,7 @@ uint32_t run_align(uint32_t rs_value, uint32_t rt_value, uint8_t bp) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4612,7 +4611,7 @@ uint32_t run_aluipc(int16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4666,7 +4665,7 @@ uint32_t run_auipc(int16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4742,7 +4741,7 @@ uint32_t run_lwpc(int offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4826,7 +4825,7 @@ uint32_t run_jic(int16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4898,7 +4897,7 @@ uint64_t run_beqzc(int32_t value, int32_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -4992,7 +4991,7 @@ uint32_t run_jialc(int16_t offset) {
 
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5041,7 +5040,7 @@ static uint32_t run_addiupc(int32_t imm19) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5124,7 +5123,7 @@ int32_t run_bc(int32_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5206,7 +5205,7 @@ int32_t run_balc(int32_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5231,7 +5230,7 @@ uint32_t run_aui(uint32_t rs, uint16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5322,7 +5321,7 @@ uint32_t run_bal(int16_t offset) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -5376,14 +5375,14 @@ TEST(Trampoline) {
   __ mov(v0, zero_reg);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
   int32_t res = reinterpret_cast<int32_t>(
       CALL_GENERATED_CODE(isolate, f, 42, 42, 0, 0, 0));
-  CHECK_EQ(res, 0);
+  CHECK_EQ(0, res);
 }
 
 template <class T>
@@ -5429,10 +5428,10 @@ void helper_madd_msub_maddf_msubf(F func) {
     __ lwc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
     __ lwc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
   } else if (std::is_same<T, double>::value) {
-    __ ldc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
-    __ ldc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
-    __ ldc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
-    __ ldc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+    __ Ldc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+    __ Ldc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
+    __ Ldc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
+    __ Ldc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
   } else {
     UNREACHABLE();
   }
@@ -5443,7 +5442,7 @@ void helper_madd_msub_maddf_msubf(F func) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -5488,9 +5487,9 @@ TEST(madd_msub_d) {
   if (!IsMipsArchVariant(kMips32r2)) return;
   helper_madd_msub_maddf_msubf<double>([](MacroAssembler& assm) {
     __ madd_d(f10, f4, f6, f8);
-    __ sdc1(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
+    __ Sdc1(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
     __ msub_d(f16, f4, f6, f8);
-    __ sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
+    __ Sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
   });
 }
 
@@ -5508,10 +5507,1494 @@ TEST(maddf_msubf_d) {
   if (!IsMipsArchVariant(kMips32r6)) return;
   helper_madd_msub_maddf_msubf<double>([](MacroAssembler& assm) {
     __ maddf_d(f4, f6, f8);
-    __ sdc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
+    __ Sdc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
     __ msubf_d(f16, f6, f8);
-    __ sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
+    __ Sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
   });
+}
+
+uint32_t run_Subu(uint32_t imm, int32_t num_instr) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  Label code_start;
+  __ bind(&code_start);
+  __ Subu(v0, zero_reg, imm);
+  CHECK_EQ(assm.SizeOfCodeGeneratedSince(&code_start),
+           num_instr * Assembler::kInstrSize);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Subu) {
+  CcTest::InitializeVM();
+
+  // Test Subu macro-instruction for min_int16 and max_int16 border cases.
+  // For subtracting int16 immediate values we use addiu.
+
+  struct TestCaseSubu {
+    uint32_t imm;
+    uint32_t expected_res;
+    int32_t num_instr;
+  };
+
+  // We call Subu(v0, zero_reg, imm) to test cases listed below.
+  // 0 - imm = expected_res
+  struct TestCaseSubu tc[] = {
+      //    imm, expected_res, num_instr
+      {0xffff8000, 0x8000, 2},  // min_int16
+      // Generates ori + addu
+      // We can't have just addiu because -min_int16 > max_int16 so use
+      // register. We can load min_int16 to at register with addiu and then
+      // subtract at with subu, but now we use ori + addu because -min_int16 can
+      // be loaded using ori.
+      {0x8000, 0xffff8000, 1},  // max_int16 + 1
+      // Generates addiu
+      // max_int16 + 1 is not int16 but -(max_int16 + 1) is, just use addiu.
+      {0xffff7fff, 0x8001, 2},  // min_int16 - 1
+      // Generates ori + addu
+      // To load this value to at we need two instructions and another one to
+      // subtract, lui + ori + subu. But we can load -value to at using just
+      // ori and then add at register with addu.
+      {0x8001, 0xffff7fff, 2},  // max_int16 + 2
+      // Generates ori + subu
+      // Not int16 but is uint16, load value to at with ori and subtract with
+      // subu.
+      {0x00010000, 0xffff0000, 2},
+      // Generates lui + subu
+      // Load value using lui to at and subtract with subu.
+      {0x00010001, 0xfffeffff, 3},
+      // Generates lui + ori + subu
+      // We have to generate three instructions in this case.
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseSubu);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res, run_Subu(tc[i].imm, tc[i].num_instr));
+  }
+}
+
+TEST(MSA_fill_copy) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint32_t u8;
+    uint32_t u16;
+    uint32_t u32;
+    uint32_t s8;
+    uint32_t s16;
+    uint32_t s32;
+  } T;
+  T t;
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  {
+    CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+    __ li(t0, 0xa512b683);
+
+    __ fill_b(w0, t0);
+    __ fill_h(w2, t0);
+    __ fill_w(w4, t0);
+    __ copy_u_b(t1, w0, 11);
+    __ sw(t1, MemOperand(a0, offsetof(T, u8)));
+    __ copy_u_h(t1, w2, 6);
+    __ sw(t1, MemOperand(a0, offsetof(T, u16)));
+    __ copy_u_w(t1, w4, 3);
+    __ sw(t1, MemOperand(a0, offsetof(T, u32)));
+
+    __ copy_s_b(t1, w0, 8);
+    __ sw(t1, MemOperand(a0, offsetof(T, s8)));
+    __ copy_s_h(t1, w2, 5);
+    __ sw(t1, MemOperand(a0, offsetof(T, s16)));
+    __ copy_s_w(t1, w4, 1);
+    __ sw(t1, MemOperand(a0, offsetof(T, s32)));
+
+    __ jr(ra);
+    __ nop();
+  }
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(0x83u, t.u8);
+  CHECK_EQ(0xb683u, t.u16);
+  CHECK_EQ(0xa512b683u, t.u32);
+  CHECK_EQ(0xffffff83u, t.s8);
+  CHECK_EQ(0xffffb683u, t.s16);
+  CHECK_EQ(0xa512b683u, t.s32);
+}
+
+TEST(MSA_fill_copy_2) {
+  // Similar to MSA_fill_copy test, but also check overlaping between MSA and
+  // FPU registers with same numbers
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint32_t w0;
+    uint32_t w1;
+    uint32_t w2;
+    uint32_t w3;
+  } T;
+  T t[2];
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  {
+    CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+    __ li(t0, 0xaaaaaaaa);
+    __ li(t1, 0x55555555);
+
+    __ fill_w(w0, t0);
+    __ fill_w(w2, t0);
+
+    __ FmoveLow(f0, t1);
+    __ FmoveHigh(f2, t1);
+
+#define STORE_MSA_REG(w_reg, base, scratch)          \
+  __ copy_u_w(scratch, w_reg, 0);                    \
+  __ sw(scratch, MemOperand(base, offsetof(T, w0))); \
+  __ copy_u_w(scratch, w_reg, 1);                    \
+  __ sw(scratch, MemOperand(base, offsetof(T, w1))); \
+  __ copy_u_w(scratch, w_reg, 2);                    \
+  __ sw(scratch, MemOperand(base, offsetof(T, w2))); \
+  __ copy_u_w(scratch, w_reg, 3);                    \
+  __ sw(scratch, MemOperand(base, offsetof(T, w3)));
+
+    STORE_MSA_REG(w0, a0, t2)
+    STORE_MSA_REG(w2, a1, t2)
+#undef STORE_MSA_REG
+
+    __ jr(ra);
+    __ nop();
+  }
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t[0], &t[1], 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(0x55555555, t[0].w0);
+  CHECK_EQ(0xaaaaaaaa, t[0].w1);
+  CHECK_EQ(0xaaaaaaaa, t[0].w2);
+  CHECK_EQ(0xaaaaaaaa, t[0].w3);
+  CHECK_EQ(0xaaaaaaaa, t[1].w0);
+  CHECK_EQ(0x55555555, t[1].w1);
+  CHECK_EQ(0xaaaaaaaa, t[1].w2);
+  CHECK_EQ(0xaaaaaaaa, t[1].w3);
+}
+
+TEST(MSA_fill_copy_3) {
+  // Similar to MSA_fill_copy test, but also check overlaping between MSA and
+  // FPU registers with same numbers
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint64_t d0;
+    uint64_t d1;
+  } T;
+  T t[2];
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  {
+    CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+    __ li(t0, 0xaaaaaaaa);
+    __ li(t1, 0x55555555);
+
+    __ Move(f0, t0, t0);
+    __ Move(f2, t0, t0);
+
+    __ fill_w(w0, t1);
+    __ fill_w(w2, t1);
+
+    __ Sdc1(f0, MemOperand(a0, offsetof(T, d0)));
+    __ Sdc1(f2, MemOperand(a1, offsetof(T, d0)));
+
+    __ jr(ra);
+    __ nop();
+  }
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t[0], &t[1], 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(0x5555555555555555, t[0].d0);
+  CHECK_EQ(0x5555555555555555, t[1].d0);
+}
+
+typedef union {
+  uint8_t b[16];
+  uint16_t h[8];
+  uint32_t w[4];
+  uint64_t d[2];
+} msa_reg_t;
+
+template <typename T>
+void run_msa_insert(int32_t rs_value, int n, msa_reg_t* w) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+  __ li(t0, -1);
+  __ li(t1, rs_value);
+  __ fill_w(w0, t0);
+
+  if (std::is_same<T, int8_t>::value) {
+    DCHECK(n < 16);
+    __ insert_b(w0, n, t1);
+  } else if (std::is_same<T, int16_t>::value) {
+    DCHECK(n < 8);
+    __ insert_h(w0, n, t1);
+  } else if (std::is_same<T, int32_t>::value) {
+    DCHECK(n < 4);
+    __ insert_w(w0, n, t1);
+  } else {
+    UNREACHABLE();
+  }
+
+  __ copy_u_w(t2, w0, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w0, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w0, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w0, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, w, 0, 0, 0, 0));
+}
+
+TEST(MSA_insert) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseInsert {
+    uint32_t input;
+    int n;
+    uint64_t exp_res_lo;
+    uint64_t exp_res_hi;
+  };
+
+  struct TestCaseInsert tc_b[] = {
+      // input, n,        exp_res_lo,          exp_res_hi
+      {0xa2, 13, 0xffffffffffffffffu, 0xffffa2ffffffffffu},
+      {0x73, 10, 0xffffffffffffffffu, 0xffffffffff73ffffu},
+      {0x3494, 5, 0xffff94ffffffffffu, 0xffffffffffffffffu},
+      {0xa6b8, 1, 0xffffffffffffb8ffu, 0xffffffffffffffffu}};
+
+  for (size_t i = 0; i < sizeof(tc_b) / sizeof(TestCaseInsert); ++i) {
+    msa_reg_t res;
+    run_msa_insert<int8_t>(tc_b[i].input, tc_b[i].n, &res);
+    CHECK_EQ(tc_b[i].exp_res_lo, res.d[0]);
+    CHECK_EQ(tc_b[i].exp_res_hi, res.d[1]);
+  }
+
+  struct TestCaseInsert tc_h[] = {
+      // input, n,         exp_res_lo,          exp_res_hi
+      {0x85a2, 7, 0xffffffffffffffffu, 0x85a2ffffffffffffu},
+      {0xe873, 5, 0xffffffffffffffffu, 0xffffffffe873ffffu},
+      {0x3494, 3, 0x3494ffffffffffffu, 0xffffffffffffffffu},
+      {0xa6b8, 1, 0xffffffffa6b8ffffu, 0xffffffffffffffffu}};
+
+  for (size_t i = 0; i < sizeof(tc_h) / sizeof(TestCaseInsert); ++i) {
+    msa_reg_t res;
+    run_msa_insert<int16_t>(tc_h[i].input, tc_h[i].n, &res);
+    CHECK_EQ(tc_h[i].exp_res_lo, res.d[0]);
+    CHECK_EQ(tc_h[i].exp_res_hi, res.d[1]);
+  }
+
+  struct TestCaseInsert tc_w[] = {
+      // input,     n,          exp_res_lo,          exp_res_hi
+      {0xd2f085a2u, 3, 0xffffffffffffffffu, 0xd2f085a2ffffffffu},
+      {0x4567e873u, 2, 0xffffffffffffffffu, 0xffffffff4567e873u},
+      {0xacdb3494u, 1, 0xacdb3494ffffffffu, 0xffffffffffffffffu},
+      {0x89aba6b8u, 0, 0xffffffff89aba6b8u, 0xffffffffffffffffu}};
+
+  for (size_t i = 0; i < sizeof(tc_w) / sizeof(TestCaseInsert); ++i) {
+    msa_reg_t res;
+    run_msa_insert<int32_t>(tc_w[i].input, tc_w[i].n, &res);
+    CHECK_EQ(tc_w[i].exp_res_lo, res.d[0]);
+    CHECK_EQ(tc_w[i].exp_res_hi, res.d[1]);
+  }
+}
+
+struct ExpResShf {
+  uint8_t i8;
+  uint64_t lo;
+  uint64_t hi;
+};
+
+void run_msa_i8(SecondaryField opcode, uint64_t ws_lo, uint64_t ws_hi,
+                uint8_t i8) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+  uint64_t wd_lo = 0xf35862e13e38f8b0;
+  uint64_t wd_hi = 0x4f41ffdef2bfe636;
+
+#define LOAD_W_REG(lo, hi, w_reg)                            \
+  __ li(t0, static_cast<uint32_t>(lo & 0xffffffff));         \
+  __ li(t1, static_cast<uint32_t>((lo >> 32) & 0xffffffff)); \
+  __ insert_w(w_reg, 0, t0);                                 \
+  __ insert_w(w_reg, 1, t1);                                 \
+  __ li(t0, static_cast<uint32_t>(hi & 0xffffffff));         \
+  __ li(t1, static_cast<uint32_t>((hi >> 32) & 0xffffffff)); \
+  __ insert_w(w_reg, 2, t0);                                 \
+  __ insert_w(w_reg, 3, t1);
+
+  LOAD_W_REG(ws_lo, ws_hi, w0)
+
+  switch (opcode) {
+    case ANDI_B:
+      __ andi_b(w2, w0, i8);
+      break;
+    case ORI_B:
+      __ ori_b(w2, w0, i8);
+      break;
+    case NORI_B:
+      __ nori_b(w2, w0, i8);
+      break;
+    case XORI_B:
+      __ xori_b(w2, w0, i8);
+      break;
+    case BMNZI_B:
+      LOAD_W_REG(wd_lo, wd_hi, w2);
+      __ bmnzi_b(w2, w0, i8);
+      break;
+    case BMZI_B:
+      LOAD_W_REG(wd_lo, wd_hi, w2);
+      __ bmzi_b(w2, w0, i8);
+      break;
+    case BSELI_B:
+      LOAD_W_REG(wd_lo, wd_hi, w2);
+      __ bseli_b(w2, w0, i8);
+      break;
+    case SHF_B:
+      __ shf_b(w2, w0, i8);
+      break;
+    case SHF_H:
+      __ shf_h(w2, w0, i8);
+      break;
+    case SHF_W:
+      __ shf_w(w2, w0, i8);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ copy_u_w(t2, w2, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w2, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w2, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w2, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+#undef LOAD_W_REG
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  uint64_t mask = i8 * 0x0101010101010101ull;
+  switch (opcode) {
+    case ANDI_B:
+      CHECK_EQ(ws_lo & mask, res.d[0]);
+      CHECK_EQ(ws_hi & mask, res.d[1]);
+      break;
+    case ORI_B:
+      CHECK_EQ(ws_lo | mask, res.d[0]);
+      CHECK_EQ(ws_hi | mask, res.d[1]);
+      break;
+    case NORI_B:
+      CHECK_EQ(~(ws_lo | mask), res.d[0]);
+      CHECK_EQ(~(ws_hi | mask), res.d[1]);
+      break;
+    case XORI_B:
+      CHECK_EQ(ws_lo ^ mask, res.d[0]);
+      CHECK_EQ(ws_hi ^ mask, res.d[1]);
+      break;
+    case BMNZI_B:
+      CHECK_EQ((ws_lo & mask) | (wd_lo & ~mask), res.d[0]);
+      CHECK_EQ((ws_hi & mask) | (wd_hi & ~mask), res.d[1]);
+      break;
+    case BMZI_B:
+      CHECK_EQ((ws_lo & ~mask) | (wd_lo & mask), res.d[0]);
+      CHECK_EQ((ws_hi & ~mask) | (wd_hi & mask), res.d[1]);
+      break;
+    case BSELI_B:
+      CHECK_EQ((ws_lo & ~wd_lo) | (mask & wd_lo), res.d[0]);
+      CHECK_EQ((ws_hi & ~wd_hi) | (mask & wd_hi), res.d[1]);
+      break;
+    case SHF_B: {
+      struct ExpResShf exp_b[] = {
+          // i8,              exp_lo,             exp_hi
+          {0xffu, 0x11111111b9b9b9b9, 0xf7f7f7f7c8c8c8c8},
+          {0x0u, 0x62626262dfdfdfdf, 0xd6d6d6d6c8c8c8c8},
+          {0xe4u, 0xf35862e13e38f8b0, 0x4f41ffdef2bfe636},
+          {0x1bu, 0x1b756911c3d9a7b9, 0xae94a5f79c8aefc8},
+          {0xb1u, 0x662b6253e8c4df12, 0x0d3ad6803f8bc88b},
+          {0x4eu, 0x62e1f358f8b03e38, 0xffde4f41e636f2bf},
+          {0x27u, 0x1b697511c3a7d9b9, 0xaea594f79cef8ac8}};
+      for (size_t i = 0; i < sizeof(exp_b) / sizeof(ExpResShf); ++i) {
+        if (exp_b[i].i8 == i8) {
+          CHECK_EQ(exp_b[i].lo, res.d[0]);
+          CHECK_EQ(exp_b[i].hi, res.d[1]);
+        }
+      }
+    } break;
+    case SHF_H: {
+      struct ExpResShf exp_h[] = {
+          //  i8,             exp_lo,             exp_hi
+          {0xffu, 0x1169116911691169, 0xf7a5f7a5f7a5f7a5},
+          {0x0u, 0x12df12df12df12df, 0x8bc88bc88bc88bc8},
+          {0xe4u, 0xf35862e13e38f8b0, 0x4f41ffdef2bfe636},
+          {0x1bu, 0xd9c3b9a7751b1169, 0x8a9cc8ef94aef7a5},
+          {0xb1u, 0x53622b6612dfc4e8, 0x80d63a0d8bc88b3f},
+          {0x4eu, 0x3e38f8b0f35862e1, 0xf2bfe6364f41ffde},
+          {0x27u, 0xd9c3751bb9a71169, 0x8a9c94aec8eff7a5}};
+      for (size_t i = 0; i < sizeof(exp_h) / sizeof(ExpResShf); ++i) {
+        if (exp_h[i].i8 == i8) {
+          CHECK_EQ(exp_h[i].lo, res.d[0]);
+          CHECK_EQ(exp_h[i].hi, res.d[1]);
+        }
+      }
+    } break;
+    case SHF_W: {
+      struct ExpResShf exp_w[] = {
+          //  i8,             exp_lo,             exp_hi
+          {0xffu, 0xf7a594aef7a594ae, 0xf7a594aef7a594ae},
+          {0x0u, 0xc4e812dfc4e812df, 0xc4e812dfc4e812df},
+          {0xe4u, 0xf35862e13e38f8b0, 0x4f41ffdef2bfe636},
+          {0x1bu, 0xc8ef8a9cf7a594ae, 0xb9a7d9c31169751b},
+          {0xb1u, 0xc4e812df2b665362, 0x8b3f8bc83a0d80d6},
+          {0x4eu, 0x4f41ffdef2bfe636, 0xf35862e13e38f8b0},
+          {0x27u, 0x1169751bf7a594ae, 0xb9a7d9c3c8ef8a9c}};
+      for (size_t i = 0; i < sizeof(exp_w) / sizeof(ExpResShf); ++i) {
+        if (exp_w[i].i8 == i8) {
+          CHECK_EQ(exp_w[i].lo, res.d[0]);
+          CHECK_EQ(exp_w[i].hi, res.d[1]);
+        }
+      }
+    } break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+struct TestCaseMsaI8 {
+  uint64_t input_lo;
+  uint64_t input_hi;
+  uint8_t i8;
+};
+
+TEST(MSA_andi_ori_nori_xori) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI8 tc[] = {// input_lo,         input_hi,           i8
+                               {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0xffu},
+                               {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0u},
+                               {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x3bu},
+                               {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0xd9u}};
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI8); ++i) {
+    run_msa_i8(ANDI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(ORI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(NORI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(XORI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+  }
+}
+
+TEST(MSA_bmnzi_bmzi_bseli) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI8 tc[] = {//          input_lo,          input_hi,    i8
+                               {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0xffu},
+                               {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0u},
+                               {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x3bu},
+                               {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0xd9u}};
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI8); ++i) {
+    run_msa_i8(BMNZI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(BMZI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(BSELI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+  }
+}
+
+TEST(MSA_shf) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI8 tc[] = {
+      //          input_lo,           input_hi,    i8
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0xffu},  // 3333
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0u},   // 0000
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0xe4u},  // 3210
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x1bu},  // 0123
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0xb1u},  // 2301
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0x4eu},  // 1032
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x27u}   // 0213
+  };
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI8); ++i) {
+    run_msa_i8(SHF_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(SHF_H, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(SHF_W, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+  }
+}
+
+uint32_t run_Ins(uint32_t imm, uint32_t source, uint16_t pos, uint16_t size) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(v0, imm);
+  __ li(t0, source);
+  __ Ins(v0, t0, pos, size);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Ins) {
+  CcTest::InitializeVM();
+
+  //       run_Ins(rt_value, rs_value, pos, size), expected_result
+  CHECK_EQ(run_Ins(0x55555555, 0xabcdef01, 31, 1), 0xd5555555);
+  CHECK_EQ(run_Ins(0x55555555, 0xabcdef02, 30, 2), 0x95555555);
+  CHECK_EQ(run_Ins(0x01234567, 0xfabcdeff, 0, 32), 0xfabcdeff);
+
+  // Results with positive sign.
+  CHECK_EQ(run_Ins(0x55555550, 0x80000001, 0, 1), 0x55555551);
+  CHECK_EQ(run_Ins(0x55555555, 0x40000001, 0, 32), 0x40000001);
+  CHECK_EQ(run_Ins(0x55555555, 0x20000001, 1, 31), 0x40000003);
+  CHECK_EQ(run_Ins(0x55555555, 0x80700001, 8, 24), 0x70000155);
+  CHECK_EQ(run_Ins(0x55555555, 0x80007001, 16, 16), 0x70015555);
+  CHECK_EQ(run_Ins(0x55555555, 0x80000071, 24, 8), 0x71555555);
+  CHECK_EQ(run_Ins(0x75555555, 0x40000000, 31, 1), 0x75555555);
+
+  // Results with negative sign.
+  CHECK_EQ(run_Ins(0x85555550, 0x80000001, 0, 1), 0x85555551);
+  CHECK_EQ(run_Ins(0x55555555, 0x80000001, 0, 32), 0x80000001);
+  CHECK_EQ(run_Ins(0x55555555, 0x40000001, 1, 31), 0x80000003);
+  CHECK_EQ(run_Ins(0x55555555, 0x80800001, 8, 24), 0x80000155);
+  CHECK_EQ(run_Ins(0x55555555, 0x80008001, 16, 16), 0x80015555);
+  CHECK_EQ(run_Ins(0x55555555, 0x80000081, 24, 8), 0x81555555);
+  CHECK_EQ(run_Ins(0x75555555, 0x00000001, 31, 1), 0xf5555555);
+}
+
+uint32_t run_Ext(uint32_t source, uint16_t pos, uint16_t size) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(v0, 0xffffffff);
+  __ li(t0, source);
+  __ Ext(v0, t0, pos, size);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Ext) {
+  CcTest::InitializeVM();
+
+  // Source values with negative sign.
+  //       run_Ext(rs_value, pos, size), expected_result
+  CHECK_EQ(run_Ext(0x80000001, 0, 1), 0x00000001);
+  CHECK_EQ(run_Ext(0x80000001, 0, 32), 0x80000001);
+  CHECK_EQ(run_Ext(0x80000002, 1, 31), 0x40000001);
+  CHECK_EQ(run_Ext(0x80000100, 8, 24), 0x00800001);
+  CHECK_EQ(run_Ext(0x80010000, 16, 16), 0x00008001);
+  CHECK_EQ(run_Ext(0x81000000, 24, 8), 0x00000081);
+  CHECK_EQ(run_Ext(0x80000000, 31, 1), 0x00000001);
+
+  // Source values with positive sign.
+  CHECK_EQ(run_Ext(0x00000001, 0, 1), 0x00000001);
+  CHECK_EQ(run_Ext(0x40000001, 0, 32), 0x40000001);
+  CHECK_EQ(run_Ext(0x40000002, 1, 31), 0x20000001);
+  CHECK_EQ(run_Ext(0x40000100, 8, 24), 0x00400001);
+  CHECK_EQ(run_Ext(0x40010000, 16, 16), 0x00004001);
+  CHECK_EQ(run_Ext(0x41000000, 24, 8), 0x00000041);
+  CHECK_EQ(run_Ext(0x40000000, 31, 1), 0x00000000);
+}
+
+struct TestCaseMsaI5 {
+  uint64_t ws_lo;
+  uint64_t ws_hi;
+  uint32_t i5;
+};
+
+template <typename InstFunc, typename OperFunc>
+void run_msa_i5(struct TestCaseMsaI5* input, bool i5_sign_ext,
+                InstFunc GenerateI5InstructionFunc,
+                OperFunc GenerateOperationFunc) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+  int32_t i5 =
+      i5_sign_ext ? static_cast<int32_t>(input->i5 << 27) >> 27 : input->i5;
+
+  __ li(t0, static_cast<uint32_t>(input->ws_lo & 0xffffffff));
+  __ li(t1, static_cast<uint32_t>((input->ws_lo >> 32) & 0xffffffff));
+  __ insert_w(w0, 0, t0);
+  __ insert_w(w0, 1, t1);
+  __ li(t0, static_cast<uint32_t>(input->ws_hi & 0xffffffff));
+  __ li(t1, static_cast<uint32_t>((input->ws_hi >> 32) & 0xffffffff));
+  __ insert_w(w0, 2, t0);
+  __ insert_w(w0, 3, t1);
+
+  GenerateI5InstructionFunc(assm, i5);
+
+  __ copy_u_w(t2, w2, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w2, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w2, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w2, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  CHECK_EQ(GenerateOperationFunc(input->ws_lo, input->i5), res.d[0]);
+  CHECK_EQ(GenerateOperationFunc(input->ws_hi, input->i5), res.d[1]);
+}
+
+TEST(MSA_addvi_subvi) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI5 tc[] = {
+      //             ws_lo,              ws_hi,         i5
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x0000001f},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0000000f},
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x00000005},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x00000010},
+      {0xffab807f807fffcd, 0x7f23ff80ff567f80, 0x0000000f},
+      {0x80ffefff7f12807f, 0x807f80ff7fdeff78, 0x00000010}};
+
+#define ADDVI_DF(lanes, mask)                               \
+  uint64_t res = 0;                                         \
+  for (int i = 0; i < lanes / 2; ++i) {                     \
+    int shift = (kMSARegSize / lanes) * i;                  \
+    res |= ((((ws >> shift) & mask) + i5) & mask) << shift; \
+  }                                                         \
+  return res
+
+#define SUBVI_DF(lanes, mask)                               \
+  uint64_t res = 0;                                         \
+  for (int i = 0; i < lanes / 2; ++i) {                     \
+    int shift = (kMSARegSize / lanes) * i;                  \
+    res |= ((((ws >> shift) & mask) - i5) & mask) << shift; \
+  }                                                         \
+  return res
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI5); ++i) {
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ addvi_b(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { ADDVI_DF(kMSALanesByte, UINT8_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ addvi_h(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { ADDVI_DF(kMSALanesHalf, UINT16_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ addvi_w(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { ADDVI_DF(kMSALanesWord, UINT32_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ addvi_d(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { ADDVI_DF(kMSALanesDword, UINT64_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ subvi_b(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { SUBVI_DF(kMSALanesByte, UINT8_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ subvi_h(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { SUBVI_DF(kMSALanesHalf, UINT16_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ subvi_w(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { SUBVI_DF(kMSALanesWord, UINT32_MAX); });
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ subvi_d(w2, w0, i5); },
+        [](uint64_t ws, uint32_t i5) { SUBVI_DF(kMSALanesDword, UINT64_MAX); });
+  }
+#undef ADDVI_DF
+#undef SUBVI_DF
+}
+
+TEST(MSA_maxi_mini) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI5 tc[] = {
+      // ws_lo, ws_hi, i5
+      {0x7f80ff3480ff7f00, 0x8d7fff80ff7f6780, 0x0000001f},
+      {0x7f80ff3480ff7f00, 0x8d7fff80ff7f6780, 0x0000000f},
+      {0x7f80ff3480ff7f00, 0x8d7fff80ff7f6780, 0x00000010},
+      {0x80007fff91daffff, 0x7fff8000ffff5678, 0x0000001f},
+      {0x80007fff91daffff, 0x7fff8000ffff5678, 0x0000000f},
+      {0x80007fff91daffff, 0x7fff8000ffff5678, 0x00000010},
+      {0x7fffffff80000000, 0x12345678ffffffff, 0x0000001f},
+      {0x7fffffff80000000, 0x12345678ffffffff, 0x0000000f},
+      {0x7fffffff80000000, 0x12345678ffffffff, 0x00000010},
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x0000001f},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0000000f},
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0x00000010},
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x00000015},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x00000009},
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0x00000003}};
+
+#define MAXI_MINI_S_DF(lanes, mask, func)                                     \
+  [](uint64_t ws, uint32_t ui5) {                                             \
+    uint64_t res = 0;                                                         \
+    int64_t i5 = ArithmeticShiftRight(static_cast<int64_t>(ui5) << 59, 59);   \
+    int elem_size = kMSARegSize / lanes;                                      \
+    for (int i = 0; i < lanes / 2; ++i) {                                     \
+      int shift = elem_size * i;                                              \
+      int64_t elem =                                                          \
+          static_cast<int64_t>(((ws >> shift) & mask) << (64 - elem_size)) >> \
+          (64 - elem_size);                                                   \
+      res |= static_cast<uint64_t>(func(elem, i5) & mask) << shift;           \
+    }                                                                         \
+    return res;                                                               \
+  }
+
+#define MAXI_MINI_U_DF(lanes, mask, func)                              \
+  [](uint64_t ws, uint32_t ui5) {                                      \
+    uint64_t res = 0;                                                  \
+    int elem_size = kMSARegSize / lanes;                               \
+    for (int i = 0; i < lanes / 2; ++i) {                              \
+      int shift = elem_size * i;                                       \
+      uint64_t elem = (ws >> shift) & mask;                            \
+      res |= (func(elem, static_cast<uint64_t>(ui5)) & mask) << shift; \
+    }                                                                  \
+    return res;                                                        \
+  }
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI5); ++i) {
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_s_b(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesByte, UINT8_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_s_h(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesHalf, UINT16_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_s_w(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesWord, UINT32_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_s_d(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesDword, UINT64_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_s_b(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesByte, UINT8_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_s_h(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesHalf, UINT16_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_s_w(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesWord, UINT32_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_s_d(w2, w0, i5); },
+        MAXI_MINI_S_DF(kMSALanesDword, UINT64_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_u_b(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesByte, UINT8_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_u_h(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesHalf, UINT16_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_u_w(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesWord, UINT32_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ maxi_u_d(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesDword, UINT64_MAX, Max));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_u_b(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesByte, UINT8_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_u_h(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesHalf, UINT16_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_u_w(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesWord, UINT32_MAX, Min));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ mini_u_d(w2, w0, i5); },
+        MAXI_MINI_U_DF(kMSALanesDword, UINT64_MAX, Min));
+  }
+#undef MAXI_MINI_S_DF
+#undef MAXI_MINI_U_DF
+}
+
+TEST(MSA_ceqi_clti_clei) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI5 tc[] = {
+      {0xff69751bb9a7d9c3, 0xf7a594aec8ff8a9c, 0x0000001f},
+      {0xe669ffffb9a7d9c3, 0xf7a594aeffff8a9c, 0x0000001f},
+      {0xffffffffb9a7d9c3, 0xf7a594aeffffffff, 0x0000001f},
+      {0x2b0b5362c4e812df, 0x3a0d80d68b3f0bc8, 0x0000000b},
+      {0x2b66000bc4e812df, 0x3a0d000b8b3f8bc8, 0x0000000b},
+      {0x0000000bc4e812df, 0x3a0d80d60000000b, 0x0000000b},
+      {0xf38062e13e38f8b0, 0x8041ffdef2bfe636, 0x00000010},
+      {0xf35880003e38f8b0, 0x4f41ffdef2bf8000, 0x00000010},
+      {0xf35862e180000000, 0x80000000f2bfe636, 0x00000010},
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x00000015},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x00000009},
+      {0xf30062e13e38f800, 0x4f00ffdef2bf0036, 0x00000000}};
+
+#define CEQI_CLTI_CLEI_S_DF(lanes, mask, func)                                \
+  [](uint64_t ws, uint32_t ui5) {                                             \
+    uint64_t res = 0;                                                         \
+    int elem_size = kMSARegSize / lanes;                                      \
+    int64_t i5 = ArithmeticShiftRight(static_cast<int64_t>(ui5) << 59, 59);   \
+    for (int i = 0; i < lanes / 2; ++i) {                                     \
+      int shift = elem_size * i;                                              \
+      int64_t elem =                                                          \
+          static_cast<int64_t>(((ws >> shift) & mask) << (64 - elem_size)) >> \
+          (64 - elem_size);                                                   \
+      res |= static_cast<uint64_t>((func)&mask) << shift;                     \
+    }                                                                         \
+    return res;                                                               \
+  }
+
+#define CEQI_CLTI_CLEI_U_DF(lanes, mask, func) \
+  [](uint64_t ws, uint64_t ui5) {              \
+    uint64_t res = 0;                          \
+    int elem_size = kMSARegSize / lanes;       \
+    for (int i = 0; i < lanes / 2; ++i) {      \
+      int shift = elem_size * i;               \
+      uint64_t elem = (ws >> shift) & mask;    \
+      res |= ((func)&mask) << shift;           \
+    }                                          \
+    return res;                                \
+  }
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI5); ++i) {
+    run_msa_i5(&tc[i], true,
+               [](MacroAssembler& assm, int32_t i5) { __ ceqi_b(w2, w0, i5); },
+               CEQI_CLTI_CLEI_S_DF(kMSALanesByte, UINT8_MAX,
+                                   !Compare(elem, i5) ? -1u : 0u));
+
+    run_msa_i5(&tc[i], true,
+               [](MacroAssembler& assm, int32_t i5) { __ ceqi_h(w2, w0, i5); },
+               CEQI_CLTI_CLEI_S_DF(kMSALanesHalf, UINT16_MAX,
+                                   !Compare(elem, i5) ? -1u : 0u));
+
+    run_msa_i5(&tc[i], true,
+               [](MacroAssembler& assm, int32_t i5) { __ ceqi_w(w2, w0, i5); },
+               CEQI_CLTI_CLEI_S_DF(kMSALanesWord, UINT32_MAX,
+                                   !Compare(elem, i5) ? -1u : 0u));
+
+    run_msa_i5(&tc[i], true,
+               [](MacroAssembler& assm, int32_t i5) { __ ceqi_d(w2, w0, i5); },
+               CEQI_CLTI_CLEI_S_DF(kMSALanesDword, UINT64_MAX,
+                                   !Compare(elem, i5) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_s_b(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesByte, UINT8_MAX,
+                            (Compare(elem, i5) == -1) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_s_h(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesHalf, UINT16_MAX,
+                            (Compare(elem, i5) == -1) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_s_w(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesWord, UINT32_MAX,
+                            (Compare(elem, i5) == -1) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_s_d(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesDword, UINT64_MAX,
+                            (Compare(elem, i5) == -1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_s_b(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesByte, UINT8_MAX,
+                            (Compare(elem, i5) != 1) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_s_h(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesHalf, UINT16_MAX,
+                            (Compare(elem, i5) != 1) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_s_w(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesWord, UINT32_MAX,
+                            (Compare(elem, i5) != 1) ? -1u : 0u));
+
+    run_msa_i5(
+        &tc[i], true,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_s_d(w2, w0, i5); },
+        CEQI_CLTI_CLEI_S_DF(kMSALanesDword, UINT64_MAX,
+                            (Compare(elem, i5) != 1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_u_b(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesByte, UINT8_MAX,
+                            (Compare(elem, ui5) == -1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_u_h(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesHalf, UINT16_MAX,
+                            (Compare(elem, ui5) == -1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_u_w(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesWord, UINT32_MAX,
+                            (Compare(elem, ui5) == -1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clti_u_d(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesDword, UINT64_MAX,
+                            (Compare(elem, ui5) == -1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_u_b(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesByte, UINT8_MAX,
+                            (Compare(elem, ui5) != 1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_u_h(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesHalf, UINT16_MAX,
+                            (Compare(elem, ui5) != 1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_u_w(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesWord, UINT32_MAX,
+                            (Compare(elem, ui5) != 1) ? -1ull : 0ull));
+
+    run_msa_i5(
+        &tc[i], false,
+        [](MacroAssembler& assm, int32_t i5) { __ clei_u_d(w2, w0, i5); },
+        CEQI_CLTI_CLEI_U_DF(kMSALanesDword, UINT64_MAX,
+                            (Compare(elem, ui5) != 1) ? -1ull : 0ull));
+  }
+#undef CEQI_CLTI_CLEI_S_DF
+#undef CEQI_CLTI_CLEI_U_DF
+}
+
+struct TestCaseMsa2R {
+  uint64_t ws_lo;
+  uint64_t ws_hi;
+  uint64_t exp_res_lo;
+  uint64_t exp_res_hi;
+};
+
+template <typename Func>
+void run_msa_2r(struct TestCaseMsa2R* input, Func Generate2RInstructionFunc) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+
+  __ li(t0, static_cast<uint32_t>(input->ws_lo & 0xffffffff));
+  __ li(t1, static_cast<uint32_t>((input->ws_lo >> 32) & 0xffffffff));
+  __ insert_w(w0, 0, t0);
+  __ insert_w(w0, 1, t1);
+  __ li(t0, static_cast<uint32_t>(input->ws_hi & 0xffffffff));
+  __ li(t1, static_cast<uint32_t>((input->ws_hi >> 32) & 0xffffffff));
+  __ insert_w(w0, 2, t0);
+  __ insert_w(w0, 3, t1);
+
+  Generate2RInstructionFunc(assm);
+
+  __ copy_u_w(t2, w2, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w2, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w2, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w2, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  CHECK_EQ(input->exp_res_lo, res.d[0]);
+  CHECK_EQ(input->exp_res_hi, res.d[1]);
+}
+
+TEST(MSA_pcnt) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsa2R tc_b[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0x0000000000000000, 0x0000000000000000, 0, 0},
+                                 {0xffffffffffffffff, 0xffffffffffffffff,
+                                  0x0808080808080808, 0x0808080808080808},
+                                 {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c,
+                                  0x0204050405050504, 0x0704030503070304},
+                                 {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8,
+                                  0x0404040303040207, 0x0403010504060403},
+                                 {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636,
+                                  0x0603030405030503, 0x0502080605070504}};
+
+  struct TestCaseMsa2R tc_h[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0x0000000000000000, 0x0000000000000000, 0, 0},
+                                 {0xffffffffffffffff, 0xffffffffffffffff,
+                                  0x0010001000100010, 0x0010001000100010},
+                                 {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c,
+                                  0x00060009000a0009, 0x000b0008000a0007},
+                                 {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8,
+                                  0x0008000700070009, 0x00070006000a0007},
+                                 {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636,
+                                  0x0009000700080008, 0x0007000e000c0009}};
+
+  struct TestCaseMsa2R tc_w[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0x0000000000000000, 0x0000000000000000, 0, 0},
+                                 {0xffffffffffffffff, 0xffffffffffffffff,
+                                  0x0000002000000020, 0x0000002000000020},
+                                 {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c,
+                                  0x0000000f00000013, 0x0000001300000011},
+                                 {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8,
+                                  0x0000000f00000010, 0x0000000d00000011},
+                                 {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636,
+                                  0x0000001000000010, 0x0000001500000015}};
+
+  struct TestCaseMsa2R tc_d[] = {
+      // ws_lo, ws_hi, exp_res_lo, exp_res_hi
+      {0x0000000000000000, 0x0000000000000000, 0, 0},
+      {0xffffffffffffffff, 0xffffffffffffffff, 0x40, 0x40},
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x22, 0x24},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x1f, 0x1e},
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0x20, 0x2a}};
+
+  for (size_t i = 0; i < sizeof(tc_b) / sizeof(TestCaseMsa2R); ++i) {
+    run_msa_2r(&tc_b[i], [](MacroAssembler& assm) { __ pcnt_b(w2, w0); });
+    run_msa_2r(&tc_h[i], [](MacroAssembler& assm) { __ pcnt_h(w2, w0); });
+    run_msa_2r(&tc_w[i], [](MacroAssembler& assm) { __ pcnt_w(w2, w0); });
+    run_msa_2r(&tc_d[i], [](MacroAssembler& assm) { __ pcnt_d(w2, w0); });
+  }
+}
+
+TEST(MSA_nlzc) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsa2R tc_b[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0x0000000000000000, 0x0000000000000000,
+                                  0x0808080808080808, 0x0808080808080808},
+                                 {0xffffffffffffffff, 0xffffffffffffffff, 0, 0},
+                                 {0x1169350b07030100, 0x7f011402381f0a6c,
+                                  0x0301020405060708, 0x0107030602030401},
+                                 {0x010806003478121f, 0x03013016073f7b08,
+                                  0x0704050802010303, 0x0607020305020104},
+                                 {0x0168321100083803, 0x07113f03013f1676,
+                                  0x0701020308040206, 0x0503020607020301}};
+
+  struct TestCaseMsa2R tc_h[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0x0000000000000000, 0x0000000000000000,
+                                  0x0010001000100010, 0x0010001000100010},
+                                 {0xffffffffffffffff, 0xffffffffffffffff, 0, 0},
+                                 {0x00010007000a003c, 0x37a5001e00010002,
+                                  0x000f000d000c000a, 0x0002000b000f000e},
+                                 {0x0026066200780edf, 0x003d0003000f00c8,
+                                  0x000a000500090004, 0x000a000e000c0008},
+                                 {0x335807e100480030, 0x01410fde12bf5636,
+                                  0x000200050009000a, 0x0007000400030001}};
+
+  struct TestCaseMsa2R tc_w[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0x0000000000000000, 0x0000000000000000,
+                                  0x0000002000000020, 0x0000002000000020},
+                                 {0xffffffffffffffff, 0xffffffffffffffff, 0, 0},
+                                 {0x00000005000007c3, 0x000014ae00006a9c,
+                                  0x0000001d00000015, 0x0000001300000011},
+                                 {0x00009362000112df, 0x000380d6003f8bc8,
+                                  0x000000100000000f, 0x0000000e0000000a},
+                                 {0x135862e17e38f8b0, 0x0061ffde03bfe636,
+                                  0x0000000300000001, 0x0000000900000006}};
+
+  struct TestCaseMsa2R tc_d[] = {
+      // ws_lo, ws_hi, exp_res_lo, exp_res_hi
+      {0x0000000000000000, 0x0000000000000000, 0x40, 0x40},
+      {0xffffffffffffffff, 0xffffffffffffffff, 0, 0},
+      {0x000000000000014e, 0x00000000000176da, 0x37, 0x2f},
+      {0x00000062c4e812df, 0x000065d68b3f8bc8, 0x19, 0x11},
+      {0x00000000e338f8b0, 0x0754534acab32654, 0x20, 0x5}};
+
+  for (size_t i = 0; i < sizeof(tc_b) / sizeof(TestCaseMsa2R); ++i) {
+    run_msa_2r(&tc_b[i], [](MacroAssembler& assm) { __ nlzc_b(w2, w0); });
+    run_msa_2r(&tc_h[i], [](MacroAssembler& assm) { __ nlzc_h(w2, w0); });
+    run_msa_2r(&tc_w[i], [](MacroAssembler& assm) { __ nlzc_w(w2, w0); });
+    run_msa_2r(&tc_d[i], [](MacroAssembler& assm) { __ nlzc_d(w2, w0); });
+  }
+}
+
+TEST(MSA_nloc) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsa2R tc_b[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0xffffffffffffffff, 0xffffffffffffffff,
+                                  0x0808080808080808, 0x0808080808080808},
+                                 {0x0000000000000000, 0x0000000000000000, 0, 0},
+                                 {0xEE96CAF4F8FCFEFF, 0x80FEEBFDC7E0F593,
+                                  0x0301020405060708, 0x0107030602030401},
+                                 {0xFEF7F9FFCB87EDE0, 0xFCFECFE9F8C084F7,
+                                  0x0704050802010303, 0x0607020305020104},
+                                 {0xFE97CDEEFFF7C7FC, 0xF8EEC0FCFEC0E989,
+                                  0x0701020308040206, 0x0503020607020301}};
+
+  struct TestCaseMsa2R tc_h[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0xffffffffffffffff, 0xffffffffffffffff,
+                                  0x0010001000100010, 0x0010001000100010},
+                                 {0x0000000000000000, 0x0000000000000000, 0, 0},
+                                 {0xFFFEFFF8FFF5FFC3, 0xC85AFFE1FFFEFFFD,
+                                  0x000f000d000c000a, 0x0002000b000f000e},
+                                 {0xFFD9F99DFF87F120, 0xFFC2FFFCFFF0FF37,
+                                  0x000a000500090004, 0x000a000e000c0008},
+                                 {0xCCA7F81EFFB7FFCF, 0xFEBEF021ED40A9C9,
+                                  0x000200050009000a, 0x0007000400030001}};
+
+  struct TestCaseMsa2R tc_w[] = {// ws_lo, ws_hi, exp_res_lo, exp_res_hi
+                                 {0xffffffffffffffff, 0xffffffffffffffff,
+                                  0x0000002000000020, 0x0000002000000020},
+                                 {0x0000000000000000, 0x0000000000000000, 0, 0},
+                                 {0xFFFFFFFAFFFFF83C, 0xFFFFEB51FFFF9563,
+                                  0x0000001d00000015, 0x0000001300000011},
+                                 {0xFFFF6C9DFFFEED20, 0xFFFC7F29FFC07437,
+                                  0x000000100000000f, 0x0000000e0000000a},
+                                 {0xECA79D1E81C7074F, 0xFF9E0021FC4019C9,
+                                  0x0000000300000001, 0x0000000900000006}};
+
+  struct TestCaseMsa2R tc_d[] = {
+      // ws_lo, ws_hi, exp_res_lo, exp_res_hi
+      {0xffffffffffffffff, 0xffffffffffffffff, 0x40, 0x40},
+      {0x0000000000000000, 0x0000000000000000, 0, 0},
+      {0xFFFFFFFFFFFFFEB1, 0xFFFFFFFFFFFE8925, 0x37, 0x2f},
+      {0xFFFFFF9D3B17ED20, 0xFFFF9A2974C07437, 0x19, 0x11},
+      {0xFFFFFFFF1CC7074F, 0xF8ABACB5354CD9AB, 0x20, 0x5}};
+
+  for (size_t i = 0; i < sizeof(tc_b) / sizeof(TestCaseMsa2R); ++i) {
+    run_msa_2r(&tc_b[i], [](MacroAssembler& assm) { __ nloc_b(w2, w0); });
+    run_msa_2r(&tc_h[i], [](MacroAssembler& assm) { __ nloc_h(w2, w0); });
+    run_msa_2r(&tc_w[i], [](MacroAssembler& assm) { __ nloc_w(w2, w0); });
+    run_msa_2r(&tc_d[i], [](MacroAssembler& assm) { __ nloc_d(w2, w0); });
+  }
+}
+
+struct TestCaseMsaVector {
+  uint64_t wd_lo;
+  uint64_t wd_hi;
+  uint64_t ws_lo;
+  uint64_t ws_hi;
+  uint64_t wt_lo;
+  uint64_t wt_hi;
+};
+
+template <typename InstFunc, typename OperFunc>
+void run_msa_vector(struct TestCaseMsaVector* input,
+                    InstFunc GenerateVectorInstructionFunc,
+                    OperFunc GenerateOperationFunc) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+
+#define LOAD_W_REG(lo, hi, w_reg)                            \
+  __ li(t0, static_cast<uint32_t>(lo & 0xffffffff));         \
+  __ li(t1, static_cast<uint32_t>((lo >> 32) & 0xffffffff)); \
+  __ insert_w(w_reg, 0, t0);                                 \
+  __ insert_w(w_reg, 1, t1);                                 \
+  __ li(t0, static_cast<uint32_t>(hi & 0xffffffff));         \
+  __ li(t1, static_cast<uint32_t>((hi >> 32) & 0xffffffff)); \
+  __ insert_w(w_reg, 2, t0);                                 \
+  __ insert_w(w_reg, 3, t1)
+
+  LOAD_W_REG(input->ws_lo, input->ws_hi, w0);
+  LOAD_W_REG(input->wt_lo, input->wt_hi, w2);
+  LOAD_W_REG(input->wd_lo, input->wd_hi, w4);
+#undef LOAD_W_REG
+
+  GenerateVectorInstructionFunc(assm);
+
+  __ copy_u_w(t2, w4, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w4, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w4, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w4, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  CHECK_EQ(GenerateOperationFunc(input->wd_lo, input->ws_lo, input->wt_lo),
+           res.d[0]);
+  CHECK_EQ(GenerateOperationFunc(input->wd_hi, input->ws_hi, input->wt_hi),
+           res.d[1]);
+}
+
+TEST(MSA_vector) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaVector tc[] = {
+      // wd_lo, wd_hi, ws_lo, ws_hi, wt_lo, wt_hi
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0xdcd39d91f9057627,
+       0x64be4f6dbe9caa51, 0x6b23de1a687d9cb9, 0x49547aad691da4ca},
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0x401614523d830549,
+       0xd7c46d613f50eddd, 0x52284cbc60a1562b, 0x1756ed510d8849cd},
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0xd6e2d2ebcb40d72f,
+       0x13a619afce67b079, 0x36cce284343e40f9, 0xb4e8f44fd148bf7f}};
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaVector); ++i) {
+    run_msa_vector(
+        &tc[i], [](MacroAssembler& assm) { __ and_v(w4, w0, w2); },
+        [](uint64_t wd, uint64_t ws, uint64_t wt) { return ws & wt; });
+    run_msa_vector(
+        &tc[i], [](MacroAssembler& assm) { __ or_v(w4, w0, w2); },
+        [](uint64_t wd, uint64_t ws, uint64_t wt) { return ws | wt; });
+    run_msa_vector(
+        &tc[i], [](MacroAssembler& assm) { __ nor_v(w4, w0, w2); },
+        [](uint64_t wd, uint64_t ws, uint64_t wt) { return ~(ws | wt); });
+    run_msa_vector(
+        &tc[i], [](MacroAssembler& assm) { __ xor_v(w4, w0, w2); },
+        [](uint64_t wd, uint64_t ws, uint64_t wt) { return ws ^ wt; });
+    run_msa_vector(&tc[i], [](MacroAssembler& assm) { __ bmnz_v(w4, w0, w2); },
+                   [](uint64_t wd, uint64_t ws, uint64_t wt) {
+                     return (ws & wt) | (wd & ~wt);
+                   });
+    run_msa_vector(&tc[i], [](MacroAssembler& assm) { __ bmz_v(w4, w0, w2); },
+                   [](uint64_t wd, uint64_t ws, uint64_t wt) {
+                     return (ws & ~wt) | (wd & wt);
+                   });
+    run_msa_vector(&tc[i], [](MacroAssembler& assm) { __ bsel_v(w4, w0, w2); },
+                   [](uint64_t wd, uint64_t ws, uint64_t wt) {
+                     return (ws & ~wd) | (wt & wd);
+                   });
+  }
 }
 
 #undef __

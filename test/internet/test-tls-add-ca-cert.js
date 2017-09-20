@@ -1,19 +1,18 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 // Test interaction of compiled-in CAs with user-provided CAs.
 
 const assert = require('assert');
 const fs = require('fs');
+const fixtures = require('../common/fixtures');
 const tls = require('tls');
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
+  return fixtures.path('keys', `${n}.pem`);
 }
 
 function loadPEM(n) {

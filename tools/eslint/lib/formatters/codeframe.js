@@ -74,11 +74,14 @@ function formatMessage(message, parentResult) {
  * Gets the formatted output summary for a given number of errors and warnings.
  * @param   {number} errors   The number of errors.
  * @param   {number} warnings The number of warnings.
+ * @param   {number} fixableErrors The number of fixable errors.
+ * @param   {number} fixableWarnings The number of fixable warnings.
  * @returns {string}          The formatted output summary.
  */
-function formatSummary(errors, warnings) {
+function formatSummary(errors, warnings, fixableErrors, fixableWarnings) {
     const summaryColor = errors > 0 ? "red" : "yellow";
     const summary = [];
+    const fixablesSummary = [];
 
     if (errors > 0) {
         summary.push(`${errors} ${pluralize("error", errors)}`);
@@ -88,7 +91,21 @@ function formatSummary(errors, warnings) {
         summary.push(`${warnings} ${pluralize("warning", warnings)}`);
     }
 
-    return chalk[summaryColor].bold(`${summary.join(" and ")} found.`);
+    if (fixableErrors > 0) {
+        fixablesSummary.push(`${fixableErrors} ${pluralize("error", fixableErrors)}`);
+    }
+
+    if (fixableWarnings > 0) {
+        fixablesSummary.push(`${fixableWarnings} ${pluralize("warning", fixableWarnings)}`);
+    }
+
+    let output = chalk[summaryColor].bold(`${summary.join(" and ")} found.`);
+
+    if (fixableErrors || fixableWarnings) {
+        output += chalk[summaryColor].bold(`\n${fixablesSummary.join(" and ")} potentially fixable with the \`--fix\` option.`);
+    }
+
+    return output;
 }
 
 //------------------------------------------------------------------------------
@@ -98,6 +115,9 @@ function formatSummary(errors, warnings) {
 module.exports = function(results) {
     let errors = 0;
     let warnings = 0;
+    let fixableErrors = 0;
+    let fixableWarnings = 0;
+
     const resultsWithMessages = results.filter(result => result.messages.length > 0);
 
     let output = resultsWithMessages.reduce((resultsOutput, result) => {
@@ -105,12 +125,14 @@ module.exports = function(results) {
 
         errors += result.errorCount;
         warnings += result.warningCount;
+        fixableErrors += result.fixableErrorCount;
+        fixableWarnings += result.fixableWarningCount;
 
         return resultsOutput.concat(messages);
     }, []).join("\n");
 
     output += "\n";
-    output += formatSummary(errors, warnings);
+    output += formatSummary(errors, warnings, fixableErrors, fixableWarnings);
 
     return (errors + warnings) > 0 ? output : "";
 };

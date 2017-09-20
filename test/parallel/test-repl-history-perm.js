@@ -7,7 +7,6 @@ if (common.isWindows) {
   common.skip('Win32 uses ACLs for file permissions, ' +
               'modes are always 0666 and says nothing about group/other ' +
               'read access.');
-  return;
 }
 
 const assert = require('assert');
@@ -19,7 +18,7 @@ const Duplex = require('stream').Duplex;
 // and mode 600.
 
 const stream = new Duplex();
-stream.pause = stream.resume = common.noop;
+stream.pause = stream.resume = () => {};
 // ends immediately
 stream._read = function() {
   this.push(null);
@@ -46,7 +45,7 @@ const checkResults = common.mustCall(function(err, r) {
 });
 
 repl.createInternalRepl(
-  {NODE_REPL_HISTORY: replHistoryPath},
+  { NODE_REPL_HISTORY: replHistoryPath },
   {
     terminal: true,
     input: stream,

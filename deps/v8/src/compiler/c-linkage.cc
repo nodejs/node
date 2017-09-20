@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler.h"
+#include "src/assembler-inl.h"
 #include "src/macro-assembler.h"
 
 #include "src/compiler/linkage.h"
@@ -49,12 +49,6 @@ LinkageLocation regloc(Register reg, MachineType type) {
 #define CALLEE_SAVE_REGISTERS \
   rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit()
 #endif
-
-#elif V8_TARGET_ARCH_X87
-// ===========================================================================
-// == x87 ====================================================================
-// ===========================================================================
-#define CALLEE_SAVE_REGISTERS esi.bit() | edi.bit() | ebx.bit()
 
 #elif V8_TARGET_ARCH_ARM
 // ===========================================================================
@@ -155,11 +149,13 @@ LinkageLocation regloc(Register reg, MachineType type) {
 // General code uses the above configuration data.
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(
     Zone* zone, const MachineSignature* msig, bool set_initialize_root_flag) {
+  DCHECK_LE(msig->parameter_count(), static_cast<size_t>(kMaxCParameters));
+
   LocationSignature::Builder locations(zone, msig->return_count(),
                                        msig->parameter_count());
   // Check the types of the signature.
   // Currently no floating point parameters or returns are allowed because
-  // on x87 and ia32, the FP top of stack is involved.
+  // on ia32, the FP top of stack is involved.
   for (size_t i = 0; i < msig->return_count(); i++) {
     MachineRepresentation rep = msig->GetReturn(i).representation();
     CHECK_NE(MachineRepresentation::kFloat32, rep);

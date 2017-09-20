@@ -158,6 +158,10 @@ class V8_EXPORT_PRIVATE Node final {
 
   // Returns true if {owner1} and {owner2} are the only users of {this} node.
   bool OwnedBy(Node const* owner1, Node const* owner2) const;
+
+  // Returns true if addressing related operands (such as load, store, lea)
+  // are the only users of {this} node.
+  bool OwnedByAddressingOperand() const;
   void Print() const;
 
  private:

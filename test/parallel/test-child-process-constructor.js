@@ -1,18 +1,27 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { ChildProcess } = require('child_process');
 assert.strictEqual(typeof ChildProcess, 'function');
+
+function typeName(value) {
+  return value === null ? 'null' : typeof value;
+}
 
 {
   // Verify that invalid options to spawn() throw.
   const child = new ChildProcess();
 
   [undefined, null, 'foo', 0, 1, NaN, true, false].forEach((options) => {
-    assert.throws(() => {
+    common.expectsError(() => {
       child.spawn(options);
-    }, /^TypeError: "options" must be an object$/);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "options" argument must be of type object. ' +
+               `Received type ${typeName(options)}`
+    });
   });
 }
 
@@ -21,9 +30,14 @@ assert.strictEqual(typeof ChildProcess, 'function');
   const child = new ChildProcess();
 
   [undefined, null, 0, 1, NaN, true, false, {}].forEach((file) => {
-    assert.throws(() => {
+    common.expectsError(() => {
       child.spawn({ file });
-    }, /^TypeError: "file" must be a string$/);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "options.file" property must be of type string. ' +
+               `Received type ${typeName(file)}`
+    });
   });
 }
 
@@ -32,9 +46,14 @@ assert.strictEqual(typeof ChildProcess, 'function');
   const child = new ChildProcess();
 
   [null, 0, 1, NaN, true, false, {}, 'foo'].forEach((envPairs) => {
-    assert.throws(() => {
+    common.expectsError(() => {
       child.spawn({ envPairs, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
-    }, /^TypeError: "envPairs" must be an array$/);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "options.envPairs" property must be of type Array. ' +
+               `Received type ${typeName(envPairs)}`
+    });
   });
 }
 
@@ -43,9 +62,14 @@ assert.strictEqual(typeof ChildProcess, 'function');
   const child = new ChildProcess();
 
   [null, 0, 1, NaN, true, false, {}, 'foo'].forEach((args) => {
-    assert.throws(() => {
+    common.expectsError(() => {
       child.spawn({ file: 'foo', args });
-    }, /^TypeError: "args" must be an array$/);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "options.args" property must be of type Array. ' +
+               `Received type ${typeName(args)}`
+    });
   });
 }
 
@@ -62,8 +86,9 @@ assert.strictEqual(child.hasOwnProperty('pid'), true);
 assert(Number.isInteger(child.pid));
 
 // try killing with invalid signal
-assert.throws(() => {
-  child.kill('foo');
-}, /^Error: Unknown signal: foo$/);
+common.expectsError(
+  () => { child.kill('foo'); },
+  { code: 'ERR_UNKNOWN_SIGNAL', type: TypeError }
+);
 
 assert.strictEqual(child.kill(), true);

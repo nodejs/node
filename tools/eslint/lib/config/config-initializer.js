@@ -12,10 +12,12 @@
 const util = require("util"),
     inquirer = require("inquirer"),
     ProgressBar = require("progress"),
+    semver = require("semver"),
     autoconfig = require("./autoconfig.js"),
     ConfigFile = require("./config-file"),
     ConfigOps = require("./config-ops"),
     getSourceCodeOfFiles = require("../util/source-code-util").getSourceCodeOfFiles,
+    ModuleResolver = require("../util/module-resolver"),
     npmUtil = require("../util/npm-util"),
     recConfig = require("../../conf/eslint-recommended"),
     log = require("../logging");
@@ -57,47 +59,76 @@ function writeFile(config, format) {
 }
 
 /**
+ * Get the peer dependencies of the given module.
+ * This adds the gotten value to cache at the first time, then reuses it.
+ * In a process, this function is called twice, but `npmUtil.fetchPeerDependencies` needs to access network which is relatively slow.
+ * @param {string} moduleName The module name to get.
+ * @returns {Object} The peer dependencies of the given module.
+ * This object is the object of `peerDependencies` field of `package.json`.
+ */
+function getPeerDependencies(moduleName) {
+    let result = getPeerDependencies.cache.get(moduleName);
+
+    if (!result) {
+        log.info(`Checking peerDependencies of ${moduleName}`);
+
+        result = npmUtil.fetchPeerDependencies(moduleName);
+        getPeerDependencies.cache.set(moduleName, result);
+    }
+
+    return result;
+}
+getPeerDependencies.cache = new Map();
+
+/**
  * Synchronously install necessary plugins, configs, parsers, etc. based on the config
  * @param   {Object} config  config object
+ * @param   {boolean} [installESLint=true]  If `false` is given, it does not install eslint.
  * @returns {void}
  */
-function installModules(config) {
-    let modules = [];
+function installModules(config, installESLint) {
+    const modules = {};
 
     // Create a list of modules which should be installed based on config
     if (config.plugins) {
-        modules = modules.concat(config.plugins.map(name => `eslint-plugin-${name}`));
+        for (const plugin of config.plugins) {
+            modules[`eslint-plugin-${plugin}`] = "latest";
+        }
     }
     if (config.extends && config.extends.indexOf("eslint:") === -1) {
-        modules.push(`eslint-config-${config.extends}`);
+        const moduleName = `eslint-config-${config.extends}`;
+
+        modules[moduleName] = "latest";
+        Object.assign(
+            modules,
+            getPeerDependencies(`${moduleName}@latest`)
+        );
     }
 
-    // Determine which modules are already installed
-    if (modules.length === 0) {
+    // If no modules, do nothing.
+    if (Object.keys(modules).length === 0) {
         return;
     }
 
-    // Add eslint to list in case user does not have it installed locally
-    modules.unshift("eslint");
+    if (installESLint === false) {
+        delete modules.eslint;
+    } else {
+        const installStatus = npmUtil.checkDevDeps(["eslint"]);
 
-    const installStatus = npmUtil.checkDevDeps(modules);
-
-    // Install packages which aren't already installed
-    const modulesToInstall = Object.keys(installStatus).filter(module => {
-        const notInstalled = installStatus[module] === false;
-
-        if (module === "eslint" && notInstalled) {
+        // Mark to show messages if it's new installation of eslint.
+        if (installStatus.eslint === false) {
             log.info("Local ESLint installation not found.");
+            modules.eslint = modules.eslint || "latest";
             config.installedESLint = true;
         }
-
-        return notInstalled;
-    });
-
-    if (modulesToInstall.length > 0) {
-        log.info(`Installing ${modulesToInstall.join(", ")}`);
-        npmUtil.installSyncSaveDev(modulesToInstall);
     }
+
+    // Install packages
+    const modulesToInstall = Object.keys(modules).map(name => `${name}@${modules[name]}`);
+
+    log.info(`Installing ${modulesToInstall.join(", ")}`);
+
+    npmUtil.installSyncSaveDev(modulesToInstall);
 }
 
 /**
@@ -260,35 +291,98 @@ function processAnswers(answers) {
 /**
  * process user's style guide of choice and return an appropriate config object.
  * @param {string} guide name of the chosen style guide
+ * @param {boolean} [installESLint=true]  If `false` is given, it does not install eslint.
  * @returns {Object} config object
  */
-function getConfigForStyleGuide(guide) {
+function getConfigForStyleGuide(guide, installESLint) {
     const guides = {
         google: { extends: "google" },
-        airbnb: { extends: "airbnb", plugins: ["react", "jsx-a11y", "import"] },
-        "airbnb-base": { extends: "airbnb-base", plugins: ["import"] },
-        standard: { extends: "standard", plugins: ["standard", "promise"] }
+        airbnb: { extends: "airbnb" },
+        "airbnb-base": { extends: "airbnb-base" },
+        standard: { extends: "standard" }
     };
 
     if (!guides[guide]) {
         throw new Error("You referenced an unsupported guide.");
     }
 
-    installModules(guides[guide]);
+    installModules(guides[guide], installESLint);
 
     return guides[guide];
+}
+
+/**
+ * Get the version of the local ESLint.
+ * @returns {string|null} The version. If the local ESLint was not found, returns null.
+ */
+function getLocalESLintVersion() {
+    try {
+        const resolver = new ModuleResolver();
+        const eslintPath = resolver.resolve("eslint", process.cwd());
+        const eslint = require(eslintPath);
+
+        return eslint.linter.version || null;
+    } catch (_err) {
+        return null;
+    }
+}
+
+/**
+ * Get the shareable config name of the chosen style guide.
+ * @param {Object} answers The answers object.
+ * @returns {string} The shareable config name.
+ */
+function getStyleGuideName(answers) {
+    if (answers.styleguide === "airbnb" && !answers.airbnbReact) {
+        return "airbnb-base";
+    }
+    return answers.styleguide;
+}
+
+/**
+ * Check whether the local ESLint version conflicts with the required version of the chosen shareable config.
+ * @param {Object} answers The answers object.
+ * @returns {boolean} `true` if the local ESLint is found then it conflicts with the required version of the chosen shareable config.
+ */
+function hasESLintVersionConflict(answers) {
+
+    // Get the local ESLint version.
+    const localESLintVersion = getLocalESLintVersion();
+
+    if (!localESLintVersion) {
+        return false;
+    }
+
+    // Get the required range of ESLint version.
+    const configName = getStyleGuideName(answers);
+    const moduleName = `eslint-config-${configName}@latest`;
+    const requiredESLintVersionRange = getPeerDependencies(moduleName).eslint;
+
+    if (!requiredESLintVersionRange) {
+        return false;
+    }
+
+    answers.localESLintVersion = localESLintVersion;
+    answers.requiredESLintVersionRange = requiredESLintVersionRange;
+
+    // Check the version.
+    if (semver.satisfies(localESLintVersion, requiredESLintVersionRange)) {
+        answers.installESLint = false;
+        return false;
+    }
+
+    return true;
 }
 
 /* istanbul ignore next: no need to test inquirer*/
 /**
  * Ask use a few questions on command prompt
- * @param {Function} callback callback function when file has been written
- * @returns {void}
+ * @returns {Promise} The promise with the result of the prompt
  */
-function promptUser(callback) {
+function promptUser() {
     let config;
 
-    inquirer.prompt([
+    return inquirer.prompt([
         {
             type: "list",
             name: "source",
@@ -342,30 +436,45 @@ function promptUser(callback) {
             when(answers) {
                 return ((answers.source === "guide" && answers.packageJsonExists) || answers.source === "auto");
             }
+        },
+        {
+            type: "confirm",
+            name: "installESLint",
+            message(answers) {
+                const verb = semver.ltr(answers.localESLintVersion, answers.requiredESLintVersionRange)
+                    ? "upgrade"
+                    : "downgrade";
+
+                return `The style guide "${answers.styleguide}" requires eslint@${answers.requiredESLintVersionRange}. You are currently using eslint@${answers.localESLintVersion}.\n  Do you want to ${verb}?`;
+            },
+            default: true,
+            when(answers) {
+                return answers.source === "guide" && answers.packageJsonExists && hasESLintVersionConflict(answers);
+            }
         }
-    ], earlyAnswers => {
+    ]).then(earlyAnswers => {
 
         // early exit if you are using a style guide
         if (earlyAnswers.source === "guide") {
             if (!earlyAnswers.packageJsonExists) {
                 log.info("A package.json is necessary to install plugins such as style guides. Run `npm init` to create a package.json file and try again.");
-                return;
+                return void 0;
+            }
+            if (earlyAnswers.installESLint === false && !semver.satisfies(earlyAnswers.localESLintVersion, earlyAnswers.requiredESLintVersionRange)) {
+                log.info(`Note: it might not work since ESLint's version is mismatched with the ${earlyAnswers.styleguide} config.`);
             }
             if (earlyAnswers.styleguide === "airbnb" && !earlyAnswers.airbnbReact) {
                 earlyAnswers.styleguide = "airbnb-base";
             }
-            try {
-                config = getConfigForStyleGuide(earlyAnswers.styleguide);
-                writeFile(config, earlyAnswers.format);
-            } catch (err) {
-                callback(err);
-                return;
-            }
-            return;
+
+            config = getConfigForStyleGuide(earlyAnswers.styleguide, earlyAnswers.installESLint);
+            writeFile(config, earlyAnswers.format);
+
+            return void 0;
         }
 
         // continue with the questions otherwise...
-        inquirer.prompt([
+        return inquirer.prompt([
             {
                 type: "confirm",
                 name: "es6",
@@ -412,25 +521,21 @@ function promptUser(callback) {
                     return answers.jsx;
                 }
             }
-        ], secondAnswers => {
+        ]).then(secondAnswers => {
 
             // early exit if you are using automatic style generation
             if (earlyAnswers.source === "auto") {
-                try {
-                    const combinedAnswers = Object.assign({}, earlyAnswers, secondAnswers);
+                const combinedAnswers = Object.assign({}, earlyAnswers, secondAnswers);
 
-                    config = processAnswers(combinedAnswers);
-                    installModules(config);
-                    writeFile(config, earlyAnswers.format);
-                } catch (err) {
-                    callback(err);
-                    return;
-                }
-                return;
+                config = processAnswers(combinedAnswers);
+                installModules(config);
+                writeFile(config, earlyAnswers.format);
+
+                return void 0;
             }
 
             // continue with the style questions otherwise...
-            inquirer.prompt([
+            return inquirer.prompt([
                 {
                     type: "list",
                     name: "indent",
@@ -465,16 +570,12 @@ function promptUser(callback) {
                     default: "JavaScript",
                     choices: ["JavaScript", "YAML", "JSON"]
                 }
-            ], answers => {
-                try {
-                    const totalAnswers = Object.assign({}, earlyAnswers, secondAnswers, answers);
+            ]).then(answers => {
+                const totalAnswers = Object.assign({}, earlyAnswers, secondAnswers, answers);
 
-                    config = processAnswers(totalAnswers);
-                    installModules(config);
-                    writeFile(config, answers.format);
-                } catch (err) {
-                    callback(err); // eslint-disable-line callback-return
-                }
+                config = processAnswers(totalAnswers);
+                installModules(config);
+                writeFile(config, answers.format);
             });
         });
     });
@@ -486,9 +587,10 @@ function promptUser(callback) {
 
 const init = {
     getConfigForStyleGuide,
+    hasESLintVersionConflict,
     processAnswers,
-    /* istanbul ignore next */initializeConfig(callback) {
-        promptUser(callback);
+    /* istanbul ignore next */initializeConfig() {
+        return promptUser();
     }
 };
 

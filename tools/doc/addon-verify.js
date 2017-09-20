@@ -11,29 +11,29 @@ const verifyDir = path.resolve(rootDir, 'test', 'addons');
 const contents = fs.readFileSync(doc).toString();
 
 const tokens = marked.lexer(contents);
-let files = null;
 let id = 0;
 
-// Just to make sure that all examples will be processed
-tokens.push({ type: 'heading' });
-
-for (var i = 0; i < tokens.length; i++) {
-  var token = tokens[i];
+let currentHeader;
+const addons = {};
+tokens.forEach((token) => {
   if (token.type === 'heading' && token.text) {
-    const blockName = token.text;
-    if (files && Object.keys(files).length !== 0) {
-      verifyFiles(files,
-                  blockName,
-                  console.log.bind(null, 'wrote'),
-                  function(err) { if (err) throw err; });
-    }
-    files = {};
-  } else if (token.type === 'code') {
-    var match = token.text.match(/^\/\/\s+(.*\.(?:cc|h|js))[\r\n]/);
-    if (match === null)
-      continue;
-    files[match[1]] = token.text;
+    currentHeader = token.text;
+    addons[currentHeader] = {
+      files: {}
+    };
   }
+  if (token.type === 'code') {
+    var match = token.text.match(/^\/\/\s+(.*\.(?:cc|h|js))[\r\n]/);
+    if (match !== null) {
+      addons[currentHeader].files[match[1]] = token.text;
+    }
+  }
+});
+for (var header in addons) {
+  verifyFiles(addons[header].files,
+              header,
+              console.log.bind(null, 'wrote'),
+              function(err) { if (err) throw err; });
 }
 
 function once(fn) {
@@ -66,7 +66,10 @@ function verifyFiles(files, blockName, onprogress, ondone) {
     if (name === 'test.js') {
       files[name] = `'use strict';
 const common = require('../../common');
-${files[name].replace('Release', "' + common.buildType + '")}
+${files[name].replace(
+    "'./build/Release/addon'",
+    // eslint-disable-next-line no-template-curly-in-string
+    '`./build/${common.buildType}/addon`')}
 `;
     }
     return {
@@ -94,7 +97,7 @@ ${files[name].replace('Release', "' + common.buildType + '")}
   fs.mkdir(dir, function() {
     // Ignore errors
 
-    var done = once(ondone);
+    const done = once(ondone);
     var waiting = files.length;
     files.forEach(function(file) {
       fs.writeFile(file.path, file.content, function(err) {

@@ -37,6 +37,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 namespace {
@@ -49,8 +50,11 @@ class SignalWrap : public HandleWrap {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
-    constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Signal"));
+    Local<String> signalString =
+        FIXED_ONE_BYTE_STRING(env->isolate(), "Signal");
+    constructor->SetClassName(signalString);
 
+    AsyncWrap::AddWrapMethods(env, constructor);
     env->SetProtoMethod(constructor, "close", HandleWrap::Close);
     env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
     env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
@@ -58,8 +62,7 @@ class SignalWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
 
-    target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Signal"),
-                constructor->GetFunction());
+    target->Set(signalString, constructor->GetFunction());
   }
 
   size_t self_size() const override { return sizeof(*this); }
@@ -91,7 +94,8 @@ class SignalWrap : public HandleWrap {
     if (signum == SIGPROF) {
       Environment* env = Environment::GetCurrent(args);
       if (env->inspector_agent()->IsStarted()) {
-        fprintf(stderr, "process.on(SIGPROF) is reserved while debugging\n");
+        ProcessEmitWarning(env,
+                           "process.on(SIGPROF) is reserved while debugging");
         return;
       }
     }

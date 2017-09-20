@@ -1,6 +1,4 @@
-#include "node.h"
-#include "env.h"
-#include "v8.h"
+#include "node_internals.h"
 #include "libplatform/libplatform.h"
 
 #include <string>
@@ -31,7 +29,8 @@ class EnvironmentTest : public NodeTestFixture {
         const Argv& argv) {
       context_ = v8::Context::New(isolate);
       CHECK(!context_.IsEmpty());
-      isolate_data_ = CreateIsolateData(isolate, uv_default_loop());
+      isolate_data_ = CreateIsolateData(isolate,
+                                        NodeTestFixture::CurrentLoop());
       CHECK_NE(nullptr, isolate_data_);
       environment_ = CreateEnvironment(isolate_data_,
                                        context_,
@@ -41,8 +40,9 @@ class EnvironmentTest : public NodeTestFixture {
     }
 
     ~Env() {
-      FreeIsolateData(isolate_data_);
+      environment_->CleanupHandles();
       FreeEnvironment(environment_);
+      FreeIsolateData(isolate_data_);
     }
 
     Environment* operator*() const {

@@ -28,14 +28,12 @@
  */
 
 const common = require('../common');
+if (common.isWindows)
+  common.skip('Sending dgram sockets to child processes is not supported');
+
 const dgram = require('dgram');
 const fork = require('child_process').fork;
 const assert = require('assert');
-
-if (common.isWindows) {
-  common.skip('Sending dgram sockets to child processes is not supported');
-  return;
-}
 
 if (process.argv[2] === 'child') {
   let childServer;
@@ -78,7 +76,7 @@ if (process.argv[2] === 'child') {
     });
   });
 
-  const sendMessages = function() {
+  function sendMessages() {
     const serverPort = parentServer.address().port;
 
     const timer = setInterval(function() {
@@ -102,7 +100,7 @@ if (process.argv[2] === 'child') {
         );
       }
     }, 1);
-  };
+  }
 
   parentServer.bind(0, '127.0.0.1');
 

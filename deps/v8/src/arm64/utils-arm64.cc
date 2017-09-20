@@ -12,23 +12,78 @@ namespace internal {
 
 #define __ assm->
 
+uint32_t float_sign(float val) {
+  uint32_t bits = bit_cast<uint32_t>(val);
+  return unsigned_bitextract_32(31, 31, bits);
+}
+
+uint32_t float_exp(float val) {
+  uint32_t bits = bit_cast<uint32_t>(val);
+  return unsigned_bitextract_32(30, 23, bits);
+}
+
+uint32_t float_mantissa(float val) {
+  uint32_t bits = bit_cast<uint32_t>(val);
+  return unsigned_bitextract_32(22, 0, bits);
+}
+
+uint32_t double_sign(double val) {
+  uint64_t bits = bit_cast<uint64_t>(val);
+  return static_cast<uint32_t>(unsigned_bitextract_64(63, 63, bits));
+}
+
+uint32_t double_exp(double val) {
+  uint64_t bits = bit_cast<uint64_t>(val);
+  return static_cast<uint32_t>(unsigned_bitextract_64(62, 52, bits));
+}
+
+uint64_t double_mantissa(double val) {
+  uint64_t bits = bit_cast<uint64_t>(val);
+  return unsigned_bitextract_64(51, 0, bits);
+}
+
+float float_pack(uint32_t sign, uint32_t exp, uint32_t mantissa) {
+  uint32_t bits = sign << kFloatExponentBits | exp;
+  return bit_cast<float>((bits << kFloatMantissaBits) | mantissa);
+}
+
+double double_pack(uint64_t sign, uint64_t exp, uint64_t mantissa) {
+  uint64_t bits = sign << kDoubleExponentBits | exp;
+  return bit_cast<double>((bits << kDoubleMantissaBits) | mantissa);
+}
+
+int float16classify(float16 value) {
+  const uint16_t exponent_max = (1 << kFloat16ExponentBits) - 1;
+  const uint16_t exponent_mask = exponent_max << kFloat16MantissaBits;
+  const uint16_t mantissa_mask = (1 << kFloat16MantissaBits) - 1;
+
+  const uint16_t exponent = (value & exponent_mask) >> kFloat16MantissaBits;
+  const uint16_t mantissa = value & mantissa_mask;
+  if (exponent == 0) {
+    if (mantissa == 0) {
+      return FP_ZERO;
+    }
+    return FP_SUBNORMAL;
+  } else if (exponent == exponent_max) {
+    if (mantissa == 0) {
+      return FP_INFINITE;
+    }
+    return FP_NAN;
+  }
+  return FP_NORMAL;
+}
 
 int CountLeadingZeros(uint64_t value, int width) {
-  // TODO(jbramley): Optimize this for ARM64 hosts.
-  DCHECK((width == 32) || (width == 64));
-  int count = 0;
-  uint64_t bit_test = 1UL << (width - 1);
-  while ((count < width) && ((bit_test & value) == 0)) {
-    count++;
-    bit_test >>= 1;
+  DCHECK(base::bits::IsPowerOfTwo(width) && (width <= 64));
+  if (value == 0) {
+    return width;
   }
-  return count;
+  return base::bits::CountLeadingZeros64(value << (64 - width));
 }
 
 
 int CountLeadingSignBits(int64_t value, int width) {
-  // TODO(jbramley): Optimize this for ARM64 hosts.
-  DCHECK((width == 32) || (width == 64));
+  DCHECK(base::bits::IsPowerOfTwo(width) && (width <= 64));
   if (value >= 0) {
     return CountLeadingZeros(value, width) - 1;
   } else {
@@ -38,43 +93,32 @@ int CountLeadingSignBits(int64_t value, int width) {
 
 
 int CountTrailingZeros(uint64_t value, int width) {
-  // TODO(jbramley): Optimize this for ARM64 hosts.
   DCHECK((width == 32) || (width == 64));
-  int count = 0;
-  while ((count < width) && (((value >> count) & 1) == 0)) {
-    count++;
+  if (width == 64) {
+    return static_cast<int>(base::bits::CountTrailingZeros64(value));
   }
-  return count;
+  return static_cast<int>(base::bits::CountTrailingZeros32(
+      static_cast<uint32_t>(value & 0xfffffffff)));
 }
 
 
 int CountSetBits(uint64_t value, int width) {
-  // TODO(jbramley): Would it be useful to allow other widths? The
-  // implementation already supports them.
   DCHECK((width == 32) || (width == 64));
+  if (width == 64) {
+    return static_cast<int>(base::bits::CountPopulation64(value));
+  }
+  return static_cast<int>(base::bits::CountPopulation32(
+      static_cast<uint32_t>(value & 0xfffffffff)));
+}
 
-  // Mask out unused bits to ensure that they are not counted.
-  value &= (0xffffffffffffffffUL >> (64-width));
+int LowestSetBitPosition(uint64_t value) {
+  DCHECK_NE(value, 0U);
+  return CountTrailingZeros(value, 64) + 1;
+}
 
-  // Add up the set bits.
-  // The algorithm works by adding pairs of bit fields together iteratively,
-  // where the size of each bit field doubles each time.
-  // An example for an 8-bit value:
-  // Bits:  h  g  f  e  d  c  b  a
-  //         \ |   \ |   \ |   \ |
-  // value = h+g   f+e   d+c   b+a
-  //            \    |      \    |
-  // value =   h+g+f+e     d+c+b+a
-  //                  \          |
-  // value =       h+g+f+e+d+c+b+a
-  value = ((value >> 1) & 0x5555555555555555) + (value & 0x5555555555555555);
-  value = ((value >> 2) & 0x3333333333333333) + (value & 0x3333333333333333);
-  value = ((value >> 4) & 0x0f0f0f0f0f0f0f0f) + (value & 0x0f0f0f0f0f0f0f0f);
-  value = ((value >> 8) & 0x00ff00ff00ff00ff) + (value & 0x00ff00ff00ff00ff);
-  value = ((value >> 16) & 0x0000ffff0000ffff) + (value & 0x0000ffff0000ffff);
-  value = ((value >> 32) & 0x00000000ffffffff) + (value & 0x00000000ffffffff);
-
-  return static_cast<int>(value);
+int HighestSetBitPosition(uint64_t value) {
+  DCHECK_NE(value, 0U);
+  return 63 - CountLeadingZeros(value, 64);
 }
 
 
@@ -84,7 +128,7 @@ uint64_t LargestPowerOf2Divisor(uint64_t value) {
 
 
 int MaskToBit(uint64_t mask) {
-  DCHECK(CountSetBits(mask, 64) == 1);
+  DCHECK_EQ(CountSetBits(mask, 64), 1);
   return CountTrailingZeros(mask, 64);
 }
 

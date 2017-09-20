@@ -48,8 +48,8 @@ function verifyLink(linkPath) {
   const stats = fs.lstatSync(linkPath);
   assert.ok(stats.isSymbolicLink());
 
-  const data1 = fs.readFileSync(linkPath + '/x.txt', 'ascii');
-  const data2 = fs.readFileSync(linkTarget + '/x.txt', 'ascii');
+  const data1 = fs.readFileSync(`${linkPath}/x.txt`, 'ascii');
+  const data2 = fs.readFileSync(`${linkTarget}/x.txt`, 'ascii');
   assert.strictEqual(data1, data2);
 
   // Clean up.

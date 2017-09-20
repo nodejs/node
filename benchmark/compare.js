@@ -20,10 +20,7 @@ const cli = CLI(`usage: ./node compare.js [options] [--] <category> ...
   --filter   pattern            string to filter benchmark scripts
   --set      variable=value     set benchmark variable (can be repeated)
   --no-progress                 don't show benchmark progress indicator
-`, {
-  arrayArgs: ['set'],
-  boolArgs: ['no-progress']
-});
+`, { arrayArgs: ['set'], boolArgs: ['no-progress'] });
 
 if (!cli.optional.new || !cli.optional.old) {
   cli.abort(cli.usage);
@@ -85,8 +82,8 @@ if (showProgress) {
       // Escape quotes (") for correct csv formatting
       conf = conf.replace(/"/g, '""');
 
-      console.log(`"${job.binary}", "${job.filename}", "${conf}", ${
-                   data.rate}, ${data.time}`);
+      console.log(`"${job.binary}", "${job.filename}", "${conf}", ` +
+                  `${data.rate}, ${data.time}`);
       if (showProgress) {
         // One item in the subqueue has been completed.
         progress.completeConfig(data);

@@ -58,20 +58,6 @@ class PendingCompilationErrorHandler {
     error_type_ = error_type;
   }
 
-  void ReportMessageAt(int start_position, int end_position,
-                       MessageTemplate::Template message, Handle<String> arg,
-                       ParseErrorType error_type = kSyntaxError) {
-    if (has_pending_error_) return;
-    has_pending_error_ = true;
-    start_position_ = start_position;
-    end_position_ = end_position;
-    message_ = message;
-    char_arg_ = nullptr;
-    arg_ = nullptr;
-    handle_arg_ = arg;
-    error_type_ = error_type;
-  }
-
   bool has_pending_error() const { return has_pending_error_; }
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script);
@@ -86,7 +72,6 @@ class PendingCompilationErrorHandler {
   MessageTemplate::Template message_;
   const AstRawString* arg_;
   const char* char_arg_;
-  Handle<String> handle_arg_;
   ParseErrorType error_type_;
 
   DISALLOW_COPY_AND_ASSIGN(PendingCompilationErrorHandler);

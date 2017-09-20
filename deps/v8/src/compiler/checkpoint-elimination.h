@@ -20,6 +20,8 @@ class V8_EXPORT_PRIVATE CheckpointElimination final
   explicit CheckpointElimination(Editor* editor);
   ~CheckpointElimination() final {}
 
+  const char* reducer_name() const override { return "CheckpointElimination"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

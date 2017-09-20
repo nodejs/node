@@ -19,11 +19,11 @@ parameter count: 1
 bytecode array length: 11
 bytecodes: [
   /*   32 E> */ B(StackCheck),
-  /*   39 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*   39 S> */ B(LdaGlobal), U8(0), U8(3),
                 B(Star), R(0),
                 B(LdaConstant), U8(1),
                 B(DeletePropertySloppy), R(0),
-  /*   58 S> */ B(Return),
+  /*   57 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
@@ -46,11 +46,11 @@ parameter count: 1
 bytecode array length: 11
 bytecodes: [
   /*   28 E> */ B(StackCheck),
-  /*   51 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*   51 S> */ B(LdaGlobal), U8(0), U8(3),
                 B(Star), R(0),
-                B(LdaSmi), U8(1),
+                B(LdaSmi), I8(1),
                 B(DeletePropertyStrict), R(0),
-  /*   71 S> */ B(Return),
+  /*   70 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
@@ -71,13 +71,13 @@ parameter count: 1
 bytecode array length: 16
 bytecodes: [
   /*   32 E> */ B(StackCheck),
-  /*   39 S> */ B(LdaCurrentContextSlot), U8(3),
+  /*   39 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star), R(0),
-                B(LdaContextSlot), R(0), U8(2), U8(0),
+                B(LdaImmutableContextSlot), R(0), U8(2), U8(0),
                 B(Star), R(1),
                 B(LdaConstant), U8(0),
                 B(DeletePropertySloppy), R(1),
-  /*   56 S> */ B(Return),
+  /*   55 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
@@ -98,13 +98,13 @@ parameter count: 1
 bytecode array length: 16
 bytecodes: [
   /*   18 E> */ B(StackCheck),
-  /*   25 S> */ B(LdaCurrentContextSlot), U8(3),
+  /*   25 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star), R(0),
-                B(LdaContextSlot), R(0), U8(2), U8(0),
+                B(LdaImmutableContextSlot), R(0), U8(2), U8(0),
                 B(Star), R(1),
                 B(LdaConstant), U8(0),
                 B(DeletePropertySloppy), R(1),
-  /*   42 S> */ B(Return),
+  /*   41 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["b"],

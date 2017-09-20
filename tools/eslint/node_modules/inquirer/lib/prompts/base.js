@@ -3,28 +3,30 @@
  * Should be extended by prompt types.
  */
 
-var rx = require('rx-lite');
 var _ = require('lodash');
 var chalk = require('chalk');
-var ansiRegex = require('ansi-regex');
 var runAsync = require('run-async');
 var Choices = require('../objects/choices');
 var ScreenManager = require('../utils/screen-manager');
 
-
 var Prompt = module.exports = function (question, rl, answers) {
-
   // Setup instance defaults property
   _.assign(this, {
     answers: answers,
-    status : 'pending'
+    status: 'pending'
   });
 
   // Set defaults prompt options
   this.opt = _.defaults(_.clone(question), {
-    validate: function () { return true; },
-    filter: function (val) { return val; },
-    when: function () { return true; }
+    validate: function () {
+      return true;
+    },
+    filter: function (val) {
+      return val;
+    },
+    when: function () {
+      return true;
+    }
   });
 
   // Check to make sure prompt requirements are there
@@ -44,22 +46,23 @@ var Prompt = module.exports = function (question, rl, answers) {
   this.screen = new ScreenManager(this.rl);
 };
 
-
 /**
  * Start the Inquiry session and manage output value filtering
- * @param  {Function} cb  Callback when prompt is done
- * @return {this}
+ * @return {Promise}
  */
 
-Prompt.prototype.run = function( cb ) {
-  this._run(function (value) {
-    this.filter(value, cb);
+Prompt.prototype.run = function () {
+  return new Promise(function (resolve) {
+    this._run(function (value) {
+      resolve(value);
+    });
   }.bind(this));
 };
 
 // default noop (this one should be overwritten in prompts)
-Prompt.prototype._run = function (cb) { cb(); };
-
+Prompt.prototype._run = function (cb) {
+  cb();
+};
 
 /**
  * Throw an error telling a required parameter is missing
@@ -72,15 +75,10 @@ Prompt.prototype.throwParamError = function (name) {
 };
 
 /**
- * Validate a given input
- * @param  {String} value       Input string
- * @param  {Function} callback  Pass `true` (if input is valid) or an error message as
- *                              parameter.
- * @return {null}
+ * Called when the UI closes. Override to do any specific cleanup necessary
  */
-
-Prompt.prototype.validate = function (input, cb) {
-  runAsync(this.opt.validate, cb, input);
+Prompt.prototype.close = function () {
+  this.screen.releaseCursor();
 };
 
 /**
@@ -90,21 +88,30 @@ Prompt.prototype.validate = function (input, cb) {
  */
 Prompt.prototype.handleSubmitEvents = function (submit) {
   var self = this;
+  var validate = runAsync(this.opt.validate);
+  var filter = runAsync(this.opt.filter);
   var validation = submit.flatMap(function (value) {
-    return rx.Observable.create(function (observer) {
-      runAsync(self.opt.validate, function (isValid) {
-        observer.onNext({ isValid: isValid, value: self.getCurrentValue(value) });
-        observer.onCompleted();
-      }, self.getCurrentValue(value), self.answers);
+    return filter(value, self.answers).then(function (filteredValue) {
+      return validate(filteredValue, self.answers).then(function (isValid) {
+        return {isValid: isValid, value: filteredValue};
+      }, function (err) {
+        return {isValid: err};
+      });
+    }, function (err) {
+      return {isValid: err};
     });
   }).share();
 
   var success = validation
-    .filter(function (state) { return state.isValid === true; })
+    .filter(function (state) {
+      return state.isValid === true;
+    })
     .take(1);
 
   var error = validation
-    .filter(function (state) { return state.isValid !== true; })
+    .filter(function (state) {
+      return state.isValid !== true;
+    })
     .takeUntil(success);
 
   return {
@@ -113,62 +120,17 @@ Prompt.prototype.handleSubmitEvents = function (submit) {
   };
 };
 
-Prompt.prototype.getCurrentValue = function (value) {
-  return value;
-};
-
-/**
- * Filter a given input before sending back
- * @param  {String}   value     Input string
- * @param  {Function} callback  Pass the filtered input as parameter.
- * @return {null}
- */
-
-Prompt.prototype.filter = function (input, cb) {
-  runAsync(this.opt.filter, cb, input);
-};
-
-/**
- * Return the prompt line prefix
- * @param  {String} [optionnal] String to concatenate to the prefix
- * @return {String} prompt prefix
- */
-
-Prompt.prototype.prefix = function (str) {
-  str || (str = '');
-  return chalk.green('?') + ' ' + str;
-};
-
-/**
- * Return the prompt line suffix
- * @param  {String} [optionnal] String to concatenate to the suffix
- * @return {String} prompt suffix
- */
-
-var reStrEnd = new RegExp('(?:' + ansiRegex().source + ')$|$');
-
-Prompt.prototype.suffix = function (str) {
-  str || (str = '');
-
-  // make sure we get the `:` inside the styles
-  if (str.length < 1 || /[a-z1-9]$/i.test(chalk.stripColor(str))) {
-    str = str.replace(reStrEnd, ':$&');
-  }
-
-  return str.trim() + ' ';
-};
-
 /**
  * Generate the prompt question string
  * @return {String} prompt question string
  */
 
 Prompt.prototype.getQuestion = function () {
-  var message = chalk.green('?') + ' ' + chalk.bold(this.opt.message) + ' ';
+  var message = chalk.green('?') + ' ' + chalk.bold(this.opt.message) + chalk.reset(' ');
 
   // Append the default if available, and if question isn't answered
-  if ( this.opt.default != null && this.status !== 'answered' ) {
-    message += chalk.dim('('+ this.opt.default + ') ');
+  if (this.opt.default != null && this.status !== 'answered') {
+    message += chalk.dim('(' + this.opt.default + ') ');
   }
 
   return message;

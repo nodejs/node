@@ -4,21 +4,24 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/v8.h"
-
-#include "test/common/wasm/test-signatures.h"
-
+#include "src/objects-inl.h"
 #include "src/objects.h"
-
+#include "src/v8.h"
+#include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/signature-map.h"
-#include "src/wasm/wasm-macro-gen.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+#include "test/common/wasm/flag-utils.h"
+#include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
+
+using namespace v8::internal;
+using namespace v8::internal::wasm;
+using namespace v8::internal::wasm::testing;
 
 #define B1(a) WASM_BLOCK(a)
 #define B2(a, b) WASM_BLOCK(a, b)
@@ -48,53 +51,43 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
 #define WASM_BRV_IF_ZERO(depth, val) \
   val, WASM_ZERO, kExprBrIf, static_cast<byte>(depth)
 
-#define EXPECT_VERIFIES_C(sig, x) \
-  Verify(kSuccess, sigs.sig(), x, x + arraysize(x))
+#define EXPECT_VERIFIES_C(sig, x) Verify(true, sigs.sig(), x, x + arraysize(x))
 
-#define EXPECT_FAILURE_C(sig, x) Verify(kError, sigs.sig(), x, x + arraysize(x))
+#define EXPECT_FAILURE_C(sig, x) Verify(false, sigs.sig(), x, x + arraysize(x))
 
-#define EXPECT_VERIFIES_SC(sig, x) Verify(kSuccess, sig, x, x + arraysize(x))
+#define EXPECT_VERIFIES_SC(sig, x) Verify(true, sig, x, x + arraysize(x))
 
-#define EXPECT_FAILURE_SC(sig, x) Verify(kError, sig, x, x + arraysize(x))
+#define EXPECT_FAILURE_SC(sig, x) Verify(false, sig, x, x + arraysize(x))
 
-#define EXPECT_VERIFIES_S(env, ...)                      \
+#define EXPECT_VERIFIES_S(env, ...)                  \
+  do {                                               \
+    static byte code[] = {__VA_ARGS__};              \
+    Verify(true, env, code, code + arraysize(code)); \
+  } while (false)
+
+#define EXPECT_FAILURE_S(env, ...)                    \
+  do {                                                \
+    static byte code[] = {__VA_ARGS__};               \
+    Verify(false, env, code, code + arraysize(code)); \
+  } while (false)
+
+#define EXPECT_VERIFIES(sig, ...)                        \
   do {                                                   \
-    static byte code[] = {__VA_ARGS__};                  \
-    Verify(kSuccess, env, code, code + arraysize(code)); \
+    static const byte code[] = {__VA_ARGS__};            \
+    Verify(true, sigs.sig(), code, code + sizeof(code)); \
   } while (false)
 
-#define EXPECT_FAILURE_S(env, ...)                     \
-  do {                                                 \
-    static byte code[] = {__VA_ARGS__};                \
-    Verify(kError, env, code, code + arraysize(code)); \
+#define EXPECT_FAILURE(sig, ...)                          \
+  do {                                                    \
+    static const byte code[] = {__VA_ARGS__};             \
+    Verify(false, sigs.sig(), code, code + sizeof(code)); \
   } while (false)
-
-#define EXPECT_VERIFIES(sig, ...)                            \
-  do {                                                       \
-    static const byte code[] = {__VA_ARGS__};                \
-    Verify(kSuccess, sigs.sig(), code, code + sizeof(code)); \
-  } while (false)
-
-#define EXPECT_FAILURE(sig, ...)                           \
-  do {                                                     \
-    static const byte code[] = {__VA_ARGS__};              \
-    Verify(kError, sigs.sig(), code, code + sizeof(code)); \
-  } while (false)
-
-static bool old_eh_flag;
 
 class FunctionBodyDecoderTest : public TestWithZone {
  public:
   typedef std::pair<uint32_t, ValueType> LocalsDecl;
 
   FunctionBodyDecoderTest() : module(nullptr), local_decls(zone()) {}
-
-  static void SetUpTestCase() { old_eh_flag = FLAG_wasm_eh_prototype; }
-
-  static void TearDownTestCase() {
-    // Reset the wasm_eh_prototype flag
-    FLAG_wasm_eh_prototype = old_eh_flag;
-  }
 
   TestSignatures sigs;
   ModuleEnv* module;
@@ -123,7 +116,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
 
   // Prepends local variable declarations and renders nice error messages for
   // verification failures.
-  void Verify(ErrorCode expected, FunctionSig* sig, const byte* start,
+  void Verify(bool expected_success, FunctionSig* sig, const byte* start,
               const byte* end) {
     PrepareBytecode(&start, &end);
 
@@ -132,24 +125,15 @@ class FunctionBodyDecoderTest : public TestWithZone {
         zone()->allocator(), module == nullptr ? nullptr : module->module, sig,
         start, end);
 
-    if (result.error_code != expected) {
-      ptrdiff_t pc = result.error_pc - result.start;
-      ptrdiff_t pt = result.error_pt - result.start;
-      std::ostringstream str;
-      if (expected == kSuccess) {
-        str << "Verification failed: " << result.error_code << " pc = +" << pc;
-        if (result.error_pt) str << ", pt = +" << pt;
-        str << ", msg = " << result.error_msg.get();
-      } else {
-        str << "Verification expected: " << expected << ", but got "
-            << result.error_code;
-        if (result.error_code != kSuccess) {
-          str << " pc = +" << pc;
-          if (result.error_pt) str << ", pt = +" << pt;
-        }
-      }
-      EXPECT_TRUE(false) << str.str().c_str();
+    uint32_t pc = result.error_offset();
+    std::ostringstream str;
+    if (expected_success) {
+      str << "Verification failed: pc = +" << pc
+          << ", msg = " << result.error_msg();
+    } else {
+      str << "Verification successed, expected failure; pc = +" << pc;
     }
+    EXPECT_EQ(result.ok(), expected_success) << str.str();
   }
 
   void TestBinop(WasmOpcode opcode, FunctionSig* success) {
@@ -208,7 +192,7 @@ class TestModuleEnv : public ModuleEnv {
  public:
   explicit TestModuleEnv(ModuleOrigin origin = kWasmOrigin)
       : ModuleEnv(&mod, nullptr) {
-    mod.origin = origin;
+    mod.set_origin(origin);
   }
   byte AddGlobal(ValueType type, bool mutability = true) {
     mod.globals.push_back({type, mutability, WasmInitExpr(), 0, false, false});
@@ -224,10 +208,8 @@ class TestModuleEnv : public ModuleEnv {
     mod.functions.push_back({sig,      // sig
                              0,        // func_index
                              0,        // sig_index
-                             0,        // name_offset
-                             0,        // name_length
-                             0,        // code_start_offset
-                             0,        // code_end_offset
+                             {0, 0},   // name
+                             {0, 0},   // code
                              false,    // import
                              false});  // export
     CHECK(mod.functions.size() <= 127);
@@ -245,10 +227,7 @@ class TestModuleEnv : public ModuleEnv {
     mod.max_mem_pages = 100;
   }
 
-  void InitializeFunctionTable() {
-    mod.function_tables.push_back(
-        {0, 0, true, std::vector<int32_t>(), false, false, SignatureMap()});
-  }
+  void InitializeFunctionTable() { mod.function_tables.emplace_back(); }
 
  private:
   WasmModule mod;
@@ -265,8 +244,8 @@ TEST_F(FunctionBodyDecoderTest, Int32Const1) {
 
 TEST_F(FunctionBodyDecoderTest, EmptyFunction) {
   byte code[] = {0};
-  Verify(kSuccess, sigs.v_v(), code, code);
-  Verify(kError, sigs.i_i(), code, code);
+  Verify(true, sigs.v_v(), code, code);
+  Verify(false, sigs.i_i(), code, code);
 }
 
 TEST_F(FunctionBodyDecoderTest, IncompleteIf1) {
@@ -322,7 +301,7 @@ TEST_F(FunctionBodyDecoderTest, Int32Const_off_end) {
   byte code[] = {kExprI32Const, 0xaa, 0xbb, 0xcc, 0x44};
 
   for (int size = 1; size <= 4; size++) {
-    Verify(kError, sigs.i_i(), code, code + size);
+    Verify(false, sigs.i_i(), code, code + size);
   }
 }
 
@@ -372,22 +351,22 @@ TEST_F(FunctionBodyDecoderTest, GetLocal_off_end) {
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalBelowLimit) {
-  AddLocals(kWasmI32, kMaxNumWasmLocals - 1);
+  AddLocals(kWasmI32, kV8MaxWasmFunctionLocals - 1);
   EXPECT_VERIFIES(v_v, WASM_NOP);
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalAtLimit) {
-  AddLocals(kWasmI32, kMaxNumWasmLocals);
+  AddLocals(kWasmI32, kV8MaxWasmFunctionLocals);
   EXPECT_VERIFIES(v_v, WASM_NOP);
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalAboveLimit) {
-  AddLocals(kWasmI32, kMaxNumWasmLocals + 1);
+  AddLocals(kWasmI32, kV8MaxWasmFunctionLocals + 1);
   EXPECT_FAILURE(v_v, WASM_NOP);
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal_varint) {
-  const int kMaxLocals = kMaxNumWasmLocals - 1;
+  const int kMaxLocals = kV8MaxWasmFunctionLocals - 1;
   AddLocals(kWasmI32, kMaxLocals);
 
   EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_1(66));
@@ -408,7 +387,7 @@ TEST_F(FunctionBodyDecoderTest, GetLocal_varint) {
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal_toomany) {
-  AddLocals(kWasmI32, kMaxNumWasmLocals - 100);
+  AddLocals(kWasmI32, kV8MaxWasmFunctionLocals - 100);
   AddLocals(kWasmI32, 100);
 
   EXPECT_VERIFIES(i_v, kExprGetLocal, U32V_1(66));
@@ -437,20 +416,20 @@ TEST_F(FunctionBodyDecoderTest, Binops_off_end) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BinopsAcrossBlock1) {
-  static const byte code[] = {WASM_ZERO, kExprBlock, WASM_ZERO, kExprI32Add,
-                              kExprEnd};
+  static const byte code[] = {WASM_ZERO, kExprBlock,  kLocalI32,
+                              WASM_ZERO, kExprI32Add, kExprEnd};
   EXPECT_FAILURE_C(i_i, code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BinopsAcrossBlock2) {
-  static const byte code[] = {WASM_ZERO, WASM_ZERO, kExprBlock, kExprI32Add,
-                              kExprEnd};
+  static const byte code[] = {WASM_ZERO, WASM_ZERO,   kExprBlock,
+                              kLocalI32, kExprI32Add, kExprEnd};
   EXPECT_FAILURE_C(i_i, code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BinopsAcrossBlock3) {
-  static const byte code[] = {WASM_ZERO, WASM_ZERO,   kExprIf, kExprI32Add,
-                              kExprElse, kExprI32Add, kExprEnd};
+  static const byte code[] = {WASM_ZERO,   WASM_ZERO, kExprIf,     kLocalI32,
+                              kExprI32Add, kExprElse, kExprI32Add, kExprEnd};
   EXPECT_FAILURE_C(i_i, code);
 }
 
@@ -508,7 +487,7 @@ TEST_F(FunctionBodyDecoderTest, BlockN) {
     buffer[0] = kExprBlock;
     buffer[1] = kLocalVoid;
     buffer[i + 2] = kExprEnd;
-    Verify(kSuccess, sigs.v_i(), buffer, buffer + i + 3);
+    Verify(true, sigs.v_i(), buffer, buffer + i + 3);
   }
 }
 
@@ -653,7 +632,7 @@ TEST_F(FunctionBodyDecoderTest, BlockN_off_end) {
   byte code[] = {WASM_BLOCK(kExprNop, kExprNop, kExprNop, kExprNop)};
   EXPECT_VERIFIES_C(v_v, code);
   for (size_t i = 1; i < arraysize(code); i++) {
-    Verify(kError, sigs.v_v(), code, code + i);
+    Verify(false, sigs.v_v(), code, code + i);
   }
 }
 
@@ -983,7 +962,7 @@ TEST_F(FunctionBodyDecoderTest, If_off_end) {
   static const byte kCode[] = {
       WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_GET_LOCAL(0))};
   for (size_t len = 3; len < arraysize(kCode); len++) {
-    Verify(kError, sigs.i_i(), kCode, kCode + len);
+    Verify(false, sigs.i_i(), kCode, kCode + len);
   }
 }
 
@@ -1301,7 +1280,7 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset) {
   TestModuleEnv module_env;
   module = &module_env;
   module_env.InitializeMemory();
-  for (int offset = 0; offset < 128; offset += 7) {
+  for (byte offset = 0; offset < 128; offset += 7) {
     byte code[] = {WASM_STORE_MEM_OFFSET(MachineType::Int32(), offset,
                                          WASM_ZERO, WASM_ZERO)};
     EXPECT_VERIFIES_C(v_i, code);
@@ -1452,7 +1431,7 @@ TEST_F(FunctionBodyDecoderTest, CallsWithMismatchedSigs3) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiReturn) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   ValueType storage[] = {kWasmI32, kWasmI32};
   FunctionSig sig_ii_v(2, 0, storage);
   FunctionSig sig_v_ii(0, 2, storage);
@@ -1468,7 +1447,7 @@ TEST_F(FunctionBodyDecoderTest, MultiReturn) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiReturnType) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   for (size_t a = 0; a < arraysize(kValueTypes); a++) {
     for (size_t b = 0; b < arraysize(kValueTypes); b++) {
       for (size_t c = 0; c < arraysize(kValueTypes); c++) {
@@ -2131,7 +2110,7 @@ TEST_F(FunctionBodyDecoderTest, BrTable2b) {
 TEST_F(FunctionBodyDecoderTest, BrTable_off_end) {
   static byte code[] = {B1(WASM_BR_TABLE(WASM_GET_LOCAL(0), 0, BR_TARGET(0)))};
   for (size_t len = 1; len < sizeof(code); len++) {
-    Verify(kError, sigs.i_i(), code, code + len);
+    Verify(false, sigs.i_i(), code, code + len);
   }
 }
 
@@ -2253,8 +2232,9 @@ TEST_F(FunctionBodyDecoderTest, Select_TypeCheck) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Throw) {
-  FLAG_wasm_eh_prototype = true;
-  EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprThrow);
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  // TODO(kschimpf): Need to fix throw to use declared exception.
+  EXPECT_FAILURE(v_i, WASM_GET_LOCAL(0), kExprThrow);
 
   EXPECT_FAILURE(i_d, WASM_GET_LOCAL(0), kExprThrow, WASM_I32V(0));
   EXPECT_FAILURE(i_f, WASM_GET_LOCAL(0), kExprThrow, WASM_I32V(0));
@@ -2263,7 +2243,7 @@ TEST_F(FunctionBodyDecoderTest, Throw) {
 
 TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
   // TODO(titzer): unreachable code after throw should validate.
-  // FLAG_wasm_eh_prototype = true;
+  // EXPERIMENTAL_FLAG_SCOPE(eh);
   // EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprThrow, kExprSetLocal, 0);
 }
 
@@ -2272,8 +2252,9 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
 #define WASM_CATCH(local) kExprCatch, static_cast<byte>(local)
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
-  FLAG_wasm_eh_prototype = true;
-  EXPECT_VERIFIES(v_i, WASM_TRY_OP, WASM_CATCH(0), kExprEnd);
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  // TODO(kschimpf): Need to fix catch to use declared exception.
+  EXPECT_FAILURE(v_i, WASM_TRY_OP, WASM_CATCH(0), kExprEnd);
 
   // Missing catch.
   EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprEnd);
@@ -2286,21 +2267,21 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                                       WASM_GET_LOCAL(1)),
                   kExprI32Add);
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock2) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                                       WASM_GET_LOCAL(1)),
                   WASM_I32_ADD(WASM_NOP, WASM_NOP));
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlockBr1) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   EXPECT_FAILURE(
       i_ii, WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0), WASM_BR(0)),
       kExprI32Add);
@@ -2310,7 +2291,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlockBr1) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValIf1) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   EXPECT_FAILURE(
       i_ii, WASM_IF_ELSE_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                             WASM_SEQ(WASM_GET_LOCAL(0)),
@@ -2328,20 +2309,38 @@ TEST_F(FunctionBodyDecoderTest, MultiValIf1) {
       kExprI32Add);
 }
 
+TEST_F(FunctionBodyDecoderTest, Regression709741) {
+  AddLocals(kWasmI32, kV8MaxWasmFunctionLocals - 1);
+  EXPECT_VERIFIES(v_v, WASM_NOP);
+  byte code[] = {WASM_NOP};
+  const byte* start = code;
+  const byte* end = code + sizeof(code);
+  PrepareBytecode(&start, &end);
+
+  for (const byte* i = start; i < end; i++) {
+    DecodeResult result =
+        VerifyWasmCode(zone()->allocator(), nullptr, sigs.v_v(), start, i);
+    if (result.ok()) {
+      std::ostringstream str;
+      str << "Expected verification to fail";
+    }
+  }
+}
+
 class BranchTableIteratorTest : public TestWithZone {
  public:
   BranchTableIteratorTest() : TestWithZone() {}
   void CheckBrTableSize(const byte* start, const byte* end) {
     Decoder decoder(start, end);
-    BranchTableOperand operand(&decoder, start);
-    BranchTableIterator iterator(&decoder, operand);
+    BranchTableOperand<true> operand(&decoder, start);
+    BranchTableIterator<true> iterator(&decoder, operand);
     EXPECT_EQ(end - start - 1u, iterator.length());
     EXPECT_TRUE(decoder.ok());
   }
   void CheckBrTableError(const byte* start, const byte* end) {
     Decoder decoder(start, end);
-    BranchTableOperand operand(&decoder, start);
-    BranchTableIterator iterator(&decoder, operand);
+    BranchTableOperand<true> operand(&decoder, start);
+    BranchTableIterator<true> iterator(&decoder, operand);
     iterator.length();
     EXPECT_FALSE(decoder.ok());
   }
@@ -2623,6 +2622,8 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
   EXPECT_LENGTH_N(3, kSimdPrefix, static_cast<byte>(kExpr##name & 0xff));
   FOREACH_SIMD_1_OPERAND_OPCODE(TEST_SIMD)
 #undef TEST_SIMD
+  EXPECT_LENGTH_N(18, kSimdPrefix, static_cast<byte>(kExprS8x16Shuffle & 0xff));
+#undef TEST_SIMD
   // test for bad simd opcode
   EXPECT_LENGTH_N(2, kSimdPrefix, 0xff);
 }
@@ -2810,7 +2811,3 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
   iter.next();
   EXPECT_FALSE(iter.has_next());
 }
-
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8

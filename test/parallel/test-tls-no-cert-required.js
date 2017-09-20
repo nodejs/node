@@ -20,13 +20,11 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const assert = require('assert');
 const common = require('../common');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
 const tls = require('tls');
 
 // Omitting the cert or pfx option to tls.createServer() should not throw.
@@ -41,7 +39,13 @@ tls.createServer(assert.fail)
 tls.createServer({})
   .listen(0, common.mustCall(close));
 
-assert.throws(() => tls.createServer('this is not valid'), TypeError);
+assert.throws(() => tls.createServer('this is not valid'),
+              common.expectsError({
+                code: 'ERR_INVALID_ARG_TYPE',
+                type: TypeError,
+                message: 'The "options" argument must be of type object'
+              })
+);
 
 tls.createServer()
   .listen(0, common.mustCall(close));

@@ -98,6 +98,15 @@ def npm_files(action):
   else:
     assert(0) # unhandled action type
 
+  # create/remove symlink
+  link_path = abspath(install_path, 'bin/npx')
+  if action == uninstall:
+    action([link_path], 'bin/npx')
+  elif action == install:
+    try_symlink('../lib/node_modules/npm/bin/npx-cli.js', link_path)
+  else:
+    assert(0) # unhandled action type
+
 def subdir_files(path, dest, action):
   ret = {}
   for dirpath, dirnames, filenames in os.walk(path):

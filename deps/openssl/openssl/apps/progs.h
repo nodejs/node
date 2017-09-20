@@ -58,7 +58,7 @@ extern int srp_main(int argc, char *argv[]);
 typedef struct {
     int type;
     const char *name;
-    int (*func) (int argc, char *argv[]);
+    int (*func)(int argc, char *argv[]);
 } FUNCTION;
 DECLARE_LHASH_OF(FUNCTION);
 

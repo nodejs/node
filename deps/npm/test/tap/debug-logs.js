@@ -60,7 +60,7 @@ test('example', function (t) {
   common.npm(['run', 'false'], conf, function (err, code, stdout, stderr) {
     if (err) throw err
     t.is(code, 1, 'command errored')
-    var matches = stderr.match(/Please include the following file with any support request:.*\nnpm ERR! {5,5}(.*)/)
+    var matches = stderr.match(/A complete log of this run can be found in:.*\nnpm ERR! {5,5}(.*)/)
     t.ok(matches, 'debug log mentioned in error message')
     if (matches) {
       var logfile = matches[1]

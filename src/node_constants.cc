@@ -20,10 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_constants.h"
-#include "env.h"
-#include "env-inl.h"
+#include "node_internals.h"
 
-#include "uv.h"
 #include "zlib.h"
 
 #include <errno.h>
@@ -42,6 +40,10 @@
 # ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
 # endif  // !OPENSSL_NO_ENGINE
+#endif
+
+#if defined(__POSIX__)
+#include <dlfcn.h>
 #endif
 
 namespace node {
@@ -1164,10 +1166,6 @@ void DefineSystemConstants(Local<Object> target) {
 #endif
 }
 
-void DefineUVConstants(Local<Object> target) {
-  NODE_DEFINE_CONSTANT(target, UV_UDP_REUSEADDR);
-}
-
 void DefineCryptoConstants(Local<Object> target) {
 #if HAVE_OPENSSL
   NODE_DEFINE_STRING_CONSTANT(target,
@@ -1228,22 +1226,6 @@ void DefineZlibConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, INFLATERAW);
   NODE_DEFINE_CONSTANT(target, UNZIP);
 
-#define Z_MIN_WINDOWBITS 8
-#define Z_MAX_WINDOWBITS 15
-#define Z_DEFAULT_WINDOWBITS 15
-// Fewer than 64 bytes per chunk is not recommended.
-// Technically it could work with as few as 8, but even 64 bytes
-// is low.  Usually a MB or more is best.
-#define Z_MIN_CHUNK 64
-#define Z_MAX_CHUNK std::numeric_limits<double>::infinity()
-#define Z_DEFAULT_CHUNK (16 * 1024)
-#define Z_MIN_MEMLEVEL 1
-#define Z_MAX_MEMLEVEL 9
-#define Z_DEFAULT_MEMLEVEL 8
-#define Z_MIN_LEVEL -1
-#define Z_MAX_LEVEL 9
-#define Z_DEFAULT_LEVEL Z_DEFAULT_COMPRESSION
-
   NODE_DEFINE_CONSTANT(target, Z_MIN_WINDOWBITS);
   NODE_DEFINE_CONSTANT(target, Z_MAX_WINDOWBITS);
   NODE_DEFINE_CONSTANT(target, Z_DEFAULT_WINDOWBITS);
@@ -1256,6 +1238,28 @@ void DefineZlibConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, Z_MIN_LEVEL);
   NODE_DEFINE_CONSTANT(target, Z_MAX_LEVEL);
   NODE_DEFINE_CONSTANT(target, Z_DEFAULT_LEVEL);
+}
+
+void DefineDLOpenConstants(Local<Object> target) {
+#ifdef RTLD_LAZY
+  NODE_DEFINE_CONSTANT(target, RTLD_LAZY);
+#endif
+
+#ifdef RTLD_NOW
+  NODE_DEFINE_CONSTANT(target, RTLD_NOW);
+#endif
+
+#ifdef RTLD_GLOBAL
+  NODE_DEFINE_CONSTANT(target, RTLD_GLOBAL);
+#endif
+
+#ifdef RTLD_LOCAL
+  NODE_DEFINE_CONSTANT(target, RTLD_LOCAL);
+#endif
+
+#ifdef RTLD_DEEPBIND
+  NODE_DEFINE_CONSTANT(target, RTLD_DEEPBIND);
+#endif
 }
 
 }  // anonymous namespace
@@ -1287,15 +1291,24 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   CHECK(zlib_constants->SetPrototype(env->context(),
                                      Null(env->isolate())).FromJust());
 
+  Local<Object> dlopen_constants = Object::New(isolate);
+  CHECK(dlopen_constants->SetPrototype(env->context(),
+                                       Null(env->isolate())).FromJust());
+
   DefineErrnoConstants(err_constants);
   DefineWindowsErrorConstants(err_constants);
   DefineSignalConstants(sig_constants);
-  DefineUVConstants(os_constants);
   DefineSystemConstants(fs_constants);
   DefineOpenSSLConstants(crypto_constants);
   DefineCryptoConstants(crypto_constants);
   DefineZlibConstants(zlib_constants);
+  DefineDLOpenConstants(dlopen_constants);
 
+  // Define libuv constants.
+  NODE_DEFINE_CONSTANT(os_constants, UV_UDP_REUSEADDR);
+  NODE_DEFINE_CONSTANT(fs_constants, UV_FS_COPYFILE_EXCL);
+
+  os_constants->Set(OneByteString(isolate, "dlopen"), dlopen_constants);
   os_constants->Set(OneByteString(isolate, "errno"), err_constants);
   os_constants->Set(OneByteString(isolate, "signals"), sig_constants);
   target->Set(OneByteString(isolate, "os"), os_constants);

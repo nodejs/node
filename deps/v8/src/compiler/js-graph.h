@@ -43,15 +43,16 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // Canonicalized global constants.
   Node* AllocateInNewSpaceStubConstant();
   Node* AllocateInOldSpaceStubConstant();
+  Node* ArrayConstructorStubConstant();
   Node* ToNumberBuiltinConstant();
   Node* CEntryStubConstant(int result_size,
                            SaveFPRegsMode save_doubles = kDontSaveFPRegs,
                            ArgvMode argv_mode = kArgvOnStack,
                            bool builtin_exit_frame = false);
   Node* EmptyFixedArrayConstant();
-  Node* EmptyLiteralsArrayConstant();
   Node* EmptyStringConstant();
   Node* FixedArrayMapConstant();
+  Node* PropertyArrayMapConstant();
   Node* FixedDoubleArrayMapConstant();
   Node* HeapNumberMapConstant();
   Node* OptimizedOutConstant();
@@ -64,6 +65,7 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   Node* ZeroConstant();
   Node* OneConstant();
   Node* NaNConstant();
+  Node* MinusOneConstant();
 
   // Creates a HeapConstant node, possibly canonicalized, and may access the
   // heap to inspect the object.
@@ -143,6 +145,10 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // values for a certain part of the frame state.
   Node* EmptyStateValues();
 
+  // Typed state values with a single dead input. This is useful to represent
+  // dead accumulator.
+  Node* SingleDeadTypedStateValues();
+
   // Create a control node that serves as dependency for dead nodes.
   Node* Dead();
 
@@ -161,16 +167,17 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   enum CachedNode {
     kAllocateInNewSpaceStubConstant,
     kAllocateInOldSpaceStubConstant,
+    kArrayConstructorStubConstant,
     kToNumberBuiltinConstant,
     kCEntryStub1Constant,
     kCEntryStub2Constant,
     kCEntryStub3Constant,
     kCEntryStub1WithBuiltinExitFrameConstant,
     kEmptyFixedArrayConstant,
-    kEmptyLiteralsArrayConstant,
     kEmptyStringConstant,
     kFixedArrayMapConstant,
     kFixedDoubleArrayMapConstant,
+    kPropertyArrayMapConstant,
     kHeapNumberMapConstant,
     kOptimizedOutConstant,
     kStaleRegisterConstant,
@@ -181,8 +188,10 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
     kNullConstant,
     kZeroConstant,
     kOneConstant,
+    kMinusOneConstant,
     kNaNConstant,
     kEmptyStateValues,
+    kSingleDeadTypedStateValues,
     kDead,
     kNumCachedNodes  // Must remain last.
   };

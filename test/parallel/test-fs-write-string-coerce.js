@@ -2,14 +2,13 @@
 const common = require('../common');
 const assert = require('assert');
 const path = require('path');
-const Buffer = require('buffer').Buffer;
 const fs = require('fs');
 
 common.refreshTmpDir();
 
 const fn = path.join(common.tmpDir, 'write-string-coerce.txt');
 const data = true;
-const expected = data + '';
+const expected = String(data);
 
 fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
   assert.ifError(err);

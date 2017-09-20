@@ -56,7 +56,7 @@ void GraphReducer::ReduceNode(Node* node) {
       ReduceTop();
     } else if (!revisit_.empty()) {
       // If the stack becomes empty, revisit any nodes in the revisit queue.
-      Node* const node = revisit_.top();
+      Node* const node = revisit_.front();
       revisit_.pop();
       if (state_.Get(node) == State::kRevisit) {
         // state can change while in queue.
@@ -89,11 +89,22 @@ Reduction GraphReducer::Reduce(Node* const node) {
         // {replacement} == {node} represents an in-place reduction. Rerun
         // all the other reducers for this node, as now there may be more
         // opportunities for reduction.
+        if (FLAG_trace_turbo_reduction) {
+          OFStream os(stdout);
+          os << "- In-place update of " << *node << " by reducer "
+             << (*i)->reducer_name() << std::endl;
+        }
         skip = i;
         i = reducers_.begin();
         continue;
       } else {
         // {node} was replaced by another node.
+        if (FLAG_trace_turbo_reduction) {
+          OFStream os(stdout);
+          os << "- Replacement of " << *node << " with "
+             << *(reduction.replacement()) << " by reducer "
+             << (*i)->reducer_name() << std::endl;
+        }
         return reduction;
       }
     }
@@ -179,10 +190,6 @@ void GraphReducer::Replace(Node* node, Node* replacement) {
 
 
 void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
-  if (FLAG_trace_turbo_reduction) {
-    OFStream os(stdout);
-    os << "- Replacing " << *node << " with " << *replacement << std::endl;
-  }
   if (node == graph()->start()) graph()->SetStart(replacement);
   if (node == graph()->end()) graph()->SetEnd(replacement);
   if (replacement->id() <= max_id) {
@@ -240,8 +247,6 @@ void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
         DCHECK_NOT_NULL(control);
         edge.UpdateTo(control);
         Revisit(user);
-        // TODO(jarin) Check that the node cannot throw (otherwise, it
-        // would have to be connected via IfSuccess/IfException).
       }
     } else if (NodeProperties::IsEffectEdge(edge)) {
       DCHECK_NOT_NULL(effect);

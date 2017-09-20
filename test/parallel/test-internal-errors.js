@@ -5,6 +5,10 @@ const common = require('../common');
 const errors = require('internal/errors');
 const assert = require('assert');
 
+function invalidKey(key) {
+  return new RegExp(`^An invalid error message key was used: ${key}\\.$`);
+}
+
 errors.E('TEST_ERROR_1', 'Error for testing purposes: %s');
 errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`);
 
@@ -41,47 +45,89 @@ assert.strictEqual(err5.code, 'TEST_ERROR_1');
 
 assert.throws(
   () => new errors.Error('TEST_FOO_KEY'),
-  /^AssertionError: An invalid error message key was used: TEST_FOO_KEY\.$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey('TEST_FOO_KEY')
+  }));
 // Calling it twice yields same result (using the key does not create it)
 assert.throws(
   () => new errors.Error('TEST_FOO_KEY'),
-  /^AssertionError: An invalid error message key was used: TEST_FOO_KEY\.$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey('TEST_FOO_KEY')
+  }));
 assert.throws(
   () => new errors.Error(1),
-  /^AssertionError: 'number' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey(1)
+  }));
 assert.throws(
   () => new errors.Error({}),
-  /^AssertionError: 'object' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey('\\[object Object\\]')
+  }));
 assert.throws(
   () => new errors.Error([]),
-  /^AssertionError: 'object' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey('')
+  }));
 assert.throws(
   () => new errors.Error(true),
-  /^AssertionError: 'boolean' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey('true')
+  }));
 assert.throws(
   () => new errors.TypeError(1),
-  /^AssertionError: 'number' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey(1)
+  }));
 assert.throws(
   () => new errors.TypeError({}),
-  /^AssertionError: 'object' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey('\\[object Object\\]')
+  }));
 assert.throws(
   () => new errors.TypeError([]),
-  /^AssertionError: 'object' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey('')
+  }));
 assert.throws(
   () => new errors.TypeError(true),
-  /^AssertionError: 'boolean' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey('true')
+  }));
 assert.throws(
   () => new errors.RangeError(1),
-  /^AssertionError: 'number' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey(1)
+  }));
 assert.throws(
   () => new errors.RangeError({}),
-  /^AssertionError: 'object' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey('\\[object Object\\]')
+  }));
 assert.throws(
   () => new errors.RangeError([]),
-  /^AssertionError: 'object' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey('')
+  }));
 assert.throws(
   () => new errors.RangeError(true),
-  /^AssertionError: 'boolean' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: invalidKey('true')
+  }));
 
 
 // Tests for common.expectsError
@@ -115,7 +161,10 @@ assert.throws(() => {
   assert.throws(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
   }, common.expectsError({ code: 'TEST_ERROR_1', type: RangeError }));
-}, /^AssertionError: .+ is not the expected type \S/);
+}, common.expectsError({
+  code: 'ERR_ASSERTION',
+  message: /^.+ is not instance of \S/
+}));
 
 assert.throws(() => {
   assert.throws(() => {
@@ -123,13 +172,10 @@ assert.throws(() => {
   }, common.expectsError({ code: 'TEST_ERROR_1',
                            type: TypeError,
                            message: /^Error for testing 2/ }));
-}, /AssertionError: .+ does not match \S/);
-
-assert.doesNotThrow(() => errors.E('TEST_ERROR_USED_SYMBOL'));
-assert.throws(
-  () => errors.E('TEST_ERROR_USED_SYMBOL'),
-  /^AssertionError: Error symbol: TEST_ERROR_USED_SYMBOL was already used\.$/
-);
+}, common.expectsError({
+  code: 'ERR_ASSERTION',
+  message: /.+ does not match \S/
+}));
 
 // // Test ERR_INVALID_ARG_TYPE
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b']),
@@ -137,7 +183,7 @@ assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b']),
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', ['b']]),
                    'The "a" argument must be of type b');
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', ['b', 'c']]),
-                   'The "a" argument must be one of type b, or c');
+                   'The "a" argument must be one of type b or c');
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
                                   ['a', ['b', 'c', 'd']]),
                    'The "a" argument must be one of type b, c, or d');
@@ -150,3 +196,91 @@ assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
                                   ['a', 'b', null]),
                    'The "a" argument must be of type b. Received type null');
+assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'not b']),
+                   'The "a" argument must not be of type b');
+assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a.b', 'not c']),
+                   'The "a.b" property must not be of type c');
+assert.strictEqual(
+  errors.message('ERR_INVALID_ARG_TYPE', ['first argument', 'c']),
+  'The first argument must be of type c');
+assert.strictEqual(
+  errors.message('ERR_INVALID_ARG_TYPE', [['a', 'b', 'c'], 'not d']),
+  'The "a", "b", "c" arguments must not be of type d');
+
+// Test ERR_INVALID_URL_SCHEME
+assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', ['file']),
+                   'The URL must be of scheme file');
+assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['file']]),
+                   'The URL must be of scheme file');
+assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['http', 'ftp']]),
+                   'The URL must be one of scheme http or ftp');
+assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['a', 'b', 'c']]),
+                   'The URL must be one of scheme a, b, or c');
+assert.throws(
+  () => errors.message('ERR_INVALID_URL_SCHEME', [[]]),
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^At least one expected value needs to be specified$/
+  }));
+
+// Test ERR_MISSING_ARGS
+assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['name']),
+                   'The "name" argument must be specified');
+assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['name', 'value']),
+                   'The "name" and "value" arguments must be specified');
+assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['a', 'b', 'c']),
+                   'The "a", "b", and "c" arguments must be specified');
+assert.throws(
+  () => errors.message('ERR_MISSING_ARGS'),
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^At least one arg needs to be specified$/
+  }));
+
+
+// Test ERR_TLS_CERT_ALTNAME_INVALID
+assert.strictEqual(
+  errors.message('ERR_TLS_CERT_ALTNAME_INVALID', ['altname']),
+  'Hostname/IP does not match certificate\'s altnames: altname');
+
+assert.strictEqual(
+  errors.message('ERR_INVALID_PROTOCOL', ['bad protocol', 'http']),
+  'Protocol "bad protocol" not supported. Expected "http"'
+);
+
+assert.strictEqual(
+  errors.message('ERR_HTTP_HEADERS_SENT', ['render']),
+  'Cannot render headers after they are sent to the client'
+);
+
+assert.strictEqual(
+  errors.message('ERR_INVALID_DOMAIN_NAME'),
+  'Unable to determine the domain name'
+);
+
+assert.strictEqual(
+  errors.message('ERR_INVALID_HTTP_TOKEN', ['Method', 'foo']),
+  'Method must be a valid HTTP token ["foo"]'
+);
+
+assert.strictEqual(
+  errors.message('ERR_VALUE_OUT_OF_RANGE', ['A', 'some values', 'B']),
+  'The value of "A" must be some values. Received "B"'
+);
+
+assert.strictEqual(
+  errors.message('ERR_UNESCAPED_CHARACTERS', ['Request path']),
+  'Request path contains unescaped characters'
+);
+
+
+// Test error messages for async_hooks
+assert.strictEqual(
+  errors.message('ERR_ASYNC_CALLBACK', ['init']),
+  'init must be a function');
+assert.strictEqual(
+  errors.message('ERR_ASYNC_TYPE', [{}]),
+  'Invalid name for async "type": [object Object]');
+assert.strictEqual(
+  errors.message('ERR_INVALID_ASYNC_ID', ['asyncId', undefined]),
+  'Invalid asyncId value: undefined');

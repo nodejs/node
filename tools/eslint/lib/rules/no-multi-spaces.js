@@ -33,6 +33,9 @@ module.exports = {
                             }
                         },
                         additionalProperties: false
+                    },
+                    ignoreEOLComments: {
+                        type: "boolean"
                     }
                 },
                 additionalProperties: false
@@ -43,8 +46,10 @@ module.exports = {
     create(context) {
 
         // the index of the last comment that was checked
-        const exceptions = { Property: true },
-            options = context.options[0];
+        const sourceCode = context.getSourceCode(),
+            exceptions = { Property: true },
+            options = context.options[0] || {},
+            ignoreEOLComments = options.ignoreEOLComments;
         let hasExceptions = true,
             lastCommentIndex = 0;
 
@@ -57,6 +62,23 @@ module.exports = {
                 }
             });
             hasExceptions = Object.keys(exceptions).length > 0;
+        }
+
+        /**
+         * Checks if a given token is the last token of the line or not.
+         * @param {Token} token The token to check.
+         * @returns {boolean} Whether or not a token is at the end of the line it occurs in.
+         * @private
+         */
+        function isLastTokenOfLine(token) {
+            const nextToken = sourceCode.getTokenAfter(token, { includeComments: true });
+
+            // nextToken is null if the comment is the last token in the program.
+            if (!nextToken) {
+                return true;
+            }
+
+            return !astUtils.isTokenOnSameLine(token, nextToken);
         }
 
         /**
@@ -73,7 +95,7 @@ module.exports = {
             while (lastCommentIndex < comments.length) {
                 const comment = comments[lastCommentIndex];
 
-                if (comment.range[0] <= index && index < comment.range[1]) {
+                if (comment.range[0] < index && index < comment.range[1]) {
                     return true;
                 } else if (index > comment.range[1]) {
                     lastCommentIndex++;
@@ -85,6 +107,33 @@ module.exports = {
             return false;
         }
 
+        /**
+         * Formats value of given comment token for error message by truncating its length.
+         * @param {Token} token comment token
+         * @returns {string} formatted value
+         * @private
+         */
+        function formatReportedCommentValue(token) {
+            const valueLines = token.value.split("\n");
+            const value = valueLines[0];
+            const formattedValue = `${value.substring(0, 12)}...`;
+
+            return valueLines.length === 1 && value.length <= 12 ? value : formattedValue;
+        }
+
+        /**
+         * Creates a fix function that removes the multiple spaces between the two tokens
+         * @param {Token} leftToken left token
+         * @param {Token} rightToken right token
+         * @returns {Function} fix function
+         * @private
+         */
+        function createFix(leftToken, rightToken) {
+            return function(fixer) {
+                return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], " ");
+            };
+        }
+
         //--------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------
@@ -92,47 +141,43 @@ module.exports = {
         return {
             Program() {
 
-                const sourceCode = context.getSourceCode(),
-                    source = sourceCode.getText(),
+                const source = sourceCode.getText(),
                     allComments = sourceCode.getAllComments(),
-                    JOINED_LINEBEAKS = Array.from(astUtils.LINEBREAKS).join(""),
-                    pattern = new RegExp(String.raw`[^ \t${JOINED_LINEBEAKS}].? {2,}`, "g");  // note: repeating space
+                    pattern = /[^\s].*? {2,}/g;
                 let parent;
-
-
-                /**
-                 * Creates a fix function that removes the multiple spaces between the two tokens
-                 * @param {RuleFixer} leftToken left token
-                 * @param {RuleFixer} rightToken right token
-                 * @returns {Function} fix function
-                 * @private
-                 */
-                function createFix(leftToken, rightToken) {
-                    return function(fixer) {
-                        return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], " ");
-                    };
-                }
 
                 while (pattern.test(source)) {
 
                     // do not flag anything inside of comments
                     if (!isIndexInComment(pattern.lastIndex, allComments)) {
 
-                        const token = sourceCode.getTokenByRangeStart(pattern.lastIndex);
+                        const token = sourceCode.getTokenByRangeStart(pattern.lastIndex, { includeComments: true });
 
                         if (token) {
-                            const previousToken = sourceCode.getTokenBefore(token);
+                            if (ignoreEOLComments && astUtils.isCommentToken(token) && isLastTokenOfLine(token)) {
+                                return;
+                            }
+
+                            const previousToken = sourceCode.getTokenBefore(token, { includeComments: true });
 
                             if (hasExceptions) {
                                 parent = sourceCode.getNodeByRangeIndex(pattern.lastIndex - 1);
                             }
 
                             if (!parent || !exceptions[parent.type]) {
+                                let value = token.value;
+
+                                if (token.type === "Block") {
+                                    value = `/*${formatReportedCommentValue(token)}*/`;
+                                } else if (token.type === "Line") {
+                                    value = `//${formatReportedCommentValue(token)}`;
+                                }
+
                                 context.report({
                                     node: token,
                                     loc: token.loc.start,
                                     message: "Multiple spaces found before '{{value}}'.",
-                                    data: { value: token.value },
+                                    data: { value },
                                     fix: createFix(previousToken, token)
                                 });
                             }

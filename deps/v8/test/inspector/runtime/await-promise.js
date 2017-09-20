@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 // Flags: --expose_gc
 
-print("Tests that Runtime.awaitPromise works.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Tests that Runtime.awaitPromise works.");
 
-InspectorTest.addScript(
+contextGroup.addScript(
 `
 var resolveCallback;
 var rejectCallback;
@@ -26,6 +26,18 @@ function rejectPromise()
     rejectCallback(239);
     resolveCallback = undefined;
     rejectCallback = undefined;
+}
+
+function rejectPromiseWithAnError()
+{
+    rejectCallback(new Error('MyError'));
+    resolveCallback = undefined;
+    rejectCallback = undefined;
+}
+
+function throwError()
+{
+   throw new Error('MyError');
 }
 
 //# sourceURL=test.js`);
@@ -64,6 +76,21 @@ function testSuite()
       {
         var promise = Protocol.Runtime.awaitPromise({ promiseObjectId: result.result.result.objectId });
         Protocol.Runtime.evaluate({ expression: "rejectPromise()" });
+        return promise;
+      }
+    },
+
+    function testRejectedPromiseWithError(next)
+    {
+      Protocol.Runtime.evaluate({ expression: "createPromise()"})
+        .then(result => scheduleRejectAndAwaitPromise(result))
+        .then(result => InspectorTest.logMessage(result))
+        .then(() => next());
+
+      function scheduleRejectAndAwaitPromise(result)
+      {
+        var promise = Protocol.Runtime.awaitPromise({ promiseObjectId: result.result.result.objectId });
+        Protocol.Runtime.evaluate({ expression: "rejectPromiseWithAnError()" });
         return promise;
       }
     },

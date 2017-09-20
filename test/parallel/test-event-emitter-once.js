@@ -33,9 +33,9 @@ e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 
-const remove = function() {
+function remove() {
   assert.fail('once->foo should not be emitted');
-};
+}
 
 e.once('foo', remove);
 e.removeListener('foo', remove);
@@ -55,3 +55,23 @@ assert.throws(() => {
 
   ee.once('foo', null);
 }, /^TypeError: "listener" argument must be a function$/);
+
+{
+  // once() has different code paths based on the number of arguments being
+  // emitted. Verify that all of the cases are covered.
+  const maxArgs = 4;
+
+  for (let i = 0; i <= maxArgs; ++i) {
+    const ee = new EventEmitter();
+    const args = ['foo'];
+
+    for (let j = 0; j < i; ++j)
+      args.push(j);
+
+    ee.once('foo', common.mustCall((...params) => {
+      assert.deepStrictEqual(params, args.slice(1));
+    }));
+
+    EventEmitter.prototype.emit.apply(ee, args);
+  }
+}

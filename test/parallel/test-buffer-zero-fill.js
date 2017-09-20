@@ -2,7 +2,6 @@
 
 require('../common');
 const assert = require('assert');
-const Buffer = require('buffer').Buffer;
 
 const buf1 = Buffer(100);
 const buf2 = new Buffer(100);

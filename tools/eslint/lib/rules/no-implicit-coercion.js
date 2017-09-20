@@ -6,7 +6,6 @@
 "use strict";
 
 const astUtils = require("../ast-utils");
-const esUtils = require("esutils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -215,8 +214,7 @@ module.exports = {
                     if (
                         tokenBefore &&
                         tokenBefore.range[1] === node.range[0] &&
-                        esUtils.code.isIdentifierPartES6(tokenBefore.value.slice(-1).charCodeAt(0)) &&
-                        esUtils.code.isIdentifierPartES6(recommendation.charCodeAt(0))
+                        !astUtils.canTokensBeAdjacent(tokenBefore, recommendation)
                     ) {
                         return fixer.replaceText(node, ` ${recommendation}`);
                     }

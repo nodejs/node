@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/interpreter/interpreter-intrinsics.h"
+#include "src/objects-inl.h"
 #include "test/cctest/interpreter/interpreter-tester.h"
 
 namespace v8 {
@@ -26,7 +27,7 @@ class InvokeIntrinsicHelper {
   Handle<Object> Invoke(A... args) {
     CHECK(IntrinsicsHelper::IsSupported(function_id_));
     BytecodeArrayBuilder builder(isolate_, zone_, sizeof...(args), 0, 0);
-    RegisterList reg_list(builder.Parameter(0).index(), sizeof...(args));
+    RegisterList reg_list(builder.Receiver().index(), sizeof...(args));
     builder.CallRuntime(function_id_, reg_list).Return();
     InterpreterTester tester(isolate_, builder.ToBytecodeArray(isolate_));
     auto callable = tester.GetCallable<A...>();
@@ -223,27 +224,6 @@ TEST(IntrinsicAsStubCall) {
                     sub_string_helper.NewObject("3"),
                     sub_string_helper.NewObject("6"))
             ->SameValue(*sub_string_helper.NewObject("'bar'")));
-}
-
-TEST(ValueOf) {
-  HandleAndZoneScope handles;
-  Isolate* isolate = handles.main_isolate();
-  Factory* factory = isolate->factory();
-  InvokeIntrinsicHelper helper(handles.main_isolate(), handles.main_zone(),
-                               Runtime::kInlineValueOf);
-
-  CHECK_EQ(Smi::FromInt(1234), *helper.Invoke(helper.NewObject("1234")));
-  CHECK_EQ(Smi::FromInt(5678),
-           *helper.Invoke(helper.NewObject("new Object(5678)")));
-
-  CHECK_EQ(*factory->true_value(), *helper.Invoke(helper.NewObject("true")));
-  CHECK_EQ(*factory->false_value(),
-           *helper.Invoke(helper.NewObject("new Object(false)")));
-
-  CHECK(helper.Invoke(helper.NewObject("'foobar'"))
-            ->SameValue(*helper.NewObject("'foobar'")));
-  CHECK(helper.Invoke(helper.NewObject("new Object('foobar')"))
-            ->SameValue(*helper.NewObject("'foobar'")));
 }
 
 TEST(ClassOf) {

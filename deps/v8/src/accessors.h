@@ -8,7 +8,6 @@
 #include "include/v8.h"
 #include "src/allocation.h"
 #include "src/globals.h"
-#include "src/handles.h"
 #include "src/property-details.h"
 
 namespace v8 {
@@ -16,6 +15,8 @@ namespace internal {
 
 // Forward declarations.
 class AccessorInfo;
+template <typename T>
+class Handle;
 
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
@@ -89,8 +90,6 @@ class Accessors : public AllStatic {
   };
 
   // Accessor functions called directly from the runtime system.
-  MUST_USE_RESULT static MaybeHandle<Object> FunctionSetPrototype(
-      Handle<JSFunction> object, Handle<Object> value);
   static Handle<JSObject> FunctionGetArguments(Handle<JSFunction> object);
 
   // Returns true for properties that are accessors to object fields.

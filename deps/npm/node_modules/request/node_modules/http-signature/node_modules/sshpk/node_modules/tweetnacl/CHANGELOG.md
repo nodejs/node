@@ -2,6 +2,46 @@ TweetNaCl.js Changelog
 ======================
 
 
+v0.14.5
+-------
+
+* Fixed incomplete return types in TypeScript typings.
+* Replaced COPYING.txt with LICENSE file, which now has public domain dedication
+  text from The Unlicense. License fields in package.json and bower.json have
+  been set to "Unlicense". The project was and will be in the public domain --
+  this change just makes it easier for automated tools to know about this fact by
+  using the widely recognized and SPDX-compatible template for public domain
+  dedication.
+
+
+v0.14.4
+-------
+
+* Added TypeScript type definitions (contributed by @AndSDev).
+* Improved benchmarking code.
+
+
+v0.14.3
+-------
+
+Fixed a bug in the fast version of Poly1305 and brought it back.
+
+Thanks to @floodyberry for promptly responding and fixing the original C code:
+
+> "The issue was not properly detecting if st->h was >= 2^130 - 5, coupled with
+> [testing mistake] not catching the failure. The chance of the bug affecting
+> anything in the real world is essentially zero luckily, but it's good to have
+> it fixed."
+
+https://github.com/floodyberry/poly1305-donna/issues/2#issuecomment-202698577
+
+
+v0.14.2
+-------
+
+Switched Poly1305 fast version back to original (slow) version due to a bug.
+
+
 v0.14.1
 -------
 

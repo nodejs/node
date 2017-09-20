@@ -41,7 +41,7 @@ const http = require('http');
 // closed.
 
 const server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.write('hello ');
   res.write('world\n');
   res.end();

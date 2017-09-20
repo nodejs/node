@@ -85,6 +85,8 @@ class V8_EXPORT V8ContextInfo {
   StringView auxData;
   bool hasMemoryOnConsole;
 
+  static int executionContextId(v8::Local<v8::Context> context);
+
  private:
   // Disallow copying and allocating this one.
   enum NotNullTagEnum { NotNullLiteral };
@@ -156,8 +158,6 @@ class V8_EXPORT V8InspectorSession {
   virtual void releaseObjectGroup(const StringView&) = 0;
 };
 
-enum class V8ConsoleAPIType { kClear, kDebug, kLog, kInfo, kWarning, kError };
-
 class V8_EXPORT V8InspectorClient {
  public:
   virtual ~V8InspectorClient() {}
@@ -189,7 +189,8 @@ class V8_EXPORT V8InspectorClient {
 
   virtual void installAdditionalCommandLineAPI(v8::Local<v8::Context>,
                                                v8::Local<v8::Object>) {}
-  virtual void consoleAPIMessage(int contextGroupId, V8ConsoleAPIType,
+  virtual void consoleAPIMessage(int contextGroupId,
+                                 v8::Isolate::MessageErrorLevel level,
                                  const StringView& message,
                                  const StringView& url, unsigned lineNumber,
                                  unsigned columnNumber, V8StackTrace*) {}
@@ -201,6 +202,7 @@ class V8_EXPORT V8InspectorClient {
   virtual void consoleTime(const StringView& title) {}
   virtual void consoleTimeEnd(const StringView& title) {}
   virtual void consoleTimeStamp(const StringView& title) {}
+  virtual void consoleClear(int contextGroupId) {}
   virtual double currentTimeMS() { return 0; }
   typedef void (*TimerCallback)(void*);
   virtual void startRepeatingTimer(double, TimerCallback, void* data) {}
@@ -222,8 +224,6 @@ class V8_EXPORT V8Inspector {
   virtual void resetContextGroup(int contextGroupId) = 0;
 
   // Various instrumentation.
-  virtual void willExecuteScript(v8::Local<v8::Context>, int scriptId) = 0;
-  virtual void didExecuteScript(v8::Local<v8::Context>) = 0;
   virtual void idleStarted() = 0;
   virtual void idleFinished() = 0;
 

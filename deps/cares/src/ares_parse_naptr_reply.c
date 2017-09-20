@@ -116,6 +116,13 @@ ares_parse_naptr_reply (const unsigned char *abuf, int alen,
         {
           /* parse the NAPTR record itself */
 
+          /* RR must contain at least 7 bytes = 2 x int16 + 3 x name */
+          if (rr_len < 7)
+            {
+              status = ARES_EBADRESP;
+              break;
+            }
+
           /* Allocate storage for this NAPTR answer appending it to the list */
           naptr_curr = ares_malloc_data(ARES_DATATYPE_NAPTR_REPLY);
           if (!naptr_curr)
@@ -185,4 +192,3 @@ ares_parse_naptr_reply (const unsigned char *abuf, int alen,
 
   return ARES_SUCCESS;
 }
-

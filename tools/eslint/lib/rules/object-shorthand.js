@@ -392,7 +392,7 @@ module.exports = {
                         });
                     }
                 } else if (APPLY_TO_METHODS && !node.value.id && (node.value.type === "FunctionExpression" || node.value.type === "ArrowFunctionExpression")) {
-                    if (IGNORE_CONSTRUCTORS && isConstructor(node.key.name)) {
+                    if (IGNORE_CONSTRUCTORS && node.key.type === "Identifier" && isConstructor(node.key.name)) {
                         return;
                     }
                     if (AVOID_QUOTES && isStringLiteral(node.key)) {

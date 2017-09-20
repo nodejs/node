@@ -1,5 +1,7 @@
 # REPL
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `repl` module provides a Read-Eval-Print-Loop (REPL) implementation that
@@ -40,7 +42,7 @@ The following special commands are supported by all REPL instances:
   `> .load ./file/to/load.js`
 * `.editor` - Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel)
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 > .editor
 // Entering editor mode (^D to finish, ^C to cancel)
@@ -76,7 +78,7 @@ evaluation function when the `repl.REPLServer` instance is created.
 
 The default evaluator supports direct evaluation of JavaScript expressions:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 > 1 + 1
 2
@@ -105,7 +107,7 @@ repl.start('> ').context.m = msg;
 
 Properties in the `context` object appear as local within the REPL:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 $ node repl_test.js
 > m
@@ -135,7 +137,7 @@ REPL environment when used. For instance, unless otherwise declared as a
 global or scoped variable, the input `fs` will be evaluated on-demand as
 `global.fs = require('fs')`.
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 > fs.createReadStream('./some/file');
 ```
@@ -146,7 +148,7 @@ The default evaluator will, by default, assign the result of the most recently
 evaluated expression to the special variable `_` (underscore).
 Explicitly setting `_` to a value will disable this behavior.
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 > [ 'a', 'b', 'c' ]
 [ 'a', 'b', 'c' ]
@@ -172,7 +174,7 @@ translation of text from one language to another:
 
 ```js
 const repl = require('repl');
-const Translator = require('translator').Translator;
+const { Translator } = require('translator');
 
 const myTranslator = new Translator('en', 'fr');
 
@@ -180,7 +182,7 @@ function myEval(cmd, context, filename, callback) {
   callback(null, myTranslator.translate(cmd));
 }
 
-repl.start({prompt: '> ', eval: myEval});
+repl.start({ prompt: '> ', eval: myEval });
 ```
 
 #### Recoverable Errors
@@ -226,7 +228,7 @@ following example, for instance, simply converts any input text to upper case:
 ```js
 const repl = require('repl');
 
-const r = repl.start({prompt: '> ', eval: myEval, writer: myWriter});
+const r = repl.start({ prompt: '> ', eval: myEval, writer: myWriter });
 
 function myEval(cmd, context, filename, callback) {
   callback(null, cmd);
@@ -284,7 +286,7 @@ function initializeContext(context) {
   context.m = 'test';
 }
 
-const r = repl.start({prompt: '> '});
+const r = repl.start({ prompt: '> ' });
 initializeContext(r.context);
 
 r.on('reset', initializeContext);
@@ -293,7 +295,7 @@ r.on('reset', initializeContext);
 When this code is executed, the global `'m'` variable can be modified but then
 reset to its initial value using the `.clear` command:
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 $ ./node example.js
 > m
@@ -331,17 +333,16 @@ The following example shows two new commands added to the REPL instance:
 ```js
 const repl = require('repl');
 
-const replServer = repl.start({prompt: '> '});
+const replServer = repl.start({ prompt: '> ' });
 replServer.defineCommand('sayhello', {
   help: 'Say hello',
   action(name) {
-    this.lineParser.reset();
-    this.bufferedCommand = '';
+    this.clearBufferedCommand();
     console.log(`Hello, ${name}!`);
     this.displayPrompt();
   }
 });
-replServer.defineCommand('saybye', () => {
+replServer.defineCommand('saybye', function saybye() {
   console.log('Goodbye!');
   this.close();
 });
@@ -376,6 +377,30 @@ The `replServer.displayPrompt` method is primarily intended to be called from
 within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
+### replServer.clearBufferedCommand()
+<!-- YAML
+added: REPLACEME
+-->
+
+The `replServer.clearBufferedComand()` method clears any command that has been
+buffered but not yet executed. This method is primarily intended to be
+called from within the action function for commands registered using the
+`replServer.defineCommand()` method.
+
+### replServer.parseREPLKeyword(keyword, [rest])
+<!-- YAML
+added: v0.8.9
+deprecated: REPLACEME
+-->
+
+* `keyword` {string} the potential keyword to parse and execute
+* `rest` {any} any parameters to the keyword command
+
+> Stability: 0 - Deprecated.
+
+An internal method used to parse and execute `REPLServer` keywords.
+Returns `true` if `keyword` is a valid keyword, otherwise `false`.
+
 ## repl.start([options])
 <!-- YAML
 added: v0.1.91
@@ -406,7 +431,8 @@ changes:
      REPL instances `terminal` value.
   * `useGlobal` {boolean} If `true`, specifies that the default evaluation
      function will use the JavaScript `global` as the context as opposed to
-     creating a new separate context for the REPL instance. Defaults to `false`.
+     creating a new separate context for the REPL instance. The node CLI REPL
+     sets this value to `true`. Defaults to `false`.
   * `ignoreUndefined` {boolean} If `true`, specifies that the default writer
      will not output the return value of a command if it evaluates to
      `undefined`. Defaults to `false`.
@@ -444,10 +470,12 @@ Node.js itself uses the `repl` module to provide its own interactive interface
 for executing JavaScript. This can be used by executing the Node.js binary
 without passing any arguments (or by passing the `-i` argument):
 
-<!-- eslint-disable -->
+<!-- eslint-skip -->
 ```js
 $ node
 > const a = [1, 2, 3];
+undefined
+> a
 [ 1, 2, 3 ]
 > a.forEach((v) => {
 ...   console.log(v);
@@ -497,11 +525,11 @@ by the `NODE_REPL_HISTORY` variable, as documented in the
 
 ### Using the Node.js REPL with advanced line-editors
 
-For advanced line-editors, start Node.js with the environmental variable
+For advanced line-editors, start Node.js with the environment variable
 `NODE_NO_READLINE=1`. This will start the main and debugger REPL in canonical
-terminal settings which will allow you to use with `rlwrap`.
+terminal settings, which will allow use with `rlwrap`.
 
-For example, you could add this to your bashrc file:
+For example, the following can be added to a `.bashrc` file:
 
 ```text
 alias node="env NODE_NO_READLINE=1 rlwrap node"
@@ -564,8 +592,8 @@ a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
 For an example of running a REPL instance over [curl(1)][],
 see: https://gist.github.com/2053342
 
-[stream]: stream.html
-[`util.inspect()`]: util.html#util_util_inspect_object_options
-[`readline.Interface`]: readline.html#readline_class_interface
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
+[`readline.Interface`]: readline.html#readline_class_interface
+[`util.inspect()`]: util.html#util_util_inspect_object_options
 [curl(1)]: https://curl.haxx.se/docs/manpage.html
+[stream]: stream.html

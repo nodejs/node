@@ -26,17 +26,13 @@ namespace internal {
   (entry(p0, p1, p2, p3, p4))
 
 typedef int (*ppc_regexp_matcher)(String*, int, const byte*, const byte*, int*,
-                                  int, Address, int, void*, Isolate*);
-
+                                  int, Address, int, Isolate*);
 
 // Call the generated regexp code directly. The code at the entry address
 // should act as a function matching the type ppc_regexp_matcher.
-// The ninth argument is a dummy that reserves the space used for
-// the return address added by the ExitFrame in native calls.
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
-  (FUNCTION_CAST<ppc_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,    \
-                                            NULL, p8))
+  (FUNCTION_CAST<ppc_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7, p8))
 
 // The stack limit beyond which we will throw stack overflow errors in
 // generated code. Because generated code on ppc uses the C stack, we
@@ -289,19 +285,25 @@ class Simulator {
 
   // Read and write memory.
   inline uint8_t ReadBU(intptr_t addr);
+  inline uint8_t ReadExBU(intptr_t addr);
   inline int8_t ReadB(intptr_t addr);
   inline void WriteB(intptr_t addr, uint8_t value);
+  inline int WriteExB(intptr_t addr, uint8_t value);
   inline void WriteB(intptr_t addr, int8_t value);
 
   inline uint16_t ReadHU(intptr_t addr, Instruction* instr);
+  inline uint16_t ReadExHU(intptr_t addr, Instruction* instr);
   inline int16_t ReadH(intptr_t addr, Instruction* instr);
   // Note: Overloaded on the sign of the value.
   inline void WriteH(intptr_t addr, uint16_t value, Instruction* instr);
+  inline int WriteExH(intptr_t addr, uint16_t value, Instruction* instr);
   inline void WriteH(intptr_t addr, int16_t value, Instruction* instr);
 
   inline uint32_t ReadWU(intptr_t addr, Instruction* instr);
+  inline uint32_t ReadExWU(intptr_t addr, Instruction* instr);
   inline int32_t ReadW(intptr_t addr, Instruction* instr);
   inline void WriteW(intptr_t addr, uint32_t value, Instruction* instr);
+  inline int WriteExW(intptr_t addr, uint32_t value, Instruction* instr);
   inline void WriteW(intptr_t addr, int32_t value, Instruction* instr);
 
   intptr_t* ReadDW(intptr_t addr);
@@ -311,7 +313,8 @@ class Simulator {
   void SetCR0(intptr_t result, bool setSO = false);
   void ExecuteBranchConditional(Instruction* instr, BCType type);
   void ExecuteExt1(Instruction* instr);
-  bool ExecuteExt2_10bit(Instruction* instr);
+  bool ExecuteExt2_10bit_part1(Instruction* instr);
+  bool ExecuteExt2_10bit_part2(Instruction* instr);
   bool ExecuteExt2_9bit_part1(Instruction* instr);
   bool ExecuteExt2_9bit_part2(Instruction* instr);
   void ExecuteExt2_5bit(Instruction* instr);
@@ -338,7 +341,7 @@ class Simulator {
   static CachePage* GetCachePage(base::CustomMatcherHashMap* i_cache,
                                  void* page);
 
-  // Runtime call support.
+  // Runtime call support. Uses the isolate in a thread-safe way.
   static void* RedirectExternalReference(
       Isolate* isolate, void* external_function,
       v8::internal::ExternalReference::Type type);
@@ -398,6 +401,84 @@ class Simulator {
     char* desc;
   };
   StopCountAndDesc watched_stops_[kNumOfWatchedStops];
+
+  // Syncronization primitives. See ARM DDI 0406C.b, A2.9.
+  enum class MonitorAccess {
+    Open,
+    Exclusive,
+  };
+
+  enum class TransactionSize {
+    None = 0,
+    Byte = 1,
+    HalfWord = 2,
+    Word = 4,
+  };
+
+  class LocalMonitor {
+   public:
+    LocalMonitor();
+
+    // These functions manage the state machine for the local monitor, but do
+    // not actually perform loads and stores. NotifyStoreExcl only returns
+    // true if the exclusive store is allowed; the global monitor will still
+    // have to be checked to see whether the memory should be updated.
+    void NotifyLoad(int32_t addr);
+    void NotifyLoadExcl(int32_t addr, TransactionSize size);
+    void NotifyStore(int32_t addr);
+    bool NotifyStoreExcl(int32_t addr, TransactionSize size);
+
+   private:
+    void Clear();
+
+    MonitorAccess access_state_;
+    int32_t tagged_addr_;
+    TransactionSize size_;
+  };
+
+  class GlobalMonitor {
+   public:
+    GlobalMonitor();
+
+    class Processor {
+     public:
+      Processor();
+
+     private:
+      friend class GlobalMonitor;
+      // These functions manage the state machine for the global monitor, but do
+      // not actually perform loads and stores.
+      void Clear_Locked();
+      void NotifyLoadExcl_Locked(int32_t addr);
+      void NotifyStore_Locked(int32_t addr, bool is_requesting_processor);
+      bool NotifyStoreExcl_Locked(int32_t addr, bool is_requesting_processor);
+
+      MonitorAccess access_state_;
+      int32_t tagged_addr_;
+      Processor* next_;
+      Processor* prev_;
+    };
+
+    // Exposed so it can be accessed by Simulator::{Read,Write}Ex*.
+    base::Mutex mutex;
+
+    void NotifyLoadExcl_Locked(int32_t addr, Processor* processor);
+    void NotifyStore_Locked(int32_t addr, Processor* processor);
+    bool NotifyStoreExcl_Locked(int32_t addr, Processor* processor);
+
+    // Called when the simulator is destroyed.
+    void RemoveProcessor(Processor* processor);
+
+   private:
+    bool IsProcessorInLinkedList_Locked(Processor* processor) const;
+    void PrependProcessor_Locked(Processor* processor);
+
+    Processor* head_;
+  };
+
+  LocalMonitor local_monitor_;
+  GlobalMonitor::Processor global_monitor_processor_;
+  static base::LazyInstance<GlobalMonitor>::type global_monitor_;
 };
 
 
@@ -410,11 +491,9 @@ class Simulator {
 
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
-  Simulator::current(isolate)->Call(entry, 10, (intptr_t)p0, (intptr_t)p1,     \
-                                    (intptr_t)p2, (intptr_t)p3, (intptr_t)p4,  \
-                                    (intptr_t)p5, (intptr_t)p6, (intptr_t)p7,  \
-                                    (intptr_t)NULL, (intptr_t)p8)
-
+  Simulator::current(isolate)->Call(                                           \
+      entry, 9, (intptr_t)p0, (intptr_t)p1, (intptr_t)p2, (intptr_t)p3,        \
+      (intptr_t)p4, (intptr_t)p5, (intptr_t)p6, (intptr_t)p7, (intptr_t)p8)
 
 // The simulator has its own stack. Thus it has a different stack limit from
 // the C-based native code.  The JS-based limit normally points near the end of

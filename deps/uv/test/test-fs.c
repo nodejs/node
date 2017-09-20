@@ -125,7 +125,7 @@ static void check_permission(const char* filename, unsigned int mode) {
   ASSERT(req.result == 0);
 
   s = &req.statbuf;
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__CYGWIN__) || defined(__MSYS__)
   /*
    * On Windows, chmod can only modify S_IWUSR (_S_IWRITE) bit,
    * so only testing for the specified flags.
@@ -240,7 +240,7 @@ static void chown_cb(uv_fs_t* req) {
 
 static void chown_root_cb(uv_fs_t* req) {
   ASSERT(req->fs_type == UV_FS_CHOWN);
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MSYS__)
   /* On windows, chown is a no-op and always succeeds. */
   ASSERT(req->result == 0);
 #else
@@ -250,7 +250,12 @@ static void chown_root_cb(uv_fs_t* req) {
   if (geteuid() == 0)
     ASSERT(req->result == 0);
   else
+#   if defined(__CYGWIN__)
+    /* On Cygwin, uid 0 is invalid (no root). */
+    ASSERT(req->result == UV_EINVAL);
+#   else
     ASSERT(req->result == UV_EPERM);
+#   endif
 #endif
   chown_cb_count++;
   uv_fs_req_cleanup(req);
@@ -640,6 +645,11 @@ TEST_IMPL(fs_file_loop) {
    * we'll see UV_EPERM.
    */
   if (r == UV_ENOTSUP || r == UV_EPERM)
+    return 0;
+#elif defined(__MSYS__)
+  /* MSYS2's approximation of symlinks with copies does not work for broken
+     links.  */
+  if (r == UV_ENOENT)
     return 0;
 #endif
   ASSERT(r == 0);
@@ -1482,11 +1492,14 @@ TEST_IMPL(fs_chown) {
   uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(chown_cb_count == 1);
 
+#ifndef __MVS__
   /* chown to root (fail) */
   chown_cb_count = 0;
   r = uv_fs_chown(loop, &req, "test_file", 0, 0, chown_root_cb);
+  ASSERT(r == 0);
   uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(chown_cb_count == 1);
+#endif
 
   /* async fchown */
   r = uv_fs_fchown(loop, &req, file, -1, -1, fchown_cb);
@@ -1734,6 +1747,10 @@ TEST_IMPL(fs_symlink) {
   ASSERT(r == 0);
   uv_fs_req_cleanup(&req);
 
+#if defined(__MSYS__)
+  RETURN_SKIP("symlink reading is not supported on MSYS2");
+#endif
+
   r = uv_fs_readlink(NULL, &req, "test_file_symlink_symlink", NULL);
   ASSERT(r == 0);
   ASSERT(strcmp(req.ptr, "test_file_symlink") == 0);
@@ -1877,6 +1894,9 @@ TEST_IMPL(fs_symlink_dir) {
 
   r = uv_fs_lstat(NULL, &req, "test_dir_symlink", NULL);
   ASSERT(r == 0);
+#if defined(__MSYS__)
+  RETURN_SKIP("symlink reading is not supported on MSYS2");
+#endif
   ASSERT(((uv_stat_t*)req.ptr)->st_mode & S_IFLNK);
 #ifdef _WIN32
   ASSERT(((uv_stat_t*)req.ptr)->st_size == strlen(test_dir + 4));
@@ -2102,8 +2122,13 @@ TEST_IMPL(fs_futime) {
   uv_fs_req_cleanup(&req);
 
   r = uv_fs_futime(NULL, &req, file, atime, mtime, NULL);
+#if defined(__CYGWIN__) || defined(__MSYS__)
+  ASSERT(r == UV_ENOSYS);
+  RETURN_SKIP("futime not supported on Cygwin");
+#else
   ASSERT(r == 0);
   ASSERT(req.result == 0);
+#endif
   uv_fs_req_cleanup(&req);
 
   r = uv_fs_stat(NULL, &req, path, NULL);
@@ -2412,6 +2437,9 @@ TEST_IMPL(fs_rename_to_existing_file) {
 
 
 TEST_IMPL(fs_read_file_eof) {
+#if defined(__CYGWIN__) || defined(__MSYS__)
+  RETURN_SKIP("Cygwin pread at EOF may (incorrectly) return data!");
+#endif
   int r;
 
   /* Setup. */
@@ -2723,19 +2751,199 @@ TEST_IMPL(fs_write_alotof_bufs_with_offset) {
 TEST_IMPL(fs_read_write_null_arguments) {
   int r;
 
+  r = uv_fs_read(NULL, &read_req, 0, NULL, 0, -1, NULL);
+  ASSERT(r == UV_EINVAL);
+  uv_fs_req_cleanup(&read_req);
+
+  r = uv_fs_write(NULL, &write_req, 0, NULL, 0, -1, NULL);
+  ASSERT(r == UV_EINVAL);
+  uv_fs_req_cleanup(&write_req);
+
+  iov = uv_buf_init(NULL, 0);
+  r = uv_fs_read(NULL, &read_req, 0, &iov, 0, -1, NULL);
+  ASSERT(r == UV_EINVAL);
+  uv_fs_req_cleanup(&read_req);
+
+  iov = uv_buf_init(NULL, 0);
+  r = uv_fs_write(NULL, &write_req, 0, &iov, 0, -1, NULL);
+  ASSERT(r == UV_EINVAL);
+  uv_fs_req_cleanup(&write_req);
+
+  return 0;
+}
+
+
+TEST_IMPL(get_osfhandle_valid_handle) {
+  int r;
+  uv_os_fd_t fd;
+
+  /* Setup. */
+  unlink("test_file");
+
+  loop = uv_default_loop();
+
+  r = uv_fs_open(NULL,
+                 &open_req1,
+                 "test_file",
+                 O_RDWR | O_CREAT,
+                 S_IWUSR | S_IRUSR,
+                 NULL);
+  ASSERT(r >= 0);
+  ASSERT(open_req1.result >= 0);
+  uv_fs_req_cleanup(&open_req1);
+
+  fd = uv_get_osfhandle(open_req1.result);
+#ifdef _WIN32
+  ASSERT(fd != INVALID_HANDLE_VALUE);
+#else
+  ASSERT(fd >= 0);
+#endif
+
+  r = uv_fs_close(NULL, &close_req, open_req1.result, NULL);
+  ASSERT(r == 0);
+  ASSERT(close_req.result == 0);
+  uv_fs_req_cleanup(&close_req);
+
+  /* Cleanup. */
+  unlink("test_file");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+TEST_IMPL(fs_file_pos_after_op_with_offset) {
+  int r;
+
+  /* Setup. */
+  unlink("test_file");
+  loop = uv_default_loop();
+
+  r = uv_fs_open(loop,
+                 &open_req1,
+                 "test_file",
+                 O_RDWR | O_CREAT,
+                 S_IWUSR | S_IRUSR,
+                 NULL);
+  ASSERT(r > 0);
+  uv_fs_req_cleanup(&open_req1);
+
+  iov = uv_buf_init(test_buf, sizeof(test_buf));
+  r = uv_fs_write(NULL, &write_req, open_req1.result, &iov, 1, 0, NULL);
+  ASSERT(r == sizeof(test_buf));
+  ASSERT(lseek(open_req1.result, 0, SEEK_CUR) == 0);
+  uv_fs_req_cleanup(&write_req);
+
+  iov = uv_buf_init(buf, sizeof(buf));
+  r = uv_fs_read(NULL, &read_req, open_req1.result, &iov, 1, 0, NULL);
+  ASSERT(r == sizeof(test_buf));
+  ASSERT(strcmp(buf, test_buf) == 0);
+  ASSERT(lseek(open_req1.result, 0, SEEK_CUR) == 0);
+  uv_fs_req_cleanup(&read_req);
+
+  r = uv_fs_close(NULL, &close_req, open_req1.result, NULL);
+  ASSERT(r == 0);
+  uv_fs_req_cleanup(&close_req);
+
+  /* Cleanup */
+  unlink("test_file");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+TEST_IMPL(fs_null_req) {
+  /* Verify that all fs functions return UV_EINVAL when the request is NULL. */
+  int r;
+
+  r = uv_fs_open(NULL, NULL, NULL, 0, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_close(NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
   r = uv_fs_read(NULL, NULL, 0, NULL, 0, -1, NULL);
   ASSERT(r == UV_EINVAL);
 
   r = uv_fs_write(NULL, NULL, 0, NULL, 0, -1, NULL);
   ASSERT(r == UV_EINVAL);
 
-  iov = uv_buf_init(NULL, 0);
-  r = uv_fs_read(NULL, NULL, 0, &iov, 0, -1, NULL);
+  r = uv_fs_unlink(NULL, NULL, NULL, NULL);
   ASSERT(r == UV_EINVAL);
 
-  iov = uv_buf_init(NULL, 0);
-  r = uv_fs_write(NULL, NULL, 0, &iov, 0, -1, NULL);
+  r = uv_fs_mkdir(NULL, NULL, NULL, 0, NULL);
   ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_mkdtemp(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_rmdir(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_scandir(NULL, NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_link(NULL, NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_symlink(NULL, NULL, NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_readlink(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_realpath(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_chown(NULL, NULL, NULL, 0, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_fchown(NULL, NULL, 0, 0, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_stat(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_lstat(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_fstat(NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_rename(NULL, NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_fsync(NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_fdatasync(NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_ftruncate(NULL, NULL, 0, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_copyfile(NULL, NULL, NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_sendfile(NULL, NULL, 0, 0, 0, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_access(NULL, NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_chmod(NULL, NULL, NULL, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_fchmod(NULL, NULL, 0, 0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_utime(NULL, NULL, NULL, 0.0, 0.0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_futime(NULL, NULL, 0, 0.0, 0.0, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  /* This should be a no-op. */
+  uv_fs_req_cleanup(NULL);
 
   return 0;
 }

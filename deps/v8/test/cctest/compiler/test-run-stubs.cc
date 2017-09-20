@@ -12,6 +12,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/pipeline.h"
+#include "src/objects-inl.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -66,7 +67,7 @@ TEST(RunStringLengthStub) {
   Handle<Object> vector = ft.Val(0.0);
   Handle<Object> result =
       ft.Call(receiverArg, nameArg, slot, vector).ToHandleChecked();
-  CHECK_EQ(static_cast<int>(strlen(testString)), Smi::cast(*result)->value());
+  CHECK_EQ(static_cast<int>(strlen(testString)), Smi::ToInt(*result));
 }
 
 

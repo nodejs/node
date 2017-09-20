@@ -49,15 +49,13 @@ class JavaScriptCallFrame {
   }
   ~JavaScriptCallFrame();
 
-  int sourceID() const;
-  int line() const;
-  int column() const;
   int contextId() const;
 
   bool isAtReturn() const;
   v8::MaybeLocal<v8::Object> details() const;
 
-  v8::MaybeLocal<v8::Value> evaluate(v8::Local<v8::Value> expression);
+  v8::MaybeLocal<v8::Value> evaluate(v8::Local<v8::Value> expression,
+                                     bool throwOnSideEffect);
   v8::MaybeLocal<v8::Value> restart();
   v8::MaybeLocal<v8::Value> setVariableValue(int scopeNumber,
                                              v8::Local<v8::Value> variableName,

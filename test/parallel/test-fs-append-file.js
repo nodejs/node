@@ -109,7 +109,7 @@ fs.appendFile(filename4, n, { mode: m }, function(e) {
   fs.readFile(filename4, function(e, buffer) {
     assert.ifError(e);
     ncallbacks++;
-    assert.strictEqual(Buffer.byteLength('' + n) + currentFileData.length,
+    assert.strictEqual(Buffer.byteLength(String(n)) + currentFileData.length,
                        buffer.length);
   });
 });
@@ -143,6 +143,13 @@ fs.open(filename5, 'a+', function(e, fd) {
     });
   });
 });
+
+// test that a missing callback emits a warning, even if the last argument is a
+// function.
+const filename6 = join(common.tmpDir, 'append6.txt');
+const warn = 'Calling an asynchronous function without callback is deprecated.';
+common.expectWarning('DeprecationWarning', warn);
+fs.appendFile(filename6, console.log);
 
 process.on('exit', function() {
   assert.strictEqual(12, ncallbacks);

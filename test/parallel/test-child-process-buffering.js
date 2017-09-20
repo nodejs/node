@@ -29,12 +29,12 @@ function pwd(callback) {
 
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', function(s) {
-    console.log('stdout: ' + JSON.stringify(s));
+    console.log(`stdout: ${JSON.stringify(s)}`);
     output += s;
   });
 
   child.on('exit', common.mustCall(function(c) {
-    console.log('exit: ' + c);
+    console.log(`exit: ${c}`);
     assert.strictEqual(0, c);
   }));
 

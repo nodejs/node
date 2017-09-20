@@ -5,8 +5,11 @@
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
 #include "src/compiler.h"
+#include "src/conversions.h"
+#include "src/counters.h"
+#include "src/lookup.h"
+#include "src/objects-inl.h"
 #include "src/string-builder.h"
 
 namespace v8 {
@@ -32,11 +35,16 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
 
   // Build the source string.
   Handle<String> source;
+  int parameters_end_pos = kNoSourcePosition;
   {
     IncrementalStringBuilder builder(isolate);
     builder.AppendCharacter('(');
     builder.AppendCString(token);
-    builder.AppendCharacter('(');
+    if (FLAG_harmony_function_tostring) {
+      builder.AppendCString(" anonymous(");
+    } else {
+      builder.AppendCharacter('(');
+    }
     bool parenthesis_in_arg_string = false;
     if (argc > 1) {
       for (int i = 1; i < argc; ++i) {
@@ -46,22 +54,30 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
             isolate, param, Object::ToString(isolate, args.at(i)), Object);
         param = String::Flatten(param);
         builder.AppendString(param);
-        // If the formal parameters string include ) - an illegal
-        // character - it may make the combined function expression
-        // compile. We avoid this problem by checking for this early on.
-        DisallowHeapAllocation no_gc;  // Ensure vectors stay valid.
-        String::FlatContent param_content = param->GetFlatContent();
-        for (int i = 0, length = param->length(); i < length; ++i) {
-          if (param_content.Get(i) == ')') {
-            parenthesis_in_arg_string = true;
-            break;
+        if (!FLAG_harmony_function_tostring) {
+          // If the formal parameters string include ) - an illegal
+          // character - it may make the combined function expression
+          // compile. We avoid this problem by checking for this early on.
+          DisallowHeapAllocation no_gc;  // Ensure vectors stay valid.
+          String::FlatContent param_content = param->GetFlatContent();
+          for (int i = 0, length = param->length(); i < length; ++i) {
+            if (param_content.Get(i) == ')') {
+              parenthesis_in_arg_string = true;
+              break;
+            }
           }
         }
       }
-      // If the formal parameters include an unbalanced block comment, the
-      // function must be rejected. Since JavaScript does not allow nested
-      // comments we can include a trailing block comment to catch this.
-      builder.AppendCString("\n/*``*/");
+      if (!FLAG_harmony_function_tostring) {
+        // If the formal parameters include an unbalanced block comment, the
+        // function must be rejected. Since JavaScript does not allow nested
+        // comments we can include a trailing block comment to catch this.
+        builder.AppendCString("\n/*``*/");
+      }
+    }
+    if (FLAG_harmony_function_tostring) {
+      builder.AppendCharacter('\n');
+      parameters_end_pos = builder.Length();
     }
     builder.AppendCString(") {\n");
     if (argc > 0) {
@@ -86,11 +102,12 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
   // come from here.
   Handle<JSFunction> function;
   {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, function,
-                               Compiler::GetFunctionFromString(
-                                   handle(target->native_context(), isolate),
-                                   source, ONLY_SINGLE_FUNCTION_LITERAL),
-                               Object);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, function,
+        Compiler::GetFunctionFromString(
+            handle(target->native_context(), isolate), source,
+            ONLY_SINGLE_FUNCTION_LITERAL, parameters_end_pos),
+        Object);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
@@ -117,8 +134,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
         JSFunction::GetDerivedMap(isolate, target, new_target), Object);
 
     Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
-    Handle<Map> map = Map::AsLanguageMode(
-        initial_map, shared_info->language_mode(), shared_info->kind());
+    Handle<Map> map = Map::AsLanguageMode(initial_map, shared_info);
 
     Handle<Context> context(function->context(), isolate);
     function = isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -151,6 +167,24 @@ BUILTIN(AsyncFunctionConstructor) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, maybe_func,
       CreateDynamicFunction(isolate, args, "async function"));
+  if (!maybe_func->IsJSFunction()) return *maybe_func;
+
+  // Do not lazily compute eval position for AsyncFunction, as they may not be
+  // determined after the function is resumed.
+  Handle<JSFunction> func = Handle<JSFunction>::cast(maybe_func);
+  Handle<Script> script = handle(Script::cast(func->shared()->script()));
+  int position = script->GetEvalPosition();
+  USE(position);
+
+  return *func;
+}
+
+BUILTIN(AsyncGeneratorFunctionConstructor) {
+  HandleScope scope(isolate);
+  Handle<Object> maybe_func;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, maybe_func,
+      CreateDynamicFunction(isolate, args, "async function*"));
   if (!maybe_func->IsJSFunction()) return *maybe_func;
 
   // Do not lazily compute eval position for AsyncFunction, as they may not be
@@ -254,184 +288,6 @@ Object* DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
 // ES6 section 19.2.3.2 Function.prototype.bind ( thisArg, ...args )
 BUILTIN(FunctionPrototypeBind) { return DoFunctionBind(isolate, args); }
 
-void Builtins::Generate_FastFunctionPrototypeBind(
-    compiler::CodeAssemblerState* state) {
-  using compiler::Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-
-  CodeStubAssembler assembler(state);
-  Label slow(&assembler);
-
-  Node* argc = assembler.Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* context = assembler.Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = assembler.Parameter(BuiltinDescriptor::kNewTarget);
-
-  CodeStubArguments args(&assembler, argc);
-
-  // Check that receiver has instance type of JS_FUNCTION_TYPE
-  Node* receiver = args.GetReceiver();
-  assembler.GotoIf(assembler.TaggedIsSmi(receiver), &slow);
-
-  Node* receiver_map = assembler.LoadMap(receiver);
-  Node* instance_type = assembler.LoadMapInstanceType(receiver_map);
-  assembler.GotoIf(
-      assembler.Word32NotEqual(instance_type,
-                               assembler.Int32Constant(JS_FUNCTION_TYPE)),
-      &slow);
-
-  // Disallow binding of slow-mode functions. We need to figure out whether the
-  // length and name property are in the original state.
-  assembler.Comment("Disallow binding of slow-mode functions");
-  assembler.GotoIf(assembler.IsDictionaryMap(receiver_map), &slow);
-
-  // Check whether the length and name properties are still present as
-  // AccessorInfo objects. In that case, their value can be recomputed even if
-  // the actual value on the object changes.
-  assembler.Comment("Check descriptor array length");
-  Node* descriptors = assembler.LoadMapDescriptors(receiver_map);
-  Node* descriptors_length = assembler.LoadFixedArrayBaseLength(descriptors);
-  assembler.GotoIf(assembler.SmiLessThanOrEqual(descriptors_length,
-                                                assembler.SmiConstant(1)),
-                   &slow);
-
-  // Check whether the length and name properties are still present as
-  // AccessorInfo objects. In that case, their value can be recomputed even if
-  // the actual value on the object changes.
-  assembler.Comment("Check name and length properties");
-  const int length_index = JSFunction::kLengthDescriptorIndex;
-  Node* maybe_length = assembler.LoadFixedArrayElement(
-      descriptors, DescriptorArray::ToKeyIndex(length_index));
-  assembler.GotoIf(
-      assembler.WordNotEqual(maybe_length,
-                             assembler.LoadRoot(Heap::klength_stringRootIndex)),
-      &slow);
-
-  Node* maybe_length_accessor = assembler.LoadFixedArrayElement(
-      descriptors, DescriptorArray::ToValueIndex(length_index));
-  assembler.GotoIf(assembler.TaggedIsSmi(maybe_length_accessor), &slow);
-  Node* length_value_map = assembler.LoadMap(maybe_length_accessor);
-  assembler.GotoUnless(assembler.IsAccessorInfoMap(length_value_map), &slow);
-
-  const int name_index = JSFunction::kNameDescriptorIndex;
-  Node* maybe_name = assembler.LoadFixedArrayElement(
-      descriptors, DescriptorArray::ToKeyIndex(name_index));
-  assembler.GotoIf(
-      assembler.WordNotEqual(maybe_name,
-                             assembler.LoadRoot(Heap::kname_stringRootIndex)),
-      &slow);
-
-  Node* maybe_name_accessor = assembler.LoadFixedArrayElement(
-      descriptors, DescriptorArray::ToValueIndex(name_index));
-  assembler.GotoIf(assembler.TaggedIsSmi(maybe_name_accessor), &slow);
-  Node* name_value_map = assembler.LoadMap(maybe_name_accessor);
-  assembler.GotoUnless(assembler.IsAccessorInfoMap(name_value_map), &slow);
-
-  // Choose the right bound function map based on whether the target is
-  // constructable.
-  assembler.Comment("Choose the right bound function map");
-  Variable bound_function_map(&assembler, MachineRepresentation::kTagged);
-  Label with_constructor(&assembler);
-  CodeStubAssembler::VariableList vars({&bound_function_map}, assembler.zone());
-  Node* native_context = assembler.LoadNativeContext(context);
-
-  Label map_done(&assembler, vars);
-  Node* bit_field = assembler.LoadMapBitField(receiver_map);
-  int mask = static_cast<int>(1 << Map::kIsConstructor);
-  assembler.GotoIf(assembler.IsSetWord32(bit_field, mask), &with_constructor);
-
-  bound_function_map.Bind(assembler.LoadContextElement(
-      native_context, Context::BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX));
-  assembler.Goto(&map_done);
-
-  assembler.Bind(&with_constructor);
-  bound_function_map.Bind(assembler.LoadContextElement(
-      native_context, Context::BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX));
-  assembler.Goto(&map_done);
-
-  assembler.Bind(&map_done);
-
-  // Verify that __proto__ matches that of a the target bound function.
-  assembler.Comment("Verify that __proto__ matches target bound function");
-  Node* prototype = assembler.LoadMapPrototype(receiver_map);
-  Node* expected_prototype =
-      assembler.LoadMapPrototype(bound_function_map.value());
-  assembler.GotoIf(assembler.WordNotEqual(prototype, expected_prototype),
-                   &slow);
-
-  // Allocate the arguments array.
-  assembler.Comment("Allocate the arguments array");
-  Variable argument_array(&assembler, MachineRepresentation::kTagged);
-  Label empty_arguments(&assembler);
-  Label arguments_done(&assembler, &argument_array);
-  assembler.GotoIf(
-      assembler.Uint32LessThanOrEqual(argc, assembler.Int32Constant(1)),
-      &empty_arguments);
-  Node* elements_length = assembler.ChangeUint32ToWord(
-      assembler.Int32Sub(argc, assembler.Int32Constant(1)));
-  Node* elements = assembler.AllocateFixedArray(FAST_ELEMENTS, elements_length);
-  Variable index(&assembler, MachineType::PointerRepresentation());
-  index.Bind(assembler.IntPtrConstant(0));
-  CodeStubAssembler::VariableList foreach_vars({&index}, assembler.zone());
-  args.ForEach(foreach_vars,
-               [&assembler, elements, &index](compiler::Node* arg) {
-                 assembler.StoreFixedArrayElement(elements, index.value(), arg);
-                 assembler.Increment(index);
-               },
-               assembler.IntPtrConstant(1));
-  argument_array.Bind(elements);
-  assembler.Goto(&arguments_done);
-
-  assembler.Bind(&empty_arguments);
-  argument_array.Bind(assembler.EmptyFixedArrayConstant());
-  assembler.Goto(&arguments_done);
-
-  assembler.Bind(&arguments_done);
-
-  // Determine bound receiver.
-  assembler.Comment("Determine bound receiver");
-  Variable bound_receiver(&assembler, MachineRepresentation::kTagged);
-  Label has_receiver(&assembler);
-  Label receiver_done(&assembler, &bound_receiver);
-  assembler.GotoIf(assembler.Word32NotEqual(argc, assembler.Int32Constant(0)),
-                   &has_receiver);
-  bound_receiver.Bind(assembler.UndefinedConstant());
-  assembler.Goto(&receiver_done);
-
-  assembler.Bind(&has_receiver);
-  bound_receiver.Bind(args.AtIndex(0));
-  assembler.Goto(&receiver_done);
-
-  assembler.Bind(&receiver_done);
-
-  // Allocate the resulting bound function.
-  assembler.Comment("Allocate the resulting bound function");
-  Node* bound_function = assembler.Allocate(JSBoundFunction::kSize);
-  assembler.StoreMapNoWriteBarrier(bound_function, bound_function_map.value());
-  assembler.StoreObjectFieldNoWriteBarrier(
-      bound_function, JSBoundFunction::kBoundTargetFunctionOffset, receiver);
-  assembler.StoreObjectFieldNoWriteBarrier(bound_function,
-                                           JSBoundFunction::kBoundThisOffset,
-                                           bound_receiver.value());
-  assembler.StoreObjectFieldNoWriteBarrier(
-      bound_function, JSBoundFunction::kBoundArgumentsOffset,
-      argument_array.value());
-  Node* empty_fixed_array = assembler.EmptyFixedArrayConstant();
-  assembler.StoreObjectFieldNoWriteBarrier(
-      bound_function, JSObject::kPropertiesOffset, empty_fixed_array);
-  assembler.StoreObjectFieldNoWriteBarrier(
-      bound_function, JSObject::kElementsOffset, empty_fixed_array);
-
-  args.PopAndReturn(bound_function);
-  assembler.Bind(&slow);
-
-  Node* target = assembler.LoadFromFrame(
-      StandardFrameConstants::kFunctionOffset, MachineType::TaggedPointer());
-  assembler.TailCallStub(
-      CodeFactory::FunctionPrototypeBind(assembler.isolate()), context, target,
-      new_target, argc);
-}
-
 // TODO(verwaest): This is a temporary helper until the FastFunctionBind stub
 // can tailcall to the builtin directly.
 RUNTIME_FUNCTION(Runtime_FunctionBind) {
@@ -455,20 +311,8 @@ BUILTIN(FunctionPrototypeToString) {
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kNotGeneric,
                             isolate->factory()->NewStringFromAsciiChecked(
-                                "Function.prototype.toString")));
-}
-
-// ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] ( V )
-void Builtins::Generate_FunctionPrototypeHasInstance(
-    compiler::CodeAssemblerState* state) {
-  using compiler::Node;
-  CodeStubAssembler assembler(state);
-
-  Node* f = assembler.Parameter(0);
-  Node* v = assembler.Parameter(1);
-  Node* context = assembler.Parameter(4);
-  Node* result = assembler.OrdinaryHasInstance(context, f, v);
-  assembler.Return(result);
+                                "Function.prototype.toString"),
+                            isolate->factory()->Function_string()));
 }
 
 }  // namespace internal

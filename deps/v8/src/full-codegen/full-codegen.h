@@ -16,6 +16,7 @@
 #include "src/deoptimizer.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {
@@ -41,15 +42,10 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   static bool MakeCode(CompilationInfo* info, uintptr_t stack_limit);
   static bool MakeCode(CompilationInfo* info);
 
-  // Encode bailout state and pc-offset as a BitField<type, start, size>.
-  // Only use 30 bits because we encode the result as a smi.
-  class BailoutStateField : public BitField<Deoptimizer::BailoutState, 0, 1> {};
-  class PcField : public BitField<unsigned, 1, 30 - 1> {};
-
   static const int kMaxBackEdgeWeight = 127;
 
   // Platform-specific code size multiplier.
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_IA32
   static const int kCodeSizeMultiplier = 105;
 #elif V8_TARGET_ARCH_X64
   static const int kCodeSizeMultiplier = 165;
@@ -253,21 +249,18 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     EffectContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, BailoutState::NO_REGISTERS);
   }
 
   void VisitForAccumulatorValue(Expression* expr) {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     AccumulatorValueContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, BailoutState::TOS_REGISTER);
   }
 
   void VisitForStackValue(Expression* expr) {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     StackValueContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, BailoutState::NO_REGISTERS);
   }
 
   void VisitForControl(Expression* expr,
@@ -316,11 +309,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // stack depth is in sync with the actual operand stack during runtime.
   void EmitOperandStackDepthCheck();
 
-  // Generate code to create an iterator result object.  The "value" property is
-  // set to a value popped from the stack, and "done" is set according to the
-  // argument.  The result object is left in the result register.
-  void EmitCreateIteratorResult(bool done);
-
   // Try to perform a comparison as a fast inlined literal compare if
   // the operands allow it.  Returns true if the compare operations
   // has been matched and all code generated; false otherwise.
@@ -337,30 +325,17 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
                              Expression* sub_expr,
                              NilValue nil);
 
-  // Bailout support.
-  void PrepareForBailout(Expression* node, Deoptimizer::BailoutState state);
-  void PrepareForBailoutForId(BailoutId id, Deoptimizer::BailoutState state);
+  // Returns an int32 for the index into the FixedArray that backs the feedback
+  // vector
+  int32_t IntFromSlot(FeedbackSlot slot) const {
+    return FeedbackVector::GetIndex(slot);
+  }
 
   // Returns a smi for the index into the FixedArray that backs the feedback
   // vector
-  Smi* SmiFromSlot(FeedbackVectorSlot slot) const {
-    return Smi::FromInt(FeedbackVector::GetIndexFromSpec(
-        literal()->feedback_vector_spec(), slot));
+  Smi* SmiFromSlot(FeedbackSlot slot) const {
+    return Smi::FromInt(IntFromSlot(slot));
   }
-
-  // Record a call's return site offset, used to rebuild the frame if the
-  // called function was inlined at the site.
-  void RecordJSReturnSite(Call* call);
-
-  // Prepare for bailout before a test (or compare) and branch.  If
-  // should_normalize, then the following comparison will not handle the
-  // canonical JS true value so we will insert a (dead) test against true at
-  // the actual bailout target from the optimized code. If not
-  // should_normalize, the true and false labels are ignored.
-  void PrepareForBailoutBeforeSplit(Expression* expr,
-                                    bool should_normalize,
-                                    Label* if_true,
-                                    Label* if_false);
 
   // If enabled, emit debug code for checking that the current context is
   // neither a with nor a catch context.
@@ -407,15 +382,12 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   F(ClassOf)                            \
   F(StringCharCodeAt)                   \
   F(SubString)                          \
-  F(RegExpExec)                         \
   F(ToInteger)                          \
-  F(NumberToString)                     \
   F(ToString)                           \
   F(ToLength)                           \
   F(ToNumber)                           \
   F(ToObject)                           \
-  F(DebugIsActive)                      \
-  F(CreateIterResultObject)
+  F(DebugIsActive)
 
 #define GENERATOR_DECLARATION(Name) void Emit##Name(CallRuntime* call);
   FOR_EACH_FULL_CODE_INTRINSIC(GENERATOR_DECLARATION)
@@ -438,7 +410,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   // Platform-specific support for allocating a new closure based on
   // the given function info.
-  void EmitNewClosure(Handle<SharedFunctionInfo> info, FeedbackVectorSlot slot,
+  void EmitNewClosure(Handle<SharedFunctionInfo> info, FeedbackSlot slot,
                       bool pretenure);
 
   // Re-usable portions of CallRuntime
@@ -457,22 +429,14 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // of the stack and the right one in the accumulator.
   void EmitBinaryOp(BinaryOperation* expr, Token::Value op);
 
-  // Helper functions for generating inlined smi code for certain
-  // binary operations.
-  void EmitInlineSmiBinaryOp(BinaryOperation* expr,
-                             Token::Value op,
-                             Expression* left,
-                             Expression* right);
-
   // Assign to the given expression as if via '='. The right-hand-side value
   // is expected in the accumulator. slot is only used if FLAG_vector_stores
   // is true.
-  void EmitAssignment(Expression* expr, FeedbackVectorSlot slot);
+  void EmitAssignment(Expression* expr, FeedbackSlot slot);
 
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.
-  void EmitVariableAssignment(Variable* var, Token::Value op,
-                              FeedbackVectorSlot slot,
+  void EmitVariableAssignment(Variable* var, Token::Value op, FeedbackSlot slot,
                               HoleCheckMode hole_check_mode);
 
   // Helper functions to EmitVariableAssignment
@@ -496,22 +460,23 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // The value of the initializer is expected to be at the top of the stack.
   // |offset| is the offset in the stack where the home object can be found.
   void EmitSetHomeObject(Expression* initializer, int offset,
-                         FeedbackVectorSlot slot);
+                         FeedbackSlot slot);
 
   void EmitSetHomeObjectAccumulator(Expression* initializer, int offset,
-                                    FeedbackVectorSlot slot);
+                                    FeedbackSlot slot);
 
   // Platform-specific code for loading a slot to a register.
-  void EmitLoadSlot(Register destination, FeedbackVectorSlot slot);
+  void EmitLoadSlot(Register destination, FeedbackSlot slot);
   // Platform-specific code for pushing a slot to the stack.
-  void EmitPushSlot(FeedbackVectorSlot slot);
+  void EmitPushSlot(FeedbackSlot slot);
 
-  void CallIC(Handle<Code> code,
-              TypeFeedbackId id = TypeFeedbackId::None());
+  void CallIC(Handle<Code> code);
 
-  void CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name);
-  void CallStoreIC(FeedbackVectorSlot slot, Handle<Object> name);
-  void CallKeyedStoreIC(FeedbackVectorSlot slot);
+  void CallLoadIC(FeedbackSlot slot, Handle<Object> name);
+  enum StoreICKind { kStoreNamed, kStoreOwn, kStoreGlobal };
+  void CallStoreIC(FeedbackSlot slot, Handle<Object> name,
+                   StoreICKind store_ic_kind = kStoreNamed);
+  void CallKeyedStoreIC(FeedbackSlot slot);
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
@@ -530,8 +495,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // This is used in loop headers where we want to break for each iteration.
   void SetExpressionAsStatementPosition(Expression* expr);
 
-  void SetCallPosition(Expression* expr,
-                       TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  void SetCallPosition(Expression* expr);
 
   void SetConstructCallPosition(Expression* expr) {
     // Currently call and construct calls are treated the same wrt debugging.
@@ -565,6 +529,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   LanguageMode language_mode();
   bool has_simple_parameters();
   FunctionLiteral* literal() const;
+  const FeedbackVectorSpec* feedback_vector_spec() const;
   Scope* scope() { return scope_; }
 
   static Register context_register();
@@ -596,16 +561,10 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void VisitForTypeofValue(Expression* expr);
 
   void Generate();
-  void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateTypeFeedbackInfo(Handle<Code> code);
 
   bool MustCreateObjectLiteralWithRuntime(ObjectLiteral* expr) const;
   bool MustCreateArrayLiteralWithRuntime(ArrayLiteral* expr) const;
-
-  struct BailoutEntry {
-    BailoutId id;
-    unsigned pc_and_state;
-  };
 
   struct BackEdgeEntry {
     BailoutId id;
@@ -783,9 +742,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   class EnterBlockScopeIfNeeded {
    public:
-    EnterBlockScopeIfNeeded(FullCodeGenerator* codegen, Scope* scope,
-                            BailoutId entry_id, BailoutId declarations_id,
-                            BailoutId exit_id);
+    EnterBlockScopeIfNeeded(FullCodeGenerator* codegen, Scope* scope);
     ~EnterBlockScopeIfNeeded();
 
    private:
@@ -793,7 +750,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
     FullCodeGenerator* codegen_;
     Scope* saved_scope_;
-    BailoutId exit_id_;
     bool needs_block_context_;
   };
 
@@ -808,7 +764,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   int operand_stack_depth_;
   ZoneList<Handle<Object> >* globals_;
   const ExpressionContext* context_;
-  ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BackEdgeEntry> back_edges_;
   SourcePositionTableBuilder source_position_table_builder_;
   int ic_total_count_;

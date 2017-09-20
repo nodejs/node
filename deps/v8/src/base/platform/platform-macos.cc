@@ -36,8 +36,9 @@
 #undef MAP_TYPE
 
 #include "src/base/macros.h"
+#include "src/base/platform/platform-posix-time.h"
+#include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
-
 
 namespace v8 {
 namespace base {
@@ -50,18 +51,12 @@ namespace base {
 static const int kMmapFd = VM_MAKE_TAG(255);
 static const off_t kMmapFdOffset = 0;
 
-
-void* OS::Allocate(const size_t requested,
-                   size_t* allocated,
-                   bool is_executable) {
+void* OS::Allocate(const size_t requested, size_t* allocated,
+                   OS::MemoryPermission access, void* hint) {
   const size_t msize = RoundUp(requested, getpagesize());
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  void* mbase = mmap(OS::GetRandomMmapAddr(),
-                     msize,
-                     prot,
-                     MAP_PRIVATE | MAP_ANON,
-                     kMmapFd,
-                     kMmapFdOffset);
+  int prot = GetProtectionFromMemoryPermission(access);
+  void* mbase =
+      mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANON, kMmapFd, kMmapFdOffset);
   if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
   return mbase;
@@ -98,45 +93,23 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
 void OS::SignalCodeMovingGC() {
 }
 
-
-const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
-  if (std::isnan(time)) return "";
-  time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
-  struct tm tm;
-  struct tm* t = localtime_r(&tv, &tm);
-  if (NULL == t) return "";
-  return t->tm_zone;
+TimezoneCache* OS::CreateTimezoneCache() {
+  return new PosixDefaultTimezoneCache();
 }
-
-
-double OS::LocalTimeOffset(TimezoneCache* cache) {
-  time_t tv = time(NULL);
-  struct tm tm;
-  struct tm* t = localtime_r(&tv, &tm);
-  // tm_gmtoff includes any daylight savings offset, so subtract it.
-  return static_cast<double>(t->tm_gmtoff * msPerSecond -
-                             (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
-}
-
 
 VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
+VirtualMemory::VirtualMemory(size_t size, void* hint)
+    : address_(ReserveRegion(size, hint)), size_(size) {}
 
-VirtualMemory::VirtualMemory(size_t size)
-    : address_(ReserveRegion(size)), size_(size) { }
-
-
-VirtualMemory::VirtualMemory(size_t size, size_t alignment)
+VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
     : address_(NULL), size_(0) {
   DCHECK((alignment % OS::AllocateAlignment()) == 0);
   size_t request_size = RoundUp(size + alignment,
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* reservation = mmap(OS::GetRandomMmapAddr(),
-                           request_size,
-                           PROT_NONE,
-                           MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
-                           kMmapFd,
-                           kMmapFdOffset);
+  void* reservation =
+      mmap(hint, request_size, PROT_NONE,
+           MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, kMmapFd, kMmapFdOffset);
   if (reservation == MAP_FAILED) return;
 
   uint8_t* base = static_cast<uint8_t*>(reservation);
@@ -174,12 +147,6 @@ VirtualMemory::~VirtualMemory() {
   }
 }
 
-
-bool VirtualMemory::IsReserved() {
-  return address_ != NULL;
-}
-
-
 void VirtualMemory::Reset() {
   address_ = NULL;
   size_ = 0;
@@ -201,14 +168,10 @@ bool VirtualMemory::Guard(void* address) {
   return true;
 }
 
-
-void* VirtualMemory::ReserveRegion(size_t size) {
-  void* result = mmap(OS::GetRandomMmapAddr(),
-                      size,
-                      PROT_NONE,
-                      MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
-                      kMmapFd,
-                      kMmapFdOffset);
+void* VirtualMemory::ReserveRegion(size_t size, void* hint) {
+  void* result =
+      mmap(hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+           kMmapFd, kMmapFdOffset);
 
   if (result == MAP_FAILED) return NULL;
 

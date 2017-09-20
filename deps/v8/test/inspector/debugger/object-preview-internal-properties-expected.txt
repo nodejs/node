@@ -163,23 +163,19 @@ expression: (new Map([[1,2]])).entries()
 [[Entries]]:
 [
     [0] : {
-        value : {
-            description : Array(2)
+        key : {
+            description : 1
             overflow : false
             properties : [
-                [0] : {
-                    name : 0
-                    type : number
-                    value : 1
-                }
-                [1] : {
-                    name : 1
-                    type : number
-                    value : 2
-                }
             ]
-            subtype : array
-            type : object
+            type : number
+        }
+        value : {
+            description : 2
+            overflow : false
+            properties : [
+            ]
+            type : number
         }
     }
 ]
@@ -209,15 +205,13 @@ expression: (new Set([[1,2]])).entries()
             properties : [
                 [0] : {
                     name : 0
-                    subtype : array
-                    type : object
-                    value : Array(2)
+                    type : number
+                    value : 1
                 }
                 [1] : {
                     name : 1
-                    subtype : array
-                    type : object
-                    value : Array(2)
+                    type : number
+                    value : 2
                 }
             ]
             subtype : array
