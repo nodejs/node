@@ -49,7 +49,7 @@ const server = http.createServer(function(req, res) {
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end();
   });
 });

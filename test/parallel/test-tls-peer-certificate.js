@@ -30,7 +30,7 @@ const {
 } = require(fixtures.path('tls-connect'));
 
 connect({
-  client: {rejectUnauthorized: false},
+  client: { rejectUnauthorized: false },
   server: keys.agent1,
 }, function(err, pair, cleanup) {
   assert.ifError(err);

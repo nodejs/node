@@ -233,7 +233,7 @@ if (process.argv[2] === 'child') {
 
     receivedMessages.push(buf);
 
-    process.send({message: buf.toString()});
+    process.send({ message: buf.toString() });
 
     if (receivedMessages.length === messages.length) {
       process.nextTick(function() {
@@ -252,7 +252,7 @@ if (process.argv[2] === 'child') {
   });
 
   listenSocket.on('listening', function() {
-    process.send({listening: true});
+    process.send({ listening: true });
   });
 
   listenSocket.bind(common.PORT);

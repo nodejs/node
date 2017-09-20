@@ -25,10 +25,10 @@ const assert = require('assert');
 const http = require('http');
 
 const body = 'hello world\n';
-const headers = {'connection': 'keep-alive'};
+const headers = { 'connection': 'keep-alive' };
 
 const server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Length': body.length, 'Connection': 'close'});
+  res.writeHead(200, { 'Content-Length': body.length, 'Connection': 'close' });
   res.write(body);
   res.end();
 });

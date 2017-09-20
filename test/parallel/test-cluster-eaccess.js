@@ -35,7 +35,7 @@ if (cluster.isMaster && process.argv.length !== 3) {
   // cluster.isMaster
   common.refreshTmpDir();
   const PIPE_NAME = common.PIPE;
-  const worker = cluster.fork({PIPE_NAME});
+  const worker = cluster.fork({ PIPE_NAME });
 
   // makes sure master is able to fork the worker
   cluster.on('fork', common.mustCall());

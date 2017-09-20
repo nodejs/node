@@ -58,7 +58,7 @@ function isWarned(emitter) {
 {
   // Minimum crlfDelay is 100ms
   const fi = new FakeInput();
-  const rli = new readline.Interface({ input: fi, output: fi, crlfDelay: 0});
+  const rli = new readline.Interface({ input: fi, output: fi, crlfDelay: 0 });
   assert.strictEqual(rli.crlfDelay, 100);
   rli.close();
 }

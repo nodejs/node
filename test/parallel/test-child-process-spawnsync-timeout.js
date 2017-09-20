@@ -38,7 +38,7 @@ switch (process.argv[2]) {
   default:
     const start = Date.now();
     const ret = spawnSync(process.execPath, [__filename, 'child'],
-                          {timeout: TIMER});
+                          { timeout: TIMER });
     assert.strictEqual(ret.error.errno, 'ETIMEDOUT');
     const end = Date.now() - start;
     assert(end < SLEEP);

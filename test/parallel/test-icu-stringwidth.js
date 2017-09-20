@@ -55,7 +55,7 @@ assert.strictEqual(readline.getStringWidth(0x20DD), 0);
 // individually.
 assert.strictEqual(readline.getStringWidth('👩‍👩‍👧‍👧'), 2);
 assert.strictEqual(
-  readline.getStringWidth('👩‍👩‍👧‍👧', {expandEmojiSequence: true}), 8);
+  readline.getStringWidth('👩‍👩‍👧‍👧', { expandEmojiSequence: true }), 8);
 
 // By default, unicode characters whose width is considered ambiguous will
 // be considered half-width. For these characters, getStringWidth will return
@@ -65,7 +65,7 @@ assert.strictEqual(
 // as 2 columns.
 assert.strictEqual(readline.getStringWidth('\u01d4'), 1);
 assert.strictEqual(
-  readline.getStringWidth('\u01d4', {ambiguousAsFullWidth: true}), 2);
+  readline.getStringWidth('\u01d4', { ambiguousAsFullWidth: true }), 2);
 
 // Control chars and combining chars are zero
 assert.strictEqual(readline.getStringWidth('\u200E\n\u220A\u20D2'), 1);

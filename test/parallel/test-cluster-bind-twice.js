@@ -68,7 +68,7 @@ if (!id) {
 
   a.on('message', common.mustCall((m) => {
     assert.strictEqual(m.msg, 'READY');
-    b.send({msg: 'START', port: m.port});
+    b.send({ msg: 'START', port: m.port });
   }));
 
   b.on('message', common.mustCall((m) => {
@@ -82,7 +82,7 @@ if (!id) {
 
   const server = http.createServer(common.mustNotCall());
   server.listen(0, common.mustCall(() => {
-    process.send({msg: 'READY', port: server.address().port});
+    process.send({ msg: 'READY', port: server.address().port });
   }));
 
   process.on('message', common.mustCall((m) => {

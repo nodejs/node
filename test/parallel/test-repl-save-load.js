@@ -63,7 +63,7 @@ assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
 
   putIn.run(['.editor']);
   putIn.run(cmds);
-  replServer.write('', {ctrl: true, name: 'd'});
+  replServer.write('', { ctrl: true, name: 'd' });
 
   putIn.run([`.save ${saveFileName}`]);
   replServer.close();
