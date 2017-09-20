@@ -95,8 +95,8 @@ napi_value Test(napi_env env, napi_callback_info info) {
   NAPI_CALL(env,
     napi_create_reference(env, argv[2], 1, &the_carrier._callback));
 
-  NAPI_CALL(env,
-    napi_create_string_utf8(env, "TestResource", -1, &resource_name));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "TestResource", NAPI_AUTO_LENGTH, &resource_name));
   NAPI_CALL(env, napi_create_async_work(env, argv[1], resource_name,
     Execute, Complete, &the_carrier, &the_carrier._request));
   NAPI_CALL(env,
@@ -145,8 +145,8 @@ napi_value TestCancel(napi_env env, napi_callback_info info) {
   napi_value resource_name;
   void* data;
 
-  NAPI_CALL(env,
-    napi_create_string_utf8(env, "TestResource", -1, &resource_name));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "TestResource", NAPI_AUTO_LENGTH, &resource_name));
 
   // make sure the work we are going to cancel will not be
   // able to start by using all the threads in the pool

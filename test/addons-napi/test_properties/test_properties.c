@@ -66,14 +66,14 @@ napi_value Init(napi_env env, napi_value exports) {
   napi_value name_value;
   NAPI_CALL(env, napi_create_string_utf8(env,
                                          "NameKeyValue",
-                                         -1,
+                                         NAPI_AUTO_LENGTH,
                                          &name_value));
 
   napi_value symbol_description;
   napi_value name_symbol;
   NAPI_CALL(env, napi_create_string_utf8(env,
                                          "NameKeySymbol",
-                                         -1,
+                                         NAPI_AUTO_LENGTH,
                                          &symbol_description));
   NAPI_CALL(env, napi_create_symbol(env,
                                     symbol_description,

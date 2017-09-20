@@ -33,11 +33,11 @@ napi_value TestFunctionName(napi_env env, napi_callback_info info) {
 napi_value Init(napi_env env, napi_value exports) {
   napi_value fn1;
   NAPI_CALL(env, napi_create_function(
-      env, NULL, -1, TestCallFunction, NULL, &fn1));
+      env, NULL, NAPI_AUTO_LENGTH, TestCallFunction, NULL, &fn1));
 
   napi_value fn2;
   NAPI_CALL(env, napi_create_function(
-      env, "Name", -1, TestFunctionName, NULL, &fn2));
+      env, "Name", NAPI_AUTO_LENGTH, TestFunctionName, NULL, &fn2));
 
   napi_value fn3;
   NAPI_CALL(env, napi_create_function(

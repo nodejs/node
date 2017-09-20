@@ -43,7 +43,7 @@ napi_value testGetNodeVersion(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_create_uint32(env, node_version->patch, &patch));
   NAPI_CALL(env, napi_create_string_utf8(env,
                                          node_version->release,
-                                         (size_t)-1,
+                                         NAPI_AUTO_LENGTH,
                                          &release));
   NAPI_CALL(env, napi_create_array_with_length(env, 4, &result));
   NAPI_CALL(env, napi_set_element(env, result, 0, major));
@@ -120,21 +120,29 @@ napi_value testNapiTypeof(napi_env env, napi_callback_info info) {
 
   napi_value result = NULL;
   if (argument_type == napi_number) {
-    NAPI_CALL(env, napi_create_string_utf8(env, "number", -1, &result));
+    NAPI_CALL(env, napi_create_string_utf8(
+        env, "number", NAPI_AUTO_LENGTH, &result));
   } else if (argument_type == napi_string) {
-    NAPI_CALL(env, napi_create_string_utf8(env, "string", -1, &result));
+    NAPI_CALL(env, napi_create_string_utf8(
+        env, "string", NAPI_AUTO_LENGTH, &result));
   } else if (argument_type == napi_function) {
-    NAPI_CALL(env, napi_create_string_utf8(env, "function", -1, &result));
+    NAPI_CALL(env, napi_create_string_utf8(
+        env, "function", NAPI_AUTO_LENGTH, &result));
   } else if (argument_type == napi_object) {
-    NAPI_CALL(env, napi_create_string_utf8(env, "object", -1, &result));
+    NAPI_CALL(env, napi_create_string_utf8(
+        env, "object", NAPI_AUTO_LENGTH, &result));
   } else if (argument_type == napi_boolean) {
-    NAPI_CALL(env, napi_create_string_utf8(env, "boolean", -1, &result));
+    NAPI_CALL(env, napi_create_string_utf8(
+        env, "boolean", NAPI_AUTO_LENGTH, &result));
   } else if (argument_type == napi_undefined) {
-    NAPI_CALL(env, napi_create_string_utf8(env, "undefined", -1, &result));
+    NAPI_CALL(env, napi_create_string_utf8(
+        env, "undefined", NAPI_AUTO_LENGTH, &result));
   } else if (argument_type == napi_symbol) {
-    NAPI_CALL(env, napi_create_string_utf8(env, "symbol", -1, &result));
+    NAPI_CALL(env, napi_create_string_utf8(
+        env, "symbol", NAPI_AUTO_LENGTH, &result));
   } else if (argument_type == napi_null) {
-    NAPI_CALL(env, napi_create_string_utf8(env, "null", -1, &result));
+    NAPI_CALL(env, napi_create_string_utf8(
+        env, "null", NAPI_AUTO_LENGTH, &result));
   }
   return result;
 }

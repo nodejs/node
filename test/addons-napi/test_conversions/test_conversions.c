@@ -81,7 +81,8 @@ napi_value AsString(napi_env env, napi_callback_info info) {
     napi_get_value_string_utf8(env, args[0], value, sizeof(value), NULL));
 
   napi_value output;
-  NAPI_CALL(env, napi_create_string_utf8(env, value, -1, &output));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, value, NAPI_AUTO_LENGTH, &output));
 
   return output;
 }
