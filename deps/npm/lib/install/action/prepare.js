@@ -19,8 +19,8 @@ module.exports = function (staging, pkg, log, next) {
   var buildpath = moduleStagingPath(staging, pkg)
   chain(
     [
-      [lifecycle, pkg.package, 'prepublish', buildpath, false, false],
-      [lifecycle, pkg.package, 'prepare', buildpath, false, false]
+      [lifecycle, pkg.package, 'prepublish', buildpath],
+      [lifecycle, pkg.package, 'prepare', buildpath]
     ],
     next
   )

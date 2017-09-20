@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="2.5.0"></a>
+# [2.5.0](https://github.com/zkat/make-fetch-happen/compare/v2.4.13...v2.5.0) (2017-08-24)
+
+
+### Bug Fixes
+
+* **agent:** support timeout durations greater than 30 seconds ([04875ae](https://github.com/zkat/make-fetch-happen/commit/04875ae)), closes [#35](https://github.com/zkat/make-fetch-happen/issues/35)
+
+
+### Features
+
+* **cache:** export cache deletion functionality (#40) ([3da4250](https://github.com/zkat/make-fetch-happen/commit/3da4250))
+
+
+
 <a name="2.4.13"></a>
 ## [2.4.13](https://github.com/zkat/make-fetch-happen/compare/v2.4.12...v2.4.13) (2017-06-29)
 
