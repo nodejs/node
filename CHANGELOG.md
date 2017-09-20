@@ -1,5 +1,45 @@
 # Node.js ChangeLog
 
+## 2017-10-03, Version 4.8.5 'Argon' (Maintenance), @MylesBorins
+
+### Notable Changes
+
+Coming Soon
+
+### Commits
+
+* [[`0b1df7e99d`](https://github.com/nodejs/node/commit/0b1df7e99d)] - deps/v8: add missing #include "unicode/normlzr.h" (Bruno Pagani) [#13040](https://github.com/nodejs/node/pull/13040)
+* [[`dc05da730f`](https://github.com/nodejs/node/commit/dc05da730f)] - **build**: codesign tarball binary on macOS (Evan Lucas) [#14179](https://github.com/nodejs/node/pull/14179)
+* [[`40fb0da733`](https://github.com/nodejs/node/commit/40fb0da733)] - **build**: avoid /docs/api and /docs/doc/api upload (Rod Vagg) [#12957](https://github.com/nodejs/node/pull/12957)
+* [[`70f2299c1e`](https://github.com/nodejs/node/commit/70f2299c1e)] - **build,tools**: do not force codesign prefix (Evan Lucas) [#14179](https://github.com/nodejs/node/pull/14179)
+* [[`fc6d118cbf`](https://github.com/nodejs/node/commit/fc6d118cbf)] - **crypto**: update root certificates (Ben Noordhuis) [#13279](https://github.com/nodejs/node/pull/13279)
+* [[`491f8c7db4`](https://github.com/nodejs/node/commit/491f8c7db4)] - **crypto**: update root certificates (Ben Noordhuis) [#12402](https://github.com/nodejs/node/pull/12402)
+* [[`61f046404d`](https://github.com/nodejs/node/commit/61f046404d)] - **crypto**: clear err stack after ECDH::BufferToPoint (Ryan Kelly) [#13275](https://github.com/nodejs/node/pull/13275)
+* [[`84a838e209`](https://github.com/nodejs/node/commit/84a838e209)] - **deps**: update openssl asm and asm_obsolete files (Daniel Bevenius) [#13233](https://github.com/nodejs/node/pull/13233)
+* [[`df2ee21172`](https://github.com/nodejs/node/commit/df2ee21172)] - **deps**: update openssl config files (Daniel Bevenius) [#13233](https://github.com/nodejs/node/pull/13233)
+* [[`c98f78d4f5`](https://github.com/nodejs/node/commit/c98f78d4f5)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`a4e947fcf0`](https://github.com/nodejs/node/commit/a4e947fcf0)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`0bacd2dfed`](https://github.com/nodejs/node/commit/0bacd2dfed)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`283dd7387c`](https://github.com/nodejs/node/commit/283dd7387c)] - **deps**: copy all openssl header files to include dir (Daniel Bevenius) [#13233](https://github.com/nodejs/node/pull/13233)
+* [[`a5a80655b8`](https://github.com/nodejs/node/commit/a5a80655b8)] - **deps**: upgrade openssl sources to 1.0.2l (Daniel Bevenius) [#13233](https://github.com/nodejs/node/pull/13233)
+* [[`0286833a39`](https://github.com/nodejs/node/commit/0286833a39)] - **deps**: add example of comparing OpenSSL changes (Daniel Bevenius) [#13234](https://github.com/nodejs/node/pull/13234)
+* [[`5d7f68ae9d`](https://github.com/nodejs/node/commit/5d7f68ae9d)] - **deps**: cherry-pick 09db540,686558d from V8 upstream (Jesse Rosenberger) [#14829](https://github.com/nodejs/node/pull/14829)
+* [[`df23963e82`](https://github.com/nodejs/node/commit/df23963e82)] - ***Revert*** "**deps**: backport e093a04, 09db540 from upstream V8" (Jesse Rosenberger) [#14829](https://github.com/nodejs/node/pull/14829)
+* [[`dabc7c3a12`](https://github.com/nodejs/node/commit/dabc7c3a12)] - **deps**: cherry-pick 18ea996 from c-ares upstream (Anna Henningsen) [#13883](https://github.com/nodejs/node/pull/13883)
+* [[`64f5b73f00`](https://github.com/nodejs/node/commit/64f5b73f00)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#12913](https://github.com/nodejs/node/pull/12913)
+* [[`f4c5874a01`](https://github.com/nodejs/node/commit/f4c5874a01)] - **deps**: cherry-pick 4ae5993 from upstream OpenSSL (Shigeki Ohtsu) [#12913](https://github.com/nodejs/node/pull/12913)
+* [[`273e02d89a`](https://github.com/nodejs/node/commit/273e02d89a)] - **doc**: add missing make command to UPGRADING.md (Daniel Bevenius) [#13233](https://github.com/nodejs/node/pull/13233)
+* [[`244983a6ab`](https://github.com/nodejs/node/commit/244983a6ab)] - **doc**: add entry for subprocess.killed property (Rich Trott) [#14578](https://github.com/nodejs/node/pull/14578)
+* [[`fd27dc72a4`](https://github.com/nodejs/node/commit/fd27dc72a4)] - **doc**: change `child` to `subprocess` (Rich Trott) [#14578](https://github.com/nodejs/node/pull/14578)
+* [[`fc6145ff03`](https://github.com/nodejs/node/commit/fc6145ff03)] - **docs**: Fix broken links in crypto.md (Zuzana Svetlikova) [#15182](https://github.com/nodejs/node/pull/15182)
+* [[`d93ef98ac9`](https://github.com/nodejs/node/commit/d93ef98ac9)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`fdcfc4c153`](https://github.com/nodejs/node/commit/fdcfc4c153)] - **tools**: update certdata.txt (Ben Noordhuis) [#13279](https://github.com/nodejs/node/pull/13279)
+* [[`6fa2d7eccb`](https://github.com/nodejs/node/commit/6fa2d7eccb)] - **tools**: update certdata.txt (Ben Noordhuis) [#12402](https://github.com/nodejs/node/pull/12402)
+* [[`8c9f1b3474`](https://github.com/nodejs/node/commit/8c9f1b3474)] - **tools**: be explicit about including key-id (Myles Borins) [#13309](https://github.com/nodejs/node/pull/13309)
+* [[`0bcd62baee`](https://github.com/nodejs/node/commit/0bcd62baee)] - **v8**: fix stack overflow in recursive method (Ben Noordhuis) [#12460](https://github.com/nodejs/node/pull/12460)
+* [[`5422eb8d4e`](https://github.com/nodejs/node/commit/5422eb8d4e)] - **zlib**: fix crash when initializing failed (Anna Henningsen) [#14666](https://github.com/nodejs/node/pull/14666)
+* [[`2a8ef7a1af`](https://github.com/nodejs/node/commit/2a8ef7a1af)] - **zlib**: fix node crashing on invalid options (Alexey Orlenko) [#13098](https://github.com/nodejs/node/pull/13098)
+
 ## 2017-07-11, Version 4.8.4 'Argon' (Maintenance), @MylesBorins
 
 This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/july-2017-security-releases/ for details on patched vulnerabilities.
